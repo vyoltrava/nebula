@@ -19,12 +19,14 @@ export function Avatar({
   id,
   size = 40,
   className = "",
+  noLink = false,  // ← ДОБАВЛЕНО
 }: {
   src?: string | null;
   name: string;
   id?: number;
   size?: number;
   className?: string;
+  noLink?: boolean;  // ← ДОБАВЛЕНО
 }) {
   // Определяем градиент по ID (или по имени, если ID нет)
   const gradient = useMemo(() => {

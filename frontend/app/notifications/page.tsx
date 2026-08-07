@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { getToken } from "@/lib/auth";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
@@ -27,6 +26,7 @@ function timeAgo(dateStr: string): string {
 export default function NotificationsPage() {
   const [notifs, setNotifs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [markingAll, setMarkingAll] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -49,20 +49,31 @@ export default function NotificationsPage() {
   async function markRead(id: number) {
     const token = getToken();
     if (!token) return;
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/${id}/read`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setNotifs((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/${id}/read`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setNotifs((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+      );
+    } catch (e) {
+      console.error("Ошибка отметки:", e);
+    }
   }
 
   async function markAllRead() {
     const token = getToken();
     if (!token) return;
+    setMarkingAll(true);
+    
     const unread = notifs.filter((n) => !n.read);
-    await Promise.all(
+    
+    // Мгновенно обновляем UI
+    setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+    
+    // Параллельно отправляем на сервер
+    await Promise.allSettled(
       unread.map((n) =>
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/${n.id}/read`, {
           method: "POST",
@@ -70,23 +81,21 @@ export default function NotificationsPage() {
         })
       )
     );
-    setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+    
+    setMarkingAll(false);
   }
 
-  // ✅ ИСПРАВЛЕНО: всегда возвращает ссылку
   function getNotificationLink(n: any): string {
+    if (!n) return "/";
     switch (n.type) {
       case "follow":
-        return `/user/${n.actor?.id}`;
       case "like":
       case "reply":
       case "mention":
-        // Всегда ведём к профилю актёра (оттуда можно перейти к посту)
-        return `/user/${n.actor?.id}`;
+        return `/user/${n.actor?.id || 0}`;
       case "message":
         return "/messages";
       default:
-        // Для неизвестных типов — просто профиль актёра
         return n.actor?.id ? `/user/${n.actor.id}` : "/";
     }
   }
@@ -108,6 +117,15 @@ export default function NotificationsPage() {
   };
 
   const unreadCount = notifs.filter((n) => !n.read).length;
+
+  // ✅ Главная функция: клик по уведомлению
+  function handleNotifClick(n: any) {
+    if (!n.read) {
+      markRead(n.id);
+    }
+    const link = getNotificationLink(n);
+    router.push(link);
+  }
 
   return (
     <div className="h-screen flex overflow-hidden bg-[#18181b]">
@@ -135,15 +153,19 @@ export default function NotificationsPage() {
               </div>
             </div>
 
-            {unreadCount > 0 && (
-              <button
-                onClick={markAllRead}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/15 text-white/70 text-sm font-semibold hover:bg-white/10 hover:text-white transition-all"
-              >
-                <CheckCheck size={16} />
-                Прочитать все
-              </button>
-            )}
+            {/* ✅ Кнопка ВСЕГДА рендерится */}
+            <button
+              onClick={markAllRead}
+              disabled={unreadCount === 0 || markingAll}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-semibold transition-all ${
+                unreadCount === 0 || markingAll
+                  ? "border-white/5 text-white/20 cursor-not-allowed"
+                  : "border-[#8b5cf6]/40 text-[#8b5cf6] hover:bg-[#8b5cf6]/10 hover:text-[#a78bfa]"
+              }`}
+            >
+              <CheckCheck size={16} />
+              {markingAll ? "Отмечаем..." : "Прочитать все"}
+            </button>
           </div>
         </div>
 
@@ -171,25 +193,20 @@ export default function NotificationsPage() {
                 const link = getNotificationLink(n);
                 
                 return (
-                  <Link
+                  <div
                     key={n.id}
-                    href={link}
-                    onClick={() => {
-                      if (!n.read) {
-                        markRead(n.id);
-                      }
-                    }}
-                    className={`flex items-start gap-3 p-4 transition-all cursor-pointer block ${
+                    onClick={() => handleNotifClick(n)}
+                    className={`flex items-start gap-3 p-4 transition-all cursor-pointer block group ${
                       !n.read
                         ? "bg-[#8b5cf6]/5 hover:bg-[#8b5cf6]/10"
                         : "hover:bg-white/5"
                     }`}
                   >
-                    {/* Аватарка актёра */}
+                    {/* Аватарка */}
                     <div className="shrink-0">
                       <Avatar
                         src={n.actor?.avatar_url}
-                        name={n.actor?.display_name}
+                        name={n.actor?.display_name || "User"}
                         id={n.actor?.id}
                         size={44}
                       />
@@ -198,7 +215,7 @@ export default function NotificationsPage() {
                     {/* Контент */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-white truncate">
+                        <span className="font-bold text-white truncate group-hover:text-[#a78bfa] transition-colors">
                           {n.actor?.display_name || "Неизвестный"}
                         </span>
                         <span className="text-sm text-white/60">
@@ -216,10 +233,8 @@ export default function NotificationsPage() {
                       </p>
 
                       {/* Подсказка куда ведёт */}
-                      <p className="text-xs text-[#8b5cf6]/80 mt-1.5">
-                        → {n.type === "follow" ? "Перейти к профилю" : 
-                           n.type === "message" ? "Открыть сообщения" : 
-                           "Перейти к профилю"}
+                      <p className="text-xs text-[#8b5cf6]/80 mt-1.5 font-medium">
+                        → {link === "/messages" ? "Открыть сообщения" : "Перейти к профилю"}
                       </p>
                     </div>
 
@@ -227,7 +242,7 @@ export default function NotificationsPage() {
                     {!n.read && (
                       <div className="w-2.5 h-2.5 rounded-full bg-[#8b5cf6] shrink-0 mt-2 shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
                     )}
-                  </Link>
+                  </div>
                 );
               })}
             </div>
