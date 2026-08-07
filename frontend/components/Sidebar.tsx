@@ -313,11 +313,11 @@ export function Sidebar() {
           onClick={() => setDrawerOpen(false)}
         />
       )}
-
+      
       {/* 🆕 Компактное окошко с кнопками — ПРЯМО НАД кнопкой меню, справа */}
       <aside
         className={`
-          md:hidden fixed right-3 bottom-40 z-[96] w-64 max-w-[85vw] max-h-[60vh]
+          md:hidden fixed right-3 bottom-24 z-[96] w-64 max-w-[85vw] max-h-[60vh]
           overflow-y-auto rounded-2xl border border-[#8b5cf6]/40 bg-[#171717]/95
           backdrop-blur-md shadow-2xl shadow-black/60 p-4 flex flex-col gap-4
           transition-all duration-200 ease-out
@@ -327,21 +327,16 @@ export function Sidebar() {
         {sidebarContent}
       </aside>
 
-      {/* 🆕 Слайдер-меню — СПРАВА внизу, всегда на месте */}
+      {/* 🆕 Кнопка меню — маленький квадратик СПРАВА внизу */}
       <button
         onClick={() => setDrawerOpen(!drawerOpen)}
-        className="md:hidden fixed right-3 bottom-6 z-[97] w-11 h-28 rounded-full 
+        className="md:hidden fixed right-3 bottom-6 z-[97] w-14 h-14 rounded-2xl 
           bg-[#171717]/95 backdrop-blur-md border-2 border-[#8b5cf6]/60 
-          text-[#8b5cf6] flex flex-col items-center justify-center gap-2 
-          shadow-lg shadow-black/60 active:scale-95 transition-all"
+          text-[#8b5cf6] flex items-center justify-center
+          shadow-lg shadow-black/60 active:scale-90 transition-all"
         aria-label="Открыть меню"
       >
-        <Menu size={20} />
-        <span 
-          className="text-[9px] font-black uppercase tracking-widest"
-          style={{ writingMode: "vertical-rl" }}
-        >
-        </span>
+        <Menu size={24} />
       </button>
 
       {/* 💻 Десктопный сайдбар — без изменений */}
