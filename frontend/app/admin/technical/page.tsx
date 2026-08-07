@@ -172,6 +172,36 @@ export default function TechnicalPage() {
     }
   }
 
+
+    // 🆕 Загрузка багов (вызывается отдельно)
+    async function loadBugs() {
+      const token = getToken();
+      if (!token) return;
+      setBugsLoading(true);
+
+      try {
+        const url = bugStatusFilter
+          ? `${process.env.NEXT_PUBLIC_API_URL}/api/bugs?status=${bugStatusFilter}`
+          : `${process.env.NEXT_PUBLIC_API_URL}/api/bugs`;
+
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.ok) {
+          setBugs(await res.json());
+        } else {
+          setBugs([]);
+        }
+      } catch (err) {
+        console.error("Failed to load bugs:", err);
+        setBugs([]);
+      } finally {
+        setBugsLoading(false);
+      }
+    }
+
+
   useEffect(() => {
     load();
   }, []);
@@ -349,7 +379,7 @@ export default function TechnicalPage() {
     
     return usernameMatch || displayMatch;
   }) : [];
-  
+
   // 🆕 Счётчики багов по статусам
   const bugCounts = {
     new: bugs.filter((b) => b.status === "new").length,
