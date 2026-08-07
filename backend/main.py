@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlmodel import Session, select, func
+from sqlalchemy import text
 from typing import Optional
 import jwt
 import bcrypt
@@ -334,21 +335,7 @@ def extract_mentions(text: str) -> list:
     return list({m.lower() for m in re.findall(r"@(\w+)", text)})
 
 
-@app.on_event("startup")
-def startup():
-    init_db()
-    with Session(engine) as session:
-        SYSTEM = session.exec(select(User).where(User.username == "System")).first()
-        if not SYSTEM:
-            session.add(User(
-                username="System",
-                display_name="SYSTEM",
-                password_hash=hash_password("System"),
-                is_admin=False,       # ← НЕ админ (отдельный тип)
-                is_moderator=False,   # ← НЕ модератор
-                is_system=True,       # ← СИСТЕМНЫЙ аккаунт
-            ))
-            session.commit()
+
 
 
 class RegisterIn(BaseModel):
