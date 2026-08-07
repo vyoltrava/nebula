@@ -10,3 +10,4 @@ bcrypt
 email-validator
 slowapi
 PyJWT
+cryptography>=41.0.0

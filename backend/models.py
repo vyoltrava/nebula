@@ -65,6 +65,7 @@ class PostTag(SQLModel, table=True):
 class Chat(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=datetime.now)
+    is_secret: bool = Field(default=False)
 
 
 class ChatMember(SQLModel, table=True):
@@ -84,6 +85,7 @@ class Message(SQLModel, table=True):
     edited: bool = Field(default=False)  # ← ДОБАВЬТЕ
     edited_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.now)
+    ciphertext: Optional[str] = None
 
 class Role(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -124,3 +126,27 @@ class Update(SQLModel, table=True):
     author_id: Optional[int] = Field(default=None, foreign_key="user.id")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     edited_at: Optional[datetime] = None
+
+class UserKey(SQLModel, table=True):
+    """Публичный ключ пользователя для E2EE. Приватный ключ — только на устройстве."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", unique=True)
+    public_key: str  # base64 X25519 public key
+    fingerprint: str  # SHA256[:16] для верификации
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class ChatSessionKey(SQLModel, table=True):
+    """Session key чата, зашифрованный публичным ключом каждого участника."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    chat_id: int = Field(foreign_key="chat.id")
+    user_id: int = Field(foreign_key="user.id")
+    encrypted_session_key: str  # base64
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# Добавь в существующую модель Chat новое поле:
+# is_secret: bool = Field(default=False)
+
+# Добавь в существующую модель Message новое поле:
+# ciphertext: Optional[str] = None  # зашифрованный текст для секретных чатов

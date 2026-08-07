@@ -9,6 +9,7 @@ import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
 import { ReportModal } from "@/components/ReportModal";
 import { SystemName } from "@/components/SystemName";
+import { ensureKeyPair } from "@/lib/crypto";
 
 
 export default function UserProfilePage() {
@@ -289,6 +290,32 @@ export default function UserProfilePage() {
                     <MessageSquare size={16} className="hidden md:block" />
                     <span className="hidden sm:inline">Написать</span>
                   </button>
+
+                    <button
+                      onClick={async () => {
+                        const token = getToken();
+                        if (!token) return;
+                        // Убеждаемся, что у нас есть ключ
+                        await ensureKeyPair(token, process.env.NEXT_PUBLIC_API_URL!);
+                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/secret`, {
+                          method: "POST",
+                          headers: { Authorization: `Bearer ${token}` },
+                          body: new URLSearchParams({ other_user_id: String(profile.id) }),
+                        });
+                        if (res.ok) {
+                          const data = await res.json();
+                          router.push(`/messages/${data.chat_id}`);
+                        } else {
+                          const err = await res.json().catch(() => null);
+                          alert(err?.detail || "Не удалось создать секретный чат");
+                        }
+                      }}
+                      className="flex items-center gap-1 px-3 md:px-4 py-2 rounded-full border border-emerald-500/40 text-emerald-400 font-bold text-sm hover:bg-emerald-500/10 transition-all"
+                    >
+                      <Lock size={14} />
+                      <span className="hidden sm:inline">Секретный чат</span>
+                    </button>
+
 
                   {canBan && (
                     <button

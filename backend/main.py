@@ -22,6 +22,7 @@ from cloudinary_config import UPLOAD_FOLDER
 from datetime import datetime, timedelta, timezone
 from database import init_db, get_session, engine
 from models import User, Post, Like, Follow, Notification, Tag, PostTag, Role, Chat, ChatMember, Message, Report
+from models import UserKey, ChatSessionKey  # добавить UserKey и ChatSessionKey
 
 app = FastAPI(title="Nebula API")
 
@@ -1786,24 +1787,33 @@ async def admin_set_user_avatar(
     return {"ok": True, "avatar_url": target.avatar_url}
 
 @app.get("/api/chats")
-def list_chats(
+def list_chats_v2(
+    q: str = "",
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
     memberships = session.exec(
         select(ChatMember).where(ChatMember.user_id == user.id)
     ).all()
+    
     result = []
     for m in memberships:
         other_member = session.exec(
-            select(ChatMember).where(
-                ChatMember.chat_id == m.chat_id,
-                ChatMember.user_id != user.id,
-            )
+            select(ChatMember).where(ChatMember.chat_id == m.chat_id, ChatMember.user_id != user.id)
         ).first()
         if not other_member:
             continue
         other = session.get(User, other_member.user_id)
+        
+        # Поиск по имени собеседника
+        if q.strip():
+            q_lower = q.lower()
+            if (q_lower not in other.display_name.lower() and 
+                q_lower not in other.username.lower()):
+                continue
+        
+        chat = session.get(Chat, m.chat_id)
+        
         last_msg = session.exec(
             select(Message)
             .where(Message.chat_id == m.chat_id)
@@ -1813,43 +1823,76 @@ def list_chats(
         unread = session.exec(
             select(func.count())
             .select_from(Message)
-            .where(
-                Message.chat_id == m.chat_id,
-                Message.sender_id != user.id,
-                Message.read == False,
-            )
+            .where(Message.chat_id == m.chat_id, Message.sender_id != user.id, Message.read == False)
         ).one()
         
+        # Для секретных чатов — не показываем превью текста (он зашифрован)
         last_message_data = None
         if last_msg:
-            if last_msg.text:
-                preview = last_msg.text[:50]
-            elif last_msg.media_type == "image":
-                preview = "📷 Фото"
-            elif last_msg.media_type == "gif":
-                preview = "🎭 GIF"
-            elif last_msg.media_type == "video":
-                preview = "🎬 Видео"
+            if chat and chat.is_secret:
+                # Показываем только факт наличия сообщения (не текст)
+                last_message_data = {
+                    "text": "🔒 Секретное сообщение",
+                    "is_encrypted": True,
+                    "sender_id": last_msg.sender_id,
+                    "created_at": last_msg.created_at.isoformat(),
+                }
             else:
-                preview = "Сообщение"
-            last_message_data = {
-                "text": preview,
-                "sender_id": last_msg.sender_id,
-                "created_at": last_msg.created_at.isoformat(),
-            }
+                if last_msg.text:
+                    preview = last_msg.text[:50]
+                elif last_msg.media_type == "image":
+                    preview = "📷 Фото"
+                elif last_msg.media_type == "gif":
+                    preview = "🎭 GIF"
+                elif last_msg.media_type == "video":
+                    preview = "🎬 Видео"
+                else:
+                    preview = "Сообщение"
+                last_message_data = {
+                    "text": preview,
+                    "is_encrypted": False,
+                    "sender_id": last_msg.sender_id,
+                    "created_at": last_msg.created_at.isoformat(),
+                }
         
         result.append({
             "id": m.chat_id,
+            "is_secret": chat.is_secret if chat else False,
             "other": user_out(other, session),
             "last_message": last_message_data,
             "unread_count": unread,
         })
+    
     result.sort(key=lambda x: (
         0 if x["unread_count"] > 0 else 1,
         -(datetime.fromisoformat(x["last_message"]["created_at"]).timestamp()) if x["last_message"] else 0,
     ))
     return result
 
+
+@app.on_event("startup")
+def startup():
+    init_db()
+    # Автоматическое добавление недостающих колонок
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS is_secret BOOLEAN DEFAULT FALSE;"))
+            conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS ciphertext TEXT;"))
+            conn.commit()
+        except Exception:
+            pass
+    
+    # Системный аккаунт
+    with Session(engine) as session:
+        SYSTEM = session.exec(select(User).where(User.username == "System")).first()
+        if not SYSTEM:
+            session.add(User(
+                username="System",
+                display_name="SYSTEM",
+                password_hash=hash_password("System"),
+                is_system=True,
+            ))
+            session.commit()
 
 @app.delete("/api/admin/users/{user_id}")
 def admin_delete_user(
@@ -2025,6 +2068,151 @@ def open_or_create_chat(
     return {"chat_id": chat.id}
 
 
+
+# ---------- E2EE: КЛЮЧИ ----------
+
+@app.get("/api/keys/me")
+def get_my_public_key(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    key = session.exec(select(UserKey).where(UserKey.user_id == user.id)).first()
+    if not key:
+        raise HTTPException(404, "Ключ не зарегистрирован")
+    return {"public_key": key.public_key, "fingerprint": key.fingerprint}
+
+
+@app.post("/api/keys/register")
+def register_public_key(
+    public_key: str = Form(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    import hashlib
+    fingerprint = hashlib.sha256(public_key.encode()).hexdigest()[:16]
+    
+    existing = session.exec(select(UserKey).where(UserKey.user_id == user.id)).first()
+    if existing:
+        existing.public_key = public_key
+        existing.fingerprint = fingerprint
+        session.add(existing)
+    else:
+        key = UserKey(user_id=user.id, public_key=public_key, fingerprint=fingerprint)
+        session.add(key)
+    session.commit()
+    return {"ok": True, "fingerprint": fingerprint}
+
+
+@app.get("/api/users/{user_id}/public-key")
+def get_user_public_key(user_id: int, session: Session = Depends(get_session)):
+    key = session.exec(select(UserKey).where(UserKey.user_id == user_id)).first()
+    if not key:
+        raise HTTPException(404, "У пользователя нет ключа")
+    return {"public_key": key.public_key, "fingerprint": key.fingerprint}
+
+
+# ---------- E2EE: SESSION KEYS ----------
+
+@app.post("/api/chats/{chat_id}/session-key")
+def store_session_key(
+    chat_id: int,
+    recipient_id: int = Form(...),
+    encrypted_session_key: str = Form(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    # Проверяем, что оба в чате
+    my_member = session.exec(
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
+    ).first()
+    other_member = session.exec(
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == recipient_id)
+    ).first()
+    if not my_member or not other_member:
+        raise HTTPException(403, "Оба должны быть в чате")
+    
+    existing = session.exec(
+        select(ChatSessionKey).where(
+            ChatSessionKey.chat_id == chat_id,
+            ChatSessionKey.user_id == recipient_id,
+        )
+    ).first()
+    if existing:
+        existing.encrypted_session_key = encrypted_session_key
+        session.add(existing)
+    else:
+        sk = ChatSessionKey(
+            chat_id=chat_id,
+            user_id=recipient_id,
+            encrypted_session_key=encrypted_session_key,
+        )
+        session.add(sk)
+    session.commit()
+    return {"ok": True}
+
+
+@app.get("/api/chats/{chat_id}/session-key")
+def get_my_session_key(
+    chat_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    sk = session.exec(
+        select(ChatSessionKey).where(
+            ChatSessionKey.chat_id == chat_id,
+            ChatSessionKey.user_id == user.id,
+        )
+    ).first()
+    if not sk:
+        raise HTTPException(404, "Session key не найден")
+    return {"encrypted_session_key": sk.encrypted_session_key}
+
+
+# ---------- E2EE: СОЗДАНИЕ СЕКРЕТНОГО ЧАТА ----------
+
+@app.post("/api/chats/secret")
+def create_secret_chat(
+    other_user_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Создаёт секретный чат с E2EE"""
+    if other_user_id == user.id:
+        raise HTTPException(400, "Нельзя создать чат с собой")
+    
+    other = session.get(User, other_user_id)
+    if not other:
+        raise HTTPException(404, "Пользователь не найден")
+    
+    # Проверяем, что у обоих есть публичные ключи
+    my_key = session.exec(select(UserKey).where(UserKey.user_id == user.id)).first()
+    other_key = session.exec(select(UserKey).where(UserKey.user_id == other_user_id)).first()
+    if not my_key or not other_key:
+        raise HTTPException(400, "У одного из пользователей нет ключа. Нужно зарегистрировать ключ.")
+    
+    # Проверяем, есть ли уже секретный чат между ними
+    my_chats = session.exec(select(ChatMember.chat_id).where(ChatMember.user_id == user.id)).all()
+    for cid in my_chats:
+        chat = session.get(Chat, cid)
+        if chat and chat.is_secret:
+            other_in = session.exec(
+                select(ChatMember).where(ChatMember.chat_id == cid, ChatMember.user_id == other_user_id)
+            ).first()
+            if other_in:
+                return {"chat_id": cid, "already_existed": True}
+    
+    # Создаём новый секретный чат
+    chat = Chat(is_secret=True)
+    session.add(chat)
+    session.commit()
+    session.refresh(chat)
+    session.add(ChatMember(chat_id=chat.id, user_id=user.id))
+    session.add(ChatMember(chat_id=chat.id, user_id=other_user_id))
+    session.commit()
+    
+    return {"chat_id": chat.id, "already_existed": False}
+
+
 @app.get("/api/chats/{chat_id}/messages")
 def get_messages(
     chat_id: int,
@@ -2063,37 +2251,37 @@ def get_messages(
 
 @app.post("/api/chats/{chat_id}/messages")
 @limiter.limit("30/minute")
-async def send_message(
+async def send_message_v2(
     request: Request,
     chat_id: int,
     text: str = Form(""),
+    ciphertext: str = Form(""),  # для секретных чатов
     file: Optional[UploadFile] = File(None),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
     member = session.exec(
-        select(ChatMember).where(
-            ChatMember.chat_id == chat_id,
-            ChatMember.user_id == user.id,
-        )
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
     ).first()
     if not member:
-        raise HTTPException(403, "Not a member of this chat")
+        raise HTTPException(403, "Не участник чата")
+    
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
     
     media_url = None
     media_type = None
     
+    # Медиа пока не шифруем (отдельная большая задача)
     if file and file.filename:
         ext = os.path.splitext(file.filename or "")[1].lower()
         content = await file.read()
         if len(content) > 20 * 1024 * 1024:
             raise HTTPException(400, "File too large (max 20MB)")
-        
         try:
             result = cloudinary.uploader.upload(
-                content,
-                folder=UPLOAD_FOLDER,
-                resource_type="auto",
+                content, folder=UPLOAD_FOLDER, resource_type="auto",
             )
             media_url = result.get("secure_url")
             resource_type = result.get("resource_type")
@@ -2106,31 +2294,34 @@ async def send_message(
         except Exception as e:
             raise HTTPException(400, f"Upload failed: {str(e)}")
     
-    if not text.strip() and not media_url:
-        raise HTTPException(400, "Empty message")
+    # Для секретных чатов: text должен быть пустым, ciphertext — заполнен
+    if chat.is_secret:
+        if not ciphertext.strip() and not media_url:
+            raise HTTPException(400, "Пустое сообщение")
+        if text.strip():
+            raise HTTPException(400, "В секретных чатах нельзя отправлять plain text")
+    else:
+        if not text.strip() and not media_url:
+            raise HTTPException(400, "Пустое сообщение")
     
     msg = Message(
         chat_id=chat_id,
         sender_id=user.id,
         text=text.strip() if text else None,
+        ciphertext=ciphertext.strip() if ciphertext else None,
         media_url=media_url,
         media_type=media_type,
     )
     session.add(msg)
     
+    # Уведомление
     other = session.exec(
-        select(ChatMember).where(
-            ChatMember.chat_id == chat_id,
-            ChatMember.user_id != user.id,
-        )
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id != user.id)
     ).first()
     if other:
-        notif = Notification(
-            user_id=other.user_id,
-            actor_id=user.id,
-            type="message",
-        )
+        notif = Notification(user_id=other.user_id, actor_id=user.id, type="message")
         session.add(notif)
+    
     session.commit()
     session.refresh(msg)
     
@@ -2138,10 +2329,47 @@ async def send_message(
         "id": msg.id,
         "sender_id": msg.sender_id,
         "text": msg.text,
+        "ciphertext": msg.ciphertext,
         "media_url": msg.media_url,
         "media_type": msg.media_type,
+        "read": msg.read,
         "created_at": msg.created_at.isoformat(),
     }
+
+
+@app.get("/api/chats/{chat_id}/messages")
+def get_messages_v2(
+    chat_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    member = session.exec(
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
+    ).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+    
+    chat = session.get(Chat, chat_id)
+    messages = session.exec(
+        select(Message).where(Message.chat_id == chat_id).order_by(Message.created_at)
+    ).all()
+    
+    result = []
+    for msg in messages:
+        sender = session.get(User, msg.sender_id)
+        result.append({
+            "id": msg.id,
+            "sender_id": msg.sender_id,
+            "sender_name": sender.display_name if sender else "Unknown",
+            "sender_avatar": sender.avatar_url if sender else None,
+            "text": msg.text,
+            "ciphertext": msg.ciphertext,
+            "media_url": msg.media_url,
+            "media_type": msg.media_type,
+            "read": msg.read,
+            "created_at": msg.created_at.isoformat(),
+        })
+    return result
 
 @app.patch("/api/chats/{chat_id}/messages/{message_id}")
 def edit_message(
