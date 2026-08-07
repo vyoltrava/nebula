@@ -307,7 +307,7 @@ export function Sidebar() {
 
   return (
     <>
-      {/* 🆕 Затемнение фона при открытом меню */}
+   {/* Затемнение фона при открытом меню */}
       {drawerOpen && (
         <div
           className="md:hidden fixed inset-0 bg-black/50 z-[95]"
@@ -315,10 +315,10 @@ export function Sidebar() {
         />
       )}
 
-      {/* 🆕 Компактное окошко с кнопками — ПРЯМО НАД кнопкой меню, справа */}
+      {/* 🆕 Компактное окошко меню — поднято выше, чтобы не перекрывать поле ввода */}
       <aside
         className={`
-          md:hidden fixed right-3 bottom-24 z-[96] w-64 max-w-[85vw] max-h-[60vh]
+          md:hidden fixed right-3 bottom-44 z-[98] w-64 max-w-[85vw] max-h-[60vh]
           overflow-y-auto rounded-2xl border border-[#8b5cf6]/40 bg-[#171717]/95
           backdrop-blur-md shadow-2xl shadow-black/60 p-4 flex flex-col gap-4
           transition-all duration-200 ease-out
@@ -328,10 +328,10 @@ export function Sidebar() {
         {sidebarContent}
       </aside>
 
-      {/* 🆕 Кнопка меню — маленький квадратик СПРАВА внизу */}
+      {/* 🆕 Кнопка меню — поднята выше поля ввода */}
       <button
         onClick={() => setDrawerOpen(!drawerOpen)}
-        className="md:hidden fixed right-3 bottom-6 z-[97] w-14 h-14 rounded-2xl 
+        className="md:hidden fixed right-3 bottom-24 z-[97] w-14 h-14 rounded-2xl 
           bg-[#171717]/95 backdrop-blur-md border-2 border-[#8b5cf6]/60 
           text-[#8b5cf6] flex items-center justify-center
           shadow-lg shadow-black/60 active:scale-90 transition-all"
@@ -339,11 +339,6 @@ export function Sidebar() {
       >
         <Menu size={24} />
       </button>
-
-      {/* 💻 Десктопный сайдбар — без изменений */}
-      <aside className="hidden md:flex md:w-64 shrink-0 overflow-y-auto p-5 flex-col gap-8 bg-[#171717]">
-        {sidebarContent}
-      </aside>
 
       {/* Модалка уведомлений */}
       {showNotifs && (
