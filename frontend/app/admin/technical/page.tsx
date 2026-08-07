@@ -304,7 +304,9 @@ export default function TechnicalPage() {
     const form = new FormData();
     form.append("ip_address", ip);
     form.append("reason", reason);
-    if (hours && hours !== "") form.append("hours", String(hours));
+    if (typeof hours === "number" && hours > 0) {
+    form.append("hours", String(hours));
+  }
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/ip-blocks`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
