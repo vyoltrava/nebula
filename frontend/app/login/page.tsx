@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { setToken } from "@/lib/auth";
-import { API_URL } from "@/lib/api";
+
 
 const inputCls =
   "border border-white/15 rounded-lg px-3 py-2 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] focus:bg-white/10 transition-all";
@@ -16,15 +16,21 @@ export default function LoginPage() {
   const router = useRouter();
 
   async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
+  e.preventDefault();
+  setError("");
 
-    const url = mode === "login" ? 'http://${API_URL}/api/login' : 'http://${API_URL}/api/register';
-    const body =
-      mode === "login"
-        ? { username, password }
-        : { username, display_name: displayName, password };
+  // ✅ Обратные кавычки + переменная окружения, без http://
+  const url =
+    mode === "login"
+      ? `${process.env.NEXT_PUBLIC_API_URL}/api/login`
+      : `${process.env.NEXT_PUBLIC_API_URL}/api/register`;
 
+  const body =
+    mode === "login"
+      ? { username, password }
+      : { username, display_name: displayName, password };
+
+  try {
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -44,7 +50,10 @@ export default function LoginPage() {
     const data = await res.json();
     setToken(data.token);
     router.push("/");
+  } catch {
+    setError("Не удалось связаться с сервером. Попробуй ещё раз.");
   }
+}
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
