@@ -1,27 +1,57 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 const API_URL = "https://nebula-qqm2.onrender.com";
 
 export default function TechPage() {
+  const router = useRouter();
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [me, setMe] = useState<any>(null);
 
   useEffect(() => {
-    alert("🚀 НОВАЯ СТРАНИЦА TECH ЗАГРУЖАЕТСЯ");
-    loadUsers();
+    checkAuthAndLoad();
   }, []);
 
-  async function loadUsers() {
+  async function checkAuthAndLoad() {
     try {
       const token = localStorage.getItem("token");
       if (!token) {
-        setError("Нет токена. Залогинься сначала на /login");
-        setLoading(false);
+        router.push("/login");
         return;
       }
 
+      // Сначала проверяем кто мы
+      const meRes = await fetch(`${API_URL}/api/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!meRes.ok) {
+        router.push("/login");
+        return;
+      }
+
+      const meData = await meRes.json();
+      setMe(meData);
+
+      // Проверяем права
+      if (!meData.is_admin && !meData.permissions?.includes("tech_access")) {
+        router.push("/");
+        return;
+      }
+
+      // Теперь загружаем пользователей
+      await loadUsers(token);
+    } catch (err) {
+      console.error("Auth error:", err);
+      router.push("/login");
+    }
+  }
+
+  async function loadUsers(token: string) {
+    try {
       console.log("Запрашиваем:", `${API_URL}/api/admin/users`);
       
       const res = await fetch(`${API_URL}/api/admin/users`, {
@@ -52,7 +82,7 @@ export default function TechPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#18181b] flex items-center justify-center">
-        <div className="text-white text-xl">Загрузка пользователей...</div>
+        <div className="text-white text-xl">Проверка авторизации...</div>
       </div>
     );
   }
@@ -71,9 +101,15 @@ export default function TechPage() {
   return (
     <div className="min-h-screen bg-[#18181b] p-8">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-black text-white mb-6">
-          Техническая панель (ТЕСТ)
-        </h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-black text-white">
+            Техническая панель (ТЕСТ)
+          </h1>
+          <div className="text-right">
+            <p className="text-white font-bold">{me?.display_name}</p>
+            <p className="text-white/60 text-sm">@{me?.username}</p>
+          </div>
+        </div>
         
         <div className="bg-green-500/20 border border-green-500 rounded-xl p-4 mb-6">
           <p className="text-green-400 font-bold">
