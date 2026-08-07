@@ -2159,7 +2159,7 @@ def get_my_session_key(
 
 @app.post("/api/chats/secret")
 def create_secret_chat(
-    other_user_id: int = Form(...),
+    other_user_id: int,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
