@@ -137,7 +137,7 @@ export default function TechnicalPage() {
       if (statsRes.ok) setStats(await statsRes.json());
 
       // 3. Загружаем пользователей (ИСПРАВЛЕНО)
-      const usersRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users`, {
+const usersRes = await fetch(`https://nebula-qqm2.onrender.com/api/admin/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       
