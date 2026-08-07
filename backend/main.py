@@ -2200,40 +2200,6 @@ def create_secret_chat(
     return {"chat_id": chat.id, "already_existed": False}
 
 
-@app.get("/api/chats/{chat_id}/messages")
-def get_messages(
-    chat_id: int,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    member = session.exec(
-        select(ChatMember).where(
-            ChatMember.chat_id == chat_id,
-            ChatMember.user_id == user.id,
-        )
-    ).first()
-    if not member:
-        raise HTTPException(403, "Not a member of this chat")
-    messages = session.exec(
-        select(Message)
-        .where(Message.chat_id == chat_id)
-        .order_by(Message.created_at)
-    ).all()
-    result = []
-    for msg in messages:
-        sender = session.get(User, msg.sender_id)
-        result.append({
-            "id": msg.id,
-            "sender_id": msg.sender_id,
-            "sender_name": sender.display_name if sender else "Unknown",
-            "sender_avatar": sender.avatar_url if sender else None,
-            "text": msg.text,
-            "media_url": msg.media_url,
-            "media_type": msg.media_type,
-            "read": msg.read,
-            "created_at": msg.created_at.isoformat(),
-        })
-    return result
 
 
 @app.post("/api/chats/{chat_id}/messages")
