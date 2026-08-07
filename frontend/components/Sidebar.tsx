@@ -1,51 +1,38 @@
 "use client";
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { 
-  Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus, 
-  AtSign, X, Shield, ShieldCheck, MessageSquare, Palette, 
-  Bug, Menu
-} from "lucide-react";
-import { Avatar } from "@/components/Avatar";
-import { getToken, clearToken } from "@/lib/auth";
-import { onFeedRefresh } from "@/lib/events";
-import { BugReportModal } from "@/components/BugReportModal";
-import { useRouter } from "next/navigation";
 import { 
   Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus, 
   AtSign, X, Shield, ShieldCheck, MessageSquare, Palette, 
   Bug, Menu, Search
 } from "lucide-react";
-import { Search } from "lucide-react";
+import { Avatar } from "@/components/Avatar";
+import { getToken, clearToken } from "@/lib/auth";
+import { onFeedRefresh } from "@/lib/events";
+import { BugReportModal } from "@/components/BugReportModal";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [chatsUnread, setChatsUnread] = useState(0);
   const [showNotifs, setShowNotifs] = useState(false);
   const [notifs, setNotifs] = useState<any[]>([]);
   const [showBugModal, setShowBugModal] = useState(false);
-  const router = useRouter();
   const [searchQ, setSearchQ] = useState("");
-  
-  // 🆕 состояние drawer'а для мобильного
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // 🆕 закрываем drawer при смене страницы
   useEffect(() => {
     setDrawerOpen(false);
   }, [pathname]);
 
-    const [searchOpen, setSearchOpen] = useState(false);
-    const [searchQ, setSearchQ] = useState("");
-
-    const nav = [
-      { href: "/", icon: Home, label: "Главная" },
-      { href: "/rules", icon: Shield, label: "Правила" },
-      { href: "/settings", icon: Settings, label: "Настройки" },
-    ];
+  const nav = [
+    { href: "/", icon: Home, label: "Главная" },
+    { href: "/rules", icon: Shield, label: "Правила" },
+    { href: "/settings", icon: Settings, label: "Настройки" },
+  ];
 
   useEffect(() => {
     const token = getToken();
@@ -128,12 +115,10 @@ export function Sidebar() {
     : user.role?.color ?? null
     : null;
 
-  // 🆕 контент сайдбара (один раз описан, используется в обоих местах)
   const sidebarContent = (
     <>
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-logo text-4xl text-[#8b5cf6]">NEBULA</h1>
-        {/* Кнопка закрытия — видна только на мобильном */}
         <button
           onClick={() => setDrawerOpen(false)}
           className="md:hidden p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-all"
@@ -141,46 +126,45 @@ export function Sidebar() {
           <X size={20} />
         </button>
       </div>
-        <nav className="flex flex-col gap-2">
-          {/* 🔍 Поиск — отдельной строкой сверху */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (searchQ.trim()) {
-                router.push(`/search?q=${encodeURIComponent(searchQ)}`);
-                setSearchQ("");
-                setDrawerOpen(false);
-              }
-            }}
-            className="flex items-center gap-2 border border-white/8 bg-white/3 rounded-lg px-3 py-2.5"
-          >
-            <Search size={18} className="text-white/60 shrink-0" />
-            <input
-              value={searchQ}
-              onChange={(e) => setSearchQ(e.target.value)}
-              placeholder="Поиск..."
-              className="flex-1 bg-transparent focus:outline-none text-white placeholder-white/40 text-sm"
-            />
-          </form>
 
-          {nav.map(({ href, icon: Icon, label }) => {
-            const active = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                onClick={() => setDrawerOpen(false)}
-                className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
-                  active
-                    ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
-                    : "border-white/8 bg-white/3 text-white/80 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                <Icon size={18} /> {label}
-              </Link>
-            );
-          })}
+      <nav className="flex flex-col gap-2">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (searchQ.trim()) {
+              router.push(`/search?q=${encodeURIComponent(searchQ)}`);
+              setSearchQ("");
+              setDrawerOpen(false);
+            }
+          }}
+          className="flex items-center gap-2 border border-white/8 bg-white/3 rounded-lg px-3 py-2.5"
+        >
+          <Search size={18} className="text-white/60 shrink-0" />
+          <input
+            value={searchQ}
+            onChange={(e) => setSearchQ(e.target.value)}
+            placeholder="Поиск..."
+            className="flex-1 bg-transparent focus:outline-none text-white placeholder-white/40 text-sm"
+          />
+        </form>
 
+        {nav.map(({ href, icon: Icon, label }) => {
+          const active = pathname === href;
+          return (
+            <Link
+              key={href}
+              href={href}
+              onClick={() => setDrawerOpen(false)}
+              className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
+                active
+                  ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
+                  : "border-white/8 bg-white/3 text-white/80 hover:bg-white/5 hover:text-white"
+              }`}
+            >
+              <Icon size={18} /> {label}
+            </Link>
+          );
+        })}
 
         {user && (
           <Link
@@ -322,26 +306,23 @@ export function Sidebar() {
 
   return (
     <>
-      {/* 🆕 Кнопка-бургер — видна ТОЛЬКО на мобильном, fixed сверху слева */}
-        {/* 🆕 Слайдер-меню — всегда в левом нижнем углу, только на мобильном */}
-        <button
-          onClick={() => setDrawerOpen(true)}
-          className="md:hidden fixed left-3 bottom-6 z-[90] w-11 h-28 rounded-full 
-            bg-[#171717]/95 backdrop-blur-md border-2 border-[#8b5cf6]/60 
-            text-[#8b5cf6] flex flex-col items-center justify-center gap-2 
-            shadow-lg shadow-black/60 active:scale-95 transition-all"
-          aria-label="Открыть меню"
+      <button
+        onClick={() => setDrawerOpen(true)}
+        className="md:hidden fixed left-3 bottom-6 z-[90] w-11 h-28 rounded-full 
+          bg-[#171717]/95 backdrop-blur-md border-2 border-[#8b5cf6]/60 
+          text-[#8b5cf6] flex flex-col items-center justify-center gap-2 
+          shadow-lg shadow-black/60 active:scale-95 transition-all"
+        aria-label="Открыть меню"
+      >
+        <Menu size={20} />
+        <span 
+          className="text-[9px] font-black uppercase tracking-widest"
+          style={{ writingMode: "vertical-rl" }}
         >
-          <Menu size={20} />
-          <span 
-            className="text-[9px] font-black uppercase tracking-widest"
-            style={{ writingMode: "vertical-rl" }}
-          >
-            Меню
-          </span>
-        </button>
+          Меню
+        </span>
+      </button>
 
-      {/* 🆕 Overlay для мобильного — затемнение фона, клик = закрытие */}
       {drawerOpen && (
         <div
           className="md:hidden fixed inset-0 bg-black/70 z-[95] backdrop-blur-sm"
@@ -349,7 +330,6 @@ export function Sidebar() {
         />
       )}
 
-      {/* 🆕 Drawer (мобильный) — fixed, с анимацией выезда */}
       <aside
         className={`
           md:hidden fixed inset-y-0 left-0 w-72 max-w-[85vw] z-[96]
@@ -361,12 +341,10 @@ export function Sidebar() {
         {sidebarContent}
       </aside>
 
-      {/* 🆕 Десктопный сайдбар — как раньше, static, виден только ≥ md */}
       <aside className="hidden md:flex md:w-64 shrink-0 overflow-y-auto p-5 flex-col gap-8 bg-[#171717]">
         {sidebarContent}
       </aside>
 
-      {/* Модалка уведомлений */}
       {showNotifs && (
         <>
           <div
