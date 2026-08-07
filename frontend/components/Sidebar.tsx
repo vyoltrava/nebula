@@ -340,6 +340,12 @@ export function Sidebar() {
         <Menu size={24} />
       </button>
 
+      {/* 💻 Десктопный сайдбар */}
+      <aside className="hidden md:flex md:w-64 shrink-0 overflow-y-auto p-5 flex-col gap-8 bg-[#171717]">
+        {sidebarContent}
+      </aside>
+
+
       {/* Модалка уведомлений */}
       {showNotifs && (
         <>
