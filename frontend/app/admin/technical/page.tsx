@@ -107,62 +107,68 @@ export default function TechnicalPage() {
     };
   }
 
- async function load() {
+  async function load() {
     const token = getToken();
     if (!token) return;
-
-    const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const meData = await meRes.json();
-    setMe(meData);
-
-    if (!meData.permissions?.includes("tech_access")) {
-      window.location.href = "/";
-      return;
-    }
-
-    const statsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/stats`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (statsRes.ok) setStats(await statsRes.json());
-
-    const usersRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    
-    // ✅ Исправлено: добавлена закрывающая скобка } для функции load()
-    if (usersRes.ok) {
-      const data = await usersRes.json();
-      setAllUsers(Array.isArray(data) ? data : []);
-    }
-  } // <--- ВОТ ЭТОЙ СКОБКИ НЕ ХВАТАЛО!
-
-  // 🆕 Загрузка багов (вызывается отдельно)
-  async function loadBugs() {
-    const token = getToken();
-    if (!token) return;
-    setBugsLoading(true);
 
     try {
-      const url = bugStatusFilter
-        ? `${process.env.NEXT_PUBLIC_API_URL}/api/bugs?status=${bugStatusFilter}`
-        : `${process.env.NEXT_PUBLIC_API_URL}/api/bugs`;
-
-      const res = await fetch(url, {
+      // 1. Получаем профиль
+      const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (res.ok) {
-        setBugs(await res.json());
-      } else {
-        setBugs([]);
+      
+      if (!meRes.ok) {
+        console.error("Ошибка получения профиля:", meRes.status);
+        return;
       }
+
+      const meData = await meRes.json();
+      setMe(meData);
+
+      if (!meData.permissions?.includes("tech_access")) {
+        window.location.href = "/";
+        return;
+      }
+
+      // 2. Загружаем статистику
+      const statsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/stats`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (statsRes.ok) setStats(await statsRes.json());
+
+      // 3. Загружаем пользователей (ИСПРАВЛЕНО)
+      const usersRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (!usersRes.ok) {
+        // Выводим текст ошибки в консоль браузера (F12 -> Console)
+        const errorText = await usersRes.text();
+        console.error(`❌ Ошибка API /admin/users [${usersRes.status}]:`, errorText);
+        return;
+      }
+
+      const data = await usersRes.json();
+      console.log("✅ Ответ /admin/users:", data); // <-- ОТКРОЙ КОНСОЛЬ И ПОСМОТРИ, ЧТО ТУТ
+      
+      // 🛡 Поддержка разных форматов ответа от бэкенда
+      let usersArray: any[] = [];
+      if (Array.isArray(data)) {
+        usersArray = data;
+      } else if (Array.isArray(data.items)) {
+        usersArray = data.items;
+      } else if (Array.isArray(data.users)) {
+        usersArray = data.users;
+      } else if (Array.isArray(data.results)) {
+        usersArray = data.results;
+      } else {
+        console.warn("⚠️ Неизвестный формат ответа пользователей:", data);
+      }
+      
+      setAllUsers(usersArray);
+
     } catch (err) {
-      console.error("Failed to load bugs:", err);
-      setBugs([]);
-    } finally {
-      setBugsLoading(false);
+      console.error("💥 Критическая ошибка в функции load():", err);
     }
   }
 
@@ -332,12 +338,18 @@ export default function TechnicalPage() {
     }
   }
 
-  const filteredUsers = Array.isArray(allUsers) ? allUsers.filter(
-    (u) =>
-      (u.username && u.username.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (u.display_name && u.display_name.toLowerCase().includes(searchQuery.toLowerCase()))
-  ) : [];
-
+  const filteredUsers = Array.isArray(allUsers) ? allUsers.filter((u) => {
+    // Если поиск пустой, показываем всех пользователей
+    if (!searchQuery.trim()) return true;
+    
+    const q = searchQuery.toLowerCase();
+    // Безопасная проверка (на случай, если username или display_name равны null/undefined)
+    const usernameMatch = u.username && u.username.toLowerCase().includes(q);
+    const displayMatch = u.display_name && u.display_name.toLowerCase().includes(q);
+    
+    return usernameMatch || displayMatch;
+  }) : [];
+  
   // 🆕 Счётчики багов по статусам
   const bugCounts = {
     new: bugs.filter((b) => b.status === "new").length,
