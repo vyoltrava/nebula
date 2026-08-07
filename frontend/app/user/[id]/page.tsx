@@ -315,7 +315,9 @@ export default function UserProfilePage() {
                           router.push(`/messages/${data.chat_id}`);
                         } else {
                           const err = await res.json().catch(() => null);
-                          alert(err?.detail || "Не удалось создать секретный чат");
+                          const detail = err?.detail;
+                          const msg = typeof detail === "string" ? detail : JSON.stringify(detail);
+                          alert(msg || "Не удалось создать секретный чат");
                         }
                       } catch (e) {
                         console.error("Secret chat error:", e);
