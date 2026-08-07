@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Sidebar } from "@/components/Sidebar";
@@ -7,7 +7,16 @@ import { Post } from "@/components/Post";
 import { Avatar } from "@/components/Avatar";
 import { Search as SearchIcon } from "lucide-react";
 
+// 1. Оборачиваем в Suspense, чтобы Next.js не ругался при сборке
 export default function SearchPage() {
+  return (
+    <Suspense fallback={<div className="h-screen flex items-center justify-center text-white">Загрузка...</div>}>
+      <SearchContent />
+    </Suspense>
+  );
+}
+
+function SearchContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
   const [query, setQuery] = useState(initialQuery);
@@ -20,11 +29,19 @@ export default function SearchPage() {
       return;
     }
     setLoading(true);
-    const res = await fetch(`http://${API_URL}/api/search?q=${encodeURIComponent(q)}`);
-    if (res.ok) {
-      setResults(await res.json());
+    try {
+      // 2. Передаём параметр поиска q на бэкенд (encodeURIComponent защитит от спецсимволов)
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users?q=${encodeURIComponent(q)}`);
+      
+      // 3. Исправлено: response.ok вместо res.ok
+      if (response.ok) {
+        setResults(await response.json());
+      }
+    } catch (error) {
+      console.error("Ошибка поиска:", error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -32,9 +49,12 @@ export default function SearchPage() {
     doSearch(query);
   }
 
-  useState(() => {
-    if (initialQuery) doSearch(initialQuery);
-  });
+  // 4. Исправлено: useEffect вместо useState для автозапуска поиска
+  useEffect(() => {
+    if (initialQuery) {
+      doSearch(initialQuery);
+    }
+  }, [initialQuery]);
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -54,7 +74,7 @@ export default function SearchPage() {
             </div>
             <button
               type="submit"
-              className="border border-[#8b5cf6] bg-[#8b5cf6] text-white font-bold rounded-full px-5  transition-all"
+              className="border border-[#8b5cf6] bg-[#8b5cf6] text-white font-bold rounded-full px-5 transition-all"
             >
               Найти
             </button>

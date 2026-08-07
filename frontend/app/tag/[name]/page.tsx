@@ -1,18 +1,25 @@
 "use client";
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useParams } from "next/navigation"; // useParams удобнее, чем usePathname
 import { Sidebar } from "@/components/Sidebar";
 import { Post } from "@/components/Post";
 
 export default function TagPage() {
-  const pathname = usePathname();
-  const tagName = decodeURIComponent(pathname.split("/").pop() || "");
+  const params = useParams();
+  // В Next.js App Router params.name приходит как string | string[]
+  const tagName = decodeURIComponent((params.name as string) || "");
   const [posts, setPosts] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch(`http://${API_URL}/api/tags/${tagName}/posts`)
-      .then((r) => r.json())
-      .then(setPosts);
+    if (!tagName) return;
+    
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tags/${tagName}/posts`)
+      .then((r) => {
+        if (r.ok) return r.json();
+        throw new Error("Не удалось загрузить посты");
+      })
+      .then(setPosts)
+      .catch(console.error);
   }, [tagName]);
 
   return (
