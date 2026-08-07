@@ -139,6 +139,7 @@ export default function ChatPage() {
     try {
       // 1. Убеждаемся, что у нас есть ключи
       const myKeyData = await ensureKeyPair(token, process.env.NEXT_PUBLIC_API_URL!);
+      const myKeys = await getKeyPair();
       setMyFingerprint(myKeyData.fingerprint);
 
       // 2. Пробуем загрузить session key с сервера
@@ -150,8 +151,12 @@ export default function ChatPage() {
           });
           if (res.ok) {
             const data = await res.json();
-            const myKeys = getKeyPair()!;
-            sk = decryptSessionKey(data.encrypted_session_key, myKeys.privateKey);
+            const myKeys = await getKeyPair();
+              if (!myKeys) {
+                setCryptoError("Не удалось загрузить ключи");
+                return;
+              }
+            sk = await decryptSessionKey(data.encrypted_session_key); // ← ДОБАВЬ await
             storeSessionKey(Number(chatId), sk);
           }
         } catch {
@@ -170,8 +175,11 @@ export default function ChatPage() {
     if (!token || !chatPartner) return;
 
     try {
-      const myKeys = getKeyPair()!;
-      // Получаем публичный ключ собеседника
+      const myKeys = await getKeyPair();
+      if (!myKeys) {
+        setCryptoError("Не удалось загрузить ключи");
+        return;
+      }
       const pkRes = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/users/${chatPartner.id}/public-key`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -188,8 +196,8 @@ export default function ChatPage() {
       const sk = generateSessionKey();
 
       // Шифруем для обоих
-      const forMe = encryptSessionKeyForUser(sk, myKeys.publicKey);
-      const forOther = encryptSessionKeyForUser(sk, partnerPub);
+      const forMe = await encryptSessionKeyForUser(sk, myKeys.publicKeyBase64);
+      const forOther = await encryptSessionKeyForUser(sk, pkData.public_key);
 
       // Отправляем на сервер
       for (const [uid, enc] of [

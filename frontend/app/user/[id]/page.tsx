@@ -1,5 +1,5 @@
 "use client";
-import { Shield, ShieldCheck, Ban, X, MessageSquare, Flag } from "lucide-react";
+import { Shield, ShieldCheck, Ban, X, MessageSquare, Flag, Lock } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -10,6 +10,7 @@ import { getToken } from "@/lib/auth";
 import { ReportModal } from "@/components/ReportModal";
 import { SystemName } from "@/components/SystemName";
 import { ensureKeyPair } from "@/lib/crypto";
+
 
 
 export default function UserProfilePage() {
