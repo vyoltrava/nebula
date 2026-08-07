@@ -12,6 +12,11 @@ import { getToken, clearToken } from "@/lib/auth";
 import { onFeedRefresh } from "@/lib/events";
 import { BugReportModal } from "@/components/BugReportModal";
 import { useRouter } from "next/navigation";
+import { 
+  Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus, 
+  AtSign, X, Shield, ShieldCheck, MessageSquare, Palette, 
+  Bug, Menu, Search
+} from "lucide-react";
 import { Search } from "lucide-react";
 
 export function Sidebar() {
@@ -22,6 +27,8 @@ export function Sidebar() {
   const [showNotifs, setShowNotifs] = useState(false);
   const [notifs, setNotifs] = useState<any[]>([]);
   const [showBugModal, setShowBugModal] = useState(false);
+  const router = useRouter();
+  const [searchQ, setSearchQ] = useState("");
   
   // 🆕 состояние drawer'а для мобильного
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -38,7 +45,6 @@ export function Sidebar() {
       { href: "/", icon: Home, label: "Главная" },
       { href: "/rules", icon: Shield, label: "Правила" },
       { href: "/settings", icon: Settings, label: "Настройки" },
-      { href: "/search", icon: Search, label: "Поиск", isSearch: true }, // 🆕
     ];
 
   useEffect(() => {
@@ -135,54 +141,46 @@ export function Sidebar() {
           <X size={20} />
         </button>
       </div>
+        <nav className="flex flex-col gap-2">
+          {/* 🔍 Поиск — отдельной строкой сверху */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (searchQ.trim()) {
+                router.push(`/search?q=${encodeURIComponent(searchQ)}`);
+                setSearchQ("");
+                setDrawerOpen(false);
+              }
+            }}
+            className="flex items-center gap-2 border border-white/8 bg-white/3 rounded-lg px-3 py-2.5"
+          >
+            <Search size={18} className="text-white/60 shrink-0" />
+            <input
+              value={searchQ}
+              onChange={(e) => setSearchQ(e.target.value)}
+              placeholder="Поиск..."
+              className="flex-1 bg-transparent focus:outline-none text-white placeholder-white/40 text-sm"
+            />
+          </form>
 
-      <nav className="flex flex-col gap-2">
-        {nav.map(({ href, icon: Icon, label, isSearch }) => {
-          const active = pathname === href;
-          
-          // 🆕 Для поиска — открываем поле ввода вместо ссылки
-          if (isSearch) {
+          {nav.map(({ href, icon: Icon, label }) => {
+            const active = pathname === href;
             return (
-              <form
-                key="search"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (searchQ.trim()) {
-                    router.push(`/search?q=${encodeURIComponent(searchQ)}`);
-                    setSearchOpen(false);
-                    setSearchQ("");
-                    setDrawerOpen(false);
-                  }
-                }}
-                className="flex items-center gap-2 border rounded-lg px-3 py-2 border-white/8 bg-white/3"
+              <Link
+                key={href}
+                href={href}
+                onClick={() => setDrawerOpen(false)}
+                className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
+                  active
+                    ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
+                    : "border-white/8 bg-white/3 text-white/80 hover:bg-white/5 hover:text-white"
+                }`}
               >
-                <Icon size={18} className="text-white/60 shrink-0" />
-                <input
-                  value={searchQ}
-                  onChange={(e) => setSearchQ(e.target.value)}
-                  placeholder="Поиск..."
-                  className="flex-1 bg-transparent focus:outline-none text-white placeholder-white/40 text-sm"
-                  autoFocus={searchOpen}
-                />
-              </form>
+                <Icon size={18} /> {label}
+              </Link>
             );
-          }
-          
-          return (
-            <Link
-              key={href}
-              href={href}
-              onClick={() => setDrawerOpen(false)}
-              className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
-                active
-                  ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
-                  : "border-white/8 bg-white/3 text-white/80 hover:bg-white/5 hover:text-white"
-              }`}
-            >
-              <Icon size={18} /> {label}
-            </Link>
-          );
-        })}
+          })}
+
 
         {user && (
           <Link
