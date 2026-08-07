@@ -1,5 +1,5 @@
 "use client";
-import { Shield, ShieldCheck, Ban, X, MessageSquare } from "lucide-react";
+import { Shield, ShieldCheck, Ban, X, MessageSquare, Flag } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -7,7 +7,6 @@ import { Sidebar } from "@/components/Sidebar";
 import { Post } from "@/components/Post";
 import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
-import { Flag } from "lucide-react";
 import { ReportModal } from "@/components/ReportModal";
 import { SystemName } from "@/components/SystemName";
 
@@ -27,11 +26,9 @@ export default function UserProfilePage() {
   const [modalUsers, setModalUsers] = useState<any[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [showReport, setShowReport] = useState(false);
-
-
   const [currentUser, setCurrentUser] = useState<any>(null);
 
-    function getGlowColor(user: any): string | null {
+  function getGlowColor(user: any): string | null {
     if (user?.is_admin) return "#fff";
     if (user?.is_moderator) return "#3b82f6";
     if (user?.role?.color) return user.role.color;
@@ -73,7 +70,6 @@ export default function UserProfilePage() {
     }
   }
 
-  // Пагинация постов
   async function loadMorePosts(reset = false) {
     if (postsLoading) return;
     setPostsLoading(true);
@@ -103,14 +99,11 @@ export default function UserProfilePage() {
     async function loadData() {
       setLoading(true);
       try {
-        // Загружаем профиль
         const profileRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`);
         if (profileRes.ok) setProfile(await profileRes.json());
 
-        // Загружаем первую страницу постов
         await loadMorePosts(true);
 
-        // Проверяем подписку
         const token = getToken();
         if (token) {
           const followRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/is-following`, {
@@ -146,30 +139,29 @@ export default function UserProfilePage() {
   }
 
   async function toggleBan() {
-  const token = getToken();
-  if (!token) {
-    router.push("/login");
-    return;
-  }
-  if (!profile) return;
-  
-  const action = profile.is_banned ? "разбанить" : "забанить";
-  if (!confirm(`Вы уверены, что хотите ${action} пользователя @${profile.username}?`)) return;
+    const token = getToken();
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    if (!profile) return;
+    
+    const action = profile.is_banned ? "разбанить" : "забанить";
+    if (!confirm(`Вы уверены, что хотите ${action} пользователя @${profile.username}?`)) return;
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${profile.id}/ban`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-  });
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${profile.id}/ban`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-  if (res.ok) {
-    const p = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${profile.id}`).then((r) => r.json());
-    setProfile(p);
-  } else {
-    const data = await res.json().catch(() => null);
-    alert(data?.detail || "Недостаточно прав");
+    if (res.ok) {
+      const p = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${profile.id}`).then((r) => r.json());
+      setProfile(p);
+    } else {
+      const data = await res.json().catch(() => null);
+      alert(data?.detail || "Недостаточно прав");
+    }
   }
-}
-  
 
   async function openModal(type: "followers" | "following") {
     setModalType(type);
@@ -197,47 +189,67 @@ export default function UserProfilePage() {
     );
   }
 
+  const canBan = 
+    currentUser?.permissions?.includes("ban_users") &&
+    currentUser.id !== Number(userId) &&
+    !profile.is_admin &&
+    (profile.level ?? 1) < (currentUser.level ?? 1);
+
+  const isOwnProfile = currentUser?.id === Number(userId);
+
   return (
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
-      <div className="w-px shrink-0 bg-white/10 my-3" />
+      <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
       <main className="flex-1 overflow-y-auto border-x border-white/10">
-        {/* Шапка профиля */}
-        <div className="p-6 border-b border-white/10">
-          <div className="flex items-start gap-5">
-            <Avatar src={profile.avatar_url} name={profile.display_name} id={profile.id} size={96} />
+        {/* Шапка профиля — АДАПТИВНО */}
+        <div className="p-4 md:p-6 border-b border-white/10">
+          {/* Мобильная вёрстка (до md) */}
+          <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-5">
+            {/* Аватарка */}
+            <div className="flex justify-center md:justify-start">
+              <Avatar 
+                src={profile.avatar_url} 
+                name={profile.display_name} 
+                id={profile.id} 
+                size={80}
+                className="md:w-24 md:h-24"
+              />
+            </div>
 
+            {/* Контент */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-3 flex-wrap">
+              {/* Имя и бейджи */}
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div className="min-w-0 text-center md:text-left">
+                  <div className="flex items-center gap-2 md:gap-3 flex-wrap justify-center md:justify-start">
                     {profile.username === "System" ? (
-                      <h1 className="text-2xl font-black">
+                      <h1 className="text-xl md:text-2xl font-black">
                         <SystemName name={profile.display_name} />
                       </h1>
                     ) : (
                       <h1
-                        className={`text-2xl font-black ${glowStyle(profile) ? "" : "text-white"}`}
+                        className={`text-xl md:text-2xl font-black break-words ${glowStyle(profile) ? "" : "text-white"}`}
                         style={glowStyle(profile)}
                       >
                         {profile.display_name}
                       </h1>
                     )}
                     {profile.is_admin && (
-                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white text-black text-[8px] font-black uppercase tracking-widest shrink-0 border border-white shadow-[0_0_8px_rgba(255,255,255,0.6)]">
-                        <Shield size={8}  />
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white text-black text-[8px] font-black uppercase tracking-widest shrink-0 border border-white shadow-[0_0_8px_rgba(255,255,255,0.6)]">
+                        <Shield size={8} />
                         Founder
                       </span>
                     )}
                     {profile.is_moderator && !profile.is_admin && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#3b82f6] text-white text-[10px] font-black uppercase tracking-widest  border border-blue-400/50">
-                        <ShieldCheck size={10} />
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md bg-[#3b82f6] text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest border border-blue-400/50">
+                        <ShieldCheck size={9} />
                         Developer
                       </span>
                     )}
                     {profile.role && !profile.is_admin && !profile.is_moderator && (
                       <span
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-white text-[10px] font-black uppercase tracking-widest shadow-lg border"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest shadow-lg border"
                         style={{
                           backgroundColor: profile.role.color,
                           borderColor: `${profile.role.color}80`,
@@ -248,19 +260,20 @@ export default function UserProfilePage() {
                       </span>
                     )}
                     {profile.is_banned && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-[10px] font-black uppercase border border-red-500/30">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-[9px] md:text-[10px] font-black uppercase border border-red-500/30">
                         <Ban size={9} />
                         BANNED
                       </span>
                     )}
                   </div>
-                  <p className="text-white/50 mt-1">@{profile.username}</p>
+                  <p className="text-white/50 mt-1 text-sm">@{profile.username}</p>
                 </div>
 
-                <div className="flex gap-2 shrink-0">
+                {/* Кнопки действий */}
+                <div className="flex gap-2 shrink-0 w-full md:w-auto justify-center md:justify-end">
                   <button
                     onClick={toggleFollow}
-                    className={`px-5 py-2 rounded-full border font-bold transition-all ${
+                    className={`flex-1 md:flex-none px-4 md:px-5 py-2 rounded-full border font-bold text-sm transition-all ${
                       following
                         ? "border-[#8b5cf6] bg-[#8b5cf6] text-white"
                         : "border-white/20 text-white/80 hover:bg-white/10 hover:border-white/40 hover:text-white"
@@ -270,65 +283,60 @@ export default function UserProfilePage() {
                   </button>
                   <button
                     onClick={startChat}
-                    className="flex items-center gap-1 px-4 py-2 rounded-full border border-white/20 text-white/80 font-bold hover:bg-white/10 hover:border-white/40 hover:text-white transition-all"
+                    className="flex items-center justify-center gap-1 flex-1 md:flex-none px-3 md:px-4 py-2 rounded-full border border-white/20 text-white/80 font-bold text-sm hover:bg-white/10 hover:border-white/40 hover:text-white transition-all"
                   >
-                    <MessageSquare size={16} />
-                    Написать
+                    <MessageSquare size={14} className="md:hidden" />
+                    <MessageSquare size={16} className="hidden md:block" />
+                    <span className="hidden sm:inline">Написать</span>
                   </button>
 
-                  {/* 🆕 КНОПКА БАНА */}
-                    {currentUser?.permissions?.includes("ban_users") &&
-                      currentUser.id !== Number(userId) &&
-                      !profile.is_admin &&
-                      (profile.level ?? 1) < (currentUser.level ?? 1) && (
-                        <button
-                          onClick={toggleBan}
-                          className={`flex items-center gap-1 px-4 py-2 rounded-full border font-bold transition-all ${
-                            profile.is_banned
-                              ? "border-green-400/40 text-green-400 hover:bg-green-500/10"
-                              : "border-red-400/40 text-red-400 hover:bg-red-500/10"
-                          }`}
-                          title={profile.is_banned ? "" : ""}
-                        >
-                          <Ban size={16} />
-                          {profile.is_banned ? "" : ""}
-                        </button>
-                      )}
+                  {canBan && (
+                    <button
+                      onClick={toggleBan}
+                      className={`flex items-center justify-center px-3 md:px-4 py-2 rounded-full border font-bold transition-all ${
+                        profile.is_banned
+                          ? "border-green-400/40 text-green-400 hover:bg-green-500/10"
+                          : "border-red-400/40 text-red-400 hover:bg-red-500/10"
+                      }`}
+                      title={profile.is_banned ? "Разбанить" : "Забанить"}
+                    >
+                      <Ban size={16} />
+                    </button>
+                  )}
 
-                  {/* Кнопка жалобы — не показываем на свой профиль */}
-                    {currentUser?.id !== Number(userId) && (
-                      <button
-                        onClick={() => setShowReport(true)}
-                        className="p-2 rounded-full border border-white/20 text-white/60 hover:bg-red-500/10 hover:border-red-400/50 hover:text-red-400 transition-all"
-                        title="Пожаловаться на пользователя"
-                      >
-                        <Flag size={16} />
-                      </button>
-                    )}
-
+                  {!isOwnProfile && (
+                    <button
+                      onClick={() => setShowReport(true)}
+                      className="p-2 rounded-full border border-white/20 text-white/60 hover:bg-red-500/10 hover:border-red-400/50 hover:text-red-400 transition-all"
+                      title="Пожаловаться на пользователя"
+                    >
+                      <Flag size={16} />
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <div className="flex gap-6 mt-4 text-sm font-semibold text-white/70">
-                <span>{profile.posts_count} постов</span>
+              {/* Статистика */}
+              <div className="flex gap-4 md:gap-6 mt-4 text-xs md:text-sm font-semibold text-white/70 justify-center md:justify-start">
+                <span>{profile.posts_count} <span className="hidden sm:inline">постов</span><span className="sm:hidden">п.</span></span>
                 <button
                   onClick={() => openModal("followers")}
                   className="hover:text-[#8b5cf6] transition-colors cursor-pointer"
                 >
-                  <span className="text-white font-bold">{profile.followers_count}</span> подписчиков
+                  <span className="text-white font-bold">{profile.followers_count}</span> <span className="hidden sm:inline">подписчиков</span><span className="sm:hidden">подп.</span>
                 </button>
                 <button
                   onClick={() => openModal("following")}
                   className="hover:text-[#8b5cf6] transition-colors cursor-pointer"
                 >
-                  <span className="text-white font-bold">{profile.following_count}</span> читает
+                  <span className="text-white font-bold">{profile.following_count}</span> <span className="hidden sm:inline">читает</span><span className="sm:hidden">чит.</span>
                 </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Посты с пагинацией */}
+        {/* Посты */}
         {posts.map((post) => (
           <Post key={post.id} {...post} />
         ))}
@@ -341,7 +349,7 @@ export default function UserProfilePage() {
           <button
             onClick={() => loadMorePosts()}
             disabled={postsLoading}
-            className="w-full p-4 text-center text-[#8b5cf6] hover:text-[#8b5cf6] font-semibold hover:bg-white/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full p-4 text-center text-[#8b5cf6] font-semibold hover:bg-white/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {postsLoading ? "Загрузка..." : "Загрузить ещё"}
           </button>
@@ -360,7 +368,7 @@ export default function UserProfilePage() {
             onClick={() => setModalType(null)}
           />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full max-w-md border border-white/20 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl pointer-events-auto max-h-[70vh] flex flex-col">
+            <div className="w-full max-w-md border border-white/20 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl pointer-events-auto max-h-[80vh] md:max-h-[70vh] flex flex-col">
               <div className="sticky top-0 bg-[#1f1f23]/95 backdrop-blur-md border-b border-white/10 p-4 flex items-center justify-between shrink-0">
                 <h2 className="font-black text-white text-lg">
                   {modalType === "followers" ? "Подписчики" : "Читает"}
@@ -391,37 +399,38 @@ export default function UserProfilePage() {
                       onClick={() => setModalType(null)}
                       className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors"
                     >
-                      {profile.username === "System" ? (
-                        <div className="relative shrink-0">
-                          <div className="absolute -inset-2 bg-green-500/30 blur-md rounded-full animate-pulse" />
-                          <Avatar src={profile.avatar_url} name={profile.display_name} id={profile.id} size={96} />
-                        </div>
-                      ) : (
-                        <Avatar src={profile.avatar_url} name={profile.display_name} id={profile.id} size={96} />
-                      )}
+                      {/* ✅ ИСПРАВЛЕНО: используем u, а не profile */}
+                      <div className="shrink-0">
+                        <Avatar 
+                          src={u.avatar_url} 
+                          name={u.display_name} 
+                          id={u.id} 
+                          size={48} 
+                        />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                            <p
-                              className={`font-bold truncate ${glowStyle(u) ? "" : "text-white"}`}
-                              style={glowStyle(u)}
-                            >
-                              {u.display_name}
-                            </p>
-                            {profile.is_admin && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white text-black text-[10px] font-black uppercase tracking-widest border border-white shadow-[0_0_12px_rgba(255,255,255,0.6)]">
-                                <Shield size={10} />
+                          <p
+                            className={`font-bold text-sm md:text-base truncate ${glowStyle(u) ? "" : "text-white"}`}
+                            style={glowStyle(u)}
+                          >
+                            {u.display_name}
+                          </p>
+                          {u.is_admin && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white text-black text-[9px] md:text-[10px] font-black uppercase tracking-widest border border-white shadow-[0_0_12px_rgba(255,255,255,0.6)]">
+                              <Shield size={9} />
                               Founder
                             </span>
                           )}
                           {u.is_moderator && !u.is_admin && (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#3b82f6] text-white text-[8px] font-black uppercase tracking-widest shrink-0">
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#3b82f6] text-white text-[8px] md:text-[9px] font-black uppercase tracking-widest shrink-0">
                               <ShieldCheck size={8} />
                               Developer
                             </span>
                           )}
                           {u.role && !u.is_admin && !u.is_moderator && (
                             <span
-                              className="inline-flex items-center px-1.5 py-0.5 rounded text-white text-[8px] font-black uppercase tracking-widest shrink-0 border"
+                              className="inline-flex items-center px-1.5 py-0.5 rounded text-white text-[8px] md:text-[9px] font-black uppercase tracking-widest shrink-0 border"
                               style={{
                                 backgroundColor: u.role.color,
                                 borderColor: `${u.role.color}80`,
@@ -431,12 +440,12 @@ export default function UserProfilePage() {
                             </span>
                           )}
                           {u.is_banned && (
-                            <span className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[8px] font-black uppercase border border-red-500/30 shrink-0">
+                            <span className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[8px] md:text-[9px] font-black uppercase border border-red-500/30 shrink-0">
                               BANNED
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-white/50 truncate">@{u.username}</p>
+                        <p className="text-xs md:text-sm text-white/50 truncate">@{u.username}</p>
                       </div>
                     </Link>
                   ))}
@@ -446,14 +455,13 @@ export default function UserProfilePage() {
         </>
       )}
 
-    {showReport && profile && (
-      <ReportModal
-        targetType="user"
-        targetId={profile.id}
-        onClose={() => setShowReport(false)}
-      />
-    )}
-
+      {showReport && profile && (
+        <ReportModal
+          targetType="user"
+          targetId={profile.id}
+          onClose={() => setShowReport(false)}
+        />
+      )}
     </div>
   );
 }
