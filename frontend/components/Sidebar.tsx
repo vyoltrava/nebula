@@ -117,8 +117,8 @@ export function Sidebar() {
 
   const sidebarContent = (
     <>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="font-logo text-4xl text-[#8b5cf6]">NEBULA</h1>
+      <div className="flex items-center justify-between mb-4 md:mb-6">
+        <h1 className="font-logo text-2xl md:text-4xl text-[#8b5cf6]">NEBULA</h1>
         <button
           onClick={() => setDrawerOpen(false)}
           className="md:hidden p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-all"
@@ -306,9 +306,31 @@ export function Sidebar() {
 
   return (
     <>
+      {/* 🆕 Затемнение фона при открытом меню */}
+      {drawerOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/50 z-[95]"
+          onClick={() => setDrawerOpen(false)}
+        />
+      )}
+
+      {/* 🆕 Компактное окошко с кнопками — ПРЯМО НАД кнопкой меню, справа */}
+      <aside
+        className={`
+          md:hidden fixed right-3 bottom-40 z-[96] w-64 max-w-[85vw] max-h-[60vh]
+          overflow-y-auto rounded-2xl border border-[#8b5cf6]/40 bg-[#171717]/95
+          backdrop-blur-md shadow-2xl shadow-black/60 p-4 flex flex-col gap-4
+          transition-all duration-200 ease-out
+          ${drawerOpen ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-6 scale-95 pointer-events-none"}
+        `}
+      >
+        {sidebarContent}
+      </aside>
+
+      {/* 🆕 Слайдер-меню — СПРАВА внизу, всегда на месте */}
       <button
-        onClick={() => setDrawerOpen(true)}
-        className="md:hidden fixed left-3 bottom-6 z-[90] w-11 h-28 rounded-full 
+        onClick={() => setDrawerOpen(!drawerOpen)}
+        className="md:hidden fixed right-3 bottom-6 z-[97] w-11 h-28 rounded-full 
           bg-[#171717]/95 backdrop-blur-md border-2 border-[#8b5cf6]/60 
           text-[#8b5cf6] flex flex-col items-center justify-center gap-2 
           shadow-lg shadow-black/60 active:scale-95 transition-all"
@@ -323,28 +345,12 @@ export function Sidebar() {
         </span>
       </button>
 
-      {drawerOpen && (
-        <div
-          className="md:hidden fixed inset-0 bg-black/70 z-[95] backdrop-blur-sm"
-          onClick={() => setDrawerOpen(false)}
-        />
-      )}
-
-      <aside
-        className={`
-          md:hidden fixed inset-y-0 left-0 w-72 max-w-[85vw] z-[96]
-          flex flex-col gap-6 p-5 overflow-y-auto bg-[#171717] shadow-2xl
-          transition-transform duration-300 ease-out
-          ${drawerOpen ? "translate-x-0" : "-translate-x-full"}
-        `}
-      >
-        {sidebarContent}
-      </aside>
-
+      {/* 💻 Десктопный сайдбар — без изменений */}
       <aside className="hidden md:flex md:w-64 shrink-0 overflow-y-auto p-5 flex-col gap-8 bg-[#171717]">
         {sidebarContent}
       </aside>
 
+      {/* Модалка уведомлений */}
       {showNotifs && (
         <>
           <div
