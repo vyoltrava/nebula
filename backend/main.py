@@ -2158,26 +2158,45 @@ def get_my_session_key(
 # ---------- E2EE: СОЗДАНИЕ СЕКРЕТНОГО ЧАТА ----------
 
 @app.post("/api/chats/secret")
-def create_secret_chat(
-    other_user_id: int,
+async def create_secret_chat(
+    request: Request,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Создаёт секретный чат с E2EE"""
+    """Создаёт секретный чат. Принимает other_user_id из query, form или JSON."""
+    other_user_id = request.query_params.get("other_user_id")
+
+    if other_user_id is None:
+        try:
+            form = await request.form()
+            other_user_id = form.get("other_user_id")
+        except Exception:
+            pass
+
+    if other_user_id is None:
+        try:
+            data = await request.json()
+            other_user_id = data.get("other_user_id")
+        except Exception:
+            pass
+
+    if other_user_id is None:
+        raise HTTPException(400, "other_user_id обязателен")
+    other_user_id = int(other_user_id)
+
     if other_user_id == user.id:
         raise HTTPException(400, "Нельзя создать чат с собой")
-    
+
     other = session.get(User, other_user_id)
     if not other:
         raise HTTPException(404, "Пользователь не найден")
-    
-    # Проверяем, что у обоих есть публичные ключи
+
     my_key = session.exec(select(UserKey).where(UserKey.user_id == user.id)).first()
     other_key = session.exec(select(UserKey).where(UserKey.user_id == other_user_id)).first()
     if not my_key or not other_key:
-        raise HTTPException(400, "У одного из пользователей нет ключа. Нужно зарегистрировать ключ.")
-    
-    # Проверяем, есть ли уже секретный чат между ними
+        raise HTTPException(400, "У одного из пользователей нет ключа")
+
+    # Уже есть секретный чат?
     my_chats = session.exec(select(ChatMember.chat_id).where(ChatMember.user_id == user.id)).all()
     for cid in my_chats:
         chat = session.get(Chat, cid)
@@ -2187,8 +2206,7 @@ def create_secret_chat(
             ).first()
             if other_in:
                 return {"chat_id": cid, "already_existed": True}
-    
-    # Создаём новый секретный чат
+
     chat = Chat(is_secret=True)
     session.add(chat)
     session.commit()
@@ -2196,7 +2214,7 @@ def create_secret_chat(
     session.add(ChatMember(chat_id=chat.id, user_id=user.id))
     session.add(ChatMember(chat_id=chat.id, user_id=other_user_id))
     session.commit()
-    
+
     return {"chat_id": chat.id, "already_existed": False}
 
 
