@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { getToken } from "@/lib/auth";
 import { Post } from "./Post";
 import { onFeedRefresh } from "@/lib/events";
-import { API_URL } from "@/lib/api";
+
 
 export function FeedTabs() {
   const [tab, setTab] = useState<"all" | "following">("all");
@@ -11,8 +11,8 @@ export function FeedTabs() {
 
   async function loadPosts() {
     const url = tab === "all"
-      ? 'http://${API_URL}/api/posts'
-      : 'http://${API_URL}/api/posts/following';
+      ? `${process.env.NEXT_PUBLIC_API_URL}/api/posts`
+      : `${process.env.NEXT_PUBLIC_API_URL}/api/posts/following`;
 
     const headers: Record<string, string> = {};
     const token = getToken();

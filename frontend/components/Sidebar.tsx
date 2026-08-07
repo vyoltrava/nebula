@@ -11,7 +11,7 @@ import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
 import { onFeedRefresh } from "@/lib/events";
 import { BugReportModal } from "@/components/BugReportModal";
-import { API_URL } from "@/lib/api";
+
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -34,7 +34,7 @@ export function Sidebar() {
 
   const controller = new AbortController();
 
-  fetch('http://${API_URL}/api/me', {
+  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
     headers: { Authorization: `Bearer ${token}` },
     signal: controller.signal,
   })
@@ -58,12 +58,12 @@ export function Sidebar() {
     const cleanup = onFeedRefresh(() => {
       const token = getToken();
       if (!token) return;
-      fetch('http://${API_URL}/api/notifications/unread-count', {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/unread-count`, {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((r) => (r.ok ? r.json() : { count: 0 }))
         .then((data) => setUnreadCount(data.count));
-      fetch('http://${API_URL}/api/chats/unread-count', {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/unread-count`, {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((r) => (r.ok ? r.json() : { count: 0 }))
@@ -75,7 +75,7 @@ export function Sidebar() {
   async function loadNotifications() {
     const token = getToken();
     if (!token) return;
-    const res = await fetch('http://${API_URL}/api/notifications', {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
@@ -87,7 +87,7 @@ export function Sidebar() {
   async function markRead(id: number) {
     const token = getToken();
     if (!token) return;
-    await fetch(`http://${API_URL}/api/notifications/${id}/read`, {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/${id}/read`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });

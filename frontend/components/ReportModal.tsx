@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Flag, X } from "lucide-react";
 import { getToken } from "@/lib/auth";
-import { API_URL } from "@/lib/api";
+
 
 const REASONS = [
   { id: "spam", label: "Спам или реклама", icon: "📢" },
@@ -48,7 +48,7 @@ export function ReportModal({
     if (comment.trim()) form.append("comment", comment.trim());
 
     try {
-      const res = await fetch('http://${API_URL}/api/reports', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/reports`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: form,

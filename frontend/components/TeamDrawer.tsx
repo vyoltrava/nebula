@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { X, Users } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
-import { API_URL } from "@/lib/api";
+
 
 type Member = {
   id: number;
@@ -35,7 +35,7 @@ export function TeamDrawer({ open, onClose }: { open: boolean; onClose: () => vo
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    fetch('http://${API_URL}/api/team')
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team`)
       .then((r) => (r.ok ? r.json() : { groups: [] }))
       .then((data) => setGroups(data.groups || []))
       .finally(() => setLoading(false));

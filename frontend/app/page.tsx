@@ -6,7 +6,6 @@ import { CreatePost } from "@/components/CreatePost";
 import { RightPanel } from "@/components/RightPanel";
 import { getToken } from "@/lib/auth";
 import { onFeedRefresh } from "@/lib/events";
-import { API_URL } from "@/lib/api";
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<"all" | "following">("all");
@@ -25,12 +24,12 @@ export default function HomePage() {
     let url = "";
     if (activeTab === "all") {
       url = cursor
-        ? `http://${API_URL}/api/posts?cursor=${cursor}&limit=20`
-        : `http://${API_URL}/api/posts?limit=20`;
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/posts?cursor=${cursor}&limit=20`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/posts?limit=20`;
     } else {
       url = cursor
-        ? `http://${API_URL}/api/posts/following?cursor=${cursor}&limit=20`
-        : `http://${API_URL}/api/posts/following?limit=20`;
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/posts/following?cursor=${cursor}&limit=20`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/posts/following?limit=20`;
     }
 
     const headers: Record<string, string> = {};

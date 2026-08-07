@@ -5,7 +5,7 @@ import Link from "next/link";
 import { getToken } from "@/lib/auth";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
-import { API_URL } from "@/lib/api";
+
 import { 
   Heart, MessageCircle, UserPlus, AtSign, MessageSquare, 
   CheckCheck, Bell, ArrowLeft 
@@ -35,7 +35,7 @@ export default function NotificationsPage() {
       router.push("/login");
       return;
     }
-    fetch('http://${API_URL}/api/notifications', {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
@@ -49,7 +49,7 @@ export default function NotificationsPage() {
   async function markRead(id: number) {
     const token = getToken();
     if (!token) return;
-    await fetch(`http://${API_URL}/api/notifications/${id}/read`, {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/${id}/read`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -64,7 +64,7 @@ export default function NotificationsPage() {
     const unread = notifs.filter((n) => !n.read);
     await Promise.all(
       unread.map((n) =>
-        fetch(`http://${API_URL}/api/notifications/${n.id}/read`, {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/${n.id}/read`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         })

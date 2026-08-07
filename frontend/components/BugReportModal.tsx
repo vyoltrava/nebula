@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { X, Bug, Send } from "lucide-react";
 import { getToken } from "@/lib/auth";
-import { API_URL } from "@/lib/api";
 
 const PRIORITY_OPTIONS = [
   { value: "low", label: "Низкий", color: "text-green-400" },
@@ -46,7 +45,7 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
     form.append("priority", priority);
 
     try {
-      const res = await fetch('http://${API_URL}/api/bugs', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bugs`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: form,

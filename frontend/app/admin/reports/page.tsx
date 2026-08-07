@@ -5,7 +5,6 @@ import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
 import { Flag, CheckCircle, XCircle, Trash2, Ban } from "lucide-react";
-import { API_URL } from "@/lib/api";
 
 const REASON_LABELS: Record<string, string> = {
   spam: "📢 Спам",
@@ -24,7 +23,7 @@ export default function ReportsPage() {
     const token = getToken();
     if (!token) return;
 
-    const meRes = await fetch('http://${API_URL}/api/me', {
+    const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const meData = await meRes.json();
@@ -36,8 +35,8 @@ export default function ReportsPage() {
     }
 
     const url = filter === "all"
-      ? 'http://${API_URL}/api/reports'
-      : `http://${API_URL}/api/reports?status=${filter}`;
+      ? `${process.env.NEXT_PUBLIC_API_URL}/api/reports`
+      : `${process.env.NEXT_PUBLIC_API_URL}/api/reports?status=${filter}`;
 
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
@@ -64,7 +63,7 @@ export default function ReportsPage() {
     const form = new FormData();
     form.append("action", action);
 
-    await fetch(`http://${API_URL}/api/reports/${reportId}/resolve`, {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/reports/${reportId}/resolve`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: form,
@@ -77,7 +76,7 @@ export default function ReportsPage() {
     const token = getToken();
     if (!token) return;
 
-    await fetch(`http://${API_URL}/api/reports/${reportId}/reject`, {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/reports/${reportId}/reject`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });

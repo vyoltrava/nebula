@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
 import { MessageSquare } from "lucide-react";
 import { getToken } from "@/lib/auth";
-import { API_URL } from "@/lib/api";
+
 
 export default function MessagesPage() {
     const [chats, setChats] = useState<any[]>([]);
@@ -36,7 +36,7 @@ export default function MessagesPage() {
             return;
         }
         try {
-            const res = await fetch('http://${API_URL}/api/chats', {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (res.ok) setChats(await res.json());

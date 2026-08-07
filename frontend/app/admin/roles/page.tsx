@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { getToken } from "@/lib/auth";
-import { API_URL } from "@/lib/api";
 import { Palette, Plus, Trash2, Edit2, X, ShieldCheck, AlertTriangle, Info, ChevronUp } from "lucide-react";
 
 const AVAILABLE_PERMISSIONS = [
@@ -55,7 +54,7 @@ export default function RolesPage() {
       return;
     }
     try {
-      const meRes = await fetch('http://${API_URL}/api/me', {
+      const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!meRes.ok) throw new Error("Auth failed");
@@ -68,7 +67,7 @@ export default function RolesPage() {
         return;
       }
 
-      const res = await fetch('http://${API_URL}/api/roles', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/roles`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setRoles(await res.json());
@@ -126,8 +125,8 @@ export default function RolesPage() {
     form.append("permissions", JSON.stringify(permissions));
 
     const url = editingRole
-      ? `http://${API_URL}/api/roles/${editingRole.id}`
-      : 'http://${API_URL}/api/roles';
+      ? `${process.env.NEXT_PUBLIC_API_URL}/api/roles/${editingRole.id}`
+      : `${process.env.NEXT_PUBLIC_API_URL}/api/roles`;
     const method = editingRole ? "PATCH" : "POST";
 
     try {
@@ -158,7 +157,7 @@ export default function RolesPage() {
     if (!token) return;
     
     try {
-      await fetch(`http://${API_URL}/api/roles/${roleId}`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/roles/${roleId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

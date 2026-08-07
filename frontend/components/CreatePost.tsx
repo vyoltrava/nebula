@@ -7,7 +7,6 @@ import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
 import { STICKERS } from "@/lib/stickers";
 import { Avatar } from "@/components/Avatar";
-import { API_URL } from "@/lib/api";
 
 export function CreatePost() {
   const [text, setText] = useState("");
@@ -28,7 +27,7 @@ export function CreatePost() {
     const token = getToken();
     if (token) {
       setLogged(true);
-      fetch('http://${API_URL}/api/me', {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((r) => (r.ok ? r.json() : null))
@@ -56,7 +55,7 @@ export function CreatePost() {
     const form = new FormData();
     form.append("text", text);
     if (file) form.append("file", file);
-    const res = await fetch('http://${API_URL}/api/posts', {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: form,

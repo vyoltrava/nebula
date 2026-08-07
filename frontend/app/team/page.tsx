@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
 import { Users, ArrowLeft, Terminal, Crown, ShieldCheck, Shield, Wrench, Gavel } from "lucide-react";
-import { API_URL } from "@/lib/api";
+
 
 type Member = {
   id: number;
@@ -61,7 +61,7 @@ export default function TeamPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('http://${API_URL}/api/team')
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team`)
       .then((r) => (r.ok ? r.json() : { groups: [] }))
       .then((data) => setGroups(data.groups || []))
       .finally(() => setLoading(false));

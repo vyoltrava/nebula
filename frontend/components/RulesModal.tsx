@@ -1,13 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Shield, X } from "lucide-react";
-import { API_URL } from "@/lib/api";
+
 
 export function RulesModal({ onClose }: { onClose: () => void }) {
   const [rules, setRules] = useState<any>(null);
 
   useEffect(() => {
-    fetch('http://${API_URL}/api/rules')
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rules`)
       .then((r) => r.json())
       .then(setRules);
   }, []);

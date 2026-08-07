@@ -10,7 +10,7 @@ import { safeFetch } from "@/lib/ban";
 import { Avatar } from "@/components/Avatar";
 import { mediaUrl } from "@/lib/media";
 import { ReportModal } from "./ReportModal";
-import { API_URL } from "@/lib/api";
+
 
 function renderText(text: string) {
   const parts = text.split(/(#[\wа-яёА-ЯЁ]+|@[\wа-яёА-ЯЁ]+|:[\w]+:)/g);
@@ -149,7 +149,7 @@ export function Post({
     const token = getToken();
     if (!token) return;
 
-    safeFetch('http://${API_URL}/api/me', {
+    safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => (r.ok ? r.json() : null))
@@ -160,7 +160,7 @@ export function Post({
         }
       });
 
-    safeFetch(`http://${API_URL}/api/users/${author_id}/is-following`, {
+    safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${author_id}/is-following`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => (res.ok ? res.json() : null))
@@ -168,7 +168,7 @@ export function Post({
         if (data) setFollowing(data.following);
       });
 
-    safeFetch(`http://${API_URL}/api/posts/${id}/is-liked`, {
+    safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/is-liked`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => (res.ok ? res.json() : null))
@@ -183,7 +183,7 @@ export function Post({
       router.push("/login");
       return;
     }
-    const res = await safeFetch(`http://${API_URL}/api/posts/${id}/like`, {
+    const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/like`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -202,7 +202,7 @@ export function Post({
       router.push("/login");
       return;
     }
-    const res = await safeFetch(`http://${API_URL}/api/users/${author_id}/follow`, {
+    const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${author_id}/follow`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -214,7 +214,7 @@ export function Post({
 
   async function loadReplies() {
     if (!showReplies) {
-      const res = await safeFetch(`http://${API_URL}/api/posts/${id}/replies`);
+      const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/replies`);
       if (res.ok) setReplies(await res.json());
     }
     setShowReplies(!showReplies);
@@ -250,7 +250,7 @@ export function Post({
     form.append("text", replyText);
     form.append("reply_to", String(replyToId));
 
-    const res = await safeFetch('http://${API_URL}/api/posts', {
+    const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: form,
@@ -262,7 +262,7 @@ export function Post({
       setRCount((c) => c + 1);
       
       // Перезагружаем ответы
-      const r = await safeFetch(`http://${API_URL}/api/posts/${id}/replies`);
+      const r = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/replies`);
       if (r.ok) setReplies(await r.json());
       setShowReplies(true);
       triggerFeedRefresh();
@@ -275,8 +275,8 @@ export function Post({
     if (!token) return;
 
     const url = myPermissions.includes("delete_posts")
-      ? `http://${API_URL}/api/admin/posts/${id}`
-      : `http://${API_URL}/api/posts/${id}`;
+      ? `${process.env.NEXT_PUBLIC_API_URL}/api/admin/posts/${id}`
+      : `${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}`;
 
     const res = await safeFetch(url, {
       method: "DELETE",
@@ -447,13 +447,13 @@ export function Post({
                       const token = getToken();
                       if (!token) return;
                       const url = myPermissions.includes("delete_posts")
-                        ? `http://${API_URL}/api/admin/posts/${r.id}`
-                        : `http://${API_URL}/api/posts/${r.id}`;
+                        ? `${process.env.NEXT_PUBLIC_API_URL}/api/admin/posts/${r.id}`
+                        : `${process.env.NEXT_PUBLIC_API_URL}/api/posts/${r.id}`;
                       await safeFetch(url, {
                         method: "DELETE",
                         headers: { Authorization: `Bearer ${token}` },
                       });
-                      const res = await safeFetch(`http://${API_URL}/api/posts/${id}/replies`);
+                      const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/replies`);
                       if (res.ok) setReplies(await res.json());
                       setRCount((c) => Math.max(0, c - 1));
                       triggerFeedRefresh();
@@ -514,7 +514,7 @@ function ReplyItem({
     form.append("text", replyText);
     form.append("reply_to", String(reply.id)); // 🆕 Ответ на комментарий, а не на пост
 
-    const res = await safeFetch('http://${API_URL}/api/posts', {
+    const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: form,
@@ -524,7 +524,7 @@ function ReplyItem({
       setReplyText("");
       setShowReplyForm(false);
       // Перезагружаем все ответы
-      const r = await safeFetch(`http://${API_URL}/api/posts/${postId}/replies`);
+      const r = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/replies`);
       if (r.ok) {
         const newReplies = await r.json();
         // Триггерим обновление родителя через callback
@@ -669,13 +669,13 @@ function ReplyItem({
                 const token = getToken();
                 if (!token) return;
                 const url = myPermissions.includes("delete_posts")
-                  ? `http://${API_URL}/api/admin/posts/${child.id}`
-                  : `http://${API_URL}/api/posts/${child.id}`;
+                  ? `${process.env.NEXT_PUBLIC_API_URL}/api/admin/posts/${child.id}`
+                  : `${process.env.NEXT_PUBLIC_API_URL}/api/posts/${child.id}`;
                 await safeFetch(url, {
                   method: "DELETE",
                   headers: { Authorization: `Bearer ${token}` },
                 });
-                const r = await safeFetch(`http://${API_URL}/api/posts/${postId}/replies`);
+                const r = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/replies`);
                 if (r.ok) {
                   window.dispatchEvent(new CustomEvent("replies-updated", { detail: await r.json() }));
                 }

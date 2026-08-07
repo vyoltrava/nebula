@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
-import { API_URL } from "@/lib/api";
+
 import {
   Settings,
   Users,
@@ -111,7 +111,7 @@ export default function TechnicalPage() {
     const token = getToken();
     if (!token) return;
 
-    const meRes = await fetch('http://${API_URL}/api/me', {
+    const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const meData = await meRes.json();
@@ -122,7 +122,7 @@ export default function TechnicalPage() {
       return;
     }
 
-    const statsRes = await fetch('http://${API_URL}/api/admin/stats', {
+    const statsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/stats`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (statsRes.ok) setStats(await statsRes.json());
@@ -141,8 +141,8 @@ export default function TechnicalPage() {
 
     try {
       const url = bugStatusFilter
-        ? `http://${API_URL}/api/bugs?status=${bugStatusFilter}`
-        : 'http://${API_URL}/api/bugs';
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/bugs?status=${bugStatusFilter}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/bugs`;
 
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -194,7 +194,7 @@ export default function TechnicalPage() {
     if (newPassword.trim()) form.append("new_password", newPassword.trim());
 
     try {
-      const res = await fetch(`http://${API_URL}/api/admin/users/${selectedUser.id}/technical`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${selectedUser.id}/technical`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
         body: form,
@@ -232,7 +232,7 @@ export default function TechnicalPage() {
     if (!token) return;
 
     try {
-      const res = await fetch(`http://${API_URL}/api/admin/users/${selectedUser.id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${selectedUser.id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -267,7 +267,7 @@ export default function TechnicalPage() {
     const form = new FormData();
     form.append("file", file);
 
-    const res = await fetch(`http://${API_URL}/api/admin/users/${selectedUser.id}/avatar/set`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${selectedUser.id}/avatar/set`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: form,
@@ -277,7 +277,7 @@ export default function TechnicalPage() {
       setSaveMsg({ text: "Аватарка обновлена!", type: "ok" });
       setTimeout(() => setSaveMsg(null), 2000);
       load();
-      const userRes = await fetch(`http://${API_URL}/api/admin/users/${selectedUser.id}/full`, {
+      const userRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${selectedUser.id}/full`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (userRes.ok) setSelectedUser(await userRes.json());
@@ -295,7 +295,7 @@ export default function TechnicalPage() {
     const form = new FormData();
     form.append("status", status);
 
-    const res = await fetch(`http://${API_URL}/api/bugs/${bugId}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bugs/${bugId}`, {
       method: "PATCH",
       headers: { Authorization: `Bearer ${token}` },
       body: form,
@@ -316,7 +316,7 @@ export default function TechnicalPage() {
     const token = getToken();
     if (!token) return;
 
-    const res = await fetch(`http://${API_URL}/api/bugs/${bugId}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bugs/${bugId}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });

@@ -7,7 +7,6 @@ import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { STICKERS } from "@/lib/stickers";
-import { API_URL } from "@/lib/api";
 import { 
   Send, Image as ImageIcon, X, Smile, Paperclip, 
   FileText, Film, Edit2, Trash2, MoreVertical
@@ -52,7 +51,7 @@ async function loadChatPartner() {
   const token = getToken();
   if (!token) return;
   try {
-    const res = await fetch(`http://${API_URL}/api/chats/${chatId}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.status === 403) {
@@ -71,7 +70,7 @@ async function loadMessages() {
   const token = getToken();
   if (!token) return;
   try {
-    const res = await fetch(`http://${API_URL}/api/chats/${chatId}/messages`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.status === 403) {
@@ -98,7 +97,7 @@ useEffect(() => {
   const signal = controller.signal;
 
   // Загрузка текущего пользователя
-  fetch('http://${API_URL}/api/me', {
+  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
     headers: { Authorization: `Bearer ${token}` },
     signal,
   })
@@ -115,7 +114,7 @@ useEffect(() => {
   loadMessages();
 
   // Помечаем чат как прочитанный
-  fetch(`http://${API_URL}/api/chats/${chatId}/read`, {
+  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/read`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
     signal,
@@ -187,7 +186,7 @@ useEffect(() => {
       if (msg.text) form.append("text", msg.text);
       if (msg.file) form.append("file", msg.file);
 
-      const res = await fetch(`http://${API_URL}/api/chats/${chatId}/messages`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: form,
@@ -213,7 +212,7 @@ useEffect(() => {
     const token = getToken();
     if (!token) return;
     try {
-      const res = await fetch(`http://${API_URL}/api/chats/${chatId}/media`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/media`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -230,7 +229,7 @@ useEffect(() => {
   if (!token) return;
 
   try {
-    const res = await fetch(`http://${API_URL}/api/chats/${chatId}/messages/${messageId}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/${messageId}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -258,7 +257,7 @@ async function submitEdit() {
     const form = new FormData();
     form.append("text", editText);
 
-    const res = await fetch(`http://${API_URL}/api/chats/${chatId}/messages/${editingMessageId}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/${editingMessageId}`, {
       method: "PATCH",
       headers: { Authorization: `Bearer ${token}` },
       body: form,

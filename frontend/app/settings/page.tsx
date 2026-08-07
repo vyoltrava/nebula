@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { Upload, Lock, Eye, EyeOff } from "lucide-react";
-import { API_URL } from "@/lib/api";
+
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
@@ -27,7 +27,7 @@ export default function SettingsPage() {
       router.push("/login");
       return;
     }
-    fetch('http://${API_URL}/api/me', {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
@@ -43,7 +43,7 @@ export default function SettingsPage() {
   async function saveProfile() {
     const token = getToken();
     if (!token) return;
-    await fetch('http://${API_URL}/api/me', {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -54,7 +54,7 @@ export default function SettingsPage() {
     if (fileRef.current?.files?.[0]) {
       const form = new FormData();
       form.append("file", fileRef.current.files[0]);
-      await fetch('http://${API_URL}/api/me/avatar', {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/avatar`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: form,
@@ -79,7 +79,7 @@ export default function SettingsPage() {
     const token = getToken();
     if (!token) return;
 
-    const res = await fetch('http://${API_URL}/api/me/password', {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/password`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

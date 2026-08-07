@@ -6,7 +6,6 @@ import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
 import { Listbox } from '@headlessui/react'
-import { API_URL } from "@/lib/api";
 import { Shield, ShieldCheck, Ban, UserCheck, ImageOff, Crown, Palette, ExternalLink, Trash2, Flag, Search, Filter, Users, X } from "lucide-react";
 
 export default function AdminPage() {
@@ -31,7 +30,7 @@ export default function AdminPage() {
       return;
     }
 
-    const meRes = await fetch('http://${API_URL}/api/me', {
+    const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!meRes.ok) {
@@ -46,12 +45,12 @@ export default function AdminPage() {
       return;
     }
 
-    const res = await fetch('http://${API_URL}/api/admin/users', {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) setUsers(await res.json());
 
-    const rolesRes = await fetch('http://${API_URL}/api/roles');
+    const rolesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/roles`);
     if (rolesRes.ok) setRoles(await rolesRes.json());
   }
 
@@ -95,7 +94,7 @@ export default function AdminPage() {
     const token = getToken();
     if (!token) return;
     
-    const res = await fetch(`http://${API_URL}/api/admin/users/${userId}/posts`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${userId}/posts`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -124,7 +123,7 @@ export default function AdminPage() {
       return;
     }
 
-    const res = await fetch(`http://${API_URL}/api/admin/users/${userId}/ban`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${userId}/ban`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -142,7 +141,7 @@ export default function AdminPage() {
     const token = getToken();
     if (!token) return;
     
-    const res = await fetch(`http://${API_URL}/api/admin/users/${userId}/avatar`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${userId}/avatar`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -160,7 +159,7 @@ export default function AdminPage() {
     const token = getToken();
     if (!token) return;
     
-    const res = await fetch(`http://${API_URL}/api/admin/users/${userId}/moderator`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${userId}/moderator`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -181,7 +180,7 @@ export default function AdminPage() {
     const form = new FormData();
     if (roleId) form.append("role_id", String(roleId));
     
-    const res = await fetch(`http://${API_URL}/api/users/${userId}/role`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/role`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: form,

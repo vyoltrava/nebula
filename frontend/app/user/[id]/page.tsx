@@ -10,7 +10,7 @@ import { getToken } from "@/lib/auth";
 import { Flag } from "lucide-react";
 import { ReportModal } from "@/components/ReportModal";
 import { SystemName } from "@/components/SystemName";
-import { API_URL } from "@/lib/api";
+
 
 export default function UserProfilePage() {
   const params = useParams();
@@ -50,7 +50,7 @@ export default function UserProfilePage() {
   useEffect(() => {
     const token = getToken();
     if (!token) return;
-    fetch('http://${API_URL}/api/me', {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => (r.ok ? r.json() : null))
@@ -63,7 +63,7 @@ export default function UserProfilePage() {
       router.push("/login");
       return;
     }
-    const res = await fetch(`http://${API_URL}/api/chats?other_user_id=${userId}`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats?other_user_id=${userId}`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -80,8 +80,8 @@ export default function UserProfilePage() {
 
     const cursor = reset ? null : nextCursor;
     const url = cursor
-      ? `http://${API_URL}/api/users/${userId}/posts?cursor=${cursor}&limit=20`
-      : `http://${API_URL}/api/users/${userId}/posts?limit=20`;
+      ? `${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/posts?cursor=${cursor}&limit=20`
+      : `${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/posts?limit=20`;
 
     try {
       const postsRes = await fetch(url);
@@ -104,7 +104,7 @@ export default function UserProfilePage() {
       setLoading(true);
       try {
         // Загружаем профиль
-        const profileRes = await fetch(`http://${API_URL}/api/users/${userId}`);
+        const profileRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`);
         if (profileRes.ok) setProfile(await profileRes.json());
 
         // Загружаем первую страницу постов
@@ -113,7 +113,7 @@ export default function UserProfilePage() {
         // Проверяем подписку
         const token = getToken();
         if (token) {
-          const followRes = await fetch(`http://${API_URL}/api/users/${userId}/is-following`, {
+          const followRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/is-following`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (followRes.ok) {
@@ -133,14 +133,14 @@ export default function UserProfilePage() {
   async function toggleFollow() {
     const token = getToken();
     if (!token) return;
-    const res = await fetch(`http://${API_URL}/api/users/${userId}/follow`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/follow`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
       const data = await res.json();
       setFollowing(data.following);
-      const p = await fetch(`http://${API_URL}/api/users/${userId}`).then((r) => r.json());
+      const p = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`).then((r) => r.json());
       setProfile(p);
     }
   }
@@ -156,13 +156,13 @@ export default function UserProfilePage() {
   const action = profile.is_banned ? "разбанить" : "забанить";
   if (!confirm(`Вы уверены, что хотите ${action} пользователя @${profile.username}?`)) return;
 
-  const res = await fetch(`http://${API_URL}/api/admin/users/${profile.id}/ban`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${profile.id}/ban`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
   });
 
   if (res.ok) {
-    const p = await fetch(`http://${API_URL}/api/users/${profile.id}`).then((r) => r.json());
+    const p = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${profile.id}`).then((r) => r.json());
     setProfile(p);
   } else {
     const data = await res.json().catch(() => null);
@@ -176,7 +176,7 @@ export default function UserProfilePage() {
     setModalLoading(true);
     setModalUsers([]);
     try {
-      const res = await fetch(`http://${API_URL}/api/users/${userId}/${type}`);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/${type}`);
       if (res.ok) setModalUsers(await res.json());
     } catch (err) {
       console.error("Failed to load users:", err);

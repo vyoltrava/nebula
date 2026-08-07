@@ -6,7 +6,7 @@ import { Search, Users } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { onFeedRefresh } from "@/lib/events";
 import { Avatar } from "./Avatar";
-import { API_URL } from "@/lib/api";
+
 
 export function RightPanel() {
   const [q, setQ] = useState("");
@@ -15,12 +15,12 @@ export function RightPanel() {
   const router = useRouter();
 
   async function load() {
-    const tagsRes = await fetch('http://${API_URL}/api/tags/popular');
+    const tagsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tags/popular`);
     if (tagsRes.ok) setTags(await tagsRes.json());
 
     const token = getToken();
     if (token) {
-      const authRes = await fetch('http://${API_URL}/api/users/recommended', {
+      const authRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/recommended`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (authRes.ok) setAuthors(await authRes.json());
@@ -35,7 +35,7 @@ export function RightPanel() {
   async function follow(userId: number) {
     const token = getToken();
     if (!token) return;
-    await fetch(`http://${API_URL}/api/users/${userId}/follow`, {
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/follow`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
