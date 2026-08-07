@@ -115,4 +115,11 @@ class BugReport(SQLModel, table=True):
     resolved_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.now)
 
-    
+class Update(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    title: str
+    content: str
+    importance: str = "minor"  # major | minor | patch
+    author_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    edited_at: Optional[datetime] = None

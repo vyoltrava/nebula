@@ -2910,3 +2910,79 @@ def toggle_follow_by_username(
         raise HTTPException(404, "User not found")
     
     return toggle_follow(request, target.id, user, session)
+
+
+# ---------- БЛОГ ОБНОВЛЕНИЙ ----------
+
+from models import Update
+
+def require_founder(
+    authorization: str = Header(default=None),
+    session: Session = Depends(get_session),
+) -> User:
+    """Только уровень 10 (Founder) и 11 (System)"""
+    user = get_current_user(authorization=authorization, session=session)
+    if get_user_level(user, session) < 10:
+        raise HTTPException(403, "Только Founder и System могут писать обновления")
+    return user
+
+
+@app.get("/api/updates")
+def list_updates(session: Session = Depends(get_session)):
+    updates = session.exec(select(Update).order_by(Update.created_at.desc())).all()
+    result = []
+    for u in updates:
+        author = session.get(User, u.author_id) if u.author_id else None
+        result.append({
+            "id": u.id,
+            "title": u.title,
+            "content": u.content,
+            "importance": u.importance,
+            "author": user_out(author, session) if author else None,
+            "created_at": u.created_at.isoformat(),
+            "edited_at": u.edited_at.isoformat() if u.edited_at else None,
+        })
+    return result
+
+
+@app.post("/api/updates")
+@limiter.limit("10/minute")
+def create_update(
+    request: Request,
+    title: str = Form(...),
+    content: str = Form(...),
+    importance: str = Form("minor"),
+    user: User = Depends(require_founder),
+    session: Session = Depends(get_session),
+):
+    if len(title.strip()) < 3:
+        raise HTTPException(400, "Заголовок: минимум 3 символа")
+    if len(content.strip()) < 10:
+        raise HTTPException(400, "Текст: минимум 10 символов")
+    if importance not in ("major", "minor", "patch"):
+        raise HTTPException(400, "Неверный тип важности")
+
+    update = Update(
+        title=title.strip(),
+        content=content.strip(),
+        importance=importance,
+        author_id=user.id,
+    )
+    session.add(update)
+    session.commit()
+    session.refresh(update)
+    return {"ok": True, "id": update.id}
+
+
+@app.delete("/api/updates/{update_id}")
+def delete_update(
+    update_id: int,
+    user: User = Depends(require_founder),
+    session: Session = Depends(get_session),
+):
+    update = session.get(Update, update_id)
+    if not update:
+        raise HTTPException(404, "Update not found")
+    session.delete(update)
+    session.commit()
+    return {"ok": True}
