@@ -448,23 +448,45 @@ async def upload_avatar(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    ext = os.path.splitext(file.filename or "")[1].lower()
+    print(f"\n📸 === AVATAR UPLOAD START ===")
+    print(f"  filename: {file.filename}")
+    print(f"  content_type: {file.content_type}")
+    print(f"  size: {file.size}")
+    
+    if not file.filename:
+        print(f"  ❌ No filename")
+        raise HTTPException(400, "No file provided")
+    
+    ext = os.path.splitext(file.filename)[1].lower()
+    print(f"  extension: {ext}")
+    
     if ext not in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
-        raise HTTPException(400, "Invalid image type")
+        print(f"  ❌ Invalid extension: {ext}")
+        raise HTTPException(400, f"Неверный формат файла: {ext}. Поддерживаются: .jpg, .jpeg, .png, .gif, .webp")
     
     content = await file.read()
-    if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(400, "File too large (max 5MB)")
+    actual_size = len(content)
+    print(f"  actual_size: {actual_size} bytes ({actual_size / (1024*1024):.2f} MB)")
     
+    if actual_size > 5 * 1024 * 1024:
+        print(f"  ❌ File too large: {actual_size} bytes")
+        raise HTTPException(400, f"Файл слишком большой: {actual_size / (1024*1024):.1f} МБ (максимум 5 МБ)")
+    
+    print(f"  ✅ File validation passed")
+    
+    # Удаляем старую аватарку
     if user.avatar_url and "cloudinary.com" in user.avatar_url:
         try:
             public_id = extract_cloudinary_public_id(user.avatar_url)
             if public_id:
+                print(f"  Deleting old avatar: {public_id}")
                 cloudinary.uploader.destroy(public_id)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"  ⚠️ Failed to delete old avatar: {e}")
     
+    # Загружаем новую
     try:
+        print(f"  Uploading to Cloudinary...")
         result = cloudinary.uploader.upload(
             content,
             folder=UPLOAD_FOLDER,
@@ -472,14 +494,16 @@ async def upload_avatar(
             transformation=[{"width": 400, "height": 400, "crop": "fill"}],
         )
         user.avatar_url = result.get("secure_url")
+        print(f"  ✅ Cloudinary upload success: {user.avatar_url}")
     except Exception as e:
-        raise HTTPException(400, f"Upload failed: {str(e)}")
+        print(f"  ❌ Cloudinary upload failed: {e}")
+        raise HTTPException(400, f"Ошибка загрузки на сервер: {str(e)}")
     
     session.add(user)
     session.commit()
     session.refresh(user)
+    print(f"📸 === AVATAR UPLOAD END ===\n")
     return {"avatar_url": user.avatar_url}
-
 
 @app.get("/api/users/recommended")
 def recommended_users(

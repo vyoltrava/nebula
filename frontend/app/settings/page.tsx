@@ -41,27 +41,74 @@ export default function SettingsPage() {
   }, []);
 
   async function saveProfile() {
-    const token = getToken();
-    if (!token) return;
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ display_name: displayName }),
+  const token = getToken();
+  if (!token) return;
+
+  // 1. Сохраняем имя
+  const profileRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ display_name: displayName }),
+  });
+
+  if (!profileRes.ok) {
+    const err = await profileRes.json().catch(() => null);
+    alert("Ошибка сохранения профиля: " + (err?.detail || "неизвестно"));
+    return;
+  }
+
+  // 2. Загружаем аватарку (если выбрана)
+  const file = fileRef.current?.files?.[0];
+  if (file) {
+    // Проверка размера на клиенте (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert(`Файл слишком большой: ${(file.size / (1024 * 1024)).toFixed(1)} МБ (максимум 5 МБ)`);
+      return;
+    }
+
+    // Проверка типа
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      alert(`Формат "${file.type}" не поддерживается. Используйте JPG, PNG, GIF или WebP.`);
+      return;
+    }
+
+    console.log("📸 Uploading avatar:", {
+      name: file.name,
+      type: file.type,
+      size: file.size,
     });
-    if (fileRef.current?.files?.[0]) {
-      const form = new FormData();
-      form.append("file", fileRef.current.files[0]);
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/avatar`, {
+
+    const form = new FormData();
+    form.append("file", file);
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/avatar`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: form,
       });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        console.error("❌ Avatar upload failed:", err);
+        alert("Ошибка загрузки аватарки: " + (err?.detail || "неизвестно"));
+        return;
+      }
+
+      console.log("✅ Avatar uploaded successfully");
+    } catch (e) {
+      console.error("❌ Network error:", e);
+      alert("Ошибка сети при загрузке аватарки");
+      return;
     }
-    router.push("/");
   }
+
+  router.push("/");
+}
 
   async function changePassword(e: React.FormEvent) {
     e.preventDefault();
