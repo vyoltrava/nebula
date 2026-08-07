@@ -8,3 +8,5 @@ python-jose[cryptography]
 passlib[bcrypt]
 bcrypt
 email-validator
+slowapi
+PyJWT
