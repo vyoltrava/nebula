@@ -107,7 +107,7 @@ export default function TechnicalPage() {
     };
   }
 
-  async function load() {
+ async function load() {
     const token = getToken();
     if (!token) return;
 
@@ -127,11 +127,16 @@ export default function TechnicalPage() {
     });
     if (statsRes.ok) setStats(await statsRes.json());
 
-    const usersRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users', {
+    const usersRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (usersRes.ok) setAllUsers(await usersRes.json());
-  }
+    
+    // ✅ Исправлено: добавлена закрывающая скобка } для функции load()
+    if (usersRes.ok) {
+      const data = await usersRes.json();
+      setAllUsers(Array.isArray(data) ? data : []);
+    }
+  } // <--- ВОТ ЭТОЙ СКОБКИ НЕ ХВАТАЛО!
 
   // 🆕 Загрузка багов (вызывается отдельно)
   async function loadBugs() {
@@ -327,11 +332,11 @@ export default function TechnicalPage() {
     }
   }
 
-  const filteredUsers = allUsers.filter(
+  const filteredUsers = Array.isArray(allUsers) ? allUsers.filter(
     (u) =>
-      u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.display_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      (u.username && u.username.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (u.display_name && u.display_name.toLowerCase().includes(searchQuery.toLowerCase()))
+  ) : [];
 
   // 🆕 Счётчики багов по статусам
   const bugCounts = {
