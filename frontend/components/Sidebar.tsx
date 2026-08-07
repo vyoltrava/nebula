@@ -138,7 +138,7 @@ export function Sidebar() {
               setDrawerOpen(false);
             }
           }}
-          className="flex items-center gap-2 border border-white/8 bg-white/3 rounded-lg px-3 py-2.5"
+      className="md:hidden flex items-center gap-2 border border-white/8 bg-white/3 rounded-lg px-3 py-2.5"
         >
           <Search size={18} className="text-white/60 shrink-0" />
           <input

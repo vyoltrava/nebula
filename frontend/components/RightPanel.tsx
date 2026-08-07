@@ -43,7 +43,7 @@ export function RightPanel() {
   }
 
   return (
-    <aside className="hidden lg:block w-80 shrink-0 overflow-y-auto p-5 flex flex-col gap-4 backdrop-blur-sm">
+    <aside className="hidden lg:flex w-80 shrink-0 overflow-y-auto p-5 flex-col gap-4 backdrop-blur-sm">
       <form
         onSubmit={(e) => {
           e.preventDefault();
