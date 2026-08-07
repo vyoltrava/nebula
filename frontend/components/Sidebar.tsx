@@ -341,7 +341,6 @@ export function Sidebar() {
           className="text-[9px] font-black uppercase tracking-widest"
           style={{ writingMode: "vertical-rl" }}
         >
-          Меню
         </span>
       </button>
 
