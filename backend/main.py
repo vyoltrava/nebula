@@ -565,6 +565,29 @@ def get_user_profile(user_id: int, session: Session = Depends(get_session)):
     }
 
 
+@app.get("/api/users")
+def search_users_by_query(
+    q: str = "",
+    limit: int = 10,
+    session: Session = Depends(get_session),
+):
+    """Поиск пользователей по query-параметру (для строки поиска)"""
+    if not q.strip():
+        return []
+    
+    pattern = f"%{q.strip().lower()}%"
+    users = session.exec(
+        select(User)
+        .where(
+            (func.lower(User.username).like(pattern)) 
+            | (func.lower(User.display_name).like(pattern))
+        )
+        .limit(limit)
+    ).all()
+    
+    return [user_out(u, session) for u in users]
+
+
 @app.get("/api/users/by-username/{username}")
 def get_user_by_username(username: str, session: Session = Depends(get_session)):
     """Получить профиль пользователя по username (без @)"""
