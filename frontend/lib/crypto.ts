@@ -1,3 +1,4 @@
+import { x25519 } from "@noble/curves/ed25519";
 import { gcm } from "@noble/ciphers/aes";
 
 const PRIVATE_KEY_STORAGE = "nebula_e2ee_private_key";
@@ -32,82 +33,17 @@ function randomBytes(length: number): Uint8Array {
   return bytes;
 }
 
-// ============ X25519 ЧЕРЕЗ WEBCRYPTO ============
-
-async function generateX25519KeyPair(): Promise<CryptoKeyPair> {
-  return await crypto.subtle.generateKey(
-    { name: "ECDH", namedCurve: "X25519" } as any,
-    true,
-    ["deriveBits"]
-  );
-}
-
-async function exportPublicKey(key: CryptoKey): Promise<Uint8Array> {
-  const exported = await crypto.subtle.exportKey("raw", key);
-  return new Uint8Array(exported as ArrayBuffer);
-}
-
-async function exportPrivateKey(key: CryptoKey): Promise<Uint8Array> {
-  const jwk = await crypto.subtle.exportKey("jwk", key);
-  return base64UrlToBytes(jwk.d!);
-}
-
-async function importPrivateKey(bytes: Uint8Array): Promise<CryptoKey> {
-  const jwk = {
-    kty: "OKP",
-    crv: "X25519",
-    d: bytesToBase64Url(bytes),
-    key_ops: ["deriveBits"],
-    ext: true,
-  };
-  return await crypto.subtle.importKey(
-    "jwk",
-    jwk,
-    { name: "ECDH", namedCurve: "X25519" } as any,
-    true,
-    ["deriveBits"]
-  );
-}
-
-async function importPublicKey(bytes: Uint8Array): Promise<CryptoKey> {
-  return await crypto.subtle.importKey(
-    "raw",
-    bytes.buffer as ArrayBuffer,
-    { name: "ECDH", namedCurve: "X25519" } as any,
-    true,
-    []
-  );
-}
-
-async function deriveSharedSecret(privateKey: CryptoKey, publicKey: CryptoKey): Promise<Uint8Array> {
-  const bits = await crypto.subtle.deriveBits(
-    { name: "ECDH", public: publicKey } as any,
-    privateKey,
-    256
-  );
-  return new Uint8Array(bits as ArrayBuffer);
-}
-
-function base64UrlToBytes(b64url: string): Uint8Array {
-  const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
-  return base64ToBytes(b64);
-}
-
-function bytesToBase64Url(bytes: Uint8Array): string {
-  return bytesToBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
 // ============ КЛЮЧИ ПОЛЬЗОВАТЕЛЯ ============
 
-interface StoredKeyPair {
-  privateKey: CryptoKey;
+export interface StoredKeyPair {
+  privateKey: Uint8Array;
   publicKey: Uint8Array;
   publicKeyBase64: string;
 }
 
 let cachedKeyPair: StoredKeyPair | null = null;
 
-export async function getKeyPair(): Promise<StoredKeyPair | null> {
+export function getKeyPair(): StoredKeyPair | null {
   if (typeof window === "undefined") return null;
   if (cachedKeyPair) return cachedKeyPair;
 
@@ -118,9 +54,8 @@ export async function getKeyPair(): Promise<StoredKeyPair | null> {
   try {
     const privBytes = base64ToBytes(privB64);
     const pubBytes = base64ToBytes(pubB64);
-    const privateKey = await importPrivateKey(privBytes);
     cachedKeyPair = {
-      privateKey,
+      privateKey: privBytes,
       publicKey: pubBytes,
       publicKeyBase64: pubB64,
     };
@@ -131,20 +66,18 @@ export async function getKeyPair(): Promise<StoredKeyPair | null> {
   }
 }
 
-export async function generateKeyPair(): Promise<StoredKeyPair> {
-  const pair = await generateX25519KeyPair();
-  const pubBytes = await exportPublicKey(pair.publicKey);
-  const privBytes = await exportPrivateKey(pair.privateKey);
-
-  const pubB64 = bytesToBase64(pubBytes);
-  const privB64 = bytesToBase64(privBytes);
+export function generateKeyPair(): StoredKeyPair {
+  const privateKey = x25519.utils.randomPrivateKey();
+  const publicKey = x25519.getPublicKey(privateKey);
+  const pubB64 = bytesToBase64(publicKey);
+  const privB64 = bytesToBase64(privateKey);
 
   localStorage.setItem(PRIVATE_KEY_STORAGE, privB64);
   localStorage.setItem(PUBLIC_KEY_STORAGE, pubB64);
 
   cachedKeyPair = {
-    privateKey: pair.privateKey,
-    publicKey: pubBytes,
+    privateKey,
+    publicKey,
     publicKeyBase64: pubB64,
   };
   return cachedKeyPair;
@@ -153,10 +86,10 @@ export async function generateKeyPair(): Promise<StoredKeyPair> {
 export async function ensureKeyPair(
   token: string,
   apiUrl: string
-): Promise<{ publicKey: Uint8Array; fingerprint: string }> {
-  let pair = await getKeyPair();
+): Promise<{ publicKey: Uint8Array; publicKeyBase64: string; fingerprint: string }> {
+  let pair = getKeyPair();
   if (!pair) {
-    pair = await generateKeyPair();
+    pair = generateKeyPair();
   }
   const fd = new FormData();
   fd.append("public_key", pair.publicKeyBase64);
@@ -165,11 +98,14 @@ export async function ensureKeyPair(
     headers: { Authorization: `Bearer ${token}` },
     body: fd,
   });
+  if (!res.ok) {
+    throw new Error("Failed to register key");
+  }
   const data = await res.json();
-  return { publicKey: pair.publicKey, fingerprint: data.fingerprint };
+  return { publicKey: pair.publicKey, publicKeyBase64: pair.publicKeyBase64, fingerprint: data.fingerprint };
 }
 
-// ============ ШИФРОВАНИЕ СООБЩЕНИЙ ============
+// ============ ШИФРОВАНИЕ СООБЩЕНИЙ (AES-256-GCM) ============
 
 export function encryptMessage(plaintext: string, sessionKey: Uint8Array): string {
   const iv = randomBytes(12);
@@ -196,26 +132,35 @@ export function decryptMessage(ciphertext: string, sessionKey: Uint8Array): stri
   }
 }
 
-// ============ SESSION KEYS ============
+// ============ SESSION KEYS (ECDH + AES-GCM) ============
 
 export function generateSessionKey(): Uint8Array {
   return randomBytes(32);
 }
 
-export async function encryptSessionKeyForUser(
+export function encryptSessionKeyForUser(
   sessionKey: Uint8Array,
   recipientPublicKeyBase64: string
-): Promise<string> {
-  const ephemeral = await generateX25519KeyPair();
-  const ephemeralPub = await exportPublicKey(ephemeral.publicKey);
+): string {
+  const myKeys = getKeyPair();
+  if (!myKeys) throw new Error("Нет ключей");
 
-  const recipientPub = await importPublicKey(base64ToBytes(recipientPublicKeyBase64));
-  const sharedSecret = await deriveSharedSecret(ephemeral.privateKey, recipientPub);
+  // Одноразовая пара для ECDH
+  const ephemeralPriv = x25519.utils.randomPrivateKey();
+  const ephemeralPub = x25519.getPublicKey(ephemeralPriv);
 
+  // Публичный ключ получателя
+  const recipientPub = base64ToBytes(recipientPublicKeyBase64);
+
+  // ECDH shared secret
+  const sharedSecret = x25519.getSharedSecret(ephemeralPriv, recipientPub);
+
+  // Шифруем session key
   const iv = randomBytes(12);
   const cipher = gcm(sharedSecret, iv);
   const encrypted = cipher.encrypt(sessionKey);
 
+  // Формат: ephemeral_pub (32) || iv (12) || ciphertext
   const result = new Uint8Array(32 + 12 + encrypted.length);
   result.set(ephemeralPub);
   result.set(iv, 32);
@@ -223,25 +168,16 @@ export async function encryptSessionKeyForUser(
   return bytesToBase64(result);
 }
 
-export async function decryptSessionKey(
-  encryptedPayload: string,
-  privateKey?: CryptoKey
-): Promise<Uint8Array> {
+export function decryptSessionKey(encryptedPayload: string): Uint8Array {
+  const myKeys = getKeyPair();
+  if (!myKeys) throw new Error("Нет ключей");
+
   const payload = base64ToBytes(encryptedPayload);
   const ephemeralPubBytes = payload.slice(0, 32);
   const iv = payload.slice(32, 32 + 12);
   const ciphertext = payload.slice(32 + 12);
 
-  let privKey = privateKey;
-  if (!privKey) {
-    const pair = await getKeyPair();
-    if (!pair) throw new Error("Нет ключей");
-    privKey = pair.privateKey;
-  }
-
-  const ephemeralPub = await importPublicKey(ephemeralPubBytes);
-  const sharedSecret = await deriveSharedSecret(privKey, ephemeralPub);
-
+  const sharedSecret = x25519.getSharedSecret(myKeys.privateKey, ephemeralPubBytes);
   const cipher = gcm(sharedSecret, iv);
   return cipher.decrypt(ciphertext);
 }

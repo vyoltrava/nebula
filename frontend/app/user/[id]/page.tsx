@@ -292,17 +292,24 @@ export default function UserProfilePage() {
                     <span className="hidden sm:inline">Написать</span>
                   </button>
 
-                    <button
-                      onClick={async () => {
-                        const token = getToken();
-                        if (!token) return;
-                        // Убеждаемся, что у нас есть ключ
+                  <button
+                    onClick={async () => {
+                      const token = getToken();
+                      if (!token) {
+                        router.push("/login");
+                        return;
+                      }
+                      if (!profile) return;
+                      
+                      try {
                         await ensureKeyPair(token, process.env.NEXT_PUBLIC_API_URL!);
+                        
                         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/secret`, {
                           method: "POST",
                           headers: { Authorization: `Bearer ${token}` },
                           body: new URLSearchParams({ other_user_id: String(profile.id) }),
                         });
+                        
                         if (res.ok) {
                           const data = await res.json();
                           router.push(`/messages/${data.chat_id}`);
@@ -310,12 +317,16 @@ export default function UserProfilePage() {
                           const err = await res.json().catch(() => null);
                           alert(err?.detail || "Не удалось создать секретный чат");
                         }
-                      }}
-                      className="flex items-center gap-1 px-3 md:px-4 py-2 rounded-full border border-emerald-500/40 text-emerald-400 font-bold text-sm hover:bg-emerald-500/10 transition-all"
-                    >
-                      <Lock size={14} />
-                      <span className="hidden sm:inline">Секретный чат</span>
-                    </button>
+                      } catch (e) {
+                        console.error("Secret chat error:", e);
+                        alert("Ошибка: " + (e instanceof Error ? e.message : "Неизвестная ошибка"));
+                      }
+                    }}
+                    className="flex items-center gap-1 px-3 md:px-4 py-2 rounded-full border border-emerald-500/40 text-emerald-400 font-bold text-sm hover:bg-emerald-500/10 transition-all"
+                  >
+                    <Lock size={14} />
+                    <span className="hidden sm:inline">Секретный чат</span>
+                  </button>
 
 
                   {canBan && (

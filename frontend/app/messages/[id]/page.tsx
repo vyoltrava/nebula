@@ -151,12 +151,12 @@ export default function ChatPage() {
           });
           if (res.ok) {
             const data = await res.json();
-            const myKeys = await getKeyPair();
-              if (!myKeys) {
-                setCryptoError("Не удалось загрузить ключи");
-                return;
-              }
-            sk = await decryptSessionKey(data.encrypted_session_key); // ← ДОБАВЬ await
+            const myKeys = getKeyPair();
+            if (!myKeys) {
+              setCryptoError("Не удалось загрузить ключи");
+              return;
+            }
+          sk = decryptSessionKey(data.encrypted_session_key);
             storeSessionKey(Number(chatId), sk);
           }
         } catch {
@@ -196,8 +196,8 @@ export default function ChatPage() {
       const sk = generateSessionKey();
 
       // Шифруем для обоих
-      const forMe = await encryptSessionKeyForUser(sk, myKeys.publicKeyBase64);
-      const forOther = await encryptSessionKeyForUser(sk, pkData.public_key);
+      const forMe = encryptSessionKeyForUser(sk, myKeys.publicKeyBase64);
+      const forOther = encryptSessionKeyForUser(sk, pkData.public_key);
 
       // Отправляем на сервер
       for (const [uid, enc] of [
