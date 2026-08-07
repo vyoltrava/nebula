@@ -11,6 +11,8 @@ import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
 import { onFeedRefresh } from "@/lib/events";
 import { BugReportModal } from "@/components/BugReportModal";
+import { useRouter } from "next/navigation";
+import { Search } from "lucide-react";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -29,11 +31,15 @@ export function Sidebar() {
     setDrawerOpen(false);
   }, [pathname]);
 
-  const nav = [
-    { href: "/", icon: Home, label: "Главная" },
-    { href: "/rules", icon: Shield, label: "Правила" },
-    { href: "/settings", icon: Settings, label: "Настройки" },
-  ];
+    const [searchOpen, setSearchOpen] = useState(false);
+    const [searchQ, setSearchQ] = useState("");
+
+    const nav = [
+      { href: "/", icon: Home, label: "Главная" },
+      { href: "/rules", icon: Shield, label: "Правила" },
+      { href: "/settings", icon: Settings, label: "Настройки" },
+      { href: "/search", icon: Search, label: "Поиск", isSearch: true }, // 🆕
+    ];
 
   useEffect(() => {
     const token = getToken();
@@ -131,8 +137,37 @@ export function Sidebar() {
       </div>
 
       <nav className="flex flex-col gap-2">
-        {nav.map(({ href, icon: Icon, label }) => {
+        {nav.map(({ href, icon: Icon, label, isSearch }) => {
           const active = pathname === href;
+          
+          // 🆕 Для поиска — открываем поле ввода вместо ссылки
+          if (isSearch) {
+            return (
+              <form
+                key="search"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (searchQ.trim()) {
+                    router.push(`/search?q=${encodeURIComponent(searchQ)}`);
+                    setSearchOpen(false);
+                    setSearchQ("");
+                    setDrawerOpen(false);
+                  }
+                }}
+                className="flex items-center gap-2 border rounded-lg px-3 py-2 border-white/8 bg-white/3"
+              >
+                <Icon size={18} className="text-white/60 shrink-0" />
+                <input
+                  value={searchQ}
+                  onChange={(e) => setSearchQ(e.target.value)}
+                  placeholder="Поиск..."
+                  className="flex-1 bg-transparent focus:outline-none text-white placeholder-white/40 text-sm"
+                  autoFocus={searchOpen}
+                />
+              </form>
+            );
+          }
+          
           return (
             <Link
               key={href}
