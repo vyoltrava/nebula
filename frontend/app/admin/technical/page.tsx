@@ -136,20 +136,21 @@ export default function TechnicalPage() {
       });
       if (statsRes.ok) setStats(await statsRes.json());
 
-      // 3. Загружаем пользователей (ИСПРАВЛЕНО)
-const usersRes = await fetch(`https://nebula-qqm2.onrender.com/api/admin/users`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      
-      if (!usersRes.ok) {
-        // Выводим текст ошибки в консоль браузера (F12 -> Console)
-        const errorText = await usersRes.text();
-        console.error(`❌ Ошибка API /admin/users [${usersRes.status}]:`, errorText);
-        return;
-      }
+// 3. Загружаем пользователей
+const usersRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users`, {
+  headers: { Authorization: `Bearer ${token}` },
+});
 
-      const data = await usersRes.json();
-      console.log("✅ Ответ /admin/users:", data); // <-- ОТКРОЙ КОНСОЛЬ И ПОСМОТРИ, ЧТО ТУТ
+if (!usersRes.ok) {
+  const errorText = await usersRes.text();
+  alert(`❌ ОШИБКА ЗАГРУЗКИ ПОЛЬЗОВАТЕЛЕЙ\n\nСтатус: ${usersRes.status}\nОтвет: ${errorText}\n\nОткрой консоль (F12) для деталей`);
+  console.error(`❌ Ошибка API /admin/users [${usersRes.status}]:`, errorText);
+  return;
+}
+
+const data = await usersRes.json();
+console.log("✅ Ответ /admin/users:", data);
+setAllUsers(Array.isArray(data) ? data : []);
       
       // 🛡 Поддержка разных форматов ответа от бэкенда
       let usersArray: any[] = [];
