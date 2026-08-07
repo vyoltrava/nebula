@@ -568,14 +568,16 @@ def get_user_profile(user_id: int, session: Session = Depends(get_session)):
 @app.get("/api/users")
 def search_users_by_query(
     q: str = "",
-    limit: int = 10,
+    limit: int = 20,
     session: Session = Depends(get_session),
 ):
-    """Поиск пользователей по query-параметру (для строки поиска)"""
+    """Поиск пользователей и постов по query-параметру"""
     if not q.strip():
-        return []
+        return {"users": [], "posts": []}
     
     pattern = f"%{q.strip().lower()}%"
+    
+    # Поиск пользователей
     users = session.exec(
         select(User)
         .where(
@@ -585,7 +587,49 @@ def search_users_by_query(
         .limit(limit)
     ).all()
     
-    return [user_out(u, session) for u in users]
+    # Поиск постов
+    posts = session.exec(
+        select(Post)
+        .where(
+            func.lower(Post.text).like(pattern),
+            Post.reply_to_id == None,
+        )
+        .order_by(Post.created_at.desc())
+        .limit(limit)
+    ).all()
+    
+    # Формируем результат для постов
+    result_posts = []
+    for p in posts:
+        author = session.get(User, p.author_id)
+        likes_count = session.exec(
+            select(func.count()).select_from(Like).where(Like.post_id == p.id)
+        ).one()
+        replies_count = session.exec(
+            select(func.count()).select_from(Post).where(Post.reply_to_id == p.id)
+        ).one()
+        result_posts.append({
+            "id": p.id,
+            "author_id": p.author_id,
+            "author": author.display_name if author else "Unknown",
+            "handle": f"@{author.username}" if author else "@unknown",
+            "author_avatar": author.avatar_url if author else None,
+            "author_is_admin": author.is_admin if author else False,
+            "author_is_moderator": author.is_moderator if author else False,
+            "author_is_banned": author.is_banned if author else False,
+            "author_role": get_author_role(author, session) if author else None,
+            "text": p.text,
+            "media_url": p.media_url,
+            "likes_count": likes_count,
+            "liked_by_me": False,
+            "replies_count": replies_count,
+        })
+    
+    # Возвращаем объект с двумя ключами (как ожидает фронтенд)
+    return {
+        "users": [user_out(u, session) for u in users],
+        "posts": result_posts
+    }
 
 
 @app.get("/api/users/by-username/{username}")
