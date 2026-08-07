@@ -136,16 +136,12 @@ export default function TechnicalPage() {
       });
       if (statsRes.ok) setStats(await statsRes.json());
 
-// 3. Загружаем пользователей
+// 3. Загружаем пользователей (КАК В AdminPage)
 const usersRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users`, {
   headers: { Authorization: `Bearer ${token}` },
 });
-
-if (!usersRes.ok) {
-  const errorText = await usersRes.text();
-  alert(`❌ ОШИБКА ЗАГРУЗКИ ПОЛЬЗОВАТЕЛЕЙ\n\nСтатус: ${usersRes.status}\nОтвет: ${errorText}\n\nОткрой консоль (F12) для деталей`);
-  console.error(`❌ Ошибка API /admin/users [${usersRes.status}]:`, errorText);
-  return;
+if (usersRes.ok) {
+  setAllUsers(await usersRes.json());
 }
 
 const data = await usersRes.json();
