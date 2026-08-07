@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #171717;
+  --bg-secondary: #1f1f23;
+  --bg-tertiary: #2a2a2f;
+  --accent: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --text: #e8e8f0;
+  --text-muted: rgba(232, 232, 240, 0.6);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg-primary);
+  min-height: 100vh;
+}
+
+.font-logo {
+  font-family: var(--font-jersey), cursive;
+  letter-spacing: 0.05em;
+}
+
+/* Скроллбар */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+/* === Подсветка ника цветом роли === */
+.role-glow {
+  color: var(--role-color, inherit);
+  text-shadow:
+    0 0 4px  color-mix(in srgb, var(--role-color) 80%, transparent),
+    0 0 10px color-mix(in srgb, var(--role-color) 55%, transparent),
+    0 0 22px color-mix(in srgb, var(--role-color) 30%, transparent);
+}
