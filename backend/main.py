@@ -25,6 +25,14 @@ from models import User, Post, Like, Follow, Notification, Tag, PostTag, Role, C
 
 app = FastAPI(title="Nebula API")
 
+@app.on_event("startup")
+def print_routes():
+    print("=== ЗАРЕГИСТРИРОВАННЫЕ РОУТЫ ===")
+    for route in app.routes:
+        if hasattr(route, "path"):
+            methods = getattr(route, "methods", set())
+            print(f"{methods} {route.path}")
+    print("=================================")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 app.add_middleware(
@@ -504,67 +512,6 @@ def recommended_users(
     result.sort(key=lambda x: x["followers_count"], reverse=True)
     return result[:5]
 
-
-@app.post("/api/users/{user_id}/follow")
-@limiter.limit("20/minute")
-def toggle_follow(
-    request: Request,
-    user_id: int,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    if user_id == user.id:
-        raise HTTPException(400, "Cannot follow yourself")
-    existing = session.exec(
-        select(Follow).where(Follow.follower_id == user.id, Follow.followee_id == user_id)
-    ).first()
-    if existing:
-        session.delete(existing)
-        session.commit()
-        return {"following": False}
-    follow = Follow(follower_id=user.id, followee_id=user_id)
-    session.add(follow)
-    notif = Notification(user_id=user_id, actor_id=user.id, type="follow")
-    session.add(notif)
-    session.commit()
-    return {"following": True}
-
-
-@app.get("/api/users/{user_id}/is-following")
-def is_following(
-    user_id: int,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    existing = session.exec(
-        select(Follow).where(Follow.follower_id == user.id, Follow.followee_id == user_id)
-    ).first()
-    return {"following": existing is not None}
-
-
-@app.get("/api/users/{user_id}")
-def get_user_profile(user_id: int, session: Session = Depends(get_session)):
-    user = session.get(User, user_id)
-    if not user:
-        raise HTTPException(404, "User not found")
-    followers_count = session.exec(
-        select(func.count()).select_from(Follow).where(Follow.followee_id == user_id)
-    ).one()
-    following_count = session.exec(
-        select(func.count()).select_from(Follow).where(Follow.follower_id == user_id)
-    ).one()
-    posts_count = session.exec(
-        select(func.count()).select_from(Post)
-        .where(Post.author_id == user_id, Post.reply_to_id == None)
-    ).one()
-    return {
-        **user_out(user, session),
-        "followers_count": followers_count,
-        "following_count": following_count,
-        "posts_count": posts_count,
-    }
-
-
 @app.get("/api/users")
 def search_users_by_query(
     q: str = "",
@@ -630,6 +577,69 @@ def search_users_by_query(
         "users": [user_out(u, session) for u in users],
         "posts": result_posts
     }
+
+
+@app.post("/api/users/{user_id}/follow")
+@limiter.limit("20/minute")
+def toggle_follow(
+    request: Request,
+    user_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    if user_id == user.id:
+        raise HTTPException(400, "Cannot follow yourself")
+    existing = session.exec(
+        select(Follow).where(Follow.follower_id == user.id, Follow.followee_id == user_id)
+    ).first()
+    if existing:
+        session.delete(existing)
+        session.commit()
+        return {"following": False}
+    follow = Follow(follower_id=user.id, followee_id=user_id)
+    session.add(follow)
+    notif = Notification(user_id=user_id, actor_id=user.id, type="follow")
+    session.add(notif)
+    session.commit()
+    return {"following": True}
+
+
+@app.get("/api/users/{user_id}/is-following")
+def is_following(
+    user_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    existing = session.exec(
+        select(Follow).where(Follow.follower_id == user.id, Follow.followee_id == user_id)
+    ).first()
+    return {"following": existing is not None}
+
+
+@app.get("/api/users/{user_id}")
+def get_user_profile(user_id: int, session: Session = Depends(get_session)):
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(404, "User not found")
+    followers_count = session.exec(
+        select(func.count()).select_from(Follow).where(Follow.followee_id == user_id)
+    ).one()
+    following_count = session.exec(
+        select(func.count()).select_from(Follow).where(Follow.follower_id == user_id)
+    ).one()
+    posts_count = session.exec(
+        select(func.count()).select_from(Post)
+        .where(Post.author_id == user_id, Post.reply_to_id == None)
+    ).one()
+    return {
+        **user_out(user, session),
+        "followers_count": followers_count,
+        "following_count": following_count,
+        "posts_count": posts_count,
+    }
+
+
+
 
 
 @app.get("/api/users/by-username/{username}")
