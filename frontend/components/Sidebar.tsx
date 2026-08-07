@@ -5,13 +5,12 @@ import Link from "next/link";
 import { 
   Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus, 
   AtSign, X, Shield, ShieldCheck, MessageSquare, Palette, 
-  Bug, Users  // ✅ Добавлен Users
+  Bug, Menu
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
 import { onFeedRefresh } from "@/lib/events";
 import { BugReportModal } from "@/components/BugReportModal";
-
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -21,6 +20,14 @@ export function Sidebar() {
   const [showNotifs, setShowNotifs] = useState(false);
   const [notifs, setNotifs] = useState<any[]>([]);
   const [showBugModal, setShowBugModal] = useState(false);
+  
+  // 🆕 состояние drawer'а для мобильного
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  // 🆕 закрываем drawer при смене страницы
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [pathname]);
 
   const nav = [
     { href: "/", icon: Home, label: "Главная" },
@@ -29,30 +36,23 @@ export function Sidebar() {
   ];
 
   useEffect(() => {
-  const token = getToken();
-  if (!token) return;
-
-  const controller = new AbortController();
-
-  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-    signal: controller.signal,
-  })
-    .then(async (r) => {
-      if (!r.ok) return;
-      const data = await r.json();
-      setUser(data);
+    const token = getToken();
+    if (!token) return;
+    const controller = new AbortController();
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: controller.signal,
     })
-    .catch((err) => {
-      // Игнорируем ошибки отмены (при размонтировании компонента)
-      if (err.name !== "AbortError") {
-        console.error("Failed to load user:", err);
-      }
-    });
-
-  // Отменяем запрос при размонтировании компонента
-  return () => controller.abort();
-}, []);
+      .then(async (r) => {
+        if (!r.ok) return;
+        const data = await r.json();
+        setUser(data);
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") console.error("Failed to load user:", err);
+      });
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const cleanup = onFeedRefresh(() => {
@@ -111,186 +111,216 @@ export function Sidebar() {
   };
 
   const glow = user
-    ? user.is_admin
-      ? "#ffffff"
-      : user.is_moderator
-      ? "#3b82f6"
-      : user.role?.color ?? null
+    ? user.is_admin ? "#ffffff"
+    : user.is_moderator ? "#3b82f6"
+    : user.role?.color ?? null
     : null;
 
-  return (
+  // 🆕 контент сайдбара (один раз описан, используется в обоих местах)
+  const sidebarContent = (
     <>
-      <aside className="w-64 shrink-0 overflow-y-auto p-5 flex flex-col gap-8 bg-[#171717]">
-        <h1 className="font-logo text-4xl text-[#8b5cf6]">
-          NEBULA
-        </h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="font-logo text-4xl text-[#8b5cf6]">NEBULA</h1>
+        {/* Кнопка закрытия — видна только на мобильном */}
+        <button
+          onClick={() => setDrawerOpen(false)}
+          className="md:hidden p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-all"
+        >
+          <X size={20} />
+        </button>
+      </div>
 
-        <nav className="flex flex-col gap-2">
-          {nav.map(({ href, icon: Icon, label }) => {
-            const active = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
-                  active
-                    ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
-                    : "border-white/8 bg-white/3 text-white/80 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                <Icon size={18} /> {label}
-              </Link>
-            );
-          })}
-
-          {user && (
+      <nav className="flex flex-col gap-2">
+        {nav.map(({ href, icon: Icon, label }) => {
+          const active = pathname === href;
+          return (
             <Link
-              href="/messages"
-              className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all relative ${
-                pathname?.startsWith("/messages")
+              key={href}
+              href={href}
+              onClick={() => setDrawerOpen(false)}
+              className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
+                active
                   ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
                   : "border-white/8 bg-white/3 text-white/80 hover:bg-white/5 hover:text-white"
               }`}
             >
-              <MessageSquare size={18} /> Сообщения
-              {chatsUnread > 0 && (
-                <span className="ml-auto bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                  {chatsUnread}
-                </span>
-              )}
+              <Icon size={18} /> {label}
             </Link>
-          )}
+          );
+        })}
 
-          {(user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) && (
-            <Link
-              href="/admin"
-              className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
-                pathname === "/admin"
-                  ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
-                  : "border-white/8 bg-white/3 text-white/80 hover:bg-white/5 hover:text-white"
-              }`}
-            >
-              {user?.is_admin ? (
-                <Shield size={18} />
-              ) : user?.is_moderator ? (
-                <ShieldCheck size={18} />
-              ) : (
-                <Shield size={18} className="text-[#f59e0b]" />
-              )}
-              {user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель"}
-            </Link>
-          )}
-
-          {user?.is_admin && (
-            <Link
-              href="/admin/roles"
-              className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
-                pathname === "/admin/roles"
-                  ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
-                  : "border-white/8 bg-white/3 text-white/80 hover:bg-white/5 hover:text-white"
-              }`}
-            >
-              <Palette size={18} />
-              Роли
-            </Link>
-          )}
-
-          {user?.permissions?.includes("tech_access") && (
-            <Link
-              href="/admin/technical"
-              className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
-                pathname === "/admin/technical"
-                  ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
-                  : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              <Settings size={18} />
-              Техпанель
-            </Link>
-          )}
-
-          <button
-            onClick={loadNotifications}
+        {user && (
+          <Link
+            href="/messages"
+            onClick={() => setDrawerOpen(false)}
             className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all relative ${
-              pathname === "/notifications"
+              pathname?.startsWith("/messages")
                 ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
                 : "border-white/8 bg-white/3 text-white/80 hover:bg-white/5 hover:text-white"
             }`}
           >
-            <Bell size={18} /> Уведомления
-            {unreadCount > 0 && (
+            <MessageSquare size={18} /> Сообщения
+            {chatsUnread > 0 && (
               <span className="ml-auto bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                {unreadCount}
+                {chatsUnread}
               </span>
             )}
-          </button>
+          </Link>
+        )}
 
-          {/* ✅ КНОПКА БАГ-ТРЕКЕРА В ОСНОВНОМ МЕНЮ (не в модалке уведомлений) */}
-<button
-  onClick={() => setShowBugModal(true)}
-  className="w-fit p-2.5 rounded-xl border border-orange-400/30 text-orange-400 hover:bg-orange-500/10 hover:border-orange-400/50 transition-all"
-  title="Сообщить о проблеме"
->
-  <Bug size={18} />
-</button>
-        </nav>
+        {(user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) && (
+          <Link
+            href="/admin"
+            onClick={() => setDrawerOpen(false)}
+            className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
+              pathname === "/admin"
+                ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
+                : "border-white/8 bg-white/3 text-white/80 hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            {user?.is_admin ? <Shield size={18} /> : user?.is_moderator ? <ShieldCheck size={18} /> : <Shield size={18} className="text-[#f59e0b]" />}
+            {user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель"}
+          </Link>
+        )}
 
-        <div className="mt-auto flex flex-col gap-3">
-          {user ? (
-            <>
-              <Link
-                href={`/user/${user.id}`}
-                className="flex items-center gap-3 px-2 py-2 -mx-2 rounded-lg hover:bg-white/5 transition-all cursor-pointer group"
+        {user?.is_admin && (
+          <Link
+            href="/admin/roles"
+            onClick={() => setDrawerOpen(false)}
+            className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
+              pathname === "/admin/roles"
+                ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
+                : "border-white/8 bg-white/3 text-white/80 hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            <Palette size={18} /> Роли
+          </Link>
+        )}
+
+        {user?.permissions?.includes("tech_access") && (
+          <Link
+            href="/admin/technical"
+            onClick={() => setDrawerOpen(false)}
+            className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
+              pathname === "/admin/technical"
+                ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
+                : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+            }`}
+          >
+            <Settings size={18} /> Техпанель
+          </Link>
+        )}
+
+        <button
+          onClick={loadNotifications}
+          className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all relative ${
+            pathname === "/notifications"
+              ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
+              : "border-white/8 bg-white/3 text-white/80 hover:bg-white/5 hover:text-white"
+          }`}
+        >
+          <Bell size={18} /> Уведомления
+          {unreadCount > 0 && (
+            <span className="ml-auto bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+              {unreadCount}
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setShowBugModal(true)}
+          className="w-fit p-2.5 rounded-xl border border-orange-400/30 text-orange-400 hover:bg-orange-500/10 hover:border-orange-400/50 transition-all"
+          title="Сообщить о проблеме"
+        >
+          <Bug size={18} />
+        </button>
+      </nav>
+
+      <div className="mt-auto flex flex-col gap-3">
+        {user ? (
+          <>
+            <Link
+              href={`/user/${user.id}`}
+              onClick={() => setDrawerOpen(false)}
+              className="flex items-center gap-3 px-2 py-2 -mx-2 rounded-lg hover:bg-white/5 transition-all cursor-pointer group"
+            >
+              <div
+                className="shrink-0"
+                style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}
               >
-                <div
-                  className="shrink-0"
+                <Avatar src={user.avatar_url} name={user.display_name} id={user.id} />
+              </div>
+              <div className="leading-tight min-w-0">
+                <p
+                  className={`font-semibold text-sm truncate transition-all ${
+                    glow ? "group-hover:opacity-80" : "text-white group-hover:text-[#8b5cf6]"
+                  }`}
                   style={
                     glow
-                      ? { filter: `drop-shadow(0 0 8px ${glow})` }
+                      ? { color: glow, textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66` }
                       : undefined
                   }
                 >
-                  <Avatar src={user.avatar_url} name={user.display_name} id={user.id} />
-                </div>
-                <div className="leading-tight min-w-0">
-                  <p
-                    className={`font-semibold text-sm truncate transition-all ${
-                      glow ? "group-hover:opacity-80" : "text-white group-hover:text-[#8b5cf6]"
-                    }`}
-                    style={
-                      glow
-                        ? {
-                            color: glow,
-                            textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66`,
-                          }
-                        : undefined
-                    }
-                  >
-                    {user.display_name}
-                  </p>
-                  <p className="text-sm text-white/50 truncate">@{user.username}</p>
-                </div>
-              </Link>
-
-              <button
-                onClick={() => {
-                  clearToken();
-                  setUser(null);
-                }}
-                className="flex items-center gap-3 border border-white/8 rounded-lg px-4 py-2.5 font-medium text-white/70 hover:bg-white/5 hover:border-white/15 hover:text-white transition-all"
-              >
-                <LogOut size={18} /> Выйти
-              </button>
-            </>
-          ) : (
-            <Link
-              href="/login"
-              className="flex items-center justify-center bg-[#8b5cf6] border border-[#8b5cf6] rounded-lg px-4 py-2.5 font-medium text-white hover:bg-[#7c3aed] transition-all"
-            >
-              Войти
+                  {user.display_name}
+                </p>
+                <p className="text-sm text-white/50 truncate">@{user.username}</p>
+              </div>
             </Link>
-          )}
-        </div>
+
+            <button
+              onClick={() => { clearToken(); setUser(null); }}
+              className="flex items-center gap-3 border border-white/8 rounded-lg px-4 py-2.5 font-medium text-white/70 hover:bg-white/5 hover:border-white/15 hover:text-white transition-all"
+            >
+              <LogOut size={18} /> Выйти
+            </button>
+          </>
+        ) : (
+          <Link
+            href="/login"
+            onClick={() => setDrawerOpen(false)}
+            className="flex items-center justify-center bg-[#8b5cf6] border border-[#8b5cf6] rounded-lg px-4 py-2.5 font-medium text-white hover:bg-[#7c3aed] transition-all"
+          >
+            Войти
+          </Link>
+        )}
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* 🆕 Кнопка-бургер — видна ТОЛЬКО на мобильном, fixed сверху слева */}
+      <button
+        onClick={() => setDrawerOpen(true)}
+        className="md:hidden fixed top-4 left-4 z-[90] p-2.5 rounded-lg border border-white/10 bg-[#171717]/95 backdrop-blur-md text-white hover:bg-white/10 transition-all shadow-lg"
+        aria-label="Открыть меню"
+      >
+        <Menu size={22} />
+      </button>
+
+      {/* 🆕 Overlay для мобильного — затемнение фона, клик = закрытие */}
+      {drawerOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/70 z-[95] backdrop-blur-sm"
+          onClick={() => setDrawerOpen(false)}
+        />
+      )}
+
+      {/* 🆕 Drawer (мобильный) — fixed, с анимацией выезда */}
+      <aside
+        className={`
+          md:hidden fixed inset-y-0 left-0 w-72 max-w-[85vw] z-[96]
+          flex flex-col gap-6 p-5 overflow-y-auto bg-[#171717] shadow-2xl
+          transition-transform duration-300 ease-out
+          ${drawerOpen ? "translate-x-0" : "-translate-x-full"}
+        `}
+      >
+        {sidebarContent}
+      </aside>
+
+      {/* 🆕 Десктопный сайдбар — как раньше, static, виден только ≥ md */}
+      <aside className="hidden md:flex md:w-64 shrink-0 overflow-y-auto p-5 flex-col gap-8 bg-[#171717]">
+        {sidebarContent}
       </aside>
 
       {/* Модалка уведомлений */}
@@ -300,7 +330,7 @@ export function Sidebar() {
             className="fixed inset-0 bg-black/60 z-[99]"
             onClick={() => setShowNotifs(false)}
           />
-          <div className="fixed left-[272px] top-4 w-80 max-h-96 overflow-y-auto border border-white/10 rounded-xl bg-[#1f1f23] shadow-2xl z-[100]">
+          <div className="fixed left-4 right-4 md:left-[272px] md:right-auto top-16 md:top-4 w-auto md:w-80 max-h-[70vh] md:max-h-96 overflow-y-auto border border-white/10 rounded-xl bg-[#1f1f23] shadow-2xl z-[100]">
             <div className="sticky top-0 bg-[#1f1f23] border-b border-white/10 p-3 flex items-center justify-between">
               <h3 className="font-bold text-white">Уведомления</h3>
               <button onClick={() => setShowNotifs(false)} className="text-white/50 hover:text-white">
@@ -343,10 +373,7 @@ export function Sidebar() {
         </>
       )}
 
-      {/* ✅ Модалка баг-репорта (всегда доступна) */}
-      {showBugModal && (
-        <BugReportModal onClose={() => setShowBugModal(false)} />
-      )}
+      {showBugModal && <BugReportModal onClose={() => setShowBugModal(false)} />}
     </>
   );
 }
