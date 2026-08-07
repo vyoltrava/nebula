@@ -22,8 +22,43 @@ from starlette.responses import JSONResponse
 from cloudinary_config import UPLOAD_FOLDER
 from datetime import datetime, timedelta, timezone
 from database import init_db, get_session, engine
-from models import User, Post, Like, Follow, Notification, Tag, PostTag, Role, Chat, ChatMember, Message, Report
-from models import UserKey, ChatSessionKey  # добавить UserKey и ChatSessionKey
+from models import (
+    User, Post, Like, Follow, Notification, Tag, PostTag, Role, 
+    Chat, ChatMember, Message, Report, UserKey, ChatSessionKey,
+    IPLog, IPBlock, ActionLog
+)
+
+
+def get_client_ip(request: Request) -> str:
+    """Извлекает реальный IP из запроса (с учётом прокси Render/Cloudflare)"""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip
+    return request.client.host if request.client else "unknown"
+
+
+def log_action(
+    session: Session,
+    actor_id: Optional[int],
+    action: str,
+    target_type: Optional[str] = None,
+    target_id: Optional[int] = None,
+    details: Optional[dict] = None,
+    ip_address: Optional[str] = None,
+):
+    """Записывает действие в общий лог"""
+    log = ActionLog(
+        actor_id=actor_id,
+        action=action,
+        target_type=target_type,
+        target_id=target_id,
+        details=json.dumps(details) if details else None,
+        ip_address=ip_address,
+    )
+    session.add(log)
 
 app = FastAPI(title="Nebula API")
 
@@ -52,6 +87,34 @@ app.add_middleware(
 # Rate limiter — ВТОРОЙ
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
+
+
+@app.middleware("http")
+async def ip_block_middleware(request: Request, call_next):
+    """Проверяет, не заблокирован ли IP"""
+    ip = get_client_ip(request)
+    
+    # Пропускаем служебные и healthcheck
+    if ip in ("127.0.0.1", "testclient") or request.url.path == "/health":
+        return await call_next(request)
+    
+    with Session(engine) as session:
+        block = session.exec(
+            select(IPBlock).where(IPBlock.ip_address == ip)
+        ).first()
+        
+        if block:
+            # Проверка срока действия
+            if block.expires_at and block.expires_at < datetime.now(timezone.utc):
+                session.delete(block)
+                session.commit()
+            else:
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": f"Ваш IP заблокирован. Причина: {block.reason or 'не указана'}"}
+                )
+    
+    return await call_next(request)
 
 # Кастомный обработчик ошибок 429
 @app.exception_handler(RateLimitExceeded)
@@ -392,6 +455,10 @@ def register(request: Request, data: RegisterIn, session: Session = Depends(get_
     session.add(user)
     session.commit()
     session.refresh(user)
+        # Логируем IP регистрации
+    ip = get_client_ip(request)
+    session.add(IPLog(user_id=user.id, ip_address=ip, user_agent=request.headers.get("user-agent"), action="register"))
+    session.commit()
     return {"token": create_token(user.id), "user": user_out(user, session)}
 
 
@@ -403,6 +470,11 @@ def login(request: Request, data: LoginIn, session: Session = Depends(get_sessio
         raise HTTPException(401, "Wrong username or password")
     if user.is_banned:
         raise HTTPException(403, "Account banned")
+        # Логируем IP входа
+    ip = get_client_ip(request)
+    session.add(IPLog(user_id=user.id, ip_address=ip, user_agent=request.headers.get("user-agent"), action="login"))
+    log_action(session, user.id, "login", ip_address=ip)
+    session.commit()
     return {"token": create_token(user.id), "user": user_out(user, session)}
 
 
@@ -1427,7 +1499,24 @@ def admin_list_users(
     session: Session = Depends(get_session),
 ):
     users = session.exec(select(User).order_by(User.created_at.desc())).all()
-    return [user_out(u, session) for u in users]
+    result = []
+    for u in users:
+        data = user_out(u, session)
+        # Последний IP
+        last_log = session.exec(
+            select(IPLog).where(IPLog.user_id == u.id).order_by(IPLog.created_at.desc()).limit(1)
+        ).first()
+        data["last_ip"] = last_log.ip_address if last_log else None
+        data["last_seen"] = last_log.created_at.isoformat() if last_log else None
+        # Посты и подписчики
+        data["posts_count"] = session.exec(
+            select(func.count()).select_from(Post).where(Post.author_id == u.id)
+        ).one()
+        data["followers_count"] = session.exec(
+            select(func.count()).select_from(Follow).where(Follow.followee_id == u.id)
+        ).one()
+        result.append(data)
+    return result
 
 
 @app.post("/api/admin/users/{user_id}/ban")
@@ -1456,6 +1545,10 @@ def admin_ban_user(
     
     target.is_banned = not target.is_banned
     session.add(target)
+    session.commit()
+    log_action(session, admin.id, "ban_user" if target.is_banned else "unban_user",
+               target_type="user", target_id=target.id,
+               details={"username": target.username})
     session.commit()
     return {"is_banned": target.is_banned}
 
@@ -1889,6 +1982,12 @@ def startup():
         try:
             conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS is_secret BOOLEAN DEFAULT FALSE;"))
             conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS ciphertext TEXT;"))
+            conn.execute(text('CREATE TABLE IF NOT EXISTS iplog (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES "user"(id), ip_address VARCHAR NOT NULL, user_agent VARCHAR, action VARCHAR, created_at TIMESTAMPTZ);'))
+            conn.execute(text('CREATE TABLE IF NOT EXISTS ipblock (id SERIAL PRIMARY KEY, ip_address VARCHAR UNIQUE NOT NULL, reason VARCHAR, blocked_by INTEGER REFERENCES "user"(id), created_at TIMESTAMPTZ, expires_at TIMESTAMPTZ);'))
+            conn.execute(text('CREATE TABLE IF NOT EXISTS actionlog (id SERIAL PRIMARY KEY, actor_id INTEGER REFERENCES "user"(id), action VARCHAR NOT NULL, target_type VARCHAR, target_id INTEGER, details VARCHAR, ip_address VARCHAR, created_at TIMESTAMPTZ);'))
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_iplog_user ON iplog(user_id, created_at DESC);'))
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_ipblock_ip ON ipblock(ip_address);'))
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_actionlog_created ON actionlog(created_at DESC);'))
             conn.commit()
         except Exception:
             pass
@@ -2038,6 +2137,10 @@ def admin_delete_user(
     
     # 10. Удаляем самого пользователя
     session.delete(target)
+
+    log_action(session, staff.id, "delete_user",
+               target_type="user", target_id=target.id,
+               details={"username": target.username, "deleted_posts": len(posts)})  
     session.commit()
     
     return {
@@ -2971,6 +3074,8 @@ def resolve_report(
     report.resolved_by = staff.id
     report.resolved_at = datetime.now()
     session.add(report)
+    log_action(session, user.id, "delete_post",
+               target_type="post", target_id=post_id)
     session.commit()
     
     return {"ok": True}
@@ -2998,6 +3103,162 @@ def reject_report(
     session.commit()
     
     return {"ok": True}
+
+
+# ---------- IP И ЛОГИ ----------
+
+@app.get("/api/admin/users/{user_id}/ip-history")
+def get_user_ip_history(
+    user_id: int,
+    limit: int = 20,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """История IP-адресов пользователя"""
+    logs = session.exec(
+        select(IPLog)
+        .where(IPLog.user_id == user_id)
+        .order_by(IPLog.created_at.desc())
+        .limit(limit)
+    ).all()
+    return [
+        {
+            "id": log.id,
+            "ip_address": log.ip_address,
+            "user_agent": log.user_agent,
+            "action": log.action,
+            "created_at": log.created_at.isoformat(),
+        }
+        for log in logs
+    ]
+
+
+@app.get("/api/admin/ip-blocks")
+def list_ip_blocks(
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Список заблокированных IP"""
+    blocks = session.exec(select(IPBlock).order_by(IPBlock.created_at.desc())).all()
+    result = []
+    for b in blocks:
+        blocker = session.get(User, b.blocked_by) if b.blocked_by else None
+        result.append({
+            "id": b.id,
+            "ip_address": b.ip_address,
+            "reason": b.reason,
+            "created_at": b.created_at.isoformat(),
+            "expires_at": b.expires_at.isoformat() if b.expires_at else None,
+            "blocked_by": user_out(blocker, session) if blocker else None,
+        })
+    return result
+
+
+@app.post("/api/admin/ip-blocks")
+def create_ip_block(
+    ip_address: str = Form(...),
+    reason: str = Form(""),
+    hours: Optional[int] = Form(None),  # None = навсегда
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+    request: Request = None,
+):
+    if not has_permission(staff, "ban_users", session):
+        raise HTTPException(403, "Нет прав: ban_users")
+    
+    existing = session.exec(select(IPBlock).where(IPBlock.ip_address == ip_address)).first()
+    if existing:
+        raise HTTPException(400, "Этот IP уже заблокирован")
+    
+    expires_at = None
+    if hours and hours > 0:
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=hours)
+    
+    block = IPBlock(
+        ip_address=ip_address.strip(),
+        reason=reason.strip() if reason else None,
+        blocked_by=staff.id,
+        expires_at=expires_at,
+    )
+    session.add(block)
+    
+    log_action(
+        session, staff.id, "block_ip",
+        target_type="ip", details={"ip": ip_address, "reason": reason},
+        ip_address=get_client_ip(request) if request else None,
+    )
+    session.commit()
+    return {"ok": True, "id": block.id}
+
+
+@app.delete("/api/admin/ip-blocks/{block_id}")
+def delete_ip_block(
+    block_id: int,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+    request: Request = None,
+):
+    if not has_permission(staff, "ban_users", session):
+        raise HTTPException(403, "Нет прав: ban_users")
+    
+    block = session.get(IPBlock, block_id)
+    if not block:
+        raise HTTPException(404, "Блок не найден")
+    
+    ip = block.ip_address
+    session.delete(block)
+    log_action(
+        session, staff.id, "unblock_ip",
+        target_type="ip", details={"ip": ip},
+        ip_address=get_client_ip(request) if request else None,
+    )
+    session.commit()
+    return {"ok": True}
+
+
+@app.get("/api/admin/logs")
+def list_action_logs(
+    limit: int = 100,
+    action: Optional[str] = None,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    if not has_permission(staff, "tech_access", session):
+        raise HTTPException(403, "Нет прав")
+    
+    query = select(ActionLog).order_by(ActionLog.created_at.desc()).limit(limit)
+    if action:
+        query = query.where(ActionLog.action == action)
+    
+    logs = session.exec(query).all()
+    result = []
+    for log in logs:
+        actor = session.get(User, log.actor_id) if log.actor_id else None
+        result.append({
+            "id": log.id,
+            "action": log.action,
+            "target_type": log.target_type,
+            "target_id": log.target_id,
+            "details": json.loads(log.details) if log.details else None,
+            "ip_address": log.ip_address,
+            "created_at": log.created_at.isoformat(),
+            "actor": user_out(actor, session) if actor else None,
+        })
+    return result
+
+
+@app.delete("/api/admin/logs")
+def clear_action_logs(
+    staff: User = Depends(require_admin),
+    session: Session = Depends(get_session),
+):
+    """Очистить логи (только для Founder)"""
+    logs = session.exec(select(ActionLog)).all()
+    count = len(logs)
+    for log in logs:
+        session.delete(log)
+    session.commit()
+    return {"ok": True, "deleted": count}
 
 # ---------- БАГ-ТРЕКЕР ----------
 

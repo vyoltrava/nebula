@@ -145,8 +145,33 @@ class ChatSessionKey(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-# Добавь в существующую модель Chat новое поле:
-# is_secret: bool = Field(default=False)
+class IPLog(SQLModel, table=True):
+    """Лог IP-адресов пользователей (входы, регистрации)"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
+    ip_address: str
+    user_agent: Optional[str] = None
+    action: str = "login"  # login, register, request
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-# Добавь в существующую модель Message новое поле:
-# ciphertext: Optional[str] = None  # зашифрованный текст для секретных чатов
+
+class IPBlock(SQLModel, table=True):
+    """Заблокированные IP-адреса"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    ip_address: str = Field(unique=True)
+    reason: Optional[str] = None
+    blocked_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    expires_at: Optional[datetime] = None  # None = навсегда
+
+
+class ActionLog(SQLModel, table=True):
+    """Общий лог действий в системе"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    actor_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    action: str  # ban_user, delete_post, create_role, etc.
+    target_type: Optional[str] = None  # user, post, role
+    target_id: Optional[int] = None
+    details: Optional[str] = None  # JSON с доп. инфой
+    ip_address: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
