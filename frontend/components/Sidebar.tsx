@@ -325,13 +325,23 @@ export function Sidebar() {
   return (
     <>
       {/* 🆕 Кнопка-бургер — видна ТОЛЬКО на мобильном, fixed сверху слева */}
-      <button
-        onClick={() => setDrawerOpen(true)}
-        className="md:hidden fixed top-4 left-4 z-[90] p-2.5 rounded-lg border border-white/10 bg-[#171717]/95 backdrop-blur-md text-white hover:bg-white/10 transition-all shadow-lg"
-        aria-label="Открыть меню"
-      >
-        <Menu size={22} />
-      </button>
+        {/* 🆕 Слайдер-меню — всегда в левом нижнем углу, только на мобильном */}
+        <button
+          onClick={() => setDrawerOpen(true)}
+          className="md:hidden fixed left-3 bottom-6 z-[90] w-11 h-28 rounded-full 
+            bg-[#171717]/95 backdrop-blur-md border-2 border-[#8b5cf6]/60 
+            text-[#8b5cf6] flex flex-col items-center justify-center gap-2 
+            shadow-lg shadow-black/60 active:scale-95 transition-all"
+          aria-label="Открыть меню"
+        >
+          <Menu size={20} />
+          <span 
+            className="text-[9px] font-black uppercase tracking-widest"
+            style={{ writingMode: "vertical-rl" }}
+          >
+            Меню
+          </span>
+        </button>
 
       {/* 🆕 Overlay для мобильного — затемнение фона, клик = закрытие */}
       {drawerOpen && (
