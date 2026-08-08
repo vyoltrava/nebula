@@ -2,9 +2,11 @@ from fastapi import FastAPI, Depends, Header, HTTPException, UploadFile, File, F
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from sqlmodel import Session, select, func
-from sqlalchemy import text
+from sqlmodel import Session, select, func, col
+from sqlalchemy import text, update
 from typing import Optional
+from fastapi.concurrency import run_in_threadpool
+
 
 import jwt
 import bcrypt
@@ -15,7 +17,7 @@ import json
 import cloudinary
 import cloudinary.uploader
 from websocket_manager import manager
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from starlette.responses import JSONResponse
@@ -31,6 +33,26 @@ import logging
 from fastapi.responses import JSONResponse
 from performance import PerfMiddleware, get_perf_summary
 import sql_profiler
+import time
+
+
+# ============================================================
+# 🚀 ГЛОБАЛЬНЫЕ КЭШИ (ускоряют работу в разы)
+# ============================================================
+
+_ip_block_cache = {}          # ip -> (timestamp, IPBlock|None)
+_IP_BLOCK_CACHE_TTL = 300    # 5 минут
+
+_role_cache = {}              # role_id -> (timestamp, Role|None)
+_ROLE_CACHE_TTL = 600         # 10 минут
+
+_popular_tags_cache = {}
+_POPULAR_TAGS_TTL = 300  # 5 минут
+
+
+# ============================================================
+# 🌐 ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+# ============================================================
 
 def get_client_ip(request: Request) -> str:
     """Извлекает реальный IP из запроса (с учётом прокси Render/Cloudflare)"""
@@ -58,12 +80,88 @@ def log_action(
         action=action,
         target_type=target_type,
         target_id=target_id,
-        details=json.dumps(details) if details else None,
+        details=json.dumps(details, default=str) if details else None,
         ip_address=ip_address,
     )
     session.add(log)
 
+
+def is_ip_blocked(session: Session, ip: str) -> Optional[IPBlock]:
+    """Проверяет, заблокирован ли IP, с кэшированием"""
+    now = time.time()
+
+    cached = _ip_block_cache.get(ip)
+    if cached:
+        cached_time, cached_block = cached
+        if now - cached_time < _IP_BLOCK_CACHE_TTL:
+            # Проверяем, не истёк ли срок блокировки в кэше
+            if cached_block is None:
+                return None
+            if cached_block.expires_at and cached_block.expires_at < datetime.now(timezone.utc):
+                # Истёк — удаляем из кэша и БД
+                try:
+                    session.delete(cached_block)
+                    session.commit()
+                except Exception:
+                    pass
+                _ip_block_cache[ip] = (now, None)
+                return None
+            return cached_block
+
+    # Запрос в базу
+    block = session.exec(
+        select(IPBlock).where(IPBlock.ip_address == ip)
+    ).first()
+
+    # Проверяем срок действия
+    if block and block.expires_at and block.expires_at < datetime.now(timezone.utc):
+        session.delete(block)
+        session.commit()
+        block = None
+
+    _ip_block_cache[ip] = (now, block)
+    return block
+
+
+def get_role_cached(session: Session, role_id: int) -> Optional[Role]:
+    """Получает роль из кэша или из базы (ускоряет user_out, permissions, level)"""
+    if role_id is None:
+        return None
+
+    now = time.time()
+    cached = _role_cache.get(role_id)
+    if cached:
+        cached_time, cached_role = cached
+        if now - cached_time < _ROLE_CACHE_TTL:
+            return cached_role
+
+    role = session.get(Role, role_id)
+    _role_cache[role_id] = (now, role)
+    return role
+
+
+def invalidate_role_cache(role_id: Optional[int] = None):
+    """Сбрасывает кэш ролей (вызывать при изменении ролей)"""
+    if role_id is None:
+        _role_cache.clear()
+    else:
+        _role_cache.pop(role_id, None)
+
+
+def invalidate_ip_block_cache(ip: Optional[str] = None):
+    """Сбрасывает кэш IP-блоков (вызывать при бане/разбане)"""
+    if ip is None:
+        _ip_block_cache.clear()
+    else:
+        _ip_block_cache.pop(ip, None)
+
+
+# ============================================================
+# 🚀 СОЗДАЁМ ПРИЛОЖЕНИЕ
+# ============================================================
+
 app = FastAPI(title="Nebula API")
+
 
 @app.on_event("startup")
 def print_routes():
@@ -73,6 +171,8 @@ def print_routes():
             methods = getattr(route, "methods", set())
             print(f"{methods} {route.path}")
     print("=================================")
+
+
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 app.add_middleware(
@@ -87,10 +187,8 @@ app.add_middleware(
     expose_headers=["X-Process-Time-Ms", "X-Request-Id"],
 )
 
-# Rate limiter — ВТОРОЙ
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
-
 
 logging.basicConfig(
     level=logging.INFO,
@@ -99,44 +197,39 @@ logging.basicConfig(
 
 app.add_middleware(PerfMiddleware)
 
+
 @app.get("/debug/perf")
 async def debug_perf():
     return JSONResponse(get_perf_summary())
 
+
 @app.middleware("http")
 async def ip_block_middleware(request: Request, call_next):
-    """Проверяет, не заблокирован ли IP"""
     ip = get_client_ip(request)
-    
+
     # Пропускаем служебные и healthcheck
     if ip in ("127.0.0.1", "testclient") or request.url.path == "/health":
         return await call_next(request)
-    
+
+    # Отдельная сессия только для проверки IP-блоков
     with Session(engine) as session:
-        block = session.exec(
-            select(IPBlock).where(IPBlock.ip_address == ip)
-        ).first()
-        
+        block = is_ip_blocked(session, ip)
         if block:
-            # Проверка срока действия
-            if block.expires_at and block.expires_at < datetime.now(timezone.utc):
-                session.delete(block)
-                session.commit()
-            else:
-                return JSONResponse(
-                    status_code=403,
-                    content={"detail": f"Ваш IP заблокирован. Причина: {block.reason or 'не указана'}"}
-                )
-    
+            return JSONResponse(
+                status_code=403,
+                content={"detail": f"Ваш IP заблокирован. Причина: {block.reason or 'не указана'}"}
+            )
+
     return await call_next(request)
 
-# Кастомный обработчик ошибок 429
+
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
     return JSONResponse(
         status_code=429,
         content={"detail": "Слишком много запросов. Подождите немного."},
     )
+
 
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
@@ -147,6 +240,10 @@ SECRET = os.getenv("SECRET_KEY", "nebula-super-secret-key-2026-minimum-32-chars"
 ALGORITHM = "HS256"
 
 
+# ============================================================
+# 🔐 АВТОРИЗАЦИЯ
+# ============================================================
+
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
@@ -156,7 +253,10 @@ def check_password(password: str, hashed: str) -> bool:
 
 
 def create_token(user_id: int) -> str:
-    payload = {"sub": str(user_id), "exp": datetime.now(timezone.utc) + timedelta(days=7)}
+    payload = {
+        "sub": str(user_id),
+        "exp": datetime.now(timezone.utc) + timedelta(days=7),
+    }
     return jwt.encode(payload, SECRET, algorithm=ALGORITHM)
 
 
@@ -166,22 +266,28 @@ def get_current_user(
 ) -> User:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(401, "Not authenticated")
+
     token = authorization.split(" ", 1)[1]
+
     try:
         payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
     except Exception:
         raise HTTPException(401, "Invalid token")
+
     user = session.get(User, int(payload["sub"]))
     if not user:
         raise HTTPException(401, "User not found")
     if user.is_banned:
         raise HTTPException(403, "Account banned")
-    # 🆕 Обновляем last_seen (не чаще раза в 60 сек, чтобы не спамить БД)
+
+    # Обновляем last_seen не чаще раза в 3 минуты (было 60 сек — спамили БД)
     now = datetime.now(timezone.utc)
-    if not user.last_seen or (now - user.last_seen).total_seconds() > 60:
+    if not user.last_seen or (now - user.last_seen).total_seconds() > 180:
         user.last_seen = now
         session.add(user)
         session.commit()
+        session.refresh(user)
+
     return user
 
 
@@ -189,58 +295,70 @@ def get_optional_user(
     authorization: str = Header(default=None),
     session: Session = Depends(get_session),
 ) -> Optional[User]:
-    """Возвращает пользователя, если токен валидный, иначе None (для публичных эндпоинтов)"""
+    """Возвращает пользователя, если токен валидный, иначе None"""
     if not authorization or not authorization.startswith("Bearer "):
         return None
+
     token = authorization.split(" ", 1)[1]
+
     try:
         payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
     except Exception:
         return None
+
     user = session.get(User, int(payload["sub"]))
     if not user or user.is_banned:
         return None
+
     return user
 
 
+# ============================================================
+# 🗑️ ОПТИМИЗИРОВАННОЕ УДАЛЕНИЕ ПОСТА
+# ============================================================
 
 def cascade_delete_post(post_id: int, session: Session):
     """
-    Удаляет пост. Благодаря ON DELETE CASCADE в БД все ответы удалятся автоматически.
-    Здесь только зачищаем лайки, теги, уведомления и медиа.
+    Удаляет пост и всё дерево ответов.
+    Было: куча запросов в циклах.
+    Стало: 5-6 массовых запросов.
     """
-    # Собираем все ID в дереве (для зачистки зависимостей)
+    # 1. Собираем все ID в дереве (BFS/рекурсия)
     ids_to_clean = {post_id}
-    changed = True
-    while changed:
-        changed = False
+    queue = [post_id]
+
+    while queue:
+        current_id = queue.pop(0)
         children = session.exec(
-            select(Post).where(Post.reply_to_id.in_(list(ids_to_clean)))
+            select(Post.id).where(Post.reply_to_id == current_id)
         ).all()
-        for child in children:
-            if child.id not in ids_to_clean:
-                ids_to_clean.add(child.id)
-                changed = True
-    
-    # 1. Зачищаем лайки
-    for pid in ids_to_clean:
-        for like in session.exec(select(Like).where(Like.post_id == pid)).all():
-            session.delete(like)
-    
-    # 2. Зачищаем теги
-    for pid in ids_to_clean:
-        for pt in session.exec(select(PostTag).where(PostTag.post_id == pid)).all():
-            session.delete(pt)
-    
-    # 3. Зачищаем уведомления
-    for pid in ids_to_clean:
-        for notif in session.exec(select(Notification).where(Notification.post_id == pid)).all():
-            session.delete(notif)
-    
-    # 4. Удаляем медиа из Cloudinary
-    for pid in ids_to_clean:
-        post = session.get(Post, pid)
-        if post and post.media_url:
+        for child_id in children:
+            if child_id not in ids_to_clean:
+                ids_to_clean.add(child_id)
+                queue.append(child_id)
+
+    id_list = list(ids_to_clean)
+
+    # 2. Собираем media_url ДО удаления постов
+    posts_with_media = session.exec(
+        select(Post).where(Post.id.in_(id_list))
+    ).all()
+
+    # 3. Массовое удаление лайков одним запросом
+    for like in session.exec(select(Like).where(Like.post_id.in_(id_list))).all():
+        session.delete(like)
+
+    # 4. Массовое удаление тегов
+    for pt in session.exec(select(PostTag).where(PostTag.post_id.in_(id_list))).all():
+        session.delete(pt)
+
+    # 5. Массовое удаление уведомлений
+    for notif in session.exec(select(Notification).where(Notification.post_id.in_(id_list))).all():
+        session.delete(notif)
+
+    # 6. Удаляем медиа
+    for post in posts_with_media:
+        if post.media_url:
             if "cloudinary.com" in post.media_url:
                 try:
                     public_id = extract_cloudinary_public_id(post.media_url)
@@ -251,14 +369,37 @@ def cascade_delete_post(post_id: int, session: Session):
             else:
                 file_path = os.path.join("uploads", post.media_url.split("/")[-1])
                 if os.path.exists(file_path):
-                    os.remove(file_path)
-    
-    # 5. Удаляем ТОЛЬКО корневой пост — БД сама удалит все ответы каскадно
+                    try:
+                        os.remove(file_path)
+                    except Exception:
+                        pass
+
+    # 7. Удаляем корневой пост — БД каскадно удалит все ответы
     root_post = session.get(Post, post_id)
     if root_post:
         session.delete(root_post)
-    
+
+    session.commit()
     return len(ids_to_clean)
+
+
+# ============================================================
+# 🛡️ ПРАВА И ИЕРАРХИЯ
+# ============================================================
+
+ALL_PERMISSIONS = [
+    "delete_posts",
+    "ban_users",
+    "remove_avatars",
+    "assign_moderator",
+    "manage_roles",
+    "manage_users",
+    "manage_reports",
+    "tech_access",
+    "delete_users",
+]
+
+MODERATOR_PERMISSIONS = ALL_PERMISSIONS.copy()
 
 
 def require_staff(
@@ -282,38 +423,27 @@ def require_admin(
     return user
 
 
-ALL_PERMISSIONS = [
-    "delete_posts",
-    "ban_users",
-    "remove_avatars",
-    "assign_moderator",
-    "manage_roles",
-    "manage_users",
-    "manage_reports",
-    "tech_access",
-    "delete_users",  # ← новое право для удаления аккаунтов
-]
-# 🆕 Системный Moderator (Developer) имеет все права, как Founder
-# Защита иерархии через levels не даст трогать Founder и других Moderator
-MODERATOR_PERMISSIONS = ALL_PERMISSIONS.copy()
-
-
-
-
-
 def get_user_permissions(user: User, session: Session) -> list:
+    """Получает разрешения пользователя (использует кэш ролей)"""
     if user.is_admin:
         return ALL_PERMISSIONS.copy()
+
     permissions = []
+
     if user.is_moderator:
         permissions.extend(MODERATOR_PERMISSIONS)
+
     if user.role_id:
-        role = session.get(Role, user.role_id)
+        role = get_role_cached(session, user.role_id)  # ← БЫЛО session.get
         if role:
-            role_perms = json.loads(role.permissions)
-            for p in role_perms:
-                if p not in permissions:
-                    permissions.append(p)
+            try:
+                role_perms = json.loads(role.permissions)
+                for p in role_perms:
+                    if p not in permissions:
+                        permissions.append(p)
+            except Exception:
+                pass
+
     return permissions
 
 
@@ -323,38 +453,33 @@ def has_permission(user: User, permission: str, session: Session) -> bool:
     return permission in get_user_permissions(user, session)
 
 
-
-# ============================================================
-# 🛡️ СИСТЕМА ИЕРАРХИИ (LEVELS)
-# ============================================================
-
 def get_user_level(user: User, session: Session) -> int:
     """
     Определяет уровень пользователя.
     Admin = 10, Developer = 9, Role.level = кастомный, Default = 1
     """
-    if user.is_system:    # ← System выше всех
+    if user.is_system:
         return 11
     if user.is_admin:
         return 10
     if user.is_moderator:
         return 9
     if user.role_id:
-        role = session.get(Role, user.role_id)
+        role = get_role_cached(session, user.role_id)  # ← БЫЛО session.get
         if role and role.level:
             return role.level
     return 1
 
 
 def can_moderate(actor: User, target: User, session: Session) -> bool:
-    """Может ли actor применять санкции к target (уровень actor > уровня target)"""
+    """Может ли actor применять санкции к target"""
     return get_user_level(actor, session) > get_user_level(target, session)
 
 
 def max_level_for(actor: User, session: Session) -> int:
     """Максимальный уровень роли, которую может создавать/редактировать пользователь"""
     if actor.is_admin:
-        return 8  # Admin может создавать роли до 8 уровня (9=Mod, 10=Admin — системные)
+        return 8
     actor_lvl = get_user_level(actor, session)
     return actor_lvl - 1
 
@@ -366,33 +491,40 @@ def check_hierarchy_or_403(actor: User, target: User, session: Session, action: 
     if target_lvl >= actor_lvl:
         raise HTTPException(
             status_code=403,
-            detail=f"🛡️ Иммунитет: уровень цели ({target_lvl}) ≥ вашего ({actor_lvl}). Вы не можете {action}."
+            detail=f"🛡️ Иммунитет: уровень цели ({target_lvl}) ≥ вашего ({actor_lvl}). Вы не можете {action}.",
         )
+
 
 def protect_system_account(target: User, action: str = "этого"):
     """Защищает System аккаунт от любых санкций"""
     if target.is_system:
         raise HTTPException(
             status_code=403,
-            detail=f"🛡️ Системный аккаунт нельзя {action}."
+            detail=f"🛡️ Системный аккаунт нельзя {action}.",
         )
 
 
 def user_out(user: User, session: Session = None) -> dict:
+    """Сериализует пользователя в dict (использует кэш ролей)"""
     role_data = None
     permissions = []
+
     if session:
         permissions = get_user_permissions(user, session)
         if user.role_id:
-            role = session.get(Role, user.role_id)
+            role = get_role_cached(session, user.role_id)  # ← БЫЛО session.get
             if role:
-                role_data = {
-                    "id": role.id,
-                    "name": role.name,
-                    "color": role.color,
-                    "level": role.level,  # 🆕
-                    "permissions": json.loads(role.permissions),
-                }
+                try:
+                    role_data = {
+                        "id": role.id,
+                        "name": role.name,
+                        "color": role.color,
+                        "level": role.level,
+                        "permissions": json.loads(role.permissions),
+                    }
+                except Exception:
+                    role_data = None
+
     return {
         "id": user.id,
         "username": user.username,
@@ -405,9 +537,14 @@ def user_out(user: User, session: Session = None) -> dict:
         "role": role_data,
         "permissions": permissions,
         "level": get_user_level(user, session) if session else 1,
-        "bio": user.bio,                                          # 🆕
-        "last_seen": user.last_seen.isoformat() if user.last_seen else None,  # 🆕
+        "bio": user.bio,
+        "last_seen": user.last_seen.isoformat() if user.last_seen else None,
     }
+
+
+# ============================================================
+# 🛠️ УТИЛИТЫ
+# ============================================================
 
 def extract_cloudinary_public_id(url: str) -> Optional[str]:
     try:
@@ -426,8 +563,9 @@ def extract_cloudinary_public_id(url: str) -> Optional[str]:
 
 
 def get_author_role(user: User, session: Session) -> Optional[dict]:
+    """Получает роль автора для отображения (использует кэш)"""
     if user.role_id:
-        role = session.get(Role, user.role_id)
+        role = get_role_cached(session, user.role_id)  # ← БЫЛО session.get
         if role:
             return {"name": role.name, "color": role.color}
     return None
@@ -474,6 +612,10 @@ class PostOut(BaseModel):
     likes_count: int = 0
     liked_by_me: bool = False
     replies_count: int = 0
+    created_at: datetime  # когда пост создан
+    bookmarked_by_me: bool = False  # в закладках ли у меня
+    author_level: int = 1  # уровень автора
+    author_bio: Optional[str] = None  # био автора
 
 
 class UpdateUserIn(BaseModel):
@@ -633,19 +775,32 @@ def recommended_users(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    follows = session.exec(select(Follow).where(Follow.follower_id == user.id)).all()
-    followed_ids = {f.followee_id for f in follows}
-    users = session.exec(select(User).where(User.is_banned == False)).all()
-    result = []
-    for u in users:
-        if u.id == user.id or u.id in followed_ids:
-            continue
-        followers = session.exec(
-            select(func.count()).select_from(Follow).where(Follow.followee_id == u.id)
-        ).one()
-        result.append({**user_out(u, session), "followers_count": followers})
-    result.sort(key=lambda x: x["followers_count"], reverse=True)
-    return result[:5]
+    # 1. Получаем ID пользователей, на которых подписан текущий
+    followed_ids = set(session.exec(
+        select(Follow.followee_id).where(Follow.follower_id == user.id)
+    ).all())
+    
+    # 2. Один запрос с JOIN и подсчётом подписчиков
+    from sqlalchemy import func
+    query = (
+        select(User, func.count(Follow.follower_id).label("followers_count"))
+        .outerjoin(Follow, Follow.followee_id == User.id)
+        .where(
+            User.is_banned == False,
+            User.id != user.id,
+            ~User.id.in_(followed_ids)
+        )
+        .group_by(User.id)
+        .order_by(func.count(Follow.follower_id).desc())
+        .limit(5)
+    )
+    
+    results = session.exec(query).all()
+    
+    return [
+        {**user_out(user_obj, session), "followers_count": count}
+        for user_obj, count in results
+    ]
 
 @app.get("/api/users")
 def search_users_by_query(
@@ -870,12 +1025,16 @@ def get_followers(user_id: int, session: Session = Depends(get_session)):
     follows = session.exec(
         select(Follow).where(Follow.followee_id == user_id)
     ).all()
-    result = []
-    for f in follows:
-        user = session.get(User, f.follower_id)
-        if user:
-            result.append(user_out(user, session))
-    return result
+    
+    if not follows:
+        return []
+    
+    user_ids = [f.follower_id for f in follows]
+    users = session.exec(
+        select(User).where(User.id.in_(user_ids))
+    ).all()
+    
+    return [user_out(u, session) for u in users]
 
 
 @app.get("/api/users/{user_id}/following")
@@ -883,12 +1042,16 @@ def get_following(user_id: int, session: Session = Depends(get_session)):
     follows = session.exec(
         select(Follow).where(Follow.follower_id == user_id)
     ).all()
-    result = []
-    for f in follows:
-        user = session.get(User, f.followee_id)
-        if user:
-            result.append(user_out(user, session))
-    return result
+    
+    if not follows:
+        return []
+    
+    user_ids = [f.followee_id for f in follows]
+    users = session.exec(
+        select(User).where(User.id.in_(user_ids))
+    ).all()
+    
+    return [user_out(u, session) for u in users]
 
 
 @app.get("/api/search")
@@ -896,45 +1059,69 @@ def get_following(user_id: int, session: Session = Depends(get_session)):
 def search(request: Request, q: str, session: Session = Depends(get_session)):
     if not q.strip():
         return {"users": [], "posts": []}
+    
     pattern = f"%{q}%"
+    
+    # Поиск пользователей
     users = session.exec(
         select(User).where(
             (User.username.like(pattern)) | (User.display_name.like(pattern))
         ).limit(10)
     ).all()
+    
+    # Поиск постов
     posts = session.exec(
         select(Post).where(
             Post.text.like(pattern),
             Post.reply_to_id == None,
         ).order_by(Post.created_at.desc()).limit(20)
     ).all()
+    
+    if not posts:
+        return {"users": [user_out(u, session) for u in users], "posts": []}
+    
+    # Массовые запросы
+    post_ids = [p.id for p in posts]
+    author_ids = list({p.author_id for p in posts})
+    
+    authors = {u.id: u for u in session.exec(
+        select(User).where(User.id.in_(author_ids))
+    ).all()}
+    
+    likes_counts = dict(session.exec(
+        select(Like.post_id, func.count(Like.id))
+        .where(Like.post_id.in_(post_ids))
+        .group_by(Like.post_id)
+    ).all())
+    
+    replies_counts = dict(session.exec(
+        select(Post.reply_to_id, func.count(Post.id))
+        .where(Post.reply_to_id.in_(post_ids))
+        .group_by(Post.reply_to_id)
+    ).all())
+    
+    # Собираем результат
     result_posts = []
     for p in posts:
-        author = session.get(User, p.author_id)
-        likes_count = session.exec(
-            select(func.count()).select_from(Like).where(Like.post_id == p.id)
-        ).one()
-        replies_count = session.exec(
-            select(func.count()).select_from(Post).where(Post.reply_to_id == p.id)
-        ).one()
+        author = authors.get(p.author_id)
         result_posts.append({
             "id": p.id,
             "author_id": p.author_id,
-            "author": author.display_name,
-            "handle": f"@{author.username}",
-            "author_avatar": author.avatar_url,
-            "author_is_admin": author.is_admin,
-            "author_is_moderator": author.is_moderator,
-            "author_is_banned": author.is_banned,
-            "author_role": get_author_role(author, session),
+            "author": author.display_name if author else "Unknown",
+            "handle": f"@{author.username}" if author else "@unknown",
+            "author_avatar": author.avatar_url if author else None,
+            "author_is_admin": author.is_admin if author else False,
+            "author_is_moderator": author.is_moderator if author else False,
+            "author_is_banned": author.is_banned if author else False,
+            "author_role": get_author_role(author, session) if author else None,
             "text": p.text,
             "media_url": p.media_url,
-            "likes_count": likes_count,
+            "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": False,
-            "replies_count": replies_count,
+            "replies_count": replies_counts.get(p.id, 0),
         })
+    
     return {"users": [user_out(u, session) for u in users], "posts": result_posts}
-
 
 @app.get("/api/posts/following")
 def get_following_posts(
@@ -1048,45 +1235,59 @@ def get_liked_posts(
 
 @app.get("/api/posts/{post_id}/replies")
 def get_replies(post_id: int, session: Session = Depends(get_session)):
-    """Получить все ответы на пост (включая вложенные)"""
-    # Получаем ВСЕ ответы, связанные с этим постом (прямо или косвенно)
-    all_replies = session.exec(
-        select(Post).order_by(Post.created_at.asc())
+    # 1. Собираем все ID в дереве ответов (BFS)
+    post_ids_in_thread = {post_id}
+    queue = [post_id]
+    
+    while queue:
+        current_id = queue.pop(0)
+        children = session.exec(
+            select(Post.id).where(Post.reply_to_id == current_id)
+        ).all()
+        for child_id in children:
+            if child_id not in post_ids_in_thread:
+                post_ids_in_thread.add(child_id)
+                queue.append(child_id)
+    
+    id_list = list(post_ids_in_thread)
+    
+    # 2. Один запрос на все ответы
+    replies = session.exec(
+        select(Post).where(Post.id.in_(id_list), Post.id != post_id)
+        .order_by(Post.created_at.asc())
     ).all()
     
-    # Фильтруем только те, что относятся к этому посту
-    post_replies = []
-    post_ids_in_thread = {post_id}  # ID поста + всех его потомков
+    # 3. Массовые запросы для лайков
+    reply_ids = [p.id for p in replies]
+    likes_counts = dict(session.exec(
+        select(Like.post_id, func.count(Like.id))
+        .where(Like.post_id.in_(reply_ids))
+        .group_by(Like.post_id)
+    ).all())
     
-    # Первый проход: находим прямые ответы на пост
-    for p in all_replies:
-        if p.reply_to_id == post_id:
-            post_ids_in_thread.add(p.id)
-            post_replies.append(p)
+    # 4. Массовые запросы для ответов
+    replies_counts = dict(session.exec(
+        select(Post.reply_to_id, func.count(Post.id))
+        .where(Post.reply_to_id.in_(reply_ids))
+        .group_by(Post.reply_to_id)
+    ).all())
     
-    # Второй проход: находим ответы на ответы (рекурсивно)
-    changed = True
-    while changed:
-        changed = False
-        for p in all_replies:
-            if p.reply_to_id in post_ids_in_thread and p.id not in post_ids_in_thread:
-                post_ids_in_thread.add(p.id)
-                post_replies.append(p)
-                changed = True
+    # 5. Массовые запросы для авторов
+    author_ids = list({p.author_id for p in replies})
+    authors = {u.id: u for u in session.exec(
+        select(User).where(User.id.in_(author_ids))
+    ).all()}
     
+    # 6. Собираем результат
     result = []
-    for p in post_replies:
-        author = session.get(User, p.author_id)
-        likes_count = session.exec(
-            select(func.count()).select_from(Like).where(Like.post_id == p.id)
-        ).one()
+    for p in replies:
+        author = authors.get(p.author_id)
         
-        # 🆕 Определяем, на кого/что это ответ
         parent_info = None
         if p.reply_to_id and p.reply_to_id != post_id:
             parent_post = session.get(Post, p.reply_to_id)
             if parent_post:
-                parent_author = session.get(User, parent_post.author_id)
+                parent_author = authors.get(parent_post.author_id)
                 if parent_author:
                     parent_info = {
                         "id": parent_post.id,
@@ -1094,11 +1295,6 @@ def get_replies(post_id: int, session: Session = Depends(get_session)):
                         "author_name": parent_author.display_name,
                         "author_username": parent_author.username,
                     }
-        
-        # Подсчитываем количество прямых ответов на этот комментарий
-        replies_count = session.exec(
-            select(func.count()).select_from(Post).where(Post.reply_to_id == p.id)
-        ).one()
         
         result.append({
             "id": p.id,
@@ -1113,16 +1309,13 @@ def get_replies(post_id: int, session: Session = Depends(get_session)):
             "author_role": get_author_role(author, session) if author else None,
             "text": p.text,
             "media_url": p.media_url,
-            "likes_count": likes_count,
+            "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": False,
-            "replies_count": replies_count,
-            "reply_to_id": p.reply_to_id,  # 🆕 ID родителя
-            "parent": parent_info,          # 🆕 Инфо о родителе
+            "replies_count": replies_counts.get(p.id, 0),
+            "reply_to_id": p.reply_to_id,
+            "parent": parent_info,
             "created_at": p.created_at.isoformat(),
         })
-    
-    # Сортируем по времени создания
-    result.sort(key=lambda x: x["created_at"])
     
     return result
 
@@ -1138,30 +1331,30 @@ async def toggle_like(
     existing = session.exec(
         select(Like).where(Like.user_id == user.id, Like.post_id == post_id)
     ).first()
+    
     if existing:
         session.delete(existing)
         session.commit()
-        cnt = session.exec(select(func.count()).select_from(Like).where(Like.post_id == post_id)).one()
-        await manager.broadcast_all("post_liked", {"post_id": post_id, "likes_count": cnt})
+        cnt = session.exec(
+            select(func.count()).select_from(Like).where(Like.post_id == post_id)
+        ).one()
+        await manager.broadcast_to_followers(user.id, "post_liked", {"post_id": post_id, "likes_count": cnt}, session)
         return {"liked": False}
+    
     like = Like(user_id=user.id, post_id=post_id)
     session.add(like)
-    log_action(
-        session, user.id, "like_post",
-        target_type="post", target_id=post_id,
-    )
+    log_action(session, user.id, "like_post", target_type="post", target_id=post_id)
+    
     post = session.get(Post, post_id)
     if post and post.author_id != user.id:
-        notif = Notification(
-            user_id=post.author_id,
-            actor_id=user.id,
-            type="like",
-            post_id=post_id,
-        )
+        notif = Notification(user_id=post.author_id, actor_id=user.id, type="like", post_id=post_id)
         session.add(notif)
+    
     session.commit()
-    cnt = session.exec(select(func.count()).select_from(Like).where(Like.post_id == post_id)).one()
-    await manager.broadcast_all("post_liked", {"post_id": post_id, "likes_count": cnt})
+    cnt = session.exec(
+        select(func.count()).select_from(Like).where(Like.post_id == post_id)
+    ).one()
+    await manager.broadcast_to_followers(user.id, "post_liked", {"post_id": post_id, "likes_count": cnt}, session)
     return {"liked": True}
 
 # ---------- ЗАКЛАДКИ ----------
@@ -1211,37 +1404,59 @@ def list_bookmarks(
     bookmarks = session.exec(
         select(Bookmark).where(Bookmark.user_id == user.id).order_by(Bookmark.created_at.desc())
     ).all()
-    
+
+    if not bookmarks:
+        return []
+
+    post_ids = [b.post_id for b in bookmarks]
+
+    # 1. Массовый запрос постов
+    posts = session.exec(select(Post).where(Post.id.in_(post_ids))).all()
+    posts_map = {p.id: p for p in posts}
+
+    # 2. Массовый запрос авторов
+    author_ids = list({p.author_id for p in posts})
+    authors = session.exec(select(User).where(User.id.in_(author_ids))).all()
+    authors_map = {u.id: u for u in authors}
+
+    # 3. Массовые счётчики лайков и ответов
+    likes_map = dict(session.exec(
+        select(Like.post_id, func.count()).where(Like.post_id.in_(post_ids)).group_by(Like.post_id)
+    ).all())
+
+    replies_map = dict(session.exec(
+        select(Post.reply_to_id, func.count()).where(Post.reply_to_id.in_(post_ids)).group_by(Post.reply_to_id)
+    ).all())
+
+    # 4. Какие из них лайкнуты текущим пользователем
+    liked_ids = set(session.exec(
+        select(Like.post_id).where(Like.user_id == user.id, Like.post_id.in_(post_ids))
+    ).all())
+
     result = []
+    # Сохраняем порядок закладок (от новых к старым)
     for b in bookmarks:
-        post = session.get(Post, b.post_id)
+        post = posts_map.get(b.post_id)
         if not post:
             continue
-        author = session.get(User, post.author_id)
-        if not author:
-            continue
-        likes_count = session.exec(
-            select(func.count()).select_from(Like).where(Like.post_id == post.id)
-        ).one()
-        replies_count = session.exec(
-            select(func.count()).select_from(Post).where(Post.reply_to_id == post.id)
-        ).one()
+        author = authors_map.get(post.author_id)
+
         result.append({
             "id": post.id,
             "author_id": post.author_id,
-            "author": author.display_name,
-            "handle": f"@{author.username}",
-            "author_avatar": author.avatar_url,
-            "author_is_admin": author.is_admin,
-            "author_is_moderator": author.is_moderator,
-            "author_is_banned": author.is_banned,
-            "author_role": get_author_role(author, session),
+            "author": author.display_name if author else "Unknown",
+            "handle": f"@{author.username}" if author else "@unknown",
+            "author_avatar": author.avatar_url if author else None,
+            "author_is_admin": author.is_admin if author else False,
+            "author_is_moderator": author.is_moderator if author else False,
+            "author_is_banned": author.is_banned if author else False,
+            "author_role": get_author_role(author, session) if author else None,
             "text": post.text,
             "media_url": post.media_url,
-            "likes_count": likes_count,
-            "liked_by_me": False,
+            "likes_count": likes_map.get(post.id, 0),
+            "liked_by_me": post.id in liked_ids,
             "bookmarked": True,
-            "replies_count": replies_count,
+            "replies_count": replies_map.get(post.id, 0),
         })
     return result
 
@@ -1367,17 +1582,20 @@ async def create_post(
         content = await file.read()
         if len(content) > 20 * 1024 * 1024:
             raise HTTPException(400, "File too large (max 20MB)")
-        
+
         try:
-            result = cloudinary.uploader.upload(
-                content,
-                folder=UPLOAD_FOLDER,
-                resource_type="auto",
+            # Оборачиваем синхронный вызов в threadpool
+            result = await run_in_threadpool(
+                lambda: cloudinary.uploader.upload(
+                    content,
+                    folder=UPLOAD_FOLDER,
+                    resource_type="auto",
+                )
             )
             media_url = result.get("secure_url")
         except Exception as e:
             raise HTTPException(400, f"Upload failed: {str(e)}")
-
+        
     post = Post(author_id=user.id, text=text, media_url=media_url, reply_to_id=reply_to)
     session.add(post)
     session.commit()
@@ -1422,31 +1640,8 @@ async def create_post(
 
     session.commit()
 
-    # 🆕 РЕАЛТАЙМ: рассылаем пост подписчикам автора
-    if not reply_to:
-        await manager.broadcast_to_followers(
-            user.id,
-            "new_post",
-            {
-                "id": post.id,
-                "author_id": post.author_id,
-                "author": user.display_name,
-                "handle": f"@{user.username}",
-                "username": user.username,
-                "author_avatar": user.avatar_url,
-                "author_is_admin": user.is_admin,
-                "author_is_moderator": user.is_moderator,
-                "author_is_banned": user.is_banned,
-                "author_role": get_author_role(user, session),
-                "text": post.text,
-                "media_url": post.media_url,
-                "likes_count": 0,
-                "liked_by_me": False,
-                "bookmarked": False,
-                "replies_count": 0,
-            },
-            session,
-        )
+
+
     # ⚡ Новый пост мгновенно у всех в ленте
     if not reply_to:
         await manager.broadcast_all("new_post", {
@@ -1500,58 +1695,83 @@ def list_permissions():
         {"id": "delete_users", "label": "Удалять аккаунты"},
     ]
 
+
+
+
 @app.get("/api/tags/popular")
 def popular_tags(session: Session = Depends(get_session)):
+    import time
+    now = time.time()
+
+    cached = _popular_tags_cache.get("tags")
+    if cached:
+        cached_time, cached_data = cached
+        if now - cached_time < _POPULAR_TAGS_TTL:
+            return cached_data
+
+    # JOIN вместо N+1
     rows = session.exec(
-        select(PostTag.tag_id, func.count().label("cnt"))
-        .group_by(PostTag.tag_id)
-        .order_by(func.count().desc())
+        select(Tag.name, func.count(PostTag.post_id).label("cnt"))
+        .join(PostTag, Tag.id == PostTag.tag_id)
+        .group_by(Tag.id, Tag.name)
+        .order_by(func.count(PostTag.post_id).desc())
         .limit(10)
     ).all()
-    result = []
-    for tag_id, cnt in rows:
-        tag = session.get(Tag, tag_id)
-        if tag:
-            result.append({"name": tag.name, "count": cnt})
+
+    result = [{"name": name, "count": cnt} for name, cnt in rows]
+
+    _popular_tags_cache["tags"] = (now, result)
     return result
 
 
-@app.get("/api/tags/{tag_name}/posts", response_model=list[PostOut])
+@app.get("/api/tags/{tag_name}/posts")
 def tag_posts(tag_name: str, session: Session = Depends(get_session)):
     tag = session.exec(select(Tag).where(Tag.name == tag_name.lower())).first()
     if not tag:
         return []
-    links = session.exec(select(PostTag).where(PostTag.tag_id == tag.id)).all()
-    post_ids = [l.post_id for l in links]
+
+    links = session.exec(select(PostTag.post_id).where(PostTag.tag_id == tag.id)).all()
+    post_ids = list(links)
     if not post_ids:
         return []
+
     posts = session.exec(
         select(Post).where(Post.id.in_(post_ids)).order_by(Post.created_at.desc())
     ).all()
+
+    if not posts:
+        return []
+
+    # Массовые запросы
+    author_ids = list({p.author_id for p in posts})
+    authors = {u.id: u for u in session.exec(select(User).where(User.id.in_(author_ids))).all()}
+
+    likes_map = dict(session.exec(
+        select(Like.post_id, func.count()).where(Like.post_id.in_(post_ids)).group_by(Like.post_id)
+    ).all())
+
+    replies_map = dict(session.exec(
+        select(Post.reply_to_id, func.count()).where(Post.reply_to_id.in_(post_ids)).group_by(Post.reply_to_id)
+    ).all())
+
     result = []
     for p in posts:
-        author = session.get(User, p.author_id)
-        likes_count = session.exec(
-            select(func.count()).select_from(Like).where(Like.post_id == p.id)
-        ).one()
-        replies_count = session.exec(
-            select(func.count()).select_from(Post).where(Post.reply_to_id == p.id)
-        ).one()
+        author = authors.get(p.author_id)
         result.append({
             "id": p.id,
             "author_id": p.author_id,
-            "author": author.display_name,
-            "handle": f"@{author.username}",
-            "author_avatar": author.avatar_url,
-            "author_is_admin": author.is_admin,
-            "author_is_moderator": author.is_moderator,
-            "author_is_banned": author.is_banned,
-            "author_role": get_author_role(author, session),
+            "author": author.display_name if author else "Unknown",
+            "handle": f"@{author.username}" if author else "@unknown",
+            "author_avatar": author.avatar_url if author else None,
+            "author_is_admin": author.is_admin if author else False,
+            "author_is_moderator": author.is_moderator if author else False,
+            "author_is_banned": author.is_banned if author else False,
+            "author_role": get_author_role(author, session) if author else None,
             "text": p.text,
             "media_url": p.media_url,
-            "likes_count": likes_count,
+            "likes_count": likes_map.get(p.id, 0),
             "liked_by_me": False,
-            "replies_count": replies_count,
+            "replies_count": replies_map.get(p.id, 0),
         })
     return result
 
@@ -1731,23 +1951,42 @@ def admin_list_users(
     session: Session = Depends(get_session),
 ):
     users = session.exec(select(User).order_by(User.created_at.desc())).all()
+
+    if not users:
+        return []
+
+    user_ids = [u.id for u in users]
+
+    # Массовые запросы вместо N+1
+    posts_counts = dict(session.exec(
+        select(Post.author_id, func.count()).where(Post.author_id.in_(user_ids)).group_by(Post.author_id)
+    ).all())
+
+    followers_counts = dict(session.exec(
+        select(Follow.followee_id, func.count()).where(Follow.followee_id.in_(user_ids)).group_by(Follow.followee_id)
+    ).all())
+
+    # Последние IP: подзапрос или оконная функция. Проще через group_by с max(id)
+    last_ip_map = {}
+    last_seen_map = {}
+    # Берём последний IPLog для каждого пользователя
+    ip_logs = session.exec(
+        select(IPLog).where(IPLog.user_id.in_(user_ids)).order_by(IPLog.created_at.desc())
+    ).all()
+    for log in ip_logs:
+        if log.user_id not in last_ip_map:
+            last_ip_map[log.user_id] = log.ip_address
+            last_seen_map[log.user_id] = log.created_at
+
     result = []
     for u in users:
         data = user_out(u, session)
-        # Последний IP
-        last_log = session.exec(
-            select(IPLog).where(IPLog.user_id == u.id).order_by(IPLog.created_at.desc()).limit(1)
-        ).first()
-        data["last_ip"] = last_log.ip_address if last_log else None
-        data["last_seen"] = last_log.created_at.isoformat() if last_log else None
-        # Посты и подписчики
-        data["posts_count"] = session.exec(
-            select(func.count()).select_from(Post).where(Post.author_id == u.id)
-        ).one()
-        data["followers_count"] = session.exec(
-            select(func.count()).select_from(Follow).where(Follow.followee_id == u.id)
-        ).one()
+        data["last_ip"] = last_ip_map.get(u.id)
+        data["last_seen"] = last_seen_map.get(u.id).isoformat() if last_seen_map.get(u.id) else None
+        data["posts_count"] = posts_counts.get(u.id, 0)
+        data["followers_count"] = followers_counts.get(u.id, 0)
         result.append(data)
+
     return result
 
 
@@ -1932,7 +2171,6 @@ def admin_get_stats(
     if not has_permission(staff, "tech_access", session):
         raise HTTPException(403, "No permission: tech_access")
     
-    # 🆕 Логируем посещение техпанели (чтобы IP попал в историю)
     ip = get_client_ip(request)
     session.add(IPLog(
         user_id=staff.id,
@@ -1944,43 +2182,36 @@ def admin_get_stats(
     session.commit()
     
     # Общие счётчики
-    total_users = session.exec(
-        select(func.count()).select_from(User)
-    ).one()
-    total_posts = session.exec(
-        select(func.count()).select_from(Post)
-    ).one()
-    total_likes = session.exec(
-        select(func.count()).select_from(Like)
-    ).one()
-    total_chats = session.exec(
-        select(func.count()).select_from(Chat)
-    ).one()
+    total_users = session.exec(select(func.count()).select_from(User)).one()
+    total_posts = session.exec(select(func.count()).select_from(Post)).one()
+    total_likes = session.exec(select(func.count()).select_from(Like)).one()
+    total_chats = session.exec(select(func.count()).select_from(Chat)).one()
     
-    # Топ по подписчикам
-    users_all = session.exec(select(User)).all()
-    top_followers = []
-    for u in users_all:
-        followers = session.exec(
-            select(func.count()).select_from(Follow).where(Follow.followee_id == u.id)
-        ).one()
-        top_followers.append({
-            **user_out(u, session),
-            "followers_count": followers,
-        })
-    top_followers.sort(key=lambda x: x["followers_count"], reverse=True)
+    # Топ по подписчикам — ОДИН запрос с JOIN
+    top_followers_query = (
+        select(User, func.count(Follow.follower_id).label("followers_count"))
+        .outerjoin(Follow, Follow.followee_id == User.id)
+        .group_by(User.id)
+        .order_by(func.count(Follow.follower_id).desc())
+        .limit(5)
+    )
+    top_followers = [
+        {**user_out(u, session), "followers_count": count}
+        for u, count in session.exec(top_followers_query).all()
+    ]
     
-    # Топ по постам
-    top_posts = []
-    for u in users_all:
-        posts_count = session.exec(
-            select(func.count()).select_from(Post).where(Post.author_id == u.id)
-        ).one()
-        top_posts.append({
-            **user_out(u, session),
-            "posts_count": posts_count,
-        })
-    top_posts.sort(key=lambda x: x["posts_count"], reverse=True)
+    # Топ по постам — ОДИН запрос с JOIN
+    top_posts_query = (
+        select(User, func.count(Post.id).label("posts_count"))
+        .outerjoin(Post, Post.author_id == User.id)
+        .group_by(User.id)
+        .order_by(func.count(Post.id).desc())
+        .limit(5)
+    )
+    top_posts = [
+        {**user_out(u, session), "posts_count": count}
+        for u, count in session.exec(top_posts_query).all()
+    ]
     
     # Последние регистрации
     recent_users = session.exec(
@@ -1992,13 +2223,10 @@ def admin_get_stats(
         "total_posts": total_posts,
         "total_likes": total_likes,
         "total_chats": total_chats,
-        "top_followers": top_followers[:5],
-        "top_posts": top_posts[:5],
+        "top_followers": top_followers,
+        "top_posts": top_posts,
         "recent_registrations": [
-            {
-                **user_out(u, session),
-                "created_at": u.created_at.isoformat(),
-            }
+            {**user_out(u, session), "created_at": u.created_at.isoformat()}
             for u in recent_users
         ],
     }
@@ -2097,6 +2325,8 @@ def admin_edit_user_technical(
     }
 
 
+
+
 @app.post("/api/admin/users/{user_id}/avatar/set")
 async def admin_set_user_avatar(
     user_id: int,
@@ -2122,21 +2352,24 @@ async def admin_set_user_avatar(
     if len(content) > 5 * 1024 * 1024:
         raise HTTPException(400, "File too large (max 5MB)")
     
-    # Удаляем старую аватарку
     if target.avatar_url and "cloudinary.com" in target.avatar_url:
         try:
             public_id = extract_cloudinary_public_id(target.avatar_url)
             if public_id:
-                cloudinary.uploader.destroy(public_id)
+                await run_in_threadpool(
+                    lambda: cloudinary.uploader.destroy(public_id)
+                )
         except Exception:
             pass
     
     try:
-        result = cloudinary.uploader.upload(
-            content,
-            folder=UPLOAD_FOLDER,
-            resource_type="image",
-            transformation=[{"width": 400, "height": 400, "crop": "fill"}],
+        result = await run_in_threadpool(
+            lambda: cloudinary.uploader.upload(
+                content,
+                folder=UPLOAD_FOLDER,
+                resource_type="image",
+                transformation=[{"width": 400, "height": 400, "crop": "fill"}],
+            )
         )
         target.avatar_url = result.get("secure_url")
     except Exception as e:
@@ -2154,44 +2387,95 @@ def list_chats_v2(
     session: Session = Depends(get_session),
 ):
     memberships = session.exec(
-        select(ChatMember).where(ChatMember.user_id == user.id)
+        select(ChatMember.chat_id).where(ChatMember.user_id == user.id)
     ).all()
     
+    if not memberships:
+        return []
+    
+    chat_ids = list(memberships)
+    
+    # 1. Массовый запрос чатов
+    chats = session.exec(select(Chat).where(Chat.id.in_(chat_ids))).all()
+    chats_map = {c.id: c for c in chats}
+    
+    # 2. Массовый запрос всех участников этих чатов
+    all_members = session.exec(
+        select(ChatMember).where(ChatMember.chat_id.in_(chat_ids))
+    ).all()
+    
+    # Группируем по chat_id
+    members_by_chat = {}
+    other_member_ids = set()
+    for m in all_members:
+        if m.chat_id not in members_by_chat:
+            members_by_chat[m.chat_id] = []
+        members_by_chat[m.chat_id].append(m)
+        if m.user_id != user.id:
+            other_member_ids.add(m.user_id)
+    
+    # 3. Массовый запрос всех собеседников
+    other_users = session.exec(
+        select(User).where(User.id.in_(other_member_ids))
+    ).all()
+    users_map = {u.id: u for u in other_users}
+    
+    # 4. Массовый запрос последних сообщений
+    from sqlalchemy.orm import aliased
+    LatestMessage = aliased(Message)
+    last_msgs_query = (
+        select(Message)
+        .where(Message.chat_id.in_(chat_ids))
+        .order_by(Message.chat_id, Message.created_at.desc())
+    )
+    all_msgs = session.exec(last_msgs_query).all()
+    
+    # Берём только первое сообщение для каждого чата
+    last_msgs_map = {}
+    for msg in all_msgs:
+        if msg.chat_id not in last_msgs_map:
+            last_msgs_map[msg.chat_id] = msg
+    
+    # 5. Массовый запрос непрочитанных
+    unread_counts = dict(session.exec(
+        select(Message.chat_id, func.count(Message.id))
+        .where(
+            Message.chat_id.in_(chat_ids),
+            Message.sender_id != user.id,
+            Message.read == False
+        )
+        .group_by(Message.chat_id)
+    ).all())
+    
     result = []
-    for m in memberships:
-        other_member = session.exec(
-            select(ChatMember).where(ChatMember.chat_id == m.chat_id, ChatMember.user_id != user.id)
-        ).first()
+    for chat_id in chat_ids:
+        chat = chats_map.get(chat_id)
+        if not chat:
+            continue
+        
+        # Находим собеседника
+        chat_members = members_by_chat.get(chat_id, [])
+        other_member = next((m for m in chat_members if m.user_id != user.id), None)
         if not other_member:
             continue
-        other = session.get(User, other_member.user_id)
         
-        # Поиск по имени собеседника
+        other = users_map.get(other_member.user_id)
+        if not other:
+            continue
+        
+        # Поиск по имени
         if q.strip():
             q_lower = q.lower()
             if (q_lower not in other.display_name.lower() and 
                 q_lower not in other.username.lower()):
                 continue
         
-        chat = session.get(Chat, m.chat_id)
+        last_msg = last_msgs_map.get(chat_id)
+        unread = unread_counts.get(chat_id, 0)
         
-        last_msg = session.exec(
-            select(Message)
-            .where(Message.chat_id == m.chat_id)
-            .order_by(Message.created_at.desc())
-            .limit(1)
-        ).first()
-        unread = session.exec(
-            select(func.count())
-            .select_from(Message)
-            .where(Message.chat_id == m.chat_id, Message.sender_id != user.id, Message.read == False)
-        ).one()
-        
-        # Для секретных чатов — не показываем превью текста (он зашифрован)
         last_message_data = None
         if last_msg:
-            if chat and chat.is_secret:
-                # Показываем только факт наличия сообщения (не текст)
+            if chat.is_secret:
                 last_message_data = {
                     "text": "🔒 Секретное сообщение",
                     "is_encrypted": True,
@@ -2217,8 +2501,8 @@ def list_chats_v2(
                 }
         
         result.append({
-            "id": m.chat_id,
-            "is_secret": chat.is_secret if chat else False,
+            "id": chat_id,
+            "is_secret": chat.is_secret,
             "other": user_out(other, session),
             "last_message": last_message_data,
             "unread_count": unread,
@@ -2270,7 +2554,6 @@ def admin_delete_user(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    # 1. Проверка прав
     if not staff.is_admin:
         if not has_permission(staff, "tech_access", session) or not has_permission(staff, "delete_users", session):
             raise HTTPException(403, "No permission: delete_users")
@@ -2288,119 +2571,117 @@ def admin_delete_user(
         raise HTTPException(403, "Только Founder может удалить Founder")
     
     if target.is_moderator and staff.is_moderator and not staff.is_admin:
-        raise HTTPException(403, "Developer не может удалить другого Developer. Обратитесь к Founder.")
+        raise HTTPException(403, "Developer не может удалить другого Developer")
 
-    # ========== ПОЛНОЕ УДАЛЕНИЕ ВСЕХ ДАННЫХ ПОЛЬЗОВАТЕЛЯ ==========
-    
-    # 1. Удаляем ActionLog (где он actor)
+    # Массовые удаления
+    # 1. ActionLog
     for log in session.exec(select(ActionLog).where(ActionLog.actor_id == user_id)).all():
         session.delete(log)
 
-    # 2. Удаляем историю IP-адресов
+    # 2. IPLog
     for ip_log in session.exec(select(IPLog).where(IPLog.user_id == user_id)).all():
         session.delete(ip_log)
 
-    # 3. Удаляем закладки
+    # 3. Bookmarks
     for bookmark in session.exec(select(Bookmark).where(Bookmark.user_id == user_id)).all():
         session.delete(bookmark)
 
-    # 4. Удаляем ключи шифрования (E2EE) пользователя
+    # 4. UserKey
     for key in session.exec(select(UserKey).where(UserKey.user_id == user_id)).all():
         session.delete(key)
 
-    # 5. Удаляем баг-репорты, которые он отправлял
+    # 5. BugReport
     for bug in session.exec(select(BugReport).where(BugReport.reporter_id == user_id)).all():
         session.delete(bug)
 
-    # 6. Удаляем все посты пользователя (с зависимостями)
+    # 6. Посты с зависимостями
     posts = session.exec(select(Post).where(Post.author_id == user_id)).all()
-    for post in posts:
-        for like in session.exec(select(Like).where(Like.post_id == post.id)).all():
+    post_ids = [p.id for p in posts]
+    
+    if post_ids:
+        # Массовое удаление лайков
+        for like in session.exec(select(Like).where(Like.post_id.in_(post_ids))).all():
             session.delete(like)
-        for pt in session.exec(select(PostTag).where(PostTag.post_id == post.id)).all():
-            session.delete(pt)
-        for notif in session.exec(select(Notification).where(Notification.post_id == post.id)).all():
-            session.delete(notif)
-        # Рекурсивно удаляем все ответы
-        def delete_replies_recursive(parent_id):
-            replies = session.exec(select(Post).where(Post.reply_to_id == parent_id)).all()
-            for r in replies:
-                delete_replies_recursive(r.id)
-                session.delete(r)
-        delete_replies_recursive(post.id)
         
-        # Медиа из Cloudinary
-        if post.media_url and "cloudinary.com" in post.media_url:
-            try:
-                public_id = extract_cloudinary_public_id(post.media_url)
-                if public_id:
-                    cloudinary.uploader.destroy(public_id, resource_type="auto")
-            except Exception:
-                pass
-        elif post.media_url:
-            file_path = os.path.join("uploads", post.media_url.split("/")[-1])
-            if os.path.exists(file_path):
-                os.remove(file_path)
-        session.delete(post)
+        # Массовое удаление тегов
+        for pt in session.exec(select(PostTag).where(PostTag.post_id.in_(post_ids))).all():
+            session.delete(pt)
+        
+        # Массовое удаление уведомлений
+        for notif in session.exec(select(Notification).where(Notification.post_id.in_(post_ids))).all():
+            session.delete(notif)
+        
+        # Удаляем медиа и сами посты
+        for post in posts:
+            if post.media_url and "cloudinary.com" in post.media_url:
+                try:
+                    public_id = extract_cloudinary_public_id(post.media_url)
+                    if public_id:
+                        cloudinary.uploader.destroy(public_id, resource_type="auto")
+                except Exception:
+                    pass
+            elif post.media_url:
+                file_path = os.path.join("uploads", post.media_url.split("/")[-1])
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+            session.delete(post)
 
-    # 7. Удаляем лайки, которые пользователь поставил
+    # 7. Лайки пользователя
     for like in session.exec(select(Like).where(Like.user_id == user_id)).all():
         session.delete(like)
 
-    # 8. Удаляем подписки
+    # 8. Подписки
     for follow in session.exec(
         select(Follow).where((Follow.follower_id == user_id) | (Follow.followee_id == user_id))
     ).all():
         session.delete(follow)
 
-    # 9. Удаляем уведомления
+    # 9. Уведомления
     for notif in session.exec(
         select(Notification).where((Notification.user_id == user_id) | (Notification.actor_id == user_id))
     ).all():
         session.delete(notif)
 
-    # 10. 🆕 ИСПРАВЛЕНИЕ: Удаляем чаты вместе со ВСЕМИ сообщениями в них
+    # 10. Чаты
     memberships = session.exec(
         select(ChatMember).where(ChatMember.user_id == user_id)
     ).all()
+    
     for membership in memberships:
         chat_id = membership.chat_id
         
-        # 🆕 10.1. Удаляем ВСЕ сообщения в этом чате (и его, и собеседника)
+        # Массовое удаление сообщений
         for msg in session.exec(select(Message).where(Message.chat_id == chat_id)).all():
-            # Можно также удалить медиа сообщений из Cloudinary, если нужно
             session.delete(msg)
         
-        # 🆕 10.2. Удаляем сессионные ключи шифрования (E2EE) этого чата
+        # Массовое удаление сессионных ключей
         for sk in session.exec(select(ChatSessionKey).where(ChatSessionKey.chat_id == chat_id)).all():
             session.delete(sk)
         
-        # 10.3. Удаляем всех участников этого чата
+        # Массовое удаление участников
         for other_member in session.exec(
             select(ChatMember).where(ChatMember.chat_id == chat_id)
         ).all():
             session.delete(other_member)
         
-        # 10.4. Удаляем сам чат
         chat = session.get(Chat, chat_id)
         if chat:
             session.delete(chat)
 
-    # 11. Удаляем жалобы (где он автор)
+    # 11. Жалобы
     for report in session.exec(select(Report).where(Report.reporter_id == user_id)).all():
         session.delete(report)
-
-    # 12. Удаляем жалобы НА пользователя
+    
     for report in session.exec(
         select(Report).where(Report.target_type == "user", Report.target_id == user_id)
     ).all():
         session.delete(report)
 
-    # 13. Снимаем роль
+    # 12. Снимаем роль
     target.role_id = None
     session.add(target)
 
-    # 14. Удаляем аватарку из Cloudinary
+    # 13. Удаляем аватарку
     if target.avatar_url and "cloudinary.com" in target.avatar_url:
         try:
             public_id = extract_cloudinary_public_id(target.avatar_url)
@@ -2409,7 +2690,6 @@ def admin_delete_user(
         except Exception:
             pass
 
-    # 15. Удаляем самого пользователя
     session.delete(target)
     
     log_action(session, staff.id, "delete_user",
@@ -2656,8 +2936,10 @@ async def send_message_v2(
         if len(content) > 20 * 1024 * 1024:
             raise HTTPException(400, "File too large (max 20MB)")
         try:
-            result = cloudinary.uploader.upload(
-                content, folder=UPLOAD_FOLDER, resource_type="auto",
+            result = await run_in_threadpool(
+                lambda: cloudinary.uploader.upload(
+                    content, folder=UPLOAD_FOLDER, resource_type="auto",
+                )
             )
             media_url = result.get("secure_url")
             resource_type = result.get("resource_type")
@@ -2744,15 +3026,25 @@ def get_messages_v2(
     ).first()
     if not member:
         raise HTTPException(403, "Не участник чата")
-    
-    chat = session.get(Chat, chat_id)
+
     messages = session.exec(
         select(Message).where(Message.chat_id == chat_id).order_by(Message.created_at)
     ).all()
-    
+
+    if not messages:
+        return []
+
+    # Массовый запрос всех авторов
+    sender_ids = list({msg.sender_id for msg in messages})
+    senders = {
+        u.id: u for u in session.exec(
+            select(User).where(User.id.in_(sender_ids))
+        ).all()
+    }
+
     result = []
     for msg in messages:
-        sender = session.get(User, msg.sender_id)
+        sender = senders.get(msg.sender_id)
         result.append({
             "id": msg.id,
             "sender_id": msg.sender_id,
@@ -2763,6 +3055,8 @@ def get_messages_v2(
             "media_url": msg.media_url,
             "media_type": msg.media_type,
             "read": msg.read,
+            "edited": msg.edited,
+            "edited_at": msg.edited_at.isoformat() if msg.edited_at else None,
             "created_at": msg.created_at.isoformat(),
         })
     return result
@@ -2875,6 +3169,7 @@ def get_chat_media(
     return result
 
 
+
 @app.post("/api/chats/{chat_id}/read")
 def mark_chat_read(
     chat_id: int,
@@ -2889,16 +3184,17 @@ def mark_chat_read(
     ).first()
     if not member:
         raise HTTPException(403, "Not a member of this chat")
-    unread = session.exec(
-        select(Message).where(
+
+    # ОДИН массовый UPDATE вместо N загрузок + N коммитов
+    session.exec(
+        update(Message)
+        .where(
             Message.chat_id == chat_id,
             Message.sender_id != user.id,
             Message.read == False,
         )
-    ).all()
-    for msg in unread:
-        msg.read = True
-        session.add(msg)
+        .values(read=True)
+    )
     session.commit()
     return {"ok": True}
 
@@ -2908,21 +3204,15 @@ def chats_unread_count(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    memberships = session.exec(
-        select(ChatMember).where(ChatMember.user_id == user.id)
-    ).all()
-    total = 0
-    for m in memberships:
-        cnt = session.exec(
-            select(func.count())
-            .select_from(Message)
-            .where(
-                Message.chat_id == m.chat_id,
-                Message.sender_id != user.id,
-                Message.read == False,
-            )
-        ).one()
-        total += cnt
+    total = session.exec(
+        select(func.count(Message.id))
+        .join(ChatMember, ChatMember.chat_id == Message.chat_id)
+        .where(
+            ChatMember.user_id == user.id,
+            Message.sender_id != user.id,
+            Message.read == False,
+        )
+    ).one()
     return {"count": total}
 
 @app.get("/api/chats/{chat_id}")
@@ -2964,13 +3254,24 @@ def get_notifications(
         .order_by(Notification.created_at.desc())
         .limit(50)
     ).all()
+
+    if not notifs:
+        return []
+
+    actor_ids = list({n.actor_id for n in notifs})
+    actors = {
+        u.id: u for u in session.exec(
+            select(User).where(User.id.in_(actor_ids))
+        ).all()
+    }
+
     result = []
     for n in notifs:
-        actor = session.get(User, n.actor_id)
+        actor = actors.get(n.actor_id)
         result.append({
             "id": n.id,
             "type": n.type,
-            "actor": user_out(actor, session),
+            "actor": user_out(actor, session) if actor else None,
             "post_id": n.post_id,
             "read": n.read,
             "created_at": n.created_at.isoformat(),
@@ -3026,10 +3327,21 @@ def mark_all_notifications_read(
 
 @app.get("/api/team")
 def get_team(session: Session = Depends(get_session)):
-    """Возвращает всех пользователей команды, сгруппированных по уровням."""
-    users = session.exec(select(User).where(User.is_banned == False).order_by(User.created_at)).all()
-    
-    # Группы по уровням (только 3-11, уровни 1-2 не показываются)
+    users = session.exec(
+        select(User).where(User.is_banned == False).order_by(User.created_at)
+    ).all()
+
+    if not users:
+        return {"groups": []}
+
+    # Массовый запрос ролей
+    role_ids = list({u.role_id for u in users if u.role_id})
+    roles = {
+        r.id: r for r in session.exec(
+            select(Role).where(Role.id.in_(role_ids))
+        ).all()
+    } if role_ids else {}
+
     groups = {
         "level_11": {"label": "System", "color": "#00ff41", "order": 0, "members": []},
         "level_10": {"label": "Founder", "color": "#ffffff", "order": 1, "members": []},
@@ -3038,11 +3350,10 @@ def get_team(session: Session = Depends(get_session)):
         "level_7": {"label": "Технический раздел", "color": "#0E7490", "order": 4, "members": []},
         "level_6_3": {"label": "Модерация форума", "color": "#065F46", "order": 5, "members": []},
     }
-    
-    # Распределяем пользователей по группам
+
     for u in users:
         level = get_user_level(u, session)
-        
+
         member_data = {
             "id": u.id,
             "username": u.username,
@@ -3054,28 +3365,25 @@ def get_team(session: Session = Depends(get_session)):
             "level": level,
             "role": None,
         }
-        
+
         if u.role_id:
-            role = session.get(Role, u.role_id)
+            role = roles.get(u.role_id)  # ← из словаря, не из БД
             if role:
                 member_data["role"] = {"id": role.id, "name": role.name, "color": role.color}
-        
-        # Распределение по уровням
-        if level == 11:  # System
+
+        if level == 11:
             groups["level_11"]["members"].append(member_data)
-        elif level == 10:  # Founder (is_admin)
+        elif level == 10:
             groups["level_10"]["members"].append(member_data)
-        elif level == 9:  # Developer (is_moderator)
+        elif level == 9:
             groups["level_9"]["members"].append(member_data)
-        elif level == 8:  # Глава администрации
+        elif level == 8:
             groups["level_8"]["members"].append(member_data)
-        elif level == 7:  # Технический раздел
+        elif level == 7:
             groups["level_7"]["members"].append(member_data)
-        elif 3 <= level <= 6:  # Модерация форума (уровни 3-6)
+        elif 3 <= level <= 6:
             groups["level_6_3"]["members"].append(member_data)
-        # Уровни 1-2 не добавляются в команды
-    
-    # Сортируем группы по order и фильтруем пустые
+
     result = []
     for key, g in sorted(groups.items(), key=lambda x: x[1]["order"]):
         if g["members"]:
@@ -3085,7 +3393,7 @@ def get_team(session: Session = Depends(get_session)):
                 "color": g["color"],
                 "members": g["members"],
             })
-    
+
     return {"groups": result}
 
 # ---------- правила ----------
@@ -3867,9 +4175,20 @@ def require_founder(
 @app.get("/api/updates")
 def list_updates(session: Session = Depends(get_session)):
     updates = session.exec(select(Update).order_by(Update.created_at.desc())).all()
+
+    if not updates:
+        return []
+
+    author_ids = list({u.author_id for u in updates if u.author_id})
+    authors = {
+        u.id: u for u in session.exec(
+            select(User).where(User.id.in_(author_ids))
+        ).all()
+    } if author_ids else {}
+
     result = []
     for u in updates:
-        author = session.get(User, u.author_id) if u.author_id else None
+        author = authors.get(u.author_id)
         result.append({
             "id": u.id,
             "title": u.title,
@@ -3924,12 +4243,21 @@ def delete_update(
     session.commit()
     return {"ok": True}
 
+def _update_last_seen_sync(user_id: int):
+    """Синхронная функция для обновления last_seen (выполняется в threadpool)"""
+    with Session(engine) as session:
+        user = session.get(User, user_id)
+        if user:
+            user.last_seen = datetime.now(timezone.utc)
+            session.add(user)
+            session.commit()
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    # 1. 🔥 ОБЯЗАТЕЛЬНО принимаем соединение ПЕРЕД любыми действиями!
+    # 1. Принимаем соединение ПЕРЕД любыми действиями
     await websocket.accept()
     
-    # 2. 🔥 Достаем токен из query-параметров ПРАВИЛЬНО
+    # 2. Достаём токен из query-параметров
     token = websocket.query_params.get("token")
     
     # 3. Аутентификация через JWT
@@ -3941,37 +4269,35 @@ async def websocket_endpoint(websocket: WebSocket):
         except Exception:
             await websocket.close(code=4001, reason="Invalid token")
             return
-            
+    
     if not user_id:
         await websocket.close(code=4001, reason="Not authenticated")
         return
-        
-    # 4. Используем Session напрямую (БЕЗ Depends!)
+    
+    # 4. Проверяем пользователя в БД
     with Session(engine) as session:
         user = session.get(User, user_id)
         if not user or user.is_banned:
             await websocket.close(code=4003, reason="Banned or not found")
             return
-            
-        # 5. Подключаем к менеджеру
-        await manager.connect(websocket, user_id)
-        
-        # Обновляем last_seen
-        user.last_seen = datetime.now(timezone.utc)
-        session.add(user)
-        session.commit()
-        
-        try:
-            # 6. Держим соединение открытым
-            while True:
-                data = await websocket.receive_text()
-                if data == "ping":
-                    await websocket.send_text(json.dumps({"event": "pong"}))
-        except WebSocketDisconnect:
-            manager.disconnect(websocket, user_id)
-        except Exception as e:
-            print(f"❌ WS error for user {user_id}: {e}")
-            manager.disconnect(websocket, user_id)
+    
+    # 5. Подключаем к менеджеру
+    await manager.connect(websocket, user_id)
+    
+    # 6. ✅ ОБНОВЛЯЕМ last_seen БЕЗ блокировки event loop
+    await run_in_threadpool(_update_last_seen_sync, user_id)
+    
+    try:
+        # 7. Держим соединение открытым
+        while True:
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text(json.dumps({"event": "pong"}))
+    except WebSocketDisconnect:
+        await manager.disconnect(websocket, user_id)
+    except Exception as e:
+        print(f"❌ WS error for user {user_id}: {e}")
+        await manager.disconnect(websocket, user_id)
 
 @app.get("/api/online-count")
 def get_online_count(user: User = Depends(get_current_user)):

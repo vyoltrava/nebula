@@ -1,8 +1,10 @@
 from typing import Optional
 from sqlmodel import SQLModel, Field
+from sqlalchemy import UniqueConstraint
 from datetime import datetime, timezone
 
-
+def utcnow():
+    return datetime.now(timezone.utc)
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -15,42 +17,44 @@ class User(SQLModel, table=True):
     is_banned: bool = False
     is_system: bool = Field(default=False)
     role_id: Optional[int] = Field(default=None, foreign_key="role.id")
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=utcnow)
     bio: Optional[str] = None
     last_seen: Optional[datetime] = None
 
 
 class Post(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    author_id: int = Field(foreign_key="user.id")
+    author_id: int = Field(foreign_key="user.id", index=True)
     text: str
     media_url: Optional[str] = None
     reply_to_id: Optional[int] = Field(default=None, foreign_key="post.id")
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
 
 
 class Like(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id")
-    post_id: int = Field(foreign_key="post.id")
-    created_at: datetime = Field(default_factory=datetime.now)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    post_id: int = Field(foreign_key="post.id", index=True)
+    created_at: datetime = Field(default_factory=utcnow)
+    __table_args__ = (UniqueConstraint("user_id", "post_id"),)
 
 
 class Follow(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    follower_id: int = Field(foreign_key="user.id")
-    followee_id: int = Field(foreign_key="user.id")
-    created_at: datetime = Field(default_factory=datetime.now)
+    follower_id: int = Field(foreign_key="user.id", index=True)
+    followee_id: int = Field(foreign_key="user.id", index=True)
+    created_at: datetime = Field(default_factory=utcnow)
+    __table_args__ = (UniqueConstraint("follower_id", "followee_id"),)
 
 
 class Notification(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id")
+    user_id: int = Field(foreign_key="user.id", index=True)
     actor_id: int = Field(foreign_key="user.id")
     type: str
     post_id: Optional[int] = Field(default=None, foreign_key="post.id")
-    read: bool = False
-    created_at: datetime = Field(default_factory=datetime.now)
+    read: bool = Field(default=False, index=True)
+    created_at: datetime = Field(default_factory=utcnow)
 
 
 class Tag(SQLModel, table=True):
@@ -60,33 +64,35 @@ class Tag(SQLModel, table=True):
 
 class PostTag(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    post_id: int = Field(foreign_key="post.id")
-    tag_id: int = Field(foreign_key="tag.id")
+    post_id: int = Field(foreign_key="post.id", index=True)
+    tag_id: int = Field(foreign_key="tag.id", index=True)
+    __table_args__ = (UniqueConstraint("post_id", "tag_id"),)
 
 
 class Chat(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=utcnow)
     is_secret: bool = Field(default=False)
 
 
 class ChatMember(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    chat_id: int = Field(foreign_key="chat.id")
-    user_id: int = Field(foreign_key="user.id")
+    chat_id: int = Field(foreign_key="chat.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    __table_args__ = (UniqueConstraint("chat_id", "user_id"),)
 
 
 class Message(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    chat_id: int = Field(foreign_key="chat.id")
-    sender_id: int = Field(foreign_key="user.id")
+    chat_id: int = Field(foreign_key="chat.id", index=True)
+    sender_id: int = Field(foreign_key="user.id", index=True)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
     text: Optional[str] = None
     media_url: Optional[str] = None
     media_type: Optional[str] = None  # "image", "video", "gif"
     read: bool = False
     edited: bool = Field(default=False)  # ← ДОБАВЬТЕ
     edited_at: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.now)
     ciphertext: Optional[str] = None
 
 class Role(SQLModel, table=True):
@@ -95,30 +101,30 @@ class Role(SQLModel, table=True):
     color: str = "#8b5cf6"
     level: int = Field(default=1)  # ← ДОЛЖНО БЫТЬ ЭТО ПОЛЕ
     permissions: str = "[]"
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=utcnow)
 
 class Report(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    reporter_id: int = Field(foreign_key="user.id")
+    reporter_id: int = Field(foreign_key="user.id", index=True)
     target_type: str  # "post" или "user"
     target_id: int
     reason: str  # spam, insult, nsfw, rules_violation, other
     comment: Optional[str] = None
-    status: str = "pending"  # pending, resolved, rejected
+    status: str = Field(default="pending", index=True)  
     resolved_by: Optional[int] = Field(default=None, foreign_key="user.id")
     resolved_at: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=utcnow)
 
 class BugReport(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     reporter_id: int = Field(foreign_key="user.id")
     title: str
     description: str
-    status: str = "new"  # new, in_progress, resolved, rejected
+    status: str = Field(default="new", index=True) # new, in_progress, resolved, rejected
     priority: str = "medium"  # low, medium, high, critical
     resolved_by: Optional[int] = Field(default=None, foreign_key="user.id")
     resolved_at: Optional[datetime] = None
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=utcnow)
 
 class Update(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -126,7 +132,7 @@ class Update(SQLModel, table=True):
     content: str
     importance: str = "minor"
     author_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=utcnow)
     edited_at: Optional[datetime] = None
 
 class UserKey(SQLModel, table=True):
@@ -135,7 +141,7 @@ class UserKey(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id", unique=True)
     public_key: str  # base64 X25519 public key
     fingerprint: str  # SHA256[:16] для верификации
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=utcnow)
 
 
 class ChatSessionKey(SQLModel, table=True):
@@ -144,7 +150,7 @@ class ChatSessionKey(SQLModel, table=True):
     chat_id: int = Field(foreign_key="chat.id")
     user_id: int = Field(foreign_key="user.id")
     encrypted_session_key: str  # base64
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=utcnow)
 
 
 class IPLog(SQLModel, table=True):
@@ -154,7 +160,7 @@ class IPLog(SQLModel, table=True):
     ip_address: str
     user_agent: Optional[str] = None
     action: str = "login"  # login, register, request
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=utcnow)
 
 
 class IPBlock(SQLModel, table=True):
@@ -163,7 +169,7 @@ class IPBlock(SQLModel, table=True):
     ip_address: str = Field(unique=True)
     reason: Optional[str] = None
     blocked_by: Optional[int] = Field(default=None, foreign_key="user.id")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=utcnow)
     expires_at: Optional[datetime] = None  # None = навсегда
 
 
@@ -176,10 +182,11 @@ class ActionLog(SQLModel, table=True):
     target_id: Optional[int] = None
     details: Optional[str] = None  # JSON с доп. инфой
     ip_address: Optional[str] = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=utcnow)
 
 class Bookmark(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id")
-    post_id: int = Field(foreign_key="post.id")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    user_id: int = Field(foreign_key="user.id", index=True)
+    post_id: int = Field(foreign_key="post.id", index=True)
+    created_at: datetime = Field(default_factory=utcnow)
+    __table_args__ = (UniqueConstraint("user_id", "post_id"),)
