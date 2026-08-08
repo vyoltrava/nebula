@@ -13,6 +13,7 @@ import { ReportModal } from "./ReportModal";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import { isLikedCached, setLikedCache } from "@/lib/postCache";
 import { getCachedUser } from "@/lib/authCache";
+import { PostSkeleton } from "@/components/PostSkeleton";
 
 function renderText(text: string) {
   const parts = text.split(/(#[\wа-яёА-ЯЁ]+|@[\wа-яёА-ЯЁ]+|:[\w]+:)/g);
@@ -134,47 +135,47 @@ export function Post({
   replies_count: number;
   showFullReplies?: boolean;
 }) {
-  const [currentUser, setCurrentUser] = useState<{ id: number; is_admin: boolean; is_moderator: boolean } | null>(() => {
-    const cached = getCachedUser();
-    return cached ? { id: cached.id, is_admin: cached.is_admin, is_moderator: cached.is_moderator } : null;
-  });
-  const [myPermissions, setMyPermissions] = useState<string[]>([]);
-  const [liked, setLiked] = useState<boolean>(() => liked_by_me || isLikedCached(id));
-  const [count, setCount] = useState(likes_count);
-  const [rCount, setRCount] = useState(replies_count);
-  const [replying, setReplying] = useState(false);
-  const [replyText, setReplyText] = useState("");
-  const [showReplies, setShowReplies] = useState(false);
-  const [replies, setReplies] = useState<any[] | null>(null);
-  const [following, setFollowing] = useState(false);
-  const [showReport, setShowReport] = useState(false);
-  const router = useRouter();
+    // ✅ Получаем текущего пользователя из кеша (ОДИН раз при загрузке)
+    const [currentUser] = useState(() => {
+      const cached = getCachedUser();
+      return cached 
+        ? { id: cached.id, is_admin: cached.is_admin, is_moderator: cached.is_moderator } 
+        : null;
+    });
 
-  const cleanUsername = username || handle?.replace("@", "");
+    // ✅ Получаем права из кеша (ОДИН раз)
+    const [myPermissions] = useState<string[]>(() => {
+      const cached = getCachedUser();
+      return cached?.permissions || [];
+    });
 
-  useEffect(() => {
-    const token = getToken();
-    if (!token) return;
+    // ✅ Остальные состояния
+    const [liked, setLiked] = useState<boolean>(() => liked_by_me || isLikedCached(id));
+    const [count, setCount] = useState(likes_count);
+    const [rCount, setRCount] = useState(replies_count);
+    const [replying, setReplying] = useState(false);
+    const [replyText, setReplyText] = useState("");
+    const [showReplies, setShowReplies] = useState(false);
+    const [replies, setReplies] = useState<any[] | null>(null);
+    const [following, setFollowing] = useState(false);
+    const [showReport, setShowReport] = useState(false);
+    const router = useRouter();
 
-    safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data) {
-          setCurrentUser({ id: data.id, is_admin: data.is_admin, is_moderator: data.is_moderator });
-          setMyPermissions(data.permissions || []);
-        }
-      });
+    const cleanUsername = username || handle?.replace("@", "");
 
-    safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${author_id}/is-following`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) setFollowing(data.following);
-      });
-  }, [author_id]);
+    // ✅ useEffect проверяет ТОЛЬКО подписку (1 запрос на пост вместо 2)
+    useEffect(() => {
+      const token = getToken();
+      if (!token) return;
+      
+      safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${author_id}/is-following`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data) setFollowing(data.following);
+        });
+    }, [author_id]);
 
 
 
