@@ -10,6 +10,7 @@ import { getToken } from "@/lib/auth";
 import { ReportModal } from "@/components/ReportModal";
 import { SystemName } from "@/components/SystemName";
 import { ensureKeyPair } from "@/lib/crypto";
+import { isOnline } from "@/lib/online";
 
 
 
@@ -210,13 +211,14 @@ export default function UserProfilePage() {
           <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-5">
             {/* Аватарка */}
             <div className="flex justify-center md:justify-start">
-              <Avatar 
-                src={profile.avatar_url} 
-                name={profile.display_name} 
-                id={profile.id} 
-                size={80}
-                className="md:w-24 md:h-24"
-              />
+            <Avatar 
+              src={profile.avatar_url} 
+              name={profile.display_name} 
+              id={profile.id} 
+              size={80}
+              className="md:w-24 md:h-24"
+              online={isOnline(profile.last_seen)}
+            />
             </div>
 
             {/* Контент */}
@@ -269,6 +271,9 @@ export default function UserProfilePage() {
                     )}
                   </div>
                   <p className="text-white/50 mt-1 text-sm">@{profile.username}</p>
+                  {profile.bio && (
+  <p className="text-white/80 mt-2 text-sm whitespace-pre-wrap">{profile.bio}</p>
+)}
                 </div>
 
                 {/* Кнопки действий */}

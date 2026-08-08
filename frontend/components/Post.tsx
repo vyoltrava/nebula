@@ -10,6 +10,7 @@ import { safeFetch } from "@/lib/ban";
 import { Avatar } from "@/components/Avatar";
 import { mediaUrl } from "@/lib/media";
 import { ReportModal } from "./ReportModal";
+import { BookmarkButton } from "@/components/BookmarkButton";
 
 
 function renderText(text: string) {
@@ -353,6 +354,7 @@ export function Post({
               <Heart size={16} fill={liked ? "currentColor" : "none"} />
               <span className="text-sm font-semibold">{count}</span>
             </button>
+            <BookmarkButton postId={id} />
 
             {/* 🆕 Кнопка "Ответить" открывает форму с упоминанием автора */}
             <button
