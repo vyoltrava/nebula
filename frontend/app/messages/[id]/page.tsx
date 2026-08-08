@@ -8,6 +8,7 @@ import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { STICKERS } from "@/lib/stickers";
 import { isOnline, lastSeenText } from "@/lib/online";
+import { triggerCountersRefresh } from "@/lib/events";
 import {
   Send, Image as ImageIcon, X, Smile, Paperclip,
   FileText, Film, Edit2, Trash2, MoreVertical,
@@ -380,7 +381,11 @@ export default function ChatPage() {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       signal,
-    }).catch(() => {});
+    })
+      .then(() => {
+        triggerCountersRefresh();
+      })
+      .catch(() => {});
 
     const interval = setInterval(() => {
       if (!signal.aborted) loadMessages();

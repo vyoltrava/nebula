@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
-import { onFeedRefresh } from "@/lib/events";
+import { onFeedRefresh, onCountersRefresh, triggerCountersRefresh } from "@/lib/events";
 import { BugReportModal } from "@/components/BugReportModal";
 
 export function Sidebar() {
@@ -56,34 +56,71 @@ export function Sidebar() {
   }, []);
 
   useEffect(() => {
-    const cleanup = onFeedRefresh(() => {
+    async function refreshCounters() {
       const token = getToken();
       if (!token) return;
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/unread-count`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then((r) => (r.ok ? r.json() : { count: 0 }))
-        .then((data) => setUnreadCount(data.count));
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/unread-count`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then((r) => (r.ok ? r.json() : { count: 0 }))
-        .then((data) => setChatsUnread(data.count));
-    });
-    return cleanup;
+      try {
+        const [notifRes, chatRes] = await Promise.all([
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/unread-count`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/unread-count`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+        if (notifRes.ok) {
+          const d = await notifRes.json();
+          setUnreadCount(d.count);
+        }
+        if (chatRes.ok) {
+          const d = await chatRes.json();
+          setChatsUnread(d.count);
+        }
+      } catch (err) {
+        // тихо игнорируем ошибки сети
+      }
+    }
+
+    // Сразу загружаем
+    refreshCounters();
+
+    // Polling каждые 20 секунд
+    const interval = setInterval(refreshCounters, 20000);
+
+    // Обновление по событиям
+    const cleanup1 = onFeedRefresh(refreshCounters);
+    const cleanup2 = onCountersRefresh(refreshCounters);
+
+    return () => {
+      clearInterval(interval);
+      cleanup1();
+      cleanup2();
+    };
   }, []);
 
-  async function loadNotifications() {
-    const token = getToken();
-    if (!token) return;
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      setNotifs(await res.json());
-      setShowNotifs(true);
+    async function loadNotifications() {
+      const token = getToken();
+      if (!token) return;
+      
+      // 1. Загружаем список
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setNotifs(await res.json());
+        setShowNotifs(true);
+      }
+
+      // 2. Помечаем ВСЕ как прочитанные на сервере
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/read-all`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // 3. Обнуляем счётчик в UI сразу
+      setUnreadCount(0);
+      triggerCountersRefresh();
     }
-  }
 
   async function markRead(id: number) {
     const token = getToken();

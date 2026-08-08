@@ -2846,6 +2846,25 @@ def mark_read(
         session.commit()
     return {"ok": True}
 
+@app.post("/api/notifications/read-all")
+def mark_all_notifications_read(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    unread = session.exec(
+        select(Notification).where(
+            Notification.user_id == user.id,
+            Notification.read == False,
+        )
+    ).all()
+    count = 0
+    for notif in unread:
+        notif.read = True
+        session.add(notif)
+        count += 1
+    session.commit()
+    return {"ok": True, "marked": count}
+
 
 @app.get("/api/team")
 def get_team(session: Session = Depends(get_session)):
