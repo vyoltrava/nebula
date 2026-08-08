@@ -26,6 +26,9 @@ from models import (
     Chat, ChatMember, Message, Report, UserKey, ChatSessionKey,
     IPLog, IPBlock, ActionLog, Bookmark
 )
+import logging
+from fastapi.responses import JSONResponse
+from performance import PerfMiddleware, get_perf_summary
 
 def get_client_ip(request: Request) -> str:
     """Извлекает реальный IP из запроса (с учётом прокси Render/Cloudflare)"""
@@ -79,7 +82,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
+    expose_headers=["X-Process-Time-Ms", "X-Request-Id"],
 )
 
 # Rate limiter — ВТОРОЙ
@@ -87,8 +90,16 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
 
+app.add_middleware(PerfMiddleware)
 
+@app.get("/debug/perf")
+async def debug_perf():
+    return JSONResponse(get_perf_summary())
 
 @app.middleware("http")
 async def ip_block_middleware(request: Request, call_next):
