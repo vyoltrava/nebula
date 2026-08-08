@@ -285,9 +285,7 @@ ALL_PERMISSIONS = [
 MODERATOR_PERMISSIONS = ALL_PERMISSIONS.copy()
 
 
-@app.get("/health")
-def health_check():
-    return {"status": "ok", "service": "nebula-api"}
+
 
 
 def get_user_permissions(user: User, session: Session) -> list:
@@ -474,6 +472,11 @@ class ChangePasswordIn(BaseModel):
     old_password: str
     new_password: str
 
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "service": "nebula-api"}
 
 @app.post("/api/register")
 @limiter.limit("5/minute")
@@ -3832,16 +3835,15 @@ def delete_update(
     session.commit()
     return {"ok": True}
 
-# ============================================================
-# ⚡ WEBSOCKET
-# ============================================================
 @app.websocket("/ws")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    token: Optional[str] = None,
-):
-    """WebSocket с аутентификацией через query-параметр."""
-    # 1. Аутентификация через JWT
+async def websocket_endpoint(websocket: WebSocket):
+    # 1. 🔥 ОБЯЗАТЕЛЬНО принимаем соединение ПЕРЕД любыми действиями!
+    await websocket.accept()
+    
+    # 2. 🔥 Достаем токен из query-параметров ПРАВИЛЬНО
+    token = websocket.query_params.get("token")
+    
+    # 3. Аутентификация через JWT
     user_id = None
     if token:
         try:
@@ -3850,19 +3852,19 @@ async def websocket_endpoint(
         except Exception:
             await websocket.close(code=4001, reason="Invalid token")
             return
-    
+            
     if not user_id:
         await websocket.close(code=4001, reason="Not authenticated")
         return
-    
-    # 2. Используем Session напрямую (БЕЗ Depends!)
+        
+    # 4. Используем Session напрямую (БЕЗ Depends!)
     with Session(engine) as session:
         user = session.get(User, user_id)
         if not user or user.is_banned:
             await websocket.close(code=4003, reason="Banned or not found")
             return
-        
-        # 3. Подключаем к менеджеру
+            
+        # 5. Подключаем к менеджеру
         await manager.connect(websocket, user_id)
         
         # Обновляем last_seen
@@ -3871,7 +3873,7 @@ async def websocket_endpoint(
         session.commit()
         
         try:
-            # 4. Держим соединение открытым
+            # 6. Держим соединение открытым
             while True:
                 data = await websocket.receive_text()
                 if data == "ping":
