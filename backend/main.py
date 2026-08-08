@@ -23,11 +23,10 @@ from cloudinary_config import UPLOAD_FOLDER
 from datetime import datetime, timedelta, timezone
 from database import init_db, get_session, engine
 from models import (
-    User, Post, Like, Follow, Notification, Tag, PostTag, Role, 
+    User, Post, Like, Follow, Notification, Tag, PostTag, Role,
     Chat, ChatMember, Message, Report, UserKey, ChatSessionKey,
-    IPLog, IPBlock, ActionLog
+    IPLog, IPBlock, ActionLog, Bookmark
 )
-
 
 def get_client_ip(request: Request) -> str:
     """Извлекает реальный IP из запроса (с учётом прокси Render/Cloudflare)"""
@@ -1337,12 +1336,13 @@ async def create_post(
             ))
 
 
-    log_action(
-        session, user.id, "create_post",
-        target_type="post", target_id=post.id,
-        details={"text": post.text[:100] if post.text else
-
-    session.commit()
+            log_action(
+                session, user.id, "create_post",
+                target_type="post", target_id=post.id,
+                details={"text": post.text[:100] if post.text else None},
+                ip_address=get_client_ip(request),
+            )
+            session.commit()
 
 
     return {
@@ -3300,12 +3300,12 @@ def list_ip_blocks(
 
 @app.post("/api/admin/ip-blocks")
 def create_ip_block(
+    request: Request,
     ip_address: str = Form(...),
     reason: str = Form(""),
-    hours: Optional[int] = Form(None),  # None = навсегда
+    hours: Optional[int] = Form(None),
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
-    request: Request = None,
 ):
     if not has_permission(staff, "ban_users", session):
         raise HTTPException(403, "Нет прав: ban_users")
@@ -3329,7 +3329,7 @@ def create_ip_block(
     log_action(
         session, staff.id, "block_ip",
         target_type="ip", details={"ip": ip_address, "reason": reason},
-        ip_address=get_client_ip(request) if request else None,
+        ip_address=get_client_ip(request),
     )
     session.commit()
     return {"ok": True, "id": block.id}
@@ -3337,10 +3337,10 @@ def create_ip_block(
 
 @app.delete("/api/admin/ip-blocks/{block_id}")
 def delete_ip_block(
+    request: Request,
     block_id: int,
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
-    request: Request = None,
 ):
     if not has_permission(staff, "ban_users", session):
         raise HTTPException(403, "Нет прав: ban_users")
@@ -3354,7 +3354,7 @@ def delete_ip_block(
     log_action(
         session, staff.id, "unblock_ip",
         target_type="ip", details={"ip": ip},
-        ip_address=get_client_ip(request) if request else None,
+        ip_address=get_client_ip(request),
     )
     session.commit()
     return {"ok": True}
