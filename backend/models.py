@@ -193,3 +193,9 @@ class Bookmark(SQLModel, table=True):
     post_id: int = Field(foreign_key="post.id", index=True)
     created_at: datetime = Field(default_factory=utcnow)
     __table_args__ = (UniqueConstraint("user_id", "post_id"),)
+
+class SiteRules(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    content: str = Field(default="{}")  # JSON с правилами
+    updated_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    updated_at: datetime = Field(default_factory=utcnow)
