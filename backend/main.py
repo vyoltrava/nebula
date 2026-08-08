@@ -2300,6 +2300,10 @@ def open_or_create_chat(
         select(ChatMember.chat_id).where(ChatMember.user_id == user.id)
     ).all()
     for chat_id in my_chats:
+        chat = session.get(Chat, chat_id)
+        # 🆕 Пропускаем секретные чаты — "Написать" открывает только обычный
+        if chat and chat.is_secret:
+            continue
         other_in_chat = session.exec(
             select(ChatMember).where(
                 ChatMember.chat_id == chat_id,
