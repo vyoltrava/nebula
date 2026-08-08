@@ -9,6 +9,7 @@ import { getToken } from "@/lib/auth";
 import { onFeedRefresh } from "@/lib/events";
 import { useWebSocket } from "@/src/hooks/useWebSocket";
 
+
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<"all" | "following">("all");
   const [posts, setPosts] = useState<any[]>([]);
@@ -57,6 +58,28 @@ export default function HomePage() {
   useEffect(() => {
     loadMore(true);
   }, [activeTab]);
+  // ⚡ WEBSOCKET: лента живёт в реальном времени
+  useWebSocket("new_post", (data: any) => {
+    setPosts((prev) => (prev.some((p) => p.id === data.id) ? prev : [data, ...prev]));
+  });
+
+  useWebSocket("post_deleted", (data: any) => {
+    setPosts((prev) => prev.filter((p) => p.id !== data.post_id));
+  });
+
+  useWebSocket("post_liked", (data: any) => {
+    window.dispatchEvent(new CustomEvent("like-sync", { detail: data }));
+  });
+
+  // Я удалил пост — убираем из ленты мгновенно, без запроса
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const id = (e as CustomEvent).detail.id;
+      setPosts((prev) => prev.filter((p) => p.id !== id));
+    };
+    window.addEventListener("post-deleted", handler);
+    return () => window.removeEventListener("post-deleted", handler);
+  }, []);
 
   useEffect(() => {
     const cleanup = onFeedRefresh(() => {

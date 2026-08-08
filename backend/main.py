@@ -1116,7 +1116,7 @@ def get_replies(post_id: int, session: Session = Depends(get_session)):
 
 @app.post("/api/posts/{post_id}/like")
 @limiter.limit("30/minute")
-def toggle_like(
+async def toggle_like(
     request: Request,
     post_id: int,
     user: User = Depends(get_current_user),
@@ -1128,6 +1128,8 @@ def toggle_like(
     if existing:
         session.delete(existing)
         session.commit()
+        cnt = session.exec(select(func.count()).select_from(Like).where(Like.post_id == post_id)).one()
+        await manager.broadcast_all("post_liked", {"post_id": post_id, "likes_count": cnt})
         return {"liked": False}
     like = Like(user_id=user.id, post_id=post_id)
     session.add(like)
@@ -1145,6 +1147,8 @@ def toggle_like(
         )
         session.add(notif)
     session.commit()
+    cnt = session.exec(select(func.count()).select_from(Like).where(Like.post_id == post_id)).one()
+    await manager.broadcast_all("post_liked", {"post_id": post_id, "likes_count": cnt})
     return {"liked": True}
 
 # ---------- ЗАКЛАДКИ ----------
@@ -1242,7 +1246,7 @@ def is_liked(
 
 
 @app.delete("/api/posts/{post_id}")
-def delete_post(
+async def delete_post(
     request: Request,
     post_id: int,
     user: User = Depends(get_current_user),
@@ -1263,6 +1267,7 @@ def delete_post(
         ip_address=get_client_ip(request),
     )
     session.commit()
+    await manager.broadcast_all("post_deleted", {"post_id": post_id})
     return {"ok": True}
 
 
@@ -1274,19 +1279,32 @@ def get_posts(
     session: Session = Depends(get_session),
 ):
     query = select(Post).where(Post.reply_to_id == None).order_by(Post.created_at.desc())
-
     if cursor:
         last_post = session.get(Post, cursor)
         if last_post:
             query = query.where(Post.created_at < last_post.created_at)
-
     posts = session.exec(query.limit(limit)).all()
 
-    # 🆕 Лайки и закладки зрителя — 2 запроса вместо 40
+    if not posts:
+        return {"posts": [], "has_more": False, "next_cursor": None}
+
+    ids = [p.id for p in posts]
+
+    # 🚀 5 запросов к БД вместо 60: авторы, лайки, ответы — всё оптом
+    authors = session.exec(select(User).where(User.id.in_({p.author_id for p in posts}))).all()
+    authors_map = {u.id: u for u in authors}
+
+    likes_map = dict(session.exec(
+        select(Like.post_id, func.count()).where(Like.post_id.in_(ids)).group_by(Like.post_id)
+    ).all())
+
+    replies_map = dict(session.exec(
+        select(Post.reply_to_id, func.count()).where(Post.reply_to_id.in_(ids)).group_by(Post.reply_to_id)
+    ).all())
+
     liked_ids = set()
     bookmarked_ids = set()
-    if viewer and posts:
-        ids = [p.id for p in posts]
+    if viewer:
         liked_ids = set(session.exec(
             select(Like.post_id).where(Like.user_id == viewer.id, Like.post_id.in_(ids))
         ).all())
@@ -1296,36 +1314,28 @@ def get_posts(
 
     result = []
     for p in posts:
-        author = session.get(User, p.author_id)
-        likes_count = session.exec(
-            select(func.count()).select_from(Like).where(Like.post_id == p.id)
-        ).one()
-        replies_count = session.exec(
-            select(func.count()).select_from(Post).where(Post.reply_to_id == p.id)
-        ).one()
+        author = authors_map.get(p.author_id)
         result.append({
             "id": p.id,
             "author_id": p.author_id,
-            "author": author.display_name,
-            "handle": f"@{author.username}",
-            "author_avatar": author.avatar_url,
-            "author_is_admin": author.is_admin,
-            "author_is_moderator": author.is_moderator,
-            "author_is_banned": author.is_banned,
-            "author_role": get_author_role(author, session),
+            "author": author.display_name if author else "Unknown",
+            "handle": f"@{author.username}" if author else "@unknown",
+            "author_avatar": author.avatar_url if author else None,
+            "author_is_admin": author.is_admin if author else False,
+            "author_is_moderator": author.is_moderator if author else False,
+            "author_is_banned": author.is_banned if author else False,
+            "author_role": get_author_role(author, session) if author else None,
             "text": p.text,
             "media_url": p.media_url,
-            "likes_count": likes_count,
+            "likes_count": likes_map.get(p.id, 0),
             "liked_by_me": p.id in liked_ids,
             "bookmarked": p.id in bookmarked_ids,
-            "replies_count": replies_count,
+            "replies_count": replies_map.get(p.id, 0),
         })
-
-    has_more = len(posts) == limit
 
     return {
         "posts": result,
-        "has_more": has_more,
+        "has_more": len(posts) == limit,
         "next_cursor": posts[-1].id if posts else None,
     }
 
@@ -1424,6 +1434,26 @@ async def create_post(
             },
             session,
         )
+    # ⚡ Новый пост мгновенно у всех в ленте
+    if not reply_to:
+        await manager.broadcast_all("new_post", {
+            "id": post.id,
+            "author_id": post.author_id,
+            "author": user.display_name,
+            "handle": f"@{user.username}",
+            "username": user.username,
+            "author_avatar": user.avatar_url,
+            "author_is_admin": user.is_admin,
+            "author_is_moderator": user.is_moderator,
+            "author_is_banned": user.is_banned,
+            "author_role": get_author_role(user, session),
+            "text": post.text,
+            "media_url": post.media_url,
+            "likes_count": 0,
+            "liked_by_me": False,
+            "bookmarked": False,
+            "replies_count": 0,
+        })
 
     return {
         "id": post.id,
@@ -1796,7 +1826,7 @@ def admin_toggle_moderator(
 
 
 @app.delete("/api/admin/posts/{post_id}")
-def admin_delete_post(
+async def admin_delete_post(
     request: Request,
     post_id: int,
     staff: User = Depends(require_staff),
@@ -1815,6 +1845,7 @@ def admin_delete_post(
         ip_address=get_client_ip(request),
     )
     session.commit()
+    await manager.broadcast_all("post_deleted", {"post_id": post_id})
     return {"ok": True}
 
 

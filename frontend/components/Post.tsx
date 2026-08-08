@@ -161,6 +161,16 @@ export function Post({
     const [showReport, setShowReport] = useState(false);
     const router = useRouter();
 
+      // ⚡ Счётчик лайков обновляется в реальном времени
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const d = (e as CustomEvent).detail;
+      if (d.post_id === id) setCount(d.likes_count);
+    };
+    window.addEventListener("like-sync", handler);
+    return () => window.removeEventListener("like-sync", handler);
+  }, [id]);
+
     const cleanUsername = username || handle?.replace("@", "");
 
     // ✅ useEffect проверяет ТОЛЬКО подписку (1 запрос на пост вместо 2)
@@ -204,7 +214,6 @@ export function Post({
         setCount((c) => (data.liked ? c + 1 : c - 1));
         setLikedCache(id, data.liked);
       }
-      triggerFeedRefresh();
     } else {
       // Откат при ошибке
       setLiked(!next);
@@ -301,7 +310,7 @@ export function Post({
     });
 
     if (res && res.ok) {
-      triggerFeedRefresh();
+      window.dispatchEvent(new CustomEvent("post-deleted", { detail: { id } }));
     } else {
       alert("Не удалось удалить пост");
     }
