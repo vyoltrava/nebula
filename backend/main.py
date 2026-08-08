@@ -87,9 +87,7 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 
 
-@app.get("/health")
-def health_check():
-    return {"status": "ok", "service": "nebula-api"}
+
 
 
 @app.middleware("http")
@@ -285,6 +283,11 @@ ALL_PERMISSIONS = [
 # 🆕 Системный Moderator (Developer) имеет все права, как Founder
 # Защита иерархии через levels не даст трогать Founder и других Moderator
 MODERATOR_PERMISSIONS = ALL_PERMISSIONS.copy()
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "service": "nebula-api"}
 
 
 def get_user_permissions(user: User, session: Session) -> list:
@@ -3838,7 +3841,7 @@ async def websocket_endpoint(
     token: Optional[str] = None,
 ):
     """WebSocket с аутентификацией через query-параметр."""
-    # 1. Аутентификация
+    # 1. Аутентификация через JWT
     user_id = None
     if token:
         try:
@@ -3852,7 +3855,7 @@ async def websocket_endpoint(
         await websocket.close(code=4001, reason="Not authenticated")
         return
     
-    # 2. 🆕 Используем Session напрямую (без Depends — надёжнее для WS на Render)
+    # 2. Используем Session напрямую (БЕЗ Depends!)
     with Session(engine) as session:
         user = session.get(User, user_id)
         if not user or user.is_banned:
