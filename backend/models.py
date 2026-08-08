@@ -103,8 +103,9 @@ class Role(SQLModel, table=True):
     name: str = Field(unique=True)
     color: str = "#8b5cf6"
     level: int = Field(default=1)
-    description: Optional[str] = None  # 🆕 Описание: чем занимается роль
-    is_staff: bool = Field(default=False)  # 🆕 True = администрация, False = спонсоры/обычные
+    description: Optional[str] = None      # 🆕 чем занимается роль
+    is_staff: bool = Field(default=False)  # 🆕 показывать ли в правилах
+    position: int = Field(default=0)       # 🆕 порядок отображения
     permissions: str = "[]"
     created_at: datetime = Field(default_factory=utcnow)
 

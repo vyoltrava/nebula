@@ -1911,17 +1911,83 @@ def tag_posts(tag_name: str, session: Session = Depends(get_session)):
 
 @app.get("/api/roles")
 def list_roles(session: Session = Depends(get_session)):
-    roles = session.exec(select(Role).order_by(Role.created_at.desc())).all()
-    result = []
-    for r in roles:
-        result.append({
+    roles = session.exec(select(Role).order_by(Role.level.desc())).all()
+    return [
+        {
             "id": r.id,
             "name": r.name,
             "color": r.color,
-            "level": r.level,  # 🆕
+            "level": r.level,
+            "description": r.description,
+            "is_staff": r.is_staff,
+            "position": r.position,
             "permissions": json.loads(r.permissions),
-        })
-    return result
+        }
+        for r in roles
+    ]
+
+
+@app.get("/api/roles/staff")
+def list_staff_roles(session: Session = Depends(get_session)):
+    """Только роли администрации, в нужном порядке — для страницы правил"""
+    roles = session.exec(select(Role).where(Role.is_staff == True)).all()
+
+    # Первый запуск: расставляем порядок по уровню (старшие сверху)
+    if roles and all((r.position or 0) == 0 for r in roles):
+        roles.sort(key=lambda r: r.level, reverse=True)
+        for i, r in enumerate(roles, start=1):
+            r.position = i
+            session.add(r)
+        session.commit()
+
+    roles.sort(key=lambda r: (r.position or 0))
+    return [
+        {
+            "id": r.id,
+            "name": r.name,
+            "color": r.color,
+            "level": r.level,
+            "description": r.description or "",
+        }
+        for r in roles
+    ]
+
+
+@app.post("/api/roles/{role_id}/move")
+def move_role(
+    role_id: int,
+    direction: str = Form(...),  # "up" или "down"
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    if not has_permission(staff, "manage_roles", session):
+        raise HTTPException(403, "No permission: manage_roles")
+
+    role = session.get(Role, role_id)
+    if not role:
+        raise HTTPException(404, "Role not found")
+
+    staff_roles = sorted(
+        session.exec(select(Role).where(Role.is_staff == True)).all(),
+        key=lambda r: (r.position or 0),
+    )
+    idx = next((i for i, r in enumerate(staff_roles) if r.id == role_id), -1)
+    if idx == -1:
+        raise HTTPException(400, "Роль не отмечена как staff")
+
+    if direction == "up" and idx > 0:
+        other = staff_roles[idx - 1]
+    elif direction == "down" and idx < len(staff_roles) - 1:
+        other = staff_roles[idx + 1]
+    else:
+        raise HTTPException(400, "Некуда двигать")
+
+    role.position, other.position = (other.position or 0), (role.position or 0)
+    session.add(role)
+    session.add(other)
+    session.commit()
+    invalidate_role_cache()
+    return {"ok": True}
 
 
 @app.post("/api/roles")
@@ -1952,6 +2018,17 @@ def create_role(
         description=description,
         is_staff=is_staff,
         permissions=permissions,
+    )
+
+    position = 0
+    if is_staff:
+        max_pos = max([r.position or 0 for r in session.exec(select(Role)).all()], default=0)
+        position = max_pos + 1
+
+    role = Role(
+        name=name, color=color, level=level,
+        description=description, is_staff=is_staff,
+        position=position, permissions=permissions,
     )
     session.add(role)
     session.commit()
@@ -2005,6 +2082,14 @@ def update_role(
         role.is_staff = is_staff
     if permissions:
         role.permissions = permissions
+
+    if description is not None:
+        role.description = description
+    if is_staff is not None:
+        if is_staff and not role.is_staff:
+            max_pos = max([r.position or 0 for r in session.exec(select(Role)).all()], default=0)
+            role.position = max_pos + 1
+        role.is_staff = is_staff
     
     session.add(role)
     session.commit()
@@ -2710,6 +2795,9 @@ def startup():
     # Автоматическое добавление недостающих колонок
     with engine.connect() as conn:
         try:
+            conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS description VARCHAR;'))
+            conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS is_staff BOOLEAN DEFAULT FALSE;'))
+            conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0;'))
             conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS description VARCHAR;'))
             conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS is_staff BOOLEAN DEFAULT FALSE;'))
             conn.execute(text('CREATE TABLE IF NOT EXISTS siterules (id SERIAL PRIMARY KEY, content TEXT NOT NULL DEFAULT \'{}\', updated_by INTEGER REFERENCES "user"(id), updated_at TIMESTAMPTZ DEFAULT NOW());'))
