@@ -1430,6 +1430,37 @@ async def toggle_like(
     await manager.broadcast_to_followers(user.id, "post_liked", {"post_id": post_id, "likes_count": cnt}, session)
     return {"liked": True}
 
+
+@app.get("/api/counts")
+def get_all_counts(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    # Чаты — один запрос
+    chats_unread = session.exec(
+        select(func.count(Message.id))
+        .join(ChatMember, ChatMember.chat_id == Message.chat_id)
+        .where(
+            ChatMember.user_id == user.id,
+            Message.sender_id != user.id,
+            Message.read == False,
+        )
+    ).one()
+
+    # Уведомления — один запрос
+    notifications_unread = session.exec(
+        select(func.count(Notification.id))
+        .where(
+            Notification.user_id == user.id,
+            Notification.read == False,
+        )
+    ).one()
+
+    return {
+        "chats_unread": chats_unread,
+        "notifications_unread": notifications_unread,
+    }
+
 # ---------- ЗАКЛАДКИ ----------
 
 @app.post("/api/posts/{post_id}/bookmark")

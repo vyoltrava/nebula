@@ -9,22 +9,23 @@ import {
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
-import { onFeedRefresh, onCountersRefresh, triggerCountersRefresh } from "@/lib/events";
+import { onFeedRefresh } from "@/lib/events";
 import { BugReportModal } from "@/components/BugReportModal";
 import { getCachedUser, setCachedUser } from "@/lib/authCache";
 import { clearCachedUser } from "@/lib/authCache";
+import { useUnreadCounts } from "@/lib/UnreadCountsContext"; // 🆕
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<any>(() => getCachedUser());
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [chatsUnread, setChatsUnread] = useState(0);
   const [showNotifs, setShowNotifs] = useState(false);
   const [notifs, setNotifs] = useState<any[]>([]);
   const [showBugModal, setShowBugModal] = useState(false);
   const [searchQ, setSearchQ] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
+  
+  const { counts } = useUnreadCounts(); // 🆕 Используем глобальный контекст
 
   useEffect(() => {
     setDrawerOpen(false);
@@ -32,7 +33,7 @@ export function Sidebar() {
 
   const nav = [
     { href: "/", icon: Home, label: "Главная" },
-    { href: "/bookmarks", icon: Bookmark, label: "Закладки" },  // 🆕
+    { href: "/bookmarks", icon: Bookmark, label: "Закладки" },
     { href: "/updates", icon: Megaphone, label: "Обновления" },
     { href: "/rules", icon: Shield, label: "Правила" },
     { href: "/settings", icon: Settings, label: "Настройки" },
@@ -50,7 +51,7 @@ export function Sidebar() {
       if (!r.ok) return;
       const data = await r.json();
       setUser(data);
-      setCachedUser(data);  // 🆕 Сохраняем в кэш
+      setCachedUser(data);
     })
       .catch((err) => {
         if (err.name !== "AbortError") console.error("Failed to load user:", err);
@@ -58,72 +59,26 @@ export function Sidebar() {
     return () => controller.abort();
   }, []);
 
-  useEffect(() => {
-    async function refreshCounters() {
-      const token = getToken();
-      if (!token) return;
-      try {
-        const [notifRes, chatRes] = await Promise.all([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/unread-count`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/unread-count`, {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
-        if (notifRes.ok) {
-          const d = await notifRes.json();
-          setUnreadCount(d.count);
-        }
-        if (chatRes.ok) {
-          const d = await chatRes.json();
-          setChatsUnread(d.count);
-        }
-      } catch (err) {
-        // тихо игнорируем ошибки сети
-      }
+  // 🆕 УДАЛИ ВЕСЬ СТАРЫЙ useEffect с polling (строки ~60-100)
+  // Теперь счётчики приходят из useUnreadCounts()
+
+  async function loadNotifications() {
+    const token = getToken();
+    if (!token) return;
+    
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      setNotifs(await res.json());
+      setShowNotifs(true);
     }
 
-    // Сразу загружаем
-    refreshCounters();
-
-    // Polling каждые 20 секунд
-    const interval = setInterval(refreshCounters, 20000);
-
-    // Обновление по событиям
-    const cleanup1 = onFeedRefresh(refreshCounters);
-    const cleanup2 = onCountersRefresh(refreshCounters);
-
-    return () => {
-      clearInterval(interval);
-      cleanup1();
-      cleanup2();
-    };
-  }, []);
-
-    async function loadNotifications() {
-      const token = getToken();
-      if (!token) return;
-      
-      // 1. Загружаем список
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        setNotifs(await res.json());
-        setShowNotifs(true);
-      }
-
-      // 2. Помечаем ВСЕ как прочитанные на сервере
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/read-all`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      // 3. Обнуляем счётчик в UI сразу
-      setUnreadCount(0);
-      triggerCountersRefresh();
-    }
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/read-all`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
 
   async function markRead(id: number) {
     const token = getToken();
@@ -133,7 +88,6 @@ export function Sidebar() {
       headers: { Authorization: `Bearer ${token}` },
     });
     setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-    setUnreadCount((c) => Math.max(0, c - 1));
   }
 
   const icons = {
@@ -179,7 +133,7 @@ export function Sidebar() {
               setDrawerOpen(false);
             }
           }}
-      className="md:hidden flex items-center gap-2 border border-white/8 bg-white/3 rounded-lg px-3 py-2.5"
+          className="md:hidden flex items-center gap-2 border border-white/8 bg-white/3 rounded-lg px-3 py-2.5"
         >
           <Search size={18} className="text-white/60 shrink-0" />
           <input
@@ -219,9 +173,9 @@ export function Sidebar() {
             }`}
           >
             <MessageSquare size={18} /> Сообщения
-            {chatsUnread > 0 && (
+            {counts.chats > 0 && (
               <span className="ml-auto bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                {chatsUnread}
+                {counts.chats}
               </span>
             )}
           </Link>
@@ -279,9 +233,9 @@ export function Sidebar() {
           }`}
         >
           <Bell size={18} /> Уведомления
-          {unreadCount > 0 && (
+          {counts.notifications > 0 && (
             <span className="ml-auto bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-              {unreadCount}
+              {counts.notifications}
             </span>
           )}
         </button>
@@ -348,7 +302,6 @@ export function Sidebar() {
 
   return (
     <>
-   {/* Затемнение фона при открытом меню */}
       {drawerOpen && (
         <div
           className="md:hidden fixed inset-0 bg-black/50 z-[95]"
@@ -356,7 +309,6 @@ export function Sidebar() {
         />
       )}
 
-      {/* 🆕 Компактное окошко меню — поднято выше, чтобы не перекрывать поле ввода */}
       <aside
         className={`
           md:hidden fixed right-3 bottom-44 z-[98] w-64 max-w-[85vw] max-h-[60vh]
@@ -369,7 +321,6 @@ export function Sidebar() {
         {sidebarContent}
       </aside>
 
-      {/* 🆕 Кнопка меню — поднята выше поля ввода */}
       <button
         onClick={() => setDrawerOpen(!drawerOpen)}
         className="md:hidden fixed right-3 bottom-24 z-[97] w-14 h-14 rounded-2xl 
@@ -381,13 +332,10 @@ export function Sidebar() {
         <Menu size={24} />
       </button>
 
-      {/* 💻 Десктопный сайдбар */}
       <aside className="hidden md:flex md:w-64 shrink-0 overflow-y-auto p-5 flex-col gap-8 bg-[#171717]">
         {sidebarContent}
       </aside>
 
-
-      {/* Модалка уведомлений */}
       {showNotifs && (
         <>
           <div
