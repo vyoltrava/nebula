@@ -263,162 +263,168 @@ export function Sidebar() {
 
   return (
     <>
-      {/* МОБИЛЬНАЯ ВЕРСИЯ: Плавающая панель с иконками */}
+      {/* МОБИЛЬНАЯ ВЕРСИЯ: Вертикальная колонка иконок */}
       <div className="md:hidden">
-        {/* Плавающая панель навигации */}
+        {/* Плавающая вертикальная панель */}
         {mobileMenuOpen && (
-          <>
-            {/* Оверлей для закрытия */}
-            <div
-              className="fixed inset-0 z-[95]"
-              onClick={() => setMobileMenuOpen(false)}
-            />
-            
-            {/* Панель с иконками */}
-            <div className="fixed right-3 bottom-44 z-[98]">
-              <div className="bg-[#171717]/95 backdrop-blur-md border border-[#8b5cf6]/40 rounded-2xl p-3 shadow-2xl shadow-black/60">
-                <div className="flex flex-wrap gap-2 max-w-[calc(100vw-2rem)]">
-                  {/* Основные пункты навигации */}
-                  {nav.map(({ href, icon: Icon }) => {
-                    const active = pathname === href;
-                    return (
-                      <Link
-                        key={href}
-                        href={href}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all ${
-                          active
-                            ? "bg-[#8b5cf6] text-white"
-                            : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
-                        }`}
-                      >
-                        <Icon size={20} />
-                      </Link>
-                    );
-                  })}
-
-                  {/* Сообщения */}
-                  {user && (
+          <div className="fixed right-3 bottom-44 z-[98] max-h-[60vh] overflow-y-auto">
+            <div className="bg-[#171717]/95 backdrop-blur-md border border-[#8b5cf6]/40 rounded-2xl p-2 shadow-2xl shadow-black/60">
+              <div className="flex flex-col gap-1.5">
+                {/* Основные пункты навигации */}
+                {nav.map(({ href, icon: Icon, label }) => {
+                  const active = pathname === href;
+                  return (
                     <Link
-                      href="/messages"
+                      key={href}
+                      href={href}
                       onClick={() => setMobileMenuOpen(false)}
-                      className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all relative ${
-                        pathname?.startsWith("/messages")
+                      className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all ${
+                        active
                           ? "bg-[#8b5cf6] text-white"
                           : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
                       }`}
+                      title={label}
                     >
-                      <MessageSquare size={20} />
-                      {counts.chats > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-[#8b5cf6] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-[#171717]">
-                          {counts.chats}
-                        </span>
-                      )}
+                      <Icon size={22} />
                     </Link>
-                  )}
+                  );
+                })}
 
-                  {/* Уведомления */}
-                  <button
-                    onClick={() => {
-                      loadNotifications();
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all relative ${
-                      pathname === "/notifications"
+                {/* Разделитель */}
+                <div className="h-px bg-white/10 my-1" />
+
+                {/* Сообщения */}
+                {user && (
+                  <Link
+                    href="/messages"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all relative ${
+                      pathname?.startsWith("/messages")
                         ? "bg-[#8b5cf6] text-white"
                         : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
                     }`}
+                    title="Сообщения"
                   >
-                    <Bell size={20} />
-                    {counts.notifications > 0 && (
+                    <MessageSquare size={22} />
+                    {counts.chats > 0 && (
                       <span className="absolute -top-1 -right-1 bg-[#8b5cf6] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-[#171717]">
-                        {counts.notifications}
+                        {counts.chats}
                       </span>
                     )}
-                  </button>
+                  </Link>
+                )}
 
-                  {/* Админка (если есть доступ) */}
-                  {(user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) && (
-                    <Link
-                      href="/admin"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all ${
-                        pathname === "/admin"
-                          ? "bg-[#8b5cf6] text-white"
-                          : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
-                      }`}
-                    >
-                      {user?.is_admin ? <Shield size={20} /> : user?.is_moderator ? <ShieldCheck size={20} /> : <Shield size={20} className="text-[#f59e0b]" />}
-                    </Link>
+                {/* Уведомления */}
+                <button
+                  onClick={() => {
+                    loadNotifications();
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all relative ${
+                    pathname === "/notifications"
+                      ? "bg-[#8b5cf6] text-white"
+                      : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                  }`}
+                  title="Уведомления"
+                >
+                  <Bell size={22} />
+                  {counts.notifications > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-[#8b5cf6] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-[#171717]">
+                      {counts.notifications}
+                    </span>
                   )}
+                </button>
 
-                  {/* Роли (только для админов) */}
-                  {user?.is_admin && (
-                    <Link
-                      href="/admin/roles"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all ${
-                        pathname === "/admin/roles"
-                          ? "bg-[#8b5cf6] text-white"
-                          : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
-                      }`}
-                    >
-                      <Palette size={20} />
-                    </Link>
-                  )}
-
-                  {/* Техпанель */}
-                  {user?.permissions?.includes("tech_access") && (
-                    <Link
-                      href="/admin/technical"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all ${
-                        pathname === "/admin/technical"
-                          ? "bg-[#8b5cf6] text-white"
-                          : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
-                      }`}
-                    >
-                      <Settings size={20} />
-                    </Link>
-                  )}
-
-                  {/* Профиль */}
-                  {user && (
-                    <Link
-                      href={`/user/${user.id}`}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/5 text-white/80 hover:bg-white/10 hover:text-white transition-all"
-                    >
-                      <div style={glow ? { filter: `drop-shadow(0 0 4px ${glow})` } : undefined}>
-                        <Avatar src={user.avatar_url} name={user.display_name} id={user.id} size={28} />
-                      </div>
-                    </Link>
-                  )}
-
-                  {/* Выход */}
-                  {user && (
-                    <button
-                      onClick={() => { clearToken(); setUser(null); clearCachedUser(); setMobileMenuOpen(false); }}
-                      className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/5 text-white/80 hover:bg-red-500/20 hover:text-red-400 transition-all"
-                    >
-                      <LogOut size={20} />
-                    </button>
-                  )}
-
-                  {/* Баг-репорт */}
-                  <button
-                    onClick={() => {
-                      setShowBugModal(true);
-                      setMobileMenuOpen(false);
-                    }}
-                    className="w-10 h-10 flex items-center justify-center rounded-lg border border-orange-400/30 text-orange-400 hover:bg-orange-500/10 hover:border-orange-400/50 transition-all"
+                {/* Админка */}
+                {(user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) && (
+                  <Link
+                    href="/admin"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all ${
+                      pathname === "/admin"
+                        ? "bg-[#8b5cf6] text-white"
+                        : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                    }`}
+                    title="Админка"
                   >
-                    <Bug size={20} />
+                    {user?.is_admin ? <Shield size={22} /> : user?.is_moderator ? <ShieldCheck size={22} /> : <Shield size={22} className="text-[#f59e0b]" />}
+                  </Link>
+                )}
+
+                {/* Роли */}
+                {user?.is_admin && (
+                  <Link
+                    href="/admin/roles"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all ${
+                      pathname === "/admin/roles"
+                        ? "bg-[#8b5cf6] text-white"
+                        : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                    }`}
+                    title="Роли"
+                  >
+                    <Palette size={22} />
+                  </Link>
+                )}
+
+                {/* Техпанель */}
+                {user?.permissions?.includes("tech_access") && (
+                  <Link
+                    href="/admin/technical"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all ${
+                      pathname === "/admin/technical"
+                        ? "bg-[#8b5cf6] text-white"
+                        : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                    }`}
+                    title="Техпанель"
+                  >
+                    <Settings size={22} />
+                  </Link>
+                )}
+
+                {/* Разделитель перед пользовательскими действиями */}
+                <div className="h-px bg-white/10 my-1" />
+
+                {/* Профиль */}
+                {user && (
+                  <Link
+                    href={`/user/${user.id}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-white/80 hover:bg-white/10 hover:text-white transition-all"
+                    title="Профиль"
+                  >
+                    <div style={glow ? { filter: `drop-shadow(0 0 4px ${glow})` } : undefined}>
+                      <Avatar src={user.avatar_url} name={user.display_name} id={user.id} size={32} />
+                    </div>
+                  </Link>
+                )}
+
+                {/* Выход */}
+                {user && (
+                  <button
+                    onClick={() => { clearToken(); setUser(null); clearCachedUser(); setMobileMenuOpen(false); }}
+                    className="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-white/80 hover:bg-red-500/20 hover:text-red-400 transition-all"
+                    title="Выйти"
+                  >
+                    <LogOut size={22} />
                   </button>
-                </div>
+                )}
+
+                {/* Баг-репорт */}
+                <button
+                  onClick={() => {
+                    setShowBugModal(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-12 h-12 flex items-center justify-center rounded-xl border border-orange-400/30 text-orange-400 hover:bg-orange-500/10 hover:border-orange-400/50 transition-all"
+                  title="Сообщить о проблеме"
+                >
+                  <Bug size={22} />
+                </button>
               </div>
             </div>
-          </>
+          </div>
         )}
 
         {/* Кнопка открытия меню */}
@@ -433,7 +439,6 @@ export function Sidebar() {
           {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
-
       {/* ДЕСКТОПНАЯ ВЕРСИЯ: Полноценное боковое меню */}
       <aside className="hidden md:flex md:w-64 shrink-0 overflow-y-auto p-5 flex-col gap-8 bg-[#171717]">
         {desktopSidebarContent}
