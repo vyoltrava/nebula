@@ -7,6 +7,7 @@ import { Avatar } from "@/components/Avatar";
 import { MessageSquare, Search, Lock } from "lucide-react";
 import { getToken } from "@/lib/auth";
 
+
 export default function MessagesPage() {
   const [chats, setChats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

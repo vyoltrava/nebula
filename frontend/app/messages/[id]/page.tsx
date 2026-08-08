@@ -7,10 +7,12 @@ import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { STICKERS } from "@/lib/stickers";
+import { isOnline, lastSeenText } from "@/lib/online";
 import {
   Send, Image as ImageIcon, X, Smile, Paperclip,
   FileText, Film, Edit2, Trash2, MoreVertical,
   Lock, Search, ShieldCheck, AlertTriangle,
+  Check, CheckCheck,
 } from "lucide-react";
 import {
   ensureKeyPair,
@@ -439,8 +441,7 @@ export default function ChatPage() {
             {chatPartner && (
               <Link href={`/user/${chatPartner.id}`} className="flex items-center gap-3 group flex-1 min-w-0">
                 <div className="shrink-0 relative" style={partnerGlow ? { filter: `drop-shadow(0 0 8px ${partnerGlow})` } : undefined}>
-                  <Avatar src={chatPartner.avatar_url} name={chatPartner.display_name} id={chatPartner.id} size={40} />
-                  {isSecret && (
+<Avatar src={chatPartner.avatar_url} name={chatPartner.display_name} id={chatPartner.id} size={40} online={isOnline(chatPartner.last_seen)} />                  {isSecret && (
                     <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#171717] flex items-center justify-center">
                       <Lock size={8} className="text-white" />
                     </div>
@@ -463,7 +464,9 @@ export default function ChatPage() {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-white/50">@{chatPartner.username}</p>
+                  <p className={`text-xs ${isOnline(chatPartner.last_seen) ? "text-green-400" : "text-white/50"}`}>
+                    {isOnline(chatPartner.last_seen) ? "● в сети" : lastSeenText(chatPartner.last_seen)}
+                  </p>
                 </div>
               </Link>
             )}

@@ -16,6 +16,8 @@ class User(SQLModel, table=True):
     is_system: bool = Field(default=False)
     role_id: Optional[int] = Field(default=None, foreign_key="role.id")
     created_at: datetime = Field(default_factory=datetime.now)
+    bio: Optional[str] = None
+    last_seen: Optional[datetime] = None
 
 
 class Post(SQLModel, table=True):
@@ -174,4 +176,10 @@ class ActionLog(SQLModel, table=True):
     target_id: Optional[int] = None
     details: Optional[str] = None  # JSON с доп. инфой
     ip_address: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class Bookmark(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
+    post_id: int = Field(foreign_key="post.id")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

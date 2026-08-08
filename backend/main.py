@@ -162,7 +162,14 @@ def get_current_user(
         raise HTTPException(401, "User not found")
     if user.is_banned:
         raise HTTPException(403, "Account banned")
+    # 🆕 Обновляем last_seen (не чаще раза в 60 сек, чтобы не спамить БД)
+    now = datetime.now(timezone.utc)
+    if not user.last_seen or (now - user.last_seen).total_seconds() > 60:
+        user.last_seen = now
+        session.add(user)
+        session.commit()
     return user
+
 
 
 def cascade_delete_post(post_id: int, session: Session):
@@ -362,9 +369,10 @@ def user_out(user: User, session: Session = None) -> dict:
         "is_system": user.is_system,
         "role": role_data,
         "permissions": permissions,
-        "level": get_user_level(user, session) if session else 1,  # 🆕
+        "level": get_user_level(user, session) if session else 1,
+        "bio": user.bio,                                          # 🆕
+        "last_seen": user.last_seen.isoformat() if user.last_seen else None,  # 🆕
     }
-
 
 def extract_cloudinary_public_id(url: str) -> Optional[str]:
     try:
@@ -435,6 +443,7 @@ class PostOut(BaseModel):
 
 class UpdateUserIn(BaseModel):
     display_name: str
+    bio: Optional[str] = None
 
 
 class ChangePasswordIn(BaseModel):
@@ -490,6 +499,8 @@ def update_profile(
     session: Session = Depends(get_session),
 ):
     user.display_name = data.display_name
+    if data.bio is not None:
+        user.bio = data.bio.strip()[:500] if data.bio.strip() else None
     session.add(user)
     session.commit()
     session.refresh(user)
@@ -1095,6 +1106,86 @@ def toggle_like(
         session.add(notif)
     session.commit()
     return {"liked": True}
+
+# ---------- ЗАКЛАДКИ ----------
+
+@app.post("/api/posts/{post_id}/bookmark")
+@limiter.limit("30/minute")
+def toggle_bookmark(
+    request: Request,
+    post_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    post = session.get(Post, post_id)
+    if not post:
+        raise HTTPException(404, "Post not found")
+    
+    existing = session.exec(
+        select(Bookmark).where(Bookmark.user_id == user.id, Bookmark.post_id == post_id)
+    ).first()
+    if existing:
+        session.delete(existing)
+        session.commit()
+        return {"bookmarked": False}
+    
+    session.add(Bookmark(user_id=user.id, post_id=post_id))
+    session.commit()
+    return {"bookmarked": True}
+
+
+@app.get("/api/posts/{post_id}/is-bookmarked")
+def is_bookmarked(
+    post_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    existing = session.exec(
+        select(Bookmark).where(Bookmark.user_id == user.id, Bookmark.post_id == post_id)
+    ).first()
+    return {"bookmarked": existing is not None}
+
+
+@app.get("/api/bookmarks")
+def list_bookmarks(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    bookmarks = session.exec(
+        select(Bookmark).where(Bookmark.user_id == user.id).order_by(Bookmark.created_at.desc())
+    ).all()
+    
+    result = []
+    for b in bookmarks:
+        post = session.get(Post, b.post_id)
+        if not post:
+            continue
+        author = session.get(User, post.author_id)
+        if not author:
+            continue
+        likes_count = session.exec(
+            select(func.count()).select_from(Like).where(Like.post_id == post.id)
+        ).one()
+        replies_count = session.exec(
+            select(func.count()).select_from(Post).where(Post.reply_to_id == post.id)
+        ).one()
+        result.append({
+            "id": post.id,
+            "author_id": post.author_id,
+            "author": author.display_name,
+            "handle": f"@{author.username}",
+            "author_avatar": author.avatar_url,
+            "author_is_admin": author.is_admin,
+            "author_is_moderator": author.is_moderator,
+            "author_is_banned": author.is_banned,
+            "author_role": get_author_role(author, session),
+            "text": post.text,
+            "media_url": post.media_url,
+            "likes_count": likes_count,
+            "liked_by_me": False,
+            "replies_count": replies_count,
+        })
+    return result
 
 
 @app.get("/api/posts/{post_id}/is-liked")
@@ -2030,6 +2121,9 @@ def startup():
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_iplog_user ON iplog(user_id, created_at DESC);'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_ipblock_ip ON ipblock(ip_address);'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_actionlog_created ON actionlog(created_at DESC);'))
+            conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS bio VARCHAR(500);'))
+            conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ;'))
+            conn.execute(text('CREATE TABLE IF NOT EXISTS bookmark (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES "user"(id), post_id INTEGER REFERENCES post(id) ON DELETE CASCADE, created_at TIMESTAMPTZ, UNIQUE(user_id, post_id));'))
             conn.commit()
         except Exception:
             pass

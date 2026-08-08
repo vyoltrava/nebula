@@ -5,7 +5,7 @@ import Link from "next/link";
 import { 
   Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus, 
   AtSign, X, Shield, ShieldCheck, MessageSquare, Palette, 
-  Bug, Menu, Search, Megaphone
+  Bug, Menu, Search, Megaphone, Bookmark
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
@@ -30,7 +30,8 @@ export function Sidebar() {
 
   const nav = [
     { href: "/", icon: Home, label: "Главная" },
-    { href: "/updates", icon: Megaphone, label: "Обновления" },  // 🆕
+    { href: "/bookmarks", icon: Bookmark, label: "Закладки" },  // 🆕
+    { href: "/updates", icon: Megaphone, label: "Обновления" },
     { href: "/rules", icon: Shield, label: "Правила" },
     { href: "/settings", icon: Settings, label: "Настройки" },
   ];
