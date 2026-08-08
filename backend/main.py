@@ -170,6 +170,24 @@ def get_current_user(
     return user
 
 
+def get_optional_user(
+    authorization: str = Header(default=None),
+    session: Session = Depends(get_session),
+) -> Optional[User]:
+    """Возвращает пользователя, если токен валидный, иначе None (для публичных эндпоинтов)"""
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    token = authorization.split(" ", 1)[1]
+    try:
+        payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
+    except Exception:
+        return None
+    user = session.get(User, int(payload["sub"]))
+    if not user or user.is_banned:
+        return None
+    return user
+
+
 
 def cascade_delete_post(post_id: int, session: Session):
     """
@@ -906,20 +924,32 @@ def get_following_posts(
     followee_ids = [f.followee_id for f in follows]
     if not followee_ids:
         return {"posts": [], "has_more": False, "next_cursor": None}
-    
+
     query = (
         select(Post)
         .where(Post.reply_to_id == None, Post.author_id.in_(followee_ids))
         .order_by(Post.created_at.desc())
     )
-    
+
     if cursor:
         last_post = session.get(Post, cursor)
         if last_post:
             query = query.where(Post.created_at < last_post.created_at)
-    
+
     posts = session.exec(query.limit(limit)).all()
-    
+
+    # 🆕 Лайки и закладки — 2 запроса вместо 40
+    liked_ids = set()
+    bookmarked_ids = set()
+    if posts:
+        ids = [p.id for p in posts]
+        liked_ids = set(session.exec(
+            select(Like.post_id).where(Like.user_id == user.id, Like.post_id.in_(ids))
+        ).all())
+        bookmarked_ids = set(session.exec(
+            select(Bookmark.post_id).where(Bookmark.user_id == user.id, Bookmark.post_id.in_(ids))
+        ).all())
+
     result = []
     for p in posts:
         author = session.get(User, p.author_id)
@@ -942,12 +972,13 @@ def get_following_posts(
             "text": p.text,
             "media_url": p.media_url,
             "likes_count": likes_count,
-            "liked_by_me": False,
+            "liked_by_me": p.id in liked_ids,
+            "bookmarked": p.id in bookmarked_ids,
             "replies_count": replies_count,
         })
-    
+
     has_more = len(posts) == limit
-    
+
     return {
         "posts": result,
         "has_more": has_more,
@@ -1182,6 +1213,7 @@ def list_bookmarks(
             "media_url": post.media_url,
             "likes_count": likes_count,
             "liked_by_me": False,
+            "bookmarked": True,
             "replies_count": replies_count,
         })
     return result
@@ -1228,17 +1260,30 @@ def delete_post(
 def get_posts(
     cursor: Optional[int] = None,
     limit: int = 20,
+    viewer: Optional[User] = Depends(get_optional_user),
     session: Session = Depends(get_session),
 ):
     query = select(Post).where(Post.reply_to_id == None).order_by(Post.created_at.desc())
-    
+
     if cursor:
         last_post = session.get(Post, cursor)
         if last_post:
             query = query.where(Post.created_at < last_post.created_at)
-    
+
     posts = session.exec(query.limit(limit)).all()
-    
+
+    # 🆕 Лайки и закладки зрителя — 2 запроса вместо 40
+    liked_ids = set()
+    bookmarked_ids = set()
+    if viewer and posts:
+        ids = [p.id for p in posts]
+        liked_ids = set(session.exec(
+            select(Like.post_id).where(Like.user_id == viewer.id, Like.post_id.in_(ids))
+        ).all())
+        bookmarked_ids = set(session.exec(
+            select(Bookmark.post_id).where(Bookmark.user_id == viewer.id, Bookmark.post_id.in_(ids))
+        ).all())
+
     result = []
     for p in posts:
         author = session.get(User, p.author_id)
@@ -1261,18 +1306,18 @@ def get_posts(
             "text": p.text,
             "media_url": p.media_url,
             "likes_count": likes_count,
-            "liked_by_me": False,
+            "liked_by_me": p.id in liked_ids,
+            "bookmarked": p.id in bookmarked_ids,
             "replies_count": replies_count,
         })
-    
+
     has_more = len(posts) == limit
-    
+
     return {
         "posts": result,
         "has_more": has_more,
         "next_cursor": posts[-1].id if posts else None,
     }
-
 
 @app.post("/api/posts")
 @limiter.limit("10/minute")

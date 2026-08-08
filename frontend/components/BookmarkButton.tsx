@@ -1,35 +1,41 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Bookmark } from "lucide-react";
 import { getToken } from "@/lib/auth";
+import { isBookmarkedCached, setBookmarkedCache } from "@/lib/postCache";
 
-export function BookmarkButton({ postId }: { postId: number }) {
-  const [bookmarked, setBookmarked] = useState(false);
+export function BookmarkButton({ postId, initial }: { postId: number; initial?: boolean }) {
+  const [bookmarked, setBookmarked] = useState<boolean>(() =>
+    initial !== undefined ? initial : isBookmarkedCached(postId)
+  );
   const [hasToken] = useState(() => !!getToken());
-
-  useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/is-bookmarked`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setBookmarked(d.bookmarked))
-      .catch(() => {});
-  }, [postId]);
 
   if (!hasToken) return null;
 
   async function toggle() {
     const token = getToken();
     if (!token) return;
+
+    // Оптимистично: меняем СРАЗУ
+    const next = !bookmarked;
+    setBookmarked(next);
+    setBookmarkedCache(postId, next);
+
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/bookmark`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
+
     if (res.ok) {
       const d = await res.json();
-      setBookmarked(d.bookmarked);
+      if (d.bookmarked !== next) {
+        setBookmarked(d.bookmarked);
+        setBookmarkedCache(postId, d.bookmarked);
+      }
+    } else {
+      // Откат при ошибке
+      setBookmarked(!next);
+      setBookmarkedCache(postId, !next);
     }
   }
 
