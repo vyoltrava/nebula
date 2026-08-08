@@ -36,32 +36,35 @@ export default function RulesPage() {
     }
   }, []);
 
-  async function saveRules() {
-    const token = getToken();
-    if (!token) return;
+async function saveRules() {
+  const token = getToken();
+  if (!token) return;
 
-    try {
-      const parsed = JSON.parse(editContent);
-      const form = new FormData();
-      form.append("content", editContent);
+  try {
+    const parsed = JSON.parse(editContent);
+    const form = new FormData();
+    form.append("content", editContent);
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rules`, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rules`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
 
-      if (res.ok) {
-        setRules(parsed);
-        setEditing(false);
-        alert("Правила сохранены!");
-      } else {
-        alert("Ошибка сохранения");
-      }
-    } catch (e) {
-      alert("Невалидный JSON");
+    if (res.ok) {
+      setRules(parsed);
+      setEditing(false);
+      alert("✅ Правила сохранены!");
+    } else {
+      // 🆕 Показываем детали ошибки
+      const errorBody = await res.text();
+      alert(`❌ Ошибка ${res.status}: ${errorBody}`);
+      console.error("Save rules error:", res.status, errorBody);
     }
+  } catch (e) {
+    alert("⚠️ Невалидный JSON: " + (e as Error).message);
   }
+}
 
   return (
     <div className="h-screen flex overflow-hidden">
