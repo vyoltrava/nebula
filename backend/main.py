@@ -2191,15 +2191,7 @@ def admin_delete_user(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    
-    target = session.get(User, user_id)
-    if not target:
-        raise HTTPException(404, "User not found")
-    protect_system_account(target, "удалять")
-    
-    if target.id == staff.id:
-        raise HTTPException(400, "Cannot delete your own account")
-    # Проверка права: tech_access + delete_users, ИЛИ admin
+    # 1. Проверка прав
     if not staff.is_admin:
         if not has_permission(staff, "tech_access", session) or not has_permission(staff, "delete_users", session):
             raise HTTPException(403, "No permission: delete_users")
@@ -2208,36 +2200,36 @@ def admin_delete_user(
     if not target:
         raise HTTPException(404, "User not found")
     
-    # Нельзя удалить себя
+    protect_system_account(target, "удалять")
+    
     if target.id == staff.id:
         raise HTTPException(400, "Cannot delete your own account")
     
-    # 🛡️ Только Founder может удалить Founder
     if target.is_admin and not staff.is_admin:
         raise HTTPException(403, "Только Founder может удалить Founder")
     
-    # 🛡️ Moderator не может удалить другого Moderator
     if target.is_moderator and staff.is_moderator and not staff.is_admin:
         raise HTTPException(403, "Developer не может удалить другого Developer. Обратитесь к Founder.")
+
+    # ========== ПОЛНОЕ УДАЛЕНИЕ ВСЕХ ДАННЫХ ПОЛЬЗОВАТЕЛЯ ==========
     
-        # ---------- Полное удаление всех данных пользователя ----------
-    # 1. Удаляем логи действий, где пользователь был инициатором
+    # 🆕 1. Удаляем ActionLog (где он actor)
     for log in session.exec(select(ActionLog).where(ActionLog.actor_id == user_id)).all():
         session.delete(log)
 
-    # 2. Удаляем историю IP-адресов
+    # 🆕 2. Удаляем историю IP-адресов
     for ip_log in session.exec(select(IPLog).where(IPLog.user_id == user_id)).all():
         session.delete(ip_log)
 
-    # 3. Удаляем закладки пользователя
+    # 🆕 3. Удаляем закладки
     for bookmark in session.exec(select(Bookmark).where(Bookmark.user_id == user_id)).all():
         session.delete(bookmark)
 
-    # 4. Удаляем ключи шифрования (E2EE)
+    # 🆕 4. Удаляем ключи шифрования (E2EE)
     for key in session.exec(select(UserKey).where(UserKey.user_id == user_id)).all():
         session.delete(key)
 
-    # 5. Удаляем баг-репорты, которые он отправлял
+    # 🆕 5. Удаляем баг-репорты, которые он отправлял
     for bug in session.exec(select(BugReport).where(BugReport.reporter_id == user_id)).all():
         session.delete(bug)
 
@@ -2253,7 +2245,7 @@ def admin_delete_user(
         # Уведомления связанные с постом
         for notif in session.exec(select(Notification).where(Notification.post_id == post.id)).all():
             session.delete(notif)
-        # 🆕 Рекурсивно удаляем ВСЕ ответы (а не только прямые)
+        # Рекурсивно удаляем ВСЕ ответы (а не только прямые)
         def delete_replies_recursive(parent_id):
             replies = session.exec(select(Post).where(Post.reply_to_id == parent_id)).all()
             for r in replies:
@@ -2331,7 +2323,7 @@ def admin_delete_user(
     ).all():
         session.delete(report)
 
-    # 14. 🆕 Снимаем роли с пользователя перед удалением
+    # 14. Снимаем роль с пользователя перед удалением
     target.role_id = None
     session.add(target)
 
