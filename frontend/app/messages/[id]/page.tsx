@@ -1,4 +1,5 @@
 "use client";
+import { useWebSocket } from "@/src/hooks/useWebSocket";
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -7,7 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { STICKERS } from "@/lib/stickers";
-import { useWebSocket } from "@/hooks/useWebSocket";
+
 import { useCallback } from "react";
 import { isOnline, lastSeenText } from "@/lib/online";
 import { triggerCountersRefresh } from "@/lib/events";
@@ -423,7 +424,7 @@ export default function ChatPage() {
   // ========== РЕНДЕР ==========
 
   // ========== WEBSOCKET: ПОЛУЧЕНИЕ НОВЫХ СООБЩЕНИЙ ==========
-  const handleNewMessage = useCallback((data: any) => {
+  useWebSocket("new_message", (data: any) => {
     if (String(data.chat_id) !== String(chatId)) return;
     if (data.sender_id === currentUser?.id) return;
     
@@ -439,9 +440,9 @@ export default function ChatPage() {
         headers: { Authorization: `Bearer ${token}` },
       }).then(() => triggerCountersRefresh()).catch(() => {});
     }
-  }, [chatId, currentUser?.id]);
+  });
 
-  useWebSocket("new_message", handleNewMessage);
+ 
 
 
   function onFiles(newFiles: FileList | null) {
