@@ -1,6 +1,6 @@
 import os
 from sqlmodel import SQLModel, create_engine, Session
-from models import User, Post, Like, Follow, Notification, Tag, PostTag  # noqa
+from models import User, Post, Like, Follow, Notification, Tag, PostTag, SiteRules  # noqa
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///nebula.db")
 
