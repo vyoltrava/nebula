@@ -20,6 +20,7 @@ export default function SettingsPage() {
   const [showOld, setShowOld] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState<{ text: string; type: "ok" | "err" } | null>(null);
+  const [bio, setBio] = useState("");
 
   useEffect(() => {
     const token = getToken();
@@ -34,6 +35,7 @@ export default function SettingsPage() {
       .then((data) => {
         setUser(data);
         setDisplayName(data.display_name);
+        setBio(data.bio || "");
         if (data.avatar_url) {
           setPreview(mediaUrl(data.avatar_url));
         }
@@ -51,7 +53,7 @@ export default function SettingsPage() {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ display_name: displayName }),
+    body: JSON.stringify({ display_name: displayName, bio }),
   });
 
   if (!profileRes.ok) {
@@ -206,6 +208,18 @@ export default function SettingsPage() {
                 className={inputCls}
               />
             </div>
+
+              <div>
+                <label className="block font-bold mb-2 text-white/80">О себе</label>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value.slice(0, 500))}
+                  rows={3}
+                  className="w-full border border-white/15 rounded-lg px-3 py-2 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] resize-none"
+                  placeholder="Расскажи о себе (до 500 символов)"
+                />
+                <p className="text-xs text-white/40 mt-1 text-right">{bio.length}/500</p>
+              </div>
 
             <div>
               <label className="block font-bold mb-2 text-white/80">Username</label>
