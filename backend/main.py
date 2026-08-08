@@ -2220,9 +2220,28 @@ def admin_delete_user(
     if target.is_moderator and staff.is_moderator and not staff.is_admin:
         raise HTTPException(403, "Developer не может удалить другого Developer. Обратитесь к Founder.")
     
-    # ---------- Полное удаление всех данных пользователя ----------
-    
-    # 1. Удаляем все посты пользователя (с зависимостями)
+        # ---------- Полное удаление всех данных пользователя ----------
+    # 1. Удаляем логи действий, где пользователь был инициатором
+    for log in session.exec(select(ActionLog).where(ActionLog.actor_id == user_id)).all():
+        session.delete(log)
+
+    # 2. Удаляем историю IP-адресов
+    for ip_log in session.exec(select(IPLog).where(IPLog.user_id == user_id)).all():
+        session.delete(ip_log)
+
+    # 3. Удаляем закладки пользователя
+    for bookmark in session.exec(select(Bookmark).where(Bookmark.user_id == user_id)).all():
+        session.delete(bookmark)
+
+    # 4. Удаляем ключи шифрования (E2EE)
+    for key in session.exec(select(UserKey).where(UserKey.user_id == user_id)).all():
+        session.delete(key)
+
+    # 5. Удаляем баг-репорты, которые он отправлял
+    for bug in session.exec(select(BugReport).where(BugReport.reporter_id == user_id)).all():
+        session.delete(bug)
+
+    # 6. Удаляем все посты пользователя (с зависимостями)
     posts = session.exec(select(Post).where(Post.author_id == user_id)).all()
     for post in posts:
         # Лайки на посте
@@ -2234,9 +2253,14 @@ def admin_delete_user(
         # Уведомления связанные с постом
         for notif in session.exec(select(Notification).where(Notification.post_id == post.id)).all():
             session.delete(notif)
-        # Ответы на пост
-        for reply in session.exec(select(Post).where(Post.reply_to_id == post.id)).all():
-            session.delete(reply)
+        # 🆕 Рекурсивно удаляем ВСЕ ответы (а не только прямые)
+        def delete_replies_recursive(parent_id):
+            replies = session.exec(select(Post).where(Post.reply_to_id == parent_id)).all()
+            for r in replies:
+                delete_replies_recursive(r.id)
+                session.delete(r)
+        delete_replies_recursive(post.id)
+        
         # Медиа из Cloudinary
         if post.media_url and "cloudinary.com" in post.media_url:
             try:
@@ -2251,32 +2275,32 @@ def admin_delete_user(
                 os.remove(file_path)
         # Сам пост
         session.delete(post)
-    
-    # 2. Удаляем лайки, которые пользователь поставил
+
+    # 7. Удаляем лайки, которые пользователь поставил
     for like in session.exec(select(Like).where(Like.user_id == user_id)).all():
         session.delete(like)
-    
-    # 3. Удаляем подписки (где он подписчик или цель)
+
+    # 8. Удаляем подписки (где он подписчик или цель)
     for follow in session.exec(
         select(Follow).where(
             (Follow.follower_id == user_id) | (Follow.followee_id == user_id)
         )
     ).all():
         session.delete(follow)
-    
-    # 4. Удаляем уведомления (где он получатель или автор действия)
+
+    # 9. Удаляем уведомления (где он получатель или автор действия)
     for notif in session.exec(
         select(Notification).where(
             (Notification.user_id == user_id) | (Notification.actor_id == user_id)
         )
     ).all():
         session.delete(notif)
-    
-    # 5. Удаляем сообщения в чатах
+
+    # 10. Удаляем сообщения в чатах
     for msg in session.exec(select(Message).where(Message.sender_id == user_id)).all():
         session.delete(msg)
-    
-    # 6. Удаляем чаты, где он участник
+
+    # 11. Удаляем чаты, где он участник
     memberships = session.exec(
         select(ChatMember).where(ChatMember.user_id == user_id)
     ).all()
@@ -2289,13 +2313,16 @@ def admin_delete_user(
         # Удаляем сам чат
         chat = session.get(Chat, membership.chat_id)
         if chat:
+            # 🆕 Удаляем session keys чата
+            for sk in session.exec(select(ChatSessionKey).where(ChatSessionKey.chat_id == chat.id)).all():
+                session.delete(sk)
             session.delete(chat)
-    
-    # 7. Удаляем жалобы (где он автор жалобы)
+
+    # 12. Удаляем жалобы (где он автор жалобы)
     for report in session.exec(select(Report).where(Report.reporter_id == user_id)).all():
         session.delete(report)
-    
-    # 8. Удаляем жалобы НА пользователя (если он был целью)
+
+    # 13. Удаляем жалобы НА пользователя (если он был целью)
     for report in session.exec(
         select(Report).where(
             Report.target_type == "user",
@@ -2303,8 +2330,12 @@ def admin_delete_user(
         )
     ).all():
         session.delete(report)
-    
-    # 9. Удаляем аватарку из Cloudinary
+
+    # 14. 🆕 Снимаем роли с пользователя перед удалением
+    target.role_id = None
+    session.add(target)
+
+    # 15. Удаляем аватарку из Cloudinary
     if target.avatar_url and "cloudinary.com" in target.avatar_url:
         try:
             public_id = extract_cloudinary_public_id(target.avatar_url)
@@ -2312,13 +2343,13 @@ def admin_delete_user(
                 cloudinary.uploader.destroy(public_id)
         except Exception:
             pass
-    
-    # 10. Удаляем самого пользователя
-    session.delete(target)
 
+    # 16. Удаляем самого пользователя
+    session.delete(target)
+    
     log_action(session, staff.id, "delete_user",
-               target_type="user", target_id=target.id,
-               details={"username": target.username, "deleted_posts": len(posts)})  
+        target_type="user", target_id=target.id,
+        details={"username": target.username, "deleted_posts": len(posts)})
     session.commit()
     
     return {
