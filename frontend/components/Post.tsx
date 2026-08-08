@@ -13,7 +13,7 @@ import { ReportModal } from "./ReportModal";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import { isLikedCached, setLikedCache } from "@/lib/postCache";
 import { getCachedUser } from "@/lib/authCache";
-import { PostSkeleton } from "@/components/PostSkeleton";
+
 
 function renderText(text: string) {
   const parts = text.split(/(#[\wа-яёА-ЯЁ]+|@[\wа-яёА-ЯЁ]+|:[\w]+:)/g);

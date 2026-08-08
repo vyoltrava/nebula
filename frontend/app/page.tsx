@@ -4,18 +4,19 @@ import { Sidebar } from "@/components/Sidebar";
 import { Post } from "@/components/Post";
 import { CreatePost } from "@/components/CreatePost";
 import { RightPanel } from "@/components/RightPanel";
+import { PostSkeleton } from "@/components/PostSkeleton"; // 🆕 импорт скелетонов
 import { getToken } from "@/lib/auth";
 import { onFeedRefresh } from "@/lib/events";
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<"all" | "following">("all");
   const [posts, setPosts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // 🆕 true сразу, чтобы не мигало "Пока нет постов"
   const [hasMore, setHasMore] = useState(true);
   const [nextCursor, setNextCursor] = useState<number | null>(null);
 
   async function loadMore(reset = false) {
-    if (loading) return;
+    if (loading && !reset) return; // 🆕 сброс (первая загрузка) всегда разрешён
     setLoading(true);
 
     const token = getToken();
@@ -96,10 +97,30 @@ export default function HomePage() {
         {/* Форма создания поста — только на вкладке "Для вас" */}
         {activeTab === "all" && <CreatePost />}
 
-        {/* Посты */}
-        {posts.map((post) => (
-          <Post key={post.id} {...post} />
-        ))}
+        {/* 🆕 СКЕЛЕТОНЫ при первой загрузке */}
+        {loading && posts.length === 0 ? (
+          <>
+            <PostSkeleton />
+            <PostSkeleton />
+            <PostSkeleton />
+            <PostSkeleton />
+          </>
+        ) : (
+          <>
+            {/* Посты */}
+            {posts.map((post) => (
+              <Post key={post.id} {...post} />
+            ))}
+
+            {/* 🆕 Скелетоны внизу при подгрузке "ещё" */}
+            {loading && posts.length > 0 && (
+              <>
+                <PostSkeleton />
+                <PostSkeleton />
+              </>
+            )}
+          </>
+        )}
 
         {posts.length === 0 && !loading && (
           <p className="p-8 text-center text-white/50">
@@ -109,18 +130,13 @@ export default function HomePage() {
           </p>
         )}
 
-        {hasMore && posts.length > 0 && (
+        {hasMore && posts.length > 0 && !loading && (
           <button
             onClick={() => loadMore()}
-            disabled={loading}
-            className="w-full p-4 text-center text-[#8b5cf6] hover:text-[#8b5cf6] font-semibold hover:bg-white/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full p-4 text-center text-[#8b5cf6] font-semibold hover:bg-white/5 transition-all"
           >
-            {loading ? "Загрузка..." : "Загрузить ещё"}
+            Загрузить ещё
           </button>
-        )}
-
-        {loading && posts.length === 0 && (
-          <p className="p-8 text-center text-white/50">Загрузка постов...</p>
         )}
       </main>
 
