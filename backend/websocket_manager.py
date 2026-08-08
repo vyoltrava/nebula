@@ -19,7 +19,6 @@ class ConnectionManager:
 
     async def connect(self, websocket: WebSocket, user_id: int):
         """Принимает соединение и добавляет в список активных"""
-        await websocket.accept()
         async with self._lock:
             if user_id not in self.active_connections:
                 self.active_connections[user_id] = set()
