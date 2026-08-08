@@ -171,6 +171,7 @@ export function Post({
       .then((data) => {
         if (data) setFollowing(data.following);
       });
+  }, [author_id]);
 
 
 
