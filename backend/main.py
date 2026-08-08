@@ -1918,76 +1918,13 @@ def list_roles(session: Session = Depends(get_session)):
             "name": r.name,
             "color": r.color,
             "level": r.level,
-            "description": r.description,
+            "description": r.description or "",
             "is_staff": r.is_staff,
-            "position": r.position,
+            "position": r.position or 0,
             "permissions": json.loads(r.permissions),
         }
         for r in roles
     ]
-
-
-@app.get("/api/roles/staff")
-def list_staff_roles(session: Session = Depends(get_session)):
-    """Только роли администрации, в нужном порядке — для страницы правил"""
-    roles = session.exec(select(Role).where(Role.is_staff == True)).all()
-
-    # Первый запуск: расставляем порядок по уровню (старшие сверху)
-    if roles and all((r.position or 0) == 0 for r in roles):
-        roles.sort(key=lambda r: r.level, reverse=True)
-        for i, r in enumerate(roles, start=1):
-            r.position = i
-            session.add(r)
-        session.commit()
-
-    roles.sort(key=lambda r: (r.position or 0))
-    return [
-        {
-            "id": r.id,
-            "name": r.name,
-            "color": r.color,
-            "level": r.level,
-            "description": r.description or "",
-        }
-        for r in roles
-    ]
-
-
-@app.post("/api/roles/{role_id}/move")
-def move_role(
-    role_id: int,
-    direction: str = Form(...),  # "up" или "down"
-    staff: User = Depends(require_staff),
-    session: Session = Depends(get_session),
-):
-    if not has_permission(staff, "manage_roles", session):
-        raise HTTPException(403, "No permission: manage_roles")
-
-    role = session.get(Role, role_id)
-    if not role:
-        raise HTTPException(404, "Role not found")
-
-    staff_roles = sorted(
-        session.exec(select(Role).where(Role.is_staff == True)).all(),
-        key=lambda r: (r.position or 0),
-    )
-    idx = next((i for i, r in enumerate(staff_roles) if r.id == role_id), -1)
-    if idx == -1:
-        raise HTTPException(400, "Роль не отмечена как staff")
-
-    if direction == "up" and idx > 0:
-        other = staff_roles[idx - 1]
-    elif direction == "down" and idx < len(staff_roles) - 1:
-        other = staff_roles[idx + 1]
-    else:
-        raise HTTPException(400, "Некуда двигать")
-
-    role.position, other.position = (other.position or 0), (role.position or 0)
-    session.add(role)
-    session.add(other)
-    session.commit()
-    invalidate_role_cache()
-    return {"ok": True}
 
 
 @app.post("/api/roles")
@@ -1995,35 +1932,26 @@ def create_role(
     name: str = Form(...),
     color: str = Form("#8b5cf6"),
     level: int = Form(1),
-    description: Optional[str] = Form(None),  # 🆕
-    is_staff: bool = Form(False),  # 🆕
+    description: Optional[str] = Form(None),
+    is_staff: bool = Form(False),
     permissions: str = Form("[]"),
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
     if not has_permission(staff, "manage_roles", session):
         raise HTTPException(403, "No permission: manage_roles")
-    
+
     max_lvl = max_level_for(staff, session)
     if level < 1 or level > max_lvl:
         raise HTTPException(403, f"Уровень должен быть от 1 до {max_lvl}")
-    
+
     if session.exec(select(Role).where(Role.name == name)).first():
         raise HTTPException(400, "Role name already exists")
-    
-    role = Role(
-        name=name,
-        color=color,
-        level=level,
-        description=description,
-        is_staff=is_staff,
-        permissions=permissions,
-    )
 
     position = 0
     if is_staff:
-        max_pos = max([r.position or 0 for r in session.exec(select(Role)).all()], default=0)
-        position = max_pos + 1
+        staff_roles = session.exec(select(Role).where(Role.is_staff == True)).all()
+        position = max([r.position for r in staff_roles], default=0) + 1
 
     role = Role(
         name=name, color=color, level=level,
@@ -2033,16 +1961,13 @@ def create_role(
     session.add(role)
     session.commit()
     session.refresh(role)
-    invalidate_role_cache(role.id)
+    invalidate_role_cache()
     return {
-        "id": role.id,
-        "name": role.name,
-        "color": role.color,
-        "level": role.level,
-        "description": role.description,
-        "is_staff": role.is_staff,
-        "permissions": json.loads(role.permissions),
+        "id": role.id, "name": role.name, "color": role.color, "level": role.level,
+        "description": role.description, "is_staff": role.is_staff,
+        "position": role.position, "permissions": json.loads(role.permissions),
     }
+
 
 @app.patch("/api/roles/{role_id}")
 def update_role(
@@ -2050,28 +1975,28 @@ def update_role(
     name: Optional[str] = Form(None),
     color: Optional[str] = Form(None),
     level: Optional[int] = Form(None),
-    description: Optional[str] = Form(None),  # 🆕
-    is_staff: Optional[bool] = Form(None),  # 🆕
+    description: Optional[str] = Form(None),
+    is_staff: Optional[bool] = Form(None),
     permissions: Optional[str] = Form(None),
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
     if not has_permission(staff, "manage_roles", session):
         raise HTTPException(403, "No permission: manage_roles")
-    
+
     role = session.get(Role, role_id)
     if not role:
         raise HTTPException(404, "Role not found")
-    
+
     if get_user_level(staff, session) <= role.level and not staff.is_admin:
         raise HTTPException(403, f"Недостаточно уровня (роль: {role.level})")
-    
+
     if level is not None:
         max_lvl = max_level_for(staff, session)
         if level < 1 or level > max_lvl:
             raise HTTPException(403, f"Уровень должен быть от 1 до {max_lvl}")
         role.level = level
-    
+
     if name:
         role.name = name
     if color:
@@ -2079,32 +2004,89 @@ def update_role(
     if description is not None:
         role.description = description
     if is_staff is not None:
+        if is_staff and not role.is_staff:
+            staff_roles = session.exec(select(Role).where(Role.is_staff == True)).all()
+            role.position = max([r.position for r in staff_roles], default=0) + 1
         role.is_staff = is_staff
     if permissions:
         role.permissions = permissions
 
-    if description is not None:
-        role.description = description
-    if is_staff is not None:
-        if is_staff and not role.is_staff:
-            max_pos = max([r.position or 0 for r in session.exec(select(Role)).all()], default=0)
-            role.position = max_pos + 1
-        role.is_staff = is_staff
-    
     session.add(role)
     session.commit()
     session.refresh(role)
-    invalidate_role_cache(role.id)
+    invalidate_role_cache()
     return {
-        "id": role.id,
-        "name": role.name,
-        "color": role.color,
-        "level": role.level,
-        "description": role.description,
-        "is_staff": role.is_staff,
-        "permissions": json.loads(role.permissions),
+        "id": role.id, "name": role.name, "color": role.color, "level": role.level,
+        "description": role.description, "is_staff": role.is_staff,
+        "position": role.position, "permissions": json.loads(role.permissions),
     }
 
+
+@app.delete("/api/roles/{role_id}")
+def delete_role(
+    role_id: int,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    if not has_permission(staff, "manage_roles", session):
+        raise HTTPException(403, "No permission: manage_roles")
+
+    role = session.get(Role, role_id)
+    if not role:
+        raise HTTPException(404, "Role not found")
+
+    if get_user_level(staff, session) <= role.level and not staff.is_admin:
+        raise HTTPException(403, f"Недостаточно уровня (роль: {role.level})")
+
+    users = session.exec(select(User).where(User.role_id == role_id)).all()
+    for u in users:
+        u.role_id = None
+        session.add(u)
+    session.delete(role)
+    session.commit()
+    invalidate_role_cache()
+    return {"ok": True}
+
+
+@app.post("/api/roles/{role_id}/move")
+def move_role(
+    role_id: int,
+    direction: str = Form(...),
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    if not has_permission(staff, "manage_roles", session):
+        raise HTTPException(403, "No permission: manage_roles")
+
+    role = session.get(Role, role_id)
+    if not role:
+        raise HTTPException(404, "Role not found")
+
+    staff_roles = session.exec(select(Role).where(Role.is_staff == True)).all()
+    staff_roles.sort(key=lambda r: ((r.position or 0), -(r.level or 0)))
+
+    # Нормализуем позиции в 1..N — без этого кнопки ↑↓ меняют 0 на 0
+    for i, r in enumerate(staff_roles, start=1):
+        r.position = i
+
+    idx = next((i for i, r in enumerate(staff_roles) if r.id == role_id), -1)
+    if idx == -1:
+        raise HTTPException(400, "Роль не отмечена как staff")
+
+    swap_with = None
+    if direction == "up" and idx > 0:
+        swap_with = staff_roles[idx - 1]
+    elif direction == "down" and idx < len(staff_roles) - 1:
+        swap_with = staff_roles[idx + 1]
+
+    if swap_with is not None:
+        role.position, swap_with.position = swap_with.position, role.position
+        session.add(role)
+        session.add(swap_with)
+
+    session.commit()
+    invalidate_role_cache()
+    return {"ok": True}
 
 @app.delete("/api/roles/{role_id}")
 def delete_role(
@@ -2795,8 +2777,6 @@ def startup():
     # Автоматическое добавление недостающих колонок
     with engine.connect() as conn:
         try:
-            conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS description VARCHAR;'))
-            conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS is_staff BOOLEAN DEFAULT FALSE;'))
             conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0;'))
             conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS description VARCHAR;'))
             conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS is_staff BOOLEAN DEFAULT FALSE;'))
@@ -3681,6 +3661,18 @@ def get_team(session: Session = Depends(get_session)):
     return {"groups": result}
 
 # ---------- правила ----------
+
+def _strip_roles_sections(rules_data: dict) -> dict:
+    """Убирает из JSON правил запёкшуюся секцию команды — роли рендерятся отдельно"""
+    if rules_data and isinstance(rules_data.get("sections"), list):
+        rules_data["sections"] = [
+            s for s in rules_data["sections"]
+            if not (
+                (s.get("id") in ("roles", "team", "staff"))
+                or ("команда" in str(s.get("heading", "")).lower())
+            )
+        ]
+    return rules_data
 
 @app.get("/api/rules")
 def get_rules(session: Session = Depends(get_session)):

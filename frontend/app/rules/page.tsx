@@ -37,7 +37,12 @@ export default function RulesPage() {
     const token = getToken();
     if (!token) return;
     try {
-      const parsed = JSON.parse(editContent);
+    const parsed = JSON.parse(editContent);
+    if (Array.isArray(parsed.sections)) {
+      parsed.sections = parsed.sections.filter(
+        (s: any) => s?.id !== "roles" && !String(s?.heading || "").toLowerCase().includes("команда")
+      );
+    }
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rules`, {
         method: "PUT",
         headers: {
@@ -58,6 +63,11 @@ export default function RulesPage() {
       alert("⚠️ Невалидный JSON: " + (e as Error).message);
     }
   }
+
+
+  const visibleSections = (rules?.sections || []).filter(
+    (s: any) => s?.id !== "roles" && !String(s?.heading || "").toLowerCase().includes("команда")
+  );
 
   // Фильтруем только staff-роли и сортируем: старшие (меньше position) сверху,
   // если position = 0 у всех — сортируем по level DESC
@@ -120,7 +130,7 @@ export default function RulesPage() {
 
         {rules && !editing && (
           <div className="p-6 space-y-6 max-w-4xl mx-auto">
-            {rules.sections.map((section: any, i: number) => (
+            {visibleSections.map((section: any, i: number) => (
               <div key={section.id || i} className="border border-white/15 rounded-xl p-5 bg-white/5">
                 <h2 className="text-xl font-black text-white mb-4">{section.heading}</h2>
 
