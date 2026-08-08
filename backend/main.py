@@ -1080,6 +1080,10 @@ def toggle_like(
         return {"liked": False}
     like = Like(user_id=user.id, post_id=post_id)
     session.add(like)
+    log_action(
+        session, user.id, "like_post",
+        target_type="post", target_id=post_id,
+    )
     post = session.get(Post, post_id)
     if post and post.author_id != user.id:
         notif = Notification(
@@ -1107,6 +1111,7 @@ def is_liked(
 
 @app.delete("/api/posts/{post_id}")
 def delete_post(
+    request: Request,
     post_id: int,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
@@ -1119,6 +1124,12 @@ def delete_post(
     
     # 🆕 Каскадное удаление
     cascade_delete_post(post_id, session)
+    log_action(
+        session, user.id, "delete_post",
+        target_type="post", target_id=post_id,
+        details={"text": post.text[:100] if post.text else None},
+        ip_address=get_client_ip(request),
+    )
     session.commit()
     return {"ok": True}
 
@@ -1234,7 +1245,14 @@ async def create_post(
                 type="reply",
             ))
 
+
+    log_action(
+        session, user.id, "create_post",
+        target_type="post", target_id=post.id,
+        details={"text": post.text[:100] if post.text else
+
     session.commit()
+
 
     return {
         "id": post.id,
@@ -1608,6 +1626,7 @@ def admin_toggle_moderator(
 
 @app.delete("/api/admin/posts/{post_id}")
 def admin_delete_post(
+    request: Request,
     post_id: int,
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
@@ -1618,6 +1637,12 @@ def admin_delete_post(
     
     # 🆕 Каскадное удаление поста со всеми вложенными ответами
     cascade_delete_post(post_id, session)
+    log_action(
+        session, staff.id, "delete_post",
+        target_type="post", target_id=post_id,
+        details={"text": post.text[:100] if post.text else None, "by_admin": True},
+        ip_address=get_client_ip(request),
+    )
     session.commit()
     return {"ok": True}
 
@@ -1673,6 +1698,11 @@ def admin_delete_all_user_posts(
         session.delete(reply)
         total_deleted += 1
     
+    log_action(
+        session, staff.id, "delete_user_posts",
+        target_type="user", target_id=user_id,
+        details={"deleted_count": total_deleted},
+    )
     session.commit()
     return {"ok": True, "deleted_count": total_deleted}
 
