@@ -42,13 +42,14 @@ async function saveRules() {
 
   try {
     const parsed = JSON.parse(editContent);
-    const form = new FormData();
-    form.append("content", editContent);
 
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rules`, {
       method: "PUT",
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
+      headers: {
+        "Content-Type": "application/json",   // ← ВАЖНО: JSON, не FormData
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ content: editContent }),  // ← ВАЖНО: JSON-тело
     });
 
     if (res.ok) {
@@ -56,10 +57,8 @@ async function saveRules() {
       setEditing(false);
       alert("✅ Правила сохранены!");
     } else {
-      // 🆕 Показываем детали ошибки
       const errorBody = await res.text();
       alert(`❌ Ошибка ${res.status}: ${errorBody}`);
-      console.error("Save rules error:", res.status, errorBody);
     }
   } catch (e) {
     alert("⚠️ Невалидный JSON: " + (e as Error).message);
