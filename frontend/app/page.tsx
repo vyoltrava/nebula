@@ -7,6 +7,7 @@ import { RightPanel } from "@/components/RightPanel";
 import { PostSkeleton } from "@/components/Skeletons"; // 🆕 импорт скелетонов
 import { getToken } from "@/lib/auth";
 import { onFeedRefresh } from "@/lib/events";
+import { useWebSocket } from "@/src/hooks/useWebSocket";
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<"all" | "following">("all");
@@ -63,6 +64,15 @@ export default function HomePage() {
     });
     return cleanup;
   }, [activeTab, nextCursor]);
+
+  // 🆕 WEBSOCKET: новые посты прилетают в ленту мгновенно
+  useWebSocket("new_post", (data: any) => {
+    setPosts((prev) => {
+      if (prev.some((p) => p.id === data.id)) return prev;
+      return [data, ...prev];
+    });
+  });
+
 
   return (
     <div className="h-screen flex overflow-hidden">

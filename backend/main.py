@@ -1390,15 +1390,40 @@ async def create_post(
                 type="reply",
             ))
 
+    log_action(
+        session, user.id, "create_post",
+        target_type="post", target_id=post.id,
+        details={"text": post.text[:100] if post.text else None},
+        ip_address=get_client_ip(request),
+    )
 
-            log_action(
-                session, user.id, "create_post",
-                target_type="post", target_id=post.id,
-                details={"text": post.text[:100] if post.text else None},
-                ip_address=get_client_ip(request),
-            )
-            session.commit()
+    session.commit()
 
+    # 🆕 РЕАЛТАЙМ: рассылаем пост подписчикам автора
+    if not reply_to:
+        await manager.broadcast_to_followers(
+            user.id,
+            "new_post",
+            {
+                "id": post.id,
+                "author_id": post.author_id,
+                "author": user.display_name,
+                "handle": f"@{user.username}",
+                "username": user.username,
+                "author_avatar": user.avatar_url,
+                "author_is_admin": user.is_admin,
+                "author_is_moderator": user.is_moderator,
+                "author_is_banned": user.is_banned,
+                "author_role": get_author_role(user, session),
+                "text": post.text,
+                "media_url": post.media_url,
+                "likes_count": 0,
+                "liked_by_me": False,
+                "bookmarked": False,
+                "replies_count": 0,
+            },
+            session,
+        )
 
     return {
         "id": post.id,

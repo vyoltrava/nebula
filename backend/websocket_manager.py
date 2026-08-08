@@ -70,6 +70,15 @@ class ConnectionManager:
         for member in members:
             await self.send_to_user(member.user_id, event, data)
 
+    async def broadcast_to_followers(self, author_id: int, event: str, data: Any, session: Session):
+        """Отправить событие ВСЕМ подписчикам автора"""
+        from models import Follow
+        followers = session.exec(
+            select(Follow.follower_id).where(Follow.followee_id == author_id)
+        ).all()
+        for follower_id in followers:
+            await self.send_to_user(follower_id, event, data)
+
 
     @property
     def total_connections(self) -> int:
