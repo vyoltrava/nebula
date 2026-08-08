@@ -20,6 +20,9 @@ class User(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
     bio: Optional[str] = None
     last_seen: Optional[datetime] = None
+    token_version: int = Field(default=0)   # для "выйти со всех устройств"
+    totp_secret: Optional[str] = None       # задел под будущую 2FA
+    totp_enabled: bool = Field(default=False)
 
 
 class Post(SQLModel, table=True):

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { 
   Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus, 
   AtSign, X, Shield, ShieldCheck, MessageSquare, Palette, 
-  Bug, Menu, Search, Megaphone, Bookmark
+  Bug, Menu, Search, Megaphone, Bookmark, ShieldAlert
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
@@ -96,6 +96,7 @@ export function Sidebar() {
     follow: <UserPlus size={14} />,
     mention: <AtSign size={14} />,
     message: <MessageSquare size={14} />,
+    login_alert: <ShieldAlert size={14} />,
   };
   const texts = {
     like: "лайкнул(а) ваш пост",
@@ -103,6 +104,7 @@ export function Sidebar() {
     follow: "подписался(ась) на вас",
     mention: "упомянул(а) вас в посте",
     message: "прислал(а) вам сообщение",
+    login_alert: "⚠️ вход в аккаунт с нового устройства/IP",
   };
 
   const glow = user

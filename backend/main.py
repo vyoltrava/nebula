@@ -252,9 +252,10 @@ def check_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode(), hashed.encode())
 
 
-def create_token(user_id: int) -> str:
+def create_token(user_id: int, token_version: int = 0) -> str:
     payload = {
         "sub": str(user_id),
+        "ver": token_version,
         "exp": datetime.now(timezone.utc) + timedelta(days=7),
     }
     return jwt.encode(payload, SECRET, algorithm=ALGORITHM)
@@ -277,6 +278,8 @@ def get_current_user(
     user = session.get(User, int(payload["sub"]))
     if not user:
         raise HTTPException(401, "User not found")
+    if payload.get("ver", 0) != user.token_version:
+        raise HTTPException(401, "Session revoked")
     if user.is_banned:
         raise HTTPException(403, "Account banned")
 
@@ -650,7 +653,7 @@ def register(request: Request, data: RegisterIn, session: Session = Depends(get_
     ip = get_client_ip(request)
     session.add(IPLog(user_id=user.id, ip_address=ip, user_agent=request.headers.get("user-agent"), action="register"))
     session.commit()
-    return {"token": create_token(user.id), "user": user_out(user, session)}
+    return {"token": create_token(user.id, user.token_version), "user": user_out(user, session)}
 
 
 @app.post("/api/login")
@@ -663,10 +666,36 @@ def login(request: Request, data: LoginIn, session: Session = Depends(get_sessio
         raise HTTPException(403, "Account banned")
         # Логируем IP входа
     ip = get_client_ip(request)
+    ua = request.headers.get("user-agent")
+
+    last_log = session.exec(
+        select(IPLog)
+        .where(IPLog.user_id == user.id)
+        .order_by(IPLog.created_at.desc())
+        .limit(1)
+    ).first()
+
+    # Вход с нового IP или устройства — предупреждаем пользователя
+    if last_log and (last_log.ip_address != ip or last_log.user_agent != ua):
+        session.add(Notification(
+            user_id=user.id,
+            actor_id=user.id,
+            type="login_alert",
+        ))
     session.add(IPLog(user_id=user.id, ip_address=ip, user_agent=request.headers.get("user-agent"), action="login"))
     log_action(session, user.id, "login", ip_address=ip)
     session.commit()
-    return {"token": create_token(user.id), "user": user_out(user, session)}
+    return {"token": create_token(user.id, user.token_version), "user": user_out(user, session)}
+
+@app.post("/api/me/logout-all")
+def logout_all(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    user.token_version += 1  # все старые токены становятся невалидными
+    session.add(user)
+    session.commit()
+    return {"ok": True}
 
 
 @app.get("/api/me")
@@ -2625,6 +2654,9 @@ def startup():
     # Автоматическое добавление недостающих колонок
     with engine.connect() as conn:
         try:
+            conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS token_version INTEGER DEFAULT 0;'))
+            conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS totp_secret VARCHAR;'))
+            conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN DEFAULT FALSE;'))
             conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS is_secret BOOLEAN DEFAULT FALSE;"))
             conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS ciphertext TEXT;"))
             conn.execute(text('CREATE TABLE IF NOT EXISTS iplog (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES "user"(id), ip_address VARCHAR NOT NULL, user_agent VARCHAR, action VARCHAR, created_at TIMESTAMPTZ);'))
