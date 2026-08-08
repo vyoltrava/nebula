@@ -102,7 +102,9 @@ class Role(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True)
     color: str = "#8b5cf6"
-    level: int = Field(default=1)  # ← ДОЛЖНО БЫТЬ ЭТО ПОЛЕ
+    level: int = Field(default=1)
+    description: Optional[str] = None  # 🆕 Описание: чем занимается роль
+    is_staff: bool = Field(default=False)  # 🆕 True = администрация, False = спонсоры/обычные
     permissions: str = "[]"
     created_at: datetime = Field(default_factory=utcnow)
 

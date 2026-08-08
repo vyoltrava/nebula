@@ -1928,7 +1928,9 @@ def list_roles(session: Session = Depends(get_session)):
 def create_role(
     name: str = Form(...),
     color: str = Form("#8b5cf6"),
-    level: int = Form(1),  # 🆕
+    level: int = Form(1),
+    description: Optional[str] = Form(None),  # 🆕
+    is_staff: bool = Form(False),  # 🆕
     permissions: str = Form("[]"),
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
@@ -1936,26 +1938,32 @@ def create_role(
     if not has_permission(staff, "manage_roles", session):
         raise HTTPException(403, "No permission: manage_roles")
     
-    # 🛡️ Проверка: нельзя создать роль с уровнем >= своего
     max_lvl = max_level_for(staff, session)
     if level < 1 or level > max_lvl:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Вы можете создавать роли только с уровнем от 1 до {max_lvl}"
-        )
+        raise HTTPException(403, f"Уровень должен быть от 1 до {max_lvl}")
     
     if session.exec(select(Role).where(Role.name == name)).first():
         raise HTTPException(400, "Role name already exists")
     
-    role = Role(name=name, color=color, level=level, permissions=permissions)
+    role = Role(
+        name=name,
+        color=color,
+        level=level,
+        description=description,
+        is_staff=is_staff,
+        permissions=permissions,
+    )
     session.add(role)
     session.commit()
     session.refresh(role)
+    invalidate_role_cache(role.id)
     return {
         "id": role.id,
         "name": role.name,
         "color": role.color,
         "level": role.level,
+        "description": role.description,
+        "is_staff": role.is_staff,
         "permissions": json.loads(role.permissions),
     }
 
@@ -1964,7 +1972,9 @@ def update_role(
     role_id: int,
     name: Optional[str] = Form(None),
     color: Optional[str] = Form(None),
-    level: Optional[int] = Form(None),  # 🆕
+    level: Optional[int] = Form(None),
+    description: Optional[str] = Form(None),  # 🆕
+    is_staff: Optional[bool] = Form(None),  # 🆕
     permissions: Optional[str] = Form(None),
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
@@ -1976,38 +1986,37 @@ def update_role(
     if not role:
         raise HTTPException(404, "Role not found")
     
-    # 🛡️ Проверка: нельзя редактировать роль с уровнем >= своего
     if get_user_level(staff, session) <= role.level and not staff.is_admin:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Недостаточно уровня для редактирования этой роли (её уровень: {role.level})"
-        )
+        raise HTTPException(403, f"Недостаточно уровня (роль: {role.level})")
     
-    # Если меняем уровень — проверяем новый
     if level is not None:
         max_lvl = max_level_for(staff, session)
         if level < 1 or level > max_lvl:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Вы можете устанавливать уровень только от 1 до {max_lvl}"
-            )
+            raise HTTPException(403, f"Уровень должен быть от 1 до {max_lvl}")
         role.level = level
     
     if name:
         role.name = name
     if color:
         role.color = color
+    if description is not None:
+        role.description = description
+    if is_staff is not None:
+        role.is_staff = is_staff
     if permissions:
         role.permissions = permissions
     
     session.add(role)
     session.commit()
     session.refresh(role)
+    invalidate_role_cache(role.id)
     return {
         "id": role.id,
         "name": role.name,
         "color": role.color,
         "level": role.level,
+        "description": role.description,
+        "is_staff": role.is_staff,
         "permissions": json.loads(role.permissions),
     }
 
@@ -2038,6 +2047,53 @@ def delete_role(
         session.add(u)
     session.delete(role)
     session.commit()
+    return {"ok": True}
+
+
+@app.post("/api/roles/{role_id}/move")
+def move_role(
+    role_id: int,
+    direction: str = Form(...),  # "up" или "down"
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    if not has_permission(staff, "manage_roles", session):
+        raise HTTPException(403, "No permission")
+    
+    role = session.get(Role, role_id)
+    if not role:
+        raise HTTPException(404, "Role not found")
+    
+    # Получаем все staff-роли, отсортированные по уровню
+    staff_roles = session.exec(
+        select(Role)
+        .where(Role.is_staff == True)
+        .order_by(Role.level.desc())
+    ).all()
+    
+    # Находим индекс текущей роли
+    current_index = next((i for i, r in enumerate(staff_roles) if r.id == role_id), -1)
+    if current_index == -1:
+        raise HTTPException(400, "Роль не найдена в списке")
+    
+    # Меняем местами с соседом
+    if direction == "up" and current_index > 0:
+        # Меняем уровни с ролью выше
+        upper_role = staff_roles[current_index - 1]
+        role.level, upper_role.level = upper_role.level, role.level
+        session.add(role)
+        session.add(upper_role)
+    elif direction == "down" and current_index < len(staff_roles) - 1:
+        # Меняем уровни с ролью ниже
+        lower_role = staff_roles[current_index + 1]
+        role.level, lower_role.level = lower_role.level, role.level
+        session.add(role)
+        session.add(lower_role)
+    else:
+        raise HTTPException(400, "Невозможно переместить")
+    
+    session.commit()
+    invalidate_role_cache()
     return {"ok": True}
 
 
@@ -2654,6 +2710,8 @@ def startup():
     # Автоматическое добавление недостающих колонок
     with engine.connect() as conn:
         try:
+            conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS description VARCHAR;'))
+            conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS is_staff BOOLEAN DEFAULT FALSE;'))
             conn.execute(text('CREATE TABLE IF NOT EXISTS siterules (id SERIAL PRIMARY KEY, content TEXT NOT NULL DEFAULT \'{}\', updated_by INTEGER REFERENCES "user"(id), updated_at TIMESTAMPTZ DEFAULT NOW());'))
             conn.execute(text('CREATE TABLE IF NOT EXISTS siterules (id SERIAL PRIMARY KEY, content TEXT NOT NULL, updated_by INTEGER REFERENCES "user"(id), updated_at TIMESTAMPTZ);'))
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS token_version INTEGER DEFAULT 0;'))
@@ -3538,123 +3596,62 @@ def get_team(session: Session = Depends(get_session)):
 
 @app.get("/api/rules")
 def get_rules(session: Session = Depends(get_session)):
-    # Пытаемся взять сохранённые правила из БД
+    # 1. Пытаемся взять сохранённые правила из БД
     saved = None
     try:
         saved = session.exec(
             select(SiteRules).order_by(SiteRules.id.desc()).limit(1)
         ).first()
         if saved:
-            return json.loads(saved.content)
-    except Exception as e:
-        print(f"⚠️ Failed to load rules from DB: {e}")
-
-    # Дефолтные правила (как у Twitter/X — универсальные, без OOC/IC)
-    return {
-        "title": "Правила сообщества NEBULA",
-        "subtitle": "NEBULA — пространство для свободного и уважительного общения. Эти правила помогают поддерживать безопасность и комфорт для всех пользователей.",
-        "sections": [
-            {
-                "id": "safety",
-                "heading": "1. Безопасность",
-                "items": [
-                    "Запрещены угрозы, призывы к насилию, разжигание ненависти по любому признаку (раса, религия, пол, ориентация, национальность).",
-                    "Запрещены призывы к терроризму, экстремизму, самоубийству, причинению вреда себе или другим.",
-                    "Запрещена пропаганда наркотиков, оружия массового поражения, незаконной деятельности.",
-                    "Запрещено делиться контентом, изображающим жестокое обращение с людьми или животными."
-                ]
-            },
-            {
-                "id": "respect",
-                "heading": "2. Уважение к другим",
-                "items": [
-                    "Запрещены оскорбления, буллинг, преследование (harassment) других пользователей.",
-                    "Запрещён доксинг — публикация чужих личных данных (адреса, телефоны, документы) без согласия.",
-                    "Запрещена имперсонация — выдача себя за другого человека или организацию.",
-                    "Запрещены нежелательные сообщения сексуального характера, неконсенсуальный интимный контент."
-                ]
-            },
-            {
-                "id": "content",
-                "heading": "3. Контент",
-                "items": [
-                    "Запрещён спам, массовые рассылки, накрутка лайков/подписчиков/просмотров.",
-                    "Запрещена публикация порнографического контента и откровенных материалов 18+.",
-                    "Запрещены мошенничество, фишинг, продажа запрещённых товаров и услуг.",
-                    "Запрещено нарушение авторских прав — публикация чужого контента без разрешения.",
-                    "Запрещена дезинформация, способная причинить реальный вред (медицинская, политическая)."
-                ]
-            },
-            {
-                "id": "accounts",
-                "heading": "4. Аккаунты и поведение",
-                "items": [
-                    "Один человек — один аккаунт. Мультиаккаунты для обхода блокировок запрещены.",
-                    "Запрещены боты, автоматизация действий, продажа и передача аккаунтов.",
-                    "Запрещено использование чужих аккаунтов без разрешения владельца.",
-                    "Имя пользователя не должно содержать оскорблений, рекламы, имперсонации."
-                ]
-            },
-            {
-                "id": "privacy",
-                "heading": "5. Конфиденциальность",
-                "items": [
-                    "Не публикуйте свои чувствительные данные: пароли, банковские карты, документы.",
-                    "Уважайте приватность других — не публикуйте переписки и медиа без согласия.",
-                    "Администрация не несёт ответственности за утечки данных по вине пользователя.",
-                    "Используйте секретные чаты (E2EE) для конфиденциального общения."
-                ]
-            },
-            {
-                "id": "platform",
-                "heading": "6. Целостность платформы",
-                "items": [
-                    "Запрещены атаки на инфраструктуру: DDoS, SQL-инъекции, эксплуатация уязвимостей.",
-                    "Запрещён реверс-инжиниринг, попытки получить несанкционированный доступ.",
-                    "Запрещено использование платформы для незаконной деятельности.",
-                    "Администрация оставляет за собой право удалять любой контент без объяснения причин."
-                ]
-            },
-            {
-                "id": "punishments",
-                "heading": "7. Меры наказания",
-                "table": [
-                    {
-                        "num": "1",
-                        "measure": "Предупреждение",
-                        "description": "Выносится за первое незначительное нарушение. Фиксируется в системе на 30 дней.",
-                        "violations": "Мелкий спам, единичное нарушение этикета, флуд."
-                    },
-                    {
-                        "num": "2",
-                        "measure": "Удаление контента",
-                        "description": "Пост или комментарий удаляется. Пользователь получает уведомление с причиной.",
-                        "violations": "Нарушение правил контента, спам, оскорбления."
-                    },
-                    {
-                        "num": "3",
-                        "measure": "Временная блокировка",
-                        "description": "Аккаунт блокируется на срок от 1 дня до 30 дней. Доступ к платформе ограничен.",
-                        "violations": "Повторные нарушения, буллинг, распространение запрещённого контента."
-                    },
-                    {
-                        "num": "4",
-                        "measure": "Перманентная блокировка",
-                        "description": "Аккаунт блокируется навсегда без возможности восстановления. Весь контент удаляется.",
-                        "violations": "Систематические нарушения, угрозы, мошенничество, тяжкие преступления."
-                    },
-                    {
-                        "num": "5",
-                        "measure": "Снятие роли",
-                        "description": "С пользователя снимаются привилегированные роли и связанные с ними права.",
-                        "violations": "Злоупотребление полномочиями, нарушение доверия сообщества."
-                    }
+            rules_data = json.loads(saved.content)
+        else:
+            # Дефолтные правила
+            rules_data = {
+                "title": "Правила сообщества NEBULA",
+                "subtitle": "NEBULA — пространство для свободного и уважительного общения.",
+                "sections": [
+                    {"id": "safety", "heading": "1. Безопасность", "items": ["Запрещены угрозы, насилие, ненависть.", "Запрещён терроризм, экстремизм.", "Запрещена пропаганда наркотиков."]},
+                    {"id": "respect", "heading": "2. Уважение", "items": ["Запрещены оскорбления, буллинг.", "Запрещён доксинг.", "Запрещена имперсонация."]},
+                    {"id": "content", "heading": "3. Контент", "items": ["Запрещён спам, накрутка.", "Запрещён порно-контент.", "Запрещено мошенничество."]},
+                    {"id": "punishments", "heading": "4. Меры наказания", "table": [{"num": "1", "measure": "Предупреждение", "description": "Фиксируется на 30 дней.", "violations": "Мелкий спам."}, {"num": "2", "measure": "Блокировка", "description": "От 1 до 30 дней.", "violations": "Повторные нарушения."}], "note": "Администрация применяет меры по своему усмотрению."}
                 ],
-                "note": "Администрация может комбинировать меры и применять наказания по своему усмотрению в зависимости от тяжести и контекста нарушения."
+                "footer": "Используя NEBULA, вы соглашаетесь с правилами."
             }
-        ],
-        "footer": "Используя NEBULA, вы соглашаетесь соблюдать эти правила. Администрация оставляет за собой право изменять правила и применять меры для защиты сообщества."
-    }
+    except Exception as e:
+        print(f"⚠️ Failed to load rules: {e}")
+        rules_data = {"title": "Правила", "sections": [], "footer": ""}
+
+    # 2. 🆕 Загружаем роли администрации (только is_staff=True)
+    try:
+        staff_roles = session.exec(
+            select(Role)
+            .where(Role.is_staff == True)
+            .order_by(Role.level.desc())
+        ).all()
+        
+        roles_section = {
+            "id": "roles",
+            "heading": "Команда NEBULA",
+            "roles": [
+                {
+                    "name": role.name,
+                    "color": role.color,
+                    "level": role.level,
+                    "description": role.description or "Описание отсутствует"
+                }
+                for role in staff_roles
+            ]
+        }
+        
+        # Добавляем секцию ролей в правила
+        if "sections" not in rules_data:
+            rules_data["sections"] = []
+        rules_data["sections"].append(roles_section)
+        
+    except Exception as e:
+        print(f"⚠️ Failed to load roles: {e}")
+
+    return rules_data
 
 
 class RulesUpdate(BaseModel):
