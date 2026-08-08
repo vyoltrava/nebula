@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
 import { MessageSquare, Search, Lock } from "lucide-react";
 import { getToken } from "@/lib/auth";
-import { triggerCountersRefresh } from "@/lib/events";
+import { useUnreadCounts } from "@/lib/UnreadCountsContext"; // 🆕
+import { socket } from "@/lib/websocket"; // 🆕
 
 
 export default function MessagesPage() {
@@ -15,6 +15,7 @@ export default function MessagesPage() {
   const [query, setQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
   const router = useRouter();
+  const { refresh } = useUnreadCounts(); // 🆕 глобальные счётчики
 
   function getGlowColor(user: any): string | null {
     if (user?.is_admin) return "#8b5cf6";
@@ -48,17 +49,32 @@ export default function MessagesPage() {
     }
   }
 
+  // 🆕 Загружаем чаты один раз при открытии + подписываемся на WebSocket
   useEffect(() => {
     load();
-    triggerCountersRefresh(); // Обновляем счётчик в сайдбаре при открытии страницы
-    const interval = setInterval(() => {
+    refresh(); // обновляем глобальные счётчики один раз
+
+    // Когда приходит новое сообщение — обновляем список чатов и счётчики
+    const unsubNewMsg = socket.on("new_message", () => {
       load(query);
-      triggerCountersRefresh(); // И при каждом polling тоже
-    }, 5000);
-    return () => clearInterval(interval);
+      refresh();
+    });
+
+    // Когда сообщение прочитано
+    const unsubRead = socket.on("message_read", () => {
+      load(query);
+      refresh();
+    });
+
+    // 🗑️ УБРАН setInterval! Больше никакого polling каждые 5 секунд
+
+    return () => {
+      unsubNewMsg();
+      unsubRead();
+    };
   }, []);
 
-  // Поиск с debounce
+  // Поиск с debounce (оставляем как было)
   useEffect(() => {
     const timeout = setTimeout(() => {
       setSearchLoading(true);
@@ -126,7 +142,7 @@ export default function MessagesPage() {
             <div
               key={chat.id}
               onClick={() => {
-                triggerCountersRefresh();
+                refresh(); // 🆕 вместо triggerCountersRefresh
                 router.push(`/messages/${chat.id}`);
               }}
               className={`flex items-center gap-3 p-3 md:p-4 border-b border-white/10 hover:bg-white/5 transition-colors cursor-pointer ${

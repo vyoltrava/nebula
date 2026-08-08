@@ -11,7 +11,7 @@ import { STICKERS } from "@/lib/stickers";
 
 import { useCallback } from "react";
 import { isOnline, lastSeenText } from "@/lib/online";
-import { triggerCountersRefresh } from "@/lib/events";
+import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import {
   Send, Image as ImageIcon, X, Smile, Paperclip,
   FileText, Film, Edit2, Trash2, MoreVertical,
@@ -37,6 +37,7 @@ export default function ChatPage() {
   const params = useParams();
   const chatId = params?.id as string;
   const router = useRouter();
+  const { refresh } = useUnreadCounts(); // 🆕
 
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState("");
@@ -401,7 +402,7 @@ export default function ChatPage() {
       signal,
     })
       .then(() => {
-        triggerCountersRefresh();
+        refresh(); // 🆕
       })
       .catch(() => {});
 
@@ -438,7 +439,7 @@ export default function ChatPage() {
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/read`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-      }).then(() => triggerCountersRefresh()).catch(() => {});
+      }).then(() => refresh()).catch(() => {}); // 🆕
     }
   });
 
