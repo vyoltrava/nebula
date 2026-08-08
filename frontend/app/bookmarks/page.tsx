@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { Post } from "@/components/Post";
 import { Bookmark } from "lucide-react";
 import { getToken } from "@/lib/auth";
+import { PostSkeleton } from "@/components/Skeletons"; // 🆕 импорт
 
 export default function BookmarksPage() {
   const [posts, setPosts] = useState<any[]>([]);
@@ -33,16 +34,32 @@ export default function BookmarksPage() {
       <Sidebar />
       <div className="w-px shrink-0 bg-white/10 my-3" />
       <main className="flex-1 overflow-y-auto border-x border-white/10">
+        {/* Шапка — остаётся всегда видимой */}
         <div className="p-4 md:p-6 border-b border-white/10 sticky top-0 bg-[#171717]/95 backdrop-blur-md z-10">
           <div className="flex items-center gap-3">
             <Bookmark size={24} className="text-[#8b5cf6]" fill="currentColor" />
             <h1 className="text-xl md:text-2xl font-black text-white">Закладки</h1>
-            <span className="text-white/40 text-sm">{posts.length}</span>
+            {/* 🆕 Скелетон счётчика при загрузке, реальное число после */}
+            {loading ? (
+              <div className="h-4 w-8 bg-white/10 rounded animate-pulse" />
+            ) : (
+              <span className="text-white/40 text-sm">{posts.length}</span>
+            )}
           </div>
         </div>
 
-        {loading && <p className="p-8 text-center text-white/50">Загрузка...</p>}
+        {/* 🆕 СКЕЛЕТОНЫ при загрузке — вместо текста "Загрузка..." */}
+        {loading && (
+          <>
+            <PostSkeleton />
+            <PostSkeleton />
+            <PostSkeleton />
+            <PostSkeleton />
+            <PostSkeleton />
+          </>
+        )}
 
+        {/* Пустое состояние — когда загрузка завершена, но постов нет */}
         {!loading && posts.length === 0 && (
           <div className="p-12 text-center">
             <Bookmark size={48} className="text-white/20 mx-auto mb-4" />
@@ -53,6 +70,7 @@ export default function BookmarksPage() {
           </div>
         )}
 
+        {/* Реальные посты */}
         {!loading && posts.map((post) => <Post key={post.id} {...post} />)}
       </main>
     </div>

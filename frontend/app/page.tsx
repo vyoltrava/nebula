@@ -4,7 +4,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { Post } from "@/components/Post";
 import { CreatePost } from "@/components/CreatePost";
 import { RightPanel } from "@/components/RightPanel";
-import { PostSkeleton } from "@/components/PostSkeleton"; // 🆕 импорт скелетонов
+import { PostSkeleton } from "@/components/Skeletons"; // 🆕 импорт скелетонов
 import { getToken } from "@/lib/auth";
 import { onFeedRefresh } from "@/lib/events";
 

@@ -12,7 +12,7 @@ import { SystemName } from "@/components/SystemName";
 import { ensureKeyPair } from "@/lib/crypto";
 import { isOnline } from "@/lib/online";
 import { getCachedUser } from "@/lib/authCache";
-
+import { ProfileSkeleton, PostSkeleton } from "@/components/Skeletons"; // 🆕
 
 
 export default function UserProfilePage() {
@@ -55,7 +55,6 @@ export default function UserProfilePage() {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => (r.ok ? r.json() : null))
-      .then(setCurrentUser);
   }, []);
 
   async function startChat() {
@@ -186,8 +185,11 @@ export default function UserProfilePage() {
       <div className="h-screen flex overflow-hidden">
         <Sidebar />
         <div className="w-px shrink-0 bg-white/10 my-3" />
-        <main className="flex-1 flex items-center justify-center">
-          <p className="text-white/60">Загрузка профиля...</p>
+        <main className="flex-1 overflow-y-auto border-x border-white/10">
+          <ProfileSkeleton />
+          <PostSkeleton />
+          <PostSkeleton />
+          <PostSkeleton />
         </main>
       </div>
     );
@@ -394,18 +396,30 @@ export default function UserProfilePage() {
           <p className="p-8 text-center text-white/50">Пока нет постов</p>
         )}
 
-        {hasMore && posts.length > 0 && (
-          <button
-            onClick={() => loadMorePosts()}
-            disabled={postsLoading}
-            className="w-full p-4 text-center text-[#8b5cf6] font-semibold hover:bg-white/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {postsLoading ? "Загрузка..." : "Загрузить ещё"}
-          </button>
+          {hasMore && posts.length > 0 && !postsLoading && (
+            <button
+              onClick={() => loadMorePosts()}
+              className="w-full p-4 text-center text-[#8b5cf6] font-semibold hover:bg-white/5 transition-all"
+            >
+              Загрузить ещё
+            </button>
+          )}
+
+        {/* 🆕 Скелетоны при первой загрузке постов */}
+        {postsLoading && posts.length === 0 && (
+          <>
+            <PostSkeleton />
+            <PostSkeleton />
+            <PostSkeleton />
+          </>
         )}
 
-        {postsLoading && posts.length === 0 && (
-          <p className="p-8 text-center text-white/50">Загрузка постов...</p>
+        {/* 🆕 Скелетоны внизу при догрузке "ещё" */}
+        {postsLoading && posts.length > 0 && (
+          <>
+            <PostSkeleton />
+            <PostSkeleton />
+          </>
         )}
       </main>
 
