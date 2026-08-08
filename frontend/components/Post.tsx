@@ -11,6 +11,7 @@ import { Avatar } from "@/components/Avatar";
 import { mediaUrl } from "@/lib/media";
 import { ReportModal } from "./ReportModal";
 import { BookmarkButton } from "@/components/BookmarkButton";
+import { isLikedCached, setLikedCache } from "@/lib/postCache";
 
 
 function renderText(text: string) {
@@ -111,6 +112,7 @@ export function Post({
   media_url,
   likes_count,
   liked_by_me,
+  bookmarked,
   replies_count,
   showFullReplies = true,
 }: {
@@ -128,12 +130,13 @@ export function Post({
   media_url?: string | null;
   likes_count: number;
   liked_by_me: boolean;
+  bookmarked?: boolean;
   replies_count: number;
   showFullReplies?: boolean;
 }) {
   const [currentUser, setCurrentUser] = useState<{ id: number; is_admin: boolean; is_moderator: boolean } | null>(null);
   const [myPermissions, setMyPermissions] = useState<string[]>([]);
-  const [liked, setLiked] = useState(liked_by_me);
+  const [liked, setLiked] = useState<boolean>(() => liked_by_me || isLikedCached(id));
   const [count, setCount] = useState(likes_count);
   const [rCount, setRCount] = useState(replies_count);
   const [replying, setReplying] = useState(false);
@@ -169,33 +172,41 @@ export function Post({
         if (data) setFollowing(data.following);
       });
 
-    safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/is-liked`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) setLiked(data.liked);
-      });
-  }, [author_id, id]);
 
-  async function toggleLike() {
+
+    async function toggleLike() {
     const token = getToken();
     if (!token) {
       router.push("/login");
       return;
     }
+
+    // Оптимистично: меняем СРАЗУ
+    const next = !liked;
+    setLiked(next);
+    setCount((c) => (next ? c + 1 : c - 1));
+    setLikedCache(id, next);
+
     const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/like`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
+
     if (res.ok) {
       const data = await res.json();
-      setLiked(data.liked);
-      setCount((c) => (data.liked ? c + 1 : c - 1));
+      if (data.liked !== next) {
+        setLiked(data.liked);
+        setCount((c) => (data.liked ? c + 1 : c - 1));
+        setLikedCache(id, data.liked);
+      }
       triggerFeedRefresh();
+    } else {
+      // Откат при ошибке
+      setLiked(!next);
+      setCount((c) => (next ? c - 1 : c + 1));
+      setLikedCache(id, !next);
     }
   }
-
   async function toggleFollow(e: React.MouseEvent) {
     e.stopPropagation();
     const token = getToken();
@@ -354,7 +365,7 @@ export function Post({
               <Heart size={16} fill={liked ? "currentColor" : "none"} />
               <span className="text-sm font-semibold">{count}</span>
             </button>
-            <BookmarkButton postId={id} />
+              <BookmarkButton postId={id} initial={bookmarked} />
 
             {/* 🆕 Кнопка "Ответить" открывает форму с упоминанием автора */}
             <button
