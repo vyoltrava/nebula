@@ -4,6 +4,7 @@ WebSocket менеджер подключений.
 """
 from fastapi import WebSocket
 from typing import Dict, Set, Optional, Any
+from sqlmodel import Session, select
 import json
 import asyncio
 
@@ -59,6 +60,16 @@ class ConnectionManager:
         """Отправить событие ВСЕМ подключённым пользователям"""
         for user_id in list(self.active_connections.keys()):
             await self.send_to_user(user_id, event, data)
+
+    async def broadcast_to_chat(self, chat_id: int, event: str, data: Any, session):
+        """Отправить событие ВСЕМ участникам чата"""
+        from models import ChatMember
+        members = session.exec(
+            select(ChatMember).where(ChatMember.chat_id == chat_id)
+        ).all()
+        for member in members:
+            await self.send_to_user(member.user_id, event, data)
+
 
     @property
     def total_connections(self) -> int:

@@ -2631,6 +2631,26 @@ async def send_message_v2(
     
     session.commit()
     session.refresh(msg)
+
+        # 🆕 Рассылаем новое сообщение через WebSocket
+    await manager.broadcast_to_chat(
+        chat_id, 
+        "new_message",
+        {
+            "id": msg.id,
+            "chat_id": chat_id,
+            "sender_id": msg.sender_id,
+            "sender_name": user.display_name,
+            "sender_avatar": user.avatar_url,
+            "text": msg.text,
+            "ciphertext": msg.ciphertext,
+            "media_url": msg.media_url,
+            "media_type": msg.media_type,
+            "created_at": msg.created_at.isoformat(),
+        },
+        session,
+    )
+    
     
     return {
         "id": msg.id,

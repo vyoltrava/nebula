@@ -7,6 +7,8 @@ import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { STICKERS } from "@/lib/stickers";
+import { useWebSocket } from "@/hooks/useWebSocket";
+import { useCallback } from "react";
 import { isOnline, lastSeenText } from "@/lib/online";
 import { triggerCountersRefresh } from "@/lib/events";
 import {
@@ -239,6 +241,22 @@ export default function ChatPage() {
       messagesToSend.push({ text: text.trim(), file: null });
     }
 
+        // 🆕 Оптимистично добавляем своё сообщение в список
+    if (!isSecret && text.trim()) {
+      const tempMsg = {
+        id: Date.now(), // временный ID
+        sender_id: currentUser?.id,
+        sender_name: currentUser?.display_name,
+        sender_avatar: currentUser?.avatar_url,
+        text: text.trim(),
+        media_url: null,
+        media_type: null,
+        read: false,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, tempMsg]);
+    }
+
     try {
       for (const msg of messagesToSend) {
         const form = new FormData();
@@ -276,7 +294,6 @@ export default function ChatPage() {
 
       setText("");
       setFiles([]);
-      loadMessages();
     } catch (err) {
       console.error("Failed to send:", err);
       alert("Не удалось отправить сообщение");
@@ -387,14 +404,9 @@ export default function ChatPage() {
       })
       .catch(() => {});
 
-    const interval = setInterval(() => {
-      if (!signal.aborted) loadMessages();
-    }, 3000);
-
-    return () => {
-      controller.abort();
-      clearInterval(interval);
-    };
+  return () => {
+    controller.abort();
+  };
   }, [chatId]);
 
   // Когда узнали, что чат секретный — инициализируем криптографию
@@ -409,6 +421,28 @@ export default function ChatPage() {
   }, [messages]);
 
   // ========== РЕНДЕР ==========
+
+  // ========== WEBSOCKET: ПОЛУЧЕНИЕ НОВЫХ СООБЩЕНИЙ ==========
+  const handleNewMessage = useCallback((data: any) => {
+    if (String(data.chat_id) !== String(chatId)) return;
+    if (data.sender_id === currentUser?.id) return;
+    
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === data.id)) return prev;
+      return [...prev, data];
+    });
+    
+    const token = getToken();
+    if (token) {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/read`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }).then(() => triggerCountersRefresh()).catch(() => {});
+    }
+  }, [chatId, currentUser?.id]);
+
+  useWebSocket("new_message", handleNewMessage);
+
 
   function onFiles(newFiles: FileList | null) {
     if (!newFiles) return;
