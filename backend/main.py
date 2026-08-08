@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, select, func
 from sqlalchemy import text
 from typing import Optional
+
 import jwt
 import bcrypt
 import os
@@ -29,6 +30,7 @@ from models import (
 import logging
 from fastapi.responses import JSONResponse
 from performance import PerfMiddleware, get_perf_summary
+import sql_profiler
 
 def get_client_ip(request: Request) -> str:
     """Извлекает реальный IP из запроса (с учётом прокси Render/Cloudflare)"""
