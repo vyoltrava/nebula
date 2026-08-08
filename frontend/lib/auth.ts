@@ -7,6 +7,9 @@ export function setToken(token: string) {
   localStorage.setItem("token", token);
 }
 
+import { clearCachedUser } from "./authCache";
+
 export function clearToken() {
   localStorage.removeItem("token");
+  clearCachedUser();
 }

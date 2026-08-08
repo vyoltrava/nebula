@@ -11,11 +11,13 @@ import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
 import { onFeedRefresh, onCountersRefresh, triggerCountersRefresh } from "@/lib/events";
 import { BugReportModal } from "@/components/BugReportModal";
+import { getCachedUser, setCachedUser } from "@/lib/authCache";
+import { clearCachedUser } from "@/lib/authCache";
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<any>(() => getCachedUser());
   const [unreadCount, setUnreadCount] = useState(0);
   const [chatsUnread, setChatsUnread] = useState(0);
   const [showNotifs, setShowNotifs] = useState(false);
@@ -44,11 +46,12 @@ export function Sidebar() {
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal,
     })
-      .then(async (r) => {
-        if (!r.ok) return;
-        const data = await r.json();
-        setUser(data);
-      })
+    .then(async (r) => {
+      if (!r.ok) return;
+      const data = await r.json();
+      setUser(data);
+      setCachedUser(data);  // 🆕 Сохраняем в кэш
+    })
       .catch((err) => {
         if (err.name !== "AbortError") console.error("Failed to load user:", err);
       });
@@ -324,7 +327,7 @@ export function Sidebar() {
             </Link>
 
             <button
-              onClick={() => { clearToken(); setUser(null); }}
+              onClick={() => { clearToken(); setUser(null); clearCachedUser(); }}
               className="flex items-center gap-3 border border-white/8 rounded-lg px-4 py-2.5 font-medium text-white/70 hover:bg-white/5 hover:border-white/15 hover:text-white transition-all"
             >
               <LogOut size={18} /> Выйти

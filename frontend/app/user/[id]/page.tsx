@@ -11,6 +11,7 @@ import { ReportModal } from "@/components/ReportModal";
 import { SystemName } from "@/components/SystemName";
 import { ensureKeyPair } from "@/lib/crypto";
 import { isOnline } from "@/lib/online";
+import { getCachedUser } from "@/lib/authCache";
 
 
 
@@ -29,7 +30,7 @@ export default function UserProfilePage() {
   const [modalUsers, setModalUsers] = useState<any[]>([]);
   const [modalLoading, setModalLoading] = useState(false);
   const [showReport, setShowReport] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(() => getCachedUser());
 
   function getGlowColor(user: any): string | null {
     if (user?.is_admin) return "#fff";

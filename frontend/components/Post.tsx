@@ -12,7 +12,7 @@ import { mediaUrl } from "@/lib/media";
 import { ReportModal } from "./ReportModal";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import { isLikedCached, setLikedCache } from "@/lib/postCache";
-
+import { getCachedUser } from "@/lib/authCache";
 
 function renderText(text: string) {
   const parts = text.split(/(#[\wа-яёА-ЯЁ]+|@[\wа-яёА-ЯЁ]+|:[\w]+:)/g);
@@ -134,7 +134,10 @@ export function Post({
   replies_count: number;
   showFullReplies?: boolean;
 }) {
-  const [currentUser, setCurrentUser] = useState<{ id: number; is_admin: boolean; is_moderator: boolean } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: number; is_admin: boolean; is_moderator: boolean } | null>(() => {
+    const cached = getCachedUser();
+    return cached ? { id: cached.id, is_admin: cached.is_admin, is_moderator: cached.is_moderator } : null;
+  });
   const [myPermissions, setMyPermissions] = useState<string[]>([]);
   const [liked, setLiked] = useState<boolean>(() => liked_by_me || isLikedCached(id));
   const [count, setCount] = useState(likes_count);
