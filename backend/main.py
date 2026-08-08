@@ -355,9 +355,12 @@ def cascade_delete_post(post_id: int, session: Session):
     for pt in session.exec(select(PostTag).where(PostTag.post_id.in_(id_list))).all():
         session.delete(pt)
 
-    # 5. Массовое удаление уведомлений
+   # 5. Массовое удаление уведомлений
     for notif in session.exec(select(Notification).where(Notification.post_id.in_(id_list))).all():
         session.delete(notif)
+    # 5.5. 🆕 Массовое удаление закладок — иначе внешний ключ не даст удалить пост
+    for bm in session.exec(select(Bookmark).where(Bookmark.post_id.in_(id_list))).all():
+        session.delete(bm)
 
     # 6. Удаляем медиа
     for post in posts_with_media:
@@ -3857,6 +3860,8 @@ def resolve_report(
                 session.delete(pt)
             for notif in session.exec(select(Notification).where(Notification.post_id == post.id)).all():
                 session.delete(notif)
+            for bm in session.exec(select(Bookmark).where(Bookmark.post_id == post.id)).all():
+                session.delete(bm)
             for reply in session.exec(select(Post).where(Post.reply_to_id == post.id)).all():
                 session.delete(reply)
             if post.media_url and "cloudinary.com" in post.media_url:
