@@ -9,11 +9,9 @@ import {
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
-import { onFeedRefresh } from "@/lib/events";
 import { BugReportModal } from "@/components/BugReportModal";
-import { getCachedUser, setCachedUser } from "@/lib/authCache";
-import { clearCachedUser } from "@/lib/authCache";
-import { useUnreadCounts } from "@/lib/UnreadCountsContext"; // 🆕
+import { getCachedUser, setCachedUser, clearCachedUser } from "@/lib/authCache";
+import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -23,13 +21,9 @@ export function Sidebar() {
   const [notifs, setNotifs] = useState<any[]>([]);
   const [showBugModal, setShowBugModal] = useState(false);
   const [searchQ, setSearchQ] = useState("");
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  const { counts } = useUnreadCounts(); // 🆕 Используем глобальный контекст
-
-  useEffect(() => {
-    setDrawerOpen(false);
-  }, [pathname]);
+  const { counts } = useUnreadCounts();
 
   const nav = [
     { href: "/", icon: Home, label: "Главная" },
@@ -47,20 +41,17 @@ export function Sidebar() {
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal,
     })
-    .then(async (r) => {
-      if (!r.ok) return;
-      const data = await r.json();
-      setUser(data);
-      setCachedUser(data);
-    })
+      .then(async (r) => {
+        if (!r.ok) return;
+        const data = await r.json();
+        setUser(data);
+        setCachedUser(data);
+      })
       .catch((err) => {
         if (err.name !== "AbortError") console.error("Failed to load user:", err);
       });
     return () => controller.abort();
   }, []);
-
-  // 🆕 УДАЛИ ВЕСЬ СТАРЫЙ useEffect с polling (строки ~60-100)
-  // Теперь счётчики приходят из useUnreadCounts()
 
   async function loadNotifications() {
     const token = getToken();
@@ -113,46 +104,20 @@ export function Sidebar() {
     : user.role?.color ?? null
     : null;
 
-  const sidebarContent = (
+  // Десктопный контент (полноценное меню с текстом)
+  const desktopSidebarContent = (
     <>
-      <div className="flex items-center justify-between mb-4 md:mb-6">
-        <h1 className="font-logo text-2xl md:text-4xl text-[#8b5cf6]">NEBULA</h1>
-        <button
-          onClick={() => setDrawerOpen(false)}
-          className="md:hidden p-2 rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-all"
-        >
-          <X size={20} />
-        </button>
+      <div className="mb-6">
+        <h1 className="font-logo text-4xl text-[#8b5cf6]">NEBULA</h1>
       </div>
 
       <nav className="flex flex-col gap-2">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (searchQ.trim()) {
-              router.push(`/search?q=${encodeURIComponent(searchQ)}`);
-              setSearchQ("");
-              setDrawerOpen(false);
-            }
-          }}
-          className="md:hidden flex items-center gap-2 border border-white/8 bg-white/3 rounded-lg px-3 py-2.5"
-        >
-          <Search size={18} className="text-white/60 shrink-0" />
-          <input
-            value={searchQ}
-            onChange={(e) => setSearchQ(e.target.value)}
-            placeholder="Поиск..."
-            className="flex-1 bg-transparent focus:outline-none text-white placeholder-white/40 text-sm"
-          />
-        </form>
-
         {nav.map(({ href, icon: Icon, label }) => {
           const active = pathname === href;
           return (
             <Link
               key={href}
               href={href}
-              onClick={() => setDrawerOpen(false)}
               className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
                 active
                   ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
@@ -167,7 +132,6 @@ export function Sidebar() {
         {user && (
           <Link
             href="/messages"
-            onClick={() => setDrawerOpen(false)}
             className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all relative ${
               pathname?.startsWith("/messages")
                 ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
@@ -186,7 +150,6 @@ export function Sidebar() {
         {(user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) && (
           <Link
             href="/admin"
-            onClick={() => setDrawerOpen(false)}
             className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
               pathname === "/admin"
                 ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
@@ -201,7 +164,6 @@ export function Sidebar() {
         {user?.is_admin && (
           <Link
             href="/admin/roles"
-            onClick={() => setDrawerOpen(false)}
             className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
               pathname === "/admin/roles"
                 ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
@@ -215,7 +177,6 @@ export function Sidebar() {
         {user?.permissions?.includes("tech_access") && (
           <Link
             href="/admin/technical"
-            onClick={() => setDrawerOpen(false)}
             className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
               pathname === "/admin/technical"
                 ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
@@ -256,7 +217,6 @@ export function Sidebar() {
           <>
             <Link
               href={`/user/${user.id}`}
-              onClick={() => setDrawerOpen(false)}
               className="flex items-center gap-3 px-2 py-2 -mx-2 rounded-lg hover:bg-white/5 transition-all cursor-pointer group"
             >
               <div
@@ -292,7 +252,6 @@ export function Sidebar() {
         ) : (
           <Link
             href="/login"
-            onClick={() => setDrawerOpen(false)}
             className="flex items-center justify-center bg-[#8b5cf6] border border-[#8b5cf6] rounded-lg px-4 py-2.5 font-medium text-white hover:bg-[#7c3aed] transition-all"
           >
             Войти
@@ -304,40 +263,183 @@ export function Sidebar() {
 
   return (
     <>
-      {drawerOpen && (
-        <div
-          className="md:hidden fixed inset-0 bg-black/50 z-[95]"
-          onClick={() => setDrawerOpen(false)}
-        />
-      )}
+      {/* МОБИЛЬНАЯ ВЕРСИЯ: Плавающая панель с иконками */}
+      <div className="md:hidden">
+        {/* Плавающая панель навигации */}
+        {mobileMenuOpen && (
+          <>
+            {/* Оверлей для закрытия */}
+            <div
+              className="fixed inset-0 z-[95]"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            
+            {/* Панель с иконками */}
+            <div className="fixed right-3 bottom-44 z-[98]">
+              <div className="bg-[#171717]/95 backdrop-blur-md border border-[#8b5cf6]/40 rounded-2xl p-3 shadow-2xl shadow-black/60">
+                <div className="flex flex-wrap gap-2 max-w-[calc(100vw-2rem)]">
+                  {/* Основные пункты навигации */}
+                  {nav.map(({ href, icon: Icon }) => {
+                    const active = pathname === href;
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all ${
+                          active
+                            ? "bg-[#8b5cf6] text-white"
+                            : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                        }`}
+                      >
+                        <Icon size={20} />
+                      </Link>
+                    );
+                  })}
 
-      <aside
-        className={`
-          md:hidden fixed right-3 bottom-44 z-[98] w-64 max-w-[85vw] max-h-[60vh]
-          overflow-y-auto rounded-2xl border border-[#8b5cf6]/40 bg-[#171717]/95
-          backdrop-blur-md shadow-2xl shadow-black/60 p-4 flex flex-col gap-4
-          transition-all duration-200 ease-out
-          ${drawerOpen ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-6 scale-95 pointer-events-none"}
-        `}
-      >
-        {sidebarContent}
-      </aside>
+                  {/* Сообщения */}
+                  {user && (
+                    <Link
+                      href="/messages"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all relative ${
+                        pathname?.startsWith("/messages")
+                          ? "bg-[#8b5cf6] text-white"
+                          : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      <MessageSquare size={20} />
+                      {counts.chats > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-[#8b5cf6] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-[#171717]">
+                          {counts.chats}
+                        </span>
+                      )}
+                    </Link>
+                  )}
 
-      <button
-        onClick={() => setDrawerOpen(!drawerOpen)}
-        className="md:hidden fixed right-3 bottom-24 z-[97] w-14 h-14 rounded-2xl 
-          bg-[#171717]/95 backdrop-blur-md border-2 border-[#8b5cf6]/60 
-          text-[#8b5cf6] flex items-center justify-center
-          shadow-lg shadow-black/60 active:scale-90 transition-all"
-        aria-label="Открыть меню"
-      >
-        <Menu size={24} />
-      </button>
+                  {/* Уведомления */}
+                  <button
+                    onClick={() => {
+                      loadNotifications();
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all relative ${
+                      pathname === "/notifications"
+                        ? "bg-[#8b5cf6] text-white"
+                        : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                    }`}
+                  >
+                    <Bell size={20} />
+                    {counts.notifications > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-[#8b5cf6] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-[#171717]">
+                        {counts.notifications}
+                      </span>
+                    )}
+                  </button>
 
+                  {/* Админка (если есть доступ) */}
+                  {(user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) && (
+                    <Link
+                      href="/admin"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all ${
+                        pathname === "/admin"
+                          ? "bg-[#8b5cf6] text-white"
+                          : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      {user?.is_admin ? <Shield size={20} /> : user?.is_moderator ? <ShieldCheck size={20} /> : <Shield size={20} className="text-[#f59e0b]" />}
+                    </Link>
+                  )}
+
+                  {/* Роли (только для админов) */}
+                  {user?.is_admin && (
+                    <Link
+                      href="/admin/roles"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all ${
+                        pathname === "/admin/roles"
+                          ? "bg-[#8b5cf6] text-white"
+                          : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      <Palette size={20} />
+                    </Link>
+                  )}
+
+                  {/* Техпанель */}
+                  {user?.permissions?.includes("tech_access") && (
+                    <Link
+                      href="/admin/technical"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`w-10 h-10 flex items-center justify-center rounded-lg transition-all ${
+                        pathname === "/admin/technical"
+                          ? "bg-[#8b5cf6] text-white"
+                          : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                      }`}
+                    >
+                      <Settings size={20} />
+                    </Link>
+                  )}
+
+                  {/* Профиль */}
+                  {user && (
+                    <Link
+                      href={`/user/${user.id}`}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/5 text-white/80 hover:bg-white/10 hover:text-white transition-all"
+                    >
+                      <div style={glow ? { filter: `drop-shadow(0 0 4px ${glow})` } : undefined}>
+                        <Avatar src={user.avatar_url} name={user.display_name} id={user.id} size={28} />
+                      </div>
+                    </Link>
+                  )}
+
+                  {/* Выход */}
+                  {user && (
+                    <button
+                      onClick={() => { clearToken(); setUser(null); clearCachedUser(); setMobileMenuOpen(false); }}
+                      className="w-10 h-10 flex items-center justify-center rounded-lg bg-white/5 text-white/80 hover:bg-red-500/20 hover:text-red-400 transition-all"
+                    >
+                      <LogOut size={20} />
+                    </button>
+                  )}
+
+                  {/* Баг-репорт */}
+                  <button
+                    onClick={() => {
+                      setShowBugModal(true);
+                      setMobileMenuOpen(false);
+                    }}
+                    className="w-10 h-10 flex items-center justify-center rounded-lg border border-orange-400/30 text-orange-400 hover:bg-orange-500/10 hover:border-orange-400/50 transition-all"
+                  >
+                    <Bug size={20} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Кнопка открытия меню */}
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="fixed right-3 bottom-24 z-[97] w-14 h-14 rounded-2xl 
+            bg-[#171717]/95 backdrop-blur-md border-2 border-[#8b5cf6]/60 
+            text-[#8b5cf6] flex items-center justify-center
+            shadow-lg shadow-black/60 active:scale-90 transition-all"
+          aria-label="Открыть меню"
+        >
+          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </div>
+
+      {/* ДЕСКТОПНАЯ ВЕРСИЯ: Полноценное боковое меню */}
       <aside className="hidden md:flex md:w-64 shrink-0 overflow-y-auto p-5 flex-col gap-8 bg-[#171717]">
-        {sidebarContent}
+        {desktopSidebarContent}
       </aside>
 
+      {/* Модалка уведомлений */}
       {showNotifs && (
         <>
           <div
