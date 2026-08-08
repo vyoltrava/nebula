@@ -685,28 +685,31 @@ async function loadLogs() {
                       </div>
                     )}
                   </div>
-
-                  {/* Опасная зона */}
-                  <div className="border border-red-400/30 rounded-xl bg-red-500/5 p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <AlertTriangle size={18} className="text-red-400" />
-                      <h3 className="font-bold text-red-400">Опасная зона</h3>
-                    </div>
-                    <p className="text-sm text-white/60 mb-3">Удаление необратимо.</p>
-                    <input
-                      value={deleteConfirm}
-                      onChange={(e) => setDeleteConfirm(e.target.value)}
-                      placeholder={`Введите @${selectedUser.username}`}
-                      className="w-full border border-red-400/30 rounded-lg px-3 py-2 bg-red-500/5 text-white focus:outline-none focus:border-red-400 mb-3"
-                    />
-                    <button
-                      onClick={deleteUser}
-                      disabled={deleting || deleteConfirm !== selectedUser.username}
-                      className="w-full flex items-center justify-center gap-2 bg-red-500 text-white font-bold rounded-lg py-2.5 hover:bg-red-600 disabled:opacity-40"
-                    >
-                      <Trash2 size={16} /> {deleting ? "Удаление..." : "Удалить аккаунт"}
-                    </button>
+            {me.permissions?.includes("delete_users") && (
+              <div className="border border-red-400/30 rounded-xl bg-red-500/5 p-5">
+                      {/* Опасная зона */}
+                      <div className="border border-red-400/30 rounded-xl bg-red-500/5 p-5">
+                        <div className="flex items-center gap-2 mb-3">
+                          <AlertTriangle size={18} className="text-red-400" />
+                          <h3 className="font-bold text-red-400">Опасная зона</h3>
+                        </div>
+                        <p className="text-sm text-white/60 mb-3">Удаление необратимо.</p>
+                        <input
+                          value={deleteConfirm}
+                          onChange={(e) => setDeleteConfirm(e.target.value.replace(/^@/, ""))} // Автоматически убираем @
+                          placeholder={`Введите ${selectedUser.username}`} // Убрали @ из подсказки
+                          className="w-full border border-red-400/30 rounded-lg px-3 py-2 bg-red-500/5 text-white focus:outline-none focus:border-red-400 mb-3"
+                        />
+                        <button
+                          onClick={deleteUser}
+                          disabled={deleting || deleteConfirm !== selectedUser.username}
+                          className="w-full flex items-center justify-center gap-2 bg-red-500 text-white font-bold rounded-lg py-2.5 hover:bg-red-600 disabled:opacity-40"
+                        >
+                          <Trash2 size={16} /> {deleting ? "Удаление..." : "Удалить аккаунт"}
+                        </button>
+                      </div>
                   </div>
+                  )}
                 </div>
               )}
             </div>

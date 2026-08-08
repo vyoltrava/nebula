@@ -2191,9 +2191,6 @@ def admin_delete_user(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    if not staff.is_admin:
-        if not has_permission(staff, "tech_access", session) or not has_permission(staff, "delete_users", session):
-            raise HTTPException(403, "No permission: delete_users")
     
     target = session.get(User, user_id)
     if not target:
