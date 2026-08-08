@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { getToken } from "@/lib/auth";
-import { Palette, Plus, Trash2, Edit2, X, ShieldCheck, AlertTriangle, Info, ChevronUp } from "lucide-react";
+import { Palette, Plus, Trash2, Edit2, X, ShieldCheck, AlertTriangle, Info, ChevronUp, ChevronDown, ArrowUp, ArrowDown } from "lucide-react";
 
 const AVAILABLE_PERMISSIONS = [
   { id: "delete_posts", label: "Удалять посты", icon: "🗑️" },
@@ -17,7 +17,6 @@ const AVAILABLE_PERMISSIONS = [
   { id: "delete_users", label: "Удалять аккаунты", icon: "☠️" },
 ];
 
-// Описание уровней для подсказок
 const LEVEL_DESCRIPTIONS: Record<number, string> = {
   1: "Базовый уровень (обычные пользователи)",
   2: "Помощник / Стажер",
@@ -38,14 +37,15 @@ export default function RolesPage() {
   const [editingRole, setEditingRole] = useState<any>(null);
   const [name, setName] = useState("");
   const [color, setColor] = useState("#8b5cf6");
-  const [level, setLevel] = useState(1); // НОВОЕ: уровень роли
+  const [level, setLevel] = useState(1);
+  const [description, setDescription] = useState("");
+  const [isStaff, setIsStaff] = useState(false);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const router = useRouter();
 
-  // Определяем максимальный уровень, который может назначить текущий пользователь
   const myLevel = me?.is_admin ? 10 : me?.is_moderator ? 9 : me?.role?.level || 1;
-  const maxAssignableLevel = me?.is_admin ? 8 : Math.max(1, myLevel - 1); // Админ может до 8, остальные на 1 меньше своего
+  const maxAssignableLevel = me?.is_admin ? 8 : Math.max(1, myLevel - 1);
 
   async function load() {
     const token = getToken();
@@ -87,12 +87,16 @@ export default function RolesPage() {
       setName(role.name);
       setColor(role.color);
       setLevel(role.level || 1);
+      setDescription(role.description || "");
+      setIsStaff(role.is_staff || false);
       setPermissions(role.permissions || []);
     } else {
       setEditingRole(null);
       setName("");
       setColor("#8b5cf6");
       setLevel(1);
+      setDescription("");
+      setIsStaff(false);
       setPermissions([]);
     }
     setShowForm(true);
@@ -111,7 +115,6 @@ export default function RolesPage() {
     const token = getToken();
     if (!token) return;
 
-    // Защита: уровень не должен превышать максимально доступный
     if (level > maxAssignableLevel && !me?.is_admin) {
       alert(`Вы не можете назначить уровень выше ${maxAssignableLevel} (ваш уровень: ${myLevel}).`);
       return;
@@ -121,7 +124,9 @@ export default function RolesPage() {
     const form = new FormData();
     form.append("name", name);
     form.append("color", color);
-    form.append("level", String(level)); // НОВОЕ: отправляем уровень
+    form.append("level", String(level));
+    form.append("description", description);
+    form.append("is_staff", String(isStaff));
     form.append("permissions", JSON.stringify(permissions));
 
     const url = editingRole
@@ -167,27 +172,52 @@ export default function RolesPage() {
     }
   }
 
+  async function moveRole(roleId: number, direction: "up" | "down") {
+    const token = getToken();
+    if (!token) return;
+
+    const form = new FormData();
+    form.append("direction", direction);
+
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/roles/${roleId}/move`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      load();
+    } catch (err) {
+      alert("Ошибка перемещения");
+    }
+  }
+
   if (!me) return (
     <div className="h-screen flex items-center justify-center bg-[#18181b]">
       <p className="text-white/60 animate-pulse">Загрузка...</p>
     </div>
   );
 
-  // Цвет индикатора уровня
   function getLevelColor(lvl: number): string {
-    if (lvl >= 8) return "#ef4444"; // Красный (опасный)
-    if (lvl >= 6) return "#f59e0b"; // Оранжевый (высокий)
-    if (lvl >= 4) return "#eab308"; // Желтый (средний)
-    if (lvl >= 2) return "#22c55e"; // Зеленый (низкий)
-    return "#94a3b8"; // Серый (базовый)
+    if (lvl >= 8) return "#ef4444";
+    if (lvl >= 6) return "#f59e0b";
+    if (lvl >= 4) return "#eab308";
+    if (lvl >= 2) return "#22c55e";
+    return "#94a3b8";
   }
+
+  // Сортируем роли: сначала is_staff=true по position, потом остальные
+  const sortedRoles = [...roles].sort((a, b) => {
+    if (a.is_staff && !b.is_staff) return -1;
+    if (!a.is_staff && b.is_staff) return 1;
+    if (a.is_staff && b.is_staff) return (a.position || 0) - (b.position || 0);
+    return (b.level || 0) - (a.level || 0);
+  });
 
   return (
     <div className="h-screen flex overflow-hidden bg-[#18181b]">
       <Sidebar />
       <div className="w-px shrink-0 bg-white/10 my-3" />
       <main className="flex-1 overflow-y-auto border-x border-white/10">
-        {/* Шапка */}
         <div className="p-6 border-b border-white/10 sticky top-0 bg-[#171717]/80 backdrop-blur-md z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -212,13 +242,15 @@ export default function RolesPage() {
           </div>
         </div>
 
-        {/* Информационный блок об иерархии */}
         <div className="p-4 border-b border-white/5">
           <div className="bg-[#8b5cf6]/10 border border-[#8b5cf6]/30 rounded-xl p-4 flex gap-3">
             <Info size={20} className="text-[#8b5cf6] shrink-0 mt-0.5" />
             <div className="text-sm text-white/80">
               <p className="font-bold text-white mb-1">Система иерархии</p>
               <p>Уровни определяют, кто может применять санкции к другим. Пользователь <strong>не может</strong> забанить того, чей уровень <strong>равен или выше</strong> его собственного.</p>
+              <p className="mt-2 text-xs text-white/60">
+                <strong>Галочка "Показывать в правилах"</strong> — роль появится на странице /rules в секции "Команда NEBULA".
+              </p>
               <div className="flex flex-wrap gap-2 mt-2 text-xs">
                 <span className="px-2 py-0.5 rounded bg-[#8b5cf6]/30 text-[#8b5cf6]">Admin: 10</span>
                 <span className="px-2 py-0.5 rounded bg-[#3b82f6]/30 text-[#3b82f6]">Mod: 9</span>
@@ -228,7 +260,6 @@ export default function RolesPage() {
           </div>
         </div>
 
-        {/* Список ролей */}
         <div className="p-4 space-y-3">
           {roles.length === 0 && (
             <div className="text-center py-12">
@@ -236,14 +267,21 @@ export default function RolesPage() {
               <p className="text-white/50">Пока нет кастомных ролей. Создайте первую!</p>
             </div>
           )}
-          {roles.map((role) => (
+          {sortedRoles.map((role, index) => (
             <div
               key={role.id}
-              className="border border-white/15 rounded-xl p-4 bg-white/5 hover:bg-white/[0.07] transition-all"
+              className={`border rounded-xl p-4 transition-all ${
+                role.is_staff ? "border-[#8b5cf6]/40 bg-[#8b5cf6]/5" : "border-white/15 bg-white/5"
+              } hover:bg-white/[0.07]`}
             >
               <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 flex-wrap">
-                  {/* Плашка роли */}
+                <div className="flex items-center gap-3 flex-wrap flex-1">
+                  {role.is_staff && (
+                    <span className="px-2 py-0.5 rounded-full bg-[#8b5cf6]/20 text-[#8b5cf6] text-xs font-bold border border-[#8b5cf6]/40">
+                      Staff
+                    </span>
+                  )}
+                  
                   <span
                     className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-white text-sm font-black uppercase tracking-widest shadow-lg border"
                     style={{
@@ -253,13 +291,11 @@ export default function RolesPage() {
                     }}
                   >
                     {role.name}
-                    {/* Индикатор уровня внутри плашки */}
                     <span className="border-l border-white/30 pl-2 text-[10px] font-mono opacity-90">
                       Lvl {role.level || 1}
                     </span>
                   </span>
                   
-                  {/* Отдельный визуальный индикатор уровня */}
                   <div 
                     className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-bold border"
                     style={{
@@ -273,9 +309,32 @@ export default function RolesPage() {
                     {role.level || 1}
                   </div>
 
-                  <span className="text-sm text-white/40 font-mono hidden sm:block">{role.color}</span>
+                  {role.description && (
+                    <p className="text-xs text-white/60 italic">"{role.description}"</p>
+                  )}
                 </div>
+                
                 <div className="flex gap-2 shrink-0">
+                  {role.is_staff && (
+                    <>
+                      <button
+                        onClick={() => moveRole(role.id, "up")}
+                        disabled={index === 0 || !sortedRoles[index - 1]?.is_staff}
+                        className="p-2 rounded-lg border border-white/20 text-white/70 hover:bg-white/10 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Переместить выше"
+                      >
+                        <ArrowUp size={16} />
+                      </button>
+                      <button
+                        onClick={() => moveRole(role.id, "down")}
+                        disabled={index === sortedRoles.length - 1 || !sortedRoles[index + 1]?.is_staff}
+                        className="p-2 rounded-lg border border-white/20 text-white/70 hover:bg-white/10 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Переместить ниже"
+                      >
+                        <ArrowDown size={16} />
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={() => openForm(role)}
                     className="p-2 rounded-lg border border-white/20 text-white/70 hover:bg-white/10 hover:text-white transition-all"
@@ -293,7 +352,6 @@ export default function RolesPage() {
                 </div>
               </div>
 
-              {/* Права роли */}
               {role.permissions && role.permissions.length > 0 && (
                 <div className="mt-3 flex gap-2 flex-wrap">
                   {role.permissions.map((perm: string) => {
@@ -317,7 +375,6 @@ export default function RolesPage() {
           ))}
         </div>
 
-        {/* Модальное окно формы */}
         {showForm && (
           <>
             <div
@@ -338,7 +395,6 @@ export default function RolesPage() {
                   </button>
                 </div>
                 <form onSubmit={saveRole} className="space-y-5">
-                  {/* Название */}
                   <div>
                     <label className="block text-sm font-bold text-white/80 mb-2">
                       Название роли
@@ -352,7 +408,6 @@ export default function RolesPage() {
                     />
                   </div>
 
-                  {/* Цвет */}
                   <div>
                     <label className="block text-sm font-bold text-white/80 mb-2">
                       Цвет плашки
@@ -373,7 +428,32 @@ export default function RolesPage() {
                     </div>
                   </div>
 
-                  {/* НОВОЕ: Уровень иерархии */}
+                  <div>
+                    <label className="block text-sm font-bold text-white/80 mb-2">
+                      Описание роли
+                    </label>
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Чем занимается эта роль? Например: Следит за порядком в чатах, помогает новичкам"
+                      rows={3}
+                      className="w-full border border-white/15 rounded-lg px-3 py-2 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] resize-none"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10">
+                    <input
+                      type="checkbox"
+                      id="is_staff"
+                      checked={isStaff}
+                      onChange={(e) => setIsStaff(e.target.checked)}
+                      className="w-4 h-4 rounded border-white/30 bg-white/5 text-purple-500 focus:ring-purple-500"
+                    />
+                    <label htmlFor="is_staff" className="text-sm text-white/90 font-semibold cursor-pointer">
+                      Показывать в правилах (/rules → "Команда NEBULA")
+                    </label>
+                  </div>
+
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-sm font-bold text-white/80">
@@ -406,7 +486,6 @@ export default function RolesPage() {
                       <span>{maxAssignableLevel}</span>
                     </div>
 
-                    {/* Описание выбранного уровня */}
                     <div className="mt-3 p-3 rounded-lg bg-white/5 border border-white/10">
                       <p className="text-xs text-white/60 mb-1">Описание уровня:</p>
                       <p className="text-sm font-bold" style={{ color: getLevelColor(level) }}>
@@ -417,7 +496,6 @@ export default function RolesPage() {
                       </p>
                     </div>
 
-                    {/* Предупреждение, если уровень близок к максимуму */}
                     {level >= maxAssignableLevel - 1 && !me?.is_admin && (
                       <div className="mt-3 flex gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
                         <AlertTriangle size={16} className="text-amber-400 shrink-0 mt-0.5" />
@@ -428,10 +506,14 @@ export default function RolesPage() {
                     )}
                   </div>
 
-                  {/* Превью */}
                   <div>
                     <p className="text-xs text-white/50 mb-2">Превью:</p>
                     <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10">
+                      {isStaff && (
+                        <span className="px-2 py-0.5 rounded-full bg-[#8b5cf6]/20 text-[#8b5cf6] text-xs font-bold border border-[#8b5cf6]/40">
+                          Staff
+                        </span>
+                      )}
                       <span
                         className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-white text-sm font-black uppercase tracking-widest shadow-lg border"
                         style={{
@@ -459,7 +541,6 @@ export default function RolesPage() {
                     </div>
                   </div>
 
-                  {/* Полномочия */}
                   <div>
                     <label className="block text-sm font-bold text-white/80 mb-3">
                       Полномочия
@@ -487,7 +568,6 @@ export default function RolesPage() {
                     </div>
                   </div>
 
-                  {/* Кнопки */}
                   <div className="flex gap-3 pt-2">
                     <button
                       type="submit"
