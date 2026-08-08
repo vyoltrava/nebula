@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getToken } from "@/lib/auth";
+import { getToken, clearToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
-import { Upload, Lock, Eye, EyeOff } from "lucide-react";
+import { Upload, Lock, Eye, EyeOff, LogOut, ShieldAlert } from "lucide-react";
 
 
 export default function SettingsPage() {
@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const [showNew, setShowNew] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState<{ text: string; type: "ok" | "err" } | null>(null);
   const [bio, setBio] = useState("");
+  const [loggingOutAll, setLoggingOutAll] = useState(false);
 
   useEffect(() => {
     const token = getToken();
@@ -43,74 +44,60 @@ export default function SettingsPage() {
   }, []);
 
   async function saveProfile() {
-  const token = getToken();
-  if (!token) return;
+    const token = getToken();
+    if (!token) return;
 
-  // 1. Сохраняем имя
-  const profileRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ display_name: displayName, bio }),
-  });
-
-  if (!profileRes.ok) {
-    const err = await profileRes.json().catch(() => null);
-    alert("Ошибка сохранения профиля: " + (err?.detail || "неизвестно"));
-    return;
-  }
-
-  // 2. Загружаем аватарку (если выбрана)
-  const file = fileRef.current?.files?.[0];
-  if (file) {
-    // Проверка размера на клиенте (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert(`Файл слишком большой: ${(file.size / (1024 * 1024)).toFixed(1)} МБ (максимум 5 МБ)`);
-      return;
-    }
-
-    // Проверка типа
-    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-      alert(`Формат "${file.type}" не поддерживается. Используйте JPG, PNG, GIF или WebP.`);
-      return;
-    }
-
-    console.log("📸 Uploading avatar:", {
-      name: file.name,
-      type: file.type,
-      size: file.size,
+    const profileRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ display_name: displayName, bio }),
     });
 
-    const form = new FormData();
-    form.append("file", file);
+    if (!profileRes.ok) {
+      const err = await profileRes.json().catch(() => null);
+      alert("Ошибка сохранения профиля: " + (err?.detail || "неизвестно"));
+      return;
+    }
 
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/avatar`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => null);
-        console.error("❌ Avatar upload failed:", err);
-        alert("Ошибка загрузки аватарки: " + (err?.detail || "неизвестно"));
+    const file = fileRef.current?.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert(`Файл слишком большой: ${(file.size / (1024 * 1024)).toFixed(1)} МБ (максимум 5 МБ)`);
         return;
       }
 
-      console.log("✅ Avatar uploaded successfully");
-    } catch (e) {
-      console.error("❌ Network error:", e);
-      alert("Ошибка сети при загрузке аватарки");
-      return;
-    }
-  }
+      const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+      if (!allowedTypes.includes(file.type)) {
+        alert(`Формат "${file.type}" не поддерживается. Используйте JPG, PNG, GIF или WebP.`);
+        return;
+      }
 
-  router.push("/");
-}
+      const form = new FormData();
+      form.append("file", file);
+
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/avatar`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => null);
+          alert("Ошибка загрузки аватарки: " + (err?.detail || "неизвестно"));
+          return;
+        }
+      } catch (e) {
+        alert("Ошибка сети при загрузке аватарки");
+        return;
+      }
+    }
+
+    router.push("/");
+  }
 
   async function changePassword(e: React.FormEvent) {
     e.preventDefault();
@@ -152,6 +139,20 @@ export default function SettingsPage() {
         type: "err",
       });
     }
+  }
+
+  async function logoutAll() {
+    if (!confirm("Выйти со всех устройств? Все активные сессии будут завершены, тебе придётся войти заново.")) return;
+    setLoggingOutAll(true);
+    const token = getToken();
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/logout-all`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {}
+    clearToken();
+    router.push("/login");
   }
 
   function onFile(f: File | null) {
@@ -209,17 +210,17 @@ export default function SettingsPage() {
               />
             </div>
 
-              <div>
-                <label className="block font-bold mb-2 text-white/80">О себе</label>
-                <textarea
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value.slice(0, 500))}
-                  rows={3}
-                  className="w-full border border-white/15 rounded-lg px-3 py-2 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] resize-none"
-                  placeholder="Расскажи о себе (до 500 символов)"
-                />
-                <p className="text-xs text-white/40 mt-1 text-right">{bio.length}/500</p>
-              </div>
+            <div>
+              <label className="block font-bold mb-2 text-white/80">О себе</label>
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value.slice(0, 500))}
+                rows={3}
+                className="w-full border border-white/15 rounded-lg px-3 py-2 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] resize-none"
+                placeholder="Расскажи о себе (до 500 символов)"
+              />
+              <p className="text-xs text-white/40 mt-1 text-right">{bio.length}/500</p>
+            </div>
 
             <div>
               <label className="block font-bold mb-2 text-white/80">Username</label>
@@ -233,7 +234,7 @@ export default function SettingsPage() {
             <div className="flex gap-3">
               <button
                 onClick={saveProfile}
-                className="flex-1 border border-[#8b5cf6] bg-[#8b5cf6] text-white font-bold rounded-lg py-2  transition-all"
+                className="flex-1 border border-[#8b5cf6] bg-[#8b5cf6] text-white font-bold rounded-lg py-2 transition-all"
               >
                 Сохранить
               </button>
@@ -331,11 +332,32 @@ export default function SettingsPage() {
 
             <button
               type="submit"
-              className="w-full border border-[#8b5cf6] bg-[#8b5cf6] text-white font-bold rounded-lg py-2.5  transition-all"
+              className="w-full border border-[#8b5cf6] bg-[#8b5cf6] text-white font-bold rounded-lg py-2.5 transition-all"
             >
               Сменить пароль
             </button>
           </form>
+        </div>
+
+        {/* ========== 🆕 Блок безопасности ========== */}
+        <div className="border border-red-500/30 rounded-2xl bg-red-500/5 backdrop-blur-md p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <ShieldAlert size={20} className="text-red-400" />
+            <h2 className="text-xl font-black text-white">Безопасность</h2>
+          </div>
+
+          <p className="text-sm text-white/60 mb-5">
+            Завершает все активные сессии на всех устройствах. Если кто-то вошёл в твой аккаунт — он будет выброшен. Тебе придётся войти заново.
+          </p>
+
+          <button
+            onClick={logoutAll}
+            disabled={loggingOutAll}
+            className="w-full flex items-center justify-center gap-2 border border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:border-red-500/60 font-bold rounded-lg py-2.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <LogOut size={18} />
+            {loggingOutAll ? "Завершаем сессии..." : "Выйти со всех устройств"}
+          </button>
         </div>
       </div>
     </div>
