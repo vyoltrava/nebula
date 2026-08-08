@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Header, HTTPException, UploadFile, File, Form, Request
+from fastapi import FastAPI, Depends, Header, HTTPException, UploadFile, File, Form, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -14,7 +14,7 @@ import json
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
-
+from websocket_manager import manager
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -3824,3 +3824,66 @@ def delete_update(
     session.delete(update)
     session.commit()
     return {"ok": True}
+
+# ============================================================
+# ⚡ WEBSOCKET
+# ============================================================
+@app.websocket("/ws")
+async def websocket_endpoint(
+    websocket: WebSocket,
+    token: Optional[str] = None,
+    session: Session = Depends(get_session),
+):
+    """
+    WebSocket соединение с аутентификацией через query-параметр.
+    Подключение: ws://host/ws?token=JWT
+    """
+    # 1. Аутентификация через JWT
+    user_id = None
+    if token:
+        try:
+            payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
+            user_id = int(payload["sub"])
+        except Exception:
+            await websocket.close(code=4001, reason="Invalid token")
+            return
+    
+    if not user_id:
+        await websocket.close(code=4001, reason="Not authenticated")
+        return
+    
+    # Проверка, что пользователь существует и не забанен
+    user = session.get(User, user_id)
+    if not user or user.is_banned:
+        await websocket.close(code=4003, reason="Banned or not found")
+        return
+    
+    # 2. Подключаем к менеджеру
+    await manager.connect(websocket, user_id)
+    
+    # Обновляем last_seen
+    user.last_seen = datetime.now(timezone.utc)
+    session.add(user)
+    session.commit()
+    
+    try:
+        # 3. Держим соединение открытым и слушаем пинги от клиента
+        while True:
+            # Ждём любое сообщение (клиент может отправлять heartbeat)
+            data = await websocket.receive_text()
+            
+            # Простой heartbeat protocol
+            if data == "ping":
+                await websocket.send_text(json.dumps({"event": "pong"}))
+    
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, user_id)
+    except Exception as e:
+        print(f"❌ WS error for user {user_id}: {e}")
+        manager.disconnect(websocket, user_id)
+
+
+@app.get("/api/online-count")
+def get_online_count(user: User = Depends(get_current_user)):
+    """Сколько пользователей сейчас онлайн"""
+    return {"count": manager.total_connections}
