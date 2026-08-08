@@ -2213,39 +2213,36 @@ def admin_delete_user(
 
     # ========== ПОЛНОЕ УДАЛЕНИЕ ВСЕХ ДАННЫХ ПОЛЬЗОВАТЕЛЯ ==========
     
-    # 🆕 1. Удаляем ActionLog (где он actor)
+    # 1. Удаляем ActionLog (где он actor)
     for log in session.exec(select(ActionLog).where(ActionLog.actor_id == user_id)).all():
         session.delete(log)
 
-    # 🆕 2. Удаляем историю IP-адресов
+    # 2. Удаляем историю IP-адресов
     for ip_log in session.exec(select(IPLog).where(IPLog.user_id == user_id)).all():
         session.delete(ip_log)
 
-    # 🆕 3. Удаляем закладки
+    # 3. Удаляем закладки
     for bookmark in session.exec(select(Bookmark).where(Bookmark.user_id == user_id)).all():
         session.delete(bookmark)
 
-    # 🆕 4. Удаляем ключи шифрования (E2EE)
+    # 4. Удаляем ключи шифрования (E2EE) пользователя
     for key in session.exec(select(UserKey).where(UserKey.user_id == user_id)).all():
         session.delete(key)
 
-    # 🆕 5. Удаляем баг-репорты, которые он отправлял
+    # 5. Удаляем баг-репорты, которые он отправлял
     for bug in session.exec(select(BugReport).where(BugReport.reporter_id == user_id)).all():
         session.delete(bug)
 
     # 6. Удаляем все посты пользователя (с зависимостями)
     posts = session.exec(select(Post).where(Post.author_id == user_id)).all()
     for post in posts:
-        # Лайки на посте
         for like in session.exec(select(Like).where(Like.post_id == post.id)).all():
             session.delete(like)
-        # Теги поста
         for pt in session.exec(select(PostTag).where(PostTag.post_id == post.id)).all():
             session.delete(pt)
-        # Уведомления связанные с постом
         for notif in session.exec(select(Notification).where(Notification.post_id == post.id)).all():
             session.delete(notif)
-        # Рекурсивно удаляем ВСЕ ответы (а не только прямые)
+        # Рекурсивно удаляем все ответы
         def delete_replies_recursive(parent_id):
             replies = session.exec(select(Post).where(Post.reply_to_id == parent_id)).all()
             for r in replies:
@@ -2265,69 +2262,66 @@ def admin_delete_user(
             file_path = os.path.join("uploads", post.media_url.split("/")[-1])
             if os.path.exists(file_path):
                 os.remove(file_path)
-        # Сам пост
         session.delete(post)
 
     # 7. Удаляем лайки, которые пользователь поставил
     for like in session.exec(select(Like).where(Like.user_id == user_id)).all():
         session.delete(like)
 
-    # 8. Удаляем подписки (где он подписчик или цель)
+    # 8. Удаляем подписки
     for follow in session.exec(
-        select(Follow).where(
-            (Follow.follower_id == user_id) | (Follow.followee_id == user_id)
-        )
+        select(Follow).where((Follow.follower_id == user_id) | (Follow.followee_id == user_id))
     ).all():
         session.delete(follow)
 
-    # 9. Удаляем уведомления (где он получатель или автор действия)
+    # 9. Удаляем уведомления
     for notif in session.exec(
-        select(Notification).where(
-            (Notification.user_id == user_id) | (Notification.actor_id == user_id)
-        )
+        select(Notification).where((Notification.user_id == user_id) | (Notification.actor_id == user_id))
     ).all():
         session.delete(notif)
 
-    # 10. Удаляем сообщения в чатах
-    for msg in session.exec(select(Message).where(Message.sender_id == user_id)).all():
-        session.delete(msg)
-
-    # 11. Удаляем чаты, где он участник
+    # 10. 🆕 ИСПРАВЛЕНИЕ: Удаляем чаты вместе со ВСЕМИ сообщениями в них
     memberships = session.exec(
         select(ChatMember).where(ChatMember.user_id == user_id)
     ).all()
     for membership in memberships:
-        # Удаляем всех участников этого чата
+        chat_id = membership.chat_id
+        
+        # 🆕 10.1. Удаляем ВСЕ сообщения в этом чате (и его, и собеседника)
+        for msg in session.exec(select(Message).where(Message.chat_id == chat_id)).all():
+            # Можно также удалить медиа сообщений из Cloudinary, если нужно
+            session.delete(msg)
+        
+        # 🆕 10.2. Удаляем сессионные ключи шифрования (E2EE) этого чата
+        for sk in session.exec(select(ChatSessionKey).where(ChatSessionKey.chat_id == chat_id)).all():
+            session.delete(sk)
+        
+        # 10.3. Удаляем всех участников этого чата
         for other_member in session.exec(
-            select(ChatMember).where(ChatMember.chat_id == membership.chat_id)
+            select(ChatMember).where(ChatMember.chat_id == chat_id)
         ).all():
             session.delete(other_member)
-        # Удаляем сам чат
-        chat = session.get(Chat, membership.chat_id)
+        
+        # 10.4. Удаляем сам чат
+        chat = session.get(Chat, chat_id)
         if chat:
-            # 🆕 Удаляем session keys чата
-            for sk in session.exec(select(ChatSessionKey).where(ChatSessionKey.chat_id == chat.id)).all():
-                session.delete(sk)
             session.delete(chat)
 
-    # 12. Удаляем жалобы (где он автор жалобы)
+    # 11. Удаляем жалобы (где он автор)
     for report in session.exec(select(Report).where(Report.reporter_id == user_id)).all():
         session.delete(report)
 
-    # 13. Удаляем жалобы НА пользователя (если он был целью)
+    # 12. Удаляем жалобы НА пользователя
     for report in session.exec(
-        select(Report).where(
-            Report.target_type == "user",
-            Report.target_id == user_id,
-        )
+        select(Report).where(Report.target_type == "user", Report.target_id == user_id)
     ).all():
         session.delete(report)
 
-    # 14. Снимаем роль с пользователя перед удалением
+    # 13. Снимаем роль
     target.role_id = None
     session.add(target)
 
-    # 15. Удаляем аватарку из Cloudinary
+    # 14. Удаляем аватарку из Cloudinary
     if target.avatar_url and "cloudinary.com" in target.avatar_url:
         try:
             public_id = extract_cloudinary_public_id(target.avatar_url)
@@ -2336,7 +2330,7 @@ def admin_delete_user(
         except Exception:
             pass
 
-    # 16. Удаляем самого пользователя
+    # 15. Удаляем самого пользователя
     session.delete(target)
     
     log_action(session, staff.id, "delete_user",
