@@ -13,7 +13,6 @@ import re
 import json
 import cloudinary
 import cloudinary.uploader
-import cloudinary.api
 from websocket_manager import manager
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -86,6 +85,11 @@ app.add_middleware(
 # Rate limiter — ВТОРОЙ
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "service": "nebula-api"}
 
 
 @app.middleware("http")
@@ -3832,13 +3836,9 @@ def delete_update(
 async def websocket_endpoint(
     websocket: WebSocket,
     token: Optional[str] = None,
-    session: Session = Depends(get_session),
 ):
-    """
-    WebSocket соединение с аутентификацией через query-параметр.
-    Подключение: ws://host/ws?token=JWT
-    """
-    # 1. Аутентификация через JWT
+    """WebSocket с аутентификацией через query-параметр."""
+    # 1. Аутентификация
     user_id = None
     if token:
         try:
@@ -3852,36 +3852,32 @@ async def websocket_endpoint(
         await websocket.close(code=4001, reason="Not authenticated")
         return
     
-    # Проверка, что пользователь существует и не забанен
-    user = session.get(User, user_id)
-    if not user or user.is_banned:
-        await websocket.close(code=4003, reason="Banned or not found")
-        return
-    
-    # 2. Подключаем к менеджеру
-    await manager.connect(websocket, user_id)
-    
-    # Обновляем last_seen
-    user.last_seen = datetime.now(timezone.utc)
-    session.add(user)
-    session.commit()
-    
-    try:
-        # 3. Держим соединение открытым и слушаем пинги от клиента
-        while True:
-            # Ждём любое сообщение (клиент может отправлять heartbeat)
-            data = await websocket.receive_text()
-            
-            # Простой heartbeat protocol
-            if data == "ping":
-                await websocket.send_text(json.dumps({"event": "pong"}))
-    
-    except WebSocketDisconnect:
-        manager.disconnect(websocket, user_id)
-    except Exception as e:
-        print(f"❌ WS error for user {user_id}: {e}")
-        manager.disconnect(websocket, user_id)
-
+    # 2. 🆕 Используем Session напрямую (без Depends — надёжнее для WS на Render)
+    with Session(engine) as session:
+        user = session.get(User, user_id)
+        if not user or user.is_banned:
+            await websocket.close(code=4003, reason="Banned or not found")
+            return
+        
+        # 3. Подключаем к менеджеру
+        await manager.connect(websocket, user_id)
+        
+        # Обновляем last_seen
+        user.last_seen = datetime.now(timezone.utc)
+        session.add(user)
+        session.commit()
+        
+        try:
+            # 4. Держим соединение открытым
+            while True:
+                data = await websocket.receive_text()
+                if data == "ping":
+                    await websocket.send_text(json.dumps({"event": "pong"}))
+        except WebSocketDisconnect:
+            manager.disconnect(websocket, user_id)
+        except Exception as e:
+            print(f"❌ WS error for user {user_id}: {e}")
+            manager.disconnect(websocket, user_id)
 
 @app.get("/api/online-count")
 def get_online_count(user: User = Depends(get_current_user)):
