@@ -1911,7 +1911,20 @@ def tag_posts(tag_name: str, session: Session = Depends(get_session)):
 
 @app.get("/api/roles")
 def list_roles(session: Session = Depends(get_session)):
-    roles = session.exec(select(Role).order_by(Role.level.desc())).all()
+    roles = session.exec(select(Role)).all()
+    
+    # Сортируем: сначала staff по position, потом остальные по level DESC
+    staff_roles = sorted(
+        [r for r in roles if r.is_staff],
+        key=lambda r: (r.position or 0)
+    )
+    other_roles = sorted(
+        [r for r in roles if not r.is_staff],
+        key=lambda r: -(r.level or 0)
+    )
+    
+    sorted_roles = staff_roles + other_roles
+    
     return [
         {
             "id": r.id,
@@ -1923,9 +1936,8 @@ def list_roles(session: Session = Depends(get_session)):
             "position": r.position or 0,
             "permissions": json.loads(r.permissions),
         }
-        for r in roles
+        for r in sorted_roles
     ]
-
 
 @app.post("/api/roles")
 def create_role(
@@ -3632,9 +3644,9 @@ def get_rules(session: Session = Depends(get_session)):
         staff_roles = session.exec(
             select(Role)
             .where(Role.is_staff == True)
-            .order_by(Role.level.desc())
+            .order_by(Role.position.asc())
         ).all()
-        
+
         roles_section = {
             "id": "roles",
             "heading": "Команда NEBULA",
