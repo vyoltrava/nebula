@@ -144,21 +144,33 @@ export default function TechnicalPage() {
     if (res.ok) setIpBlocks(await res.json());
   }
 
-  async function loadLogs() {
-    const token = getToken();
-    if (!token) return;
-    setLogsLoading(true);
-    try {
-      const url = logsFilter
-        ? `${process.env.NEXT_PUBLIC_API_URL}/api/admin/logs?limit=100&action=${logsFilter}`
-        : `${process.env.NEXT_PUBLIC_API_URL}/api/admin/logs?limit=100`;
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setLogs(await res.json());
-    } finally {
-      setLogsLoading(false);
+async function loadLogs() {
+  const token = getToken();
+  if (!token) return;
+  setLogsLoading(true);
+  try {
+    const url = logsFilter
+      ? `${process.env.NEXT_PUBLIC_API_URL}/api/admin/logs?limit=100&action=${logsFilter}`
+      : `${process.env.NEXT_PUBLIC_API_URL}/api/admin/logs?limit=100`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) {
+      const data = await res.json();
+      console.log("✅ Logs loaded:", data);
+      setLogs(Array.isArray(data) ? data : []);
+    } else {
+      const errText = await res.text();
+      console.error("❌ Logs load failed:", res.status, errText);
+      alert(`Ошибка загрузки логов: ${res.status}`);
+      setLogs([]);
     }
+  } catch (err) {
+    console.error("❌ Logs network error:", err);
+    alert("Ошибка сети при загрузке логов");
+    setLogs([]);
+  } finally {
+    setLogsLoading(false);
   }
-
+}
   async function loadIpHistory(userId: number) {
     const token = getToken();
     if (!token) return;

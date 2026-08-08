@@ -1680,11 +1680,23 @@ def admin_delete_all_user_posts(
 
 @app.get("/api/admin/stats")
 def admin_get_stats(
+    request: Request,
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
     if not has_permission(staff, "tech_access", session):
         raise HTTPException(403, "No permission: tech_access")
+    
+    # 🆕 Логируем посещение техпанели (чтобы IP попал в историю)
+    ip = get_client_ip(request)
+    session.add(IPLog(
+        user_id=staff.id,
+        ip_address=ip,
+        user_agent=request.headers.get("user-agent"),
+        action="tech_access"
+    ))
+    log_action(session, staff.id, "tech_panel_access", ip_address=ip)
+    session.commit()
     
     # Общие счётчики
     total_users = session.exec(
@@ -3013,8 +3025,9 @@ def list_reports(
 
 @app.post("/api/reports/{report_id}/resolve")
 def resolve_report(
+    request: Request,  # ← ДОБАВЬ
     report_id: int,
-    action: str = Form(...),  # delete_post, ban_user, ignore
+    action: str = Form(...),
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
@@ -3074,8 +3087,15 @@ def resolve_report(
     report.resolved_by = staff.id
     report.resolved_at = datetime.now()
     session.add(report)
-    log_action(session, user.id, "delete_post",
-               target_type="post", target_id=post_id)
+    
+    # Логируем действие
+    log_action(
+        session, staff.id, f"resolve_report_{action}",
+        target_type=report.target_type,
+        target_id=report.target_id,
+        details={"action": action, "reason": report.reason},
+        ip_address=get_client_ip(request) if hasattr(request, 'headers') else None,
+    )
     session.commit()
     
     return {"ok": True}
@@ -3218,6 +3238,7 @@ def delete_ip_block(
 
 @app.get("/api/admin/logs")
 def list_action_logs(
+    request: Request,
     limit: int = 100,
     action: Optional[str] = None,
     staff: User = Depends(require_staff),
@@ -3226,26 +3247,76 @@ def list_action_logs(
     if not has_permission(staff, "tech_access", session):
         raise HTTPException(403, "Нет прав")
     
+    print(f"📋 Loading logs: limit={limit}, action={action}")
+    
     query = select(ActionLog).order_by(ActionLog.created_at.desc()).limit(limit)
     if action:
         query = query.where(ActionLog.action == action)
     
     logs = session.exec(query).all()
+    print(f"📋 Found {len(logs)} logs in DB")
+    
     result = []
     for log in logs:
-        actor = session.get(User, log.actor_id) if log.actor_id else None
-        result.append({
-            "id": log.id,
-            "action": log.action,
-            "target_type": log.target_type,
-            "target_id": log.target_id,
-            "details": json.loads(log.details) if log.details else None,
-            "ip_address": log.ip_address,
-            "created_at": log.created_at.isoformat(),
-            "actor": user_out(actor, session) if actor else None,
-        })
+        try:
+            actor = session.get(User, log.actor_id) if log.actor_id else None
+            
+            # Безопасный парсинг JSON
+            details_parsed = None
+            if log.details:
+                try:
+                    details_parsed = json.loads(log.details)
+                except Exception:
+                    details_parsed = {"raw": str(log.details)}
+            
+            result.append({
+                "id": log.id,
+                "action": log.action,
+                "target_type": log.target_type,
+                "target_id": log.target_id,
+                "details": details_parsed,
+                "ip_address": log.ip_address,
+                "created_at": log.created_at.isoformat(),
+                "actor": user_out(actor, session) if actor else None,
+            })
+        except Exception as e:
+            print(f"❌ Error parsing log {log.id}: {e}")
+            continue
+    
+    print(f"📋 Returning {len(result)} logs")
     return result
 
+@app.get("/api/admin/logs/debug")
+def debug_logs(
+    request: Request,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Диагностика: сколько логов в БД и их структура"""
+    if not has_permission(staff, "tech_access", session):
+        raise HTTPException(403, "Нет прав")
+    
+    total = session.exec(select(func.count()).select_from(ActionLog)).one()
+    sample = session.exec(select(ActionLog).order_by(ActionLog.created_at.desc()).limit(3)).all()
+    
+    sample_data = []
+    for log in sample:
+        sample_data.append({
+            "id": log.id,
+            "action": log.action,
+            "actor_id": log.actor_id,
+            "target_type": log.target_type,
+            "target_id": log.target_id,
+            "details_type": type(log.details).__name__,
+            "details_value": str(log.details)[:200] if log.details else None,
+            "ip_address": log.ip_address,
+            "created_at": log.created_at.isoformat() if log.created_at else None,
+        })
+    
+    return {
+        "total_in_db": total,
+        "sample": sample_data,
+    }
 
 @app.delete("/api/admin/logs")
 def clear_action_logs(
