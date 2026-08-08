@@ -345,16 +345,18 @@ export function Post({
               />
               <span className="font-normal text-white/50">{handle}</span>
             </div>
-            <button
-              onClick={toggleFollow}
-              className={`text-xs font-bold px-3 py-1 rounded-full border transition-all shrink-0 ${
-                following
-                  ? "border-[#8b5cf6] bg-[#8b5cf6] text-white"
-                  : "border-white/20 text-white/70 hover:bg-white/10 hover:border-white/40 hover:text-white"
-              }`}
-            >
-              {following ? "Читаю" : "Читать"}
-            </button>
+            {currentUser?.id !== author_id && (
+              <button
+                onClick={toggleFollow}
+                className={`text-xs font-bold px-3 py-1 rounded-full border transition-all shrink-0 ${
+                  following
+                    ? "border-[#8b5cf6] bg-[#8b5cf6] text-white"
+                    : "border-white/20 text-white/70 hover:bg-white/10 hover:border-white/40 hover:text-white"
+                }`}
+              >
+                {following ? "Читаю" : "Читать"}
+              </button>
+            )}
           </div>
           
           <p className="mt-1 text-white/90 whitespace-pre-wrap break-words">{renderText(text)}</p>

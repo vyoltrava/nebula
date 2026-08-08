@@ -281,16 +281,18 @@ export default function UserProfilePage() {
 
                 {/* Кнопки действий */}
                 <div className="flex gap-2 shrink-0 w-full md:w-auto justify-center md:justify-end">
-                  <button
-                    onClick={toggleFollow}
-                    className={`flex-1 md:flex-none px-4 md:px-5 py-2 rounded-full border font-bold text-sm transition-all ${
-                      following
-                        ? "border-[#8b5cf6] bg-[#8b5cf6] text-white"
-                        : "border-white/20 text-white/80 hover:bg-white/10 hover:border-white/40 hover:text-white"
-                    }`}
-                  >
-                    {following ? "Читаю" : "Читать"}
-                  </button>
+                  {!isOwnProfile && (
+                    <button
+                      onClick={toggleFollow}
+                      className={`flex-1 md:flex-none px-4 md:px-5 py-2 rounded-full border font-bold text-sm transition-all ${
+                        following
+                          ? "border-[#8b5cf6] bg-[#8b5cf6] text-white"
+                          : "border-white/20 text-white/80 hover:bg-white/10 hover:border-white/40 hover:text-white"
+                      }`}
+                    >
+                      {following ? "Читаю" : "Читать"}
+                    </button>
+                  )}
                   <button
                     onClick={startChat}
                     className="flex items-center justify-center gap-1 flex-1 md:flex-none px-3 md:px-4 py-2 rounded-full border border-white/20 text-white/80 font-bold text-sm hover:bg-white/10 hover:border-white/40 hover:text-white transition-all"
