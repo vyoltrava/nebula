@@ -752,11 +752,13 @@ async def upload_avatar(
     # Загружаем новую
     try:
         print(f"  Uploading to Cloudinary...")
-        result = cloudinary.uploader.upload(
-            content,
-            folder=UPLOAD_FOLDER,
-            resource_type="image",
-            transformation=[{"width": 400, "height": 400, "crop": "fill"}],
+        result = await run_in_threadpool(
+            lambda: cloudinary.uploader.upload(
+                content,
+                folder=UPLOAD_FOLDER,
+                resource_type="image",
+                transformation=[{"width": 400, "height": 400, "crop": "fill"}],
+            )
         )
         user.avatar_url = result.get("secure_url")
         print(f"  ✅ Cloudinary upload success: {user.avatar_url}")
@@ -775,13 +777,10 @@ def recommended_users(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    # 1. Получаем ID пользователей, на которых подписан текущий
     followed_ids = set(session.exec(
         select(Follow.followee_id).where(Follow.follower_id == user.id)
     ).all())
-    
-    # 2. Один запрос с JOIN и подсчётом подписчиков
-    from sqlalchemy import func
+
     query = (
         select(User, func.count(Follow.follower_id).label("followers_count"))
         .outerjoin(Follow, Follow.followee_id == User.id)
@@ -794,9 +793,9 @@ def recommended_users(
         .order_by(func.count(Follow.follower_id).desc())
         .limit(5)
     )
-    
+
     results = session.exec(query).all()
-    
+
     return [
         {**user_out(user_obj, session), "followers_count": count}
         for user_obj, count in results
@@ -811,19 +810,19 @@ def search_users_by_query(
     """Поиск пользователей и постов по query-параметру"""
     if not q.strip():
         return {"users": [], "posts": []}
-    
+
     pattern = f"%{q.strip().lower()}%"
-    
+
     # Поиск пользователей
     users = session.exec(
         select(User)
         .where(
-            (func.lower(User.username).like(pattern)) 
+            (func.lower(User.username).like(pattern))
             | (func.lower(User.display_name).like(pattern))
         )
         .limit(limit)
     ).all()
-    
+
     # Поиск постов
     posts = session.exec(
         select(Post)
@@ -834,17 +833,38 @@ def search_users_by_query(
         .order_by(Post.created_at.desc())
         .limit(limit)
     ).all()
-    
-    # Формируем результат для постов
+
+    if not posts:
+        return {
+            "users": [user_out(u, session) for u in users],
+            "posts": []
+        }
+
+    # Массовые запросы вместо N+1
+    post_ids = [p.id for p in posts]
+    author_ids = list({p.author_id for p in posts})
+
+    authors = {
+        u.id: u for u in session.exec(
+            select(User).where(User.id.in_(author_ids))
+        ).all()
+    }
+
+    likes_counts = dict(session.exec(
+        select(Like.post_id, func.count(Like.id))
+        .where(Like.post_id.in_(post_ids))
+        .group_by(Like.post_id)
+    ).all())
+
+    replies_counts = dict(session.exec(
+        select(Post.reply_to_id, func.count(Post.id))
+        .where(Post.reply_to_id.in_(post_ids))
+        .group_by(Post.reply_to_id)
+    ).all())
+
     result_posts = []
     for p in posts:
-        author = session.get(User, p.author_id)
-        likes_count = session.exec(
-            select(func.count()).select_from(Like).where(Like.post_id == p.id)
-        ).one()
-        replies_count = session.exec(
-            select(func.count()).select_from(Post).where(Post.reply_to_id == p.id)
-        ).one()
+        author = authors.get(p.author_id)
         result_posts.append({
             "id": p.id,
             "author_id": p.author_id,
@@ -857,12 +877,11 @@ def search_users_by_query(
             "author_role": get_author_role(author, session) if author else None,
             "text": p.text,
             "media_url": p.media_url,
-            "likes_count": likes_count,
+            "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": False,
-            "replies_count": replies_count,
+            "replies_count": replies_counts.get(p.id, 0),
         })
-    
-    # Возвращаем объект с двумя ключами (как ожидает фронтенд)
+
     return {
         "users": [user_out(u, session) for u in users],
         "posts": result_posts
@@ -977,42 +996,61 @@ def get_user_posts(
         .where(Post.author_id == user_id, Post.reply_to_id == None)
         .order_by(Post.created_at.desc())
     )
-    
+
     if cursor:
         last_post = session.get(Post, cursor)
         if last_post:
             query = query.where(Post.created_at < last_post.created_at)
-    
+
     posts = session.exec(query.limit(limit)).all()
-    
+
+    if not posts:
+        return {"posts": [], "has_more": False, "next_cursor": None}
+
+    # Массовые запросы вместо N+1
+    post_ids = [p.id for p in posts]
+    author_ids = list({p.author_id for p in posts})
+
+    authors = {
+        u.id: u for u in session.exec(
+            select(User).where(User.id.in_(author_ids))
+        ).all()
+    }
+
+    likes_counts = dict(session.exec(
+        select(Like.post_id, func.count(Like.id))
+        .where(Like.post_id.in_(post_ids))
+        .group_by(Like.post_id)
+    ).all())
+
+    replies_counts = dict(session.exec(
+        select(Post.reply_to_id, func.count(Post.id))
+        .where(Post.reply_to_id.in_(post_ids))
+        .group_by(Post.reply_to_id)
+    ).all())
+
     result = []
     for p in posts:
-        author = session.get(User, p.author_id)
-        likes_count = session.exec(
-            select(func.count()).select_from(Like).where(Like.post_id == p.id)
-        ).one()
-        replies_count = session.exec(
-            select(func.count()).select_from(Post).where(Post.reply_to_id == p.id)
-        ).one()
+        author = authors.get(p.author_id)
         result.append({
             "id": p.id,
             "author_id": p.author_id,
-            "author": author.display_name,
-            "handle": f"@{author.username}",
-            "author_avatar": author.avatar_url,
-            "author_is_admin": author.is_admin,
-            "author_is_moderator": author.is_moderator,
-            "author_is_banned": author.is_banned,
-            "author_role": get_author_role(author, session),
+            "author": author.display_name if author else "Unknown",
+            "handle": f"@{author.username}" if author else "@unknown",
+            "author_avatar": author.avatar_url if author else None,
+            "author_is_admin": author.is_admin if author else False,
+            "author_is_moderator": author.is_moderator if author else False,
+            "author_is_banned": author.is_banned if author else False,
+            "author_role": get_author_role(author, session) if author else None,
             "text": p.text,
             "media_url": p.media_url,
-            "likes_count": likes_count,
+            "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": False,
-            "replies_count": replies_count,
+            "replies_count": replies_counts.get(p.id, 0),
         })
-    
+
     has_more = len(posts) == limit
-    
+
     return {
         "posts": result,
         "has_more": has_more,
@@ -1059,48 +1097,44 @@ def get_following(user_id: int, session: Session = Depends(get_session)):
 def search(request: Request, q: str, session: Session = Depends(get_session)):
     if not q.strip():
         return {"users": [], "posts": []}
-    
+
     pattern = f"%{q}%"
-    
-    # Поиск пользователей
+
     users = session.exec(
         select(User).where(
             (User.username.like(pattern)) | (User.display_name.like(pattern))
         ).limit(10)
     ).all()
-    
-    # Поиск постов
+
     posts = session.exec(
         select(Post).where(
             Post.text.like(pattern),
             Post.reply_to_id == None,
         ).order_by(Post.created_at.desc()).limit(20)
     ).all()
-    
+
     if not posts:
         return {"users": [user_out(u, session) for u in users], "posts": []}
-    
-    # Массовые запросы
+
     post_ids = [p.id for p in posts]
     author_ids = list({p.author_id for p in posts})
-    
+
     authors = {u.id: u for u in session.exec(
         select(User).where(User.id.in_(author_ids))
     ).all()}
-    
+
     likes_counts = dict(session.exec(
         select(Like.post_id, func.count(Like.id))
         .where(Like.post_id.in_(post_ids))
         .group_by(Like.post_id)
     ).all())
-    
+
     replies_counts = dict(session.exec(
         select(Post.reply_to_id, func.count(Post.id))
         .where(Post.reply_to_id.in_(post_ids))
         .group_by(Post.reply_to_id)
     ).all())
-    
-    # Собираем результат
+
     result_posts = []
     for p in posts:
         author = authors.get(p.author_id)
@@ -1120,7 +1154,7 @@ def search(request: Request, q: str, session: Session = Depends(get_session)):
             "liked_by_me": False,
             "replies_count": replies_counts.get(p.id, 0),
         })
-    
+
     return {"users": [user_out(u, session) for u in users], "posts": result_posts}
 
 @app.get("/api/posts/following")
@@ -1132,6 +1166,7 @@ def get_following_posts(
 ):
     follows = session.exec(select(Follow).where(Follow.follower_id == user.id)).all()
     followee_ids = [f.followee_id for f in follows]
+
     if not followee_ids:
         return {"posts": [], "has_more": False, "next_cursor": None}
 
@@ -1148,43 +1183,58 @@ def get_following_posts(
 
     posts = session.exec(query.limit(limit)).all()
 
-    # 🆕 Лайки и закладки — 2 запроса вместо 40
-    liked_ids = set()
-    bookmarked_ids = set()
-    if posts:
-        ids = [p.id for p in posts]
-        liked_ids = set(session.exec(
-            select(Like.post_id).where(Like.user_id == user.id, Like.post_id.in_(ids))
-        ).all())
-        bookmarked_ids = set(session.exec(
-            select(Bookmark.post_id).where(Bookmark.user_id == user.id, Bookmark.post_id.in_(ids))
-        ).all())
+    if not posts:
+        return {"posts": [], "has_more": False, "next_cursor": None}
+
+    # Массовые запросы
+    post_ids = [p.id for p in posts]
+    author_ids = list({p.author_id for p in posts})
+
+    authors = {
+        u.id: u for u in session.exec(
+            select(User).where(User.id.in_(author_ids))
+        ).all()
+    }
+
+    likes_counts = dict(session.exec(
+        select(Like.post_id, func.count(Like.id))
+        .where(Like.post_id.in_(post_ids))
+        .group_by(Like.post_id)
+    ).all())
+
+    replies_counts = dict(session.exec(
+        select(Post.reply_to_id, func.count(Post.id))
+        .where(Post.reply_to_id.in_(post_ids))
+        .group_by(Post.reply_to_id)
+    ).all())
+
+    liked_ids = set(session.exec(
+        select(Like.post_id).where(Like.user_id == user.id, Like.post_id.in_(post_ids))
+    ).all())
+
+    bookmarked_ids = set(session.exec(
+        select(Bookmark.post_id).where(Bookmark.user_id == user.id, Bookmark.post_id.in_(post_ids))
+    ).all())
 
     result = []
     for p in posts:
-        author = session.get(User, p.author_id)
-        likes_count = session.exec(
-            select(func.count()).select_from(Like).where(Like.post_id == p.id)
-        ).one()
-        replies_count = session.exec(
-            select(func.count()).select_from(Post).where(Post.reply_to_id == p.id)
-        ).one()
+        author = authors.get(p.author_id)
         result.append({
             "id": p.id,
             "author_id": p.author_id,
-            "author": author.display_name,
-            "handle": f"@{author.username}",
-            "author_avatar": author.avatar_url,
-            "author_is_admin": author.is_admin,
-            "author_is_moderator": author.is_moderator,
-            "author_is_banned": author.is_banned,
-            "author_role": get_author_role(author, session),
+            "author": author.display_name if author else "Unknown",
+            "handle": f"@{author.username}" if author else "@unknown",
+            "author_avatar": author.avatar_url if author else None,
+            "author_is_admin": author.is_admin if author else False,
+            "author_is_moderator": author.is_moderator if author else False,
+            "author_is_banned": author.is_banned if author else False,
+            "author_role": get_author_role(author, session) if author else None,
             "text": p.text,
             "media_url": p.media_url,
-            "likes_count": likes_count,
+            "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": p.id in liked_ids,
             "bookmarked": p.id in bookmarked_ids,
-            "replies_count": replies_count,
+            "replies_count": replies_counts.get(p.id, 0),
         })
 
     has_more = len(posts) == limit
@@ -1204,29 +1254,49 @@ def get_liked_posts(
     likes = session.exec(
         select(Like).where(Like.user_id == user.id).order_by(Like.created_at.desc())
     ).all()
+
     post_ids = [l.post_id for l in likes]
+
     if not post_ids:
         return []
+
     posts = session.exec(select(Post).where(Post.id.in_(post_ids))).all()
+
+    if not posts:
+        return []
+
+    # Массовые запросы
+    ids = [p.id for p in posts]
+    author_ids = list({p.author_id for p in posts})
+
+    authors = {
+        u.id: u for u in session.exec(
+            select(User).where(User.id.in_(author_ids))
+        ).all()
+    }
+
+    likes_counts = dict(session.exec(
+        select(Like.post_id, func.count(Like.id))
+        .where(Like.post_id.in_(ids))
+        .group_by(Like.post_id)
+    ).all())
+
     result = []
     for p in posts:
-        author = session.get(User, p.author_id)
-        likes_count = session.exec(
-            select(func.count()).select_from(Like).where(Like.post_id == p.id)
-        ).one()
+        author = authors.get(p.author_id)
         result.append({
             "id": p.id,
             "author_id": p.author_id,
-            "author": author.display_name,
-            "handle": f"@{author.username}",
-            "author_avatar": author.avatar_url,
-            "author_is_admin": author.is_admin,
-            "author_is_moderator": author.is_moderator,
-            "author_is_banned": author.is_banned,
-            "author_role": get_author_role(author, session),
+            "author": author.display_name if author else "Unknown",
+            "handle": f"@{author.username}" if author else "@unknown",
+            "author_avatar": author.avatar_url if author else None,
+            "author_is_admin": author.is_admin if author else False,
+            "author_is_moderator": author.is_moderator if author else False,
+            "author_is_banned": author.is_banned if author else False,
+            "author_role": get_author_role(author, session) if author else None,
             "text": p.text,
             "media_url": p.media_url,
-            "likes_count": likes_count,
+            "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": True,
             "replies_count": 0,
         })
@@ -1235,10 +1305,10 @@ def get_liked_posts(
 
 @app.get("/api/posts/{post_id}/replies")
 def get_replies(post_id: int, session: Session = Depends(get_session)):
-    # 1. Собираем все ID в дереве ответов (BFS)
+    # 1. BFS для сбора всех ID в дереве
     post_ids_in_thread = {post_id}
     queue = [post_id]
-    
+
     while queue:
         current_id = queue.pop(0)
         children = session.exec(
@@ -1248,41 +1318,44 @@ def get_replies(post_id: int, session: Session = Depends(get_session)):
             if child_id not in post_ids_in_thread:
                 post_ids_in_thread.add(child_id)
                 queue.append(child_id)
-    
+
     id_list = list(post_ids_in_thread)
-    
+
     # 2. Один запрос на все ответы
     replies = session.exec(
         select(Post).where(Post.id.in_(id_list), Post.id != post_id)
         .order_by(Post.created_at.asc())
     ).all()
-    
-    # 3. Массовые запросы для лайков
+
+    if not replies:
+        return []
+
     reply_ids = [p.id for p in replies]
+
+    # 3. Массовые запросы для лайков и ответов
     likes_counts = dict(session.exec(
         select(Like.post_id, func.count(Like.id))
         .where(Like.post_id.in_(reply_ids))
         .group_by(Like.post_id)
     ).all())
-    
-    # 4. Массовые запросы для ответов
+
     replies_counts = dict(session.exec(
         select(Post.reply_to_id, func.count(Post.id))
         .where(Post.reply_to_id.in_(reply_ids))
         .group_by(Post.reply_to_id)
     ).all())
-    
-    # 5. Массовые запросы для авторов
+
+    # 4. Массовый запрос авторов
     author_ids = list({p.author_id for p in replies})
     authors = {u.id: u for u in session.exec(
         select(User).where(User.id.in_(author_ids))
     ).all()}
-    
-    # 6. Собираем результат
+
+    # 5. Собираем результат
     result = []
     for p in replies:
         author = authors.get(p.author_id)
-        
+
         parent_info = None
         if p.reply_to_id and p.reply_to_id != post_id:
             parent_post = session.get(Post, p.reply_to_id)
@@ -1295,7 +1368,7 @@ def get_replies(post_id: int, session: Session = Depends(get_session)):
                         "author_name": parent_author.display_name,
                         "author_username": parent_author.username,
                     }
-        
+
         result.append({
             "id": p.id,
             "author_id": p.author_id,
@@ -1316,7 +1389,7 @@ def get_replies(post_id: int, session: Session = Depends(get_session)):
             "parent": parent_info,
             "created_at": p.created_at.isoformat(),
         })
-    
+
     return result
 
 
