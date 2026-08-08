@@ -627,8 +627,13 @@ export default function ChatPage() {
 
                   {!isEditing && (
                     <div className={`flex items-center gap-2 mt-1 px-1 ${isMine ? "flex-row-reverse" : "flex-row"}`}>
-                      <p className={`text-[10px] ${isMine ? "text-white/60" : "text-white/40"}`}>
+                      <p className={`text-[10px] flex items-center gap-1 ${isMine ? "text-white/60" : "text-white/40"}`}>
                         {new Date(msg.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
+                        {isMine && (
+                          msg.read
+                            ? <CheckCheck size={12} className="text-sky-300" />
+                            : <Check size={12} className="text-white/50" />
+                        )}
                       </p>
                       {isMine && !isSecret && (
                         <div className="relative">
