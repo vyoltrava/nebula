@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
 import { MessageSquare, Search, Lock } from "lucide-react";
 import { getToken } from "@/lib/auth";
+import { triggerCountersRefresh } from "@/lib/events";
 
 
 export default function MessagesPage() {
@@ -49,7 +50,11 @@ export default function MessagesPage() {
 
   useEffect(() => {
     load();
-    const interval = setInterval(() => load(query), 5000);
+    triggerCountersRefresh(); // Обновляем счётчик в сайдбаре при открытии страницы
+    const interval = setInterval(() => {
+      load(query);
+      triggerCountersRefresh(); // И при каждом polling тоже
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -118,10 +123,13 @@ export default function MessagesPage() {
         {!loading && chats.map((chat) => {
           const glow = getGlowColor(chat.other);
           return (
-            <Link
+            <div
               key={chat.id}
-              href={`/messages/${chat.id}`}
-              className={`flex items-center gap-3 p-3 md:p-4 border-b border-white/10 hover:bg-white/5 transition-colors ${
+              onClick={() => {
+                triggerCountersRefresh();
+                router.push(`/messages/${chat.id}`);
+              }}
+              className={`flex items-center gap-3 p-3 md:p-4 border-b border-white/10 hover:bg-white/5 transition-colors cursor-pointer ${
                 chat.unread_count > 0 ? "bg-purple-500/5" : ""
               }`}
             >
@@ -179,7 +187,7 @@ export default function MessagesPage() {
                   {chat.unread_count}
                 </span>
               )}
-            </Link>
+            </div>
           );
         })}
       </main>
