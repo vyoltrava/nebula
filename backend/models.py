@@ -32,6 +32,7 @@ class Post(SQLModel, table=True):
     media_url: Optional[str] = None
     reply_to_id: Optional[int] = Field(default=None, foreign_key="post.id")
     created_at: datetime = Field(default_factory=utcnow, index=True)
+    views_count: int = Field(default=0)
 
 
 class Like(SQLModel, table=True):
@@ -203,3 +204,18 @@ class SiteRules(SQLModel, table=True):
     content: str = Field(default="{}")
     updated_by: Optional[int] = Field(default=None, foreign_key="user.id")
     updated_at: datetime = Field(default_factory=utcnow)
+
+class PostView(SQLModel, table=True):
+    __tablename__ = "postview"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    post_id: int = Field(foreign_key="post.id")
+    viewer_hash: str
+    viewed_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class Draft(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
+    text: str
+    media_url: Optional[str] = None
+    created_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))

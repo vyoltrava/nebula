@@ -13,6 +13,7 @@ import { ReportModal } from "./ReportModal";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import { isLikedCached, setLikedCache } from "@/lib/postCache";
 import { getCachedUser } from "@/lib/authCache";
+import { timeAgo } from "@/lib/time";
 
 
 function renderText(text: string) {
@@ -115,6 +116,8 @@ export function Post({
   liked_by_me,
   bookmarked,
   replies_count,
+  created_at,        // ← ДОБАВЬ ЭТО
+  views_count,
   showFullReplies = true,
 }: {
   id: number;
@@ -133,6 +136,8 @@ export function Post({
   liked_by_me: boolean;
   bookmarked?: boolean;
   replies_count: number;
+  created_at: string; // ← И ЭТО
+  views_count?: number;
   showFullReplies?: boolean;
 }) {
     // ✅ Получаем текущего пользователя из кеша (ОДИН раз при загрузке)
@@ -160,6 +165,14 @@ export function Post({
     const [following, setFollowing] = useState(false);
     const [showReport, setShowReport] = useState(false);
     const router = useRouter();
+
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/view`, {
+      method: "POST",
+      headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
+    });
+  }, [id]);
 
       // ⚡ Счётчик лайков обновляется в реальном времени
   useEffect(() => {
@@ -343,7 +356,7 @@ export function Post({
                 is_banned={author_is_banned}
                 role={author_role}
               />
-              <span className="font-normal text-white/50">{handle}</span>
+              <span className="font-normal text-white/50">{handle} · {timeAgo(created_at)}</span>
             </div>
             {currentUser?.id !== author_id && (
               <button
@@ -410,6 +423,12 @@ export function Post({
                 <Trash2 size={16} />
                 <span className="text-sm font-semibold">Удалить</span>
               </button>
+            )}
+            
+            {views_count !== undefined && (
+              <span className="text-sm text-white/40 flex items-center gap-1">
+                👁 {views_count}
+              </span>
             )}
 
             {rCount > 0 && (

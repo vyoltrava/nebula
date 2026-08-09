@@ -1093,6 +1093,7 @@ def get_user_posts(
             "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": False,
             "replies_count": replies_counts.get(p.id, 0),
+            "views_count": p.views_count or 0,
         })
 
     has_more = len(posts) == limit
@@ -1201,6 +1202,7 @@ def search(request: Request, q: str, session: Session = Depends(get_session)):
             "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": False,
             "replies_count": replies_counts.get(p.id, 0),
+            "views_count": p.views_count or 0,
         })
 
     return {"users": [user_out(u, session) for u in users], "posts": result_posts}
@@ -1283,6 +1285,7 @@ def get_following_posts(
             "liked_by_me": p.id in liked_ids,
             "bookmarked": p.id in bookmarked_ids,
             "replies_count": replies_counts.get(p.id, 0),
+            "views_count": p.views_count or 0,
         })
 
     has_more = len(posts) == limit
@@ -1347,6 +1350,7 @@ def get_liked_posts(
             "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": True,
             "replies_count": 0,
+            "views_count": p.views_count or 0,
         })
     return result
 
@@ -1609,6 +1613,7 @@ def list_bookmarks(
             "liked_by_me": post.id in liked_ids,
             "bookmarked": True,
             "replies_count": replies_map.get(post.id, 0),
+            "views_count": p.views_count or 0,
         })
     return result
 
@@ -1711,6 +1716,7 @@ def get_posts(
             "liked_by_me": p.id in liked_ids,
             "bookmarked": p.id in bookmarked_ids,
             "replies_count": replies_map.get(p.id, 0),
+            "views_count": p.views_count or 0,
         })
 
     return {
@@ -1924,6 +1930,7 @@ def tag_posts(tag_name: str, session: Session = Depends(get_session)):
             "likes_count": likes_map.get(p.id, 0),
             "liked_by_me": False,
             "replies_count": replies_map.get(p.id, 0),
+            "views_count": p.views_count or 0,
         })
     return result
 
@@ -4464,6 +4471,40 @@ def _update_last_seen_sync(user_id: int):
             user.last_seen = datetime.now(timezone.utc)
             session.add(user)
             session.commit()
+
+
+@app.post("/api/posts/{post_id}/view")
+def track_view(request: Request, post_id: int, session: Session = Depends(get_session)):
+    post = session.get(Post, post_id)
+    if not post:
+        raise HTTPException(404, "Post not found")
+    
+    token = request.headers.get("Authorization", "")
+    if token.startswith("Bearer "):
+        try:
+            payload = jwt.decode(token.split(" ", 1)[1], SECRET, algorithms=[ALGORITHM])
+            viewer_hash = f"u{payload['sub']}"
+        except Exception:
+            viewer_hash = f"ip:{get_client_ip(request)}"
+    else:
+        viewer_hash = f"ip:{get_client_ip(request)}"
+    
+    yesterday = datetime.now(timezone.utc) - timedelta(hours=24)
+    existing = session.exec(
+        select(PostView).where(
+            PostView.post_id == post_id,
+            PostView.viewer_hash == viewer_hash,
+            PostView.viewed_at > yesterday
+        )
+    ).first()
+    
+    if not existing:
+        session.add(PostView(post_id=post_id, viewer_hash=viewer_hash))
+        post.views_count = (post.views_count or 0) + 1
+        session.add(post)
+        session.commit()
+    
+    return {"views": post.views_count}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
