@@ -1,7 +1,17 @@
 export function timeAgo(date: string | Date | undefined): string {
   if (!date) return "";
+
+  // ✅ ФИКС: если строка без таймзоны — считаем что это UTC
+  let then: Date;
+  if (typeof date === "string" && !date.endsWith("Z") && !date.includes("+")) {
+    then = new Date(date + "Z");
+  } else {
+    then = new Date(date);
+  }
+
+  if (isNaN(then.getTime())) return "";
+
   const now = new Date();
-  const then = new Date(date);
   const diffMs = now.getTime() - then.getTime();
   const diffMin = Math.floor(diffMs / 60000);
   const diffHour = Math.floor(diffMin / 60);

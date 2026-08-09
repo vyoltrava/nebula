@@ -1835,6 +1835,8 @@ async def create_post(
             "liked_by_me": False,
             "bookmarked": False,
             "replies_count": 0,
+            "created_at": post.created_at.isoformat(),  # ← ДОБАВИТЬ
+            "views_count": 0,
         })
 
     return {
@@ -1852,6 +1854,8 @@ async def create_post(
         "likes_count": 0,
         "liked_by_me": False,
         "replies_count": 0,
+        "created_at": post.created_at.isoformat(),  # ← ДОБАВИТЬ
+        "views_count": 0,
     }
 
 
@@ -3950,7 +3954,7 @@ def resolve_report(
     # Помечаем жалобу как обработанную
     report.status = "resolved"
     report.resolved_by = staff.id
-    report.resolved_at = datetime.now()
+    report.resolved_at = datetime.now(timezone.utc)
     session.add(report)
     
     # Логируем действие
@@ -3983,7 +3987,7 @@ def reject_report(
     
     report.status = "rejected"
     report.resolved_by = staff.id
-    report.resolved_at = datetime.now()
+    report.resolved_at = datetime.now(timezone.utc)
     session.add(report)
     session.commit()
     
@@ -4286,7 +4290,7 @@ def update_bug_status(
     
     if status in ("resolved", "rejected"):
         bug.resolved_by = staff.id
-        bug.resolved_at = datetime.now()
+        bug.resolved_at = datetime.now(timezone.utc)
     else:
         bug.resolved_by = None
         bug.resolved_at = None
