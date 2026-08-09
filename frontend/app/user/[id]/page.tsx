@@ -320,18 +320,18 @@ export default function UserProfilePage() {
             <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
               
               {/* АВАТАРКА */}
-              <div className="relative group shrink-0">
-                <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-[#171717] overflow-hidden bg-[#2a2a2a]">
-                  <Avatar 
-                    src={profile.avatar_url} 
-                    name={profile.display_name} 
-                    id={profile.id} 
-                    size={160} 
-                    online={false}
-                  />
-                </div>
+              <div className="relative group shrink-0 w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-[#171717] overflow-hidden bg-[#2a2a2a]">
+                <Avatar 
+                  src={profile.avatar_url} 
+                  name={profile.display_name} 
+                  id={profile.id} 
+                  size={128}
+                  fill
+                  showBorder={false}
+                  online={false}
+                />
                 
-                {/* 🆕 Иконка онлайна — вынесена поверх аватарки, уменьшена в 2× */}
+                {/* Иконка онлайна */}
                 {isOnline(profile.last_seen) && (
                   <span className="absolute bottom-1 right-1 md:bottom-2 md:right-2 w-2.5 h-2.5 md:w-3.5 md:h-3.5 bg-emerald-500 border-[2.5px] border-[#171717] rounded-full z-10" />
                 )}
