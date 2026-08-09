@@ -39,7 +39,7 @@ export function Avatar({
     return (first + second).toUpperCase();
   }, [name]);
 
-  const borderClass = "border border-white/20";
+  const borderClass = "border-2 border-[#171717]";
   const dotSize = Math.max(8, Math.round(size * 0.28));
 
   return (
