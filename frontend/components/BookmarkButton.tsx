@@ -1,14 +1,21 @@
 "use client";
-import { useState } from "react";
 import { Bookmark } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { isBookmarkedCached, setBookmarkedCache } from "@/lib/postCache";
+import { useState, useEffect } from "react";
 
 export function BookmarkButton({ postId, initial }: { postId: number; initial?: boolean }) {
   const [bookmarked, setBookmarked] = useState<boolean>(() =>
     initial !== undefined ? initial : isBookmarkedCached(postId)
   );
   const [hasToken] = useState(() => !!getToken());
+
+    // Синхронизируемся с пропсом при обновлении данных извне (лента перезагрузилась и т.д.)
+  useEffect(() => {
+    if (initial !== undefined) {
+      setBookmarked(initial);
+    }
+  }, [initial]);
 
   if (!hasToken) return null;
 
