@@ -108,7 +108,7 @@ export function Sidebar() {
   const desktopSidebarContent = (
     <>
       <div className="mb-6">
-        <h1 className="font-logo text-4xl text-[#8b5cf6]">NEBULA</h1>
+        <h1 className="font-logo text-4xl text-[#8b5cf6]">NEBULA v 0.6</h1>
       </div>
 
       <nav className="flex flex-col gap-2">
