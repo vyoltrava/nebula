@@ -354,9 +354,8 @@ export function Post({
                 is_admin={author_is_admin}
                 is_moderator={author_is_moderator}
                 is_banned={author_is_banned}
-                role={author_role}
               />
-              <span className="font-normal text-white/50">{handle} · {timeAgo(created_at)}</span>
+              <span className="font-normal text-white/50">{handle} {created_at ? `· ${timeAgo(created_at)}` : ""}</span>
             </div>
             {currentUser?.id !== author_id && (
               <button

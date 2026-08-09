@@ -1094,6 +1094,7 @@ def get_user_posts(
             "liked_by_me": False,
             "replies_count": replies_counts.get(p.id, 0),
             "views_count": p.views_count or 0,
+            "created_at": p.created_at.isoformat(),
         })
 
     has_more = len(posts) == limit
@@ -1203,6 +1204,7 @@ def search(request: Request, q: str, session: Session = Depends(get_session)):
             "liked_by_me": False,
             "replies_count": replies_counts.get(p.id, 0),
             "views_count": p.views_count or 0,
+            "created_at": p.created_at.isoformat(),
         })
 
     return {"users": [user_out(u, session) for u in users], "posts": result_posts}
@@ -1286,6 +1288,7 @@ def get_following_posts(
             "bookmarked": p.id in bookmarked_ids,
             "replies_count": replies_counts.get(p.id, 0),
             "views_count": p.views_count or 0,
+            "created_at": p.created_at.isoformat(),
         })
 
     has_more = len(posts) == limit
@@ -1351,6 +1354,7 @@ def get_liked_posts(
             "liked_by_me": True,
             "replies_count": 0,
             "views_count": p.views_count or 0,
+            "created_at": p.created_at.isoformat(),
         })
     return result
 
@@ -1614,6 +1618,7 @@ def list_bookmarks(
             "bookmarked": True,
             "replies_count": replies_map.get(post.id, 0),
             "views_count": p.views_count or 0,
+            "created_at": p.created_at.isoformat(),
         })
     return result
 
@@ -1716,6 +1721,7 @@ def get_posts(
             "liked_by_me": p.id in liked_ids,
             "bookmarked": p.id in bookmarked_ids,
             "replies_count": replies_map.get(p.id, 0),
+            "created_at": p.created_at.isoformat(),
             "views_count": p.views_count or 0,
         })
 
@@ -1931,6 +1937,7 @@ def tag_posts(tag_name: str, session: Session = Depends(get_session)):
             "liked_by_me": False,
             "replies_count": replies_map.get(p.id, 0),
             "views_count": p.views_count or 0,
+            "created_at": p.created_at.isoformat(),
         })
     return result
 

@@ -1,4 +1,5 @@
-export function timeAgo(date: string | Date): string {
+export function timeAgo(date: string | Date | undefined): string {
+  if (!date) return "";
   const now = new Date();
   const then = new Date(date);
   const diffMs = now.getTime() - then.getTime();
