@@ -20,6 +20,7 @@ export default function UserProfilePage() {
   const params = useParams();
   const userId = params?.id as string;
   const router = useRouter();
+  
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [following, setFollowing] = useState(false);
@@ -96,6 +97,7 @@ export default function UserProfilePage() {
     };
   }
 
+  // Загружаем данные текущего пользователя при монтировании
   useEffect(() => {
     const token = getToken();
     if (!token) return;
@@ -260,7 +262,8 @@ export default function UserProfilePage() {
     !profile.is_admin &&
     (profile.level ?? 1) < (currentUser.level ?? 1);
 
-  const isOwnProfile = currentUser?.id === Number(userId);
+  // ✅ ЖЕСТКАЯ ПРОВЕРКА: свой это профиль или чужой
+  const isOwnProfile = currentUser && Number(userId) === currentUser.id;
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -268,9 +271,10 @@ export default function UserProfilePage() {
       <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
       <main className="flex-1 overflow-y-auto border-x border-white/10">
         
-        {/* 🆕 ШАПКА ПРОФИЛЯ С ОБЛОЖКОЙ И АВАТАРКОЙ */}
+        {/* ================= ШАПКА ПРОФИЛЯ ================= */}
         <div className="relative border-b border-white/10">
-          {/* Обложка */}
+          
+          {/* 1. ОБЛОЖКА */}
           <div className="h-48 md:h-64 bg-gradient-to-br from-[#8b5cf6]/30 to-[#ec4899]/30 relative overflow-hidden">
             {profile.cover_url ? (
               <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover" />
@@ -278,9 +282,9 @@ export default function UserProfilePage() {
               <div className="w-full h-full bg-gradient-to-br from-purple-900/40 to-pink-900/40" />
             )}
             
-            {/* Кнопки управления обложкой (ТОЛЬКО для своего профиля) */}
+            {/* Кнопки управления обложкой (ТОЛЬКО СВОЙ ПРОФИЛЬ) */}
             {isOwnProfile && (
-              <div className="absolute top-3 right-3 flex gap-2">
+              <div className="absolute top-3 right-3 flex gap-2 z-20">
                 <button
                   onClick={() => coverInputRef.current?.click()}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/60 backdrop-blur-sm text-white text-xs font-bold hover:bg-black/80 transition-all"
@@ -299,25 +303,26 @@ export default function UserProfilePage() {
                 )}
               </div>
             )}
+            {/* Скрытый инпут для обложки */}
             <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={uploadCover} />
           </div>
 
-          {/* Контейнер для аватарки и инфо — СДВИНУТ ВНИЗ */}
+          {/* 2. КОНТЕЙНЕР ДЛЯ АВАТАРКИ И ИНФО (сдвинут вверх) */}
           <div className="px-4 md:px-6 pb-6">
             <div className="flex flex-col md:flex-row items-start gap-4 md:gap-5 -mt-16 md:-mt-20 relative z-10">
               
-              {/* Аватарка с кнопкой смены */}
+              {/* Аватарка */}
               <div className="flex justify-center md:justify-start relative group shrink-0">
                 <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-[#171717] overflow-hidden bg-[#2a2a2a]">
                   <Avatar src={profile.avatar_url} name={profile.display_name} id={profile.id} size={160} />
                 </div>
                 
-                {/* Иконка онлайна — ПОВЕРХ аватарки, в правом нижнем углу */}
+                {/* Иконка онлайна */}
                 {isOnline(profile.last_seen) && (
                   <div className="absolute bottom-1 right-1 w-5 h-5 md:w-6 md:h-6 bg-green-500 rounded-full border-4 border-[#171717]"></div>
                 )}
                 
-                {/* Кнопка смены аватарки при наведении (ТОЛЬКО для своего профиля) */}
+                {/* Кнопка смены аватарки (ТОЛЬКО СВОЙ ПРОФИЛЬ) */}
                 {isOwnProfile && (
                   <button
                     onClick={openFilePicker}
@@ -330,11 +335,12 @@ export default function UserProfilePage() {
                 )}
               </div>
 
-              {/* Инфо и кнопки */}
-              <div className="flex-1 min-w-0 mt-2 md:mt-0 md:mb-2">
+              {/* Инфо и кнопки действий */}
+              <div className="flex-1 min-w-0 mt-2 md:mt-0 md:mb-2 w-full">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                  {/* Левая часть: ник и био */}
-                  <div className="min-w-0 text-center md:text-left">
+                  
+                  {/* Левая часть: ник, био, бейджи */}
+                  <div className="min-w-0 text-center md:text-left w-full md:w-auto">
                     <div className="flex items-center gap-2 md:gap-3 flex-wrap justify-center md:justify-start">
                       {profile.username === "System" ? (
                         <h1 className="text-xl md:text-2xl font-black"><SystemName name={profile.display_name} /></h1>
@@ -368,9 +374,9 @@ export default function UserProfilePage() {
                     {profile.bio && <p className="text-white/80 mt-2 text-sm whitespace-pre-wrap">{profile.bio}</p>}
                   </div>
 
-                  {/* Правая часть: кнопки (ТОЛЬКО для чужих профилей) */}
+                  {/* Правая часть: КНОПКИ ДЕЙСТВИЙ (ТОЛЬКО ЧУЖОЙ ПРОФИЛЬ) */}
                   {!isOwnProfile && (
-                    <div className="flex gap-2 shrink-0 w-full md:w-auto justify-center md:justify-end">
+                    <div className="flex flex-wrap gap-2 justify-center md:justify-end mt-4 md:mt-0">
                       <button onClick={toggleFollow} className={`flex-1 md:flex-none px-4 md:px-5 py-2 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-white/20 text-white/80 hover:bg-white/10 hover:border-white/40 hover:text-white"}`}>
                         {following ? "Читаю" : "Читать"}
                       </button>
@@ -429,7 +435,7 @@ export default function UserProfilePage() {
           </div>
         </div>
 
-        {/* Посты */}
+        {/* ================= ПОСТЫ ================= */}
         {posts.map((post) => <Post key={post.id} {...post} />)}
         {posts.length === 0 && !postsLoading && <p className="p-8 text-center text-white/50">Пока нет постов</p>}
         {hasMore && posts.length > 0 && !postsLoading && (
@@ -440,13 +446,15 @@ export default function UserProfilePage() {
         {postsLoading && posts.length === 0 && <><PostSkeleton /><PostSkeleton /><PostSkeleton /></>}
         {postsLoading && posts.length > 0 && <><PostSkeleton /><PostSkeleton /></>}
 
-        {/* 🆕 Модалка кроппера аватарки */}
+        {/* ================= МОДАЛКИ ================= */}
+        
+        {/* Скрытый инпут и модалка кроппера аватарки */}
         <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
         {cropperImage && (
           <AvatarCropper imageSrc={cropperImage} onCropComplete={handleCropComplete} onClose={() => setCropperImage(null)} />
         )}
 
-        {/* Модальное окно подписчиков/подписок */}
+        {/* Модалка подписчиков/подписок */}
         {modalType && (
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200]" onClick={() => setModalType(null)} />
