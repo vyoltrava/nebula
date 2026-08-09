@@ -155,7 +155,7 @@ export function Post({
     });
 
     // ✅ Остальные состояния
-    const [liked, setLiked] = useState<boolean>(() => liked_by_me || isLikedCached(id));
+    const [liked, setLiked] = useState<boolean>(() => liked_by_me ?? isLikedCached(id) ?? false);
     const [count, setCount] = useState(likes_count);
     const [rCount, setRCount] = useState(replies_count);
     const [replying, setReplying] = useState(false);
@@ -328,6 +328,10 @@ export function Post({
       alert("Не удалось удалить пост");
     }
   }
+
+    useEffect(() => {
+    setLiked(liked_by_me ?? isLikedCached(id) ?? false);
+  }, [liked_by_me, id]);
 
   const canDelete = currentUser?.id === author_id || myPermissions.includes("delete_posts");
 
@@ -550,6 +554,9 @@ function ReplyItem({
   const [replyText, setReplyText] = useState("");
   const [showChildren, setShowChildren] = useState(true);
 
+
+
+
   // Находим детей этого ответа
   const children = allReplies.filter((r) => r.reply_to_id === reply.id);
 
@@ -583,6 +590,8 @@ function ReplyItem({
 
   const canDelete = currentUser?.id === reply.author_id || myPermissions.includes("delete_posts");
   const maxDepth = 3; // Максимальная глубина вложенности
+
+  
 
   return (
     <div
