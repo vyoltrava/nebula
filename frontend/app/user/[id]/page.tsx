@@ -1,5 +1,5 @@
 "use client";
-import { Shield, ShieldCheck, Ban, X, MessageSquare, Flag, Lock, Camera, Image as ImageIcon, X as XIcon, Upload } from "lucide-react";
+import { Shield, ShieldCheck, Ban, X, MessageSquare, Flag, Lock, Camera, Image as ImageIcon, X as XIcon } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -34,6 +34,7 @@ export default function UserProfilePage() {
   const [showReport, setShowReport] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(() => getCachedUser());
 
+  // 🆕 Хук для загрузки аватарки с кроппером
   const {
     cropperImage,
     uploading,
@@ -46,6 +47,7 @@ export default function UserProfilePage() {
     setProfile((prev: any) => (prev ? { ...prev, avatar_url: newUrl } : prev));
   }, "/api/me/avatar");
 
+  // 🆕 Рефы и функции для обложки
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
@@ -255,7 +257,7 @@ export default function UserProfilePage() {
 
   const canBan = 
     currentUser?.permissions?.includes("ban_users") &&
-    currentUser.id !== Number(userId) &&
+    currentUser.id !== profile.id &&
     !profile.is_admin &&
     (profile.level ?? 1) < (currentUser.level ?? 1);
 
@@ -267,172 +269,223 @@ export default function UserProfilePage() {
       <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
       <main className="flex-1 overflow-y-auto border-x border-white/10">
         
-        {/* ================= БАННЕР ================= */}
-        {profile.cover_url ? (
-          <div className="relative w-full h-48 md:h-64 overflow-hidden group">
-            <img 
-              src={profile.cover_url} 
-              alt="Cover" 
-              className="w-full h-full object-cover" 
-            />
-            {isOwnProfile && (
-              <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
-                <button
-                  onClick={() => coverInputRef.current?.click()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-sm text-white text-xs font-bold hover:bg-black/90 transition-all"
-                >
-                  <ImageIcon size={14} />
-                  Сменить
-                </button>
-                <button
-                  onClick={removeCover}
-                  className="p-1.5 rounded-lg bg-black/70 backdrop-blur-sm text-white hover:bg-red-500/80 transition-all"
-                  title="Удалить обложку"
-                >
-                  <XIcon size={14} />
-                </button>
-              </div>
-            )}
-            <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={uploadCover} />
-          </div>
-        ) : isOwnProfile ? (
-          /* Если баннера нет И это свой профиль — показываем кнопку загрузки */
-          <div className="relative w-full h-48 md:h-64 bg-gradient-to-br from-purple-900/40 to-pink-900/40 flex items-center justify-center group">
-            <div className="text-center">
-              <button
-                onClick={() => coverInputRef.current?.click()}
-                className="flex flex-col items-center gap-2 px-6 py-3 rounded-xl bg-black/40 backdrop-blur-sm text-white font-bold hover:bg-black/60 transition-all"
-              >
-                <Upload size={24} />
-                <span>Добавить обложку</span>
-              </button>
-            </div>
-            <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={uploadCover} />
-          </div>
-        ) : (
-          /* Если баннера нет И это чужой профиль — просто градиент */
-          <div className="w-full h-48 md:h-64 bg-gradient-to-br from-purple-900/40 to-pink-900/40" />
-        )}
-
-        {/* ================= КОНТЕНТ ПРОФИЛЯ ================= */}
-        <div className="px-4 md:px-6 py-6">
-          <div className="flex flex-col md:flex-row items-start gap-6">
-            
-            {/* АВАТАРКА */}
-            <div className="relative group shrink-0">
-              <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-[#171717] overflow-hidden bg-[#2a2a2a]">
-                <Avatar 
-                  src={profile.avatar_url} 
-                  name={profile.display_name} 
-                  id={profile.id} 
-                  size={160} 
-                  online={isOnline(profile.last_seen)}
-                />
-              </div>
-              
+        {/* ================= ШАПКА ПРОФИЛЯ ================= */}
+        <div className="border-b border-white/10">
+          
+          {/* ОБЛОЖКА */}
+          {profile.cover_url ? (
+            <div className="relative w-full h-48 md:h-64 overflow-hidden group">
+              <img 
+                src={profile.cover_url} 
+                alt="Cover" 
+                className="w-full h-full object-cover" 
+              />
+              {/* Кнопки управления обложкой — появляются ТОЛЬКО при наведении на баннер */}
               {isOwnProfile && (
-                <button
-                  onClick={openFilePicker}
-                  disabled={uploading}
-                  className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-full cursor-pointer"
-                  title="Сменить аватарку"
-                >
-                  <Camera size={32} className="text-white" />
-                </button>
-              )}
-            </div>
-
-            {/* ИНФА: ник, кнопки, статистика */}
-            <div className="flex-1 min-w-0">
-              {/* Ник и бейджи */}
-              <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                {profile.username === "System" ? (
-                  <h1 className="text-xl md:text-2xl font-black"><SystemName name={profile.display_name} /></h1>
-                ) : (
-                  <h1 className={`text-xl md:text-2xl font-black break-words ${glowStyle(profile) ? "" : "text-white"}`} style={glowStyle(profile)}>
-                    {profile.display_name}
-                  </h1>
-                )}
-                {profile.is_admin && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white text-black text-[8px] font-black uppercase tracking-widest shrink-0 border border-white shadow-[0_0_8px_rgba(255,255,255,0.6)]">
-                    <Shield size={8} /> Founder
-                  </span>
-                )}
-                {profile.is_moderator && !profile.is_admin && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md bg-[#3b82f6] text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest border border-blue-400/50">
-                    <ShieldCheck size={9} /> Developer
-                  </span>
-                )}
-                {profile.role && !profile.is_admin && !profile.is_moderator && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest shadow-lg border" style={{ backgroundColor: profile.role.color, borderColor: `${profile.role.color}80`, boxShadow: `0 4px 14px 0 ${profile.role.color}40` }}>
-                    {profile.role.name}
-                  </span>
-                )}
-                {profile.is_banned && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-[9px] md:text-[10px] font-black uppercase border border-red-500/30">
-                    <Ban size={9} /> BANNED
-                  </span>
-                )}
-              </div>
-
-              {/* Username и био */}
-              <p className="text-white/50 mt-1 text-sm">@{profile.username}</p>
-              {profile.bio && <p className="text-white/80 mt-2 text-sm whitespace-pre-wrap">{profile.bio}</p>}
-
-              {/* КНОПКИ — СЛЕВА от ника на десктопе */}
-              {!isOwnProfile && (
-                <div className="flex flex-wrap gap-2 mt-4">
-                  <button onClick={toggleFollow} className={`flex-1 md:flex-none px-4 md:px-5 py-2 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-white/20 text-white/80 hover:bg-white/10 hover:border-white/40 hover:text-white"}`}>
-                    {following ? "Читаю" : "Читать"}
-                  </button>
-                  <button onClick={startChat} className="flex items-center justify-center gap-1 flex-1 md:flex-none px-3 md:px-4 py-2 rounded-full border border-white/20 text-white/80 font-bold text-sm hover:bg-white/10 hover:border-white/40 hover:text-white transition-all">
-                    <MessageSquare size={14} className="md:hidden" />
-                    <MessageSquare size={16} className="hidden md:block" />
-                    <span className="hidden sm:inline">Написать</span>
+                <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
+                  <button
+                    onClick={() => coverInputRef.current?.click()}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-sm text-white text-xs font-bold hover:bg-black/90 transition-all"
+                  >
+                    <ImageIcon size={14} />
+                    Сменить
                   </button>
                   <button
-                    onClick={async () => {
-                      const token = getToken();
-                      if (!token) { router.push("/login"); return; }
-                      try {
-                        await ensureKeyPair(token, process.env.NEXT_PUBLIC_API_URL!);
-                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/secret?other_user_id=${profile.id}`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
-                        if (res.ok) {
-                          const data = await res.json();
-                          router.push(`/messages/${data.chat_id}`);
-                        } else {
-                          const err = await res.json().catch(() => null);
-                          alert(typeof err?.detail === "string" ? err.detail : "Не удалось создать секретный чат");
-                        }
-                      } catch (e) {
-                        alert("Ошибка сети");
-                      }
-                    }}
-                    className="flex items-center gap-1 px-3 md:px-4 py-2 rounded-full border border-emerald-500/40 text-emerald-400 font-bold text-sm hover:bg-emerald-500/10 transition-all"
+                    onClick={removeCover}
+                    className="p-1.5 rounded-lg bg-black/70 backdrop-blur-sm text-white hover:bg-red-500/80 transition-all"
+                    title="Удалить обложку"
                   >
-                    <Lock size={14} />
-                    <span className="hidden sm:inline">Секретный чат</span>
-                  </button>
-                  {canBan && (
-                    <button onClick={toggleBan} className={`flex items-center justify-center px-3 md:px-4 py-2 rounded-full border font-bold transition-all ${profile.is_banned ? "border-green-400/40 text-green-400 hover:bg-green-500/10" : "border-red-400/40 text-red-400 hover:bg-red-500/10"}`} title={profile.is_banned ? "Разбанить" : "Забанить"}>
-                      <Ban size={16} />
-                    </button>
-                  )}
-                  <button onClick={() => setShowReport(true)} className="p-2 rounded-full border border-white/20 text-white/60 hover:bg-red-500/10 hover:border-red-400/50 hover:text-red-400 transition-all" title="Пожаловаться">
-                    <Flag size={16} />
+                    <XIcon size={14} />
                   </button>
                 </div>
               )}
+            </div>
+          ) : (
+            /* 🆕 Тихая зона для установки баннера, если его нет */
+            isOwnProfile && (
+              <div
+                className="relative w-full h-12 md:h-16 bg-white/[0.02] hover:bg-white/[0.06] transition-colors cursor-pointer flex items-center justify-center group"
+                onClick={() => coverInputRef.current?.click()}
+              >
+                <span className="flex items-center gap-1.5 text-white/25 group-hover:text-white/60 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ImageIcon size={14} />
+                  Добавить обложку
+                </span>
+              </div>
+            )
+          )}
 
-              {/* Статистика */}
-              <div className="flex gap-4 md:gap-6 mt-4 text-xs md:text-sm font-semibold text-white/70">
-                <span>{profile.posts_count} <span className="hidden sm:inline">постов</span><span className="sm:hidden">п.</span></span>
-                <button onClick={() => openModal("followers")} className="hover:text-[#8b5cf6] transition-colors cursor-pointer">
-                  <span className="text-white font-bold">{profile.followers_count}</span> <span className="hidden sm:inline">подписчиков</span><span className="sm:hidden">подп.</span>
-                </button>
-                <button onClick={() => openModal("following")} className="hover:text-[#8b5cf6] transition-colors cursor-pointer">
-                  <span className="text-white font-bold">{profile.following_count}</span> <span className="hidden sm:inline">читает</span><span className="sm:hidden">чит.</span>
-                </button>
+          {/* КОНТЕНТ ПРОФИЛЯ */}
+          <div className="px-4 md:px-6 py-6">
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
+              
+              {/* АВАТАРКА */}
+              <div className="relative group shrink-0">
+                <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-[#171717] overflow-hidden bg-[#2a2a2a]">
+                  <Avatar 
+                    src={profile.avatar_url} 
+                    name={profile.display_name} 
+                    id={profile.id} 
+                    size={160} 
+                    online={false}
+                  />
+                </div>
+                
+                {/* 🆕 Иконка онлайна — вынесена поверх аватарки, уменьшена в 2× */}
+                {isOnline(profile.last_seen) && (
+                  <span className="absolute bottom-1 right-1 md:bottom-2 md:right-2 w-2.5 h-2.5 md:w-3.5 md:h-3.5 bg-emerald-500 border-[2.5px] border-[#171717] rounded-full z-10" />
+                )}
+                
+                {/* Кнопка смены аватарки при наведении */}
+                {isOwnProfile && (
+                  <button
+                    onClick={openFilePicker}
+                    disabled={uploading}
+                    className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-full cursor-pointer"
+                    title="Сменить аватарку"
+                  >
+                    <Camera size={32} className="text-white" />
+                  </button>
+                )}
+              </div>
+
+              {/* ИНФА */}
+              <div className="flex-1 min-w-0 w-full text-center md:text-left relative">
+                
+                {/* 🆕 Верхняя строка: ник/бейджи слева, кнопки справа (десктоп) */}
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
+                  <div className="flex items-center justify-center md:justify-start gap-2 md:gap-3 flex-wrap">
+                    {profile.username === "System" ? (
+                      <h1 className="text-xl md:text-2xl font-black"><SystemName name={profile.display_name} /></h1>
+                    ) : (
+                      <h1 className={`text-xl md:text-2xl font-black break-words ${glowStyle(profile) ? "" : "text-white"}`} style={glowStyle(profile)}>
+                        {profile.display_name}
+                      </h1>
+                    )}
+                    {profile.is_admin && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white text-black text-[8px] font-black uppercase tracking-widest shrink-0 border border-white shadow-[0_0_8px_rgba(255,255,255,0.6)]">
+                        <Shield size={8} /> Founder
+                      </span>
+                    )}
+                    {profile.is_moderator && !profile.is_admin && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md bg-[#3b82f6] text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest border border-blue-400/50">
+                        <ShieldCheck size={9} /> Developer
+                      </span>
+                    )}
+                    {profile.role && !profile.is_admin && !profile.is_moderator && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest shadow-lg border" style={{ backgroundColor: profile.role.color, borderColor: `${profile.role.color}80`, boxShadow: `0 4px 14px 0 ${profile.role.color}40` }}>
+                        {profile.role.name}
+                      </span>
+                    )}
+                    {profile.is_banned && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-[9px] md:text-[10px] font-black uppercase border border-red-500/30">
+                        <Ban size={9} /> BANNED
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 🆕 Кнопки действий — ДЕСКТОП (правый верхний угол, как на скелетоне) */}
+                  {!isOwnProfile && (
+                    <div className="hidden md:flex items-center gap-2 shrink-0">
+                      <button onClick={toggleFollow} className={`px-4 py-2 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-white/20 text-white/80 hover:bg-white/10 hover:border-white/40 hover:text-white"}`}>
+                        {following ? "Читаю" : "Читать"}
+                      </button>
+                      <button onClick={startChat} className="flex items-center justify-center gap-1 px-3 py-2 rounded-full border border-white/20 text-white/80 font-bold text-sm hover:bg-white/10 hover:border-white/40 hover:text-white transition-all" title="Написать">
+                        <MessageSquare size={16} />
+                      </button>
+                      <button
+                        onClick={async () => {
+                          const token = getToken();
+                          if (!token) { router.push("/login"); return; }
+                          try {
+                            await ensureKeyPair(token, process.env.NEXT_PUBLIC_API_URL!);
+                            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/secret?other_user_id=${profile.id}`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+                            if (res.ok) {
+                              const data = await res.json();
+                              router.push(`/messages/${data.chat_id}`);
+                            } else {
+                              const err = await res.json().catch(() => null);
+                              alert(typeof err?.detail === "string" ? err.detail : "Не удалось создать секретный чат");
+                            }
+                          } catch (e) {
+                            alert("Ошибка сети");
+                          }
+                        }}
+                        className="flex items-center gap-1 px-3 py-2 rounded-full border border-emerald-500/40 text-emerald-400 font-bold text-sm hover:bg-emerald-500/10 transition-all"
+                        title="Секретный чат"
+                      >
+                        <Lock size={14} />
+                      </button>
+                      {canBan && (
+                        <button onClick={toggleBan} className={`flex items-center justify-center px-3 py-2 rounded-full border font-bold transition-all ${profile.is_banned ? "border-green-400/40 text-green-400 hover:bg-green-500/10" : "border-red-400/40 text-red-400 hover:bg-red-500/10"}`} title={profile.is_banned ? "Разбанить" : "Забанить"}>
+                          <Ban size={16} />
+                        </button>
+                      )}
+                      <button onClick={() => setShowReport(true)} className="p-2 rounded-full border border-white/20 text-white/60 hover:bg-red-500/10 hover:border-red-400/50 hover:text-red-400 transition-all" title="Пожаловаться">
+                        <Flag size={16} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Username и био */}
+                <p className="text-white/50 mt-1 text-sm">@{profile.username}</p>
+                {profile.bio && <p className="text-white/80 mt-2 text-sm whitespace-pre-wrap">{profile.bio}</p>}
+
+                {/* 🆕 Кнопки действий — МОБИЛЬНЫЕ (под био, как раньше) */}
+                {!isOwnProfile && (
+                  <div className="flex md:hidden flex-wrap justify-center gap-2 mt-4">
+                    <button onClick={toggleFollow} className={`flex-1 px-4 py-2 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-white/20 text-white/80 hover:bg-white/10 hover:border-white/40 hover:text-white"}`}>
+                      {following ? "Читаю" : "Читать"}
+                    </button>
+                    <button onClick={startChat} className="flex items-center justify-center gap-1 flex-1 px-3 py-2 rounded-full border border-white/20 text-white/80 font-bold text-sm hover:bg-white/10 hover:border-white/40 hover:text-white transition-all">
+                      <MessageSquare size={14} />
+                      <span>Написать</span>
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const token = getToken();
+                        if (!token) { router.push("/login"); return; }
+                        try {
+                          await ensureKeyPair(token, process.env.NEXT_PUBLIC_API_URL!);
+                          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/secret?other_user_id=${profile.id}`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+                          if (res.ok) {
+                            const data = await res.json();
+                            router.push(`/messages/${data.chat_id}`);
+                          } else {
+                            const err = await res.json().catch(() => null);
+                            alert(typeof err?.detail === "string" ? err.detail : "Не удалось создать секретный чат");
+                          }
+                        } catch (e) {
+                          alert("Ошибка сети");
+                        }
+                      }}
+                      className="flex items-center justify-center gap-1 flex-1 px-3 py-2 rounded-full border border-emerald-500/40 text-emerald-400 font-bold text-sm hover:bg-emerald-500/10 transition-all"
+                    >
+                      <Lock size={14} />
+                      <span>Секретный чат</span>
+                    </button>
+                    {canBan && (
+                      <button onClick={toggleBan} className={`flex items-center justify-center px-3 py-2 rounded-full border font-bold transition-all ${profile.is_banned ? "border-green-400/40 text-green-400 hover:bg-green-500/10" : "border-red-400/40 text-red-400 hover:bg-red-500/10"}`} title={profile.is_banned ? "Разбанить" : "Забанить"}>
+                        <Ban size={16} />
+                      </button>
+                    )}
+                    <button onClick={() => setShowReport(true)} className="p-2 rounded-full border border-white/20 text-white/60 hover:bg-red-500/10 hover:border-red-400/50 hover:text-red-400 transition-all" title="Пожаловаться">
+                      <Flag size={16} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Статистика */}
+                <div className="flex justify-center md:justify-start gap-4 md:gap-6 mt-4 text-xs md:text-sm font-semibold text-white/70">
+                  <span>{profile.posts_count} <span className="hidden sm:inline">постов</span><span className="sm:hidden">п.</span></span>
+                  <button onClick={() => openModal("followers")} className="hover:text-[#8b5cf6] transition-colors cursor-pointer">
+                    <span className="text-white font-bold">{profile.followers_count}</span> <span className="hidden sm:inline">подписчиков</span><span className="sm:hidden">подп.</span>
+                  </button>
+                  <button onClick={() => openModal("following")} className="hover:text-[#8b5cf6] transition-colors cursor-pointer">
+                    <span className="text-white font-bold">{profile.following_count}</span> <span className="hidden sm:inline">читает</span><span className="sm:hidden">чит.</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -449,11 +502,16 @@ export default function UserProfilePage() {
         {postsLoading && posts.length === 0 && <><PostSkeleton /><PostSkeleton /><PostSkeleton /></>}
         {postsLoading && posts.length > 0 && <><PostSkeleton /><PostSkeleton /></>}
 
+        {/* ================= МОДАЛКИ ================= */}
+        
         {/* Скрытый инпут и модалка кроппера аватарки */}
         <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
         {cropperImage && (
           <AvatarCropper imageSrc={cropperImage} onCropComplete={handleCropComplete} onClose={() => setCropperImage(null)} />
         )}
+
+        {/* 🆕 Скрытый инпут обложки — вынесен за пределы условного рендера, чтобы работал всегда */}
+        <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={uploadCover} />
 
         {/* Модалка подписчиков/подписок */}
         {modalType && (
