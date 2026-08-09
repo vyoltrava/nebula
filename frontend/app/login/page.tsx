@@ -45,7 +45,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-sm border border-white/15 rounded-2xl bg-white/5 backdrop-blur-md p-6">
         <h1 className="font-logo text-5xl text-center mb-6 bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
-          NEBULA
+          NEBULA v 0.5
         </h1>
 
         <div className="flex border border-white/15 rounded-full overflow-hidden mb-6 bg-white/5">

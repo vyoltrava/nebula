@@ -6,7 +6,7 @@ const jersey = Jersey_25({ weight: "400", subsets: ["latin"], variable: "--font-
 const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "NEBULA",
+  title: "NEBULA v0.5",
   description: "Социальная сеть",
 };
 
