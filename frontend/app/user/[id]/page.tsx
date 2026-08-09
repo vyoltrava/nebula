@@ -102,8 +102,18 @@ export default function UserProfilePage() {
     async function loadData() {
       setLoading(true);
       try {
-        const profileRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`);
-        if (profileRes.ok) setProfile(await profileRes.json());
+      const profileRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`);
+      if (!profileRes.ok) {
+        setLoading(false);
+        return;
+      }
+      const profileData = await profileRes.json();
+      setProfile(profileData);
+
+        // Редирект со старого /user/123 на /username
+        if (profileData.username && /^\d+$/.test(userId)) {
+          router.replace(`/${profileData.username}`);
+        }
 
         await loadMorePosts(true);
 
@@ -460,7 +470,7 @@ export default function UserProfilePage() {
                   modalUsers.map((u) => (
                     <Link
                       key={u.id}
-                      href={`/user/${u.id}`}
+                      href={`/${u.username}`}
                       onClick={() => setModalType(null)}
                       className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors"
                     >

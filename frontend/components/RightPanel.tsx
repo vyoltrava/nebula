@@ -83,7 +83,7 @@ export function RightPanel() {
               <Avatar src={a.avatar_url} name={a.display_name} id={a.id} size={36} />
 
               <div className="flex-1 leading-tight">
-                <Link href={`/user/${a.id}`} className="font-bold text-sm text-white hover:text-[#8b5cf6] transition-colors">
+                <Link href={`/${a.username}`} className="font-bold text-sm text-white hover:text-[#8b5cf6] transition-colors">
                   {a.display_name}
                 </Link>
                 <p className="text-xs text-white/50">{a.followers_count} подписчиков</p>

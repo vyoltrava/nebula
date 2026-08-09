@@ -548,6 +548,20 @@ def user_out(user: User, session: Session = None) -> dict:
     }
 
 
+def resolve_user(identifier: str, session: Session) -> User:
+    """Находит пользователя по ID (цифры) или username (строка)"""
+    if identifier.isdigit():
+        user = session.get(User, int(identifier))
+    else:
+        clean = identifier.lstrip("@").lower()
+        user = session.exec(
+            select(User).where(func.lower(User.username) == clean)
+        ).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+    return user
+
+
 # ============================================================
 # 🛠️ УТИЛИТЫ
 # ============================================================
@@ -920,57 +934,57 @@ def search_users_by_query(
     }
 
 
-@app.post("/api/users/{user_id}/follow")
+@app.post("/api/users/{identifier}/follow")
 @limiter.limit("20/minute")
 def toggle_follow(
     request: Request,
-    user_id: int,
+    identifier: str,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    if user_id == user.id:
+    target = resolve_user(identifier, session)
+    if target.id == user.id:
         raise HTTPException(400, "Cannot follow yourself")
     existing = session.exec(
-        select(Follow).where(Follow.follower_id == user.id, Follow.followee_id == user_id)
+        select(Follow).where(Follow.follower_id == user.id, Follow.followee_id == target.id)
     ).first()
     if existing:
         session.delete(existing)
         session.commit()
         return {"following": False}
-    follow = Follow(follower_id=user.id, followee_id=user_id)
+    follow = Follow(follower_id=user.id, followee_id=target.id)
     session.add(follow)
-    notif = Notification(user_id=user_id, actor_id=user.id, type="follow")
+    notif = Notification(user_id=target.id, actor_id=user.id, type="follow")
     session.add(notif)
     session.commit()
     return {"following": True}
 
 
-@app.get("/api/users/{user_id}/is-following")
+@app.get("/api/users/{identifier}/is-following")
 def is_following(
-    user_id: int,
+    identifier: str,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
+    target = resolve_user(identifier, session)
     existing = session.exec(
-        select(Follow).where(Follow.follower_id == user.id, Follow.followee_id == user_id)
+        select(Follow).where(Follow.follower_id == user.id, Follow.followee_id == target.id)
     ).first()
     return {"following": existing is not None}
 
 
-@app.get("/api/users/{user_id}")
-def get_user_profile(user_id: int, session: Session = Depends(get_session)):
-    user = session.get(User, user_id)
-    if not user:
-        raise HTTPException(404, "User not found")
+@app.get("/api/users/{identifier}")
+def get_user_profile(identifier: str, session: Session = Depends(get_session)):
+    user = resolve_user(identifier, session)
     followers_count = session.exec(
-        select(func.count()).select_from(Follow).where(Follow.followee_id == user_id)
+        select(func.count()).select_from(Follow).where(Follow.followee_id == user.id)
     ).one()
     following_count = session.exec(
-        select(func.count()).select_from(Follow).where(Follow.follower_id == user_id)
+        select(func.count()).select_from(Follow).where(Follow.follower_id == user.id)
     ).one()
     posts_count = session.exec(
         select(func.count()).select_from(Post)
-        .where(Post.author_id == user_id, Post.reply_to_id == None)
+        .where(Post.author_id == user.id, Post.reply_to_id == None)
     ).one()
     return {
         **user_out(user, session),
@@ -1016,19 +1030,19 @@ def get_user_by_username(username: str, session: Session = Depends(get_session))
     }
 
 
-@app.get("/api/users/{user_id}/posts")
+@app.get("/api/users/{identifier}/posts")
 def get_user_posts(
-    user_id: int,
+    identifier: str,
     cursor: Optional[int] = None,
     limit: int = 20,
     session: Session = Depends(get_session),
 ):
+    user = resolve_user(identifier, session)
     query = (
         select(Post)
-        .where(Post.author_id == user_id, Post.reply_to_id == None)
+        .where(Post.author_id == user.id, Post.reply_to_id == None)
         .order_by(Post.created_at.desc())
     )
-
     if cursor:
         last_post = session.get(Post, cursor)
         if last_post:
@@ -1090,10 +1104,11 @@ def get_user_posts(
     }
 
 
-@app.get("/api/users/{user_id}/followers")
-def get_followers(user_id: int, session: Session = Depends(get_session)):
+@app.get("/api/users/{identifier}/followers")
+def get_followers(identifier: str, session: Session = Depends(get_session)):
+    user = resolve_user(identifier, session)
     follows = session.exec(
-        select(Follow).where(Follow.followee_id == user_id)
+        select(Follow).where(Follow.followee_id == user.id)
     ).all()
     
     if not follows:
@@ -1107,10 +1122,11 @@ def get_followers(user_id: int, session: Session = Depends(get_session)):
     return [user_out(u, session) for u in users]
 
 
-@app.get("/api/users/{user_id}/following")
-def get_following(user_id: int, session: Session = Depends(get_session)):
+@app.get("/api/users/{identifier}/following")
+def get_following(identifier: str, session: Session = Depends(get_session)):
+    user = resolve_user(identifier, session)
     follows = session.exec(
-        select(Follow).where(Follow.follower_id == user_id)
+        select(Follow).where(Follow.follower_id == user.id)
     ).all()
     
     if not follows:
@@ -4281,7 +4297,7 @@ def get_user_posts_by_username(
         raise HTTPException(404, "User not found")
     
     # Используем ту же логику, что и get_user_posts
-    return get_user_posts(user.id, cursor, limit, session)
+    return get_user_posts(str(user.id), cursor, limit, session)
 
 
 @app.get("/api/users/by-username/{username}/followers")
@@ -4296,7 +4312,7 @@ def get_followers_by_username(username: str, session: Session = Depends(get_sess
     if not user:
         raise HTTPException(404, "User not found")
     
-    return get_followers(user.id, session)
+    return get_followers(str(user.id), session)
 
 
 @app.get("/api/users/by-username/{username}/following")
@@ -4311,7 +4327,7 @@ def get_following_by_username(username: str, session: Session = Depends(get_sess
     if not user:
         raise HTTPException(404, "User not found")
     
-    return get_following(user.id, session)
+    return get_following(str(user.id), session)
 
 
 @app.get("/api/users/by-username/{username}/is-following")
@@ -4330,7 +4346,7 @@ def is_following_by_username(
     if not target:
         raise HTTPException(404, "User not found")
     
-    return is_following(target.id, user, session)
+    return is_following(str(target.id), user, session)
 
 
 @app.post("/api/users/by-username/{username}/follow")
@@ -4351,7 +4367,7 @@ def toggle_follow_by_username(
     if not target:
         raise HTTPException(404, "User not found")
     
-    return toggle_follow(request, target.id, user, session)
+    return toggle_follow(request, str(target.id), user, session)
 
 
 # ---------- БЛОГ ОБНОВЛЕНИЙ ----------

@@ -216,7 +216,7 @@ export function Sidebar() {
         {user ? (
           <>
             <Link
-              href={`/user/${user.id}`}
+              href={`/${user.username}`}
               className="flex items-center gap-3 px-2 py-2 -mx-2 rounded-lg hover:bg-white/5 transition-all cursor-pointer group"
             >
               <div
@@ -389,7 +389,7 @@ export function Sidebar() {
                 {/* Профиль */}
                 {user && (
                   <Link
-                    href={`/user/${user.id}`}
+                    href={`/${user.username}`}
                     onClick={() => setMobileMenuOpen(false)}
                     className="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-white/80 hover:bg-white/10 hover:text-white transition-all"
                     title="Профиль"

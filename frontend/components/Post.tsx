@@ -34,7 +34,7 @@ function renderText(text: string) {
       return (
         <Link
           key={i}
-          href={`/user/${username}`}
+          href={`/${username}`}
           className="font-bold text-pink-400 hover:text-pink-300 underline underline-offset-2"
           onClick={(e) => e.stopPropagation()}
         >
@@ -321,7 +321,7 @@ export function Post({
   return (
     <article className="p-4 border-b border-white/10 hover:bg-white/5 transition-colors">
       <div className="flex gap-3">
-        <Link href={`/user/${author_id}`} className="shrink-0">
+        <Link href={`/${cleanUsername}`} className="shrink-0">
           <Avatar src={author_avatar} name={author} id={author_id} />
         </Link>
 
@@ -329,7 +329,7 @@ export function Post({
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 flex-wrap text-sm min-w-0">
             <Link
-              href={`/user/${author_id}`}
+              href={`/${cleanUsername}`}
               className={`font-bold transition-all ${
                 glowStyle(author_is_admin, author_is_moderator, author_role) ? "hover:opacity-80" : "text-white hover:text-[#8b5cf6]"
               }`}
@@ -582,7 +582,7 @@ function ReplyItem({
               <CornerDownRight size={12} />
               <span>в ответ на</span>
               <Link
-                href={`/user/${reply.parent.author_username}`}
+                href={`/${reply.parent.author_username}`}
                 className="text-pink-400 hover:text-pink-300 font-semibold"
               >
                 {reply.parent.author_name}
