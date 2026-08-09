@@ -49,6 +49,11 @@ export default function LoginPage() {
 
     const data = await res.json();
     setToken(data.token);
+
+
+
+
+    sessionStorage.setItem("justLoggedIn", "1");
     router.push("/");
   } catch {
     setError("Не удалось связаться с сервером. Попробуй ещё раз.");

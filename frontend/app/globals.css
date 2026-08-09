@@ -52,3 +52,26 @@ body {
     0 0 10px color-mix(in srgb, var(--role-color) 55%, transparent),
     0 0 22px color-mix(in srgb, var(--role-color) 30%, transparent);
 }
+
+/* ===== Splash screen ===== */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #171717;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: opacity 0.5s ease;
+}
+
+.splash--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.splash__img {
+  width: min(70vmin, 600px);
+  height: auto;
+}

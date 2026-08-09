@@ -3,7 +3,8 @@ import { Jersey_25, Inter } from "next/font/google";
 import { BanOverlay } from "@/components/BanOverlay";
 import { AuthGuard } from "@/components/AuthGuard";
 import { WebSocketProvider } from "@/components/WebSocketProvider";
-import { UnreadCountsProvider } from "@/lib/UnreadCountsContext"; // 🆕
+import { UnreadCountsProvider } from "@/lib/UnreadCountsContext";
+import SplashScreen from "@/components/SplashScreen";
 import "./globals.css";
 
 const jersey = Jersey_25({ weight: "400", subsets: ["latin"], variable: "--font-jersey" });
@@ -24,9 +25,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ru" className={`${jersey.variable} ${inter.variable}`}>
       <body className="font-sans">
+        {/* 🔥 Сплэш ПОД AuthGuard: покажется на ЛЮБОЙ странице, включая /login */}
+        <SplashScreen />
+
         <AuthGuard>
           <WebSocketProvider>
-            <UnreadCountsProvider>  {/* 🆕 Обёртка для счётчиков */}
+            <UnreadCountsProvider>
               {children}
             </UnreadCountsProvider>
           </WebSocketProvider>
