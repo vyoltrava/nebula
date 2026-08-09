@@ -552,6 +552,7 @@ def user_out(user: User, session: Session = None) -> dict:
         "level": get_user_level(user, session) if session else 1,
         "bio": user.bio,
         "last_seen": user.last_seen.isoformat() if user.last_seen else None,
+        "cover_url": user.cover_url,
     }
 
 
@@ -824,6 +825,76 @@ async def upload_avatar(
     session.refresh(user)
     print(f"📸 === AVATAR UPLOAD END ===\n")
     return {"avatar_url": user.avatar_url}
+
+
+@app.post("/api/me/cover")
+@limiter.limit("5/minute")
+async def upload_cover(
+    request: Request,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    if not file.filename:
+        raise HTTPException(400, "No file provided")
+    
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in {".jpg", ".jpeg", ".png", ".webp"}:
+        raise HTTPException(400, f"Неверный формат: {ext}. GIF для обложки не поддерживается.")
+    
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(400, f"Файл слишком большой (максимум 10 МБ)")
+    
+    # Удаляем старую обложку
+    if user.cover_url and "cloudinary.com" in user.cover_url:
+        try:
+            public_id = extract_cloudinary_public_id(user.cover_url)
+            if public_id:
+                cloudinary.uploader.destroy(public_id)
+        except Exception:
+            pass
+    
+    # Загружаем новую (широкий формат 1500x500)
+    try:
+        result = await run_in_threadpool(
+            lambda: cloudinary.uploader.upload(
+                content,
+                folder=UPLOAD_FOLDER,
+                resource_type="image",
+                transformation=[{"width": 1500, "height": 500, "crop": "fill"}],
+            )
+        )
+        user.cover_url = result.get("secure_url")
+    except Exception as e:
+        raise HTTPException(400, f"Ошибка загрузки: {str(e)}")
+    
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    
+    return {"cover_url": user.cover_url}
+
+
+@app.delete("/api/me/cover")
+def remove_cover(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Удалить обложку профиля"""
+    if user.cover_url and "cloudinary.com" in user.cover_url:
+        try:
+            public_id = extract_cloudinary_public_id(user.cover_url)
+            if public_id:
+                cloudinary.uploader.destroy(public_id)
+        except Exception:
+            pass
+    
+    user.cover_url = None
+    session.add(user)
+    session.commit()
+    return {"ok": True}
+
 
 @app.get("/api/users/recommended")
 def recommended_users(
@@ -2764,6 +2835,7 @@ def startup():
     # Автоматическое добавление недостающих колонок
     with engine.connect() as conn:
         try:
+            conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS cover_url VARCHAR;'))
             conn.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS views_count INTEGER DEFAULT 0;'))
             conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0;'))
             conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS description VARCHAR;'))
@@ -2958,7 +3030,7 @@ def admin_delete_user(
     target.role_id = None
     session.add(target)
 
-    # 13. Удаляем аватарку
+    # 13. Удаляем аватарку и обложку
     if target.avatar_url and "cloudinary.com" in target.avatar_url:
         try:
             public_id = extract_cloudinary_public_id(target.avatar_url)
@@ -2966,7 +3038,16 @@ def admin_delete_user(
                 cloudinary.uploader.destroy(public_id)
         except Exception:
             pass
-
+            
+    # 🆕 ДОБАВЛЕНО: Удаляем обложку профиля
+    if target.cover_url and "cloudinary.com" in target.cover_url:
+        try:
+            public_id = extract_cloudinary_public_id(target.cover_url)
+            if public_id:
+                cloudinary.uploader.destroy(public_id)
+        except Exception:
+            pass
+            
     session.delete(target)
     
     log_action(session, staff.id, "delete_user",

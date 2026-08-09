@@ -23,6 +23,7 @@ class User(SQLModel, table=True):
     token_version: int = Field(default=0)   # для "выйти со всех устройств"
     totp_secret: Optional[str] = None       # задел под будущую 2FA
     totp_enabled: bool = Field(default=False)
+    cover_url: Optional[str] = None 
 
 
 class Post(SQLModel, table=True):
