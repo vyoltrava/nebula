@@ -2858,6 +2858,11 @@ def admin_delete_user(
         # Массовое удаление уведомлений
         for notif in session.exec(select(Notification).where(Notification.post_id.in_(post_ids))).all():
             session.delete(notif)
+            
+        # 🆕 ДОБАВИТЬ ЭТО: Массовое удаление просмотров
+        for pv in session.exec(select(PostView).where(PostView.post_id.in_(post_ids))).all():
+            session.delete(pv)
+            
         
         # Удаляем медиа и сами посты
         for post in posts:
