@@ -97,7 +97,6 @@ export default function UserProfilePage() {
     };
   }
 
-  // Загружаем данные текущего пользователя при монтировании
   useEffect(() => {
     const token = getToken();
     if (!token) return;
@@ -258,12 +257,12 @@ export default function UserProfilePage() {
 
   const canBan = 
     currentUser?.permissions?.includes("ban_users") &&
-    currentUser.id !== Number(userId) &&
+    currentUser.id !== profile.id &&
     !profile.is_admin &&
     (profile.level ?? 1) < (currentUser.level ?? 1);
 
-  // ✅ ЖЕСТКАЯ ПРОВЕРКА: свой это профиль или чужой
-  const isOwnProfile = currentUser && Number(userId) === currentUser.id;
+  // ✅ ИСПРАВЛЕНО: сравниваем реальные ID, а не строку из URL
+  const isOwnProfile = currentUser && profile && currentUser.id === profile.id;
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -307,30 +306,31 @@ export default function UserProfilePage() {
             <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={uploadCover} />
           </div>
 
-          {/* 2. КОНТЕЙНЕР ДЛЯ АВАТАРКИ И ИНФО (сдвинут вверх) */}
+          {/* 2. КОНТЕЙНЕР ДЛЯ АВАТАРКИ И ИНФО */}
           <div className="px-4 md:px-6 pb-6">
             <div className="flex flex-col md:flex-row items-start gap-4 md:gap-5 -mt-16 md:-mt-20 relative z-10">
               
               {/* Аватарка */}
-              <div className="flex justify-center md:justify-start relative group shrink-0">
-                <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-[#171717] overflow-hidden bg-[#2a2a2a]">
-                  <Avatar src={profile.avatar_url} name={profile.display_name} id={profile.id} size={160} />
-                </div>
-                
-                {/* Иконка онлайна */}
-                {isOnline(profile.last_seen) && (
-                  <div className="absolute bottom-1 right-1 w-5 h-5 md:w-6 md:h-6 bg-green-500 rounded-full border-4 border-[#171717]"></div>
-                )}
+              <div className="relative group flex justify-center md:justify-start shrink-0">
+                {/* Используем встроенный проп online из Avatar.tsx */}
+                <Avatar 
+                  src={profile.avatar_url} 
+                  name={profile.display_name} 
+                  id={profile.id} 
+                  size={160} 
+                  online={isOnline(profile.last_seen)} 
+                  className="border-4 border-[#171717]"
+                />
                 
                 {/* Кнопка смены аватарки (ТОЛЬКО СВОЙ ПРОФИЛЬ) */}
                 {isOwnProfile && (
                   <button
                     onClick={openFilePicker}
                     disabled={uploading}
-                    className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-full cursor-pointer border-4 border-[#171717]"
+                    className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-full cursor-pointer"
                     title="Сменить аватарку"
                   >
-                    <Camera size={32} className="text-white" />
+                    <Camera size={40} className="text-white" />
                   </button>
                 )}
               </div>
