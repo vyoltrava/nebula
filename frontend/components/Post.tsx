@@ -155,8 +155,15 @@ export function Post({
     });
 
     // ✅ Остальные состояния
-    const [liked, setLiked] = useState<boolean>(() => liked_by_me ?? isLikedCached(id) ?? false);
+    const [liked, setLiked] = useState<boolean>(() => {
+      const cached = isLikedCached(id);
+      if (cached !== undefined && cached !== null) return cached;
+      return liked_by_me;
+    });
     const [count, setCount] = useState(likes_count);
+    useEffect(() => {
+      setCount(likes_count);
+    }, [likes_count]);
     const [rCount, setRCount] = useState(replies_count);
     const [replying, setReplying] = useState(false);
     const [replyText, setReplyText] = useState("");
@@ -329,9 +336,15 @@ export function Post({
     }
   }
 
-    useEffect(() => {
-    setLiked(liked_by_me ?? isLikedCached(id) ?? false);
+  useEffect(() => {
+    const cached = isLikedCached(id);
+    if (cached !== undefined && cached !== null) {
+      setLiked(cached);
+    } else {
+      setLiked(liked_by_me);
+    }
   }, [liked_by_me, id]);
+
 
   const canDelete = currentUser?.id === author_id || myPermissions.includes("delete_posts");
 
