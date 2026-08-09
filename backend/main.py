@@ -1617,9 +1617,12 @@ def list_bookmarks(
             "liked_by_me": post.id in liked_ids,
             "bookmarked": True,
             "replies_count": replies_map.get(post.id, 0),
-            "views_count": p.views_count or 0,
-            "created_at": p.created_at.isoformat(),
+            # ✅ ИСПРАВЛЕНО: заменили 'p' на 'post'
+            "views_count": post.views_count or 0,
+            # ✅ ИСПРАВЛЕНО: заменили 'p' на 'post' и добавили безопасный .isoformat() для времени
+            "created_at": post.created_at.isoformat() if post.created_at else None,
         })
+        
     return result
 
 
