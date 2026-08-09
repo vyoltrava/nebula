@@ -358,9 +358,16 @@ def cascade_delete_post(post_id: int, session: Session):
    # 5. Массовое удаление уведомлений
     for notif in session.exec(select(Notification).where(Notification.post_id.in_(id_list))).all():
         session.delete(notif)
-    # 5.5. 🆕 Массовое удаление закладок — иначе внешний ключ не даст удалить пост
-    for bm in session.exec(select(Bookmark).where(Bookmark.post_id.in_(id_list))).all():
-        session.delete(bm)
+        # 5.5. 🆕 Массовое удаление закладок — иначе внешний ключ не даст удалить пост
+        for bm in session.exec(select(Bookmark).where(Bookmark.post_id.in_(id_list))).all():
+            session.delete(bm)
+            
+        # 👇 ДОБАВЬ ВОТ ЭТОТ БЛОК (5.6) 👇
+        # 5.6. 🆕 Массовое удаление просмотров — иначе внешний ключ не даст удалить пост
+        for pv in session.exec(select(PostView).where(PostView.post_id.in_(id_list))).all():
+            session.delete(pv)
+        # 👆 КОНЕЦ ДОБАВЛЕНИЯ 👆
+
 
     # 6. Удаляем медиа
     for post in posts_with_media:
@@ -2368,6 +2375,8 @@ def admin_delete_all_user_posts(
             session.delete(pt)
         for notif in session.exec(select(Notification).where(Notification.post_id == reply.id)).all():
             session.delete(notif)
+        for pv in session.exec(select(PostView).where(PostView.post_id == reply.id)).all():
+            session.delete(pv)
         if reply.media_url and "cloudinary.com" in reply.media_url:
             try:
                 public_id = extract_cloudinary_public_id(reply.media_url)
@@ -3881,31 +3890,18 @@ def resolve_report(
         raise HTTPException(404, "Report not found")
     if report.status != "pending":
         raise HTTPException(400, "Report already processed")
-    
+
+
+
     # Выполняем действие
     if action == "delete_post" and report.target_type == "post":
         if not has_permission(staff, "delete_posts", session):
             raise HTTPException(403, "No permission: delete_posts")
+        
         post = session.get(Post, report.target_id)
         if post:
-            for like in session.exec(select(Like).where(Like.post_id == post.id)).all():
-                session.delete(like)
-            for pt in session.exec(select(PostTag).where(PostTag.post_id == post.id)).all():
-                session.delete(pt)
-            for notif in session.exec(select(Notification).where(Notification.post_id == post.id)).all():
-                session.delete(notif)
-            for bm in session.exec(select(Bookmark).where(Bookmark.post_id == post.id)).all():
-                session.delete(bm)
-            for reply in session.exec(select(Post).where(Post.reply_to_id == post.id)).all():
-                session.delete(reply)
-            if post.media_url and "cloudinary.com" in post.media_url:
-                try:
-                    public_id = extract_cloudinary_public_id(post.media_url)
-                    if public_id:
-                        cloudinary.uploader.destroy(public_id, resource_type="auto")
-                except Exception:
-                    pass
-            session.delete(post)
+            # ✅ ЗАМЕНИЛИ 15 строк ручного удаления на одну надежную функцию:
+            cascade_delete_post(post.id, session)
     
     elif action == "ban_user":
         if not has_permission(staff, "ban_users", session):
