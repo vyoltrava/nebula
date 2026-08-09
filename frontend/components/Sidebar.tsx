@@ -107,9 +107,16 @@ export function Sidebar() {
   // Десктопный контент (полноценное меню с текстом)
   const desktopSidebarContent = (
     <>
-      <div className="mb-6">
+    <div className="mb-6">
+      <div className="flex items-center gap-2">
+        <img 
+          src="/logo-icon.svg"  // или .png, .webp и т.д.
+          alt="Trelod logo"
+          className="w-9 h-9"
+        />
         <h1 className="font-logo text-4xl text-[#8b5cf6]">trelod</h1>
       </div>
+    </div>
 
       <nav className="flex flex-col gap-2">
         {nav.map(({ href, icon: Icon, label }) => {
