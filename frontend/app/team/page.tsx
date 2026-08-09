@@ -86,7 +86,7 @@ export default function TeamPage() {
               <div>
                 <h1 className="text-3xl font-black text-white">Команда проекта</h1>
                 <p className="text-sm text-white/50 mt-1">
-                  Администрация и разработчики NEBULA
+                  Администрация и разработчики trelod
                 </p>
               </div>
             </div>

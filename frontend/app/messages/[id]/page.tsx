@@ -578,7 +578,7 @@ export default function ChatPage() {
               <div className="text-sm text-emerald-100/80">
                 <p className="font-bold text-emerald-300 mb-1">Секретный чат</p>
                 <p className="text-xs">
-                  Сообщения зашифрованы端到端. Сервер NEBULA не может их прочитать.
+                  Сообщения зашифрованы端到端. Сервер trelod не может их прочитать.
                   Ключи хранятся только на устройствах участников.
                 </p>
               </div>

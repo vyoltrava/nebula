@@ -249,7 +249,7 @@ export default function RolesPage() {
               <p className="font-bold text-white mb-1">Система иерархии</p>
               <p>Уровни определяют, кто может применять санкции к другим. Пользователь <strong>не может</strong> забанить того, чей уровень <strong>равен или выше</strong> его собственного.</p>
               <p className="mt-2 text-xs text-white/60">
-                <strong>Галочка "Показывать в правилах"</strong> — роль появится на странице /rules в секции "Команда NEBULA".
+                <strong>Галочка "Показывать в правилах"</strong> — роль появится на странице /rules в секции "Команда trelod".
               </p>
               <div className="flex flex-wrap gap-2 mt-2 text-xs">
                 <span className="px-2 py-0.5 rounded bg-[#8b5cf6]/30 text-[#8b5cf6]">Admin: 10</span>
@@ -450,7 +450,7 @@ export default function RolesPage() {
                       className="w-4 h-4 rounded border-white/30 bg-white/5 text-purple-500 focus:ring-purple-500"
                     />
                     <label htmlFor="is_staff" className="text-sm text-white/90 font-semibold cursor-pointer">
-                      Показывать в правилах (/rules → "Команда NEBULA")
+                      Показывать в правилах (/rules → "Команда trelod")
                     </label>
                   </div>
 

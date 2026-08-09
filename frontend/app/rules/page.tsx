@@ -178,7 +178,7 @@ export default function RulesPage() {
               <div className="border border-white/15 rounded-xl p-5 bg-white/5">
                 <div className="flex items-center gap-2 mb-4">
                   <Crown size={20} className="text-[#8b5cf6]" />
-                  <h2 className="text-xl font-black text-white">Команда NEBULA</h2>
+                  <h2 className="text-xl font-black text-white">Команда trelod</h2>
                 </div>
                 <p className="text-white/60 text-sm mb-5">
                   Люди, которые следят за платформой и помогают сообществу.

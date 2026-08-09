@@ -137,7 +137,7 @@ export default function UpdatesPage() {
           </div>
           <h1 className="text-4xl font-black text-white mb-2">Блог обновлений</h1>
           <p className="text-white/50">
-            Все изменения NEBULA — от важных релизов до мелких фиксов
+            Все изменения trelod — от важных релизов до мелких фиксов
           </p>
           <p className="text-white/30 text-xs mt-2 font-mono">
             {updates.length} обновлений

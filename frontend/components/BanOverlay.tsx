@@ -53,7 +53,7 @@ export function BanOverlay() {
 
           {/* Нижний текст */}
           <p className="text-white/40 text-xs mt-4">
-            NEBULA • Система модерации
+            trelod • Система модерации
           </p>
         </div>
       </div>

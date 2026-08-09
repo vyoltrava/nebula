@@ -3700,15 +3700,15 @@ def get_rules(session: Session = Depends(get_session)):
         else:
             # Дефолтные правила
             rules_data = {
-                "title": "Правила сообщества NEBULA",
-                "subtitle": "NEBULA — пространство для свободного и уважительного общения.",
+                "title": "Правила сообщества trelod",
+                "subtitle": "trelod — пространство для свободного и уважительного общения.",
                 "sections": [
                     {"id": "safety", "heading": "1. Безопасность", "items": ["Запрещены угрозы, насилие, ненависть.", "Запрещён терроризм, экстремизм.", "Запрещена пропаганда наркотиков."]},
                     {"id": "respect", "heading": "2. Уважение", "items": ["Запрещены оскорбления, буллинг.", "Запрещён доксинг.", "Запрещена имперсонация."]},
                     {"id": "content", "heading": "3. Контент", "items": ["Запрещён спам, накрутка.", "Запрещён порно-контент.", "Запрещено мошенничество."]},
                     {"id": "punishments", "heading": "4. Меры наказания", "table": [{"num": "1", "measure": "Предупреждение", "description": "Фиксируется на 30 дней.", "violations": "Мелкий спам."}, {"num": "2", "measure": "Блокировка", "description": "От 1 до 30 дней.", "violations": "Повторные нарушения."}], "note": "Администрация применяет меры по своему усмотрению."}
                 ],
-                "footer": "Используя NEBULA, вы соглашаетесь с правилами."
+                "footer": "Используя trelod, вы соглашаетесь с правилами."
             }
     except Exception as e:
         print(f"⚠️ Failed to load rules: {e}")
@@ -3724,7 +3724,7 @@ def get_rules(session: Session = Depends(get_session)):
 
         roles_section = {
             "id": "roles",
-            "heading": "Команда NEBULA",
+            "heading": "Команда trelod",
             "roles": [
                 {
                     "name": role.name,
