@@ -4,8 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
-import { Users, ArrowLeft, Terminal, Crown, ShieldCheck, Shield, Wrench, Gavel } from "lucide-react";
-
+import { Users, ArrowLeft, Crown, ShieldCheck, Shield, Wrench, Gavel, Star } from "lucide-react";
 
 type Member = {
   id: number;
@@ -19,53 +18,51 @@ type Member = {
   role: { id: number; name: string; color: string } | null;
 };
 
-type Group = {
+type GroupConfig = {
   key: string;
   label: string;
-  color: string;
-  members: Member[];
+  levels: number[];
+  icon: React.ReactNode;
 };
 
-function getGlowColor(m: Member): string | null {
-  if (m.is_system) return "#00ff41";
-  if (m.is_admin) return "#ffffff";
-  if (m.is_moderator) return "#3b82f6";
-  return m.role?.color ?? null;
-}
-
-function getGroupIcon(key: string) {
-  switch (key) {
-    case "level_11": return <Terminal size={24} />;
-    case "level_10": return <Crown size={24} />;
-    case "level_9": return <ShieldCheck size={24} />;
-    case "level_8": return <Shield size={24} />;
-    case "level_7": return <Wrench size={24} />;
-    case "level_6_3": return <Gavel size={24} />;
-    default: return <Users size={24} />;
-  }
-}
-
-function getLevelBadge(m: Member): string {
-  if (m.is_system) return "System";
-  if (m.is_admin) return "Founder";
-  if (m.is_moderator) return "Developer";
-  if (m.level === 8) return "Глава администрации";
-  if (m.level === 7) return "Технический раздел";
-  if (m.level >= 3 && m.level <= 6) return "Модератор";
-  return "";
-}
+const GROUP_CONFIG: GroupConfig[] = [
+  { key: "special", label: "Специальный отдел", levels: [10], icon: <Crown size={20} /> },
+  { key: "head_admin", label: "Глава администрации", levels: [8], icon: <ShieldCheck size={20} /> },
+  { key: "dept_heads", label: "Главы отделов", levels: [7], icon: <Star size={20} /> },
+  { key: "deputies", label: "Заместители главы отдела", levels: [6], icon: <Shield size={20} /> },
+  { key: "staff", label: "Действующие сотрудники", levels: [5, 4], icon: <Wrench size={20} /> },
+  { key: "junior", label: "Младший состав отделов", levels: [3, 2, 1], icon: <Gavel size={20} /> },
+];
 
 export default function TeamPage() {
   const router = useRouter();
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team`)
       .then((r) => (r.ok ? r.json() : { groups: [] }))
-      .then((data) => setGroups(data.groups || []))
+      .then((data) => {
+        // Собираем всех участников из всех групп бэкенда в один плоский массив
+        const allMembers: Member[] = [];
+        for (const g of data.groups || []) {
+          for (const m of g.members || []) {
+            // Исключаем системных пользователей (уровень 11 / is_system)
+            if (!m.is_system && m.level !== 11) {
+              allMembers.push(m);
+            }
+          }
+        }
+        setMembers(allMembers);
+      })
       .finally(() => setLoading(false));
   }, []);
+
+  // Группируем участников по уровням согласно конфигурации
+  const groupedMembers = GROUP_CONFIG.map((config) => ({
+    ...config,
+    members: members.filter((m) => config.levels.includes(m.level)),
+  })).filter((g) => g.members.length > 0);
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -104,110 +101,66 @@ export default function TeamPage() {
             </div>
           )}
 
-          {!loading && groups.length === 0 && (
+          {!loading && groupedMembers.length === 0 && (
             <div className="text-center py-16">
               <Users size={56} className="text-white/20 mx-auto mb-4" />
               <p className="text-white/60 text-lg">Команда пока не сформирована</p>
             </div>
           )}
 
-          {groups.map((g) => (
+          {groupedMembers.map((g) => (
             <section key={g.key} className="space-y-4">
-              {/* Заголовок группы */}
-              <div className="flex items-center gap-3 pb-3 border-b border-white/10">
-                <div
-                  className="p-2 rounded-lg"
-                  style={{ 
-                    backgroundColor: `${g.color}20`,
-                    boxShadow: `0 0 20px ${g.color}40`
-                  }}
-                >
-                  <div style={{ color: g.color }}>
-                    {getGroupIcon(g.key)}
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <h2
-                    className="font-black text-xl uppercase tracking-widest"
-                    style={{
-                      color: g.color,
-                      textShadow: `0 0 10px ${g.color}B3, 0 0 20px ${g.color}66`,
-                    }}
-                  >
-                    {g.label}
-                  </h2>
-                </div>
-                <span className="text-sm text-white/60 bg-white/5 px-4 py-1.5 rounded-full font-semibold border border-white/10">
-                  {g.members.length} {g.members.length === 1 ? "человек" : g.members.length < 5 ? "человека" : "человек"}
+              {/* Заголовок группы — фиолетовый полупрозрачный фон */}
+              <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#8b5cf6]/10 border border-[#8b5cf6]/20">
+                <div className="text-[#8b5cf6]">{g.icon}</div>
+                <h2 className="font-black text-lg uppercase tracking-widest text-[#8b5cf6]">
+                  {g.label}
+                </h2>
+                <span className="ml-auto text-sm text-white/50 font-semibold">
+                  {g.members.length}{" "}
+                  {g.members.length === 1
+                    ? "человек"
+                    : g.members.length < 5
+                      ? "человека"
+                      : "человек"}
                 </span>
               </div>
 
               {/* Сетка участников */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {g.members.map((m) => {
-                  const glow = getGlowColor(m);
-                  return (
-                    <Link
-                      key={m.id}
-                      href={`/user/${m.id}`}
-                      className="group relative flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all overflow-hidden"
-                    >
-                      {/* Фоновое свечение */}
-                      {glow && (
-                        <div
-                          className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity"
-                          style={{ backgroundColor: glow }}
-                        />
-                      )}
-                      
-                      <div
-                        className="shrink-0 relative"
-                        style={
-                          glow ? { filter: `drop-shadow(0 0 10px ${glow})` } : undefined
-                        }
-                      >
-                        <Avatar
-                          src={m.avatar_url}
-                          name={m.display_name}
-                          id={m.id}
-                          size={56}
-                        />
-                      </div>
-                      
-                      <div className="flex-1 min-w-0 relative">
-                        <p
-                          className={`font-bold text-base truncate transition-all ${
-                            glow ? "group-hover:opacity-80" : "text-white group-hover:text-[#8b5cf6]"
-                          }`}
-                          style={
-                            glow
-                              ? {
-                                  color: glow,
-                                  textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66`,
-                                }
-                              : undefined
-                          }
-                        >
-                          {m.display_name}
-                        </p>
-                        <p className="text-sm text-white/50 truncate">@{m.username}</p>
-                        
-                        {/* Бейдж уровня */}
+                {g.members.map((m) => (
+                  <Link
+                    key={m.id}
+                    href={`/user/${m.id}`}
+                    className="group flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all"
+                  >
+                    <Avatar
+                      src={m.avatar_url}
+                      name={m.display_name}
+                      id={m.id}
+                      size={48}
+                    />
+
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-white truncate group-hover:text-[#8b5cf6] transition-colors">
+                        {m.display_name}
+                      </p>
+                      <p className="text-sm text-white/50 truncate">@{m.username}</p>
+
+                      {/* Плашка роли */}
+                      {m.role && (
                         <div className="mt-2">
                           <span
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border"
-                            style={{
-                              borderColor: `${glow}60`,
-                              backgroundColor: `${glow}15`,
-                            }}
+                            className="inline-block px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-white"
+                            style={{ backgroundColor: m.role.color }}
                           >
-                            {getLevelBadge(m)}
+                            {m.role.name}
                           </span>
                         </div>
-                      </div>
-                    </Link>
-                  );
-                })}
+                      )}
+                    </div>
+                  </Link>
+                ))}
               </div>
             </section>
           ))}

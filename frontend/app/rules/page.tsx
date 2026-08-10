@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
-import { Shield, Edit2, Save, X, Crown, Code2, Users, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
+import { Shield, Edit2, Save, X, Crown, Code2, Users, Plus, Trash2, ArrowUp, ArrowDown, Star } from "lucide-react";
 import { getToken } from "@/lib/auth";
 
 export default function RulesPage() {
@@ -78,6 +78,20 @@ export default function RulesPage() {
       if (a.position !== b.position) return (a.position || 0) - (b.position || 0);
       return (b.level || 0) - (a.level || 0);
     });
+
+  // Группировка ролей по уровням
+  const roleGroups = [
+    { title: "Специальный отдел", subtitle: "Высшее руководство платформы", levels: [8], icon: Crown },
+    { title: "Глава администрации", subtitle: "Руководитель административного состава", levels: [7], icon: Shield },
+    { title: "Главы отделов", subtitle: "Руководители специализированных отделов", levels: [6], icon: Star },
+    { title: "Заместители главы отдела", subtitle: "Правая рука руководителей отделов", levels: [5], icon: Shield },
+    { title: "Действующие сотрудники", subtitle: "Основной рабочий состав отделов", levels: [4], icon: Users },
+    { title: "Младший состав отделов", subtitle: "Стажёры и начинающие сотрудники", levels: [3, 2, 1], icon: Users },
+  ];
+
+  const getRolesByLevels = (levels: number[]) => {
+    return staffRoles.filter((r) => levels.includes(r.level || 0));
+  };
 
   const specialRoles = [
     {
@@ -452,7 +466,7 @@ export default function RulesPage() {
               </div>
             </div>
 
-            {/* БЛОК 2: АДМИНИСТРАЦИЯ И МОДЕРАЦИЯ */}
+            {/* БЛОК 2: АДМИНИСТРАЦИЯ И МОДЕРАЦИЯ — ПО УРОВНЯМ */}
             {staffRoles.length > 0 && (
               <div className="border border-white/15 rounded-xl p-5 bg-white/5">
                 <div className="flex items-center gap-2 mb-4">
@@ -462,27 +476,48 @@ export default function RulesPage() {
                 <p className="text-white/60 text-sm mb-5">
                   Команда, которая следит за порядком, помогает пользователям и поддерживает атмосферу сообщества.
                 </p>
-                <div className="space-y-3">
-                  {staffRoles.map((role) => (
-                    <div
-                      key={role.id}
-                      className="flex items-start gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <span
-                            className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest text-white"
-                            style={{ backgroundColor: role.color }}
-                          >
-                            {role.name}
-                          </span>
+
+                <div className="space-y-6">
+                  {roleGroups.map((group) => {
+                    const groupRoles = getRolesByLevels(group.levels);
+                    if (groupRoles.length === 0) return null;
+
+                    const Icon = group.icon;
+
+                    return (
+                      <div key={group.title} className="border border-white/10 rounded-xl p-4 bg-white/[0.02]">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Icon size={16} className="text-[#8b5cf6]/70" />
+                          <h3 className="text-base font-bold text-white">{group.title}</h3>
                         </div>
-                        <p className="text-white/70 text-sm leading-relaxed">
-                          {role.description || "Описание отсутствует"}
-                        </p>
+                        <p className="text-white/40 text-xs mb-3">{group.subtitle}</p>
+
+                        <div className="space-y-2">
+                          {groupRoles.map((role) => (
+                            <div
+                              key={role.id}
+                              className="flex items-start gap-4 p-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                  <span
+                                    className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest text-white"
+                                    style={{ backgroundColor: role.color }}
+                                  >
+                                    {role.name}
+                                  </span>
+                                  <span className="text-white/30 text-xs">LVL {role.level}</span>
+                                </div>
+                                <p className="text-white/70 text-sm leading-relaxed">
+                                  {role.description || "Описание отсутствует"}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
