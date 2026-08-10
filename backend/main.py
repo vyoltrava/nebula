@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlmodel import Session, select, func, col
-from sqlalchemy import text, update
+from sqlalchemy import text, update, delete
 from typing import Optional
 from fastapi.concurrency import run_in_threadpool
 
@@ -4511,7 +4511,6 @@ def toggle_follow_by_username(
 
 # ---------- БЛОГ ОБНОВЛЕНИЙ ----------
 
-from models import Update
 
 def require_founder(
     authorization: str = Header(default=None),
@@ -4646,6 +4645,11 @@ def delete_update(
     update = session.get(Update, update_id)
     if not update:
         raise HTTPException(404, "Update not found")
+    
+    # 🆕 Сначала удаляем записи о прочтении этого обновления, чтобы избежать ошибки внешнего ключа
+    session.exec(delete(UpdateRead).where(UpdateRead.update_id == update_id))
+    
+    # Теперь смело удаляем само обновление
     session.delete(update)
     session.commit()
     return {"ok": True}
