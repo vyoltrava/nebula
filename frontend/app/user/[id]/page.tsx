@@ -319,29 +319,36 @@ export default function UserProfilePage() {
           <div className="px-4 md:px-6 py-6">
             <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
               
-              {/* АВАТАРКА (Исправлено: убрана двойная рамка, онлайн передан через пропс Avatar) */}
-              <div className="relative group shrink-0 w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden bg-[#2a2a2a] flex items-center justify-center">
+              {/* АВАТАРКА */}
+              <div className="relative group shrink-0 w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-[#171717] bg-[#2a2a2a]">
                 <Avatar 
                   src={profile.avatar_url} 
                   name={profile.display_name} 
                   id={profile.id} 
-                  size={128}
-                  online={isOnline(profile.last_seen)}
+                  size={128} // На мобилке 128, на десктопе контейнер растянет, но картинка фикс
+                  showBorder={false} // 🆕 Отключаем внутреннюю обводку, т.к. есть внешняя
+                  online={false} // Отключаем стандартную точку, рисуем свою ниже
                 />
+                
+                {/* 🆕 СВОЯ ТОЧКА ОНЛАЙНА */}
+                {isOnline(profile.last_seen) && (
+                  <span 
+                    className="absolute bottom-2 right-2 md:bottom-3 md:right-3 w-3 h-3 md:w-4 md:h-4 bg-green-500 border-2 border-[#171717] rounded-full z-10 shadow-[0_0_8px_rgba(34,197,94,0.6)]"
+                  />
+                )}
                 
                 {/* Кнопка смены аватарки при наведении */}
                 {isOwnProfile && (
                   <button
                     onClick={openFilePicker}
                     disabled={uploading}
-                    className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-full cursor-pointer z-20"
+                    className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-full cursor-pointer"
                     title="Сменить аватарку"
                   >
                     <Camera size={32} className="text-white" />
                   </button>
                 )}
               </div>
-
               {/* ИНФА */}
               <div className="flex-1 min-w-0 w-full text-center md:text-left relative">
                 

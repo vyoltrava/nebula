@@ -19,8 +19,7 @@ export function Avatar({
   size = 40,
   className = "",
   online = false,
-  fill = false,
-  showBorder = true,
+  showBorder = true, // 🆕 Новый проп
 }: {
   src?: string | null;
   name: string;
@@ -28,8 +27,7 @@ export function Avatar({
   size?: number;
   className?: string;
   online?: boolean;
-  fill?: boolean;
-  showBorder?: boolean;
+  showBorder?: boolean; // 🆕
 }) {
   const gradient = useMemo(() => {
     const key = id ?? name.charCodeAt(0);
@@ -43,30 +41,30 @@ export function Avatar({
     return (first + second).toUpperCase();
   }, [name]);
 
+  // 🆕 Условная обводка
   const borderClass = showBorder ? "border-2 border-[#171717]" : "";
-  const dotSize = Math.max(8, Math.round(size * 0.28));
-  const fillClass = fill ? "w-full h-full" : "";
+  
+  // Размер точки теперь зависит от размера аватарки, но не слишком большой
+  const dotSize = Math.max(6, Math.round(size * 0.2)); 
 
   return (
-    <div
-      className={`relative shrink-0 ${fillClass}`}
-      style={fill ? undefined : { width: size, height: size }}
-    >
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
       {src ? (
         <img
           src={mediaUrl(src)}
           alt={name}
-          style={fill ? undefined : { width: size, height: size }}
-          className={`${fillClass} rounded-full ${borderClass} object-cover ${className}`}
+          style={{ width: size, height: size }}
+          className={`rounded-full ${borderClass} object-cover ${className}`}
         />
       ) : (
         <div
           style={{
-            ...(fill ? {} : { width: size, height: size }),
+            width: size,
+            height: size,
             background: `linear-gradient(135deg, ${gradient[0]} 0%, ${gradient[1]} 100%)`,
             fontSize: size * 0.38,
           }}
-          className={`${fillClass} rounded-full ${borderClass} flex items-center justify-center text-white font-black tracking-wide select-none ${className}`}
+          className={`rounded-full ${borderClass} flex items-center justify-center text-white font-black tracking-wide select-none ${className}`}
           title={name}
         >
           {initials}
