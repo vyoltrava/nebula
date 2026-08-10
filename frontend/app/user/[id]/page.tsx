@@ -320,13 +320,13 @@ export default function UserProfilePage() {
             <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
               
               {/* АВАТАРКА */}
-              <div className="relative group shrink-0 w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-[#171717] bg-[#2a2a2a] flex items-center justify-center">
+              <div className="relative group shrink-0 w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden ring-4 ring-[#171717]">
                 <Avatar 
                   src={profile.avatar_url} 
                   name={profile.display_name} 
                   id={profile.id} 
-                  size={128} 
-                  online={isOnline(profile.last_seen)} // ✅ Включаем встроенный индикатор, он сам прилипнет к краю
+                  size={160} // Увеличил размер, чтобы точно перекрывал контейнер
+                  online={isOnline(profile.last_seen)}
                 />
                 
                 {/* Кнопка смены аватарки при наведении */}
@@ -334,7 +334,7 @@ export default function UserProfilePage() {
                   <button
                     onClick={openFilePicker}
                     disabled={uploading}
-                    className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-full cursor-pointer"
+                    className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                     title="Сменить аватарку"
                   >
                     <Camera size={32} className="text-white" />

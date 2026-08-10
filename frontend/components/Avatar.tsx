@@ -39,39 +39,36 @@ export function Avatar({
     return (first + second).toUpperCase();
   }, [name]);
 
-  // 👇 Полностью убираем принудительную обводку
-  const dotSize = Math.max(8, Math.round(size * 0.28));
+  // Размер точки онлайна (адекватный, не огромный)
+  const dotSize = Math.max(8, Math.round(size * 0.2));
 
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
+    <div className="relative shrink-0 rounded-full overflow-hidden" style={{ width: size, height: size }}>
       {src ? (
         <img
           src={mediaUrl(src)}
           alt={name}
-          style={{ width: size, height: size }}
-          // 👇 Убрали borderClass, оставили только скругление и object-cover
-          className={`rounded-full object-cover ${className}`}
+          // w-full h-full заставляет картинку заполнить весь круг без серых полей
+          className={`w-full h-full object-cover ${className}`}
         />
       ) : (
         <div
           style={{
-            width: size,
-            height: size,
             background: `linear-gradient(135deg, ${gradient[0]} 0%, ${gradient[1]} 100%)`,
             fontSize: size * 0.38,
           }}
-          // 👇 Убрали borderClass
-          className={`rounded-full flex items-center justify-center text-white font-black tracking-wide select-none ${className}`}
+          // Убрали borderClass полностью
+          className={`w-full h-full flex items-center justify-center text-white font-black tracking-wide select-none ${className}`}
           title={name}
         >
           {initials}
         </div>
       )}
+      
+      {/* Точка онлайна вынесена поверх overflow-hidden */}
       {online && (
         <span
-          // Для зелёной точки онлайна можно оставить тонкую рамку (border), 
-          // чтобы она визуально "вырезалась" из картинки, но сделали её 1px (border вместо border-2)
-          className="absolute bottom-0 right-0 rounded-full bg-green-500 border border-[#171717] shadow-[0_0_6px_rgba(34,197,94,0.8)]"
+          className="absolute bottom-0 right-0 rounded-full bg-green-500 border-2 border-[#171717] shadow-[0_0_6px_rgba(34,197,94,0.8)]"
           style={{ width: dotSize, height: dotSize }}
         />
       )}
