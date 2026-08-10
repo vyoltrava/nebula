@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { getToken } from "@/lib/auth";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
@@ -92,7 +93,7 @@ export default function NotificationsPage() {
       case "like":
       case "reply":
       case "mention":
-        return `/user/${n.actor?.id || 0}`;
+        return n.actor?.id ? `/user/${n.actor.id}` : "/";
       case "message":
         return "/messages";
       default:
@@ -117,15 +118,6 @@ export default function NotificationsPage() {
   };
 
   const unreadCount = notifs.filter((n) => !n.read).length;
-
-  // ✅ Главная функция: клик по уведомлению
-  function handleNotifClick(n: any) {
-    if (!n.read) {
-      markRead(n.id);
-    }
-    const link = getNotificationLink(n);
-    router.push(link);
-  }
 
   return (
     <div className="h-screen flex overflow-hidden bg-[#18181b]">
@@ -153,7 +145,6 @@ export default function NotificationsPage() {
               </div>
             </div>
 
-            {/* ✅ Кнопка ВСЕГДА рендерится */}
             <button
               onClick={markAllRead}
               disabled={unreadCount === 0 || markingAll}
@@ -193,10 +184,15 @@ export default function NotificationsPage() {
                 const link = getNotificationLink(n);
                 
                 return (
-                  <div
+                  <Link
                     key={n.id}
-                    onClick={() => handleNotifClick(n)}
-                    className={`flex items-start gap-3 p-4 transition-all cursor-pointer block group ${
+                    href={link}
+                    scroll={false}
+                    prefetch={false}
+                    onClick={() => {
+                      if (!n.read) markRead(n.id);
+                    }}
+                    className={`flex items-start gap-3 p-4 transition-all group ${
                       !n.read
                         ? "bg-[#8b5cf6]/5 hover:bg-[#8b5cf6]/10"
                         : "hover:bg-white/5"
@@ -242,7 +238,7 @@ export default function NotificationsPage() {
                     {!n.read && (
                       <div className="w-2.5 h-2.5 rounded-full bg-[#8b5cf6] shrink-0 mt-2 shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
                     )}
-                  </div>
+                  </Link>
                 );
               })}
             </div>
