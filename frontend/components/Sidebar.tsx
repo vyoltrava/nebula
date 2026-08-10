@@ -56,7 +56,6 @@ export function Sidebar() {
   async function loadNotifications() {
     const token = getToken();
     if (!token) return;
-    
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -64,11 +63,6 @@ export function Sidebar() {
       setNotifs(await res.json());
       setShowNotifs(true);
     }
-
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/read-all`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
   }
 
   async function markRead(id: number) {
@@ -81,21 +75,53 @@ export function Sidebar() {
     setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   }
 
+  async function markAllRead() {
+    const token = getToken();
+    if (!token) return;
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/read-all`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+  }
+
+  function getNotifLink(n: any): string {
+    switch (n.type) {
+      case "message": return "/messages";
+      case "follow":
+      case "like":
+      case "reply":
+      case "mention":
+        return n.actor?.id ? `/user/${n.actor.id}` : "/";
+      default: return n.actor?.id ? `/user/${n.actor.id}` : "/";
+    }
+  }
+
   const icons = {
-    like: <Heart size={14} fill="currentColor" />,
-    reply: <MessageCircle size={14} />,
-    follow: <UserPlus size={14} />,
-    mention: <AtSign size={14} />,
-    message: <MessageSquare size={14} />,
-    login_alert: <ShieldAlert size={14} />,
+    like: <Heart size={12} fill="currentColor" />,
+    reply: <MessageCircle size={12} />,
+    follow: <UserPlus size={12} />,
+    mention: <AtSign size={12} />,
+    message: <MessageSquare size={12} />,
+    login_alert: <ShieldAlert size={12} />,
   };
+
+  const iconBg: Record<string, string> = {
+    like: "bg-pink-500/20 text-pink-400",
+    reply: "bg-blue-500/20 text-blue-400",
+    follow: "bg-purple-500/20 text-purple-400",
+    mention: "bg-yellow-500/20 text-yellow-400",
+    message: "bg-green-500/20 text-green-400",
+    login_alert: "bg-red-500/20 text-red-400",
+  };
+
   const texts = {
     like: "лайкнул(а) ваш пост",
     reply: "ответил(а) на ваш пост",
     follow: "подписался(ась) на вас",
     mention: "упомянул(а) вас в посте",
-    message: "прислал(а) вам сообщение",
-    login_alert: "⚠️ вход в аккаунт с нового устройства/IP",
+    message: "прислал(а) сообщение",
+    login_alert: "вход с нового устройства",
   };
 
   const glow = user
@@ -104,13 +130,13 @@ export function Sidebar() {
     : user.role?.color ?? null
     : null;
 
-  // Десктопный контент (полноценное меню с текстом)
+  // Десктопный контент
   const desktopSidebarContent = (
     <>
     <div className="mb-6">
       <div className="flex items-center gap-2">
         <img 
-          src="/logo-icon.svg"  // или .png, .webp и т.д.
+          src="/logo-icon.svg"
           alt="Trelod logo"
           className="w-9 h-9"
         />
@@ -270,14 +296,12 @@ export function Sidebar() {
 
   return (
     <>
-      {/* МОБИЛЬНАЯ ВЕРСИЯ: Вертикальная колонка иконок */}
+      {/* МОБИЛЬНАЯ ВЕРСИЯ */}
       <div className="md:hidden">
-        {/* Плавающая вертикальная панель */}
         {mobileMenuOpen && (
           <div className="fixed right-3 bottom-44 z-[98] max-h-[60vh] overflow-y-auto">
             <div className="bg-[#171717]/95 backdrop-blur-md border border-[#8b5cf6]/40 rounded-2xl p-2 shadow-2xl shadow-black/60">
               <div className="flex flex-col gap-1.5">
-                {/* Основные пункты навигации */}
                 {nav.map(({ href, icon: Icon, label }) => {
                   const active = pathname === href;
                   return (
@@ -297,10 +321,8 @@ export function Sidebar() {
                   );
                 })}
 
-                {/* Разделитель */}
                 <div className="h-px bg-white/10 my-1" />
 
-                {/* Сообщения */}
                 {user && (
                   <Link
                     href="/messages"
@@ -321,7 +343,6 @@ export function Sidebar() {
                   </Link>
                 )}
 
-                {/* Уведомления */}
                 <button
                   onClick={() => {
                     loadNotifications();
@@ -342,7 +363,6 @@ export function Sidebar() {
                   )}
                 </button>
 
-                {/* Админка */}
                 {(user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) && (
                   <Link
                     href="/admin"
@@ -358,7 +378,6 @@ export function Sidebar() {
                   </Link>
                 )}
 
-                {/* Роли */}
                 {user?.is_admin && (
                   <Link
                     href="/admin/roles"
@@ -374,7 +393,6 @@ export function Sidebar() {
                   </Link>
                 )}
 
-                {/* Техпанель */}
                 {user?.permissions?.includes("tech_access") && (
                   <Link
                     href="/admin/technical"
@@ -390,10 +408,8 @@ export function Sidebar() {
                   </Link>
                 )}
 
-                {/* Разделитель перед пользовательскими действиями */}
                 <div className="h-px bg-white/10 my-1" />
 
-                {/* Профиль */}
                 {user && (
                   <Link
                     href={`/${user.username}`}
@@ -407,7 +423,6 @@ export function Sidebar() {
                   </Link>
                 )}
 
-                {/* Выход */}
                 {user && (
                   <button
                     onClick={() => { clearToken(); setUser(null); clearCachedUser(); setMobileMenuOpen(false); }}
@@ -418,7 +433,6 @@ export function Sidebar() {
                   </button>
                 )}
 
-                {/* Баг-репорт */}
                 <button
                   onClick={() => {
                     setShowBugModal(true);
@@ -434,7 +448,6 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Кнопка открытия меню */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="fixed right-3 bottom-24 z-[97] w-14 h-14 rounded-2xl 
@@ -446,57 +459,113 @@ export function Sidebar() {
           {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </div>
-      {/* ДЕСКТОПНАЯ ВЕРСИЯ: Полноценное боковое меню */}
+
+      {/* ДЕСКТОП */}
       <aside className="hidden md:flex md:w-64 shrink-0 overflow-y-auto p-5 flex-col gap-8 bg-[#171717]">
         {desktopSidebarContent}
       </aside>
 
-      {/* Модалка уведомлений */}
+      {/* ================= МОДАЛКА УВЕДОМЛЕНИЙ ================= */}
       {showNotifs && (
         <>
           <div
             className="fixed inset-0 bg-black/60 z-[99]"
             onClick={() => setShowNotifs(false)}
           />
-          <div className="fixed left-4 right-4 md:left-[272px] md:right-auto top-16 md:top-4 w-auto md:w-80 max-h-[70vh] md:max-h-96 overflow-y-auto border border-white/10 rounded-xl bg-[#1f1f23] shadow-2xl z-[100]">
-            <div className="sticky top-0 bg-[#1f1f23] border-b border-white/10 p-3 flex items-center justify-between">
+          <div className="fixed left-4 right-4 md:left-[272px] md:right-auto md:top-4 top-16 w-auto md:w-[380px] max-h-[70vh] md:max-h-[520px] overflow-hidden border border-white/10 rounded-2xl bg-[#1f1f23] shadow-2xl z-[100] flex flex-col">
+            
+            {/* Шапка */}
+            <div className="sticky top-0 bg-[#1f1f23]/95 backdrop-blur-md border-b border-white/10 p-3 flex items-center justify-between shrink-0">
               <h3 className="font-bold text-white">Уведомления</h3>
-              <button onClick={() => setShowNotifs(false)} className="text-white/50 hover:text-white">
-                <X size={16} />
-              </button>
+              <div className="flex items-center gap-1">
+                {notifs.some((n) => !n.read) && (
+                  <button
+                    onClick={markAllRead}
+                    className="text-xs text-[#8b5cf6] hover:text-[#a78bfa] font-semibold px-2 py-1 rounded-lg hover:bg-[#8b5cf6]/10 transition-colors"
+                  >
+                    Прочитать все
+                  </button>
+                )}
+                <button 
+                  onClick={() => setShowNotifs(false)} 
+                  className="p-1.5 text-white/50 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
             </div>
 
-            {notifs.length === 0 && (
-              <p className="p-4 text-center text-sm text-white/50">Пока нет уведомлений</p>
-            )}
-
-            {notifs.map((n) => (
-              <div
-                key={n.id}
-                onClick={() => !n.read && markRead(n.id)}
-                className={`p-3 border-b border-white/5 cursor-pointer hover:bg-white/5 ${
-                  !n.read ? "bg-[#8b5cf6]/10" : ""
-                }`}
-              >
-                <div className="flex items-start gap-2">
-                  <div className="w-6 h-6 rounded-full bg-[#8b5cf6]/20 flex items-center justify-center shrink-0 text-[#8b5cf6]">
-                    {icons[n.type as keyof typeof icons]}
-                  </div>
-                  <div className="flex-1 text-sm text-white/90">
-                    <p>
-                      <span className="font-semibold text-white">{n.actor.display_name}</span>{" "}
-                      {texts[n.type as keyof typeof texts]}
-                    </p>
-                    <p className="text-xs text-white/40 mt-1">
-                      {new Date(n.created_at).toLocaleString("ru-RU")}
-                    </p>
-                  </div>
-                  {!n.read && (
-                    <div className="w-2 h-2 rounded-full bg-[#8b5cf6] shrink-0 mt-1" />
-                  )}
+            {/* Список */}
+            <div className="overflow-y-auto flex-1">
+              {notifs.length === 0 && (
+                <div className="p-8 text-center">
+                  <Bell size={32} className="text-white/20 mx-auto mb-3" />
+                  <p className="text-sm text-white/50">Пока нет уведомлений</p>
                 </div>
-              </div>
-            ))}
+              )}
+
+              {notifs.map((n) => {
+                const link = getNotifLink(n);
+                return (
+                  <Link
+                    key={n.id}
+                    href={link}
+                    onClick={() => {
+                      if (!n.read) markRead(n.id);
+                      setShowNotifs(false);
+                    }}
+                    className={`flex items-start gap-3 p-3 border-b border-white/5 hover:bg-white/5 transition-colors relative ${
+                      !n.read ? "bg-[#8b5cf6]/[0.03]" : ""
+                    }`}
+                  >
+                    {/* Полоса непрочитанного */}
+                    {!n.read && (
+                      <div className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-[#8b5cf6]" />
+                    )}
+
+                    {/* Аватарка с бейджем */}
+                    <div className="shrink-0 relative">
+                      <Avatar 
+                        src={n.actor?.avatar_url} 
+                        name={n.actor?.display_name || "User"} 
+                        id={n.actor?.id} 
+                        size={42} 
+                      />
+                      <div className={`absolute -bottom-1 -right-1 w-[18px] h-[18px] rounded-full flex items-center justify-center border-2 border-[#1f1f23] ${iconBg[n.type] || "bg-[#8b5cf6]/20 text-[#8b5cf6]"}`}>
+                        {icons[n.type as keyof typeof icons] || <Bell size={9} />}
+                      </div>
+                    </div>
+
+                    {/* Текст */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] text-white/90 leading-snug">
+                        <span className="font-semibold text-white">{n.actor?.display_name || "Неизвестный"}</span>{' '}
+                        {texts[n.type as keyof typeof texts] || "совершил(а) действие"}
+                      </p>
+                      <p className="text-[11px] text-white/40 mt-1">
+                        {new Date(n.created_at).toLocaleTimeString("ru-RU", { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+
+                    {/* Точка */}
+                    {!n.read && (
+                      <div className="w-2 h-2 rounded-full bg-[#8b5cf6] shrink-0 mt-2 shadow-[0_0_6px_rgba(139,92,246,0.6)]" />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Футер */}
+            <div className="sticky bottom-0 bg-[#1f1f23]/95 backdrop-blur-md border-t border-white/10 p-2.5 shrink-0">
+              <Link
+                href="/notifications"
+                onClick={() => setShowNotifs(false)}
+                className="block w-full text-center text-sm font-semibold text-[#8b5cf6] hover:text-[#a78bfa] py-2 rounded-lg hover:bg-[#8b5cf6]/10 transition-all"
+              >
+                Посмотреть все
+              </Link>
+            </div>
           </div>
         </>
       )}
