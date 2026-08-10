@@ -19,7 +19,6 @@ export function Avatar({
   size = 40,
   className = "",
   online = false,
-  showBorder = true, // 🆕 Новый проп
 }: {
   src?: string | null;
   name: string;
@@ -27,7 +26,6 @@ export function Avatar({
   size?: number;
   className?: string;
   online?: boolean;
-  showBorder?: boolean; // 🆕
 }) {
   const gradient = useMemo(() => {
     const key = id ?? name.charCodeAt(0);
@@ -41,11 +39,8 @@ export function Avatar({
     return (first + second).toUpperCase();
   }, [name]);
 
-  // 🆕 Условная обводка
-  const borderClass = showBorder ? "border-2 border-[#171717]" : "";
-  
-  // Размер точки теперь зависит от размера аватарки, но не слишком большой
-  const dotSize = Math.max(6, Math.round(size * 0.2)); 
+  // 👇 Полностью убираем принудительную обводку
+  const dotSize = Math.max(8, Math.round(size * 0.28));
 
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
@@ -54,7 +49,8 @@ export function Avatar({
           src={mediaUrl(src)}
           alt={name}
           style={{ width: size, height: size }}
-          className={`rounded-full ${borderClass} object-cover ${className}`}
+          // 👇 Убрали borderClass, оставили только скругление и object-cover
+          className={`rounded-full object-cover ${className}`}
         />
       ) : (
         <div
@@ -64,7 +60,8 @@ export function Avatar({
             background: `linear-gradient(135deg, ${gradient[0]} 0%, ${gradient[1]} 100%)`,
             fontSize: size * 0.38,
           }}
-          className={`rounded-full ${borderClass} flex items-center justify-center text-white font-black tracking-wide select-none ${className}`}
+          // 👇 Убрали borderClass
+          className={`rounded-full flex items-center justify-center text-white font-black tracking-wide select-none ${className}`}
           title={name}
         >
           {initials}
@@ -72,7 +69,9 @@ export function Avatar({
       )}
       {online && (
         <span
-          className="absolute bottom-0 right-0 rounded-full bg-green-500 border-2 border-[#171717] shadow-[0_0_6px_rgba(34,197,94,0.8)]"
+          // Для зелёной точки онлайна можно оставить тонкую рамку (border), 
+          // чтобы она визуально "вырезалась" из картинки, но сделали её 1px (border вместо border-2)
+          className="absolute bottom-0 right-0 rounded-full bg-green-500 border border-[#171717] shadow-[0_0_6px_rgba(34,197,94,0.8)]"
           style={{ width: dotSize, height: dotSize }}
         />
       )}

@@ -326,7 +326,6 @@ export default function UserProfilePage() {
                   name={profile.display_name} 
                   id={profile.id} 
                   size={128} 
-                  showBorder={false} 
                   online={isOnline(profile.last_seen)} // ✅ Включаем встроенный индикатор, он сам прилипнет к краю
                 />
                 
