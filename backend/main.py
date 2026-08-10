@@ -27,7 +27,7 @@ from database import init_db, get_session, engine
 from models import (
     User, Post, Like, Follow, Notification, Tag, PostTag, Role,
     Chat, ChatMember, Message, Report, UserKey, ChatSessionKey,
-    IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView
+    IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead 
 )
 import logging
 from fastapi.responses import JSONResponse

@@ -228,3 +228,4 @@ class UpdateRead(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id", primary_key=True)
     update_id: int = Field(foreign_key="update.id", primary_key=True)
     read_at: datetime = Field(default_factory=utcnow)
+
