@@ -39,37 +39,48 @@ export function Avatar({
     return (first + second).toUpperCase();
   }, [name]);
 
-  // Размер точки онлайна (адекватный, не огромный)
-  const dotSize = Math.max(8, Math.round(size * 0.2));
+  const dotSize = Math.max(8, Math.round(size * 0.22));
 
   return (
-    <div className="relative shrink-0 rounded-full overflow-hidden" style={{ width: size, height: size }}>
-      {src ? (
-        <img
-          src={mediaUrl(src)}
-          alt={name}
-          // w-full h-full заставляет картинку заполнить весь круг без серых полей
-          className={`w-full h-full object-cover ${className}`}
-        />
-      ) : (
-        <div
-          style={{
-            background: `linear-gradient(135deg, ${gradient[0]} 0%, ${gradient[1]} 100%)`,
-            fontSize: size * 0.38,
-          }}
-          // Убрали borderClass полностью
-          className={`w-full h-full flex items-center justify-center text-white font-black tracking-wide select-none ${className}`}
-          title={name}
-        >
-          {initials}
-        </div>
-      )}
-      
-      {/* Точка онлайна вынесена поверх overflow-hidden */}
+    <div
+      className={`relative shrink-0 inline-block ${className}`}
+      style={{ width: size, height: size }}
+    >
+      {/* Контейнер самой аватарки — тут overflow-hidden */}
+      <div
+        className="w-full h-full rounded-full overflow-hidden"
+        style={{ width: size, height: size }}
+      >
+        {src ? (
+          <img
+            src={mediaUrl(src)}
+            alt={name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div
+            className="w-full h-full flex items-center justify-center text-white font-black tracking-wide select-none"
+            style={{
+              background: `linear-gradient(135deg, ${gradient[0]} 0%, ${gradient[1]} 100%)`,
+              fontSize: size * 0.38,
+            }}
+            title={name}
+          >
+            {initials}
+          </div>
+        )}
+      </div>
+
+      {/* Индикатор онлайна — снаружи overflow-hidden, поэтому не обрезается */}
       {online && (
         <span
-          className="absolute bottom-0 right-0 rounded-full bg-green-500 border-2 border-[#171717] shadow-[0_0_6px_rgba(34,197,94,0.8)]"
-          style={{ width: dotSize, height: dotSize }}
+          className="absolute rounded-full bg-green-500 border-2 border-[#171717] shadow-[0_0_6px_rgba(34,197,94,0.8)]"
+          style={{
+            width: dotSize,
+            height: dotSize,
+            bottom: size * 0.02,
+            right: size * 0.02,
+          }}
         />
       )}
     </div>

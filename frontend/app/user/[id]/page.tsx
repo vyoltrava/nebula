@@ -320,12 +320,12 @@ export default function UserProfilePage() {
             <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
               
               {/* АВАТАРКА */}
-              <div className="relative group shrink-0 w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden ring-4 ring-[#171717]">
+              <div className="relative group shrink-0 rounded-full ring-4 ring-[#171717]">
                 <Avatar 
                   src={profile.avatar_url} 
                   name={profile.display_name} 
                   id={profile.id} 
-                  size={160} // Увеличил размер, чтобы точно перекрывал контейнер
+                  size={160}
                   online={isOnline(profile.last_seen)}
                 />
                 
