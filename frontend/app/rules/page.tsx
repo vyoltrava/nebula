@@ -1,22 +1,29 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
-import { Shield, Edit2, Save, X, Crown, Code2, Users } from "lucide-react";
+import { Shield, Edit2, Save, X, Crown, Code2, Users, Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { getToken } from "@/lib/auth";
 
 export default function RulesPage() {
   const [rules, setRules] = useState<any>(null);
   const [editing, setEditing] = useState(false);
-  const [editContent, setEditContent] = useState("");
+  const [editData, setEditData] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [roles, setRoles] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rules`)
       .then((r) => r.json())
       .then((data) => {
         setRules(data);
-        setEditContent(JSON.stringify(data, null, 2));
+        const cleanSections = (data.sections || []).filter(
+          (s: any) => s?.id !== "roles" && !String(s?.heading || "").toLowerCase().includes("команда")
+        );
+        setEditData({
+          ...data,
+          sections: cleanSections,
+        });
       });
 
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/roles`)
@@ -36,23 +43,18 @@ export default function RulesPage() {
   async function saveRules() {
     const token = getToken();
     if (!token) return;
+    setSaving(true);
     try {
-      const parsed = JSON.parse(editContent);
-      if (Array.isArray(parsed.sections)) {
-        parsed.sections = parsed.sections.filter(
-          (s: any) => s?.id !== "roles" && !String(s?.heading || "").toLowerCase().includes("команда")
-        );
-      }
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rules`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ content: editContent }),
+        body: JSON.stringify({ content: JSON.stringify(editData) }),
       });
       if (res.ok) {
-        setRules(parsed);
+        setRules(editData);
         setEditing(false);
         alert("✅ Правила сохранены!");
       } else {
@@ -60,7 +62,9 @@ export default function RulesPage() {
         alert(`❌ Ошибка ${res.status}: ${errorBody}`);
       }
     } catch (e) {
-      alert("⚠️ Невалидный JSON: " + (e as Error).message);
+      alert("⚠️ Ошибка: " + (e as Error).message);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -68,7 +72,6 @@ export default function RulesPage() {
     (s: any) => s?.id !== "roles" && !String(s?.heading || "").toLowerCase().includes("команда")
   );
 
-  // Фильтруем staff-роли и сортируем: старшие (меньше position) сверху, затем по level DESC
   const staffRoles = roles
     .filter((r) => r.is_staff)
     .sort((a, b) => {
@@ -76,24 +79,95 @@ export default function RulesPage() {
       return (b.level || 0) - (a.level || 0);
     });
 
-  // 🆕 Специальные системные роли (Основатели и Разработка)
-  // Мы задаем их здесь, чтобы не менять логику is_admin/is_moderator на бэкенде
   const specialRoles = [
     {
       id: "founder",
       name: "Founder",
       color: "#ffffff",
-      level: 10,
+      textColor: "#000000",
       description: "Основатель и главный администратор проекта. Обладает высшей властью на платформе, принимает финальные решения по любым вопросам, развитию проекта и составу команды."
     },
     {
       id: "developer",
       name: "Developer",
       color: "#3b82f6",
-      level: 9,
+      textColor: "#ffffff",
       description: "Ведущий разработчик платформы. Отвечает за техническую часть, внедрение новых функций, архитектуру и поддержку стабильной работы проекта."
     }
   ];
+
+  // Редактор: добавление секции
+  function addSection() {
+    setEditData({
+      ...editData,
+      sections: [
+        ...(editData.sections || []),
+        { id: `section_${Date.now()}`, heading: "Новый раздел", items: [] }
+      ]
+    });
+  }
+
+  // Редактор: удаление секции
+  function removeSection(index: number) {
+    const newSections = [...editData.sections];
+    newSections.splice(index, 1);
+    setEditData({ ...editData, sections: newSections });
+  }
+
+  // Редактор: перемещение секции
+  function moveSection(index: number, direction: "up" | "down") {
+    const newSections = [...editData.sections];
+    if (direction === "up" && index > 0) {
+      [newSections[index - 1], newSections[index]] = [newSections[index], newSections[index - 1]];
+    } else if (direction === "down" && index < newSections.length - 1) {
+      [newSections[index], newSections[index + 1]] = [newSections[index + 1], newSections[index]];
+    }
+    setEditData({ ...editData, sections: newSections });
+  }
+
+  // Редактор: добавление пункта в список
+  function addItem(sectionIndex: number) {
+    const newSections = [...editData.sections];
+    if (!newSections[sectionIndex].items) newSections[sectionIndex].items = [];
+    newSections[sectionIndex].items.push("");
+    setEditData({ ...editData, sections: newSections });
+  }
+
+  // Редактор: удаление пункта
+  function removeItem(sectionIndex: number, itemIndex: number) {
+    const newSections = [...editData.sections];
+    newSections[sectionIndex].items.splice(itemIndex, 1);
+    setEditData({ ...editData, sections: newSections });
+  }
+
+  // Редактор: изменение пункта
+  function updateItem(sectionIndex: number, itemIndex: number, value: string) {
+    const newSections = [...editData.sections];
+    newSections[sectionIndex].items[itemIndex] = value;
+    setEditData({ ...editData, sections: newSections });
+  }
+
+  // Редактор: добавление строки в таблицу
+  function addTableRow(sectionIndex: number) {
+    const newSections = [...editData.sections];
+    if (!newSections[sectionIndex].table) newSections[sectionIndex].table = [];
+    newSections[sectionIndex].table.push({ num: "", measure: "", description: "", violations: "" });
+    setEditData({ ...editData, sections: newSections });
+  }
+
+  // Редактор: удаление строки таблицы
+  function removeTableRow(sectionIndex: number, rowIndex: number) {
+    const newSections = [...editData.sections];
+    newSections[sectionIndex].table.splice(rowIndex, 1);
+    setEditData({ ...editData, sections: newSections });
+  }
+
+  // Редактор: изменение ячейки таблицы
+  function updateTableCell(sectionIndex: number, rowIndex: number, field: string, value: string) {
+    const newSections = [...editData.sections];
+    newSections[sectionIndex].table[rowIndex][field] = value;
+    setEditData({ ...editData, sections: newSections });
+  }
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -127,24 +201,176 @@ export default function RulesPage() {
 
         {!rules && <p className="p-8 text-center text-white/50">Загрузка правил...</p>}
 
-        {editing && (
-          <div className="p-6 max-w-4xl mx-auto">
-            <textarea
-              value={editContent}
-              onChange={(e) => setEditContent(e.target.value)}
-              className="w-full h-[70vh] p-4 rounded-xl border border-white/20 bg-white/5 text-white font-mono text-sm focus:outline-none focus:border-[#8b5cf6]"
-              placeholder="JSON с правилами..."
-            />
+        {/* РЕДАКТОР */}
+        {editing && editData && (
+          <div className="p-6 max-w-4xl mx-auto space-y-6">
+            {/* Заголовок и подзаголовок */}
+            <div className="border border-white/15 rounded-xl p-5 bg-white/5 space-y-4">
+              <h2 className="text-lg font-bold text-white">Общая информация</h2>
+              <div>
+                <label className="block text-sm font-semibold text-white/70 mb-1">Заголовок страницы</label>
+                <input
+                  value={editData.title || ""}
+                  onChange={(e) => setEditData({ ...editData, title: e.target.value })}
+                  className="w-full border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-white/70 mb-1">Подзаголовок</label>
+                <input
+                  value={editData.subtitle || ""}
+                  onChange={(e) => setEditData({ ...editData, subtitle: e.target.value })}
+                  className="w-full border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-white/70 mb-1">Текст в футере</label>
+                <input
+                  value={editData.footer || ""}
+                  onChange={(e) => setEditData({ ...editData, footer: e.target.value })}
+                  className="w-full border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]"
+                />
+              </div>
+            </div>
+
+            {/* Секции */}
+            {(editData.sections || []).map((section: any, sectionIndex: number) => (
+              <div key={sectionIndex} className="border border-white/15 rounded-xl p-5 bg-white/5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-white">Раздел #{sectionIndex + 1}</h2>
+                  <div className="flex gap-2">
+                    <button onClick={() => moveSection(sectionIndex, "up")} className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white">
+                      <ArrowUp size={16} />
+                    </button>
+                    <button onClick={() => moveSection(sectionIndex, "down")} className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white">
+                      <ArrowDown size={16} />
+                    </button>
+                    <button onClick={() => removeSection(sectionIndex)} className="p-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-white/70 mb-1">Заголовок раздела</label>
+                  <input
+                    value={section.heading || ""}
+                    onChange={(e) => {
+                      const newSections = [...editData.sections];
+                      newSections[sectionIndex].heading = e.target.value;
+                      setEditData({ ...editData, sections: newSections });
+                    }}
+                    className="w-full border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]"
+                  />
+                </div>
+
+                {/* Список пунктов */}
+                {section.items && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-semibold text-white/70">Пункты списка</label>
+                      <button onClick={() => addItem(sectionIndex)} className="flex items-center gap-1 px-3 py-1 rounded-lg bg-[#8b5cf6]/20 text-[#8b5cf6] hover:bg-[#8b5cf6]/30 text-sm font-semibold">
+                        <Plus size={14} /> Добавить пункт
+                      </button>
+                    </div>
+                    {section.items.map((item: string, itemIndex: number) => (
+                      <div key={itemIndex} className="flex gap-2">
+                        <input
+                          value={item}
+                          onChange={(e) => updateItem(sectionIndex, itemIndex, e.target.value)}
+                          className="flex-1 border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]"
+                          placeholder={`Пункт ${itemIndex + 1}`}
+                        />
+                        <button onClick={() => removeItem(sectionIndex, itemIndex)} className="p-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Таблица наказаний */}
+                {section.table && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-semibold text-white/70">Таблица наказаний</label>
+                      <button onClick={() => addTableRow(sectionIndex)} className="flex items-center gap-1 px-3 py-1 rounded-lg bg-[#8b5cf6]/20 text-[#8b5cf6] hover:bg-[#8b5cf6]/30 text-sm font-semibold">
+                        <Plus size={14} /> Добавить строку
+                      </button>
+                    </div>
+                    {section.table.map((row: any, rowIndex: number) => (
+                      <div key={rowIndex} className="border border-white/10 rounded-lg p-3 space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            value={row.num || ""}
+                            onChange={(e) => updateTableCell(sectionIndex, rowIndex, "num", e.target.value)}
+                            className="border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]"
+                            placeholder="№"
+                          />
+                          <input
+                            value={row.measure || ""}
+                            onChange={(e) => updateTableCell(sectionIndex, rowIndex, "measure", e.target.value)}
+                            className="border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]"
+                            placeholder="Мера наказания"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            value={row.description || ""}
+                            onChange={(e) => updateTableCell(sectionIndex, rowIndex, "description", e.target.value)}
+                            className="border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]"
+                            placeholder="Описание"
+                          />
+                          <input
+                            value={row.violations || ""}
+                            onChange={(e) => updateTableCell(sectionIndex, rowIndex, "violations", e.target.value)}
+                            className="border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]"
+                            placeholder="Типичные нарушения"
+                          />
+                        </div>
+                        <button onClick={() => removeTableRow(sectionIndex, rowIndex)} className="flex items-center gap-1 px-3 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 text-sm">
+                          <Trash2 size={14} /> Удалить строку
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Заметка */}
+                {section.note !== undefined && (
+                  <div>
+                    <label className="block text-sm font-semibold text-white/70 mb-1">Заметка (курсив внизу)</label>
+                    <input
+                      value={section.note || ""}
+                      onChange={(e) => {
+                        const newSections = [...editData.sections];
+                        newSections[sectionIndex].note = e.target.value;
+                        setEditData({ ...editData, sections: newSections });
+                      }}
+                      className="w-full border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]"
+                      placeholder="Текст заметки"
+                    />
+                  </div>
+                )}
+              </div>
+            ))}
+
+            <button onClick={addSection} className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-white/20 text-white/70 hover:border-[#8b5cf6] hover:text-[#8b5cf6] transition-all">
+              <Plus size={18} /> Добавить новый раздел
+            </button>
+
             <button
               onClick={saveRules}
-              className="mt-4 flex items-center gap-2 px-6 py-3 rounded-lg bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed] transition-all"
+              disabled={saving}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed] transition-all disabled:opacity-50"
             >
               <Save size={18} />
-              Сохранить правила
+              {saving ? "Сохранение..." : "Сохранить правила"}
             </button>
           </div>
         )}
 
+        {/* ПРОСМОТР ПРАВИЛ */}
         {rules && !editing && (
           <div className="p-6 space-y-6 max-w-4xl mx-auto">
             {visibleSections.map((section: any, i: number) => (
@@ -190,7 +416,7 @@ export default function RulesPage() {
               </div>
             ))}
 
-            {/* 🆕 БЛОК 1: ОСНОВАТЕЛИ И РАЗРАБОТКА (Системные роли) */}
+            {/* БЛОК 1: ОСНОВАТЕЛИ И РАЗРАБОТКА */}
             <div className="border border-[#8b5cf6]/30 rounded-xl p-5 bg-[#8b5cf6]/5">
               <div className="flex items-center gap-2 mb-4">
                 <Code2 size={20} className="text-[#8b5cf6]" />
@@ -200,25 +426,21 @@ export default function RulesPage() {
                 Люди, которые создали платформу и отвечают за её техническое развитие.
               </p>
               <div className="space-y-3">
-                {specialRoles.map((role, idx) => (
+                {specialRoles.map((role) => (
                   <div
                     key={role.id}
                     className="flex items-start gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all"
                   >
-                    <div
-                      className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-black font-black text-lg shadow-lg"
-                      style={{ backgroundColor: role.color }}
-                    >
-                      {idx === 0 ? <Crown size={20} /> : <Code2 size={20} />}
-                    </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <p className="font-black text-white text-lg">{role.name}</p>
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <span
-                          className="px-2 py-0.5 rounded-full text-xs font-bold text-white"
-                          style={{ backgroundColor: role.color }}
+                          className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest"
+                          style={{ 
+                            backgroundColor: role.color, 
+                            color: role.textColor 
+                          }}
                         >
-                          Уровень {role.level}
+                          {role.name}
                         </span>
                       </div>
                       <p className="text-white/70 text-sm leading-relaxed">
@@ -230,7 +452,7 @@ export default function RulesPage() {
               </div>
             </div>
 
-            {/* 🆕 БЛОК 2: АДМИНИСТРАЦИЯ И МОДЕРАЦИЯ (Роли из БД) */}
+            {/* БЛОК 2: АДМИНИСТРАЦИЯ И МОДЕРАЦИЯ */}
             {staffRoles.length > 0 && (
               <div className="border border-white/15 rounded-xl p-5 bg-white/5">
                 <div className="flex items-center gap-2 mb-4">
@@ -241,25 +463,18 @@ export default function RulesPage() {
                   Команда, которая следит за порядком, помогает пользователям и поддерживает атмосферу сообщества.
                 </p>
                 <div className="space-y-3">
-                  {staffRoles.map((role, idx) => (
+                  {staffRoles.map((role) => (
                     <div
                       key={role.id}
                       className="flex items-start gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all"
                     >
-                      <div
-                        className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-white font-black text-lg"
-                        style={{ backgroundColor: role.color }}
-                      >
-                        {idx + 1}
-                      </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <p className="font-black text-white text-lg">{role.name}</p>
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <span
-                            className="px-2 py-0.5 rounded-full text-xs font-bold text-white"
+                            className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest text-white"
                             style={{ backgroundColor: role.color }}
                           >
-                            Уровень {role.level}
+                            {role.name}
                           </span>
                         </div>
                         <p className="text-white/70 text-sm leading-relaxed">
