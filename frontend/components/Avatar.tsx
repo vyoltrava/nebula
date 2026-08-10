@@ -39,7 +39,7 @@ export function Avatar({
     return (first + second).toUpperCase();
   }, [name]);
 
-  const dotSize = Math.max(8, Math.round(size * 0.22));
+  const dotSize = Math.max(6, Math.round(size * 0.13));
 
   return (
     <div
@@ -72,17 +72,17 @@ export function Avatar({
       </div>
 
       {/* Индикатор онлайна — снаружи overflow-hidden, поэтому не обрезается */}
-      {online && (
-        <span
-          className="absolute rounded-full bg-green-500 border-2 border-[#171717] shadow-[0_0_6px_rgba(34,197,94,0.8)]"
-          style={{
-            width: dotSize,
-            height: dotSize,
-            bottom: size * 0.01,
-            right: size * 0.01,
-          }}
-        />
-      )}
+        {online && (
+          <span
+            className="absolute rounded-full bg-green-500 border border-[#171717] shadow-[0_0_4px_rgba(34,197,94,0.6)]"
+            style={{
+              width: dotSize,
+              height: dotSize,
+              bottom: size * 0.01,
+              right: size * 0.01,
+            }}
+          />
+        )}
     </div>
   );
 }
