@@ -18,14 +18,15 @@ type Member = {
   role: { id: number; name: string; color: string } | null;
 };
 
-// Конфигурация групп в соответствии со страницей правил
 const DEPARTMENT_CONFIG = [
-  { key: "special", label: "Специальный отдел", levels: [10], icon: Crown },
-  { key: "head_admin", label: "Глава администрации", levels: [8], icon: ShieldCheck },
-  { key: "dept_heads", label: "Главы отделов", levels: [7], icon: Star },
-  { key: "deputies", label: "Заместители главы отдела", levels: [6], icon: Shield },
-  { key: "staff", label: "Действующие сотрудники", levels: [5, 4], icon: Wrench },
-  { key: "junior", label: "Младший состав отделов", levels: [3, 2, 1], icon: Gavel },
+  { key: "founder", label: "Founder", levels: [10], icon: Crown },
+  { key: "developer", label: "Developer", levels: [9], icon: ShieldCheck },
+  { key: "special", label: "Специальный отдел", levels: [8], icon: Star },
+  { key: "head_admin", label: "Глава администрации", levels: [7], icon: Shield },
+  { key: "dept_heads", label: "Главы отделов", levels: [6], icon: Wrench },
+  { key: "deputies", label: "Заместители главы отдела", levels: [5], icon: Gavel },
+  { key: "staff", label: "Действующие сотрудники", levels: [4], icon: Users },
+  { key: "junior", label: "Младший состав отделов", levels: [3, 2, 1], icon: Users },
 ];
 
 function getGlowColor(m: Member): string | null {
