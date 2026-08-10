@@ -2868,6 +2868,8 @@ def startup():
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ;'))
             conn.execute(text('CREATE TABLE IF NOT EXISTS bookmark (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES "user"(id), post_id INTEGER REFERENCES post(id) ON DELETE CASCADE, created_at TIMESTAMPTZ, UNIQUE(user_id, post_id));'))
 
+            conn.execute(text('CREATE TABLE IF NOT EXISTS updateread (user_id INTEGER REFERENCES "user"(id), update_id INTEGER REFERENCES "update"(id), read_at TIMESTAMPTZ DEFAULT NOW(), PRIMARY KEY (user_id, update_id));'))
+
             # ===== КАСКАДНОЕ УДАЛЕНИЕ ДЛЯ POST =====
             conn.execute(text('ALTER TABLE "like" DROP CONSTRAINT IF EXISTS like_post_id_fkey;'))
             conn.execute(text('ALTER TABLE "like" ADD CONSTRAINT like_post_id_fkey FOREIGN KEY (post_id) REFERENCES post(id) ON DELETE CASCADE;'))
@@ -4523,9 +4525,11 @@ def require_founder(
 
 
 @app.get("/api/updates")
-def list_updates(session: Session = Depends(get_session)):
+def list_updates(
+    user: Optional[User] = Depends(get_optional_user),  # ← Изменили get_current_user на get_optional_user
+    session: Session = Depends(get_session),
+):
     updates = session.exec(select(Update).order_by(Update.created_at.desc())).all()
-
     if not updates:
         return []
 
@@ -4535,6 +4539,14 @@ def list_updates(session: Session = Depends(get_session)):
             select(User).where(User.id.in_(author_ids))
         ).all()
     } if author_ids else {}
+
+    # 🆕 Получаем список ID прочитанных обновлений для текущего юзера
+    read_update_ids = set()
+    if user:
+        read_rows = session.exec(
+            select(UpdateRead.update_id).where(UpdateRead.user_id == user.id)
+        ).all()
+        read_update_ids = set(read_rows)
 
     result = []
     for u in updates:
@@ -4547,9 +4559,54 @@ def list_updates(session: Session = Depends(get_session)):
             "author": user_out(author, session) if author else None,
             "created_at": u.created_at.isoformat(),
             "edited_at": u.edited_at.isoformat() if u.edited_at else None,
+            "is_read": u.id in read_update_ids,  # ← ДОБАВИЛИ ПОЛЕ
         })
     return result
 
+
+
+
+@app.post("/api/updates/{update_id}/read")
+def mark_update_read(
+    update_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Отметить обновление как прочитанное"""
+    existing = session.exec(
+        select(UpdateRead).where(
+            UpdateRead.user_id == user.id, 
+            UpdateRead.update_id == update_id
+        )
+    ).first()
+    
+    if not existing:
+        session.add(UpdateRead(user_id=user.id, update_id=update_id))
+        session.commit()
+    
+    return {"ok": True}
+
+
+@app.post("/api/updates/read-all")
+def mark_all_updates_read(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Отметить ВСЕ обновления как прочитанные"""
+    all_updates = session.exec(select(Update.id)).all()
+    existing = {
+        r.update_id for r in session.exec(
+            select(UpdateRead.update_id).where(UpdateRead.user_id == user.id)
+        ).all()
+    }
+    
+    new_ids = set(all_updates) - existing
+    
+    for uid in new_ids:
+        session.add(UpdateRead(user_id=user.id, update_id=uid))
+    
+    session.commit()
+    return {"ok": True, "marked": len(new_ids)}
 
 @app.post("/api/updates")
 @limiter.limit("10/minute")
