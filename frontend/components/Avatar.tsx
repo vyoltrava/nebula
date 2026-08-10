@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { mediaUrl } from "@/lib/media";
 
 const GRADIENTS = [
@@ -27,6 +27,25 @@ export function Avatar({
   className?: string;
   online?: boolean;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  // size используем как стартовое значение, потом ResizeObserver подстроит под реальный размер
+  const [realSize, setRealSize] = useState(size);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const el = containerRef.current;
+
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      setRealSize(Math.round(rect.width));
+    };
+
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const gradient = useMemo(() => {
     const key = id ?? name.charCodeAt(0);
     return GRADIENTS[key % GRADIENTS.length];
@@ -39,18 +58,16 @@ export function Avatar({
     return (first + second).toUpperCase();
   }, [name]);
 
-  const dotSize = Math.max(6, Math.round(size * 0.13));
+  // ~13% от реального размера аватарки — аккуратная маленькая точка
+  const dotSize = Math.max(6, Math.round(realSize * 0.13));
 
   return (
     <div
-      className={`relative shrink-0 inline-block ${className}`}
-      style={{ width: size, height: size }}
+      ref={containerRef}
+      className={`relative shrink-0 inline-block w-full h-full ${className}`}
     >
-      {/* Контейнер самой аватарки — тут overflow-hidden */}
-      <div
-        className="w-full h-full rounded-full overflow-hidden"
-        style={{ width: size, height: size }}
-      >
+      {/* Контейнер самой аватарки */}
+      <div className="w-full h-full rounded-full overflow-hidden">
         {src ? (
           <img
             src={mediaUrl(src)}
@@ -62,7 +79,7 @@ export function Avatar({
             className="w-full h-full flex items-center justify-center text-white font-black tracking-wide select-none"
             style={{
               background: `linear-gradient(135deg, ${gradient[0]} 0%, ${gradient[1]} 100%)`,
-              fontSize: size * 0.38,
+              fontSize: realSize * 0.38,
             }}
             title={name}
           >
@@ -71,18 +88,18 @@ export function Avatar({
         )}
       </div>
 
-      {/* Индикатор онлайна — снаружи overflow-hidden, поэтому не обрезается */}
-        {online && (
-          <span
-            className="absolute rounded-full bg-green-500 border border-[#171717] shadow-[0_0_4px_rgba(34,197,94,0.6)]"
-            style={{
-              width: dotSize,
-              height: dotSize,
-              bottom: size * 0.01,
-              right: size * 0.01,
-            }}
-          />
-        )}
+      {/* Индикатор онлайна — позиционируется относительно реального размера */}
+      {online && (
+        <span
+          className="absolute rounded-full bg-green-500 border border-[#171717] shadow-[0_0_4px_rgba(34,197,94,0.6)]"
+          style={{
+            width: dotSize,
+            height: dotSize,
+            bottom: Math.max(4, realSize * 0.06),
+            right: Math.max(4, realSize * 0.06),
+          }}
+        />
+      )}
     </div>
   );
 }
