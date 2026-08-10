@@ -78,8 +78,8 @@ export function Avatar({
           style={{
             width: dotSize,
             height: dotSize,
-            bottom: size * 0.02,
-            right: size * 0.02,
+            bottom: size * 0.01,
+            right: size * 0.01,
           }}
         />
       )}
