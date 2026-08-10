@@ -9,7 +9,6 @@ import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { STICKERS } from "@/lib/stickers";
 
-import { useCallback } from "react";
 import { isOnline, lastSeenText } from "@/lib/online";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import {
@@ -21,7 +20,6 @@ import {
 import {
   ensureKeyPair,
   getKeyPair,
-  bytesToBase64,
   base64ToBytes,
   encryptMessage,
   decryptMessage,
@@ -30,7 +28,6 @@ import {
   decryptSessionKey,
   storeSessionKey,
   loadSessionKey,
-  fingerprint,
 } from "@/lib/crypto";
 
 export default function ChatPage() {
@@ -60,17 +57,12 @@ export default function ChatPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
 
-  // 🆕 Массовый выбор сообщений
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState<Set<number>>(new Set());
-
-  // 🆕 Меню чата (удалить чат)
   const [showChatMenu, setShowChatMenu] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
 
   function getGlowColor(user: any): string | null {
     if (user?.is_admin) return "#8b5cf6";
@@ -90,8 +82,6 @@ export default function ChatPage() {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
-
-  // ========== МАССОВЫЙ ВЫБОР ==========
 
   function toggleSelectMode() {
     setIsSelectMode((prev) => !prev);
@@ -115,14 +105,6 @@ export default function ChatPage() {
     if (!token) return;
 
     try {
-      // Если API поддерживает bulk-delete — используй этот endpoint:
-      // const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/bulk-delete`, {
-      //   method: "POST",
-      //   headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      //   body: JSON.stringify({ message_ids: Array.from(selectedMessages) }),
-      // });
-
-      // Иначе — удаляем по одному:
       await Promise.all(
         Array.from(selectedMessages).map((id) =>
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/${id}`, {
@@ -139,8 +121,6 @@ export default function ChatPage() {
       alert("Ошибка при удалении сообщений");
     }
   }
-
-  // ========== УДАЛЕНИЕ ЧАТА ==========
 
   async function deleteChat() {
     if (!confirm("Удалить чат? Все сообщения будут удалены. Это действие нельзя отменить.")) return;
@@ -161,8 +141,6 @@ export default function ChatPage() {
     }
   }
 
-  // ========== ДЕШИФРОВАНИЕ ==========
-
   function decryptDisplayText(msg: any): string {
     if (!isSecret) return msg.text || "";
     if (!msg.ciphertext) return "[нет данных]";
@@ -170,8 +148,6 @@ export default function ChatPage() {
     if (!sk) return "[Сессия не установлена]";
     return decryptMessage(msg.ciphertext, sk);
   }
-
-  // ========== ЗАГРУЗКА ДАННЫХ ==========
 
   async function loadChatInfo() {
     const token = getToken();
@@ -220,7 +196,7 @@ export default function ChatPage() {
 
     try {
       const myKeyData = await ensureKeyPair(token, process.env.NEXT_PUBLIC_API_URL!);
-      const myKeys = await getKeyPair();
+      await getKeyPair();
       setMyFingerprint(myKeyData.fingerprint);
 
       let sk = loadSessionKey(Number(chatId));
@@ -231,8 +207,8 @@ export default function ChatPage() {
           });
           if (res.ok) {
             const data = await res.json();
-            const myKeys = getKeyPair();
-            if (!myKeys) {
+            const keys = getKeyPair();
+            if (!keys) {
               setCryptoError("Не удалось загрузить ключи");
               return;
             }
@@ -268,11 +244,9 @@ export default function ChatPage() {
         return;
       }
       const pkData = await pkRes.json();
-      const partnerPub = base64ToBytes(pkData.public_key);
       setPartnerFingerprint(pkData.fingerprint);
 
       const sk = generateSessionKey();
-
       const forMe = encryptSessionKeyForUser(sk, myKeys.publicKeyBase64);
       const forOther = encryptSessionKeyForUser(sk, pkData.public_key);
 
@@ -297,8 +271,6 @@ export default function ChatPage() {
       setCryptoError("Не удалось установить защищённую сессию");
     }
   }
-
-  // ========== ОТПРАВКА ==========
 
   async function sendMessage() {
     const token = getToken();
@@ -439,8 +411,6 @@ export default function ChatPage() {
     }
   }
 
-  // ========== ЭФФЕКТЫ ==========
-
   useEffect(() => {
     const token = getToken();
     if (!token) {
@@ -510,8 +480,9 @@ export default function ChatPage() {
     setFiles((prev) => [...prev, ...Array.from(newFiles)].slice(0, 5));
   }
 
-  function insertSticker(code: string) {
-    setText((prev) => prev + ` ${code} `);
+  // 🆕 Вставляем сразу эмодзи
+  function insertSticker(emoji: string) {
+    setText((prev) => prev + emoji);
   }
 
   const filteredMessages = messages.filter((msg) => {
@@ -528,9 +499,6 @@ export default function ChatPage() {
       <Sidebar />
       <div className="w-px shrink-0 bg-white/10 my-3" />
       <main className="flex-1 flex flex-col border-x border-white/10">
-        {/* ================= ШАПКА ЧАТА ================= */}
-
-        {/* 🆕 Панель массового выбора */}
         {isSelectMode ? (
           <div className="p-3 md:p-4 border-b border-white/10 bg-[#171717]/95 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -610,7 +578,6 @@ export default function ChatPage() {
                 </Link>
               )}
 
-              {/* Кнопки */}
               <button
                 onClick={() => setShowSearch(!showSearch)}
                 className={`p-2 rounded-lg transition-colors shrink-0 ${
@@ -642,7 +609,6 @@ export default function ChatPage() {
                 <ImageIcon size={18} />
               </button>
 
-              {/* 🆕 Меню чата */}
               <div className="relative">
                 <button
                   onClick={() => setShowChatMenu((prev) => !prev)}
@@ -671,7 +637,6 @@ export default function ChatPage() {
               </div>
             </div>
 
-            {/* Панель поиска */}
             {showSearch && (
               <div className="mt-3 pt-3 border-t border-white/10">
                 <div className="relative">
@@ -702,7 +667,6 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* Баннер секретного чата */}
         {isSecret && messages.length === 0 && !cryptoError && (
           <div className="p-4 bg-emerald-500/5 border-b border-emerald-500/20">
             <div className="flex items-start gap-2 max-w-2xl mx-auto text-center">
@@ -718,7 +682,6 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* Ошибка криптографии */}
         {cryptoError && (
           <div className="p-4 bg-red-500/10 border-b border-red-500/30">
             <div className="flex items-start gap-2 max-w-2xl mx-auto">
@@ -736,7 +699,6 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* ================= СООБЩЕНИЯ ================= */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {currentUser &&
             filteredMessages.map((msg) => {
@@ -755,7 +717,6 @@ export default function ChatPage() {
                     if (isSelectMode) toggleMessageSelection(msg.id);
                   }}
                 >
-                  {/* 🆕 Чекбокс выбора */}
                   {isSelectMode && (
                     <div
                       className={`shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-2 transition-colors ${
@@ -787,7 +748,6 @@ export default function ChatPage() {
                     </Link>
                   )}
 
-                  {/* Если в режиме выбора — аватарку собеседника не делаем ссылкой */}
                   {!isMine && chatPartner && isSelectMode && (
                     <div
                       className="shrink-0"
@@ -934,7 +894,6 @@ export default function ChatPage() {
                                     isMine ? "right-0" : "left-0"
                                   } top-full mt-1 bg-[#1f1f23] border border-white/15 rounded-lg shadow-xl overflow-hidden min-w-[160px] z-50`}
                                 >
-                                  {/* 🆕 Выбрать сообщение */}
                                   <button
                                     onClick={() => {
                                       setIsSelectMode(true);
@@ -976,7 +935,6 @@ export default function ChatPage() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Вложения */}
         {files.length > 0 && (
           <div className="px-4 py-3 border-t border-white/10 bg-white/5">
             <div className="flex items-center justify-between mb-2">
@@ -1014,7 +972,6 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* Поле ввода (скрыто в режиме выбора) */}
         {!isSelectMode && (
           <div className="p-3 md:p-4 border-t border-white/10 bg-[#171717]/80 backdrop-blur-md">
             <div className="flex items-end gap-2">
@@ -1056,7 +1013,7 @@ export default function ChatPage() {
                           <button
                             key={s.code}
                             onClick={() => {
-                              insertSticker(s.code);
+                              insertSticker(s.emoji);
                               setShowStickers(false);
                             }}
                             className="aspect-square flex items-center justify-center text-2xl hover:bg-white/10 rounded-lg"
@@ -1119,11 +1076,9 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* Пустое поле ввода в режиме выбора — чтобы не было скачка */}
         {isSelectMode && <div className="h-2" />}
       </main>
 
-      {/* Модалка верификации ключей */}
       {showVerify && (
         <>
           <div
@@ -1177,7 +1132,6 @@ export default function ChatPage() {
         </>
       )}
 
-      {/* Галерея медиа */}
       {showMediaGallery && (
         <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-4">
           <div className="w-full max-w-4xl max-h-[90vh] flex flex-col">
