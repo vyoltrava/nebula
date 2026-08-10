@@ -5,7 +5,7 @@ import Link from "next/link";
 import { 
   Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus, 
   AtSign, X, Shield, ShieldCheck, MessageSquare, Palette, 
-  Bug, Menu, Search, Megaphone, Bookmark, ShieldAlert
+  Bug, Menu, Search, Megaphone, Bookmark, ShieldAlert, Wrench
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
@@ -189,7 +189,7 @@ export function Sidebar() {
                 : "border-white/8 bg-white/3 text-white/80 hover:bg-white/5 hover:text-white"
             }`}
           >
-            {user?.is_admin ? <Shield size={18} /> : user?.is_moderator ? <ShieldCheck size={18} /> : <Shield size={18} className="text-[#f59e0b]" />}
+            {user?.is_admin ? <ShieldAlert size={18} /> : user?.is_moderator ? <ShieldCheck size={18} /> : <ShieldAlert size={18} className="text-[#f59e0b]" />}
             {user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель"}
           </Link>
         )}
@@ -216,7 +216,7 @@ export function Sidebar() {
                 : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
             }`}
           >
-            <Settings size={18} /> Техпанель
+            <Wrench size={18} /> Техпанель
           </Link>
         )}
 
@@ -374,7 +374,7 @@ export function Sidebar() {
                     }`}
                     title="Админка"
                   >
-                    {user?.is_admin ? <Shield size={22} /> : user?.is_moderator ? <ShieldCheck size={22} /> : <Shield size={22} className="text-[#f59e0b]" />}
+                    {user?.is_admin ? <ShieldAlert  size={22} /> : user?.is_moderator ? <ShieldCheck size={22} /> : <Shield size={22} className="text-[#f59e0b]" />}
                   </Link>
                 )}
 
@@ -404,7 +404,7 @@ export function Sidebar() {
                     }`}
                     title="Техпанель"
                   >
-                    <Settings size={22} />
+                    <Wrench size={22} />
                   </Link>
                 )}
 
