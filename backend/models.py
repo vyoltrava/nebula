@@ -220,3 +220,34 @@ class Draft(SQLModel, table=True):
     media_url: Optional[str] = None
     created_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+# Модель (SQLAlchemy)
+class ReadUpdate(Base):
+    __tablename__ = "read_updates"
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    update_id = Column(Integer, ForeignKey("updates.id"), primary_key=True)
+    read_at = Column(DateTime, default=datetime.utcnow)
+
+# GET /api/updates — добавить JOIN с read_updates для текущего юзера
+# SELECT updates.*, read_updates.user_id IS NOT NULL as is_read ...
+
+# POST /api/updates/{id}/read
+@router.post("/api/updates/{id}/read")
+def mark_update_read(id: int, current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    exists = db.query(ReadUpdate).filter_by(user_id=current_user.id, update_id=id).first()
+    if not exists:
+        db.add(ReadUpdate(user_id=current_user.id, update_id=id))
+        db.commit()
+    return {"ok": True}
+
+# POST /api/updates/read-all
+@router.post("/api/updates/read-all")
+def mark_all_updates_read(current_user = Depends(get_current_user), db: Session = Depends(get_db)):
+    existing = {r.update_id for r in db.query(ReadUpdate.update_id).filter_by(user_id=current_user.id).all()}
+    all_ids = {u.id for u in db.query(Update.id).all()}
+    new_ids = all_ids - existing
+    for uid in new_ids:
+        db.add(ReadUpdate(user_id=current_user.id, update_id=uid))
+    db.commit()
+    return {"ok": True}
