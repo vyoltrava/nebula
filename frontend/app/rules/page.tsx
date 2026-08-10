@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
-import { Shield, Edit2, Save, X, Crown } from "lucide-react";
+import { Shield, Edit2, Save, X, Crown, Code2, Users } from "lucide-react";
 import { getToken } from "@/lib/auth";
 
 export default function RulesPage() {
@@ -37,12 +37,12 @@ export default function RulesPage() {
     const token = getToken();
     if (!token) return;
     try {
-    const parsed = JSON.parse(editContent);
-    if (Array.isArray(parsed.sections)) {
-      parsed.sections = parsed.sections.filter(
-        (s: any) => s?.id !== "roles" && !String(s?.heading || "").toLowerCase().includes("команда")
-      );
-    }
+      const parsed = JSON.parse(editContent);
+      if (Array.isArray(parsed.sections)) {
+        parsed.sections = parsed.sections.filter(
+          (s: any) => s?.id !== "roles" && !String(s?.heading || "").toLowerCase().includes("команда")
+        );
+      }
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/rules`, {
         method: "PUT",
         headers: {
@@ -64,19 +64,36 @@ export default function RulesPage() {
     }
   }
 
-
   const visibleSections = (rules?.sections || []).filter(
     (s: any) => s?.id !== "roles" && !String(s?.heading || "").toLowerCase().includes("команда")
   );
 
-  // Фильтруем только staff-роли и сортируем: старшие (меньше position) сверху,
-  // если position = 0 у всех — сортируем по level DESC
+  // Фильтруем staff-роли и сортируем: старшие (меньше position) сверху, затем по level DESC
   const staffRoles = roles
     .filter((r) => r.is_staff)
     .sort((a, b) => {
       if (a.position !== b.position) return (a.position || 0) - (b.position || 0);
       return (b.level || 0) - (a.level || 0);
     });
+
+  // 🆕 Специальные системные роли (Основатели и Разработка)
+  // Мы задаем их здесь, чтобы не менять логику is_admin/is_moderator на бэкенде
+  const specialRoles = [
+    {
+      id: "founder",
+      name: "Founder",
+      color: "#ffffff",
+      level: 10,
+      description: "Основатель и главный администратор проекта. Обладает высшей властью на платформе, принимает финальные решения по любым вопросам, развитию проекта и составу команды."
+    },
+    {
+      id: "developer",
+      name: "Developer",
+      color: "#3b82f6",
+      level: 9,
+      description: "Ведущий разработчик платформы. Отвечает за техническую часть, внедрение новых функций, архитектуру и поддержку стабильной работы проекта."
+    }
+  ];
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -173,15 +190,55 @@ export default function RulesPage() {
               </div>
             ))}
 
-            {/* СЕКЦИЯ С РОЛЯМИ — только staff, с описанием, старшие сверху */}
+            {/* 🆕 БЛОК 1: ОСНОВАТЕЛИ И РАЗРАБОТКА (Системные роли) */}
+            <div className="border border-[#8b5cf6]/30 rounded-xl p-5 bg-[#8b5cf6]/5">
+              <div className="flex items-center gap-2 mb-4">
+                <Code2 size={20} className="text-[#8b5cf6]" />
+                <h2 className="text-xl font-black text-white">Основатели и Разработка</h2>
+              </div>
+              <p className="text-white/60 text-sm mb-5">
+                Люди, которые создали платформу и отвечают за её техническое развитие.
+              </p>
+              <div className="space-y-3">
+                {specialRoles.map((role, idx) => (
+                  <div
+                    key={role.id}
+                    className="flex items-start gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all"
+                  >
+                    <div
+                      className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center text-black font-black text-lg shadow-lg"
+                      style={{ backgroundColor: role.color }}
+                    >
+                      {idx === 0 ? <Crown size={20} /> : <Code2 size={20} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <p className="font-black text-white text-lg">{role.name}</p>
+                        <span
+                          className="px-2 py-0.5 rounded-full text-xs font-bold text-white"
+                          style={{ backgroundColor: role.color }}
+                        >
+                          Уровень {role.level}
+                        </span>
+                      </div>
+                      <p className="text-white/70 text-sm leading-relaxed">
+                        {role.description}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 🆕 БЛОК 2: АДМИНИСТРАЦИЯ И МОДЕРАЦИЯ (Роли из БД) */}
             {staffRoles.length > 0 && (
               <div className="border border-white/15 rounded-xl p-5 bg-white/5">
                 <div className="flex items-center gap-2 mb-4">
-                  <Crown size={20} className="text-[#8b5cf6]" />
-                  <h2 className="text-xl font-black text-white">Команда trelod</h2>
+                  <Users size={20} className="text-[#8b5cf6]" />
+                  <h2 className="text-xl font-black text-white">Администрация и Модерация</h2>
                 </div>
                 <p className="text-white/60 text-sm mb-5">
-                  Люди, которые следят за платформой и помогают сообществу.
+                  Команда, которая следит за порядком, помогает пользователям и поддерживает атмосферу сообщества.
                 </p>
                 <div className="space-y-3">
                   {staffRoles.map((role, idx) => (
