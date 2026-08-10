@@ -320,25 +320,25 @@ export default function UserProfilePage() {
             <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
               
               {/* АВАТАРКА */}
-              <div className="relative group shrink-0 w-32 h-32 md:w-40 md:h-40 rounded-full ring-4 ring-[#171717]">
-                <Avatar 
-                  src={profile.avatar_url} 
-                  name={profile.display_name} 
-                  id={profile.id} 
-                  size={160}
-                  online={isOnline(profile.last_seen)}
-                />
-                {/* Кнопка смены аватарки при наведении */}
-                {isOwnProfile && (
-                <button
-                  onClick={openFilePicker}
-                  disabled={uploading}
-                  className="absolute bottom-1 right-1 md:bottom-2 md:right-2 p-2 rounded-full bg-[#8b5cf6] text-white shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-110 cursor-pointer z-10"
-                  title="Сменить аватарку"
-                >
-                  <Camera size={16} />
-                </button>
-                )}
+<div className="relative group shrink-0 w-32 h-32 rounded-full ring-4 ring-[#171717]">
+  <Avatar 
+    src={profile.avatar_url} 
+    name={profile.display_name} 
+    id={profile.id} 
+    size={128}
+    online={isOnline(profile.last_seen)}
+  />
+  
+  {isOwnProfile && (
+    <button
+      onClick={openFilePicker}
+      disabled={uploading}
+      className="absolute bottom-1 right-1 p-2 rounded-full bg-[#8b5cf6] text-white shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-110 cursor-pointer z-10"
+      title="Сменить аватарку"
+    >
+      <Camera size={16} />
+    </button>
+  )}
               </div>
               {/* ИНФА */}
               <div className="flex-1 min-w-0 w-full text-center md:text-left relative">
