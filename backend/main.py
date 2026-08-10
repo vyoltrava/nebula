@@ -438,7 +438,7 @@ def require_admin(
 
 def get_user_permissions(user: User, session: Session) -> list:
     """Получает разрешения пользователя (использует кэш ролей)"""
-    if user.is_admin:
+    if user.is_admin or user.is_system:
         return ALL_PERMISSIONS.copy()
 
     permissions = []
@@ -2901,6 +2901,7 @@ def startup():
                 display_name="SYSTEM",
                 password_hash=hash_password("System"),
                 is_system=True,
+                is_admin=True, 
             ))
             session.commit()
 
