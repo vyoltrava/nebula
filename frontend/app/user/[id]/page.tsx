@@ -88,15 +88,22 @@ export default function UserProfilePage() {
     return null;
   }
 
+  function normalizeHex(hex: string): string {
+    if (hex.length === 4) {
+      return "#" + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+    }
+    return hex;
+  }
+
   function glowStyle(user: any): React.CSSProperties | undefined {
     const c = getGlowColor(user);
     if (!c) return undefined;
+    const full = normalizeHex(c);
     return {
       color: c,
-      textShadow: `0 0 6px ${c}B3, 0 0 14px ${c}66`,
+      textShadow: `0 0 6px ${full}B3, 0 0 14px ${full}66`,
     };
   }
-
   useEffect(() => {
     const token = getToken();
     if (!token) return;
