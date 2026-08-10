@@ -320,22 +320,15 @@ export default function UserProfilePage() {
             <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
               
               {/* АВАТАРКА */}
-              <div className="relative group shrink-0 w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-[#171717] bg-[#2a2a2a]">
+              <div className="relative group shrink-0 w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-[#171717] bg-[#2a2a2a] flex items-center justify-center">
                 <Avatar 
                   src={profile.avatar_url} 
                   name={profile.display_name} 
                   id={profile.id} 
-                  size={128} // На мобилке 128, на десктопе контейнер растянет, но картинка фикс
-                  showBorder={false} // 🆕 Отключаем внутреннюю обводку, т.к. есть внешняя
-                  online={false} // Отключаем стандартную точку, рисуем свою ниже
+                  size={128} 
+                  showBorder={false} 
+                  online={isOnline(profile.last_seen)} // ✅ Включаем встроенный индикатор, он сам прилипнет к краю
                 />
-                
-                {/* 🆕 СВОЯ ТОЧКА ОНЛАЙНА */}
-                {isOnline(profile.last_seen) && (
-                  <span 
-                    className="absolute bottom-2 right-2 md:bottom-3 md:right-3 w-3 h-3 md:w-4 md:h-4 bg-green-500 border-2 border-[#171717] rounded-full z-10 shadow-[0_0_8px_rgba(34,197,94,0.6)]"
-                  />
-                )}
                 
                 {/* Кнопка смены аватарки при наведении */}
                 {isOwnProfile && (
@@ -440,7 +433,7 @@ export default function UserProfilePage() {
                     </button>
                     <button onClick={startChat} className="flex items-center justify-center gap-1 flex-1 px-3 py-2 rounded-full border border-white/20 text-white/80 font-bold text-sm hover:bg-white/10 hover:border-white/40 hover:text-white transition-all">
                       <MessageSquare size={14} />
-                      <span>Написать</span>
+                      <span></span>
                     </button>
                     <button
                       onClick={async () => {
