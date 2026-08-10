@@ -1,24 +1,23 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Post } from "@/components/Post";
 import { CreatePost } from "@/components/CreatePost";
 import { RightPanel } from "@/components/RightPanel";
-import { PostSkeleton } from "@/components/Skeletons"; // 🆕 импорт скелетонов
+import { PostSkeleton } from "@/components/Skeletons";
 import { getToken } from "@/lib/auth";
 import { onFeedRefresh } from "@/lib/events";
 import { useWebSocket } from "@/src/hooks/useWebSocket";
 
-
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<"all" | "following">("all");
   const [posts, setPosts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true); // 🆕 true сразу, чтобы не мигало "Пока нет постов"
+  const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [nextCursor, setNextCursor] = useState<number | null>(null);
 
   async function loadMore(reset = false) {
-    if (loading && !reset) return; // 🆕 сброс (первая загрузка) всегда разрешён
+    if (loading && !reset) return;
     setLoading(true);
 
     const token = getToken();
@@ -56,22 +55,31 @@ export default function HomePage() {
   }
 
   useEffect(() => {
+    // 🆕 Очищаем ленту при смене вкладки, чтобы не показывать старые посты во время загрузки
+    setPosts([]);
+    setNextCursor(null);
+    setHasMore(true);
     loadMore(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
-  // ⚡ WEBSOCKET: лента живёт в реальном времени
-  useWebSocket("new_post", (data: any) => {
+
+  // ⚡ WEBSOCKET: Оборачиваем в useCallback, чтобы useWebSocket не отписывался на каждом рендере
+  const handleNewPost = useCallback((data: any) => {
     setPosts((prev) => (prev.some((p) => p.id === data.id) ? prev : [data, ...prev]));
-  });
+  }, []);
 
-  useWebSocket("post_deleted", (data: any) => {
+  const handlePostDeleted = useCallback((data: any) => {
     setPosts((prev) => prev.filter((p) => p.id !== data.post_id));
-  });
+  }, []);
 
-  useWebSocket("post_liked", (data: any) => {
+  const handlePostLiked = useCallback((data: any) => {
     window.dispatchEvent(new CustomEvent("like-sync", { detail: data }));
-  });
+  }, []);
 
-  // Я удалил пост — убираем из ленты мгновенно, без запроса
+  useWebSocket("new_post", handleNewPost);
+  useWebSocket("post_deleted", handlePostDeleted);
+  useWebSocket("post_liked", handlePostLiked);
+
   useEffect(() => {
     const handler = (e: Event) => {
       const id = (e as CustomEvent).detail.id;
@@ -86,16 +94,8 @@ export default function HomePage() {
       loadMore(true);
     });
     return cleanup;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, nextCursor]);
-
-  // 🆕 WEBSOCKET: новые посты прилетают в ленту мгновенно
-  useWebSocket("new_post", (data: any) => {
-    setPosts((prev) => {
-      if (prev.some((p) => p.id === data.id)) return prev;
-      return [data, ...prev];
-    });
-  });
-
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -127,10 +127,8 @@ export default function HomePage() {
           </button>
         </div>
 
-        {/* Форма создания поста — только на вкладке "Для вас" */}
         {activeTab === "all" && <CreatePost />}
 
-        {/* 🆕 СКЕЛЕТОНЫ при первой загрузке */}
         {loading && posts.length === 0 ? (
           <>
             <PostSkeleton />
@@ -140,12 +138,10 @@ export default function HomePage() {
           </>
         ) : (
           <>
-            {/* Посты */}
             {posts.map((post) => (
               <Post key={post.id} {...post} />
             ))}
 
-            {/* 🆕 Скелетоны внизу при подгрузке "ещё" */}
             {loading && posts.length > 0 && (
               <>
                 <PostSkeleton />

@@ -348,6 +348,8 @@ export function Post({
 
   const canDelete = currentUser?.id === author_id || myPermissions.includes("delete_posts");
 
+// ... (весь код до return statement в Post остается прежним) ...
+
   return (
     <article className="p-4 border-b border-white/10 hover:bg-white/5 transition-colors">
       <div className="flex gap-3">
@@ -358,12 +360,12 @@ export function Post({
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 flex-wrap text-sm min-w-0">
-            <Link
-              href={`/${cleanUsername}`}
-              className={`font-bold transition-all ${
-                glowStyle(author_is_admin, author_is_moderator, author_role) ? "hover:opacity-80" : "text-white hover:text-[#8b5cf6]"
-              }`}
-              style={glowStyle(author_is_admin, author_is_moderator, author_role)}
+              <Link
+                href={`/${cleanUsername}`}
+                className={`font-bold transition-all ${
+                  glowStyle(author_is_admin, author_is_moderator, author_role) ? "hover:opacity-80" : "text-white hover:text-[#8b5cf6]"
+                }`}
+                style={glowStyle(author_is_admin, author_is_moderator, author_role)}
               >
                 {author}
               </Link>
@@ -371,6 +373,7 @@ export function Post({
                 is_admin={author_is_admin}
                 is_moderator={author_is_moderator}
                 is_banned={author_is_banned}
+                role={author_role} // 🆕 Добавил пропс role, чтобы бейджи работали корректно
               />
               <span className="font-normal text-white/50">{handle} {created_at ? `· ${timeAgo(created_at)}` : ""}</span>
             </div>
@@ -410,9 +413,8 @@ export function Post({
               <Heart size={16} fill={liked ? "currentColor" : "none"} />
               <span className="text-sm font-semibold">{count}</span>
             </button>
-              <BookmarkButton postId={id} initial={bookmarked} />
+            <BookmarkButton postId={id} initial={bookmarked} />
 
-            {/* 🆕 Кнопка "Ответить" открывает форму с упоминанием автора */}
             <button
               onClick={() => startReply(cleanUsername, author)}
               className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-white/20 text-white/70 hover:bg-white/10 hover:border-white/40 hover:text-white transition-all"
@@ -457,7 +459,6 @@ export function Post({
             )}
           </div>
 
-          {/* 🆕 Форма ответа с упоминанием */}
           {replying && (
             <div className="mt-3 flex gap-2">
               <input
@@ -492,12 +493,10 @@ export function Post({
             </div>
           )}
 
-          {/* 🆕 Список ответов с вложенностью */}
           {showReplies && replies && (
             <div className="mt-3 space-y-3">
-              {/* Группируем ответы: прямые и вложенные */}
               {replies
-                .filter((r) => r.reply_to_id === id) // Только прямые ответы на этот пост
+                .filter((r) => r.reply_to_id === id)
                 .map((r) => (
                   <ReplyItem
                     key={r.id}
@@ -507,6 +506,7 @@ export function Post({
                     onReply={startReply}
                     currentUser={currentUser}
                     myPermissions={myPermissions}
+                    setReplies={setReplies} // 🆕 Передаем setReplies напрямую
                     onDelete={async () => {
                       const token = getToken();
                       if (!token) return;
@@ -552,6 +552,7 @@ function ReplyItem({
   currentUser,
   myPermissions,
   onDelete,
+  setReplies, // 🆕 Добавляем пропс
   depth = 0,
 }: {
   reply: any;
@@ -561,16 +562,13 @@ function ReplyItem({
   currentUser: { id: number } | null;
   myPermissions: string[];
   onDelete: () => void;
+  setReplies: React.Dispatch<React.SetStateAction<any[] | null>>; // 🆕 Типизация
   depth?: number;
 }) {
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [showChildren, setShowChildren] = useState(true);
 
-
-
-
-  // Находим детей этого ответа
   const children = allReplies.filter((r) => r.reply_to_id === reply.id);
 
   async function submitNestedReply() {
@@ -579,7 +577,7 @@ function ReplyItem({
 
     const form = new FormData();
     form.append("text", replyText);
-    form.append("reply_to", String(reply.id)); // 🆕 Ответ на комментарий, а не на пост
+    form.append("reply_to", String(reply.id));
 
     const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts`, {
       method: "POST",
@@ -590,21 +588,17 @@ function ReplyItem({
     if (res.ok) {
       setReplyText("");
       setShowReplyForm(false);
-      // Перезагружаем все ответы
       const r = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/replies`);
       if (r.ok) {
         const newReplies = await r.json();
-        // Триггерим обновление родителя через callback
-        window.dispatchEvent(new CustomEvent("replies-updated", { detail: newReplies }));
+        setReplies(newReplies); // 🆕 Обновляем состояние напрямую, без window событий
       }
       triggerFeedRefresh();
     }
   }
 
   const canDelete = currentUser?.id === reply.author_id || myPermissions.includes("delete_posts");
-  const maxDepth = 3; // Максимальная глубина вложенности
-
-  
+  const maxDepth = 3;
 
   return (
     <div
@@ -616,7 +610,6 @@ function ReplyItem({
         </Link>
 
         <div className="flex-1 min-w-0">
-          {/* 🆕 Показываем, на кого это ответ */}
           {reply.parent && (
             <div className="flex items-center gap-1.5 text-xs text-white/40 mb-1">
               <CornerDownRight size={12} />
@@ -685,7 +678,6 @@ function ReplyItem({
             )}
           </div>
 
-          {/* 🆕 Форма ответа на комментарий */}
           {showReplyForm && (
             <div className="mt-2 flex gap-2">
               <input
@@ -722,7 +714,6 @@ function ReplyItem({
         </div>
       </div>
 
-      {/* 🆕 Вложенные ответы */}
       {showChildren && children.length > 0 && depth < maxDepth && (
         <div className="mt-2 space-y-2">
           {children.map((child) => (
@@ -734,6 +725,7 @@ function ReplyItem({
               onReply={onReply}
               currentUser={currentUser}
               myPermissions={myPermissions}
+              setReplies={setReplies} // 🆕 Пробрасываем дальше по рекурсии
               onDelete={async () => {
                 const token = getToken();
                 if (!token) return;
@@ -746,7 +738,7 @@ function ReplyItem({
                 });
                 const r = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/replies`);
                 if (r.ok) {
-                  window.dispatchEvent(new CustomEvent("replies-updated", { detail: await r.json() }));
+                  setReplies(await r.json()); // 🆕 Обновляем состояние напрямую
                 }
                 triggerFeedRefresh();
               }}
