@@ -319,29 +319,22 @@ export default function UserProfilePage() {
           <div className="px-4 md:px-6 py-6">
             <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
               
-              {/* АВАТАРКА */}
-              <div className="relative group shrink-0 w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-[#171717] overflow-hidden bg-[#2a2a2a]">
+              {/* АВАТАРКА (Исправлено: убрана двойная рамка, онлайн передан через пропс Avatar) */}
+              <div className="relative group shrink-0 w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden bg-[#2a2a2a] flex items-center justify-center">
                 <Avatar 
                   src={profile.avatar_url} 
                   name={profile.display_name} 
                   id={profile.id} 
                   size={128}
-                  fill
-                  showBorder={false}
-                  online={false}
+                  online={isOnline(profile.last_seen)}
                 />
-                
-                {/* Иконка онлайна */}
-                {isOnline(profile.last_seen) && (
-                  <span className="absolute bottom-1 right-1 md:bottom-2 md:right-2 w-2.5 h-2.5 md:w-3.5 md:h-3.5 bg-emerald-500 border-[2.5px] border-[#171717] rounded-full z-10" />
-                )}
                 
                 {/* Кнопка смены аватарки при наведении */}
                 {isOwnProfile && (
                   <button
                     onClick={openFilePicker}
                     disabled={uploading}
-                    className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-full cursor-pointer"
+                    className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-full cursor-pointer z-20"
                     title="Сменить аватарку"
                   >
                     <Camera size={32} className="text-white" />
@@ -432,7 +425,7 @@ export default function UserProfilePage() {
                 <p className="text-white/50 mt-1 text-sm">@{profile.username}</p>
                 {profile.bio && <p className="text-white/80 mt-2 text-sm whitespace-pre-wrap">{profile.bio}</p>}
 
-                {/* 🆕 Кнопки действий — МОБИЛЬНЫЕ (под био, как раньше) */}
+                {/* 🆕 Кнопки действий — МОБИЛЬНЫЕ (Исправлено: убран текст у секретного чата) */}
                 {!isOwnProfile && (
                   <div className="flex md:hidden flex-wrap justify-center gap-2 mt-4">
                     <button onClick={toggleFollow} className={`flex-1 px-4 py-2 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-white/20 text-white/80 hover:bg-white/10 hover:border-white/40 hover:text-white"}`}>
@@ -460,10 +453,10 @@ export default function UserProfilePage() {
                           alert("Ошибка сети");
                         }
                       }}
-                      className="flex items-center justify-center gap-1 flex-1 px-3 py-2 rounded-full border border-emerald-500/40 text-emerald-400 font-bold text-sm hover:bg-emerald-500/10 transition-all"
+                      className="flex items-center justify-center px-3 py-2 rounded-full border border-emerald-500/40 text-emerald-400 font-bold text-sm hover:bg-emerald-500/10 transition-all"
+                      title="Секретный чат"
                     >
-                      <Lock size={14} />
-                      <span>Секретный чат</span>
+                      <Lock size={16} />
                     </button>
                     {canBan && (
                       <button onClick={toggleBan} className={`flex items-center justify-center px-3 py-2 rounded-full border font-bold transition-all ${profile.is_banned ? "border-green-400/40 text-green-400 hover:bg-green-500/10" : "border-red-400/40 text-red-400 hover:bg-red-500/10"}`} title={profile.is_banned ? "Разбанить" : "Забанить"}>
