@@ -79,14 +79,21 @@ class Chat(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     created_at: datetime = Field(default_factory=utcnow)
     is_secret: bool = Field(default=False)
+    # 🆕 Групповые поля
+    is_group: bool = Field(default=False)
+    name: Optional[str] = Field(default=None, max_length=80)
+    avatar_url: Optional[str] = None
+    owner_id: Optional[int] = Field(default=None, foreign_key="user.id")
 
 
 class ChatMember(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     chat_id: int = Field(foreign_key="chat.id", index=True)
     user_id: int = Field(foreign_key="user.id", index=True)
+    # 🆕 Роль в чате: "owner" | "admin" | "member"
+    role: str = Field(default="member")
+    joined_at: datetime = Field(default_factory=utcnow)
     __table_args__ = (UniqueConstraint("chat_id", "user_id"),)
-
 
 class Message(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

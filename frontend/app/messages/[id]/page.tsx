@@ -9,6 +9,7 @@ import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { STICKERS } from "@/lib/stickers";
 import { AudioPlayer } from "@/components/AudioPlayer";
+import { GroupMembersModal } from "@/components/GroupMembersModal";
 
 import { isOnline, lastSeenText } from "@/lib/online";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
@@ -16,19 +17,12 @@ import {
   Send, Image as ImageIcon, X, Smile, Paperclip,
   FileText, Film, Edit2, Trash2, MoreVertical,
   Lock, Search, ShieldCheck, AlertTriangle,
-  Check, CheckCheck, CheckSquare, Mic, Square,
+  Check, CheckCheck, CheckSquare, Mic, Square, Users,
 } from "lucide-react";
 import {
-  ensureKeyPair,
-  getKeyPair,
-  base64ToBytes,
-  encryptMessage,
-  decryptMessage,
-  generateSessionKey,
-  encryptSessionKeyForUser,
-  decryptSessionKey,
-  storeSessionKey,
-  loadSessionKey,
+  ensureKeyPair, getKeyPair, encryptMessage, decryptMessage,
+  generateSessionKey, encryptSessionKeyForUser, decryptSessionKey,
+  storeSessionKey, loadSessionKey,
 } from "@/lib/crypto";
 
 export default function ChatPage() {
@@ -61,9 +55,11 @@ export default function ChatPage() {
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState<Set<number>>(new Set());
   const [showChatMenu, setShowChatMenu] = useState(false);
+  const [showGroupMembers, setShowGroupMembers] = useState(false);
 
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -71,15 +67,18 @@ export default function ChatPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // 🆕 Флаг группы
+  const isGroup = !!chatInfo?.is_group;
+
   // 🆕 Адаптивные классы для медиа
   const getMediaClasses = (type: string) => {
     const base = "rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 w-full";
-    const sizes = {
+    const sizes: Record<string, string> = {
       image: "max-h-48 sm:max-h-64",
       gif: "max-h-48 sm:max-h-64",
       video: "max-h-48 sm:max-h-64",
     };
-    return `${base} ${sizes[type as keyof typeof sizes] || ""}`;
+    return `${base} ${sizes[type] || ""}`;
   };
 
   // 🆕 Функции для записи голоса
@@ -101,9 +100,7 @@ export default function ChatPage() {
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const audioFile = new File([audioBlob], 'voice-message.webm', { type: 'audio/webm' });
-        
         await sendVoiceMessage(audioFile);
-        
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -124,7 +121,6 @@ export default function ChatPage() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
         recordingTimerRef.current = null;
@@ -135,24 +131,18 @@ export default function ChatPage() {
   async function sendVoiceMessage(audioFile: File) {
     const token = getToken();
     if (!token) return;
-
     try {
       const form = new FormData();
       form.append("file", audioFile);
-      
       if (isSecret) {
         form.append("text", "");
       }
-
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: form,
       });
-
-      if (res.ok) {
-        // Успешно отправлено
-      } else {
+      if (!res.ok) {
         alert("Не удалось отправить голосовое сообщение");
       }
     } catch (err) {
@@ -203,10 +193,8 @@ export default function ChatPage() {
   async function deleteSelectedMessages() {
     if (selectedMessages.size === 0) return;
     if (!confirm(`Удалить ${selectedMessages.size} сообщений?`)) return;
-
     const token = getToken();
     if (!token) return;
-
     try {
       await Promise.all(
         Array.from(selectedMessages).map((id) =>
@@ -216,7 +204,6 @@ export default function ChatPage() {
           })
         )
       );
-
       setSelectedMessages(new Set());
       setIsSelectMode(false);
       loadMessages();
@@ -226,7 +213,10 @@ export default function ChatPage() {
   }
 
   async function deleteChat() {
-    if (!confirm("Удалить чат? Все сообщения будут удалены. Это действие нельзя отменить.")) return;
+    const msg = isGroup
+      ? "Покинуть группу? Все ваши сообщения будут удалены."
+      : "Удалить чат? Все сообщения будут удалены. Это действие нельзя отменить.";
+    if (!confirm(msg)) return;
     const token = getToken();
     if (!token) return;
     try {
@@ -252,20 +242,27 @@ export default function ChatPage() {
     return decryptMessage(msg.ciphertext, sk);
   }
 
+  // 🆕 loadChatInfo: универсальный, работает и для DM и для групп
   async function loadChatInfo() {
     const token = getToken();
     if (!token) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 403) {
+        router.push("/messages");
+        return;
+      }
       if (res.ok) {
-        const chats = await res.json();
-        const mine = chats.find((c: any) => String(c.id) === chatId);
-        if (mine) {
-          setChatInfo(mine);
-          setIsSecret(mine.is_secret);
-          setChatPartner(mine.other);
+        const data = await res.json();
+        setChatInfo(data);
+        // 🆕 В группах принудительно выключаем E2EE
+        setIsSecret(data.is_secret && !data.is_group);
+        if (data.is_group) {
+          setChatPartner(null);
+        } else {
+          setChatPartner(data.other);
         }
       }
     } catch (err) {
@@ -293,10 +290,9 @@ export default function ChatPage() {
   }
 
   async function initCryptoForSecretChat() {
-    if (!isSecret || !chatPartner) return;
+    if (!isSecret || !chatPartner || isGroup) return;
     const token = getToken();
     if (!token) return;
-
     try {
       const myKeyData = await ensureKeyPair(token, process.env.NEXT_PUBLIC_API_URL!);
       await getKeyPair();
@@ -331,7 +327,6 @@ export default function ChatPage() {
   async function establishNewSession() {
     const token = getToken();
     if (!token || !chatPartner) return;
-
     try {
       const myKeys = await getKeyPair();
       if (!myKeys) {
@@ -548,11 +543,17 @@ export default function ChatPage() {
     };
   }, [chatId]);
 
+  // 🆕 Блокируем E2EE для групп + инициализация крипто для DM
   useEffect(() => {
+    if (isGroup) {
+      setIsSecret(false);
+      setCryptoError(null);
+      return;
+    }
     if (isSecret && chatPartner && currentUser) {
       initCryptoForSecretChat();
     }
-  }, [isSecret, chatPartner, currentUser]);
+  }, [isSecret, chatPartner, currentUser, isGroup]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -576,6 +577,20 @@ export default function ChatPage() {
         .then(() => refresh())
         .catch(() => {});
     }
+
+    // 🆕 В группах обновляем инфо (новый участник мог написать первым)
+    if (isGroup) loadChatInfo();
+  });
+
+  // 🆕 Подписки на групповые WS-события
+  useWebSocket("group_member_added", (data: any) => {
+    if (String(data.chat_id) === String(chatId)) loadChatInfo();
+  });
+  useWebSocket("group_member_removed", (data: any) => {
+    if (String(data.chat_id) === String(chatId)) loadChatInfo();
+  });
+  useWebSocket("group_info_updated", (data: any) => {
+    if (String(data.chat_id) === String(chatId)) loadChatInfo();
   });
 
   function onFiles(newFiles: FileList | null) {
@@ -596,11 +611,206 @@ export default function ChatPage() {
 
   const partnerGlow = getGlowColor(chatPartner);
 
+  // ================================================================
+  // 🆕 ХЕДЕР ЧАТА (вынесен отдельно, чтобы не ломать JSX структуру)
+  // ================================================================
+  const ChatHeader = () => (
+    <div
+      className={`p-2 sm:p-3 md:p-4 border-b border-white/10 backdrop-blur-md sticky top-0 z-10 ${
+        isSecret ? "bg-emerald-950/40" : isGroup ? "bg-purple-950/20" : "bg-[#171717]/80"
+      }`}
+    >
+      <div className="flex items-center gap-1 sm:gap-2 md:gap-3">
+        <button
+          onClick={() => router.push("/messages")}
+          className="text-white/60 hover:text-white shrink-0 p-1.5 sm:p-0"
+          title="Назад"
+        >
+          ← <span className="hidden sm:inline">Назад</span>
+        </button>
+
+        {isGroup ? (
+          /* 🆕 ГРУППА: клик открывает участников */
+          <button
+            onClick={() => setShowGroupMembers(true)}
+            className="flex items-center gap-2 sm:gap-3 group flex-1 min-w-0 text-left"
+          >
+            <div className="shrink-0 relative w-8 h-8 sm:w-10 sm:h-10">
+              {(chatInfo.members || []).slice(0, 3).map((m: any, i: number) => (
+                <Avatar
+                  key={m.user.id}
+                  src={m.user.avatar_url}
+                  name={m.user.display_name}
+                  id={m.user.id}
+                  size={i === 0 ? 24 : 20}
+                  className="absolute"
+                  style={{
+                    top: i === 0 ? 0 : i === 1 ? 16 : 0,
+                    left: i === 0 ? 0 : i === 1 ? 16 : 16,
+                    zIndex: 3 - i,
+                    border: "2px solid #1f1f23",
+                  }}
+                />
+              ))}
+            </div>
+            <div className="min-w-0">
+              <p className="font-bold truncate text-xs sm:text-sm md:text-base text-white group-hover:text-[#8b5cf6] transition-colors">
+                {chatInfo.name}
+              </p>
+              <p className="text-[9px] sm:text-xs text-white/50">
+                {chatInfo.members_count} участников · нажмите для подробностей
+              </p>
+            </div>
+          </button>
+        ) : chatPartner ? (
+          /* DM — оригинальный код */
+          <Link href={`/user/${chatPartner.id}`} className="flex items-center gap-2 sm:gap-3 group flex-1 min-w-0">
+            <div
+              className="shrink-0 relative"
+              style={partnerGlow ? { filter: `drop-shadow(0 0 6px ${partnerGlow})` } : undefined}
+            >
+              <Avatar
+                src={chatPartner.avatar_url}
+                name={chatPartner.display_name}
+                id={chatPartner.id}
+                size={32}
+                online={isOnline(chatPartner.last_seen)}
+              />
+              {isSecret && (
+                <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-emerald-500 border-2 border-[#171717] flex items-center justify-center">
+                  <Lock size={7} className="sm:w-2 sm:h-2 text-white" />
+                </div>
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
+                <p
+                  className={`font-bold truncate text-xs sm:text-sm md:text-base transition-all group-hover:opacity-80 ${
+                    glowStyle(chatPartner) ? "" : "text-white"
+                  }`}
+                  style={glowStyle(chatPartner)}
+                >
+                  {chatPartner.display_name}
+                </p>
+                {isSecret && (
+                  <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1 sm:px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[7px] sm:text-[9px] font-black uppercase tracking-widest border border-emerald-500/30 shrink-0">
+                    <Lock size={6} className="sm:w-[7px] sm:h-[7px]" />
+                    <span className="hidden sm:inline">E2EE</span>
+                  </span>
+                )}
+              </div>
+              <p className={`text-[9px] sm:text-xs ${isOnline(chatPartner.last_seen) ? "text-green-400" : "text-white/50"}`}>
+                {isOnline(chatPartner.last_seen) ? "● в сети" : lastSeenText(chatPartner.last_seen)}
+              </p>
+            </div>
+          </Link>
+        ) : (
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-white text-sm">Загрузка...</p>
+          </div>
+        )}
+
+        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+          <button
+            onClick={() => setShowSearch(!showSearch)}
+            className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
+              showSearch ? "text-[#8b5cf6] bg-[#8b5cf6]/10" : "text-white/60 hover:text-[#8b5cf6]"
+            }`}
+            title="Поиск"
+          >
+            <Search size={15} className="sm:w-4 sm:h-4" />
+          </button>
+
+          {isSecret && !isGroup && (
+            <button
+              onClick={() => setShowVerify(true)}
+              className="p-1.5 sm:p-2 text-emerald-400 hover:text-emerald-300 transition-colors"
+              title="Проверить шифрование"
+            >
+              <ShieldCheck size={15} className="sm:w-4 sm:h-4" />
+            </button>
+          )}
+
+          <button
+            onClick={() => { loadMedia(); setShowMediaGallery(true); }}
+            className="p-1.5 sm:p-2 text-white/60 hover:text-[#8b5cf6] transition-colors"
+            title="Медиа"
+          >
+            <ImageIcon size={15} className="sm:w-4 sm:h-4" />
+          </button>
+
+          <div className="relative">
+            <button
+              onClick={() => setShowChatMenu((prev) => !prev)}
+              className="p-1.5 sm:p-2 text-white/60 hover:text-white transition-colors"
+              title="Ещё"
+            >
+              <MoreVertical size={15} className="sm:w-4 sm:h-4" />
+            </button>
+            {showChatMenu && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowChatMenu(false)} />
+                <div className="absolute right-0 top-full mt-1 bg-[#1f1f23] border border-white/15 rounded-lg shadow-xl overflow-hidden min-w-[140px] sm:min-w-[180px] z-50">
+                  {/* 🆕 Кнопка участников для групп */}
+                  {isGroup && (
+                    <button
+                      onClick={() => { setShowGroupMembers(true); setShowChatMenu(false); }}
+                      className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
+                    >
+                      <Users size={13} className="sm:w-3.5 sm:h-3.5" />
+                      Участники
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { deleteChat(); setShowChatMenu(false); }}
+                    className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-left text-xs sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
+                  >
+                    <Trash2 size={13} className="sm:w-3.5 sm:h-3.5" />
+                    {isGroup ? "Покинуть группу" : "Удалить чат"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {showSearch && (
+        <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-white/10">
+          <div className="relative">
+            <Search size={13} className="sm:w-3.5 sm:h-3.5 absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/40" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={isSecret ? "Поиск в расшифрованных..." : "Поиск в сообщениях..."}
+              className="w-full pl-8 sm:pl-9 pr-7 sm:pr-8 py-1 sm:py-1.5 rounded-lg border border-white/10 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] text-xs sm:text-sm"
+              autoFocus
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+              >
+                <X size={13} className="sm:w-3.5 sm:h-3.5" />
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <p className="text-[10px] sm:text-xs text-white/40 mt-1 sm:mt-1.5">
+              {filteredMessages.length} из {messages.length} сообщений
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
       <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
       <main className="flex-1 flex flex-col border-x border-white/10">
+        {/* ====== ХЕДЕРЫ: раздельные для режима выделения и обычного ====== */}
         {isSelectMode ? (
           <div className="p-2 sm:p-3 md:p-4 border-b border-white/10 bg-[#171717]/95 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3">
@@ -624,152 +834,7 @@ export default function ChatPage() {
             </button>
           </div>
         ) : (
-          <div
-            className={`p-2 sm:p-3 md:p-4 border-b border-white/10 backdrop-blur-md sticky top-0 z-10 ${
-              isSecret ? "bg-emerald-950/40" : "bg-[#171717]/80"
-            }`}
-          >
-            <div className="flex items-center gap-1 sm:gap-2 md:gap-3">
-              <button
-                onClick={() => router.push("/messages")}
-                className="text-white/60 hover:text-white shrink-0 p-1.5 sm:p-0"
-                title="Назад"
-              >
-                ← <span className="hidden sm:inline">Назад</span>
-              </button>
-
-              {chatPartner && (
-                <Link href={`/user/${chatPartner.id}`} className="flex items-center gap-2 sm:gap-3 group flex-1 min-w-0">
-                  <div
-                    className="shrink-0 relative"
-                    style={partnerGlow ? { filter: `drop-shadow(0 0 6px ${partnerGlow})` } : undefined}
-                  >
-                    <Avatar
-                      src={chatPartner.avatar_url}
-                      name={chatPartner.display_name}
-                      id={chatPartner.id}
-                      size={32}
-                      online={isOnline(chatPartner.last_seen)}
-                    />
-                    {isSecret && (
-                      <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-emerald-500 border-2 border-[#171717] flex items-center justify-center">
-                        <Lock size={7} className="sm:w-2 sm:h-2 text-white" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
-                      <p
-                        className={`font-bold truncate text-xs sm:text-sm md:text-base transition-all group-hover:opacity-80 ${
-                          glowStyle(chatPartner) ? "" : "text-white"
-                        }`}
-                        style={glowStyle(chatPartner)}
-                      >
-                        {chatPartner.display_name}
-                      </p>
-                      {isSecret && (
-                        <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1 sm:px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[7px] sm:text-[9px] font-black uppercase tracking-widest border border-emerald-500/30 shrink-0">
-                          <Lock size={6} className="sm:w-[7px] sm:h-[7px]" />
-                          <span className="hidden sm:inline">E2EE</span>
-                        </span>
-                      )}
-                    </div>
-                    <p className={`text-[9px] sm:text-xs ${isOnline(chatPartner.last_seen) ? "text-green-400" : "text-white/50"}`}>
-                      {isOnline(chatPartner.last_seen) ? "● в сети" : lastSeenText(chatPartner.last_seen)}
-                    </p>
-                  </div>
-                </Link>
-              )}
-
-              <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
-                <button
-                  onClick={() => setShowSearch(!showSearch)}
-                  className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
-                    showSearch ? "text-[#8b5cf6] bg-[#8b5cf6]/10" : "text-white/60 hover:text-[#8b5cf6]"
-                  }`}
-                  title="Поиск"
-                >
-                  <Search size={15} className="sm:w-4 sm:h-4" />
-                </button>
-
-                {isSecret && (
-                  <button
-                    onClick={() => setShowVerify(true)}
-                    className="p-1.5 sm:p-2 text-emerald-400 hover:text-emerald-300 transition-colors"
-                    title="Проверить шифрование"
-                  >
-                    <ShieldCheck size={15} className="sm:w-4 sm:h-4" />
-                  </button>
-                )}
-
-                <button
-                  onClick={() => {
-                    loadMedia();
-                    setShowMediaGallery(true);
-                  }}
-                  className="p-1.5 sm:p-2 text-white/60 hover:text-[#8b5cf6] transition-colors"
-                  title="Медиа"
-                >
-                  <ImageIcon size={15} className="sm:w-4 sm:h-4" />
-                </button>
-
-                <div className="relative">
-                  <button
-                    onClick={() => setShowChatMenu((prev) => !prev)}
-                    className="p-1.5 sm:p-2 text-white/60 hover:text-white transition-colors"
-                    title="Ещё"
-                  >
-                    <MoreVertical size={15} className="sm:w-4 sm:h-4" />
-                  </button>
-                {showChatMenu && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowChatMenu(false)} />
-                    <div className="absolute right-0 top-full mt-1 bg-[#1f1f23] border border-white/15 rounded-lg shadow-xl overflow-hidden min-w-[140px] sm:min-w-[180px] z-50">
-                      <button
-                        onClick={() => {
-                          deleteChat();
-                          setShowChatMenu(false);
-                        }}
-                        className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-left text-xs sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
-                      >
-                        <Trash2 size={13} className="sm:w-3.5 sm:h-3.5" />
-                        Удалить чат
-                      </button>
-                    </div>
-                  </>
-                )}
-                </div>
-              </div>
-            </div>
-
-            {showSearch && (
-              <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-white/10">
-                <div className="relative">
-                  <Search size={13} className="sm:w-3.5 sm:h-3.5 absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/40" />
-                  <input
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder={isSecret ? "Поиск в расшифрованных..." : "Поиск в сообщениях..."}
-                    className="w-full pl-8 sm:pl-9 pr-7 sm:pr-8 py-1 sm:py-1.5 rounded-lg border border-white/10 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] text-xs sm:text-sm"
-                    autoFocus
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
-                    >
-                      <X size={13} className="sm:w-3.5 sm:h-3.5" />
-                    </button>
-                  )}
-                </div>
-                {searchQuery && (
-                  <p className="text-[10px] sm:text-xs text-white/40 mt-1 sm:mt-1.5">
-                    {filteredMessages.length} из {messages.length} сообщений
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
+          <ChatHeader />
         )}
 
         {isSecret && messages.length === 0 && !cryptoError && (
@@ -779,7 +844,7 @@ export default function ChatPage() {
               <div className="text-xs sm:text-sm text-emerald-100/80">
                 <p className="font-bold text-emerald-300 mb-0.5 sm:mb-1">Секретный чат</p>
                 <p className="text-[10px] sm:text-xs">
-                  Сообщения зашифрованы端到端. Сервер не может их прочитать.
+                  Сообщения зашифрованы end-to-end. Сервер не может их прочитать.
                   Ключи хранятся только на устройствах участников.
                 </p>
               </div>
@@ -804,13 +869,15 @@ export default function ChatPage() {
           </div>
         )}
 
-          <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 space-y-2 sm:space-y-3">
+        <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 space-y-2 sm:space-y-3">
           {currentUser &&
             filteredMessages.map((msg) => {
               const isMine = msg.sender_id === currentUser.id;
               const isEditing = editingMessageId === msg.id;
               const displayText = decryptDisplayText(msg);
               const isSelected = selectedMessages.has(msg.id);
+              // 🆕 Glow для отправителя (работает и в группах, и в DM)
+              const senderGlow = getGlowColor(msg);
 
               return (
                 <div
@@ -834,12 +901,13 @@ export default function ChatPage() {
                     </div>
                   )}
 
-                  {!isMine && chatPartner && !isSelectMode && (
-                    <Link href={`/user/${chatPartner.id}`} className="shrink-0">
+                  {/* 🆕 Аватарка: для групп показываем у всех чужих, для DM — когда есть chatPartner */}
+                  {!isMine && !isSelectMode && (isGroup || chatPartner) && (
+                    <Link href={`/user/${msg.sender_id}`} className="shrink-0">
                       <div
                         style={
-                          partnerGlow
-                            ? { filter: `drop-shadow(0 0 6px ${partnerGlow})` }
+                          senderGlow
+                            ? { filter: `drop-shadow(0 0 6px ${senderGlow})` }
                             : undefined
                         }
                       >
@@ -853,12 +921,12 @@ export default function ChatPage() {
                     </Link>
                   )}
 
-                  {!isMine && chatPartner && isSelectMode && (
+                  {!isMine && isSelectMode && (isGroup || chatPartner) && (
                     <div
                       className="shrink-0"
                       style={
-                        partnerGlow
-                          ? { filter: `drop-shadow(0 0 6px ${partnerGlow})` }
+                        senderGlow
+                          ? { filter: `drop-shadow(0 0 6px ${senderGlow})` }
                           : undefined
                       }
                     >
@@ -876,6 +944,16 @@ export default function ChatPage() {
                       isMine ? "items-end" : "items-start"
                     }`}
                   >
+                    {/* 🆕 Имя автора в группах */}
+                    {isGroup && !isMine && (
+                      <p
+                        className="text-[10px] sm:text-xs font-bold mb-0.5 px-1"
+                        style={senderGlow ? { color: senderGlow } : { color: "#a78bfa" }}
+                      >
+                        {msg.sender_name}
+                      </p>
+                    )}
+
                     <div
                       className={`rounded-2xl px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 transition-all ${
                         isSelected
@@ -1116,37 +1194,37 @@ export default function ChatPage() {
                   >
                     <Smile size={16} className="sm:w-[18px] sm:h-[18px]" />
                   </button>
-                {showStickers && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowStickers(false)} />
-                    <div className="absolute bottom-full left-0 mb-2 w-56 sm:w-64 md:w-72 bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl z-50">
-                      <div className="p-2 sm:p-3 border-b border-white/10 flex items-center justify-between">
-                        <span className="text-xs sm:text-sm font-bold text-white">Стикеры</span>
-                        <button
-                          onClick={() => setShowStickers(false)}
-                          className="text-white/60 hover:text-white"
-                        >
-                          <X size={14} className="sm:w-4 sm:h-4" />
-                        </button>
-                      </div>
-                      <div className="p-1.5 sm:p-2 grid grid-cols-6 gap-0.5 sm:gap-1 max-h-48 sm:max-h-64 overflow-y-auto">
-                        {STICKERS.map((s) => (
+                  {showStickers && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setShowStickers(false)} />
+                      <div className="absolute bottom-full left-0 mb-2 w-56 sm:w-64 md:w-72 bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl z-50">
+                        <div className="p-2 sm:p-3 border-b border-white/10 flex items-center justify-between">
+                          <span className="text-xs sm:text-sm font-bold text-white">Стикеры</span>
                           <button
-                            key={s.code}
-                            onClick={() => {
-                              insertSticker(s.emoji);
-                              setShowStickers(false);
-                            }}
-                            className="aspect-square flex items-center justify-center text-xl sm:text-2xl hover:bg-white/10 rounded-lg"
+                            onClick={() => setShowStickers(false)}
+                            className="text-white/60 hover:text-white"
                           >
-                            {s.emoji}
+                            <X size={14} className="sm:w-4 sm:h-4" />
                           </button>
-                        ))}
+                        </div>
+                        <div className="p-1.5 sm:p-2 grid grid-cols-6 gap-0.5 sm:gap-1 max-h-48 sm:max-h-64 overflow-y-auto">
+                          {STICKERS.map((s) => (
+                            <button
+                              key={s.code}
+                              onClick={() => {
+                                insertSticker(s.emoji);
+                                setShowStickers(false);
+                              }}
+                              className="aspect-square flex items-center justify-center text-xl sm:text-2xl hover:bg-white/10 rounded-lg"
+                            >
+                              {s.emoji}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  </>
-                )}
-              </div>
+                    </>
+                  )}
+                </div>
 
                 <button
                   onClick={() => fileRef.current?.click()}
@@ -1157,12 +1235,12 @@ export default function ChatPage() {
                   }`}
                 >
                   <Paperclip size={16} className="sm:w-[18px] sm:h-[18px]" />
-                {files.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-[#8b5cf6] text-white text-[8px] sm:text-[10px] font-bold w-3 h-3 sm:w-4 sm:h-4 rounded-full flex items-center justify-center">
-                    {files.length}
-                  </span>
-                )}
-              </button>
+                  {files.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-[#8b5cf6] text-white text-[8px] sm:text-[10px] font-bold w-3 h-3 sm:w-4 sm:h-4 rounded-full flex items-center justify-center">
+                      {files.length}
+                    </span>
+                  )}
+                </button>
 
                 <button
                   onClick={startRecording}
@@ -1182,7 +1260,7 @@ export default function ChatPage() {
                     sendMessage();
                   }
                 }}
-                placeholder={isSecret ? "Зашифрованное..." : "Сообщение..."}
+                placeholder={isSecret ? "Зашифрованное..." : isGroup ? "Сообщение группе..." : "Сообщение..."}
                 rows={1}
                 className={`flex-1 border rounded-xl px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 bg-white/5 text-white text-xs sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-20 sm:max-h-24 md:max-h-32 ${
                   isSecret
@@ -1209,7 +1287,7 @@ export default function ChatPage() {
         {isSelectMode && <div className="h-2" />}
       </main>
 
-      {showVerify && (
+      {showVerify && chatPartner && (
         <>
           <div
             className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]"
@@ -1336,6 +1414,16 @@ export default function ChatPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* 🆕 Модалка участников группы */}
+      {showGroupMembers && isGroup && (
+        <GroupMembersModal
+          chatId={Number(chatId)}
+          myRole={chatInfo?.my_role || null}
+          onClose={() => setShowGroupMembers(false)}
+          onChanged={() => loadChatInfo()}
+        />
       )}
     </div>
   );

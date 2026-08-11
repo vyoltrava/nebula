@@ -6,6 +6,7 @@ from sqlmodel import Session, select, func, col
 from sqlalchemy import text, update, delete
 from typing import Optional
 from fastapi.concurrency import run_in_threadpool
+import asyncio
 
 
 import jwt
@@ -2977,6 +2978,97 @@ async def admin_set_user_avatar(
     
     return {"ok": True, "avatar_url": target.avatar_url}
 
+
+def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
+    """Возвращает данные чата, готовые для отправки на фронт"""
+    members = session.exec(
+        select(ChatMember).where(ChatMember.chat_id == chat.id)
+    ).all()
+    member_user_ids = [m.user_id for m in members]
+    users = session.exec(
+        select(User).where(User.id.in_(member_user_ids))
+    ).all()
+    users_map = {u.id: u for u in users}
+    members_map = {m.user_id: m for m in members}
+
+    # Последнее сообщение
+    last_msg = session.exec(
+        select(Message)
+        .where(Message.chat_id == chat.id)
+        .order_by(Message.created_at.desc())
+        .limit(1)
+    ).first()
+
+    # Непрочитанные
+    unread = session.exec(
+        select(func.count(Message.id)).where(
+            Message.chat_id == chat.id,
+            Message.sender_id != user_id,
+            Message.read == False,
+        )
+    ).one()
+
+    last_message_data = None
+    if last_msg:
+        sender = users_map.get(last_msg.sender_id)
+        if chat.is_secret:
+            last_message_data = {"text": "🔒 Секретное сообщение", "is_encrypted": True,
+                                   "sender_id": last_msg.sender_id,
+                                   "created_at": last_msg.created_at.isoformat()}
+        else:
+            if last_msg.text:
+                preview = last_msg.text[:50]
+            elif last_msg.media_type in ("image", "gif"):
+                preview = "📷 Фото"
+            elif last_msg.media_type == "video":
+                preview = "🎬 Видео"
+            elif last_msg.media_type == "audio":
+                preview = "🎙️ Голосовое"
+            else:
+                preview = "Сообщение"
+            # В группах добавляем имя отправителя в превью
+            if chat.is_group and sender:
+                preview = f"{sender.display_name}: {preview}"
+            last_message_data = {
+                "text": preview,
+                "is_encrypted": False,
+                "sender_id": last_msg.sender_id,
+                "created_at": last_msg.created_at.isoformat(),
+            }
+
+    # Мой статус в группе
+    my_role = members_map.get(user_id).role if user_id in members_map else None
+
+    if chat.is_group:
+        return {
+            "id": chat.id,
+            "is_group": True,
+            "is_secret": False,  # группы без E2EE
+            "name": chat.name or "Без названия",
+            "avatar_url": chat.avatar_url,
+            "owner_id": chat.owner_id,
+            "members_count": len(members),
+            "members": [
+                {"user": user_out(users_map[m.user_id], session), "role": m.role}
+                for m in members if m.user_id in users_map
+            ],
+            "my_role": my_role,
+            "last_message": last_message_data,
+            "unread_count": unread,
+        }
+    else:
+        # DM — как раньше
+        other_member = next((m for m in members if m.user_id != user_id), None)
+        other = users_map.get(other_member.user_id) if other_member else None
+        return {
+            "id": chat.id,
+            "is_group": False,
+            "is_secret": chat.is_secret,
+            "other": user_out(other, session) if other else None,
+            "last_message": last_message_data,
+            "unread_count": unread,
+        }
+
 @app.get("/api/chats")
 def list_chats_v2(
     q: str = "",
@@ -2986,130 +3078,330 @@ def list_chats_v2(
     memberships = session.exec(
         select(ChatMember.chat_id).where(ChatMember.user_id == user.id)
     ).all()
-    
     if not memberships:
         return []
-    
     chat_ids = list(memberships)
-    
-    # 1. Массовый запрос чатов
+
     chats = session.exec(select(Chat).where(Chat.id.in_(chat_ids))).all()
-    chats_map = {c.id: c for c in chats}
-    
-    # 2. Массовый запрос всех участников этих чатов
-    all_members = session.exec(
-        select(ChatMember).where(ChatMember.chat_id.in_(chat_ids))
-    ).all()
-    
-    # Группируем по chat_id
-    members_by_chat = {}
-    other_member_ids = set()
-    for m in all_members:
-        if m.chat_id not in members_by_chat:
-            members_by_chat[m.chat_id] = []
-        members_by_chat[m.chat_id].append(m)
-        if m.user_id != user.id:
-            other_member_ids.add(m.user_id)
-    
-    # 3. Массовый запрос всех собеседников
-    other_users = session.exec(
-        select(User).where(User.id.in_(other_member_ids))
-    ).all()
-    users_map = {u.id: u for u in other_users}
-    
-    # 4. Массовый запрос последних сообщений
-    from sqlalchemy.orm import aliased
-    LatestMessage = aliased(Message)
-    last_msgs_query = (
-        select(Message)
-        .where(Message.chat_id.in_(chat_ids))
-        .order_by(Message.chat_id, Message.created_at.desc())
-    )
-    all_msgs = session.exec(last_msgs_query).all()
-    
-    # Берём только первое сообщение для каждого чата
-    last_msgs_map = {}
-    for msg in all_msgs:
-        if msg.chat_id not in last_msgs_map:
-            last_msgs_map[msg.chat_id] = msg
-    
-    # 5. Массовый запрос непрочитанных
-    unread_counts = dict(session.exec(
-        select(Message.chat_id, func.count(Message.id))
-        .where(
-            Message.chat_id.in_(chat_ids),
-            Message.sender_id != user.id,
-            Message.read == False
-        )
-        .group_by(Message.chat_id)
-    ).all())
-    
+
     result = []
-    for chat_id in chat_ids:
-        chat = chats_map.get(chat_id)
-        if not chat:
-            continue
-        
-        # Находим собеседника
-        chat_members = members_by_chat.get(chat_id, [])
-        other_member = next((m for m in chat_members if m.user_id != user.id), None)
-        if not other_member:
-            continue
-        
-        other = users_map.get(other_member.user_id)
-        if not other:
-            continue
-        
-        # Поиск по имени
+    for chat in chats:
+        data = serialize_chat_for_user(chat, user.id, session)
+
+        # Фильтрация по поиску
         if q.strip():
             q_lower = q.lower()
-            if (q_lower not in other.display_name.lower() and 
-                q_lower not in other.username.lower()):
-                continue
-        
-        last_msg = last_msgs_map.get(chat_id)
-        unread = unread_counts.get(chat_id, 0)
-        
-        last_message_data = None
-        if last_msg:
-            if chat.is_secret:
-                last_message_data = {
-                    "text": "🔒 Секретное сообщение",
-                    "is_encrypted": True,
-                    "sender_id": last_msg.sender_id,
-                    "created_at": last_msg.created_at.isoformat(),
-                }
+            if chat.is_group:
+                if q_lower not in (chat.name or "").lower():
+                    continue
             else:
-                if last_msg.text:
-                    preview = last_msg.text[:50]
-                elif last_msg.media_type == "image":
-                    preview = "📷 Фото"
-                elif last_msg.media_type == "gif":
-                    preview = "🎭 GIF"
-                elif last_msg.media_type == "video":
-                    preview = "🎬 Видео"
-                else:
-                    preview = "Сообщение"
-                last_message_data = {
-                    "text": preview,
-                    "is_encrypted": False,
-                    "sender_id": last_msg.sender_id,
-                    "created_at": last_msg.created_at.isoformat(),
-                }
-        
-        result.append({
-            "id": chat_id,
-            "is_secret": chat.is_secret,
-            "other": user_out(other, session),
-            "last_message": last_message_data,
-            "unread_count": unread,
-        })
-    
+                other = data.get("other")
+                if not other or (q_lower not in other["display_name"].lower()
+                                  and q_lower not in other["username"].lower()):
+                    continue
+
+        result.append(data)
+
+    # Сортировка: непрочитанные сверху, потом по дате последнего сообщения
     result.sort(key=lambda x: (
         0 if x["unread_count"] > 0 else 1,
-        -(datetime.fromisoformat(x["last_message"]["created_at"]).timestamp()) if x["last_message"] else 0,
+        -(datetime.fromisoformat(x["last_message"]["created_at"]).timestamp()) if x.get("last_message") else 0,
     ))
     return result
+
+
+
+class CreateGroupIn(BaseModel):
+    name: str
+    user_ids: list[int]  # ID пользователей, которых добавляем (кроме себя)
+
+
+@app.post("/api/chats/group")
+@limiter.limit("5/minute")
+def create_group_chat(
+    request: Request,
+    data: CreateGroupIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    if not data.name or not data.name.strip():
+        raise HTTPException(400, "Название группы обязательно")
+    if len(data.name.strip()) > 80:
+        raise HTTPException(400, "Название максимум 80 символов")
+    if len(data.user_ids) < 1:
+        raise HTTPException(400, "Добавьте хотя бы одного участника")
+    if len(data.user_ids) > 49:  # 50 всего включая создателя
+        raise HTTPException(400, "Максимум 50 участников в группе")
+    if user.id in data.user_ids:
+        raise HTTPException(400, "Нельзя добавить себя")
+
+    # Проверка, что все пользователи существуют и не забанены
+    valid_ids = set()
+    for uid in set(data.user_ids):
+        target = session.get(User, uid)
+        if target and not target.is_banned:
+            valid_ids.add(uid)
+    if not valid_ids:
+        raise HTTPException(400, "Нет валидных пользователей для добавления")
+
+    chat = Chat(is_group=True, name=data.name.strip(), owner_id=user.id)
+    session.add(chat)
+    session.commit()
+    session.refresh(chat)
+
+    # Создатель = owner
+    session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="owner"))
+    # Остальные = member
+    for uid in valid_ids:
+        session.add(ChatMember(chat_id=chat.id, user_id=uid, role="member"))
+        # Уведомление о добавлении в группу
+        session.add(Notification(
+            user_id=uid, actor_id=user.id,
+            type="group_invite",
+            details=f'{{"chat_id": {chat.id}, "chat_name": "{chat.name}"}}' if False else None,
+        ))
+    session.commit()
+
+    log_action(session, user.id, "create_group",
+               target_type="chat", target_id=chat.id,
+               details={"name": chat.name, "members_count": len(valid_ids) + 1},
+               ip_address=get_client_ip(request))
+
+    # Уведомляем всех через WebSocket
+    asyncio.create_task(manager.broadcast_to_users(
+        [user.id] + list(valid_ids),
+        "group_created",
+        {"chat_id": chat.id, "name": chat.name}
+    ))
+
+    return {"chat_id": chat.id}
+
+
+@app.get("/api/chats/{chat_id}/members")
+def get_chat_members(
+    chat_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    member = session.exec(
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
+    ).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+
+    members = session.exec(
+        select(ChatMember).where(ChatMember.chat_id == chat_id)
+    ).all()
+    user_ids = [m.user_id for m in members]
+    users = {u.id: u for u in session.exec(
+        select(User).where(User.id.in_(user_ids))
+    ).all()}
+    return [
+        {"user": user_out(users[m.user_id], session), "role": m.role,
+         "joined_at": m.joined_at.isoformat() if m.joined_at else None}
+        for m in members if m.user_id in users
+    ]
+
+
+@app.post("/api/chats/{chat_id}/members")
+@limiter.limit("10/minute")
+def add_group_member(
+    request: Request,
+    chat_id: int,
+    user_id: int = Form(...),
+    actor: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    chat = session.get(Chat, chat_id)
+    if not chat or not chat.is_group:
+        raise HTTPException(404, "Группа не найдена")
+
+    actor_member = session.exec(
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == actor.id)
+    ).first()
+    if not actor_member or actor_member.role not in ("owner", "admin"):
+        raise HTTPException(403, "Только админы группы могут добавлять участников")
+
+    existing = session.exec(
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user_id)
+    ).first()
+    if existing:
+        raise HTTPException(400, "Уже в группе")
+
+    target = session.get(User, user_id)
+    if not target or target.is_banned:
+        raise HTTPException(404, "Пользователь не найден")
+
+    # Лимит участников
+    current_count = session.exec(
+        select(func.count()).select_from(ChatMember).where(ChatMember.chat_id == chat_id)
+    ).one()
+    if current_count >= 50:
+        raise HTTPException(400, "Достигнут лимит участников (50)")
+
+    session.add(ChatMember(chat_id=chat_id, user_id=user_id, role="member"))
+    session.add(Notification(user_id=user_id, actor_id=actor.id, type="group_added"))
+    session.commit()
+
+    log_action(session, actor.id, "add_group_member",
+               target_type="chat", target_id=chat_id,
+               details={"added_user_id": user_id}, ip_address=get_client_ip(request))
+
+    # Все участники узнают о новом
+    all_member_ids = session.exec(
+        select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
+    ).all()
+    asyncio.create_task(manager.broadcast_to_users(
+        all_member_ids,
+        "group_member_added",
+        {"chat_id": chat_id, "user": user_out(target, session)}
+    ))
+
+    return {"ok": True}
+
+
+@app.delete("/api/chats/{chat_id}/members/{user_id}")
+def remove_group_member(
+    chat_id: int,
+    user_id: int,
+    actor: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    chat = session.get(Chat, chat_id)
+    if not chat or not chat.is_group:
+        raise HTTPException(404, "Группа не найдена")
+
+    actor_member = session.exec(
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == actor.id)
+    ).first()
+    target_member = session.exec(
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user_id)
+    ).first()
+
+    # Выход из группы (user_id == actor.id)
+    if user_id == actor.id:
+        if not actor_member:
+            raise HTTPException(404, "Не участник")
+        if actor_member.role == "owner":
+            # Передача владения старшему админу или удаление группы
+            others = session.exec(
+                select(ChatMember).where(
+                    ChatMember.chat_id == chat_id,
+                    ChatMember.user_id != actor.id
+                )
+            ).all()
+            if not others:
+                # Удаляем всю группу
+                cascade_delete_chat(chat_id, session)
+                return {"ok": True, "deleted": True}
+            new_owner = next((m for m in others if m.role == "admin"), others[0])
+            new_owner.role = "owner"
+            chat.owner_id = new_owner.user_id
+            session.add(chat)
+            session.add(new_owner)
+    else:
+        # Кик другого
+        if not actor_member or actor_member.role not in ("owner", "admin"):
+            raise HTTPException(403, "Только админы могут кикать")
+        if not target_member:
+            raise HTTPException(404, "Участник не найден")
+        # Нельзя кикать owner
+        if target_member.role == "owner":
+            raise HTTPException(403, "Нельзя кикнуть создателя")
+
+    session.delete(target_member)
+    session.add(Notification(user_id=user_id, actor_id=actor.id, type="group_kicked"))
+    session.commit()
+
+    # Рассылаем оставшимся
+    all_member_ids = session.exec(
+        select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
+    ).all()
+    target_user = session.get(User, user_id)
+    asyncio.create_task(manager.broadcast_to_users(
+        all_member_ids + [user_id],
+        "group_member_removed",
+        {"chat_id": chat_id, "user_id": user_id,
+         "user": user_out(target_user, session) if target_user else None}
+    ))
+
+    return {"ok": True}
+
+
+@app.patch("/api/chats/{chat_id}")
+def update_group_info(
+    chat_id: int,
+    name: Optional[str] = Form(None),
+    avatar_url: Optional[str] = Form(None),
+    actor: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    chat = session.get(Chat, chat_id)
+    if not chat or not chat.is_group:
+        raise HTTPException(404, "Группа не найдена")
+
+    member = session.exec(
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == actor.id)
+    ).first()
+    if not member or member.role not in ("owner", "admin"):
+        raise HTTPException(403, "Только админы могут изменять группу")
+
+    if name is not None:
+        if not name.strip() or len(name.strip()) > 80:
+            raise HTTPException(400, "Название: 1-80 символов")
+        chat.name = name.strip()
+    if avatar_url is not None:
+        chat.avatar_url = avatar_url or None
+
+    session.add(chat)
+    session.commit()
+
+    all_member_ids = session.exec(
+        select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
+    ).all()
+    asyncio.create_task(manager.broadcast_to_users(
+        all_member_ids,
+        "group_info_updated",
+        {"chat_id": chat_id, "name": chat.name, "avatar_url": chat.avatar_url}
+    ))
+    return {"ok": True}
+
+
+def cascade_delete_chat(chat_id: int, session: Session):
+    """Удаляет чат со всеми сообщениями, участниками и уведомлениями"""
+    
+    for msg in session.exec(select(Message).where(Message.chat_id == chat_id)).all():
+        session.delete(msg)
+    for sk in session.exec(select(ChatSessionKey).where(ChatSessionKey.chat_id == chat_id)).all():
+        session.delete(sk)
+    for cm in session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id)).all():
+        session.delete(cm)
+    chat = session.get(Chat, chat_id)
+    if chat:
+        session.delete(chat)
+    session.commit()
+
+
+@app.delete("/api/chats/{chat_id}")
+def delete_chat(
+    chat_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Удалить чат (DM или группа)"""
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    member = session.exec(
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
+    ).first()
+    if not member:
+        raise HTTPException(403, "Не участник")
+    if chat.is_group and member.role != "owner" and not user.is_admin:
+        raise HTTPException(403, "Только создатель может удалить группу")
+
+    cascade_delete_chat(chat_id, session)
+    return {"ok": True}
 
 
 @app.on_event("startup")
@@ -3118,6 +3410,15 @@ def startup():
     # Автоматическое добавление недостающих колонок
     with engine.connect() as conn:
         try:
+            # ===== ГРУППОВЫЕ ЧАТЫ: миграции =====
+            conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS is_group BOOLEAN DEFAULT FALSE;"))
+            conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS name VARCHAR(80);"))
+            conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS avatar_url VARCHAR;"))
+            conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS owner_id INTEGER REFERENCES \"user\"(id);"))
+            conn.execute(text("ALTER TABLE chatmember ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT 'member';"))
+            conn.execute(text("ALTER TABLE chatmember ADD COLUMN IF NOT EXISTS joined_at TIMESTAMPTZ DEFAULT NOW();"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chat_is_group ON chat(is_group);"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chat_owner ON chat(owner_id);"))
             # 🚀 ИНДЕКСЫ ДЛЯ УСКОРЕНИЯ ЗАПРОСОВ
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_post_author ON post(author_id);'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_post_reply ON post(reply_to_id);'))
@@ -3293,30 +3594,62 @@ def admin_delete_user(
     ).all():
         session.delete(notif)
 
-    # 10. Чаты
+    # 10. Чаты — 🆕 ИСПРАВЛЕНО для групповых чатов
     memberships = session.exec(
         select(ChatMember).where(ChatMember.user_id == user_id)
     ).all()
-    
     for membership in memberships:
         chat_id = membership.chat_id
-        
-        # Массовое удаление сообщений
-        for msg in session.exec(select(Message).where(Message.chat_id == chat_id)).all():
-            session.delete(msg)
-        
-        # Массовое удаление сессионных ключей
-        for sk in session.exec(select(ChatSessionKey).where(ChatSessionKey.chat_id == chat_id)).all():
-            session.delete(sk)
-        
-        # Массовое удаление участников
-        for other_member in session.exec(
-            select(ChatMember).where(ChatMember.chat_id == chat_id)
-        ).all():
-            session.delete(other_member)
-        
         chat = session.get(Chat, chat_id)
-        if chat:
+        if not chat:
+            continue
+
+        # Считаем сколько участников в чате
+        member_count = session.exec(
+            select(func.count()).select_from(ChatMember).where(ChatMember.chat_id == chat_id)
+        ).one()
+
+        if chat.is_group and member_count > 1:
+            # 🆕 ГРУППА: удаляем ТОЛЬКО membership пользователя, чат остаётся
+            # Передаём владение если удаляется owner
+            if membership.role == "owner":
+                others = session.exec(
+                    select(ChatMember).where(
+                        ChatMember.chat_id == chat_id,
+                        ChatMember.user_id != user_id
+                    )
+                ).all()
+                if others:
+                    new_owner = next((m for m in others if m.role == "admin"), others[0])
+                    new_owner.role = "owner"
+                    chat.owner_id = new_owner.user_id
+                    session.add(chat)
+                    session.add(new_owner)
+
+            # Удаляем сообщения ТОЛЬКО этого пользователя в группе
+            for msg in session.exec(
+                select(Message).where(Message.chat_id == chat_id, Message.sender_id == user_id)
+            ).all():
+                session.delete(msg)
+
+            # Удаляем session keys ТОЛЬКО этого пользователя
+            for sk in session.exec(
+                select(ChatSessionKey).where(ChatSessionKey.chat_id == chat_id, ChatSessionKey.user_id == user_id)
+            ).all():
+                session.delete(sk)
+
+            # Удаляем сам membership
+            session.delete(membership)
+        else:
+            # DM или группа из 1 человека → удаляем весь чат
+            for msg in session.exec(select(Message).where(Message.chat_id == chat_id)).all():
+                session.delete(msg)
+            for sk in session.exec(select(ChatSessionKey).where(ChatSessionKey.chat_id == chat_id)).all():
+                session.delete(sk)
+            for other_member in session.exec(
+                select(ChatMember).where(ChatMember.chat_id == chat_id)
+            ).all():
+                session.delete(other_member)
             session.delete(chat)
 
     # 11. Жалобы
@@ -3374,13 +3707,14 @@ def open_or_create_chat(
     other = session.get(User, other_user_id)
     if not other:
         raise HTTPException(404, "User not found")
+
     my_chats = session.exec(
         select(ChatMember.chat_id).where(ChatMember.user_id == user.id)
     ).all()
     for chat_id in my_chats:
         chat = session.get(Chat, chat_id)
-        # 🆕 Пропускаем секретные чаты — "Написать" открывает только обычный
-        if chat and chat.is_secret:
+        # 🆕 Пропускаем секретные И групповые чаты — "Написать" открывает только обычный DM
+        if chat and (chat.is_secret or chat.is_group):
             continue
         other_in_chat = session.exec(
             select(ChatMember).where(
@@ -3390,12 +3724,13 @@ def open_or_create_chat(
         ).first()
         if other_in_chat:
             return {"chat_id": chat_id}
+
     chat = Chat()
     session.add(chat)
     session.commit()
     session.refresh(chat)
-    session.add(ChatMember(chat_id=chat.id, user_id=user.id))
-    session.add(ChatMember(chat_id=chat.id, user_id=other_user_id))
+    session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="member"))
+    session.add(ChatMember(chat_id=chat.id, user_id=other_user_id, role="member"))
     session.commit()
     return {"chat_id": chat.id}
 
@@ -3657,13 +3992,18 @@ async def send_message_v2(
     )
     session.add(msg)
 
-    # Уведомление
-    other = session.exec(
-        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id != user.id)
-    ).first()
-    if other:
-        notif = Notification(user_id=other.user_id, actor_id=user.id, type="message")
-        session.add(notif)
+    # В send_message_v2, замени блок "Уведомление":
+    other_members = session.exec(
+        select(ChatMember).where(
+            ChatMember.chat_id == chat_id,
+            ChatMember.user_id != user.id,
+        )
+    ).all()
+    notif_type = "group_message" if chat.is_group else "message"
+    for other in other_members:
+        session.add(Notification(
+            user_id=other.user_id, actor_id=user.id, type=notif_type,
+        ))
 
     session.commit()
     session.refresh(msg)
@@ -3903,25 +4243,14 @@ def get_chat_info(
     session: Session = Depends(get_session),
 ):
     member = session.exec(
-        select(ChatMember).where(
-            ChatMember.chat_id == chat_id,
-            ChatMember.user_id == user.id,
-        )
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
     ).first()
     if not member:
-        raise HTTPException(403, "Not a member of this chat")
-    
-    other_member = session.exec(
-        select(ChatMember).where(
-            ChatMember.chat_id == chat_id,
-            ChatMember.user_id != user.id,
-        )
-    ).first()
-    if not other_member:
-        raise HTTPException(404, "Other member not found")
-    
-    other = session.get(User, other_member.user_id)
-    return user_out(other, session)
+        raise HTTPException(403, "Не участник чата")
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    return serialize_chat_for_user(chat, user.id, session)
 
 
 @app.get("/api/notifications")

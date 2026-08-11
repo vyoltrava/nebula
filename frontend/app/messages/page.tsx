@@ -3,19 +3,20 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
-import { MessageSquare, Search, Lock } from "lucide-react";
+import { MessageSquare, Search, Lock, Users } from "lucide-react";
 import { getToken } from "@/lib/auth";
-import { useUnreadCounts } from "@/lib/UnreadCountsContext"; // 🆕
-import { socket } from "@/lib/websocket"; // 🆕
-
+import { useUnreadCounts } from "@/lib/UnreadCountsContext";
+import { socket } from "@/lib/websocket";
+import { CreateGroupModal } from "@/components/CreateGroupModal";
 
 export default function MessagesPage() {
   const [chats, setChats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
   const router = useRouter();
-  const { refresh } = useUnreadCounts(); // 🆕 глобальные счётчики
+  const { refresh } = useUnreadCounts();
 
   function getGlowColor(user: any): string | null {
     if (user?.is_admin) return "#8b5cf6";
@@ -49,32 +50,41 @@ export default function MessagesPage() {
     }
   }
 
-  // 🆕 Загружаем чаты один раз при открытии + подписываемся на WebSocket
   useEffect(() => {
     load();
-    refresh(); // обновляем глобальные счётчики один раз
+    refresh();
 
-    // Когда приходит новое сообщение — обновляем список чатов и счётчики
     const unsubNewMsg = socket.on("new_message", () => {
       load(query);
       refresh();
     });
 
-    // Когда сообщение прочитано
     const unsubRead = socket.on("message_read", () => {
       load(query);
       refresh();
     });
 
-    // 🗑️ УБРАН setInterval! Больше никакого polling каждые 5 секунд
+    // 🆕 Групповые события
+    const unsubGroupCreated = socket.on("group_created", () => {
+      load(query);
+      refresh();
+    });
+    const unsubGroupAdded = socket.on("group_member_added", () => {
+      load(query);
+    });
+    const unsubGroupRemoved = socket.on("group_member_removed", () => {
+      load(query);
+    });
 
     return () => {
       unsubNewMsg();
       unsubRead();
+      unsubGroupCreated();
+      unsubGroupAdded();
+      unsubGroupRemoved();
     };
   }, []);
 
-  // Поиск с debounce (оставляем как было)
   useEffect(() => {
     const timeout = setTimeout(() => {
       setSearchLoading(true);
@@ -96,6 +106,14 @@ export default function MessagesPage() {
             <div className="flex items-center gap-3">
               <MessageSquare size={24} className="text-[#8b5cf6]" />
               <h1 className="text-xl md:text-2xl font-black text-white">Сообщения</h1>
+              {/* 🆕 Кнопка создания группы */}
+              <button
+                onClick={() => setShowCreateGroup(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#8b5cf6]/10 text-[#8b5cf6] text-xs font-bold hover:bg-[#8b5cf6]/20 transition-colors border border-[#8b5cf6]/30"
+              >
+                <Users size={14} />
+                <span className="hidden sm:inline">Создать группу</span>
+              </button>
               {secretCount > 0 && (
                 <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-bold border border-emerald-500/30">
                   <Lock size={10} />
@@ -137,44 +155,83 @@ export default function MessagesPage() {
         )}
 
         {!loading && chats.map((chat) => {
-          const glow = getGlowColor(chat.other);
+          // 🛡️ Защита: для групп chat.other может быть undefined
+          const isGroup = !!chat.is_group;
+          const otherUser = chat.other;
+          const glow = !isGroup && otherUser ? getGlowColor(otherUser) : null;
+
           return (
             <div
               key={chat.id}
               onClick={() => {
-                refresh(); // 🆕 вместо triggerCountersRefresh
+                refresh();
                 router.push(`/messages/${chat.id}`);
               }}
               className={`flex items-center gap-3 p-3 md:p-4 border-b border-white/10 hover:bg-white/5 transition-colors cursor-pointer ${
                 chat.unread_count > 0 ? "bg-purple-500/5" : ""
               }`}
             >
-              <div className="shrink-0 relative" style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}>
-                <Avatar
-                  src={chat.other.avatar_url}
-                  name={chat.other.display_name}
-                  id={chat.other.id}
-                  size={48}
-                />
-                {chat.is_secret && (
-                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-[#171717] flex items-center justify-center">
-                    <Lock size={10} className="text-white" />
+              <div className="shrink-0 relative">
+                {isGroup ? (
+                  /* 🆕 Стопка аватарок группы */
+                  <div className="w-12 h-12 relative">
+                    {(chat.members || []).slice(0, 3).map((m: any, i: number) => (
+                      <Avatar
+                        key={m.user.id}
+                        src={m.user.avatar_url}
+                        name={m.user.display_name}
+                        id={m.user.id}
+                        size={28}
+                        className="absolute"
+                        style={{
+                          top: i === 0 ? 0 : i === 1 ? 24 : 0,
+                          left: i === 0 ? 0 : i === 1 ? 24 : 24,
+                          zIndex: 3 - i,
+                          border: "2px solid #171717",
+                        }}
+                      />
+                    ))}
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#8b5cf6] border-2 border-[#171717] flex items-center justify-center">
+                      <Users size={10} className="text-white" />
+                    </div>
+                  </div>
+                ) : (
+                  /* Обычный DM */
+                  <div style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}>
+                    <Avatar
+                      src={otherUser?.avatar_url}
+                      name={otherUser?.display_name}
+                      id={otherUser?.id}
+                      size={48}
+                    />
+                    {chat.is_secret && (
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-[#171717] flex items-center justify-center">
+                        <Lock size={10} className="text-white" />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
+
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <p
-                      className={`font-bold truncate ${glowStyle(chat.other) ? "" : "text-white"}`}
-                      style={glowStyle(chat.other)}
-                    >
-                      {chat.other.display_name}
-                    </p>
-                    {chat.is_secret && (
-                      <span className="text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0">
-                        SECRET
-                      </span>
+                    {isGroup ? (
+                      <p className="font-bold truncate text-white">{chat.name}</p>
+                    ) : (
+                      <>
+                        <p
+                          className={`font-bold truncate ${glowStyle(otherUser) ? "" : "text-white"}`}
+                          style={glowStyle(otherUser)}
+                        >
+                          {otherUser?.display_name}
+                        </p>
+                        {chat.is_secret && (
+                          <span className="text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0">
+                            SECRET
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                   {chat.last_message && (
@@ -193,12 +250,15 @@ export default function MessagesPage() {
                     {chat.last_message.text}
                   </p>
                 ) : (
-                  <p className="text-sm text-white/40 mt-0.5">Начните переписку</p>
+                  <p className="text-sm text-white/40 mt-0.5">
+                    {isGroup ? `${chat.members_count} участников` : "Начните переписку"}
+                  </p>
                 )}
               </div>
+
               {chat.unread_count > 0 && (
                 <span className={`text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shrink-0 ${
-                  chat.is_secret ? "bg-emerald-500" : "bg-gradient-to-r from-pink-500 to-purple-500"
+                  isGroup ? "bg-[#8b5cf6]" : chat.is_secret ? "bg-emerald-500" : "bg-gradient-to-r from-pink-500 to-purple-500"
                 }`}>
                   {chat.unread_count}
                 </span>
@@ -207,6 +267,17 @@ export default function MessagesPage() {
           );
         })}
       </main>
+
+      {/* 🆕 Модалка создания группы */}
+      {showCreateGroup && (
+        <CreateGroupModal
+          onClose={() => setShowCreateGroup(false)}
+          onCreated={(chatId) => {
+            setShowCreateGroup(false);
+            router.push(`/messages/${chatId}`);
+          }}
+        />
+      )}
     </div>
   );
 }
