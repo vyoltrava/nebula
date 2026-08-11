@@ -3369,17 +3369,19 @@ async def update_group_info(
 
 
 def cascade_delete_chat(chat_id: int, session: Session):
-    """Удаляет чат со всеми сообщениями, участниками и уведомлениями"""
+    """Удаляет чат со всеми сообщениями и участниками (массовые DELETE для правильного порядка)"""
+    # 1. Удаляем сообщения (нет внешних ключей на message)
+    session.exec(delete(Message).where(Message.chat_id == chat_id))
     
-    for msg in session.exec(select(Message).where(Message.chat_id == chat_id)).all():
-        session.delete(msg)
-    for sk in session.exec(select(ChatSessionKey).where(ChatSessionKey.chat_id == chat_id)).all():
-        session.delete(sk)
-    for cm in session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id)).all():
-        session.delete(cm)
-    chat = session.get(Chat, chat_id)
-    if chat:
-        session.delete(chat)
+    # 2. Удаляем сессионные ключи (зависят от chat_id и user_id)
+    session.exec(delete(ChatSessionKey).where(ChatSessionKey.chat_id == chat_id))
+    
+    # 3. Удаляем участников чата (зависят от chat_id)
+    session.exec(delete(ChatMember).where(ChatMember.chat_id == chat_id))
+    
+    # 4. Удаляем сам чат (теперь ничто не ссылается на него)
+    session.exec(delete(Chat).where(Chat.id == chat_id))
+    
     session.commit()
 
 @app.delete("/api/chats/{chat_id}")
