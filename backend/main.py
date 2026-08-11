@@ -2888,6 +2888,8 @@ def startup():
 
             conn.execute(text('ALTER TABLE post DROP CONSTRAINT IF EXISTS post_reply_to_id_fkey;'))
             conn.execute(text('ALTER TABLE post ADD CONSTRAINT post_reply_to_id_fkey FOREIGN KEY (reply_to_id) REFERENCES post(id) ON DELETE CASCADE;'))
+            conn.execute(text('ALTER TABLE updateread DROP CONSTRAINT IF EXISTS updateread_update_id_fkey;'))
+            conn.execute(text('ALTER TABLE updateread ADD CONSTRAINT updateread_update_id_fkey FOREIGN KEY (update_id) REFERENCES update(id) ON DELETE CASCADE;'))
 
             conn.commit()
             print("✅ Post CASCADE constraints applied")
@@ -4646,12 +4648,19 @@ def delete_update(
     if not update:
         raise HTTPException(404, "Update not found")
     
-    # 🆕 Сначала удаляем записи о прочтении этого обновления, чтобы избежать ошибки внешнего ключа
-    session.exec(delete(UpdateRead).where(UpdateRead.update_id == update_id))
+    # 🛠 ИСПРАВЛЕНИЕ: Достаем все записи о прочтении и удаляем их вручную.
+    # Это 100% избавит от ошибки Foreign Key Violation (500).
+    read_records = session.exec(
+        select(UpdateRead).where(UpdateRead.update_id == update_id)
+    ).all()
     
+    for record in read_records:
+        session.delete(record)
+        
     # Теперь смело удаляем само обновление
     session.delete(update)
     session.commit()
+    
     return {"ok": True}
 
 def _update_last_seen_sync(user_id: int):
