@@ -59,14 +59,54 @@ function renderText(text: string) {
   });
 }
 
-function isAudioMedia(mediaType?: string | null, url?: string | null): boolean {
-  if (mediaType === "audio") return true;
-  if (mediaType) return false;
-  if (!url) return false;
-  // Фолбэк: бэк не шлёт media_type — определяем по расширению
-  return /\.(mp3|wav|ogg|m4a|aac|webm)(\?|#|$)/i.test(url);
-}
+// 🆕 Умный компонент для определения типа медиа
+function SmartMedia({ src, type, className }: { src: string; type?: string | null; className?: string }) {
+  const [mediaKind, setMediaKind] = useState<"image" | "audio" | "video" | "loading">("loading");
 
+  useEffect(() => {
+    if (type === "audio") return setMediaKind("audio");
+    if (type === "video") return setMediaKind("video");
+    if (type === "image") return setMediaKind("image");
+
+    // Фолбэк: пробуем загрузить как изображение
+    const img = new Image();
+    img.onload = () => setMediaKind("image");
+    img.onerror = () => {
+      // Если не картинка — пробуем как аудио
+      const audio = new Audio();
+      audio.onloadedmetadata = () => setMediaKind("audio");
+      audio.onerror = () => setMediaKind("video");
+      audio.src = src;
+    };
+    img.src = src;
+  }, [src, type]);
+
+  if (mediaKind === "loading") {
+    return <div className={`mt-2 h-32 w-full rounded-xl bg-white/5 animate-pulse ${className || ""}`} />;
+  }
+
+  if (mediaKind === "audio") {
+    return <AudioPlayer src={src} />;
+  }
+
+  if (mediaKind === "video") {
+    return (
+      <video
+        controls
+        src={src}
+        className={`mt-2 max-h-96 w-auto rounded-xl border border-white/20 ${className || ""}`}
+      />
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt=""
+      className={`mt-2 max-h-96 w-auto rounded-xl border border-white/20 ${className || ""}`}
+    />
+  );
+}
 
 function getGlowColor(is_admin?: boolean, is_moderator?: boolean, role?: { name: string; color: string } | null): string | null {
   if (is_admin) return "#ffffff";
@@ -494,15 +534,11 @@ export function Post({
               </div>
               <p className="text-white/90 text-sm whitespace-pre-wrap break-words">{renderText(repost_of.text)}</p>
               {repost_of.media_url && (
-                isAudioMedia(repost_of.media_type, repost_of.media_url) ? (
-                  <AudioPlayer src={mediaUrl(repost_of.media_url)} />
-                ) : (
-                  <img
-                    src={mediaUrl(repost_of.media_url)}
-                    alt=""
-                    className="mt-2 max-h-60 w-auto rounded-lg border border-white/10"
-                  />
-                )
+                <SmartMedia 
+                  src={mediaUrl(repost_of.media_url)} 
+                  type={repost_of.media_type} 
+                  className="max-h-60 rounded-lg border border-white/10" 
+                />
               )}
             </div>
           ) : repost_of?.deleted ? (
@@ -512,23 +548,9 @@ export function Post({
           ) : (
             <>
               {!is_quote && <p className="mt-1 text-white/90 whitespace-pre-wrap break-words">{renderText(text)}</p>}
-                {media_url && (
-                  isAudioMedia(media_type, media_url) ? (
-                    <AudioPlayer src={mediaUrl(media_url)} />
-                  ) : media_type === "video" ? (
-                    <video
-                      controls
-                      src={mediaUrl(media_url)}
-                      className="mt-2 max-h-96 w-auto rounded-xl border border-white/20"
-                    />
-                  ) : (
-                    <img
-                      src={mediaUrl(media_url)}
-                      alt=""
-                      className="mt-2 max-h-96 w-auto rounded-xl border border-white/20"
-                    />
-                  )
-                )}
+              {media_url && (
+                <SmartMedia src={mediaUrl(media_url)} type={media_type} />
+              )}
             </>
           )}
 
