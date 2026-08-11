@@ -8,6 +8,7 @@ import { getToken } from "./auth";
 interface UnreadCounts {
   chats: number;
   notifications: number;
+  updates: number; // 🆕 Добавили обновления
 }
 
 interface UnreadCountsContextType {
@@ -16,12 +17,12 @@ interface UnreadCountsContextType {
 }
 
 const UnreadCountsContext = createContext<UnreadCountsContextType>({
-  counts: { chats: 0, notifications: 0 },
+  counts: { chats: 0, notifications: 0, updates: 0 }, // 🆕 Добавили updates: 0
   refresh: async () => {},
 });
 
 export function UnreadCountsProvider({ children }: { children: ReactNode }) {
-  const [counts, setCounts] = useState<UnreadCounts>({ chats: 0, notifications: 0 });
+  const [counts, setCounts] = useState<UnreadCounts>({ chats: 0, notifications: 0, updates: 0 }); // 🆕
 
   const refresh = async () => {
     const token = getToken();
@@ -36,6 +37,7 @@ export function UnreadCountsProvider({ children }: { children: ReactNode }) {
         setCounts({
           chats: data.chats_unread || 0,
           notifications: data.notifications_unread || 0,
+          updates: data.updates_unread || 0, // 🆕 Парсим updates_unread
         });
       }
     } catch (e) {
@@ -64,11 +66,17 @@ export function UnreadCountsProvider({ children }: { children: ReactNode }) {
       refresh();
     });
 
+    // 🆕 Подписка на появление нового обновления
+    const unsubNewUpdate = socket.on("new_update", () => {
+      refresh();
+    });
+
     return () => {
       unsubNewMessage();
       unsubNewNotification();
       unsubMessageRead();
       unsubNotificationRead();
+      unsubNewUpdate(); // 🆕 Отписываемся
     };
   }, []);
 

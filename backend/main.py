@@ -1580,7 +1580,7 @@ def get_all_counts(
             Message.read == False,
         )
     ).one()
-
+    
     # Уведомления — один запрос
     notifications_unread = session.exec(
         select(func.count(Notification.id))
@@ -1590,9 +1590,18 @@ def get_all_counts(
         )
     ).one()
 
+    # 🆕 ОБНОВЛЕНИЯ: считаем сколько всего обновлений и сколько юзер прочитал
+    total_updates = session.exec(select(func.count()).select_from(Update)).one()
+    read_updates = session.exec(
+        select(func.count()).select_from(UpdateRead).where(UpdateRead.user_id == user.id)
+    ).one()
+    # Если прочитанных somehow больше чем всего (например, удалили пост), страховка от минуса
+    updates_unread = max(0, total_updates - read_updates) 
+
     return {
         "chats_unread": chats_unread,
         "notifications_unread": notifications_unread,
+        "updates_unread": updates_unread,  # 👈 ДОБАВИЛИ
     }
 
 # ---------- ЗАКЛАДКИ ----------
@@ -4611,7 +4620,7 @@ def mark_all_updates_read(
 
 @app.post("/api/updates")
 @limiter.limit("10/minute")
-def create_update(
+async def create_update( # 👈 ИЗМЕНИЛИ def на async def
     request: Request,
     title: str = Form(...),
     content: str = Form(...),
@@ -4625,7 +4634,7 @@ def create_update(
         raise HTTPException(400, "Текст: минимум 10 символов")
     if importance not in ("major", "minor", "patch"):
         raise HTTPException(400, "Неверный тип важности")
-
+        
     update = Update(
         title=title.strip(),
         content=content.strip(),
@@ -4635,6 +4644,14 @@ def create_update(
     session.add(update)
     session.commit()
     session.refresh(update)
+    
+    # 🆕 РАССЫЛАЕМ СОБЫТИЕ ВСЕМ КЛИЕНТАМ ЧЕРЕЗ WEBSOCKET
+    await manager.broadcast_all("new_update", {
+        "id": update.id,
+        "title": update.title,
+        "importance": update.importance
+    })
+    
     return {"ok": True, "id": update.id}
 
 

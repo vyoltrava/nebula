@@ -147,6 +147,9 @@ export function Sidebar() {
       <nav className="flex flex-col">
         {nav.map(({ href, icon: Icon, label }, idx) => {
           const active = pathname === href;
+          const isUpdates = href === "/updates";
+          const showUpdatesBadge = isUpdates && (counts.updates || 0) > 0;
+
           return (
             <Link
               key={href}
@@ -157,9 +160,14 @@ export function Sidebar() {
                   : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
               }`}
             >
-              {/* Иконка всегда ярче текста */}
               <Icon size={18} className={active ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} /> 
               <span>{label}</span>
+              
+              {showUpdatesBadge && (
+                <span className="ml-auto bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
+                  {counts.updates}
+                </span>
+              )}
             </Link>
           );
         })}
@@ -317,12 +325,15 @@ export function Sidebar() {
               <div className="flex flex-col">
                 {nav.map(({ href, icon: Icon, label }) => {
                   const active = pathname === href;
+                  const isUpdates = href === "/updates";
+                  const showUpdatesBadge = isUpdates && (counts.updates || 0) > 0;
+
                   return (
                     <Link
                       key={href}
                       href={href}
                       onClick={() => setMobileMenuOpen(false)}
-                      className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all mb-1 ${
+                      className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all mb-1 relative ${
                         active
                           ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
                           : "text-white/80 hover:bg-white/10 hover:text-white"
@@ -330,6 +341,11 @@ export function Sidebar() {
                       title={label}
                     >
                       <Icon size={22} />
+                      {showUpdatesBadge && (
+                        <span className="absolute -top-1 -right-1 bg-[#8b5cf6] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-[#171717]">
+                          {counts.updates}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}
@@ -531,12 +547,10 @@ export function Sidebar() {
                       !n.read ? "bg-[#8b5cf6]/[0.03]" : ""
                     }`}
                   >
-                    {/* Полоса непрочитанного */}
                     {!n.read && (
                       <div className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-[#8b5cf6]" />
                     )}
 
-                    {/* Аватарка с бейджем */}
                     <div className="shrink-0 relative">
                       <Avatar 
                         src={n.actor?.avatar_url} 
@@ -549,7 +563,6 @@ export function Sidebar() {
                       </div>
                     </div>
 
-                    {/* Текст */}
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] text-white/90 leading-snug">
                         <span className="font-semibold text-white">{n.actor?.display_name || "Неизвестный"}</span>{' '}
@@ -560,7 +573,6 @@ export function Sidebar() {
                       </p>
                     </div>
 
-                    {/* Точка */}
                     {!n.read && (
                       <div className="w-2 h-2 rounded-full bg-[#8b5cf6] shrink-0 mt-2 shadow-[0_0_6px_rgba(139,92,246,0.6)]" />
                     )}
@@ -569,7 +581,6 @@ export function Sidebar() {
               })}
             </div>
 
-            {/* Футер */}
             <div className="sticky bottom-0 bg-[#1f1f23]/95 backdrop-blur-md border-t border-white/10 p-2.5 shrink-0">
               <Link
                 href="/notifications"
