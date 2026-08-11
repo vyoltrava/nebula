@@ -352,40 +352,50 @@ export default function UserProfilePage() {
               {/* ИНФА */}
               <div className={`flex-1 min-w-0 w-full text-center md:text-left relative ${profile.cover_url ? "" : "mt-6"}`}>
                 
-                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
-                  <div className="flex items-center justify-center md:justify-start gap-2 md:gap-3 flex-wrap">
-                    {profile.username === "System" ? (
-                      <h1 className="text-xl md:text-2xl font-black"><SystemName name={profile.display_name} /></h1>
-                    ) : (
-                      <h1 className={`text-xl md:text-2xl font-black break-words ${glowStyle(profile) ? "" : "text-white"}`} style={glowStyle(profile)}>
-                        {profile.display_name}
-                      </h1>
-                    )}
-                    {profile.is_admin && (
-                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white text-black text-[8px] font-black uppercase tracking-widest shrink-0 border border-white shadow-[0_0_8px_rgba(255,255,255,0.6)]">
-                        <Shield size={8} /> Founder
-                      </span>
-                    )}
-                    {profile.is_moderator && !profile.is_admin && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md bg-[#3b82f6] text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest border border-blue-400/50">
-                        <ShieldCheck size={9} /> Developer
-                      </span>
-                    )}
-                    {profile.role && !profile.is_admin && !profile.is_moderator && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest shadow-lg border" style={{ backgroundColor: profile.role.color, borderColor: `${profile.role.color}80`, boxShadow: `0 4px 14px 0 ${profile.role.color}40` }}>
-                        {profile.role.name}
-                      </span>
-                    )}
-                    {profile.is_banned && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-[9px] md:text-[10px] font-black uppercase border border-red-500/30">
-                        <Ban size={9} /> BANNED
-                      </span>
-                    )}
+                {/* Верхняя часть: Имя + Бейджи + Кнопки (Десктоп) */}
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-y-1 gap-x-4">
+                  
+                  {/* Левая колонка: Имя и бейджи */}
+                  <div className="flex flex-col items-center md:items-start gap-1">
+                    <div className="flex items-center justify-center md:justify-start gap-2 md:gap-3 flex-wrap leading-tight">
+                      {profile.username === "System" ? (
+                        <h1 className="text-xl md:text-2xl font-black"><SystemName name={profile.display_name} /></h1>
+                      ) : (
+                        <h1 className={`text-xl md:text-2xl font-black break-words ${glowStyle(profile) ? "" : "text-white"}`} style={glowStyle(profile)}>
+                          {profile.display_name}
+                        </h1>
+                      )}
+                      
+                      {/* Бейджи */}
+                      {profile.is_admin && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white text-black text-[8px] font-black uppercase tracking-widest shrink-0 border border-white shadow-[0_0_8px_rgba(255,255,255,0.6)]">
+                          <Shield size={8} /> Founder
+                        </span>
+                      )}
+                      {profile.is_moderator && !profile.is_admin && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md bg-[#3b82f6] text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest border border-blue-400/50">
+                          <ShieldCheck size={9} /> Developer
+                        </span>
+                      )}
+                      {profile.role && !profile.is_admin && !profile.is_moderator && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest shadow-lg border" style={{ backgroundColor: profile.role.color, borderColor: `${profile.role.color}80`, boxShadow: `0 4px 14px 0 ${profile.role.color}40` }}>
+                          {profile.role.name}
+                        </span>
+                      )}
+                      {profile.is_banned && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-[9px] md:text-[10px] font-black uppercase border border-red-500/30">
+                          <Ban size={9} /> BANNED
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 🆕 Юзернейм ПРИЖАТ к имени (минимальный отступ) */}
+                    <p className="text-white/50 text-sm leading-tight mt-0.5">@{profile.username}</p>
                   </div>
 
-                  {/* 🆕 Кнопки действий — ДЕСКТОП */}
+                  {/* 🆕 Кнопки действий — ДЕСКТОП (вынесены в отдельный блок справа) */}
                   {!isOwnProfile && (
-                    <div className="hidden md:flex items-center gap-2 shrink-0 relative top-2">
+                    <div className="hidden md:flex items-center gap-2 shrink-0 pt-1">
                       <button onClick={toggleFollow} className={`px-4 py-2 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-white/20 text-white/80 hover:bg-white/10 hover:border-white/40 hover:text-white"}`}>
                         {following ? "Читаю" : "Читать"}
                       </button>
@@ -427,11 +437,10 @@ export default function UserProfilePage() {
                   )}
                 </div>
 
-                {/* Username и био */}
-                <p className="text-white/50 text-sm">@{profile.username}</p>
-                {profile.bio && <p className="text-white/80 mt-2 text-sm whitespace-pre-wrap">{profile.bio}</p>}
+                {/* Био */}
+                {profile.bio && <p className="text-white/80 mt-3 text-sm whitespace-pre-wrap">{profile.bio}</p>}
 
-                {/* 🆕 Кнопки действий — МОБИЛЬНЫЕ (компактные, одинаковый размер) */}
+                {/* 🆕 Кнопки действий — МОБИЛЬНЫЕ (остались внизу, не влияют на расстояние имя/юзернейм) */}
                 {!isOwnProfile && (
                   <div className="flex md:hidden items-center justify-center gap-2 mt-4">
                     <button onClick={toggleFollow} className={`px-5 py-2.5 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-white/20 text-white/80 hover:bg-white/10 hover:border-white/40 hover:text-white"}`}>
