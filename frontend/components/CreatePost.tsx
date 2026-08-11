@@ -7,6 +7,7 @@ import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
 import { STICKERS } from "@/lib/stickers";
 import { Avatar } from "@/components/Avatar";
+import { AudioPlayer } from "@/components/AudioPlayer";
 
 const MAX_RECORD_SECONDS = 180; // 3 минуты максимум
 
@@ -233,11 +234,10 @@ export function CreatePost() {
 
           {/* Предпросмотр медиа / аудио */}
           {preview && file && (
-            <div className="relative inline-block mt-2 max-w-full">
+            <div className="relative mt-2 max-w-full">
               {file.type.startsWith("audio/") ? (
-                <div className="flex items-center gap-3 bg-white/5 border border-emerald-400/30 rounded-xl p-3 pr-10">
-                  <Mic size={20} className="text-emerald-400 shrink-0" />
-                  <audio controls src={preview} className="h-9 w-full min-w-[220px]" />
+                <div className="pr-8">
+                  <AudioPlayer src={preview} />
                 </div>
               ) : file.type.startsWith("video/") ? (
                 <video src={preview} controls className="max-h-48 rounded-xl border border-white/20" />

@@ -14,6 +14,7 @@ import { BookmarkButton } from "@/components/BookmarkButton";
 import { isLikedCached, setLikedCache } from "@/lib/postCache";
 import { getCachedUser } from "@/lib/authCache";
 import { timeAgo } from "@/lib/time";
+import { AudioPlayer } from "@/components/AudioPlayer";
 
 
 function renderText(text: string) {
@@ -484,11 +485,15 @@ export function Post({
               </div>
               <p className="text-white/90 text-sm whitespace-pre-wrap break-words">{renderText(repost_of.text)}</p>
               {repost_of.media_url && (
-                <img
-                  src={mediaUrl(repost_of.media_url)}
-                  alt=""
-                  className="mt-2 max-h-60 w-auto rounded-lg border border-white/10"
-                />
+                repost_of.media_type === "audio" ? (
+                  <AudioPlayer src={mediaUrl(repost_of.media_url)} />
+                ) : (
+                  <img
+                    src={mediaUrl(repost_of.media_url)}
+                    alt=""
+                    className="mt-2 max-h-60 w-auto rounded-lg border border-white/10"
+                  />
+                )
               )}
             </div>
           ) : repost_of?.deleted ? (
@@ -499,18 +504,13 @@ export function Post({
             <>
               {!is_quote && <p className="mt-1 text-white/90 whitespace-pre-wrap break-words">{renderText(text)}</p>}
                 {media_url && (
-                  media_type === 'audio' ? (
-                    <div className="mt-3 w-full bg-white/5 rounded-xl p-3 border border-white/10">
-                      <div className="flex items-center gap-2 mb-2 text-white/60 text-sm">
-                        <span className="text-lg">🎙️</span> Голосовое сообщение
-                      </div>
-                      <audio controls src={mediaUrl(media_url)} className="w-full h-10" />
-                    </div>
-                  ) : media_type === 'video' ? (
-                    <video 
-                      controls 
-                      src={mediaUrl(media_url)} 
-                      className="mt-2 max-h-96 w-auto rounded-xl border border-white/20" 
+                  media_type === "audio" ? (
+                    <AudioPlayer src={mediaUrl(media_url)} />
+                  ) : media_type === "video" ? (
+                    <video
+                      controls
+                      src={mediaUrl(media_url)}
+                      className="mt-2 max-h-96 w-auto rounded-xl border border-white/20"
                     />
                   ) : (
                     <img
