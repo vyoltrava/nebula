@@ -8,7 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { STICKERS } from "@/lib/stickers";
-import { AudioPlayer } from "@/components/AudioPlayer"; // 🆕
+import { AudioPlayer } from "@/components/AudioPlayer";
 
 import { isOnline, lastSeenText } from "@/lib/online";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
@@ -16,7 +16,7 @@ import {
   Send, Image as ImageIcon, X, Smile, Paperclip,
   FileText, Film, Edit2, Trash2, MoreVertical,
   Lock, Search, ShieldCheck, AlertTriangle,
-  Check, CheckCheck, CheckSquare, Mic, Square, // 🆕 Mic, Square
+  Check, CheckCheck, CheckSquare, Mic, Square,
 } from "lucide-react";
 import {
   ensureKeyPair,
@@ -62,7 +62,6 @@ export default function ChatPage() {
   const [selectedMessages, setSelectedMessages] = useState<Set<number>>(new Set());
   const [showChatMenu, setShowChatMenu] = useState(false);
 
-  // 🆕 Состояние для записи голоса
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -71,6 +70,17 @@ export default function ChatPage() {
 
   const fileRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 🆕 Адаптивные классы для медиа
+  const getMediaClasses = (type: string) => {
+    const base = "rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 w-full";
+    const sizes = {
+      image: "max-h-48 sm:max-h-64",
+      gif: "max-h-48 sm:max-h-64",
+      video: "max-h-48 sm:max-h-64",
+    };
+    return `${base} ${sizes[type as keyof typeof sizes] || ""}`;
+  };
 
   // 🆕 Функции для записи голоса
   async function startRecording() {
@@ -92,10 +102,8 @@ export default function ChatPage() {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         const audioFile = new File([audioBlob], 'voice-message.webm', { type: 'audio/webm' });
         
-        // Отправляем голосовое сообщение
         await sendVoiceMessage(audioFile);
         
-        // Останавливаем все треки
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -103,7 +111,6 @@ export default function ChatPage() {
       setIsRecording(true);
       setRecordingTime(0);
 
-      // Таймер записи
       recordingTimerRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
@@ -134,8 +141,6 @@ export default function ChatPage() {
       form.append("file", audioFile);
       
       if (isSecret) {
-        // Для секретных чатов голосовые пока не шифруем (отдельная задача)
-        // Можно добавить шифрование позже
         form.append("text", "");
       }
 
@@ -594,67 +599,68 @@ export default function ChatPage() {
   return (
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
-      <div className="w-px shrink-0 bg-white/10 my-3" />
+      <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
       <main className="flex-1 flex flex-col border-x border-white/10">
         {isSelectMode ? (
-          <div className="p-3 md:p-4 border-b border-white/10 bg-[#171717]/95 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="p-2 sm:p-3 md:p-4 border-b border-white/10 bg-[#171717]/95 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
+            <div className="flex items-center gap-2 sm:gap-3">
               <button
                 onClick={toggleSelectMode}
-                className="text-white/60 hover:text-white transition-colors"
+                className="text-white/60 hover:text-white transition-colors p-1"
               >
-                <X size={20} />
+                <X size={18} className="sm:w-5 sm:h-5" />
               </button>
-              <span className="font-bold text-white text-sm md:text-base">
+              <span className="font-bold text-white text-xs sm:text-sm md:text-base">
                 {selectedMessages.size} выбрано
               </span>
             </div>
             <button
               onClick={deleteSelectedMessages}
               disabled={selectedMessages.size === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-sm font-bold hover:bg-red-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs sm:text-sm font-bold hover:bg-red-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              <Trash2 size={16} />
-              Удалить
+              <Trash2 size={14} className="sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Удалить</span>
             </button>
           </div>
         ) : (
           <div
-            className={`p-3 md:p-4 border-b border-white/10 backdrop-blur-md sticky top-0 z-10 ${
+            className={`p-2 sm:p-3 md:p-4 border-b border-white/10 backdrop-blur-md sticky top-0 z-10 ${
               isSecret ? "bg-emerald-950/40" : "bg-[#171717]/80"
             }`}
           >
-            <div className="flex items-center gap-2 md:gap-3">
+            <div className="flex items-center gap-1 sm:gap-2 md:gap-3">
               <button
                 onClick={() => router.push("/messages")}
-                className="text-white/60 hover:text-white shrink-0"
+                className="text-white/60 hover:text-white shrink-0 p-1.5 sm:p-0"
+                title="Назад"
               >
-                ← Назад
+                ← <span className="hidden sm:inline">Назад</span>
               </button>
 
               {chatPartner && (
-                <Link href={`/user/${chatPartner.id}`} className="flex items-center gap-3 group flex-1 min-w-0">
+                <Link href={`/user/${chatPartner.id}`} className="flex items-center gap-2 sm:gap-3 group flex-1 min-w-0">
                   <div
                     className="shrink-0 relative"
-                    style={partnerGlow ? { filter: `drop-shadow(0 0 8px ${partnerGlow})` } : undefined}
+                    style={partnerGlow ? { filter: `drop-shadow(0 0 6px ${partnerGlow})` } : undefined}
                   >
                     <Avatar
                       src={chatPartner.avatar_url}
                       name={chatPartner.display_name}
                       id={chatPartner.id}
-                      size={40}
+                      size={32}
                       online={isOnline(chatPartner.last_seen)}
                     />
                     {isSecret && (
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#171717] flex items-center justify-center">
-                        <Lock size={8} className="text-white" />
+                      <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-emerald-500 border-2 border-[#171717] flex items-center justify-center">
+                        <Lock size={7} className="sm:w-2 sm:h-2 text-white" />
                       </div>
                     )}
                   </div>
                   <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
                       <p
-                        className={`font-bold truncate transition-all group-hover:opacity-80 ${
+                        className={`font-bold truncate text-xs sm:text-sm md:text-base transition-all group-hover:opacity-80 ${
                           glowStyle(chatPartner) ? "" : "text-white"
                         }`}
                         style={glowStyle(chatPartner)}
@@ -662,100 +668,102 @@ export default function ChatPage() {
                         {chatPartner.display_name}
                       </p>
                       {isSecret && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-black uppercase tracking-widest border border-emerald-500/30 shrink-0">
-                          <Lock size={8} />
-                          E2EE
+                        <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1 sm:px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[7px] sm:text-[9px] font-black uppercase tracking-widest border border-emerald-500/30 shrink-0">
+                          <Lock size={6} className="sm:w-[7px] sm:h-[7px]" />
+                          <span className="hidden sm:inline">E2EE</span>
                         </span>
                       )}
                     </div>
-                    <p className={`text-xs ${isOnline(chatPartner.last_seen) ? "text-green-400" : "text-white/50"}`}>
+                    <p className={`text-[9px] sm:text-xs ${isOnline(chatPartner.last_seen) ? "text-green-400" : "text-white/50"}`}>
                       {isOnline(chatPartner.last_seen) ? "● в сети" : lastSeenText(chatPartner.last_seen)}
                     </p>
                   </div>
                 </Link>
               )}
 
-              <button
-                onClick={() => setShowSearch(!showSearch)}
-                className={`p-2 rounded-lg transition-colors shrink-0 ${
-                  showSearch ? "text-[#8b5cf6] bg-[#8b5cf6]/10" : "text-white/60 hover:text-[#8b5cf6]"
-                }`}
-                title="Поиск"
-              >
-                <Search size={18} />
-              </button>
-
-              {isSecret && (
+              <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
                 <button
-                  onClick={() => setShowVerify(true)}
-                  className="p-2 text-emerald-400 hover:text-emerald-300 transition-colors shrink-0"
-                  title="Проверить шифрование"
+                  onClick={() => setShowSearch(!showSearch)}
+                  className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
+                    showSearch ? "text-[#8b5cf6] bg-[#8b5cf6]/10" : "text-white/60 hover:text-[#8b5cf6]"
+                  }`}
+                  title="Поиск"
                 >
-                  <ShieldCheck size={18} />
+                  <Search size={15} className="sm:w-4 sm:h-4" />
                 </button>
-              )}
 
-              <button
-                onClick={() => {
-                  loadMedia();
-                  setShowMediaGallery(true);
-                }}
-                className="p-2 text-white/60 hover:text-[#8b5cf6] transition-colors shrink-0"
-                title="Медиа"
-              >
-                <ImageIcon size={18} />
-              </button>
+                {isSecret && (
+                  <button
+                    onClick={() => setShowVerify(true)}
+                    className="p-1.5 sm:p-2 text-emerald-400 hover:text-emerald-300 transition-colors"
+                    title="Проверить шифрование"
+                  >
+                    <ShieldCheck size={15} className="sm:w-4 sm:h-4" />
+                  </button>
+                )}
 
-              <div className="relative">
                 <button
-                  onClick={() => setShowChatMenu((prev) => !prev)}
-                  className="p-2 text-white/60 hover:text-white transition-colors shrink-0"
-                  title="Ещё"
+                  onClick={() => {
+                    loadMedia();
+                    setShowMediaGallery(true);
+                  }}
+                  className="p-1.5 sm:p-2 text-white/60 hover:text-[#8b5cf6] transition-colors"
+                  title="Медиа"
                 >
-                  <MoreVertical size={18} />
+                  <ImageIcon size={15} className="sm:w-4 sm:h-4" />
                 </button>
+
+                <div className="relative">
+                  <button
+                    onClick={() => setShowChatMenu((prev) => !prev)}
+                    className="p-1.5 sm:p-2 text-white/60 hover:text-white transition-colors"
+                    title="Ещё"
+                  >
+                    <MoreVertical size={15} className="sm:w-4 sm:h-4" />
+                  </button>
                 {showChatMenu && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowChatMenu(false)} />
-                    <div className="absolute right-0 top-full mt-1 bg-[#1f1f23] border border-white/15 rounded-lg shadow-xl overflow-hidden min-w-[180px] z-50">
+                    <div className="absolute right-0 top-full mt-1 bg-[#1f1f23] border border-white/15 rounded-lg shadow-xl overflow-hidden min-w-[140px] sm:min-w-[180px] z-50">
                       <button
                         onClick={() => {
                           deleteChat();
                           setShowChatMenu(false);
                         }}
-                        className="w-full px-3 py-2.5 text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
+                        className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-left text-xs sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} className="sm:w-3.5 sm:h-3.5" />
                         Удалить чат
                       </button>
                     </div>
                   </>
                 )}
+                </div>
               </div>
             </div>
 
             {showSearch && (
-              <div className="mt-3 pt-3 border-t border-white/10">
+              <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-white/10">
                 <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+                  <Search size={13} className="sm:w-3.5 sm:h-3.5 absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/40" />
                   <input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder={isSecret ? "Поиск в расшифрованных сообщениях..." : "Поиск в сообщениях..."}
-                    className="w-full pl-9 pr-8 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] text-sm"
+                    placeholder={isSecret ? "Поиск в расшифрованных..." : "Поиск в сообщениях..."}
+                    className="w-full pl-8 sm:pl-9 pr-7 sm:pr-8 py-1 sm:py-1.5 rounded-lg border border-white/10 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] text-xs sm:text-sm"
                     autoFocus
                   />
                   {searchQuery && (
                     <button
                       onClick={() => setSearchQuery("")}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                      className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
                     >
-                      <X size={14} />
+                      <X size={13} className="sm:w-3.5 sm:h-3.5" />
                     </button>
                   )}
                 </div>
                 {searchQuery && (
-                  <p className="text-xs text-white/40 mt-1.5">
+                  <p className="text-[10px] sm:text-xs text-white/40 mt-1 sm:mt-1.5">
                     {filteredMessages.length} из {messages.length} сообщений
                   </p>
                 )}
@@ -765,13 +773,13 @@ export default function ChatPage() {
         )}
 
         {isSecret && messages.length === 0 && !cryptoError && (
-          <div className="p-4 bg-emerald-500/5 border-b border-emerald-500/20">
+          <div className="p-3 sm:p-4 bg-emerald-500/5 border-b border-emerald-500/20">
             <div className="flex items-start gap-2 max-w-2xl mx-auto text-center">
-              <Lock size={16} className="text-emerald-400 mt-0.5 shrink-0" />
-              <div className="text-sm text-emerald-100/80">
-                <p className="font-bold text-emerald-300 mb-1">Секретный чат</p>
-                <p className="text-xs">
-                  Сообщения зашифрованы端到端. Сервер trelod не может их прочитать.
+              <Lock size={14} className="sm:w-4 sm:h-4 text-emerald-400 mt-0.5 shrink-0" />
+              <div className="text-xs sm:text-sm text-emerald-100/80">
+                <p className="font-bold text-emerald-300 mb-0.5 sm:mb-1">Секретный чат</p>
+                <p className="text-[10px] sm:text-xs">
+                  Сообщения зашифрованы端到端. Сервер не может их прочитать.
                   Ключи хранятся только на устройствах участников.
                 </p>
               </div>
@@ -780,14 +788,14 @@ export default function ChatPage() {
         )}
 
         {cryptoError && (
-          <div className="p-4 bg-red-500/10 border-b border-red-500/30">
+          <div className="p-3 sm:p-4 bg-red-500/10 border-b border-red-500/30">
             <div className="flex items-start gap-2 max-w-2xl mx-auto">
-              <AlertTriangle size={16} className="text-red-400 mt-0.5 shrink-0" />
+              <AlertTriangle size={14} className="sm:w-4 sm:h-4 text-red-400 mt-0.5 shrink-0" />
               <div className="flex-1">
-                <p className="text-sm text-red-300 font-bold">{cryptoError}</p>
+                <p className="text-xs sm:text-sm text-red-300 font-bold">{cryptoError}</p>
                 <button
                   onClick={establishNewSession}
-                  className="mt-2 text-xs px-3 py-1 rounded bg-red-500/20 text-red-200 hover:bg-red-500/30 border border-red-500/30"
+                  className="mt-1 sm:mt-2 text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 rounded bg-red-500/20 text-red-200 hover:bg-red-500/30 border border-red-500/30"
                 >
                   Попробовать снова
                 </button>
@@ -796,7 +804,7 @@ export default function ChatPage() {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+          <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 space-y-2 sm:space-y-3">
           {currentUser &&
             filteredMessages.map((msg) => {
               const isMine = msg.sender_id === currentUser.id;
@@ -807,7 +815,7 @@ export default function ChatPage() {
               return (
                 <div
                   key={msg.id}
-                  className={`flex gap-2 ${
+                  className={`flex gap-1.5 sm:gap-2 ${
                     isMine ? "justify-end" : "justify-start"
                   } ${isSelectMode ? "cursor-pointer select-none" : ""}`}
                   onClick={() => {
@@ -816,13 +824,13 @@ export default function ChatPage() {
                 >
                   {isSelectMode && (
                     <div
-                      className={`shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-2 transition-colors ${
+                      className={`shrink-0 w-4 h-4 sm:w-5 sm:h-5 rounded border-2 flex items-center justify-center mt-1.5 sm:mt-2 transition-colors ${
                         isSelected
                           ? "bg-[#8b5cf6] border-[#8b5cf6]"
                           : "border-white/30"
                       }`}
                     >
-                      {isSelected && <Check size={12} className="text-white" />}
+                      {isSelected && <Check size={10} className="sm:w-3 sm:h-3 text-white" />}
                     </div>
                   )}
 
@@ -839,7 +847,7 @@ export default function ChatPage() {
                           src={msg.sender_avatar}
                           name={msg.sender_name}
                           id={msg.sender_id}
-                          size={32}
+                          size={28}
                         />
                       </div>
                     </Link>
@@ -858,18 +866,18 @@ export default function ChatPage() {
                         src={msg.sender_avatar}
                         name={msg.sender_name}
                         id={msg.sender_id}
-                        size={32}
+                        size={28}
                       />
                     </div>
                   )}
 
                   <div
-                    className={`max-w-[75%] md:max-w-[70%] flex flex-col ${
+                    className={`max-w-[85%] sm:max-w-[75%] md:max-w-[70%] flex flex-col ${
                       isMine ? "items-end" : "items-start"
                     }`}
                   >
                     <div
-                      className={`rounded-2xl px-3 md:px-4 py-2 transition-all ${
+                      className={`rounded-2xl px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 transition-all ${
                         isSelected
                           ? "ring-2 ring-[#8b5cf6] ring-offset-2 ring-offset-[#171717]"
                           : ""
@@ -881,24 +889,11 @@ export default function ChatPage() {
                           : "bg-white/10 text-white border border-white/15"
                       }`}
                     >
-                      {msg.media_url && msg.media_type === "image" && (
+                      {msg.media_url && (msg.media_type === "image" || msg.media_type === "gif") && (
                         <img
                           src={mediaUrl(msg.media_url)}
                           alt=""
-                          className="rounded-xl max-h-64 mb-2 cursor-pointer"
-                          onClick={(e) => {
-                            if (!isSelectMode) {
-                              e.stopPropagation();
-                              setSelectedMedia(msg);
-                            }
-                          }}
-                        />
-                      )}
-                      {msg.media_url && msg.media_type === "gif" && (
-                        <img
-                          src={mediaUrl(msg.media_url)}
-                          alt=""
-                          className="rounded-xl max-h-64 mb-2 cursor-pointer"
+                          className={getMediaClasses(msg.media_type)}
                           onClick={(e) => {
                             if (!isSelectMode) {
                               e.stopPropagation();
@@ -911,13 +906,12 @@ export default function ChatPage() {
                         <video
                           src={mediaUrl(msg.media_url)}
                           controls
-                          className="rounded-xl max-h-64 mb-2"
+                          className={getMediaClasses("video")}
                           onClick={(e) => isSelectMode && e.stopPropagation()}
                         />
                       )}
-                      {/* 🆕 Голосовые сообщения */}
                       {msg.media_url && msg.media_type === "audio" && (
-                        <div className="mb-2">
+                        <div className="mb-1.5 sm:mb-2">
                           <AudioPlayer src={mediaUrl(msg.media_url)} />
                         </div>
                       )}
@@ -934,32 +928,32 @@ export default function ChatPage() {
                               }
                               if (e.key === "Escape") cancelEdit();
                             }}
-                            className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#8b5cf6] resize-none"
+                            className="flex-1 bg-white/10 border border-white/20 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white focus:outline-none focus:border-[#8b5cf6] resize-none"
                             rows={2}
                             autoFocus
                           />
                           <div className="flex flex-col gap-1">
-                            <button onClick={submitEdit} className="text-green-400 text-xs font-bold">
+                            <button onClick={submitEdit} className="text-green-400 text-[10px] sm:text-xs font-bold">
                               ✓
                             </button>
-                            <button onClick={cancelEdit} className="text-red-400 text-xs font-bold">
+                            <button onClick={cancelEdit} className="text-red-400 text-[10px] sm:text-xs font-bold">
                               ✕
                             </button>
                           </div>
                         </div>
                       ) : (
-                        <>{displayText && <p className="whitespace-pre-wrap break-words">{displayText}</p>}</>
+                        <>{displayText && <p className="whitespace-pre-wrap break-words text-xs sm:text-sm md:text-base">{displayText}</p>}</>
                       )}
                     </div>
 
                     {!isEditing && !isSelectMode && (
                       <div
-                        className={`flex items-center gap-2 mt-1 px-1 ${
+                        className={`flex items-center gap-1.5 sm:gap-2 mt-0.5 sm:mt-1 px-1 ${
                           isMine ? "flex-row-reverse" : "flex-row"
                         }`}
                       >
                         <p
-                          className={`text-[10px] flex items-center gap-1 ${
+                          className={`text-[9px] sm:text-[10px] flex items-center gap-1 ${
                             isMine ? "text-white/60" : "text-white/40"
                           }`}
                         >
@@ -969,9 +963,9 @@ export default function ChatPage() {
                           })}
                           {isMine &&
                             (msg.read ? (
-                              <CheckCheck size={12} className="text-sky-300" />
+                              <CheckCheck size={10} className="sm:w-3 sm:h-3 text-sky-300" />
                             ) : (
-                              <Check size={12} className="text-white/50" />
+                              <Check size={10} className="sm:w-3 sm:h-3 text-white/50" />
                             ))}
                         </p>
                         {isMine && !isSecret && (
@@ -982,9 +976,9 @@ export default function ChatPage() {
                                   activeMessageMenu === msg.id ? null : msg.id
                                 )
                               }
-                              className="p-1 text-white/40 hover:text-white"
+                              className="p-0.5 text-white/40 hover:text-white"
                             >
-                              <MoreVertical size={12} />
+                              <MoreVertical size={10} className="sm:w-3 sm:h-3" />
                             </button>
                             {activeMessageMenu === msg.id && (
                               <>
@@ -995,7 +989,7 @@ export default function ChatPage() {
                                 <div
                                   className={`absolute ${
                                     isMine ? "right-0" : "left-0"
-                                  } top-full mt-1 bg-[#1f1f23] border border-white/15 rounded-lg shadow-xl overflow-hidden min-w-[160px] z-50`}
+                                  } top-full mt-1 bg-[#1f1f23] border border-white/15 rounded-lg shadow-xl overflow-hidden min-w-[130px] sm:min-w-[160px] z-50`}
                                 >
                                   <button
                                     onClick={() => {
@@ -1003,16 +997,16 @@ export default function ChatPage() {
                                       toggleMessageSelection(msg.id);
                                       setActiveMessageMenu(null);
                                     }}
-                                    className="w-full px-3 py-2 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2"
+                                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2"
                                   >
-                                    <CheckSquare size={14} /> Выбрать
+                                    <CheckSquare size={12} className="sm:w-3.5 sm:h-3.5" /> Выбрать
                                   </button>
                                   {msg.text && (
                                     <button
                                       onClick={() => startEdit(msg)}
-                                      className="w-full px-3 py-2 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2"
+                                      className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2"
                                     >
-                                      <Edit2 size={14} /> Редактировать
+                                      <Edit2 size={12} className="sm:w-3.5 sm:h-3.5" /> Редактировать
                                     </button>
                                   )}
                                   <button
@@ -1020,9 +1014,9 @@ export default function ChatPage() {
                                       deleteMessage(msg.id);
                                       setActiveMessageMenu(null);
                                     }}
-                                    className="w-full px-3 py-2 text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2"
+                                    className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-1.5 sm:gap-2"
                                   >
-                                    <Trash2 size={14} /> Удалить
+                                    <Trash2 size={12} className="sm:w-3.5 sm:h-3.5" /> Удалить
                                   </button>
                                 </div>
                               </>
@@ -1039,35 +1033,35 @@ export default function ChatPage() {
         </div>
 
         {files.length > 0 && (
-          <div className="px-4 py-3 border-t border-white/10 bg-white/5">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-white/70">
+          <div className="px-2 sm:px-3 py-2 border-t border-white/10 bg-white/5">
+            <div className="flex items-center justify-between mb-1 sm:mb-1.5">
+              <span className="text-[9px] sm:text-xs font-bold text-white/70">
                 Вложения ({files.length}/5)
               </span>
-              <button onClick={() => setFiles([])} className="text-xs text-red-400">
-                Очистить все
+              <button onClick={() => setFiles([])} className="text-[9px] sm:text-xs text-red-400">
+                Очистить
               </button>
             </div>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-1 sm:gap-1.5 overflow-x-auto pb-1 -mx-2 sm:-mx-3 px-2 sm:px-3">
               {files.map((f, i) => (
                 <div
                   key={i}
-                  className="relative group border border-white/15 rounded-xl overflow-hidden bg-white/5"
+                  className="relative group border border-white/15 rounded-lg overflow-hidden bg-white/5 shrink-0"
                 >
                   {f.type.startsWith("image/") ? (
-                    <img src={URL.createObjectURL(f)} alt="" className="w-24 h-24 object-cover" />
+                    <img src={URL.createObjectURL(f)} alt="" className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 object-cover" />
                   ) : (
-                    <div className="w-24 h-24 flex flex-col items-center justify-center gap-1 p-2">
-                      <FileText size={24} className="text-white/60" />
-                      <span className="text-[10px] text-white/60 truncate w-full px-1">{f.name}</span>
-                      <span className="text-[9px] text-white/40">{formatSize(f.size)}</span>
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 flex flex-col items-center justify-center gap-0.5 p-1">
+                      <FileText size={14} className="sm:w-4 sm:h-4 text-white/60" />
+                      <span className="text-[7px] sm:text-[9px] text-white/60 truncate w-full px-1 text-center">{f.name}</span>
+                      <span className="text-[6px] sm:text-[8px] text-white/40">{formatSize(f.size)}</span>
                     </div>
                   )}
                   <button
                     onClick={() => setFiles(files.filter((_, j) => j !== i))}
-                    className="absolute top-1 right-1 bg-red-500/90 text-white rounded-full p-1 opacity-0 group-hover:opacity-100"
+                    className="absolute top-0.5 right-0.5 bg-red-500/90 text-white rounded-full p-0.5"
                   >
-                    <X size={10} />
+                    <X size={8} className="sm:w-2.5 sm:h-2.5" />
                   </button>
                 </div>
               ))}
@@ -1075,30 +1069,32 @@ export default function ChatPage() {
           </div>
         )}
 
-        {/* 🆕 Индикатор записи голоса */}
         {isRecording && (
-          <div className="px-4 py-3 border-t border-white/10 bg-red-500/10">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-sm font-bold text-red-400">
+          <div className="px-2 sm:px-3 py-2 border-t border-white/10 bg-red-500/10">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+                <span className="text-xs sm:text-sm font-bold text-red-400 truncate">
                   Запись: {formatRecordingTime(recordingTime)}
                 </span>
               </div>
               <button
                 onClick={stopRecording}
-                className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shrink-0"
               >
-                <Square size={16} fill="currentColor" />
-                <span className="text-sm font-bold">Остановить</span>
+                <Square size={10} className="sm:w-3 sm:h-3" fill="currentColor" />
+                <span className="text-xs sm:text-sm font-bold">
+                  <span className="hidden sm:inline">Остановить</span>
+                  <span className="sm:hidden">Стоп</span>
+                </span>
               </button>
             </div>
           </div>
         )}
 
         {!isSelectMode && !isRecording && (
-          <div className="p-3 md:p-4 border-t border-white/10 bg-[#171717]/80 backdrop-blur-md">
-            <div className="flex items-end gap-2">
+          <div className="p-2 sm:p-3 md:p-4 border-t border-white/10 bg-[#171717]/80 backdrop-blur-md">
+            <div className="flex items-end gap-1 sm:gap-2">
               <input
                 ref={fileRef}
                 type="file"
@@ -1108,31 +1104,32 @@ export default function ChatPage() {
                 onChange={(e) => onFiles(e.target.files)}
               />
 
-              <div className="relative">
-                <button
-                  onClick={() => setShowStickers(!showStickers)}
-                  className={`p-2 rounded-xl transition-colors ${
-                    showStickers
-                      ? "text-[#8b5cf6] bg-[#8b5cf6]/10"
-                      : "text-white/60 hover:text-[#8b5cf6] hover:bg-white/5"
-                  }`}
-                >
-                  <Smile size={20} />
-                </button>
+              <div className="flex gap-0.5 sm:gap-1 shrink-0">
+                <div className="relative">
+                  <button
+                    onClick={() => setShowStickers(!showStickers)}
+                    className={`p-1.5 sm:p-2 rounded-xl transition-colors min-w-[32px] sm:min-w-[36px] md:min-w-[40px] min-h-[32px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center ${
+                      showStickers
+                        ? "text-[#8b5cf6] bg-[#8b5cf6]/10"
+                        : "text-white/60 hover:text-[#8b5cf6] hover:bg-white/5"
+                    }`}
+                  >
+                    <Smile size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  </button>
                 {showStickers && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowStickers(false)} />
-                    <div className="absolute bottom-full left-0 mb-2 w-72 bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl z-50">
-                      <div className="p-3 border-b border-white/10 flex items-center justify-between">
-                        <span className="text-sm font-bold text-white">Стикеры</span>
+                    <div className="absolute bottom-full left-0 mb-2 w-56 sm:w-64 md:w-72 bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl z-50">
+                      <div className="p-2 sm:p-3 border-b border-white/10 flex items-center justify-between">
+                        <span className="text-xs sm:text-sm font-bold text-white">Стикеры</span>
                         <button
                           onClick={() => setShowStickers(false)}
                           className="text-white/60 hover:text-white"
                         >
-                          <X size={16} />
+                          <X size={14} className="sm:w-4 sm:h-4" />
                         </button>
                       </div>
-                      <div className="p-2 grid grid-cols-6 gap-1 max-h-64 overflow-y-auto">
+                      <div className="p-1.5 sm:p-2 grid grid-cols-6 gap-0.5 sm:gap-1 max-h-48 sm:max-h-64 overflow-y-auto">
                         {STICKERS.map((s) => (
                           <button
                             key={s.code}
@@ -1140,7 +1137,7 @@ export default function ChatPage() {
                               insertSticker(s.emoji);
                               setShowStickers(false);
                             }}
-                            className="aspect-square flex items-center justify-center text-2xl hover:bg-white/10 rounded-lg"
+                            className="aspect-square flex items-center justify-center text-xl sm:text-2xl hover:bg-white/10 rounded-lg"
                           >
                             {s.emoji}
                           </button>
@@ -1151,30 +1148,30 @@ export default function ChatPage() {
                 )}
               </div>
 
-              <button
-                onClick={() => fileRef.current?.click()}
-                className={`p-2 rounded-xl transition-colors relative ${
-                  files.length > 0
-                    ? "text-[#8b5cf6] bg-[#8b5cf6]/10"
-                    : "text-white/60 hover:text-[#8b5cf6] hover:bg-white/5"
-                }`}
-              >
-                <Paperclip size={20} />
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  className={`p-1.5 sm:p-2 rounded-xl transition-colors relative min-w-[32px] sm:min-w-[36px] md:min-w-[40px] min-h-[32px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center ${
+                    files.length > 0
+                      ? "text-[#8b5cf6] bg-[#8b5cf6]/10"
+                      : "text-white/60 hover:text-[#8b5cf6] hover:bg-white/5"
+                  }`}
+                >
+                  <Paperclip size={16} className="sm:w-[18px] sm:h-[18px]" />
                 {files.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-[#8b5cf6] text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 bg-[#8b5cf6] text-white text-[8px] sm:text-[10px] font-bold w-3 h-3 sm:w-4 sm:h-4 rounded-full flex items-center justify-center">
                     {files.length}
                   </span>
                 )}
               </button>
 
-              {/* 🆕 Кнопка записи голосового сообщения */}
-              <button
-                onClick={startRecording}
-                className="p-2 rounded-xl transition-colors text-white/60 hover:text-[#8b5cf6] hover:bg-white/5"
-                title="Записать голосовое сообщение"
-              >
-                <Mic size={20} />
-              </button>
+                <button
+                  onClick={startRecording}
+                  className="p-1.5 sm:p-2 rounded-xl transition-colors text-white/60 hover:text-[#8b5cf6] hover:bg-white/5 min-w-[32px] sm:min-w-[36px] md:min-w-[40px] min-h-[32px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center"
+                  title="Записать голосовое сообщение"
+                >
+                  <Mic size={16} className="sm:w-[18px] sm:h-[18px]" />
+                </button>
+              </div>
 
               <textarea
                 value={text}
@@ -1185,9 +1182,9 @@ export default function ChatPage() {
                     sendMessage();
                   }
                 }}
-                placeholder={isSecret ? "Зашифрованное сообщение..." : "Напишите сообщение..."}
+                placeholder={isSecret ? "Зашифрованное..." : "Сообщение..."}
                 rows={1}
-                className={`flex-1 border rounded-xl px-3 md:px-4 py-2 bg-white/5 text-white placeholder-white/40 focus:outline-none resize-none max-h-32 ${
+                className={`flex-1 border rounded-xl px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 bg-white/5 text-white text-xs sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-20 sm:max-h-24 md:max-h-32 ${
                   isSecret
                     ? "border-emerald-500/40 focus:border-emerald-500"
                     : "border-white/15 focus:border-[#8b5cf6]"
@@ -1197,13 +1194,13 @@ export default function ChatPage() {
               <button
                 onClick={sendMessage}
                 disabled={(!text.trim() && files.length === 0) || !!cryptoError}
-                className={`p-2.5 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all ${
+                className={`p-2 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0 min-w-[36px] sm:min-w-[40px] md:min-w-[44px] min-h-[36px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center ${
                   isSecret
                     ? "border border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700"
                     : "border border-[#8b5cf6] bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
                 }`}
               >
-                <Send size={20} />
+                <Send size={16} className="sm:w-[18px] sm:h-[18px]" />
               </button>
             </div>
           </div>
@@ -1212,7 +1209,6 @@ export default function ChatPage() {
         {isSelectMode && <div className="h-2" />}
       </main>
 
-      {/* Остальные модалки (showVerify, showMediaGallery, selectedMedia) без изменений */}
       {showVerify && (
         <>
           <div
@@ -1220,44 +1216,44 @@ export default function ChatPage() {
             onClick={() => setShowVerify(false)}
           />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full max-w-md border border-emerald-500/30 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto">
-              <div className="flex items-center justify-between mb-5">
+            <div className="w-full max-w-sm sm:max-w-md border border-emerald-500/30 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-4 sm:p-6 pointer-events-auto">
+              <div className="flex items-center justify-between mb-4 sm:mb-5">
                 <div className="flex items-center gap-2">
-                  <ShieldCheck className="text-emerald-400" size={24} />
-                  <h2 className="text-xl font-black text-white">Проверка шифрования</h2>
+                  <ShieldCheck className="text-emerald-400" size={20} />
+                  <h2 className="text-lg sm:text-xl font-black text-white">Проверка шифрования</h2>
                 </div>
                 <button
                   onClick={() => setShowVerify(false)}
                   className="text-white/60 hover:text-white"
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
 
-              <p className="text-sm text-white/60 mb-4">
+              <p className="text-xs sm:text-sm text-white/60 mb-3 sm:mb-4">
                 Сравните эти отпечатки с собеседником через другой канал (голосом или лично).
                 Если они совпадают — канал защищён от перехвата.
               </p>
 
-              <div className="space-y-3">
-                <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                  <p className="text-xs text-white/50 mb-1">Ваш отпечаток:</p>
-                  <p className="font-mono text-sm text-emerald-300 tracking-wider">
+              <div className="space-y-2 sm:space-y-3">
+                <div className="p-2 sm:p-3 rounded-xl bg-white/5 border border-white/10">
+                  <p className="text-[10px] sm:text-xs text-white/50 mb-0.5 sm:mb-1">Ваш отпечаток:</p>
+                  <p className="font-mono text-xs sm:text-sm text-emerald-300 tracking-wider break-all">
                     {myFingerprint || "—"}
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                  <p className="text-xs text-white/50 mb-1">
+                <div className="p-2 sm:p-3 rounded-xl bg-white/5 border border-white/10">
+                  <p className="text-[10px] sm:text-xs text-white/50 mb-0.5 sm:mb-1">
                     Отпечаток @{chatPartner?.username}:
                   </p>
-                  <p className="font-mono text-sm text-emerald-300 tracking-wider">
+                  <p className="font-mono text-xs sm:text-sm text-emerald-300 tracking-wider break-all">
                     {partnerFingerprint || "—"}
                   </p>
                 </div>
               </div>
 
-              <div className="mt-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <p className="text-xs text-emerald-200">
+              <div className="mt-3 sm:mt-4 p-2 sm:p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <p className="text-[10px] sm:text-xs text-emerald-200">
                   🔒 Сообщения шифруются на вашем устройстве и расшифровываются только на устройстве собеседника.
                 </p>
               </div>
@@ -1267,21 +1263,21 @@ export default function ChatPage() {
       )}
 
       {showMediaGallery && (
-        <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-2 sm:p-4">
           <div className="w-full max-w-4xl max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white">Медиа из чата</h2>
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h2 className="text-base sm:text-xl font-bold text-white">Медиа из чата</h2>
               <button
                 onClick={() => setShowMediaGallery(false)}
-                className="text-white/60 hover:text-white p-2"
+                className="text-white/60 hover:text-white p-1.5 sm:p-2"
               >
-                <X size={24} />
+                <X size={20} />
               </button>
             </div>
             {mediaItems.length === 0 ? (
-              <p className="text-white/60 text-center py-12">Нет медиа</p>
+              <p className="text-white/60 text-center py-8 sm:py-12 text-sm sm:text-base">Нет медиа</p>
             ) : (
-              <div className="flex-1 overflow-y-auto grid grid-cols-3 md:grid-cols-4 gap-3">
+              <div className="flex-1 overflow-y-auto grid grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
                 {mediaItems.map((item) => (
                   <div
                     key={item.id}
@@ -1299,7 +1295,7 @@ export default function ChatPage() {
                       <>
                         <video src={mediaUrl(item.media_url)} className="w-full h-full object-cover" />
                         <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                          <Film size={32} className="text-white" />
+                          <Film size={24} className="sm:w-8 sm:h-8 text-white" />
                         </div>
                       </>
                     )}
@@ -1313,21 +1309,21 @@ export default function ChatPage() {
 
       {selectedMedia && (
         <div
-          className="fixed inset-0 z-[201] bg-black/95 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[201] bg-black/95 flex items-center justify-center p-2 sm:p-4"
           onClick={() => setSelectedMedia(null)}
         >
           <button
             onClick={() => setSelectedMedia(null)}
-            className="absolute top-4 right-4 text-white/60 hover:text-white p-2 z-10"
+            className="absolute top-2 sm:top-4 right-2 sm:right-4 text-white/60 hover:text-white p-1.5 sm:p-2 z-10"
           >
-            <X size={28} />
+            <X size={24} />
           </button>
-          <div className="max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+          <div className="max-w-[95vw] sm:max-w-[90vw] max-h-[95vh] sm:max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
             {(selectedMedia.media_type === "image" || selectedMedia.media_type === "gif") && (
               <img
                 src={mediaUrl(selectedMedia.media_url)}
                 alt=""
-                className="max-w-full max-h-[90vh] rounded-lg"
+                className="max-w-full max-h-[95vh] sm:max-h-[90vh] rounded-lg"
               />
             )}
             {selectedMedia.media_type === "video" && (
@@ -1335,7 +1331,7 @@ export default function ChatPage() {
                 src={mediaUrl(selectedMedia.media_url)}
                 controls
                 autoPlay
-                className="max-w-full max-h-[90vh] rounded-lg"
+                className="max-w-full max-h-[95vh] sm:max-h-[90vh] rounded-lg"
               />
             )}
           </div>
