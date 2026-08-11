@@ -122,14 +122,6 @@ function AuthorBadges({ is_admin, is_moderator, is_banned, role }: {
 }) {
   return (
     <>
-      {role && !is_admin && !is_moderator && (
-        <span
-          className="inline-flex items-center px-1.5 py-0.5 rounded text-white text-[8px] font-black uppercase tracking-widest shrink-0 border"
-          style={{ backgroundColor: role.color, borderColor: `${role.color}80` }}
-        >
-          {role.name}
-        </span>
-      )}
       {is_banned && (
         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[8px] font-black uppercase border border-red-500/30 shrink-0">
           <Ban size={8} /> BANNED
