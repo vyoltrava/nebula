@@ -213,27 +213,46 @@ export default function ChatPage() {
     }
   }
 
-  async function deleteChat() {
-    const msg = isGroup
-      ? "Покинуть группу? Все ваши сообщения будут удалены."
-      : "Удалить чат? Все сообщения будут удалены. Это действие нельзя отменить.";
-    if (!confirm(msg)) return;
-    const token = getToken();
-    if (!token) return;
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        router.push("/messages");
-      } else {
-        alert("Не удалось удалить чат");
-      }
-    } catch (err) {
-      alert("Ошибка сети");
-    }
+async function deleteChat() {
+  const isOwner = chatInfo?.my_role === "owner";
+
+  let confirmMsg: string;
+  let url: string;
+
+  if (isGroup && !isOwner) {
+    // Обычный участник — просто выходит
+    confirmMsg = "Покинуть группу? Вы больше не будете получать сообщения из неё.";
+    url = `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/members/${currentUser?.id}`;
+  } else if (isGroup && isOwner) {
+    // Создатель — удаляет группу для всех
+    confirmMsg = "⚠️ Удалить группу для ВСЕХ участников?\nВсе сообщения будут стёрты. Это действие нельзя отменить.";
+    url = `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}`;
+  } else {
+    // DM
+    confirmMsg = "Удалить чат? Все сообщения будут удалены. Это действие нельзя отменить.";
+    url = `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}`;
   }
+
+  if (!confirm(confirmMsg)) return;
+
+  const token = getToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch(url, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      router.push("/messages");
+    } else {
+      const err = await res.json().catch(() => ({ detail: "Ошибка" }));
+      alert(err.detail || "Не удалось удалить чат");
+    }
+  } catch (err) {
+    alert("Ошибка сети");
+  }
+}
 
   function decryptDisplayText(msg: any): string {
     if (!isSecret) return msg.text || "";
@@ -563,6 +582,12 @@ export default function ChatPage() {
   useWebSocket("new_message", (data: any) => {
     if (String(data.chat_id) !== String(chatId)) return;
     if (data.sender_id === currentUser?.id) return;
+  useWebSocket("chat_deleted", (data: any) => {
+  if (String(data.chat_id) === String(chatId)) {
+    alert("Этот чат был удалён");
+    router.push("/messages");
+      }
+    });
 
     setMessages((prev) => {
       if (prev.some((m) => m.id === data.id)) return prev;
@@ -593,6 +618,12 @@ export default function ChatPage() {
   useWebSocket("group_info_updated", (data: any) => {
     if (String(data.chat_id) === String(chatId)) loadChatInfo();
   });
+  useWebSocket("chat_deleted", (data: any) => {
+  if (String(data.chat_id) === String(chatId)) {
+    alert("Этот чат был удалён");
+    router.push("/messages");
+  }
+});
 
   function onFiles(newFiles: FileList | null) {
     if (!newFiles) return;
@@ -768,8 +799,10 @@ export default function ChatPage() {
                     onClick={() => { deleteChat(); setShowChatMenu(false); }}
                     className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-left text-xs sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
                   >
-                    <Trash2 size={13} className="sm:w-3.5 sm:h-3.5" />
-                    {isGroup ? "Покинуть группу" : "Удалить чат"}
+                  <Trash2 size={13} className="sm:w-3.5 sm:h-3.5" />
+                  {isGroup
+                    ? (chatInfo?.my_role === "owner" ? "Удалить группу" : "Покинуть группу")
+                    : "Удалить чат"}
                   </button>
                 </div>
               </>

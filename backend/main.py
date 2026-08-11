@@ -3382,27 +3382,44 @@ def cascade_delete_chat(chat_id: int, session: Session):
         session.delete(chat)
     session.commit()
 
-
 @app.delete("/api/chats/{chat_id}")
-def delete_chat(
+async def delete_chat(
     chat_id: int,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Удалить чат (DM или группа)"""
+    """Удалить чат (DM или группа). Для DM — удаляет у обоих."""
     chat = session.get(Chat, chat_id)
     if not chat:
         raise HTTPException(404, "Чат не найден")
+
     member = session.exec(
         select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
     ).first()
     if not member:
         raise HTTPException(403, "Не участник")
+
+    # Для групп: только создатель или админ сайта
     if chat.is_group and member.role != "owner" and not user.is_admin:
         raise HTTPException(403, "Только создатель может удалить группу")
 
+    # Собираем ID всех участников ДО удаления (для рассылки)
+    all_member_ids = session.exec(
+        select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
+    ).all()
+
+    # Каскадное удаление
     cascade_delete_chat(chat_id, session)
+
+    # 🆕 Рассылаем событие ВСЕМ бывшим участникам
+    await manager.broadcast_to_users(
+        list(all_member_ids),
+        "chat_deleted",
+        {"chat_id": chat_id}
+    )
+
     return {"ok": True}
+
 
 
 @app.on_event("startup")

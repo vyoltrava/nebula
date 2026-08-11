@@ -76,6 +76,11 @@ export default function MessagesPage() {
     const unsubGroupRemoved = socket.on("group_member_removed", () => {
       load(query);
     });
+    const unsubChatDeleted = socket.on("chat_deleted", () => {
+      load(query);
+      refresh();
+    });
+
 
     return () => {
       unsubNewMsg();
@@ -83,6 +88,7 @@ export default function MessagesPage() {
       unsubGroupCreated();
       unsubGroupAdded();
       unsubGroupRemoved();
+      unsubChatDeleted();
     };
   }, []);
 
