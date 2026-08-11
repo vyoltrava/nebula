@@ -17,6 +17,8 @@ import { timeAgo } from "@/lib/time";
 import { AudioPlayer } from "@/components/AudioPlayer";
 
 
+
+
 function renderText(text: string) {
   if (!text) return null;
   const parts = text.split(/(#[\wа-яёА-ЯЁ]+|@[\wа-яёА-ЯЁ]+|:[\w]+:)/g);
