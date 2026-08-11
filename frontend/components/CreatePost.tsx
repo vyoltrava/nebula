@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Image as ImageIcon, Smile, Clapperboard, X } from "lucide-react";
+import { Image as ImageIcon, Smile, Clapperboard, X, Mic } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
 import { STICKERS } from "@/lib/stickers";
@@ -17,6 +17,9 @@ export function CreatePost() {
     id: number;
     display_name: string;
     avatar_url?: string | null;
+    level?: number;
+    is_admin?: boolean;
+    is_moderator?: boolean;
   } | null>(null);
   const [showStickers, setShowStickers] = useState(false);
   const [error, setError] = useState("");
@@ -35,9 +38,14 @@ export function CreatePost() {
     }
   }, []);
 
+  // 🆕 Проверка прав на загрузку аудио (уровень 2+ или стафф)
+  const canUploadAudio = user && ((user.level ?? 1) >= 2 || user.is_admin || user.is_moderator);
+
   function onFile(f: File | null) {
+    if (preview) URL.revokeObjectURL(preview);
     setFile(f);
     setPreview(f ? URL.createObjectURL(f) : null);
+    setError("");
   }
 
   function insertSticker(code: string) {
@@ -52,9 +60,15 @@ export function CreatePost() {
       router.push("/login");
       return;
     }
+    if (!text.trim() && !file) {
+      setError("Напишите текст или прикрепите медиа");
+      return;
+    }
+
     const form = new FormData();
     form.append("text", text);
     if (file) form.append("file", file);
+
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
@@ -79,6 +93,7 @@ export function CreatePost() {
     
     setText("");
     onFile(null);
+    if (fileRef.current) fileRef.current.value = "";
     triggerFeedRefresh();
   }
 
@@ -112,12 +127,22 @@ export function CreatePost() {
             className="w-full resize-none rounded-xl border border-white/15 bg-white/5 text-white placeholder-white/40 p-3 focus:outline-none focus:border-[#8b5cf6] focus:bg-white/10 transition-all"
           />
 
-          {preview && (
-            <div className="relative inline-block mt-2">
-              <img src={preview} alt="" className="max-h-48 rounded-xl border border-white/20" />
+          {/* 🆕 Умный предпросмотр: аудио / видео / картинка */}
+          {preview && file && (
+            <div className="relative inline-block mt-2 max-w-full">
+              {file.type.startsWith("audio/") ? (
+                <div className="flex items-center gap-3 bg-white/5 border border-white/20 rounded-xl p-3 pr-10">
+                  <Mic size={20} className="text-emerald-400 shrink-0" />
+                  <audio controls src={preview} className="h-9 w-full min-w-[220px]" />
+                </div>
+              ) : file.type.startsWith("video/") ? (
+                <video src={preview} controls className="max-h-48 rounded-xl border border-white/20" />
+              ) : (
+                <img src={preview} alt="" className="max-h-48 rounded-xl border border-white/20" />
+              )}
               <button
                 onClick={() => onFile(null)}
-                className="absolute -top-2 -right-2 bg-gradient-to-r from-pink-500 to-purple-500 text-white rounded-full p-1 hover:scale-110 transition-transform"
+                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:scale-110 transition-transform shadow-lg"
               >
                 <X size={14} />
               </button>
@@ -127,9 +152,12 @@ export function CreatePost() {
           <input
             ref={fileRef}
             type="file"
-            accept="image/*,image/gif"
+            accept="image/*,video/*,audio/*"
             className="hidden"
-            onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+            onChange={(e) => {
+              onFile(e.target.files?.[0] ?? null);
+              e.target.value = "";
+            }}
           />
 
           {error && (
@@ -140,12 +168,32 @@ export function CreatePost() {
 
           <div className="flex items-center justify-between mt-2">
             <div className="flex gap-3 relative">
-              <button className="text-white/60 hover:text-[#8b5cf6] transition-colors" onClick={() => fileRef.current?.click()}>
+              <button 
+                className="text-white/60 hover:text-[#8b5cf6] transition-colors" 
+                onClick={() => fileRef.current?.click()}
+                title="Фото / GIF"
+              >
                 <ImageIcon size={20} />
               </button>
-              <button className="text-white/60 hover:text-[#8b5cf6] transition-colors" onClick={() => fileRef.current?.click()}>
+              <button 
+                className="text-white/60 hover:text-[#8b5cf6] transition-colors" 
+                onClick={() => fileRef.current?.click()}
+                title="Видео"
+              >
                 <Clapperboard size={20} />
               </button>
+
+              {/* 🆕 Кнопка голосовых (только для уровня 2+) */}
+              {canUploadAudio && (
+                <button 
+                  className="text-white/60 hover:text-emerald-400 transition-colors" 
+                  onClick={() => fileRef.current?.click()}
+                  title="Голосовое сообщение"
+                >
+                  <Mic size={20} />
+                </button>
+              )}
+
               <button
                 className={`transition-colors ${showStickers ? "text-[#8b5cf6]" : "text-white/60 hover:text-[#8b5cf6]"}`}
                 onClick={() => setShowStickers(!showStickers)}
@@ -179,7 +227,7 @@ export function CreatePost() {
             </div>
             <button
               onClick={submit}
-              disabled={!text.trim()}
+              disabled={!text.trim() && !file}
               className="bg-[#8b5cf6] text-white font-medium rounded-lg px-5 py-2 transition-all hover:bg-[#7c3aed] disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Опубликовать

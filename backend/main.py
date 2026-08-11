@@ -36,6 +36,11 @@ import sql_profiler
 import time
 
 
+ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+ALLOWED_AUDIO_EXT = {".mp3", ".wav", ".ogg", ".m4a", ".aac"}
+ALLOWED_VIDEO_EXT = {".mp4", ".webm", ".mov"}
+
+
 # ============================================================
 # 🚀 ГЛОБАЛЬНЫЕ КЭШИ (ускоряют работу в разы)
 # ============================================================
@@ -1177,6 +1182,7 @@ def get_user_posts(
                 "text": op.text,
                 "media_url": op.media_url,
                 "created_at": op.created_at.isoformat(),
+                "media_type": p.media_type,  # 🆕
             }
 
     result = []
@@ -1342,6 +1348,7 @@ def search(request: Request, q: str, session: Session = Depends(get_session)):
             "replies_count": replies_counts.get(p.id, 0),
             "views_count": p.views_count or 0,
             "created_at": p.created_at.isoformat(),
+            "media_type": p.media_type,  # 🆕
         })
 
     return {"users": [user_out(u, session) for u in users], "posts": result_posts}
@@ -1419,6 +1426,7 @@ def get_following_posts(
                 "author": orig_authors.get(op.author_id),
                 "text": op.text, "media_url": op.media_url,
                 "created_at": op.created_at.isoformat(),
+                "media_type": p.media_type,  # 🆕
             }
 
     result = []
@@ -1810,6 +1818,7 @@ def list_bookmarks(
             "views_count": post.views_count or 0,
             # ✅ ИСПРАВЛЕНО: заменили 'p' на 'post' и добавили безопасный .isoformat() для времени
             "created_at": post.created_at.isoformat() if post.created_at else None,
+            "media_type": p.media_type,  # 🆕
         })
         
     return result
@@ -1917,6 +1926,7 @@ def get_posts(
                 "text": op.text,
                 "media_url": op.media_url,
                 "created_at": op.created_at.isoformat(),
+                "media_type": p.media_type,
             }
 
     liked_ids = set()
@@ -2000,19 +2010,17 @@ async def create_post(
     request: Request,
     text: str = Form(""),
     reply_to: Optional[int] = Form(None),
-    repost_of: Optional[int] = Form(None),  # 🆕
+    repost_of: Optional[int] = Form(None),
     file: Optional[UploadFile] = File(None),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    # Валидация: пост не может быть полностью пустым
     if not text.strip() and not file and not repost_of:
         raise HTTPException(400, "Пост не может быть пустым")
     
     if repost_of and reply_to:
         raise HTTPException(400, "Нельзя одновременно отвечать и репостить")
 
-    # Проверяем оригинальный пост для репоста/цитаты
     original_post = None
     if repost_of:
         original_post = session.get(Post, repost_of)
@@ -2024,19 +2032,41 @@ async def create_post(
             raise HTTPException(400, "Нельзя репостить свой же пост")
 
     media_url = None
+    media_type = None  # 🆕
+
     if file and file.filename:
+        ext = os.path.splitext(file.filename)[1].lower()
+        
+        # 🆕 Определяем тип медиа и проверяем права
+        if ext in ALLOWED_AUDIO_EXT:
+            user_level = get_user_level(user, session)
+            if user_level < 2:
+                raise HTTPException(403, "🎙️ Голосовые посты доступны только со 2-го уровня и выше")
+            media_type = "audio"
+            resource_type = "video"  # Cloudinary хранит аудио как video
+        elif ext in ALLOWED_IMAGE_EXT:
+            media_type = "image"
+            resource_type = "image"
+        elif ext in ALLOWED_VIDEO_EXT:
+            media_type = "video"
+            resource_type = "video"
+        else:
+            raise HTTPException(400, f"Неподдерживаемый формат файла: {ext}")
+
         content = await file.read()
-        if len(content) > 20 * 1024 * 1024:
-            raise HTTPException(400, "File too large (max 20MB)")
+        if len(content) > 50 * 1024 * 1024:  # 50 МБ для аудио/видео
+            raise HTTPException(400, "Файл слишком большой (максимум 50 МБ)")
+        
         try:
             result = await run_in_threadpool(
-                lambda: cloudinary.uploader.upload(content, folder=UPLOAD_FOLDER, resource_type="auto")
+                lambda: cloudinary.uploader.upload(
+                    content, folder=UPLOAD_FOLDER, resource_type=resource_type
+                )
             )
             media_url = result.get("secure_url")
         except Exception as e:
-            raise HTTPException(400, f"Upload failed: {str(e)}")
+            raise HTTPException(400, f"Ошибка загрузки: {str(e)}")
 
-    # Для цитат разрешаем медиа, для обычных репостов — нет
     if repost_of and not text.strip() and media_url:
         raise HTTPException(400, "Обычный репост не может содержать медиа")
 
@@ -2044,12 +2074,14 @@ async def create_post(
         author_id=user.id,
         text=text.strip() if text else "",
         media_url=media_url,
+        media_type=media_type,  # 🆕
         reply_to_id=reply_to,
-        repost_of_id=repost_of,  # 🆕
+        repost_of_id=repost_of,
     )
     session.add(post)
     session.commit()
     session.refresh(post)
+
 
     # Теги и упоминания (только для цитат и обычных постов)
     if text.strip():
@@ -2254,6 +2286,7 @@ def tag_posts(tag_name: str, session: Session = Depends(get_session)):
             "replies_count": replies_map.get(p.id, 0),
             "views_count": p.views_count or 0,
             "created_at": p.created_at.isoformat(),
+            "media_type": p.media_type,  # 🆕
         })
     return result
 
@@ -3099,6 +3132,7 @@ def startup():
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ;'))
             conn.execute(text('CREATE TABLE IF NOT EXISTS bookmark (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES "user"(id), post_id INTEGER REFERENCES post(id) ON DELETE CASCADE, created_at TIMESTAMPTZ, UNIQUE(user_id, post_id));'))
 
+            conn.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS media_type VARCHAR;'))
             conn.execute(text('CREATE TABLE IF NOT EXISTS updateread (user_id INTEGER REFERENCES "user"(id), update_id INTEGER REFERENCES "update"(id), read_at TIMESTAMPTZ DEFAULT NOW(), PRIMARY KEY (user_id, update_id));'))
             conn.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS repost_of_id INTEGER REFERENCES post(id) ON DELETE SET NULL;'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_post_repost ON post(repost_of_id);'))

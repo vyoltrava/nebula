@@ -30,6 +30,7 @@ class Post(SQLModel, table=True):
     author_id: int = Field(foreign_key="user.id", index=True)
     text: str
     media_url: Optional[str] = None
+    media_type: Optional[str] = None
     reply_to_id: Optional[int] = Field(default=None, foreign_key="post.id")
     repost_of_id: Optional[int] = Field(default=None, foreign_key="post.id")  # 🆕
     created_at: datetime = Field(default_factory=utcnow, index=True)

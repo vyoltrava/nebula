@@ -112,6 +112,7 @@ export function Post({
   author_role,
   text,
   media_url,
+  media_type,
   likes_count,
   liked_by_me,
   bookmarked,
@@ -135,6 +136,7 @@ export function Post({
   author_role?: { name: string; color: string } | null;
   text: string;
   media_url?: string | null;
+  media_type?: string | null; // 🆕
   likes_count: number;
   liked_by_me: boolean;
   bookmarked?: boolean;
@@ -496,13 +498,28 @@ export function Post({
           ) : (
             <>
               {!is_quote && <p className="mt-1 text-white/90 whitespace-pre-wrap break-words">{renderText(text)}</p>}
-              {media_url && (
-                <img
-                  src={mediaUrl(media_url)}
-                  alt=""
-                  className="mt-2 max-h-96 w-auto rounded-xl border border-white/20"
-                />
-              )}
+                {media_url && (
+                  media_type === 'audio' ? (
+                    <div className="mt-3 w-full bg-white/5 rounded-xl p-3 border border-white/10">
+                      <div className="flex items-center gap-2 mb-2 text-white/60 text-sm">
+                        <span className="text-lg">🎙️</span> Голосовое сообщение
+                      </div>
+                      <audio controls src={mediaUrl(media_url)} className="w-full h-10" />
+                    </div>
+                  ) : media_type === 'video' ? (
+                    <video 
+                      controls 
+                      src={mediaUrl(media_url)} 
+                      className="mt-2 max-h-96 w-auto rounded-xl border border-white/20" 
+                    />
+                  ) : (
+                    <img
+                      src={mediaUrl(media_url)}
+                      alt=""
+                      className="mt-2 max-h-96 w-auto rounded-xl border border-white/20"
+                    />
+                  )
+                )}
             </>
           )}
 
