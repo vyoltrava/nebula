@@ -1,84 +1,116 @@
-﻿.env.local
-.gitattributes
-.gitignore
-package.json
-structure-clean.txt
-backend\cloudinary_config.py
-backend\database.py
-backend\main.py
-backend\models.py
-backend\performance.py
-backend\requirements.txt
-backend\sql_profiler.py
-backend\websocket_manager.py
-frontend\.gitignore
-frontend\AGENTS.md
-frontend\CLAUDE.md
-frontend\eslint.config.mjs
-frontend\next-env.d.ts
-frontend\next.config.ts
-frontend\package-lock.json
-frontend\package.json
-frontend\postcss.config.mjs
-frontend\README.md
-frontend\tsconfig.json
-frontend\yarn.lock
-frontend\app\globals.css
-frontend\app\layout.tsx
-frontend\app\page.tsx
-frontend\app\admin\page.tsx
-frontend\app\admin\reports\page.tsx
-frontend\app\admin\roles\page.tsx
-frontend\app\admin\tech\page.tsx
-frontend\app\admin\technical\page.tsx
-frontend\app\bookmarks\page.tsx
-frontend\app\login\page.tsx
-frontend\app\messages\page.tsx
-frontend\app\messages\[id]\page.tsx
-frontend\app\notifications\page.tsx
-frontend\app\rules\page.tsx
-frontend\app\search\page.tsx
-frontend\app\settings\page.tsx
-frontend\app\tag\[name]\page.tsx
-frontend\app\team\page.tsx
-frontend\app\updates\page.tsx
-frontend\app\user\[id]\page.tsx
-frontend\components\AuthGuard.tsx
-frontend\components\Avatar.tsx
-frontend\components\BanOverlay.tsx
-frontend\components\BookmarkButton.tsx
-frontend\components\BugReportModal.tsx
-frontend\components\CreatePost.tsx
-frontend\components\FeedTabs.tsx
-frontend\components\LogoutAllButton.tsx
-frontend\components\Post.tsx
-frontend\components\ReportModal.tsx
-frontend\components\RightPanel.tsx
-frontend\components\RulesModal.tsx
-frontend\components\Sidebar.tsx
-frontend\components\Skeletons.tsx
-frontend\components\SystemName.tsx
-frontend\components\TeamDrawer.tsx
-frontend\components\WebSocketProvider.tsx
-frontend\lib\api.ts
-frontend\lib\auth.ts
-frontend\lib\authCache.ts
-frontend\lib\ban.ts
-frontend\lib\crypto.ts
-frontend\lib\events.ts
-frontend\lib\media.ts
-frontend\lib\online.ts
-frontend\lib\perf.ts
-frontend\lib\postCache.ts
-frontend\lib\stickers.tsx
-frontend\lib\time.ts
-frontend\lib\UnreadCountsContext.tsx
-frontend\lib\websocket.ts
-frontend\public\apple-touch-icon.png
-frontend\public\favicon.ico
-frontend\public\file.svg
-frontend\public\globe.svg
-frontend\public\next.svg
-frontend\public\vercel.svg
-frontend\public\window.svg
-frontend\src\hooks\useWebSocket.ts
+﻿├── backend
+│   ├── cloudinary_config.py
+│   ├── database.py
+│   ├── main.py
+│   ├── models.py
+│   ├── performance.py
+│   ├── requirements.txt
+│   ├── sql_profiler.py
+│   └── websocket_manager.py
+├── frontend
+│   ├── app
+│   │   ├── admin
+│   │   │   ├── reports
+│   │   │   │   └── page.tsx
+│   │   │   ├── roles
+│   │   │   │   └── page.tsx
+│   │   │   ├── tech
+│   │   │   │   └── page.tsx
+│   │   │   ├── technical
+│   │   │   │   └── page.tsx
+│   │   │   └── page.tsx
+│   │   ├── bookmarks
+│   │   │   └── page.tsx
+│   │   ├── login
+│   │   │   └── page.tsx
+│   │   ├── messages
+│   │   │   ├── [id]
+│   │   │   └── page.tsx
+│   │   ├── notifications
+│   │   │   └── page.tsx
+│   │   ├── rules
+│   │   │   └── page.tsx
+│   │   ├── search
+│   │   │   └── page.tsx
+│   │   ├── settings
+│   │   │   └── page.tsx
+│   │   ├── tag
+│   │   │   └── [name]
+│   │   ├── team
+│   │   │   └── page.tsx
+│   │   ├── updates
+│   │   │   └── page.tsx
+│   │   ├── user
+│   │   │   └── [id]
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   └── page.tsx
+│   ├── components
+│   │   ├── AuthGuard.tsx
+│   │   ├── Avatar.tsx
+│   │   ├── AvatarCropper.tsx
+│   │   ├── AvatarUploader.tsx
+│   │   ├── BanOverlay.tsx
+│   │   ├── BookmarkButton.tsx
+│   │   ├── BugReportModal.tsx
+│   │   ├── CreatePost.tsx
+│   │   ├── FeedTabs.tsx
+│   │   ├── LogoutAllButton.tsx
+│   │   ├── Post.tsx
+│   │   ├── ReportModal.tsx
+│   │   ├── RightPanel.tsx
+│   │   ├── RulesModal.tsx
+│   │   ├── Sidebar.tsx
+│   │   ├── Skeletons.tsx
+│   │   ├── SplashScreen.tsx
+│   │   ├── SystemName.tsx
+│   │   ├── TeamDrawer.tsx
+│   │   └── WebSocketProvider.tsx
+│   ├── lib
+│   │   ├── api.ts
+│   │   ├── auth.ts
+│   │   ├── authCache.ts
+│   │   ├── ban.ts
+│   │   ├── crypto.ts
+│   │   ├── events.ts
+│   │   ├── media.ts
+│   │   ├── online.ts
+│   │   ├── perf.ts
+│   │   ├── postCache.ts
+│   │   ├── stickers.tsx
+│   │   ├── time.ts
+│   │   ├── UnreadCountsContext.tsx
+│   │   └── websocket.ts
+│   ├── public
+│   │   ├── apple-touch-icon.png
+│   │   ├── favicon.ico
+│   │   ├── file.svg
+│   │   ├── globe.svg
+│   │   ├── loaderio-8a41857f9f76965f9e62bcd156d0cac3.txt
+│   │   ├── logo-animation.svg
+│   │   ├── logo-icon.svg
+│   │   ├── next.svg
+│   │   ├── vercel.svg
+│   │   └── window.svg
+│   ├── src
+│   │   └── hooks
+│   │       └── useWebSocket.ts
+│   ├── .gitignore
+│   ├── AGENTS.md
+│   ├── CLAUDE.md
+│   ├── eslint.config.mjs
+│   ├── next.config.ts
+│   ├── next-env.d.ts
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── postcss.config.mjs
+│   ├── project_structure.txt
+│   ├── README.md
+│   ├── tsconfig.json
+│   └── yarn.lock
+├── .env.local
+├── .gitattributes
+├── .gitignore
+├── package.json
+├── structure.txt
+└── structure-clean.txt
