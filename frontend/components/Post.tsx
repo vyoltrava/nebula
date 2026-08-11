@@ -59,6 +59,15 @@ function renderText(text: string) {
   });
 }
 
+function isAudioMedia(mediaType?: string | null, url?: string | null): boolean {
+  if (mediaType === "audio") return true;
+  if (mediaType) return false;
+  if (!url) return false;
+  // Фолбэк: бэк не шлёт media_type — определяем по расширению
+  return /\.(mp3|wav|ogg|m4a|aac|webm)(\?|#|$)/i.test(url);
+}
+
+
 function getGlowColor(is_admin?: boolean, is_moderator?: boolean, role?: { name: string; color: string } | null): string | null {
   if (is_admin) return "#ffffff";
   if (is_moderator) return "#3b82f6";
@@ -137,7 +146,7 @@ export function Post({
   author_role?: { name: string; color: string } | null;
   text: string;
   media_url?: string | null;
-  media_type?: string | null; // 🆕
+  media_type?: string | null;
   likes_count: number;
   liked_by_me: boolean;
   bookmarked?: boolean;
@@ -485,7 +494,7 @@ export function Post({
               </div>
               <p className="text-white/90 text-sm whitespace-pre-wrap break-words">{renderText(repost_of.text)}</p>
               {repost_of.media_url && (
-                repost_of.media_type === "audio" ? (
+                isAudioMedia(repost_of.media_type, repost_of.media_url) ? (
                   <AudioPlayer src={mediaUrl(repost_of.media_url)} />
                 ) : (
                   <img
@@ -504,7 +513,7 @@ export function Post({
             <>
               {!is_quote && <p className="mt-1 text-white/90 whitespace-pre-wrap break-words">{renderText(text)}</p>}
                 {media_url && (
-                  media_type === "audio" ? (
+                  isAudioMedia(media_type, media_url) ? (
                     <AudioPlayer src={mediaUrl(media_url)} />
                   ) : media_type === "video" ? (
                     <video
