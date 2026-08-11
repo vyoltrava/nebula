@@ -1881,6 +1881,7 @@ async def cancel_repost(
     cascade_delete_post(post.id, session)
     await manager.broadcast_all("post_deleted", {"post_id": post.id})
     return {"ok": True}
+
 @app.get("/api/posts")
 def get_posts(
     cursor: Optional[int] = None,
@@ -1893,30 +1894,30 @@ def get_posts(
         last_post = session.get(Post, cursor)
         if last_post:
             query = query.where(Post.created_at < last_post.created_at)
+
     posts = session.exec(query.limit(limit)).all()
+
     if not posts:
         return {"posts": [], "has_more": False, "next_cursor": None}
 
     ids = [p.id for p in posts]
-    
-    # 🆕 Собираем ID оригинальных постов для репостов
     repost_ids = list({p.repost_of_id for p in posts if p.repost_of_id})
-    
+
     authors = session.exec(select(User).where(User.id.in_({p.author_id for p in posts}))).all()
     authors_map = {u.id: u for u in authors}
-    
+
     likes_map = dict(session.exec(
         select(Like.post_id, func.count()).where(Like.post_id.in_(ids)).group_by(Like.post_id)
     ).all())
     replies_map = dict(session.exec(
         select(Post.reply_to_id, func.count()).where(Post.reply_to_id.in_(ids)).group_by(Post.reply_to_id)
     ).all())
-    
-    # 🆕 Массовая загрузка оригинальных постов
+
+    # 🆕 Загрузка оригинальных постов для репостов
     originals_map = {}
     if repost_ids:
         orig_posts = session.exec(select(Post).where(Post.id.in_(repost_ids))).all()
-        orig_author_ids = {p.author_id for p in orig_posts}
+        orig_author_ids = {op.author_id for op in orig_posts}
         orig_authors = {u.id: u for u in session.exec(select(User).where(User.id.in_(orig_author_ids))).all()}
         for op in orig_posts:
             originals_map[op.id] = {
@@ -1925,8 +1926,8 @@ def get_posts(
                 "author": orig_authors.get(op.author_id),
                 "text": op.text,
                 "media_url": op.media_url,
+                "media_type": op.media_type,  # ✅ op, не p!
                 "created_at": op.created_at.isoformat(),
-                "media_type": p.media_type,
             }
 
     liked_ids = set()
@@ -1942,8 +1943,7 @@ def get_posts(
     result = []
     for p in posts:
         author = authors_map.get(p.author_id)
-        
-        # 🆕 Формируем данные репоста/цитаты
+
         repost_data = None
         is_repost = False
         is_quote = False
@@ -1962,18 +1962,15 @@ def get_posts(
                     "author_role": get_author_role(orig_author, session) if orig_author else None,
                     "text": orig["text"],
                     "media_url": orig["media_url"],
+                    "media_type": orig["media_type"],  # ✅ из originals_map
                     "created_at": orig["created_at"],
                 }
-                # Определяем тип: репост или цитата
-                if not p.text.strip():
-                    is_repost = True
-                else:
-                    is_quote = True
+                is_repost = not p.text.strip()
+                is_quote = bool(p.text.strip())
             else:
-                # Оригинал был удалён
                 repost_data = {"deleted": True}
-                is_repost = True if not p.text.strip() else False
-                is_quote = True if p.text.strip() else False
+                is_repost = not p.text.strip()
+                is_quote = bool(p.text.strip())
 
         result.append({
             "id": p.id,
@@ -1987,15 +1984,16 @@ def get_posts(
             "author_role": get_author_role(author, session) if author else None,
             "text": p.text,
             "media_url": p.media_url,
+            "media_type": p.media_type,  # ✅ p здесь — это текущий пост
             "likes_count": likes_map.get(p.id, 0),
             "liked_by_me": p.id in liked_ids,
             "bookmarked": p.id in bookmarked_ids,
             "replies_count": replies_map.get(p.id, 0),
             "created_at": p.created_at.isoformat(),
             "views_count": p.views_count or 0,
-            "repost_of": repost_data,      # 🆕
-            "is_repost": is_repost,         # 🆕
-            "is_quote": is_quote,           # 🆕
+            "repost_of": repost_data,
+            "is_repost": is_repost,
+            "is_quote": is_quote,
         })
 
     return {
@@ -2155,6 +2153,7 @@ async def create_post(
             "created_at": post.created_at.isoformat(),
             "views_count": 0,
             "repost_of_id": post.repost_of_id,  # 🆕
+            "media_type": post.media_type,  # 🆕
         }
         
         # Если это репост/цитата — подгружаем оригинал для WebSocket
@@ -2190,6 +2189,7 @@ async def create_post(
         "created_at": post.created_at.isoformat(),
         "views_count": 0,
         "repost_of_id": post.repost_of_id,  # 🆕
+        "media_type": post.media_type,
     }
 
 
