@@ -438,7 +438,11 @@ export default function UserProfilePage() {
                 </div>
 
                 {/* Био */}
-                {profile.bio && <p className="text-white/80 mt-3 text-sm whitespace-pre-wrap">{profile.bio}</p>}
+                  {profile.bio && (
+                    <p className="text-white/80 mt-3 text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                      {profile.bio}
+                    </p>
+                  )}
 
                 {/* 🆕 Кнопки действий — МОБИЛЬНЫЕ (остались внизу, не влияют на расстояние имя/юзернейм) */}
                 {!isOwnProfile && (
