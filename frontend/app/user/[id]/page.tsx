@@ -428,7 +428,7 @@ export default function UserProfilePage() {
                 </div>
 
                 {/* Username и био */}
-                <p className="text-white/50 mt-1 text-sm">@{profile.username}</p>
+                <p className="text-white/50 text-sm">@{profile.username}</p>
                 {profile.bio && <p className="text-white/80 mt-2 text-sm whitespace-pre-wrap">{profile.bio}</p>}
 
                 {/* 🆕 Кнопки действий — МОБИЛЬНЫЕ (компактные, одинаковый размер) */}
