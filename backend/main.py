@@ -3608,12 +3608,27 @@ async def send_message_v2(
             if resource_type == "video":
                 # Проверяем MIME-тип для точного определения
                 content_type = (file.content_type or "").lower()
-                if "audio" in content_type or ext in {".mp3", ".wav", ".ogg", ".m4a", ".aac"}:
+
+                # Определяем тип правильно: .webm может быть и аудио, и видео
+                is_audio = (
+                    content_type.startswith("audio/")
+                    or ext in {".mp3", ".wav", ".ogg", ".m4a", ".aac"}
+                    or (ext == ".webm" and "audio" in content_type)
+                )
+                is_video = (
+                    content_type.startswith("video/")
+                    or ext in {".mp4", ".mov"}
+                    or (ext == ".webm" and "video" in content_type)
+                )
+
+                if is_audio:
                     media_type = "audio"
-                elif ext == ".webm" and "audio" in content_type:
-                    media_type = "audio"
-                else:
+                elif ext == ".gif":
+                    media_type = "gif"
+                elif is_video:
                     media_type = "video"
+                else:
+                    media_type = "image"
             elif ext == ".gif":
                 media_type = "gif"
             else:
