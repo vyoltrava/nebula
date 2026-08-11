@@ -64,18 +64,29 @@ function SmartMedia({ src, type, className }: { src: string; type?: string | nul
   const [mediaKind, setMediaKind] = useState<"image" | "audio" | "video" | "loading">("loading");
 
   useEffect(() => {
+    // 1. Приоритет: явный тип из БД
     if (type === "audio") return setMediaKind("audio");
     if (type === "video") return setMediaKind("video");
     if (type === "image") return setMediaKind("image");
 
-    // Фолбэк: пробуем загрузить как изображение
+    // 2. Фолбэк: проверяем расширение в URL (для старых постов без media_type)
+    // Это происходит синхронно и мгновенно, без сетевых задержек!
+    const ext = src.split(".").pop()?.toLowerCase().split("?")[0];
+    if (ext && [".mp3", ".wav", ".ogg", ".m4a", ".aac", "mp3", "wav", "ogg", "m4a", "aac"].includes(ext)) {
+      return setMediaKind("audio");
+    }
+    if (ext && [".mp4", ".webm", ".mov", "mp4", "webm", "mov"].includes(ext)) {
+      return setMediaKind("video");
+    }
+
+    // 3. Последний шанс: пробуем загрузить как картинку
     const img = new Image();
     img.onload = () => setMediaKind("image");
     img.onerror = () => {
-      // Если не картинка — пробуем как аудио
+      // Если не картинка — скорее всего аудио или видео
       const audio = new Audio();
       audio.onloadedmetadata = () => setMediaKind("audio");
-      audio.onerror = () => setMediaKind("video");
+      audio.onerror = () => setMediaKind("video"); 
       audio.src = src;
     };
     img.src = src;
@@ -86,6 +97,7 @@ function SmartMedia({ src, type, className }: { src: string; type?: string | nul
   }
 
   if (mediaKind === "audio") {
+    // ✅ Гарантированно используем ваш кастомный плеер
     return <AudioPlayer src={src} />;
   }
 
