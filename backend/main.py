@@ -368,6 +368,15 @@ def cascade_delete_post(post_id: int, session: Session):
             session.delete(pv)
         # 👆 КОНЕЦ ДОБАВЛЕНИЯ 👆
 
+        # 🆕 Обнуляем repost_of_id у всех постов, которые репостят удаляемый пост
+    reposts_to_detach = session.exec(
+        select(Post).where(Post.repost_of_id.in_(id_list))
+    ).all()
+    for rp in reposts_to_detach:
+        rp.repost_of_id = None
+        session.add(rp)
+    
+
 
     # 6. Удаляем медиа
     for post in posts_with_media:
@@ -1153,9 +1162,56 @@ def get_user_posts(
         .group_by(Post.reply_to_id)
     ).all())
 
+    # 🆕 Массовая загрузка оригинальных постов для репостов
+    repost_ids = list({p.repost_of_id for p in posts if p.repost_of_id})
+    originals_map = {}
+    if repost_ids:
+        orig_posts = session.exec(select(Post).where(Post.id.in_(repost_ids))).all()
+        orig_author_ids = {p.author_id for p in orig_posts}
+        orig_authors = {u.id: u for u in session.exec(select(User).where(User.id.in_(orig_author_ids))).all()}
+        for op in orig_posts:
+            originals_map[op.id] = {
+                "id": op.id,
+                "author_id": op.author_id,
+                "author": orig_authors.get(op.author_id),
+                "text": op.text,
+                "media_url": op.media_url,
+                "created_at": op.created_at.isoformat(),
+            }
+
     result = []
     for p in posts:
         author = authors.get(p.author_id)
+        
+        # 🆕 Формируем данные репоста/цитаты
+        repost_data = None
+        is_repost = False
+        is_quote = False
+        if p.repost_of_id:
+            orig = originals_map.get(p.repost_of_id)
+            if orig:
+                orig_author = orig["author"]
+                repost_data = {
+                    "id": orig["id"],
+                    "author_id": orig["author_id"],
+                    "author": orig_author.display_name if orig_author else "Удалённый пользователь",
+                    "handle": f"@{orig_author.username}" if orig_author else "@deleted",
+                    "author_avatar": orig_author.avatar_url if orig_author else None,
+                    "author_is_admin": orig_author.is_admin if orig_author else False,
+                    "author_is_moderator": orig_author.is_moderator if orig_author else False,
+                    "author_role": get_author_role(orig_author, session) if orig_author else None,
+                    "text": orig["text"],
+                    "media_url": orig["media_url"],
+                    "created_at": orig["created_at"],
+                }
+                is_repost = not p.text.strip()
+                is_quote = bool(p.text.strip())
+            else:
+                # Оригинал был удалён
+                repost_data = {"deleted": True}
+                is_repost = not p.text.strip()
+                is_quote = bool(p.text.strip())
+
         result.append({
             "id": p.id,
             "author_id": p.author_id,
@@ -1173,6 +1229,9 @@ def get_user_posts(
             "replies_count": replies_counts.get(p.id, 0),
             "views_count": p.views_count or 0,
             "created_at": p.created_at.isoformat(),
+            "repost_of": repost_data,      # 🆕
+            "is_repost": is_repost,         # 🆕
+            "is_quote": is_quote,           # 🆕
         })
 
     has_more = len(posts) == limit
@@ -1342,16 +1401,58 @@ def get_following_posts(
         select(Like.post_id).where(Like.user_id == user.id, Like.post_id.in_(post_ids))
     ).all())
 
+    # ... (предыдущий код функции) ...
     bookmarked_ids = set(session.exec(
         select(Bookmark.post_id).where(Bookmark.user_id == user.id, Bookmark.post_id.in_(post_ids))
     ).all())
 
+    # 🆕 Массовая загрузка оригинальных постов для репостов
+    repost_ids = list({p.repost_of_id for p in posts if p.repost_of_id})
+    originals_map = {}
+    if repost_ids:
+        orig_posts = session.exec(select(Post).where(Post.id.in_(repost_ids))).all()
+        orig_author_ids = {p.author_id for p in orig_posts}
+        orig_authors = {u.id: u for u in session.exec(select(User).where(User.id.in_(orig_author_ids))).all()}
+        for op in orig_posts:
+            originals_map[op.id] = {
+                "id": op.id, "author_id": op.author_id,
+                "author": orig_authors.get(op.author_id),
+                "text": op.text, "media_url": op.media_url,
+                "created_at": op.created_at.isoformat(),
+            }
+
     result = []
     for p in posts:
         author = authors.get(p.author_id)
+        
+        # 🆕 Формируем данные репоста/цитаты
+        repost_data = None
+        is_repost = False
+        is_quote = False
+        if p.repost_of_id:
+            orig = originals_map.get(p.repost_of_id)
+            if orig:
+                orig_author = orig["author"]
+                repost_data = {
+                    "id": orig["id"], "author_id": orig["author_id"],
+                    "author": orig_author.display_name if orig_author else "Удалённый пользователь",
+                    "handle": f"@{orig_author.username}" if orig_author else "@deleted",
+                    "author_avatar": orig_author.avatar_url if orig_author else None,
+                    "author_is_admin": orig_author.is_admin if orig_author else False,
+                    "author_is_moderator": orig_author.is_moderator if orig_author else False,
+                    "author_role": get_author_role(orig_author, session) if orig_author else None,
+                    "text": orig["text"], "media_url": orig["media_url"],
+                    "created_at": orig["created_at"],
+                }
+                is_repost = not p.text.strip()
+                is_quote = bool(p.text.strip())
+            else:
+                repost_data = {"deleted": True}
+                is_repost = not p.text.strip()
+                is_quote = bool(p.text.strip())
+
         result.append({
-            "id": p.id,
-            "author_id": p.author_id,
+            "id": p.id, "author_id": p.author_id,
             "author": author.display_name if author else "Unknown",
             "handle": f"@{author.username}" if author else "@unknown",
             "author_avatar": author.avatar_url if author else None,
@@ -1359,16 +1460,17 @@ def get_following_posts(
             "author_is_moderator": author.is_moderator if author else False,
             "author_is_banned": author.is_banned if author else False,
             "author_role": get_author_role(author, session) if author else None,
-            "text": p.text,
-            "media_url": p.media_url,
+            "text": p.text, "media_url": p.media_url,
             "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": p.id in liked_ids,
             "bookmarked": p.id in bookmarked_ids,
             "replies_count": replies_counts.get(p.id, 0),
             "views_count": p.views_count or 0,
             "created_at": p.created_at.isoformat(),
+            "repost_of": repost_data,
+            "is_repost": is_repost,
+            "is_quote": is_quote,
         })
-
     has_more = len(posts) == limit
 
     return {
@@ -1751,6 +1853,25 @@ async def delete_post(
     return {"ok": True}
 
 
+@app.delete("/api/posts/{post_id}/repost")
+async def cancel_repost(
+    post_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Отменить свой репост (удаляет пост-репост, а не оригинал)"""
+    post = session.get(Post, post_id)
+    if not post:
+        raise HTTPException(404, "Post not found")
+    if post.author_id != user.id:
+        raise HTTPException(403, "Это не ваш репост")
+    if not post.repost_of_id:
+        raise HTTPException(400, "Это не репост")
+    
+    # Каскадно удаляем сам репост
+    cascade_delete_post(post.id, session)
+    await manager.broadcast_all("post_deleted", {"post_id": post.id})
+    return {"ok": True}
 @app.get("/api/posts")
 def get_posts(
     cursor: Optional[int] = None,
@@ -1764,23 +1885,39 @@ def get_posts(
         if last_post:
             query = query.where(Post.created_at < last_post.created_at)
     posts = session.exec(query.limit(limit)).all()
-
     if not posts:
         return {"posts": [], "has_more": False, "next_cursor": None}
 
     ids = [p.id for p in posts]
-
-    # 🚀 5 запросов к БД вместо 60: авторы, лайки, ответы — всё оптом
+    
+    # 🆕 Собираем ID оригинальных постов для репостов
+    repost_ids = list({p.repost_of_id for p in posts if p.repost_of_id})
+    
     authors = session.exec(select(User).where(User.id.in_({p.author_id for p in posts}))).all()
     authors_map = {u.id: u for u in authors}
-
+    
     likes_map = dict(session.exec(
         select(Like.post_id, func.count()).where(Like.post_id.in_(ids)).group_by(Like.post_id)
     ).all())
-
     replies_map = dict(session.exec(
         select(Post.reply_to_id, func.count()).where(Post.reply_to_id.in_(ids)).group_by(Post.reply_to_id)
     ).all())
+    
+    # 🆕 Массовая загрузка оригинальных постов
+    originals_map = {}
+    if repost_ids:
+        orig_posts = session.exec(select(Post).where(Post.id.in_(repost_ids))).all()
+        orig_author_ids = {p.author_id for p in orig_posts}
+        orig_authors = {u.id: u for u in session.exec(select(User).where(User.id.in_(orig_author_ids))).all()}
+        for op in orig_posts:
+            originals_map[op.id] = {
+                "id": op.id,
+                "author_id": op.author_id,
+                "author": orig_authors.get(op.author_id),
+                "text": op.text,
+                "media_url": op.media_url,
+                "created_at": op.created_at.isoformat(),
+            }
 
     liked_ids = set()
     bookmarked_ids = set()
@@ -1795,6 +1932,39 @@ def get_posts(
     result = []
     for p in posts:
         author = authors_map.get(p.author_id)
+        
+        # 🆕 Формируем данные репоста/цитаты
+        repost_data = None
+        is_repost = False
+        is_quote = False
+        if p.repost_of_id:
+            orig = originals_map.get(p.repost_of_id)
+            if orig:
+                orig_author = orig["author"]
+                repost_data = {
+                    "id": orig["id"],
+                    "author_id": orig["author_id"],
+                    "author": orig_author.display_name if orig_author else "Удалённый пользователь",
+                    "handle": f"@{orig_author.username}" if orig_author else "@deleted",
+                    "author_avatar": orig_author.avatar_url if orig_author else None,
+                    "author_is_admin": orig_author.is_admin if orig_author else False,
+                    "author_is_moderator": orig_author.is_moderator if orig_author else False,
+                    "author_role": get_author_role(orig_author, session) if orig_author else None,
+                    "text": orig["text"],
+                    "media_url": orig["media_url"],
+                    "created_at": orig["created_at"],
+                }
+                # Определяем тип: репост или цитата
+                if not p.text.strip():
+                    is_repost = True
+                else:
+                    is_quote = True
+            else:
+                # Оригинал был удалён
+                repost_data = {"deleted": True}
+                is_repost = True if not p.text.strip() else False
+                is_quote = True if p.text.strip() else False
+
         result.append({
             "id": p.id,
             "author_id": p.author_id,
@@ -1813,6 +1983,9 @@ def get_posts(
             "replies_count": replies_map.get(p.id, 0),
             "created_at": p.created_at.isoformat(),
             "views_count": p.views_count or 0,
+            "repost_of": repost_data,      # 🆕
+            "is_repost": is_repost,         # 🆕
+            "is_quote": is_quote,           # 🆕
         })
 
     return {
@@ -1825,80 +1998,112 @@ def get_posts(
 @limiter.limit("10/minute")
 async def create_post(
     request: Request,
-    text: str = Form(...),
+    text: str = Form(""),
     reply_to: Optional[int] = Form(None),
+    repost_of: Optional[int] = Form(None),  # 🆕
     file: Optional[UploadFile] = File(None),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
+    # Валидация: пост не может быть полностью пустым
+    if not text.strip() and not file and not repost_of:
+        raise HTTPException(400, "Пост не может быть пустым")
+    
+    if repost_of and reply_to:
+        raise HTTPException(400, "Нельзя одновременно отвечать и репостить")
+
+    # Проверяем оригинальный пост для репоста/цитаты
+    original_post = None
+    if repost_of:
+        original_post = session.get(Post, repost_of)
+        if not original_post:
+            raise HTTPException(404, "Оригинальный пост не найден")
+        if original_post.repost_of_id:
+            raise HTTPException(400, "Нельзя репостить репост")
+        if original_post.author_id == user.id:
+            raise HTTPException(400, "Нельзя репостить свой же пост")
+
     media_url = None
     if file and file.filename:
         content = await file.read()
         if len(content) > 20 * 1024 * 1024:
             raise HTTPException(400, "File too large (max 20MB)")
-
         try:
-            # Оборачиваем синхронный вызов в threadpool
             result = await run_in_threadpool(
-                lambda: cloudinary.uploader.upload(
-                    content,
-                    folder=UPLOAD_FOLDER,
-                    resource_type="auto",
-                )
+                lambda: cloudinary.uploader.upload(content, folder=UPLOAD_FOLDER, resource_type="auto")
             )
             media_url = result.get("secure_url")
         except Exception as e:
             raise HTTPException(400, f"Upload failed: {str(e)}")
-        
-    post = Post(author_id=user.id, text=text, media_url=media_url, reply_to_id=reply_to)
+
+    # Для цитат разрешаем медиа, для обычных репостов — нет
+    if repost_of and not text.strip() and media_url:
+        raise HTTPException(400, "Обычный репост не может содержать медиа")
+
+    post = Post(
+        author_id=user.id,
+        text=text.strip() if text else "",
+        media_url=media_url,
+        reply_to_id=reply_to,
+        repost_of_id=repost_of,  # 🆕
+    )
     session.add(post)
     session.commit()
     session.refresh(post)
 
-    for tag_name in extract_tags(text):
-        tag = session.exec(select(Tag).where(Tag.name == tag_name)).first()
-        if not tag:
-            tag = Tag(name=tag_name)
-            session.add(tag)
-            session.commit()
-            session.refresh(tag)
-        session.add(PostTag(post_id=post.id, tag_id=tag.id))
+    # Теги и упоминания (только для цитат и обычных постов)
+    if text.strip():
+        for tag_name in extract_tags(text):
+            tag = session.exec(select(Tag).where(Tag.name == tag_name)).first()
+            if not tag:
+                tag = Tag(name=tag_name)
+                session.add(tag)
+                session.commit()
+                session.refresh(tag)
+            session.add(PostTag(post_id=post.id, tag_id=tag.id))
 
-    for username in extract_mentions(text):
-        mentioned = session.exec(
-            select(User).where(func.lower(User.username) == username)
-        ).first()
-        if mentioned and mentioned.id != user.id:
-            session.add(Notification(
-                user_id=mentioned.id,
-                actor_id=user.id,
-                type="mention",
-                post_id=post.id,
-            ))
+        for username in extract_mentions(text):
+            mentioned = session.exec(
+                select(User).where(func.lower(User.username) == username)
+            ).first()
+            if mentioned and mentioned.id != user.id:
+                session.add(Notification(
+                    user_id=mentioned.id, actor_id=user.id,
+                    type="mention", post_id=post.id,
+                ))
 
+    # Уведомление автору оригинала о репосте/цитате
+    if original_post and original_post.author_id != user.id:
+        notif_type = "quote" if text.strip() else "repost"
+        session.add(Notification(
+            user_id=original_post.author_id,
+            actor_id=user.id,
+            type=notif_type,
+            post_id=post.id,
+        ))
+
+    # Ответ на пост
     if reply_to:
         parent = session.get(Post, reply_to)
         if parent and parent.author_id != user.id:
             session.add(Notification(
-                user_id=parent.author_id,
-                actor_id=user.id,
-                type="reply",
+                user_id=parent.author_id, actor_id=user.id, type="reply",
             ))
 
     log_action(
         session, user.id, "create_post",
         target_type="post", target_id=post.id,
-        details={"text": post.text[:100] if post.text else None},
+        details={
+            "text": post.text[:100] if post.text else None,
+            "is_repost": bool(repost_of),
+        },
         ip_address=get_client_ip(request),
     )
-
     session.commit()
 
-
-
-    # ⚡ Новый пост мгновенно у всех в ленте
+    # WebSocket рассылка (только для корневых постов)
     if not reply_to:
-        await manager.broadcast_all("new_post", {
+        post_data = {
             "id": post.id,
             "author_id": post.author_id,
             "author": user.display_name,
@@ -1915,9 +2120,25 @@ async def create_post(
             "liked_by_me": False,
             "bookmarked": False,
             "replies_count": 0,
-            "created_at": post.created_at.isoformat(),  # ← ДОБАВИТЬ
+            "created_at": post.created_at.isoformat(),
             "views_count": 0,
-        })
+            "repost_of_id": post.repost_of_id,  # 🆕
+        }
+        
+        # Если это репост/цитата — подгружаем оригинал для WebSocket
+        if post.repost_of_id and original_post:
+            orig_author = session.get(User, original_post.author_id)
+            post_data["repost_of"] = {
+                "id": original_post.id,
+                "author_id": original_post.author_id,
+                "author": orig_author.display_name if orig_author else "Unknown",
+                "handle": f"@{orig_author.username}" if orig_author else "@unknown",
+                "author_avatar": orig_author.avatar_url if orig_author else None,
+                "text": original_post.text,
+                "media_url": original_post.media_url,
+            }
+        
+        await manager.broadcast_all("new_post", post_data)
 
     return {
         "id": post.id,
@@ -1934,8 +2155,9 @@ async def create_post(
         "likes_count": 0,
         "liked_by_me": False,
         "replies_count": 0,
-        "created_at": post.created_at.isoformat(),  # ← ДОБАВИТЬ
+        "created_at": post.created_at.isoformat(),
         "views_count": 0,
+        "repost_of_id": post.repost_of_id,  # 🆕
     }
 
 
@@ -2878,7 +3100,8 @@ def startup():
             conn.execute(text('CREATE TABLE IF NOT EXISTS bookmark (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES "user"(id), post_id INTEGER REFERENCES post(id) ON DELETE CASCADE, created_at TIMESTAMPTZ, UNIQUE(user_id, post_id));'))
 
             conn.execute(text('CREATE TABLE IF NOT EXISTS updateread (user_id INTEGER REFERENCES "user"(id), update_id INTEGER REFERENCES "update"(id), read_at TIMESTAMPTZ DEFAULT NOW(), PRIMARY KEY (user_id, update_id));'))
-
+            conn.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS repost_of_id INTEGER REFERENCES post(id) ON DELETE SET NULL;'))
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_post_repost ON post(repost_of_id);'))
             # ===== КАСКАДНОЕ УДАЛЕНИЕ ДЛЯ POST =====
             conn.execute(text('ALTER TABLE "like" DROP CONSTRAINT IF EXISTS like_post_id_fkey;'))
             conn.execute(text('ALTER TABLE "like" ADD CONSTRAINT like_post_id_fkey FOREIGN KEY (post_id) REFERENCES post(id) ON DELETE CASCADE;'))

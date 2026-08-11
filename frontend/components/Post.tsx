@@ -3,7 +3,7 @@ import { STICKERS } from "@/lib/stickers";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply } from "lucide-react";
+import { Heart, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
 import { safeFetch } from "@/lib/ban";
@@ -17,6 +17,7 @@ import { timeAgo } from "@/lib/time";
 
 
 function renderText(text: string) {
+  if (!text) return null;
   const parts = text.split(/(#[\wа-яёА-ЯЁ]+|@[\wа-яёА-ЯЁ]+|:[\w]+:)/g);
   return parts.map((part, i) => {
     if (part.startsWith("#")) {
@@ -81,7 +82,6 @@ function AuthorBadges({ is_admin, is_moderator, is_banned, role }: {
 }) {
   return (
     <>
-
       {role && !is_admin && !is_moderator && (
         <span
           className="inline-flex items-center px-1.5 py-0.5 rounded text-white text-[8px] font-black uppercase tracking-widest shrink-0 border"
@@ -116,9 +116,12 @@ export function Post({
   liked_by_me,
   bookmarked,
   replies_count,
-  created_at,        // ← ДОБАВЬ ЭТО
+  created_at,
   views_count,
   showFullReplies = true,
+  repost_of,
+  is_repost,
+  is_quote,
 }: {
   id: number;
   author_id: number;
@@ -136,11 +139,13 @@ export function Post({
   liked_by_me: boolean;
   bookmarked?: boolean;
   replies_count: number;
-  created_at: string; // ← И ЭТО
+  created_at: string;
   views_count?: number;
   showFullReplies?: boolean;
+  repost_of?: any;
+  is_repost?: boolean;
+  is_quote?: boolean;
 }) {
-    // ✅ Получаем текущего пользователя из кеша (ОДИН раз при загрузке)
     const [currentUser] = useState(() => {
       const cached = getCachedUser();
       return cached 
@@ -148,13 +153,11 @@ export function Post({
         : null;
     });
 
-    // ✅ Получаем права из кеша (ОДИН раз)
     const [myPermissions] = useState<string[]>(() => {
       const cached = getCachedUser();
       return cached?.permissions || [];
     });
 
-    // ✅ Остальные состояния
     const [liked, setLiked] = useState<boolean>(() => {
       const cached = isLikedCached(id);
       if (cached !== undefined && cached !== null) return cached;
@@ -181,7 +184,6 @@ export function Post({
     });
   }, [id]);
 
-      // ⚡ Счётчик лайков обновляется в реальном времени
   useEffect(() => {
     const handler = (e: Event) => {
       const d = (e as CustomEvent).detail;
@@ -193,7 +195,6 @@ export function Post({
 
     const cleanUsername = username || handle?.replace("@", "");
 
-    // ✅ useEffect проверяет ТОЛЬКО подписку (1 запрос на пост вместо 2)
     useEffect(() => {
       const token = getToken();
       if (!token) return;
@@ -216,7 +217,6 @@ export function Post({
       return;
     }
 
-    // Оптимистично: меняем СРАЗУ
     const next = !liked;
     setLiked(next);
     setCount((c) => (next ? c + 1 : c - 1));
@@ -235,7 +235,6 @@ export function Post({
         setLikedCache(id, data.liked);
       }
     } else {
-      // Откат при ошибке
       setLiked(!next);
       setCount((c) => (next ? c - 1 : c + 1));
       setLikedCache(id, !next);
@@ -266,7 +265,6 @@ export function Post({
     setShowReplies(!showReplies);
   }
 
-  // 🆕 Начать ответ с упоминанием пользователя
   function startReply(mentionUsername?: string, mentionDisplayName?: string) {
     setReplying(true);
     if (mentionUsername) {
@@ -274,7 +272,6 @@ export function Post({
     } else {
       setReplyText("");
     }
-    // Фокус на инпут через таймаут (чтобы DOM обновился)
     setTimeout(() => {
       const input = document.querySelector(`[data-reply-input="${id}"]`) as HTMLInputElement;
       if (input) {
@@ -307,7 +304,6 @@ export function Post({
       setReplying(false);
       setRCount((c) => c + 1);
       
-      // Перезагружаем ответы
       const r = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/replies`);
       if (r.ok) setReplies(await r.json());
       setShowReplies(true);
@@ -336,6 +332,79 @@ export function Post({
     }
   }
 
+  // 🆕 Функции для репостов и цитат
+  async function handleRepost(postId: number) {
+    const token = getToken();
+    if (!token) { router.push("/login"); return; }
+    if (!confirm("Сделать репост?")) return;
+
+    const form = new FormData();
+    form.append("repost_of", String(postId));
+
+    const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+
+    if (res.ok) {
+      triggerFeedRefresh();
+    } else {
+      try {
+        const err = await res.json();
+        alert(err.detail || "Ошибка репоста");
+      } catch {
+        alert("Ошибка репоста");
+      }
+    }
+  }
+
+  async function handleQuote(postId: number) {
+    const token = getToken();
+    if (!token) { router.push("/login"); return; }
+    const text = prompt("Ваш комментарий к цитате:");
+    if (!text) return;
+
+    const form = new FormData();
+    form.append("repost_of", String(postId));
+    form.append("text", text);
+
+    const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+
+    if (res.ok) {
+      triggerFeedRefresh();
+    } else {
+      try {
+        const err = await res.json();
+        alert(err.detail || "Ошибка цитирования");
+      } catch {
+        alert("Ошибка цитирования");
+      }
+    }
+  }
+
+  async function handleCancelRepost(postId: number) {
+    const token = getToken();
+    if (!token) return;
+    if (!confirm("Отменить репост?")) return;
+
+    const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/repost`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (res.ok) {
+      window.dispatchEvent(new CustomEvent("post-deleted", { detail: { id: postId } }));
+      triggerFeedRefresh();
+    } else {
+      alert("Не удалось отменить репост");
+    }
+  }
+
   useEffect(() => {
     const cached = isLikedCached(id);
     if (cached !== undefined && cached !== null) {
@@ -348,10 +417,16 @@ export function Post({
 
   const canDelete = currentUser?.id === author_id || myPermissions.includes("delete_posts");
 
-// ... (весь код до return statement в Post остается прежним) ...
-
   return (
     <article className="p-4 border-b border-white/10 hover:bg-white/5 transition-colors">
+      {/* 🆕 Плашка репоста */}
+      {is_repost && (
+        <div className="flex items-center gap-2 text-xs text-white/50 ml-12 mb-1">
+          <RefreshCw size={14} />
+          <span>{author} репостнул(а)</span>
+        </div>
+      )}
+
       <div className="flex gap-3">
         <Link href={`/${cleanUsername}`} className="shrink-0">
           <Avatar src={author_avatar} name={author} id={author_id} />
@@ -373,11 +448,11 @@ export function Post({
                 is_admin={author_is_admin}
                 is_moderator={author_is_moderator}
                 is_banned={author_is_banned}
-                role={author_role} // 🆕 Добавил пропс role, чтобы бейджи работали корректно
+                role={author_role}
               />
               <span className="font-normal text-white/50">{handle} {created_at ? `· ${timeAgo(created_at)}` : ""}</span>
             </div>
-            {currentUser?.id !== author_id && (
+            {currentUser?.id !== author_id && !is_repost && (
               <button
                 onClick={toggleFollow}
                 className={`text-xs font-bold px-3 py-1 rounded-full border transition-all shrink-0 ${
@@ -391,14 +466,44 @@ export function Post({
             )}
           </div>
           
-          <p className="mt-1 text-white/90 whitespace-pre-wrap break-words">{renderText(text)}</p>
+          {/* 🆕 Рендер текста и вложенного поста */}
+          {is_quote && <p className="mt-1 text-white/90 whitespace-pre-wrap break-words">{renderText(text)}</p>}
           
-          {media_url && (
-            <img
-              src={mediaUrl(media_url)}
-              alt=""
-              className="mt-2 max-h-96 w-auto rounded-xl border border-white/20"
-            />
+          {repost_of && !repost_of.deleted ? (
+            <div className="mt-2 border border-white/10 rounded-xl p-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+              <div className="flex items-center gap-2 mb-2">
+                <Link href={`/${repost_of.handle?.replace("@", "")}`} onClick={(e) => e.stopPropagation()}>
+                  <Avatar src={repost_of.author_avatar} name={repost_of.author} id={repost_of.author_id} size={24} />
+                </Link>
+                <Link href={`/${repost_of.handle?.replace("@", "")}`} className="font-semibold text-sm text-white hover:underline" onClick={(e) => e.stopPropagation()}>
+                  {repost_of.author}
+                </Link>
+                <span className="text-sm text-white/40">{repost_of.handle}</span>
+              </div>
+              <p className="text-white/90 text-sm whitespace-pre-wrap break-words">{renderText(repost_of.text)}</p>
+              {repost_of.media_url && (
+                <img
+                  src={mediaUrl(repost_of.media_url)}
+                  alt=""
+                  className="mt-2 max-h-60 w-auto rounded-lg border border-white/10"
+                />
+              )}
+            </div>
+          ) : repost_of?.deleted ? (
+            <div className="mt-2 border border-white/10 rounded-xl p-4 bg-white/[0.02] text-center text-white/40 text-sm italic">
+              Оригинальный пост был удалён
+            </div>
+          ) : (
+            <>
+              {!is_quote && <p className="mt-1 text-white/90 whitespace-pre-wrap break-words">{renderText(text)}</p>}
+              {media_url && (
+                <img
+                  src={mediaUrl(media_url)}
+                  alt=""
+                  className="mt-2 max-h-96 w-auto rounded-xl border border-white/20"
+                />
+              )}
+            </>
           )}
 
           <div className="flex items-center gap-3 mt-3 flex-wrap">
@@ -420,10 +525,40 @@ export function Post({
               className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-white/20 text-white/70 hover:bg-white/10 hover:border-white/40 hover:text-white transition-all"
             >
               <Reply size={16} />
-              <span className="text-sm font-semibold">Ответить</span>
             </button>
 
-            {currentUser?.id !== author_id && (
+            {/* 🆕 Кнопки Репоста и Цитаты */}
+            {currentUser && currentUser.id !== author_id && !is_repost && !is_quote && (
+              <>
+                <button
+                  onClick={() => handleRepost(id)}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-white/20 text-white/70 hover:bg-emerald-500/10 hover:border-emerald-400/30 hover:text-emerald-400 transition-all"
+                  title="Репост"
+                >
+                  <RefreshCw size={16} />
+                </button>
+                <button
+                  onClick={() => handleQuote(id)}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-white/20 text-white/70 hover:bg-cyan-500/10 hover:border-cyan-400/30 hover:text-cyan-400 transition-all"
+                  title="Цитировать"
+                >
+                  <Quote size={16} />
+                </button>
+              </>
+            )}
+
+            {/* 🆕 Отмена своего репоста */}
+            {is_repost && currentUser?.id === author_id && (
+              <button
+                onClick={() => handleCancelRepost(id)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-red-400/30 text-red-400 hover:bg-red-500/10 hover:border-red-400/50 transition-all"
+              >
+                <RefreshCw size={16} />
+                <span className="text-sm font-semibold">Отменить</span>
+              </button>
+            )}
+
+            {currentUser?.id !== author_id && !is_repost && (
               <button
                 onClick={() => setShowReport(true)}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-white/20 text-white/60 hover:bg-white/10 hover:border-orange-400/30 hover:text-orange-400 transition-all"
@@ -506,7 +641,7 @@ export function Post({
                     onReply={startReply}
                     currentUser={currentUser}
                     myPermissions={myPermissions}
-                    setReplies={setReplies} // 🆕 Передаем setReplies напрямую
+                    setReplies={setReplies}
                     onDelete={async () => {
                       const token = getToken();
                       if (!token) return;
@@ -552,7 +687,7 @@ function ReplyItem({
   currentUser,
   myPermissions,
   onDelete,
-  setReplies, // 🆕 Добавляем пропс
+  setReplies,
   depth = 0,
 }: {
   reply: any;
@@ -562,7 +697,7 @@ function ReplyItem({
   currentUser: { id: number } | null;
   myPermissions: string[];
   onDelete: () => void;
-  setReplies: React.Dispatch<React.SetStateAction<any[] | null>>; // 🆕 Типизация
+  setReplies: React.Dispatch<React.SetStateAction<any[] | null>>;
   depth?: number;
 }) {
   const [showReplyForm, setShowReplyForm] = useState(false);
@@ -591,7 +726,7 @@ function ReplyItem({
       const r = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/replies`);
       if (r.ok) {
         const newReplies = await r.json();
-        setReplies(newReplies); // 🆕 Обновляем состояние напрямую, без window событий
+        setReplies(newReplies);
       }
       triggerFeedRefresh();
     }
@@ -725,7 +860,7 @@ function ReplyItem({
               onReply={onReply}
               currentUser={currentUser}
               myPermissions={myPermissions}
-              setReplies={setReplies} // 🆕 Пробрасываем дальше по рекурсии
+              setReplies={setReplies}
               onDelete={async () => {
                 const token = getToken();
                 if (!token) return;
@@ -738,7 +873,7 @@ function ReplyItem({
                 });
                 const r = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/replies`);
                 if (r.ok) {
-                  setReplies(await r.json()); // 🆕 Обновляем состояние напрямую
+                  setReplies(await r.json());
                 }
                 triggerFeedRefresh();
               }}

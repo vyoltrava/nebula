@@ -5,7 +5,7 @@ import Link from "next/link";
 import { 
   Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus, 
   AtSign, X, Shield, ShieldCheck, MessageSquare, Palette, 
-  Bug, Menu, Search, Megaphone, Bookmark, ShieldAlert, Wrench
+  Bug, Menu, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
@@ -104,6 +104,8 @@ export function Sidebar() {
     mention: <AtSign size={12} />,
     message: <MessageSquare size={12} />,
     login_alert: <ShieldAlert size={12} />,
+    repost: <RefreshCw size={12} />,
+    quote: <Quote size={12} />, // 🆕 Исправлено
   };
 
   const iconBg: Record<string, string> = {
@@ -113,6 +115,8 @@ export function Sidebar() {
     mention: "bg-yellow-500/20 text-yellow-400",
     message: "bg-green-500/20 text-green-400",
     login_alert: "bg-red-500/20 text-red-400",
+    repost: "bg-emerald-500/20 text-emerald-400",
+    quote: "bg-cyan-500/20 text-cyan-400",
   };
 
   const texts = {
@@ -122,6 +126,8 @@ export function Sidebar() {
     mention: "упомянул(а) вас в посте",
     message: "прислал(а) сообщение",
     login_alert: "вход с нового устройства",
+    repost: "репостнул(а) ваш пост",
+    quote: "цитировал(а) ваш пост",
   };
 
   const glow = user
