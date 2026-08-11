@@ -133,31 +133,33 @@ export function Sidebar() {
   // Десктопный контент
   const desktopSidebarContent = (
     <>
-    <div className="mb-6">
-      <div className="flex items-center gap-2">
-        <img 
-          src="/logo-icon.svg"
-          alt="Trelod logo"
-          className="w-9 h-9"
-        />
-        <h1 className="font-logo text-4xl text-[#8b5cf6]">trelod</h1>
+      <div className="mb-6">
+        <div className="flex items-center gap-2">
+          <img 
+            src="/logo-icon.svg"
+            alt="Trelod logo"
+            className="w-9 h-9"
+          />
+          <h1 className="font-logo text-4xl text-[#8b5cf6]">trelod</h1>
+        </div>
       </div>
-    </div>
 
-      <nav className="flex flex-col gap-2">
-        {nav.map(({ href, icon: Icon, label }) => {
+      <nav className="flex flex-col">
+        {nav.map(({ href, icon: Icon, label }, idx) => {
           const active = pathname === href;
           return (
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
+              className={`flex items-center gap-3 px-4 py-3 font-medium transition-all border-b border-white/5 last:border-none group ${
                 active
-                  ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
-                  : "border-white/8 bg-white/3 text-white/80 hover:bg-white/5 hover:text-white"
+                  ? "bg-[#8b5cf6]/15 text-[#a78bfa]"
+                  : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
               }`}
             >
-              <Icon size={18} /> {label}
+              {/* Иконка всегда ярче текста */}
+              <Icon size={18} className={active ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} /> 
+              <span>{label}</span>
             </Link>
           );
         })}
@@ -165,15 +167,16 @@ export function Sidebar() {
         {user && (
           <Link
             href="/messages"
-            className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all relative ${
+            className={`flex items-center gap-3 px-4 py-3 font-medium transition-all relative border-b border-white/5 group ${
               pathname?.startsWith("/messages")
-                ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
-                : "border-white/8 bg-white/3 text-white/80 hover:bg-white/5 hover:text-white"
+                ? "bg-[#8b5cf6]/15 text-[#a78bfa]"
+                : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
             }`}
           >
-            <MessageSquare size={18} /> Сообщения
+            <MessageSquare size={18} className={pathname?.startsWith("/messages") ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} /> 
+            <span>Сообщения</span>
             {counts.chats > 0 && (
-              <span className="ml-auto bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+              <span className="ml-auto bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
                 {counts.chats}
               </span>
             )}
@@ -183,69 +186,79 @@ export function Sidebar() {
         {(user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) && (
           <Link
             href="/admin"
-            className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
+            className={`flex items-center gap-3 px-4 py-3 font-medium transition-all border-b border-white/5 group ${
               pathname === "/admin"
-                ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
-                : "border-white/8 bg-white/3 text-white/80 hover:bg-white/5 hover:text-white"
+                ? "bg-[#8b5cf6]/15 text-[#a78bfa]"
+                : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
             }`}
           >
-            {user?.is_admin ? <ShieldAlert size={18} /> : user?.is_moderator ? <ShieldCheck size={18} /> : <ShieldAlert size={18} className="text-[#f59e0b]" />}
-            {user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель"}
+            {user?.is_admin 
+              ? <ShieldAlert size={18} className={pathname === "/admin" ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} /> 
+              : user?.is_moderator 
+                ? <ShieldCheck size={18} className={pathname === "/admin" ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} /> 
+                : <ShieldAlert size={18} className="text-[#f59e0b]" />
+            }
+            <span>{user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель"}</span>
           </Link>
         )}
 
         {user?.is_admin && (
           <Link
             href="/admin/roles"
-            className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
+            className={`flex items-center gap-3 px-4 py-3 font-medium transition-all border-b border-white/5 group ${
               pathname === "/admin/roles"
-                ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
-                : "border-white/8 bg-white/3 text-white/80 hover:bg-white/5 hover:text-white"
+                ? "bg-[#8b5cf6]/15 text-[#a78bfa]"
+                : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
             }`}
           >
-            <Palette size={18} /> Роли
+            <Palette size={18} className={pathname === "/admin/roles" ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} /> 
+            <span>Роли</span>
           </Link>
         )}
 
         {user?.permissions?.includes("tech_access") && (
           <Link
             href="/admin/technical"
-            className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all ${
+            className={`flex items-center gap-3 px-4 py-3 font-medium transition-all border-b border-white/5 group ${
               pathname === "/admin/technical"
-                ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
-                : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                ? "bg-[#8b5cf6]/15 text-[#a78bfa]"
+                : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
             }`}
           >
-            <Wrench size={18} /> Техпанель
+            <Wrench size={18} className={pathname === "/admin/technical" ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} /> 
+            <span>Техпанель</span>
           </Link>
         )}
 
         <button
           onClick={loadNotifications}
-          className={`flex items-center gap-3 border rounded-lg px-4 py-2.5 font-medium transition-all relative ${
+          className={`flex items-center gap-3 px-4 py-3 font-medium transition-all relative border-b border-white/5 group ${
             pathname === "/notifications"
-              ? "bg-[#8b5cf6] border-[#8b5cf6] text-white"
-              : "border-white/8 bg-white/3 text-white/80 hover:bg-white/5 hover:text-white"
+              ? "bg-[#8b5cf6]/15 text-[#a78bfa]"
+              : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
           }`}
         >
-          <Bell size={18} /> Уведомления
+          <Bell size={18} className={pathname === "/notifications" ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} /> 
+          <span>Уведомления</span>
           {counts.notifications > 0 && (
-            <span className="ml-auto bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+            <span className="ml-auto bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
               {counts.notifications}
             </span>
           )}
         </button>
 
-        <button
-          onClick={() => setShowBugModal(true)}
-          className="w-fit p-2.5 rounded-xl border border-orange-400/30 text-orange-400 hover:bg-orange-500/10 hover:border-orange-400/50 transition-all"
-          title="Сообщить о проблеме"
-        >
-          <Bug size={18} />
-        </button>
+        <div className="mt-4 px-4">
+          <button
+            onClick={() => setShowBugModal(true)}
+            className="w-fit p-2.5 rounded-xl text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all"
+            title="Сообщить о проблеме"
+          >
+            <Bug size={18} />
+          </button>
+        </div>
       </nav>
 
-      <div className="mt-auto flex flex-col gap-3">
+      <div className="mt-auto flex flex-col gap-3 pt-4 border-t border-white/5">
         {user ? (
           <>
             <Link
@@ -271,13 +284,13 @@ export function Sidebar() {
                 >
                   {user.display_name}
                 </p>
-                <p className="text-sm text-white/50 truncate">@{user.username}</p>
+                <p className="text-sm text-white/40 truncate">@{user.username}</p>
               </div>
             </Link>
 
             <button
               onClick={() => { clearToken(); setUser(null); clearCachedUser(); }}
-              className="flex items-center gap-3 border border-white/8 rounded-lg px-4 py-2.5 font-medium text-white/70 hover:bg-white/5 hover:border-white/15 hover:text-white transition-all"
+              className="flex items-center gap-3 rounded-lg px-4 py-2.5 font-medium text-white/40 hover:bg-white/5 hover:text-white/80 transition-all"
             >
               <LogOut size={18} /> Выйти
             </button>
@@ -285,7 +298,7 @@ export function Sidebar() {
         ) : (
           <Link
             href="/login"
-            className="flex items-center justify-center bg-[#8b5cf6] border border-[#8b5cf6] rounded-lg px-4 py-2.5 font-medium text-white hover:bg-[#7c3aed] transition-all"
+            className="flex items-center justify-center bg-[#8b5cf6]/15 border border-[#8b5cf6]/30 rounded-lg px-4 py-2.5 font-medium text-[#a78bfa] hover:bg-[#8b5cf6]/25 transition-all"
           >
             Войти
           </Link>
@@ -300,8 +313,8 @@ export function Sidebar() {
       <div className="md:hidden">
         {mobileMenuOpen && (
           <div className="fixed right-3 bottom-44 z-[98] max-h-[60vh] overflow-y-auto">
-            <div className="bg-[#171717]/95 backdrop-blur-md border border-[#8b5cf6]/40 rounded-2xl p-2 shadow-2xl shadow-black/60">
-              <div className="flex flex-col gap-1.5">
+            <div className="bg-[#171717]/95 backdrop-blur-md border border-white/10 rounded-2xl p-2 shadow-2xl shadow-black/60">
+              <div className="flex flex-col">
                 {nav.map(({ href, icon: Icon, label }) => {
                   const active = pathname === href;
                   return (
@@ -309,10 +322,10 @@ export function Sidebar() {
                       key={href}
                       href={href}
                       onClick={() => setMobileMenuOpen(false)}
-                      className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all ${
+                      className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all mb-1 ${
                         active
-                          ? "bg-[#8b5cf6] text-white"
-                          : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                          ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
+                          : "text-white/80 hover:bg-white/10 hover:text-white"
                       }`}
                       title={label}
                     >
@@ -327,10 +340,10 @@ export function Sidebar() {
                   <Link
                     href="/messages"
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all relative ${
+                    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all relative mb-1 ${
                       pathname?.startsWith("/messages")
-                        ? "bg-[#8b5cf6] text-white"
-                        : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                        ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
+                        : "text-white/80 hover:bg-white/10 hover:text-white"
                     }`}
                     title="Сообщения"
                   >
@@ -348,10 +361,10 @@ export function Sidebar() {
                     loadNotifications();
                     setMobileMenuOpen(false);
                   }}
-                  className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all relative ${
+                  className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all relative mb-1 ${
                     pathname === "/notifications"
-                      ? "bg-[#8b5cf6] text-white"
-                      : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                      ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
+                      : "text-white/80 hover:bg-white/10 hover:text-white"
                   }`}
                   title="Уведомления"
                 >
@@ -367,14 +380,14 @@ export function Sidebar() {
                   <Link
                     href="/admin"
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all ${
+                    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all mb-1 ${
                       pathname === "/admin"
-                        ? "bg-[#8b5cf6] text-white"
-                        : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                        ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
+                        : "text-white/80 hover:bg-white/10 hover:text-white"
                     }`}
                     title="Админка"
                   >
-                    {user?.is_admin ? <ShieldAlert  size={22} /> : user?.is_moderator ? <ShieldCheck size={22} /> : <Shield size={22} className="text-[#f59e0b]" />}
+                    {user?.is_admin ? <ShieldAlert size={22} /> : user?.is_moderator ? <ShieldCheck size={22} /> : <Shield size={22} className="text-[#f59e0b]" />}
                   </Link>
                 )}
 
@@ -382,10 +395,10 @@ export function Sidebar() {
                   <Link
                     href="/admin/roles"
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all ${
+                    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all mb-1 ${
                       pathname === "/admin/roles"
-                        ? "bg-[#8b5cf6] text-white"
-                        : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                        ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
+                        : "text-white/80 hover:bg-white/10 hover:text-white"
                     }`}
                     title="Роли"
                   >
@@ -397,10 +410,10 @@ export function Sidebar() {
                   <Link
                     href="/admin/technical"
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all ${
+                    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all mb-1 ${
                       pathname === "/admin/technical"
-                        ? "bg-[#8b5cf6] text-white"
-                        : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                        ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
+                        : "text-white/80 hover:bg-white/10 hover:text-white"
                     }`}
                     title="Техпанель"
                   >
@@ -414,7 +427,7 @@ export function Sidebar() {
                   <Link
                     href={`/${user.username}`}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-white/80 hover:bg-white/10 hover:text-white transition-all"
+                    className="w-12 h-12 flex items-center justify-center rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-all mb-1"
                     title="Профиль"
                   >
                     <div style={glow ? { filter: `drop-shadow(0 0 4px ${glow})` } : undefined}>
@@ -426,7 +439,7 @@ export function Sidebar() {
                 {user && (
                   <button
                     onClick={() => { clearToken(); setUser(null); clearCachedUser(); setMobileMenuOpen(false); }}
-                    className="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 text-white/80 hover:bg-red-500/20 hover:text-red-400 transition-all"
+                    className="w-12 h-12 flex items-center justify-center rounded-xl text-white/80 hover:bg-red-500/20 hover:text-red-400 transition-all mb-1"
                     title="Выйти"
                   >
                     <LogOut size={22} />
@@ -438,7 +451,7 @@ export function Sidebar() {
                     setShowBugModal(true);
                     setMobileMenuOpen(false);
                   }}
-                  className="w-12 h-12 flex items-center justify-center rounded-xl border border-orange-400/30 text-orange-400 hover:bg-orange-500/10 hover:border-orange-400/50 transition-all"
+                  className="w-12 h-12 flex items-center justify-center rounded-xl text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all"
                   title="Сообщить о проблеме"
                 >
                   <Bug size={22} />
@@ -451,8 +464,8 @@ export function Sidebar() {
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="fixed right-3 bottom-24 z-[97] w-14 h-14 rounded-2xl 
-            bg-[#171717]/95 backdrop-blur-md border-2 border-[#8b5cf6]/60 
-            text-[#8b5cf6] flex items-center justify-center
+            bg-[#171717]/95 backdrop-blur-md border border-white/10 
+            text-white/80 flex items-center justify-center
             shadow-lg shadow-black/60 active:scale-90 transition-all"
           aria-label="Открыть меню"
         >
