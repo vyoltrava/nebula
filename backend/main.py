@@ -6,7 +6,7 @@ from sqlmodel import Session, select, func, col
 from sqlalchemy import text, update, delete
 from typing import Optional
 from fastapi.concurrency import run_in_threadpool
-import asyncio
+
 
 
 import jwt
@@ -35,6 +35,7 @@ from fastapi.responses import JSONResponse
 from performance import PerfMiddleware, get_perf_summary
 import sql_profiler
 import time
+import asyncio
 
 
 ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
@@ -3118,7 +3119,7 @@ class CreateGroupIn(BaseModel):
 
 @app.post("/api/chats/group")
 @limiter.limit("5/minute")
-def create_group_chat(
+async def create_group_chat(
     request: Request,
     data: CreateGroupIn,
     user: User = Depends(get_current_user),
@@ -3205,7 +3206,7 @@ def get_chat_members(
 
 @app.post("/api/chats/{chat_id}/members")
 @limiter.limit("10/minute")
-def add_group_member(
+async def add_group_member(
     request: Request,
     chat_id: int,
     user_id: int = Form(...),
@@ -3261,7 +3262,7 @@ def add_group_member(
 
 
 @app.delete("/api/chats/{chat_id}/members/{user_id}")
-def remove_group_member(
+async def remove_group_member(
     chat_id: int,
     user_id: int,
     actor: User = Depends(get_current_user),
@@ -3329,7 +3330,7 @@ def remove_group_member(
 
 
 @app.patch("/api/chats/{chat_id}")
-def update_group_info(
+async def update_group_info(
     chat_id: int,
     name: Optional[str] = Form(None),
     avatar_url: Optional[str] = Form(None),
