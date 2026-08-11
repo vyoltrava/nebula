@@ -18,10 +18,7 @@ export function CreateGroupModal({ onClose, onCreated }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (query.length < 1) {
-      setUsers([]);
-      return;
-    }
+    if (query.length < 1) { setUsers([]); return; }
     const t = setTimeout(async () => {
       const token = getToken();
       if (!token) return;
@@ -51,14 +48,8 @@ export function CreateGroupModal({ onClose, onCreated }: Props) {
   }
 
   async function create() {
-    if (!name.trim()) {
-      setError("Введите название группы");
-      return;
-    }
-    if (selected.size === 0) {
-      setError("Добавьте хотя бы одного участника");
-      return;
-    }
+    if (!name.trim()) { setError("Введите название группы"); return; }
+    if (selected.size === 0) { setError("Добавьте хотя бы одного участника"); return; }
     setLoading(true);
     setError(null);
     try {
@@ -78,7 +69,7 @@ export function CreateGroupModal({ onClose, onCreated }: Props) {
         const err = await res.json().catch(() => ({ detail: "Ошибка" }));
         setError(err.detail || "Не удалось создать группу");
       }
-    } catch (e) {
+    } catch {
       setError("Ошибка сети");
     } finally {
       setLoading(false);
@@ -92,7 +83,6 @@ export function CreateGroupModal({ onClose, onCreated }: Props) {
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]" onClick={onClose} />
       <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
         <div className="w-full max-w-lg max-h-[85vh] bg-[#1f1f23] border border-white/10 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
-          {/* Шапка */}
           <div className="p-4 border-b border-white/10 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <Users className="text-[#8b5cf6]" size={20} />
@@ -103,7 +93,6 @@ export function CreateGroupModal({ onClose, onCreated }: Props) {
             </button>
           </div>
 
-          {/* Название */}
           <div className="p-4 border-b border-white/10 shrink-0">
             <label className="block text-xs text-white/60 mb-1.5 font-bold">Название группы</label>
             <input
@@ -115,7 +104,6 @@ export function CreateGroupModal({ onClose, onCreated }: Props) {
             />
           </div>
 
-          {/* Поиск */}
           <div className="p-4 border-b border-white/10 shrink-0">
             <label className="block text-xs text-white/60 mb-1.5 font-bold">
               Добавить участников ({selected.size}/49)
@@ -131,7 +119,6 @@ export function CreateGroupModal({ onClose, onCreated }: Props) {
             </div>
           </div>
 
-          {/* Выбранные */}
           {selected.size > 0 && (
             <div className="p-3 border-b border-white/10 flex gap-1.5 flex-wrap shrink-0">
               {selectedUsers.map((u) => (
@@ -149,7 +136,6 @@ export function CreateGroupModal({ onClose, onCreated }: Props) {
             </div>
           )}
 
-          {/* Список пользователей */}
           <div className="flex-1 overflow-y-auto">
             {query.length < 1 && (
               <p className="p-8 text-center text-white/40 text-sm">
@@ -174,9 +160,11 @@ export function CreateGroupModal({ onClose, onCreated }: Props) {
                     <p className="font-bold text-white truncate">{u.display_name}</p>
                     <p className="text-xs text-white/50 truncate">@{u.username}</p>
                   </div>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                    isSelected ? "bg-[#8b5cf6] border-[#8b5cf6]" : "border-white/30"
-                  }`}>
+                  <div
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
+                      isSelected ? "bg-[#8b5cf6] border-[#8b5cf6]" : "border-white/30"
+                    }`}
+                  >
                     {isSelected && <Check size={12} className="text-white" />}
                   </div>
                 </div>
@@ -184,14 +172,12 @@ export function CreateGroupModal({ onClose, onCreated }: Props) {
             })}
           </div>
 
-          {/* Ошибка */}
           {error && (
             <div className="px-4 py-2 bg-red-500/10 border-t border-red-500/30 text-red-400 text-xs shrink-0">
               {error}
             </div>
           )}
 
-          {/* Кнопка создания */}
           <div className="p-4 border-t border-white/10 shrink-0">
             <button
               onClick={create}

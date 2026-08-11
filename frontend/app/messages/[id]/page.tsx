@@ -5,11 +5,12 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
+import { GroupMembersModal } from "@/components/GroupMembersModal";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { STICKERS } from "@/lib/stickers";
 import { AudioPlayer } from "@/components/AudioPlayer";
-import { GroupMembersModal } from "@/components/GroupMembersModal";
+
 
 import { isOnline, lastSeenText } from "@/lib/online";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
@@ -637,20 +638,22 @@ export default function ChatPage() {
           >
             <div className="shrink-0 relative w-8 h-8 sm:w-10 sm:h-10">
               {(chatInfo.members || []).slice(0, 3).map((m: any, i: number) => (
-                <Avatar
+                <div
                   key={m.user.id}
-                  src={m.user.avatar_url}
-                  name={m.user.display_name}
-                  id={m.user.id}
-                  size={i === 0 ? 24 : 20}
                   className="absolute"
                   style={{
                     top: i === 0 ? 0 : i === 1 ? 16 : 0,
                     left: i === 0 ? 0 : i === 1 ? 16 : 16,
                     zIndex: 3 - i,
-                    border: "2px solid #1f1f23",
                   }}
-                />
+                >
+                  <Avatar
+                    src={m.user.avatar_url}
+                    name={m.user.display_name}
+                    id={m.user.id}
+                    size={i === 0 ? 24 : 20}
+                  />
+                </div>
               ))}
             </div>
             <div className="min-w-0">

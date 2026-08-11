@@ -3,11 +3,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
+import { CreateGroupModal } from "@/components/CreateGroupModal";
 import { MessageSquare, Search, Lock, Users } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { socket } from "@/lib/websocket";
-import { CreateGroupModal } from "@/components/CreateGroupModal";
+
 
 export default function MessagesPage() {
   const [chats, setChats] = useState<any[]>([]);
@@ -176,20 +177,22 @@ export default function MessagesPage() {
                   /* 🆕 Стопка аватарок группы */
                   <div className="w-12 h-12 relative">
                     {(chat.members || []).slice(0, 3).map((m: any, i: number) => (
-                      <Avatar
+                      <div
                         key={m.user.id}
-                        src={m.user.avatar_url}
-                        name={m.user.display_name}
-                        id={m.user.id}
-                        size={28}
                         className="absolute"
                         style={{
                           top: i === 0 ? 0 : i === 1 ? 24 : 0,
                           left: i === 0 ? 0 : i === 1 ? 24 : 24,
                           zIndex: 3 - i,
-                          border: "2px solid #171717",
                         }}
-                      />
+                      >
+                        <Avatar
+                          src={m.user.avatar_url}
+                          name={m.user.display_name}
+                          id={m.user.id}
+                          size={28}
+                        />
+                      </div>
                     ))}
                     <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#8b5cf6] border-2 border-[#171717] flex items-center justify-center">
                       <Users size={10} className="text-white" />
