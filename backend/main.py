@@ -1018,6 +1018,7 @@ def search_users_by_query(
             "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": False,
             "replies_count": replies_counts.get(p.id, 0),
+            "media_type": p.media_type,  # 🆕
         })
 
     return {
@@ -1182,7 +1183,7 @@ def get_user_posts(
                 "text": op.text,
                 "media_url": op.media_url,
                 "created_at": op.created_at.isoformat(),
-                "media_type": p.media_type,  # 🆕
+                "media_type": op.media_type,  # 🆕
             }
 
     result = []
@@ -1235,9 +1236,11 @@ def get_user_posts(
             "replies_count": replies_counts.get(p.id, 0),
             "views_count": p.views_count or 0,
             "created_at": p.created_at.isoformat(),
+            "media_type": p.media_type,  # 🆕
             "repost_of": repost_data,      # 🆕
             "is_repost": is_repost,         # 🆕
             "is_quote": is_quote,           # 🆕
+            
         })
 
     has_more = len(posts) == limit
@@ -1346,9 +1349,9 @@ def search(request: Request, q: str, session: Session = Depends(get_session)):
             "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": False,
             "replies_count": replies_counts.get(p.id, 0),
+            "media_type": p.media_type,  # 🆕
             "views_count": p.views_count or 0,
             "created_at": p.created_at.isoformat(),
-            "media_type": p.media_type,  # 🆕
         })
 
     return {"users": [user_out(u, session) for u in users], "posts": result_posts}
@@ -1426,7 +1429,7 @@ def get_following_posts(
                 "author": orig_authors.get(op.author_id),
                 "text": op.text, "media_url": op.media_url,
                 "created_at": op.created_at.isoformat(),
-                "media_type": p.media_type,  # 🆕
+                "media_type": op.media_type,  # 🆕
             }
 
     result = []
@@ -1475,6 +1478,7 @@ def get_following_posts(
             "replies_count": replies_counts.get(p.id, 0),
             "views_count": p.views_count or 0,
             "created_at": p.created_at.isoformat(),
+            "media_type": p.media_type,  # 🆕
             "repost_of": repost_data,
             "is_repost": is_repost,
             "is_quote": is_quote,
@@ -1542,6 +1546,7 @@ def get_liked_posts(
             "liked_by_me": True,
             "replies_count": 0,
             "views_count": p.views_count or 0,
+            "media_type": p.media_type,  # 🆕
             "created_at": p.created_at.isoformat(),
         })
     return result
@@ -1631,6 +1636,7 @@ def get_replies(post_id: int, session: Session = Depends(get_session)):
             "replies_count": replies_counts.get(p.id, 0),
             "reply_to_id": p.reply_to_id,
             "parent": parent_info,
+            "media_type": p.media_type,  # 🆕
             "created_at": p.created_at.isoformat(),
         })
 
@@ -1818,7 +1824,7 @@ def list_bookmarks(
             "views_count": post.views_count or 0,
             # ✅ ИСПРАВЛЕНО: заменили 'p' на 'post' и добавили безопасный .isoformat() для времени
             "created_at": post.created_at.isoformat() if post.created_at else None,
-            "media_type": p.media_type,  # 🆕
+            "media_type": post.media_type,  # 🆕
         })
         
     return result
@@ -4922,19 +4928,10 @@ def delete_update(
     if not update:
         raise HTTPException(404, "Update not found")
     
-    # 🛠 ИСПРАВЛЕНИЕ: Достаем все записи о прочтении и удаляем их вручную.
-    # Это 100% избавит от ошибки Foreign Key Violation (500).
-    read_records = session.exec(
-        select(UpdateRead).where(UpdateRead.update_id == update_id)
-    ).all()
-    
-    for record in read_records:
-        session.delete(record)
-        
-    # Теперь смело удаляем само обновление
+    # Один запрос вместо N+1
+    session.exec(delete(UpdateRead).where(UpdateRead.update_id == update_id))
     session.delete(update)
     session.commit()
-    
     return {"ok": True}
 
 def _update_last_seen_sync(user_id: int):
