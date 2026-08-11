@@ -2036,26 +2036,39 @@ async def create_post(
             raise HTTPException(400, "Нельзя репостить свой же пост")
 
     media_url = None
-    media_type = None  # 🆕
-
+    media_type = None
     if file and file.filename:
         ext = os.path.splitext(file.filename)[1].lower()
+        content_type = (file.content_type or "").lower()
         
-        # 🆕 Определяем тип медиа и проверяем права
-        if ext in ALLOWED_AUDIO_EXT:
+        # 🎯 ПРАВИЛЬНОЕ определение типа: по MIME, а не по расширению
+        # audio/webm → аудио, video/webm → видео
+        is_audio = (
+            ext in ALLOWED_AUDIO_EXT 
+            or content_type.startswith("audio/")
+            or (ext == ".webm" and "audio" in content_type)
+        )
+        is_video = (
+            ext in ALLOWED_VIDEO_EXT 
+            or content_type.startswith("video/")
+            or (ext == ".webm" and "video" in content_type)
+        )
+        is_image = ext in ALLOWED_IMAGE_EXT or content_type.startswith("image/")
+        
+        if is_audio:
             user_level = get_user_level(user, session)
             if user_level < 2:
                 raise HTTPException(403, "🎙️ Голосовые посты доступны только со 2-го уровня и выше")
             media_type = "audio"
             resource_type = "video"  # Cloudinary хранит аудио как video
-        elif ext in ALLOWED_IMAGE_EXT:
+        elif is_image:
             media_type = "image"
             resource_type = "image"
-        elif ext in ALLOWED_VIDEO_EXT:
+        elif is_video:
             media_type = "video"
             resource_type = "video"
         else:
-            raise HTTPException(400, f"Неподдерживаемый формат файла: {ext}")
+            raise HTTPException(400, f"Неподдерживаемый формат файла: {ext} ({content_type})")
 
         content = await file.read()
         if len(content) > 50 * 1024 * 1024:  # 50 МБ для аудио/видео

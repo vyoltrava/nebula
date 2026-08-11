@@ -59,65 +59,41 @@ function renderText(text: string) {
   });
 }
 
-// 🆕 Умный компонент для определения типа медиа
 function SmartMedia({ src, type, className }: { src: string; type?: string | null; className?: string }) {
-  const [mediaKind, setMediaKind] = useState<"image" | "audio" | "video" | "loading">("loading");
+  // ✅ Синхронно определяем тип ДО первого рендера
+  const [mediaKind, setMediaKind] = useState<"image" | "audio" | "video" | "loading">(() => {
+    if (type === "audio") return "audio";
+    if (type === "video") return "video";
+    if (type === "image") return "image";
+    
+    // Проверяем расширение в URL
+    if (src) {
+      const clean = src.split("?")[0].toLowerCase();
+      if (/\.(mp3|wav|ogg|m4a|aac)$/.test(clean)) return "audio";
+      if (/\.(mp4|webm|mov)$/.test(clean)) return "video";
+      if (/\.(jpg|jpeg|png|gif|webp)$/.test(clean)) return "image";
+    }
+    return "loading";
+  });
 
+  // Фолбэк только для файлов без расширения
   useEffect(() => {
-    // 1. Приоритет: явный тип из БД
-    if (type === "audio") return setMediaKind("audio");
-    if (type === "video") return setMediaKind("video");
-    if (type === "image") return setMediaKind("image");
-
-    // 2. Фолбэк: проверяем расширение в URL (для старых постов без media_type)
-    // Это происходит синхронно и мгновенно, без сетевых задержек!
-    const ext = src.split(".").pop()?.toLowerCase().split("?")[0];
-    if (ext && [".mp3", ".wav", ".ogg", ".m4a", ".aac", "mp3", "wav", "ogg", "m4a", "aac"].includes(ext)) {
-      return setMediaKind("audio");
-    }
-    if (ext && [".mp4", ".webm", ".mov", "mp4", "webm", "mov"].includes(ext)) {
-      return setMediaKind("video");
-    }
-
-    // 3. Последний шанс: пробуем загрузить как картинку
+    if (mediaKind !== "loading") return;
     const img = new Image();
     img.onload = () => setMediaKind("image");
     img.onerror = () => {
-      // Если не картинка — скорее всего аудио или видео
       const audio = new Audio();
       audio.onloadedmetadata = () => setMediaKind("audio");
-      audio.onerror = () => setMediaKind("video"); 
+      audio.onerror = () => setMediaKind("video");
       audio.src = src;
     };
     img.src = src;
-  }, [src, type]);
+  }, [src, mediaKind]);
 
-  if (mediaKind === "loading") {
-    return <div className={`mt-2 h-32 w-full rounded-xl bg-white/5 animate-pulse ${className || ""}`} />;
-  }
-
-  if (mediaKind === "audio") {
-    // ✅ Гарантированно используем ваш кастомный плеер
-    return <AudioPlayer src={src} />;
-  }
-
-  if (mediaKind === "video") {
-    return (
-      <video
-        controls
-        src={src}
-        className={`mt-2 max-h-96 w-auto rounded-xl border border-white/20 ${className || ""}`}
-      />
-    );
-  }
-
-  return (
-    <img
-      src={src}
-      alt=""
-      className={`mt-2 max-h-96 w-auto rounded-xl border border-white/20 ${className || ""}`}
-    />
-  );
+  if (mediaKind === "audio") return <AudioPlayer src={src} />;
+  if (mediaKind === "loading") return <div className="mt-2 h-16 w-full rounded-xl bg-white/5 animate-pulse" />;
+  if (mediaKind === "video") return <video controls src={src} className={`mt-2 max-h-96 w-auto rounded-xl ${className || ""}`} />;
+  return <img src={src} alt="" className={`mt-2 max-h-96 w-auto rounded-xl ${className || ""}`} />;
 }
 
 function getGlowColor(is_admin?: boolean, is_moderator?: boolean, role?: { name: string; color: string } | null): string | null {
