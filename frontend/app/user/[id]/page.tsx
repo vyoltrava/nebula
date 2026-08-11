@@ -385,7 +385,7 @@ export default function UserProfilePage() {
 
                   {/* 🆕 Кнопки действий — ДЕСКТОП */}
                   {!isOwnProfile && (
-                    <div className="hidden md:flex items-center gap-2 shrink-0">
+                    <div className="hidden md:flex items-center gap-2 shrink-0 md:mt-8">
                       <button onClick={toggleFollow} className={`px-4 py-2 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-white/20 text-white/80 hover:bg-white/10 hover:border-white/40 hover:text-white"}`}>
                         {following ? "Читаю" : "Читать"}
                       </button>
