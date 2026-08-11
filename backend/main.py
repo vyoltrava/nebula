@@ -3571,7 +3571,7 @@ async def send_message_v2(
     request: Request,
     chat_id: int,
     text: str = Form(""),
-    ciphertext: str = Form(""),  # для секретных чатов
+    ciphertext: str = Form(""),
     file: Optional[UploadFile] = File(None),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
@@ -3581,20 +3581,20 @@ async def send_message_v2(
     ).first()
     if not member:
         raise HTTPException(403, "Не участник чата")
-    
+
     chat = session.get(Chat, chat_id)
     if not chat:
         raise HTTPException(404, "Чат не найден")
-    
+
     media_url = None
     media_type = None
     
-    # Медиа пока не шифруем (отдельная большая задача)
     if file and file.filename:
         ext = os.path.splitext(file.filename or "")[1].lower()
         content = await file.read()
         if len(content) > 20 * 1024 * 1024:
             raise HTTPException(400, "File too large (max 20MB)")
+        
         try:
             result = await run_in_threadpool(
                 lambda: cloudinary.uploader.upload(
@@ -3603,15 +3603,25 @@ async def send_message_v2(
             )
             media_url = result.get("secure_url")
             resource_type = result.get("resource_type")
+            
+            # 🆕 Определяем тип медиа (включая аудио)
             if resource_type == "video":
-                media_type = "video"
+                # Проверяем MIME-тип для точного определения
+                content_type = (file.content_type or "").lower()
+                if "audio" in content_type or ext in {".mp3", ".wav", ".ogg", ".m4a", ".aac"}:
+                    media_type = "audio"
+                elif ext == ".webm" and "audio" in content_type:
+                    media_type = "audio"
+                else:
+                    media_type = "video"
             elif ext == ".gif":
                 media_type = "gif"
             else:
                 media_type = "image"
+                
         except Exception as e:
             raise HTTPException(400, f"Upload failed: {str(e)}")
-    
+
     # Для секретных чатов: text должен быть пустым, ciphertext — заполнен
     if chat.is_secret:
         if not ciphertext.strip() and not media_url:
@@ -3621,7 +3631,7 @@ async def send_message_v2(
     else:
         if not text.strip() and not media_url:
             raise HTTPException(400, "Пустое сообщение")
-    
+
     msg = Message(
         chat_id=chat_id,
         sender_id=user.id,
@@ -3631,7 +3641,7 @@ async def send_message_v2(
         media_type=media_type,
     )
     session.add(msg)
-    
+
     # Уведомление
     other = session.exec(
         select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id != user.id)
@@ -3639,13 +3649,12 @@ async def send_message_v2(
     if other:
         notif = Notification(user_id=other.user_id, actor_id=user.id, type="message")
         session.add(notif)
-    
+
     session.commit()
     session.refresh(msg)
 
-        # 🆕 Рассылаем новое сообщение через WebSocket
     await manager.broadcast_to_chat(
-        chat_id, 
+        chat_id,
         "new_message",
         {
             "id": msg.id,
@@ -3661,8 +3670,6 @@ async def send_message_v2(
         },
         session,
     )
-    
-    
     return {
         "id": msg.id,
         "sender_id": msg.sender_id,
@@ -3673,7 +3680,6 @@ async def send_message_v2(
         "read": msg.read,
         "created_at": msg.created_at.isoformat(),
     }
-
 
 @app.get("/api/chats/{chat_id}/messages")
 def get_messages_v2(

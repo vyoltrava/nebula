@@ -8,6 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { STICKERS } from "@/lib/stickers";
+import { AudioPlayer } from "@/components/AudioPlayer"; // 🆕
 
 import { isOnline, lastSeenText } from "@/lib/online";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
@@ -15,7 +16,7 @@ import {
   Send, Image as ImageIcon, X, Smile, Paperclip,
   FileText, Film, Edit2, Trash2, MoreVertical,
   Lock, Search, ShieldCheck, AlertTriangle,
-  Check, CheckCheck, CheckSquare,
+  Check, CheckCheck, CheckSquare, Mic, Square, // 🆕 Mic, Square
 } from "lucide-react";
 import {
   ensureKeyPair,
@@ -61,8 +62,105 @@ export default function ChatPage() {
   const [selectedMessages, setSelectedMessages] = useState<Set<number>>(new Set());
   const [showChatMenu, setShowChatMenu] = useState(false);
 
+  // 🆕 Состояние для записи голоса
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const fileRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 🆕 Функции для записи голоса
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const audioFile = new File([audioBlob], 'voice-message.webm', { type: 'audio/webm' });
+        
+        // Отправляем голосовое сообщение
+        await sendVoiceMessage(audioFile);
+        
+        // Останавливаем все треки
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      // Таймер записи
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Microphone access denied:", err);
+      alert("Не удалось получить доступ к микрофону");
+    }
+  }
+
+  function stopRecording() {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+    }
+  }
+
+  async function sendVoiceMessage(audioFile: File) {
+    const token = getToken();
+    if (!token) return;
+
+    try {
+      const form = new FormData();
+      form.append("file", audioFile);
+      
+      if (isSecret) {
+        // Для секретных чатов голосовые пока не шифруем (отдельная задача)
+        // Можно добавить шифрование позже
+        form.append("text", "");
+      }
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+
+      if (res.ok) {
+        // Успешно отправлено
+      } else {
+        alert("Не удалось отправить голосовое сообщение");
+      }
+    } catch (err) {
+      console.error("Failed to send voice:", err);
+      alert("Ошибка сети");
+    }
+  }
+
+  function formatRecordingTime(seconds: number): string {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  }
 
   function getGlowColor(user: any): string | null {
     if (user?.is_admin) return "#8b5cf6";
@@ -480,7 +578,6 @@ export default function ChatPage() {
     setFiles((prev) => [...prev, ...Array.from(newFiles)].slice(0, 5));
   }
 
-  // 🆕 Вставляем сразу эмодзи
   function insertSticker(emoji: string) {
     setText((prev) => prev + emoji);
   }
@@ -818,6 +915,12 @@ export default function ChatPage() {
                           onClick={(e) => isSelectMode && e.stopPropagation()}
                         />
                       )}
+                      {/* 🆕 Голосовые сообщения */}
+                      {msg.media_url && msg.media_type === "audio" && (
+                        <div className="mb-2">
+                          <AudioPlayer src={mediaUrl(msg.media_url)} />
+                        </div>
+                      )}
 
                       {isEditing ? (
                         <div className="flex gap-2 items-start">
@@ -972,7 +1075,28 @@ export default function ChatPage() {
           </div>
         )}
 
-        {!isSelectMode && (
+        {/* 🆕 Индикатор записи голоса */}
+        {isRecording && (
+          <div className="px-4 py-3 border-t border-white/10 bg-red-500/10">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-sm font-bold text-red-400">
+                  Запись: {formatRecordingTime(recordingTime)}
+                </span>
+              </div>
+              <button
+                onClick={stopRecording}
+                className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              >
+                <Square size={16} fill="currentColor" />
+                <span className="text-sm font-bold">Остановить</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!isSelectMode && !isRecording && (
           <div className="p-3 md:p-4 border-t border-white/10 bg-[#171717]/80 backdrop-blur-md">
             <div className="flex items-end gap-2">
               <input
@@ -1043,6 +1167,15 @@ export default function ChatPage() {
                 )}
               </button>
 
+              {/* 🆕 Кнопка записи голосового сообщения */}
+              <button
+                onClick={startRecording}
+                className="p-2 rounded-xl transition-colors text-white/60 hover:text-[#8b5cf6] hover:bg-white/5"
+                title="Записать голосовое сообщение"
+              >
+                <Mic size={20} />
+              </button>
+
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -1079,6 +1212,7 @@ export default function ChatPage() {
         {isSelectMode && <div className="h-2" />}
       </main>
 
+      {/* Остальные модалки (showVerify, showMediaGallery, selectedMedia) без изменений */}
       {showVerify && (
         <>
           <div
