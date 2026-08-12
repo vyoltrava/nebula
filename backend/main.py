@@ -515,6 +515,10 @@ def max_level_for(actor: User, session: Session) -> int:
 
 def check_hierarchy_or_403(actor: User, target: User, session: Session, action: str = "этого"):
     """Проверяет иерархию и выбрасывает 403, если нельзя"""
+    # Админ может управлять Системой в обход иерархии
+    if target.is_system and actor.is_admin:
+        return 
+        
     actor_lvl = get_user_level(actor, session)
     target_lvl = get_user_level(target, session)
     if target_lvl >= actor_lvl:
@@ -524,9 +528,12 @@ def check_hierarchy_or_403(actor: User, target: User, session: Session, action: 
         )
 
 
-def protect_system_account(target: User, action: str = "этого"):
-    """Защищает System аккаунт от любых санкций"""
+def protect_system_account(target: User, actor: User = None, action: str = "этого"):
+    """Защищает System аккаунт, но позволяет Admin (Founder) управлять им"""
     if target.is_system:
+        # Если действие выполняет Админ — разрешаем
+        if actor and actor.is_admin:
+            return  
         raise HTTPException(
             status_code=403,
             detail=f"🛡️ Системный аккаунт нельзя {action}.",
@@ -2578,7 +2585,7 @@ def assign_role(
     target = session.get(User, user_id)
     if not target:
         raise HTTPException(404, "User not found")
-    protect_system_account(target, "менять роль")
+    protect_system_account(target, staff, "менять роль")
     
     # 🛡️ Нельзя трогать пользователя с уровнем >= своего
     if target.id != staff.id:
@@ -2659,7 +2666,7 @@ def admin_ban_user(
     target = session.get(User, user_id)
     if not target:
         raise HTTPException(404, "User not found")
-    protect_system_account(target, "банить")
+    protect_system_account(target, admin, "банить")
     
     # Нельзя банить себя
     if target.id == admin.id:
@@ -2693,7 +2700,7 @@ def admin_remove_avatar(
     if not target:
         raise HTTPException(404, "User not found")
     
-    protect_system_account(target, "удалять аватар")
+    protect_system_account(target, admin, "удалять аватар")
     
     if target.avatar_url and "cloudinary.com" in target.avatar_url:
         try:
@@ -2722,7 +2729,7 @@ def admin_toggle_moderator(
     target = session.get(User, user_id)
     if not target:
         raise HTTPException(404, "User not found")
-    protect_system_account(target, "менять статус")
+    protect_system_account(target, admin, "менять статус")
     
     # 🛡️ Только админ может трогать других админов
     if target.is_admin and target.id != admin.id:
@@ -2938,7 +2945,7 @@ def admin_edit_user_technical(
     target = session.get(User, user_id)
     if not target:
         raise HTTPException(404, "User not found")
-    protect_system_account(target, "редактировать") 
+    protect_system_account(target, staff, "редактировать")
     
     # 🛡️ НОВАЯ ЛОГИКА:
     # - Founder может редактировать ВСЕХ (включая других Founder и себя)
@@ -2999,7 +3006,7 @@ async def admin_set_user_avatar(
     target = session.get(User, user_id)
     if not target:
         raise HTTPException(404, "User not found")
-    protect_system_account(target, "менять аватар") 
+    protect_system_account(target, staff, "менять аватар") 
     if target.is_admin:
         raise HTTPException(403, "Cannot edit admin account")
     
@@ -3593,7 +3600,7 @@ def admin_delete_user(
     if not target:
         raise HTTPException(404, "User not found")
     
-    protect_system_account(target, "удалять")
+    protect_system_account(target, staff, "удалять")
     
     if target.id == staff.id:
         raise HTTPException(400, "Cannot delete your own account")
