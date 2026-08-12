@@ -26,6 +26,8 @@ import {
   storeSessionKey, loadSessionKey,
   exportKeyPairPayload, importKeyPairPayload,
 } from "@/lib/crypto";
+import { QRCodeSVG } from "qrcode.react";
+import { Html5Qrcode } from "html5-qrcode";
 
 export default function ChatPage() {
   const params = useParams();
@@ -49,6 +51,9 @@ export default function ChatPage() {
   const [isSecret, setIsSecret] = useState(false);
   const [cryptoError, setCryptoError] = useState<string | null>(null);
   const [showVerify, setShowVerify] = useState(false);
+  const [showQR, setShowQR] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const scannerRef = useRef<any>(null);
   const [myFingerprint, setMyFingerprint] = useState("");
   const [partnerFingerprint, setPartnerFingerprint] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -663,6 +668,47 @@ export default function ChatPage() {
   useWebSocket("group_info_updated", (data: any) => {
     if (String(data.chat_id) === String(chatId)) loadChatInfo();
   });
+
+
+    // 🆕 Сканер QR для переноса ключа
+  useEffect(() => {
+    if (!showScanner) return;
+    let cancelled = false;
+
+    const t = setTimeout(async () => {
+      try {
+        const scanner = new Html5Qrcode("qr-scanner-region");
+        scannerRef.current = scanner;
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 220, height: 220 } },
+          (decoded: string) => {
+            if (cancelled) return;
+            if (importKeyPairPayload(decoded)) {
+              cancelled = true;
+              setShowScanner(false);
+              alert("Ключ импортирован! Перезагружаем страницу...");
+              window.location.reload();
+            }
+          },
+          () => {}
+        );
+      } catch (e) {
+        console.error("Scanner error:", e);
+        alert("Не удалось получить доступ к камере");
+        setShowScanner(false);
+      }
+    }, 150);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => {});
+        scannerRef.current = null;
+      }
+    };
+  }, [showScanner]);
 
   function onFiles(newFiles: FileList | null) {
     if (!newFiles) return;
@@ -1354,93 +1400,139 @@ export default function ChatPage() {
 
         {isSelectMode && <div className="h-2" />}
       </main>
-
-        {showVerify && chatPartner && (
-          <>
-            <div
-              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]"
-              onClick={() => setShowVerify(false)}
-            />
-            <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-              <div className="w-full max-w-sm sm:max-w-md border border-emerald-500/30 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-4 sm:p-6 pointer-events-auto">
-                <div className="flex items-center justify-between mb-4 sm:mb-5">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="text-emerald-400" size={20} />
-                    <h2 className="text-lg sm:text-xl font-black text-white">Проверка шифрования</h2>
-                  </div>
-                  <button
-                    onClick={() => setShowVerify(false)}
-                    className="text-white/60 hover:text-white"
-                  >
-                    <X size={18} />
-                  </button>
+      {showVerify && chatPartner && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]"
+            onClick={() => { setShowVerify(false); setShowQR(false); setShowScanner(false); }}
+          />
+          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
+            <div className="w-full max-w-sm sm:max-w-md border border-emerald-500/30 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-4 sm:p-6 pointer-events-auto max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4 sm:mb-5">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="text-emerald-400" size={20} />
+                  <h2 className="text-lg sm:text-xl font-black text-white">Проверка шифрования</h2>
                 </div>
+                <button
+                  onClick={() => { setShowVerify(false); setShowQR(false); setShowScanner(false); }}
+                  className="text-white/60 hover:text-white"
+                >
+                  <X size={18} />
+                </button>
+              </div>
 
-                <p className="text-xs sm:text-sm text-white/60 mb-3 sm:mb-4">
-                  Сравните эти отпечатки с собеседником через другой канал (голосом или лично).
-                  Если они совпадают — канал защищён от перехвата.
-                </p>
+              <p className="text-xs sm:text-sm text-white/60 mb-3 sm:mb-4">
+                Сравните эти отпечатки с собеседником через другой канал (голосом или лично).
+                Если они совпадают — канал защищён от перехвата.
+              </p>
 
-                <div className="space-y-2 sm:space-y-3">
-                  <div className="p-2 sm:p-3 rounded-xl bg-white/5 border border-white/10">
-                    <p className="text-[10px] sm:text-xs text-white/50 mb-0.5 sm:mb-1">Ваш отпечаток:</p>
-                    <p className="font-mono text-xs sm:text-sm text-emerald-300 tracking-wider break-all">
-                      {myFingerprint || "—"}
-                    </p>
-                  </div>
-                  <div className="p-2 sm:p-3 rounded-xl bg-white/5 border border-white/10">
-                    <p className="text-[10px] sm:text-xs text-white/50 mb-0.5 sm:mb-1">
-                      Отпечаток @{chatPartner?.username}:
-                    </p>
-                    <p className="font-mono text-xs sm:text-sm text-emerald-300 tracking-wider break-all">
-                      {partnerFingerprint || "—"}
-                    </p>
-                  </div>
+              <div className="space-y-2 sm:space-y-3">
+                <div className="p-2 sm:p-3 rounded-xl bg-white/5 border border-white/10">
+                  <p className="text-[10px] sm:text-xs text-white/50 mb-0.5 sm:mb-1">Ваш отпечаток:</p>
+                  <p className="font-mono text-xs sm:text-sm text-emerald-300 tracking-wider break-all">
+                    {myFingerprint || "—"}
+                  </p>
                 </div>
-
-                {/* 🆕 СИНХРОНИЗАЦИЯ КЛЮЧА МЕЖДУ УСТРОЙСТВАМИ */}
-                <div className="mt-3 sm:mt-4 space-y-2">
-                  <button
-                    onClick={async () => {
-                      const payload = exportKeyPairPayload();
-                      if (!payload) return;
-                      try {
-                        await navigator.clipboard.writeText(payload);
-                        alert("Ключ скопирован! Теперь на втором устройстве нажми «Вставить ключ».");
-                      } catch {
-                        prompt("Скопируй ключ вручную:", payload);
-                      }
-                    }}
-                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/15 text-white/80 text-xs sm:text-sm font-bold hover:bg-white/10 transition-colors"
-                  >
-                    📤 Скопировать ключ (для второго устройства)
-                  </button>
-                  <button
-                    onClick={() => {
-                      const payload = prompt("Вставь ключ с другого устройства:");
-                      if (!payload) return;
-                      if (importKeyPairPayload(payload)) {
-                        alert("Ключ импортирован! Перезагружаем страницу...");
-                        window.location.reload();
-                      } else {
-                        alert("Неверный формат ключа");
-                      }
-                    }}
-                    className="w-full px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs sm:text-sm font-bold hover:bg-emerald-500/20 transition-colors"
-                  >
-                    📥 Вставить ключ с другого устройства
-                  </button>
-                </div>
-
-                <div className="mt-3 sm:mt-4 p-2 sm:p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                  <p className="text-[10px] sm:text-xs text-emerald-200">
-                    🔒 Сообщения шифруются на вашем устройстве и расшифровываются только на устройстве собеседника.
+                <div className="p-2 sm:p-3 rounded-xl bg-white/5 border border-white/10">
+                  <p className="text-[10px] sm:text-xs text-white/50 mb-0.5 sm:mb-1">
+                    Отпечаток @{chatPartner?.username}:
+                  </p>
+                  <p className="font-mono text-xs sm:text-sm text-emerald-300 tracking-wider break-all">
+                    {partnerFingerprint || "—"}
                   </p>
                 </div>
               </div>
+
+              {/* 🆕 ПЕРЕНОС КЛЮЧА МЕЖДУ УСТРОЙСТВАМИ */}
+              <div className="mt-3 sm:mt-4 p-3 rounded-xl bg-white/5 border border-white/10">
+                <p className="text-xs font-bold text-white mb-2">Перенос на другое устройство</p>
+                <div className="space-y-2">
+                  <button
+                    onClick={() => { setShowQR(!showQR); setShowScanner(false); }}
+                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/15 text-white/80 text-xs sm:text-sm font-bold hover:bg-white/10 transition-colors"
+                  >
+                    🖥️ Показать QR с ключом (я на ПК)
+                  </button>
+                  <button
+                    onClick={() => { setShowScanner(true); setShowQR(false); }}
+                    className="w-full px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs sm:text-sm font-bold hover:bg-emerald-500/20 transition-colors"
+                  >
+                    📱 Отсканировать QR (я на телефоне)
+                  </button>
+                </div>
+
+                {showQR && (
+                  <div className="mt-3 p-3 rounded-xl bg-white flex flex-col items-center gap-2">
+                    <QRCodeSVG value={exportKeyPairPayload() || ""} size={200} />
+                    <p className="text-[10px] text-black/60 text-center font-bold">
+                      ⚠️ Этот QR = твой приватный ключ.
+                      <br />
+                      Показывай его только своей камере, никому не отправляй!
+                    </p>
+                  </div>
+                )}
+
+                {showScanner && (
+                  <div className="mt-3 rounded-xl overflow-hidden border border-emerald-500/30">
+                    <div id="qr-scanner-region" />
+                    <button
+                      onClick={() => setShowScanner(false)}
+                      className="w-full py-2 bg-white/5 text-white/70 text-xs font-bold hover:bg-white/10"
+                    >
+                      Отменить сканирование
+                    </button>
+                  </div>
+                )}
+
+                {/* Запасной вариант через буфер */}
+                <details className="mt-2">
+                  <summary className="text-[10px] sm:text-xs text-white/40 cursor-pointer hover:text-white/60">
+                    Нет камеры? Скопировать/вставить вручную
+                  </summary>
+                  <div className="mt-2 space-y-2">
+                    <button
+                      onClick={async () => {
+                        const payload = exportKeyPairPayload();
+                        if (!payload) return;
+                        try {
+                          await navigator.clipboard.writeText(payload);
+                          alert("Ключ скопирован! Вставь его на втором устройстве.");
+                        } catch {
+                          prompt("Скопируй ключ вручную:", payload);
+                        }
+                      }}
+                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/15 text-white/60 text-[10px] sm:text-xs font-bold hover:bg-white/10 transition-colors"
+                    >
+                      📤 Скопировать ключ текстом
+                    </button>
+                    <button
+                      onClick={() => {
+                        const payload = prompt("Вставь ключ с другого устройства:");
+                        if (!payload) return;
+                        if (importKeyPairPayload(payload)) {
+                          alert("Ключ импортирован! Перезагружаем страницу...");
+                          window.location.reload();
+                        } else {
+                          alert("Неверный формат ключа");
+                        }
+                      }}
+                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/15 text-white/60 text-[10px] sm:text-xs font-bold hover:bg-white/10 transition-colors"
+                    >
+                      📥 Вставить ключ текстом
+                    </button>
+                  </div>
+                </details>
+              </div>
+
+              <div className="mt-3 sm:mt-4 p-2 sm:p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <p className="text-[10px] sm:text-xs text-emerald-200">
+                  🔒 Сообщения шифруются на вашем устройстве и расшифровываются только на устройстве собеседника.
+                </p>
+              </div>
             </div>
-          </>
-        )}
+          </div>
+        </>
+      )}
 
       {showMediaGallery && (
         <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-2 sm:p-4">
