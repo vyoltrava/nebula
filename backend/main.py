@@ -3589,18 +3589,20 @@ def startup():
         except Exception as e:
             print(f"⚠️ STARTUP MIGRATION ERROR: {e}")
     
-    # Системный аккаунт
-    with Session(engine) as session:
-        SYSTEM = session.exec(select(User).where(User.username == "System")).first()
-        if not SYSTEM:
-            session.add(User(
-                username="System",
-                display_name="SYSTEM",
-                password_hash=hash_password("System"),
-                is_system=True,
-                is_admin=True, 
-            ))
-            session.commit()
+    # лекарство массового удаления
+    with engine.connect() as conn:
+            try:
+                conn.execute(text('UPDATE "user" SET username = LOWER(username) WHERE username != LOWER(username);'))
+                
+                # 🆕 Сброс sequence на max(id) + 1
+                conn.execute(text("""
+                    SELECT setval(pg_get_serial_sequence('"user"', 'id'), COALESCE((SELECT MAX(id) FROM "user"), 0) + 1, false);
+                """))
+                print("✅ User ID sequence reset")
+                
+                conn.commit()
+            except Exception as e:
+                print(f"⚠️ STARTUP MIGRATION ERROR: {e}")
 
 @app.delete("/api/admin/users/{user_id}")
 def admin_delete_user(
