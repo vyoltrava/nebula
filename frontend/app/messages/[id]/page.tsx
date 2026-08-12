@@ -127,9 +127,6 @@ export default function ChatPage() {
 
   const [showVideoRecorder, setShowVideoRecorder] = useState(false);
 
-  /*
-   * Меню записи при удержании кнопки отправки.
-   */
   const [showRecordMenu, setShowRecordMenu] = useState(false);
   const [isLongPress, setIsLongPress] = useState(false);
 
@@ -165,11 +162,6 @@ export default function ChatPage() {
     return `${base} ${sizes[type] || ""}`;
   };
 
-  /*
-   * ============================================================
-   * ГОЛОСОВЫЕ СООБЩЕНИЯ
-   * ============================================================
-   */
 
   async function startRecording() {
     if (isRecording) return;
@@ -299,12 +291,6 @@ export default function ChatPage() {
 
       form.append("file", audioFile);
 
-      /*
-       * Сохраняем текущую серверную схему.
-       *
-       * В секретном чате голосовые пока отправляются как media,
-       * как и в исходной реализации.
-       */
       if (isSecret) {
         form.append("text", "");
       }
@@ -325,11 +311,7 @@ export default function ChatPage() {
         return;
       }
 
-      /*
-       * В secret chat обновляем сообщения сразу после отправки,
-       * поскольку серверный response может не содержать
-       * расшифрованного состояния.
-       */
+
       if (isSecret) {
         await loadMessages();
       }
@@ -346,12 +328,6 @@ export default function ChatPage() {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   }
 
-  /*
-   * ============================================================
-   * LONG PRESS КНОПКИ ОТПРАВКИ
-   * ============================================================
-   */
-
   function clearLongPressTimer() {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
@@ -363,10 +339,7 @@ export default function ChatPage() {
     if (isRecording) return;
     if (cryptoError) return;
 
-    /*
-     * Даже если поле пустое, long press должен работать,
-     * потому что именно так пользователь начинает запись.
-     */
+
     longPressTriggeredRef.current = false;
 
     clearLongPressTimer();
@@ -388,19 +361,13 @@ export default function ChatPage() {
   }
 
   function handleSendClick() {
-    /*
-     * Если клик произошёл после long press,
-     * обычное сообщение отправлять нельзя.
-     */
+
     if (longPressTriggeredRef.current) {
       longPressTriggeredRef.current = false;
       return;
     }
 
-    /*
-     * При обычном тапе отправляем сообщение.
-     * sendMessage() сам проверяет пустой текст/файлы.
-     */
+
     sendMessage();
   }
 
@@ -409,12 +376,7 @@ export default function ChatPage() {
     setIsLongPress(false);
     clearLongPressTimer();
 
-    /*
-     * Не сбрасываем longPressTriggeredRef здесь.
-     *
-     * После выбора пункта меню браузер может сгенерировать
-     * pointerup/click от исходного касания.
-     */
+
   }
 
   function handleVoiceRecord() {
@@ -429,11 +391,7 @@ export default function ChatPage() {
     setShowVideoRecorder(true);
   }
 
-  /*
-   * ============================================================
-   * ПРОФИЛИ / РОЛИ
-   * ============================================================
-   */
+
 
   function getGlowColor(user: any): string | null {
     if (user?.is_admin) return "#8b5cf6";
@@ -466,11 +424,7 @@ export default function ChatPage() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
-  /*
-   * ============================================================
-   * ВЫБОР СООБЩЕНИЙ
-   * ============================================================
-   */
+
 
   function toggleSelectMode() {
     setIsSelectMode((prev) => !prev);
@@ -531,11 +485,7 @@ export default function ChatPage() {
     }
   }
 
-  /*
-   * ============================================================
-   * УДАЛЕНИЕ ЧАТА
-   * ============================================================
-   */
+
 
   async function deleteChat() {
     const isOwner = chatInfo?.my_role === "owner";
@@ -589,11 +539,6 @@ export default function ChatPage() {
     }
   }
 
-  /*
-   * ============================================================
-   * E2EE
-   * ============================================================
-   */
 
   function decryptDisplayText(msg: any): string {
     if (!isSecret) {
@@ -613,11 +558,7 @@ export default function ChatPage() {
     return decryptMessage(msg.ciphertext, sk);
   }
 
-  /*
-   * ============================================================
-   * ЗАГРУЗКА CHAT INFO
-   * ============================================================
-   */
+
 
   async function loadChatInfo() {
     const token = getToken();
@@ -659,11 +600,7 @@ export default function ChatPage() {
     }
   }
 
-  /*
-   * ============================================================
-   * ЗАГРУЗКА СООБЩЕНИЙ
-   * ============================================================
-   */
+
 
   async function loadMessages() {
     setLoadingMessages(true);
@@ -701,11 +638,7 @@ export default function ChatPage() {
     }
   }
 
-  /*
-   * ============================================================
-   * PINNED
-   * ============================================================
-   */
+
 
   async function loadPinned() {
     try {
@@ -722,11 +655,7 @@ export default function ChatPage() {
     }
   }
 
-  /*
-   * ============================================================
-   * E2EE INIT
-   * ============================================================
-   */
+
 
   async function initCryptoForSecretChat() {
     if (!isSecret || !chatPartner || isGroup) {
@@ -912,11 +841,6 @@ export default function ChatPage() {
     }
   }
 
-  /*
-   * ============================================================
-   * SEND MESSAGE
-   * ============================================================
-   */
 
   async function sendMessage() {
     if (sendingRef.current) return;
@@ -951,9 +875,7 @@ export default function ChatPage() {
         });
       }
 
-      /*
-       * Optimistic message только для обычного текста.
-       */
+      
       if (!isSecret && text.trim()) {
         const tempMsg = {
           id: Date.now(),
@@ -1067,11 +989,7 @@ export default function ChatPage() {
     }
   }
 
-  /*
-   * ============================================================
-   * DELETE / EDIT MESSAGE
-   * ============================================================
-   */
+
 
   async function deleteMessage(
     messageId: number
@@ -1180,11 +1098,6 @@ export default function ChatPage() {
     setEditText("");
   }
 
-  /*
-   * ============================================================
-   * MEDIA
-   * ============================================================
-   */
 
   async function loadMedia() {
     const token = getToken();
@@ -1292,11 +1205,7 @@ export default function ChatPage() {
     }
   }
 
-  /*
-   * ============================================================
-   * EFFECTS
-   * ============================================================
-   */
+
 
   useEffect(() => {
     const token = getToken();
@@ -1455,11 +1364,6 @@ export default function ChatPage() {
     chatId,
   ]);
 
-  /*
-   * ============================================================
-   * WEBSOCKET
-   * ============================================================
-   */
 
   useWebSocket(
     "new_message",
@@ -1637,11 +1541,7 @@ export default function ChatPage() {
     }
   );
 
-  /*
-   * ============================================================
-   * QR SCANNER
-   * ============================================================
-   */
+
 
   useEffect(() => {
     if (!showScanner) return;
@@ -1724,10 +1624,6 @@ export default function ChatPage() {
     };
   }, [showScanner]);
 
-  /*
-   * При смене чата чистим таймер long press,
-   * чтобы старый таймер не мог сработать.
-   */
   useEffect(() => {
     return () => {
       clearLongPressTimer();
@@ -1742,12 +1638,6 @@ export default function ChatPage() {
       }
     };
   }, [chatId]);
-
-  /*
-   * ============================================================
-   * FILES / STICKERS
-   * ============================================================
-   */
 
   function onFiles(
     newFiles: FileList | null
@@ -1770,11 +1660,6 @@ export default function ChatPage() {
     );
   }
 
-  /*
-   * ============================================================
-   * FILTER
-   * ============================================================
-   */
 
   const filteredMessages =
     messages.filter((msg) => {
@@ -1796,11 +1681,6 @@ export default function ChatPage() {
   const partnerGlow =
     getGlowColor(chatPartner);
 
-  /*
-   * ============================================================
-   * HEADER
-   * ============================================================
-   */
 
   const ChatHeader = () => (
     <div
@@ -2114,9 +1994,7 @@ export default function ChatPage() {
         </div>
       </div>
 
-      /*
-       * Закреплённые сообщения
-       */
+
       {pinnedMessages.length >
         0 && (
         <div className="px-0 py-2 sm:py-2 bg-[#8b5cf6]/5 border-b border-[#8b5cf6]/10 mt-2.5 sm:mt-3 pt-2.5 sm:pt-3 border-t border-white/10">
@@ -2237,11 +2115,6 @@ export default function ChatPage() {
     </div>
   );
 
-  /*
-   * ============================================================
-   * RENDER
-   * ============================================================
-   */
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -2918,11 +2791,7 @@ export default function ChatPage() {
               />
             </div>
 
-            /*
-             * ====================================================
-             * ВЛОЖЕНИЯ
-             * ====================================================
-             */
+
             {files.length > 0 && (
               <div className="px-3 sm:px-3 py-2.5 border-t border-white/10 bg-white/5">
                 <div className="flex items-center justify-between mb-2">
@@ -2999,11 +2868,7 @@ export default function ChatPage() {
               </div>
             )}
 
-            /*
-             * ====================================================
-             * ЗАПИСЬ ГОЛОСОВОГО
-             * ====================================================
-             */
+  
             {isRecording && (
               <div className="px-3 sm:px-3 py-3 border-t border-white/10 bg-red-500/10">
                 <div className="flex items-center justify-between gap-3">
@@ -3037,11 +2902,7 @@ export default function ChatPage() {
               </div>
             )}
 
-            /*
-             * ====================================================
-             * INPUT
-             * ====================================================
-             */
+
             {!isSelectMode &&
               !isRecording && (
                 <div className="p-3 sm:p-3 md:p-4 border-t border-white/10 bg-[#171717]/80 backdrop-blur-md">
@@ -3059,11 +2920,6 @@ export default function ChatPage() {
                       }
                     />
 
-                    /*
-                     * ==============================================
-                     * STICKERS + ATTACHMENT
-                     * ==============================================
-                     */
                     <div className="flex gap-1 shrink-0">
                       <div className="relative">
                         <button
@@ -3171,11 +3027,6 @@ export default function ChatPage() {
                       </button>
                     </div>
 
-                    /*
-                     * ==============================================
-                     * TEXTAREA
-                     * ==============================================
-                     */
                     <textarea
                       value={text}
                       onChange={(e) =>
@@ -3208,15 +3059,8 @@ export default function ChatPage() {
                       }`}
                     />
 
-                    /*
-                     * ==============================================
-                     * ЕДИНАЯ КНОПКА SEND / RECORD
-                     * ==============================================
-                     */
                     <div className="relative shrink-0">
-                      /*
-                       * Меню появляется после удержания.
-                       */
+
                       {showRecordMenu && (
                         <>
                           <div
@@ -3331,11 +3175,7 @@ export default function ChatPage() {
         )}
       </main>
 
-      /*
-       * ==========================================================
-       * VERIFY / E2EE MODAL
-       * ==========================================================
-       */
+
       {showVerify &&
         chatPartner && (
           <>
@@ -3579,11 +3419,6 @@ export default function ChatPage() {
           </>
         )}
 
-      /*
-       * ==========================================================
-       * MEDIA GALLERY
-       * ==========================================================
-       */
       {showMediaGallery && (
         <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-3 sm:p-4">
           <div className="w-full max-w-4xl max-h-[90vh] flex flex-col">
@@ -3713,11 +3548,7 @@ export default function ChatPage() {
         </div>
       )}
 
-      /*
-       * ==========================================================
-       * GROUP MEMBERS
-       * ==========================================================
-       */
+
       {showGroupMembers &&
         isGroup && (
           <GroupMembersModal
@@ -3737,11 +3568,7 @@ export default function ChatPage() {
           />
         )}
 
-      /*
-       * ==========================================================
-       * GROUP SETTINGS
-       * ==========================================================
-       */
+
       {showGroupSettings && (
         <GroupSettingsModal
           chatId={Number(chatId)}
@@ -3758,11 +3585,7 @@ export default function ChatPage() {
         />
       )}
 
-      /*
-       * ==========================================================
-       * VIDEO NOTE RECORDER
-       * ==========================================================
-       */
+
       {showVideoRecorder && (
         <VideoNoteRecorder
           onRecorded={async (file) => {
