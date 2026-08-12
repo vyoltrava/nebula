@@ -957,7 +957,7 @@ export default function ChatPage() {
             <div className="mt-2 space-y-1.5 max-h-32 sm:max-h-40 overflow-y-auto">
               {pinnedMessages.map((msg) => (
                 <div key={msg.id} className="flex items-center gap-2 text-[11px] sm:text-xs text-white/70 bg-white/5 rounded-lg px-3 py-2">
-                  <Pin size={11} className="text-amber-400 shrink-0" />
+                  <Pin size={11} className="text-[#8b5cf6] shrink-0" />
                   <span className="truncate flex-1">
                     <span className="text-white/90 font-semibold">{msg.sender_name}:</span>{' '}
                     {msg.text || (msg.media_type === 'image' ? '📷 Изображение' : msg.media_type === 'audio' ? '🎙️ Голосовое' : msg.media_type === 'video' ? '🎬 Видео' : 'Медиа')}
@@ -1077,16 +1077,9 @@ export default function ChatPage() {
                   const isPinned = !!msg.pinned;
 
                   // 📌 Закреплённые: острый нижний угол со стороны «хвоста» + лёгкая янтарная обводка
-                  const baseRadius = "rounded-2xl";
-                  const pinnedRadiusMine = "rounded-bl-[4px]";   // свой: острый левый-нижний
-                  const pinnedRadiusTheirs = "rounded-br-[4px]"; // чужой: острый правый-нижний
-                  const bubbleRadius = isPinned
-                    ? `${baseRadius} ${isMine ? pinnedRadiusMine : pinnedRadiusTheirs}`
-                    : baseRadius;
-                  const pinnedRing = isPinned
-                    ? "ring-1 ring-amber-400/40 shadow-[0_0_0_0.5px_rgba(251,191,36,0.25)]"
-                    : "";
-
+                  const bubbleRadius = isMine
+                    ? "rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl rounded-br-[4px]"
+                    : "rounded-tl-2xl rounded-tr-2xl rounded-br-2xl rounded-bl-[4px]";
                   return (
                     <div
                       key={msg.id}
@@ -1161,7 +1154,7 @@ export default function ChatPage() {
                         )}
 
                         <div
-                          className={`${bubbleRadius} ${pinnedRing} px-3 sm:px-3.5 md:px-4 py-2 sm:py-2 transition-all ${
+                          className={`${bubbleRadius} px-3 sm:px-3.5 md:px-4 py-2 sm:py-2 transition-all ${
                             isSelected
                               ? "ring-2 ring-[#8b5cf6] ring-offset-2 ring-offset-[#171717]"
                               : ""
@@ -1241,7 +1234,7 @@ export default function ChatPage() {
                                 isMine ? "text-white/60" : "text-white/40"
                               }`}
                             >
-                              {isPinned && <Pin size={10} className="text-amber-400" />}
+                              {isPinned && <Pin size={10} className="text-[#8b5cf6]" />}
                               {new Date(msg.created_at).toLocaleTimeString("ru-RU", {
                                 hour: "2-digit",
                                 minute: "2-digit",
