@@ -4353,6 +4353,89 @@ async def unpin_message(
     return {"ok": True}
 
 
+# ============================================================
+# 🖼️ АВАТАРКА ГРУППЫ
+# ============================================================
+
+@app.post("/api/chats/{chat_id}/avatar")
+@limiter.limit("5/minute")
+async def upload_group_avatar(
+    request: Request,
+    chat_id: int,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    # 1. Проверяем, что пользователь участник чата
+    member = session.exec(
+        select(ChatMember).where(
+            ChatMember.chat_id == chat_id,
+            ChatMember.user_id == user.id,
+        )
+    ).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+    
+    # 2. Получаем чат
+    chat = session.get(Chat, chat_id)
+    if not chat or not chat.is_group:
+        raise HTTPException(404, "Группа не найдена")
+    
+    # 3. Проверяем права (только админы могут менять аватарку)
+    if member.role not in ("owner", "admin"):
+        raise HTTPException(403, "Только админы могут изменять аватарку группы")
+    
+    # 4. Валидация файла
+    if not file.filename:
+        raise HTTPException(400, "No file provided")
+    
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
+        raise HTTPException(400, f"Неверный формат: {ext}. Поддерживаются: .jpg, .jpeg, .png, .gif, .webp")
+    
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(400, "Файл слишком большой (максимум 5 МБ)")
+    
+    # 5. Удаляем старую аватарку
+    if chat.avatar_url and "cloudinary.com" in chat.avatar_url:
+        try:
+            public_id = extract_cloudinary_public_id(chat.avatar_url)
+            if public_id:
+                cloudinary.uploader.destroy(public_id)
+        except Exception:
+            pass
+    
+    # 6. Загружаем новую
+    try:
+        result = await run_in_threadpool(
+            lambda: cloudinary.uploader.upload(
+                content,
+                folder=UPLOAD_FOLDER,
+                resource_type="image",
+                transformation=[{"width": 400, "height": 400, "crop": "fill"}],
+            )
+        )
+        chat.avatar_url = result.get("secure_url")
+    except Exception as e:
+        raise HTTPException(400, f"Ошибка загрузки: {str(e)}")
+    
+    session.add(chat)
+    session.commit()
+    
+    # 7. Уведомляем всех участников
+    all_member_ids = session.exec(
+        select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
+    ).all()
+    await manager.broadcast_to_users(
+        [m for m in all_member_ids],
+        "group_info_updated",
+        {"chat_id": chat_id, "avatar_url": chat.avatar_url}
+    )
+    
+    return {"ok": True, "avatar_url": chat.avatar_url}
+
+
 
 @app.get("/api/chats/{chat_id}/media")
 def get_chat_media(
