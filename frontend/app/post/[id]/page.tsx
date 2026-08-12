@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { Post } from "@/components/Post";
-import {Sidebar} from "@/components/Sidebar";
-import {RightPanel} from "@/components/RightPanel";
+import { Sidebar } from "@/components/Sidebar";
+import { RightPanel } from "@/components/RightPanel";
 
 const getPlural = (n: number) => {
   if (n % 10 === 1 && n % 100 !== 11) return "ответ";
@@ -49,12 +49,16 @@ export default function PostPage() {
     load();
   }, [id]);
 
+  // 🔄 ЕДИНЫЙ СТИЛЬ КОНТЕЙНЕРА (как на главной)
+  const containerClasses = "h-screen flex overflow-hidden bg-[#0a0a0a] text-white"; // Убедись, что bg-[#0a0a0a] совпадает с твоим основным фоном, или убери его, если фон задан глобально
+  
   // Состояние загрузки
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-black text-white">
+      <div className={containerClasses}>
         <Sidebar />
-        <main className="flex-1 flex items-center justify-center border-x border-white/5">
+        <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
+        <main className="flex-1 flex items-center justify-center border-x border-white/10">
           <div className="w-8 h-8 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
         </main>
         <RightPanel />
@@ -65,9 +69,10 @@ export default function PostPage() {
   // Состояние ошибки
   if (error || !post) {
     return (
-      <div className="flex min-h-screen bg-black text-white">
+      <div className={containerClasses}>
         <Sidebar />
-        <main className="flex-1 flex flex-col items-center justify-center gap-4 border-x border-white/5">
+        <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
+        <main className="flex-1 flex flex-col items-center justify-center gap-4 border-x border-white/10">
           <p className="text-white/60">Пост не найден или был удалён</p>
           <button
             onClick={() => router.push("/")}
@@ -82,16 +87,21 @@ export default function PostPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-black text-white">
+    <div className={containerClasses}>
       {/* Левая панель */}
       <Sidebar />
+      
+      {/* Разделитель (добавил для консистентности с главной, скрыт на мобилках) */}
+      <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
 
-      {/* Центральная колонка (основной контент) */}
-      <main className="flex-1 min-w-0 border-x border-white/5 max-w-2xl w-full">
-        <div className="px-4 py-6">
+      {/* Центральная колонка - теперь flex-1 и скроллится внутри, как на главной */}
+      <main className="flex-1 overflow-y-auto border-x border-white/10 min-w-0">
+        <div className="px-4 py-4 md:py-6 max-w-2xl mx-auto w-full">
+          
+          {/* Кнопка Назад */}
           <button
             onClick={() => router.back()}
-            className="mb-4 flex items-center gap-2 text-white/60 hover:text-white transition"
+            className="mb-4 flex items-center gap-2 text-white/60 hover:text-white transition w-fit"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -109,7 +119,7 @@ export default function PostPage() {
             <div>
               <div className="mb-4 flex items-center gap-3">
                 <div className="h-px flex-1 bg-white/10" />
-                <span className="text-white/40 text-sm">
+                <span className="text-white/40 text-sm whitespace-nowrap">
                   {replies.length} {getPlural(replies.length)}
                 </span>
                 <div className="h-px flex-1 bg-white/10" />
@@ -119,8 +129,7 @@ export default function PostPage() {
                 {replies.map((reply) => (
                   <div 
                     key={reply.id} 
-                    // Отступ слева + фиолетовая линия связи + лёгкое уменьшение (scale 0.97)
-                    className="pl-6 ml-2 border-l-2 border-[#8b5cf6]/30 scale-[0.97] origin-top-left opacity-95"
+                    className="pl-4 md:pl-6 ml-2 border-l-2 border-[#8b5cf6]/30"
                   >
                     <Post {...(reply as any)} />
                   </div>
@@ -130,7 +139,7 @@ export default function PostPage() {
           )}
 
           {replies.length === 0 && (
-            <p className="text-center text-white/30 mt-8">Пока нет ответов</p>
+            <p className="text-center text-white/30 mt-8 pb-8">Пока нет ответов</p>
           )}
         </div>
       </main>
