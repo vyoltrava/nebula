@@ -21,7 +21,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
             : (data.text || "🔒 Секретное сообщение"),
           icon: data.sender_avatar || undefined,
           tag: `chat-${data.chat_id}`, // Группируем уведомления по чату
-          url: `/chats/${data.chat_id}`, // ← Исправлено: используем url вместо data
+          url: `/messages/${data.chat_id}`, // ← Исправлено: используем url вместо data
         });
       }
     });
