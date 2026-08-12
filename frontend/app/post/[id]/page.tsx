@@ -107,8 +107,7 @@ export default function PostPage() {
             <Post 
               {...postWithoutReplies} 
               isMainPost={true} 
-              showReplies={true}
-              replies={replies}
+              externalReplies={replies} 
             />
           </div>
 

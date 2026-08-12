@@ -155,6 +155,8 @@ export function Post({
   repost_of,
   is_repost,
   is_quote,
+  isMainPost = false,
+  externalReplies, 
 }: {
   id: number;
   author_id: number;
@@ -179,6 +181,8 @@ export function Post({
   repost_of?: any;
   is_repost?: boolean;
   is_quote?: boolean;
+  isMainPost?: boolean;    // 🆕 Добавлено
+  externalReplies?: any[]; // 🆕 Добавлено
 }) {
     const [currentUser] = useState(() => {
       const cached = getCachedUser();
@@ -204,8 +208,8 @@ export function Post({
     const [rCount, setRCount] = useState(replies_count);
     const [replying, setReplying] = useState(false);
     const [replyText, setReplyText] = useState("");
-    const [showReplies, setShowReplies] = useState(false);
-    const [replies, setReplies] = useState<any[] | null>(null);
+    const [showReplies, setShowReplies] = useState(isMainPost);
+    const [replies, setReplies] = useState<any[] | null>(externalReplies || null);
     const [following, setFollowing] = useState(false);
     const [showReport, setShowReport] = useState(false);
     const router = useRouter();
@@ -640,7 +644,7 @@ export function Post({
               </span>
             )}
 
-            {rCount > 0 && (
+            {rCount > 0 && !isMainPost && ( // 🆕 Добавлено !isMainPost, чтобы скрыть кнопку на странице отдельного поста
               <button
                 onClick={loadReplies}
                 className="text-sm font-semibold text-[#8b5cf6] hover:text-[#a78bfa] underline underline-offset-4 transition-colors"
