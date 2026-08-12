@@ -24,6 +24,7 @@ import {
   ensureKeyPair, getKeyPair, encryptMessage, decryptMessage,
   generateSessionKey, encryptSessionKeyForUser, decryptSessionKey,
   storeSessionKey, loadSessionKey,
+  exportKeyPairPayload, importKeyPairPayload,
 } from "@/lib/crypto";
 
 export default function ChatPage() {
@@ -66,6 +67,7 @@ export default function ChatPage() {
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
+  const sendingRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 🆕 Флаг группы
@@ -400,10 +402,13 @@ export default function ChatPage() {
   }
 
   async function sendMessage() {
-    const token = getToken();
-    if (!token) return;
-    if (!text.trim() && files.length === 0) return;
+  if (sendingRef.current) return;  // 🆕 защита от двойной отправки
+  const token = getToken();
+  if (!token) return;
+  if (!text.trim() && files.length === 0) return;
 
+  sendingRef.current = true;
+  try {
     const messagesToSend: { text: string; file: File | null }[] = [];
     if (files.length > 0) {
       files.forEach((f, i) => messagesToSend.push({ text: i === 0 ? text.trim() : "", file: f }));
@@ -426,47 +431,49 @@ export default function ChatPage() {
       setMessages((prev) => [...prev, tempMsg]);
     }
 
-    try {
-      for (const msg of messagesToSend) {
-        const form = new FormData();
+    for (const msg of messagesToSend) {
+      const form = new FormData();
 
-        if (isSecret && msg.text) {
-          const sk = loadSessionKey(Number(chatId));
-          if (!sk) {
-            await establishNewSession();
-            const skNew = loadSessionKey(Number(chatId));
-            if (!skNew) throw new Error("Нет session key");
-            form.append("ciphertext", encryptMessage(msg.text, skNew));
-          } else {
-            form.append("ciphertext", encryptMessage(msg.text, sk));
-          }
-          form.append("text", "");
-        } else {
-          if (msg.text) form.append("text", msg.text);
+      if (isSecret && msg.text) {
+        let sk = loadSessionKey(Number(chatId));
+        if (!sk) {
+          await establishNewSession();
+          sk = loadSessionKey(Number(chatId));
+          if (!sk) throw new Error("Нет session key");
         }
-
-        if (msg.file) form.append("file", msg.file);
-
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: form,
-        });
-
-        if (res.status === 403) {
-          alert("Нет доступа к чату");
-          router.push("/messages");
-          return;
-        }
+        form.append("ciphertext", encryptMessage(msg.text, sk));
+        form.append("text", "");
+      } else {
+        if (msg.text) form.append("text", msg.text);
       }
 
-      setText("");
-      setFiles([]);
-    } catch (err) {
-      console.error("Failed to send:", err);
-      alert("Не удалось отправить сообщение");
+      if (msg.file) form.append("file", msg.file);
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+
+      if (res.status === 403) {
+        alert("Нет доступа к чату");
+        router.push("/messages");
+        return;
+      }
     }
+
+    setText("");
+    setFiles([]);
+
+    // 🆕 Свои сообщения в секретном чате появляются сразу
+    if (isSecret) await loadMessages();
+  } catch (err) {
+    console.error("Failed to send:", err);
+    alert("Не удалось отправить сообщение");
+  } finally {
+    sendingRef.current = false;
   }
+}
 
   async function deleteMessage(messageId: number) {
     if (!confirm("Удалить сообщение?")) return;
@@ -1348,58 +1355,92 @@ export default function ChatPage() {
         {isSelectMode && <div className="h-2" />}
       </main>
 
-      {showVerify && chatPartner && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]"
-            onClick={() => setShowVerify(false)}
-          />
-          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full max-w-sm sm:max-w-md border border-emerald-500/30 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-4 sm:p-6 pointer-events-auto">
-              <div className="flex items-center justify-between mb-4 sm:mb-5">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="text-emerald-400" size={20} />
-                  <h2 className="text-lg sm:text-xl font-black text-white">Проверка шифрования</h2>
+        {showVerify && chatPartner && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]"
+              onClick={() => setShowVerify(false)}
+            />
+            <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
+              <div className="w-full max-w-sm sm:max-w-md border border-emerald-500/30 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-4 sm:p-6 pointer-events-auto">
+                <div className="flex items-center justify-between mb-4 sm:mb-5">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="text-emerald-400" size={20} />
+                    <h2 className="text-lg sm:text-xl font-black text-white">Проверка шифрования</h2>
+                  </div>
+                  <button
+                    onClick={() => setShowVerify(false)}
+                    className="text-white/60 hover:text-white"
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => setShowVerify(false)}
-                  className="text-white/60 hover:text-white"
-                >
-                  <X size={18} />
-                </button>
-              </div>
 
-              <p className="text-xs sm:text-sm text-white/60 mb-3 sm:mb-4">
-                Сравните эти отпечатки с собеседником через другой канал (голосом или лично).
-                Если они совпадают — канал защищён от перехвата.
-              </p>
-
-              <div className="space-y-2 sm:space-y-3">
-                <div className="p-2 sm:p-3 rounded-xl bg-white/5 border border-white/10">
-                  <p className="text-[10px] sm:text-xs text-white/50 mb-0.5 sm:mb-1">Ваш отпечаток:</p>
-                  <p className="font-mono text-xs sm:text-sm text-emerald-300 tracking-wider break-all">
-                    {myFingerprint || "—"}
-                  </p>
-                </div>
-                <div className="p-2 sm:p-3 rounded-xl bg-white/5 border border-white/10">
-                  <p className="text-[10px] sm:text-xs text-white/50 mb-0.5 sm:mb-1">
-                    Отпечаток @{chatPartner?.username}:
-                  </p>
-                  <p className="font-mono text-xs sm:text-sm text-emerald-300 tracking-wider break-all">
-                    {partnerFingerprint || "—"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-3 sm:mt-4 p-2 sm:p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <p className="text-[10px] sm:text-xs text-emerald-200">
-                  🔒 Сообщения шифруются на вашем устройстве и расшифровываются только на устройстве собеседника.
+                <p className="text-xs sm:text-sm text-white/60 mb-3 sm:mb-4">
+                  Сравните эти отпечатки с собеседником через другой канал (голосом или лично).
+                  Если они совпадают — канал защищён от перехвата.
                 </p>
+
+                <div className="space-y-2 sm:space-y-3">
+                  <div className="p-2 sm:p-3 rounded-xl bg-white/5 border border-white/10">
+                    <p className="text-[10px] sm:text-xs text-white/50 mb-0.5 sm:mb-1">Ваш отпечаток:</p>
+                    <p className="font-mono text-xs sm:text-sm text-emerald-300 tracking-wider break-all">
+                      {myFingerprint || "—"}
+                    </p>
+                  </div>
+                  <div className="p-2 sm:p-3 rounded-xl bg-white/5 border border-white/10">
+                    <p className="text-[10px] sm:text-xs text-white/50 mb-0.5 sm:mb-1">
+                      Отпечаток @{chatPartner?.username}:
+                    </p>
+                    <p className="font-mono text-xs sm:text-sm text-emerald-300 tracking-wider break-all">
+                      {partnerFingerprint || "—"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* 🆕 СИНХРОНИЗАЦИЯ КЛЮЧА МЕЖДУ УСТРОЙСТВАМИ */}
+                <div className="mt-3 sm:mt-4 space-y-2">
+                  <button
+                    onClick={async () => {
+                      const payload = exportKeyPairPayload();
+                      if (!payload) return;
+                      try {
+                        await navigator.clipboard.writeText(payload);
+                        alert("Ключ скопирован! Теперь на втором устройстве нажми «Вставить ключ».");
+                      } catch {
+                        prompt("Скопируй ключ вручную:", payload);
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/15 text-white/80 text-xs sm:text-sm font-bold hover:bg-white/10 transition-colors"
+                  >
+                    📤 Скопировать ключ (для второго устройства)
+                  </button>
+                  <button
+                    onClick={() => {
+                      const payload = prompt("Вставь ключ с другого устройства:");
+                      if (!payload) return;
+                      if (importKeyPairPayload(payload)) {
+                        alert("Ключ импортирован! Перезагружаем страницу...");
+                        window.location.reload();
+                      } else {
+                        alert("Неверный формат ключа");
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs sm:text-sm font-bold hover:bg-emerald-500/20 transition-colors"
+                  >
+                    📥 Вставить ключ с другого устройства
+                  </button>
+                </div>
+
+                <div className="mt-3 sm:mt-4 p-2 sm:p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <p className="text-[10px] sm:text-xs text-emerald-200">
+                    🔒 Сообщения шифруются на вашем устройстве и расшифровываются только на устройстве собеседника.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
 
       {showMediaGallery && (
         <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-2 sm:p-4">

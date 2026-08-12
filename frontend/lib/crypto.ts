@@ -227,3 +227,30 @@ export function fingerprint(publicKey: Uint8Array): string {
     .join("-")
     .toUpperCase();
 }
+
+
+// ============ СИНХРОНИЗАЦИЯ КЛЮЧА МЕЖДУ УСТРОЙСТВАМИ ============
+
+export function exportKeyPairPayload(): string | null {
+  const priv = localStorage.getItem(PRIVATE_KEY_STORAGE);
+  const pub = localStorage.getItem(PUBLIC_KEY_STORAGE);
+  if (!priv || !pub) return null;
+  return btoa(JSON.stringify({ priv, pub }));
+}
+
+export function importKeyPairPayload(payload: string): boolean {
+  try {
+    const { priv, pub } = JSON.parse(atob(payload.trim()));
+    if (!priv || !pub) return false;
+    localStorage.setItem(PRIVATE_KEY_STORAGE, priv);
+    localStorage.setItem(PUBLIC_KEY_STORAGE, pub);
+    cachedKeyPair = null;
+    // чистим старые session keys — они под старый ключ
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith(SESSION_KEYS_PREFIX))
+      .forEach((k) => localStorage.removeItem(k));
+    return true;
+  } catch {
+    return false;
+  }
+}
