@@ -4107,6 +4107,8 @@ async def send_message_v2(
             "media_url": msg.media_url,
             "media_type": msg.media_type,
             "created_at": msg.created_at.isoformat(),
+            "pinned": False,   
+            "pinned_by": None,
         },
         session,
     )
@@ -4164,6 +4166,8 @@ def get_messages_v2(
             "edited": msg.edited,
             "edited_at": msg.edited_at.isoformat() if msg.edited_at else None,
             "created_at": msg.created_at.isoformat(),
+            "pinned": msg.pinned,    
+            "pinned_by": msg.pinned_by,
         })
     return result
 
@@ -4307,6 +4311,51 @@ async def pin_message(
     
     return {"ok": True}
 
+
+@app.get("/api/chats/{chat_id}/pinned")
+def get_pinned_messages(
+    chat_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    member = session.exec(
+        select(ChatMember).where(
+            ChatMember.chat_id == chat_id,
+            ChatMember.user_id == user.id,
+        )
+    ).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+        
+    pinned_msgs = session.exec(
+        select(Message)
+        .where(Message.chat_id == chat_id, Message.pinned == True)
+        .order_by(Message.pinned_at.desc())
+    ).all()
+    
+    if not pinned_msgs:
+        return []
+        
+    sender_ids = list({m.sender_id for m in pinned_msgs})
+    senders = {u.id: u for u in session.exec(select(User).where(User.id.in_(sender_ids))).all()}
+    
+    result = []
+    for msg in pinned_msgs:
+        sender = senders.get(msg.sender_id)
+        result.append({
+            "id": msg.id,
+            "sender_id": msg.sender_id,
+            "sender_name": sender.display_name if sender else "Unknown",
+            "sender_avatar": sender.avatar_url if sender else None,
+            "text": msg.text,
+            "ciphertext": msg.ciphertext,
+            "media_url": msg.media_url,
+            "media_type": msg.media_type,
+            "pinned_at": msg.pinned_at.isoformat() if msg.pinned_at else None,
+            "pinned_by": msg.pinned_by,
+            "created_at": msg.created_at.isoformat(),
+        })
+    return result
 
 @app.delete("/api/chats/{chat_id}/messages/{message_id}/unpin")
 async def unpin_message(

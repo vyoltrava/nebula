@@ -793,41 +793,53 @@ export default function ChatPage() {
           ← <span className="hidden sm:inline">Назад</span>
         </button>
 
-        {isGroup ? (
-          <button
-            onClick={() => setShowGroupMembers(true)}
-            className="flex items-center gap-2 sm:gap-3 group flex-1 min-w-0 text-left"
-          >
-            <div className="shrink-0 relative w-8 h-8 sm:w-10 sm:h-10">
-              {(chatInfo.members || []).slice(0, 3).map((m: any, i: number) => (
-                <div
-                  key={m.user.id}
-                  className="absolute"
-                  style={{
-                    top: i === 0 ? 0 : i === 1 ? 16 : 0,
-                    left: i === 0 ? 0 : i === 1 ? 16 : 16,
-                    zIndex: 3 - i,
-                  }}
-                >
+          {isGroup ? (
+            <button
+              onClick={() => setShowGroupMembers(true)}
+              className="flex items-center gap-2 sm:gap-3 group flex-1 min-w-0 text-left"
+            >
+              <div className="shrink-0 relative w-8 h-8 sm:w-10 sm:h-10">
+                {/* 🆕 Если у группы загружен свой аватар — показываем его */}
+                {chatInfo?.avatar_url ? (
                   <Avatar
-                    src={m.user.avatar_url}
-                    name={m.user.display_name}
-                    id={m.user.id}
-                    size={i === 0 ? 24 : 20}
+                    src={chatInfo.avatar_url}
+                    name={chatInfo.name || "Группа"}
+                    id={chatInfo.id}
+                    size={40}
                   />
-                </div>
-              ))}
-            </div>
-            <div className="min-w-0">
-              <p className="font-bold truncate text-xs sm:text-sm md:text-base text-white group-hover:text-[#8b5cf6] transition-colors">
-                {chatInfo.name}
-              </p>
-              <p className="text-[9px] sm:text-xs text-white/50">
-                {chatInfo.members_count} участников · нажмите для подробностей
-              </p>
-            </div>
-          </button>
-        ) : chatPartner ? (
+                ) : (
+                  // Fallback: аватары первых 3 участников, если аватара группы нет
+                  (chatInfo.members || []).slice(0, 3).map((m: any, i: number) => (
+                    <div
+                      key={m.user.id}
+                      className="absolute"
+                      style={{
+                        top: i === 0 ? 0 : i === 1 ? 16 : 0,
+                        left: i === 0 ? 0 : i === 1 ? 16 : 16,
+                        zIndex: 3 - i,
+                      }}
+                    >
+                      <Avatar
+                        src={m.user.avatar_url}
+                        name={m.user.display_name}
+                        id={m.user.id}
+                        size={i === 0 ? 24 : 20}
+                      />
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="font-bold truncate text-xs sm:text-sm md:text-base text-white group-hover:text-[#8b5cf6] transition-colors">
+                  {chatInfo.name}
+                </p>
+                <p className="text-[9px] sm:text-xs text-white/50">
+                  {chatInfo.members_count} участников · нажмите для подробностей
+                </p>
+              </div>
+            </button>
+          ) : chatPartner ? (
+
           <Link href={`/user/${chatPartner.id}`} className="flex items-center gap-2 sm:gap-3 group flex-1 min-w-0">
             <div
               className="shrink-0 relative"
@@ -1252,8 +1264,8 @@ export default function ChatPage() {
                                   <Check size={10} className="sm:w-3 sm:h-3 text-white/50" />
                                 ))}
                             </p>
-                            {/* Меню для СВОИХ сообщений (редактировать, удалить) */}
-                            {isMine && !isSecret && (
+                            {/* Меню сообщений (доступно всем для закрепления, но редактировать/удалять можно только свои) */}
+                            {!isSecret && (
                               <div className="relative">
                                 <button
                                   onClick={() =>
@@ -1286,7 +1298,8 @@ export default function ChatPage() {
                                       >
                                         <CheckSquare size={12} className="sm:w-3.5 sm:h-3.5" /> Выбрать
                                       </button>
-                                      {msg.text && (
+                                      
+                                      {isMine && msg.text && (
                                         <button
                                           onClick={() => startEdit(msg)}
                                           className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
@@ -1294,17 +1307,19 @@ export default function ChatPage() {
                                           <Edit2 size={12} className="sm:w-3.5 sm:h-3.5" /> Редактировать
                                         </button>
                                       )}
-                                      <button
-                                        onClick={() => {
-                                          deleteMessage(msg.id);
-                                          setActiveMessageMenu(null);
-                                        }}
-                                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
-                                      >
-                                        <Trash2 size={12} className="sm:w-3.5 sm:h-3.5" /> Удалить
-                                      </button>
+                                      
+                                      {isMine && (
+                                        <button
+                                          onClick={() => {
+                                            deleteMessage(msg.id);
+                                            setActiveMessageMenu(null);
+                                          }}
+                                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
+                                        >
+                                          <Trash2 size={12} className="sm:w-3.5 sm:h-3.5" /> Удалить
+                                        </button>
+                                      )}
 
-                                      {/* 🆕 ЗАКРЕПЛЕНИЯ — ТЕПЕРЬ ДЛЯ ВСЕХ, НЕ ТОЛЬКО ДЛЯ СВОИХ СООБЩЕНИЙ */}
                                       {isGroup && !msg.pinned && (
                                         <button
                                           onClick={async () => {
@@ -1312,8 +1327,8 @@ export default function ChatPage() {
                                               await pinMessage(Number(chatId), msg.id);
                                               await loadPinned();
                                               await loadMessages();
-                                            } catch (e) {
-                                              alert('Не удалось закрепить сообщение');
+                                            } catch (e: any) {
+                                              alert(e?.message || 'Не удалось закрепить сообщение');
                                             }
                                             setActiveMessageMenu(null);
                                           }}
@@ -1330,8 +1345,8 @@ export default function ChatPage() {
                                               await unpinMessage(Number(chatId), msg.id);
                                               await loadPinned();
                                               await loadMessages();
-                                            } catch (e) {
-                                              alert('Не удалось открепить сообщение');
+                                            } catch (e: any) {
+                                              alert(e?.message || 'Не удалось открепить сообщение');
                                             }
                                             setActiveMessageMenu(null);
                                           }}
