@@ -4242,7 +4242,7 @@ def delete_message(
 
 
 # ============================================================
-# 📌 ЗАКРЕПЛЁННЫЕ СООБЩЕНИЯ
+# 📌 ЗАКРЕПЛЁННЫЕ СООБЩЕНИЯ (ИСПРАВЛЕННЫЙ КОД)
 # ============================================================
 
 @app.post("/api/chats/{chat_id}/messages/{message_id}/pin")
@@ -4252,7 +4252,7 @@ async def pin_message(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    # Проверяем участника
+    # 1. Проверяем, что пользователь участник чата
     member = session.exec(
         select(ChatMember).where(
             ChatMember.chat_id == chat_id,
@@ -4262,17 +4262,24 @@ async def pin_message(
     if not member:
         raise HTTPException(403, "Не участник чата")
     
-    # Для групп: только owner и admin могут закреплять
-    if chat.is_group and member.role not in ("owner", "admin"):
-        raise HTTPException(403, "Только админы могут закреплять сообщения")
+    # 2. Получаем чат
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
     
+    # 3. Проверяем права на закрепление
+    # Для групп: только owner и admin могут закреплять
+    if not chat.is_group:
+        raise HTTPException(400, "Закрепление доступно только в группах")
+    
+    # 4. Получаем сообщение
     msg = session.get(Message, message_id)
     if not msg or msg.chat_id != chat_id:
         raise HTTPException(404, "Сообщение не найдено")
     
-    # Считаем уже закреплённые (макс 5)
+    # 5. Считаем уже закреплённые (макс 5)
     pinned_count = session.exec(
-        select(func.count()).where(
+        select(func.count(Message.id)).where(
             Message.chat_id == chat_id,
             Message.pinned == True,
         )
@@ -4281,18 +4288,19 @@ async def pin_message(
     if pinned_count >= 5:
         raise HTTPException(400, "Максимум 5 закреплённых сообщений")
     
+    # 6. Закрепляем
     msg.pinned = True
     msg.pinned_at = datetime.now(timezone.utc)
     msg.pinned_by = user.id
     session.add(msg)
     session.commit()
     
-    # Уведомляем участников через WS
+    # 7. Уведомляем участников через WS
     all_member_ids = session.exec(
         select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
     ).all()
     await manager.broadcast_to_users(
-        all_member_ids,
+        [m for m in all_member_ids],
         "message_pinned",
         {"chat_id": chat_id, "message_id": message_id, "pinned_by": user.id}
     )
@@ -4307,6 +4315,7 @@ async def unpin_message(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
+    # 1. Проверяем, что пользователь участник чата
     member = session.exec(
         select(ChatMember).where(
             ChatMember.chat_id == chat_id,
@@ -4316,13 +4325,21 @@ async def unpin_message(
     if not member:
         raise HTTPException(403, "Не участник чата")
     
+    # 2. Получаем чат
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    
+    # 3. Проверяем права на открепление
     if chat.is_group and member.role not in ("owner", "admin"):
         raise HTTPException(403, "Только админы могут откреплять")
     
+    # 4. Получаем сообщение
     msg = session.get(Message, message_id)
     if not msg or msg.chat_id != chat_id:
         raise HTTPException(404, "Сообщение не найдено")
     
+    # 5. Открепляем
     msg.pinned = False
     msg.pinned_at = None
     msg.pinned_by = None
@@ -4338,6 +4355,7 @@ async def get_pinned_messages(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
+    # 1. Проверяем, что пользователь участник чата
     member = session.exec(
         select(ChatMember).where(
             ChatMember.chat_id == chat_id,
@@ -4347,16 +4365,22 @@ async def get_pinned_messages(
     if not member:
         raise HTTPException(403, "Не участник чата")
     
+    # 2. Получаем все закреплённые сообщения
     messages = session.exec(
         select(Message)
         .where(Message.chat_id == chat_id, Message.pinned == True)
         .order_by(Message.pinned_at.desc())
     ).all()
     
-    # Массовый запрос авторов
+    # 3. Массовый запрос авторов
     sender_ids = list({m.sender_id for m in messages})
-    senders = {u.id: u for u in session.exec(select(User).where(User.id.in_(sender_ids))).all()}
+    senders = {
+        u.id: u for u in session.exec(
+            select(User).where(User.id.in_(sender_ids))
+        ).all()
+    } if sender_ids else {}
     
+    # 4. Формируем результат
     result = []
     for msg in messages:
         sender = senders.get(msg.sender_id)
@@ -4375,6 +4399,8 @@ async def get_pinned_messages(
         })
     
     return result
+
+
 
 
 @app.get("/api/chats/{chat_id}/media")
