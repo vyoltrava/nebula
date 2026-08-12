@@ -181,30 +181,44 @@ export default function MessagesPage() {
             >
               <div className="shrink-0 relative">
                 {isGroup ? (
-                  /* 🆕 Стопка аватарок группы */
-                  <div className="w-12 h-12 relative">
-                    {(chat.members || []).slice(0, 3).map((m: any, i: number) => (
-                      <div
-                        key={m.user.id}
-                        className="absolute"
-                        style={{
-                          top: i === 0 ? 0 : i === 1 ? 24 : 0,
-                          left: i === 0 ? 0 : i === 1 ? 24 : 24,
-                          zIndex: 3 - i,
-                        }}
-                      >
-                        <Avatar
-                          src={m.user.avatar_url}
-                          name={m.user.display_name}
-                          id={m.user.id}
-                          size={28}
-                        />
+                  chat.avatar_url ? (
+                    /* 1. Если у группы есть своя аватарка — показываем её */
+                    <Avatar
+                      src={chat.avatar_url}
+                      name={chat.name || "Группа"}
+                      id={chat.id}
+                      size={48}
+                    />
+                  ) : (
+                    /* 2. Если аватарки нет — показываем стопку участников */
+                    <div className="w-12 h-12 relative flex items-center justify-center bg-white/5 rounded-full">
+                      {(chat.members || []).slice(0, 3).map((m: any, i: number) => (
+                        <div
+                          key={m.user.id}
+                          className="absolute"
+                          style={{
+                            top: i === 0 ? 0 : i === 1 ? 24 : 0,
+                            left: i === 0 ? 0 : i === 1 ? 24 : 24,
+                            zIndex: 3 - i,
+                          }}
+                        >
+                          <Avatar
+                            src={m.user.avatar_url}
+                            name={m.user.display_name}
+                            id={m.user.id}
+                            size={28}
+                          />
+                        </div>
+                      ))}
+                      {/* 3. Страховка: если участников нет, показываем иконку */}
+                      {!(chat.members || []).length && <Users size={24} className="text-white/40" />}
+                      
+                      {/* Индикатор группы */}
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#8b5cf6] border-2 border-[#171717] flex items-center justify-center">
+                        <Users size={10} className="text-white" />
                       </div>
-                    ))}
-                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#8b5cf6] border-2 border-[#171717] flex items-center justify-center">
-                      <Users size={10} className="text-white" />
                     </div>
-                  </div>
+                  )
                 ) : (
                   /* Обычный DM */
                   <div style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}>
