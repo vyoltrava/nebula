@@ -76,8 +76,9 @@ export default function PostPage() {
     );
   }
 
-  // Убираем replies из пропсов, чтобы Post не рендерил их внутри себя
-  const { replies: _postReplies, ...postWithoutReplies } = post;
+  // Убираем поле replies из объекта поста, чтобы не передавать его в компонент
+  // (компонент сам загрузит ответы через showReplies=true, если нужно)
+  const { replies: _replies, ...postWithoutReplies } = post;
 
   return (
     <div className="h-screen flex overflow-hidden bg-[#171717] text-white">
@@ -96,35 +97,23 @@ export default function PostPage() {
             Назад
           </button>
 
-          {/* Главный пост — без вложенных replies */}
+          {/* 
+            ГЛАВНЫЙ ПОСТ:
+            - isMainPost={true} → крупный размер
+            - showReplies={true} → ответы всегда раскрыты автоматически
+            - replies={replies} → передаем загруженные ответы, чтобы не было лишнего запроса
+          */}
           <div className="border-b border-white/10">
-            <Post {...postWithoutReplies} isMainPost={true} />
+            <Post 
+              {...postWithoutReplies} 
+              isMainPost={true} 
+              showReplies={true}
+              replies={replies}
+            />
           </div>
 
-          {/* Ответы рендерим только здесь */}
-          {replies.length > 0 && (
-            <div>
-              <div className="px-4 py-3 border-b border-white/10 flex items-center gap-4">
-                <div className="h-px flex-1 bg-white/10" />
-                <span className="text-white/40 text-sm font-medium whitespace-nowrap">
-                  {replies.length} {getPlural(replies.length)}
-                </span>
-                <div className="h-px flex-1 bg-white/10" />
-              </div>
+          {/* Нижний блок с ответами УБРАН — они теперь внутри Post */}
 
-              <div>
-                {replies.map((reply) => (
-                  <div key={reply.id} className="border-b border-white/10">
-                    <Post {...reply} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {replies.length === 0 && (
-            <p className="text-center text-white/30 py-12 text-sm">Пока нет ответов. Будьте первым!</p>
-          )}
         </div>
       </main>
 
