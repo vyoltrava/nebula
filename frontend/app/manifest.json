@@ -1,7 +1,7 @@
 {
-  "name": "Твой Мессенджер",
-  "short_name": "Мессенджер",
-  "description": "Быстрый и безопасный мессенджер",
+  "name": "trelod",
+  "short_name": "trelod",
+  "description": "trelod",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
