@@ -107,6 +107,9 @@ class Message(SQLModel, table=True):
     edited: bool = Field(default=False)  # ← ДОБАВЬТЕ
     edited_at: Optional[datetime] = None
     ciphertext: Optional[str] = None
+    pinned: bool = Field(default=False)
+    pinned_at: Optional[datetime] = None
+    pinned_by: Optional[int] = Field(default=None, foreign_key="user.id")
 
 class Role(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
