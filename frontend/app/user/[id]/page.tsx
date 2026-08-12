@@ -384,15 +384,18 @@ async function startChat() {
                       
                       {/* Бейджи */}
                         {profile.is_admin && (
-                          <span className="inline-flex items-center px-2 py-0.5 md:px-2.5 md:py-1 rounded-md bg-white text-black text-[9px] md:text-[10px] font-black uppercase tracking-widest shrink-0 border border-white shadow-[0_0_8px_rgba(255,255,255,0.6)]">
+                          <span className="badge-founder inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md text-black text-[9px] md:text-[10px] font-black uppercase tracking-widest shrink-0 border border-white">
+                            <img src="/role-icon.svg" alt="" className="w-3 h-3 md:w-3.5 md:h-3.5" />
                             Founder
                           </span>
                         )}
-                      {profile.is_moderator && !profile.is_admin && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md bg-[#3b82f6] text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest border border-blue-400/50">
-                          <ShieldCheck size={9} /> Developer
-                        </span>
-                      )}
+                          {profile.is_moderator && !profile.is_admin && (
+                            <span className="badge-developer inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest shrink-0 border border-blue-400/50">
+                              <ShieldCheck size={9} />
+                              Developer
+                              <span className="badge-cursor">_</span>
+                            </span>
+                          )}
                       {profile.role && !profile.is_admin && !profile.is_moderator && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest shadow-lg border" style={{ backgroundColor: profile.role.color, borderColor: `${profile.role.color}80`, boxShadow: `0 4px 14px 0 ${profile.role.color}40` }}>
                           {profile.role.level === 8 && (

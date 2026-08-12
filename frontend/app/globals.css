@@ -75,3 +75,65 @@ body {
   width: min(70vmin, 600px);
   height: auto;
 }
+
+/* ========== АНИМИРОВАННЫЕ ПЛАШКИ FOUNDER / DEVELOPER ========== */
+@keyframes badge-flow {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes badge-shine {
+  0%   { left: -80%; }
+  60%  { left: 130%; }
+  100% { left: 130%; }
+}
+@keyframes badge-pulse-white {
+  0%, 100% { box-shadow: 0 0 6px rgba(255,255,255,.35), 0 0 14px rgba(255,255,255,.15); }
+  50%      { box-shadow: 0 0 12px rgba(255,255,255,.75), 0 0 24px rgba(255,255,255,.3); }
+}
+@keyframes badge-pulse-blue {
+  0%, 100% { box-shadow: 0 0 6px rgba(59,130,246,.4), 0 0 14px rgba(59,130,246,.2); }
+  50%      { box-shadow: 0 0 12px rgba(59,130,246,.8), 0 0 24px rgba(59,130,246,.35); }
+}
+@keyframes badge-blink { 50% { opacity: 0; } }
+
+.badge-founder,
+.badge-developer {
+  position: relative;
+  overflow: hidden;
+}
+.badge-founder::after,
+.badge-developer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -80%;
+  width: 50%;
+  height: 100%;
+  animation: badge-shine 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* FOUNDER: серебро + голографический блик + белое свечение */
+.badge-founder {
+  background: linear-gradient(110deg, #ffffff 25%, #c9c9d1 45%, #ffffff 65%);
+  background-size: 200% 100%;
+  animation: badge-flow 3s linear infinite, badge-pulse-white 2.5s ease-in-out infinite;
+}
+.badge-founder::after {
+  background: linear-gradient(100deg, transparent, rgba(139,92,246,.45), #fff, rgba(56,189,248,.45), transparent);
+}
+
+/* DEVELOPER: синий перелив + белый блик */
+.badge-developer {
+  background: linear-gradient(110deg, #1d4ed8 25%, #60a5fa 45%, #1d4ed8 65%);
+  background-size: 200% 100%;
+  animation: badge-flow 3s linear infinite, badge-pulse-blue 2.5s ease-in-out infinite;
+}
+.badge-developer::after {
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.85), transparent);
+}
+
+/* мигающий курсор терминала */
+.badge-cursor {
+  animation: badge-blink 1s steps(1) infinite;
+}
