@@ -90,9 +90,9 @@ export default function ChatPage() {
   const getMediaClasses = (type: string) => {
     const base = "rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 w-full";
     const sizes: Record<string, string> = {
-      image: "max-h-48 sm:max-h-64",
-      gif: "max-h-48 sm:max-h-64",
-      video: "max-h-48 sm:max-h-64",
+      image: "max-h-52 sm:max-h-64",
+      gif: "max-h-52 sm:max-h-64",
+      video: "max-h-52 sm:max-h-64",
     };
     return `${base} ${sizes[type] || ""}`;
   };
@@ -780,67 +780,47 @@ export default function ChatPage() {
 
   const ChatHeader = () => (
     <div
-      className={`p-2 sm:p-3 md:p-4 border-b border-white/10 backdrop-blur-md sticky top-0 z-10 ${
+      className={`p-3 sm:p-4 md:p-4 border-b border-white/10 backdrop-blur-md sticky top-0 z-10 ${
         isSecret ? "bg-emerald-950/40" : isGroup ? "bg-purple-950/20" : "bg-[#171717]/80"
       }`}
     >
-      <div className="flex items-center gap-1 sm:gap-2 md:gap-3">
+      <div className="flex items-center gap-2 sm:gap-3 md:gap-3">
         <button
           onClick={() => router.push("/messages")}
-          className="text-white/60 hover:text-white shrink-0 p-1.5 sm:p-0"
+          className="text-white/60 hover:text-white shrink-0 p-2 sm:p-1 -ml-1 sm:ml-0 active:scale-95 transition-transform"
           title="Назад"
         >
-          ← <span className="hidden sm:inline">Назад</span>
+          <span className="text-lg sm:text-base">←</span>
+          <span className="hidden sm:inline ml-1 text-sm">Назад</span>
         </button>
 
-          {isGroup ? (
-            <button
-              onClick={() => setShowGroupMembers(true)}
-              className="flex items-center gap-2 sm:gap-3 group flex-1 min-w-0 text-left"
-            >
-              <div className="shrink-0 relative w-8 h-8 sm:w-10 sm:h-10">
-                {/* 🆕 Если у группы загружен свой аватар — показываем его */}
-                {chatInfo?.avatar_url ? (
-                  <Avatar
-                    src={chatInfo.avatar_url}
-                    name={chatInfo.name || "Группа"}
-                    id={chatInfo.id}
-                    size={40}
-                  />
-                ) : (
-                  // Fallback: аватары первых 3 участников, если аватара группы нет
-                  (chatInfo.members || []).slice(0, 3).map((m: any, i: number) => (
-                    <div
-                      key={m.user.id}
-                      className="absolute"
-                      style={{
-                        top: i === 0 ? 0 : i === 1 ? 16 : 0,
-                        left: i === 0 ? 0 : i === 1 ? 16 : 16,
-                        zIndex: 3 - i,
-                      }}
-                    >
-                      <Avatar
-                        src={m.user.avatar_url}
-                        name={m.user.display_name}
-                        id={m.user.id}
-                        size={i === 0 ? 24 : 20}
-                      />
-                    </div>
-                  ))
-                )}
-              </div>
-              <div className="min-w-0">
-                <p className="font-bold truncate text-xs sm:text-sm md:text-base text-white group-hover:text-[#8b5cf6] transition-colors">
-                  {chatInfo.name}
-                </p>
-                <p className="text-[9px] sm:text-xs text-white/50">
-                  {chatInfo.members_count} участников · нажмите для подробностей
-                </p>
-              </div>
-            </button>
-          ) : chatPartner ? (
-
-          <Link href={`/user/${chatPartner.id}`} className="flex items-center gap-2 sm:gap-3 group flex-1 min-w-0">
+        {isGroup ? (
+          <button
+            onClick={() => setShowGroupMembers(true)}
+            className="flex items-center gap-3 sm:gap-3 group flex-1 min-w-0 text-left active:opacity-70 transition-opacity"
+          >
+            <div className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-gradient-to-br from-purple-500 via-violet-600 to-indigo-600 flex items-center justify-center ring-2 ring-white/10">
+              {chatInfo?.avatar_url ? (
+                <img
+                  src={mediaUrl(chatInfo.avatar_url)}
+                  alt={chatInfo.name || "Группа"}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <Users size={22} className="text-white" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold truncate text-[15px] sm:text-base md:text-lg text-white group-hover:text-[#8b5cf6] transition-colors leading-tight">
+                {chatInfo.name}
+              </p>
+              <p className="text-[11px] sm:text-xs text-white/50 mt-0.5">
+                {chatInfo.members_count} участник{chatInfo.members_count === 1 ? "" : (chatInfo.members_count < 5 ? "а" : "ов")} · подробнее
+              </p>
+            </div>
+          </button>
+        ) : chatPartner ? (
+          <Link href={`/user/${chatPartner.id}`} className="flex items-center gap-3 sm:gap-3 group flex-1 min-w-0 active:opacity-70 transition-opacity">
             <div
               className="shrink-0 relative"
               style={partnerGlow ? { filter: `drop-shadow(0 0 6px ${partnerGlow})` } : undefined}
@@ -849,19 +829,19 @@ export default function ChatPage() {
                 src={chatPartner.avatar_url}
                 name={chatPartner.display_name}
                 id={chatPartner.id}
-                size={32}
+                size={44}
                 online={isOnline(chatPartner.last_seen)}
               />
               {isSecret && (
-                <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-emerald-500 border-2 border-[#171717] flex items-center justify-center">
-                  <Lock size={7} className="sm:w-2 sm:h-2 text-white" />
+                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 sm:w-4 sm:h-4 rounded-full bg-emerald-500 border-2 border-[#171717] flex items-center justify-center">
+                  <Lock size={8} className="text-white" />
                 </div>
               )}
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <p
-                  className={`font-bold truncate text-xs sm:text-sm md:text-base transition-all group-hover:opacity-80 ${
+                  className={`font-bold truncate text-[15px] sm:text-base md:text-lg transition-all group-hover:opacity-80 leading-tight ${
                     glowStyle(chatPartner) ? "" : "text-white"
                   }`}
                   style={glowStyle(chatPartner)}
@@ -869,88 +849,88 @@ export default function ChatPage() {
                   {chatPartner.display_name}
                 </p>
                 {isSecret && (
-                  <span className="inline-flex items-center gap-0.5 sm:gap-1 px-1 sm:px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[7px] sm:text-[9px] font-black uppercase tracking-widest border border-emerald-500/30 shrink-0">
-                    <Lock size={6} className="sm:w-[7px] sm:h-[7px]" />
+                  <span className="inline-flex items-center gap-1 px-1.5 sm:px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] sm:text-[10px] font-black uppercase tracking-widest border border-emerald-500/30 shrink-0">
+                    <Lock size={8} />
                     <span className="hidden sm:inline">E2EE</span>
                   </span>
                 )}
               </div>
-              <p className={`text-[9px] sm:text-xs ${isOnline(chatPartner.last_seen) ? "text-green-400" : "text-white/50"}`}>
+              <p className={`text-[11px] sm:text-xs mt-0.5 ${isOnline(chatPartner.last_seen) ? "text-green-400" : "text-white/50"}`}>
                 {isOnline(chatPartner.last_seen) ? "● в сети" : lastSeenText(chatPartner.last_seen)}
               </p>
             </div>
           </Link>
         ) : (
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-white text-sm">Загрузка...</p>
+            <p className="font-bold text-white text-[15px] sm:text-base">Загрузка...</p>
           </div>
         )}
 
         <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
           <button
             onClick={() => setShowSearch(!showSearch)}
-            className={`p-1.5 sm:p-2 rounded-lg transition-colors ${
+            className={`p-2.5 sm:p-2 rounded-lg transition-colors active:scale-95 ${
               showSearch ? "text-[#8b5cf6] bg-[#8b5cf6]/10" : "text-white/60 hover:text-[#8b5cf6]"
             }`}
             title="Поиск"
           >
-            <Search size={15} className="sm:w-4 sm:h-4" />
+            <Search size={19} className="sm:w-5 sm:h-5" />
           </button>
 
           {isSecret && !isGroup && (
             <button
               onClick={() => setShowVerify(true)}
-              className="p-1.5 sm:p-2 text-emerald-400 hover:text-emerald-300 transition-colors"
+              className="p-2.5 sm:p-2 text-emerald-400 hover:text-emerald-300 transition-colors active:scale-95"
               title="Проверить шифрование"
             >
-              <ShieldCheck size={15} className="sm:w-4 sm:h-4" />
+              <ShieldCheck size={19} className="sm:w-5 sm:h-5" />
             </button>
           )}
 
           <button
             onClick={() => { loadMedia(); setShowMediaGallery(true); }}
-            className="p-1.5 sm:p-2 text-white/60 hover:text-[#8b5cf6] transition-colors"
+            className="p-2.5 sm:p-2 text-white/60 hover:text-[#8b5cf6] transition-colors active:scale-95"
             title="Медиа"
           >
-            <ImageIcon size={15} className="sm:w-4 sm:h-4" />
+            <ImageIcon size={19} className="sm:w-5 sm:h-5" />
           </button>
 
           {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && (
             <button
               onClick={() => setShowGroupSettings(true)}
-              className="p-1.5 sm:p-2 text-white/60 hover:text-white transition-colors"
+              className="p-2.5 sm:p-2 text-white/60 hover:text-white transition-colors active:scale-95"
               title="Настройки группы"
             >
-              <Settings size={15} className="sm:w-4 sm:h-4" />
+              <Settings size={19} className="sm:w-5 sm:h-5" />
             </button>
           )}
 
           <div className="relative">
             <button
               onClick={() => setShowChatMenu((prev) => !prev)}
-              className="p-1.5 sm:p-2 text-white/60 hover:text-white transition-colors"
+              className="p-2.5 sm:p-2 text-white/60 hover:text-white transition-colors active:scale-95"
               title="Ещё"
             >
-              <MoreVertical size={15} className="sm:w-4 sm:h-4" />
+              <MoreVertical size={19} className="sm:w-5 sm:h-5" />
             </button>
             {showChatMenu && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowChatMenu(false)} />
-                <div className="absolute right-0 top-full mt-1 bg-[#1f1f23] border border-white/15 rounded-lg shadow-xl overflow-hidden min-w-[140px] sm:min-w-[180px] z-50">
+                <div className="absolute right-0 top-full mt-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px] sm:min-w-[180px] z-50">
                   {isGroup && (
                     <button
                       onClick={() => { setShowGroupMembers(true); setShowChatMenu(false); }}
-                      className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
+                      className="w-full px-3 sm:px-3 py-3 sm:py-2.5 text-left text-sm sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
                     >
-                      <Users size={13} className="sm:w-3.5 sm:h-3.5" />
+                      <Users size={15} />
                       Участники
                     </button>
                   )}
                   <button
                     onClick={() => { deleteChat(); setShowChatMenu(false); }}
-                    className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-left text-xs sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
+                    className="w-full px-3 sm:px-3 py-3 sm:py-2.5 text-left text-sm sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
                   >
-                    <Trash2 size={13} className="sm:w-3.5 sm:h-3.5" />
+                    <Trash2 size={15} />
                     {isGroup
                       ? (chatInfo?.my_role === "owner" ? "Удалить группу" : "Покинуть группу")
                       : "Удалить чат"}
@@ -964,22 +944,23 @@ export default function ChatPage() {
 
       {/* Закреплённые сообщения */}
       {pinnedMessages.length > 0 && (
-        <div className="px-2 sm:px-3 py-1.5 sm:py-2 bg-[#8b5cf6]/10 border-b border-[#8b5cf6]/20 mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-white/10">
+        <div className="px-0 py-2 sm:py-2 bg-[#8b5cf6]/5 border-b border-[#8b5cf6]/10 mt-2.5 sm:mt-3 pt-2.5 sm:pt-3 border-t border-white/10">
           <button
             onClick={() => setShowPinnedList(!showPinnedList)}
-            className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-[#8b5cf6] font-bold hover:text-[#a78bfa] transition-colors"
+            className="flex items-center gap-2 text-xs sm:text-xs text-[#8b5cf6] font-bold hover:text-[#a78bfa] transition-colors"
           >
-            <Pin size={12} className="text-white/60 shrink-0" />
-            {pinnedMessages.length} закреплённых
+            <Pin size={13} className="text-white/60 shrink-0" />
+            {pinnedMessages.length} закреплённ{pinnedMessages.length === 1 ? "ое" : "ых"}
             <span className="text-white/40">{showPinnedList ? '▲' : '▼'}</span>
           </button>
           {showPinnedList && (
-            <div className="mt-1.5 sm:mt-2 space-y-1 sm:space-y-1.5 max-h-32 sm:max-h-40 overflow-y-auto">
+            <div className="mt-2 space-y-1.5 max-h-32 sm:max-h-40 overflow-y-auto">
               {pinnedMessages.map((msg) => (
-                <div key={msg.id} className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-white/70 bg-white/5 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5">
-                  <Pin size={10} className="text-white/40 shrink-0" />
+                <div key={msg.id} className="flex items-center gap-2 text-[11px] sm:text-xs text-white/70 bg-white/5 rounded-lg px-3 py-2">
+                  <Pin size={11} className="text-amber-400 shrink-0" />
                   <span className="truncate flex-1">
-                    {msg.sender_name}: {msg.text || (msg.media_type === 'image' ? '📷 Изображение' : msg.media_type === 'audio' ? '🎙️ Голосовое' : msg.media_type === 'video' ? '🎬 Видео' : 'Медиа')}
+                    <span className="text-white/90 font-semibold">{msg.sender_name}:</span>{' '}
+                    {msg.text || (msg.media_type === 'image' ? '📷 Изображение' : msg.media_type === 'audio' ? '🎙️ Голосовое' : msg.media_type === 'video' ? '🎬 Видео' : 'Медиа')}
                   </span>
                 </div>
               ))}
@@ -989,27 +970,27 @@ export default function ChatPage() {
       )}
 
       {showSearch && (
-        <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-white/10">
+        <div className="mt-2.5 sm:mt-3 pt-2.5 sm:pt-3 border-t border-white/10">
           <div className="relative">
-            <Search size={13} className="sm:w-3.5 sm:h-3.5 absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-white/40" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={isSecret ? "Поиск в расшифрованных..." : "Поиск в сообщениях..."}
-              className="w-full pl-8 sm:pl-9 pr-7 sm:pr-8 py-1 sm:py-1.5 rounded-lg border border-white/10 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] text-xs sm:text-sm"
+              className="w-full pl-10 pr-9 py-2.5 sm:py-2 rounded-lg border border-white/10 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] text-sm sm:text-sm"
               autoFocus
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-1.5 sm:right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white p-1"
               >
-                <X size={13} className="sm:w-3.5 sm:h-3.5" />
+                <X size={15} />
               </button>
             )}
           </div>
           {searchQuery && (
-            <p className="text-[10px] sm:text-xs text-white/40 mt-1 sm:mt-1.5">
+            <p className="text-[11px] sm:text-xs text-white/40 mt-1.5">
               {filteredMessages.length} из {messages.length} сообщений
             </p>
           )}
@@ -1024,24 +1005,24 @@ export default function ChatPage() {
       <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
       <main className="flex-1 flex flex-col border-x border-white/10">
         {isSelectMode ? (
-          <div className="p-2 sm:p-3 md:p-4 border-b border-white/10 bg-[#171717]/95 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-3">
+          <div className="p-3 sm:p-3 md:p-4 border-b border-white/10 bg-[#171717]/95 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
+            <div className="flex items-center gap-3">
               <button
                 onClick={toggleSelectMode}
-                className="text-white/60 hover:text-white transition-colors p-1"
+                className="text-white/60 hover:text-white transition-colors p-2 -ml-1 active:scale-95"
               >
-                <X size={18} className="sm:w-5 sm:h-5" />
+                <X size={20} />
               </button>
-              <span className="font-bold text-white text-xs sm:text-sm md:text-base">
+              <span className="font-bold text-white text-sm md:text-base">
                 {selectedMessages.size} выбрано
               </span>
             </div>
             <button
               onClick={deleteSelectedMessages}
               disabled={selectedMessages.size === 0}
-              className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-red-500/20 text-red-400 text-xs sm:text-sm font-bold hover:bg-red-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/20 text-red-400 text-sm font-bold hover:bg-red-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors active:scale-95"
             >
-              <Trash2 size={14} className="sm:w-4 sm:h-4" />
+              <Trash2 size={15} />
               <span className="hidden xs:inline">Удалить</span>
             </button>
           </div>
@@ -1056,10 +1037,10 @@ export default function ChatPage() {
             {isSecret && messages.length === 0 && !cryptoError && (
               <div className="p-3 sm:p-4 bg-emerald-500/5 border-b border-emerald-500/20">
                 <div className="flex items-start gap-2 max-w-2xl mx-auto text-center">
-                  <Lock size={14} className="sm:w-4 sm:h-4 text-emerald-400 mt-0.5 shrink-0" />
+                  <Lock size={15} className="text-emerald-400 mt-0.5 shrink-0" />
                   <div className="text-xs sm:text-sm text-emerald-100/80">
                     <p className="font-bold text-emerald-300 mb-0.5 sm:mb-1">Секретный чат</p>
-                    <p className="text-[10px] sm:text-xs">
+                    <p className="text-[11px] sm:text-xs">
                       Сообщения зашифрованы end-to-end. Сервер не может их прочитать.
                       Ключи хранятся только на устройствах участников.
                     </p>
@@ -1071,12 +1052,12 @@ export default function ChatPage() {
             {cryptoError && (
               <div className="p-3 sm:p-4 bg-red-500/10 border-b border-red-500/30">
                 <div className="flex items-start gap-2 max-w-2xl mx-auto">
-                  <AlertTriangle size={14} className="sm:w-4 sm:h-4 text-red-400 mt-0.5 shrink-0" />
+                  <AlertTriangle size={15} className="text-red-400 mt-0.5 shrink-0" />
                   <div className="flex-1">
                     <p className="text-xs sm:text-sm text-red-300 font-bold">{cryptoError}</p>
                     <button
                       onClick={establishNewSession}
-                      className="mt-1 sm:mt-2 text-[10px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 rounded bg-red-500/20 text-red-200 hover:bg-red-500/30 border border-red-500/30"
+                      className="mt-2 text-[11px] sm:text-xs px-3 py-1 rounded bg-red-500/20 text-red-200 hover:bg-red-500/30 border border-red-500/30"
                     >
                       Попробовать снова
                     </button>
@@ -1085,7 +1066,7 @@ export default function ChatPage() {
               </div>
             )}
 
-            <div className="flex-1 overflow-y-auto p-2 sm:p-3 md:p-4 space-y-2 sm:space-y-3">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-3 md:p-4 space-y-2.5 sm:space-y-3">
               {currentUser &&
                 filteredMessages.map((msg) => {
                   const isMine = msg.sender_id === currentUser.id;
@@ -1093,11 +1074,23 @@ export default function ChatPage() {
                   const displayText = decryptDisplayText(msg);
                   const isSelected = selectedMessages.has(msg.id);
                   const senderGlow = getGlowColor(msg);
+                  const isPinned = !!msg.pinned;
+
+                  // 📌 Закреплённые: острый нижний угол со стороны «хвоста» + лёгкая янтарная обводка
+                  const baseRadius = "rounded-2xl";
+                  const pinnedRadiusMine = "rounded-bl-[4px]";   // свой: острый левый-нижний
+                  const pinnedRadiusTheirs = "rounded-br-[4px]"; // чужой: острый правый-нижний
+                  const bubbleRadius = isPinned
+                    ? `${baseRadius} ${isMine ? pinnedRadiusMine : pinnedRadiusTheirs}`
+                    : baseRadius;
+                  const pinnedRing = isPinned
+                    ? "ring-1 ring-amber-400/40 shadow-[0_0_0_0.5px_rgba(251,191,36,0.25)]"
+                    : "";
 
                   return (
                     <div
                       key={msg.id}
-                      className={`flex gap-1.5 sm:gap-2 ${
+                      className={`flex gap-2 sm:gap-2 ${
                         isMine ? "justify-end" : "justify-start"
                       } ${isSelectMode ? "cursor-pointer select-none" : ""}`}
                       onClick={() => {
@@ -1106,13 +1099,13 @@ export default function ChatPage() {
                     >
                       {isSelectMode && (
                         <div
-                          className={`shrink-0 w-4 h-4 sm:w-5 sm:h-5 rounded border-2 flex items-center justify-center mt-1.5 sm:mt-2 transition-colors ${
+                          className={`shrink-0 w-5 h-5 sm:w-5 sm:h-5 rounded-md border-2 flex items-center justify-center mt-2 transition-colors ${
                             isSelected
                               ? "bg-[#8b5cf6] border-[#8b5cf6]"
                               : "border-white/30"
                           }`}
                         >
-                          {isSelected && <Check size={10} className="sm:w-3 sm:h-3 text-white" />}
+                          {isSelected && <Check size={12} className="text-white" />}
                         </div>
                       )}
 
@@ -1129,7 +1122,7 @@ export default function ChatPage() {
                               src={msg.sender_avatar}
                               name={msg.sender_name}
                               id={msg.sender_id}
-                              size={28}
+                              size={32}
                             />
                           </div>
                         </Link>
@@ -1148,7 +1141,7 @@ export default function ChatPage() {
                             src={msg.sender_avatar}
                             name={msg.sender_name}
                             id={msg.sender_id}
-                            size={28}
+                            size={32}
                           />
                         </div>
                       )}
@@ -1160,7 +1153,7 @@ export default function ChatPage() {
                       >
                         {isGroup && !isMine && (
                           <p
-                            className="text-[10px] sm:text-xs font-bold mb-0.5 px-1"
+                            className="text-[11px] sm:text-xs font-bold mb-1 px-1"
                             style={senderGlow ? { color: senderGlow } : { color: "#a78bfa" }}
                           >
                             {msg.sender_name}
@@ -1168,7 +1161,7 @@ export default function ChatPage() {
                         )}
 
                         <div
-                          className={`rounded-2xl px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 transition-all ${
+                          className={`${bubbleRadius} ${pinnedRing} px-3 sm:px-3.5 md:px-4 py-2 sm:py-2 transition-all ${
                             isSelected
                               ? "ring-2 ring-[#8b5cf6] ring-offset-2 ring-offset-[#171717]"
                               : ""
@@ -1180,11 +1173,6 @@ export default function ChatPage() {
                               : "bg-white/10 text-white border border-white/15"
                           }`}
                         >
-                          {/* 🆕 ИНДИКАТОР ЗАКРЕПЛЕНИЯ — ПЕРЕД ВСЕМ КОНТЕНТОМ */}
-                          {msg.pinned && (
-                            <Pin size={10} className="inline-block mr-0.5 sm:mr-1 text-white/60 shrink-0" />
-                          )}
-
                           {msg.media_url && (msg.media_type === "image" || msg.media_type === "gif") && (
                             <img
                               src={mediaUrl(msg.media_url)}
@@ -1224,47 +1212,48 @@ export default function ChatPage() {
                                   }
                                   if (e.key === "Escape") cancelEdit();
                                 }}
-                                className="flex-1 bg-white/10 border border-white/20 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm text-white focus:outline-none focus:border-[#8b5cf6] resize-none"
+                                className="flex-1 bg-white/10 border border-white/20 rounded-lg px-2.5 sm:px-3 py-1.5 text-sm sm:text-sm text-white focus:outline-none focus:border-[#8b5cf6] resize-none"
                                 rows={2}
                                 autoFocus
                               />
                               <div className="flex flex-col gap-1">
-                                <button onClick={submitEdit} className="text-green-400 text-[10px] sm:text-xs font-bold">
+                                <button onClick={submitEdit} className="text-green-400 text-xs font-bold">
                                   ✓
                                 </button>
-                                <button onClick={cancelEdit} className="text-red-400 text-[10px] sm:text-xs font-bold">
+                                <button onClick={cancelEdit} className="text-red-400 text-xs font-bold">
                                   ✕
                                 </button>
                               </div>
                             </div>
                           ) : (
-                            <>{displayText && <p className="whitespace-pre-wrap break-words text-xs sm:text-sm md:text-base">{displayText}</p>}</>
+                            <>{displayText && <p className="whitespace-pre-wrap break-words text-[15px] sm:text-sm md:text-base leading-snug">{displayText}</p>}</>
                           )}
                         </div>
 
                         {!isEditing && !isSelectMode && (
                           <div
-                            className={`flex items-center gap-1.5 sm:gap-2 mt-0.5 sm:mt-1 px-1 ${
+                            className={`flex items-center gap-1.5 sm:gap-2 mt-1 px-1 ${
                               isMine ? "flex-row-reverse" : "flex-row"
                             }`}
                           >
                             <p
-                              className={`text-[9px] sm:text-[10px] flex items-center gap-1 ${
+                              className={`text-[10px] sm:text-[11px] flex items-center gap-1 ${
                                 isMine ? "text-white/60" : "text-white/40"
                               }`}
                             >
+                              {isPinned && <Pin size={10} className="text-amber-400" />}
                               {new Date(msg.created_at).toLocaleTimeString("ru-RU", {
                                 hour: "2-digit",
                                 minute: "2-digit",
                               })}
                               {isMine &&
                                 (msg.read ? (
-                                  <CheckCheck size={10} className="sm:w-3 sm:h-3 text-sky-300" />
+                                  <CheckCheck size={12} className="text-sky-300" />
                                 ) : (
-                                  <Check size={10} className="sm:w-3 sm:h-3 text-white/50" />
+                                  <Check size={12} className="text-white/50" />
                                 ))}
                             </p>
-                            {/* Меню сообщений (доступно всем для закрепления, но редактировать/удалять можно только свои) */}
+                            {/* Меню сообщений */}
                             {!isSecret && (
                               <div className="relative">
                                 <button
@@ -1273,9 +1262,9 @@ export default function ChatPage() {
                                       activeMessageMenu === msg.id ? null : msg.id
                                     )
                                   }
-                                  className="p-0.5 text-white/40 hover:text-white"
+                                  className="p-1 text-white/40 hover:text-white active:scale-90 transition-transform"
                                 >
-                                  <MoreVertical size={10} className="sm:w-3 sm:h-3" />
+                                  <MoreVertical size={13} />
                                 </button>
                                 {activeMessageMenu === msg.id && (
                                   <>
@@ -1286,7 +1275,7 @@ export default function ChatPage() {
                                     <div
                                       className={`absolute ${
                                         isMine ? "right-0" : "left-0"
-                                      } top-full mt-1 bg-[#1f1f23] border border-white/15 rounded-lg shadow-xl overflow-hidden min-w-[130px] sm:min-w-[160px] z-50`}
+                                      } top-full mt-1 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[150px] sm:min-w-[160px] z-50`}
                                     >
                                       <button
                                         onClick={() => {
@@ -1294,29 +1283,29 @@ export default function ChatPage() {
                                           toggleMessageSelection(msg.id);
                                           setActiveMessageMenu(null);
                                         }}
-                                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
+                                        className="w-full px-3 sm:px-3 py-2.5 sm:py-2 text-left text-sm sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
                                       >
-                                        <CheckSquare size={12} className="sm:w-3.5 sm:h-3.5" /> Выбрать
+                                        <CheckSquare size={14} /> Выбрать
                                       </button>
-                                      
+
                                       {isMine && msg.text && (
                                         <button
                                           onClick={() => startEdit(msg)}
-                                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
+                                          className="w-full px-3 sm:px-3 py-2.5 sm:py-2 text-left text-sm sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
                                         >
-                                          <Edit2 size={12} className="sm:w-3.5 sm:h-3.5" /> Редактировать
+                                          <Edit2 size={14} /> Редактировать
                                         </button>
                                       )}
-                                      
+
                                       {isMine && (
                                         <button
                                           onClick={() => {
                                             deleteMessage(msg.id);
                                             setActiveMessageMenu(null);
                                           }}
-                                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
+                                          className="w-full px-3 sm:px-3 py-2.5 sm:py-2 text-left text-sm sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
                                         >
-                                          <Trash2 size={12} className="sm:w-3.5 sm:h-3.5" /> Удалить
+                                          <Trash2 size={14} /> Удалить
                                         </button>
                                       )}
 
@@ -1332,9 +1321,9 @@ export default function ChatPage() {
                                             }
                                             setActiveMessageMenu(null);
                                           }}
-                                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
+                                          className="w-full px-3 sm:px-3 py-2.5 sm:py-2 text-left text-sm sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
                                         >
-                                          <Pin size={12} className="sm:w-3.5 sm:h-3.5" /> Закрепить
+                                          <Pin size={14} /> Закрепить
                                         </button>
                                       )}
 
@@ -1350,9 +1339,9 @@ export default function ChatPage() {
                                             }
                                             setActiveMessageMenu(null);
                                           }}
-                                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
+                                          className="w-full px-3 sm:px-3 py-2.5 sm:py-2 text-left text-sm sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
                                         >
-                                          <PinOff size={12} className="sm:w-3.5 sm:h-3.5" /> Открепить
+                                          <PinOff size={14} /> Открепить
                                         </button>
                                       )}
                                     </div>
@@ -1370,35 +1359,35 @@ export default function ChatPage() {
             </div>
 
             {files.length > 0 && (
-              <div className="px-2 sm:px-3 py-2 border-t border-white/10 bg-white/5">
-                <div className="flex items-center justify-between mb-1 sm:mb-1.5">
-                  <span className="text-[9px] sm:text-xs font-bold text-white/70">
+              <div className="px-3 sm:px-3 py-2.5 border-t border-white/10 bg-white/5">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] sm:text-xs font-bold text-white/70">
                     Вложения ({files.length}/5)
                   </span>
-                  <button onClick={() => setFiles([])} className="text-[9px] sm:text-xs text-red-400">
+                  <button onClick={() => setFiles([])} className="text-[11px] sm:text-xs text-red-400 px-2 py-1">
                     Очистить
                   </button>
                 </div>
-                <div className="flex gap-1 sm:gap-1.5 overflow-x-auto pb-1 -mx-2 sm:-mx-3 px-2 sm:px-3">
+                <div className="flex gap-2 overflow-x-auto pb-1 -mx-2 sm:-mx-3 px-2 sm:px-3">
                   {files.map((f, i) => (
                     <div
                       key={i}
                       className="relative group border border-white/15 rounded-lg overflow-hidden bg-white/5 shrink-0"
                     >
                       {f.type.startsWith("image/") ? (
-                        <img src={URL.createObjectURL(f)} alt="" className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 object-cover" />
+                        <img src={URL.createObjectURL(f)} alt="" className="w-16 h-16 sm:w-16 sm:h-16 md:w-20 md:h-20 object-cover" />
                       ) : (
-                        <div className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 flex flex-col items-center justify-center gap-0.5 p-1">
-                          <FileText size={14} className="sm:w-4 sm:h-4 text-white/60" />
-                          <span className="text-[7px] sm:text-[9px] text-white/60 truncate w-full px-1 text-center">{f.name}</span>
-                          <span className="text-[6px] sm:text-[8px] text-white/40">{formatSize(f.size)}</span>
+                        <div className="w-16 h-16 sm:w-16 sm:h-16 md:w-20 md:h-20 flex flex-col items-center justify-center gap-0.5 p-1">
+                          <FileText size={16} className="text-white/60" />
+                          <span className="text-[9px] sm:text-[9px] text-white/60 truncate w-full px-1 text-center">{f.name}</span>
+                          <span className="text-[8px] sm:text-[8px] text-white/40">{formatSize(f.size)}</span>
                         </div>
                       )}
                       <button
                         onClick={() => setFiles(files.filter((_, j) => j !== i))}
-                        className="absolute top-0.5 right-0.5 bg-red-500/90 text-white rounded-full p-0.5"
+                        className="absolute top-1 right-1 bg-red-500/90 text-white rounded-full p-1 active:scale-90"
                       >
-                        <X size={8} className="sm:w-2.5 sm:h-2.5" />
+                        <X size={10} />
                       </button>
                     </div>
                   ))}
@@ -1407,31 +1396,28 @@ export default function ChatPage() {
             )}
 
             {isRecording && (
-              <div className="px-2 sm:px-3 py-2 border-t border-white/10 bg-red-500/10">
-                <div className="flex items-center justify-between gap-2">
+              <div className="px-3 sm:px-3 py-3 border-t border-white/10 bg-red-500/10">
+                <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-                    <span className="text-xs sm:text-sm font-bold text-red-400 truncate">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+                    <span className="text-sm font-bold text-red-400 truncate">
                       Запись: {formatRecordingTime(recordingTime)}
                     </span>
                   </div>
                   <button
                     onClick={stopRecording}
-                    className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shrink-0"
+                    className="flex items-center gap-1.5 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shrink-0 active:scale-95"
                   >
-                    <Square size={10} className="sm:w-3 sm:h-3" fill="currentColor" />
-                    <span className="text-xs sm:text-sm font-bold">
-                      <span className="hidden sm:inline">Остановить</span>
-                      <span className="sm:hidden">Стоп</span>
-                    </span>
+                    <Square size={12} fill="currentColor" />
+                    <span className="text-sm font-bold">Стоп</span>
                   </button>
                 </div>
               </div>
             )}
 
             {!isSelectMode && !isRecording && (
-              <div className="p-2 sm:p-3 md:p-4 border-t border-white/10 bg-[#171717]/80 backdrop-blur-md">
-                <div className="flex items-end gap-1 sm:gap-2">
+              <div className="p-3 sm:p-3 md:p-4 border-t border-white/10 bg-[#171717]/80 backdrop-blur-md">
+                <div className="flex items-end gap-2 sm:gap-2">
                   <input
                     ref={fileRef}
                     type="file"
@@ -1441,32 +1427,32 @@ export default function ChatPage() {
                     onChange={(e) => onFiles(e.target.files)}
                   />
 
-                  <div className="flex gap-0.5 sm:gap-1 shrink-0">
+                  <div className="flex gap-1 shrink-0">
                     <div className="relative">
                       <button
                         onClick={() => setShowStickers(!showStickers)}
-                        className={`p-1.5 sm:p-2 rounded-xl transition-colors min-w-[32px] sm:min-w-[36px] md:min-w-[40px] min-h-[32px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center ${
+                        className={`p-2.5 sm:p-2 rounded-xl transition-colors min-w-[40px] sm:min-w-[36px] md:min-w-[40px] min-h-[40px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center active:scale-95 ${
                           showStickers
                             ? "text-[#8b5cf6] bg-[#8b5cf6]/10"
                             : "text-white/60 hover:text-[#8b5cf6] hover:bg-white/5"
                         }`}
                       >
-                        <Smile size={16} className="sm:w-[18px] sm:h-[18px]" />
+                        <Smile size={19} className="sm:w-[18px] sm:h-[18px]" />
                       </button>
                       {showStickers && (
                         <>
                           <div className="fixed inset-0 z-40" onClick={() => setShowStickers(false)} />
-                          <div className="absolute bottom-full left-0 mb-2 w-56 sm:w-64 md:w-72 bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl z-50">
-                            <div className="p-2 sm:p-3 border-b border-white/10 flex items-center justify-between">
-                              <span className="text-xs sm:text-sm font-bold text-white">Стикеры</span>
+                          <div className="absolute bottom-full left-0 mb-2 w-64 sm:w-64 md:w-72 bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl z-50">
+                            <div className="p-3 border-b border-white/10 flex items-center justify-between">
+                              <span className="text-sm font-bold text-white">Стикеры</span>
                               <button
                                 onClick={() => setShowStickers(false)}
-                                className="text-white/60 hover:text-white"
+                                className="text-white/60 hover:text-white p-1"
                               >
-                                <X size={14} className="sm:w-4 sm:h-4" />
+                                <X size={16} />
                               </button>
                             </div>
-                            <div className="p-1.5 sm:p-2 grid grid-cols-6 gap-0.5 sm:gap-1 max-h-48 sm:max-h-64 overflow-y-auto">
+                            <div className="p-2 grid grid-cols-6 gap-1 max-h-64 sm:max-h-64 overflow-y-auto">
                               {STICKERS.map((s) => (
                                 <button
                                   key={s.code}
@@ -1474,7 +1460,7 @@ export default function ChatPage() {
                                     insertSticker(s.emoji);
                                     setShowStickers(false);
                                   }}
-                                  className="aspect-square flex items-center justify-center text-xl sm:text-2xl hover:bg-white/10 rounded-lg"
+                                  className="aspect-square flex items-center justify-center text-2xl hover:bg-white/10 rounded-lg active:scale-90 transition-transform"
                                 >
                                   {s.emoji}
                                 </button>
@@ -1487,15 +1473,15 @@ export default function ChatPage() {
 
                     <button
                       onClick={() => fileRef.current?.click()}
-                      className={`p-1.5 sm:p-2 rounded-xl transition-colors relative min-w-[32px] sm:min-w-[36px] md:min-w-[40px] min-h-[32px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center ${
+                      className={`p-2.5 sm:p-2 rounded-xl transition-colors relative min-w-[40px] sm:min-w-[36px] md:min-w-[40px] min-h-[40px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center active:scale-95 ${
                         files.length > 0
                           ? "text-[#8b5cf6] bg-[#8b5cf6]/10"
                           : "text-white/60 hover:text-[#8b5cf6] hover:bg-white/5"
                       }`}
                     >
-                      <Paperclip size={16} className="sm:w-[18px] sm:h-[18px]" />
+                      <Paperclip size={19} className="sm:w-[18px] sm:h-[18px]" />
                       {files.length > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-[#8b5cf6] text-white text-[8px] sm:text-[10px] font-bold w-3 h-3 sm:w-4 sm:h-4 rounded-full flex items-center justify-center">
+                        <span className="absolute -top-1 -right-1 bg-[#8b5cf6] text-white text-[9px] sm:text-[10px] font-bold w-4 h-4 sm:w-4 sm:h-4 rounded-full flex items-center justify-center">
                           {files.length}
                         </span>
                       )}
@@ -1503,10 +1489,10 @@ export default function ChatPage() {
 
                     <button
                       onClick={startRecording}
-                      className="p-1.5 sm:p-2 rounded-xl transition-colors text-white/60 hover:text-[#8b5cf6] hover:bg-white/5 min-w-[32px] sm:min-w-[36px] md:min-w-[40px] min-h-[32px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center"
+                      className="p-2.5 sm:p-2 rounded-xl transition-colors text-white/60 hover:text-[#8b5cf6] hover:bg-white/5 min-w-[40px] sm:min-w-[36px] md:min-w-[40px] min-h-[40px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center active:scale-95"
                       title="Записать голосовое сообщение"
                     >
-                      <Mic size={16} className="sm:w-[18px] sm:h-[18px]" />
+                      <Mic size={19} className="sm:w-[18px] sm:h-[18px]" />
                     </button>
                   </div>
 
@@ -1521,7 +1507,7 @@ export default function ChatPage() {
                     }}
                     placeholder={isSecret ? "Зашифрованное..." : isGroup ? "Сообщение группе..." : "Сообщение..."}
                     rows={1}
-                    className={`flex-1 border rounded-xl px-2.5 sm:px-3 md:px-4 py-1.5 sm:py-2 bg-white/5 text-white text-xs sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-20 sm:max-h-24 md:max-h-32 ${
+                    className={`flex-1 border rounded-xl px-3.5 sm:px-3 md:px-4 py-2.5 sm:py-2 bg-white/5 text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-28 sm:max-h-24 md:max-h-32 leading-snug ${
                       isSecret
                         ? "border-emerald-500/40 focus:border-emerald-500"
                         : "border-white/15 focus:border-[#8b5cf6]"
@@ -1531,13 +1517,13 @@ export default function ChatPage() {
                   <button
                     onClick={sendMessage}
                     disabled={(!text.trim() && files.length === 0) || !!cryptoError}
-                    className={`p-2 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0 min-w-[36px] sm:min-w-[40px] md:min-w-[44px] min-h-[36px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center ${
+                    className={`p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0 min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 ${
                       isSecret
                         ? "border border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700"
                         : "border border-[#8b5cf6] bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
                     }`}
                   >
-                    <Send size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    <Send size={19} className="sm:w-[18px] sm:h-[18px]" />
                   </button>
                 </div>
               </div>
@@ -1563,7 +1549,7 @@ export default function ChatPage() {
                 </div>
                 <button
                   onClick={() => { setShowVerify(false); setShowQR(false); setShowScanner(false); }}
-                  className="text-white/60 hover:text-white"
+                  className="text-white/60 hover:text-white p-1"
                 >
                   <X size={18} />
                 </button>
@@ -1575,14 +1561,14 @@ export default function ChatPage() {
               </p>
 
               <div className="space-y-2 sm:space-y-3">
-                <div className="p-2 sm:p-3 rounded-xl bg-white/5 border border-white/10">
-                  <p className="text-[10px] sm:text-xs text-white/50 mb-0.5 sm:mb-1">Ваш отпечаток:</p>
+                <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                  <p className="text-[11px] sm:text-xs text-white/50 mb-1">Ваш отпечаток:</p>
                   <p className="font-mono text-xs sm:text-sm text-emerald-300 tracking-wider break-all">
                     {myFingerprint || "—"}
                   </p>
                 </div>
-                <div className="p-2 sm:p-3 rounded-xl bg-white/5 border border-white/10">
-                  <p className="text-[10px] sm:text-xs text-white/50 mb-0.5 sm:mb-1">
+                <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                  <p className="text-[11px] sm:text-xs text-white/50 mb-1">
                     Отпечаток @{chatPartner?.username}:
                   </p>
                   <p className="font-mono text-xs sm:text-sm text-emerald-300 tracking-wider break-all">
@@ -1591,18 +1577,18 @@ export default function ChatPage() {
                 </div>
               </div>
 
-              <div className="mt-3 sm:mt-4 p-3 rounded-xl bg-white/5 border border-white/10">
-                <p className="text-xs font-bold text-white mb-2">Перенос на другое устройство</p>
+              <div className="mt-4 p-3 rounded-xl bg-white/5 border border-white/10">
+                <p className="text-sm font-bold text-white mb-2">Перенос на другое устройство</p>
                 <div className="space-y-2">
                   <button
                     onClick={() => { setShowQR(!showQR); setShowScanner(false); }}
-                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/15 text-white/80 text-xs sm:text-sm font-bold hover:bg-white/10 transition-colors"
+                    className="w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/15 text-white/80 text-sm font-bold hover:bg-white/10 transition-colors"
                   >
                     🖥️ Показать QR с ключом (я на ПК)
                   </button>
                   <button
                     onClick={() => { setShowScanner(true); setShowQR(false); }}
-                    className="w-full px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs sm:text-sm font-bold hover:bg-emerald-500/20 transition-colors"
+                    className="w-full px-3 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm font-bold hover:bg-emerald-500/20 transition-colors"
                   >
                     📱 Отсканировать QR (я на телефоне)
                   </button>
@@ -1611,7 +1597,7 @@ export default function ChatPage() {
                 {showQR && (
                   <div className="mt-3 p-3 rounded-xl bg-white flex flex-col items-center gap-2">
                     <QRCodeSVG value={exportKeyPairPayload() || ""} size={200} />
-                    <p className="text-[10px] text-black/60 text-center font-bold">
+                    <p className="text-[11px] text-black/60 text-center font-bold">
                       ⚠️ Этот QR = твой приватный ключ.
                       <br />
                       Показывай его только своей камере, никому не отправляй!
@@ -1632,7 +1618,7 @@ export default function ChatPage() {
                 )}
 
                 <details className="mt-2">
-                  <summary className="text-[10px] sm:text-xs text-white/40 cursor-pointer hover:text-white/60">
+                  <summary className="text-[11px] sm:text-xs text-white/40 cursor-pointer hover:text-white/60">
                     Нет камеры? Скопировать/вставить вручную
                   </summary>
                   <div className="mt-2 space-y-2">
@@ -1647,7 +1633,7 @@ export default function ChatPage() {
                           prompt("Скопируй ключ вручную:", payload);
                         }
                       }}
-                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/15 text-white/60 text-[10px] sm:text-xs font-bold hover:bg-white/10 transition-colors"
+                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/15 text-white/60 text-[11px] sm:text-xs font-bold hover:bg-white/10 transition-colors"
                     >
                       📤 Скопировать ключ текстом
                     </button>
@@ -1662,7 +1648,7 @@ export default function ChatPage() {
                           alert("Неверный формат ключа");
                         }
                       }}
-                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/15 text-white/60 text-[10px] sm:text-xs font-bold hover:bg-white/10 transition-colors"
+                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/15 text-white/60 text-[11px] sm:text-xs font-bold hover:bg-white/10 transition-colors"
                     >
                       📥 Вставить ключ текстом
                     </button>
@@ -1670,8 +1656,8 @@ export default function ChatPage() {
                 </details>
               </div>
 
-              <div className="mt-3 sm:mt-4 p-2 sm:p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <p className="text-[10px] sm:text-xs text-emerald-200">
+              <div className="mt-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <p className="text-[11px] sm:text-xs text-emerald-200">
                   🔒 Сообщения шифруются на вашем устройстве и расшифровываются только на устройстве собеседника.
                 </p>
               </div>
@@ -1681,13 +1667,13 @@ export default function ChatPage() {
       )}
 
       {showMediaGallery && (
-        <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-2 sm:p-4">
+        <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-3 sm:p-4">
           <div className="w-full max-w-4xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <h2 className="text-base sm:text-xl font-bold text-white">Медиа из чата</h2>
               <button
                 onClick={() => setShowMediaGallery(false)}
-                className="text-white/60 hover:text-white p-1.5 sm:p-2"
+                className="text-white/60 hover:text-white p-2"
               >
                 <X size={20} />
               </button>
@@ -1713,7 +1699,7 @@ export default function ChatPage() {
                       <>
                         <video src={mediaUrl(item.media_url)} className="w-full h-full object-cover" />
                         <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                          <Film size={24} className="sm:w-8 sm:h-8 text-white" />
+                          <Film size={24} className="text-white" />
                         </div>
                       </>
                     )}
@@ -1727,12 +1713,12 @@ export default function ChatPage() {
 
       {selectedMedia && (
         <div
-          className="fixed inset-0 z-[201] bg-black/95 flex items-center justify-center p-2 sm:p-4"
+          className="fixed inset-0 z-[201] bg-black/95 flex items-center justify-center p-3 sm:p-4"
           onClick={() => setSelectedMedia(null)}
         >
           <button
             onClick={() => setSelectedMedia(null)}
-            className="absolute top-2 sm:top-4 right-2 sm:right-4 text-white/60 hover:text-white p-1.5 sm:p-2 z-10"
+            className="absolute top-3 sm:top-4 right-3 sm:right-4 text-white/60 hover:text-white p-2 z-10"
           >
             <X size={24} />
           </button>
