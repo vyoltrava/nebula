@@ -638,6 +638,13 @@ class RegisterIn(BaseModel):
     display_name: str
     password: str
 
+    @classmethod
+    def validate_username(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not re.match(r"^[a-z0-9_]{3,30}$", v):
+            raise ValueError("Username: 3-30 символов, только латиница, цифры и _")
+        return v
+
 
 class LoginIn(BaseModel):
     username: str
@@ -687,10 +694,16 @@ def health_check():
 @app.post("/api/register")
 @limiter.limit("5/minute")
 def register(request: Request, data: RegisterIn, session: Session = Depends(get_session)):
-    if session.exec(select(User).where(User.username == data.username)).first():
+    username = data.username.strip().lower()
+    if not re.match(r"^[a-z0-9_]{3,30}$", username):
+        raise HTTPException(400, "Username: 3-30 символов, только латиница, цифры и _")
+    existing = session.exec(
+        select(User).where(func.lower(User.username) == username)
+    ).first()
+    if existing:
         raise HTTPException(400, "Username already taken")
     user = User(
-        username=data.username,
+        username=username,
         display_name=data.display_name,
         password_hash=hash_password(data.password),
     )
@@ -3497,6 +3510,9 @@ def startup():
     # Автоматическое добавление недостающих колонок
     with engine.connect() as conn:
         try:
+            conn.execute(text('UPDATE "user" SET username = LOWER(username) WHERE username != LOWER(username);'))
+            conn.commit()
+            print("✅ Lowercased all usernames")
             conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT FALSE;"))
             conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMPTZ;"))
             conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS pinned_by INTEGER REFERENCES \"user\"(id);"))
