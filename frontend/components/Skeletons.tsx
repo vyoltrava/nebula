@@ -1,3 +1,8 @@
+"use client";
+
+// ==========================================
+// 🦴 Скелетон для поста в закладках/профиле (сложный)
+// ==========================================
 export function PostSkeleton() {
   return (
     <article className="p-4 border-b border-white/10 animate-pulse">
@@ -21,6 +26,44 @@ export function PostSkeleton() {
         </div>
       </div>
     </article>
+  );
+}
+
+// ==========================================
+// 🦴 Скелетон для главного поста (на странице /post/[id])
+// ==========================================
+export function MainPostSkeleton() {
+  return (
+    <div className="p-4 border-b border-white/10 animate-pulse">
+      <div className="flex gap-3">
+        {/* Аватарка */}
+        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/10 shrink-0" />
+        
+        <div className="flex-1 space-y-3">
+          {/* Имя и юзернейм */}
+          <div className="flex items-center gap-2">
+            <div className="h-4 w-32 bg-white/10 rounded-md" />
+            <div className="h-3 w-24 bg-white/5 rounded-md" />
+          </div>
+          
+          {/* Текст поста */}
+          <div className="space-y-2">
+            <div className="h-4 w-full bg-white/10 rounded-md" />
+            <div className="h-4 w-4/5 bg-white/10 rounded-md" />
+          </div>
+          
+          {/* Заглушка под медиа (картинку/видео) */}
+          <div className="h-48 w-full bg-white/5 rounded-xl" />
+          
+          {/* Кнопки действий (лайк, ответ и т.д.) */}
+          <div className="flex gap-4 pt-2">
+            <div className="h-8 w-16 bg-white/10 rounded-full" />
+            <div className="h-8 w-16 bg-white/10 rounded-full" />
+            <div className="h-8 w-16 bg-white/10 rounded-full" />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -97,6 +140,83 @@ export function BookmarkPageSkeleton() {
       <PostSkeleton />
       <PostSkeleton />
       <PostSkeleton />
+    </div>
+  );
+}
+
+// ==========================================
+// 🦴 Скелетон для списка чатов (страница /messages)
+// ==========================================
+export function ChatListSkeleton() {
+  return (
+    <div className="space-y-1 p-2 animate-pulse">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div key={i} className="flex items-center gap-3 p-3 rounded-xl">
+          {/* Аватарка */}
+          <div className="w-12 h-12 rounded-full bg-white/10 shrink-0" />
+          <div className="flex-1 space-y-2">
+            {/* Имя и время */}
+            <div className="flex justify-between">
+              <div className="h-4 w-32 bg-white/10 rounded-md" />
+              <div className="h-3 w-12 bg-white/5 rounded-md" />
+            </div>
+            {/* Последнее сообщение */}
+            <div className="h-3 w-48 bg-white/5 rounded-md" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ==========================================
+// 🦴 Скелетон для окна чата (активная переписка)
+// ==========================================
+export function ChatWindowSkeleton() {
+  return (
+    <div className="flex-1 flex flex-col bg-[#171717] animate-pulse">
+      {/* Шапка чата */}
+      <div className="h-16 border-b border-white/10 p-4 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-white/10" />
+        <div className="space-y-2 flex-1">
+          <div className="h-4 w-32 bg-white/10 rounded-md" />
+          <div className="h-3 w-20 bg-white/5 rounded-md" />
+        </div>
+      </div>
+
+      {/* Область сообщений */}
+      <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+        {/* Входящее сообщение */}
+        <div className="flex gap-3">
+          <div className="w-8 h-8 rounded-full bg-white/10 shrink-0 mt-1" />
+          <div className="space-y-2 max-w-[75%]">
+            <div className="h-3 w-24 bg-white/5 rounded-md" />
+            <div className="h-12 w-56 bg-white/10 rounded-2xl rounded-tl-sm" />
+          </div>
+        </div>
+
+        {/* Исходящее сообщение */}
+        <div className="flex gap-3 justify-end">
+          <div className="space-y-2 max-w-[75%]">
+            <div className="h-10 w-72 bg-[#8b5cf6]/20 rounded-2xl rounded-tr-sm" />
+            <div className="h-3 w-16 bg-white/5 rounded-md ml-auto" />
+          </div>
+        </div>
+
+        {/* Входящее сообщение 2 */}
+        <div className="flex gap-3">
+          <div className="w-8 h-8 rounded-full bg-white/10 shrink-0 mt-1" />
+          <div className="space-y-2 max-w-[60%]">
+            <div className="h-3 w-20 bg-white/5 rounded-md" />
+            <div className="h-8 w-32 bg-white/10 rounded-2xl rounded-tl-sm" />
+          </div>
+        </div>
+      </div>
+
+      {/* Поле ввода */}
+      <div className="p-4 border-t border-white/10">
+        <div className="h-10 w-full bg-white/5 rounded-xl" />
+      </div>
     </div>
   );
 }

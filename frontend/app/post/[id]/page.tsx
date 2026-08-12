@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api";
 import { Post } from "@/components/Post";
 import { Sidebar } from "@/components/Sidebar";
 import { RightPanel } from "@/components/RightPanel";
+ import { MainPostSkeleton } from "@/components/Skeletons";
 
 const getPlural = (n: number) => {
   if (n % 10 === 1 && n % 100 !== 11) return "ответ";
@@ -46,17 +47,17 @@ export default function PostPage() {
     load();
   }, [id]);
 
-  if (loading) {
-    return (
-      <div className="h-screen flex overflow-hidden bg-[#171717] text-white">
-        <Sidebar />
-        <main className="flex-1 flex items-center justify-center border-x border-white/10">
-          <div className="w-8 h-8 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
-        </main>
-        <RightPanel />
-      </div>
-    );
-  }
+   if (loading) {
+     return (
+       <div className="h-screen flex overflow-hidden bg-[#171717] text-white">
+         <Sidebar />
+         <main className="flex-1 overflow-y-auto border-x border-white/10 min-w-0">
+           <MainPostSkeleton />
+         </main>
+         <RightPanel />
+       </div>
+     );
+   }
 
   if (error || !post) {
     return (

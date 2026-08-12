@@ -8,6 +8,7 @@ import { MessageSquare, Search, Lock, Users } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { socket } from "@/lib/websocket";
+import { ChatListSkeleton } from "@/components/Skeletons";
 
 
 export default function MessagesPage() {
@@ -145,7 +146,7 @@ export default function MessagesPage() {
           </div>
         </div>
 
-        {loading && <p className="p-8 text-center text-white/50">Загрузка...</p>}
+        {loading && <ChatListSkeleton />}
 
         {!loading && chats.length === 0 && (
           <div className="p-12 text-center">
