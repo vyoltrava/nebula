@@ -3490,6 +3490,10 @@ def startup():
     # Автоматическое добавление недостающих колонок
     with engine.connect() as conn:
         try:
+            conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT FALSE;"))
+            conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMPTZ;"))
+            conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS pinned_by INTEGER REFERENCES \"user\"(id);"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_message_pinned ON message(chat_id, pinned, pinned_at DESC);"))
             # ===== ГРУППОВЫЕ ЧАТЫ: миграции =====
             conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS is_group BOOLEAN DEFAULT FALSE;"))
             conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS name VARCHAR(80);"))
@@ -4234,6 +4238,143 @@ def delete_message(
     session.commit()
     
     return {"ok": True}
+
+
+
+# ============================================================
+# 📌 ЗАКРЕПЛЁННЫЕ СООБЩЕНИЯ
+# ============================================================
+
+@app.post("/api/chats/{chat_id}/messages/{message_id}/pin")
+async def pin_message(
+    chat_id: int,
+    message_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    # Проверяем участника
+    member = session.exec(
+        select(ChatMember).where(
+            ChatMember.chat_id == chat_id,
+            ChatMember.user_id == user.id,
+        )
+    ).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+    
+    # Для групп: только owner и admin могут закреплять
+    if chat.is_group and member.role not in ("owner", "admin"):
+        raise HTTPException(403, "Только админы могут закреплять сообщения")
+    
+    msg = session.get(Message, message_id)
+    if not msg or msg.chat_id != chat_id:
+        raise HTTPException(404, "Сообщение не найдено")
+    
+    # Считаем уже закреплённые (макс 5)
+    pinned_count = session.exec(
+        select(func.count()).where(
+            Message.chat_id == chat_id,
+            Message.pinned == True,
+        )
+    ).one()
+    
+    if pinned_count >= 5:
+        raise HTTPException(400, "Максимум 5 закреплённых сообщений")
+    
+    msg.pinned = True
+    msg.pinned_at = datetime.now(timezone.utc)
+    msg.pinned_by = user.id
+    session.add(msg)
+    session.commit()
+    
+    # Уведомляем участников через WS
+    all_member_ids = session.exec(
+        select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
+    ).all()
+    await manager.broadcast_to_users(
+        all_member_ids,
+        "message_pinned",
+        {"chat_id": chat_id, "message_id": message_id, "pinned_by": user.id}
+    )
+    
+    return {"ok": True}
+
+
+@app.delete("/api/chats/{chat_id}/messages/{message_id}/unpin")
+async def unpin_message(
+    chat_id: int,
+    message_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    member = session.exec(
+        select(ChatMember).where(
+            ChatMember.chat_id == chat_id,
+            ChatMember.user_id == user.id,
+        )
+    ).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+    
+    if chat.is_group and member.role not in ("owner", "admin"):
+        raise HTTPException(403, "Только админы могут откреплять")
+    
+    msg = session.get(Message, message_id)
+    if not msg or msg.chat_id != chat_id:
+        raise HTTPException(404, "Сообщение не найдено")
+    
+    msg.pinned = False
+    msg.pinned_at = None
+    msg.pinned_by = None
+    session.add(msg)
+    session.commit()
+    
+    return {"ok": True}
+
+
+@app.get("/api/chats/{chat_id}/pinned")
+async def get_pinned_messages(
+    chat_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    member = session.exec(
+        select(ChatMember).where(
+            ChatMember.chat_id == chat_id,
+            ChatMember.user_id == user.id,
+        )
+    ).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+    
+    messages = session.exec(
+        select(Message)
+        .where(Message.chat_id == chat_id, Message.pinned == True)
+        .order_by(Message.pinned_at.desc())
+    ).all()
+    
+    # Массовый запрос авторов
+    sender_ids = list({m.sender_id for m in messages})
+    senders = {u.id: u for u in session.exec(select(User).where(User.id.in_(sender_ids))).all()}
+    
+    result = []
+    for msg in messages:
+        sender = senders.get(msg.sender_id)
+        result.append({
+            "id": msg.id,
+            "sender_id": msg.sender_id,
+            "sender_name": sender.display_name if sender else "Unknown",
+            "sender_avatar": sender.avatar_url if sender else None,
+            "text": msg.text,
+            "ciphertext": msg.ciphertext,
+            "media_url": msg.media_url,
+            "media_type": msg.media_type,
+            "pinned_at": msg.pinned_at.isoformat() if msg.pinned_at else None,
+            "pinned_by": msg.pinned_by,
+            "created_at": msg.created_at.isoformat(),
+        })
+    
+    return result
 
 
 @app.get("/api/chats/{chat_id}/media")

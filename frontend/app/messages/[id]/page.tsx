@@ -6,11 +6,14 @@ import Link from "next/link";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
 import { GroupMembersModal } from "@/components/GroupMembersModal";
+import { GroupSettingsModal } from "@/components/GroupSettingsModal";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { STICKERS } from "@/lib/stickers";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { ChatWindowSkeleton } from "@/components/Skeletons";
+import { pinMessage, unpinMessage, getPinnedMessages } from "@/lib/api";
+import type { PinnedMessage } from "@/lib/types";
 
 import { isOnline, lastSeenText } from "@/lib/online";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
@@ -18,7 +21,7 @@ import {
   Send, Image as ImageIcon, X, Smile, Paperclip,
   FileText, Film, Edit2, Trash2, MoreVertical,
   Lock, Search, ShieldCheck, AlertTriangle,
-  Check, CheckCheck, CheckSquare, Mic, Square, Users,
+  Check, CheckCheck, CheckSquare, Mic, Square, Users, Settings,
 } from "lucide-react";
 import {
   ensureKeyPair, getKeyPair, encryptMessage, decryptMessage,
@@ -65,8 +68,13 @@ export default function ChatPage() {
   const [showChatMenu, setShowChatMenu] = useState(false);
   const [showGroupMembers, setShowGroupMembers] = useState(false);
 
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
+
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+
+  const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
+  const [showPinnedList, setShowPinnedList] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -321,6 +329,16 @@ export default function ChatPage() {
       setLoadingMessages(false); // ← ВЫКЛЮЧАЕМ СКЕЛЕТОН
     }
   }
+
+async function loadPinned() {
+  try {
+    const data = await getPinnedMessages(Number(chatId));
+    setPinnedMessages(data);
+  } catch (e) {
+    console.error("Failed to load pinned messages:", e);
+  }
+}
+
 
   async function initCryptoForSecretChat() {
     if (!isSecret || !chatPartner || isGroup) return;
@@ -579,6 +597,7 @@ export default function ChatPage() {
 
     loadChatInfo();
     loadMessages();
+    loadPinned();
 
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/read`, {
       method: "POST",
@@ -707,6 +726,14 @@ export default function ChatPage() {
   });
   useWebSocket("group_info_updated", (data: any) => {
     if (String(data.chat_id) === String(chatId)) loadChatInfo();
+  });
+
+
+  useWebSocket("message_pinned", (data: any) => {
+  if (String(data.chat_id) === String(chatId)) {
+    loadPinned();
+    loadMessages();
+  }
   });
 
 
@@ -866,6 +893,30 @@ export default function ChatPage() {
             <p className="font-bold text-white text-sm">Загрузка...</p>
           </div>
         )}
+        {/* 🆕 ЗАКРЕПЛЁННЫЕ СООБЩЕНИЯ - ВСТАВИТЬ ПОСЛЕ ChatHeader */}
+{pinnedMessages.length > 0 && (
+  <div className="px-2 sm:px-3 py-1.5 sm:py-2 bg-[#8b5cf6]/10 border-b border-[#8b5cf6]/20">
+    <button
+      onClick={() => setShowPinnedList(!showPinnedList)}
+      className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-[#8b5cf6] font-bold hover:text-[#a78bfa] transition-colors"
+    >
+      📌 {pinnedMessages.length} закреплённых
+      <span className="text-white/40">{showPinnedList ? '▲' : '▼'}</span>
+    </button>
+    {showPinnedList && (
+      <div className="mt-1.5 sm:mt-2 space-y-1 sm:space-y-1.5 max-h-32 sm:max-h-40 overflow-y-auto">
+        {pinnedMessages.map((msg) => (
+          <div key={msg.id} className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-white/70 bg-white/5 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5">
+            <span className="text-[#8b5cf6] shrink-0">📌</span>
+            <span className="truncate flex-1">
+              {msg.sender_name}: {msg.text || (msg.media_type === 'image' ? '📷 Изображение' : msg.media_type === 'audio' ? '🎙️ Голосовое' : msg.media_type === 'video' ? '🎬 Видео' : 'Медиа')}
+            </span>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
 
         <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
           <button
@@ -895,6 +946,17 @@ export default function ChatPage() {
           >
             <ImageIcon size={15} className="sm:w-4 sm:h-4" />
           </button>
+
+            {/* 🆕 КНОПКА НАСТРОЕК ГРУППЫ - ВСТАВИТЬ СЮДА, ПЕРЕД МЕНЮ "ЕЩЁ" */}
+            {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && (
+              <button
+                onClick={() => setShowGroupSettings(true)}
+                className="p-1.5 sm:p-2 text-white/60 hover:text-white transition-colors"
+                title="Настройки группы"
+              >
+                <Settings size={15} className="sm:w-4 sm:h-4" />
+              </button>
+            )}
 
           <div className="relative">
             <button
@@ -1181,6 +1243,11 @@ export default function ChatPage() {
                           ) : (
                             <>{displayText && <p className="whitespace-pre-wrap break-words text-xs sm:text-sm md:text-base">{displayText}</p>}</>
                           )}
+
+                            {msg.pinned && (
+                              <span className="inline-block text-[8px] sm:text-[9px] text-[#8b5cf6] font-black mr-1 sm:mr-1.5">📌</span>
+                            )}
+
                         </div>
 
                         {!isEditing && !isSelectMode && (
@@ -1253,6 +1320,43 @@ export default function ChatPage() {
                                         }}
                                         className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-1.5 sm:gap-2"
                                       >
+
+                                      {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && !msg.pinned && (
+                                        <button
+                                          onClick={async () => {
+                                            try {
+                                              await pinMessage(Number(chatId), msg.id);
+                                              await loadPinned();
+                                              await loadMessages();
+                                            } catch (e) {
+                                              alert('Не удалось закрепить сообщение');
+                                            }
+                                            setActiveMessageMenu(null);
+                                          }}
+                                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-[#8b5cf6] hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
+                                        >
+                                          📌 Закрепить
+                                        </button>
+                                      )}
+
+                                      {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && msg.pinned && (
+                                        <button
+                                          onClick={async () => {
+                                            try {
+                                              await unpinMessage(Number(chatId), msg.id);
+                                              await loadPinned();
+                                              await loadMessages();
+                                            } catch (e) {
+                                              alert('Не удалось открепить сообщение');
+                                            }
+                                            setActiveMessageMenu(null);
+                                          }}
+                                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-red-400 hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
+                                        >
+                                          📌 Открепить
+                                        </button>
+                                      )}
+
                                         <Trash2 size={12} className="sm:w-3.5 sm:h-3.5" /> Удалить
                                       </button>
                                     </div>
@@ -1665,6 +1769,16 @@ export default function ChatPage() {
           onChanged={() => loadChatInfo()}
         />
       )}
+
+      {showGroupSettings && (
+        <GroupSettingsModal
+          chatId={Number(chatId)}
+          chat={chatInfo}
+          onClose={() => setShowGroupSettings(false)}
+          onUpdate={() => { loadChatInfo(); loadPinned(); }}
+        />
+      )}
+
     </div>
   );
 }

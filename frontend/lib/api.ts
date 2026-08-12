@@ -4,3 +4,49 @@ import { perfFetch } from "./perf";
 export async function apiFetch(url: string, options?: RequestInit) {
   return perfFetch(url, options);
 }
+
+// ============================================================
+// 📌 ЗАКРЕПЛЕНИЯ (ДОБАВИТЬ В КОНЕЦ ФАЙЛА)
+// ============================================================
+
+export async function pinMessage(chatId: number, messageId: number): Promise<void> {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/${messageId}/pin`, {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(error.detail || 'Failed to pin message');
+  }
+}
+
+export async function unpinMessage(chatId: number, messageId: number): Promise<void> {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/${messageId}/unpin`, {
+    method: 'DELETE',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(error.detail || 'Failed to unpin message');
+  }
+}
+
+export async function getPinnedMessages(chatId: number): Promise<any[]> {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/pinned`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(error.detail || 'Failed to get pinned messages');
+  }
+  return res.json();
+}
