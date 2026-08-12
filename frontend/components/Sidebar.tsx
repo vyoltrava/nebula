@@ -105,7 +105,7 @@ export function Sidebar() {
     message: <MessageSquare size={12} />,
     login_alert: <ShieldAlert size={12} />,
     repost: <RefreshCw size={12} />,
-    quote: <Quote size={12} />, // 🆕 Исправлено
+    quote: <Quote size={12} />,
   };
 
   const iconBg: Record<string, string> = {
@@ -139,17 +139,17 @@ export function Sidebar() {
   // Десктопный контент
   const desktopSidebarContent = (
     <>
-      <div className="mb-6">
-        <div className="flex items-center gap-2">
-          <img 
-            src="/logo-icon.svg"
-            alt="Trelod logo"
-            className="w-9 h-9"
-          />
-          <h1 className="font-logo text-4xl text-[#8b5cf6]">trelod</h1>
-        </div>
+      {/* Логотип — убрали mb-6 */}
+      <div className="flex items-center gap-2">
+        <img 
+          src="/logo-icon.svg"
+          alt="Trelod logo"
+          className="w-9 h-9"
+        />
+        <h1 className="font-logo text-4xl text-[#8b5cf6]">trelod</h1>
       </div>
 
+      {/* Навигация — убрали flex-1, оставили просто flex flex-col */}
       <nav className="flex flex-col">
         {nav.map(({ href, icon: Icon, label }, idx) => {
           const active = pathname === href;
@@ -272,12 +272,13 @@ export function Sidebar() {
         </div>
       </nav>
 
-      <div className="mt-auto flex flex-col gap-3 pt-4 border-t border-white/5">
+      {/* Блок аккаунта — mt-4 вместо mt-auto */}
+      <div className="mt-4 flex flex-col gap-2 pt-4 border-t border-white/5">
         {user ? (
           <>
             <Link
               href={`/${user.username}`}
-              className="flex items-center gap-3 px-2 py-2 -mx-2 rounded-lg hover:bg-white/5 transition-all cursor-pointer group"
+              className="flex items-center gap-3 px-2 py-2 -mx-2 rounded-lg hover:bg-white/5 transition-all cursor-pointer group w-full"
             >
               <div
                 className="shrink-0"
@@ -285,7 +286,7 @@ export function Sidebar() {
               >
                 <Avatar src={user.avatar_url} name={user.display_name} id={user.id} />
               </div>
-              <div className="leading-tight min-w-0">
+              <div className="leading-tight min-w-0 flex-1">
                 <p
                   className={`font-semibold text-sm truncate transition-all ${
                     glow ? "group-hover:opacity-80" : "text-white group-hover:text-[#8b5cf6]"
@@ -302,9 +303,10 @@ export function Sidebar() {
               </div>
             </Link>
 
+            {/* Кнопка выхода — теперь такой же ширины, как блок аккаунта */}
             <button
               onClick={() => { clearToken(); setUser(null); clearCachedUser(); }}
-              className="flex items-center gap-3 rounded-lg px-4 py-2.5 font-medium text-white/40 hover:bg-white/5 hover:text-white/80 transition-all"
+              className="flex items-center gap-3 rounded-lg px-4 py-2.5 font-medium text-white/40 hover:bg-white/5 hover:text-white/80 transition-all w-full"
             >
               <LogOut size={18} /> Выйти
             </button>
@@ -312,7 +314,7 @@ export function Sidebar() {
         ) : (
           <Link
             href="/login"
-            className="flex items-center justify-center bg-[#8b5cf6]/15 border border-[#8b5cf6]/30 rounded-lg px-4 py-2.5 font-medium text-[#a78bfa] hover:bg-[#8b5cf6]/25 transition-all"
+            className="flex items-center justify-center bg-[#8b5cf6]/15 border border-[#8b5cf6]/30 rounded-lg px-4 py-2.5 font-medium text-[#a78bfa] hover:bg-[#8b5cf6]/25 transition-all w-full"
           >
             Войти
           </Link>
@@ -496,7 +498,7 @@ export function Sidebar() {
       </div>
 
       {/* ДЕСКТОП */}
-      <aside className="hidden md:flex md:w-64 shrink-0 overflow-y-auto p-5 flex-col gap-8 bg-[#171717]">
+      <aside className="hidden md:flex md:w-64 shrink-0 overflow-y-auto p-5 flex-col gap-5 bg-[#171717]">
         {desktopSidebarContent}
       </aside>
 
