@@ -1252,96 +1252,98 @@ export default function ChatPage() {
                                   <Check size={10} className="sm:w-3 sm:h-3 text-white/50" />
                                 ))}
                             </p>
-                            {isMine && !isSecret && (
-                              <div className="relative">
-                                <button
-                                  onClick={() =>
-                                    setActiveMessageMenu(
-                                      activeMessageMenu === msg.id ? null : msg.id
-                                    )
-                                  }
-                                  className="p-0.5 text-white/40 hover:text-white"
-                                >
-                                  <MoreVertical size={10} className="sm:w-3 sm:h-3" />
-                                </button>
-                                {activeMessageMenu === msg.id && (
-                                  <>
-                                    <div
-                                      className="fixed inset-0 z-40"
-                                      onClick={() => setActiveMessageMenu(null)}
-                                    />
-                                    <div
-                                      className={`absolute ${
-                                        isMine ? "right-0" : "left-0"
-                                      } top-full mt-1 bg-[#1f1f23] border border-white/15 rounded-lg shadow-xl overflow-hidden min-w-[130px] sm:min-w-[160px] z-50`}
-                                    >
-                                      <button
-                                        onClick={() => {
-                                          setIsSelectMode(true);
-                                          toggleMessageSelection(msg.id);
-                                          setActiveMessageMenu(null);
-                                        }}
-                                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
-                                      >
-                                        <CheckSquare size={12} className="sm:w-3.5 sm:h-3.5" /> Выбрать
-                                      </button>
-                                      {msg.text && (
-                                        <button
-                                          onClick={() => startEdit(msg)}
-                                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
-                                        >
-                                          <Edit2 size={12} className="sm:w-3.5 sm:h-3.5" /> Редактировать
-                                        </button>
-                                      )}
-                                      <button
-                                        onClick={() => {
-                                          deleteMessage(msg.id);
-                                          setActiveMessageMenu(null);
-                                        }}
-                                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
-                                      >
-                                        <Trash2 size={12} className="sm:w-3.5 sm:h-3.5" /> Удалить
-                                      </button>
+                            {/* Меню для СВОИХ сообщений (редактировать, удалить) */}
+{isMine && !isSecret && (
+  <div className="relative">
+    <button
+      onClick={() =>
+        setActiveMessageMenu(
+          activeMessageMenu === msg.id ? null : msg.id
+        )
+      }
+      className="p-0.5 text-white/40 hover:text-white"
+    >
+      <MoreVertical size={10} className="sm:w-3 sm:h-3" />
+    </button>
+    {activeMessageMenu === msg.id && (
+      <>
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => setActiveMessageMenu(null)}
+        />
+        <div
+          className={`absolute ${
+            isMine ? "right-0" : "left-0"
+          } top-full mt-1 bg-[#1f1f23] border border-white/15 rounded-lg shadow-xl overflow-hidden min-w-[130px] sm:min-w-[160px] z-50`}
+        >
+          <button
+            onClick={() => {
+              setIsSelectMode(true);
+              toggleMessageSelection(msg.id);
+              setActiveMessageMenu(null);
+            }}
+            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
+          >
+            <CheckSquare size={12} className="sm:w-3.5 sm:h-3.5" /> Выбрать
+          </button>
+          {msg.text && (
+            <button
+              onClick={() => startEdit(msg)}
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
+            >
+              <Edit2 size={12} className="sm:w-3.5 sm:h-3.5" /> Редактировать
+            </button>
+          )}
+          <button
+            onClick={() => {
+              deleteMessage(msg.id);
+              setActiveMessageMenu(null);
+            }}
+            className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
+          >
+            <Trash2 size={12} className="sm:w-3.5 sm:h-3.5" /> Удалить
+          </button>
 
-                                      {/* 🆕 ЗАКРЕПЛЕНИЯ */}
-                                      {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && !msg.pinned && (
-                                        <button
-                                          onClick={async () => {
-                                            try {
-                                              await pinMessage(Number(chatId), msg.id);
-                                              await loadPinned();
-                                              await loadMessages();
-                                            } catch (e) {
-                                              alert('Не удалось закрепить сообщение');
-                                            }
-                                            setActiveMessageMenu(null);
-                                          }}
-                                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
-                                        >
-                                          <Pin size={12} className="sm:w-3.5 sm:h-3.5" /> Закрепить
-                                        </button>
-                                      )}
+          {/* 🆕 ЗАКРЕПЛЕНИЯ — ТЕПЕРЬ ДЛЯ ВСЕХ, НЕ ТОЛЬКО ДЛЯ СВОИХ СООБЩЕНИЙ */}
+          {isGroup && !msg.pinned && (
+            <button
+              onClick={async () => {
+                try {
+                  await pinMessage(Number(chatId), msg.id);
+                  await loadPinned();
+                  await loadMessages();
+                } catch (e) {
+                  alert('Не удалось закрепить сообщение');
+                }
+                setActiveMessageMenu(null);
+              }}
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
+            >
+              <Pin size={12} className="sm:w-3.5 sm:h-3.5" /> Закрепить
+            </button>
+          )}
 
-                                      {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && msg.pinned && (
-                                        <button
-                                          onClick={async () => {
-                                            try {
-                                              await unpinMessage(Number(chatId), msg.id);
-                                              await loadPinned();
-                                              await loadMessages();
-                                            } catch (e) {
-                                              alert('Не удалось открепить сообщение');
-                                            }
-                                            setActiveMessageMenu(null);
-                                          }}
-                                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
-                                        >
-                                          <PinOff size={12} className="sm:w-3.5 sm:h-3.5" /> Открепить
-                                        </button>
-                                      )}
-                                    </div>
-                                  </>
-                                )}
+          {isGroup && msg.pinned && (
+            <button
+              onClick={async () => {
+                try {
+                  await unpinMessage(Number(chatId), msg.id);
+                  await loadPinned();
+                  await loadMessages();
+                } catch (e) {
+                  alert('Не удалось открепить сообщение');
+                }
+                setActiveMessageMenu(null);
+              }}
+              className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
+            >
+              <PinOff size={12} className="sm:w-3.5 sm:h-3.5" /> Открепить
+            </button>
+          )}
+        </div>
+      </>
+    )}
+
                               </div>
                             )}
                           </div>

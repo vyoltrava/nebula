@@ -4206,6 +4206,7 @@ def edit_message(
         "text": msg.text,
         "edited": msg.edited,
         "edited_at": msg.edited_at.isoformat() if msg.edited_at else None,
+        "pinned": msg.pinned,
     }
 
 
@@ -4242,7 +4243,7 @@ def delete_message(
 
 
 # ============================================================
-# 📌 ЗАКРЕПЛЁННЫЕ СООБЩЕНИЯ (ИСПРАВЛЕННЫЙ КОД)
+# 📌 ЗАКРЕПЛЁННЫЕ СООБЩЕНИЯ (ЛЮБОЙ УЧАСТНИК МОЖЕТ)
 # ============================================================
 
 @app.post("/api/chats/{chat_id}/messages/{message_id}/pin")
@@ -4267,8 +4268,7 @@ async def pin_message(
     if not chat:
         raise HTTPException(404, "Чат не найден")
     
-    # 3. Проверяем права на закрепление
-    # Для групп: только owner и admin могут закреплять
+    # 3. Закрепление ТОЛЬКО в группах
     if not chat.is_group:
         raise HTTPException(400, "Закрепление доступно только в группах")
     
@@ -4288,7 +4288,7 @@ async def pin_message(
     if pinned_count >= 5:
         raise HTTPException(400, "Максимум 5 закреплённых сообщений")
     
-    # 6. Закрепляем
+    # 6. Закрепляем (ЛЮБОЙ УЧАСТНИК)
     msg.pinned = True
     msg.pinned_at = datetime.now(timezone.utc)
     msg.pinned_by = user.id
@@ -4330,16 +4330,20 @@ async def unpin_message(
     if not chat:
         raise HTTPException(404, "Чат не найден")
     
-    # 3. Проверяем права на открепление
-    if chat.is_group and member.role not in ("owner", "admin"):
-        raise HTTPException(403, "Только админы могут откреплять")
+    # 3. Только группы
+    if not chat.is_group:
+        raise HTTPException(400, "Открепление доступно только в группах")
     
     # 4. Получаем сообщение
     msg = session.get(Message, message_id)
     if not msg or msg.chat_id != chat_id:
         raise HTTPException(404, "Сообщение не найдено")
     
-    # 5. Открепляем
+    # 5. Проверяем права: либо ты закрепил, либо ты админ
+    if msg.pinned_by != user.id and member.role not in ("owner", "admin"):
+        raise HTTPException(403, "Вы не закрепляли это сообщение и не являетесь админом")
+    
+    # 6. Открепляем
     msg.pinned = False
     msg.pinned_at = None
     msg.pinned_by = None
@@ -4347,59 +4351,6 @@ async def unpin_message(
     session.commit()
     
     return {"ok": True}
-
-
-@app.get("/api/chats/{chat_id}/pinned")
-async def get_pinned_messages(
-    chat_id: int,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    # 1. Проверяем, что пользователь участник чата
-    member = session.exec(
-        select(ChatMember).where(
-            ChatMember.chat_id == chat_id,
-            ChatMember.user_id == user.id,
-        )
-    ).first()
-    if not member:
-        raise HTTPException(403, "Не участник чата")
-    
-    # 2. Получаем все закреплённые сообщения
-    messages = session.exec(
-        select(Message)
-        .where(Message.chat_id == chat_id, Message.pinned == True)
-        .order_by(Message.pinned_at.desc())
-    ).all()
-    
-    # 3. Массовый запрос авторов
-    sender_ids = list({m.sender_id for m in messages})
-    senders = {
-        u.id: u for u in session.exec(
-            select(User).where(User.id.in_(sender_ids))
-        ).all()
-    } if sender_ids else {}
-    
-    # 4. Формируем результат
-    result = []
-    for msg in messages:
-        sender = senders.get(msg.sender_id)
-        result.append({
-            "id": msg.id,
-            "sender_id": msg.sender_id,
-            "sender_name": sender.display_name if sender else "Unknown",
-            "sender_avatar": sender.avatar_url if sender else None,
-            "text": msg.text,
-            "ciphertext": msg.ciphertext,
-            "media_url": msg.media_url,
-            "media_type": msg.media_type,
-            "pinned_at": msg.pinned_at.isoformat() if msg.pinned_at else None,
-            "pinned_by": msg.pinned_by,
-            "created_at": msg.created_at.isoformat(),
-        })
-    
-    return result
-
 
 
 
