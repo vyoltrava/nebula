@@ -272,56 +272,62 @@ export function Sidebar() {
         </div>
       </nav>
 
-      {/* Блок аккаунта — mt-4 вместо mt-auto */}
-      <div className="mt-4 flex flex-col gap-2 pt-4 border-t border-white/5">
-        {user ? (
-          <>
-            <Link
-              href={`/${user.username}`}
-              className="flex items-center gap-3 px-2 py-2 -mx-2 rounded-lg hover:bg-white/5 transition-all cursor-pointer group w-full"
-            >
-              <div
-                className="shrink-0"
-                style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}
-              >
-                <Avatar src={user.avatar_url} name={user.display_name} id={user.id} />
-              </div>
-              <div className="leading-tight min-w-0 flex-1">
-                <p
-                  className={`font-semibold text-sm truncate transition-all ${
-                    glow ? "group-hover:opacity-80" : "text-white group-hover:text-[#8b5cf6]"
-                  }`}
-                  style={
-                    glow
-                      ? { color: glow, textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66` }
-                      : undefined
-                  }
+          {/* Блок аккаунта — mt-4 вместо mt-auto */}
+          <div className="mt-4 flex flex-col gap-2 pt-4 border-t border-white/5">
+            {user ? (
+              <>
+                <Link
+                  href={`/${user.username}`}
+                  className="flex items-center gap-3 px-2 py-2 -mx-2 rounded-lg hover:bg-white/5 transition-all cursor-pointer group w-full"
                 >
-                  {user.display_name}
-                </p>
-                <p className="text-sm text-white/40 truncate">@{user.username}</p>
-              </div>
-            </Link>
-
-            {/* Кнопка выхода — теперь такой же ширины, как блок аккаунта */}
-            <button
-              onClick={() => { clearToken(); setUser(null); clearCachedUser(); }}
-              className="flex items-center gap-3 rounded-lg px-4 py-2.5 font-medium text-white/40 hover:bg-white/5 hover:text-white/80 transition-all w-full"
-            >
-              <LogOut size={18} /> Выйти
-            </button>
-          </>
-        ) : (
-          <Link
-            href="/login"
-            className="flex items-center justify-center bg-[#8b5cf6]/15 border border-[#8b5cf6]/30 rounded-lg px-4 py-2.5 font-medium text-[#a78bfa] hover:bg-[#8b5cf6]/25 transition-all w-full"
-          >
-            Войти
-          </Link>
-        )}
-      </div>
-    </>
-  );
+                  <div
+                    className="shrink-0"
+                    style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}
+                  >
+                    <Avatar src={user.avatar_url} name={user.display_name} id={user.id} />
+                  </div>
+                  <div className="leading-tight min-w-0 flex-1">
+                    <p
+                      className={`font-semibold text-sm truncate transition-all ${
+                        glow ? "group-hover:opacity-80" : "text-white group-hover:text-[#8b5cf6]"
+                      }`}
+                      style={
+                        glow
+                          ? { color: glow, textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66` }
+                          : undefined
+                      }
+                    >
+                      {user.display_name}
+                    </p>
+                    <p className="text-sm text-white/40 truncate">@{user.username}</p>
+                  </div>
+                  {/* Кнопка выхода справа от аккаунта */}
+                  <button
+                    onClick={(e) => { 
+                      e.preventDefault();
+                      e.stopPropagation();
+                      clearToken(); 
+                      setUser(null); 
+                      clearCachedUser(); 
+                    }}
+                    className="shrink-0 p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/20 transition-all"
+                    title="Выйти"
+                  >
+                    <LogOut size={18} />
+                  </button>
+                </Link>
+              </>
+            ) : (
+              <Link
+                href="/login"
+                className="flex items-center justify-center bg-[#8b5cf6]/15 border border-[#8b5cf6]/30 rounded-lg px-4 py-2.5 font-medium text-[#a78bfa] hover:bg-[#8b5cf6]/25 transition-all w-full"
+              >
+                Войти
+              </Link>
+            )}
+          </div>
+              </>
+            );
 
   return (
     <>
