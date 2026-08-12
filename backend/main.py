@@ -611,7 +611,7 @@ def get_author_role(user: User, session: Session) -> Optional[dict]:
     if user.role_id:
         role = get_role_cached(session, user.role_id)  # ← БЫЛО session.get
         if role:
-            return {"name": role.name, "color": role.color}
+            return {"name": role.name, "color": role.color, "level": role.level}
     return None
 
 

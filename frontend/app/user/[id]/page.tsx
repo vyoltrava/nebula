@@ -395,6 +395,14 @@ async function startChat() {
                       )}
                       {profile.role && !profile.is_admin && !profile.is_moderator && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 md:px-2.5 md:py-1 rounded-md text-white text-[9px] md:text-[10px] font-black uppercase tracking-widest shadow-lg border" style={{ backgroundColor: profile.role.color, borderColor: `${profile.role.color}80`, boxShadow: `0 4px 14px 0 ${profile.role.color}40` }}>
+                          {profile.role.level === 8 && (
+                            <img
+                              src="/role-icon.svg"
+                              alt=""
+                              className="w-3.5 h-3.5 shrink-0"
+                              style={{ filter: "drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000)" }}
+                            />
+                          )}
                           {profile.role.name}
                         </span>
                       )}
@@ -558,7 +566,7 @@ async function startChat() {
                           <p className={`font-bold text-sm md:text-base truncate ${glowStyle(u) ? "" : "text-white"}`} style={glowStyle(u)}>{u.display_name}</p>
                           {u.is_admin && <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white text-black text-[9px] md:text-[10px] font-black uppercase tracking-widest border border-white shadow-[0_0_12px_rgba(255,255,255,0.6)]"><Shield size={9} /> Founder</span>}
                           {u.is_moderator && !u.is_admin && <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#3b82f6] text-white text-[8px] md:text-[9px] font-black uppercase tracking-widest shrink-0"><ShieldCheck size={8} /> Developer</span>}
-                          {u.role && !u.is_admin && !u.is_moderator && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-white text-[8px] md:text-[9px] font-black uppercase tracking-widest shrink-0 border" style={{ backgroundColor: u.role.color, borderColor: `${u.role.color}80` }}>{u.role.name}</span>}
+                          {u.role && !u.is_admin && !u.is_moderator && <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-white text-[8px] md:text-[9px] font-black uppercase tracking-widest shrink-0 border" style={{ backgroundColor: u.role.color, borderColor: `${u.role.color}80` }}>{u.role.level === 8 && (<img src="/role-icon.svg" alt="" className="w-3 h-3 shrink-0" style={{ filter: "drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000)" }} />)}{u.role.name}</span>}
                           {u.is_banned && <span className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[8px] md:text-[9px] font-black uppercase border border-red-500/30 shrink-0">BANNED</span>}
                         </div>
                         <p className="text-xs md:text-sm text-white/50 truncate">@{u.username}</p>

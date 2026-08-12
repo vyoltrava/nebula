@@ -337,6 +337,14 @@ export default function RolesPage() {
                       boxShadow: `0 4px 14px 0 ${role.color}40`,
                     }}
                   >
+                    {role.level === 8 && (
+                      <img
+                        src="/role-icon.svg"
+                        alt=""
+                        className="w-4 h-4 shrink-0"
+                        style={{ filter: "drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000)" }}
+                      />
+                    )}
                     {role.name}
                     <span className="border-l border-white/30 pl-2 text-[10px] font-mono opacity-90">
                       Lvl {role.level || 1}
@@ -587,6 +595,14 @@ export default function RolesPage() {
                           boxShadow: `0 4px 14px 0 ${color}40`,
                         }}
                       >
+                        {level === 8 && (
+                          <img
+                            src="/role-icon.svg"
+                            alt=""
+                            className="w-4 h-4 shrink-0"
+                            style={{ filter: "drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000)" }}
+                          />
+                        )}
                         {name || "Название"}
                         <span className="border-l border-white/30 pl-2 text-[10px] font-mono opacity-90">
                           Lvl {level}
@@ -651,6 +667,7 @@ export default function RolesPage() {
                     </button>
                   </div>
                 </form>
+                
               </div>
             </div>
           </>
