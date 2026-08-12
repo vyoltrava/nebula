@@ -33,11 +33,8 @@ export default function PostPage() {
 
         if (!postRes.ok || !repliesRes.ok) throw new Error("Failed to fetch");
 
-        const postData = await postRes.json();
-        const repliesData = await repliesRes.json();
-
-        setPost(postData);
-        setReplies(repliesData);
+        setPost(await postRes.json());
+        setReplies(await repliesRes.json());
       } catch (e) {
         console.error("Ошибка загрузки поста:", e);
         setError(true);
@@ -49,15 +46,10 @@ export default function PostPage() {
     load();
   }, [id]);
 
-  // 🔄 ЕДИНЫЙ СТИЛЬ КОНТЕЙНЕРА (как на главной)
-  const containerClasses = "h-screen flex overflow-hidden bg-[#0a0a0a] text-white"; // Убедись, что bg-[#0a0a0a] совпадает с твоим основным фоном, или убери его, если фон задан глобально
-  
-  // Состояние загрузки
   if (loading) {
     return (
-      <div className={containerClasses}>
+      <div className="h-screen flex overflow-hidden bg-[#0a0a0a] text-white">
         <Sidebar />
-        <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
         <main className="flex-1 flex items-center justify-center border-x border-white/10">
           <div className="w-8 h-8 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
         </main>
@@ -66,12 +58,10 @@ export default function PostPage() {
     );
   }
 
-  // Состояние ошибки
   if (error || !post) {
     return (
-      <div className={containerClasses}>
+      <div className="h-screen flex overflow-hidden bg-[#0a0a0a] text-white">
         <Sidebar />
-        <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
         <main className="flex-1 flex flex-col items-center justify-center gap-4 border-x border-white/10">
           <p className="text-white/60">Пост не найден или был удалён</p>
           <button
@@ -87,21 +77,17 @@ export default function PostPage() {
   }
 
   return (
-    <div className={containerClasses}>
-      {/* Левая панель */}
+    <div className="h-screen flex overflow-hidden bg-[#0a0a0a] text-white">
       <Sidebar />
       
-      {/* Разделитель (добавил для консистентности с главной, скрыт на мобилках) */}
-      <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
-
-      {/* Центральная колонка - теперь flex-1 и скроллится внутри, как на главной */}
+      {/* Центральная колонка: flex-1 заставляет её занять всё место между Sidebar и RightPanel */}
       <main className="flex-1 overflow-y-auto border-x border-white/10 min-w-0">
-        <div className="px-4 py-4 md:py-6 max-w-2xl mx-auto w-full">
+        {/* Внутренний контейнер ограничивает ширину контента на очень широких экранах, но на стандартных он будет на всю ширину */}
+        <div className="max-w-3xl mx-auto w-full p-4 md:p-6">
           
-          {/* Кнопка Назад */}
           <button
             onClick={() => router.back()}
-            className="mb-4 flex items-center gap-2 text-white/60 hover:text-white transition w-fit"
+            className="mb-6 flex items-center gap-2 text-white/60 hover:text-white transition-colors font-medium"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -109,29 +95,27 @@ export default function PostPage() {
             Назад
           </button>
 
-          {/* 🌟 ГЛАВНЫЙ ПОСТ */}
+          {/* ГЛАВНЫЙ ПОСТ: Передаем isMainPost={true} для увеличенного размера */}
           <div className="pb-6 border-b border-white/10 mb-6">
-            <Post {...(post as any)} />
+            <Post {...post} isMainPost={true} />
           </div>
 
-          {/* 🌟 ОТВЕТЫ */}
+          {/* КОММЕНТАРИИ */}
           {replies.length > 0 && (
             <div>
-              <div className="mb-4 flex items-center gap-3">
+              <div className="mb-6 flex items-center gap-4">
                 <div className="h-px flex-1 bg-white/10" />
-                <span className="text-white/40 text-sm whitespace-nowrap">
+                <span className="text-white/40 text-sm font-medium whitespace-nowrap">
                   {replies.length} {getPlural(replies.length)}
                 </span>
                 <div className="h-px flex-1 bg-white/10" />
               </div>
 
-              <div className="space-y-5">
+              <div className="space-y-6">
                 {replies.map((reply) => (
-                  <div 
-                    key={reply.id} 
-                    className="pl-4 md:pl-6 ml-2 border-l-2 border-[#8b5cf6]/30"
-                  >
-                    <Post {...(reply as any)} />
+                  <div key={reply.id} className="pl-4 md:pl-6 border-l-2 border-[#8b5cf6]/20">
+                    {/* Обычный размер для комментариев */}
+                    <Post {...reply} />
                   </div>
                 ))}
               </div>
@@ -139,12 +123,11 @@ export default function PostPage() {
           )}
 
           {replies.length === 0 && (
-            <p className="text-center text-white/30 mt-8 pb-8">Пока нет ответов</p>
+            <p className="text-center text-white/30 mt-12 text-sm">Пока нет ответов. Будьте первым!</p>
           )}
         </div>
       </main>
 
-      {/* Правая панель */}
       <RightPanel />
     </div>
   );
