@@ -4009,6 +4009,142 @@ async def create_secret_chat(
 
 
 
+@app.post("/api/chats/{chat_id}/messages/encrypted-media")
+@limiter.limit("10/minute")
+async def upload_encrypted_media(
+    request: Request,
+    chat_id: int,
+    file: UploadFile = File(...),
+    media_type: str = Form(...),  # "video_note", "audio", "image"
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Загрузка шифрованного медиа для секретных чатов"""
+    member = session.exec(
+        select(ChatMember).where(
+            ChatMember.chat_id == chat_id,
+            ChatMember.user_id == user.id,
+        )
+    ).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+
+    if not chat.is_secret:
+        raise HTTPException(400, "Шифрованное медиа только для секретных чатов")
+
+    content = await file.read()
+    if len(content) > 50 * 1024 * 1024:
+        raise HTTPException(400, "Файл слишком большой (макс 50 МБ)")
+
+    # Сохраняем шифрованный файл как .enc
+    file_id = str(uuid.uuid4())
+    ext = {
+        "video_note": ".webm.enc",
+        "audio": ".webm.enc",
+        "image": ".enc",
+    }.get(media_type, ".enc")
+    
+    filename = f"{file_id}{ext}"
+    filepath = os.path.join("uploads", filename)
+    
+    with open(filepath, "wb") as f:
+        f.write(content)
+
+    media_url = filename  # Относительный путь
+
+    # Создаём сообщение с шифрованным медиа
+    msg = Message(
+        chat_id=chat_id,
+        sender_id=user.id,
+        text=None,
+        ciphertext="[encrypted_media]",
+        media_url=media_url,
+        media_type=media_type,
+    )
+    session.add(msg)
+
+    # Уведомление другому участнику
+    other_members = session.exec(
+        select(ChatMember).where(
+            ChatMember.chat_id == chat_id,
+            ChatMember.user_id != user.id,
+        )
+    ).all()
+    for other in other_members:
+        session.add(Notification(
+            user_id=other.user_id, actor_id=user.id, type="message",
+        ))
+
+    session.commit()
+    session.refresh(msg)
+
+    # WS рассылка
+    await manager.broadcast_to_chat(
+        chat_id,
+        "new_message",
+        {
+            "id": msg.id,
+            "chat_id": chat_id,
+            "sender_id": msg.sender_id,
+            "sender_name": user.display_name,
+            "sender_avatar": user.avatar_url,
+            "text": "[encrypted_media]",
+            "ciphertext": "[encrypted_media]",
+            "media_url": media_url,
+            "media_type": media_type,
+            "is_encrypted_media": True,
+            "created_at": msg.created_at.isoformat(),
+        },
+        session,
+    )
+
+    return {
+        "id": msg.id,
+        "media_url": media_url,
+        "media_type": media_type,
+    }
+
+
+@app.get("/api/media/{filename}")
+async def download_encrypted_media(
+    filename: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Скачивание шифрованного медиа (с проверкой доступа)"""
+    # Проверяем, что файл существует
+    filepath = os.path.join("uploads", filename)
+    if not os.path.exists(filepath):
+        raise HTTPException(404, "Файл не найден")
+
+    # Проверяем, что пользователь имеет доступ к чату с этим медиа
+    # Находим сообщение с этим media_url
+    msg = session.exec(
+        select(Message).where(Message.media_url == filename)
+    ).first()
+    if not msg:
+        raise HTTPException(404, "Медиа не найдено")
+
+    # Проверяем, что пользователь участник чата
+    member = session.exec(
+        select(ChatMember).where(
+            ChatMember.chat_id == msg.chat_id,
+            ChatMember.user_id == user.id,
+        )
+    ).first()
+    if not member:
+        raise HTTPException(403, "Нет доступа к этому медиа")
+
+    # Отдаём файл
+    from fastapi.responses import FileResponse
+    return FileResponse(filepath, media_type="application/octet-stream")
+
+
+
 
 @app.post("/api/chats/{chat_id}/messages")
 @limiter.limit("30/minute")

@@ -7,6 +7,8 @@ import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
 import { GroupMembersModal } from "@/components/GroupMembersModal";
 import { GroupSettingsModal } from "@/components/GroupSettingsModal";
+import { VideoNoteRecorder } from "@/components/VideoNoteRecorder";
+import { VideoNotePlayer } from "@/components/VideoNotePlayer";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { STICKERS } from "@/lib/stickers";
@@ -14,6 +16,7 @@ import { AudioPlayer } from "@/components/AudioPlayer";
 import { ChatWindowSkeleton } from "@/components/Skeletons";
 import { pinMessage, unpinMessage, getPinnedMessages } from "@/lib/api";
 import type { PinnedMessage } from "@/lib/types";
+import { EncryptedMediaPlayer } from "@/components/EncryptedMediaPlayer";
 
 import { isOnline, lastSeenText } from "@/lib/online";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
@@ -22,7 +25,7 @@ import {
   FileText, Film, Edit2, Trash2, MoreVertical,
   Lock, Search, ShieldCheck, AlertTriangle,
   Check, CheckCheck, CheckSquare, Mic, Square, Users, Settings,
-  Pin, PinOff,
+  Pin, PinOff, Video,
 } from "lucide-react";
 import {
   ensureKeyPair, getKeyPair, encryptMessage, decryptMessage,
@@ -69,6 +72,8 @@ export default function ChatPage() {
   const [showChatMenu, setShowChatMenu] = useState(false);
   const [showGroupMembers, setShowGroupMembers] = useState(false);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
+
+  const [showVideoRecorder, setShowVideoRecorder] = useState(false);
 
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -568,6 +573,46 @@ export default function ChatPage() {
     }
   }
 
+    async function sendEncryptedMedia(file: File, mediaType: string) {
+      const token = getToken();
+      if (!token) return;
+
+      // ✅ Явная проверка с ранним выходом — TS теперь знает, что sk точно string
+      let sk = loadSessionKey(Number(chatId));
+      if (!sk) {
+        await establishNewSession();
+        sk = loadSessionKey(Number(chatId));
+      }
+      if (!sk) {
+        alert("Не удалось установить защищённую сессию");
+        return;
+      }
+
+      const { encryptMediaFile } = await import("@/lib/mediaCrypto");
+      const sessionKey = loadSessionKey(Number(chatId));
+      if (!sessionKey) {
+        alert("Нет ключа сессии");
+        return;
+      }
+      const encryptedBlob = await encryptMediaFile(file, sessionKey);
+
+      const form = new FormData();
+      form.append("file", encryptedBlob);
+      form.append("media_type", mediaType);
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        }
+      );
+
+      if (!res.ok) {
+        alert("Не удалось отправить шифрованное медиа");
+      }
+    }
   useEffect(() => {
     const token = getToken();
     if (!token) {
@@ -1193,6 +1238,18 @@ export default function ChatPage() {
                             </div>
                           )}
 
+                          {msg.media_url && msg.media_type === "video_note" && (
+                            <VideoNotePlayer src={mediaUrl(msg.media_url)} />
+                          )}
+
+                          {msg.media_url && msg.is_encrypted_media && (
+                              <EncryptedMediaPlayer
+                                mediaUrl={msg.media_url}
+                                mediaType={msg.media_type}
+                                chatId={Number(chatId)}
+                              />
+                            )}
+
                           {isEditing ? (
                             <div className="flex gap-2 items-start">
                               <textarea
@@ -1487,6 +1544,13 @@ export default function ChatPage() {
                     >
                       <Mic size={19} className="sm:w-[18px] sm:h-[18px]" />
                     </button>
+                    <button
+                      onClick={() => setShowVideoRecorder(true)}
+                      className="p-2.5 sm:p-2 rounded-xl transition-colors text-white/60 hover:text-[#8b5cf6] hover:bg-white/5 min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95"
+                      title="Записать видеосообщение"
+                    >
+                      <Video size={19} />
+                    </button>
                   </div>
 
                   <textarea
@@ -1752,6 +1816,28 @@ export default function ChatPage() {
           onUpdate={() => { loadChatInfo(); loadPinned(); }}
         />
       )}
+
+      {showVideoRecorder && (
+        <VideoNoteRecorder
+          onRecorded={async (file) => {
+            setShowVideoRecorder(false);
+            // Отправляем как обычное сообщение с файлом
+            const form = new FormData();
+            form.append("file", file);
+            const token = getToken();
+            if (!token) return;
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+              body: form,
+            });
+            if (!res.ok) alert("Не удалось отправить видеосообщение");
+          }}
+          onCancel={() => setShowVideoRecorder(false)}
+          maxDuration={60}
+        />
+      )}
+
     </div>
   );
 }
