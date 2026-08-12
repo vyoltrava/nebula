@@ -213,46 +213,43 @@ export default function ChatPage() {
     }
   }
 
-async function deleteChat() {
-  const isOwner = chatInfo?.my_role === "owner";
+  async function deleteChat() {
+    const isOwner = chatInfo?.my_role === "owner";
 
-  let confirmMsg: string;
-  let url: string;
+    let confirmMsg: string;
+    let url: string;
 
-  if (isGroup && !isOwner) {
-    // Обычный участник — просто выходит
-    confirmMsg = "Покинуть группу? Вы больше не будете получать сообщения из неё.";
-    url = `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/members/${currentUser?.id}`;
-  } else if (isGroup && isOwner) {
-    // Создатель — удаляет группу для всех
-    confirmMsg = "⚠️ Удалить группу для ВСЕХ участников?\nВсе сообщения будут стёрты. Это действие нельзя отменить.";
-    url = `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}`;
-  } else {
-    // DM
-    confirmMsg = "Удалить чат? Все сообщения будут удалены. Это действие нельзя отменить.";
-    url = `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}`;
-  }
-
-  if (!confirm(confirmMsg)) return;
-
-  const token = getToken();
-  if (!token) return;
-
-  try {
-    const res = await fetch(url, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) {
-      router.push("/messages");
+    if (isGroup && !isOwner) {
+      confirmMsg = "Покинуть группу? Вы больше не будете получать сообщения из неё.";
+      url = `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/members/${currentUser?.id}`;
+    } else if (isGroup && isOwner) {
+      confirmMsg = "⚠️ Удалить группу для ВСЕХ участников?\nВсе сообщения будут стёрты. Это действие нельзя отменить.";
+      url = `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}`;
     } else {
-      const err = await res.json().catch(() => ({ detail: "Ошибка" }));
-      alert(err.detail || "Не удалось удалить чат");
+      confirmMsg = "Удалить чат? Все сообщения будут удалены. Это действие нельзя отменить.";
+      url = `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}`;
     }
-  } catch (err) {
-    alert("Ошибка сети");
+
+    if (!confirm(confirmMsg)) return;
+
+    const token = getToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch(url, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        router.push("/messages");
+      } else {
+        const err = await res.json().catch(() => ({ detail: "Ошибка" }));
+        alert(err.detail || "Не удалось удалить чат");
+      }
+    } catch (err) {
+      alert("Ошибка сети");
+    }
   }
-}
 
   function decryptDisplayText(msg: any): string {
     if (!isSecret) return msg.text || "";
@@ -315,7 +312,7 @@ async function deleteChat() {
     if (!token) return;
     try {
       const myKeyData = await ensureKeyPair(token, process.env.NEXT_PUBLIC_API_URL!);
-      await getKeyPair();
+      getKeyPair();
       setMyFingerprint(myKeyData.fingerprint);
 
       let sk = loadSessionKey(Number(chatId));
@@ -331,8 +328,15 @@ async function deleteChat() {
               setCryptoError("Не удалось загрузить ключи");
               return;
             }
-            sk = decryptSessionKey(data.encrypted_session_key);
-            storeSessionKey(Number(chatId), sk);
+            try {
+              sk = decryptSessionKey(data.encrypted_session_key);
+              storeSessionKey(Number(chatId), sk);
+            } catch (e) {
+              console.error("Failed to decrypt session key:", e);
+              await establishNewSession();
+            }
+          } else if (res.status === 404) {
+            await establishNewSession();
           }
         } catch {
           await establishNewSession();
@@ -344,11 +348,12 @@ async function deleteChat() {
     }
   }
 
+  // 🆕 ПРАВКА 1 + ПРАВКА 3: убран await + улучшено сообщение об ошибке
   async function establishNewSession() {
     const token = getToken();
     if (!token || !chatPartner) return;
     try {
-      const myKeys = await getKeyPair();
+      const myKeys = getKeyPair();  // без await
       if (!myKeys) {
         setCryptoError("Не удалось загрузить ключи");
         return;
@@ -358,7 +363,11 @@ async function deleteChat() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (!pkRes.ok) {
-        setCryptoError("У собеседника нет ключа. Он должен зайти в приложение.");
+        setCryptoError(
+          "Собеседник ещё не активировал шифрование. " +
+          "Он должен хотя бы раз открыть любой секретный чат, " +
+          "чтобы сгенерировать ключи на своём устройстве."
+        );
         return;
       }
       const pkData = await pkRes.json();
@@ -579,15 +588,36 @@ async function deleteChat() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // 🆕 ПРАВКА 2: автовосстановление sk + сохранение chat_deleted
   useWebSocket("new_message", (data: any) => {
     if (String(data.chat_id) !== String(chatId)) return;
     if (data.sender_id === currentUser?.id) return;
-  useWebSocket("chat_deleted", (data: any) => {
-  if (String(data.chat_id) === String(chatId)) {
-    alert("Этот чат был удалён");
-    router.push("/messages");
+
+    // 🆕 Автовосстановление sk для секретных чатов
+    if (isSecret && !loadSessionKey(Number(chatId))) {
+      const token = getToken();
+      if (token) {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/session-key`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+          .then(async (res) => {
+            if (res.ok) {
+              const d = await res.json();
+              const keys = getKeyPair();
+              if (keys) {
+                try {
+                  const sk = decryptSessionKey(d.encrypted_session_key);
+                  storeSessionKey(Number(chatId), sk);
+                  loadMessages();
+                } catch (e) {
+                  console.error("Failed to restore session key:", e);
+                }
+              }
+            }
+          })
+          .catch((e) => console.error("Failed to restore session key:", e));
       }
-    });
+    }
 
     setMessages((prev) => {
       if (prev.some((m) => m.id === data.id)) return prev;
@@ -604,8 +634,16 @@ async function deleteChat() {
         .catch(() => {});
     }
 
-    // 🆕 В группах обновляем инфо (новый участник мог написать первым)
+    // 🆕 В группах обновляем инфо
     if (isGroup) loadChatInfo();
+  });
+
+  // 🆕 Сохранён chat_deleted
+  useWebSocket("chat_deleted", (data: any) => {
+    if (String(data.chat_id) === String(chatId)) {
+      alert("Этот чат был удалён");
+      router.push("/messages");
+    }
   });
 
   // 🆕 Подписки на групповые WS-события
@@ -618,12 +656,6 @@ async function deleteChat() {
   useWebSocket("group_info_updated", (data: any) => {
     if (String(data.chat_id) === String(chatId)) loadChatInfo();
   });
-  useWebSocket("chat_deleted", (data: any) => {
-  if (String(data.chat_id) === String(chatId)) {
-    alert("Этот чат был удалён");
-    router.push("/messages");
-  }
-});
 
   function onFiles(newFiles: FileList | null) {
     if (!newFiles) return;
@@ -662,7 +694,6 @@ async function deleteChat() {
         </button>
 
         {isGroup ? (
-          /* 🆕 ГРУППА: клик открывает участников */
           <button
             onClick={() => setShowGroupMembers(true)}
             className="flex items-center gap-2 sm:gap-3 group flex-1 min-w-0 text-left"
@@ -697,7 +728,6 @@ async function deleteChat() {
             </div>
           </button>
         ) : chatPartner ? (
-          /* DM — оригинальный код */
           <Link href={`/user/${chatPartner.id}`} className="flex items-center gap-2 sm:gap-3 group flex-1 min-w-0">
             <div
               className="shrink-0 relative"
@@ -785,7 +815,6 @@ async function deleteChat() {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowChatMenu(false)} />
                 <div className="absolute right-0 top-full mt-1 bg-[#1f1f23] border border-white/15 rounded-lg shadow-xl overflow-hidden min-w-[140px] sm:min-w-[180px] z-50">
-                  {/* 🆕 Кнопка участников для групп */}
                   {isGroup && (
                     <button
                       onClick={() => { setShowGroupMembers(true); setShowChatMenu(false); }}
@@ -799,10 +828,10 @@ async function deleteChat() {
                     onClick={() => { deleteChat(); setShowChatMenu(false); }}
                     className="w-full px-2 sm:px-3 py-2 sm:py-2.5 text-left text-xs sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
                   >
-                  <Trash2 size={13} className="sm:w-3.5 sm:h-3.5" />
-                  {isGroup
-                    ? (chatInfo?.my_role === "owner" ? "Удалить группу" : "Покинуть группу")
-                    : "Удалить чат"}
+                    <Trash2 size={13} className="sm:w-3.5 sm:h-3.5" />
+                    {isGroup
+                      ? (chatInfo?.my_role === "owner" ? "Удалить группу" : "Покинуть группу")
+                      : "Удалить чат"}
                   </button>
                 </div>
               </>
@@ -846,7 +875,6 @@ async function deleteChat() {
       <Sidebar />
       <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
       <main className="flex-1 flex flex-col border-x border-white/10">
-        {/* ====== ХЕДЕРЫ: раздельные для режима выделения и обычного ====== */}
         {isSelectMode ? (
           <div className="p-2 sm:p-3 md:p-4 border-b border-white/10 bg-[#171717]/95 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3">
@@ -912,7 +940,6 @@ async function deleteChat() {
               const isEditing = editingMessageId === msg.id;
               const displayText = decryptDisplayText(msg);
               const isSelected = selectedMessages.has(msg.id);
-              // 🆕 Glow для отправителя (работает и в группах, и в DM)
               const senderGlow = getGlowColor(msg);
 
               return (
@@ -937,7 +964,6 @@ async function deleteChat() {
                     </div>
                   )}
 
-                  {/* 🆕 Аватарка: для групп показываем у всех чужих, для DM — когда есть chatPartner */}
                   {!isMine && !isSelectMode && (isGroup || chatPartner) && (
                     <Link href={`/user/${msg.sender_id}`} className="shrink-0">
                       <div
@@ -980,7 +1006,6 @@ async function deleteChat() {
                       isMine ? "items-end" : "items-start"
                     }`}
                   >
-                    {/* 🆕 Имя автора в группах */}
                     {isGroup && !isMine && (
                       <p
                         className="text-[10px] sm:text-xs font-bold mb-0.5 px-1"
@@ -1452,7 +1477,6 @@ async function deleteChat() {
         </div>
       )}
 
-      {/* 🆕 Модалка участников группы */}
       {showGroupMembers && isGroup && (
         <GroupMembersModal
           chatId={Number(chatId)}

@@ -3780,14 +3780,15 @@ def register_public_key(
     
     existing = session.exec(select(UserKey).where(UserKey.user_id == user.id)).first()
     if existing:
-        existing.public_key = public_key
-        existing.fingerprint = fingerprint
-        session.add(existing)
-    else:
-        key = UserKey(user_id=user.id, public_key=public_key, fingerprint=fingerprint)
-        session.add(key)
+        # НЕ перезаписываем — возвращаем существующий ключ
+        # Это защищает от поломки E2EE при входе с другого устройства
+        return {"ok": True, "fingerprint": existing.fingerprint, "already_existed": True}
+    
+    # Создаём новый ключ только если его ещё нет
+    key = UserKey(user_id=user.id, public_key=public_key, fingerprint=fingerprint)
+    session.add(key)
     session.commit()
-    return {"ok": True, "fingerprint": fingerprint}
+    return {"ok": True, "fingerprint": fingerprint, "already_existed": False}
 
 
 @app.get("/api/users/{user_id}/public-key")

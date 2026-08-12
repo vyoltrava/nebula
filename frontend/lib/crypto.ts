@@ -186,17 +186,36 @@ export function decryptSessionKey(encryptedPayload: string): Uint8Array {
 
 export function storeSessionKey(chatId: number, sessionKey: Uint8Array) {
   if (typeof window === "undefined") return;
-  sessionStorage.setItem(`${SESSION_KEYS_PREFIX}${chatId}`, bytesToBase64(sessionKey));
+  const value = bytesToBase64(sessionKey);
+  localStorage.setItem(`${SESSION_KEYS_PREFIX}${chatId}`, value);
+  
+  // Миграция: если есть старая копия в sessionStorage — удаляем
+  const old = sessionStorage.getItem(`${SESSION_KEYS_PREFIX}${chatId}`);
+  if (old) sessionStorage.removeItem(`${SESSION_KEYS_PREFIX}${chatId}`);
 }
 
 export function loadSessionKey(chatId: number): Uint8Array | null {
   if (typeof window === "undefined") return null;
-  const b64 = sessionStorage.getItem(`${SESSION_KEYS_PREFIX}${chatId}`);
+  
+  // Сначала ищем в localStorage
+  let b64 = localStorage.getItem(`${SESSION_KEYS_PREFIX}${chatId}`);
+  
+  // Если нет — проверяем sessionStorage (старые данные)
+  if (!b64) {
+    b64 = sessionStorage.getItem(`${SESSION_KEYS_PREFIX}${chatId}`);
+    if (b64) {
+      // Мигрируем в localStorage
+      localStorage.setItem(`${SESSION_KEYS_PREFIX}${chatId}`, b64);
+      sessionStorage.removeItem(`${SESSION_KEYS_PREFIX}${chatId}`);
+    }
+  }
+  
   return b64 ? base64ToBytes(b64) : null;
 }
 
 export function clearSessionKey(chatId: number) {
   if (typeof window === "undefined") return;
+  localStorage.removeItem(`${SESSION_KEYS_PREFIX}${chatId}`);
   sessionStorage.removeItem(`${SESSION_KEYS_PREFIX}${chatId}`);
 }
 
