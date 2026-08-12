@@ -76,12 +76,14 @@ export default function PostPage() {
     );
   }
 
+  // Убираем replies из пропсов, чтобы Post не рендерил их внутри себя
+  const { replies: _postReplies, ...postWithoutReplies } = post;
+
   return (
     <div className="h-screen flex overflow-hidden bg-[#171717] text-white">
       <Sidebar />
       
       <main className="flex-1 overflow-y-auto border-x border-white/10 min-w-0">
-        {/* Убран max-w-3xl mx-auto — посты теперь на всю ширину */}
         <div className="w-full">
           
           <button
@@ -94,12 +96,12 @@ export default function PostPage() {
             Назад
           </button>
 
-          {/* ГЛАВНЫЙ ПОСТ — без отступов по бокам, как на главной */}
+          {/* Главный пост — без вложенных replies */}
           <div className="border-b border-white/10">
-            <Post {...post} isMainPost={true} />
+            <Post {...postWithoutReplies} isMainPost={true} />
           </div>
 
-          {/* КОММЕНТАРИИ */}
+          {/* Ответы рендерим только здесь */}
           {replies.length > 0 && (
             <div>
               <div className="px-4 py-3 border-b border-white/10 flex items-center gap-4">
