@@ -6,6 +6,8 @@ import { WebSocketProvider } from "@/components/WebSocketProvider";
 import { UnreadCountsProvider } from "@/lib/UnreadCountsContext";
 import SplashScreen from "@/components/SplashScreen";
 import PWARegister from "@/components/PWARegister";
+import InstallPrompt from "@/components/InstallPrompt";
+import { NotificationPermissionPrompt } from "@/components/NotificationPermissionPrompt";
 import "./globals.css";
 
 const jersey = Jersey_25({ weight: "400", subsets: ["latin"], variable: "--font-jersey" });
@@ -13,7 +15,7 @@ const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-inter" }
 
 // 📱 Настройки для мобильных браузеров (цвет статус-бара, масштаб)
 export const viewport: Viewport = {
-  themeColor: "#6366f1", // Твой цвет темы
+  themeColor: "#6366f1",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -42,22 +44,33 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="ru" className={`${jersey.variable} ${inter.variable}`}>
+    <html lang="ru" className={`${jersey.variable} ${inter.variable}`} suppressHydrationWarning>
       <body className="font-sans">
-        {/* Регистрируем Service Worker для PWA */}
+        {/* 📱 PWA: Регистрация Service Worker и промпт установки */}
         <PWARegister />
+        <InstallPrompt />
 
-        {/* 🔥 Сплэш ПОД AuthGuard: покажется на ЛЮБОЙ странице, включая /login */}
+        {/* 🔥 Сплэш-скрин (вне AuthGuard, чтобы показываться ДО проверки токена, в т.ч. на /login) */}
         <SplashScreen />
 
+        {/* 🔔 Баннер запроса разрешения на push-уведомления */}
+        <NotificationPermissionPrompt />
+
+        {/* 🛡️ Основная обертка приложения */}
         <AuthGuard>
           <WebSocketProvider>
             <UnreadCountsProvider>
               {children}
             </UnreadCountsProvider>
           </WebSocketProvider>
+          
+          {/* 🚫 Оверлей блокировки (бан) */}
           <BanOverlay />
         </AuthGuard>
       </body>
