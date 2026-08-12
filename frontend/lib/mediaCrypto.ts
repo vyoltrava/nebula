@@ -25,7 +25,8 @@ export function encryptMediaFile(file: File, sessionKey: Uint8Array): Promise<Bl
         combined.set(iv, 0);
         combined.set(encrypted, iv.length);
 
-        resolve(new Blob([combined], { type: "application/octet-stream" }));
+        // ✅ ИСПРАВЛЕНИЕ: Приводим к ArrayBuffer перед созданием Blob
+        resolve(new Blob([combined.buffer as ArrayBuffer], { type: "application/octet-stream" }));
       } catch (e) {
         reject(e);
       }
@@ -51,7 +52,8 @@ export function decryptMediaBlob(encryptedBlob: Blob, sessionKey: Uint8Array): P
         const cipher = gcm(sessionKey, iv);
         const decrypted = cipher.decrypt(ciphertext);
 
-        resolve(new Blob([decrypted]));
+        // ✅ ИСПРАВЛЕНИЕ: Приводим к ArrayBuffer перед созданием Blob
+        resolve(new Blob([decrypted.buffer as ArrayBuffer]));
       } catch (e) {
         reject(e);
       }
