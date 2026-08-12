@@ -73,6 +73,7 @@ export default function ChatPage() {
 
   const fileRef = useRef<HTMLInputElement>(null);
   const sendingRef = useRef(false);
+  const skRefreshedForRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 🆕 Флаг группы
@@ -599,6 +600,37 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+    // 🆕 Если расшифровка падает — подтягиваем свежий session key с сервера
+  useEffect(() => {
+    if (!isSecret) return;
+    if (skRefreshedForRef.current === chatId) return;
+    const sk = loadSessionKey(Number(chatId));
+    if (!sk) return;
+
+    const hasFail = messages.some(
+      (m) => m.ciphertext && decryptMessage(m.ciphertext, sk) === "[Ошибка расшифровки]"
+    );
+    if (!hasFail) return;
+
+    skRefreshedForRef.current = chatId;
+    const token = getToken();
+    if (!token) return;
+
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/session-key`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const d = await res.json();
+        const keys = getKeyPair();
+        if (!keys) return;
+        const newSk = decryptSessionKey(d.encrypted_session_key);
+        storeSessionKey(Number(chatId), newSk);
+        setMessages((prev) => [...prev]); // перерисовать с новым ключом
+      })
+      .catch((e) => console.error("SK refresh failed:", e));
+  }, [messages, isSecret, chatId]);
 
   // 🆕 ПРАВКА 2: автовосстановление sk + сохранение chat_deleted
   useWebSocket("new_message", (data: any) => {
