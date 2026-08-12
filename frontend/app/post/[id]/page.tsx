@@ -48,7 +48,7 @@ export default function PostPage() {
 
   if (loading) {
     return (
-      <div className="h-screen flex overflow-hidden bg-[#0a0a0a] text-white">
+      <div className="h-screen flex overflow-hidden bg-[#171717] text-white">
         <Sidebar />
         <main className="flex-1 flex items-center justify-center border-x border-white/10">
           <div className="w-8 h-8 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
@@ -60,7 +60,7 @@ export default function PostPage() {
 
   if (error || !post) {
     return (
-      <div className="h-screen flex overflow-hidden bg-[#0a0a0a] text-white">
+      <div className="h-screen flex overflow-hidden bg-[#171717] text-white">
         <Sidebar />
         <main className="flex-1 flex flex-col items-center justify-center gap-4 border-x border-white/10">
           <p className="text-white/60">Пост не найден или был удалён</p>
@@ -77,17 +77,16 @@ export default function PostPage() {
   }
 
   return (
-    <div className="h-screen flex overflow-hidden bg-[#0a0a0a] text-white">
+    <div className="h-screen flex overflow-hidden bg-[#171717] text-white">
       <Sidebar />
       
-      {/* Центральная колонка: flex-1 заставляет её занять всё место между Sidebar и RightPanel */}
       <main className="flex-1 overflow-y-auto border-x border-white/10 min-w-0">
-        {/* Внутренний контейнер ограничивает ширину контента на очень широких экранах, но на стандартных он будет на всю ширину */}
-        <div className="max-w-3xl mx-auto w-full p-4 md:p-6">
+        {/* Убран max-w-3xl mx-auto — посты теперь на всю ширину */}
+        <div className="w-full">
           
           <button
             onClick={() => router.back()}
-            className="mb-6 flex items-center gap-2 text-white/60 hover:text-white transition-colors font-medium"
+            className="sticky top-0 z-10 w-full px-4 py-3 bg-[#171717]/90 backdrop-blur-md border-b border-white/10 flex items-center gap-2 text-white/60 hover:text-white transition-colors font-medium"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -95,15 +94,15 @@ export default function PostPage() {
             Назад
           </button>
 
-          {/* ГЛАВНЫЙ ПОСТ: Передаем isMainPost={true} для увеличенного размера */}
-          <div className="pb-6 border-b border-white/10 mb-6">
+          {/* ГЛАВНЫЙ ПОСТ — без отступов по бокам, как на главной */}
+          <div className="border-b border-white/10">
             <Post {...post} isMainPost={true} />
           </div>
 
           {/* КОММЕНТАРИИ */}
           {replies.length > 0 && (
             <div>
-              <div className="mb-6 flex items-center gap-4">
+              <div className="px-4 py-3 border-b border-white/10 flex items-center gap-4">
                 <div className="h-px flex-1 bg-white/10" />
                 <span className="text-white/40 text-sm font-medium whitespace-nowrap">
                   {replies.length} {getPlural(replies.length)}
@@ -111,10 +110,9 @@ export default function PostPage() {
                 <div className="h-px flex-1 bg-white/10" />
               </div>
 
-              <div className="space-y-6">
+              <div>
                 {replies.map((reply) => (
-                  <div key={reply.id} className="pl-4 md:pl-6 border-l-2 border-[#8b5cf6]/20">
-                    {/* Обычный размер для комментариев */}
+                  <div key={reply.id} className="border-b border-white/10">
                     <Post {...reply} />
                   </div>
                 ))}
@@ -123,7 +121,7 @@ export default function PostPage() {
           )}
 
           {replies.length === 0 && (
-            <p className="text-center text-white/30 mt-12 text-sm">Пока нет ответов. Будьте первым!</p>
+            <p className="text-center text-white/30 py-12 text-sm">Пока нет ответов. Будьте первым!</p>
           )}
         </div>
       </main>
