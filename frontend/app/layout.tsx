@@ -13,7 +13,6 @@ import "./globals.css";
 const jersey = Jersey_25({ weight: "400", subsets: ["latin"], variable: "--font-jersey" });
 const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-inter" });
 
-// 📱 Настройки для мобильных браузеров (цвет статус-бара, масштаб)
 export const viewport: Viewport = {
   themeColor: "#6366f1",
   width: "device-width",
@@ -22,7 +21,6 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-// 🔍 Метаданные для SEO и PWA
 export const metadata: Metadata = {
   title: "trelod",
   description: "Социальная сеть",
@@ -56,23 +54,24 @@ export default function RootLayout({
         <PWARegister />
         <InstallPrompt />
 
-        {/* 🔥 Сплэш-скрин (вне AuthGuard, чтобы показываться ДО проверки токена, в т.ч. на /login) */}
+        {/* 🔥 Сплэш-скрин */}
         <SplashScreen />
 
         {/* 🔔 Баннер запроса разрешения на push-уведомления */}
         <NotificationPermissionPrompt />
 
-        {/* 🛡️ Основная обертка приложения */}
-        <AuthGuard>
-          <WebSocketProvider>
+        {/* 🌐 WebSocket вынесен наружу AuthGuard — он сам проверяет токен */}
+        <WebSocketProvider>
+          {/* 🛡️ AuthGuard оборачивает только защищённые компоненты */}
+          <AuthGuard>
             <UnreadCountsProvider>
               {children}
             </UnreadCountsProvider>
-          </WebSocketProvider>
-          
-          {/* 🚫 Оверлей блокировки (бан) */}
-          <BanOverlay />
-        </AuthGuard>
+            
+            {/* 🚫 Оверлей блокировки (бан) */}
+            <BanOverlay />
+          </AuthGuard>
+        </WebSocketProvider>
       </body>
     </html>
   );
