@@ -22,6 +22,7 @@ import {
   FileText, Film, Edit2, Trash2, MoreVertical,
   Lock, Search, ShieldCheck, AlertTriangle,
   Check, CheckCheck, CheckSquare, Mic, Square, Users, Settings,
+  Pin, PinOff,
 } from "lucide-react";
 import {
   ensureKeyPair, getKeyPair, encryptMessage, decryptMessage,
@@ -39,7 +40,7 @@ export default function ChatPage() {
   const { refresh } = useUnreadCounts();
 
   const [messages, setMessages] = useState<any[]>([]);
-  const [loadingMessages, setLoadingMessages] = useState(true); // 🆕 состояние загрузки
+  const [loadingMessages, setLoadingMessages] = useState(true);
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [showStickers, setShowStickers] = useState(false);
@@ -67,7 +68,6 @@ export default function ChatPage() {
   const [selectedMessages, setSelectedMessages] = useState<Set<number>>(new Set());
   const [showChatMenu, setShowChatMenu] = useState(false);
   const [showGroupMembers, setShowGroupMembers] = useState(false);
-
   const [showGroupSettings, setShowGroupSettings] = useState(false);
 
   const [isRecording, setIsRecording] = useState(false);
@@ -85,10 +85,8 @@ export default function ChatPage() {
   const skRefreshedForRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // 🆕 Флаг группы
   const isGroup = !!chatInfo?.is_group;
 
-  // 🆕 Адаптивные классы для медиа
   const getMediaClasses = (type: string) => {
     const base = "rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 w-full";
     const sizes: Record<string, string> = {
@@ -99,7 +97,6 @@ export default function ChatPage() {
     return `${base} ${sizes[type] || ""}`;
   };
 
-  // 🆕 Функции для записи голоса
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -276,7 +273,6 @@ export default function ChatPage() {
     return decryptMessage(msg.ciphertext, sk);
   }
 
-  // 🆕 loadChatInfo: универсальный, работает и для DM и для групп
   async function loadChatInfo() {
     const token = getToken();
     if (!token) return;
@@ -291,7 +287,6 @@ export default function ChatPage() {
       if (res.ok) {
         const data = await res.json();
         setChatInfo(data);
-        // 🆕 В группах принудительно выключаем E2EE
         setIsSecret(data.is_secret && !data.is_group);
         if (data.is_group) {
           setChatPartner(null);
@@ -304,9 +299,8 @@ export default function ChatPage() {
     }
   }
 
-  // 🆕 ОСНОВНОЕ ИЗМЕНЕНИЕ: loadMessages с скелетоном
   async function loadMessages() {
-    setLoadingMessages(true); // ← ВКЛЮЧАЕМ СКЕЛЕТОН
+    setLoadingMessages(true);
     const token = getToken();
     if (!token) {
       setLoadingMessages(false);
@@ -326,19 +320,18 @@ export default function ChatPage() {
     } catch (err) {
       console.error("Failed to load messages", err);
     } finally {
-      setLoadingMessages(false); // ← ВЫКЛЮЧАЕМ СКЕЛЕТОН
+      setLoadingMessages(false);
     }
   }
 
-async function loadPinned() {
-  try {
-    const data = await getPinnedMessages(Number(chatId));
-    setPinnedMessages(data);
-  } catch (e) {
-    console.error("Failed to load pinned messages:", e);
+  async function loadPinned() {
+    try {
+      const data = await getPinnedMessages(Number(chatId));
+      setPinnedMessages(data);
+    } catch (e) {
+      console.error("Failed to load pinned messages:", e);
+    }
   }
-}
-
 
   async function initCryptoForSecretChat() {
     if (!isSecret || !chatPartner || isGroup) return;
@@ -382,12 +375,11 @@ async function loadPinned() {
     }
   }
 
-  // 🆕 ПРАВКА 1 + ПРАВКА 3: убран await + улучшено сообщение об ошибке
   async function establishNewSession() {
     const token = getToken();
     if (!token || !chatPartner) return;
     try {
-      const myKeys = getKeyPair();  // без await
+      const myKeys = getKeyPair();
       if (!myKeys) {
         setCryptoError("Не удалось загрузить ключи");
         return;
@@ -434,78 +426,77 @@ async function loadPinned() {
   }
 
   async function sendMessage() {
-  if (sendingRef.current) return;  // 🆕 защита от двойной отправки
-  const token = getToken();
-  if (!token) return;
-  if (!text.trim() && files.length === 0) return;
+    if (sendingRef.current) return;
+    const token = getToken();
+    if (!token) return;
+    if (!text.trim() && files.length === 0) return;
 
-  sendingRef.current = true;
-  try {
-    const messagesToSend: { text: string; file: File | null }[] = [];
-    if (files.length > 0) {
-      files.forEach((f, i) => messagesToSend.push({ text: i === 0 ? text.trim() : "", file: f }));
-    } else {
-      messagesToSend.push({ text: text.trim(), file: null });
-    }
-
-    if (!isSecret && text.trim()) {
-      const tempMsg = {
-        id: Date.now(),
-        sender_id: currentUser?.id,
-        sender_name: currentUser?.display_name,
-        sender_avatar: currentUser?.avatar_url,
-        text: text.trim(),
-        media_url: null,
-        media_type: null,
-        read: false,
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, tempMsg]);
-    }
-
-    for (const msg of messagesToSend) {
-      const form = new FormData();
-
-      if (isSecret && msg.text) {
-        let sk = loadSessionKey(Number(chatId));
-        if (!sk) {
-          await establishNewSession();
-          sk = loadSessionKey(Number(chatId));
-          if (!sk) throw new Error("Нет session key");
-        }
-        form.append("ciphertext", encryptMessage(msg.text, sk));
-        form.append("text", "");
+    sendingRef.current = true;
+    try {
+      const messagesToSend: { text: string; file: File | null }[] = [];
+      if (files.length > 0) {
+        files.forEach((f, i) => messagesToSend.push({ text: i === 0 ? text.trim() : "", file: f }));
       } else {
-        if (msg.text) form.append("text", msg.text);
+        messagesToSend.push({ text: text.trim(), file: null });
       }
 
-      if (msg.file) form.append("file", msg.file);
-
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-
-      if (res.status === 403) {
-        alert("Нет доступа к чату");
-        router.push("/messages");
-        return;
+      if (!isSecret && text.trim()) {
+        const tempMsg = {
+          id: Date.now(),
+          sender_id: currentUser?.id,
+          sender_name: currentUser?.display_name,
+          sender_avatar: currentUser?.avatar_url,
+          text: text.trim(),
+          media_url: null,
+          media_type: null,
+          read: false,
+          created_at: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, tempMsg]);
       }
+
+      for (const msg of messagesToSend) {
+        const form = new FormData();
+
+        if (isSecret && msg.text) {
+          let sk = loadSessionKey(Number(chatId));
+          if (!sk) {
+            await establishNewSession();
+            sk = loadSessionKey(Number(chatId));
+            if (!sk) throw new Error("Нет session key");
+          }
+          form.append("ciphertext", encryptMessage(msg.text, sk));
+          form.append("text", "");
+        } else {
+          if (msg.text) form.append("text", msg.text);
+        }
+
+        if (msg.file) form.append("file", msg.file);
+
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        });
+
+        if (res.status === 403) {
+          alert("Нет доступа к чату");
+          router.push("/messages");
+          return;
+        }
+      }
+
+      setText("");
+      setFiles([]);
+
+      if (isSecret) await loadMessages();
+    } catch (err) {
+      console.error("Failed to send:", err);
+      alert("Не удалось отправить сообщение");
+    } finally {
+      sendingRef.current = false;
     }
-
-    setText("");
-    setFiles([]);
-
-    // 🆕 Свои сообщения в секретном чате появляются сразу
-    if (isSecret) await loadMessages();
-  } catch (err) {
-    console.error("Failed to send:", err);
-    alert("Не удалось отправить сообщение");
-  } finally {
-    sendingRef.current = false;
   }
-}
 
   async function deleteMessage(messageId: number) {
     if (!confirm("Удалить сообщение?")) return;
@@ -612,7 +603,6 @@ async function loadPinned() {
     };
   }, [chatId]);
 
-  // 🆕 Блокируем E2EE для групп + инициализация крипто для DM
   useEffect(() => {
     if (isGroup) {
       setIsSecret(false);
@@ -628,7 +618,6 @@ async function loadPinned() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-    // 🆕 Если расшифровка падает — подтягиваем свежий session key с сервера
   useEffect(() => {
     if (!isSecret) return;
     if (skRefreshedForRef.current === chatId) return;
@@ -654,17 +643,15 @@ async function loadPinned() {
         if (!keys) return;
         const newSk = decryptSessionKey(d.encrypted_session_key);
         storeSessionKey(Number(chatId), newSk);
-        setMessages((prev) => [...prev]); // перерисовать с новым ключом
+        setMessages((prev) => [...prev]);
       })
       .catch((e) => console.error("SK refresh failed:", e));
   }, [messages, isSecret, chatId]);
 
-  // 🆕 ПРАВКА 2: автовосстановление sk + сохранение chat_deleted
   useWebSocket("new_message", (data: any) => {
     if (String(data.chat_id) !== String(chatId)) return;
     if (data.sender_id === currentUser?.id) return;
 
-    // 🆕 Автовосстановление sk для секретных чатов
     if (isSecret && !loadSessionKey(Number(chatId))) {
       const token = getToken();
       if (token) {
@@ -705,11 +692,9 @@ async function loadPinned() {
         .catch(() => {});
     }
 
-    // 🆕 В группах обновляем инфо
     if (isGroup) loadChatInfo();
   });
 
-  // 🆕 Сохранён chat_deleted
   useWebSocket("chat_deleted", (data: any) => {
     if (String(data.chat_id) === String(chatId)) {
       alert("Этот чат был удалён");
@@ -717,27 +702,25 @@ async function loadPinned() {
     }
   });
 
-  // 🆕 Подписки на групповые WS-события
   useWebSocket("group_member_added", (data: any) => {
     if (String(data.chat_id) === String(chatId)) loadChatInfo();
   });
+
   useWebSocket("group_member_removed", (data: any) => {
     if (String(data.chat_id) === String(chatId)) loadChatInfo();
   });
+
   useWebSocket("group_info_updated", (data: any) => {
     if (String(data.chat_id) === String(chatId)) loadChatInfo();
   });
 
-
   useWebSocket("message_pinned", (data: any) => {
-  if (String(data.chat_id) === String(chatId)) {
-    loadPinned();
-    loadMessages();
-  }
+    if (String(data.chat_id) === String(chatId)) {
+      loadPinned();
+      loadMessages();
+    }
   });
 
-
-    // 🆕 Сканер QR для переноса ключа
   useEffect(() => {
     if (!showScanner) return;
     let cancelled = false;
@@ -795,9 +778,6 @@ async function loadPinned() {
 
   const partnerGlow = getGlowColor(chatPartner);
 
-  // ================================================================
-  // 🆕 ХЕДЕР ЧАТА (вынесен отдельно, чтобы не ломать JSX структуру)
-  // ================================================================
   const ChatHeader = () => (
     <div
       className={`p-2 sm:p-3 md:p-4 border-b border-white/10 backdrop-blur-md sticky top-0 z-10 ${
@@ -893,30 +873,6 @@ async function loadPinned() {
             <p className="font-bold text-white text-sm">Загрузка...</p>
           </div>
         )}
-        {/* 🆕 ЗАКРЕПЛЁННЫЕ СООБЩЕНИЯ - ВСТАВИТЬ ПОСЛЕ ChatHeader */}
-{pinnedMessages.length > 0 && (
-  <div className="px-2 sm:px-3 py-1.5 sm:py-2 bg-[#8b5cf6]/10 border-b border-[#8b5cf6]/20">
-    <button
-      onClick={() => setShowPinnedList(!showPinnedList)}
-      className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-[#8b5cf6] font-bold hover:text-[#a78bfa] transition-colors"
-    >
-      📌 {pinnedMessages.length} закреплённых
-      <span className="text-white/40">{showPinnedList ? '▲' : '▼'}</span>
-    </button>
-    {showPinnedList && (
-      <div className="mt-1.5 sm:mt-2 space-y-1 sm:space-y-1.5 max-h-32 sm:max-h-40 overflow-y-auto">
-        {pinnedMessages.map((msg) => (
-          <div key={msg.id} className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-white/70 bg-white/5 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5">
-            <span className="text-[#8b5cf6] shrink-0">📌</span>
-            <span className="truncate flex-1">
-              {msg.sender_name}: {msg.text || (msg.media_type === 'image' ? '📷 Изображение' : msg.media_type === 'audio' ? '🎙️ Голосовое' : msg.media_type === 'video' ? '🎬 Видео' : 'Медиа')}
-            </span>
-          </div>
-        ))}
-      </div>
-    )}
-  </div>
-)}
 
         <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
           <button
@@ -947,16 +903,15 @@ async function loadPinned() {
             <ImageIcon size={15} className="sm:w-4 sm:h-4" />
           </button>
 
-            {/* 🆕 КНОПКА НАСТРОЕК ГРУППЫ - ВСТАВИТЬ СЮДА, ПЕРЕД МЕНЮ "ЕЩЁ" */}
-            {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && (
-              <button
-                onClick={() => setShowGroupSettings(true)}
-                className="p-1.5 sm:p-2 text-white/60 hover:text-white transition-colors"
-                title="Настройки группы"
-              >
-                <Settings size={15} className="sm:w-4 sm:h-4" />
-              </button>
-            )}
+          {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && (
+            <button
+              onClick={() => setShowGroupSettings(true)}
+              className="p-1.5 sm:p-2 text-white/60 hover:text-white transition-colors"
+              title="Настройки группы"
+            >
+              <Settings size={15} className="sm:w-4 sm:h-4" />
+            </button>
+          )}
 
           <div className="relative">
             <button
@@ -994,6 +949,32 @@ async function loadPinned() {
           </div>
         </div>
       </div>
+
+      {/* Закреплённые сообщения */}
+      {pinnedMessages.length > 0 && (
+        <div className="px-2 sm:px-3 py-1.5 sm:py-2 bg-[#8b5cf6]/10 border-b border-[#8b5cf6]/20 mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-white/10">
+          <button
+            onClick={() => setShowPinnedList(!showPinnedList)}
+            className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-[#8b5cf6] font-bold hover:text-[#a78bfa] transition-colors"
+          >
+            <Pin size={12} className="text-white/60 shrink-0" />
+            {pinnedMessages.length} закреплённых
+            <span className="text-white/40">{showPinnedList ? '▲' : '▼'}</span>
+          </button>
+          {showPinnedList && (
+            <div className="mt-1.5 sm:mt-2 space-y-1 sm:space-y-1.5 max-h-32 sm:max-h-40 overflow-y-auto">
+              {pinnedMessages.map((msg) => (
+                <div key={msg.id} className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-white/70 bg-white/5 rounded-lg px-2 sm:px-3 py-1 sm:py-1.5">
+                  <Pin size={10} className="text-white/40 shrink-0" />
+                  <span className="truncate flex-1">
+                    {msg.sender_name}: {msg.text || (msg.media_type === 'image' ? '📷 Изображение' : msg.media_type === 'audio' ? '🎙️ Голосовое' : msg.media_type === 'video' ? '🎬 Видео' : 'Медиа')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {showSearch && (
         <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-white/10">
@@ -1056,7 +1037,6 @@ async function loadPinned() {
           <ChatHeader />
         )}
 
-        {/* 🆕 СКЕЛЕТОН ВСТАВЛЕН СЮДА! */}
         {loadingMessages ? (
           <ChatWindowSkeleton />
         ) : (
@@ -1188,6 +1168,11 @@ async function loadPinned() {
                               : "bg-white/10 text-white border border-white/15"
                           }`}
                         >
+                          {/* 🆕 ИНДИКАТОР ЗАКРЕПЛЕНИЯ — ПЕРЕД ВСЕМ КОНТЕНТОМ */}
+                          {msg.pinned && (
+                            <Pin size={10} className="inline-block mr-0.5 sm:mr-1 text-white/60 shrink-0" />
+                          )}
+
                           {msg.media_url && (msg.media_type === "image" || msg.media_type === "gif") && (
                             <img
                               src={mediaUrl(msg.media_url)}
@@ -1243,11 +1228,6 @@ async function loadPinned() {
                           ) : (
                             <>{displayText && <p className="whitespace-pre-wrap break-words text-xs sm:text-sm md:text-base">{displayText}</p>}</>
                           )}
-
-                            {msg.pinned && (
-                              <span className="inline-block text-[8px] sm:text-[9px] text-[#8b5cf6] font-black mr-1 sm:mr-1.5">📌</span>
-                            )}
-
                         </div>
 
                         {!isEditing && !isSelectMode && (
@@ -1301,14 +1281,14 @@ async function loadPinned() {
                                           toggleMessageSelection(msg.id);
                                           setActiveMessageMenu(null);
                                         }}
-                                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2"
+                                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
                                       >
                                         <CheckSquare size={12} className="sm:w-3.5 sm:h-3.5" /> Выбрать
                                       </button>
                                       {msg.text && (
                                         <button
                                           onClick={() => startEdit(msg)}
-                                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2"
+                                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
                                         >
                                           <Edit2 size={12} className="sm:w-3.5 sm:h-3.5" /> Редактировать
                                         </button>
@@ -1318,9 +1298,12 @@ async function loadPinned() {
                                           deleteMessage(msg.id);
                                           setActiveMessageMenu(null);
                                         }}
-                                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-1.5 sm:gap-2"
+                                        className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
                                       >
+                                        <Trash2 size={12} className="sm:w-3.5 sm:h-3.5" /> Удалить
+                                      </button>
 
+                                      {/* 🆕 ЗАКРЕПЛЕНИЯ */}
                                       {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && !msg.pinned && (
                                         <button
                                           onClick={async () => {
@@ -1333,9 +1316,9 @@ async function loadPinned() {
                                             }
                                             setActiveMessageMenu(null);
                                           }}
-                                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-[#8b5cf6] hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
+                                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
                                         >
-                                          📌 Закрепить
+                                          <Pin size={12} className="sm:w-3.5 sm:h-3.5" /> Закрепить
                                         </button>
                                       )}
 
@@ -1351,14 +1334,11 @@ async function loadPinned() {
                                             }
                                             setActiveMessageMenu(null);
                                           }}
-                                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-red-400 hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
+                                          className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm text-white hover:bg-white/10 flex items-center gap-1.5 sm:gap-2 transition-colors"
                                         >
-                                          📌 Открепить
+                                          <PinOff size={12} className="sm:w-3.5 sm:h-3.5" /> Открепить
                                         </button>
                                       )}
-
-                                        <Trash2 size={12} className="sm:w-3.5 sm:h-3.5" /> Удалить
-                                      </button>
                                     </div>
                                   </>
                                 )}
@@ -1551,6 +1531,7 @@ async function loadPinned() {
 
         {isSelectMode && <div className="h-2" />}
       </main>
+
       {showVerify && chatPartner && (
         <>
           <div
@@ -1594,7 +1575,6 @@ async function loadPinned() {
                 </div>
               </div>
 
-              {/* 🆕 ПЕРЕНОС КЛЮЧА МЕЖДУ УСТРОЙСТВАМИ */}
               <div className="mt-3 sm:mt-4 p-3 rounded-xl bg-white/5 border border-white/10">
                 <p className="text-xs font-bold text-white mb-2">Перенос на другое устройство</p>
                 <div className="space-y-2">
@@ -1635,7 +1615,6 @@ async function loadPinned() {
                   </div>
                 )}
 
-                {/* Запасной вариант через буфер */}
                 <details className="mt-2">
                   <summary className="text-[10px] sm:text-xs text-white/40 cursor-pointer hover:text-white/60">
                     Нет камеры? Скопировать/вставить вручную
@@ -1778,7 +1757,6 @@ async function loadPinned() {
           onUpdate={() => { loadChatInfo(); loadPinned(); }}
         />
       )}
-
     </div>
   );
 }
