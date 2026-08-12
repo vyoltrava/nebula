@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { apiFetch } from "@/lib/api"; // ✅ ИСПРАВЛЕНО: apiFetch вместо api
+import { apiFetch } from "@/lib/api";
 import { Post } from "@/components/Post";
+import {Sidebar} from "@/components/Sidebar";
+import {RightPanel} from "@/components/RightPanel";
 
 const getPlural = (n: number) => {
   if (n % 10 === 1 && n % 100 !== 11) return "ответ";
@@ -23,10 +25,10 @@ export default function PostPage() {
     if (!id) return;
 
     const load = async () => {
-    try {
+      try {
         const [postRes, repliesRes] = await Promise.all([
-        apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}`),
-        apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/replies`),
+          apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}`),
+          apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/replies`),
         ]);
 
         if (!postRes.ok || !repliesRes.ok) throw new Error("Failed to fetch");
@@ -36,73 +38,105 @@ export default function PostPage() {
 
         setPost(postData);
         setReplies(repliesData);
-    } catch (e) {
+      } catch (e) {
         console.error("Ошибка загрузки поста:", e);
         setError(true);
-    } finally {
+      } finally {
         setLoading(false);
-    }
+      }
     };
 
     load();
   }, [id]);
 
+  // Состояние загрузки
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
+      <div className="flex min-h-screen bg-black text-white">
+        <Sidebar />
+        <main className="flex-1 flex items-center justify-center border-x border-white/5">
+          <div className="w-8 h-8 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
+        </main>
+        <RightPanel />
       </div>
     );
   }
 
+  // Состояние ошибки
   if (error || !post) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <p className="text-white/60">Пост не найден или был удалён</p>
-        <button
-          onClick={() => router.push("/")}
-          className="px-4 py-2 bg-[#8b5cf6] rounded-lg text-white hover:opacity-90 transition"
-        >
-          На главную
-        </button>
+      <div className="flex min-h-screen bg-black text-white">
+        <Sidebar />
+        <main className="flex-1 flex flex-col items-center justify-center gap-4 border-x border-white/5">
+          <p className="text-white/60">Пост не найден или был удалён</p>
+          <button
+            onClick={() => router.push("/")}
+            className="px-4 py-2 bg-[#8b5cf6] rounded-lg text-white hover:opacity-90 transition"
+          >
+            На главную
+          </button>
+        </main>
+        <RightPanel />
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6">
-      <button
-        onClick={() => router.back()}
-        className="mb-4 flex items-center gap-2 text-white/60 hover:text-white transition"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        Назад
-      </button>
+    <div className="flex min-h-screen bg-black text-white">
+      {/* Левая панель */}
+      <Sidebar />
 
-      {/* ✅ ИСПРАВЛЕНО: используем spread + as any чтобы TS не ругался */}
-      <Post {...(post as any)} />
+      {/* Центральная колонка (основной контент) */}
+      <main className="flex-1 min-w-0 border-x border-white/5 max-w-2xl w-full">
+        <div className="px-4 py-6">
+          <button
+            onClick={() => router.back()}
+            className="mb-4 flex items-center gap-2 text-white/60 hover:text-white transition"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Назад
+          </button>
 
-      {replies.length > 0 && (
-        <div className="mt-6 mb-4 flex items-center gap-3">
-          <div className="h-px flex-1 bg-white/10" />
-          <span className="text-white/40 text-sm">
-            {replies.length} {getPlural(replies.length)}
-          </span>
-          <div className="h-px flex-1 bg-white/10" />
+          {/* 🌟 ГЛАВНЫЙ ПОСТ */}
+          <div className="pb-6 border-b border-white/10 mb-6">
+            <Post {...(post as any)} />
+          </div>
+
+          {/* 🌟 ОТВЕТЫ */}
+          {replies.length > 0 && (
+            <div>
+              <div className="mb-4 flex items-center gap-3">
+                <div className="h-px flex-1 bg-white/10" />
+                <span className="text-white/40 text-sm">
+                  {replies.length} {getPlural(replies.length)}
+                </span>
+                <div className="h-px flex-1 bg-white/10" />
+              </div>
+
+              <div className="space-y-5">
+                {replies.map((reply) => (
+                  <div 
+                    key={reply.id} 
+                    // Отступ слева + фиолетовая линия связи + лёгкое уменьшение (scale 0.97)
+                    className="pl-6 ml-2 border-l-2 border-[#8b5cf6]/30 scale-[0.97] origin-top-left opacity-95"
+                  >
+                    <Post {...(reply as any)} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {replies.length === 0 && (
+            <p className="text-center text-white/30 mt-8">Пока нет ответов</p>
+          )}
         </div>
-      )}
+      </main>
 
-      <div className="space-y-4">
-        {replies.map((reply) => (
-          <Post key={reply.id} {...(reply as any)} />
-        ))}
-      </div>
-
-      {replies.length === 0 && (
-        <p className="text-center text-white/30 mt-8">Пока нет ответов</p>
-      )}
+      {/* Правая панель */}
+      <RightPanel />
     </div>
   );
 }
