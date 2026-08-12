@@ -328,7 +328,6 @@ export function Sidebar() {
           </div>
               </>
             );
-
   return (
     <>
       {/* МОБИЛЬНАЯ ВЕРСИЯ */}
