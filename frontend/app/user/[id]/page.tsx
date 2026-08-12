@@ -115,21 +115,37 @@ export default function UserProfilePage() {
       });
   }, []);
 
-  async function startChat() {
-    const token = getToken();
-    if (!token) {
-      router.push("/login");
-      return;
-    }
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats?other_user_id=${userId}`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
+async function startChat() {
+  const token = getToken();
+  if (!token) {
+    router.push("/login");
+    return;
+  }
+  // 🆕 Используем числовой ID из профиля, а не userId из URL (который может быть username)
+  const targetId = profile?.id;
+  if (!targetId) {
+    alert("Профиль не загружен");
+    return;
+  }
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/chats?other_user_id=${targetId}`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
     if (res.ok) {
       const data = await res.json();
       router.push(`/messages/${data.chat_id}`);
+    } else {
+      const err = await res.json().catch(() => null);
+      alert(err?.detail || "Не удалось начать переписку");
     }
+  } catch (e) {
+    alert("Ошибка сети");
   }
+}
 
   async function loadMorePosts(reset = false) {
     if (postsLoading) return;
