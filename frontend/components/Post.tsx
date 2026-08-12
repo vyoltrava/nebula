@@ -571,7 +571,7 @@ export function Post({
               onClick={toggleLike}
               className={`flex items-center gap-1 px-3 py-1.5 rounded-full border transition-all ${
                 liked
-                  ? "border-pink-400/50 bg-gradient-to-r from-pink-500 to-purple-500 text-white"
+                  ? "border-pink-400/50 bg-[#8B5CF6] text-white"
                   : "border-white/20 text-white/70 hover:bg-white/10 hover:border-white/40 hover:text-white"
               }`}
             >
