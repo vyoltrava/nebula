@@ -1644,6 +1644,66 @@ def get_replies(post_id: int, session: Session = Depends(get_session)):
 
     return result
 
+@app.get("/api/posts/{post_id}")
+def get_single_post(
+    post_id: int,
+    viewer: Optional[User] = Depends(get_optional_user),
+    session: Session = Depends(get_session),
+):
+    post = session.get(Post, post_id)
+    if not post:
+        raise HTTPException(404, "Post not found")
+    
+    author = session.get(User, post.author_id)
+    likes_count = session.exec(select(func.count()).select_from(Like).where(Like.post_id == post_id)).one()
+    replies_count = session.exec(select(func.count()).select_from(Post).where(Post.reply_to_id == post_id)).one()
+    
+    liked_by_me = False
+    bookmarked = False
+    if viewer:
+        liked_by_me = session.exec(select(Like).where(Like.user_id == viewer.id, Like.post_id == post_id)).first() is not None
+        bookmarked = session.exec(select(Bookmark).where(Bookmark.user_id == viewer.id, Bookmark.post_id == post_id)).first() is not None
+
+    repost_data = None
+    is_repost = False
+    is_quote = False
+    if post.repost_of_id:
+        orig = session.get(Post, post.repost_of_id)
+        if orig:
+            orig_author = session.get(User, orig.author_id)
+            repost_data = {
+                "id": orig.id, "author_id": orig.author_id,
+                "author": orig_author.display_name if orig_author else "Удалённый пользователь",
+                "handle": f"@{orig_author.username}" if orig_author else "@deleted",
+                "author_avatar": orig_author.avatar_url if orig_author else None,
+                "author_is_admin": orig_author.is_admin if orig_author else False,
+                "author_is_moderator": orig_author.is_moderator if orig_author else False,
+                "author_role": get_author_role(orig_author, session) if orig_author else None,
+                "text": orig.text, "media_url": orig.media_url,
+                "media_type": orig.media_type, "created_at": orig.created_at.isoformat(),
+            }
+            is_repost = not post.text.strip()
+            is_quote = bool(post.text.strip())
+        else:
+            repost_data = {"deleted": True}
+            is_repost = not post.text.strip()
+            is_quote = bool(post.text.strip())
+
+    return {
+        "id": post.id, "author_id": post.author_id,
+        "author": author.display_name if author else "Unknown",
+        "handle": f"@{author.username}" if author else "@unknown",
+        "author_avatar": author.avatar_url if author else None,
+        "author_is_admin": author.is_admin if author else False,
+        "author_is_moderator": author.is_moderator if author else False,
+        "author_is_banned": author.is_banned if author else False,
+        "author_role": get_author_role(author, session) if author else None,
+        "text": post.text, "media_url": post.media_url, "media_type": post.media_type,
+        "likes_count": likes_count, "liked_by_me": liked_by_me, "bookmarked": bookmarked,
+        "replies_count": replies_count, "views_count": post.views_count or 0,
+        "created_at": post.created_at.isoformat(), "reply_to_id": post.reply_to_id,
+        "repost_of": repost_data, "is_repost": is_repost, "is_quote": is_quote,
+    }
 
 @app.post("/api/posts/{post_id}/like")
 @limiter.limit("30/minute")

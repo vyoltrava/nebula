@@ -274,6 +274,29 @@ export function Post({
       setLikedCache(id, !next);
     }
   }
+
+  const handlePostClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    
+    // Игнорируем клики по интерактивным элементам, чтобы не ломать кнопки, ссылки, медиа и выделение текста
+    if (
+      target.closest("a") ||
+      target.closest("button") ||
+      target.closest("input") ||
+      target.closest("textarea") ||
+      target.closest("video") ||
+      target.closest("audio") ||
+      target.closest("img") ||
+      target.closest("svg")
+    ) {
+      return;
+    }
+    
+    // Переходим на страницу поста
+    router.push(`/post/${id}`);
+  };
+
+
   async function toggleFollow(e: React.MouseEvent) {
     e.stopPropagation();
     const token = getToken();
@@ -452,7 +475,10 @@ export function Post({
   const canDelete = currentUser?.id === author_id || myPermissions.includes("delete_posts");
 
   return (
-    <article className="p-4 border-b border-white/10 hover:bg-white/5 transition-colors">
+    <article 
+      className="p-4 border-b border-white/10 hover:bg-white/5 transition-colors cursor-pointer"
+      onClick={handlePostClick}
+      >
       {/* 🆕 Плашка репоста */}
       {is_repost && (
         <div className="flex items-center gap-2 text-xs text-white/50 ml-12 mb-1">
