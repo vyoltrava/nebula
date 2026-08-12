@@ -1760,16 +1760,7 @@ export default function ChatPage() {
             href={`/user/${chatPartner.id}`}
             className="flex items-center gap-3 sm:gap-3 group flex-1 min-w-0 active:opacity-70 transition-opacity"
           >
-            <div
-              className="shrink-0 relative"
-              style={
-                partnerGlow
-                  ? {
-                      filter: `drop-shadow(0 0 6px ${partnerGlow})`,
-                    }
-                  : undefined
-              }
-            >
+            <div className="shrink-0 relative">
               <Avatar
                 src={
                   chatPartner.avatar_url

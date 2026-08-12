@@ -18,15 +18,7 @@ export function VideoPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [seekLabel, setSeekLabel] = useState("");
 
-  const tapTimeout = useRef<NodeJS.Timeout | null>(null);
-
-  const showSeek = (text: string) => {
-    setSeekLabel(text);
-
-    setTimeout(() => {
-      setSeekLabel("");
-    }, 700);
-  };
+  const clickTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const seek = (seconds: number) => {
     const video = videoRef.current;
@@ -35,19 +27,23 @@ export function VideoPlayer({
 
     video.currentTime = Math.max(
       0,
-      Math.min(video.duration, video.currentTime + seconds)
+      Math.min(video.duration || 0, video.currentTime + seconds)
     );
 
-    showSeek(seconds > 0 ? "+5s" : "-5s");
+    setSeekLabel(seconds > 0 ? "+5" : "-5");
+
+    setTimeout(() => {
+      setSeekLabel("");
+    }, 600);
   };
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     const video = videoRef.current;
 
     if (!video) return;
 
     if (video.paused) {
-      video.play();
+      await video.play();
       setIsPlaying(true);
     } else {
       video.pause();
@@ -55,15 +51,15 @@ export function VideoPlayer({
     }
   };
 
-  const handleTap = (
+  const handleClick = (
     e: React.MouseEvent<HTMLDivElement>
   ) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
 
-    if (tapTimeout.current) {
-      clearTimeout(tapTimeout.current);
-      tapTimeout.current = null;
+    if (clickTimeout.current) {
+      clearTimeout(clickTimeout.current);
+      clickTimeout.current = null;
 
       if (x < rect.width / 2) {
         seek(-5);
@@ -74,37 +70,19 @@ export function VideoPlayer({
       return;
     }
 
-    tapTimeout.current = setTimeout(() => {
+    clickTimeout.current = setTimeout(() => {
       togglePlay();
-      tapTimeout.current = null;
+      clickTimeout.current = null;
     }, 220);
-  };
-
-  const handleKeyDown = (
-    e: React.KeyboardEvent<HTMLDivElement>
-  ) => {
-    if (e.key === "ArrowLeft") {
-      seek(-5);
-    }
-
-    if (e.key === "ArrowRight") {
-      seek(5);
-    }
-
-    if (e.key === " ") {
-      e.preventDefault();
-      togglePlay();
-    }
   };
 
   return (
     <div
-      tabIndex={0}
-      onClick={handleTap}
-      onKeyDown={handleKeyDown}
+      onClick={handleClick}
       className={`
         relative
         aspect-square
+        w-full
         overflow-hidden
         rounded-2xl
         bg-black
@@ -118,15 +96,16 @@ export function VideoPlayer({
         src={mediaUrl(src)}
         className="absolute inset-0 h-full w-full object-cover"
         playsInline
+        preload="metadata"
       />
 
       {!isPlaying && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-          <div className="rounded-full bg-white/90 p-5 backdrop-blur">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-black/50 backdrop-blur-md">
             <Play
-              size={34}
+              size={28}
               fill="currentColor"
-              className="ml-1 text-black"
+              className="ml-1 text-white"
             />
           </div>
         </div>
@@ -134,8 +113,8 @@ export function VideoPlayer({
 
       {seekLabel && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="rounded-full bg-black/70 px-5 py-3 text-lg font-semibold text-white backdrop-blur">
-            {seekLabel}
+          <div className="rounded-full bg-black/70 px-4 py-2 text-white font-semibold backdrop-blur-md">
+            {seekLabel}s
           </div>
         </div>
       )}
