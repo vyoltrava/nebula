@@ -38,10 +38,10 @@ export async function enablePush(token: string): Promise<{ ok: boolean; error?: 
   const vapidRes = await fetch(`${API}/api/push/vapid`);
   const { public_key } = await vapidRes.json();
 
-  const sub = await reg.pushManager.subscribe({
+    const sub = await reg.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(public_key),
-  });
+    applicationServerKey: public_key,  // base64url строка — Push API принимает её напрямую
+    });
   const json = sub.toJSON();
 
   const res = await fetch(`${API}/api/push/subscribe`, {
