@@ -32,7 +32,7 @@ import {
   FileText, Film, Edit2, Trash2, MoreVertical,
   Lock, Search, ShieldCheck, AlertTriangle,
   Check, CheckCheck, CheckSquare, Mic, Square, Users, Settings,
-  Pin, PinOff, Video,
+  Pin, PinOff, Video, Copy,
 } from "lucide-react";
 import {
   ensureKeyPair, getKeyPair, encryptMessage, decryptMessage,
@@ -88,12 +88,16 @@ export default function ChatPage() {
   const [forwardingMessage, setForwardingMessage] = useState<any | null>(null);
   const [forwardChats, setForwardChats] = useState<any[]>([]);
   const [showForwardModal, setShowForwardModal] = useState(false);
+  const [mediaTab, setMediaTab] = useState<"image" | "video" | "video_note" | "audio">("image");
 
+  const cancelRecordingRef = useRef(false);
   const micPerm = useDevicePermission("microphone");
   const camPerm = useDevicePermission("camera");
   const [permHelp, setPermHelp] = useState<null | "microphone" | "camera">(null);
 
-  const [showVideoRecorder, setShowVideoRecorder] = useState(false);
+  const [videoMode, setVideoMode] = useState<'idle' | 'expanded' | 'minimized'>('idle');
+
+  const [menuOpenUp, setMenuOpenUp] = useState(false);
   
   // 🆕 Состояния для кнопки отправки/записи
   const [showRecordMenu, setShowRecordMenu] = useState(false);
@@ -216,11 +220,16 @@ export default function ChatPage() {
 
       mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        stream.getTracks().forEach(track => track.stop());
+        if (cancelRecordingRef.current) {
+          cancelRecordingRef.current = false; // ❌ отменено — не отправляем
+          return;
+        }
         const audioFile = new File([audioBlob], 'voice-message.webm', { type: 'audio/webm' });
         await sendVoiceMessage(audioFile);
-        stream.getTracks().forEach(track => track.stop());
       };
 
+      cancelRecordingRef.current = false;
       mediaRecorder.start();
       setIsRecording(true);
       setRecordingTime(0);
@@ -235,6 +244,19 @@ export default function ChatPage() {
   }
 
   function stopRecording() {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+    }
+  }
+
+
+  function cancelRecording() {
+    cancelRecordingRef.current = true;
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
@@ -1243,7 +1265,7 @@ const ChatHeader = () => (
           )}
 
           <button
-            onClick={() => { loadMedia(); setShowMediaGallery(true); }}
+            onClick={() => { setMediaTab("image"); loadMedia(); setShowMediaGallery(true); }}
             className="p-2.5 sm:p-2 text-white/60 hover:text-[#8b5cf6] transition-colors active:scale-95"
             title="Медиа"
           >
@@ -1364,6 +1386,50 @@ const ChatHeader = () => (
         )}
       </div>
     )}
+
+{isRecording && (
+  <div className="px-3 sm:px-4 md:px-4 py-2 border-t border-white/5">
+    <div className="flex items-center gap-2.5 sm:gap-3">
+      <div className="relative w-2.5 h-2.5 shrink-0">
+        <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
+        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+      </div>
+      <span className="text-sm font-bold text-red-400 tabular-nums shrink-0">
+        {formatRecordingTime(recordingTime)}
+      </span>
+      {/* Анимированный эквалайзер как в TG */}
+      <div className="flex-1 flex items-end justify-between gap-[2px] h-5 overflow-hidden">
+        {Array.from({ length: 28 }).map((_, i) => (
+          <span
+            key={i}
+            className="eq-bar w-[3px] rounded-full bg-red-400/70"
+            style={{
+              animationDelay: `${(i % 7) * 0.09}s`,
+              animationDuration: `${0.8 + (i % 5) * 0.12}s`,
+            }}
+          />
+        ))}
+      </div>
+      <button
+        onClick={stopRecording}
+        className="shrink-0 px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 active:scale-95 transition-all flex items-center gap-1.5"
+      >
+        <Square size={11} fill="currentColor" />
+        Стоп
+      </button>
+      <button
+        onClick={cancelRecording}
+        className="shrink-0 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all"
+        title="Отменить запись"
+      >
+        <X size={16} />
+      </button>
+    </div>
+  </div>
+)}
+
+
+
   </div>
 );
 
@@ -1655,11 +1721,15 @@ const ChatHeader = () => (
                             {!isSecret && (
                               <div className="relative">
                                 <button
-                                  onClick={() =>
-                                    setActiveMessageMenu(
-                                      activeMessageMenu === msg.id ? null : msg.id
-                                    )
-                                  }
+                                  onClick={(e) => {
+                                    const next = activeMessageMenu === msg.id ? null : msg.id;
+                                    if (next) {
+                                      const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                                      // Если внизу мало места — открываем вверх
+                                      setMenuOpenUp(r.bottom + 250 > window.innerHeight);
+                                    }
+                                    setActiveMessageMenu(next);
+                                  }}
                                   className="p-1 text-white/40 hover:text-white active:scale-90 transition-transform"
                                 >
                                   <MoreVertical size={13} />
@@ -1673,7 +1743,7 @@ const ChatHeader = () => (
                                     <div
                                       className={`absolute ${
                                         isMine ? "right-0" : "left-0"
-                                      } top-full mt-1 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[150px] sm:min-w-[160px] z-50`}
+                                      } ${menuOpenUp ? "bottom-full mb-1" : "top-full mt-1"} bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[150px] sm:min-w-[160px] z-50`}
                                     >
                                       <button
                                         onClick={() => {
@@ -1685,6 +1755,18 @@ const ChatHeader = () => (
                                       >
                                         <CheckSquare size={14} /> Выбрать
                                       </button>
+
+{msg.text && !isSecret && (
+  <button
+    onClick={() => {
+      navigator.clipboard.writeText(decryptDisplayText(msg));
+      setActiveMessageMenu(null);
+    }}
+    className="w-full px-3 sm:px-3 py-2.5 sm:py-2 text-left text-sm sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
+  >
+    <Copy size={14} /> Копировать
+  </button>
+)} 
 
 {!isSecret && (
   <button
@@ -1699,6 +1781,8 @@ const ChatHeader = () => (
     <Send size={14} /> Переслать
   </button>
 )}
+
+
 
 
                                       {isMine && msg.text && (
@@ -1721,6 +1805,8 @@ const ChatHeader = () => (
                                           <Trash2 size={14} /> Удалить
                                         </button>
                                       )}
+
+
 
                                       {isGroup && !msg.pinned && (
                                         <button
@@ -1757,6 +1843,8 @@ const ChatHeader = () => (
                                           <PinOff size={14} /> Открепить
                                         </button>
                                       )}
+
+                                      
                                     </div>
                                   </>
                                 )}
@@ -1808,25 +1896,6 @@ const ChatHeader = () => (
               </div>
             )}
 
-            {isRecording && (
-              <div className="px-3 sm:px-3 py-3 border-t border-white/10 bg-red-500/10">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-                    <span className="text-sm font-bold text-red-400 truncate">
-                      Запись: {formatRecordingTime(recordingTime)}
-                    </span>
-                  </div>
-                  <button
-                    onClick={stopRecording}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shrink-0 active:scale-95"
-                  >
-                    <Square size={12} fill="currentColor" />
-                    <span className="text-sm font-bold">Стоп</span>
-                  </button>
-                </div>
-              </div>
-            )}
 
             {!isSelectMode && !isRecording && (
               <div className="p-3 sm:p-3 md:p-4 border-t border-white/10 bg-[#171717]/80 backdrop-blur-md">
@@ -1972,7 +2041,7 @@ const ChatHeader = () => (
                                   const ok = await camPerm.request();
                                   if (!ok) { setPermHelp("camera"); return; }
                                 }
-                                setShowVideoRecorder(true);
+                                setVideoMode('expanded');
                               }}
                               className="w-full px-4 py-3 flex items-center gap-3 text-left text-sm text-white hover:bg-white/10 transition-colors"
                             >
@@ -2130,49 +2199,106 @@ const ChatHeader = () => (
       )}
 
       {showMediaGallery && (
-        <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-3 sm:p-4">
-          <div className="w-full max-w-4xl max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <h2 className="text-base sm:text-xl font-bold text-white">Медиа из чата</h2>
-              <button
-                onClick={() => setShowMediaGallery(false)}
-                className="text-white/60 hover:text-white p-2"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            {mediaItems.length === 0 ? (
-              <p className="text-white/60 text-center py-8 sm:py-12 text-sm sm:text-base">Нет медиа</p>
-            ) : (
-              <div className="flex-1 overflow-y-auto grid grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
-                {mediaItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="aspect-square relative cursor-pointer group rounded-lg overflow-hidden border border-white/10"
-                    onClick={() => setSelectedMedia(item)}
-                  >
-                    {(item.media_type === "image" || item.media_type === "gif") && (
-                      <img
-                        src={mediaUrl(item.media_url)}
-                        alt=""
-                        className="w-full h-full object-cover"
-                      />
-                    )}
-                    {item.media_type === "video" && (
-                      <>
-                        <video src={mediaUrl(item.media_url)} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                          <Film size={24} className="text-white" />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+  <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-3 sm:p-4">
+    <div className="w-full max-w-4xl max-h-[90vh] flex flex-col">
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
+        <h2 className="text-base sm:text-xl font-bold text-white">Медиа из чата</h2>
+        <button
+          onClick={() => setShowMediaGallery(false)}
+          className="text-white/60 hover:text-white p-2"
+        >
+          <X size={20} />
+        </button>
+      </div>
+
+      {/* Вкладки с счётчиками */}
+      <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1 shrink-0">
+        {[
+          { key: "image", label: "Фото", icon: <ImageIcon size={13} /> },
+          { key: "video", label: "Видео", icon: <Film size={13} /> },
+          { key: "video_note", label: "Квадраты", icon: <Video size={13} /> },
+          { key: "audio", label: "Голосовые", icon: <Mic size={13} /> },
+        ].map((t) => {
+          const count = mediaItems.filter((m) =>
+            t.key === "image" ? (m.media_type === "image" || m.media_type === "gif") : m.media_type === t.key
+          ).length;
+          const active = mediaTab === t.key;
+          return (
+            <button
+              key={t.key}
+              onClick={() => setMediaTab(t.key as any)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                active
+                  ? "bg-[#8b5cf6] text-white"
+                  : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/80"
+              }`}
+            >
+              {t.icon}
+              {t.label}
+              <span className={active ? "text-white/70" : "text-white/30"}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {mediaItems.filter((m) =>
+          mediaTab === "image" ? (m.media_type === "image" || m.media_type === "gif") : m.media_type === mediaTab
+        ).length === 0 ? (
+          <p className="text-white/60 text-center py-8 sm:py-12 text-sm">Пока пусто</p>
+        ) : mediaTab === "image" || mediaTab === "video" ? (
+          /* Сетка для фото/видео */
+          <div className="grid grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
+            {mediaItems
+              .filter((m) =>
+                mediaTab === "image" ? (m.media_type === "image" || m.media_type === "gif") : m.media_type === "video"
+              )
+              .map((item) => (
+                <div
+                  key={item.id}
+                  className="aspect-square relative cursor-pointer group rounded-lg overflow-hidden border border-white/10"
+                  onClick={() => setSelectedMedia(item)}
+                >
+                  {mediaTab === "image" ? (
+                    <img src={mediaUrl(item.media_url)} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <>
+                      <video src={mediaUrl(item.media_url)} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                        <Film size={24} className="text-white" />
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
           </div>
-        </div>
-      )}
+        ) : (
+          /* Список для квадратов и голосовых */
+          <div className="space-y-2 max-w-xl mx-auto">
+            {mediaItems
+              .filter((m) => m.media_type === mediaTab)
+              .map((item) => (
+                <div key={item.id} className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                  {mediaTab === "video_note" ? (
+                    <div className="max-w-[220px]">
+                      <VideoNotePlayer src={mediaUrl(item.media_url)} />
+                    </div>
+                  ) : (
+                    <AudioPlayer src={mediaUrl(item.media_url)} />
+                  )}
+                  <p className="text-[10px] text-white/30 mt-1.5">
+                    {new Date(item.created_at).toLocaleString("ru-RU", {
+                      day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                    })}
+                  </p>
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
 
       {selectedMedia && (
         <div
@@ -2224,14 +2350,18 @@ const ChatHeader = () => (
       )}
 
 
-{showVideoRecorder && (
+{videoMode !== 'idle' && (
   <VideoNoteRecorder
-    onDenied={() => { setShowVideoRecorder(false); setPermHelp("camera"); }}
+    mode={videoMode}
+    onMinimize={() => setVideoMode('minimized')}
+    onExpand={() => setVideoMode('expanded')}
+    onDenied={() => { setVideoMode('idle'); setPermHelp("camera"); }}
+    onCancel={() => setVideoMode('idle')}
     onRecorded={async (file) => {
-      setShowVideoRecorder(false);
+      setVideoMode('idle');
       const token = getToken();
       if (!token) return;
-      
+
       try {
         if (isSecret) {
           const sk = getSessionKeyOrThrow(Number(chatId));
@@ -2274,7 +2404,6 @@ const ChatHeader = () => (
         alert("Ошибка сети");
       }
     }}
-    onCancel={() => setShowVideoRecorder(false)}
     maxDuration={60}
   />
 )}
