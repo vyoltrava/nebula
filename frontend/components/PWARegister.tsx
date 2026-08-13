@@ -1,16 +1,13 @@
-'use client';
-
-import { useEffect } from 'react';
+"use client";
+import { useEffect } from "react";
 
 export default function PWARegister() {
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      // Регистрируем наш sw.js из папки public
-      navigator.serviceWorker.register('/sw.js')
-        .then((reg) => console.log('✅ PWA Service Worker registered:', reg))
-        .catch((err) => console.error('❌ PWA SW registration failed:', err));
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .catch((e) => console.error("SW registration failed:", e));
     }
   }, []);
-
-  return null; // Этот компонент ничего не рисует на экране
+  return null;
 }

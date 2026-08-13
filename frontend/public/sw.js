@@ -1,20 +1,13 @@
-// frontend/public/sw.js
 const CACHE_NAME = 'messenger-cache-v1';
+const urlsToCache = ['/', '/logo-icon.svg', '/apple-touch-icon.png', '/default-avatar.svg'];
 
-// Что кэшируем сразу при установке (база для оффлайна)
-const urlsToCache = [
-  '/',
-  '/logo-icon.svg',
-  '/apple-touch-icon.png',
-  '/default-avatar.svg'
-];
-
-// 1. Установка воркера
 self.addEventListener('install', (event) => {
-  self.skipWaiting(); // Заставляем новый SW сразу активироваться, не дожидаясь закрытия старых вкладок
+  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(urlsToCache))
+    caches.open(CACHE_NAME).then((cache) =>
+      // ✅ Кэшируем по одному: один 404 больше не убивает установку
+      Promise.allSettled(urlsToCache.map((url) => cache.add(url)))
+    )
   );
 });
 
