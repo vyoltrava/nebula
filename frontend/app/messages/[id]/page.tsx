@@ -205,9 +205,14 @@ function startRecordingWithStream(stream: MediaStream | null) {
   }
 
   try {
-    const mediaRecorder = new MediaRecorder(stream, {
-      mimeType: 'audio/webm;codecs=opus'
-    });
+    // 🆕 iOS поддерживает только mp4, Android/Chrome - webm
+    const mimeType = MediaRecorder.isTypeSupported('audio/mp4') 
+      ? 'audio/mp4' 
+      : MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : 'audio/webm';
+    
+    const mediaRecorder = new MediaRecorder(stream, { mimeType });
     mediaRecorderRef.current = mediaRecorder;
     audioChunksRef.current = [];
 
@@ -218,13 +223,14 @@ function startRecordingWithStream(stream: MediaStream | null) {
     };
 
     mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      const ext = mimeType.includes('mp4') ? 'm4a' : 'webm';
+      const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
       stream.getTracks().forEach(track => track.stop());
       if (cancelRecordingRef.current) {
         cancelRecordingRef.current = false;
         return;
       }
-      const audioFile = new File([audioBlob], 'voice-message.webm', { type: 'audio/webm' });
+      const audioFile = new File([audioBlob], `voice-message.${ext}`, { type: mimeType });
       await sendVoiceMessage(audioFile);
     };
 
@@ -926,9 +932,6 @@ const pendingStreamRef = useRef<MediaStream | null>(null);
 const handleSendPointerDown = (e: React.PointerEvent | React.TouchEvent | React.MouseEvent) => {
   if (text.trim() || files.length > 0) return;
   e.preventDefault();
-  try {
-    (e.target as HTMLElement).setPointerCapture?.((e as React.PointerEvent).pointerId);
-  } catch {}
 
   const px = "touches" in e ? e.touches[0].clientX : (e as React.PointerEvent | React.MouseEvent).clientX;
   const py = "touches" in e ? e.touches[0].clientY : (e as React.PointerEvent | React.MouseEvent).clientY;
@@ -956,10 +959,19 @@ const handleSendPointerDown = (e: React.PointerEvent | React.TouchEvent | React.
       // 🆕 Запускаем запись — разрешение уже есть от PermissionGate
       // getUserMedia вернёт stream мгновенно без диалога
       navigator.mediaDevices.getUserMedia({ audio: true })
-        .then((stream) => startRecordingWithStream(stream))
+        .then((stream) => {
+          startRecordingWithStream(stream);
+        })
         .catch((err) => {
           console.error("Mic error:", err);
-          setPermHelp("microphone");
+          // iOS может блокировать если не было user gesture
+          // Попробуем ещё раз с явно пустым constraints
+          navigator.mediaDevices.getUserMedia({ audio: {} })
+            .then((stream) => startRecordingWithStream(stream))
+            .catch((err2) => {
+              console.error("Mic fallback error:", err2);
+              setPermHelp("microphone");
+            });
         });
     }
   }, 30);

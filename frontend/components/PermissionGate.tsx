@@ -16,11 +16,15 @@ export function PermissionGate() {
   async function handleAllow() {
     setRequesting(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: true,
-      });
-      stream.getTracks().forEach((t) => t.stop());
+      // Запрашиваем по одному — iOS лучше справляется
+      const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStream.getTracks().forEach((t) => t.stop());
+      
+      // Небольшая задержка для iOS
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      videoStream.getTracks().forEach((t) => t.stop());
     } catch (err) {
       console.log("Permission denied:", err);
     }
