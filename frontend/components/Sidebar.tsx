@@ -16,14 +16,13 @@ import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 // ════════════════════════════════════════════════════════════════
 //  Параметры дуги
 // ════════════════════════════════════════════════════════════════
-const ARC_RADIUS       = 170;
+const ARC_RADIUS       = 220;
 const CENTER_OFFSET_X  = 100;
-const CENTER_OFFSET_Y  = -30;
-const ARC_ANGLE_START  = (7 * Math.PI) / 9;
-const ARC_ANGLE_END    = (11 * Math.PI) / 9;
+const CENTER_OFFSET_Y  = 0;
+const ARC_ANGLE_START  = (11 * Math.PI) / 18;  // 110°
+const ARC_ANGLE_END    = (25 * Math.PI) / 18;  // 250°
 const SNAP_RADIUS      = 70;
 const LONG_PRESS_MS    = 250;
-const VISIBLE_RANGE    = 2;  // показываем только ±2 иконки от активной
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -47,7 +46,6 @@ export function Sidebar() {
 
   const { counts, refresh } = useUnreadCounts();
 
-  // ── Пункты колеса ──────────────────────────────────────────────
   type WheelItem = {
     href: string;
     icon: any;
@@ -152,6 +150,9 @@ export function Sidebar() {
     }
   }
 
+  // ══════════════════════════════════════════════════════════════
+  //  Геометрия дуги
+  // ══════════════════════════════════════════════════════════════
   const getIconPos = useCallback((index: number) => {
     const n = wheelItems.length;
     const step = (ARC_ANGLE_END - ARC_ANGLE_START) / Math.max(n - 1, 1);
@@ -162,6 +163,9 @@ export function Sidebar() {
     };
   }, [wheelItems.length]);
 
+  // ══════════════════════════════════════════════════════════════
+  //  Логика колеса
+  // ══════════════════════════════════════════════════════════════
   const openWheel = useCallback(() => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
@@ -285,6 +289,7 @@ export function Sidebar() {
     };
   }, [hoveredIdx, closeWheel, findNearest]);
 
+  // ── Иконки уведомлений ────────────────────────────────────────
   const icons = {
     like: <Heart size={12} fill="currentColor" />,
     reply: <MessageCircle size={12} />,
@@ -322,6 +327,9 @@ export function Sidebar() {
     : user.role?.color ?? null
     : null;
 
+  // ══════════════════════════════════════════════════════════════
+  //  Десктопный сайдбар (без изменений)
+  // ══════════════════════════════════════════════════════════════
   const desktopSidebarContent = (
     <>
       <div className="flex items-center gap-2">
@@ -454,6 +462,9 @@ export function Sidebar() {
     </>
   );
 
+  // ══════════════════════════════════════════════════════════════
+  //  Рендер колеса
+  // ══════════════════════════════════════════════════════════════
   const buttonCx = useRef(0);
   const buttonCy = useRef(0);
 
@@ -472,12 +483,12 @@ export function Sidebar() {
 
     return (
       <div className="fixed inset-0 z-[100]" style={{ touchAction: "none" }}>
-        <div className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200 ${
-          wheelReady ? "opacity-100" : "opacity-0"
-        }`} />
+        {/* Прозрачный overlay для перехвата touch-событий (без затемнения) */}
+        <div className="absolute inset-0" />
 
+        {/* Декоративная дуга */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none"
-          style={{ opacity: wheelReady ? 0.15 : 0, transition: "opacity 300ms ease" }}>
+          style={{ opacity: wheelReady ? 0.12 : 0, transition: "opacity 300ms ease" }}>
           <path
             d={`
               M ${arcCenterRef.current.x + ARC_RADIUS * Math.cos(ARC_ANGLE_START)} ${arcCenterRef.current.y + ARC_RADIUS * Math.sin(ARC_ANGLE_START)}
@@ -490,6 +501,7 @@ export function Sidebar() {
           />
         </svg>
 
+        {/* Линия от пальца к активной иконке */}
         {fingerPos && activePos && hoveredIdx !== null && (
           <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 15 }}>
             <line
@@ -503,13 +515,10 @@ export function Sidebar() {
           </svg>
         )}
 
+        {/* Все иконки на дуге */}
         {wheelItems.map((item, i) => {
           const finalPos = getIconPos(i);
           const isActive = i === hoveredIdx;
-          
-          // Показываем только иконки в пределах VISIBLE_RANGE от активной
-          const distance = hoveredIdx !== null ? Math.abs(i - hoveredIdx) : 999;
-          const isVisible = distance <= VISIBLE_RANGE;
 
           const x = (wheelReady && !closing) ? finalPos.x : buttonCx.current;
           const y = (wheelReady && !closing) ? finalPos.y : buttonCy.current;
@@ -522,16 +531,16 @@ export function Sidebar() {
                 left: x,
                 top: y,
                 transform: `translate(-50%, -50%) scale(${
-                  closing ? 0 : isActive ? 1.4 : wheelReady && isVisible ? 1 : 0
+                  closing ? 0 : isActive ? 1.4 : wheelReady ? 1 : 0
                 })`,
-                opacity: closing ? 0 : wheelReady && isVisible ? (isActive ? 1 : 0.7) : 0,
+                opacity: closing ? 0 : wheelReady ? (isActive ? 1 : 0.75) : 0,
                 transition: `
-                  left 280ms cubic-bezier(0.34, 1.56, 0.64, 1),
-                  top 280ms cubic-bezier(0.34, 1.56, 0.64, 1),
+                  left 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
+                  top 300ms cubic-bezier(0.34, 1.56, 0.64, 1),
                   transform 200ms ease,
                   opacity 200ms ease
                 `,
-                transitionDelay: `${i * 25}ms`,
+                transitionDelay: `${i * 30}ms`,
                 zIndex: isActive ? 20 : 10,
               }}
             >
@@ -540,15 +549,15 @@ export function Sidebar() {
                 transition-all duration-150
                 ${isActive
                   ? "w-14 h-14 bg-[#8b5cf6] shadow-[0_0_24px_rgba(139,92,246,0.6)]"
-                  : "w-11 h-11 bg-white/10 border border-white/10"
+                  : "w-12 h-12 bg-[#1f1f23]/90 border border-white/10 shadow-lg shadow-black/30"
                 }
               `}>
                 {item.isProfile && user ? (
-                  <Avatar 
-                    src={user.avatar_url} 
-                    name={user.display_name} 
-                    id={user.id} 
-                    size={isActive ? 26 : 20}
+                  <Avatar
+                    src={user.avatar_url}
+                    name={user.display_name}
+                    id={user.id}
+                    size={isActive ? 30 : 24}
                   />
                 ) : (
                   <item.icon
@@ -561,6 +570,7 @@ export function Sidebar() {
           );
         })}
 
+        {/* Пульсация активной иконки */}
         {hoveredIdx !== null && activePos && (
           <div
             className="absolute w-16 h-16 rounded-full pointer-events-none"
@@ -578,14 +588,19 @@ export function Sidebar() {
     );
   };
 
+  // ══════════════════════════════════════════════════════════════
+  //  JSX
+  // ══════════════════════════════════════════════════════════════
   return (
     <>
+      {/* ═══════════════ МОБИЛЬНАЯ ВЕРСИЯ ═══════════════ */}
       <div className="md:hidden">
+        {/* Таблетка — чуть ниже центральной линии */}
         <button
           ref={buttonRef}
           onTouchStart={handleStart}
           onMouseDown={handleStart}
-          className={`fixed bottom-24 right-4 z-[98] w-14 h-14
+          className={`fixed right-4 z-[98] w-14 h-14 -translate-y-1/2
             bg-[#171717]/90 backdrop-blur-sm border rounded-full
             flex items-center justify-center shadow-lg shadow-black/50
             transition-all duration-200
@@ -593,7 +608,7 @@ export function Sidebar() {
               ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/20 scale-110"
               : "border-white/10 active:scale-95"
             }`}
-          style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
+          style={{ top: "calc(50% + 8px)", touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
           aria-label="Меню навигации"
         >
           <Menu size={22} className={`transition-colors ${wheelOpen ? "text-[#8b5cf6]" : "text-white/80"}`} />
@@ -602,10 +617,12 @@ export function Sidebar() {
         {renderWheel()}
       </div>
 
+      {/* ═══════════════ ДЕСКТОП ═══════════════ */}
       <aside className="hidden md:flex md:w-64 shrink-0 overflow-y-auto p-5 flex-col gap-5 bg-[#171717]">
         {desktopSidebarContent}
       </aside>
 
+      {/* ═══════════════ УВЕДОМЛЕНИЯ ═══════════════ */}
       {showNotifs && (
         <>
           <div className="fixed inset-0 bg-black/60 z-[99]" onClick={() => setShowNotifs(false)} />
