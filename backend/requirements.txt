@@ -11,3 +11,6 @@ email-validator
 slowapi
 PyJWT
 cryptography>=41.0.0
+pywebpush==2.0.3
+py-vapid==1.9.2
+cryptography>=42.0.0
