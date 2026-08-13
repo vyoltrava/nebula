@@ -344,97 +344,132 @@ export default function ChatPage() {
     }
   }
 
-  async function initCryptoForSecretChat() {
-    if (!isSecret || !chatPartner || isGroup) return;
-    const token = getToken();
-    if (!token) return;
-    try {
-      const myKeyData = await ensureKeyPair(token, process.env.NEXT_PUBLIC_API_URL!);
-      getKeyPair();
-      setMyFingerprint(myKeyData.fingerprint);
+async function initCryptoForSecretChat() {
+  if (!isSecret || !chatPartner || isGroup) return;
+  const token = getToken();
+  if (!token) return;
+  try {
+    const myKeyData = await ensureKeyPair(token, process.env.NEXT_PUBLIC_API_URL!);
+    getKeyPair();
+    setMyFingerprint(myKeyData.fingerprint);
 
-      let sk = loadSessionKey(Number(chatId));
-      if (!sk) {
-        try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/session-key`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok) {
-            const data = await res.json();
-            const keys = getKeyPair();
-            if (!keys) {
-              setCryptoError("Не удалось загрузить ключи");
-              return;
-            }
-            try {
-              sk = decryptSessionKey(data.encrypted_session_key);
-              storeSessionKey(Number(chatId), sk);
-            } catch (e) {
-              console.error("Failed to decrypt session key:", e);
-              await establishNewSession();
-            }
-          } else if (res.status === 404) {
-            await establishNewSession();
-          }
-        } catch {
-          await establishNewSession();
-        }
-      }
-    } catch (err) {
-      console.error("Crypto init failed:", err);
-      setCryptoError("Ошибка инициализации E2EE");
-    }
-  }
-
-  async function establishNewSession() {
-    const token = getToken();
-    if (!token || !chatPartner) return;
-    try {
-      const myKeys = getKeyPair();
-      if (!myKeys) {
-        setCryptoError("Не удалось загрузить ключи");
-        return;
-      }
-      const pkRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/users/${chatPartner.id}/public-key`,
-        { headers: { Authorization: `Bearer ${token}` } }
+    let sk = loadSessionKey(Number(chatId));
+    
+    // 🆕 Если ключ есть, но сообщения не расшифровываются — пересоздаём
+    if (sk && messages.length > 0) {
+      const hasFail = messages.some(
+        (m) => m.ciphertext && m.ciphertext !== "[encrypted_media]" && decryptMessage(m.ciphertext, sk) === "[Ошибка расшифровки]"
       );
-      if (!pkRes.ok) {
-        setCryptoError(
-          "Собеседник ещё не активировал шифрование. " +
-          "Он должен хотя бы раз открыть любой секретный чат, " +
-          "чтобы сгенерировать ключи на своём устройстве."
-        );
-        return;
+      if (hasFail) {
+        console.log("Session key invalid, re-establishing...");
+        localStorage.removeItem(`session_key_${chatId}`);
+        sk = null;
       }
-      const pkData = await pkRes.json();
-      setPartnerFingerprint(pkData.fingerprint);
-
-      const sk = generateSessionKey();
-      const forMe = encryptSessionKeyForUser(sk, myKeys.publicKeyBase64);
-      const forOther = encryptSessionKeyForUser(sk, pkData.public_key);
-
-      for (const [uid, enc] of [
-        [currentUser.id, forMe],
-        [chatPartner.id, forOther],
-      ] as [number, string][]) {
-        const fd = new FormData();
-        fd.append("recipient_id", String(uid));
-        fd.append("encrypted_session_key", enc);
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/session-key`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: fd,
-        });
-      }
-
-      storeSessionKey(Number(chatId), sk);
-      setCryptoError(null);
-    } catch (err) {
-      console.error("establishNewSession failed:", err);
-      setCryptoError("Не удалось установить защищённую сессию");
     }
+    
+    if (!sk) {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/session-key`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const keys = getKeyPair();
+          if (!keys) {
+            setCryptoError("Не удалось загрузить ключи");
+            return;
+          }
+          try {
+            sk = decryptSessionKey(data.encrypted_session_key);
+            storeSessionKey(Number(chatId), sk);
+          } catch (e) {
+            console.error("Failed to decrypt session key, establishing new session:", e);
+            await establishNewSession();
+            sk = loadSessionKey(Number(chatId));
+          }
+        } else if (res.status === 404) {
+          await establishNewSession();
+          sk = loadSessionKey(Number(chatId));
+        }
+      } catch {
+        await establishNewSession();
+        sk = loadSessionKey(Number(chatId));
+      }
+    }
+  } catch (err) {
+    console.error("Crypto init failed:", err);
+    setCryptoError("Ошибка инициализации E2EE");
   }
+}
+
+async function establishNewSession() {
+  const token = getToken();
+  if (!token || !chatPartner) return;
+  try {
+    const myKeys = getKeyPair();
+    if (!myKeys) {
+      setCryptoError("Не удалось загрузить ключи");
+      return;
+    }
+
+    // 🆕 Проверяем, что наш публичный ключ зарегистрирован на сервере
+    const myKeyRes = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/keys/me`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!myKeyRes.ok) {
+      // Регистрируем ключ если его нет
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/keys/register`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: new FormData().append("public_key", myKeys.publicKeyBase64),
+      });
+    }
+
+    const pkRes = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/users/${chatPartner.id}/public-key`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!pkRes.ok) {
+      setCryptoError(
+        "Собеседник ещё не активировал шифрование. " +
+        "Он должен хотя бы раз открыть любой секретный чат, " +
+        "чтобы сгенерировать ключи на своём устройстве."
+      );
+      return;
+    }
+    const pkData = await pkRes.json();
+    setPartnerFingerprint(pkData.fingerprint);
+
+    const sk = generateSessionKey();
+    const forMe = encryptSessionKeyForUser(sk, myKeys.publicKeyBase64);
+    const forOther = encryptSessionKeyForUser(sk, pkData.public_key);
+
+    // 🆕 Отправляем ОБА варианта с проверкой
+    for (const [uid, enc] of [
+      [currentUser.id, forMe],
+      [chatPartner.id, forOther],
+    ] as [number, string][]) {
+      const fd = new FormData();
+      fd.append("recipient_id", String(uid));
+      fd.append("encrypted_session_key", enc);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/session-key`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      if (!res.ok) {
+        console.error(`Failed to store session key for user ${uid}`);
+      }
+    }
+
+    storeSessionKey(Number(chatId), sk);
+    setCryptoError(null);
+  } catch (err) {
+    console.error("establishNewSession failed:", err);
+    setCryptoError("Не удалось установить защищённую сессию");
+  }
+}
 
 async function sendMessage() {
   if (sendingRef.current) return;

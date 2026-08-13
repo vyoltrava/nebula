@@ -3898,7 +3898,6 @@ def store_session_key(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    # Проверяем, что оба в чате
     my_member = session.exec(
         select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
     ).first()
@@ -3907,6 +3906,11 @@ def store_session_key(
     ).first()
     if not my_member or not other_member:
         raise HTTPException(403, "Оба должны быть в чате")
+    
+    # 🆕 Проверяем, что у получателя есть публичный ключ
+    recipient_key = session.exec(select(UserKey).where(UserKey.user_id == recipient_id)).first()
+    if not recipient_key:
+        raise HTTPException(400, f"У пользователя {recipient_id} нет публичного ключа")
     
     existing = session.exec(
         select(ChatSessionKey).where(
@@ -3926,7 +3930,6 @@ def store_session_key(
         session.add(sk)
     session.commit()
     return {"ok": True}
-
 
 @app.get("/api/chats/{chat_id}/session-key")
 def get_my_session_key(
