@@ -1178,9 +1178,9 @@ if (data.sender_id === currentUser?.id) {
             title="Поиск"
           >
             <Search size={19} className="sm:w-5 sm:h-5" />
-            <PushToggle />
+            
           </button>
-
+            <PushToggle />
           {isSecret && !isGroup && (
             <button
               onClick={() => setShowVerify(true)}
