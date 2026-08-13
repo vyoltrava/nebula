@@ -436,8 +436,6 @@ export default function ChatPage() {
     }
   }
 
-// В функции sendMessage():
-
 async function sendMessage() {
   if (sendingRef.current) return;
   const token = getToken();
@@ -453,15 +451,13 @@ async function sendMessage() {
       messagesToSend.push({ text: text.trim(), file: null });
     }
 
-    // ✅ Сохраняем текст для временного сообщения
     const tempText = text.trim();
     const tempFiles = files;
     
-    // ✅ Создаем временное сообщение с уникальным ID
     const tempId = Date.now();
     if (!isSecret && tempText) {
       const tempMsg = {
-        id: tempId, // ← Запоминаем этот ID
+        id: tempId,
         sender_id: currentUser?.id,
         sender_name: currentUser?.display_name,
         sender_avatar: currentUser?.avatar_url,
@@ -470,47 +466,110 @@ async function sendMessage() {
         media_type: null,
         read: false,
         created_at: new Date().toISOString(),
-        is_temp: true, // ← Помечаем как временное
+        is_temp: true,
       };
       setMessages((prev) => [...prev, tempMsg]);
     }
 
-    // Отправляем все сообщения
     for (const msg of messagesToSend) {
-      const form = new FormData();
-
-      if (isSecret && msg.text) {
+      // 🆕 ШИФРОВАННОЕ МЕДИА для секретных чатов
+      if (isSecret && msg.file) {
         let sk = loadSessionKey(Number(chatId));
         if (!sk) {
           await establishNewSession();
           sk = loadSessionKey(Number(chatId));
           if (!sk) throw new Error("Нет session key");
         }
+
+        const { encryptMediaFile } = await import("@/lib/mediaCrypto");
+        const encryptedBlob = await encryptMediaFile(msg.file, sk);
+
+        // Определяем media_type
+        let mediaType = "image";
+        if (msg.file.type.startsWith("video/")) mediaType = "video";
+        if (msg.file.type.startsWith("audio/")) mediaType = "audio";
+        if (msg.file.name.endsWith(".gif")) mediaType = "gif";
+
+        const form = new FormData();
+        form.append("file", encryptedBlob, msg.file.name);
+        form.append("media_type", mediaType);
+
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: form,
+          }
+        );
+
+        if (!res.ok) {
+          alert("Не удалось отправить шифрованное медиа");
+          return;
+        }
+      }
+      // 🆕 ШИФРОВАННЫЙ ТЕКСТ + обычное медиа (если есть)
+      else if (isSecret && msg.text) {
+        let sk = loadSessionKey(Number(chatId));
+        if (!sk) {
+          await establishNewSession();
+          sk = loadSessionKey(Number(chatId));
+          if (!sk) throw new Error("Нет session key");
+        }
+
+        const form = new FormData();
         form.append("ciphertext", encryptMessage(msg.text, sk));
         form.append("text", "");
-      } else {
-        if (msg.text) form.append("text", msg.text);
+
+        // Если есть медиа — шифруем его тоже
+        if (msg.file) {
+          const { encryptMediaFile } = await import("@/lib/mediaCrypto");
+          const encryptedBlob = await encryptMediaFile(msg.file, sk);
+          
+          let mediaType = "image";
+          if (msg.file.type.startsWith("video/")) mediaType = "video";
+          if (msg.file.type.startsWith("audio/")) mediaType = "audio";
+          
+          form.append("file", encryptedBlob, msg.file.name);
+          form.append("media_type", mediaType);
+          form.append("is_encrypted_media", "true");
+        }
+
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        });
+
+        if (res.status === 403) {
+          alert("Нет доступа к чату");
+          router.push("/messages");
+          return;
+        }
       }
+      // Обычное сообщение (не секретный чат)
+      else {
+        const form = new FormData();
+        if (msg.text) form.append("text", msg.text);
+        if (msg.file) form.append("file", msg.file);
 
-      if (msg.file) form.append("file", msg.file);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        });
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-
-      if (res.status === 403) {
-        alert("Нет доступа к чату");
-        router.push("/messages");
-        return;
+        if (res.status === 403) {
+          alert("Нет доступа к чату");
+          router.push("/messages");
+          return;
+        }
       }
     }
 
     setText("");
     setFiles([]);
 
-    // ✅ Если есть временное сообщение - удаляем его (заменится на реальное через WS)
     if (!isSecret && tempText) {
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
     }

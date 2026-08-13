@@ -4154,7 +4154,8 @@ async def send_message_v2(
     text: str = Form(""),
     ciphertext: str = Form(""),
     file: Optional[UploadFile] = File(None),
-    media_type: Optional[str] = Form(None),  # ✅ Добавляем как параметр формы
+    media_type: Optional[str] = Form(None),
+    is_encrypted_media: Optional[str] = Form(None),  # 🆕
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
@@ -4163,7 +4164,6 @@ async def send_message_v2(
     ).first()
     if not member:
         raise HTTPException(403, "Не участник чата")
-
     chat = session.get(Chat, chat_id)
     if not chat:
         raise HTTPException(404, "Чат не найден")
@@ -4174,52 +4174,66 @@ async def send_message_v2(
     if file and file.filename:
         ext = os.path.splitext(file.filename or "")[1].lower()
         content = await file.read()
-        if len(content) > 20 * 1024 * 1024:
-            raise HTTPException(400, "File too large (max 20MB)")
         
-        try:
-            result = await run_in_threadpool(
-                lambda: cloudinary.uploader.upload(
-                    content, folder=UPLOAD_FOLDER, resource_type="auto",
-                )
-            )
-            media_url = result.get("secure_url")
-            resource_type = result.get("resource_type")
+        # 🆕 ШИФРОВАННОЕ МЕДИА — сохраняем локально, не на Cloudinary
+        if is_encrypted_media == "true" or (chat.is_secret and ciphertext):
+            if len(content) > 50 * 1024 * 1024:
+                raise HTTPException(400, "File too large (max 50MB)")
             
-            # ✅ Если передан явный media_type - используем его
-            if media_type in ("video_note", "audio", "image", "gif"):
+            file_id = str(uuid.uuid4())
+            filename = f"{file_id}.enc"
+            filepath = os.path.join("uploads", filename)
+            with open(filepath, "wb") as f:
+                f.write(content)
+            media_url = filename
+            
+            if media_type in ("video_note", "audio", "image", "gif", "video"):
                 media_type_final = media_type
             else:
-                # Автоопределение
-                if resource_type == "video":
-                    content_type = (file.content_type or "").lower()
-                    is_audio = (
-                        content_type.startswith("audio/")
-                        or ext in {".mp3", ".wav", ".ogg", ".m4a", ".aac"}
-                        or (ext == ".webm" and "audio" in content_type)
+                media_type_final = "image"
+        else:
+            # Обычное медиа — на Cloudinary
+            if len(content) > 20 * 1024 * 1024:
+                raise HTTPException(400, "File too large (max 20MB)")
+            try:
+                result = await run_in_threadpool(
+                    lambda: cloudinary.uploader.upload(
+                        content, folder=UPLOAD_FOLDER, resource_type="auto",
                     )
-                    is_video = (
-                        content_type.startswith("video/")
-                        or ext in {".mp4", ".mov"}
-                        or (ext == ".webm" and "video" in content_type)
-                    )
-                    if is_audio:
-                        media_type_final = "audio"
+                )
+                media_url = result.get("secure_url")
+                resource_type = result.get("resource_type")
+                
+                if media_type in ("video_note", "audio", "image", "gif"):
+                    media_type_final = media_type
+                else:
+                    if resource_type == "video":
+                        content_type = (file.content_type or "").lower()
+                        is_audio = (
+                            content_type.startswith("audio/")
+                            or ext in {".mp3", ".wav", ".ogg", ".m4a", ".aac"}
+                            or (ext == ".webm" and "audio" in content_type)
+                        )
+                        is_video = (
+                            content_type.startswith("video/")
+                            or ext in {".mp4", ".mov"}
+                            or (ext == ".webm" and "video" in content_type)
+                        )
+                        if is_audio:
+                            media_type_final = "audio"
+                        elif ext == ".gif":
+                            media_type_final = "gif"
+                        elif is_video:
+                            media_type_final = "video"
+                        else:
+                            media_type_final = "image"
                     elif ext == ".gif":
                         media_type_final = "gif"
-                    elif is_video:
-                        media_type_final = "video"
                     else:
                         media_type_final = "image"
-                elif ext == ".gif":
-                    media_type_final = "gif"
-                else:
-                    media_type_final = "image"
-                
-        except Exception as e:
-            raise HTTPException(400, f"Upload failed: {str(e)}")
+            except Exception as e:
+                raise HTTPException(400, f"Upload failed: {str(e)}")
 
-    # Для секретных чатов: text должен быть пустым, ciphertext — заполнен
     if chat.is_secret:
         if not ciphertext.strip() and not media_url:
             raise HTTPException(400, "Пустое сообщение")
@@ -4239,7 +4253,6 @@ async def send_message_v2(
     )
     session.add(msg)
 
-    # Уведомления
     other_members = session.exec(
         select(ChatMember).where(
             ChatMember.chat_id == chat_id,
@@ -4251,10 +4264,12 @@ async def send_message_v2(
         session.add(Notification(
             user_id=other.user_id, actor_id=user.id, type=notif_type,
         ))
-
     session.commit()
     session.refresh(msg)
 
+    # 🆕 Добавляем флаг is_encrypted_media в WS рассылку
+    is_enc = bool(is_encrypted_media == "true" or (chat.is_secret and media_url and not media_url.startswith("http")))
+    
     await manager.broadcast_to_chat(
         chat_id,
         "new_message",
@@ -4268,8 +4283,9 @@ async def send_message_v2(
             "ciphertext": msg.ciphertext,
             "media_url": msg.media_url,
             "media_type": msg.media_type,
+            "is_encrypted_media": is_enc,  # 🆕
             "created_at": msg.created_at.isoformat(),
-            "pinned": False,   
+            "pinned": False,
             "pinned_by": None,
         },
         session,
@@ -4281,6 +4297,7 @@ async def send_message_v2(
         "ciphertext": msg.ciphertext,
         "media_url": msg.media_url,
         "media_type": msg.media_type,
+        "is_encrypted_media": is_enc,  # 🆕
         "read": msg.read,
         "created_at": msg.created_at.isoformat(),
     }
@@ -4296,25 +4313,27 @@ def get_messages_v2(
     ).first()
     if not member:
         raise HTTPException(403, "Не участник чата")
-
     messages = session.exec(
         select(Message).where(Message.chat_id == chat_id).order_by(Message.created_at)
     ).all()
-
     if not messages:
         return []
 
-    # Массовый запрос всех авторов
     sender_ids = list({msg.sender_id for msg in messages})
     senders = {
         u.id: u for u in session.exec(
             select(User).where(User.id.in_(sender_ids))
         ).all()
     }
-
     result = []
     for msg in messages:
         sender = senders.get(msg.sender_id)
+        # 🆕 Определяем is_encrypted_media
+        is_enc = bool(
+            msg.media_url and 
+            not msg.media_url.startswith("http") and 
+            msg.media_url.endswith(".enc")
+        )
         result.append({
             "id": msg.id,
             "sender_id": msg.sender_id,
@@ -4324,11 +4343,12 @@ def get_messages_v2(
             "ciphertext": msg.ciphertext,
             "media_url": msg.media_url,
             "media_type": msg.media_type,
+            "is_encrypted_media": is_enc,  # 🆕
             "read": msg.read,
             "edited": msg.edited,
             "edited_at": msg.edited_at.isoformat() if msg.edited_at else None,
             "created_at": msg.created_at.isoformat(),
-            "pinned": msg.pinned,    
+            "pinned": msg.pinned,
             "pinned_by": msg.pinned_by,
         })
     return result
