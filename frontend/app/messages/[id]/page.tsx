@@ -103,6 +103,8 @@ export default function ChatPage() {
   const [showRecordMenu, setShowRecordMenu] = useState(false);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
+  const [selectedMenuItem, setSelectedMenuItem] = useState<'voice' | 'video' | null>(null);
+  const menuItemRefs = useRef<{ voice: HTMLButtonElement | null; video: HTMLButtonElement | null }>({ voice: null, video: null });
 
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -908,16 +910,27 @@ for (const msg of messagesToSend) {
     }
   }
 
-  // 🆕 Логика Long Press для кнопки отправки
-  const handleSendPointerDown = () => {
-    // Если есть текст или файлы - это обычная отправка, лонгпресс не нужен
+  const handleSendPointerDown = (e: React.PointerEvent) => {
     if (text.trim() || files.length > 0) return;
-
     isLongPressRef.current = false;
     longPressTimerRef.current = setTimeout(() => {
       isLongPressRef.current = true;
       setShowRecordMenu(true);
-    }, 500); // 500мс для лонгпресса
+    }, 400);
+  };
+
+  const handleSendPointerMove = (e: React.PointerEvent) => {
+    if (showRecordMenu) {
+      const voiceRect = menuItemRefs.current.voice?.getBoundingClientRect();
+      const videoRect = menuItemRefs.current.video?.getBoundingClientRect();
+      if (voiceRect && e.clientY >= voiceRect.top && e.clientY <= voiceRect.bottom) {
+        setSelectedMenuItem('voice');
+      } else if (videoRect && e.clientY >= videoRect.top && e.clientY <= videoRect.bottom) {
+        setSelectedMenuItem('video');
+      } else {
+        setSelectedMenuItem(null);
+      }
+    }
   };
 
   const handleSendPointerUp = () => {
@@ -925,10 +938,27 @@ for (const msg of messagesToSend) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
+    if (isLongPressRef.current && showRecordMenu) {
+      if (selectedMenuItem === 'voice') {
+        startRecording();
+      } else if (selectedMenuItem === 'video') {
+        (async () => {
+          if (camPerm.status === "denied") { setPermHelp("camera"); return; }
+          if (camPerm.status !== "granted") {
+            const ok = await camPerm.request();
+            if (!ok) { setPermHelp("camera"); return; }
+          }
+          setVideoMode('expanded');
+        })();
+      }
+      setShowRecordMenu(false);
+      setSelectedMenuItem(null);
+      isLongPressRef.current = false;
+      return;
+    }
   };
 
   const handleSendClick = () => {
-    // Если это был лонгпресс, просто сбрасываем флаг и не отправляем
     if (isLongPressRef.current) {
       isLongPressRef.current = false;
       return;
@@ -1997,11 +2027,11 @@ const ChatHeader = () => (
 
         <div className="relative shrink-0">
           <button
-            onMouseDown={handleSendPointerDown}
-            onMouseUp={handleSendPointerUp}
-            onMouseLeave={handleSendPointerUp}
-            onTouchStart={handleSendPointerDown}
-            onTouchEnd={handleSendPointerUp}
+            onPointerDown={handleSendPointerDown}
+            onPointerMove={handleSendPointerMove}
+            onPointerUp={handleSendPointerUp}
+            onPointerLeave={handleSendPointerUp}
+            onPointerCancel={handleSendPointerUp}
             onClick={handleSendClick}
             disabled={!!cryptoError}
             className={`p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none touch-none ${
@@ -2014,52 +2044,43 @@ const ChatHeader = () => (
           </button>
 
           {showRecordMenu && (
-            <>
-              <div 
-                className="fixed inset-0 z-40" 
-                onClick={() => setShowRecordMenu(false)} 
-              />
-              <div className="absolute bottom-full right-0 mb-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                <button
-                  onClick={() => {
-                    setShowRecordMenu(false);
-                    startRecording();
-                  }}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-left text-sm text-white hover:bg-white/10 transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center text-red-400">
-                    <Mic size={18} />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-medium">Голосовое</span>
-                    <span className="text-[10px] text-white/40">Аудиосообщение</span>
-                  </div>
-                </button>
-                
-                <div className="h-px bg-white/10" />
-                
-                <button
-                  onClick={async () => {
-                    setShowRecordMenu(false);
-                    if (camPerm.status === "denied") { setPermHelp("camera"); return; }
-                    if (camPerm.status !== "granted") {
-                      const ok = await camPerm.request();
-                      if (!ok) { setPermHelp("camera"); return; }
-                    }
-                    setVideoMode('expanded');
-                  }}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-left text-sm text-white hover:bg-white/10 transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
-                    <Video size={18} />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-medium">Видео</span>
-                    <span className="text-[10px] text-white/40">Видео-квадрат</span>
-                  </div>
-                </button>
-              </div>
-            </>
+            <div className="absolute bottom-full right-0 mb-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none">
+              <button
+                ref={(el) => { menuItemRefs.current.voice = el; }}
+                className={`w-full px-4 py-3 flex items-center gap-3 text-left text-sm transition-colors ${
+                  selectedMenuItem === 'voice' ? 'bg-white/20' : ''
+                } text-white`}
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                  selectedMenuItem === 'voice' ? 'bg-red-500/30 text-red-300' : 'bg-red-500/20 text-red-400'
+                }`}>
+                  <Mic size={18} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-medium">Голосовое</span>
+                  <span className="text-[10px] text-white/40">Аудиосообщение</span>
+                </div>
+              </button>
+              
+              <div className="h-px bg-white/10" />
+              
+              <button
+                ref={(el) => { menuItemRefs.current.video = el; }}
+                className={`w-full px-4 py-3 flex items-center gap-3 text-left text-sm transition-colors ${
+                  selectedMenuItem === 'video' ? 'bg-white/20' : ''
+                } text-white`}
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                  selectedMenuItem === 'video' ? 'bg-blue-500/30 text-blue-300' : 'bg-blue-500/20 text-blue-400'
+                }`}>
+                  <Video size={18} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-medium">Видео</span>
+                  <span className="text-[10px] text-white/40">Видео-квадрат</span>
+                </div>
+              </button>
+            </div>
           )}
         </div>
       </div>
