@@ -4154,6 +4154,7 @@ async def send_message_v2(
     text: str = Form(""),
     ciphertext: str = Form(""),
     file: Optional[UploadFile] = File(None),
+    media_type: Optional[str] = Form(None),  # ✅ Добавляем как параметр формы
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
@@ -4168,7 +4169,7 @@ async def send_message_v2(
         raise HTTPException(404, "Чат не найден")
 
     media_url = None
-    media_type = None
+    media_type_final = None
     
     if file and file.filename:
         ext = os.path.splitext(file.filename or "")[1].lower()
@@ -4185,35 +4186,35 @@ async def send_message_v2(
             media_url = result.get("secure_url")
             resource_type = result.get("resource_type")
             
-            # 🆕 Определяем тип медиа (включая аудио)
-            if resource_type == "video":
-                # Проверяем MIME-тип для точного определения
-                content_type = (file.content_type or "").lower()
-
-                # Определяем тип правильно: .webm может быть и аудио, и видео
-                is_audio = (
-                    content_type.startswith("audio/")
-                    or ext in {".mp3", ".wav", ".ogg", ".m4a", ".aac"}
-                    or (ext == ".webm" and "audio" in content_type)
-                )
-                is_video = (
-                    content_type.startswith("video/")
-                    or ext in {".mp4", ".mov"}
-                    or (ext == ".webm" and "video" in content_type)
-                )
-
-                if is_audio:
-                    media_type = "audio"
-                elif ext == ".gif":
-                    media_type = "gif"
-                elif is_video:
-                    media_type = "video"
-                else:
-                    media_type = "image"
-            elif ext == ".gif":
-                media_type = "gif"
+            # ✅ Если передан явный media_type - используем его
+            if media_type in ("video_note", "audio", "image", "gif"):
+                media_type_final = media_type
             else:
-                media_type = "image"
+                # Автоопределение
+                if resource_type == "video":
+                    content_type = (file.content_type or "").lower()
+                    is_audio = (
+                        content_type.startswith("audio/")
+                        or ext in {".mp3", ".wav", ".ogg", ".m4a", ".aac"}
+                        or (ext == ".webm" and "audio" in content_type)
+                    )
+                    is_video = (
+                        content_type.startswith("video/")
+                        or ext in {".mp4", ".mov"}
+                        or (ext == ".webm" and "video" in content_type)
+                    )
+                    if is_audio:
+                        media_type_final = "audio"
+                    elif ext == ".gif":
+                        media_type_final = "gif"
+                    elif is_video:
+                        media_type_final = "video"
+                    else:
+                        media_type_final = "image"
+                elif ext == ".gif":
+                    media_type_final = "gif"
+                else:
+                    media_type_final = "image"
                 
         except Exception as e:
             raise HTTPException(400, f"Upload failed: {str(e)}")
@@ -4234,11 +4235,11 @@ async def send_message_v2(
         text=text.strip() if text else None,
         ciphertext=ciphertext.strip() if ciphertext else None,
         media_url=media_url,
-        media_type=media_type,
+        media_type=media_type_final,
     )
     session.add(msg)
 
-    # В send_message_v2, замени блок "Уведомление":
+    # Уведомления
     other_members = session.exec(
         select(ChatMember).where(
             ChatMember.chat_id == chat_id,

@@ -1891,37 +1891,41 @@ export default function ChatPage() {
         />
       )}
 
-              {showVideoRecorder && (
-                <VideoNoteRecorder
-                  onRecorded={async (file) => {
-                    setShowVideoRecorder(false);
-                    
-                    const form = new FormData();
-                    form.append("file", file);
-                    form.append("media_type", "video_note"); // ✅ ВАЖНО! Указываем тип
-                    
-                    const token = getToken();
-                    if (!token) return;
-                    
-                    try {
-                      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
-                        method: "POST",
-                        headers: { Authorization: `Bearer ${token}` },
-                        body: form,
-                      });
-                      if (!res.ok) {
-                        const err = await res.json().catch(() => ({ detail: "Ошибка" }));
-                        alert(err.detail || "Не удалось отправить видеосообщение");
-                      }
-                    } catch (err) {
-                      console.error("Failed to send video note:", err);
-                      alert("Ошибка сети");
-                    }
-                  }}
-                  onCancel={() => setShowVideoRecorder(false)}
-                  maxDuration={60}
-                />
-              )}
+ // В ChatPage, когда отправляем видео-кружок:
+{showVideoRecorder && (
+  <VideoNoteRecorder
+    onRecorded={async (file) => {
+      setShowVideoRecorder(false);
+      
+      const form = new FormData();
+      form.append("file", file);
+      
+      // ✅ Фронт явно говорит серверу: это video_note
+      form.append("media_type", "video_note");
+      
+      const token = getToken();
+      if (!token) return;
+      
+      try {
+        // Используем обычный эндпоинт, но с явным media_type
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: "Ошибка" }));
+          alert(err.detail || "Не удалось отправить видеосообщение");
+        }
+      } catch (err) {
+        console.error("Failed to send video note:", err);
+        alert("Ошибка сети");
+      }
+    }}
+    onCancel={() => setShowVideoRecorder(false)}
+    maxDuration={60}
+  />
+)}
 
     </div>
   );
