@@ -1342,6 +1342,7 @@ if (data.sender_id === currentUser?.id) {
                     : "rounded-tl-2xl rounded-tr-2xl rounded-br-2xl rounded-bl-[4px]";
 
                   const isVideoNote = !!msg.media_url && msg.media_type === "video_note";
+                  const isEncryptedMedia = !!msg.is_encrypted_media || msg.ciphertext === "[encrypted_media]";  // 🆕
                   return (
                     <div
                       key={msg.id}
@@ -1432,7 +1433,7 @@ if (data.sender_id === currentUser?.id) {
         }`
   }`}
 >
-{msg.media_url && msg.is_encrypted_media ? (
+{msg.media_url && isEncryptedMedia ? (
   msg.media_url === "temp_encrypted_media" ? (
     // Временное шифрованное медиа — показываем лоадер
     <div className="w-56 h-56 rounded-2xl bg-white/5 animate-pulse flex items-center justify-center">

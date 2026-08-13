@@ -4346,7 +4346,7 @@ def get_messages_v2(
             "ciphertext": msg.ciphertext,
             "media_url": msg.media_url,
             "media_type": msg.media_type,
-            "is_encrypted_media": is_enc,  # 🆕
+            "is_encrypted_media": msg.ciphertext == "[encrypted_media]",   # 🆕
             "read": msg.read,
             "edited": msg.edited,
             "edited_at": msg.edited_at.isoformat() if msg.edited_at else None,
