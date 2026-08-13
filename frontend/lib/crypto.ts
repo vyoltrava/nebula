@@ -5,8 +5,6 @@ const PRIVATE_KEY_STORAGE = "nebula_e2ee_private_key";
 const PUBLIC_KEY_STORAGE = "nebula_e2ee_public_key";
 const SESSION_KEYS_PREFIX = "nebula_session_key_";
 
-// ============ БАЗОВЫЕ УТИЛИТЫ ============
-
 export function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
   for (let i = 0; i < bytes.length; i++) {
@@ -32,8 +30,6 @@ function randomBytes(length: number): Uint8Array {
   crypto.getRandomValues(bytes);
   return bytes;
 }
-
-// ============ КЛЮЧИ ПОЛЬЗОВАТЕЛЯ ============
 
 export interface StoredKeyPair {
   privateKey: Uint8Array;
@@ -105,8 +101,6 @@ export async function ensureKeyPair(
   return { publicKey: pair.publicKey, publicKeyBase64: pair.publicKeyBase64, fingerprint: data.fingerprint };
 }
 
-// ============ ШИФРОВАНИЕ СООБЩЕНИЙ (AES-256-GCM) ============
-
 export function encryptMessage(plaintext: string, sessionKey: Uint8Array): string {
   const iv = randomBytes(12);
   const data = utf8ToBytes(plaintext);
@@ -132,8 +126,6 @@ export function decryptMessage(ciphertext: string, sessionKey: Uint8Array): stri
   }
 }
 
-// ============ SESSION KEYS (ECDH + AES-GCM) ============
-
 export function generateSessionKey(): Uint8Array {
   return randomBytes(32);
 }
@@ -145,22 +137,19 @@ export function encryptSessionKeyForUser(
   const myKeys = getKeyPair();
   if (!myKeys) throw new Error("Нет ключей");
 
-  // Одноразовая пара для ECDH
   const ephemeralPriv = x25519.utils.randomPrivateKey();
   const ephemeralPub = x25519.getPublicKey(ephemeralPriv);
 
-  // Публичный ключ получателя
   const recipientPub = base64ToBytes(recipientPublicKeyBase64);
 
-  // ECDH shared secret
-  const sharedSecret = x25519.getSharedSecret(ephemeralPriv, recipientPub);
+  // ✅ ИСПРАВЛЕНО: копируем shared secret в новый буфер
+  const sharedSecretRaw = x25519.getSharedSecret(ephemeralPriv, recipientPub);
+  const sharedSecret = new Uint8Array(sharedSecretRaw);
 
-  // Шифруем session key
   const iv = randomBytes(12);
   const cipher = gcm(sharedSecret, iv);
   const encrypted = cipher.encrypt(sessionKey);
 
-  // Формат: ephemeral_pub (32) || iv (12) || ciphertext
   const result = new Uint8Array(32 + 12 + encrypted.length);
   result.set(ephemeralPub);
   result.set(iv, 32);
@@ -173,23 +162,25 @@ export function decryptSessionKey(encryptedPayload: string): Uint8Array {
   if (!myKeys) throw new Error("Нет ключей");
 
   const payload = base64ToBytes(encryptedPayload);
+  if (payload.length < 44) throw new Error("Payload too short");
+  
   const ephemeralPubBytes = payload.slice(0, 32);
-  const iv = payload.slice(32, 32 + 12);
-  const ciphertext = payload.slice(32 + 12);
+  const iv = payload.slice(32, 44);
+  const ciphertext = payload.slice(44);
 
-  const sharedSecret = x25519.getSharedSecret(myKeys.privateKey, ephemeralPubBytes);
+  // ✅ ИСПРАВЛЕНО: копируем shared secret в новый буфер
+  const sharedSecretRaw = x25519.getSharedSecret(myKeys.privateKey, ephemeralPubBytes);
+  const sharedSecret = new Uint8Array(sharedSecretRaw);
+
   const cipher = gcm(sharedSecret, iv);
   return cipher.decrypt(ciphertext);
 }
-
-// ============ SESSION KEY CACHE ============
 
 export function storeSessionKey(chatId: number, sessionKey: Uint8Array) {
   if (typeof window === "undefined") return;
   const value = bytesToBase64(sessionKey);
   localStorage.setItem(`${SESSION_KEYS_PREFIX}${chatId}`, value);
   
-  // Миграция: если есть старая копия в sessionStorage — удаляем
   const old = sessionStorage.getItem(`${SESSION_KEYS_PREFIX}${chatId}`);
   if (old) sessionStorage.removeItem(`${SESSION_KEYS_PREFIX}${chatId}`);
 }
@@ -197,14 +188,11 @@ export function storeSessionKey(chatId: number, sessionKey: Uint8Array) {
 export function loadSessionKey(chatId: number): Uint8Array | null {
   if (typeof window === "undefined") return null;
   
-  // Сначала ищем в localStorage
   let b64 = localStorage.getItem(`${SESSION_KEYS_PREFIX}${chatId}`);
   
-  // Если нет — проверяем sessionStorage (старые данные)
   if (!b64) {
     b64 = sessionStorage.getItem(`${SESSION_KEYS_PREFIX}${chatId}`);
     if (b64) {
-      // Мигрируем в localStorage
       localStorage.setItem(`${SESSION_KEYS_PREFIX}${chatId}`, b64);
       sessionStorage.removeItem(`${SESSION_KEYS_PREFIX}${chatId}`);
     }
@@ -219,17 +207,12 @@ export function clearSessionKey(chatId: number) {
   sessionStorage.removeItem(`${SESSION_KEYS_PREFIX}${chatId}`);
 }
 
-// ============ ОТПЕЧАТОК ============
-
 export function fingerprint(publicKey: Uint8Array): string {
   return Array.from(publicKey.slice(0, 4))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("-")
     .toUpperCase();
 }
-
-
-// ============ СИНХРОНИЗАЦИЯ КЛЮЧА МЕЖДУ УСТРОЙСТВАМИ ============
 
 export function exportKeyPairPayload(): string | null {
   const priv = localStorage.getItem(PRIVATE_KEY_STORAGE);
@@ -245,7 +228,6 @@ export function importKeyPairPayload(payload: string): boolean {
     localStorage.setItem(PRIVATE_KEY_STORAGE, priv);
     localStorage.setItem(PUBLIC_KEY_STORAGE, pub);
     cachedKeyPair = null;
-    // чистим старые session keys — они под старый ключ
     Object.keys(localStorage)
       .filter((k) => k.startsWith(SESSION_KEYS_PREFIX))
       .forEach((k) => localStorage.removeItem(k));

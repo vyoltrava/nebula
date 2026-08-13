@@ -18,6 +18,8 @@ import { ChatWindowSkeleton } from "@/components/Skeletons";
 import { pinMessage, unpinMessage, getPinnedMessages } from "@/lib/api";
 import type { PinnedMessage } from "@/lib/types";
 import { EncryptedMediaPlayer } from "@/components/EncryptedMediaPlayer";
+import { clearSessionKey } from "@/lib/crypto";
+
 
 import { isOnline, lastSeenText } from "@/lib/online";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
@@ -36,7 +38,6 @@ import {
 } from "@/lib/crypto";
 import { QRCodeSVG } from "qrcode.react";
 import { Html5Qrcode } from "html5-qrcode";
-
 function getSessionKeyOrThrow(chatId: number): Uint8Array {
   const sk = loadSessionKey(chatId);
   if (!sk) throw new Error("Нет session key");
@@ -391,13 +392,14 @@ async function initCryptoForSecretChat() {
     let sk = loadSessionKey(Number(chatId));
     
     // 🆕 Если ключ есть, но сообщения не расшифровываются — пересоздаём
-    if (sk && messages.length > 0) {
-      const hasFail = messages.some(
-        (m) => m.ciphertext && m.ciphertext !== "[encrypted_media]" && decryptMessage(m.ciphertext, sk!) === "[Ошибка расшифровки]"
-      );
+      if (sk && messages.length > 0) {
+        const currentSk = sk; // ✅ сужаем тип до Uint8Array
+        const hasFail = messages.some(
+          (m) => m.ciphertext && m.ciphertext !== "[encrypted_media]" && decryptMessage(m.ciphertext, currentSk) === "[Ошибка расшифровки]"
+        );
       if (hasFail) {
         console.log("Session key invalid, re-establishing...");
-        localStorage.removeItem(`session_key_${chatId}`);
+        localStorage.removeItem(`nebula_session_key_${chatId}`);
         sk = null;
       }
     }
@@ -859,9 +861,10 @@ async function initCryptoForSecretChat() {
     if (skRefreshedForRef.current === chatId) return;
     const sk = loadSessionKey(Number(chatId));
     if (!sk) return;
+    const currentSk = sk; // ✅
 
     const hasFail = messages.some(
-      (m) => m.ciphertext && decryptMessage(m.ciphertext, sk) === "[Ошибка расшифровки]"
+      (m) => m.ciphertext && decryptMessage(m.ciphertext, currentSk) === "[Ошибка расшифровки]"
     );
     if (!hasFail) return;
 
