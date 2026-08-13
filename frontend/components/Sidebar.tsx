@@ -25,12 +25,16 @@ export function Sidebar() {
   // Состояние для мобильного колеса
   const [wheelActive, setWheelActive] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [rotation, setRotation] = useState(0);
   const wheelStartY = useRef(0);
   const wheelStartRotation = useRef(0);
   const isDragging = useRef(false);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
   const hasSelected = useRef(false);
+  const lastHighlightedIndex = useRef(-1);
+  const buttonRef = useRef<HTMLDivElement>(null);
+  const [buttonRect, setButtonRect] = useState({ x: 0, y: 0 });
   
   const { counts, refresh } = useUnreadCounts();
 
@@ -146,11 +150,33 @@ export function Sidebar() {
     }
   }
 
+  // Обновляем позицию кнопки
+  useEffect(() => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setButtonRect({
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+      });
+    }
+  }, []);
+
   // Обработчики для колеса
   const handlePressStart = (e: React.TouchEvent | React.MouseEvent) => {
     e.preventDefault();
     hasSelected.current = false;
     isDragging.current = false;
+    setHighlightedIndex(-1);
+    lastHighlightedIndex.current = -1;
+    
+    // Обновляем позицию кнопки
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setButtonRect({
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2
+      });
+    }
     
     // Запускаем таймер для определения длительного нажатия
     longPressTimer.current = setTimeout(() => {
@@ -175,7 +201,7 @@ export function Sidebar() {
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     const deltaY = clientY - wheelStartY.current;
     
-    // Чувствительность прокрутки
+    // Вращение колеса - вверх по часовой, вниз против часовой
     const sensitivity = 2;
     const newRotation = wheelStartRotation.current + deltaY / sensitivity;
     setRotation(newRotation);
@@ -186,7 +212,13 @@ export function Sidebar() {
     const normalizedRotation = ((newRotation % 360) + 360) % 360;
     const index = Math.round(normalizedRotation / anglePerItem) % totalItems;
     setSelectedIndex(index);
-    hasSelected.current = true;
+    
+    // Подсвечиваем текущий выбранный элемент
+    if (index !== lastHighlightedIndex.current) {
+      setHighlightedIndex(index);
+      lastHighlightedIndex.current = index;
+      hasSelected.current = true;
+    }
   };
 
   const handlePressEnd = (e: React.TouchEvent | React.MouseEvent) => {
@@ -203,9 +235,9 @@ export function Sidebar() {
     isDragging.current = false;
     setWheelActive(false);
     
-    // Переход только если был сделан выбор
-    if (hasSelected.current) {
-      const selectedItem = wheelItems[selectedIndex];
+    // Переход если был сделан выбор
+    if (hasSelected.current && highlightedIndex !== -1) {
+      const selectedItem = wheelItems[highlightedIndex];
       if (selectedItem) {
         if (selectedItem.href === "#logout") {
           clearToken();
@@ -220,6 +252,8 @@ export function Sidebar() {
     
     // Сбрасываем состояние
     setSelectedIndex(0);
+    setHighlightedIndex(-1);
+    lastHighlightedIndex.current = -1;
     setRotation(0);
   };
 
@@ -453,10 +487,11 @@ export function Sidebar() {
 
   return (
     <>
-      {/* ================= МОБИЛЬНАЯ ВЕРСИЯ (ПОЛУКОЛЕСО) ================= */}
+      {/* ================= МОБИЛЬНАЯ ВЕРСИЯ (ПОЛУКОЛЕСО ОТ КНОПКИ) ================= */}
       <div className="md:hidden">
         {/* Кнопка-таблетка - прижата к правому краю */}
         <div 
+          ref={buttonRef}
           className="fixed right-4 bottom-24 z-[98]"
         >
           <button
@@ -479,7 +514,7 @@ export function Sidebar() {
           </button>
         </div>
 
-        {/* Полуколесо - раскрывается от кнопки влево */}
+        {/* Полуколесо - появляется от кнопки, кнопка - центр */}
         {wheelActive && (
           <>
             {/* Затемнение фона */}
@@ -487,36 +522,43 @@ export function Sidebar() {
               className="fixed inset-0 bg-black/30 z-[99]"
             />
             
-            {/* Полуколесо */}
+            {/* Полуколесо позиционируется относительно кнопки */}
             <div 
-              className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none"
+              className="fixed z-[100] pointer-events-none"
+              style={{
+                left: buttonRect.x,
+                top: buttonRect.y,
+                transform: 'translate(-50%, -50%)'
+              }}
             >
-              <div className="relative w-[400px] h-[400px] -translate-x-8">
+              <div className="relative w-[320px] h-[320px]">
                 {/* Декоративные кольца */}
                 <div className="absolute inset-0 rounded-full border border-white/5"></div>
                 <div className="absolute inset-8 rounded-full border border-white/5"></div>
-                <div className="absolute inset-16 rounded-full border border-white/5"></div>
+                
+                {/* Прямоугольный индикатор выбора в центре */}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 border-2 border-[#8b5cf6]/50 rounded-xl bg-[#8b5cf6]/10 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#8b5cf6]/40 animate-pulse"></div>
+                </div>
                 
                 {/* Элементы полуколеса - только левая половина */}
                 {wheelItems.map((item, index) => {
                   const totalItems = wheelItems.length;
                   const anglePerItem = 360 / totalItems;
-                  // Вычисляем угол с учетом ротации
                   const angle = (index * anglePerItem + rotation) % 360;
                   const rad = (angle - 90) * Math.PI / 180;
                   
-                  // Радиус расположения элементов
-                  const radius = 130;
-                  const centerX = 200;
-                  const centerY = 200;
+                  const radius = 120;
+                  const centerX = 160;
+                  const centerY = 160;
                   const x = centerX + radius * Math.cos(rad);
                   const y = centerY + radius * Math.sin(rad);
                   
-                  // Определяем активный элемент (ближайший к верхней точке 0°)
-                  const normalizedAngle = ((angle % 360) + 360) % 360;
-                  const isActive = Math.abs(normalizedAngle - 0) < 20 || Math.abs(normalizedAngle - 360) < 20;
+                  // Проверяем, находится ли элемент в прямоугольнике выбора
+                  const isHighlighted = highlightedIndex === index;
                   
-                  // Размер и прозрачность зависят от близости к верхней точке
+                  // Размер и прозрачность
+                  const normalizedAngle = ((angle % 360) + 360) % 360;
                   const distanceFromTop = Math.min(
                     Math.abs(normalizedAngle - 0),
                     Math.abs(normalizedAngle - 360),
@@ -524,51 +566,45 @@ export function Sidebar() {
                   );
                   const proximityFactor = Math.max(0, 1 - (distanceFromTop / 90));
                   
-                  const size = 20 + (isActive ? 24 : proximityFactor * 16);
-                  const opacity = 0.3 + (isActive ? 0.7 : proximityFactor * 0.5);
+                  const size = 18 + (isHighlighted ? 26 : proximityFactor * 14);
+                  const opacity = isHighlighted ? 1 : 0.3 + proximityFactor * 0.4;
                   
                   // Показываем только левую половину (x < centerX)
-                  // И элементы сверху и снизу, но не справа
-                  const isLeftHalf = x < centerX + 30;
-                  const isTopHalf = y < centerY + 30;
-                  
-                  // Показываем только левую верхнюю и левую нижнюю четверти
-                  // (x < centerX) - вся левая половина
-                  const isVisible = x < centerX + 20;
+                  const isVisible = x < centerX + 15;
                   
                   if (!isVisible) return null;
                   
                   return (
                     <div
                       key={index}
-                      className={`absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-100 ${
-                        isActive ? 'scale-110' : ''
+                      className={`absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-150 ${
+                        isHighlighted ? 'scale-125' : ''
                       }`}
                       style={{
                         left: x,
                         top: y,
                         opacity: Math.max(opacity, 0.15),
-                        zIndex: isActive ? 10 : 5,
+                        zIndex: isHighlighted ? 10 : 5,
                         pointerEvents: 'none',
                       }}
                     >
-                      <div className={`flex flex-col items-center gap-0.5 ${isActive ? 'text-white' : 'text-white/60'}`}>
+                      <div className={`flex flex-col items-center gap-0.5 ${isHighlighted ? 'text-white' : 'text-white/60'}`}>
                         <div className={`rounded-full p-1.5 transition-all ${
-                          isActive 
-                            ? 'bg-[#8b5cf6]/30 shadow-lg shadow-[#8b5cf6]/30' 
+                          isHighlighted 
+                            ? 'bg-[#8b5cf6]/40 shadow-lg shadow-[#8b5cf6]/40 border border-[#8b5cf6]/30' 
                             : 'bg-white/5'
                         }`}>
                           <item.icon 
                             size={size} 
                             className={`transition-all ${
-                              isActive 
+                              isHighlighted 
                                 ? 'text-[#8b5cf6]' 
                                 : 'text-white/40'
                             }`}
                           />
                         </div>
                         <span className={`text-[8px] font-medium transition-all whitespace-nowrap ${
-                          isActive ? 'text-white' : 'text-white/30'
+                          isHighlighted ? 'text-[#8b5cf6] font-bold' : 'text-white/30'
                         }`}>
                           {item.label}
                         </span>
@@ -577,15 +613,8 @@ export function Sidebar() {
                   );
                 })}
                 
-                {/* Центральный индикатор */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-14 h-14 rounded-full border-2 border-[#8b5cf6]/30 flex items-center justify-center bg-black/20 backdrop-blur-sm">
-                    <div className="w-3 h-3 rounded-full bg-[#8b5cf6]/50 animate-pulse"></div>
-                  </div>
-                </div>
-                
                 {/* Подсказка */}
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-[10px] text-white/20 whitespace-nowrap pointer-events-none">
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[9px] text-white/20 whitespace-nowrap pointer-events-none">
                   ↑↓ для выбора
                 </div>
               </div>
