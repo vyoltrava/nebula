@@ -755,12 +755,8 @@ async function initCryptoForSecretChat() {
     }
 
     const { encryptMediaFile } = await import("@/lib/mediaCrypto");
-    const sessionKey = loadSessionKey(Number(chatId));
-    if (!sessionKey) {
-      alert("Нет ключа сессии");
-      return;
-    }
-    const encryptedBlob = await encryptMediaFile(file, sessionKey);
+    // ✅ ИСПОЛЬЗУЕМ УЖЕ ПРОВЕРЕННЫЙ sk
+    const encryptedBlob = await encryptMediaFile(file, sk);
 
     const form = new FormData();
     form.append("file", encryptedBlob);
