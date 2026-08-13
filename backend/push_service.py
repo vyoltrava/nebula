@@ -59,6 +59,7 @@ def get_vapid() -> dict:
 
 def send_push(user_id: int, title: str, body: str, url: str):
     """Синхронная отправка — вызывать через run_in_threadpool"""
+    log.info(f"[PUSH] Попытка отправки для user_id={user_id}: {title}")
     try:
         from pywebpush import webpush, WebPushException
         from database import engine
@@ -70,10 +71,17 @@ def send_push(user_id: int, title: str, body: str, url: str):
             subs = session.exec(
                 select(PushSubscription).where(PushSubscription.user_id == user_id)
             ).all()
+            
+            if not subs:
+                log.info(f"[PUSH] user_id={user_id}: подписок нет, пропускаю")
+                return
+            
+            log.info(f"[PUSH] user_id={user_id}: найдено {len(subs)} подписок")
+            
             dead = []
             for sub in subs:
                 try:
-                    webpush(
+                    response = webpush(
                         subscription_info={
                             "endpoint": sub.endpoint,
                             "keys": {"p256dh": sub.p256dh, "auth": sub.auth},
@@ -83,15 +91,20 @@ def send_push(user_id: int, title: str, body: str, url: str):
                         vapid_claims={"sub": "mailto:admin@trelod.app"},
                         timeout=10,
                     )
+                    log.info(f"[PUSH] ✅ Отправлено sub={sub.id}, status={response.status_code}")
                 except WebPushException as e:
                     status = getattr(getattr(e, "response", None), "status_code", None)
+                    log.warning(f"[PUSH] ❌ Ошибка sub={sub.id}: HTTP {status} — {e}")
                     if status in (404, 410):
                         dead.append(sub)
                 except Exception as e:
-                    log.warning(f"push failed sub={sub.id}: {e}")
+                    log.warning(f"[PUSH] ❌ Ошибка sub={sub.id}: {e}")
+            
             for d in dead:
                 session.delete(d)
             if dead:
                 session.commit()
+                log.info(f"[PUSH] Удалено {len(dead)} мёртвых подписок")
+                
     except Exception as e:
-        log.error(f"send_push error: {e}")
+        log.error(f"[PUSH] 💥 Критическая ошибка: {e}", exc_info=True)
