@@ -301,28 +301,24 @@ export default function ChatPage() {
     }
   }
 
-function decryptDisplayText(msg: any): string {
-  if (!isSecret) return msg.text || "";
-  if (!msg.ciphertext || msg.ciphertext === "[encrypted_media]") return "";
-  
-  const sk = loadSessionKey(Number(chatId));
-  if (!sk) return "[Сессия не установлена]";
-  
-  try {
-    // ✅ Безопасная проверка: если ciphertext не строка, преобразуем или пропускаем
-    const ciphertext = typeof msg.ciphertext === 'string' 
-      ? msg.ciphertext 
-      : (msg.ciphertext instanceof Uint8Array ? msg.ciphertext : null);
-    
-    if (!ciphertext) return "";
-    
-    const decrypted = decryptMessage(ciphertext, sk);
-    if (decrypted === "[Ошибка расшифровки]") return "[Ошибка расшифровки]";
-    return decrypted;
-  } catch {
-    return "[Ошибка расшифровки]";
-  }
-}
+  function decryptDisplayText(msg: any): string {
+      if (!isSecret) return msg.text || "";
+      
+      // Для шифрованных медиа нет текста — это нормально
+      if (!msg.ciphertext || msg.ciphertext === "[encrypted_media]") return "";
+      
+      const sk = loadSessionKey(Number(chatId));
+      if (!sk) return "[Сессия не установлена]";
+      
+      try {
+        const decrypted = decryptMessage(msg.ciphertext, sk);
+        if (decrypted === "[Ошибка расшифровки]") return "[Ошибка расшифровки]";
+        return decrypted;
+      } catch {
+        return "[Ошибка расшифровки]";
+      }
+    }
+
   async function loadChatInfo() {
     const token = getToken();
     if (!token) return;
@@ -397,7 +393,7 @@ async function initCryptoForSecretChat() {
     // 🆕 Если ключ есть, но сообщения не расшифровываются — пересоздаём
     if (sk && messages.length > 0) {
       const hasFail = messages.some(
-        (m) => m.ciphertext && m.ciphertext !== "[encrypted_media]" && decryptMessage(m.ciphertext, sk) === "[Ошибка расшифровки]"
+        (m) => m.ciphertext && m.ciphertext !== "[encrypted_media]" && decryptMessage(m.ciphertext, sk!) === "[Ошибка расшифровки]"
       );
       if (hasFail) {
         console.log("Session key invalid, re-establishing...");
