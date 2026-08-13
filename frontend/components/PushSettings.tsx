@@ -1,14 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Bell, BellOff, Check, Loader2, Smartphone, Monitor } from "lucide-react";
-import { enablePush, disablePush, isPushSubscribed, isPushSupported } from "@/lib/push";
+import { enablePush, disablePush, isPushSubscribed, isPushSupported, getPushEnvironment } from "@/lib/push";
 import { getToken } from "@/lib/auth";
-import { getPushEnvironment } from "@/lib/push";
 
 export function PushSettings() {
   const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<"checking" | "ok" | "denied" | "unsupported">("checking");
+  const [lastError, setLastError] = useState<string | null>(null);
   const env = getPushEnvironment();
 
   useEffect(() => {
@@ -26,6 +26,7 @@ export function PushSettings() {
     const token = getToken();
     if (!token) return;
     setBusy(true);
+    setLastError(null);
     try {
       if (subscribed) {
         await disablePush(token);
@@ -40,6 +41,12 @@ export function PushSettings() {
           setStatus("denied");
         } else if (res.error === "unsupported") {
           setStatus("unsupported");
+        } else {
+          // 🆕 Ловим реальные ошибки Safari (NotSupportedError и т.п.)
+          setLastError(res.error || "unknown");
+          if (res.error === "NotSupportedError" && env.isIOS && !env.isStandalone) {
+            setStatus("unsupported");
+          }
         }
       }
     } finally {
@@ -55,34 +62,37 @@ export function PushSettings() {
         <div>
           <p className="text-sm text-white/70 font-medium">Не поддерживается</p>
           <p className="text-xs text-white/40 mt-0.5">
-            Ваш браузер не поддерживает Web Push API. Попробуйте Chrome, Firefox или Edge.
+            {env.isIOS && !env.isStandalone
+              ? "На iPhone уведомления работают только если открыть сайт с домашнего экрана (Safari → Поделиться → На экран «Домой»)."
+              : "Ваш браузер не поддерживает Web Push API. Попробуйте Chrome, Firefox или Edge."}
           </p>
         </div>
       </div>
     );
   }
 
-{env.isInApp && (
-  <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 mb-3">
-    <span className="text-amber-400 text-sm">⚠️</span>
-    <p className="text-xs text-amber-200/80">
-      Сайт открыт во встроенном браузере (Telegram/VK и т.п.). Открой его в обычном <b>Chrome</b> или <b>Safari</b> — иначе пуши не заработают.
-    </p>
-  </div>
-)}
-
-{env.isIOS && !env.isStandalone && (
-  <div className="flex items-start gap-3 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 mb-3">
-    <span className="text-blue-400 text-sm">🍏</span>
-    <p className="text-xs text-blue-200/80">
-      На iPhone уведомления работают только с домашнего экрана: Safari → кнопка «Поделиться» → <b>«На экран “Домой”»</b>. Затем открой приложение с иконки и включи пуши там.
-    </p>
-  </div>
-)}
-
-
   return (
     <div className="space-y-3">
+      {/* ⚠️ Открыто во встроенном браузере */}
+      {env.isInApp && (
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+          <span className="text-amber-400 text-sm">⚠️</span>
+          <p className="text-xs text-amber-200/80">
+            Сайт открыт во встроенном браузере (Telegram/VK и т.п.). Открой его в обычном <b>Chrome</b> или <b>Safari</b> — иначе пуши не заработают.
+          </p>
+        </div>
+      )}
+
+      {/* 🍏 iOS: не в standalone */}
+      {env.isIOS && !env.isStandalone && (
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+          <span className="text-blue-400 text-sm">🍏</span>
+          <p className="text-xs text-blue-200/80">
+            На iPhone уведомления работают только с домашнего экрана: Safari → кнопка «Поделиться» → <b>«На экран “Домой”»</b>. Затем открой приложение с иконки и включи пуши там.
+          </p>
+        </div>
+      )}
+
       {/* Главный переключатель */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -100,8 +110,8 @@ export function PushSettings() {
               {subscribed ? "Уведомления включены" : "Включить push-уведомления"}
             </p>
             <p className="text-xs text-white/40 mt-0.5 truncate">
-              {subscribed 
-                ? "Вы получаете уведомления о новых сообщениях" 
+              {subscribed
+                ? "Вы получаете уведомления о новых сообщениях"
                 : "Получайте уведомления даже когда сайт закрыт"}
             </p>
           </div>
@@ -124,7 +134,7 @@ export function PushSettings() {
         </button>
       </div>
 
-      {/* Статус: где работают пуши */}
+      {/* ✅ Статус: где работают пуши */}
       {subscribed && (
         <div className="flex flex-wrap gap-2 pt-1">
           <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
@@ -140,23 +150,45 @@ export function PushSettings() {
         </div>
       )}
 
-      {/* Предупреждение: если браузер запретил */}
+      {/* 🆕 Реальная ошибка из Safari */}
+      {lastError && (
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+          <BellOff size={16} className="text-red-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm text-red-200 font-medium">Не удалось включить</p>
+            <p className="text-xs text-red-200/70 mt-0.5 font-mono break-all">
+              {lastError}
+            </p>
+            {lastError === "NotSupportedError" && (
+              <p className="text-xs text-red-200/70 mt-1">
+                {env.isIOS
+                  ? "На iPhone пуши доступны только из приложения с домашнего экрана."
+                  : "Ваш браузер не поддерживает Web Push в этом контексте."}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ❌ Браузер запретил */}
       {status === "denied" && (
         <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
           <BellOff size={16} className="text-amber-400 mt-0.5 shrink-0" />
           <div>
             <p className="text-sm text-amber-200 font-medium">Уведомления заблокированы</p>
             <p className="text-xs text-amber-200/70 mt-0.5">
-              Разрешите их вручную: иконка замка 🔒 слева от адресной строки → «Настройки сайта» → включите «Уведомления».
+              {env.isIOS
+                ? "Настройки iPhone → Уведомления → найти trelod → включить."
+                : "Иконка замка 🔒 слева от адресной строки → «Настройки сайта» → включите «Уведомления»."}
             </p>
           </div>
         </div>
       )}
 
-      {/* Подсказка для iOS */}
-      {subscribed && (
+      {/* Подсказка для iOS когда всё ок */}
+      {subscribed && env.isIOS && (
         <p className="text-[11px] text-white/30 leading-relaxed">
-          💡 На iOS уведомления работают только если вы добавили сайт на главный экран через Safari.
+          💡 На iOS уведомления приходят только пока приложение открыто с домашнего экрана. В фоне iOS может задерживать пуши.
         </p>
       )}
     </div>

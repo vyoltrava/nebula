@@ -1,14 +1,15 @@
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
-function urlBase64ToUint8Array(base64String: string) {
+export function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = atob(base64);
-  // ✅ ArrayBuffer явно — TypeScript не ругается, Safari принимает
+  // Safari строго требует Uint8Array с ArrayBuffer, не view
   const outputArray = new Uint8Array(new ArrayBuffer(rawData.length));
   for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
   return outputArray;
 }
+
 export function isPushSupported(): boolean {
   return typeof window !== "undefined"
     && "serviceWorker" in navigator
@@ -39,25 +40,32 @@ export async function enablePush(token: string): Promise<{ ok: boolean; error?: 
   await navigator.serviceWorker.ready;
 
   const vapidRes = await fetch(`${API}/api/push/vapid`);
+  if (!vapidRes.ok) return { ok: false, error: "vapid" };
   const { public_key } = await vapidRes.json();
 
+  try {
+    // ✅ Safari требует Uint8Array, Chrome принимает и строку и байты
     const sub = await reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(public_key), // base64url строка — Push API принимает её напрямую
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(public_key),
     });
-  const json = sub.toJSON();
+    const json = sub.toJSON();
 
-  const res = await fetch(`${API}/api/push/subscribe`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({
-      endpoint: json.endpoint!,
-      p256dh: json.keys!.p256dh,
-      auth: json.keys!.auth,
-    }),
-  });
-  if (!res.ok) return { ok: false, error: "server" };
-  return { ok: true };
+    const res = await fetch(`${API}/api/push/subscribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        endpoint: json.endpoint!,
+        p256dh: json.keys!.p256dh,
+        auth: json.keys!.auth,
+      }),
+    });
+    if (!res.ok) return { ok: false, error: "server" };
+    return { ok: true };
+  } catch (e: any) {
+    // 🆕 Ловим точную ошибку (Safari кидает NotSupportedError / NotAllowedError)
+    return { ok: false, error: e?.name || "subscribe_error" };
+  }
 }
 
 export async function disablePush(token: string) {
