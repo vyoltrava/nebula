@@ -1387,46 +1387,7 @@ const ChatHeader = () => (
       </div>
     )}
 
-{isRecording && (
-  <div className="px-3 sm:px-4 md:px-4 py-2 border-t border-white/5">
-    <div className="flex items-center gap-2.5 sm:gap-3">
-      <div className="relative w-2.5 h-2.5 shrink-0">
-        <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
-        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
-      </div>
-      <span className="text-sm font-bold text-red-400 tabular-nums shrink-0">
-        {formatRecordingTime(recordingTime)}
-      </span>
-      {/* Анимированный эквалайзер как в TG */}
-      <div className="flex-1 flex items-end justify-between gap-[2px] h-5 overflow-hidden">
-        {Array.from({ length: 28 }).map((_, i) => (
-          <span
-            key={i}
-            className="eq-bar w-[3px] rounded-full bg-red-400/70"
-            style={{
-              animationDelay: `${(i % 7) * 0.09}s`,
-              animationDuration: `${0.8 + (i % 5) * 0.12}s`,
-            }}
-          />
-        ))}
-      </div>
-      <button
-        onClick={stopRecording}
-        className="shrink-0 px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 active:scale-95 transition-all flex items-center gap-1.5"
-      >
-        <Square size={11} fill="currentColor" />
-        Стоп
-      </button>
-      <button
-        onClick={cancelRecording}
-        className="shrink-0 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all"
-        title="Отменить запись"
-      >
-        <X size={16} />
-      </button>
-    </div>
-  </div>
-)}
+
 
 
 
@@ -1905,7 +1866,7 @@ const ChatHeader = () => (
             )}
 
 
-            {!isSelectMode && !isRecording && (
+            {!isSelectMode && (
               <div className="p-3 sm:p-3 md:p-4 border-t border-white/10 bg-[#171717]/80 backdrop-blur-md">
                 <div className="flex items-end gap-2 sm:gap-2">
                   <input
@@ -2083,6 +2044,47 @@ const ChatHeader = () => (
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
             <div className="w-full max-w-sm sm:max-w-md border border-emerald-500/30 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-4 sm:p-6 pointer-events-auto max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4 sm:mb-5">
+                {isRecording ? (
+  <div className="flex items-center gap-2.5 sm:gap-3">
+    <div className="relative w-2.5 h-2.5 shrink-0">
+      <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
+      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+    </div>
+    <span className="text-sm font-bold text-red-400 tabular-nums shrink-0">
+      {formatRecordingTime(recordingTime)}
+    </span>
+    <div className="flex-1 flex items-end justify-between gap-[2px] h-5 overflow-hidden">
+      {Array.from({ length: 28 }).map((_, i) => (
+        <span
+          key={i}
+          className="eq-bar w-[3px] rounded-full bg-red-400/70"
+          style={{
+            animationDelay: `${(i % 7) * 0.09}s`,
+            animationDuration: `${0.8 + (i % 5) * 0.12}s`,
+          }}
+        />
+      ))}
+    </div>
+    <button
+      onClick={stopRecording}
+      className="shrink-0 px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 active:scale-95 transition-all flex items-center gap-1.5"
+    >
+      <Square size={11} fill="currentColor" />
+      Стоп
+    </button>
+    <button
+      onClick={cancelRecording}
+      className="shrink-0 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all"
+      title="Отменить запись"
+    >
+      <X size={16} />
+    </button>
+  </div>
+) : (
+  <div className="flex items-end gap-2 sm:gap-2">
+    {/* ... весь существующий контент панели ввода (стикеры, скрепка, textarea, кнопка отправки) ... */}
+  </div>
+)}
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="text-emerald-400" size={20} />
                   <h2 className="text-lg sm:text-xl font-black text-white">Проверка шифрования</h2>

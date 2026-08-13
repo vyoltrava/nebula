@@ -51,8 +51,7 @@ export function VideoNotePlayer({ src, trackId, title }: { src: string; trackId?
       className="relative w-52 h-52 sm:w-56 sm:h-56 rounded-2xl overflow-hidden bg-black ring-1 ring-white/10 active:scale-[0.98] transition-transform shrink-0"
     >
       {/* Видео всегда здесь, играет inline */}
-      <video ref={localRef} src={src} muted playsInline preload="metadata" className="w-full h-full object-cover" />
-
+      <video ref={localRef} src={src} playsInline preload="metadata" className="w-full h-full object-cover" />
       {/* Длительность */}
       <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 text-[10px] font-mono text-white/80">
         {fmt(active ? gp.duration || dur : dur)}
