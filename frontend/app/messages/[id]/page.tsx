@@ -1891,7 +1891,7 @@ export default function ChatPage() {
         />
       )}
 
- // В ChatPage, когда отправляем видео-кружок:
+
 {showVideoRecorder && (
   <VideoNoteRecorder
     onRecorded={async (file) => {

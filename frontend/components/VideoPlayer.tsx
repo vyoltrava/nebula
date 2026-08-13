@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState, useEffect } from "react";
-import { Play, Pause, Rewind, FastForward } from "lucide-react";
+import { Play, Pause, Rewind, FastForward, Volume2, VolumeX } from "lucide-react";
 import { mediaUrl } from "@/lib/media";
 
 interface VideoPlayerProps {
@@ -13,6 +13,9 @@ type FeedbackType = "play" | "pause" | "-5" | "+5" | null;
 export function VideoPlayer({ src, className = "" }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
   const [feedback, setFeedback] = useState<{ type: FeedbackType; id: number } | null>(null);
   const feedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const feedbackIdRef = useRef(0);
@@ -24,15 +27,21 @@ export function VideoPlayer({ src, className = "" }: VideoPlayerProps) {
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
     const handleEnded = () => setIsPlaying(false);
+    const handleMeta = () => setDuration(video.duration || 0);
+    const handleTime = () => setCurrentTime(video.currentTime);
 
     video.addEventListener("play", handlePlay);
     video.addEventListener("pause", handlePause);
     video.addEventListener("ended", handleEnded);
+    video.addEventListener("loadedmetadata", handleMeta);
+    video.addEventListener("timeupdate", handleTime);
 
     return () => {
       video.removeEventListener("play", handlePlay);
       video.removeEventListener("pause", handlePause);
       video.removeEventListener("ended", handleEnded);
+      video.removeEventListener("loadedmetadata", handleMeta);
+      video.removeEventListener("timeupdate", handleTime);
     };
   }, []);
 
@@ -76,6 +85,20 @@ export function VideoPlayer({ src, className = "" }: VideoPlayerProps) {
     }
   };
 
+  const toggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMuted(!muted);
+  };
+
+  const formatTime = (seconds: number) => {
+    if (!seconds || isNaN(seconds)) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
   const renderFeedbackIcon = () => {
     if (!feedback) return null;
 
@@ -107,8 +130,8 @@ export function VideoPlayer({ src, className = "" }: VideoPlayerProps) {
         key={feedback.id}
         className={`absolute top-1/2 ${positionClass} -translate-y-1/2 pointer-events-none z-10 animate-[ping_0.6s_ease-out_forwards]`}
       >
-        <div className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center">
-          <Icon size={28} className="text-white" fill="currentColor" />
+        <div className="w-12 h-12 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center">
+          <Icon size={24} className="text-white" fill="currentColor" />
           {label && (
             <span className="absolute bottom-0.5 text-[10px] font-bold text-white">
               {label}
@@ -129,25 +152,32 @@ export function VideoPlayer({ src, className = "" }: VideoPlayerProps) {
         src={mediaUrl(src)}
         className="w-full h-auto max-h-64 sm:max-h-80 md:max-h-96 cursor-pointer"
         playsInline
+        muted={muted}
       />
 
-      {/* Большая иконка Play по центру когда видео на паузе (и не было недавнего действия) */}
-      {!isPlaying && !feedback && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
-          <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center backdrop-blur-sm">
-            <Play size={32} className="text-black ml-1" fill="currentColor" />
-          </div>
-        </div>
-      )}
+      {/* Прогресс-бар снизу как в Telegram */}
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
+        <div
+          className="h-full bg-[#8b5cf6] transition-all duration-200"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
 
-      {/* Всплывающий фидбек при тапе */}
+      {/* Время */}
+      <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/60 text-white/80 text-[10px] font-mono">
+        {isPlaying ? formatTime(duration - currentTime) : formatTime(duration)}
+      </div>
+
+      {/* Кнопка звука */}
+      <button
+        onClick={toggleMute}
+        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white/80 hover:bg-black/80 transition-colors"
+      >
+        {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+      </button>
+
+      {/* 🔇 НЕТ БОЛЬШОЙ КНОПКИ PLAY — только фидбек при клике */}
       {renderFeedbackIcon()}
-
-      {/* Невидимые разделители для понимания зон (для разработки можно раскомментировать) */}
-      {/*
-      <div className="absolute inset-y-0 left-0 w-[30%] border-r border-red-500/30 pointer-events-none" />
-      <div className="absolute inset-y-0 right-0 w-[30%] border-l border-red-500/30 pointer-events-none" />
-      */}
     </div>
   );
 }
