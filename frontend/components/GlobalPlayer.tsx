@@ -155,8 +155,8 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
 
       {/* 🎵 ПАНЕЛЬ ПЛЕЕРА СВЕРХУ */}
 {track && (
-  <div className="fixed top-[60px] left-1/2 -translate-x-1/2 w-full max-w-3xl z-[150] px-3 sm:px-4 animate-in slide-in-from-top-2 duration-200">
-    <div className="bg-[#171717]/90 backdrop-blur-md border border-white/10 rounded-xl shadow-lg shadow-black/50">
+  <div className="fixed top-[70px] right-3 sm:right-5 z-[150] w-[calc(100vw-24px)] max-w-[420px] animate-in slide-in-from-top-2 duration-200">
+    <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-lg shadow-black/30">
       <div className="px-3 py-2">
         <div className="flex items-center gap-2 sm:gap-3">
           {/* превью квадрата — живой видео-элемент */}

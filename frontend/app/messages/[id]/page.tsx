@@ -2206,57 +2206,79 @@ const ChatHeader = () => (
         </>
       )}
 
-      {showMediaGallery && (
-  <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-3 sm:p-4">
-    <div className="w-full max-w-4xl max-h-[90vh] flex flex-col">
-      <div className="flex items-center justify-between mb-3 sm:mb-4">
-        <h2 className="text-base sm:text-xl font-bold text-white">Медиа из чата</h2>
-        <button
-          onClick={() => setShowMediaGallery(false)}
-          className="text-white/60 hover:text-white p-2"
-        >
-          <X size={20} />
-        </button>
+ {showMediaGallery && (
+  <>
+    {/* Оверлей — только на мобилке */}
+    <div
+      className="fixed inset-0 bg-black/60 z-[199] md:hidden"
+      onClick={() => setShowMediaGallery(false)}
+    />
+
+    {/* Панель медиа */}
+    <div
+      className={`
+        fixed z-[200]
+        /* Мобилка: fullscreen */
+        inset-0
+        /* Десктоп: компактная панель справа */
+        md:inset-auto md:top-0 md:right-0 md:bottom-0 md:w-[420px]
+        bg-[#171717]/95 md:bg-[#171717]
+        backdrop-blur-md
+        border-l border-white/10
+        flex flex-col
+        animate-in slide-in-from-right-4 duration-200
+      `}
+    >
+      {/* Шапка с вкладками — ВСЕГДА сверху, не меняется */}
+      <div className="shrink-0 border-b border-white/10 bg-[#171717]/80">
+        <div className="flex items-center justify-between px-3 py-2.5">
+          <h2 className="text-sm font-bold text-white">Медиа</h2>
+          <button
+            onClick={() => setShowMediaGallery(false)}
+            className="text-white/50 hover:text-white p-1.5 rounded-lg hover:bg-white/10 active:scale-95 transition-all"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Вкладки с счётчиками */}
+        <div className="flex gap-1 px-3 pb-2 overflow-x-auto scrollbar-hide">
+          {[
+            { key: "image", label: "Фото", icon: <ImageIcon size={12} /> },
+            { key: "video", label: "Видео", icon: <Film size={12} /> },
+            { key: "video_note", label: "Квадраты", icon: <Video size={12} /> },
+            { key: "audio", label: "Голосовые", icon: <Mic size={12} /> },
+          ].map((t) => {
+            const count = mediaItems.filter((m) =>
+              t.key === "image" ? (m.media_type === "image" || m.media_type === "gif") : m.media_type === t.key
+            ).length;
+            const active = mediaTab === t.key;
+            return (
+              <button
+                key={t.key}
+                onClick={() => setMediaTab(t.key as any)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all shrink-0 ${
+                  active
+                    ? "bg-[#8b5cf6] text-white"
+                    : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/80"
+                }`}
+              >
+                {t.icon}
+                {t.label}
+                <span className={`${active ? "text-white/70" : "text-white/30"}`}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Вкладки с счётчиками */}
-      <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1 shrink-0">
-        {[
-          { key: "image", label: "Фото", icon: <ImageIcon size={13} /> },
-          { key: "video", label: "Видео", icon: <Film size={13} /> },
-          { key: "video_note", label: "Квадраты", icon: <Video size={13} /> },
-          { key: "audio", label: "Голосовые", icon: <Mic size={13} /> },
-        ].map((t) => {
-          const count = mediaItems.filter((m) =>
-            t.key === "image" ? (m.media_type === "image" || m.media_type === "gif") : m.media_type === t.key
-          ).length;
-          const active = mediaTab === t.key;
-          return (
-            <button
-              key={t.key}
-              onClick={() => setMediaTab(t.key as any)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
-                active
-                  ? "bg-[#8b5cf6] text-white"
-                  : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/80"
-              }`}
-            >
-              {t.icon}
-              {t.label}
-              <span className={active ? "text-white/70" : "text-white/30"}>{count}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
+      {/* Контент — скроллится, шапка на месте */}
+      <div className="flex-1 overflow-y-auto p-3">
         {mediaItems.filter((m) =>
           mediaTab === "image" ? (m.media_type === "image" || m.media_type === "gif") : m.media_type === mediaTab
-        ).length === 0 ? (
-          <p className="text-white/60 text-center py-8 sm:py-12 text-sm">Пока пусто</p>
-        ) : mediaTab === "image" || mediaTab === "video" ? (
+        ).length === 0 ? null : mediaTab === "image" || mediaTab === "video" ? (
           /* Сетка для фото/видео */
-          <div className="grid grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
+          <div className="grid grid-cols-3 gap-1.5">
             {mediaItems
               .filter((m) =>
                 mediaTab === "image" ? (m.media_type === "image" || m.media_type === "gif") : m.media_type === "video"
@@ -2264,7 +2286,7 @@ const ChatHeader = () => (
               .map((item) => (
                 <div
                   key={item.id}
-                  className="aspect-square relative cursor-pointer group rounded-lg overflow-hidden border border-white/10"
+                  className="aspect-square relative cursor-pointer group rounded-lg overflow-hidden border border-white/10 hover:border-[#8b5cf6]/50 transition-colors"
                   onClick={() => setSelectedMedia(item)}
                 >
                   {mediaTab === "image" ? (
@@ -2272,8 +2294,8 @@ const ChatHeader = () => (
                   ) : (
                     <>
                       <video src={mediaUrl(item.media_url)} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                        <Film size={24} className="text-white" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
+                        <Film size={20} className="text-white/70" />
                       </div>
                     </>
                   )}
@@ -2282,17 +2304,24 @@ const ChatHeader = () => (
           </div>
         ) : (
           /* Список для квадратов и голосовых */
-          <div className="space-y-2 max-w-xl mx-auto">
+          <div className="space-y-2">
             {mediaItems
               .filter((m) => m.media_type === mediaTab)
               .map((item) => (
-                <div key={item.id} className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                <div key={item.id} className="p-2 rounded-xl bg-white/5 border border-white/10">
                   {mediaTab === "video_note" ? (
-                    <div className="max-w-[220px]">
-                      <VideoNotePlayer src={mediaUrl(item.media_url)} />
+                    <div className="max-w-[200px]">
+                      <VideoNotePlayer
+                        src={mediaUrl(item.media_url)}
+                        trackId={`gallery-${item.id}`}
+                      />
                     </div>
                   ) : (
-                    <AudioPlayer src={mediaUrl(item.media_url)} />
+                    <AudioPlayer
+                      src={mediaUrl(item.media_url)}
+                      trackId={`gallery-${item.id}`}
+                      title={`Голосовое`}
+                    />
                   )}
                   <p className="text-[10px] text-white/30 mt-1.5">
                     {new Date(item.created_at).toLocaleString("ru-RU", {
@@ -2305,7 +2334,7 @@ const ChatHeader = () => (
         )}
       </div>
     </div>
-  </div>
+  </>
 )}
 
       {selectedMedia && (
