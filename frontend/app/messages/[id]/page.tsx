@@ -13,12 +13,17 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { STICKERS } from "@/lib/stickers";
+import { useDevicePermission } from "@/lib/useDevicePermission";
+import { PermissionHelpModal } from "@/components/PermissionHelpModal";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { ChatWindowSkeleton } from "@/components/Skeletons";
+import { isPushSubscribed } from "@/lib/push";
+import { PushToggle } from "@/components/PushToggle";
 import { pinMessage, unpinMessage, getPinnedMessages } from "@/lib/api";
 import type { PinnedMessage } from "@/lib/types";
 import { EncryptedMediaPlayer } from "@/components/EncryptedMediaPlayer";
 import { clearSessionKey } from "@/lib/crypto";
+
 
 
 import { isOnline, lastSeenText } from "@/lib/online";
@@ -81,6 +86,10 @@ export default function ChatPage() {
   const [showGroupMembers, setShowGroupMembers] = useState(false);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
 
+  const micPerm = useDevicePermission("microphone");
+  const camPerm = useDevicePermission("camera");
+  const [permHelp, setPermHelp] = useState<null | "microphone" | "camera">(null);
+
   const [showVideoRecorder, setShowVideoRecorder] = useState(false);
   
   // 🆕 Состояния для кнопки отправки/записи
@@ -115,7 +124,30 @@ export default function ChatPage() {
     return `${base} ${sizes[type] || ""}`;
   };
 
+  const pushActiveRef = useRef(false);
+
+  useEffect(() => {
+    isPushSubscribed().then((v) => { pushActiveRef.current = v; });
+  }, []);
+
+  function localNotify(title: string, body: string) {
+    if (typeof Notification === "undefined") return;
+    if (Notification.permission !== "granted") return;
+    if (!document.hidden) return;        // вкладка открыта — не дублируем
+    if (pushActiveRef.current) return;   // пуши включены — придёт с сервера
+    try { new Notification(title, { body }); } catch {}
+  }
+
+
+
   async function startRecording() {
+    // ✅ Сначала проверяем разрешение, не спамим getUserMedia
+    if (micPerm.status === "denied") { setPermHelp("microphone"); return; }
+    if (micPerm.status !== "granted") {
+      const ok = await micPerm.request();
+      if (!ok) { setPermHelp("microphone"); return; }
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream, {
@@ -934,6 +966,9 @@ if (data.sender_id === currentUser?.id) {
         return [...prev, { ...data, is_temp: false }];
       }
       return prev;
+
+
+
     });
   } else {
     // Чужие сообщения - просто добавляем
@@ -942,6 +977,13 @@ if (data.sender_id === currentUser?.id) {
       return [...prev, { ...data, is_temp: false }];
     });
   }
+
+  if (data.sender_id !== currentUser?.id) {
+  localNotify(
+    `💬 ${data.sender_name}`,
+    data.ciphertext === "[encrypted_media]" ? "🔒 Вложение" : (data.text || "Новое сообщение")
+  );
+}
 
   // Отметка прочитанных
   const token = getToken();
@@ -1136,6 +1178,7 @@ if (data.sender_id === currentUser?.id) {
             title="Поиск"
           >
             <Search size={19} className="sm:w-5 sm:h-5" />
+            <PushToggle />
           </button>
 
           {isSecret && !isGroup && (
@@ -1828,13 +1871,18 @@ if (data.sender_id === currentUser?.id) {
                           
                           <div className="h-px bg-white/10" />
                           
-                          <button
-                            onClick={() => {
-                              setShowRecordMenu(false);
-                              setShowVideoRecorder(true);
-                            }}
-                            className="w-full px-4 py-3 flex items-center gap-3 text-left text-sm text-white hover:bg-white/10 transition-colors"
-                          >
+                            <button
+                              onClick={async () => {
+                                setShowRecordMenu(false);
+                                if (camPerm.status === "denied") { setPermHelp("camera"); return; }
+                                if (camPerm.status !== "granted") {
+                                  const ok = await camPerm.request();
+                                  if (!ok) { setPermHelp("camera"); return; }
+                                }
+                                setShowVideoRecorder(true);
+                              }}
+                              className="w-full px-4 py-3 flex items-center gap-3 text-left text-sm text-white hover:bg-white/10 transition-colors"
+                            >
                             <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
                               <Video size={18} />
                             </div>
@@ -2085,6 +2133,7 @@ if (data.sender_id === currentUser?.id) {
 
 {showVideoRecorder && (
   <VideoNoteRecorder
+    onDenied={() => { setShowVideoRecorder(false); setPermHelp("camera"); }}
     onRecorded={async (file) => {
       setShowVideoRecorder(false);
       const token = getToken();
@@ -2135,6 +2184,10 @@ if (data.sender_id === currentUser?.id) {
     onCancel={() => setShowVideoRecorder(false)}
     maxDuration={60}
   />
+)}
+
+{permHelp && (
+  <PermissionHelpModal device={permHelp} onClose={() => setPermHelp(null)} />
 )}
 
     </div>

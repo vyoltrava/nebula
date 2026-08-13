@@ -28,7 +28,7 @@ from database import init_db, get_session, engine
 from models import (
     User, Post, Like, Follow, Notification, Tag, PostTag, Role,
     Chat, ChatMember, Message, Report, UserKey, ChatSessionKey,
-    IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead 
+    IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead, PushSubscription,  
 )
 import logging
 from fastapi.responses import JSONResponse
@@ -3510,6 +3510,17 @@ def startup():
     # Автоматическое добавление недостающих колонок
     with engine.connect() as conn:
         try:
+            
+            conn.execute(text('''CREATE TABLE IF NOT EXISTS pushsubscription (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
+                endpoint VARCHAR UNIQUE NOT NULL,
+                p256dh VARCHAR NOT NULL,
+                auth VARCHAR NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );'''))
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_push_user ON pushsubscription(user_id);'))
+
             conn.execute(text('UPDATE "user" SET username = LOWER(username) WHERE username != LOWER(username);'))
             conn.commit()
             print("✅ Lowercased all usernames")
@@ -4105,6 +4116,16 @@ async def upload_encrypted_media(
         session,
     )
 
+
+    from push_service import send_push
+    for other in other_members:
+        asyncio.create_task(run_in_threadpool(
+            send_push, other.user_id,
+            "🔒 Секретное сообщение",
+            f"{user.display_name}: вложение",
+            f"/messages/{chat_id}",
+        ))
+
     return {
         "id": msg.id,
         "media_url": media_url,
@@ -4293,6 +4314,26 @@ async def send_message_v2(
         },
         session,
     )
+
+    # 🆕 PUSH-УВЕДОМЛЕНИЯ получателям
+    from push_service import send_push
+    for other in other_members:
+        if chat.is_secret:
+            asyncio.create_task(run_in_threadpool(
+                send_push, other.user_id,
+                "🔒 Секретное сообщение",
+                f"{user.display_name}: новое сообщение",
+                f"/messages/{chat_id}",
+            ))
+        else:
+            body = (msg.text or ("📎 Вложение" if media_url else "Сообщение"))[:100]
+            asyncio.create_task(run_in_threadpool(
+                send_push, other.user_id,
+                f"💬 {user.display_name}",
+                body,
+                f"/messages/{chat_id}",
+            ))
+
     return {
         "id": msg.id,
         "sender_id": msg.sender_id,
@@ -4304,6 +4345,8 @@ async def send_message_v2(
         "read": msg.read,
         "created_at": msg.created_at.isoformat(),
     }
+
+
 
 @app.get("/api/chats/{chat_id}/messages")
 def get_messages_v2(
@@ -4428,6 +4471,64 @@ def delete_message(
     session.commit()
     
     return {"ok": True}
+
+
+
+class PushSubscribeIn(BaseModel):
+    endpoint: str
+    p256dh: str
+    auth: str
+
+@app.get("/api/push/vapid")
+def get_vapid_public_key():
+    from push_service import get_vapid
+    return {"public_key": get_vapid()["public_raw"]}
+
+@app.post("/api/push/subscribe")
+def push_subscribe(
+    data: PushSubscribeIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    existing = session.exec(
+        select(PushSubscription).where(PushSubscription.endpoint == data.endpoint)
+    ).first()
+    if existing:
+        existing.user_id = user.id
+        existing.p256dh = data.p256dh
+        existing.auth = data.auth
+        session.add(existing)
+    else:
+        session.add(PushSubscription(
+            user_id=user.id, endpoint=data.endpoint,
+            p256dh=data.p256dh, auth=data.auth,
+        ))
+    session.commit()
+    return {"ok": True}
+
+@app.post("/api/push/unsubscribe")
+def push_unsubscribe(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    for s in session.exec(
+        select(PushSubscription).where(PushSubscription.user_id == user.id)
+    ).all():
+        session.delete(s)
+    session.commit()
+    return {"ok": True}
+
+@app.get("/api/push/status")
+def push_status(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    count = session.exec(
+        select(func.count()).select_from(PushSubscription)
+        .where(PushSubscription.user_id == user.id)
+    ).one()
+    return {"subscribed": count > 0}
+
 
 
 

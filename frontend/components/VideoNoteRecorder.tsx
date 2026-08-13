@@ -6,10 +6,11 @@ import { Square, X, Mic, MicOff } from "lucide-react";
 interface Props {
   onRecorded: (file: File) => void;
   onCancel: () => void;
+  onDenied?: () => void;
   maxDuration?: number;
 }
 
-export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Props) {
+export function VideoNoteRecorder({ onRecorded, onCancel, onDenied, maxDuration = 60 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -38,10 +39,11 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
         videoRef.current.srcObject = stream;
       }
       setIsCameraReady(true);
-    } catch {
-      alert("Нет доступа к камере");
-      onCancel();
-    }
+      } catch {
+        if (onDenied) onDenied();
+        else alert("Нет доступа к камере");
+        onCancel();
+      }
   }
 
   function toggleMute() {
