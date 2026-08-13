@@ -154,91 +154,93 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
       <audio ref={(el) => bind(el, "audio")} className="hidden" />
 
       {/* 🎵 ПАНЕЛЬ ПЛЕЕРА СВЕРХУ */}
-      {track && (
-        <div className="fixed top-0 inset-x-0 z-[150] bg-[#171717]/95 backdrop-blur-md border-b border-white/10 shadow-lg shadow-black/50 animate-in slide-in-from-top-2 duration-200">
-          <div className="max-w-3xl mx-auto px-3 py-2">
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* превью квадрата — живой видео-элемент */}
-              {track.type === "video_note" && (
-                <button
-                  onClick={toggle}
-                  className="w-11 h-11 rounded-xl overflow-hidden shrink-0 bg-black ring-1 ring-white/10 active:scale-95 transition-transform"
-                >
-                  <video
-                    ref={(el) => bind(el, "video")}
-                    playsInline
-                    className="w-full h-full object-cover"
-                  />
-                </button>
-              )}
-
-              {/* перемотка и play */}
-              <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => seekBy(-10)}
-                  className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 active:scale-90 transition-all"
-                  title="-10 сек"
-                >
-                  <Rewind size={16} />
-                </button>
-                <button
-                  onClick={toggle}
-                  className="w-9 h-9 rounded-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white flex items-center justify-center active:scale-90 transition-all"
-                >
-                  {playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
-                </button>
-                <button
-                  onClick={() => seekBy(10)}
-                  className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 active:scale-90 transition-all"
-                  title="+10 сек"
-                >
-                  <FastForward size={16} />
-                </button>
-              </div>
-
-              {/* название */}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">{track.title}</p>
-                <p className="text-[10px] text-white/40 font-mono">
-                  {fmt(currentTime)} / {fmt(duration)}
-                </p>
-              </div>
-
-              {/* скорость */}
-              <button
-                onClick={cycleRate}
-                className="shrink-0 px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-[11px] font-bold text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
-                title="Скорость"
-              >
-                {rate}X
-              </button>
-
-              {/* крестик */}
-              <button
-                onClick={close}
-                className="shrink-0 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all"
-                title="Закрыть"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* прогресс-бар */}
-            <div
-              className="mt-1.5 h-1 rounded-full bg-white/10 cursor-pointer"
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                seekTo(Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1));
-              }}
+{track && (
+  <div className="fixed top-[60px] left-1/2 -translate-x-1/2 w-full max-w-3xl z-[150] px-3 sm:px-4 animate-in slide-in-from-top-2 duration-200">
+    <div className="bg-[#171717]/90 backdrop-blur-md border border-white/10 rounded-xl shadow-lg shadow-black/50">
+      <div className="px-3 py-2">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* превью квадрата — живой видео-элемент */}
+          {track.type === "video_note" && (
+            <button
+              onClick={toggle}
+              className="w-11 h-11 rounded-xl overflow-hidden shrink-0 bg-black ring-1 ring-white/10 active:scale-95 transition-transform"
             >
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-[#8b5cf6] to-[#a78bfa] transition-all duration-200"
-                style={{ width: `${progress}%` }}
+              <video
+                ref={(el) => bind(el, "video")}
+                playsInline
+                className="w-full h-full object-cover"
               />
-            </div>
+            </button>
+          )}
+
+          {/* перемотка и play */}
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => seekBy(-10)}
+              className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 active:scale-90 transition-all"
+              title="-10 сек"
+            >
+              <Rewind size={16} />
+            </button>
+            <button
+              onClick={toggle}
+              className="w-9 h-9 rounded-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white flex items-center justify-center active:scale-90 transition-all"
+            >
+              {playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
+            </button>
+            <button
+              onClick={() => seekBy(10)}
+              className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10 active:scale-90 transition-all"
+              title="+10 сек"
+            >
+              <FastForward size={16} />
+            </button>
           </div>
+
+          {/* название */}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-white truncate">{track.title}</p>
+            <p className="text-[10px] text-white/40 font-mono">
+              {fmt(currentTime)} / {fmt(duration)}
+            </p>
+          </div>
+
+          {/* скорость */}
+          <button
+            onClick={cycleRate}
+            className="shrink-0 px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-[11px] font-bold text-white/70 hover:text-white hover:bg-white/10 active:scale-95 transition-all"
+            title="Скорость"
+          >
+            {rate}X
+          </button>
+
+          {/* крестик */}
+          <button
+            onClick={close}
+            className="shrink-0 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all"
+            title="Закрыть"
+          >
+            <X size={18} />
+          </button>
         </div>
-      )}
+
+        {/* прогресс-бар */}
+        <div
+          className="mt-1.5 h-1 rounded-full bg-white/10 cursor-pointer"
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            seekTo(Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1));
+          }}
+        >
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-[#8b5cf6] to-[#a78bfa] transition-all duration-200"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
       {children}
     </GlobalPlayerContext.Provider>
