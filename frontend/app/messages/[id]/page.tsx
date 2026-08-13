@@ -514,8 +514,10 @@ async function initCryptoForSecretChat() {
             sk = loadSessionKey(Number(chatId));
           }
           
-          // ✅ ИСПРАВЛЕНО: проверяем что sk не null
-          if (!sk) throw new Error("Нет session key");
+          // ✅ ЯВНАЯ ПРОВЕРКА: если sk всё ещё null — ошибка
+          if (!sk) {
+            throw new Error("Не удалось получить session key");
+          }
 
           const { encryptMediaFile } = await import("@/lib/mediaCrypto");
           const encryptedBlob = await encryptMediaFile(msg.file, sk);
@@ -555,14 +557,18 @@ async function initCryptoForSecretChat() {
             });
           }
         }
-        // 🆕 ШИФРОВАННЫЙ ТЕКСТ + обычное медиа (если есть)
+        // 🆕 ШИФРОВАННЫЙ ТЕКСТ + обычное медиа
         else if (isSecret && msg.text) {
           let sk = loadSessionKey(Number(chatId));
           if (!sk) {
             await establishNewSession();
             sk = loadSessionKey(Number(chatId));
           }
-          if (!sk) throw new Error("Нет session key");
+          
+          // ✅ ЯВНАЯ ПРОВЕРКА
+          if (!sk) {
+            throw new Error("Не удалось получить session key");
+          }
 
           const form = new FormData();
           form.append("ciphertext", encryptMessage(msg.text, sk));
