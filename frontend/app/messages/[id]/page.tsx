@@ -927,26 +927,21 @@ const getOptionPos = (id: "voice" | "video" | "cancel") => {
   const r = sendBtnRef.current.getBoundingClientRect();
   const cx = r.left + r.width / 2;
   const cy = r.top + r.height / 2;
-  if (id === "voice") return { x: cx - 55, y: cy - 80 };
-  if (id === "video") return { x: cx + 55, y: cy - 80 };
-  return { x: cx, y: cy - 160 }; // cancel — выше всех
+  // Вертикально вверх от кнопки — ничего не улетит за экран
+  if (id === "voice") return { x: cx, y: cy - 80 };
+  if (id === "video") return { x: cx, y: cy - 150 };
+  return { x: cx, y: cy - 220 }; // cancel
 };
 
 const findHoveredOption = (px: number, py: number): "voice" | "video" | "cancel" | null => {
-  if (sendBtnRef.current) {
-    const r = sendBtnRef.current.getBoundingClientRect();
-    const cy = r.top + r.height / 2;
-    // Палец высоко над кнопкой → отмена
-    if (py < cy - 130) return "cancel";
-  }
   let min = Infinity;
-  let nearest: "voice" | "video" | null = null;
-  for (const opt of RECORD_OPTIONS) {
-    const pos = getOptionPos(opt.id);
+  let nearest: "voice" | "video" | "cancel" | null = null;
+  for (const optId of ["voice", "video", "cancel"] as const) {
+    const pos = getOptionPos(optId);
     const d = Math.sqrt((px - pos.x) ** 2 + (py - pos.y) ** 2);
-    if (d < min) { min = d; nearest = opt.id; }
+    if (d < min) { min = d; nearest = optId; }
   }
-  return min <= 65 ? nearest : null;
+  return min <= 70 ? nearest : null;
 };
 
 // 🆕 Состояние для анимации "зажима"
@@ -2033,7 +2028,7 @@ const ChatHeader = () => (
 
 {!isSelectMode && (
   <div className="p-3 sm:p-3 md:p-4 border-t border-white/10 bg-[#171717]/80 backdrop-blur-md">
-    {isRecording ? (
+    {isRecording && !recordMenuOpen ? (
       <div className="flex items-center gap-2.5 sm:gap-3">
         <div className="relative w-2.5 h-2.5 shrink-0">
           <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
