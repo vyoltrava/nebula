@@ -63,18 +63,15 @@ export function VideoPlayer({ src, className = "" }: VideoPlayerProps) {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const width = rect.width;
-    const zone = x / width; // 0..1
+    const zone = x / width;
 
     if (zone < 0.3) {
-      // Левая зона — перемотка назад
       video.currentTime = Math.max(0, video.currentTime - 5);
       showFeedback("-5");
     } else if (zone > 0.7) {
-      // Правая зона — перемотка вперёд
       video.currentTime = Math.min(video.duration || 0, video.currentTime + 5);
       showFeedback("+5");
     } else {
-      // Центр — play/pause
       if (video.paused) {
         video.play();
         showFeedback("play");
@@ -176,7 +173,7 @@ export function VideoPlayer({ src, className = "" }: VideoPlayerProps) {
         {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
       </button>
 
-      {/* 🔇 НЕТ БОЛЬШОЙ КНОПКИ PLAY — только фидбек при клике */}
+      {/* ❗ ТОЛЬКО ВСПЛЫВАЮЩИЙ ФИДБЕК - БЕЗ БОЛЬШОЙ КНОПКИ PLAY */}
       {renderFeedbackIcon()}
     </div>
   );
