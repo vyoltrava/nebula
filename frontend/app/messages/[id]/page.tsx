@@ -1157,6 +1157,8 @@ export default function ChatPage() {
                   const bubbleRadius = isMine
                     ? "rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl rounded-br-[4px]"
                     : "rounded-tl-2xl rounded-tr-2xl rounded-br-2xl rounded-bl-[4px]";
+
+                  const isVideoNote = !!msg.media_url && msg.media_type === "video_note";
                   return (
                     <div
                       key={msg.id}
@@ -1230,19 +1232,23 @@ export default function ChatPage() {
                           </p>
                         )}
 
-                        <div
-                          className={`${bubbleRadius} px-3 sm:px-3.5 md:px-4 py-2 sm:py-2 transition-all ${
-                            isSelected
-                              ? "ring-2 ring-[#8b5cf6] ring-offset-2 ring-offset-[#171717]"
-                              : ""
-                          } ${
-                            isMine
-                              ? isSecret
-                                ? "bg-emerald-600 text-white"
-                                : "bg-[#8b5cf6] text-white"
-                              : "bg-white/10 text-white border border-white/15"
-                          }`}
-                        >
+                            <div
+                              className={`${bubbleRadius} transition-all ${
+                                isSelected
+                                  ? "ring-2 ring-[#8b5cf6] ring-offset-2 ring-offset-[#171717] "
+                                  : ""
+                              } ${
+                                isVideoNote
+                                  ? "" // ❗ без паддингов/фона/рамки — квадрат сам по себе, как кружок в TG
+                                  : `px-3 sm:px-3.5 md:px-4 py-2 sm:py-2 ${
+                                      isMine
+                                        ? isSecret
+                                          ? "bg-emerald-600 text-white"
+                                          : "bg-[#8b5cf6] text-white"
+                                        : "bg-white/10 text-white border border-white/15"
+                                    }`
+                              }`}
+                            >
                           {msg.media_url && (msg.media_type === "image" || msg.media_type === "gif") && (
                             <img
                               src={mediaUrl(msg.media_url)}
