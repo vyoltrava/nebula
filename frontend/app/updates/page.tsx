@@ -7,6 +7,7 @@ import {
   Megaphone, Flame, Sparkles, Wrench, X, Plus, Trash2, Clock, ArrowLeft,
   CheckCheck, ChevronDown,
 } from "lucide-react";
+import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -53,7 +54,7 @@ export default function UpdatesPage() {
   const [readIds, setReadIds] = useState<Set<number>>(new Set());
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const postsRef = useRef<HTMLDivElement>(null);
-
+  const { refresh } = useUnreadCounts();
   const canWrite = (me?.level ?? 0) >= 10;
 
   useEffect(() => {
@@ -97,8 +98,9 @@ export default function UpdatesPage() {
     const token = getToken();
     if (!token) return;
 
-    // Оптимистично
+    // Оптимистично обновляем UI
     setReadIds((prev) => new Set(prev).add(id));
+    refresh(); // 🆕 Гасим бейдж в сайдбаре сразу
 
     try {
       await fetch(`${API_URL}/api/updates/${id}/read`, {
@@ -117,6 +119,7 @@ export default function UpdatesPage() {
     if (unread.length === 0) return;
 
     setReadIds(new Set(updates.map((u) => u.id)));
+    refresh(); // 🆕 Гасим бейдж в сайдбаре сразу
 
     try {
       await fetch(`${API_URL}/api/updates/read-all`, {
@@ -130,20 +133,18 @@ export default function UpdatesPage() {
 
   function toggleExpand(id: number) {
     if (expandedId === id) {
-      // Сворачиваем → отмечаем прочитанным
       setExpandedId(null);
-      markRead(id);
     } else {
       setExpandedId(id);
+      markRead(id); // 🆕 Отмечаем прочитанным СРАЗУ при открытии, а не при закрытии
     }
   }
 
-  // 🆕 Клик вне поста — сворачиваем и отмечаем прочитанным
+  // 🆕 Клик вне поста — просто сворачиваем (без повторного markRead)
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (postsRef.current && !postsRef.current.contains(e.target as Node)) {
         if (expandedId !== null) {
-          markRead(expandedId);
           setExpandedId(null);
         }
       }
@@ -151,7 +152,6 @@ export default function UpdatesPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [expandedId]);
-
   async function createUpdate() {
     const token = getToken();
     if (!token) return;

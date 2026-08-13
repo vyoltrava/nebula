@@ -1,11 +1,11 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react"; // Добавил useRef
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { 
   Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus, 
   AtSign, X, Shield, ShieldCheck, MessageSquare, Palette, 
-  Bug, Menu, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote
+  Bug, Menu, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft // Добавил ChevronLeft для красоты
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
@@ -21,7 +21,12 @@ export function Sidebar() {
   const [notifs, setNotifs] = useState<any[]>([]);
   const [showBugModal, setShowBugModal] = useState(false);
   const [searchQ, setSearchQ] = useState("");
+  
+  // Состояние для мобильного меню: false - свернуто (видна только ручка), true - развернуто
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Рефы для обработки двойного тапа на мобильных
+  const lastTapTime = useRef(0);
   
   const { counts, refresh } = useUnreadCounts();
 
@@ -36,7 +41,6 @@ export function Sidebar() {
   useEffect(() => {
     refresh();
   }, [pathname]);
-
 
   useEffect(() => {
     const token = getToken();
@@ -104,6 +108,22 @@ export function Sidebar() {
     }
   }
 
+  // Обработчик двойного клика/тапа
+  const handleMobileToggle = () => {
+    const currentTime = new Date().getTime();
+    const tapLength = currentTime - lastTapTime.current;
+    
+    // Если это двойной тап (менее 300мс между нажатиями) ИЛИ обычный dblclick (браузер сам вызовет дважды, но мы фильтруем)
+    // Для десктопа используем стандартный onDoubleClick, для мобилки - эту логику
+    
+    if (tapLength < 300 && tapLength > 0) {
+      setMobileMenuOpen(!mobileMenuOpen);
+      lastTapTime.current = 0; // сброс
+    } else {
+      lastTapTime.current = currentTime;
+    }
+  };
+
   const icons = {
     like: <Heart size={12} fill="currentColor" />,
     reply: <MessageCircle size={12} />,
@@ -143,10 +163,9 @@ export function Sidebar() {
     : user.role?.color ?? null
     : null;
 
-  // Десктопный контент
+  // Десктопный контент (без изменений)
   const desktopSidebarContent = (
     <>
-      {/* Логотип — убрали mb-6 */}
       <div className="flex items-center gap-2">
         <img 
           src="/logo-icon.svg"
@@ -156,7 +175,6 @@ export function Sidebar() {
         <h1 className="font-logo text-4xl text-[#8b5cf6]">trelod</h1>
       </div>
 
-      {/* Навигация — убрали flex-1, оставили просто flex flex-col */}
       <nav className="flex flex-col">
         {nav.map(({ href, icon: Icon, label }, idx) => {
           const active = pathname === href;
@@ -279,242 +297,280 @@ export function Sidebar() {
         </div>
       </nav>
 
-          {/* Блок аккаунта — mt-4 вместо mt-auto */}
-          <div className="mt-4 flex flex-col gap-2 pt-4 border-t border-white/5">
-            {user ? (
-              <>
-                <Link
-                  href={`/${user.username}`}
-                  className="flex items-center gap-3 px-2 py-2 -mx-2 rounded-lg hover:bg-white/5 transition-all cursor-pointer group w-full"
-                >
-                  <div
-                    className="shrink-0"
-                    style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}
-                  >
-                    <Avatar src={user.avatar_url} name={user.display_name} id={user.id} />
-                  </div>
-                  <div className="leading-tight min-w-0 flex-1">
-                    <p
-                      className={`font-semibold text-sm truncate transition-all ${
-                        glow ? "group-hover:opacity-80" : "text-white group-hover:text-[#8b5cf6]"
-                      }`}
-                      style={
-                        glow
-                          ? { color: glow, textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66` }
-                          : undefined
-                      }
-                    >
-                      {user.display_name}
-                    </p>
-                    <p className="text-sm text-white/40 truncate">@{user.username}</p>
-                  </div>
-                  {/* Кнопка выхода справа от аккаунта */}
-                  <button
-                    onClick={(e) => { 
-                      e.preventDefault();
-                      e.stopPropagation();
-                      clearToken(); 
-                      setUser(null); 
-                      clearCachedUser(); 
-                    }}
-                    className="shrink-0 p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/20 transition-all"
-                    title="Выйти"
-                  >
-                    <LogOut size={18} />
-                  </button>
-                </Link>
-              </>
-            ) : (
-              <Link
-                href="/login"
-                className="flex items-center justify-center bg-[#8b5cf6]/15 border border-[#8b5cf6]/30 rounded-lg px-4 py-2.5 font-medium text-[#a78bfa] hover:bg-[#8b5cf6]/25 transition-all w-full"
+      <div className="mt-4 flex flex-col gap-2 pt-4 border-t border-white/5">
+        {user ? (
+          <>
+            <Link
+              href={`/${user.username}`}
+              className="flex items-center gap-3 px-2 py-2 -mx-2 rounded-lg hover:bg-white/5 transition-all cursor-pointer group w-full"
+            >
+              <div
+                className="shrink-0"
+                style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}
               >
-                Войти
-              </Link>
-            )}
-          </div>
-              </>
-            );
+                <Avatar src={user.avatar_url} name={user.display_name} id={user.id} />
+              </div>
+              <div className="leading-tight min-w-0 flex-1">
+                <p
+                  className={`font-semibold text-sm truncate transition-all ${
+                    glow ? "group-hover:opacity-80" : "text-white group-hover:text-[#8b5cf6]"
+                  }`}
+                  style={
+                    glow
+                      ? { color: glow, textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66` }
+                      : undefined
+                  }
+                >
+                  {user.display_name}
+                </p>
+                <p className="text-sm text-white/40 truncate">@{user.username}</p>
+              </div>
+              <button
+                onClick={(e) => { 
+                  e.preventDefault();
+                  e.stopPropagation();
+                  clearToken(); 
+                  setUser(null); 
+                  clearCachedUser(); 
+                }}
+                className="shrink-0 p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/20 transition-all"
+                title="Выйти"
+              >
+                <LogOut size={18} />
+              </button>
+            </Link>
+          </>
+        ) : (
+          <Link
+            href="/login"
+            className="flex items-center justify-center bg-[#8b5cf6]/15 border border-[#8b5cf6]/30 rounded-lg px-4 py-2.5 font-medium text-[#a78bfa] hover:bg-[#8b5cf6]/25 transition-all w-full"
+          >
+            Войти
+          </Link>
+        )}
+      </div>
+    </>
+  );
+
   return (
     <>
-      {/* МОБИЛЬНАЯ ВЕРСИЯ */}
+      {/* ================= МОБИЛЬНАЯ ВЕРСИЯ (НОВЫЙ ДИЗАЙН) ================= */}
       <div className="md:hidden">
-        {mobileMenuOpen && (
-          <div className="fixed right-3 bottom-44 z-[98] max-h-[60vh] overflow-y-auto">
-            <div className="bg-[#171717]/95 backdrop-blur-md border border-white/10 rounded-2xl p-2 shadow-2xl shadow-black/60">
-              <div className="flex flex-col">
-                {nav.map(({ href, icon: Icon, label }) => {
-                  const active = pathname === href;
-                  const isUpdates = href === "/updates";
-                  const showUpdatesBadge = isUpdates && (counts.updates || 0) > 0;
+        
+        {/* 1. Кнопка-ручка (всегда видна, прижата к правому краю) */}
+        {/* Используем onDoubleClick для ПК и onTouchEnd для мобилок с логикой двойного тапа */}
+        <div 
+          className={`fixed right-0 top-1/2 -translate-y-1/2 z-[98] transition-all duration-300 ease-in-out
+            ${mobileMenuOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}
+          `}
+          style={{ top: '60%' }} // Чуть ниже центра, как на фото
+        >
+          <button
+            onDoubleClick={() => setMobileMenuOpen(true)}
+            onTouchEnd={(e) => {
+              // Предотвращаем зум и стандартное поведение
+              // e.preventDefault(); 
+              handleMobileToggle();
+            }}
+            className="w-8 h-16 bg-[#171717] border border-r-0 border-white/10 rounded-l-xl flex items-center justify-center shadow-lg shadow-black/50 active:scale-95 transition-transform"
+            aria-label="Открыть меню (двойной клик)"
+          >
+            {/* Маленькая полоска или иконка */}
+            <div className="w-1.5 h-6 bg-white/20 rounded-full" />
+          </button>
+        </div>
 
-                  return (
-                    <Link
-                      key={href}
-                      href={href}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all mb-1 relative ${
-                        active
-                          ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
-                          : "text-white/80 hover:bg-white/10 hover:text-white"
-                      }`}
-                      title={label}
-                    >
-                      <Icon size={22} />
-                      {showUpdatesBadge && (
-                        <span className="absolute -top-1 -right-1 bg-[#8b5cf6] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-[#171717]">
-                          {counts.updates}
-                        </span>
-                      )}
-                    </Link>
-                  );
-                })}
+        {/* 2. Выдвижная панель */}
+        <div 
+          className={`fixed right-0 top-0 h-full z-[99] transition-transform duration-300 ease-in-out
+            ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}
+          `}
+        >
+          {/* Затемнение фона при открытии (опционально, можно убрать если хотите чтобы фон был виден) */}
+          {mobileMenuOpen && (
+             <div 
+                className="absolute inset-0 bg-black/20 backdrop-blur-[1px] -z-10 w-screen" 
+                onClick={() => setMobileMenuOpen(false)}
+             />
+          )}
 
-                <div className="h-px bg-white/10 my-1" />
+          {/* Сама панель меню */}
+          <div className="h-full w-64 bg-[#171717]/95 backdrop-blur-xl border-l border-white/10 rounded-l-2xl shadow-2xl shadow-black/60 flex flex-col p-4 relative">
+            
+            {/* Кнопка закрытия (свернуть обратно) */}
+            <button 
+              onClick={() => setMobileMenuOpen(false)}
+              className="absolute top-4 left-4 p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+            >
+              <ChevronLeft size={20} />
+            </button>
 
-                {user && (
+            <div className="mt-12 flex flex-col gap-2 overflow-y-auto flex-1 pb-20">
+              {/* Навигация */}
+              {nav.map(({ href, icon: Icon, label }) => {
+                const active = pathname === href;
+                const isUpdates = href === "/updates";
+                const showUpdatesBadge = isUpdates && (counts.updates || 0) > 0;
+
+                return (
                   <Link
-                    href="/messages"
+                    key={href}
+                    href={href}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all relative mb-1 ${
-                      pathname?.startsWith("/messages")
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative ${
+                      active
                         ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
                         : "text-white/80 hover:bg-white/10 hover:text-white"
                     }`}
-                    title="Сообщения"
                   >
-                    <MessageSquare size={22} />
-                    {counts.chats > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-[#8b5cf6] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-[#171717]">
-                        {counts.chats}
+                    <Icon size={20} />
+                    <span className="font-medium">{label}</span>
+                    {showUpdatesBadge && (
+                      <span className="ml-auto bg-[#8b5cf6] text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                        {counts.updates}
                       </span>
                     )}
                   </Link>
-                )}
+                );
+              })}
 
-                <button
-                  onClick={() => {
-                    loadNotifications();
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all relative mb-1 ${
-                    pathname === "/notifications"
+              <div className="h-px bg-white/10 my-2 mx-2" />
+
+              {/* Сообщения */}
+              {user && (
+                <Link
+                  href="/messages"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative ${
+                    pathname?.startsWith("/messages")
                       ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
                       : "text-white/80 hover:bg-white/10 hover:text-white"
                   }`}
-                  title="Уведомления"
                 >
-                  <Bell size={22} />
-                  {counts.notifications > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-[#8b5cf6] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center border-2 border-[#171717]">
-                      {counts.notifications}
+                  <MessageSquare size={20} />
+                  <span className="font-medium">Сообщения</span>
+                  {counts.chats > 0 && (
+                    <span className="ml-auto bg-[#8b5cf6] text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      {counts.chats}
                     </span>
                   )}
-                </button>
+                </Link>
+              )}
 
-                {(user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) && (
-                  <Link
-                    href="/admin"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all mb-1 ${
-                      pathname === "/admin"
-                        ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
-                        : "text-white/80 hover:bg-white/10 hover:text-white"
-                    }`}
-                    title="Админка"
-                  >
-                    {user?.is_admin ? <ShieldAlert size={22} /> : user?.is_moderator ? <ShieldCheck size={22} /> : <Shield size={22} className="text-[#f59e0b]" />}
-                  </Link>
+              {/* Уведомления */}
+              <button
+                onClick={() => {
+                  loadNotifications();
+                  setMobileMenuOpen(false);
+                }}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative w-full text-left ${
+                  pathname === "/notifications"
+                    ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
+                    : "text-white/80 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <Bell size={20} />
+                <span className="font-medium">Уведомления</span>
+                {counts.notifications > 0 && (
+                  <span className="ml-auto bg-[#8b5cf6] text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                    {counts.notifications}
+                  </span>
                 )}
+              </button>
 
-                {user?.is_admin && (
-                  <Link
-                    href="/admin/roles"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all mb-1 ${
-                      pathname === "/admin/roles"
-                        ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
-                        : "text-white/80 hover:bg-white/10 hover:text-white"
-                    }`}
-                    title="Роли"
-                  >
-                    <Palette size={22} />
-                  </Link>
-                )}
+              {/* Админка */}
+              {(user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) && (
+                <Link
+                  href="/admin"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                    pathname === "/admin"
+                      ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
+                      : "text-white/80 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  {user?.is_admin ? <ShieldAlert size={20} /> : user?.is_moderator ? <ShieldCheck size={20} /> : <Shield size={20} className="text-[#f59e0b]" />}
+                  <span className="font-medium">{user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель"}</span>
+                </Link>
+              )}
 
-                {user?.permissions?.includes("tech_access") && (
-                  <Link
-                    href="/admin/technical"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`w-12 h-12 flex items-center justify-center rounded-xl transition-all mb-1 ${
-                      pathname === "/admin/technical"
-                        ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
-                        : "text-white/80 hover:bg-white/10 hover:text-white"
-                    }`}
-                    title="Техпанель"
-                  >
-                    <Wrench size={22} />
-                  </Link>
-                )}
+              {user?.is_admin && (
+                <Link
+                  href="/admin/roles"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                    pathname === "/admin/roles"
+                      ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
+                      : "text-white/80 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  <Palette size={20} />
+                  <span className="font-medium">Роли</span>
+                </Link>
+              )}
 
-                <div className="h-px bg-white/10 my-1" />
+              {user?.permissions?.includes("tech_access") && (
+                <Link
+                  href="/admin/technical"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                    pathname === "/admin/technical"
+                      ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
+                      : "text-white/80 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  <Wrench size={20} />
+                  <span className="font-medium">Техпанель</span>
+                </Link>
+              )}
 
-                {user && (
-                  <Link
+              <div className="h-px bg-white/10 my-2 mx-2" />
+
+              {/* Профиль и выход */}
+              {user && (
+                <div className="flex flex-col gap-2">
+                   <Link
                     href={`/${user.username}`}
                     onClick={() => setMobileMenuOpen(false)}
-                    className="w-12 h-12 flex items-center justify-center rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-all mb-1"
-                    title="Профиль"
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-all"
                   >
                     <div style={glow ? { filter: `drop-shadow(0 0 4px ${glow})` } : undefined}>
-                      <Avatar src={user.avatar_url} name={user.display_name} id={user.id} size={32} />
+                      <Avatar src={user.avatar_url} name={user.display_name} id={user.id} size={24} />
                     </div>
+                    <span className="font-medium text-sm truncate">{user.display_name}</span>
                   </Link>
-                )}
 
-                {user && (
                   <button
                     onClick={() => { clearToken(); setUser(null); clearCachedUser(); setMobileMenuOpen(false); }}
-                    className="w-12 h-12 flex items-center justify-center rounded-xl text-white/80 hover:bg-red-500/20 hover:text-red-400 transition-all mb-1"
-                    title="Выйти"
+                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/80 hover:bg-red-500/20 hover:text-red-400 transition-all w-full text-left"
                   >
-                    <LogOut size={22} />
+                    <LogOut size={20} />
+                    <span className="font-medium">Выйти</span>
                   </button>
-                )}
+                </div>
+              )}
 
-                <button
-                  onClick={() => {
-                    setShowBugModal(true);
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-12 h-12 flex items-center justify-center rounded-xl text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all"
-                  title="Сообщить о проблеме"
-                >
-                  <Bug size={22} />
-                </button>
-              </div>
+              <button
+                onClick={() => {
+                  setShowBugModal(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all w-full text-left mt-auto"
+              >
+                <Bug size={20} />
+                <span className="font-medium text-sm">Сообщить о проблеме</span>
+              </button>
             </div>
           </div>
-        )}
-
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="fixed right-3 bottom-24 z-[97] w-14 h-14 rounded-2xl 
-            bg-[#171717]/95 backdrop-blur-md border border-white/10 
-            text-white/80 flex items-center justify-center
-            shadow-lg shadow-black/60 active:scale-90 transition-all"
-          aria-label="Открыть меню"
-        >
-          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        </div>
       </div>
 
-      {/* ДЕСКТОП */}
+      {/* ДЕСКТОП (без изменений) */}
       <aside className="hidden md:flex md:w-64 shrink-0 overflow-y-auto p-5 flex-col gap-5 bg-[#171717]">
         {desktopSidebarContent}
       </aside>
 
-      {/* ================= МОДАЛКА УВЕДОМЛЕНИЙ ================= */}
+      {/* ================= МОДАЛКА УВЕДОМЛЕНИЙ (без изменений) ================= */}
       {showNotifs && (
         <>
           <div
@@ -523,7 +579,6 @@ export function Sidebar() {
           />
           <div className="fixed left-4 right-4 md:left-[272px] md:right-auto md:top-4 top-16 w-auto md:w-[380px] max-h-[70vh] md:max-h-[520px] overflow-hidden border border-white/10 rounded-2xl bg-[#1f1f23] shadow-2xl z-[100] flex flex-col">
             
-            {/* Шапка */}
             <div className="sticky top-0 bg-[#1f1f23]/95 backdrop-blur-md border-b border-white/10 p-3 flex items-center justify-between shrink-0">
               <h3 className="font-bold text-white">Уведомления</h3>
               <div className="flex items-center gap-1">
@@ -544,7 +599,6 @@ export function Sidebar() {
               </div>
             </div>
 
-            {/* Список */}
             <div className="overflow-y-auto flex-1">
               {notifs.length === 0 && (
                 <div className="p-8 text-center">
