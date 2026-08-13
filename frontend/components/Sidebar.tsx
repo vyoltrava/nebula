@@ -17,12 +17,13 @@ import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 //  Параметры дуги
 // ════════════════════════════════════════════════════════════════
 const ARC_RADIUS       = 170;
-const CENTER_OFFSET_X  = 100;   // центр круга правее кнопки (за экраном)
-const CENTER_OFFSET_Y  = -30;   // чуть выше кнопки
-const ARC_ANGLE_START  = (7 * Math.PI) / 9;   // 140°
-const ARC_ANGLE_END    = (11 * Math.PI) / 9;  // 220°
-const SNAP_RADIUS      = 58;    // px — радиус «захвата» иконки пальцем
+const CENTER_OFFSET_X  = 100;
+const CENTER_OFFSET_Y  = -30;
+const ARC_ANGLE_START  = (7 * Math.PI) / 9;
+const ARC_ANGLE_END    = (11 * Math.PI) / 9;
+const SNAP_RADIUS      = 70;
 const LONG_PRESS_MS    = 250;
+const VISIBLE_RANGE    = 2;  // показываем только ±2 иконки от активной
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -32,12 +33,11 @@ export function Sidebar() {
   const [notifs, setNotifs]           = useState<any[]>([]);
   const [showBugModal, setShowBugModal] = useState(false);
 
-  // ── Состояние колеса ──────────────────────────────────────────
   const [wheelOpen, setWheelOpen]   = useState(false);
-  const [wheelReady, setWheelReady] = useState(false);   // для анимации вылета
+  const [wheelReady, setWheelReady] = useState(false);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [fingerPos, setFingerPos]   = useState<{ x: number; y: number } | null>(null);
-  const [closing, setClosing]       = useState(false);    // анимация закрытия
+  const [closing, setClosing]       = useState(false);
 
   const buttonRef        = useRef<HTMLButtonElement>(null);
   const longPressTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -48,7 +48,14 @@ export function Sidebar() {
   const { counts, refresh } = useUnreadCounts();
 
   // ── Пункты колеса ──────────────────────────────────────────────
-  const wheelItems: Array<{ href: string; icon: any; label: string }> = [
+  type WheelItem = {
+    href: string;
+    icon: any;
+    label: string;
+    isProfile?: boolean;
+  };
+
+  const wheelItems: WheelItem[] = [
     { href: "/",          icon: Home,        label: "Главная" },
     { href: "/bookmarks", icon: Bookmark,    label: "Закладки" },
     { href: "/updates",   icon: Megaphone,   label: "Обновления" },
@@ -71,13 +78,12 @@ export function Sidebar() {
   wheelItems.push({ href: "/notifications", icon: Bell, label: "Уведомления" });
 
   if (user) {
-    wheelItems.push({ href: `/${user.username}`, icon: Home, label: "Профиль" });
+    wheelItems.push({ href: `/${user.username}`, icon: Home, label: "Профиль", isProfile: true });
     wheelItems.push({ href: "#logout", icon: LogOut, label: "Выйти" });
   } else {
     wheelItems.push({ href: "/login", icon: Home, label: "Войти" });
   }
 
-  // ── Десктопные пункты ─────────────────────────────────────────
   const nav = [
     { href: "/",          icon: Home,      label: "Главная" },
     { href: "/bookmarks", icon: Bookmark,  label: "Закладки" },
@@ -108,7 +114,6 @@ export function Sidebar() {
     return () => controller.abort();
   }, []);
 
-  // ── API helpers ───────────────────────────────────────────────
   async function loadNotifications() {
     const token = getToken();
     if (!token) return;
@@ -147,9 +152,6 @@ export function Sidebar() {
     }
   }
 
-  // ══════════════════════════════════════════════════════════════
-  //  Геометрия дуги
-  // ══════════════════════════════════════════════════════════════
   const getIconPos = useCallback((index: number) => {
     const n = wheelItems.length;
     const step = (ARC_ANGLE_END - ARC_ANGLE_START) / Math.max(n - 1, 1);
@@ -160,9 +162,6 @@ export function Sidebar() {
     };
   }, [wheelItems.length]);
 
-  // ══════════════════════════════════════════════════════════════
-  //  Логика колеса: long-press → дуга → drag → snap → action
-  // ══════════════════════════════════════════════════════════════
   const openWheel = useCallback(() => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
@@ -173,7 +172,6 @@ export function Sidebar() {
     isLongPressed.current = true;
     setWheelOpen(true);
     setClosing(false);
-    // Двойной rAF для корректного запуска CSS-transition
     requestAnimationFrame(() => {
       requestAnimationFrame(() => { setWheelReady(true); });
     });
@@ -217,7 +215,6 @@ export function Sidebar() {
     return minDist <= SNAP_RADIUS ? nearest : null;
   }, [wheelItems.length, getIconPos]);
 
-  // ── Обработчики колеса ────────────────────────────────────────
   const handleStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
     e.preventDefault();
     const px = "touches" in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
@@ -227,14 +224,12 @@ export function Sidebar() {
     longPressTimer.current = setTimeout(() => {
       longPressTimer.current = null;
       openWheel();
-      // Сразу определяем ближайшую иконку к текущей позиции
       const idx = findNearest(px, py);
       setHoveredIdx(idx);
       setFingerPos({ x: px, y: py });
     }, LONG_PRESS_MS);
   }, [openWheel, findNearest]);
 
-  // Глобальные обработчики move / end
   useEffect(() => {
     const cancelTimer = () => {
       if (longPressTimer.current) {
@@ -244,7 +239,6 @@ export function Sidebar() {
     };
 
     const handleMove = (px: number, py: number) => {
-      // Если timer ещё тикает — проверяем что палец не ушёл далеко
       if (longPressTimer.current && startPos.current) {
         const dx = px - startPos.current.x;
         const dy = py - startPos.current.y;
@@ -253,7 +247,6 @@ export function Sidebar() {
         }
         return;
       }
-      // Если колесо открыто — snap к ближайшей иконке
       if (isLongPressed.current) {
         const idx = findNearest(px, py);
         setHoveredIdx(idx);
@@ -290,10 +283,8 @@ export function Sidebar() {
       document.removeEventListener("mousemove",  onMouseMove);
       document.removeEventListener("mouseup",    onMouseUp);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hoveredIdx, closeWheel, findNearest]);
 
-  // ── Иконки уведомлений ────────────────────────────────────────
   const icons = {
     like: <Heart size={12} fill="currentColor" />,
     reply: <MessageCircle size={12} />,
@@ -331,9 +322,6 @@ export function Sidebar() {
     : user.role?.color ?? null
     : null;
 
-  // ══════════════════════════════════════════════════════════════
-  //  Десктопный сайдбар
-  // ══════════════════════════════════════════════════════════════
   const desktopSidebarContent = (
     <>
       <div className="flex items-center gap-2">
@@ -466,13 +454,9 @@ export function Sidebar() {
     </>
   );
 
-  // ══════════════════════════════════════════════════════════════
-  //  Рендер колеса
-  // ══════════════════════════════════════════════════════════════
   const buttonCx = useRef(0);
   const buttonCy = useRef(0);
 
-  // Запоминаем позицию кнопки для анимации вылета
   useEffect(() => {
     if (buttonRef.current && wheelOpen) {
       const r = buttonRef.current.getBoundingClientRect();
@@ -487,32 +471,13 @@ export function Sidebar() {
     const activePos = hoveredIdx !== null ? getIconPos(hoveredIdx) : null;
 
     return (
-      <div
-        className="fixed inset-0 z-[100]"
-        style={{ touchAction: "none" }}
-      >
-        {/* Фон */}
-        <div
-          className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200 ${
-            wheelReady ? "opacity-100" : "opacity-0"
-          }`}
-        />
+      <div className="fixed inset-0 z-[100]" style={{ touchAction: "none" }}>
+        <div className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200 ${
+          wheelReady ? "opacity-100" : "opacity-0"
+        }`} />
 
-        {/* Декоративная дуга */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none"
           style={{ opacity: wheelReady ? 0.15 : 0, transition: "opacity 300ms ease" }}>
-          <ellipse
-            cx={arcCenterRef.current.x}
-            cy={arcCenterRef.current.y}
-            rx={ARC_RADIUS}
-            ry={ARC_RADIUS}
-            fill="none"
-            stroke="#8b5cf6"
-            strokeWidth="1.5"
-            strokeDasharray="3 6"
-            // Рисуем только видимую часть через path
-          />
-          {/* Невидимая правая половина — за экраном, это и есть задумка */}
           <path
             d={`
               M ${arcCenterRef.current.x + ARC_RADIUS * Math.cos(ARC_ANGLE_START)} ${arcCenterRef.current.y + ARC_RADIUS * Math.sin(ARC_ANGLE_START)}
@@ -525,7 +490,6 @@ export function Sidebar() {
           />
         </svg>
 
-        {/* Линия от пальца к активной иконке */}
         {fingerPos && activePos && hoveredIdx !== null && (
           <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 15 }}>
             <line
@@ -534,18 +498,19 @@ export function Sidebar() {
               stroke="#8b5cf6" strokeWidth="2" strokeDasharray="4 3"
               opacity="0.4"
             />
-            {/* Кружок на пальце */}
             <circle cx={fingerPos.x} cy={fingerPos.y} r="6"
               fill="#8b5cf6" opacity="0.3" />
           </svg>
         )}
 
-        {/* Иконки */}
         {wheelItems.map((item, i) => {
           const finalPos = getIconPos(i);
           const isActive = i === hoveredIdx;
+          
+          // Показываем только иконки в пределах VISIBLE_RANGE от активной
+          const distance = hoveredIdx !== null ? Math.abs(i - hoveredIdx) : 999;
+          const isVisible = distance <= VISIBLE_RANGE;
 
-          // Начальная позиция = центр кнопки, финальная = позиция на дуге
           const x = (wheelReady && !closing) ? finalPos.x : buttonCx.current;
           const y = (wheelReady && !closing) ? finalPos.y : buttonCy.current;
 
@@ -557,9 +522,9 @@ export function Sidebar() {
                 left: x,
                 top: y,
                 transform: `translate(-50%, -50%) scale(${
-                  closing ? 0 : isActive ? 1.4 : wheelReady ? 1 : 0
+                  closing ? 0 : isActive ? 1.4 : wheelReady && isVisible ? 1 : 0
                 })`,
-                opacity: closing ? 0 : wheelReady ? (isActive ? 1 : 0.7) : 0,
+                opacity: closing ? 0 : wheelReady && isVisible ? (isActive ? 1 : 0.7) : 0,
                 transition: `
                   left 280ms cubic-bezier(0.34, 1.56, 0.64, 1),
                   top 280ms cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -571,23 +536,31 @@ export function Sidebar() {
               }}
             >
               <div className={`
-                flex items-center justify-center rounded-full
+                flex items-center justify-center rounded-full overflow-hidden
                 transition-all duration-150
                 ${isActive
                   ? "w-14 h-14 bg-[#8b5cf6] shadow-[0_0_24px_rgba(139,92,246,0.6)]"
                   : "w-11 h-11 bg-white/10 border border-white/10"
                 }
               `}>
-                <item.icon
-                  size={isActive ? 26 : 20}
-                  className={isActive ? "text-white" : "text-white/70"}
-                />
+                {item.isProfile && user ? (
+                  <Avatar 
+                    src={user.avatar_url} 
+                    name={user.display_name} 
+                    id={user.id} 
+                    size={isActive ? 26 : 20}
+                  />
+                ) : (
+                  <item.icon
+                    size={isActive ? 26 : 20}
+                    className={isActive ? "text-white" : "text-white/70"}
+                  />
+                )}
               </div>
             </div>
           );
         })}
 
-        {/* Пульсация активной иконки */}
         {hoveredIdx !== null && activePos && (
           <div
             className="absolute w-16 h-16 rounded-full pointer-events-none"
@@ -605,12 +578,8 @@ export function Sidebar() {
     );
   };
 
-  // ══════════════════════════════════════════════════════════════
-  //  JSX
-  // ══════════════════════════════════════════════════════════════
   return (
     <>
-      {/* ═══════════════ МОБИЛЬНАЯ ВЕРСИЯ ═══════════════ */}
       <div className="md:hidden">
         <button
           ref={buttonRef}
@@ -633,12 +602,10 @@ export function Sidebar() {
         {renderWheel()}
       </div>
 
-      {/* ═══════════════ ДЕСКТОП ═══════════════ */}
       <aside className="hidden md:flex md:w-64 shrink-0 overflow-y-auto p-5 flex-col gap-5 bg-[#171717]">
         {desktopSidebarContent}
       </aside>
 
-      {/* ═══════════════ УВЕДОМЛЕНИЯ ═══════════════ */}
       {showNotifs && (
         <>
           <div className="fixed inset-0 bg-black/60 z-[99]" onClick={() => setShowNotifs(false)} />
