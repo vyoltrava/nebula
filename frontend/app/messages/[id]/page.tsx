@@ -1669,17 +1669,19 @@ if (data.sender_id === currentUser?.id) {
                                         <CheckSquare size={14} /> Выбрать
                                       </button>
 
-                                        {!isSecret && (
-                                          <button
-                                            onClick={() => {
-                                              setForwardingMessage(msg);
-                                              setActiveMessageMenu(null);
-                                            }}
-                                            className="w-full px-3 sm:px-3 py-2.5 sm:py-2 text-left text-sm sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
-                                          >
-                                            <Send size={14} /> Переслать
-                                          </button>
-                                        )}
+{!isSecret && (
+  <button
+    onClick={async () => {
+      setForwardingMessage(msg);
+      setActiveMessageMenu(null);
+      await loadForwardChats();  // 🆕 загружаем список чатов
+      setShowForwardModal(true); // 🆕 открываем модалку
+    }}
+    className="w-full px-3 sm:px-3 py-2.5 sm:py-2 text-left text-sm sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
+  >
+    <Send size={14} /> Переслать
+  </button>
+)}
 
 
                                       {isMine && msg.text && (
