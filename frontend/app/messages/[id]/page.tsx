@@ -923,7 +923,7 @@ const [pressProgress, setPressProgress] = useState(0);
 const pressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 const pendingStreamRef = useRef<MediaStream | null>(null);
 
-const handleSendPointerDown = async (e: React.PointerEvent | React.TouchEvent | React.MouseEvent) => {
+const handleSendPointerDown = (e: React.PointerEvent | React.TouchEvent | React.MouseEvent) => {
   if (text.trim() || files.length > 0) return;
   e.preventDefault();
   try {
@@ -936,16 +936,6 @@ const handleSendPointerDown = async (e: React.PointerEvent | React.TouchEvent | 
   longPressTriggeredRef.current = false;
   setPressProgress(0);
 
-  // 🆕 СРАЗУ запрашиваем микрофон (это user gesture — браузер разрешит!)
-  // Stream сохраняется в ref и используется через 400мс
-  try {
-    pendingStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
-  } catch (err) {
-    console.error("Mic permission denied:", err);
-    setPermHelp("microphone");
-    return; // не начинаем long-press если нет доступа
-  }
-
   const startTime = Date.now();
   pressTimerRef.current = setInterval(() => {
     const elapsed = Date.now() - startTime;
@@ -956,16 +946,21 @@ const handleSendPointerDown = async (e: React.PointerEvent | React.TouchEvent | 
       if (pressTimerRef.current) clearInterval(pressTimerRef.current);
       pressTimerRef.current = null;
       longPressTriggeredRef.current = true;
-      
+
       setRecordMenuOpen(true);
       setHoveredRecordOption("voice");
       setFingerPos({ x: px, y: py });
       navigator.vibrate?.(25);
       setPressProgress(0);
-      
-      // 🆕 Используем уже готовый stream из ref
-      startRecordingWithStream(pendingStreamRef.current);
-      pendingStreamRef.current = null;
+
+      // 🆕 Запускаем запись — разрешение уже есть от PermissionGate
+      // getUserMedia вернёт stream мгновенно без диалога
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then((stream) => startRecordingWithStream(stream))
+        .catch((err) => {
+          console.error("Mic error:", err);
+          setPermHelp("microphone");
+        });
     }
   }, 30);
 };
