@@ -75,9 +75,11 @@ export default function ChatPage() {
   const [showGroupSettings, setShowGroupSettings] = useState(false);
 
   const [showVideoRecorder, setShowVideoRecorder] = useState(false);
+  
+  // 🆕 Состояния для кнопки отправки/записи
   const [showRecordMenu, setShowRecordMenu] = useState(false);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const [isLongPress, setIsLongPress] = useState(false);
+  const isLongPressRef = useRef(false);
 
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
@@ -577,46 +579,74 @@ export default function ChatPage() {
     }
   }
 
-    async function sendEncryptedMedia(file: File, mediaType: string) {
-      const token = getToken();
-      if (!token) return;
+  async function sendEncryptedMedia(file: File, mediaType: string) {
+    const token = getToken();
+    if (!token) return;
 
-      // ✅ Явная проверка с ранним выходом — TS теперь знает, что sk точно string
-      let sk = loadSessionKey(Number(chatId));
-      if (!sk) {
-        await establishNewSession();
-        sk = loadSessionKey(Number(chatId));
-      }
-      if (!sk) {
-        alert("Не удалось установить защищённую сессию");
-        return;
-      }
-
-      const { encryptMediaFile } = await import("@/lib/mediaCrypto");
-      const sessionKey = loadSessionKey(Number(chatId));
-      if (!sessionKey) {
-        alert("Нет ключа сессии");
-        return;
-      }
-      const encryptedBlob = await encryptMediaFile(file, sessionKey);
-
-      const form = new FormData();
-      form.append("file", encryptedBlob);
-      form.append("media_type", mediaType);
-
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: form,
-        }
-      );
-
-      if (!res.ok) {
-        alert("Не удалось отправить шифрованное медиа");
-      }
+    let sk = loadSessionKey(Number(chatId));
+    if (!sk) {
+      await establishNewSession();
+      sk = loadSessionKey(Number(chatId));
     }
+    if (!sk) {
+      alert("Не удалось установить защищённую сессию");
+      return;
+    }
+
+    const { encryptMediaFile } = await import("@/lib/mediaCrypto");
+    const sessionKey = loadSessionKey(Number(chatId));
+    if (!sessionKey) {
+      alert("Нет ключа сессии");
+      return;
+    }
+    const encryptedBlob = await encryptMediaFile(file, sessionKey);
+
+    const form = new FormData();
+    form.append("file", encryptedBlob);
+    form.append("media_type", mediaType);
+
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      }
+    );
+
+    if (!res.ok) {
+      alert("Не удалось отправить шифрованное медиа");
+    }
+  }
+
+  // 🆕 Логика Long Press для кнопки отправки
+  const handleSendPointerDown = () => {
+    // Если есть текст или файлы - это обычная отправка, лонгпресс не нужен
+    if (text.trim() || files.length > 0) return;
+
+    isLongPressRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
+      setShowRecordMenu(true);
+    }, 500); // 500мс для лонгпресса
+  };
+
+  const handleSendPointerUp = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleSendClick = () => {
+    // Если это был лонгпресс, просто сбрасываем флаг и не отправляем
+    if (isLongPressRef.current) {
+      isLongPressRef.current = false;
+      return;
+    }
+    sendMessage();
+  };
+
   useEffect(() => {
     const token = getToken();
     if (!token) {
@@ -1125,7 +1155,6 @@ export default function ChatPage() {
                   const senderGlow = getGlowColor(msg);
                   const isPinned = !!msg.pinned;
 
-                  // 📌 Закреплённые: острый нижний угол со стороны «хвоста» + лёгкая янтарная обводка
                   const bubbleRadius = isMine
                     ? "rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl rounded-br-[4px]"
                     : "rounded-tl-2xl rounded-tr-2xl rounded-br-2xl rounded-bl-[4px]";
@@ -1228,12 +1257,12 @@ export default function ChatPage() {
                               }}
                             />
                           )}
-                        {msg.media_url && msg.media_type === "video" && (
-                          <VideoPlayer
-                            src={msg.media_url}
-                            className={getMediaClasses("video")}
-                          />
-                        )}
+                          {msg.media_url && msg.media_type === "video" && (
+                            <VideoPlayer
+                              src={msg.media_url}
+                              className={getMediaClasses("video")}
+                            />
+                          )}
                           {msg.media_url && msg.media_type === "audio" && (
                             <div className="mb-1.5 sm:mb-2">
                               <AudioPlayer src={mediaUrl(msg.media_url)} />
@@ -1538,21 +1567,6 @@ export default function ChatPage() {
                         </span>
                       )}
                     </button>
-
-                    <button
-                      onClick={startRecording}
-                      className="p-2.5 sm:p-2 rounded-xl transition-colors text-white/60 hover:text-[#8b5cf6] hover:bg-white/5 min-w-[40px] sm:min-w-[36px] md:min-w-[40px] min-h-[40px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center active:scale-95"
-                      title="Записать голосовое сообщение"
-                    >
-                      <Mic size={19} className="sm:w-[18px] sm:h-[18px]" />
-                    </button>
-                    <button
-                      onClick={() => setShowVideoRecorder(true)}
-                      className="p-2.5 sm:p-2 rounded-xl transition-colors text-white/60 hover:text-[#8b5cf6] hover:bg-white/5 min-w-[40px] min-h-[40px] flex items-center justify-center active:scale-95"
-                      title="Записать видеосообщение"
-                    >
-                      <Video size={19} />
-                    </button>
                   </div>
 
                   <textarea
@@ -1573,17 +1587,70 @@ export default function ChatPage() {
                     }`}
                   />
 
-                  <button
-                    onClick={sendMessage}
-                    disabled={(!text.trim() && files.length === 0) || !!cryptoError}
-                    className={`p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0 min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 ${
-                      isSecret
-                        ? "border border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700"
-                        : "border border-[#8b5cf6] bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
-                    }`}
-                  >
-                    <Send size={19} className="sm:w-[18px] sm:h-[18px]" />
-                  </button>
+                  {/* 🆕 УНИВЕРСАЛЬНАЯ КНОПКА ОТПРАВКИ / ЗАПИСИ */}
+                  <div className="relative shrink-0">
+                    <button
+                      onMouseDown={handleSendPointerDown}
+                      onMouseUp={handleSendPointerUp}
+                      onMouseLeave={handleSendPointerUp}
+                      onTouchStart={handleSendPointerDown}
+                      onTouchEnd={handleSendPointerUp}
+                      onClick={handleSendClick}
+                      disabled={!!cryptoError}
+                      className={`p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none touch-none ${
+                        isSecret
+                          ? "border border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700"
+                          : "border border-[#8b5cf6] bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
+                      }`}
+                    >
+                      <Send size={19} className="sm:w-[18px] sm:h-[18px]" />
+                    </button>
+
+                    {/* 🆕 МИНИ-МЕНЮ ЗАПИСИ */}
+                    {showRecordMenu && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={() => setShowRecordMenu(false)} 
+                        />
+                        <div className="absolute bottom-full right-0 mb-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                          <button
+                            onClick={() => {
+                              setShowRecordMenu(false);
+                              startRecording();
+                            }}
+                            className="w-full px-4 py-3 flex items-center gap-3 text-left text-sm text-white hover:bg-white/10 transition-colors"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center text-red-400">
+                              <Mic size={18} />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-medium">Голосовое</span>
+                              <span className="text-[10px] text-white/40">Аудиосообщение</span>
+                            </div>
+                          </button>
+                          
+                          <div className="h-px bg-white/10" />
+                          
+                          <button
+                            onClick={() => {
+                              setShowRecordMenu(false);
+                              setShowVideoRecorder(true);
+                            }}
+                            className="w-full px-4 py-3 flex items-center gap-3 text-left text-sm text-white hover:bg-white/10 transition-colors"
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
+                              <Video size={18} />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="font-medium">Видео</span>
+                              <span className="text-[10px] text-white/40">Видео-кружок</span>
+                            </div>
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
