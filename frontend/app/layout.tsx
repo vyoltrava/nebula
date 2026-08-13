@@ -3,6 +3,7 @@ import { Jersey_25, Inter } from "next/font/google";
 import { BanOverlay } from "@/components/BanOverlay";
 import { AuthGuard } from "@/components/AuthGuard";
 import { WebSocketProvider } from "@/components/WebSocketProvider";
+import { GlobalPlayerProvider } from "@/components/GlobalPlayer";
 import { UnreadCountsProvider } from "@/lib/UnreadCountsContext";
 import SplashScreen from "@/components/SplashScreen";
 import PWARegister from "@/components/PWARegister";
@@ -50,7 +51,7 @@ export default function RootLayout({
   return (
     <html lang="ru" className={`${jersey.variable} ${inter.variable}`} suppressHydrationWarning>
       <body className="font-sans">
-        {/* 📱 PWA: Регистрация Service Worker и промпт установки */}
+      <GlobalPlayerProvider>
         <PWARegister />
         <InstallPrompt />
 
@@ -72,6 +73,7 @@ export default function RootLayout({
             <BanOverlay />
           </AuthGuard>
         </WebSocketProvider>
+        </GlobalPlayerProvider>
       </body>
     </html>
   );

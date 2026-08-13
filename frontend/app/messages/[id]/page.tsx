@@ -1647,11 +1647,19 @@ const ChatHeader = () => (
     )}
     {msg.media_url && msg.media_type === "audio" && (
       <div className="mb-1.5 sm:mb-2">
-        <AudioPlayer src={mediaUrl(msg.media_url)} />
+        <AudioPlayer
+          src={mediaUrl(msg.media_url)}
+          trackId={msg.id}
+          title={`${msg.sender_name} · ${new Date(msg.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`}
+        />
       </div>
     )}
     {msg.media_url && msg.media_type === "video_note" && (
-      <VideoNotePlayer src={mediaUrl(msg.media_url)} />
+      <VideoNotePlayer
+        src={mediaUrl(msg.media_url)}
+        trackId={msg.id}
+        title={`${msg.sender_name} · ${new Date(msg.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`}
+      />
     )}
   </>
 )}
