@@ -1432,44 +1432,50 @@ if (data.sender_id === currentUser?.id) {
         }`
   }`}
 >
-  {msg.media_url && msg.is_encrypted_media ? (
+{msg.media_url && msg.is_encrypted_media ? (
+  msg.media_url === "temp_encrypted_media" ? (
+    // Временное шифрованное медиа — показываем лоадер
+    <div className="w-56 h-56 rounded-2xl bg-white/5 animate-pulse flex items-center justify-center">
+      <Lock size={20} className="text-white/30" />
+    </div>
+  ) : (
     <EncryptedMediaPlayer
       mediaUrl={msg.media_url}
       mediaType={msg.media_type}
       chatId={Number(chatId)}
     />
-  ) : (
-    <>
-      {msg.media_url && (msg.media_type === "image" || msg.media_type === "gif") && (
-        <img
-          src={mediaUrl(msg.media_url)}
-          alt=""
-          className={getMediaClasses(msg.media_type)}
-          onClick={(e) => {
-            if (!isSelectMode) {
-              e.stopPropagation();
-              setSelectedMedia(msg);
-            }
-          }}
-        />
-      )}
-      {msg.media_url && msg.media_type === "video" && (
-        <VideoPlayer
-          src={msg.media_url}
-          className={getMediaClasses("video")}
-        />
-      )}
-      {msg.media_url && msg.media_type === "audio" && (
-        <div className="mb-1.5 sm:mb-2">
-          <AudioPlayer src={mediaUrl(msg.media_url)} />
-        </div>
-      )}
-      {msg.media_url && msg.media_type === "video_note" && (
-        <VideoNotePlayer src={mediaUrl(msg.media_url)} />
-      )}
-    </>
-  )}
-
+  )
+) : (
+  <>
+    {msg.media_url && (msg.media_type === "image" || msg.media_type === "gif") && (
+      <img
+        src={mediaUrl(msg.media_url)}
+        alt=""
+        className={getMediaClasses(msg.media_type)}
+        onClick={(e) => {
+          if (!isSelectMode) {
+            e.stopPropagation();
+            setSelectedMedia(msg);
+          }
+        }}
+      />
+    )}
+    {msg.media_url && msg.media_type === "video" && (
+      <VideoPlayer
+        src={msg.media_url}
+        className={getMediaClasses("video")}
+      />
+    )}
+    {msg.media_url && msg.media_type === "audio" && (
+      <div className="mb-1.5 sm:mb-2">
+        <AudioPlayer src={mediaUrl(msg.media_url)} />
+      </div>
+    )}
+    {msg.media_url && msg.media_type === "video_note" && (
+      <VideoNotePlayer src={mediaUrl(msg.media_url)} />
+    )}
+  </>
+)}
   {isEditing ? (
                             <div className="flex gap-2 items-start">
                               <textarea
