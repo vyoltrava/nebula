@@ -152,6 +152,11 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
     >
       {/* скрытый аудио-элемент */}
       <audio ref={(el) => bind(el, "audio")} className="hidden" />
+      <video
+        ref={(el) => bind(el, "video")}
+        playsInline
+        className="fixed top-0 left-0 w-px h-px opacity-0 pointer-events-none"
+      />
 
       {/* 🎵 ПАНЕЛЬ ПЛЕЕРА СВЕРХУ */}
 {track && (
@@ -159,19 +164,7 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
     <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-lg shadow-black/30">
       <div className="px-3 py-2">
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* превью квадрата — живой видео-элемент */}
-          {track.type === "video_note" && (
-            <button
-              onClick={toggle}
-              className="w-11 h-11 rounded-xl overflow-hidden shrink-0 bg-black ring-1 ring-white/10 active:scale-95 transition-transform"
-            >
-              <video
-                ref={(el) => bind(el, "video")}
-                playsInline
-                className="w-full h-full object-cover"
-              />
-            </button>
-          )}
+ 
 
           {/* перемотка и play */}
           <div className="flex items-center gap-1 shrink-0">
