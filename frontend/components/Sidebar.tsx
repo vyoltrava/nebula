@@ -1,11 +1,11 @@
 "use client";
-import { useEffect, useState, useRef } from "react"; // Добавил useRef
+import { useEffect, useState, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { 
   Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus, 
   AtSign, X, Shield, ShieldCheck, MessageSquare, Palette, 
-  Bug, Menu, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft // Добавил ChevronLeft для красоты
+  Bug, Menu, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
@@ -22,13 +22,47 @@ export function Sidebar() {
   const [showBugModal, setShowBugModal] = useState(false);
   const [searchQ, setSearchQ] = useState("");
   
-  // Состояние для мобильного меню: false - свернуто (видна только ручка), true - развернуто
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  
-  // Рефы для обработки двойного тапа на мобильных
-  const lastTapTime = useRef(0);
+  // Состояние для мобильного колеса
+  const [wheelOpen, setWheelOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const wheelStartY = useRef(0);
+  const isDragging = useRef(false);
   
   const { counts, refresh } = useUnreadCounts();
+
+  // Навигационные пункты для колеса
+  const wheelItems = [
+    { href: "/", icon: Home, label: "Главная" },
+    { href: "/bookmarks", icon: Bookmark, label: "Закладки" },
+    { href: "/updates", icon: Megaphone, label: "Обновления" },
+    { href: "/rules", icon: Shield, label: "Правила" },
+    { href: "/settings", icon: Settings, label: "Настройки" },
+  ];
+
+  // Добавляем сообщения если пользователь авторизован
+  if (user) {
+    wheelItems.push({ href: "/messages", icon: MessageSquare, label: "Сообщения" });
+  }
+
+  // Добавляем админку если есть права
+  if (user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) {
+    wheelItems.push({ 
+      href: "/admin", 
+      icon: user?.is_admin ? ShieldAlert : user?.is_moderator ? ShieldCheck : Shield, 
+      label: user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель" 
+    });
+  }
+
+  // Добавляем уведомления
+  wheelItems.push({ href: "/notifications", icon: Bell, label: "Уведомления" });
+
+  // Добавляем профиль и выход если пользователь есть
+  if (user) {
+    wheelItems.push({ href: `/${user.username}`, icon: Home, label: "Профиль" });
+    wheelItems.push({ href: "#logout", icon: LogOut, label: "Выйти" });
+  } else {
+    wheelItems.push({ href: "/login", icon: Home, label: "Войти" });
+  }
 
   const nav = [
     { href: "/", icon: Home, label: "Главная" },
@@ -108,20 +142,54 @@ export function Sidebar() {
     }
   }
 
-  // Обработчик двойного клика/тапа
-  const handleMobileToggle = () => {
-    const currentTime = new Date().getTime();
-    const tapLength = currentTime - lastTapTime.current;
+  // Обработчики для колеса
+  const handleWheelStart = (e: React.TouchEvent | React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    wheelStartY.current = clientY;
+    setWheelOpen(true);
+  };
+
+  const handleWheelMove = (e: React.TouchEvent | React.MouseEvent) => {
+    if (!isDragging.current || !wheelOpen) return;
+    e.preventDefault();
     
-    // Если это двойной тап (менее 300мс между нажатиями) ИЛИ обычный dblclick (браузер сам вызовет дважды, но мы фильтруем)
-    // Для десктопа используем стандартный onDoubleClick, для мобилки - эту логику
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const deltaY = wheelStartY.current - clientY;
     
-    if (tapLength < 300 && tapLength > 0) {
-      setMobileMenuOpen(!mobileMenuOpen);
-      lastTapTime.current = 0; // сброс
-    } else {
-      lastTapTime.current = currentTime;
+    // Чувствительность прокрутки - меняем активный пункт
+    const sensitivity = 30;
+    const steps = Math.round(deltaY / sensitivity);
+    
+    if (steps !== 0) {
+      const newIndex = (activeIndex + steps) % wheelItems.length;
+      // Обрабатываем отрицательные значения
+      setActiveIndex(newIndex < 0 ? wheelItems.length + newIndex : newIndex);
+      // Обновляем начальную позицию для плавности
+      wheelStartY.current = clientY;
     }
+  };
+
+  const handleWheelEnd = (e: React.TouchEvent | React.MouseEvent) => {
+    if (!isDragging.current || !wheelOpen) return;
+    isDragging.current = false;
+    setWheelOpen(false);
+    
+    // Переход по ссылке выбранного пункта
+    const selectedItem = wheelItems[activeIndex];
+    if (!selectedItem) return;
+    
+    if (selectedItem.href === "#logout") {
+      clearToken();
+      setUser(null);
+      clearCachedUser();
+      router.push("/");
+      return;
+    }
+    
+    router.push(selectedItem.href);
+    setActiveIndex(0);
   };
 
   const icons = {
@@ -163,7 +231,7 @@ export function Sidebar() {
     : user.role?.color ?? null
     : null;
 
-  // Десктопный контент (без изменений)
+  // Десктопный контент
   const desktopSidebarContent = (
     <>
       <div className="flex items-center gap-2">
@@ -354,223 +422,130 @@ export function Sidebar() {
 
   return (
     <>
-      {/* ================= МОБИЛЬНАЯ ВЕРСИЯ (НОВЫЙ ДИЗАЙН) ================= */}
+      {/* ================= МОБИЛЬНАЯ ВЕРСИЯ (КОЛЕСО) ================= */}
       <div className="md:hidden">
-        
-        {/* 1. Кнопка-ручка (всегда видна, прижата к правому краю) */}
-        {/* Используем onDoubleClick для ПК и onTouchEnd для мобилок с логикой двойного тапа */}
+        {/* Кнопка-триггер для открытия колеса */}
         <div 
-          className={`fixed right-0 top-1/2 -translate-y-1/2 z-[98] transition-all duration-300 ease-in-out
-            ${mobileMenuOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}
-          `}
-          style={{ top: '60%' }} // Чуть ниже центра, как на фото
+          className="fixed bottom-24 right-4 z-[98]"
         >
           <button
-            onDoubleClick={() => setMobileMenuOpen(true)}
-            onTouchEnd={(e) => {
-              // Предотвращаем зум и стандартное поведение
-              // e.preventDefault(); 
-              handleMobileToggle();
-            }}
-            className="w-8 h-16 bg-[#171717] border border-r-0 border-white/10 rounded-l-xl flex items-center justify-center shadow-lg shadow-black/50 active:scale-95 transition-transform"
-            aria-label="Открыть меню (двойной клик)"
+            onTouchStart={handleWheelStart}
+            onMouseDown={handleWheelStart}
+            className="w-12 h-12 bg-[#171717]/80 backdrop-blur-sm border border-white/10 rounded-full flex items-center justify-center shadow-lg shadow-black/50 active:scale-95 transition-transform"
+            aria-label="Открыть меню навигации"
           >
-            {/* Маленькая полоска или иконка */}
-            <div className="w-1.5 h-6 bg-white/20 rounded-full" />
+            <Menu size={20} className="text-white/80" />
           </button>
         </div>
 
-        {/* 2. Выдвижная панель */}
-        <div 
-          className={`fixed right-0 top-0 h-full z-[99] transition-transform duration-300 ease-in-out
-            ${mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}
-          `}
-        >
-          {/* Затемнение фона при открытии (опционально, можно убрать если хотите чтобы фон был виден) */}
-          {mobileMenuOpen && (
-             <div 
-                className="absolute inset-0 bg-black/20 backdrop-blur-[1px] -z-10 w-screen" 
-                onClick={() => setMobileMenuOpen(false)}
-             />
-          )}
-
-          {/* Сама панель меню */}
-          <div className="h-full w-64 bg-[#171717]/95 backdrop-blur-xl border-l border-white/10 rounded-l-2xl shadow-2xl shadow-black/60 flex flex-col p-4 relative">
+        {/* Колесо выбора */}
+        {wheelOpen && (
+          <>
+            {/* Затемнение фона */}
+            <div 
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[99]"
+              onTouchStart={handleWheelEnd}
+              onMouseDown={handleWheelEnd}
+            />
             
-            {/* Кнопка закрытия (свернуть обратно) */}
-            <button 
-              onClick={() => setMobileMenuOpen(false)}
-              className="absolute top-4 left-4 p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+            {/* Колесо */}
+            <div 
+              className="fixed inset-0 z-[100] flex items-center justify-center"
+              onTouchMove={handleWheelMove}
+              onMouseMove={handleWheelMove}
+              onTouchEnd={handleWheelEnd}
+              onMouseUp={handleWheelEnd}
+              onTouchCancel={handleWheelEnd}
             >
-              <ChevronLeft size={20} />
-            </button>
-
-            <div className="mt-12 flex flex-col gap-2 overflow-y-auto flex-1 pb-20">
-              {/* Навигация */}
-              {nav.map(({ href, icon: Icon, label }) => {
-                const active = pathname === href;
-                const isUpdates = href === "/updates";
-                const showUpdatesBadge = isUpdates && (counts.updates || 0) > 0;
-
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative ${
-                      active
-                        ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
-                        : "text-white/80 hover:bg-white/10 hover:text-white"
-                    }`}
-                  >
-                    <Icon size={20} />
-                    <span className="font-medium">{label}</span>
-                    {showUpdatesBadge && (
-                      <span className="ml-auto bg-[#8b5cf6] text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                        {counts.updates}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
-
-              <div className="h-px bg-white/10 my-2 mx-2" />
-
-              {/* Сообщения */}
-              {user && (
-                <Link
-                  href="/messages"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative ${
-                    pathname?.startsWith("/messages")
-                      ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
-                      : "text-white/80 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  <MessageSquare size={20} />
-                  <span className="font-medium">Сообщения</span>
-                  {counts.chats > 0 && (
-                    <span className="ml-auto bg-[#8b5cf6] text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                      {counts.chats}
-                    </span>
-                  )}
-                </Link>
-              )}
-
-              {/* Уведомления */}
-              <button
-                onClick={() => {
-                  loadNotifications();
-                  setMobileMenuOpen(false);
-                }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all relative w-full text-left ${
-                  pathname === "/notifications"
-                    ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
-                    : "text-white/80 hover:bg-white/10 hover:text-white"
-                }`}
-              >
-                <Bell size={20} />
-                <span className="font-medium">Уведомления</span>
-                {counts.notifications > 0 && (
-                  <span className="ml-auto bg-[#8b5cf6] text-white text-[10px] font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                    {counts.notifications}
-                  </span>
-                )}
-              </button>
-
-              {/* Админка */}
-              {(user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) && (
-                <Link
-                  href="/admin"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                    pathname === "/admin"
-                      ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
-                      : "text-white/80 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  {user?.is_admin ? <ShieldAlert size={20} /> : user?.is_moderator ? <ShieldCheck size={20} /> : <Shield size={20} className="text-[#f59e0b]" />}
-                  <span className="font-medium">{user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель"}</span>
-                </Link>
-              )}
-
-              {user?.is_admin && (
-                <Link
-                  href="/admin/roles"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                    pathname === "/admin/roles"
-                      ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
-                      : "text-white/80 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  <Palette size={20} />
-                  <span className="font-medium">Роли</span>
-                </Link>
-              )}
-
-              {user?.permissions?.includes("tech_access") && (
-                <Link
-                  href="/admin/technical"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                    pathname === "/admin/technical"
-                      ? "bg-[#8b5cf6]/20 text-[#8b5cf6]"
-                      : "text-white/80 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  <Wrench size={20} />
-                  <span className="font-medium">Техпанель</span>
-                </Link>
-              )}
-
-              <div className="h-px bg-white/10 my-2 mx-2" />
-
-              {/* Профиль и выход */}
-              {user && (
-                <div className="flex flex-col gap-2">
-                   <Link
-                    href={`/${user.username}`}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/80 hover:bg-white/10 hover:text-white transition-all"
-                  >
-                    <div style={glow ? { filter: `drop-shadow(0 0 4px ${glow})` } : undefined}>
-                      <Avatar src={user.avatar_url} name={user.display_name} id={user.id} size={24} />
+              <div className="relative w-80 h-80">
+                {/* Визуализация колеса */}
+                {wheelItems.map((item, index) => {
+                  // Вычисляем позицию на круге
+                  const totalItems = wheelItems.length;
+                  const angle = (index / totalItems) * 2 * Math.PI - Math.PI / 2;
+                  
+                  // Размер и прозрачность зависят от расстояния до активного элемента
+                  let distanceFromActive = Math.abs(index - activeIndex);
+                  // Учитываем циклический переход
+                  distanceFromActive = Math.min(distanceFromActive, totalItems - distanceFromActive);
+                  
+                  const isActive = index === activeIndex;
+                  
+                  // Радиус расположения элементов
+                  const baseRadius = isActive ? 60 : 120;
+                  const radius = isActive ? 120 : 100 - distanceFromActive * 8;
+                  
+                  // Для элементов сдвинутых на 1 позицию - чуть ближе к центру
+                  const isNear = distanceFromActive === 1;
+                  const finalRadius = isActive ? 0 : isNear ? radius - 20 : radius;
+                  
+                  const x = 160 + finalRadius * Math.cos(angle);
+                  const y = 160 + finalRadius * Math.sin(angle);
+                  
+                  // Размер иконки
+                  const size = isActive ? 48 : 32 - distanceFromActive * 4;
+                  
+                  // Прозрачность
+                  const opacity = isActive ? 1 : 0.6 - distanceFromActive * 0.15;
+                  
+                  return (
+                    <div
+                      key={index}
+                      className={`absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ${
+                        isActive ? 'scale-110' : ''
+                      }`}
+                      style={{
+                        left: x,
+                        top: y,
+                        opacity: Math.max(opacity, 0.2),
+                        zIndex: isActive ? 10 : 5,
+                      }}
+                    >
+                      <div className={`flex flex-col items-center gap-1 ${isActive ? 'text-white' : 'text-white/60'}`}>
+                        <div className={`rounded-full p-2 transition-all ${
+                          isActive 
+                            ? 'bg-[#8b5cf6]/30 shadow-lg shadow-[#8b5cf6]/30' 
+                            : 'bg-white/5'
+                        }`}>
+                          <item.icon 
+                            size={size} 
+                            className={`transition-all ${
+                              isActive 
+                                ? 'text-[#8b5cf6]' 
+                                : 'text-white/40'
+                            }`}
+                          />
+                        </div>
+                        <span className={`text-[10px] font-medium transition-all ${
+                          isActive ? 'text-white' : 'text-white/40'
+                        }`}>
+                          {item.label}
+                        </span>
+                      </div>
                     </div>
-                    <span className="font-medium text-sm truncate">{user.display_name}</span>
-                  </Link>
-
-                  <button
-                    onClick={() => { clearToken(); setUser(null); clearCachedUser(); setMobileMenuOpen(false); }}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-white/80 hover:bg-red-500/20 hover:text-red-400 transition-all w-full text-left"
-                  >
-                    <LogOut size={20} />
-                    <span className="font-medium">Выйти</span>
-                  </button>
+                  );
+                })}
+                
+                {/* Кольцо-декорация */}
+                <div className="absolute inset-0 rounded-full border border-white/10"></div>
+                <div className="absolute inset-8 rounded-full border border-white/5"></div>
+                
+                {/* Индикатор активного элемента */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-16 h-16 rounded-full border-2 border-[#8b5cf6]/30 animate-pulse"></div>
                 </div>
-              )}
-
-              <button
-                onClick={() => {
-                  setShowBugModal(true);
-                  setMobileMenuOpen(false);
-                }}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all w-full text-left mt-auto"
-              >
-                <Bug size={20} />
-                <span className="font-medium text-sm">Сообщить о проблеме</span>
-              </button>
+              </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </div>
 
-      {/* ДЕСКТОП (без изменений) */}
+      {/* ДЕСКТОП */}
       <aside className="hidden md:flex md:w-64 shrink-0 overflow-y-auto p-5 flex-col gap-5 bg-[#171717]">
         {desktopSidebarContent}
       </aside>
 
-      {/* ================= МОДАЛКА УВЕДОМЛЕНИЙ (без изменений) ================= */}
+      {/* ================= МОДАЛКА УВЕДОМЛЕНИЙ ================= */}
       {showNotifs && (
         <>
           <div
