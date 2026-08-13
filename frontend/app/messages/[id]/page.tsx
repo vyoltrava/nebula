@@ -436,78 +436,93 @@ export default function ChatPage() {
     }
   }
 
-  async function sendMessage() {
-    if (sendingRef.current) return;
-    const token = getToken();
-    if (!token) return;
-    if (!text.trim() && files.length === 0) return;
+// В функции sendMessage():
 
-    sendingRef.current = true;
-    try {
-      const messagesToSend: { text: string; file: File | null }[] = [];
-      if (files.length > 0) {
-        files.forEach((f, i) => messagesToSend.push({ text: i === 0 ? text.trim() : "", file: f }));
-      } else {
-        messagesToSend.push({ text: text.trim(), file: null });
-      }
+async function sendMessage() {
+  if (sendingRef.current) return;
+  const token = getToken();
+  if (!token) return;
+  if (!text.trim() && files.length === 0) return;
 
-      if (!isSecret && text.trim()) {
-        const tempMsg = {
-          id: Date.now(),
-          sender_id: currentUser?.id,
-          sender_name: currentUser?.display_name,
-          sender_avatar: currentUser?.avatar_url,
-          text: text.trim(),
-          media_url: null,
-          media_type: null,
-          read: false,
-          created_at: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, tempMsg]);
-      }
-
-      for (const msg of messagesToSend) {
-        const form = new FormData();
-
-        if (isSecret && msg.text) {
-          let sk = loadSessionKey(Number(chatId));
-          if (!sk) {
-            await establishNewSession();
-            sk = loadSessionKey(Number(chatId));
-            if (!sk) throw new Error("Нет session key");
-          }
-          form.append("ciphertext", encryptMessage(msg.text, sk));
-          form.append("text", "");
-        } else {
-          if (msg.text) form.append("text", msg.text);
-        }
-
-        if (msg.file) form.append("file", msg.file);
-
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: form,
-        });
-
-        if (res.status === 403) {
-          alert("Нет доступа к чату");
-          router.push("/messages");
-          return;
-        }
-      }
-
-      setText("");
-      setFiles([]);
-
-      if (isSecret) await loadMessages();
-    } catch (err) {
-      console.error("Failed to send:", err);
-      alert("Не удалось отправить сообщение");
-    } finally {
-      sendingRef.current = false;
+  sendingRef.current = true;
+  try {
+    const messagesToSend: { text: string; file: File | null }[] = [];
+    if (files.length > 0) {
+      files.forEach((f, i) => messagesToSend.push({ text: i === 0 ? text.trim() : "", file: f }));
+    } else {
+      messagesToSend.push({ text: text.trim(), file: null });
     }
+
+    // ✅ Сохраняем текст для временного сообщения
+    const tempText = text.trim();
+    const tempFiles = files;
+    
+    // ✅ Создаем временное сообщение с уникальным ID
+    const tempId = Date.now();
+    if (!isSecret && tempText) {
+      const tempMsg = {
+        id: tempId, // ← Запоминаем этот ID
+        sender_id: currentUser?.id,
+        sender_name: currentUser?.display_name,
+        sender_avatar: currentUser?.avatar_url,
+        text: tempText,
+        media_url: null,
+        media_type: null,
+        read: false,
+        created_at: new Date().toISOString(),
+        is_temp: true, // ← Помечаем как временное
+      };
+      setMessages((prev) => [...prev, tempMsg]);
+    }
+
+    // Отправляем все сообщения
+    for (const msg of messagesToSend) {
+      const form = new FormData();
+
+      if (isSecret && msg.text) {
+        let sk = loadSessionKey(Number(chatId));
+        if (!sk) {
+          await establishNewSession();
+          sk = loadSessionKey(Number(chatId));
+          if (!sk) throw new Error("Нет session key");
+        }
+        form.append("ciphertext", encryptMessage(msg.text, sk));
+        form.append("text", "");
+      } else {
+        if (msg.text) form.append("text", msg.text);
+      }
+
+      if (msg.file) form.append("file", msg.file);
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+
+      if (res.status === 403) {
+        alert("Нет доступа к чату");
+        router.push("/messages");
+        return;
+      }
+    }
+
+    setText("");
+    setFiles([]);
+
+    // ✅ Если есть временное сообщение - удаляем его (заменится на реальное через WS)
+    if (!isSecret && tempText) {
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+    }
+
+    if (isSecret) await loadMessages();
+  } catch (err) {
+    console.error("Failed to send:", err);
+    alert("Не удалось отправить сообщение");
+  } finally {
+    sendingRef.current = false;
   }
+}
 
   async function deleteMessage(messageId: number) {
     if (!confirm("Удалить сообщение?")) return;
@@ -729,50 +744,49 @@ export default function ChatPage() {
 
   useWebSocket("new_message", (data: any) => {
     if (String(data.chat_id) !== String(chatId)) return;
-    if (data.sender_id === currentUser?.id) return;
 
-    if (isSecret && !loadSessionKey(Number(chatId))) {
-      const token = getToken();
-      if (token) {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/session-key`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-          .then(async (res) => {
-            if (res.ok) {
-              const d = await res.json();
-              const keys = getKeyPair();
-              if (keys) {
-                try {
-                  const sk = decryptSessionKey(d.encrypted_session_key);
-                  storeSessionKey(Number(chatId), sk);
-                  loadMessages();
-                } catch (e) {
-                  console.error("Failed to restore session key:", e);
-                }
-              }
-            }
-          })
-          .catch((e) => console.error("Failed to restore session key:", e));
+if (data.sender_id === currentUser?.id) {
+    setMessages((prev) => {
+      // Находим временное сообщение с таким же текстом и без media_url
+      const tempIndex = prev.findIndex(
+        (m) => m.is_temp && m.text === data.text && !m.media_url
+      );
+      if (tempIndex !== -1) {
+        // Заменяем временное на реальное
+        const newMessages = [...prev];
+        newMessages[tempIndex] = {
+          ...data,
+          is_temp: false,
+        };
+        return newMessages;
       }
-    }
-
+      // Если временного нет - просто добавляем
+      if (!prev.some((m) => m.id === data.id)) {
+        return [...prev, { ...data, is_temp: false }];
+      }
+      return prev;
+    });
+  } else {
+    // Чужие сообщения - просто добавляем
     setMessages((prev) => {
       if (prev.some((m) => m.id === data.id)) return prev;
-      return [...prev, data];
+      return [...prev, { ...data, is_temp: false }];
     });
+  }
 
-    const token = getToken();
-    if (token) {
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/read`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then(() => refresh())
-        .catch(() => {});
-    }
+  // Отметка прочитанных
+  const token = getToken();
+  if (token) {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/read`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(() => refresh())
+      .catch(() => {});
+  }
 
-    if (isGroup) loadChatInfo();
-  });
+  if (isGroup) loadChatInfo();
+});
 
   useWebSocket("chat_deleted", (data: any) => {
     if (String(data.chat_id) === String(chatId)) {
