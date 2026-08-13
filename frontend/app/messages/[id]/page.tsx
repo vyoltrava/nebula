@@ -79,6 +79,8 @@ export default function ChatPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
 
+  const [menuOpenUp, setMenuOpenUp] = useState(false);
+
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState<Set<number>>(new Set());
   const [showChatMenu, setShowChatMenu] = useState(false);
@@ -97,10 +99,8 @@ export default function ChatPage() {
 
   const [videoMode, setVideoMode] = useState<'idle' | 'expanded' | 'minimized'>('idle');
 
-  const [menuOpenUp, setMenuOpenUp] = useState(false);
   
   // 🆕 Состояния для кнопки отправки/записи
-  const [showRecordMenu, setShowRecordMenu] = useState(false);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
 
@@ -908,33 +908,140 @@ for (const msg of messagesToSend) {
     }
   }
 
-  // 🆕 Логика Long Press для кнопки отправки
-  const handleSendPointerDown = () => {
-    // Если есть текст или файлы - это обычная отправка, лонгпресс не нужен
-    if (text.trim() || files.length > 0) return;
+// 🆕 iOS-стиль: long-press + drag к опции
+const [recordMenuOpen, setRecordMenuOpen] = useState(false);
+const [hoveredRecordOption, setHoveredRecordOption] = useState<"voice" | "video" | "cancel" | null>("voice");
+const [fingerPos, setFingerPos] = useState<{ x: number; y: number } | null>(null);
+const sendBtnRef = useRef<HTMLButtonElement>(null);
+const longPressTriggeredRef = useRef(false);
 
-    isLongPressRef.current = false;
-    longPressTimerRef.current = setTimeout(() => {
-      isLongPressRef.current = true;
-      setShowRecordMenu(true);
-    }, 500); // 500мс для лонгпресса
-  };
+const RECORD_OPTIONS = [
+  { id: "voice" as const, label: "Голос", icon: Mic, color: "#8b5cf6" },
+  { id: "video" as const, label: "Видео", icon: Video, color: "#3b82f6" },
+];
 
-  const handleSendPointerUp = () => {
+const getOptionPos = (id: "voice" | "video" | "cancel") => {
+  if (!sendBtnRef.current) return { x: 0, y: 0 };
+  const r = sendBtnRef.current.getBoundingClientRect();
+  const cx = r.left + r.width / 2;
+  const cy = r.top + r.height / 2;
+  if (id === "voice") return { x: cx - 55, y: cy - 80 };
+  if (id === "video") return { x: cx + 55, y: cy - 80 };
+  return { x: cx, y: cy - 160 }; // cancel — выше всех
+};
+
+const findHoveredOption = (px: number, py: number): "voice" | "video" | "cancel" | null => {
+  if (sendBtnRef.current) {
+    const r = sendBtnRef.current.getBoundingClientRect();
+    const cy = r.top + r.height / 2;
+    // Палец высоко над кнопкой → отмена
+    if (py < cy - 130) return "cancel";
+  }
+  let min = Infinity;
+  let nearest: "voice" | "video" | null = null;
+  for (const opt of RECORD_OPTIONS) {
+    const pos = getOptionPos(opt.id);
+    const d = Math.sqrt((px - pos.x) ** 2 + (py - pos.y) ** 2);
+    if (d < min) { min = d; nearest = opt.id; }
+  }
+  return min <= 65 ? nearest : null;
+};
+
+const handleSendPointerDown = (e: React.TouchEvent | React.MouseEvent) => {
+  // Если есть текст/файлы — это обычная отправка, не мешаем
+  if (text.trim() || files.length > 0) return;
+  e.preventDefault();
+  const px = "touches" in e ? e.touches[0].clientX : e.clientX;
+  const py = "touches" in e ? e.touches[0].clientY : e.clientY;
+
+  longPressTriggeredRef.current = false;
+  longPressTimerRef.current = setTimeout(() => {
+    longPressTriggeredRef.current = true;
+    longPressTimerRef.current = null;
+    setRecordMenuOpen(true);
+    setHoveredRecordOption("voice");
+    setFingerPos({ x: px, y: py });
+    navigator.vibrate?.(25);
+    startRecording(); // сразу начинаем запись
+  }, 380);
+};
+
+// 🆕 Глобальные обработчики для drag пальца
+useEffect(() => {
+  const cancelTimer = () => {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
   };
 
-  const handleSendClick = () => {
-    // Если это был лонгпресс, просто сбрасываем флаг и не отправляем
-    if (isLongPressRef.current) {
-      isLongPressRef.current = false;
+  const handleMove = (px: number, py: number) => {
+    // Пока long-press не сработал — если уводит с кнопки, отменяем
+    if (longPressTimerRef.current && sendBtnRef.current) {
+      const r = sendBtnRef.current.getBoundingClientRect();
+      const margin = 14;
+      if (px < r.left - margin || px > r.right + margin ||
+          py < r.top - margin || py > r.bottom + margin) {
+        cancelTimer();
+      }
       return;
     }
-    sendMessage();
+    // Меню открыто — обновляем hover
+    if (recordMenuOpen) {
+      setHoveredRecordOption(findHoveredOption(px, py));
+      setFingerPos({ x: px, y: py });
+    }
   };
+
+  const handleEnd = () => {
+    cancelTimer();
+    if (longPressTriggeredRef.current && recordMenuOpen) {
+      longPressTriggeredRef.current = false;
+      if (hoveredRecordOption === "voice") {
+        stopRecording(); // отправить голос
+      } else if (hoveredRecordOption === "video") {
+        cancelRecording(); // отменить голос → открыть видео
+        (async () => {
+          if (camPerm.status === "denied") { setPermHelp("camera"); return; }
+          if (camPerm.status !== "granted") {
+            const ok = await camPerm.request();
+            if (!ok) { setPermHelp("camera"); return; }
+          }
+          setVideoMode("expanded");
+        })();
+      } else {
+        cancelRecording(); // отмена
+      }
+      setRecordMenuOpen(false);
+      setFingerPos(null);
+      setHoveredRecordOption("voice");
+    }
+  };
+
+  const onTouchMove = (e: TouchEvent) => {
+    if (!longPressTimerRef.current && !recordMenuOpen) return;
+    e.preventDefault();
+    if (e.touches.length) handleMove(e.touches[0].clientX, e.touches[0].clientY);
+  };
+  const onMouseMove = (e: MouseEvent) => handleMove(e.clientX, e.clientY);
+  const onTouchEnd = () => handleEnd();
+  const onMouseUp = () => handleEnd();
+
+  document.addEventListener("touchmove", onTouchMove, { passive: false });
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("touchend", onTouchEnd);
+  document.addEventListener("touchcancel", onTouchEnd);
+  document.addEventListener("mouseup", onMouseUp);
+
+  return () => {
+    document.removeEventListener("touchmove", onTouchMove);
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("touchend", onTouchEnd);
+    document.removeEventListener("touchcancel", onTouchEnd);
+    document.removeEventListener("mouseup", onMouseUp);
+  };
+}, [recordMenuOpen, hoveredRecordOption, camPerm]);
+
 
   useEffect(() => {
     const token = getToken();
@@ -1995,73 +2102,29 @@ const ChatHeader = () => (
           }`}
         />
 
-        <div className="relative shrink-0">
-          <button
-            onMouseDown={handleSendPointerDown}
-            onMouseUp={handleSendPointerUp}
-            onMouseLeave={handleSendPointerUp}
-            onTouchStart={handleSendPointerDown}
-            onTouchEnd={handleSendPointerUp}
-            onClick={handleSendClick}
-            disabled={!!cryptoError}
-            className={`p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none touch-none ${
-              isSecret
-                ? "border border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700"
-                : "border border-[#8b5cf6] bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
-            }`}
-          >
-            <Send size={19} className="sm:w-[18px] sm:h-[18px]" />
-          </button>
-
-          {showRecordMenu && (
-            <>
-              <div 
-                className="fixed inset-0 z-40" 
-                onClick={() => setShowRecordMenu(false)} 
-              />
-              <div className="absolute bottom-full right-0 mb-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                <button
-                  onClick={() => {
-                    setShowRecordMenu(false);
-                    startRecording();
-                  }}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-left text-sm text-white hover:bg-white/10 transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center text-red-400">
-                    <Mic size={18} />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-medium">Голосовое</span>
-                    <span className="text-[10px] text-white/40">Аудиосообщение</span>
-                  </div>
-                </button>
-                
-                <div className="h-px bg-white/10" />
-                
-                <button
-                  onClick={async () => {
-                    setShowRecordMenu(false);
-                    if (camPerm.status === "denied") { setPermHelp("camera"); return; }
-                    if (camPerm.status !== "granted") {
-                      const ok = await camPerm.request();
-                      if (!ok) { setPermHelp("camera"); return; }
-                    }
-                    setVideoMode('expanded');
-                  }}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-left text-sm text-white hover:bg-white/10 transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
-                    <Video size={18} />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-medium">Видео</span>
-                    <span className="text-[10px] text-white/40">Видео-квадрат</span>
-                  </div>
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+<div className="relative shrink-0">
+  <button
+    ref={sendBtnRef}
+    onMouseDown={handleSendPointerDown}
+    onTouchStart={handleSendPointerDown}
+    onClick={(e) => {
+      if (longPressTriggeredRef.current) return; // это был long-press, не отправляем
+      if (recordMenuOpen) return;
+      sendMessage();
+    }}
+    disabled={!!cryptoError}
+    className={`p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none touch-none ${
+      recordMenuOpen
+        ? "border border-red-500 bg-red-500 text-white scale-110 animate-pulse shadow-[0_0_24px_rgba(239,68,68,0.6)]"
+        : isSecret
+          ? "border border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700"
+          : "border border-[#8b5cf6] bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
+    }`}
+    style={{ touchAction: "none" }}
+  >
+    {recordMenuOpen ? <Mic size={19} className="sm:w-[18px] sm:h-[18px]" /> : <Send size={19} className="sm:w-[18px] sm:h-[18px]" />}
+  </button>
+</div>
       </div>
     )}
   </div>
@@ -2497,6 +2560,96 @@ const ChatHeader = () => (
       </div>
     </div>
   </>
+)}
+
+{/* ═════════════ iOS-МЕНЮ ЗАПИСИ (LONG-PRESS) ═════════════ */}
+{recordMenuOpen && (
+  <div className="fixed inset-0 z-[100] pointer-events-none">
+    {/* Пунктирная линия от пальца к активной опции */}
+    {fingerPos && hoveredRecordOption && hoveredRecordOption !== "cancel" && (
+      <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 15 }}>
+        <line
+          x1={fingerPos.x} y1={fingerPos.y}
+          x2={getOptionPos(hoveredRecordOption).x}
+          y2={getOptionPos(hoveredRecordOption).y}
+          stroke="#8b5cf6" strokeWidth="1.5" strokeDasharray="3 4" opacity="0.35"
+        />
+        <circle cx={fingerPos.x} cy={fingerPos.y} r="5" fill="#8b5cf6" opacity="0.4" />
+      </svg>
+    )}
+
+    {/* Зона отмены (появляется когда палец высоко) */}
+    {hoveredRecordOption === "cancel" && (
+      <div
+        className="absolute flex flex-col items-center gap-1.5"
+        style={{
+          left: getOptionPos("cancel").x,
+          top: getOptionPos("cancel").y,
+          transform: "translate(-50%, -50%) scale(1.1)",
+          transition: "transform 150ms ease, opacity 150ms ease",
+          zIndex: 25,
+        }}
+      >
+        <div className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center shadow-[0_0_28px_rgba(239,68,68,0.7)] animate-pulse">
+          <X size={26} className="text-white" />
+        </div>
+        <span className="text-red-400 text-xs font-black tracking-wide">ОТМЕНА</span>
+      </div>
+    )}
+
+    {/* Опции: Голос и Видео */}
+    {RECORD_OPTIONS.map((opt) => {
+      const pos = getOptionPos(opt.id);
+      const isActive = hoveredRecordOption === opt.id;
+      return (
+        <div
+          key={opt.id}
+          className="absolute flex flex-col items-center gap-1.5"
+          style={{
+            left: pos.x,
+            top: pos.y,
+            transform: `translate(-50%, -50%) scale(${isActive ? 1.2 : 0.95})`,
+            opacity: isActive ? 1 : 0.7,
+            transition: "transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 120ms ease",
+            zIndex: isActive ? 25 : 15,
+          }}
+        >
+          <div
+            className="w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all"
+            style={{
+              backgroundColor: isActive ? opt.color : "rgba(31, 31, 35, 0.95)",
+              borderColor: isActive ? opt.color : "rgba(255, 255, 255, 0.1)",
+              boxShadow: isActive ? `0 0 26px ${opt.color}99, 0 0 48px ${opt.color}40` : "0 4px 20px rgba(0,0,0,0.4)",
+            }}
+          >
+            <opt.icon size={24} className={isActive ? "text-white" : "text-white/60"} />
+          </div>
+          <span className={`text-[11px] font-bold tracking-wide whitespace-nowrap drop-shadow-lg ${
+            isActive ? "text-white" : "text-white/50"
+          }`}>
+            {opt.label}
+          </span>
+        </div>
+      );
+    })}
+
+    {/* Подсказка снизу */}
+    {hoveredRecordOption && hoveredRecordOption !== "cancel" && (
+      <div
+        className="absolute"
+        style={{
+          left: sendBtnRef.current ? sendBtnRef.current.getBoundingClientRect().left + sendBtnRef.current.getBoundingClientRect().width / 2 : 0,
+          top: sendBtnRef.current ? sendBtnRef.current.getBoundingClientRect().bottom + 12 : 0,
+          transform: "translateX(-50%)",
+          zIndex: 25,
+        }}
+      >
+        <span className="px-2.5 py-1 rounded-md bg-black/80 text-[10px] text-white/80 font-bold whitespace-nowrap">
+          Отпусти, чтобы отправить
+        </span>
+      </div>
+    )}
+  </div>
 )}
 
 
