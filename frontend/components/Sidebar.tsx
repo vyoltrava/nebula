@@ -13,6 +13,14 @@ import { BugReportModal } from "@/components/BugReportModal";
 import { getCachedUser, setCachedUser, clearCachedUser } from "@/lib/authCache";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 
+// Стили для отключения выделения
+const noSelectStyle = {
+  userSelect: 'none' as const,
+  WebkitUserSelect: 'none' as const,
+  WebkitTouchCallout: 'none' as const,
+  touchAction: 'none' as const,
+};
+
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -164,6 +172,14 @@ export function Sidebar() {
   // Обработчики для колеса
   const handlePressStart = (e: React.TouchEvent | React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    // Отключаем выделение текста
+    document.body.style.userSelect = 'none';
+    document.body.style.webkitUserSelect = 'none';
+
+    document.body.style.touchAction = 'none';
+    
     hasSelected.current = false;
     isDragging.current = false;
     setHighlightedIndex(-1);
@@ -189,6 +205,9 @@ export function Sidebar() {
   };
 
   const handlePressMove = (e: React.TouchEvent | React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (!isDragging.current || !wheelActive) {
       if (longPressTimer.current) {
         clearTimeout(longPressTimer.current);
@@ -197,7 +216,6 @@ export function Sidebar() {
       return;
     }
     
-    e.preventDefault();
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
     const deltaY = clientY - wheelStartY.current;
     
@@ -222,6 +240,15 @@ export function Sidebar() {
   };
 
   const handlePressEnd = (e: React.TouchEvent | React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Включаем выделение обратно
+    document.body.style.userSelect = '';
+  
+
+    document.body.style.touchAction = '';
+    
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
@@ -488,11 +515,12 @@ export function Sidebar() {
   return (
     <>
       {/* ================= МОБИЛЬНАЯ ВЕРСИЯ (ПОЛУКОЛЕСО ОТ КНОПКИ) ================= */}
-      <div className="md:hidden">
+      <div className="md:hidden" style={noSelectStyle}>
         {/* Кнопка-таблетка - прижата к правому краю */}
         <div 
           ref={buttonRef}
           className="fixed right-4 bottom-24 z-[98]"
+          style={noSelectStyle}
         >
           <button
             onTouchStart={handlePressStart}
@@ -509,6 +537,7 @@ export function Sidebar() {
                 : 'bg-[#171717]/80 backdrop-blur-sm border border-white/10 hover:bg-[#8b5cf6]/20'
             } shadow-lg shadow-black/50 active:scale-95`}
             aria-label="Открыть навигационное колесо (зажмите)"
+            style={noSelectStyle}
           >
             <Menu size={22} className={`transition-all ${wheelActive ? 'text-[#8b5cf6]' : 'text-white/80'}`} />
           </button>
@@ -520,6 +549,7 @@ export function Sidebar() {
             {/* Затемнение фона */}
             <div 
               className="fixed inset-0 bg-black/30 z-[99]"
+              style={noSelectStyle}
             />
             
             {/* Полуколесо позиционируется относительно кнопки */}
@@ -528,10 +558,11 @@ export function Sidebar() {
               style={{
                 left: buttonRect.x,
                 top: buttonRect.y,
-                transform: 'translate(-50%, -50%)'
+                transform: 'translate(-50%, -50%)',
+                ...noSelectStyle
               }}
             >
-              <div className="relative w-[320px] h-[320px]">
+              <div className="relative w-[320px] h-[320px]" style={noSelectStyle}>
                 {/* Декоративные кольца */}
                 <div className="absolute inset-0 rounded-full border border-white/5"></div>
                 <div className="absolute inset-8 rounded-full border border-white/5"></div>
@@ -586,9 +617,10 @@ export function Sidebar() {
                         opacity: Math.max(opacity, 0.15),
                         zIndex: isHighlighted ? 10 : 5,
                         pointerEvents: 'none',
+                        ...noSelectStyle
                       }}
                     >
-                      <div className={`flex flex-col items-center gap-0.5 ${isHighlighted ? 'text-white' : 'text-white/60'}`}>
+                      <div className={`flex flex-col items-center gap-0.5 ${isHighlighted ? 'text-white' : 'text-white/60'}`} style={noSelectStyle}>
                         <div className={`rounded-full p-1.5 transition-all ${
                           isHighlighted 
                             ? 'bg-[#8b5cf6]/40 shadow-lg shadow-[#8b5cf6]/40 border border-[#8b5cf6]/30' 
@@ -605,7 +637,7 @@ export function Sidebar() {
                         </div>
                         <span className={`text-[8px] font-medium transition-all whitespace-nowrap ${
                           isHighlighted ? 'text-[#8b5cf6] font-bold' : 'text-white/30'
-                        }`}>
+                        }`} style={noSelectStyle}>
                           {item.label}
                         </span>
                       </div>
@@ -614,7 +646,7 @@ export function Sidebar() {
                 })}
                 
                 {/* Подсказка */}
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[9px] text-white/20 whitespace-nowrap pointer-events-none">
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[9px] text-white/20 whitespace-nowrap pointer-events-none" style={noSelectStyle}>
                   ↑↓ для выбора
                 </div>
               </div>
