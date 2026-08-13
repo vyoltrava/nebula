@@ -42,8 +42,6 @@ import {
 } from "@/lib/crypto";
 import { QRCodeSVG } from "qrcode.react";
 import { Html5Qrcode } from "html5-qrcode";
-const LONG_PRESS_MS = 400;
-
 function getSessionKeyOrThrow(chatId: number): Uint8Array {
   const sk = loadSessionKey(chatId);
   if (!sk) throw new Error("Нет session key");
@@ -81,8 +79,6 @@ export default function ChatPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
 
-  const [menuOpenUp, setMenuOpenUp] = useState(false);
-
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState<Set<number>>(new Set());
   const [showChatMenu, setShowChatMenu] = useState(false);
@@ -101,8 +97,10 @@ export default function ChatPage() {
 
   const [videoMode, setVideoMode] = useState<'idle' | 'expanded' | 'minimized'>('idle');
 
+  const [menuOpenUp, setMenuOpenUp] = useState(false);
   
   // 🆕 Состояния для кнопки отправки/записи
+  const [showRecordMenu, setShowRecordMenu] = useState(false);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
 
@@ -198,56 +196,76 @@ export default function ChatPage() {
 
 
 
-function startRecordingWithStream(stream: MediaStream | null) {
-  if (!stream) {
-    setPermHelp("microphone");
-    return;
+  async function startRecording() {
+    // ✅ Сначала проверяем разрешение, не спамим getUserMedia
+    if (micPerm.status === "denied") { setPermHelp("microphone"); return; }
+    if (micPerm.status !== "granted") {
+      const ok = await micPerm.request();
+      if (!ok) { setPermHelp("microphone"); return; }
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        stream.getTracks().forEach(track => track.stop());
+        if (cancelRecordingRef.current) {
+          cancelRecordingRef.current = false; // ❌ отменено — не отправляем
+          return;
+        }
+        const audioFile = new File([audioBlob], 'voice-message.webm', { type: 'audio/webm' });
+        await sendVoiceMessage(audioFile);
+      };
+
+      cancelRecordingRef.current = false;
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error("Microphone access denied:", err);
+      alert("Не удалось получить доступ к микрофону");
+    }
   }
 
-  try {
-    // 🆕 iOS поддерживает только mp4, Android/Chrome - webm
-    const mimeType = MediaRecorder.isTypeSupported('audio/mp4') 
-      ? 'audio/mp4' 
-      : MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : 'audio/webm';
-    
-    const mediaRecorder = new MediaRecorder(stream, { mimeType });
-    mediaRecorderRef.current = mediaRecorder;
-    audioChunksRef.current = [];
-
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) {
-        audioChunksRef.current.push(e.data);
+  function stopRecording() {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
       }
-    };
-
-    mediaRecorder.onstop = async () => {
-      const ext = mimeType.includes('mp4') ? 'm4a' : 'webm';
-      const audioBlob = new Blob(audioChunksRef.current, { type: mimeType });
-      stream.getTracks().forEach(track => track.stop());
-      if (cancelRecordingRef.current) {
-        cancelRecordingRef.current = false;
-        return;
-      }
-      const audioFile = new File([audioBlob], `voice-message.${ext}`, { type: mimeType });
-      await sendVoiceMessage(audioFile);
-    };
-
-    cancelRecordingRef.current = false;
-    mediaRecorder.start();
-    setIsRecording(true);
-    setRecordingTime(0);
-
-    recordingTimerRef.current = setInterval(() => {
-      setRecordingTime(prev => prev + 1);
-    }, 1000);
-  } catch (err) {
-    console.error("MediaRecorder failed:", err);
-    stream.getTracks().forEach(track => track.stop());
+    }
   }
-}
 
+
+  function cancelRecording() {
+    cancelRecordingRef.current = true;
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+    }
+  }
 
   async function sendVoiceMessage(audioFile: File) {
     const token = getToken();
@@ -890,267 +908,68 @@ for (const msg of messagesToSend) {
     }
   }
 
-// 🆕 iOS-стиль: long-press + drag к опции
-const [recordMenuOpen, setRecordMenuOpen] = useState(false);
-const [hoveredRecordOption, setHoveredRecordOption] = useState<"voice" | "video" | "cancel" | null>("voice");
-const [fingerPos, setFingerPos] = useState<{ x: number; y: number } | null>(null);
-const sendBtnRef = useRef<HTMLButtonElement>(null);
-const longPressTriggeredRef = useRef(false);
+  // 🆕 Логика Long Press для кнопки отправки
+  const handleSendPointerDown = () => {
+    // Если есть текст или файлы - это обычная отправка, лонгпресс не нужен
+    if (text.trim() || files.length > 0) return;
 
-const RECORD_OPTIONS = [
-  { id: "voice" as const, label: "Голос", icon: Mic, color: "#8b5cf6" },
-  { id: "video" as const, label: "Видео", icon: Video, color: "#3b82f6" },
-];
-
-const getOptionPos = (id: "voice" | "video" | "cancel") => {
-  if (!sendBtnRef.current) return { x: 0, y: 0 };
-  const r = sendBtnRef.current.getBoundingClientRect();
-  const cx = r.left + r.width / 2;
-  const cy = r.top + r.height / 2;
-  // Вертикально вверх от кнопки — ничего не улетит за экран
-  if (id === "voice") return { x: cx, y: cy - 80 };
-  if (id === "video") return { x: cx, y: cy - 150 };
-  return { x: cx, y: cy - 220 }; // cancel
-};
-
-const findHoveredOption = (px: number, py: number): "voice" | "video" | "cancel" | null => {
-  let min = Infinity;
-  let nearest: "voice" | "video" | "cancel" | null = null;
-  for (const optId of ["voice", "video", "cancel"] as const) {
-    const pos = getOptionPos(optId);
-    const d = Math.sqrt((px - pos.x) ** 2 + (py - pos.y) ** 2);
-    if (d < min) { min = d; nearest = optId; }
-  }
-  return min <= 70 ? nearest : null;
-};
-
-// 🆕 Состояние для анимации "зажима"
-const [pressProgress, setPressProgress] = useState(0);
-const pressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-const pendingStreamRef = useRef<MediaStream | null>(null);
-
-const handleSendPointerDown = (e: React.PointerEvent | React.TouchEvent | React.MouseEvent) => {
-  if (text.trim() || files.length > 0) return;
-  e.preventDefault();
-
-  const px = "touches" in e ? e.touches[0].clientX : (e as React.PointerEvent | React.MouseEvent).clientX;
-  const py = "touches" in e ? e.touches[0].clientY : (e as React.PointerEvent | React.MouseEvent).clientY;
-
-  longPressTriggeredRef.current = false;
-  setPressProgress(0);
-
-  const startTime = Date.now();
-  pressTimerRef.current = setInterval(() => {
-    const elapsed = Date.now() - startTime;
-    const progress = Math.min(elapsed / LONG_PRESS_MS, 1);
-    setPressProgress(progress);
-
-    if (elapsed >= LONG_PRESS_MS) {
-      if (pressTimerRef.current) clearInterval(pressTimerRef.current);
-      pressTimerRef.current = null;
-      longPressTriggeredRef.current = true;
-
-      setRecordMenuOpen(true);
-      setHoveredRecordOption("voice");
-      setFingerPos({ x: px, y: py });
-      navigator.vibrate?.(25);
-      setPressProgress(0);
-
-      // 🆕 Запускаем запись — разрешение уже есть от PermissionGate
-      // getUserMedia вернёт stream мгновенно без диалога
-      navigator.mediaDevices.getUserMedia({ audio: true })
-        .then((stream) => {
-          startRecordingWithStream(stream);
-        })
-        .catch((err) => {
-          console.error("Mic error:", err);
-          // iOS может блокировать если не было user gesture
-          // Попробуем ещё раз с явно пустым constraints
-          navigator.mediaDevices.getUserMedia({ audio: {} })
-            .then((stream) => startRecordingWithStream(stream))
-            .catch((err2) => {
-              console.error("Mic fallback error:", err2);
-              setPermHelp("microphone");
-            });
-        });
-    }
-  }, 30);
-};
-
-function stopRecording() {
-  if (mediaRecorderRef.current && isRecording) {
-    mediaRecorderRef.current.stop();
-    setIsRecording(false);
-    if (recordingTimerRef.current) {
-      clearInterval(recordingTimerRef.current);
-      recordingTimerRef.current = null;
-    }
-  }
-}
-
-function cancelRecording() {
-  cancelRecordingRef.current = true;
-  if (mediaRecorderRef.current && isRecording) {
-    mediaRecorderRef.current.stop();
-    setIsRecording(false);
-    if (recordingTimerRef.current) {
-      clearInterval(recordingTimerRef.current);
-      recordingTimerRef.current = null;
-    }
-  }
-}
-
-const handleEnd = () => {
-  // Если long-press не сработал — закрываем stream микрофона
-  if (pendingStreamRef.current && !longPressTriggeredRef.current) {
-    pendingStreamRef.current.getTracks().forEach(t => t.stop());
-    pendingStreamRef.current = null;
-  }
-
-  if (pressTimerRef.current) {
-    clearInterval(pressTimerRef.current);
-    pressTimerRef.current = null;
-  }
-  setPressProgress(0);
-
-  if (longPressTriggeredRef.current && recordMenuOpen) {
-    longPressTriggeredRef.current = false;
-
-    if (hoveredRecordOption === "voice") {
-      stopRecording();
-    } else if (hoveredRecordOption === "video") {
-      cancelRecording();
-      (async () => {
-        if (camPerm.status === "denied") {
-          setPermHelp("camera");
-          return;
-        }
-        if (camPerm.status !== "granted") {
-          const ok = await camPerm.request();
-          if (!ok) {
-            setPermHelp("camera");
-            return;
-          }
-        }
-        setVideoMode("expanded");
-      })();
-    } else {
-      // "cancel" — отменяем запись голоса
-      cancelRecording();
-    }
-
-    setRecordMenuOpen(false);
-    setFingerPos(null);
-    setHoveredRecordOption("voice");
-  }
-};
-
-
-// Глобальные обработчики для drag пальца
-useEffect(() => {
-  const cancelTimer = () => {
-    if (pressTimerRef.current) {
-      clearInterval(pressTimerRef.current);
-      pressTimerRef.current = null;
-    }
-    setPressProgress(0);
+    isLongPressRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
+      setShowRecordMenu(true);
+    }, 500); // 500мс для лонгпресса
   };
 
-  const handleMove = (px: number, py: number) => {
-    if (pressTimerRef.current && sendBtnRef.current) {
-      const r = sendBtnRef.current.getBoundingClientRect();
-      const margin = 20;
-      if (
-        px < r.left - margin ||
-        px > r.right + margin ||
-        py < r.top - margin ||
-        py > r.bottom + margin
-      ) {
-        cancelTimer();
-      }
+  const handleSendPointerUp = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleSendClick = () => {
+    // Если это был лонгпресс, просто сбрасываем флаг и не отправляем
+    if (isLongPressRef.current) {
+      isLongPressRef.current = false;
       return;
     }
-    if (recordMenuOpen) {
-      setHoveredRecordOption(findHoveredOption(px, py));
-      setFingerPos({ x: px, y: py });
-    }
+    sendMessage();
   };
 
-  const onTouchMove = (e: TouchEvent) => {
-    if (!pressTimerRef.current && !recordMenuOpen) return;
-    e.preventDefault();
-    if (e.touches.length) handleMove(e.touches[0].clientX, e.touches[0].clientY);
-  };
-  const onPointerMove = (e: PointerEvent) => handleMove(e.clientX, e.clientY);
-  const onMouseMove = (e: MouseEvent) => {
-    if (e.buttons === 0) {
-      handleEnd();
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      router.push("/login");
       return;
     }
-    handleMove(e.clientX, e.clientY);
-  };
-  const onTouchEnd = () => handleEnd();
-  const onPointerUp = () => handleEnd();
-  const onMouseUp = () => handleEnd();
 
-  document.addEventListener("touchmove", onTouchMove, { passive: false });
-  document.addEventListener("pointermove", onPointerMove);
-  document.addEventListener("mousemove", onMouseMove);
-  document.addEventListener("touchend", onTouchEnd);
-  document.addEventListener("touchcancel", onTouchEnd);
-  document.addEventListener("pointerup", onPointerUp);
-  document.addEventListener("pointercancel", onPointerUp);
-  document.addEventListener("mouseup", onMouseUp);
+    const controller = new AbortController();
+    const signal = controller.signal;
 
-  return () => {
-    document.removeEventListener("touchmove", onTouchMove);
-    document.removeEventListener("pointermove", onPointerMove);
-    document.removeEventListener("mousemove", onMouseMove);
-    document.removeEventListener("touchend", onTouchEnd);
-    document.removeEventListener("touchcancel", onTouchEnd);
-    document.removeEventListener("pointerup", onPointerUp);
-    document.removeEventListener("pointercancel", onPointerUp);
-    document.removeEventListener("mouseup", onMouseUp);
-  };
-}, [recordMenuOpen, hoveredRecordOption, camPerm]);
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal,
+    })
+      .then((r) => r.json())
+      .then(setCurrentUser)
+      .catch(() => {});
 
+    loadChatInfo();
+    loadMessages();
+    loadPinned();
 
-useEffect(() => {
-  const token = getToken();
-  if (!token) {
-    router.push("/login");
-    return;
-  }
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/read`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      signal,
+    })
+      .then(() => refresh())
+      .catch(() => {});
 
-
-
-  const controller = new AbortController();
-  const signal = controller.signal;
-
-  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-    signal,
-  })
-    .then((r) => r.json())
-    .then(setCurrentUser)
-    .catch(() => {});
-
-  loadChatInfo();
-  loadMessages();
-  loadPinned();
-
-  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/read`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    signal,
-  })
-    .then(() => refresh())
-    .catch(() => {});
-
-  return () => {
-    controller.abort();
-  };
-}, [chatId]);
+    return () => {
+      controller.abort();
+    };
+  }, [chatId]);
 
   useEffect(() => {
     if (isGroup) {
@@ -2050,7 +1869,7 @@ const ChatHeader = () => (
 
 {!isSelectMode && (
   <div className="p-3 sm:p-3 md:p-4 border-t border-white/10 bg-[#171717]/80 backdrop-blur-md">
-    {isRecording && !recordMenuOpen ? (
+    {isRecording ? (
       <div className="flex items-center gap-2.5 sm:gap-3">
         <div className="relative w-2.5 h-2.5 shrink-0">
           <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
@@ -2176,85 +1995,73 @@ const ChatHeader = () => (
           }`}
         />
 
-<div className="flex items-end gap-2 shrink-0">
-  {/* 🆕 Компактный индикатор записи — появляется при long-press */}
-  {isRecording && recordMenuOpen && (
-    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/15 border border-red-500/30 animate-pulse">
-      <div className="relative w-2 h-2 shrink-0">
-        <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
-        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
-      </div>
-      <span className="text-xs font-bold text-red-400 tabular-nums">
-        {formatRecordingTime(recordingTime)}
-      </span>
-    </div>
-  )}
+        <div className="relative shrink-0">
+          <button
+            onMouseDown={handleSendPointerDown}
+            onMouseUp={handleSendPointerUp}
+            onMouseLeave={handleSendPointerUp}
+            onTouchStart={handleSendPointerDown}
+            onTouchEnd={handleSendPointerUp}
+            onClick={handleSendClick}
+            disabled={!!cryptoError}
+            className={`p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none touch-none ${
+              isSecret
+                ? "border border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700"
+                : "border border-[#8b5cf6] bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
+            }`}
+          >
+            <Send size={19} className="sm:w-[18px] sm:h-[18px]" />
+          </button>
 
-  <div className="relative shrink-0">
-    {/* Кольцо прогресса long-press */}
-    {pressProgress > 0 && pressProgress < 1 && (
-      <svg
-        className="absolute inset-0 w-full h-full pointer-events-none -rotate-90"
-        style={{ zIndex: 30 }}
-      >
-        <circle
-          cx="50%" cy="50%"
-          r="42%"
-          fill="none"
-          stroke="#8b5cf6"
-          strokeWidth="3"
-          strokeDasharray={`${pressProgress * 100} 100`}
-          strokeLinecap="round"
-          style={{ transition: "stroke-dasharray 30ms linear" }}
-        />
-      </svg>
-    )}
-
-    <button
-      ref={sendBtnRef}
-      onPointerDown={handleSendPointerDown}
-      onTouchStart={handleSendPointerDown}
-      onPointerUp={handleEnd}
-      onPointerLeave={(e) => {
-        if (e.buttons === 0 && !recordMenuOpen) {
-          if (pressTimerRef.current) {
-            clearInterval(pressTimerRef.current);
-            pressTimerRef.current = null;
-            setPressProgress(0);
-          }
-        }
-      }}
-      onClick={(e) => {
-        if (longPressTriggeredRef.current) {
-          e.preventDefault();
-          return;
-        }
-        if (recordMenuOpen) {
-          e.preventDefault();
-          return;
-        }
-        if (!text.trim() && files.length === 0) {
-          e.preventDefault();
-          return;
-        }
-        sendMessage();
-      }}
-      disabled={!!cryptoError}
-      className={`relative p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none ${
-        recordMenuOpen
-          ? "border border-[#8b5cf6] bg-[#8b5cf6]/20 text-[#8b5cf6] scale-110 shadow-[0_0_24px_rgba(139,92,246,0.4)]"
-          : pressProgress > 0
-            ? "border border-[#8b5cf6] bg-[#8b5cf6]/10 text-[#8b5cf6]"
-            : isSecret
-              ? "border border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700"
-              : "border border-[#8b5cf6] bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
-      }`}
-      style={{ touchAction: "none" }}
-    >
-      <Send size={19} className="sm:w-[18px] sm:h-[18px]" />
-    </button>
-  </div>
-</div>
+          {showRecordMenu && (
+            <>
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setShowRecordMenu(false)} 
+              />
+              <div className="absolute bottom-full right-0 mb-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                <button
+                  onClick={() => {
+                    setShowRecordMenu(false);
+                    startRecording();
+                  }}
+                  className="w-full px-4 py-3 flex items-center gap-3 text-left text-sm text-white hover:bg-white/10 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center text-red-400">
+                    <Mic size={18} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium">Голосовое</span>
+                    <span className="text-[10px] text-white/40">Аудиосообщение</span>
+                  </div>
+                </button>
+                
+                <div className="h-px bg-white/10" />
+                
+                <button
+                  onClick={async () => {
+                    setShowRecordMenu(false);
+                    if (camPerm.status === "denied") { setPermHelp("camera"); return; }
+                    if (camPerm.status !== "granted") {
+                      const ok = await camPerm.request();
+                      if (!ok) { setPermHelp("camera"); return; }
+                    }
+                    setVideoMode('expanded');
+                  }}
+                  className="w-full px-4 py-3 flex items-center gap-3 text-left text-sm text-white hover:bg-white/10 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
+                    <Video size={18} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium">Видео</span>
+                    <span className="text-[10px] text-white/40">Видео-квадрат</span>
+                  </div>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     )}
   </div>
@@ -2690,96 +2497,6 @@ const ChatHeader = () => (
       </div>
     </div>
   </>
-)}
-
-{/* ═════════════ iOS-МЕНЮ ЗАПИСИ (LONG-PRESS) ═════════════ */}
-{recordMenuOpen && (
-  <div className="fixed inset-0 z-[100] pointer-events-none">
-    {/* Пунктирная линия от пальца к активной опции */}
-    {fingerPos && hoveredRecordOption && hoveredRecordOption !== "cancel" && (
-      <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 15 }}>
-        <line
-          x1={fingerPos.x} y1={fingerPos.y}
-          x2={getOptionPos(hoveredRecordOption).x}
-          y2={getOptionPos(hoveredRecordOption).y}
-          stroke="#8b5cf6" strokeWidth="1.5" strokeDasharray="3 4" opacity="0.35"
-        />
-        <circle cx={fingerPos.x} cy={fingerPos.y} r="5" fill="#8b5cf6" opacity="0.4" />
-      </svg>
-    )}
-
-    {/* Зона отмены (появляется когда палец высоко) */}
-{hoveredRecordOption === "cancel" && (
-  <div
-    className="absolute flex flex-col items-center gap-1.5"
-    style={{
-      left: getOptionPos("cancel").x,
-      top: getOptionPos("cancel").y,
-      transform: "translate(-50%, -50%) scale(1.1)",
-      transition: "transform 150ms ease, opacity 150ms ease",
-      zIndex: 25,
-    }}
-  >
-    <div className="w-16 h-16 flex items-center justify-center bg-red-500 rounded-xl shadow-[0_0_20px_rgba(239,68,68,0.6)]">
-      <X size={24} className="text-white" />
-    </div>
-    <span className="text-red-400 text-xs font-black tracking-wide">ОТМЕНА</span>
-  </div>
-)}
-
-    {/* Опции: Голос и Видео */}
-   {RECORD_OPTIONS.map((opt) => {
-  const pos = getOptionPos(opt.id);
-  const isActive = hoveredRecordOption === opt.id;
-  return (
-    <div
-      key={opt.id}
-      className="absolute flex flex-col items-center gap-1.5"
-      style={{
-        left: pos.x,
-        top: pos.y,
-        transform: `translate(-50%, -50%) scale(${isActive ? 1.15 : 0.9})`,
-        opacity: isActive ? 1 : 0.6,
-        transition: "transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 120ms ease",
-        zIndex: isActive ? 25 : 15,
-      }}
-    >
-      <div
-        className="w-14 h-14 flex items-center justify-center border transition-all rounded-xl"
-        style={{
-          backgroundColor: isActive ? opt.color : "rgba(31, 31, 35, 0.95)",
-          borderColor: isActive ? opt.color : "rgba(255, 255, 255, 0.1)",
-          boxShadow: isActive ? `0 0 20px ${opt.color}80` : "0 4px 16px rgba(0,0,0,0.3)",
-        }}
-      >
-        <opt.icon size={22} className={isActive ? "text-white" : "text-white/60"} />
-      </div>
-      <span className={`text-[11px] font-bold tracking-wide whitespace-nowrap drop-shadow-lg ${
-        isActive ? "text-white" : "text-white/40"
-      }`}>
-        {opt.label}
-      </span>
-    </div>
-  );
-})}
-
-    {/* Подсказка снизу */}
-    {hoveredRecordOption && hoveredRecordOption !== "cancel" && (
-      <div
-        className="absolute"
-        style={{
-          left: sendBtnRef.current ? sendBtnRef.current.getBoundingClientRect().left + sendBtnRef.current.getBoundingClientRect().width / 2 : 0,
-          top: sendBtnRef.current ? sendBtnRef.current.getBoundingClientRect().bottom + 12 : 0,
-          transform: "translateX(-50%)",
-          zIndex: 25,
-        }}
-      >
-        <span className="px-2.5 py-1 rounded-md bg-black/80 text-[10px] text-white/80 font-bold whitespace-nowrap">
-          Отпусти, чтобы отправить
-        </span>
-      </div>
-    )}
-  </div>
 )}
 
 
