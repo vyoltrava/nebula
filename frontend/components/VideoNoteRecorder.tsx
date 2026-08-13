@@ -6,7 +6,7 @@ import { Square, X, Mic, MicOff } from "lucide-react";
 interface Props {
   onRecorded: (file: File) => void;
   onCancel: () => void;
-  maxDuration?: number; // сек, по умолчанию 60
+  maxDuration?: number;
 }
 
 export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Props) {
@@ -23,8 +23,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   useEffect(() => {
     startCamera();
     return () => {
-      // ✅ Полная очистка при размонтировании
-      fullCleanup();
+      cleanupResources();
     };
   }, []);
 
@@ -68,13 +67,14 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
     };
 
     recorder.onstop = () => {
-      // ✅ Останавливаем всё ПЕРЕД вызовом onRecorded
-      fullCleanup();
-      
+      // ✅ Сначала собираем файл
       const blob = new Blob(chunksRef.current, { type: "video/webm" });
       const file = new File([blob], `video-note-${Date.now()}.webm`, { type: "video/webm" });
       
-      // ✅ Вызываем onRecorded ПОСЛЕ полной очистки
+      // ✅ Потом чистим ресурсы
+      cleanupResources();
+      
+      // ✅ Потом вызываем onRecorded
       onRecorded(file);
     };
 
@@ -85,39 +85,26 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
     timerRef.current = setInterval(() => {
       setSeconds((s) => {
         if (s + 1 >= maxDuration) {
-          // ✅ При достижении лимита останавливаем запись
-          stopRecordingAndCleanup();
+          stopRecording();
         }
         return s + 1;
       });
     }, 1000);
   }
 
-  // ✅ Функция остановки записи с очисткой
-  function stopRecordingAndCleanup() {
-    // Останавливаем рекордер
+  function stopRecording() {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-      try {
-        mediaRecorderRef.current.stop();
-      } catch (e) {
-        console.log("Recorder already stopped");
-      }
+      mediaRecorderRef.current.stop();
     }
-    
-    // ✅ СБРАСЫВАЕМ СОСТОЯНИЕ ЗАПИСИ
     setIsRecording(false);
-    setSeconds(0);
-    
-    // Очищаем таймер
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
   }
 
-  // ✅ ПОЛНАЯ ОЧИСТКА ВСЕГО
-  function fullCleanup() {
-    // 1. Останавливаем рекордер
+  function cleanupResources() {
+    // Останавливаем рекордер
     if (mediaRecorderRef.current) {
       try {
         if (mediaRecorderRef.current.state === "recording") {
@@ -127,41 +114,22 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
       mediaRecorderRef.current = null;
     }
     
-    // 2. ✅ СБРАСЫВАЕМ СОСТОЯНИЕ ЗАПИСИ
-    setIsRecording(false);
-    setSeconds(0);
-    
-    // 3. Очищаем таймер
+    // Очищаем таймер
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
     
-    // 4. Останавливаем поток
+    // Останавливаем поток
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
     
-    // 5. Очищаем чанки
+    // Сбрасываем состояния
+    setIsRecording(false);
+    setSeconds(0);
     chunksRef.current = [];
-  }
-
-  // ✅ Ручная остановка записи (кнопка Стоп)
-  function handleStopRecording() {
-    if (isRecording) {
-      // Останавливаем рекордер (вызовет onstop)
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
-        mediaRecorderRef.current.stop();
-      }
-      // ✅ Сразу сбрасываем состояние
-      setIsRecording(false);
-      setSeconds(0);
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    }
   }
 
   const formatTime = (s: number) => {
@@ -176,7 +144,6 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   return (
     <div className="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center">
       <div className="relative flex flex-col items-center">
-        {/* Квадратное видео */}
         <div className="relative w-[340px] h-[340px] sm:w-[440px] sm:h-[440px] rounded-2xl overflow-hidden bg-black shadow-2xl ring-1 ring-white/10">
           <video
             ref={videoRef}
@@ -186,38 +153,38 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
             className="w-full h-full object-cover"
           />
 
-          {/* Квадратная дорожка записи */}
-          <svg
-            className="absolute inset-0 w-full h-full pointer-events-none"
-            viewBox="0 0 100 100"
-          >
-            <rect
-              x="3"
-              y="3"
-              width="94"
-              height="94"
-              rx="12"
-              fill="none"
-              stroke="rgba(255,255,255,0.15)"
-              strokeWidth="3"
-            />
-            <rect
-              x="3"
-              y="3"
-              width="94"
-              height="94"
-              rx="12"
-              fill="none"
-              stroke="#ef4444"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeDasharray={perimeter}
-              strokeDashoffset={perimeter * (1 - progress / 100)}
-              className="transition-all duration-300 ease-linear"
-            />
-          </svg>
+<svg
+  className="absolute inset-0 w-full h-full pointer-events-none"
+  viewBox="0 0 100 100"
+>
+  {/* Фон дорожки - тонкая линия по краю */}
+  <rect
+    x="1.5"
+    y="1.5"
+    width="97"
+    height="97"
+    rx="10"
+    fill="none"
+    stroke="rgba(255,255,255,0.12)"
+    strokeWidth="1.5"
+  />
+  {/* Прогресс записи - красная линия по краю */}
+  <rect
+    x="1.5"
+    y="1.5"
+    width="97"
+    height="97"
+    rx="10"
+    fill="none"
+    stroke="#ef4444"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeDasharray={perimeter}
+    strokeDashoffset={perimeter * (1 - progress / 100)}
+    className="transition-all duration-300 ease-linear"
+  />
+</svg>
 
-          {/* Таймер записи */}
           {isRecording && (
             <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded-full px-4 py-1.5 ring-1 ring-white/10">
               <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
@@ -230,7 +197,6 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
             </div>
           )}
 
-          {/* Подсказка */}
           {!isRecording && isCameraReady && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="text-center">
@@ -241,17 +207,14 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
           )}
         </div>
 
-        {/* Кнопки управления */}
         <div className="mt-6 flex items-center justify-center gap-8">
-          {/* Отмена */}
           <button
-            onClick={() => { fullCleanup(); onCancel(); }}
+            onClick={() => { cleanupResources(); onCancel(); }}
             className="w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 transition-colors active:scale-95 flex items-center justify-center text-white/80"
           >
             <X size={24} />
           </button>
 
-          {/* Кнопка записи */}
           {!isRecording ? (
             <button
               onClick={() => { startCamera(); setTimeout(startRecording, 300); }}
@@ -264,7 +227,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
             </button>
           ) : (
             <button
-              onClick={handleStopRecording}
+              onClick={stopRecording}
               className="w-20 h-20 rounded-full bg-red-500 hover:bg-red-600 active:scale-95 transition-all flex items-center justify-center shadow-lg shadow-red-500/30 ring-4 ring-red-500/20"
             >
               <div className="w-9 h-9 rounded-full border-[3px] border-white flex items-center justify-center">
@@ -273,7 +236,6 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
             </button>
           )}
 
-          {/* Микрофон */}
           <button
             onClick={toggleMute}
             className="w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 transition-colors active:scale-95 flex items-center justify-center text-white/80"
@@ -282,7 +244,6 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
           </button>
         </div>
 
-        {/* Подсказка */}
         <div className="mt-4 text-center">
           <p className="text-white/30 text-xs font-medium">
             {isRecording 
