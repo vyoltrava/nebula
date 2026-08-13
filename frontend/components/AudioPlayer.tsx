@@ -29,37 +29,40 @@ export function AudioPlayer({ src, trackId, title }: { src: string; trackId?: st
   }
 
   return (
-    <div className="mt-2 flex items-center gap-3 w-full max-w-sm select-none">
+    <div className="mt-2 w-full max-w-sm select-none flex items-center gap-2.5 rounded-2xl bg-[#171717] border border-[#8b5cf6]/60 px-3 py-2.5">
+      {/* Кнопка play/pause — квадратная как на макете */}
       <button
         onClick={toggle}
-        className="shrink-0 w-10 h-10 rounded-full bg-[#8b5cf6] hover:bg-[#7c3aed] active:scale-90 text-white flex items-center justify-center transition-all shadow-[0_0_14px_rgba(139,92,246,0.35)]"
+        className="shrink-0 w-9 h-9 rounded-xl bg-[#8b5cf6] hover:bg-[#7c3aed] active:scale-90 text-white flex items-center justify-center transition-all"
         title={playing ? "Пауза" : "Слушать"}
       >
-        {playing ? <Pause size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" className="ml-0.5" />}
+        {playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
       </button>
 
-      <div className="flex-1 min-w-0">
-        <div className="h-1.5 bg-white/10 rounded-full cursor-pointer group" onClick={seek}>
-          <div
-            className="h-full bg-gradient-to-r from-[#8b5cf6] to-[#a78bfa] rounded-full relative"
-            style={{ width: `${progress}%` }}
-          >
-            <span className="absolute -right-1 top-1/2 -translate-y-1/2 w-2.5 h-2.5 bg-white rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity" />
-          </div>
-        </div>
-        <div className="flex justify-between mt-1 text-[10px] text-white/40 font-mono">
-          <span>{fmt(currentTime)}</span>
-          <span>{fmt(duration)}</span>
+      {/* Слева — сколько прошло */}
+      <span className={`shrink-0 w-9 text-right text-[10px] font-mono tabular-nums ${playing ? "text-[#a78bfa]" : "text-white/50"}`}>
+        {fmt(currentTime)}
+      </span>
+
+      {/* Живая линия */}
+      <div className="flex-1 h-[3px] bg-white/10 rounded-full cursor-pointer group" onClick={seek}>
+        <div
+          className={`h-full rounded-full relative ${playing ? "audio-line-live" : "bg-[#8b5cf6]"}`}
+          style={{ width: `${progress}%` }}
+        >
+          {/* пульсирующая головка */}
+          <span
+            className={`absolute -right-1 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-[#a78bfa] shadow-[0_0_8px_rgba(139,92,246,0.9)] transition-opacity ${
+              playing ? "opacity-100 animate-pulse" : "opacity-0 group-hover:opacity-100"
+            }`}
+          />
         </div>
       </div>
 
-      {playing && (
-        <div className="flex items-end gap-[2px] h-4 shrink-0">
-          {[0, 1, 2].map((i) => (
-            <span key={i} className="eq-bar w-[3px] bg-[#8b5cf6] rounded-full" style={{ animationDelay: `${i * 0.15}s` }} />
-          ))}
-        </div>
-      )}
+      {/* Справа — общая длительность */}
+      <span className="shrink-0 w-9 text-[10px] font-mono tabular-nums text-white/50">
+        {fmt(duration)}
+      </span>
     </div>
   );
 }

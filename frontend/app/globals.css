@@ -147,3 +147,14 @@ body {
   height: 25%;
   animation: eq 1s ease-in-out infinite;
 }
+
+/* живая линия аудиоплеера — бегущий градиент пока играет */
+.audio-line-live {
+  background: linear-gradient(90deg, #7c3aed, #a78bfa, #8b5cf6, #a78bfa, #7c3aed);
+  background-size: 300% 100%;
+  animation: audioLine 2s linear infinite;
+}
+@keyframes audioLine {
+  from { background-position: 0% 0; }
+  to { background-position: 300% 0; }
+}

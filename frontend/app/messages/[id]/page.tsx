@@ -1867,169 +1867,205 @@ const ChatHeader = () => (
             )}
 
 
-            {!isSelectMode && (
-              <div className="p-3 sm:p-3 md:p-4 border-t border-white/10 bg-[#171717]/80 backdrop-blur-md">
-                <div className="flex items-end gap-2 sm:gap-2">
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/*,image/gif,video/*"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => onFiles(e.target.files)}
-                  />
+{!isSelectMode && (
+  <div className="p-3 sm:p-3 md:p-4 border-t border-white/10 bg-[#171717]/80 backdrop-blur-md">
+    {isRecording ? (
+      <div className="flex items-center gap-2.5 sm:gap-3">
+        <div className="relative w-2.5 h-2.5 shrink-0">
+          <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+        </div>
+        <span className="text-sm font-bold text-red-400 tabular-nums shrink-0">
+          {formatRecordingTime(recordingTime)}
+        </span>
+        <div className="flex-1 flex items-end justify-between gap-[2px] h-5 overflow-hidden">
+          {Array.from({ length: 28 }).map((_, i) => (
+            <span
+              key={i}
+              className="eq-bar w-[3px] rounded-full bg-red-400/70"
+              style={{
+                animationDelay: `${(i % 7) * 0.09}s`,
+                animationDuration: `${0.8 + (i % 5) * 0.12}s`,
+              }}
+            />
+          ))}
+        </div>
+        <button
+          onClick={stopRecording}
+          className="shrink-0 px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 active:scale-95 transition-all flex items-center gap-1.5"
+        >
+          <Square size={11} fill="currentColor" />
+          Стоп
+        </button>
+        <button
+          onClick={cancelRecording}
+          className="shrink-0 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all"
+          title="Отменить запись"
+        >
+          <X size={16} />
+        </button>
+      </div>
+    ) : (
+      <div className="flex items-end gap-2 sm:gap-2">
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*,image/gif,video/*"
+          multiple
+          className="hidden"
+          onChange={(e) => onFiles(e.target.files)}
+        />
 
-                  <div className="flex gap-1 shrink-0">
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowStickers(!showStickers)}
-                        className={`p-2.5 sm:p-2 rounded-xl transition-colors min-w-[40px] sm:min-w-[36px] md:min-w-[40px] min-h-[40px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center active:scale-95 ${
-                          showStickers
-                            ? "text-[#8b5cf6] bg-[#8b5cf6]/10"
-                            : "text-white/60 hover:text-[#8b5cf6] hover:bg-white/5"
-                        }`}
-                      >
-                        <Smile size={19} className="sm:w-[18px] sm:h-[18px]" />
-                      </button>
-                      {showStickers && (
-                        <>
-                          <div className="fixed inset-0 z-40" onClick={() => setShowStickers(false)} />
-                          <div className="absolute bottom-full left-0 mb-2 w-64 sm:w-64 md:w-72 bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl z-50">
-                            <div className="p-3 border-b border-white/10 flex items-center justify-between">
-                              <span className="text-sm font-bold text-white">Стикеры</span>
-                              <button
-                                onClick={() => setShowStickers(false)}
-                                className="text-white/60 hover:text-white p-1"
-                              >
-                                <X size={16} />
-                              </button>
-                            </div>
-                            <div className="p-2 grid grid-cols-6 gap-1 max-h-64 sm:max-h-64 overflow-y-auto">
-                              {STICKERS.map((s) => (
-                                <button
-                                  key={s.code}
-                                  onClick={() => {
-                                    insertSticker(s.emoji);
-                                    setShowStickers(false);
-                                  }}
-                                  className="aspect-square flex items-center justify-center text-2xl hover:bg-white/10 rounded-lg active:scale-90 transition-transform"
-                                >
-                                  {s.emoji}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
+        <div className="flex gap-1 shrink-0">
+          <div className="relative">
+            <button
+              onClick={() => setShowStickers(!showStickers)}
+              className={`p-2.5 sm:p-2 rounded-xl transition-colors min-w-[40px] sm:min-w-[36px] md:min-w-[40px] min-h-[40px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center active:scale-95 ${
+                showStickers
+                  ? "text-[#8b5cf6] bg-[#8b5cf6]/10"
+                  : "text-white/60 hover:text-[#8b5cf6] hover:bg-white/5"
+              }`}
+            >
+              <Smile size={19} className="sm:w-[18px] sm:h-[18px]" />
+            </button>
+            {showStickers && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowStickers(false)} />
+                <div className="absolute bottom-full left-0 mb-2 w-64 sm:w-64 md:w-72 bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl z-50">
+                  <div className="p-3 border-b border-white/10 flex items-center justify-between">
+                    <span className="text-sm font-bold text-white">Стикеры</span>
                     <button
-                      onClick={() => fileRef.current?.click()}
-                      className={`p-2.5 sm:p-2 rounded-xl transition-colors relative min-w-[40px] sm:min-w-[36px] md:min-w-[40px] min-h-[40px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center active:scale-95 ${
-                        files.length > 0
-                          ? "text-[#8b5cf6] bg-[#8b5cf6]/10"
-                          : "text-white/60 hover:text-[#8b5cf6] hover:bg-white/5"
-                      }`}
+                      onClick={() => setShowStickers(false)}
+                      className="text-white/60 hover:text-white p-1"
                     >
-                      <Paperclip size={19} className="sm:w-[18px] sm:h-[18px]" />
-                      {files.length > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-[#8b5cf6] text-white text-[9px] sm:text-[10px] font-bold w-4 h-4 sm:w-4 sm:h-4 rounded-full flex items-center justify-center">
-                          {files.length}
-                        </span>
-                      )}
+                      <X size={16} />
                     </button>
                   </div>
-
-                  <textarea
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        sendMessage();
-                      }
-                    }}
-                    placeholder={isSecret ? "Зашифрованное..." : isGroup ? "Сообщение группе..." : "Сообщение..."}
-                    rows={1}
-                    className={`flex-1 border rounded-xl px-3.5 sm:px-3 md:px-4 py-2.5 sm:py-2 bg-white/5 text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-28 sm:max-h-24 md:max-h-32 leading-snug ${
-                      isSecret
-                        ? "border-emerald-500/40 focus:border-emerald-500"
-                        : "border-white/15 focus:border-[#8b5cf6]"
-                    }`}
-                  />
-
-                  {/* 🆕 УНИВЕРСАЛЬНАЯ КНОПКА ОТПРАВКИ / ЗАПИСИ */}
-                  <div className="relative shrink-0">
-                    <button
-                      onMouseDown={handleSendPointerDown}
-                      onMouseUp={handleSendPointerUp}
-                      onMouseLeave={handleSendPointerUp}
-                      onTouchStart={handleSendPointerDown}
-                      onTouchEnd={handleSendPointerUp}
-                      onClick={handleSendClick}
-                      disabled={!!cryptoError}
-                      className={`p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none touch-none ${
-                        isSecret
-                          ? "border border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700"
-                          : "border border-[#8b5cf6] bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
-                      }`}
-                    >
-                      <Send size={19} className="sm:w-[18px] sm:h-[18px]" />
-                    </button>
-
-                    {/* 🆕 МИНИ-МЕНЮ ЗАПИСИ */}
-                    {showRecordMenu && (
-                      <>
-                        <div 
-                          className="fixed inset-0 z-40" 
-                          onClick={() => setShowRecordMenu(false)} 
-                        />
-                        <div className="absolute bottom-full right-0 mb-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                          <button
-                            onClick={() => {
-                              setShowRecordMenu(false);
-                              startRecording();
-                            }}
-                            className="w-full px-4 py-3 flex items-center gap-3 text-left text-sm text-white hover:bg-white/10 transition-colors"
-                          >
-                            <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center text-red-400">
-                              <Mic size={18} />
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="font-medium">Голосовое</span>
-                              <span className="text-[10px] text-white/40">Аудиосообщение</span>
-                            </div>
-                          </button>
-                          
-                          <div className="h-px bg-white/10" />
-                          
-                            <button
-                              onClick={async () => {
-                                setShowRecordMenu(false);
-                                if (camPerm.status === "denied") { setPermHelp("camera"); return; }
-                                if (camPerm.status !== "granted") {
-                                  const ok = await camPerm.request();
-                                  if (!ok) { setPermHelp("camera"); return; }
-                                }
-                                setVideoMode('expanded');
-                              }}
-                              className="w-full px-4 py-3 flex items-center gap-3 text-left text-sm text-white hover:bg-white/10 transition-colors"
-                            >
-                            <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
-                              <Video size={18} />
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="font-medium">Видео</span>
-                              <span className="text-[10px] text-white/40">Видео-квадрат</span>
-                            </div>
-                          </button>
-                        </div>
-                      </>
-                    )}
+                  <div className="p-2 grid grid-cols-6 gap-1 max-h-64 sm:max-h-64 overflow-y-auto">
+                    {STICKERS.map((s) => (
+                      <button
+                        key={s.code}
+                        onClick={() => {
+                          insertSticker(s.emoji);
+                          setShowStickers(false);
+                        }}
+                        className="aspect-square flex items-center justify-center text-2xl hover:bg-white/10 rounded-lg active:scale-90 transition-transform"
+                      >
+                        {s.emoji}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              </div>
+              </>
             )}
+          </div>
+
+          <button
+            onClick={() => fileRef.current?.click()}
+            className={`p-2.5 sm:p-2 rounded-xl transition-colors relative min-w-[40px] sm:min-w-[36px] md:min-w-[40px] min-h-[40px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center active:scale-95 ${
+              files.length > 0
+                ? "text-[#8b5cf6] bg-[#8b5cf6]/10"
+                : "text-white/60 hover:text-[#8b5cf6] hover:bg-white/5"
+            }`}
+          >
+            <Paperclip size={19} className="sm:w-[18px] sm:h-[18px]" />
+            {files.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-[#8b5cf6] text-white text-[9px] sm:text-[10px] font-bold w-4 h-4 sm:w-4 sm:h-4 rounded-full flex items-center justify-center">
+                {files.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              sendMessage();
+            }
+          }}
+          placeholder={isSecret ? "Зашифрованное..." : isGroup ? "Сообщение группе..." : "Сообщение..."}
+          rows={1}
+          className={`flex-1 border rounded-xl px-3.5 sm:px-3 md:px-4 py-2.5 sm:py-2 bg-white/5 text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-28 sm:max-h-24 md:max-h-32 leading-snug ${
+            isSecret
+              ? "border-emerald-500/40 focus:border-emerald-500"
+              : "border-white/15 focus:border-[#8b5cf6]"
+          }`}
+        />
+
+        <div className="relative shrink-0">
+          <button
+            onMouseDown={handleSendPointerDown}
+            onMouseUp={handleSendPointerUp}
+            onMouseLeave={handleSendPointerUp}
+            onTouchStart={handleSendPointerDown}
+            onTouchEnd={handleSendPointerUp}
+            onClick={handleSendClick}
+            disabled={!!cryptoError}
+            className={`p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none touch-none ${
+              isSecret
+                ? "border border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700"
+                : "border border-[#8b5cf6] bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
+            }`}
+          >
+            <Send size={19} className="sm:w-[18px] sm:h-[18px]" />
+          </button>
+
+          {showRecordMenu && (
+            <>
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setShowRecordMenu(false)} 
+              />
+              <div className="absolute bottom-full right-0 mb-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                <button
+                  onClick={() => {
+                    setShowRecordMenu(false);
+                    startRecording();
+                  }}
+                  className="w-full px-4 py-3 flex items-center gap-3 text-left text-sm text-white hover:bg-white/10 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center text-red-400">
+                    <Mic size={18} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium">Голосовое</span>
+                    <span className="text-[10px] text-white/40">Аудиосообщение</span>
+                  </div>
+                </button>
+                
+                <div className="h-px bg-white/10" />
+                
+                <button
+                  onClick={async () => {
+                    setShowRecordMenu(false);
+                    if (camPerm.status === "denied") { setPermHelp("camera"); return; }
+                    if (camPerm.status !== "granted") {
+                      const ok = await camPerm.request();
+                      if (!ok) { setPermHelp("camera"); return; }
+                    }
+                    setVideoMode('expanded');
+                  }}
+                  className="w-full px-4 py-3 flex items-center gap-3 text-left text-sm text-white hover:bg-white/10 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400">
+                    <Video size={18} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium">Видео</span>
+                    <span className="text-[10px] text-white/40">Видео-квадрат</span>
+                  </div>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    )}
+  </div>
+)}
           </>
         )}
 
@@ -2045,47 +2081,7 @@ const ChatHeader = () => (
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
             <div className="w-full max-w-sm sm:max-w-md border border-emerald-500/30 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-4 sm:p-6 pointer-events-auto max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4 sm:mb-5">
-                {isRecording ? (
-  <div className="flex items-center gap-2.5 sm:gap-3">
-    <div className="relative w-2.5 h-2.5 shrink-0">
-      <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
-      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
-    </div>
-    <span className="text-sm font-bold text-red-400 tabular-nums shrink-0">
-      {formatRecordingTime(recordingTime)}
-    </span>
-    <div className="flex-1 flex items-end justify-between gap-[2px] h-5 overflow-hidden">
-      {Array.from({ length: 28 }).map((_, i) => (
-        <span
-          key={i}
-          className="eq-bar w-[3px] rounded-full bg-red-400/70"
-          style={{
-            animationDelay: `${(i % 7) * 0.09}s`,
-            animationDuration: `${0.8 + (i % 5) * 0.12}s`,
-          }}
-        />
-      ))}
-    </div>
-    <button
-      onClick={stopRecording}
-      className="shrink-0 px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 active:scale-95 transition-all flex items-center gap-1.5"
-    >
-      <Square size={11} fill="currentColor" />
-      Стоп
-    </button>
-    <button
-      onClick={cancelRecording}
-      className="shrink-0 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all"
-      title="Отменить запись"
-    >
-      <X size={16} />
-    </button>
-  </div>
-) : (
-  <div className="flex items-end gap-2 sm:gap-2">
-    {/* ... весь существующий контент панели ввода (стикеры, скрепка, textarea, кнопка отправки) ... */}
-  </div>
-)}
+
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="text-emerald-400" size={20} />
                   <h2 className="text-lg sm:text-xl font-black text-white">Проверка шифрования</h2>
