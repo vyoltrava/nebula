@@ -1476,6 +1476,7 @@ const ChatHeader = () => (
                     : "rounded-tl-2xl rounded-tr-2xl rounded-br-2xl rounded-bl-[4px]";
 
                   const isVideoNote = !!msg.media_url && msg.media_type === "video_note";
+                  const isAudio = !!msg.media_url && msg.media_type === "audio"; // 🆕
                   const isEncryptedMedia = !!msg.is_encrypted_media || msg.ciphertext === "[encrypted_media]";
                   const isForwarded = !!msg.forwarded_from_id;
                   return (
@@ -1556,10 +1557,10 @@ const ChatHeader = () => (
     isSelected
       ? "ring-2 ring-[#8b5cf6] ring-offset-2 ring-offset-[#171717] "
       : ""
-  } ${
-    isVideoNote
-      ? "p-0 bg-transparent border-0 rounded-2xl overflow-hidden"
-      : `px-3 sm:px-3.5 md:px-4 py-2 sm:py-2 ${
+} ${
+  isVideoNote || isAudio
+    ? "p-0 bg-transparent border-0 rounded-2xl overflow-hidden"
+    : `px-3 sm:px-3.5 md:px-4 py-2 sm:py-2 ${
           isForwarded
             ? isMine
               ? "bg-cyan-600 text-white border-l-4 border-cyan-400"
