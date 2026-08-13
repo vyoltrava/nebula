@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { Bell, BellOff, Check, Loader2, Smartphone, Monitor } from "lucide-react";
 import { enablePush, disablePush, isPushSubscribed, isPushSupported, getPushEnvironment } from "@/lib/push";
 import { getToken } from "@/lib/auth";
+import { PushDebug } from "@/components/PushDebug";
+
 
 export function PushSettings() {
   const [subscribed, setSubscribed] = useState(false);
@@ -191,6 +193,7 @@ export function PushSettings() {
           💡 На iOS уведомления приходят только пока приложение открыто с домашнего экрана. В фоне iOS может задерживать пуши.
         </p>
       )}
+    <PushDebug />
     </div>
   );
 }
