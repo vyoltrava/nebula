@@ -198,9 +198,18 @@ limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,  # 🆕 Было INFO
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
+
+# 🆕 Логируем все необработанные исключения
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logging.error(f"❌ Unhandled exception on {request.url.path}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc)}
+    )
 
 app.add_middleware(PerfMiddleware)
 

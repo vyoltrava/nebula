@@ -1,5 +1,6 @@
 import os, json, base64, logging
 from sqlmodel import Session, select
+from py_vapid import Vapid
 
 log = logging.getLogger("push")
 KEYS_FILE = os.path.join(os.path.dirname(__file__), "vapid_keys.json")
