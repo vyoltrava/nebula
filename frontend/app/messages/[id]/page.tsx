@@ -542,58 +542,82 @@ async function initCryptoForSecretChat() {
         setMessages((prev) => [...prev, tempMsg]);
       }
 
-      for (const msg of messagesToSend) {
-        // 🆕 ШИФРОВАННОЕ МЕДИА для секретных чатов
-        if (isSecret && msg.file) {
-          let sk = loadSessionKey(Number(chatId));
-          if (!sk) {
-            await establishNewSession();
-            sk = loadSessionKey(Number(chatId));
-          }
-          
-          // ✅ ЯВНАЯ ПРОВЕРКА: если sk всё ещё null — ошибка
-          if (!sk) {
-            throw new Error("Не удалось получить session key");
-          }
+for (const msg of messagesToSend) {
+  // 🆕 ШИФРОВАННОЕ МЕДИА для секретных чатов
+  if (isSecret && msg.file) {
+    let sk = loadSessionKey(Number(chatId));
+    if (!sk) {
+      await establishNewSession();
+      sk = loadSessionKey(Number(chatId));
+    }
+    
+    if (!sk) {
+      throw new Error("Не удалось получить session key");
+    }
 
-          const { encryptMediaFile } = await import("@/lib/mediaCrypto");
-          const encryptedBlob = await encryptMediaFile(msg.file, sk);
+    // ✅ СОЗДАЁМ ВРЕМЕННОЕ СООБЩЕНИЕ ДЛЯ ШИФРОВАННОГО МЕДИА
+    const tempMediaId = Date.now();
+    let mediaType = "image";
+    if (msg.file.type.startsWith("video/")) mediaType = "video";
+    if (msg.file.type.startsWith("audio/")) mediaType = "audio";
+    if (msg.file.name.endsWith(".gif")) mediaType = "gif";
 
-          let mediaType = "image";
-          if (msg.file.type.startsWith("video/")) mediaType = "video";
-          if (msg.file.type.startsWith("audio/")) mediaType = "audio";
-          if (msg.file.name.endsWith(".gif")) mediaType = "gif";
+    const tempMediaMsg = {
+      id: tempMediaId,
+      sender_id: currentUser?.id,
+      sender_name: currentUser?.display_name,
+      sender_avatar: currentUser?.avatar_url,
+      text: null,
+      ciphertext: "[encrypted_media]",
+      media_url: "temp_encrypted_media", // временный URL
+      media_type: mediaType,
+      is_encrypted_media: true,
+      read: false,
+      created_at: new Date().toISOString(),
+      is_temp: true,
+    };
+    setMessages((prev) => [...prev, tempMediaMsg]);
 
-          const form = new FormData();
-          form.append("file", encryptedBlob, msg.file.name);
-          form.append("media_type", mediaType);
+    const { encryptMediaFile } = await import("@/lib/mediaCrypto");
+    const encryptedBlob = await encryptMediaFile(msg.file, sk);
 
-          const res = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
-            {
-              method: "POST",
-              headers: { Authorization: `Bearer ${token}` },
-              body: form,
-            }
-          );
+    const form = new FormData();
+    form.append("file", encryptedBlob, msg.file.name);
+    form.append("media_type", mediaType);
 
-          if (!res.ok) {
-            alert("Не удалось отправить шифрованное медиа");
-            return;
-          }
-          
-          // Если был ещё и текст — отправляем отдельно
-          if (msg.text) {
-            const textForm = new FormData();
-            textForm.append("ciphertext", encryptMessage(msg.text, sk));
-            textForm.append("text", "");
-            await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${token}` },
-              body: textForm,
-            });
-          }
-        }
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      }
+    );
+
+    if (!res.ok) {
+      // Удаляем временное сообщение если ошибка
+      setMessages((prev) => prev.filter((m) => m.id !== tempMediaId));
+      alert("Не удалось отправить шифрованное медиа");
+      return;
+    }
+    
+    // Удаляем временное сообщение — реальное придёт через WebSocket
+    setMessages((prev) => prev.filter((m) => m.id !== tempMediaId));
+    
+    // Если был ещё и текст — отправляем отдельно
+    if (msg.text) {
+      const textForm = new FormData();
+      textForm.append("ciphertext", encryptMessage(msg.text, sk));
+      textForm.append("text", "");
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: textForm,
+      });
+    }
+  }
+ 
+
         // 🆕 ШИФРОВАННЫЙ ТЕКСТ + обычное медиа
         else if (isSecret && msg.text) {
           let sk = loadSessionKey(Number(chatId));
