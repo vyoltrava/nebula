@@ -1232,61 +1232,61 @@ export default function ChatPage() {
                           </p>
                         )}
 
-                            <div
-                              className={`${bubbleRadius} transition-all ${
-                                isSelected
-                                  ? "ring-2 ring-[#8b5cf6] ring-offset-2 ring-offset-[#171717] "
-                                  : ""
-                              } ${
-                                isVideoNote
-                                  ? "" // ❗ без паддингов/фона/рамки — квадрат сам по себе, как кружок в TG
-                                  : `px-3 sm:px-3.5 md:px-4 py-2 sm:py-2 ${
-                                      isMine
-                                        ? isSecret
-                                          ? "bg-emerald-600 text-white"
-                                          : "bg-[#8b5cf6] text-white"
-                                        : "bg-white/10 text-white border border-white/15"
-                                    }`
-                              }`}
-                            >
-                          {msg.media_url && (msg.media_type === "image" || msg.media_type === "gif") && (
-                            <img
-                              src={mediaUrl(msg.media_url)}
-                              alt=""
-                              className={getMediaClasses(msg.media_type)}
-                              onClick={(e) => {
-                                if (!isSelectMode) {
-                                  e.stopPropagation();
-                                  setSelectedMedia(msg);
-                                }
-                              }}
-                            />
-                          )}
-                          {msg.media_url && msg.media_type === "video" && (
-                            <VideoPlayer
-                              src={msg.media_url}
-                              className={getMediaClasses("video")}
-                            />
-                          )}
-                          {msg.media_url && msg.media_type === "audio" && (
-                            <div className="mb-1.5 sm:mb-2">
-                              <AudioPlayer src={mediaUrl(msg.media_url)} />
-                            </div>
-                          )}
+                           <div
+  className={`${bubbleRadius} transition-all ${
+    isSelected
+      ? "ring-2 ring-[#8b5cf6] ring-offset-2 ring-offset-[#171717] "
+      : ""
+  } ${
+    isVideoNote
+      ? "p-0 bg-transparent border-0 rounded-2xl overflow-hidden" // ✅ Убираем пузырь для video_note
+      : `px-3 sm:px-3.5 md:px-4 py-2 sm:py-2 ${
+          isMine
+            ? isSecret
+              ? "bg-emerald-600 text-white"
+              : "bg-[#8b5cf6] text-white"
+            : "bg-white/10 text-white border border-white/15"
+        }`
+  }`}
+>
+  {msg.media_url && (msg.media_type === "image" || msg.media_type === "gif") && (
+    <img
+      src={mediaUrl(msg.media_url)}
+      alt=""
+      className={getMediaClasses(msg.media_type)}
+      onClick={(e) => {
+        if (!isSelectMode) {
+          e.stopPropagation();
+          setSelectedMedia(msg);
+        }
+      }}
+    />
+  )}
+  {msg.media_url && msg.media_type === "video" && (
+    <VideoPlayer
+      src={msg.media_url}
+      className={getMediaClasses("video")}
+    />
+  )}
+  {msg.media_url && msg.media_type === "audio" && (
+    <div className="mb-1.5 sm:mb-2">
+      <AudioPlayer src={mediaUrl(msg.media_url)} />
+    </div>
+  )}
 
-                          {msg.media_url && msg.media_type === "video_note" && (
-                            <VideoNotePlayer src={mediaUrl(msg.media_url)} />
-                          )}
+  {msg.media_url && msg.media_type === "video_note" && (
+    <VideoNotePlayer src={mediaUrl(msg.media_url)} />
+  )}
 
-                          {msg.media_url && msg.is_encrypted_media && (
-                              <EncryptedMediaPlayer
-                                mediaUrl={msg.media_url}
-                                mediaType={msg.media_type}
-                                chatId={Number(chatId)}
-                              />
-                            )}
+  {msg.media_url && msg.is_encrypted_media && (
+    <EncryptedMediaPlayer
+      mediaUrl={msg.media_url}
+      mediaType={msg.media_type}
+      chatId={Number(chatId)}
+    />
+  )}
 
-                          {isEditing ? (
+  {isEditing ? (
                             <div className="flex gap-2 items-start">
                               <textarea
                                 value={editText}
@@ -1311,10 +1311,10 @@ export default function ChatPage() {
                                 </button>
                               </div>
                             </div>
-                          ) : (
-                            <>{displayText && <p className="whitespace-pre-wrap break-words text-[15px] sm:text-sm md:text-base leading-snug">{displayText}</p>}</>
-                          )}
-                        </div>
+  ) : (
+    <>{displayText && <p className="whitespace-pre-wrap break-words text-[15px] sm:text-sm md:text-base leading-snug">{displayText}</p>}</>
+  )}
+</div>
 
                         {!isEditing && !isSelectMode && (
                           <div
