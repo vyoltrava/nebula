@@ -23,7 +23,7 @@ export function Sidebar() {
   const [searchQ, setSearchQ] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
-  const { counts } = useUnreadCounts();
+  const { counts, refresh } = useUnreadCounts();
 
   const nav = [
     { href: "/", icon: Home, label: "Главная" },
@@ -32,6 +32,11 @@ export function Sidebar() {
     { href: "/rules", icon: Shield, label: "Правила" },
     { href: "/settings", icon: Settings, label: "Настройки" },
   ];
+
+  useEffect(() => {
+    refresh();
+  }, [pathname]);
+
 
   useEffect(() => {
     const token = getToken();
@@ -73,6 +78,7 @@ export function Sidebar() {
       headers: { Authorization: `Bearer ${token}` },
     });
     setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    refresh();
   }
 
   async function markAllRead() {
@@ -83,6 +89,7 @@ export function Sidebar() {
       headers: { Authorization: `Bearer ${token}` },
     });
     setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+    refresh(); 
   }
 
   function getNotifLink(n: any): string {
