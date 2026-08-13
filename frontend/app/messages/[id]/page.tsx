@@ -402,221 +402,232 @@ async function initCryptoForSecretChat() {
   }
 }
 
-async function establishNewSession() {
-  const token = getToken();
-  if (!token || !chatPartner) return;
-  try {
-    const myKeys = getKeyPair();
-    if (!myKeys) {
-      setCryptoError("Не удалось загрузить ключи");
-      return;
-    }
+  async function establishNewSession() {
+    const token = getToken();
+    if (!token || !chatPartner) return;
+    try {
+      const myKeys = getKeyPair();
+      if (!myKeys) {
+        setCryptoError("Не удалось загрузить ключи");
+        return;
+      }
 
-    // 🆕 Проверяем, что наш публичный ключ зарегистрирован на сервере
-    const myKeyRes = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/keys/me`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    if (!myKeyRes.ok) {
-      // Регистрируем ключ если его нет
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/keys/register`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: new FormData().append("public_key", myKeys.publicKeyBase64),
-      });
-    }
-
-    const pkRes = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/users/${chatPartner.id}/public-key`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    if (!pkRes.ok) {
-      setCryptoError(
-        "Собеседник ещё не активировал шифрование. " +
-        "Он должен хотя бы раз открыть любой секретный чат, " +
-        "чтобы сгенерировать ключи на своём устройстве."
+      // 🆕 Проверяем, что наш публичный ключ зарегистрирован на сервере
+      const myKeyRes = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/keys/me`,
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-      return;
-    }
-    const pkData = await pkRes.json();
-    setPartnerFingerprint(pkData.fingerprint);
-
-    const sk = generateSessionKey();
-    const forMe = encryptSessionKeyForUser(sk, myKeys.publicKeyBase64);
-    const forOther = encryptSessionKeyForUser(sk, pkData.public_key);
-
-    // 🆕 Отправляем ОБА варианта с проверкой
-    for (const [uid, enc] of [
-      [currentUser.id, forMe],
-      [chatPartner.id, forOther],
-    ] as [number, string][]) {
-      const fd = new FormData();
-      fd.append("recipient_id", String(uid));
-      fd.append("encrypted_session_key", enc);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/session-key`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: fd,
-      });
-      if (!res.ok) {
-        console.error(`Failed to store session key for user ${uid}`);
+      if (!myKeyRes.ok) {
+        // ✅ ИСПРАВЛЕНО: создаём FormData правильно
+        const registerFd = new FormData();
+        registerFd.append("public_key", myKeys.publicKeyBase64);
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/keys/register`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: registerFd,
+        });
       }
-    }
 
-    storeSessionKey(Number(chatId), sk);
-    setCryptoError(null);
-  } catch (err) {
-    console.error("establishNewSession failed:", err);
-    setCryptoError("Не удалось установить защищённую сессию");
-  }
-}
-
-async function sendMessage() {
-  if (sendingRef.current) return;
-  const token = getToken();
-  if (!token) return;
-  if (!text.trim() && files.length === 0) return;
-
-  sendingRef.current = true;
-  try {
-    const messagesToSend: { text: string; file: File | null }[] = [];
-    if (files.length > 0) {
-      files.forEach((f, i) => messagesToSend.push({ text: i === 0 ? text.trim() : "", file: f }));
-    } else {
-      messagesToSend.push({ text: text.trim(), file: null });
-    }
-
-    const tempText = text.trim();
-    const tempFiles = files;
-    
-    const tempId = Date.now();
-    if (!isSecret && tempText) {
-      const tempMsg = {
-        id: tempId,
-        sender_id: currentUser?.id,
-        sender_name: currentUser?.display_name,
-        sender_avatar: currentUser?.avatar_url,
-        text: tempText,
-        media_url: null,
-        media_type: null,
-        read: false,
-        created_at: new Date().toISOString(),
-        is_temp: true,
-      };
-      setMessages((prev) => [...prev, tempMsg]);
-    }
-
-    for (const msg of messagesToSend) {
-      // 🆕 ШИФРОВАННОЕ МЕДИА для секретных чатов
-      if (isSecret && msg.file) {
-        let sk = loadSessionKey(Number(chatId));
-        if (!sk) {
-          await establishNewSession();
-          sk = loadSessionKey(Number(chatId));
-          if (!sk) throw new Error("Нет session key");
-        }
-
-        const { encryptMediaFile } = await import("@/lib/mediaCrypto");
-        const encryptedBlob = await encryptMediaFile(msg.file, sk);
-
-        // Определяем media_type
-        let mediaType = "image";
-        if (msg.file.type.startsWith("video/")) mediaType = "video";
-        if (msg.file.type.startsWith("audio/")) mediaType = "audio";
-        if (msg.file.name.endsWith(".gif")) mediaType = "gif";
-
-        const form = new FormData();
-        form.append("file", encryptedBlob, msg.file.name);
-        form.append("media_type", mediaType);
-
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
-          {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-            body: form,
-          }
+      const pkRes = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/users/${chatPartner.id}/public-key`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!pkRes.ok) {
+        setCryptoError(
+          "Собеседник ещё не активировал шифрование. " +
+          "Он должен хотя бы раз открыть любой секретный чат, " +
+          "чтобы сгенерировать ключи на своём устройстве."
         );
+        return;
+      }
+      const pkData = await pkRes.json();
+      setPartnerFingerprint(pkData.fingerprint);
 
+      const sk = generateSessionKey();
+      const forMe = encryptSessionKeyForUser(sk, myKeys.publicKeyBase64);
+      const forOther = encryptSessionKeyForUser(sk, pkData.public_key);
+
+      for (const [uid, enc] of [
+        [currentUser.id, forMe],
+        [chatPartner.id, forOther],
+      ] as [number, string][]) {
+        const fd = new FormData();
+        fd.append("recipient_id", String(uid));
+        fd.append("encrypted_session_key", enc);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/session-key`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd,
+        });
         if (!res.ok) {
-          alert("Не удалось отправить шифрованное медиа");
-          return;
+          console.error(`Failed to store session key for user ${uid}`);
         }
       }
-      // 🆕 ШИФРОВАННЫЙ ТЕКСТ + обычное медиа (если есть)
-      else if (isSecret && msg.text) {
-        let sk = loadSessionKey(Number(chatId));
-        if (!sk) {
-          await establishNewSession();
-          sk = loadSessionKey(Number(chatId));
+
+      storeSessionKey(Number(chatId), sk);
+      setCryptoError(null);
+    } catch (err) {
+      console.error("establishNewSession failed:", err);
+      setCryptoError("Не удалось установить защищённую сессию");
+    }
+  }
+
+  async function sendMessage() {
+    if (sendingRef.current) return;
+    const token = getToken();
+    if (!token) return;
+    if (!text.trim() && files.length === 0) return;
+
+    sendingRef.current = true;
+    try {
+      const messagesToSend: { text: string; file: File | null }[] = [];
+      if (files.length > 0) {
+        files.forEach((f, i) => messagesToSend.push({ text: i === 0 ? text.trim() : "", file: f }));
+      } else {
+        messagesToSend.push({ text: text.trim(), file: null });
+      }
+
+      const tempText = text.trim();
+      const tempId = Date.now();
+      if (!isSecret && tempText) {
+        const tempMsg = {
+          id: tempId,
+          sender_id: currentUser?.id,
+          sender_name: currentUser?.display_name,
+          sender_avatar: currentUser?.avatar_url,
+          text: tempText,
+          media_url: null,
+          media_type: null,
+          read: false,
+          created_at: new Date().toISOString(),
+          is_temp: true,
+        };
+        setMessages((prev) => [...prev, tempMsg]);
+      }
+
+      for (const msg of messagesToSend) {
+        // 🆕 ШИФРОВАННОЕ МЕДИА для секретных чатов
+        if (isSecret && msg.file) {
+          let sk = loadSessionKey(Number(chatId));
+          if (!sk) {
+            await establishNewSession();
+            sk = loadSessionKey(Number(chatId));
+          }
+          
+          // ✅ ИСПРАВЛЕНО: проверяем что sk не null
           if (!sk) throw new Error("Нет session key");
-        }
 
-        const form = new FormData();
-        form.append("ciphertext", encryptMessage(msg.text, sk));
-        form.append("text", "");
-
-        // Если есть медиа — шифруем его тоже
-        if (msg.file) {
           const { encryptMediaFile } = await import("@/lib/mediaCrypto");
           const encryptedBlob = await encryptMediaFile(msg.file, sk);
-          
+
           let mediaType = "image";
           if (msg.file.type.startsWith("video/")) mediaType = "video";
           if (msg.file.type.startsWith("audio/")) mediaType = "audio";
-          
+          if (msg.file.name.endsWith(".gif")) mediaType = "gif";
+
+          const form = new FormData();
           form.append("file", encryptedBlob, msg.file.name);
           form.append("media_type", mediaType);
-          form.append("is_encrypted_media", "true");
+
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+              body: form,
+            }
+          );
+
+          if (!res.ok) {
+            alert("Не удалось отправить шифрованное медиа");
+            return;
+          }
+          
+          // Если был ещё и текст — отправляем отдельно
+          if (msg.text) {
+            const textForm = new FormData();
+            textForm.append("ciphertext", encryptMessage(msg.text, sk));
+            textForm.append("text", "");
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+              body: textForm,
+            });
+          }
         }
+        // 🆕 ШИФРОВАННЫЙ ТЕКСТ + обычное медиа (если есть)
+        else if (isSecret && msg.text) {
+          let sk = loadSessionKey(Number(chatId));
+          if (!sk) {
+            await establishNewSession();
+            sk = loadSessionKey(Number(chatId));
+          }
+          if (!sk) throw new Error("Нет session key");
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: form,
-        });
+          const form = new FormData();
+          form.append("ciphertext", encryptMessage(msg.text, sk));
+          form.append("text", "");
 
-        if (res.status === 403) {
-          alert("Нет доступа к чату");
-          router.push("/messages");
-          return;
+          if (msg.file) {
+            const { encryptMediaFile } = await import("@/lib/mediaCrypto");
+            const encryptedBlob = await encryptMediaFile(msg.file, sk);
+            
+            let mediaType = "image";
+            if (msg.file.type.startsWith("video/")) mediaType = "video";
+            if (msg.file.type.startsWith("audio/")) mediaType = "audio";
+            
+            form.append("file", encryptedBlob, msg.file.name);
+            form.append("media_type", mediaType);
+            form.append("is_encrypted_media", "true");
+          }
+
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: form,
+          });
+
+          if (res.status === 403) {
+            alert("Нет доступа к чату");
+            router.push("/messages");
+            return;
+          }
+        }
+        // Обычное сообщение
+        else {
+          const form = new FormData();
+          if (msg.text) form.append("text", msg.text);
+          if (msg.file) form.append("file", msg.file);
+
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: form,
+          });
+
+          if (res.status === 403) {
+            alert("Нет доступа к чату");
+            router.push("/messages");
+            return;
+          }
         }
       }
-      // Обычное сообщение (не секретный чат)
-      else {
-        const form = new FormData();
-        if (msg.text) form.append("text", msg.text);
-        if (msg.file) form.append("file", msg.file);
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: form,
-        });
+      setText("");
+      setFiles([]);
 
-        if (res.status === 403) {
-          alert("Нет доступа к чату");
-          router.push("/messages");
-          return;
-        }
+      if (!isSecret && tempText) {
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
       }
+
+      if (isSecret) await loadMessages();
+    } catch (err) {
+      console.error("Failed to send:", err);
+      alert("Не удалось отправить сообщение");
+    } finally {
+      sendingRef.current = false;
     }
-
-    setText("");
-    setFiles([]);
-
-    if (!isSecret && tempText) {
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
-    }
-
-    if (isSecret) await loadMessages();
-  } catch (err) {
-    console.error("Failed to send:", err);
-    alert("Не удалось отправить сообщение");
-  } finally {
-    sendingRef.current = false;
   }
-}
 
   async function deleteMessage(messageId: number) {
     if (!confirm("Удалить сообщение?")) return;
