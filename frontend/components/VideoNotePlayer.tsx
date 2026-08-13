@@ -18,6 +18,24 @@ export function VideoNotePlayer({ src, trackId, title }: { src: string; trackId?
     return () => v.removeEventListener("loadedmetadata", onMeta);
   }, []);
 
+  // Синхронизация локального видео с глобальным состоянием
+  useEffect(() => {
+    const v = localRef.current;
+    if (!v) return;
+    
+    if (active && playing) {
+      // Если это активный трек и он играет — запускаем локальное видео
+      if (v.paused) v.play().catch(() => {});
+      // Синхронизируем время, если рассинхронизировалось
+      if (Math.abs(v.currentTime - gp.currentTime) > 0.3) {
+        v.currentTime = gp.currentTime;
+      }
+    } else {
+      // Если не активный или на паузе — останавливаем
+      if (!v.paused) v.pause();
+    }
+  }, [active, playing, gp.currentTime]);
+
   function fmt(s: number) {
     if (!isFinite(s) || isNaN(s)) return "0:00";
     const m = Math.floor(s / 60);
@@ -32,14 +50,15 @@ export function VideoNotePlayer({ src, trackId, title }: { src: string; trackId?
       onClick={() => gp.playTrack({ id, type: "video_note", src, title: title || "🎬 Видео-квадрат" })}
       className="relative w-52 h-52 sm:w-56 sm:h-56 rounded-2xl overflow-hidden bg-black ring-1 ring-white/10 active:scale-[0.98] transition-transform shrink-0"
     >
-      <video ref={localRef} src={src} muted playsInline preload="auto" crossOrigin="anonymous" className="w-full h-full object-cover" />
+      {/* Видео всегда здесь, играет inline */}
+      <video ref={localRef} src={src} muted playsInline preload="metadata" className="w-full h-full object-cover" />
 
-      {/* длительность */}
+      {/* Длительность */}
       <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 text-[10px] font-mono text-white/80">
         {fmt(active ? gp.duration || dur : dur)}
       </span>
 
-      {/* прогресс — только когда играет в панели */}
+      {/* Прогресс-бар снизу */}
       {active && (
         <div className="absolute bottom-0 inset-x-0 h-1 bg-white/10">
           <div className="h-full bg-red-500 transition-all duration-200" style={{ width: `${progress}%` }} />
