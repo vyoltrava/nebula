@@ -42,6 +42,8 @@ import {
 } from "@/lib/crypto";
 import { QRCodeSVG } from "qrcode.react";
 import { Html5Qrcode } from "html5-qrcode";
+const LONG_PRESS_MS = 400;
+
 function getSessionKeyOrThrow(chatId: number): Uint8Array {
   const sk = loadSessionKey(chatId);
   if (!sk) throw new Error("Нет session key");
@@ -947,136 +949,180 @@ const findHoveredOption = (px: number, py: number): "voice" | "video" | "cancel"
   return min <= 65 ? nearest : null;
 };
 
-const handleSendPointerDown = (e: React.TouchEvent | React.MouseEvent) => {
-  // Если есть текст/файлы — это обычная отправка, не мешаем
+// 🆕 Состояние для анимации "зажима"
+const [pressProgress, setPressProgress] = useState(0);
+const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+const handleSendPointerDown = (e: React.PointerEvent | React.TouchEvent | React.MouseEvent) => {
   if (text.trim() || files.length > 0) return;
   e.preventDefault();
-  const px = "touches" in e ? e.touches[0].clientX : e.clientX;
-  const py = "touches" in e ? e.touches[0].clientY : e.clientY;
+  try {
+    (e.target as HTMLElement).setPointerCapture?.((e as React.PointerEvent).pointerId);
+  } catch {}
+
+  const px = "touches" in e ? e.touches[0].clientX : (e as React.PointerEvent | React.MouseEvent).clientX;
+  const py = "touches" in e ? e.touches[0].clientY : (e as React.PointerEvent | React.MouseEvent).clientY;
 
   longPressTriggeredRef.current = false;
-  longPressTimerRef.current = setTimeout(() => {
-    longPressTriggeredRef.current = true;
-    longPressTimerRef.current = null;
-    setRecordMenuOpen(true);
-    setHoveredRecordOption("voice");
-    setFingerPos({ x: px, y: py });
-    navigator.vibrate?.(25);
-    startRecording(); // сразу начинаем запись
-  }, 380);
+  setPressProgress(0);
+
+  const startTime = Date.now();
+  pressTimerRef.current = setInterval(() => {
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(elapsed / LONG_PRESS_MS, 1);
+    setPressProgress(progress);
+
+    if (elapsed >= LONG_PRESS_MS) {
+      if (pressTimerRef.current) clearInterval(pressTimerRef.current);
+      pressTimerRef.current = null;
+      longPressTriggeredRef.current = true;
+      setRecordMenuOpen(true);
+      setHoveredRecordOption("voice");
+      setFingerPos({ x: px, y: py });
+      navigator.vibrate?.(25);
+      setPressProgress(0);
+    }
+  }, 30);
 };
 
-// 🆕 Глобальные обработчики для drag пальца
+const handleEnd = () => {
+  if (pressTimerRef.current) {
+    clearInterval(pressTimerRef.current);
+    pressTimerRef.current = null;
+  }
+  setPressProgress(0);
+
+  if (longPressTriggeredRef.current && recordMenuOpen) {
+    longPressTriggeredRef.current = false;
+
+    if (hoveredRecordOption === "voice") {
+      startRecording();
+    } else if (hoveredRecordOption === "video") {
+      (async () => {
+        if (camPerm.status === "denied") {
+          setPermHelp("camera");
+          return;
+        }
+        if (camPerm.status !== "granted") {
+          const ok = await camPerm.request();
+          if (!ok) {
+            setPermHelp("camera");
+            return;
+          }
+        }
+        setVideoMode("expanded");
+      })();
+    }
+
+    setRecordMenuOpen(false);
+    setFingerPos(null);
+    setHoveredRecordOption("voice");
+  }
+};
+
+// Глобальные обработчики для drag пальца
 useEffect(() => {
   const cancelTimer = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
+    if (pressTimerRef.current) {
+      clearInterval(pressTimerRef.current);
+      pressTimerRef.current = null;
     }
+    setPressProgress(0);
   };
 
   const handleMove = (px: number, py: number) => {
-    // Пока long-press не сработал — если уводит с кнопки, отменяем
-    if (longPressTimerRef.current && sendBtnRef.current) {
+    if (pressTimerRef.current && sendBtnRef.current) {
       const r = sendBtnRef.current.getBoundingClientRect();
-      const margin = 14;
-      if (px < r.left - margin || px > r.right + margin ||
-          py < r.top - margin || py > r.bottom + margin) {
+      const margin = 20;
+      if (
+        px < r.left - margin ||
+        px > r.right + margin ||
+        py < r.top - margin ||
+        py > r.bottom + margin
+      ) {
         cancelTimer();
       }
       return;
     }
-    // Меню открыто — обновляем hover
     if (recordMenuOpen) {
       setHoveredRecordOption(findHoveredOption(px, py));
       setFingerPos({ x: px, y: py });
     }
   };
 
-  const handleEnd = () => {
-    cancelTimer();
-    if (longPressTriggeredRef.current && recordMenuOpen) {
-      longPressTriggeredRef.current = false;
-      if (hoveredRecordOption === "voice") {
-        stopRecording(); // отправить голос
-      } else if (hoveredRecordOption === "video") {
-        cancelRecording(); // отменить голос → открыть видео
-        (async () => {
-          if (camPerm.status === "denied") { setPermHelp("camera"); return; }
-          if (camPerm.status !== "granted") {
-            const ok = await camPerm.request();
-            if (!ok) { setPermHelp("camera"); return; }
-          }
-          setVideoMode("expanded");
-        })();
-      } else {
-        cancelRecording(); // отмена
-      }
-      setRecordMenuOpen(false);
-      setFingerPos(null);
-      setHoveredRecordOption("voice");
-    }
-  };
-
   const onTouchMove = (e: TouchEvent) => {
-    if (!longPressTimerRef.current && !recordMenuOpen) return;
+    if (!pressTimerRef.current && !recordMenuOpen) return;
     e.preventDefault();
     if (e.touches.length) handleMove(e.touches[0].clientX, e.touches[0].clientY);
   };
-  const onMouseMove = (e: MouseEvent) => handleMove(e.clientX, e.clientY);
+  const onPointerMove = (e: PointerEvent) => handleMove(e.clientX, e.clientY);
+  const onMouseMove = (e: MouseEvent) => {
+    if (e.buttons === 0) {
+      handleEnd();
+      return;
+    }
+    handleMove(e.clientX, e.clientY);
+  };
   const onTouchEnd = () => handleEnd();
+  const onPointerUp = () => handleEnd();
   const onMouseUp = () => handleEnd();
 
   document.addEventListener("touchmove", onTouchMove, { passive: false });
+  document.addEventListener("pointermove", onPointerMove);
   document.addEventListener("mousemove", onMouseMove);
   document.addEventListener("touchend", onTouchEnd);
   document.addEventListener("touchcancel", onTouchEnd);
+  document.addEventListener("pointerup", onPointerUp);
+  document.addEventListener("pointercancel", onPointerUp);
   document.addEventListener("mouseup", onMouseUp);
 
   return () => {
     document.removeEventListener("touchmove", onTouchMove);
+    document.removeEventListener("pointermove", onPointerMove);
     document.removeEventListener("mousemove", onMouseMove);
     document.removeEventListener("touchend", onTouchEnd);
     document.removeEventListener("touchcancel", onTouchEnd);
+    document.removeEventListener("pointerup", onPointerUp);
+    document.removeEventListener("pointercancel", onPointerUp);
     document.removeEventListener("mouseup", onMouseUp);
   };
 }, [recordMenuOpen, hoveredRecordOption, camPerm]);
 
 
-  useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+useEffect(() => {
+  const token = getToken();
+  if (!token) {
+    router.push("/login");
+    return;
+  }
 
-    const controller = new AbortController();
-    const signal = controller.signal;
+  const controller = new AbortController();
+  const signal = controller.signal;
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-      signal,
-    })
-      .then((r) => r.json())
-      .then(setCurrentUser)
-      .catch(() => {});
+  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal,
+  })
+    .then((r) => r.json())
+    .then(setCurrentUser)
+    .catch(() => {});
 
-    loadChatInfo();
-    loadMessages();
-    loadPinned();
+  loadChatInfo();
+  loadMessages();
+  loadPinned();
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/read`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      signal,
-    })
-      .then(() => refresh())
-      .catch(() => {});
+  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/read`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    signal,
+  })
+    .then(() => refresh())
+    .catch(() => {});
 
-    return () => {
-      controller.abort();
-    };
-  }, [chatId]);
+  return () => {
+    controller.abort();
+  };
+}, [chatId]);
 
   useEffect(() => {
     if (isGroup) {
@@ -2103,22 +2149,64 @@ const ChatHeader = () => (
         />
 
 <div className="relative shrink-0">
+  {/* Кольцо прогресса long-press */}
+  {pressProgress > 0 && pressProgress < 1 && (
+    <svg
+      className="absolute inset-0 w-full h-full pointer-events-none -rotate-90"
+      style={{ zIndex: 30 }}
+    >
+      <circle
+        cx="50%" cy="50%"
+        r="42%"
+        fill="none"
+        stroke="#8b5cf6"
+        strokeWidth="3"
+        strokeDasharray={`${pressProgress * 100} 100`}
+        strokeLinecap="round"
+        style={{ transition: "stroke-dasharray 30ms linear" }}
+      />
+    </svg>
+  )}
+
   <button
     ref={sendBtnRef}
-    onMouseDown={handleSendPointerDown}
+    onPointerDown={handleSendPointerDown}
     onTouchStart={handleSendPointerDown}
+    onPointerUp={handleEnd}
+    onPointerLeave={(e) => {
+      if (e.buttons === 0 && !recordMenuOpen) {
+        if (pressTimerRef.current) {
+          clearInterval(pressTimerRef.current);
+          pressTimerRef.current = null;
+          setPressProgress(0);
+        }
+      }
+    }}
     onClick={(e) => {
-      if (longPressTriggeredRef.current) return; // это был long-press, не отправляем
-      if (recordMenuOpen) return;
+      if (longPressTriggeredRef.current) {
+        e.preventDefault();
+        return;
+      }
+      if (recordMenuOpen) {
+        e.preventDefault();
+        return;
+      }
+      if (!text.trim() && files.length === 0) {
+        // Пустое сообщение — не отправляем
+        e.preventDefault();
+        return;
+      }
       sendMessage();
     }}
     disabled={!!cryptoError}
-    className={`p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none touch-none ${
+    className={`relative p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none ${
       recordMenuOpen
-        ? "border border-red-500 bg-red-500 text-white scale-110 animate-pulse shadow-[0_0_24px_rgba(239,68,68,0.6)]"
-        : isSecret
-          ? "border border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700"
-          : "border border-[#8b5cf6] bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
+        ? "border border-[#8b5cf6] bg-[#8b5cf6]/20 text-[#8b5cf6] scale-110 shadow-[0_0_24px_rgba(139,92,246,0.4)]"
+        : pressProgress > 0
+          ? "border border-[#8b5cf6] bg-[#8b5cf6]/10 text-[#8b5cf6]"
+          : isSecret
+            ? "border border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700"
+            : "border border-[#8b5cf6] bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
     }`}
     style={{ touchAction: "none" }}
   >
