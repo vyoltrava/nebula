@@ -198,76 +198,50 @@ export default function ChatPage() {
 
 
 
-  async function startRecording() {
-    // ✅ Только проверяем статус, НЕ запрашиваем — запрос должен быть заранее
-    if (micPerm.status === "denied") { setPermHelp("microphone"); return; }
-    if (micPerm.status !== "granted") {
-      // Разрешения нет — просто выходим, не спамим запросами
-      return;
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          audioChunksRef.current.push(e.data);
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        stream.getTracks().forEach(track => track.stop());
-        if (cancelRecordingRef.current) {
-          cancelRecordingRef.current = false; // ❌ отменено — не отправляем
-          return;
-        }
-        const audioFile = new File([audioBlob], 'voice-message.webm', { type: 'audio/webm' });
-        await sendVoiceMessage(audioFile);
-      };
-
-      cancelRecordingRef.current = false;
-      mediaRecorder.start();
-      setIsRecording(true);
-      setRecordingTime(0);
-
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
-      }, 1000);
-    } catch (err) {
-      console.error("Microphone access denied:", err);
-      alert("Не удалось получить доступ к микрофону");
-    }
+function startRecordingWithStream(stream: MediaStream | null) {
+  if (!stream) {
+    setPermHelp("microphone");
+    return;
   }
 
-  function stopRecording() {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
+  try {
+    const mediaRecorder = new MediaRecorder(stream, {
+      mimeType: 'audio/webm;codecs=opus'
+    });
+    mediaRecorderRef.current = mediaRecorder;
+    audioChunksRef.current = [];
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) {
+        audioChunksRef.current.push(e.data);
       }
-    }
-  }
+    };
 
-
-  function cancelRecording() {
-    cancelRecordingRef.current = true;
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
+    mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      stream.getTracks().forEach(track => track.stop());
+      if (cancelRecordingRef.current) {
+        cancelRecordingRef.current = false;
+        return;
       }
-    }
+      const audioFile = new File([audioBlob], 'voice-message.webm', { type: 'audio/webm' });
+      await sendVoiceMessage(audioFile);
+    };
+
+    cancelRecordingRef.current = false;
+    mediaRecorder.start();
+    setIsRecording(true);
+    setRecordingTime(0);
+
+    recordingTimerRef.current = setInterval(() => {
+      setRecordingTime(prev => prev + 1);
+    }, 1000);
+  } catch (err) {
+    console.error("MediaRecorder failed:", err);
+    stream.getTracks().forEach(track => track.stop());
   }
+}
+
 
   async function sendVoiceMessage(audioFile: File) {
     const token = getToken();
@@ -946,9 +920,10 @@ const findHoveredOption = (px: number, py: number): "voice" | "video" | "cancel"
 
 // 🆕 Состояние для анимации "зажима"
 const [pressProgress, setPressProgress] = useState(0);
-const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
+const pressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+const pendingStreamRef = useRef<MediaStream | null>(null);
 
-const handleSendPointerDown = (e: React.PointerEvent | React.TouchEvent | React.MouseEvent) => {
+const handleSendPointerDown = async (e: React.PointerEvent | React.TouchEvent | React.MouseEvent) => {
   if (text.trim() || files.length > 0) return;
   e.preventDefault();
   try {
@@ -961,6 +936,16 @@ const handleSendPointerDown = (e: React.PointerEvent | React.TouchEvent | React.
   longPressTriggeredRef.current = false;
   setPressProgress(0);
 
+  // 🆕 СРАЗУ запрашиваем микрофон (это user gesture — браузер разрешит!)
+  // Stream сохраняется в ref и используется через 400мс
+  try {
+    pendingStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (err) {
+    console.error("Mic permission denied:", err);
+    setPermHelp("microphone");
+    return; // не начинаем long-press если нет доступа
+  }
+
   const startTime = Date.now();
   pressTimerRef.current = setInterval(() => {
     const elapsed = Date.now() - startTime;
@@ -972,20 +957,49 @@ const handleSendPointerDown = (e: React.PointerEvent | React.TouchEvent | React.
       pressTimerRef.current = null;
       longPressTriggeredRef.current = true;
       
-      // 🆕 Сразу открываем меню И начинаем запись голоса
       setRecordMenuOpen(true);
       setHoveredRecordOption("voice");
       setFingerPos({ x: px, y: py });
       navigator.vibrate?.(25);
       setPressProgress(0);
       
-      // 🆕 СРАЗУ начинаем запись голоса (как в iOS Telegram)
-      startRecording();
+      // 🆕 Используем уже готовый stream из ref
+      startRecordingWithStream(pendingStreamRef.current);
+      pendingStreamRef.current = null;
     }
   }, 30);
 };
 
+function stopRecording() {
+  if (mediaRecorderRef.current && isRecording) {
+    mediaRecorderRef.current.stop();
+    setIsRecording(false);
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+  }
+}
+
+function cancelRecording() {
+  cancelRecordingRef.current = true;
+  if (mediaRecorderRef.current && isRecording) {
+    mediaRecorderRef.current.stop();
+    setIsRecording(false);
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+  }
+}
+
 const handleEnd = () => {
+  // Если long-press не сработал — закрываем stream микрофона
+  if (pendingStreamRef.current && !longPressTriggeredRef.current) {
+    pendingStreamRef.current.getTracks().forEach(t => t.stop());
+    pendingStreamRef.current = null;
+  }
+
   if (pressTimerRef.current) {
     clearInterval(pressTimerRef.current);
     pressTimerRef.current = null;
@@ -996,10 +1010,8 @@ const handleEnd = () => {
     longPressTriggeredRef.current = false;
 
     if (hoveredRecordOption === "voice") {
-      // 🆕 Запись голоса уже идёт — просто останавливаем (отправляем)
       stopRecording();
     } else if (hoveredRecordOption === "video") {
-      // 🆕 Отменяем запись голоса и открываем видео
       cancelRecording();
       (async () => {
         if (camPerm.status === "denied") {
@@ -1016,7 +1028,7 @@ const handleEnd = () => {
         setVideoMode("expanded");
       })();
     } else {
-      // 🆕 "cancel" — отменяем запись голоса
+      // "cancel" — отменяем запись голоса
       cancelRecording();
     }
 
@@ -1025,8 +1037,6 @@ const handleEnd = () => {
     setHoveredRecordOption("voice");
   }
 };
-
-
 
 
 // Глобальные обработчики для drag пальца
@@ -1105,10 +1115,7 @@ useEffect(() => {
     return;
   }
 
-  // 🆕 Запрашиваем разрешение на микрофон один раз при загрузке
-  if (micPerm.status === "prompt") {
-    micPerm.request();
-  }
+
 
   const controller = new AbortController();
   const signal = controller.signal;
@@ -2224,8 +2231,8 @@ const ChatHeader = () => (
     }`}
     style={{ touchAction: "none" }}
   >
-    {recordMenuOpen ? <Mic size={19} className="sm:w-[18px] sm:h-[18px]" /> : <Send size={19} className="sm:w-[18px] sm:h-[18px]" />}
-  </button>
+    <Send size={19} className="sm:w-[18px] sm:h-[18px]" />
+      </button>
 </div>
       </div>
     )}
