@@ -6,6 +6,7 @@ import { WebSocketProvider } from "@/components/WebSocketProvider";
 import { GlobalPlayerProvider } from "@/components/GlobalPlayer";
 import { UnreadCountsProvider } from "@/lib/UnreadCountsContext";
 import SplashScreen from "@/components/SplashScreen";
+import {PermissionGate} from "@/components/PermissionGate";
 import PWARegister from "@/components/PWARegister";
 import InstallPrompt from "@/components/InstallPrompt";
 import { NotificationPermissionPrompt } from "@/components/NotificationPermissionPrompt";
@@ -66,6 +67,7 @@ export default function RootLayout({
           {/* 🛡️ AuthGuard оборачивает только защищённые компоненты */}
           <AuthGuard>
             <UnreadCountsProvider>
+              <PermissionGate /> 
               {children}
             </UnreadCountsProvider>
             
