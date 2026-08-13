@@ -1136,9 +1136,7 @@ if (data.sender_id === currentUser?.id) {
 
 const ChatHeader = () => (
   <div
-    className={`border-b border-white/10 backdrop-blur-md sticky top-0 z-10 ${
-      isSecret ? "bg-emerald-950/40" : isGroup ? "bg-purple-950/20" : "bg-[#171717]/80"
-    }`}
+    className="border-b border-white/10 backdrop-blur-md sticky top-0 z-10 bg-[#171717]/80"
   >
     {/* Основной блок */}
     <div className="p-3 sm:p-4 md:p-4">
