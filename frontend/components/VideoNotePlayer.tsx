@@ -1,7 +1,6 @@
 // components/VideoNotePlayer.tsx
 "use client";
-import { useRef, useState } from "react";
-import { Play, Pause } from "lucide-react";
+import { useRef } from "react";
 
 interface Props {
   src: string;
@@ -9,37 +8,28 @@ interface Props {
 
 export function VideoNotePlayer({ src }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [playing, setPlaying] = useState(false);
 
   function togglePlay() {
-    if (!videoRef.current) return;
-    if (playing) {
-      videoRef.current.pause();
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play();
     } else {
-      videoRef.current.play();
+      video.pause();
     }
-    setPlaying(!playing);
   }
 
   return (
-    <div className="relative w-56 h-56 sm:w-64 sm:h-64 rounded-2xl overflow-hidden bg-black">
+    <div
+      className="relative w-56 h-56 sm:w-64 sm:h-64 rounded-2xl overflow-hidden bg-black cursor-pointer select-none"
+      onClick={togglePlay}
+    >
       <video
         ref={videoRef}
         src={src}
         className="w-full h-full object-cover"
-        onEnded={() => setPlaying(false)}
         playsInline
       />
-      <button
-        onClick={togglePlay}
-        className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/40 transition-colors"
-      >
-        {playing ? (
-          <Pause size={32} className="text-white" />
-        ) : (
-          <Play size={32} className="text-white" />
-        )}
-      </button>
     </div>
   );
 }
