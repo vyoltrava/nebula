@@ -1134,12 +1134,14 @@ if (data.sender_id === currentUser?.id) {
 
   const partnerGlow = getGlowColor(chatPartner);
 
-  const ChatHeader = () => (
-    <div
-      className={`p-3 sm:p-4 md:p-4 border-b border-white/10 backdrop-blur-md sticky top-0 z-10 ${
-        isSecret ? "bg-emerald-950/40" : isGroup ? "bg-purple-950/20" : "bg-[#171717]/80"
-      }`}
-    >
+const ChatHeader = () => (
+  <div
+    className={`border-b border-white/10 backdrop-blur-md sticky top-0 z-10 ${
+      isSecret ? "bg-emerald-950/40" : isGroup ? "bg-purple-950/20" : "bg-[#171717]/80"
+    }`}
+  >
+    {/* Основной блок */}
+    <div className="p-3 sm:p-4 md:p-4">
       <div className="flex items-center gap-2 sm:gap-3 md:gap-3">
         <button
           onClick={() => router.push("/messages")}
@@ -1230,9 +1232,8 @@ if (data.sender_id === currentUser?.id) {
             title="Поиск"
           >
             <Search size={19} className="sm:w-5 sm:h-5" />
-            
           </button>
-            
+          
           {isSecret && !isGroup && (
             <button
               onClick={() => setShowVerify(true)}
@@ -1297,63 +1298,80 @@ if (data.sender_id === currentUser?.id) {
           </div>
         </div>
       </div>
+    </div>
 
-      {/* Закреплённые сообщения */}
-      {pinnedMessages.length > 0 && (
-        <div className="px-0 py-2 sm:py-2 bg-[#8b5cf6]/5 border-b border-[#8b5cf6]/10 mt-2.5 sm:mt-3 pt-2.5 sm:pt-3 border-t border-white/10">
-          <button
-            onClick={() => setShowPinnedList(!showPinnedList)}
-            className="flex items-center gap-2 text-xs sm:text-xs text-[#8b5cf6] font-bold hover:text-[#a78bfa] transition-colors"
-          >
-            <Pin size={13} className="text-white/60 shrink-0" />
-            {pinnedMessages.length} закреплённ{pinnedMessages.length === 1 ? "ое" : "ых"}
-            <span className="text-white/40">{showPinnedList ? '▲' : '▼'}</span>
-          </button>
-          {showPinnedList && (
-            <div className="mt-2 space-y-1.5 max-h-32 sm:max-h-40 overflow-y-auto">
-              {pinnedMessages.map((msg) => (
-                <div key={msg.id} className="flex items-center gap-2 text-[11px] sm:text-xs text-white/70 bg-white/5 rounded-lg px-3 py-2">
-                  <Pin size={11} className="text-[#8b5cf6] shrink-0" />
-                  <span className="truncate flex-1">
-                    <span className="text-white/90 font-semibold">{msg.sender_name}:</span>{' '}
-                    {msg.text || (msg.media_type === 'image' ? '📷 Изображение' : msg.media_type === 'audio' ? '🎙️ Голосовое' : msg.media_type === 'video' ? '🎬 Видео' : 'Медиа')}
+    {/* Разделитель */}
+    {pinnedMessages.length > 0 && (
+      <div className="border-t border-white/5" />
+    )}
+
+    {/* Закреплённые сообщения — более компактный и нейтральный вид */}
+    {pinnedMessages.length > 0 && (
+      <div className="px-3 sm:px-4 md:px-4 py-2">
+        <button
+          onClick={() => setShowPinnedList(!showPinnedList)}
+          className="flex items-center gap-2 text-xs sm:text-xs text-white/60 hover:text-white/80 font-medium transition-colors w-full"
+        >
+          <Pin size={12} className="text-[#8b5cf6] shrink-0" />
+          <span className="font-semibold">{pinnedMessages.length} закреплённ{pinnedMessages.length === 1 ? "ое" : "ых"}</span>
+          <span className="text-white/30 ml-auto">{showPinnedList ? '▲' : '▼'}</span>
+        </button>
+        
+        {showPinnedList && (
+          <div className="mt-2 space-y-1 max-h-32 sm:max-h-40 overflow-y-auto">
+            {pinnedMessages.map((msg) => (
+              <div 
+                key={msg.id} 
+                className="flex items-start gap-2 text-[11px] sm:text-xs text-white/70 hover:bg-white/5 rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer"
+                onClick={() => {
+                  // Можно добавить прокрутку к сообщению
+                  const el = document.getElementById(`message-${msg.id}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }}
+              >
+                <Pin size={10} className="text-[#8b5cf6] shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-white/90 font-medium">{msg.sender_name}:</span>{' '}
+                  <span className="text-white/60">
+                    {msg.text || (msg.media_type === 'image' ? '📷 Фото' : msg.media_type === 'audio' ? '🎙️ Голосовое' : msg.media_type === 'video' ? '🎬 Видео' : '📎 Вложение')}
                   </span>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {showSearch && (
-        <div className="mt-2.5 sm:mt-3 pt-2.5 sm:pt-3 border-t border-white/10">
-          <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={isSecret ? "Поиск в расшифрованных..." : "Поиск в сообщениях..."}
-              className="w-full pl-10 pr-9 py-2.5 sm:py-2 rounded-lg border border-white/10 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] text-sm sm:text-sm"
-              autoFocus
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white p-1"
-              >
-                <X size={15} />
-              </button>
-            )}
+              </div>
+            ))}
           </div>
+        )}
+      </div>
+    )}
+
+    {showSearch && (
+      <div className="px-3 sm:px-4 md:px-4 py-2.5 border-t border-white/5">
+        <div className="relative">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={isSecret ? "Поиск в расшифрованных..." : "Поиск в сообщениях..."}
+            className="w-full pl-10 pr-9 py-2 sm:py-2 rounded-lg border border-white/10 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] text-sm sm:text-sm"
+            autoFocus
+          />
           {searchQuery && (
-            <p className="text-[11px] sm:text-xs text-white/40 mt-1.5">
-              {filteredMessages.length} из {messages.length} сообщений
-            </p>
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white p-1"
+            >
+              <X size={15} />
+            </button>
           )}
         </div>
-      )}
-    </div>
-  );
+        {searchQuery && (
+          <p className="text-[11px] sm:text-xs text-white/40 mt-1.5">
+            {filteredMessages.length} из {messages.length} сообщений
+          </p>
+        )}
+      </div>
+    )}
+  </div>
+);
 
   return (
     <div className="h-screen flex overflow-hidden">
