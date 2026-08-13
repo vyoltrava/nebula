@@ -1305,43 +1305,39 @@ const ChatHeader = () => (
       <div className="border-t border-white/5" />
     )}
 
-    {/* Закреплённые сообщения — более компактный и нейтральный вид */}
-    {pinnedMessages.length > 0 && (
-      <div className="px-3 sm:px-4 md:px-4 py-2">
-        <button
-          onClick={() => setShowPinnedList(!showPinnedList)}
-          className="flex items-center gap-2 text-xs sm:text-xs text-white/60 hover:text-white/80 font-medium transition-colors w-full"
-        >
-          <Pin size={12} className="text-[#8b5cf6] shrink-0" />
-          <span className="font-semibold">{pinnedMessages.length} закреплённ{pinnedMessages.length === 1 ? "ое" : "ых"}</span>
-          <span className="text-white/30 ml-auto">{showPinnedList ? '▲' : '▼'}</span>
-        </button>
-        
-        {showPinnedList && (
-          <div className="mt-2 space-y-1 max-h-32 sm:max-h-40 overflow-y-auto">
-            {pinnedMessages.map((msg) => (
-              <div 
-                key={msg.id} 
-                className="flex items-start gap-2 text-[11px] sm:text-xs text-white/70 hover:bg-white/5 rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer"
-                onClick={() => {
-                  // Можно добавить прокрутку к сообщению
-                  const el = document.getElementById(`message-${msg.id}`);
-                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }}
-              >
-                <Pin size={10} className="text-[#8b5cf6] shrink-0 mt-0.5" />
-                <div className="min-w-0 flex-1">
-                  <span className="text-white/90 font-medium">{msg.sender_name}:</span>{' '}
-                  <span className="text-white/60">
-                    {msg.text || (msg.media_type === 'image' ? '📷 Фото' : msg.media_type === 'audio' ? '🎙️ Голосовое' : msg.media_type === 'video' ? '🎬 Видео' : '📎 Вложение')}
-                  </span>
-                </div>
-              </div>
-            ))}
+ {pinnedMessages.length > 0 && (
+  <div className="px-3 sm:px-4 md:px-4 py-2 border-t border-white/5">
+    <button
+      onClick={() => setShowPinnedList(!showPinnedList)}
+      className="flex items-center gap-2 text-xs sm:text-xs text-white/60 hover:text-white/80 font-medium transition-colors w-full"
+    >
+      <Pin size={12} className="text-[#8b5cf6] shrink-0" />
+      <span className="font-semibold">
+        {pinnedMessages.length} закреплённ{pinnedMessages.length === 1 ? "ое" : "ых"}
+      </span>
+      <span className="text-white/30 ml-auto">{showPinnedList ? '▲' : '▼'}</span>
+    </button>
+    
+    {showPinnedList && (
+      <div className="mt-2 space-y-1 max-h-32 sm:max-h-40 overflow-y-auto">
+        {pinnedMessages.map((msg) => (
+          <div 
+            key={msg.id} 
+            className="flex items-start gap-2 text-[11px] sm:text-xs text-white/60 hover:bg-white/5 rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer"
+          >
+            <Pin size={10} className="text-[#8b5cf6] shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <span className="text-white/80 font-medium">{msg.sender_name}:</span>{' '}
+              <span className="text-white/50">
+                {msg.text || (msg.media_type === 'image' ? '📷 Фото' : msg.media_type === 'audio' ? '🎙️ Голосовое' : msg.media_type === 'video' ? '🎬 Видео' : '📎 Вложение')}
+              </span>
+            </div>
           </div>
-        )}
+        ))}
       </div>
     )}
+  </div>
+)}
 
     {showSearch && (
       <div className="px-3 sm:px-4 md:px-4 py-2.5 border-t border-white/5">
@@ -1455,7 +1451,8 @@ const ChatHeader = () => (
                     : "rounded-tl-2xl rounded-tr-2xl rounded-br-2xl rounded-bl-[4px]";
 
                   const isVideoNote = !!msg.media_url && msg.media_type === "video_note";
-                  const isEncryptedMedia = !!msg.is_encrypted_media || msg.ciphertext === "[encrypted_media]";  // 🆕
+                  const isEncryptedMedia = !!msg.is_encrypted_media || msg.ciphertext === "[encrypted_media]";
+                  const isForwarded = !!msg.forwarded_from_id;
                   return (
                     <div
                       key={msg.id}
@@ -1529,20 +1526,24 @@ const ChatHeader = () => (
                           </p>
                         )}
 
-                           <div
+<div
   className={`${bubbleRadius} transition-all ${
     isSelected
       ? "ring-2 ring-[#8b5cf6] ring-offset-2 ring-offset-[#171717] "
       : ""
   } ${
     isVideoNote
-      ? "p-0 bg-transparent border-0 rounded-2xl overflow-hidden" // ✅ Убираем пузырь для video_note
+      ? "p-0 bg-transparent border-0 rounded-2xl overflow-hidden"
       : `px-3 sm:px-3.5 md:px-4 py-2 sm:py-2 ${
-          isMine
-            ? isSecret
-              ? "bg-emerald-600 text-white"
-              : "bg-[#8b5cf6] text-white"
-            : "bg-white/10 text-white border border-white/15"
+          isForwarded
+            ? isMine
+              ? "bg-cyan-600 text-white border-l-4 border-cyan-400"
+              : "bg-cyan-950/40 text-white border-l-4 border-cyan-400"
+            : isMine
+              ? isSecret
+                ? "bg-emerald-600 text-white"
+                : "bg-[#8b5cf6] text-white"
+              : "bg-white/10 text-white border border-white/15"
         }`
   }`}
 >
@@ -1591,13 +1592,13 @@ const ChatHeader = () => (
   </>
 )}
 
-  {/* 🆕 ПОМЕТКА О ПЕРЕСЫЛКЕ */}
-  {msg.forwarded_sender_name && (
-    <p className="text-[11px] sm:text-xs text-white/50 mb-1 flex items-center gap-1 italic">
-      <Send size={10} className="rotate-45 shrink-0" />
-      Переслано от <span className="font-semibold text-white/70">{msg.forwarded_sender_name}</span>
-    </p>
-  )}
+{/* 🆕 ПОМЕТКА О ПЕРЕСЫЛКЕ */}
+{msg.forwarded_sender_name && (
+  <p className="text-[11px] sm:text-xs text-cyan-200 mb-1.5 flex items-center gap-1.5 font-medium">
+    <Send size={11} className="rotate-45 shrink-0 text-cyan-400" />
+    Переслано от <span className="font-bold text-white">{msg.forwarded_sender_name}</span>
+  </p>
+)}
 
   {isEditing ? (
                             <div className="flex gap-2 items-start">
