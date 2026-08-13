@@ -199,11 +199,11 @@ export default function ChatPage() {
 
 
   async function startRecording() {
-    // ✅ Сначала проверяем разрешение, не спамим getUserMedia
+    // ✅ Только проверяем статус, НЕ запрашиваем — запрос должен быть заранее
     if (micPerm.status === "denied") { setPermHelp("microphone"); return; }
     if (micPerm.status !== "granted") {
-      const ok = await micPerm.request();
-      if (!ok) { setPermHelp("microphone"); return; }
+      // Разрешения нет — просто выходим, не спамим запросами
+      return;
     }
 
     try {
@@ -1026,6 +1026,9 @@ const handleEnd = () => {
   }
 };
 
+
+
+
 // Глобальные обработчики для drag пальца
 useEffect(() => {
   const cancelTimer = () => {
@@ -1100,6 +1103,11 @@ useEffect(() => {
   if (!token) {
     router.push("/login");
     return;
+  }
+
+  // 🆕 Запрашиваем разрешение на микрофон один раз при загрузке
+  if (micPerm.status === "prompt") {
+    micPerm.request();
   }
 
   const controller = new AbortController();
@@ -2673,59 +2681,59 @@ const ChatHeader = () => (
     )}
 
     {/* Зона отмены (появляется когда палец высоко) */}
-    {hoveredRecordOption === "cancel" && (
-      <div
-        className="absolute flex flex-col items-center gap-1.5"
-        style={{
-          left: getOptionPos("cancel").x,
-          top: getOptionPos("cancel").y,
-          transform: "translate(-50%, -50%) scale(1.1)",
-          transition: "transform 150ms ease, opacity 150ms ease",
-          zIndex: 25,
-        }}
-      >
-        <div className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center shadow-[0_0_28px_rgba(239,68,68,0.7)] animate-pulse">
-          <X size={26} className="text-white" />
-        </div>
-        <span className="text-red-400 text-xs font-black tracking-wide">ОТМЕНА</span>
-      </div>
-    )}
+{hoveredRecordOption === "cancel" && (
+  <div
+    className="absolute flex flex-col items-center gap-1.5"
+    style={{
+      left: getOptionPos("cancel").x,
+      top: getOptionPos("cancel").y,
+      transform: "translate(-50%, -50%) scale(1.1)",
+      transition: "transform 150ms ease, opacity 150ms ease",
+      zIndex: 25,
+    }}
+  >
+    <div className="w-16 h-16 flex items-center justify-center bg-red-500 rounded-xl shadow-[0_0_20px_rgba(239,68,68,0.6)]">
+      <X size={24} className="text-white" />
+    </div>
+    <span className="text-red-400 text-xs font-black tracking-wide">ОТМЕНА</span>
+  </div>
+)}
 
     {/* Опции: Голос и Видео */}
-    {RECORD_OPTIONS.map((opt) => {
-      const pos = getOptionPos(opt.id);
-      const isActive = hoveredRecordOption === opt.id;
-      return (
-        <div
-          key={opt.id}
-          className="absolute flex flex-col items-center gap-1.5"
-          style={{
-            left: pos.x,
-            top: pos.y,
-            transform: `translate(-50%, -50%) scale(${isActive ? 1.2 : 0.95})`,
-            opacity: isActive ? 1 : 0.7,
-            transition: "transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 120ms ease",
-            zIndex: isActive ? 25 : 15,
-          }}
-        >
-          <div
-            className="w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all"
-            style={{
-              backgroundColor: isActive ? opt.color : "rgba(31, 31, 35, 0.95)",
-              borderColor: isActive ? opt.color : "rgba(255, 255, 255, 0.1)",
-              boxShadow: isActive ? `0 0 26px ${opt.color}99, 0 0 48px ${opt.color}40` : "0 4px 20px rgba(0,0,0,0.4)",
-            }}
-          >
-            <opt.icon size={24} className={isActive ? "text-white" : "text-white/60"} />
-          </div>
-          <span className={`text-[11px] font-bold tracking-wide whitespace-nowrap drop-shadow-lg ${
-            isActive ? "text-white" : "text-white/50"
-          }`}>
-            {opt.label}
-          </span>
-        </div>
-      );
-    })}
+   {RECORD_OPTIONS.map((opt) => {
+  const pos = getOptionPos(opt.id);
+  const isActive = hoveredRecordOption === opt.id;
+  return (
+    <div
+      key={opt.id}
+      className="absolute flex flex-col items-center gap-1.5"
+      style={{
+        left: pos.x,
+        top: pos.y,
+        transform: `translate(-50%, -50%) scale(${isActive ? 1.15 : 0.9})`,
+        opacity: isActive ? 1 : 0.6,
+        transition: "transform 160ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 120ms ease",
+        zIndex: isActive ? 25 : 15,
+      }}
+    >
+      <div
+        className="w-14 h-14 flex items-center justify-center border transition-all rounded-xl"
+        style={{
+          backgroundColor: isActive ? opt.color : "rgba(31, 31, 35, 0.95)",
+          borderColor: isActive ? opt.color : "rgba(255, 255, 255, 0.1)",
+          boxShadow: isActive ? `0 0 20px ${opt.color}80` : "0 4px 16px rgba(0,0,0,0.3)",
+        }}
+      >
+        <opt.icon size={22} className={isActive ? "text-white" : "text-white/60"} />
+      </div>
+      <span className={`text-[11px] font-bold tracking-wide whitespace-nowrap drop-shadow-lg ${
+        isActive ? "text-white" : "text-white/40"
+      }`}>
+        {opt.label}
+      </span>
+    </div>
+  );
+})}
 
     {/* Подсказка снизу */}
     {hoveredRecordOption && hoveredRecordOption !== "cancel" && (
