@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Play } from "lucide-react";
 import { mediaUrl } from "@/lib/media";
 
@@ -17,12 +17,12 @@ export function VideoPlayer({
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [seekLabel, setSeekLabel] = useState("");
+  const [hasError, setHasError] = useState(false);
 
   const clickTimeout = useRef<NodeJS.Timeout | null>(null);
 
   const seek = (seconds: number) => {
     const video = videoRef.current;
-
     if (!video) return;
 
     video.currentTime = Math.max(
@@ -37,14 +37,17 @@ export function VideoPlayer({
     }, 600);
   };
 
-  const togglePlay = async () => {
+  const togglePlay = () => {
     const video = videoRef.current;
-
     if (!video) return;
 
     if (video.paused) {
-      await video.play();
-      setIsPlaying(true);
+      video.play().then(() => {
+        setIsPlaying(true);
+      }).catch((err) => {
+        console.error("Autoplay/Play error:", err);
+        setIsPlaying(false);
+      });
     } else {
       video.pause();
       setIsPlaying(false);
@@ -54,6 +57,8 @@ export function VideoPlayer({
   const handleClick = (
     e: React.MouseEvent<HTMLDivElement>
   ) => {
+    e.stopPropagation(); // Предотвращаем всплытие события
+
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
 
@@ -66,14 +71,15 @@ export function VideoPlayer({
       } else {
         seek(5);
       }
-
       return;
     }
 
+    // Вызываем прямое действие сразу для избежания блокировки браузером Autoplay
+    togglePlay();
+
     clickTimeout.current = setTimeout(() => {
-      togglePlay();
       clickTimeout.current = null;
-    }, 220);
+    }, 250);
   };
 
   return (
@@ -97,9 +103,11 @@ export function VideoPlayer({
         className="absolute inset-0 h-full w-full object-cover"
         playsInline
         preload="metadata"
+        onEnded={() => setIsPlaying(false)}
+        onError={() => setHasError(true)}
       />
 
-      {!isPlaying && (
+      {!isPlaying && !hasError && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/20">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-black/50 backdrop-blur-md">
             <Play
@@ -108,6 +116,12 @@ export function VideoPlayer({
               className="ml-1 text-white"
             />
           </div>
+        </div>
+      )}
+
+      {hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-xs text-white">
+          Ошибка загрузки видео
         </div>
       )}
 

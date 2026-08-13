@@ -2409,16 +2409,9 @@ export default function ChatPage() {
                                 />
                               )}
 
-                            {msg.media_url &&
-                              msg.media_type ===
-                                "video" && (
-                                <VideoPlayer
-                                  src={msg.media_url}
-                                  className={getMediaClasses(
-                                    "video"
-                                  )}
-                                />
-                              )}
+                          {msg.media_type === "video" && (
+                            <VideoPlayer src={msg.media_url} className="max-w-xs my-1" />
+                          )}
 
                             {msg.media_url &&
                               msg.media_type ===
