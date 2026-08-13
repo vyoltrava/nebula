@@ -1,10 +1,10 @@
-// components/EncryptedMediaPlayer.tsx
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { loadSessionKey } from "@/lib/crypto";
 import { decryptMediaBlob } from "@/lib/mediaCrypto";
 import { VideoNotePlayer } from "./VideoNotePlayer";
 import { AudioPlayer } from "./AudioPlayer";
+import { VideoPlayer } from "./VideoPlayer";
 import { Lock } from "lucide-react";
 
 interface Props {
@@ -16,38 +16,58 @@ interface Props {
 export function EncryptedMediaPlayer({ mediaUrl, mediaType, chatId }: Props) {
   const [decryptedUrl, setDecryptedUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const objectUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     async function decrypt() {
       try {
         const token = localStorage.getItem("token");
-        if (!token) { setError("Нет токена"); return; }
+        if (!token) {
+          if (!cancelled) setError("Нет токена");
+          return;
+        }
 
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/media/${mediaUrl}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        if (!res.ok) { setError("Не удалось загрузить"); return; }
+        if (!res.ok) {
+          if (!cancelled) setError("Не удалось загрузить");
+          return;
+        }
 
         const blob = await res.blob();
 
         const sk = loadSessionKey(chatId);
         if (!sk) {
-        setError("Нет ключа сессии");
-        return;
+          if (!cancelled) setError("Нет ключа сессии");
+          return;
         }
 
-
         const decryptedBlob = await decryptMediaBlob(blob, sk);
-        setDecryptedUrl(URL.createObjectURL(decryptedBlob));
+        const url = URL.createObjectURL(decryptedBlob);
+        
+        if (!cancelled) {
+          objectUrlRef.current = url;
+          setDecryptedUrl(url);
+        } else {
+          URL.revokeObjectURL(url);
+        }
       } catch (e) {
-        setError("Ошибка расшифровки");
+        if (!cancelled) setError("Ошибка расшифровки");
       }
     }
+    
     decrypt();
 
     return () => {
-      if (decryptedUrl) URL.revokeObjectURL(decryptedUrl);
+      cancelled = true;
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
     };
   }, [mediaUrl, chatId]);
 
@@ -68,8 +88,11 @@ export function EncryptedMediaPlayer({ mediaUrl, mediaType, chatId }: Props) {
   }
 
   if (mediaType === "video_note") return <VideoNotePlayer src={decryptedUrl} />;
+  if (mediaType === "video") return <VideoPlayer src={decryptedUrl} />;
   if (mediaType === "audio") return <AudioPlayer src={decryptedUrl} />;
-  if (mediaType === "image") return <img src={decryptedUrl} alt="" className="rounded-xl max-h-52 sm:max-h-64 w-full object-cover" />;
+  if (mediaType === "image" || mediaType === "gif") {
+    return <img src={decryptedUrl} alt="" className="rounded-xl max-h-52 sm:max-h-64 w-full object-cover" />;
+  }
 
   return null;
 }

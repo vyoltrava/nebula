@@ -1663,7 +1663,7 @@ if (data.sender_id === currentUser?.id) {
                             </div>
                             <div className="flex flex-col">
                               <span className="font-medium">Видео</span>
-                              <span className="text-[10px] text-white/40">Видео-кружок</span>
+                              <span className="text-[10px] text-white/40">Видео-квадрат</span>
                             </div>
                           </button>
                         </div>
