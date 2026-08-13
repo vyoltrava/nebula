@@ -1,13 +1,14 @@
 const API = process.env.NEXT_PUBLIC_API_URL!;
 
-function urlBase64ToUint8Array(b64: string): Uint8Array {
-  const padding = "=".repeat((4 - (b64.length % 4)) % 4);
-  const raw = atob((b64 + padding).replace(/-/g, "+").replace(/_/g, "/"));
-  const out = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
-  return out;
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = atob(base64);
+  // ✅ ArrayBuffer явно — TypeScript не ругается, Safari принимает
+  const outputArray = new Uint8Array(new ArrayBuffer(rawData.length));
+  for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
 }
-
 export function isPushSupported(): boolean {
   return typeof window !== "undefined"
     && "serviceWorker" in navigator
@@ -42,7 +43,7 @@ export async function enablePush(token: string): Promise<{ ok: boolean; error?: 
 
     const sub = await reg.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: public_key,  // base64url строка — Push API принимает её напрямую
+    applicationServerKey: urlBase64ToUint8Array(public_key), // base64url строка — Push API принимает её напрямую
     });
   const json = sub.toJSON();
 
