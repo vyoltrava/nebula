@@ -2169,70 +2169,84 @@ const ChatHeader = () => (
           }`}
         />
 
-<div className="relative shrink-0">
-  {/* Кольцо прогресса long-press */}
-  {pressProgress > 0 && pressProgress < 1 && (
-    <svg
-      className="absolute inset-0 w-full h-full pointer-events-none -rotate-90"
-      style={{ zIndex: 30 }}
-    >
-      <circle
-        cx="50%" cy="50%"
-        r="42%"
-        fill="none"
-        stroke="#8b5cf6"
-        strokeWidth="3"
-        strokeDasharray={`${pressProgress * 100} 100`}
-        strokeLinecap="round"
-        style={{ transition: "stroke-dasharray 30ms linear" }}
-      />
-    </svg>
+<div className="flex items-end gap-2 shrink-0">
+  {/* 🆕 Компактный индикатор записи — появляется при long-press */}
+  {isRecording && recordMenuOpen && (
+    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/15 border border-red-500/30 animate-pulse">
+      <div className="relative w-2 h-2 shrink-0">
+        <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
+        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+      </div>
+      <span className="text-xs font-bold text-red-400 tabular-nums">
+        {formatRecordingTime(recordingTime)}
+      </span>
+    </div>
   )}
 
-  <button
-    ref={sendBtnRef}
-    onPointerDown={handleSendPointerDown}
-    onTouchStart={handleSendPointerDown}
-    onPointerUp={handleEnd}
-    onPointerLeave={(e) => {
-      if (e.buttons === 0 && !recordMenuOpen) {
-        if (pressTimerRef.current) {
-          clearInterval(pressTimerRef.current);
-          pressTimerRef.current = null;
-          setPressProgress(0);
+  <div className="relative shrink-0">
+    {/* Кольцо прогресса long-press */}
+    {pressProgress > 0 && pressProgress < 1 && (
+      <svg
+        className="absolute inset-0 w-full h-full pointer-events-none -rotate-90"
+        style={{ zIndex: 30 }}
+      >
+        <circle
+          cx="50%" cy="50%"
+          r="42%"
+          fill="none"
+          stroke="#8b5cf6"
+          strokeWidth="3"
+          strokeDasharray={`${pressProgress * 100} 100`}
+          strokeLinecap="round"
+          style={{ transition: "stroke-dasharray 30ms linear" }}
+        />
+      </svg>
+    )}
+
+    <button
+      ref={sendBtnRef}
+      onPointerDown={handleSendPointerDown}
+      onTouchStart={handleSendPointerDown}
+      onPointerUp={handleEnd}
+      onPointerLeave={(e) => {
+        if (e.buttons === 0 && !recordMenuOpen) {
+          if (pressTimerRef.current) {
+            clearInterval(pressTimerRef.current);
+            pressTimerRef.current = null;
+            setPressProgress(0);
+          }
         }
-      }
-    }}
-    onClick={(e) => {
-      if (longPressTriggeredRef.current) {
-        e.preventDefault();
-        return;
-      }
-      if (recordMenuOpen) {
-        e.preventDefault();
-        return;
-      }
-      if (!text.trim() && files.length === 0) {
-        // Пустое сообщение — не отправляем
-        e.preventDefault();
-        return;
-      }
-      sendMessage();
-    }}
-    disabled={!!cryptoError}
-    className={`relative p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none ${
-      recordMenuOpen
-        ? "border border-[#8b5cf6] bg-[#8b5cf6]/20 text-[#8b5cf6] scale-110 shadow-[0_0_24px_rgba(139,92,246,0.4)]"
-        : pressProgress > 0
-          ? "border border-[#8b5cf6] bg-[#8b5cf6]/10 text-[#8b5cf6]"
-          : isSecret
-            ? "border border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700"
-            : "border border-[#8b5cf6] bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
-    }`}
-    style={{ touchAction: "none" }}
-  >
-    <Send size={19} className="sm:w-[18px] sm:h-[18px]" />
-      </button>
+      }}
+      onClick={(e) => {
+        if (longPressTriggeredRef.current) {
+          e.preventDefault();
+          return;
+        }
+        if (recordMenuOpen) {
+          e.preventDefault();
+          return;
+        }
+        if (!text.trim() && files.length === 0) {
+          e.preventDefault();
+          return;
+        }
+        sendMessage();
+      }}
+      disabled={!!cryptoError}
+      className={`relative p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none ${
+        recordMenuOpen
+          ? "border border-[#8b5cf6] bg-[#8b5cf6]/20 text-[#8b5cf6] scale-110 shadow-[0_0_24px_rgba(139,92,246,0.4)]"
+          : pressProgress > 0
+            ? "border border-[#8b5cf6] bg-[#8b5cf6]/10 text-[#8b5cf6]"
+            : isSecret
+              ? "border border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700"
+              : "border border-[#8b5cf6] bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
+      }`}
+      style={{ touchAction: "none" }}
+    >
+      <Send size={19} className="sm:w-[18px] sm:h-[18px]" />
+    </button>
+  </div>
 </div>
       </div>
     )}
