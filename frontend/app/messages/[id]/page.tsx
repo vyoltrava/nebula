@@ -976,11 +976,16 @@ const handleSendPointerDown = (e: React.PointerEvent | React.TouchEvent | React.
       if (pressTimerRef.current) clearInterval(pressTimerRef.current);
       pressTimerRef.current = null;
       longPressTriggeredRef.current = true;
+      
+      // 🆕 Сразу открываем меню И начинаем запись голоса
       setRecordMenuOpen(true);
       setHoveredRecordOption("voice");
       setFingerPos({ x: px, y: py });
       navigator.vibrate?.(25);
       setPressProgress(0);
+      
+      // 🆕 СРАЗУ начинаем запись голоса (как в iOS Telegram)
+      startRecording();
     }
   }, 30);
 };
@@ -996,8 +1001,11 @@ const handleEnd = () => {
     longPressTriggeredRef.current = false;
 
     if (hoveredRecordOption === "voice") {
-      startRecording();
+      // 🆕 Запись голоса уже идёт — просто останавливаем (отправляем)
+      stopRecording();
     } else if (hoveredRecordOption === "video") {
+      // 🆕 Отменяем запись голоса и открываем видео
+      cancelRecording();
       (async () => {
         if (camPerm.status === "denied") {
           setPermHelp("camera");
@@ -1012,6 +1020,9 @@ const handleEnd = () => {
         }
         setVideoMode("expanded");
       })();
+    } else {
+      // 🆕 "cancel" — отменяем запись голоса
+      cancelRecording();
     }
 
     setRecordMenuOpen(false);
