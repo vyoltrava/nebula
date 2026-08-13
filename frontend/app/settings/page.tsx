@@ -5,6 +5,7 @@ import { getToken, clearToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { Upload, Lock, Eye, EyeOff, LogOut, ShieldAlert, Bell } from "lucide-react";
 import { PushSettings } from "@/components/PushSettings";
+import { DevicePermissionsSection } from "@/components/DevicePermissionsSection"; 
 
 
 export default function SettingsPage() {
@@ -265,7 +266,8 @@ export default function SettingsPage() {
             </div>
           </div>
 
-
+          {/* === РАЗРЕШЕНИЯ УСТРОЙСТВА === */}
+          <DevicePermissionsSection />
 
 
         {/* ========== Блок смены пароля ========== */}

@@ -16,26 +16,21 @@ export function NotificationPermissionPrompt() {
   const [status, setStatus] = useState<NotificationPermissionStatus>("default");
   const [loading, setLoading] = useState(false);
 
-  // Проверяем нужно ли показать баннер
   useEffect(() => {
     const permission = getNotificationPermission();
     setStatus(permission);
 
-    // Не показываем если:
-    // - уже разрешено
-    // - уже отказано (бесполезно просить)
-    // - браузер не поддерживает
-    // - пользователь уже закрыл баннер
     if (permission !== "default") return;
 
     try {
       const dismissed = localStorage.getItem(STORAGE_KEY);
       if (dismissed) return;
-    } catch {
-      // localStorage недоступен (SSR, приватный режим)
-    }
+      
+      // ⏰ Не показываем пока не решён вопрос с микрофоном/камерой
+      const permGatePending = !localStorage.getItem("app_perm_requested");
+      if (permGatePending) return;
+    } catch {}
 
-    // Показать через 5 секунд, чтобы не мешать при загрузке
     const timer = setTimeout(() => {
       setVisible(true);
     }, 5000);

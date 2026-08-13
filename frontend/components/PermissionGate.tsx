@@ -1,28 +1,112 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { usePathname } from "next/navigation";
 import { Mic, Video } from "lucide-react";
+
+// Страницы где НЕ показываем PermissionGate
+const PUBLIC_PAGES = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/messages/", // в чатах свои проверки
+];
+
+// 🍏 Детекция iOS (включая iPad на iOS 13+ который притворяется Mac)
+function isIOS(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
+// 🔥 Тихий прогрев разрешений (без UI)
+async function silentWarmup() {
+  try {
+    // Прогреваем микрофон
+    const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioStream.getTracks().forEach((t) => t.stop());
+
+    // iOS нужна небольшая пауза между запросами
+    await new Promise((r) => setTimeout(r, 150));
+
+    // Прогреваем камеру
+    const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+    videoStream.getTracks().forEach((t) => t.stop());
+
+    console.log("[PermissionGate] 🔥 Warm-up complete");
+  } catch (err) {
+    console.log("[PermissionGate] Warm-up failed:", err);
+  }
+}
 
 export function PermissionGate() {
   const [show, setShow] = useState(false);
   const [requesting, setRequesting] = useState(false);
+  const pathname = usePathname();
+  const warmedUpRef = useRef(false); // чтобы прогреть только 1 раз
 
   useEffect(() => {
+    // ❌ Не показываем на публичных страницах
+    if (PUBLIC_PAGES.some((p) => pathname?.startsWith(p))) return;
+
     const wasRequested = localStorage.getItem("app_perm_requested");
-    if (!wasRequested) {
-      setShow(true);
+
+    // 🍏 iOS WARM-UP: если разрешения уже давали — делаем тихий прогрев
+    if (wasRequested) {
+      const handleWarmup = () => {
+        if (warmedUpRef.current) return;
+        warmedUpRef.current = true;
+
+        document.removeEventListener("click", handleWarmup);
+        document.removeEventListener("touchstart", handleWarmup);
+        document.removeEventListener("keydown", handleWarmup);
+
+        // Прогреваем только на iOS (на других ОС разрешения и так живут)
+        if (isIOS()) {
+          silentWarmup();
+        }
+      };
+
+      document.addEventListener("click", handleWarmup);
+      document.addEventListener("touchstart", handleWarmup);
+      document.addEventListener("keydown", handleWarmup);
+
+      return () => {
+        document.removeEventListener("click", handleWarmup);
+        document.removeEventListener("touchstart", handleWarmup);
+        document.removeEventListener("keydown", handleWarmup);
+      };
     }
-  }, []);
+
+    // 🆕 Если разрешения ещё не запрашивали — показываем модалку по первому клику
+    const handleFirstInteraction = () => {
+      setShow(true);
+      document.removeEventListener("click", handleFirstInteraction);
+      document.removeEventListener("touchstart", handleFirstInteraction);
+      document.removeEventListener("keydown", handleFirstInteraction);
+    };
+
+    document.addEventListener("click", handleFirstInteraction);
+    document.addEventListener("touchstart", handleFirstInteraction);
+    document.addEventListener("keydown", handleFirstInteraction);
+
+    return () => {
+      document.removeEventListener("click", handleFirstInteraction);
+      document.removeEventListener("touchstart", handleFirstInteraction);
+      document.removeEventListener("keydown", handleFirstInteraction);
+    };
+  }, [pathname]);
 
   async function handleAllow() {
     setRequesting(true);
     try {
-      // Запрашиваем по одному — iOS лучше справляется
       const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioStream.getTracks().forEach((t) => t.stop());
-      
-      // Небольшая задержка для iOS
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
+
+      await new Promise((r) => setTimeout(r, 150));
+
       const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
       videoStream.getTracks().forEach((t) => t.stop());
     } catch (err) {
