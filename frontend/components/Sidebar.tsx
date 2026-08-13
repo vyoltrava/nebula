@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -13,31 +13,41 @@ import { BugReportModal } from "@/components/BugReportModal";
 import { getCachedUser, setCachedUser, clearCachedUser } from "@/lib/authCache";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 
+// ════════════════════════════════════════════════════════════════
+//  Параметры дуги
+// ════════════════════════════════════════════════════════════════
+const ARC_RADIUS       = 170;
+const CENTER_OFFSET_X  = 100;   // центр круга правее кнопки (за экраном)
+const CENTER_OFFSET_Y  = -30;   // чуть выше кнопки
+const ARC_ANGLE_START  = (7 * Math.PI) / 9;   // 140°
+const ARC_ANGLE_END    = (11 * Math.PI) / 9;  // 220°
+const SNAP_RADIUS      = 58;    // px — радиус «захвата» иконки пальцем
+const LONG_PRESS_MS    = 250;
+
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const [user, setUser] = useState<any>(() => getCachedUser());
-  const [showNotifs, setShowNotifs] = useState(false);
-  const [notifs, setNotifs] = useState<any[]>([]);
+  const router   = useRouter();
+  const [user, setUser]               = useState<any>(() => getCachedUser());
+  const [showNotifs, setShowNotifs]   = useState(false);
+  const [notifs, setNotifs]           = useState<any[]>([]);
   const [showBugModal, setShowBugModal] = useState(false);
-  const [searchQ, setSearchQ] = useState("");
 
-  // ── Состояние для мобильного колеса (полуколесо) ────────────────────────
-  const [wheelOpen, setWheelOpen] = useState(false);
-  const [wheelOffset, setWheelOffset] = useState(0);          // накопленный поворот в радианах
-  const [activeIndex, setActiveIndex] = useState(0);           // текущий активный пункт
+  // ── Состояние колеса ──────────────────────────────────────────
+  const [wheelOpen, setWheelOpen]   = useState(false);
+  const [wheelReady, setWheelReady] = useState(false);   // для анимации вылета
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [fingerPos, setFingerPos]   = useState<{ x: number; y: number } | null>(null);
+  const [closing, setClosing]       = useState(false);    // анимация закрытия
 
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const centerRef = useRef({ x: 0, y: 0 });                   // центр дуги (со смещением от кнопки)
-  const isDragging = useRef(false);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const touchStartPos = useRef<{ x: number; y: number } | null>(null);
-  const lastAngle = useRef(0);
-  const accumulatedOffset = useRef(0);
+  const buttonRef        = useRef<HTMLButtonElement>(null);
+  const longPressTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isLongPressed    = useRef(false);
+  const startPos         = useRef<{ x: number; y: number } | null>(null);
+  const arcCenterRef     = useRef({ x: 0, y: 0 });
 
   const { counts, refresh } = useUnreadCounts();
 
-  // ── Пункты для колеса ─────────────────────────────────────────────────
+  // ── Пункты колеса ──────────────────────────────────────────────
   const wheelItems: Array<{ href: string; icon: any; label: string }> = [
     { href: "/",          icon: Home,        label: "Главная" },
     { href: "/bookmarks", icon: Bookmark,    label: "Закладки" },
@@ -67,7 +77,7 @@ export function Sidebar() {
     wheelItems.push({ href: "/login", icon: Home, label: "Войти" });
   }
 
-  // ── Десктопные пункты (как было) ──────────────────────────────────────
+  // ── Десктопные пункты ─────────────────────────────────────────
   const nav = [
     { href: "/",          icon: Home,      label: "Главная" },
     { href: "/bookmarks", icon: Bookmark,  label: "Закладки" },
@@ -98,24 +108,21 @@ export function Sidebar() {
     return () => controller.abort();
   }, []);
 
+  // ── API helpers ───────────────────────────────────────────────
   async function loadNotifications() {
     const token = getToken();
     if (!token) return;
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (res.ok) {
-      setNotifs(await res.json());
-      setShowNotifs(true);
-    }
+    if (res.ok) { setNotifs(await res.json()); setShowNotifs(true); }
   }
 
   async function markRead(id: number) {
     const token = getToken();
     if (!token) return;
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/${id}/read`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      method: "POST", headers: { Authorization: `Bearer ${token}` },
     });
     setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     refresh();
@@ -125,8 +132,7 @@ export function Sidebar() {
     const token = getToken();
     if (!token) return;
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/read-all`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      method: "POST", headers: { Authorization: `Bearer ${token}` },
     });
     setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
     refresh();
@@ -141,162 +147,153 @@ export function Sidebar() {
     }
   }
 
-  // ──── ЛОГИКА МОБИЛЬНОГО КОЛЕСА ──────────────────────────────────────────
-
-  // Нормализация угла в диапазон [0, 2π)
-  const normalizeAngle = (a: number): number => {
-    while (a < 0) a += 2 * Math.PI;
-    while (a >= 2 * Math.PI) a -= 2 * Math.PI;
-    return a;
-  };
-
-  // Параметры дуги
-  const ARC_RADIUS = 120;
-  const CENTER_OFFSET_Y = -40;                // поднимаем центр дуги над кнопкой
-  const ARC_START = Math.PI / 2;              // 90°  (низ дуги)
-  const ARC_END = (3 * Math.PI) / 2;          // 270° (верх дуги)
-
-  const midIndex = (wheelItems.length - 1) / 2;
-  const step = (ARC_END - ARC_START) / (wheelItems.length - 1);
-
-  // Глобальные обработчики движения/отпускания (чтобы ловить drag вне кнопки)
-  useEffect(() => {
-    if (!wheelOpen) return;
-
-    const handleMove = (clientX: number, clientY: number) => {
-      if (!isDragging.current) return;
-
-      const dx = clientX - centerRef.current.x;
-      const dy = clientY - centerRef.current.y;
-      const currentAngle = normalizeAngle(Math.atan2(dy, dx));
-
-      let delta = currentAngle - lastAngle.current;
-      if (delta > Math.PI) delta -= 2 * Math.PI;
-      if (delta < -Math.PI) delta += 2 * Math.PI;
-
-      accumulatedOffset.current += delta;
-      lastAngle.current = currentAngle;
-
-      const newActiveIndex = Math.round(midIndex + accumulatedOffset.current / step);
-      const clampedIndex = Math.max(0, Math.min(wheelItems.length - 1, newActiveIndex));
-
-      setWheelOffset(accumulatedOffset.current);
-      setActiveIndex(clampedIndex);
+  // ══════════════════════════════════════════════════════════════
+  //  Геометрия дуги
+  // ══════════════════════════════════════════════════════════════
+  const getIconPos = useCallback((index: number) => {
+    const n = wheelItems.length;
+    const step = (ARC_ANGLE_END - ARC_ANGLE_START) / Math.max(n - 1, 1);
+    const angle = ARC_ANGLE_START + index * step;
+    return {
+      x: arcCenterRef.current.x + ARC_RADIUS * Math.cos(angle),
+      y: arcCenterRef.current.y + ARC_RADIUS * Math.sin(angle),
     };
+  }, [wheelItems.length]);
 
-    const handleEnd = () => {
-      if (!isDragging.current) return;
-      isDragging.current = false;
+  // ══════════════════════════════════════════════════════════════
+  //  Логика колеса: long-press → дуга → drag → snap → action
+  // ══════════════════════════════════════════════════════════════
+  const openWheel = useCallback(() => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    arcCenterRef.current = {
+      x: rect.left + rect.width / 2 + CENTER_OFFSET_X,
+      y: rect.top + rect.height / 2 + CENTER_OFFSET_Y,
+    };
+    isLongPressed.current = true;
+    setWheelOpen(true);
+    setClosing(false);
+    // Двойной rAF для корректного запуска CSS-transition
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => { setWheelReady(true); });
+    });
+  }, []);
 
-      const finalIndex = Math.round(midIndex + accumulatedOffset.current / step);
-      const clampedIndex = Math.max(0, Math.min(wheelItems.length - 1, finalIndex));
-
-      // «Был сделан выбор» — activeIndex отличается от начального (среднего)
-      const wasRotated = Math.abs(clampedIndex - Math.round(midIndex)) > 0;
-
-      if (wasRotated) {
-        const selectedItem = wheelItems[clampedIndex];
-        if (selectedItem) {
-          if (selectedItem.href === "#logout") {
-            clearToken();
-            setUser(null);
-            clearCachedUser();
-            router.push("/");
-          } else {
-            router.push(selectedItem.href);
-          }
+  const closeWheel = useCallback((doAction: boolean) => {
+    if (doAction && hoveredIdx !== null) {
+      const item = wheelItems[hoveredIdx];
+      if (item) {
+        if (item.href === "#logout") {
+          clearToken();
+          setUser(null);
+          clearCachedUser();
+          router.push("/");
+        } else {
+          router.push(item.href);
         }
       }
-
+    }
+    setWheelReady(false);
+    setClosing(true);
+    setHoveredIdx(null);
+    setFingerPos(null);
+    setTimeout(() => {
       setWheelOpen(false);
-      setWheelOffset(0);
-      setActiveIndex(Math.round(midIndex));
-    };
+      setClosing(false);
+      isLongPressed.current = false;
+    }, 280);
+  }, [hoveredIdx, wheelItems, router]);
 
-    const onTouchMove = (e: TouchEvent) => {
-      e.preventDefault();
-      if (e.touches.length > 0) handleMove(e.touches[0].clientX, e.touches[0].clientY);
-    };
-    const onMouseMove = (e: MouseEvent) => {
-      if (e.buttons === 0) { handleEnd(); return; }
-      handleMove(e.clientX, e.clientY);
-    };
+  const findNearest = useCallback((px: number, py: number): number | null => {
+    let minDist = Infinity;
+    let nearest: number | null = null;
+    for (let i = 0; i < wheelItems.length; i++) {
+      const pos = getIconPos(i);
+      const dx = px - pos.x;
+      const dy = py - pos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < minDist) { minDist = dist; nearest = i; }
+    }
+    return minDist <= SNAP_RADIUS ? nearest : null;
+  }, [wheelItems.length, getIconPos]);
 
-    document.addEventListener("touchmove", onTouchMove, { passive: false });
-    document.addEventListener("touchend", handleEnd);
-    document.addEventListener("touchcancel", handleEnd);
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", handleEnd);
-
-    return () => {
-      document.removeEventListener("touchmove", onTouchMove);
-      document.removeEventListener("touchend", handleEnd);
-      document.removeEventListener("touchcancel", handleEnd);
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", handleEnd);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wheelOpen]);
-
-  // Long-press → раскрываем колесо
-  const handleWheelStart = (e: React.TouchEvent | React.MouseEvent) => {
+  // ── Обработчики колеса ────────────────────────────────────────
+  const handleStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
     e.preventDefault();
-    e.stopPropagation();
-
-    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-    touchStartPos.current = { x: clientX, y: clientY };
+    const px = "touches" in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const py = "touches" in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    startPos.current = { x: px, y: py };
 
     longPressTimer.current = setTimeout(() => {
       longPressTimer.current = null;
-      isDragging.current = true;
+      openWheel();
+      // Сразу определяем ближайшую иконку к текущей позиции
+      const idx = findNearest(px, py);
+      setHoveredIdx(idx);
+      setFingerPos({ x: px, y: py });
+    }, LONG_PRESS_MS);
+  }, [openWheel, findNearest]);
 
-      // Центр дуги = центр кнопки + смещение
-      if (buttonRef.current) {
-        const rect = buttonRef.current.getBoundingClientRect();
-        centerRef.current = {
-          x: rect.left + rect.width / 2,
-          y: rect.top + rect.height / 2 + CENTER_OFFSET_Y,
-        };
+  // Глобальные обработчики move / end
+  useEffect(() => {
+    const cancelTimer = () => {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
       }
+    };
 
-      const dx = clientX - centerRef.current.x;
-      const dy = clientY - centerRef.current.y;
-      lastAngle.current = normalizeAngle(Math.atan2(dy, dx));
-      accumulatedOffset.current = 0;
-
-      setActiveIndex(Math.round(midIndex));
-      setWheelOffset(0);
-      setWheelOpen(true);
-    }, 250); // задержка long-press
-  };
-
-  // Если палец сдвинулся до long-press — отменяем
-  const handleEarlyMove = (e: React.TouchEvent | React.MouseEvent) => {
-    if (isDragging.current || !longPressTimer.current) return;
-    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-    if (touchStartPos.current) {
-      const dx = clientX - touchStartPos.current.x;
-      const dy = clientY - touchStartPos.current.y;
-      if (Math.sqrt(dx * dx + dy * dy) > 10) {
-        if (longPressTimer.current) {
-          clearTimeout(longPressTimer.current);
-          longPressTimer.current = null;
+    const handleMove = (px: number, py: number) => {
+      // Если timer ещё тикает — проверяем что палец не ушёл далеко
+      if (longPressTimer.current && startPos.current) {
+        const dx = px - startPos.current.x;
+        const dy = py - startPos.current.y;
+        if (Math.sqrt(dx * dx + dy * dy) > 15) {
+          cancelTimer();
         }
+        return;
       }
-    }
-  };
+      // Если колесо открыто — snap к ближайшей иконке
+      if (isLongPressed.current) {
+        const idx = findNearest(px, py);
+        setHoveredIdx(idx);
+        setFingerPos({ x: px, y: py });
+      }
+    };
 
-  // Короткий тап — просто отменяем long-press, ничего не делаем
-  const handleEarlyEnd = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-  };
+    const handleEnd = () => {
+      cancelTimer();
+      if (isLongPressed.current) {
+        closeWheel(hoveredIdx !== null);
+      }
+    };
 
-  // ── Иконки и цвета для уведомлений (как было) ────────────────────────
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isLongPressed.current && !longPressTimer.current) return;
+      e.preventDefault();
+      if (e.touches.length > 0) handleMove(e.touches[0].clientX, e.touches[0].clientY);
+    };
+    const onTouchEnd = () => handleEnd();
+    const onMouseMove = (e: MouseEvent) => handleMove(e.clientX, e.clientY);
+    const onMouseUp   = () => handleEnd();
+
+    document.addEventListener("touchmove",  onTouchMove, { passive: false });
+    document.addEventListener("touchend",   onTouchEnd);
+    document.addEventListener("touchcancel", onTouchEnd);
+    document.addEventListener("mousemove",  onMouseMove);
+    document.addEventListener("mouseup",    onMouseUp);
+
+    return () => {
+      document.removeEventListener("touchmove",  onTouchMove);
+      document.removeEventListener("touchend",   onTouchEnd);
+      document.removeEventListener("touchcancel", onTouchEnd);
+      document.removeEventListener("mousemove",  onMouseMove);
+      document.removeEventListener("mouseup",    onMouseUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hoveredIdx, closeWheel, findNearest]);
+
+  // ── Иконки уведомлений ────────────────────────────────────────
   const icons = {
     like: <Heart size={12} fill="currentColor" />,
     reply: <MessageCircle size={12} />,
@@ -307,7 +304,6 @@ export function Sidebar() {
     repost: <RefreshCw size={12} />,
     quote: <Quote size={12} />,
   };
-
   const iconBg: Record<string, string> = {
     like: "bg-pink-500/20 text-pink-400",
     reply: "bg-blue-500/20 text-blue-400",
@@ -318,7 +314,6 @@ export function Sidebar() {
     repost: "bg-emerald-500/20 text-emerald-400",
     quote: "bg-cyan-500/20 text-cyan-400",
   };
-
   const texts = {
     like: "лайкнул(а) ваш пост",
     reply: "ответил(а) на ваш пост",
@@ -336,7 +331,9 @@ export function Sidebar() {
     : user.role?.color ?? null
     : null;
 
-  // ── Десктопный контент (без изменений) ─────────────────────────────────
+  // ══════════════════════════════════════════════════════════════
+  //  Десктопный сайдбар
+  // ══════════════════════════════════════════════════════════════
   const desktopSidebarContent = (
     <>
       <div className="flex items-center gap-2">
@@ -347,19 +344,12 @@ export function Sidebar() {
       <nav className="flex flex-col">
         {nav.map(({ href, icon: Icon, label }) => {
           const active = pathname === href;
-          const isUpdates = href === "/updates";
-          const showUpdatesBadge = isUpdates && (counts.updates || 0) > 0;
-
+          const showUpdatesBadge = href === "/updates" && (counts.updates || 0) > 0;
           return (
-            <Link
-              key={href}
-              href={href}
+            <Link key={href} href={href}
               className={`flex items-center gap-3 px-4 py-3 font-medium transition-all border-b border-white/5 last:border-none group ${
-                active
-                  ? "bg-[#8b5cf6]/15 text-[#a78bfa]"
-                  : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
-              }`}
-            >
+                active ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
+              }`}>
               <Icon size={18} className={active ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} />
               <span>{label}</span>
               {showUpdatesBadge && (
@@ -372,14 +362,10 @@ export function Sidebar() {
         })}
 
         {user && (
-          <Link
-            href="/messages"
+          <Link href="/messages"
             className={`flex items-center gap-3 px-4 py-3 font-medium transition-all relative border-b border-white/5 group ${
-              pathname?.startsWith("/messages")
-                ? "bg-[#8b5cf6]/15 text-[#a78bfa]"
-                : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
-            }`}
-          >
+              pathname?.startsWith("/messages") ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
+            }`}>
             <MessageSquare size={18} className={pathname?.startsWith("/messages") ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} />
             <span>Сообщения</span>
             {counts.chats > 0 && (
@@ -391,14 +377,10 @@ export function Sidebar() {
         )}
 
         {(user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) && (
-          <Link
-            href="/admin"
+          <Link href="/admin"
             className={`flex items-center gap-3 px-4 py-3 font-medium transition-all border-b border-white/5 group ${
-              pathname === "/admin"
-                ? "bg-[#8b5cf6]/15 text-[#a78bfa]"
-                : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
-            }`}
-          >
+              pathname === "/admin" ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
+            }`}>
             {user?.is_admin
               ? <ShieldAlert size={18} className={pathname === "/admin" ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} />
               : user?.is_moderator
@@ -410,41 +392,29 @@ export function Sidebar() {
         )}
 
         {user?.is_admin && (
-          <Link
-            href="/admin/roles"
+          <Link href="/admin/roles"
             className={`flex items-center gap-3 px-4 py-3 font-medium transition-all border-b border-white/5 group ${
-              pathname === "/admin/roles"
-                ? "bg-[#8b5cf6]/15 text-[#a78bfa]"
-                : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
-            }`}
-          >
+              pathname === "/admin/roles" ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
+            }`}>
             <Palette size={18} className={pathname === "/admin/roles" ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} />
             <span>Роли</span>
           </Link>
         )}
 
         {user?.permissions?.includes("tech_access") && (
-          <Link
-            href="/admin/technical"
+          <Link href="/admin/technical"
             className={`flex items-center gap-3 px-4 py-3 font-medium transition-all border-b border-white/5 group ${
-              pathname === "/admin/technical"
-                ? "bg-[#8b5cf6]/15 text-[#a78bfa]"
-                : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
-            }`}
-          >
+              pathname === "/admin/technical" ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
+            }`}>
             <Wrench size={18} className={pathname === "/admin/technical" ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} />
             <span>Техпанель</span>
           </Link>
         )}
 
-        <button
-          onClick={loadNotifications}
+        <button onClick={loadNotifications}
           className={`flex items-center gap-3 px-4 py-3 font-medium transition-all relative border-b border-white/5 group ${
-            pathname === "/notifications"
-              ? "bg-[#8b5cf6]/15 text-[#a78bfa]"
-              : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
-          }`}
-        >
+            pathname === "/notifications" ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
+          }`}>
           <Bell size={18} className={pathname === "/notifications" ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} />
           <span>Уведомления</span>
           {counts.notifications > 0 && (
@@ -455,11 +425,9 @@ export function Sidebar() {
         </button>
 
         <div className="mt-4 px-4">
-          <button
-            onClick={() => setShowBugModal(true)}
+          <button onClick={() => setShowBugModal(true)}
             className="w-fit p-2.5 rounded-xl text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all"
-            title="Сообщить о проблеме"
-          >
+            title="Сообщить о проблеме">
             <Bug size={18} />
           </button>
         </div>
@@ -467,50 +435,30 @@ export function Sidebar() {
 
       <div className="mt-4 flex flex-col gap-2 pt-4 border-t border-white/5">
         {user ? (
-          <Link
-            href={`/${user.username}`}
-            className="flex items-center gap-3 px-2 py-2 -mx-2 rounded-lg hover:bg-white/5 transition-all cursor-pointer group w-full"
-          >
-            <div
-              className="shrink-0"
-              style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}
-            >
+          <Link href={`/${user.username}`}
+            className="flex items-center gap-3 px-2 py-2 -mx-2 rounded-lg hover:bg-white/5 transition-all cursor-pointer group w-full">
+            <div className="shrink-0"
+              style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}>
               <Avatar src={user.avatar_url} name={user.display_name} id={user.id} />
             </div>
             <div className="leading-tight min-w-0 flex-1">
-              <p
-                className={`font-semibold text-sm truncate transition-all ${
-                  glow ? "group-hover:opacity-80" : "text-white group-hover:text-[#8b5cf6]"
-                }`}
-                style={
-                  glow
-                    ? { color: glow, textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66` }
-                    : undefined
-                }
-              >
+              <p className={`font-semibold text-sm truncate transition-all ${
+                glow ? "group-hover:opacity-80" : "text-white group-hover:text-[#8b5cf6]"
+              }`}
+                style={glow ? { color: glow, textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66` } : undefined}>
                 {user.display_name}
               </p>
               <p className="text-sm text-white/40 truncate">@{user.username}</p>
             </div>
-            <button
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                clearToken();
-                setUser(null);
-                clearCachedUser();
-              }}
+            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); clearToken(); setUser(null); clearCachedUser(); }}
               className="shrink-0 p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/20 transition-all"
-              title="Выйти"
-            >
+              title="Выйти">
               <LogOut size={18} />
             </button>
           </Link>
         ) : (
-          <Link
-            href="/login"
-            className="flex items-center justify-center bg-[#8b5cf6]/15 border border-[#8b5cf6]/30 rounded-lg px-4 py-2.5 font-medium text-[#a78bfa] hover:bg-[#8b5cf6]/25 transition-all w-full"
-          >
+          <Link href="/login"
+            className="flex items-center justify-center bg-[#8b5cf6]/15 border border-[#8b5cf6]/30 rounded-lg px-4 py-2.5 font-medium text-[#a78bfa] hover:bg-[#8b5cf6]/25 transition-all w-full">
             Войти
           </Link>
         )}
@@ -518,128 +466,171 @@ export function Sidebar() {
     </>
   );
 
-  // ── Рендер мобильного полуколеса ────────────────────────────────────────
-  const renderWheelItems = () => {
+  // ══════════════════════════════════════════════════════════════
+  //  Рендер колеса
+  // ══════════════════════════════════════════════════════════════
+  const buttonCx = useRef(0);
+  const buttonCy = useRef(0);
+
+  // Запоминаем позицию кнопки для анимации вылета
+  useEffect(() => {
+    if (buttonRef.current && wheelOpen) {
+      const r = buttonRef.current.getBoundingClientRect();
+      buttonCx.current = r.left + r.width / 2;
+      buttonCy.current = r.top + r.height / 2;
+    }
+  }, [wheelOpen]);
+
+  const renderWheel = () => {
     if (!wheelOpen) return null;
 
-    return wheelItems.map((item, i) => {
-      const baseAngle = ARC_START + i * step;
-      const angle = baseAngle - wheelOffset;
+    const activePos = hoveredIdx !== null ? getIconPos(hoveredIdx) : null;
 
-      const x = centerRef.current.x + ARC_RADIUS * Math.cos(angle);
-      const y = centerRef.current.y + ARC_RADIUS * Math.sin(angle);
-
-      const isActive = i === activeIndex;
-      const distance = Math.abs(i - activeIndex);
-
-      const scale = isActive ? 1.35 : Math.max(0.65, 1 - distance * 0.12);
-      const opacity = isActive ? 1 : Math.max(0.25, 0.75 - distance * 0.18);
-
-      return (
+    return (
+      <div
+        className="fixed inset-0 z-[100]"
+        style={{ touchAction: "none" }}
+      >
+        {/* Фон */}
         <div
-          key={`${item.href}-${i}`}
-          className="absolute flex flex-col items-center gap-1 pointer-events-none"
-          style={{
-            left: x,
-            top: y,
-            transform: `translate(-50%, -50%) scale(${scale})`,
-            opacity,
-            zIndex: isActive ? 20 : 10,
-            transition: "transform 100ms ease-out, opacity 100ms ease-out",
-          }}
-        >
-          <div
-            className={`p-3 rounded-full transition-all ${
-              isActive
-                ? "bg-[#8b5cf6] shadow-lg shadow-[#8b5cf6]/50"
-                : "bg-white/10"
-            }`}
-          >
-            <item.icon size={22} className={isActive ? "text-white" : "text-white/70"} />
-          </div>
-          <span
-            className={`text-[10px] font-semibold whitespace-nowrap drop-shadow-lg ${
-              isActive ? "text-white" : "text-white/60"
-            }`}
-          >
-            {item.label}
-          </span>
-        </div>
-      );
-    });
-  };
+          className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-200 ${
+            wheelReady ? "opacity-100" : "opacity-0"
+          }`}
+        />
 
-  return (
-    <>
-      {/* ═══════════════ МОБИЛЬНАЯ ВЕРСИЯ (ПОЛУКОЛЕСО) ═══════════════ */}
-      <div className="md:hidden">
-        {/* Таблетка-триггер */}
-        <button
-          ref={buttonRef}
-          onTouchStart={handleWheelStart}
-          onMouseDown={handleWheelStart}
-          onTouchMove={handleEarlyMove}
-          onMouseMove={handleEarlyMove}
-          onTouchEnd={handleEarlyEnd}
-          onMouseUp={handleEarlyEnd}
-          className="fixed bottom-24 right-4 z-[98] w-14 h-14 bg-[#171717]/90 backdrop-blur-sm border border-white/10 rounded-full flex items-center justify-center shadow-lg shadow-black/50 active:scale-95 transition-transform"
-          style={{ touchAction: "none" }}
-          aria-label="Открыть меню навигации"
-        >
-          <Menu size={22} className="text-white/80" />
-        </button>
+        {/* Декоративная дуга */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none"
+          style={{ opacity: wheelReady ? 0.15 : 0, transition: "opacity 300ms ease" }}>
+          <ellipse
+            cx={arcCenterRef.current.x}
+            cy={arcCenterRef.current.y}
+            rx={ARC_RADIUS}
+            ry={ARC_RADIUS}
+            fill="none"
+            stroke="#8b5cf6"
+            strokeWidth="1.5"
+            strokeDasharray="3 6"
+            // Рисуем только видимую часть через path
+          />
+          {/* Невидимая правая половина — за экраном, это и есть задумка */}
+          <path
+            d={`
+              M ${arcCenterRef.current.x + ARC_RADIUS * Math.cos(ARC_ANGLE_START)} ${arcCenterRef.current.y + ARC_RADIUS * Math.sin(ARC_ANGLE_START)}
+              A ${ARC_RADIUS} ${ARC_RADIUS} 0 0 1 ${arcCenterRef.current.x + ARC_RADIUS * Math.cos(ARC_ANGLE_END)} ${arcCenterRef.current.y + ARC_RADIUS * Math.sin(ARC_ANGLE_END)}
+            `}
+            fill="none"
+            stroke="#8b5cf6"
+            strokeWidth="1"
+            strokeDasharray="4 6"
+          />
+        </svg>
 
-        {/* Раскрывающееся полуколесо */}
-        {wheelOpen && (
-          <div className="fixed inset-0 z-[100]" style={{ touchAction: "none" }}>
-            {/* Затемнение фона */}
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+        {/* Линия от пальца к активной иконке */}
+        {fingerPos && activePos && hoveredIdx !== null && (
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 15 }}>
+            <line
+              x1={fingerPos.x} y1={fingerPos.y}
+              x2={activePos.x} y2={activePos.y}
+              stroke="#8b5cf6" strokeWidth="2" strokeDasharray="4 3"
+              opacity="0.4"
+            />
+            {/* Кружок на пальце */}
+            <circle cx={fingerPos.x} cy={fingerPos.y} r="6"
+              fill="#8b5cf6" opacity="0.3" />
+          </svg>
+        )}
 
-            {/* Декоративная дуга (тонкая линия) */}
-            <svg
+        {/* Иконки */}
+        {wheelItems.map((item, i) => {
+          const finalPos = getIconPos(i);
+          const isActive = i === hoveredIdx;
+
+          // Начальная позиция = центр кнопки, финальная = позиция на дуге
+          const x = (wheelReady && !closing) ? finalPos.x : buttonCx.current;
+          const y = (wheelReady && !closing) ? finalPos.y : buttonCy.current;
+
+          return (
+            <div
+              key={`wheel-${item.href}-${i}`}
               className="absolute pointer-events-none"
               style={{
-                left: centerRef.current.x - ARC_RADIUS - 20,
-                top: centerRef.current.y - ARC_RADIUS - 20,
-                width: (ARC_RADIUS + 20) * 2,
-                height: (ARC_RADIUS + 20) * 2,
+                left: x,
+                top: y,
+                transform: `translate(-50%, -50%) scale(${
+                  closing ? 0 : isActive ? 1.4 : wheelReady ? 1 : 0
+                })`,
+                opacity: closing ? 0 : wheelReady ? (isActive ? 1 : 0.7) : 0,
+                transition: `
+                  left 280ms cubic-bezier(0.34, 1.56, 0.64, 1),
+                  top 280ms cubic-bezier(0.34, 1.56, 0.64, 1),
+                  transform 200ms ease,
+                  opacity 200ms ease
+                `,
+                transitionDelay: `${i * 25}ms`,
+                zIndex: isActive ? 20 : 10,
               }}
-              viewBox={`0 0 ${(ARC_RADIUS + 20) * 2} ${(ARC_RADIUS + 20) * 2}`}
             >
-              <path
-                d={`M ${ARC_RADIUS + 20} ${20 + ARC_RADIUS * 2}
-                    A ${ARC_RADIUS} ${ARC_RADIUS} 0 0 1 ${ARC_RADIUS + 20} ${20}`}
-                fill="none"
-                stroke="rgba(139,92,246,0.15)"
-                strokeWidth="1"
-                strokeDasharray="4 4"
-              />
-            </svg>
+              <div className={`
+                flex items-center justify-center rounded-full
+                transition-all duration-150
+                ${isActive
+                  ? "w-14 h-14 bg-[#8b5cf6] shadow-[0_0_24px_rgba(139,92,246,0.6)]"
+                  : "w-11 h-11 bg-white/10 border border-white/10"
+                }
+              `}>
+                <item.icon
+                  size={isActive ? 26 : 20}
+                  className={isActive ? "text-white" : "text-white/70"}
+                />
+              </div>
+            </div>
+          );
+        })}
 
-            {/* Активная зона (кольцо-индикатор) */}
-            <div
-              className="absolute w-14 h-14 rounded-full border-2 border-[#8b5cf6]/30 pointer-events-none animate-pulse"
-              style={{
-                left: centerRef.current.x - ARC_RADIUS,
-                top: centerRef.current.y,
-                transform: "translate(-50%, -50%)",
-              }}
-            />
-
-            {/* Иконки на дуге */}
-            {renderWheelItems()}
-
-            {/* Подсветка кнопки-таблетки */}
-            <div
-              className="absolute w-14 h-14 rounded-full bg-[#8b5cf6]/20 border border-[#8b5cf6]/30 pointer-events-none"
-              style={{
-                left: centerRef.current.x,
-                top: centerRef.current.y - CENTER_OFFSET_Y,
-                transform: "translate(-50%, -50%)",
-              }}
-            />
+        {/* Пульсация активной иконки */}
+        {hoveredIdx !== null && activePos && (
+          <div
+            className="absolute w-16 h-16 rounded-full pointer-events-none"
+            style={{
+              left: activePos.x,
+              top: activePos.y,
+              transform: "translate(-50%, -50%)",
+              zIndex: 19,
+            }}
+          >
+            <div className="w-full h-full rounded-full border-2 border-[#8b5cf6]/40 animate-ping" />
           </div>
         )}
+      </div>
+    );
+  };
+
+  // ══════════════════════════════════════════════════════════════
+  //  JSX
+  // ══════════════════════════════════════════════════════════════
+  return (
+    <>
+      {/* ═══════════════ МОБИЛЬНАЯ ВЕРСИЯ ═══════════════ */}
+      <div className="md:hidden">
+        <button
+          ref={buttonRef}
+          onTouchStart={handleStart}
+          onMouseDown={handleStart}
+          className={`fixed bottom-24 right-4 z-[98] w-14 h-14
+            bg-[#171717]/90 backdrop-blur-sm border rounded-full
+            flex items-center justify-center shadow-lg shadow-black/50
+            transition-all duration-200
+            ${wheelOpen
+              ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/20 scale-110"
+              : "border-white/10 active:scale-95"
+            }`}
+          style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
+          aria-label="Меню навигации"
+        >
+          <Menu size={22} className={`transition-colors ${wheelOpen ? "text-[#8b5cf6]" : "text-white/80"}`} />
+        </button>
+
+        {renderWheel()}
       </div>
 
       {/* ═══════════════ ДЕСКТОП ═══════════════ */}
@@ -647,29 +638,22 @@ export function Sidebar() {
         {desktopSidebarContent}
       </aside>
 
-      {/* ═══════════════ МОДАЛКА УВЕДОМЛЕНИЙ ═══════════════ */}
+      {/* ═══════════════ УВЕДОМЛЕНИЯ ═══════════════ */}
       {showNotifs && (
         <>
-          <div
-            className="fixed inset-0 bg-black/60 z-[99]"
-            onClick={() => setShowNotifs(false)}
-          />
+          <div className="fixed inset-0 bg-black/60 z-[99]" onClick={() => setShowNotifs(false)} />
           <div className="fixed left-4 right-4 md:left-[272px] md:right-auto md:top-4 top-16 w-auto md:w-[380px] max-h-[70vh] md:max-h-[520px] overflow-hidden border border-white/10 rounded-2xl bg-[#1f1f23] shadow-2xl z-[100] flex flex-col">
             <div className="sticky top-0 bg-[#1f1f23]/95 backdrop-blur-md border-b border-white/10 p-3 flex items-center justify-between shrink-0">
               <h3 className="font-bold text-white">Уведомления</h3>
               <div className="flex items-center gap-1">
                 {notifs.some((n) => !n.read) && (
-                  <button
-                    onClick={markAllRead}
-                    className="text-xs text-[#8b5cf6] hover:text-[#a78bfa] font-semibold px-2 py-1 rounded-lg hover:bg-[#8b5cf6]/10 transition-colors"
-                  >
+                  <button onClick={markAllRead}
+                    className="text-xs text-[#8b5cf6] hover:text-[#a78bfa] font-semibold px-2 py-1 rounded-lg hover:bg-[#8b5cf6]/10 transition-colors">
                     Прочитать все
                   </button>
                 )}
-                <button
-                  onClick={() => setShowNotifs(false)}
-                  className="p-1.5 text-white/50 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
-                >
+                <button onClick={() => setShowNotifs(false)}
+                  className="p-1.5 text-white/50 hover:text-white rounded-lg hover:bg-white/10 transition-colors">
                   <X size={16} />
                 </button>
               </div>
@@ -686,49 +670,31 @@ export function Sidebar() {
               {notifs.map((n) => {
                 const link = getNotifLink(n);
                 return (
-                  <Link
-                    key={n.id}
-                    href={link}
-                    onClick={() => {
-                      if (!n.read) markRead(n.id);
-                      setShowNotifs(false);
-                    }}
+                  <Link key={n.id} href={link}
+                    onClick={() => { if (!n.read) markRead(n.id); setShowNotifs(false); }}
                     className={`flex items-start gap-3 p-3 border-b border-white/5 hover:bg-white/5 transition-colors relative ${
                       !n.read ? "bg-[#8b5cf6]/[0.03]" : ""
-                    }`}
-                  >
+                    }`}>
                     {!n.read && (
                       <div className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-[#8b5cf6]" />
                     )}
 
                     <div className="shrink-0 relative">
-                      <Avatar
-                        src={n.actor?.avatar_url}
-                        name={n.actor?.display_name || "User"}
-                        id={n.actor?.id}
-                        size={42}
-                      />
-                      <div
-                        className={`absolute -bottom-1 -right-1 w-[18px] h-[18px] rounded-full flex items-center justify-center border-2 border-[#1f1f23] ${
-                          iconBg[n.type] || "bg-[#8b5cf6]/20 text-[#8b5cf6]"
-                        }`}
-                      >
+                      <Avatar src={n.actor?.avatar_url} name={n.actor?.display_name || "User"} id={n.actor?.id} size={42} />
+                      <div className={`absolute -bottom-1 -right-1 w-[18px] h-[18px] rounded-full flex items-center justify-center border-2 border-[#1f1f23] ${
+                        iconBg[n.type] || "bg-[#8b5cf6]/20 text-[#8b5cf6]"
+                      }`}>
                         {icons[n.type as keyof typeof icons] || <Bell size={9} />}
                       </div>
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] text-white/90 leading-snug">
-                        <span className="font-semibold text-white">
-                          {n.actor?.display_name || "Неизвестный"}
-                        </span>{" "}
+                        <span className="font-semibold text-white">{n.actor?.display_name || "Неизвестный"}</span>{" "}
                         {texts[n.type as keyof typeof texts] || "совершил(а) действие"}
                       </p>
                       <p className="text-[11px] text-white/40 mt-1">
-                        {new Date(n.created_at).toLocaleTimeString("ru-RU", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {new Date(n.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
                       </p>
                     </div>
 
@@ -741,11 +707,8 @@ export function Sidebar() {
             </div>
 
             <div className="sticky bottom-0 bg-[#1f1f23]/95 backdrop-blur-md border-t border-white/10 p-2.5 shrink-0">
-              <Link
-                href="/notifications"
-                onClick={() => setShowNotifs(false)}
-                className="block w-full text-center text-sm font-semibold text-[#8b5cf6] hover:text-[#a78bfa] py-2 rounded-lg hover:bg-[#8b5cf6]/10 transition-all"
-              >
+              <Link href="/notifications" onClick={() => setShowNotifs(false)}
+                className="block w-full text-center text-sm font-semibold text-[#8b5cf6] hover:text-[#a78bfa] py-2 rounded-lg hover:bg-[#8b5cf6]/10 transition-all">
                 Посмотреть все
               </Link>
             </div>
