@@ -3519,7 +3519,8 @@ def startup():
     # Автоматическое добавление недостающих колонок
     with engine.connect() as conn:
         try:
-            
+            conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS forwarded_from_id INTEGER REFERENCES message(id) ON DELETE SET NULL;"))
+            conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS forwarded_sender_name VARCHAR;"))
             conn.execute(text('''CREATE TABLE IF NOT EXISTS pushsubscription (
                 id SERIAL PRIMARY KEY,
                 user_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
@@ -4405,6 +4406,8 @@ def get_messages_v2(
             "created_at": msg.created_at.isoformat(),
             "pinned": msg.pinned,
             "pinned_by": msg.pinned_by,
+            "forwarded_from_id": msg.forwarded_from_id,
+            "forwarded_sender_name": msg.forwarded_sender_name,
         })
     return result
 
@@ -4481,6 +4484,114 @@ def delete_message(
     
     return {"ok": True}
 
+
+@app.post("/api/chats/{chat_id}/messages/{message_id}/forward")
+async def forward_message(
+    chat_id: int,
+    message_id: int,
+    target_chat_id: int = Form(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    # 1. Находим оригинальное сообщение
+    original = session.get(Message, message_id)
+    if not original or original.chat_id != chat_id:
+        raise HTTPException(404, "Сообщение не найдено")
+    
+    # 2. Проверяем доступ к исходному чату
+    orig_member = session.exec(
+        select(ChatMember).where(
+            ChatMember.chat_id == chat_id,
+            ChatMember.user_id == user.id
+        )
+    ).first()
+    if not orig_member:
+        raise HTTPException(403, "Нет доступа к сообщению")
+    
+    # 3. Запрет пересылки из секретных чатов
+    orig_chat = session.get(Chat, chat_id)
+    if orig_chat and orig_chat.is_secret:
+        raise HTTPException(403, "Нельзя пересылать из секретных чатов")
+    
+    # 4. Проверяем доступ к целевому чату
+    target_member = session.exec(
+        select(ChatMember).where(
+            ChatMember.chat_id == target_chat_id,
+            ChatMember.user_id == user.id
+        )
+    ).first()
+    if not target_member:
+        raise HTTPException(403, "Нет доступа к целевому чату")
+    
+    # 5. Получаем имя оригинального отправителя
+    orig_sender = session.get(User, original.sender_id)
+    
+    # 6. Создаём новое сообщение (медиа не копируем — Cloudinary ссылка работает везде)
+    new_msg = Message(
+        chat_id=target_chat_id,
+        sender_id=user.id,
+        text=original.text,
+        ciphertext=None,  # обычное сообщение, не шифрованное
+        media_url=original.media_url,
+        media_type=original.media_type,
+        forwarded_from_id=original.id,
+        forwarded_sender_name=orig_sender.display_name if orig_sender else "Unknown",
+    )
+    session.add(new_msg)
+    
+    # 7. Уведомляем участников целевого чата
+    other_members = session.exec(
+        select(ChatMember).where(
+            ChatMember.chat_id == target_chat_id,
+            ChatMember.user_id != user.id
+        )
+    ).all()
+    
+    notif_type = "group_message" if session.get(Chat, target_chat_id).is_group else "message"
+    for other in other_members:
+        session.add(Notification(
+            user_id=other.user_id, actor_id=user.id, type=notif_type,
+        ))
+    session.commit()
+    session.refresh(new_msg)
+    
+    # 8. WS рассылка
+    target_chat = session.get(Chat, target_chat_id)
+    await manager.broadcast_to_chat(
+        target_chat_id,
+        "new_message",
+        {
+            "id": new_msg.id,
+            "chat_id": target_chat_id,
+            "sender_id": new_msg.sender_id,
+            "sender_name": user.display_name,
+            "sender_avatar": user.avatar_url,
+            "text": new_msg.text,
+            "ciphertext": None,
+            "media_url": new_msg.media_url,
+            "media_type": new_msg.media_type,
+            "is_encrypted_media": False,
+            "forwarded_from_id": new_msg.forwarded_from_id,
+            "forwarded_sender_name": new_msg.forwarded_sender_name,
+            "created_at": new_msg.created_at.isoformat(),
+            "pinned": False,
+            "pinned_by": None,
+        },
+        session,
+    )
+    
+    # 9. Push-уведомления
+    from push_service import send_push
+    for other in other_members:
+        body = (new_msg.text or "📎 Вложение")[:100]
+        asyncio.create_task(run_in_threadpool(
+            send_push, other.user_id,
+            f"💬 {user.display_name}",
+            body,
+            f"/messages/{target_chat_id}",
+        ))
+    
+    return {"ok": True, "message_id": new_msg.id}
 
 
 class PushSubscribeIn(BaseModel):

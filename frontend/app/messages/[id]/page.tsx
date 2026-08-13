@@ -85,6 +85,10 @@ export default function ChatPage() {
   const [showGroupMembers, setShowGroupMembers] = useState(false);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
 
+  const [forwardingMessage, setForwardingMessage] = useState<any | null>(null);
+  const [forwardChats, setForwardChats] = useState<any[]>([]);
+  const [showForwardModal, setShowForwardModal] = useState(false);
+
   const micPerm = useDevicePermission("microphone");
   const camPerm = useDevicePermission("camera");
   const [permHelp, setPermHelp] = useState<null | "microphone" | "camera">(null);
@@ -135,6 +139,55 @@ export default function ChatPage() {
     if (!document.hidden) return;        // вкладка открыта — не дублируем
     if (pushActiveRef.current) return;   // пуши включены — придёт с сервера
     try { new Notification(title, { body }); } catch {}
+  }
+
+
+
+  async function loadForwardChats() {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const chats = await res.json();
+        // Исключаем секретные чаты
+        setForwardChats(chats.filter((c: any) => !c.is_secret));
+      }
+    } catch (err) {
+      console.error("Failed to load chats for forwarding:", err);
+    }
+  }
+
+  // Функция пересылки
+  async function forwardToChat(targetChatId: number) {
+    const token = getToken();
+    if (!token || !forwardingMessage) return;
+    try {
+      const form = new FormData();
+      form.append("target_chat_id", String(targetChatId));
+      
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/${forwardingMessage.id}/forward`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        }
+      );
+      
+      if (res.ok) {
+        setShowForwardModal(false);
+        setForwardingMessage(null);
+        alert("Сообщение переслано");
+      } else {
+        const err = await res.json().catch(() => ({ detail: "Ошибка" }));
+        alert(err.detail || "Не удалось переслать");
+      }
+    } catch (err) {
+      alert("Ошибка сети");
+    }
   }
 
 
@@ -1519,6 +1572,15 @@ if (data.sender_id === currentUser?.id) {
     )}
   </>
 )}
+
+  {/* 🆕 ПОМЕТКА О ПЕРЕСЫЛКЕ */}
+  {msg.forwarded_sender_name && (
+    <p className="text-[11px] sm:text-xs text-white/50 mb-1 flex items-center gap-1 italic">
+      <Send size={10} className="rotate-45 shrink-0" />
+      Переслано от <span className="font-semibold text-white/70">{msg.forwarded_sender_name}</span>
+    </p>
+  )}
+
   {isEditing ? (
                             <div className="flex gap-2 items-start">
                               <textarea
@@ -1606,6 +1668,19 @@ if (data.sender_id === currentUser?.id) {
                                       >
                                         <CheckSquare size={14} /> Выбрать
                                       </button>
+
+                                        {!isSecret && (
+                                          <button
+                                            onClick={() => {
+                                              setForwardingMessage(msg);
+                                              setActiveMessageMenu(null);
+                                            }}
+                                            className="w-full px-3 sm:px-3 py-2.5 sm:py-2 text-left text-sm sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
+                                          >
+                                            <Send size={14} /> Переслать
+                                          </button>
+                                        )}
+
 
                                       {isMine && msg.text && (
                                         <button
@@ -2188,6 +2263,59 @@ if (data.sender_id === currentUser?.id) {
 {permHelp && (
   <PermissionHelpModal device={permHelp} onClose={() => setPermHelp(null)} />
 )}
+
+
+{showForwardModal && forwardingMessage && (
+  <>
+    <div
+      className="fixed inset-0 bg-black/80 z-[200]"
+      onClick={() => { setShowForwardModal(false); setForwardingMessage(null); }}
+    />
+    <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
+      <div className="w-full max-w-sm bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl max-h-[70vh] flex flex-col">
+        <div className="p-4 border-b border-white/10 flex items-center justify-between">
+          <h3 className="font-bold text-white">Переслать сообщение</h3>
+          <button
+            onClick={() => { setShowForwardModal(false); setForwardingMessage(null); }}
+            className="text-white/60 hover:text-white p-1"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-2">
+          {forwardChats.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => forwardToChat(c.id)}
+              className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors text-left"
+            >
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shrink-0">
+                {c.is_group ? (
+                  <Users size={18} className="text-white" />
+                ) : c.other?.avatar_url ? (
+                  <img src={mediaUrl(c.other.avatar_url)} alt="" className="w-full h-full rounded-full object-cover" />
+                ) : (
+                  <span className="text-white font-bold">{(c.other?.display_name || "?")[0]}</span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-white truncate">
+                  {c.is_group ? c.name : c.other?.display_name}
+                </p>
+                <p className="text-xs text-white/40 truncate">
+                  {c.is_group ? `${c.members_count} участников` : `@${c.other?.username}`}
+                </p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  </>
+)}
+
+
 
     </div>
   );
