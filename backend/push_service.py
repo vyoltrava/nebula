@@ -1,13 +1,18 @@
-import os, json, base64, logging
-from sqlmodel import Session, select
-from py_vapid import Vapid
+import os
+import json
+import base64
+import logging
+from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives import serialization
 
 log = logging.getLogger("push")
 KEYS_FILE = os.path.join(os.path.dirname(__file__), "vapid_keys.json")
 _vapid = None
 
+
 def _b64url(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
 
 def get_vapid() -> dict:
     """Генерирует VAPID-ключи один раз и кеширует"""
@@ -28,34 +33,36 @@ def get_vapid() -> dict:
             _vapid = json.load(f)
             return _vapid
 
-    from py_vapid import Vapid
-    from cryptography.hazmat.primitives import serialization
-
-    v = Vapid()
-    v.generate_keys()
-    priv_pem = v.private_key.private_bytes(
+    # 🆕 Используем cryptography напрямую вместо py_vapid
+    private_key = ec.generate_private_key(ec.SECP256R1())
+    
+    # Экспортируем приватный ключ в PEM
+    priv_pem = private_key.private_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PrivateFormat.PKCS8,
         encryption_algorithm=serialization.NoEncryption(),
     ).decode()
-    nums = v.public_key.public_numbers()
-    pub_raw = b"\x04" + nums.x.to_bytes(32, "big") + nums.y.to_bytes(32, "big")
-    priv_raw = v.private_key.private_numbers().private_value.to_bytes(32, "big")
+    
+    # Получаем публичный ключ в uncompressed формате (65 байт: 0x04 || x || y)
+    public_key = private_key.public_key()
+    pub_numbers = public_key.public_numbers()
+    pub_raw = b"\x04" + pub_numbers.x.to_bytes(32, "big") + pub_numbers.y.to_bytes(32, "big")
 
     _vapid = {
         "private_pem": priv_pem,
-        "private_raw": _b64url(priv_raw),
         "public_raw": _b64url(pub_raw),
     }
     with open(KEYS_FILE, "w") as f:
         json.dump(_vapid, f)
     return _vapid
 
+
 def send_push(user_id: int, title: str, body: str, url: str):
     """Синхронная отправка — вызывать через run_in_threadpool"""
     try:
         from pywebpush import webpush, WebPushException
         from database import engine
+        from sqlmodel import Session, select
         from models import PushSubscription
 
         keys = get_vapid()
@@ -78,7 +85,7 @@ def send_push(user_id: int, title: str, body: str, url: str):
                     )
                 except WebPushException as e:
                     status = getattr(getattr(e, "response", None), "status_code", None)
-                    if status in (404, 410):  # подписка мертва
+                    if status in (404, 410):
                         dead.append(sub)
                 except Exception as e:
                     log.warning(f"push failed sub={sub.id}: {e}")
