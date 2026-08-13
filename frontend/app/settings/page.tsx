@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getToken, clearToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
-import { Upload, Lock, Eye, EyeOff, LogOut, ShieldAlert } from "lucide-react";
+import { Upload, Lock, Eye, EyeOff, LogOut, ShieldAlert, Bell } from "lucide-react";
+import { PushSettings } from "@/components/PushSettings";
 
 
 export default function SettingsPage() {
@@ -247,6 +248,25 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+          {/* === УВЕДОМЛЕНИЯ === */}
+          <div className="bg-[#1f1f23] border border-white/10 rounded-2xl overflow-hidden">
+            <div className="px-4 sm:px-5 py-3 border-b border-white/10">
+              <h2 className="font-bold text-white flex items-center gap-2">
+                <Bell size={16} className="text-[#8b5cf6]" />
+                Уведомления
+              </h2>
+              <p className="text-xs text-white/40 mt-0.5">
+                Push-уведомления работают даже когда приложение закрыто
+              </p>
+            </div>
+            <div className="p-4 sm:p-5 space-y-3">
+              <PushSettings />
+            </div>
+          </div>
+
+
+
 
         {/* ========== Блок смены пароля ========== */}
         <div className="border border-white/15 rounded-2xl bg-white/5 backdrop-blur-md p-6">

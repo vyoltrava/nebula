@@ -18,7 +18,6 @@ import { PermissionHelpModal } from "@/components/PermissionHelpModal";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { ChatWindowSkeleton } from "@/components/Skeletons";
 import { isPushSubscribed } from "@/lib/push";
-import { PushToggle } from "@/components/PushToggle";
 import { pinMessage, unpinMessage, getPinnedMessages } from "@/lib/api";
 import type { PinnedMessage } from "@/lib/types";
 import { EncryptedMediaPlayer } from "@/components/EncryptedMediaPlayer";
@@ -1180,7 +1179,7 @@ if (data.sender_id === currentUser?.id) {
             <Search size={19} className="sm:w-5 sm:h-5" />
             
           </button>
-            <PushToggle />
+            
           {isSecret && !isGroup && (
             <button
               onClick={() => setShowVerify(true)}
