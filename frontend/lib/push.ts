@@ -33,6 +33,8 @@ export async function enablePush(token: string): Promise<{ ok: boolean; error?: 
   if (perm !== "granted") return { ok: false, error: "denied" };
 
   const reg = await navigator.serviceWorker.register("/sw.js");
+  // 🆕 принудительно тянем свежую версию SW (на мобилках старый кэш держится сутками)
+  try { await reg.update(); } catch {}
   await navigator.serviceWorker.ready;
 
   const vapidRes = await fetch(`${API}/api/push/vapid`);
@@ -67,4 +69,13 @@ export async function disablePush(token: string) {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
   });
+}
+
+export function getPushEnvironment() {
+  if (typeof window === "undefined") return { isIOS: false, isStandalone: false, isInApp: false };
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || ((navigator as any).platform === "MacIntel" && navigator.maxTouchPoints > 2);
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as any).standalone === true;
+  const isInApp = /Telegram|Instagram|FBAN|FBAV|VK|WhatsApp/.test(ua);
+  return { isIOS, isStandalone, isInApp };
 }

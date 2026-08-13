@@ -3,11 +3,13 @@ import { useEffect, useState } from "react";
 import { Bell, BellOff, Check, Loader2, Smartphone, Monitor } from "lucide-react";
 import { enablePush, disablePush, isPushSubscribed, isPushSupported } from "@/lib/push";
 import { getToken } from "@/lib/auth";
+import { getPushEnvironment } from "@/lib/push";
 
 export function PushSettings() {
   const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<"checking" | "ok" | "denied" | "unsupported">("checking");
+  const env = getPushEnvironment();
 
   useEffect(() => {
     if (!isPushSupported()) {
@@ -59,6 +61,25 @@ export function PushSettings() {
       </div>
     );
   }
+
+{env.isInApp && (
+  <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 mb-3">
+    <span className="text-amber-400 text-sm">⚠️</span>
+    <p className="text-xs text-amber-200/80">
+      Сайт открыт во встроенном браузере (Telegram/VK и т.п.). Открой его в обычном <b>Chrome</b> или <b>Safari</b> — иначе пуши не заработают.
+    </p>
+  </div>
+)}
+
+{env.isIOS && !env.isStandalone && (
+  <div className="flex items-start gap-3 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 mb-3">
+    <span className="text-blue-400 text-sm">🍏</span>
+    <p className="text-xs text-blue-200/80">
+      На iPhone уведомления работают только с домашнего экрана: Safari → кнопка «Поделиться» → <b>«На экран “Домой”»</b>. Затем открой приложение с иконки и включи пуши там.
+    </p>
+  </div>
+)}
+
 
   return (
     <div className="space-y-3">
