@@ -37,6 +37,12 @@ import {
 import { QRCodeSVG } from "qrcode.react";
 import { Html5Qrcode } from "html5-qrcode";
 
+function getSessionKeyOrThrow(chatId: number): Uint8Array {
+  const sk = loadSessionKey(chatId);
+  if (!sk) throw new Error("Нет session key");
+  return sk;
+}
+
 export default function ChatPage() {
   const params = useParams();
   const chatId = params?.id as string;
@@ -158,18 +164,37 @@ export default function ChatPage() {
     const token = getToken();
     if (!token) return;
     try {
-      const form = new FormData();
-      form.append("file", audioFile);
       if (isSecret) {
-        form.append("text", "");
-      }
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-      if (!res.ok) {
-        alert("Не удалось отправить голосовое сообщение");
+        const sk = getSessionKeyOrThrow(Number(chatId));
+        const { encryptMediaFile } = await import("@/lib/mediaCrypto");
+        const encryptedBlob = await encryptMediaFile(audioFile, sk);
+
+        const form = new FormData();
+        form.append("file", encryptedBlob, audioFile.name);
+        form.append("media_type", "audio");
+
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: form,
+          }
+        );
+        if (!res.ok) {
+          alert("Не удалось отправить зашифрованное голосовое");
+        }
+      } else {
+        const form = new FormData();
+        form.append("file", audioFile);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        });
+        if (!res.ok) {
+          alert("Не удалось отправить голосовое сообщение");
+        }
       }
     } catch (err) {
       console.error("Failed to send voice:", err);
@@ -277,12 +302,22 @@ export default function ChatPage() {
   }
 
   function decryptDisplayText(msg: any): string {
-    if (!isSecret) return msg.text || "";
-    if (!msg.ciphertext) return "[нет данных]";
-    const sk = loadSessionKey(Number(chatId));
-    if (!sk) return "[Сессия не установлена]";
-    return decryptMessage(msg.ciphertext, sk);
-  }
+      if (!isSecret) return msg.text || "";
+      
+      // Для шифрованных медиа нет текста — это нормально
+      if (!msg.ciphertext || msg.ciphertext === "[encrypted_media]") return "";
+      
+      const sk = loadSessionKey(Number(chatId));
+      if (!sk) return "[Сессия не установлена]";
+      
+      try {
+        const decrypted = decryptMessage(msg.ciphertext, sk);
+        if (decrypted === "[Ошибка расшифровки]") return "[Ошибка расшифровки]";
+        return decrypted;
+      } catch {
+        return "[Ошибка расшифровки]";
+      }
+    }
 
   async function loadChatInfo() {
     const token = getToken();
@@ -1374,41 +1409,42 @@ if (data.sender_id === currentUser?.id) {
         }`
   }`}
 >
-  {msg.media_url && (msg.media_type === "image" || msg.media_type === "gif") && (
-    <img
-      src={mediaUrl(msg.media_url)}
-      alt=""
-      className={getMediaClasses(msg.media_type)}
-      onClick={(e) => {
-        if (!isSelectMode) {
-          e.stopPropagation();
-          setSelectedMedia(msg);
-        }
-      }}
-    />
-  )}
-  {msg.media_url && msg.media_type === "video" && (
-    <VideoPlayer
-      src={msg.media_url}
-      className={getMediaClasses("video")}
-    />
-  )}
-  {msg.media_url && msg.media_type === "audio" && (
-    <div className="mb-1.5 sm:mb-2">
-      <AudioPlayer src={mediaUrl(msg.media_url)} />
-    </div>
-  )}
-
-  {msg.media_url && msg.media_type === "video_note" && (
-    <VideoNotePlayer src={mediaUrl(msg.media_url)} />
-  )}
-
-  {msg.media_url && msg.is_encrypted_media && (
+  {msg.media_url && msg.is_encrypted_media ? (
     <EncryptedMediaPlayer
       mediaUrl={msg.media_url}
       mediaType={msg.media_type}
       chatId={Number(chatId)}
     />
+  ) : (
+    <>
+      {msg.media_url && (msg.media_type === "image" || msg.media_type === "gif") && (
+        <img
+          src={mediaUrl(msg.media_url)}
+          alt=""
+          className={getMediaClasses(msg.media_type)}
+          onClick={(e) => {
+            if (!isSelectMode) {
+              e.stopPropagation();
+              setSelectedMedia(msg);
+            }
+          }}
+        />
+      )}
+      {msg.media_url && msg.media_type === "video" && (
+        <VideoPlayer
+          src={msg.media_url}
+          className={getMediaClasses("video")}
+        />
+      )}
+      {msg.media_url && msg.media_type === "audio" && (
+        <div className="mb-1.5 sm:mb-2">
+          <AudioPlayer src={mediaUrl(msg.media_url)} />
+        </div>
+      )}
+      {msg.media_url && msg.media_type === "video_note" && (
+        <VideoNotePlayer src={mediaUrl(msg.media_url)} />
+      )}
+    </>
   )}
 
   {isEditing ? (
@@ -2021,26 +2057,45 @@ if (data.sender_id === currentUser?.id) {
   <VideoNoteRecorder
     onRecorded={async (file) => {
       setShowVideoRecorder(false);
-      
-      const form = new FormData();
-      form.append("file", file);
-      
-      // ✅ Фронт явно говорит серверу: это video_note
-      form.append("media_type", "video_note");
-      
       const token = getToken();
       if (!token) return;
       
       try {
-        // Используем обычный эндпоинт, но с явным media_type
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: form,
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ detail: "Ошибка" }));
-          alert(err.detail || "Не удалось отправить видеосообщение");
+        if (isSecret) {
+          const sk = getSessionKeyOrThrow(Number(chatId));
+          const { encryptMediaFile } = await import("@/lib/mediaCrypto");
+          const encryptedBlob = await encryptMediaFile(file, sk);
+
+          const form = new FormData();
+          form.append("file", encryptedBlob, file.name);
+          form.append("media_type", "video_note");
+
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+              body: form,
+            }
+          );
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({ detail: "Ошибка" }));
+            alert(err.detail || "Не удалось отправить зашифрованное видео");
+          }
+        } else {
+          const form = new FormData();
+          form.append("file", file);
+          form.append("media_type", "video_note");
+
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: form,
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({ detail: "Ошибка" }));
+            alert(err.detail || "Не удалось отправить видеосообщение");
+          }
         }
       } catch (err) {
         console.error("Failed to send video note:", err);
