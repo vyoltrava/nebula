@@ -909,7 +909,6 @@ export default function ChatPage() {
                 name={chatPartner.display_name}
                 id={chatPartner.id}
                 size={44}
-                online={isOnline(chatPartner.last_seen)}
               />
               {isSecret && (
                 <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 sm:w-4 sm:h-4 rounded-full bg-emerald-500 border-2 border-[#171717] flex items-center justify-center">

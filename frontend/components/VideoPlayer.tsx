@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState, useEffect } from "react";
-import { Play, Pause, Volume2, VolumeX, Maximize, Minimize } from "lucide-react";
+import { Play, Pause, Rewind, FastForward } from "lucide-react";
 import { mediaUrl } from "@/lib/media";
 
 interface VideoPlayerProps {
@@ -8,184 +8,146 @@ interface VideoPlayerProps {
   className?: string;
 }
 
+type FeedbackType = "play" | "pause" | "-5" | "+5" | null;
+
 export function VideoPlayer({ src, className = "" }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [showControls, setShowControls] = useState(true);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [feedback, setFeedback] = useState<{ type: FeedbackType; id: number } | null>(null);
+  const feedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const feedbackIdRef = useRef(0);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    const updateProgress = () => {
-      if (video.duration) {
-        setProgress((video.currentTime / video.duration) * 100);
-      }
-    };
+    const handlePlay = () => setIsPlaying(true);
+    const handlePause = () => setIsPlaying(false);
+    const handleEnded = () => setIsPlaying(false);
 
-    const handleLoadedMetadata = () => {
-      setDuration(video.duration);
-    };
-
-    const handleEnded = () => {
-      setIsPlaying(false);
-      setProgress(0);
-    };
-
-    video.addEventListener("timeupdate", updateProgress);
-    video.addEventListener("loadedmetadata", handleLoadedMetadata);
+    video.addEventListener("play", handlePlay);
+    video.addEventListener("pause", handlePause);
     video.addEventListener("ended", handleEnded);
 
     return () => {
-      video.removeEventListener("timeupdate", updateProgress);
-      video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+      video.removeEventListener("play", handlePlay);
+      video.removeEventListener("pause", handlePause);
       video.removeEventListener("ended", handleEnded);
     };
   }, []);
 
-  const togglePlay = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
-      } else {
-        videoRef.current.play();
-      }
-      setIsPlaying(!isPlaying);
+  const showFeedback = (type: FeedbackType) => {
+    if (feedbackTimeoutRef.current) {
+      clearTimeout(feedbackTimeoutRef.current);
     }
+    feedbackIdRef.current += 1;
+    setFeedback({ type, id: feedbackIdRef.current });
+    feedbackTimeoutRef.current = setTimeout(() => {
+      setFeedback(null);
+    }, 600);
   };
 
-  const toggleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
-    }
-  };
+  const handleVideoClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const video = videoRef.current;
+    if (!video) return;
 
-  const toggleFullscreen = () => {
-    if (!containerRef.current) return;
-    
-    if (!isFullscreen) {
-      containerRef.current.requestFullscreen?.();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const width = rect.width;
+    const zone = x / width; // 0..1
+
+    if (zone < 0.3) {
+      // Левая зона — перемотка назад
+      video.currentTime = Math.max(0, video.currentTime - 5);
+      showFeedback("-5");
+    } else if (zone > 0.7) {
+      // Правая зона — перемотка вперёд
+      video.currentTime = Math.min(video.duration || 0, video.currentTime + 5);
+      showFeedback("+5");
     } else {
-      document.exitFullscreen?.();
+      // Центр — play/pause
+      if (video.paused) {
+        video.play();
+        showFeedback("play");
+      } else {
+        video.pause();
+        showFeedback("pause");
+      }
     }
   };
 
-  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (videoRef.current && duration > 0) {
-      const rect = e.currentTarget.getBoundingClientRect();
-      const pos = (e.clientX - rect.left) / rect.width;
-      videoRef.current.currentTime = pos * duration;
+  const renderFeedbackIcon = () => {
+    if (!feedback) return null;
+
+    let Icon = Play;
+    let label = "";
+    let positionClass = "left-1/2 -translate-x-1/2";
+
+    switch (feedback.type) {
+      case "play":
+        Icon = Play;
+        break;
+      case "pause":
+        Icon = Pause;
+        break;
+      case "-5":
+        Icon = Rewind;
+        label = "5";
+        positionClass = "left-[15%] -translate-x-1/2";
+        break;
+      case "+5":
+        Icon = FastForward;
+        label = "5";
+        positionClass = "right-[15%] translate-x-1/2";
+        break;
     }
+
+    return (
+      <div
+        key={feedback.id}
+        className={`absolute top-1/2 ${positionClass} -translate-y-1/2 pointer-events-none z-10 animate-[ping_0.6s_ease-out_forwards]`}
+      >
+        <div className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center">
+          <Icon size={28} className="text-white" fill="currentColor" />
+          {label && (
+            <span className="absolute bottom-0.5 text-[10px] font-bold text-white">
+              {label}
+            </span>
+          )}
+        </div>
+      </div>
+    );
   };
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const handleMouseMove = () => {
-    setShowControls(true);
-    if (controlsTimeoutRef.current) {
-      clearTimeout(controlsTimeoutRef.current);
-    }
-    if (isPlaying) {
-      controlsTimeoutRef.current = setTimeout(() => {
-        setShowControls(false);
-      }, 3000);
-    }
-  };
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-    };
-  }, []);
 
   return (
     <div
-      ref={containerRef}
-      className={`relative group rounded-xl overflow-hidden bg-black ${className}`}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={() => isPlaying && setShowControls(false)}
+      className={`relative rounded-xl overflow-hidden bg-black select-none ${className}`}
+      onClick={handleVideoClick}
     >
       <video
         ref={videoRef}
         src={mediaUrl(src)}
         className="w-full h-auto max-h-64 sm:max-h-80 md:max-h-96 cursor-pointer"
-        onClick={togglePlay}
         playsInline
       />
 
-      {!isPlaying && (
-        <div
-          className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer"
-          onClick={togglePlay}
-        >
-          <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center backdrop-blur-sm hover:scale-110 transition-transform">
+      {/* Большая иконка Play по центру когда видео на паузе (и не было недавнего действия) */}
+      {!isPlaying && !feedback && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none">
+          <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center backdrop-blur-sm">
             <Play size={32} className="text-black ml-1" fill="currentColor" />
           </div>
         </div>
       )}
 
-      <div
-        className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-3 transition-opacity duration-300 ${
-          showControls ? "opacity-100" : "opacity-0"
-        }`}
-      >
-        <div
-          className="w-full h-1 bg-white/20 rounded-full cursor-pointer mb-2 group/progress"
-          onClick={handleSeek}
-        >
-          <div
-            className="h-full bg-[#8b5cf6] rounded-full relative"
-            style={{ width: `${progress}%` }}
-          >
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity" />
-          </div>
-        </div>
+      {/* Всплывающий фидбек при тапе */}
+      {renderFeedbackIcon()}
 
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={togglePlay}
-              className="text-white hover:text-[#8b5cf6] transition-colors p-1"
-            >
-              {isPlaying ? <Pause size={18} /> : <Play size={18} />}
-            </button>
-
-            <button
-              onClick={toggleMute}
-              className="text-white hover:text-[#8b5cf6] transition-colors p-1"
-            >
-              {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-            </button>
-
-            <span className="text-white text-xs font-mono">
-              {formatTime((progress / 100) * duration)} / {formatTime(duration)}
-            </span>
-          </div>
-
-          <button
-            onClick={toggleFullscreen}
-            className="text-white hover:text-[#8b5cf6] transition-colors p-1"
-          >
-            {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
-          </button>
-        </div>
-      </div>
+      {/* Невидимые разделители для понимания зон (для разработки можно раскомментировать) */}
+      {/*
+      <div className="absolute inset-y-0 left-0 w-[30%] border-r border-red-500/30 pointer-events-none" />
+      <div className="absolute inset-y-0 right-0 w-[30%] border-l border-red-500/30 pointer-events-none" />
+      */}
     </div>
   );
 }
