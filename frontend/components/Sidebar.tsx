@@ -1006,10 +1006,9 @@ export function Sidebar() {
         {renderWheel()}
       </div>
 
-      {/* ═══════ DESKTOP ORBIT: непрочитанное слева ═══════ */}
-      {/* Показываем ТОЛЬКО в орбите на ПК, только если есть непрочитанное */}
+      {/* ═══════ DESKTOP ORBIT: непрочитанное слева от орбиты ═══════ */}
       {layout === "orbit" && !isMobile && (counts.chats > 0 || counts.notifications > 0) && (
-        <div className="fixed left-4 top-1/2 -translate-y-1/2 z-[97] flex flex-col gap-3">
+        <div className="fixed bottom-7 right-[92px] z-[97] flex flex-row items-center gap-3">
           {counts.chats > 0 && (
             <button
               onClick={() => router.push("/messages")}
