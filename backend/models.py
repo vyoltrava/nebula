@@ -61,6 +61,8 @@ class Post(SQLModel, table=True):
     repost_of_id: Optional[int] = Field(default=None, foreign_key="post.id")  # 🆕
     created_at: datetime = Field(default_factory=utcnow, index=True)
     views_count: int = Field(default=0)
+    edited: bool = Field(default=False)
+    edited_at: Optional[datetime] = None
 
 
 class Like(SQLModel, table=True):
@@ -152,6 +154,26 @@ class Role(SQLModel, table=True):
     position: int = Field(default=0)       # 🆕 порядок отображения
     permissions: str = "[]"
     created_at: datetime = Field(default_factory=utcnow)
+    category_id: Optional[int] = Field(default=None, foreign_key="rolecategory.id")
+
+
+class RoleCategory(SQLModel, table=True):
+    """Вкладка/отдел для группировки ролей"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(max_length=60)
+    color: str = Field(default="#8b5cf6")
+    order: int = Field(default=0)
+    created_at: datetime = Field(default_factory=utcnow)
+
+class Warning(SQLModel, table=True):
+    """Предупреждение пользователю (право warn_users)"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    issuer_id: int = Field(foreign_key="user.id")
+    reason: str = Field(max_length=500)
+    active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=utcnow)
+    expires_at: Optional[datetime] = None
 
 class Report(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

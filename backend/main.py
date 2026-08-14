@@ -28,7 +28,8 @@ from database import init_db, get_session, engine
 from models import (
     User, Post, Like, Follow, Notification, Tag, PostTag, Role,
     Chat, ChatMember, Message, Report, UserKey, ChatSessionKey,
-    IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead, PushSubscription, StickerPack, Sticker, MessageReaction, Theme, SystemSetting
+    IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead, PushSubscription, StickerPack, Sticker, MessageReaction, Theme, SystemSetting,
+RoleCategory, Warning
 )
 import logging
 from fastapi.responses import JSONResponse
@@ -2690,6 +2691,8 @@ def admin_list_users(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
+    if not has_permission(staff, "manage_users", session):   # 🆕
+        raise HTTPException(403, "Нет права: manage_users")
     users = session.exec(select(User).order_by(User.created_at.desc())).all()
 
     if not users:
@@ -2764,6 +2767,75 @@ def admin_ban_user(
     return {"is_banned": target.is_banned}
 
 
+# ============================================================
+# ⚠️ ПРЕДУПРЕЖДЕНИЯ (ПРАВО warn_users)
+# ============================================================
+@app.post("/api/admin/users/{user_id}/warn")
+def admin_warn_user(
+    user_id: int,
+    reason: str = Form(...),
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    if not has_permission(staff, "warn_users", session):
+        raise HTTPException(403, "Нет права: warn_users")
+    target = session.get(User, user_id)
+    if not target:
+        raise HTTPException(404, "User not found")
+    protect_system_account(target, staff, "выдавать предупреждения")
+    check_hierarchy_or_403(staff, target, session, action="выдать предупреждение этому пользователю")
+    if len(reason.strip()) < 3:
+        raise HTTPException(400, "Причина слишком короткая")
+    w = Warning(user_id=user_id, issuer_id=staff.id, reason=reason.strip())
+    session.add(w)
+    session.add(Notification(user_id=user_id, actor_id=staff.id, type="warning"))
+    log_action(session, staff.id, "warn_user", target_type="user", target_id=user_id,
+               details={"reason": reason.strip()})
+    session.commit()
+    session.refresh(w)
+    return {"ok": True, "id": w.id}
+
+@app.get("/api/admin/users/{user_id}/warnings")
+def admin_list_warnings(
+    user_id: int,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    if not has_permission(staff, "warn_users", session):
+        raise HTTPException(403, "Нет права: warn_users")
+    warns = session.exec(
+        select(Warning).where(Warning.user_id == user_id).order_by(Warning.created_at.desc())
+    ).all()
+    issuer_ids = list({w.issuer_id for w in warns})
+    issuers = {u.id: u for u in session.exec(select(User).where(User.id.in_(issuer_ids or [0]))).all()}
+    return [{
+        "id": w.id,
+        "reason": w.reason,
+        "active": w.active,
+        "issuer": user_out(issuers.get(w.issuer_id), session) if issuers.get(w.issuer_id) else None,
+        "created_at": w.created_at.isoformat(),
+        "expires_at": w.expires_at.isoformat() if w.expires_at else None,
+    } for w in warns]
+
+@app.delete("/api/admin/warnings/{warning_id}")
+def admin_revoke_warning(
+    warning_id: int,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    if not has_permission(staff, "warn_users", session):
+        raise HTTPException(403, "Нет права: warn_users")
+    w = session.get(Warning, warning_id)
+    if not w:
+        raise HTTPException(404, "Warning not found")
+    w.active = False
+    session.add(w)
+    log_action(session, staff.id, "revoke_warning", target_type="warning", target_id=warning_id)
+    session.commit()
+    return {"ok": True}
+
+
+
 @app.delete("/api/admin/users/{user_id}/avatar")
 def admin_remove_avatar(
     user_id: int,
@@ -2799,7 +2871,7 @@ def admin_remove_avatar(
 @app.post("/api/admin/users/{user_id}/moderator")
 def admin_toggle_moderator(
     user_id: int,
-    admin: User = Depends(require_admin),
+    admin: User = Depends(get_current_user), 
     session: Session = Depends(get_session),
 ):
     target = session.get(User, user_id)
@@ -3576,8 +3648,11 @@ async def add_group_member(
     actor_member = session.exec(
         select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == actor.id)
     ).first()
-    if not actor_member or actor_member.role not in ("owner", "admin"):
-        raise HTTPException(403, "Только админы группы могут добавлять участников")
+    can_manage = has_permission(actor, "manage_groups", session)   # 🆕
+    if not actor_member and not can_manage:
+        raise HTTPException(403, "Не участник чата")
+    if not can_manage and actor_member.role not in ("owner", "admin"):
+        raise HTTPException(403, "Только админы группы или право manage_groups")
 
     existing = session.exec(
         select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user_id)
@@ -3658,8 +3733,9 @@ async def remove_group_member(
             session.add(new_owner)
     else:
         # Кик другого
-        if not actor_member or actor_member.role not in ("owner", "admin"):
-            raise HTTPException(403, "Только админы могут кикать")
+        can_manage = has_permission(actor, "manage_groups", session)   # 🆕
+        if not can_manage and (not actor_member or actor_member.role not in ("owner", "admin")):
+            raise HTTPException(403, "Только админы или право manage_groups могут кикать")
         if not target_member:
             raise HTTPException(404, "Участник не найден")
         # Нельзя кикать owner
@@ -3700,8 +3776,9 @@ async def update_group_info(
     member = session.exec(
         select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == actor.id)
     ).first()
-    if not member or member.role not in ("owner", "admin"):
-        raise HTTPException(403, "Только админы могут изменять группу")
+    can_manage = has_permission(actor, "manage_groups", session)   # 🆕
+    if not can_manage and (not member or member.role not in ("owner", "admin")):
+        raise HTTPException(403, "Только админы или право manage_groups могут изменять группу")
 
     if name is not None:
         if not name.strip() or len(name.strip()) > 80:
@@ -3757,9 +3834,9 @@ async def delete_chat(
     if not member:
         raise HTTPException(403, "Не участник")
 
-    # Для групп: только создатель или админ сайта
-    if chat.is_group and member.role != "owner" and not user.is_admin:
-        raise HTTPException(403, "Только создатель может удалить группу")
+    # Для групп: создатель, админ сайта или право manage_groups
+    if chat.is_group and member.role != "owner" and not user.is_admin and not has_permission(user, "manage_groups", session):
+        raise HTTPException(403, "Только создатель или право manage_groups может удалить группу")
 
     # Собираем ID всех участников ДО удаления (для рассылки)
     all_member_ids = session.exec(
@@ -3909,6 +3986,19 @@ def startup():
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN DEFAULT FALSE;'))
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS bio VARCHAR(500);'))
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ;'))
+            # ===== ⚠️ ПРЕДУПРЕЖДЕНИЯ (warn_users) =====
+            conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS warning (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                issuer_id INTEGER NOT NULL REFERENCES "user"(id),
+                reason VARCHAR(500) NOT NULL,
+                active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                expires_at TIMESTAMPTZ
+            );
+            """))
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_warning_user ON warning(user_id, active);'))      
 
             # ===== ПОСТЫ И РОЛИ =====
             conn.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS views_count INTEGER DEFAULT 0;'))
@@ -3998,6 +4088,33 @@ def startup():
             conn.execute(text('ALTER TABLE post ADD CONSTRAINT post_reply_to_id_fkey FOREIGN KEY (reply_to_id) REFERENCES post(id) ON DELETE CASCADE;'))
             conn.execute(text('ALTER TABLE updateread DROP CONSTRAINT IF EXISTS updateread_update_id_fkey;'))
             conn.execute(text('ALTER TABLE updateread ADD CONSTRAINT updateread_update_id_fkey FOREIGN KEY (update_id) REFERENCES update(id) ON DELETE CASCADE;'))
+
+            # ===== 🗂️ КАТЕГОРИИ РОЛЕЙ + ВАРНЫ =====
+            conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS rolecategory (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(60) NOT NULL,
+                color VARCHAR(20) DEFAULT '#8b5cf6',
+                "order" INTEGER DEFAULT 0,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            """))
+            conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS category_id INTEGER REFERENCES rolecategory(id) ON DELETE SET NULL;'))
+            conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS warning (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                issuer_id INTEGER NOT NULL REFERENCES "user"(id),
+                reason VARCHAR(500) NOT NULL,
+                active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                expires_at TIMESTAMPTZ
+            );
+            """))
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_warning_user ON warning(user_id, active);'))
+            conn.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS edited BOOLEAN DEFAULT FALSE;'))
+            conn.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;'))
+
 
             # Финальный коммит всех миграций
             conn.commit()
@@ -5817,9 +5934,9 @@ async def upload_group_avatar(
     if not chat or not chat.is_group:
         raise HTTPException(404, "Группа не найдена")
     
-    # 3. Проверяем права (только админы могут менять аватарку)
-    if member.role not in ("owner", "admin"):
-        raise HTTPException(403, "Только админы могут изменять аватарку группы")
+    # 3. Проверяем права (админы группы или право manage_groups)
+    if member.role not in ("owner", "admin") and not has_permission(user, "manage_groups", session):
+        raise HTTPException(403, "Только админы или право manage_groups могут менять аватарку")
     
     # 4. Валидация файла
     if not file.filename:
@@ -6051,6 +6168,33 @@ def mark_all_notifications_read(
         count += 1
     session.commit()
     return {"ok": True, "marked": count}
+
+
+
+@app.patch("/api/posts/{post_id}")
+def edit_post(
+    post_id: int,
+    text: str = Form(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    post = session.get(Post, post_id)
+    if not post:
+        raise HTTPException(404, "Пост не найден")
+    is_author = post.author_id == user.id
+    if not is_author and not has_permission(user, "edit_posts", session):
+        raise HTTPException(403, "Не ваш пост или нет права: edit_posts")
+    if not text.strip():
+        raise HTTPException(400, "Пост не может быть пустым")
+    post.text = text.strip()
+    post.edited = True
+    post.edited_at = datetime.now(timezone.utc)
+    session.add(post)
+    if not is_author:
+        log_action(session, user.id, "edit_post", target_type="post", target_id=post_id,
+                   details={"author_id": post.author_id})
+    session.commit()
+    return {"ok": True, "id": post.id, "text": post.text}
 
 
 @app.get("/api/team")
@@ -6877,6 +7021,15 @@ def require_founder(
         raise HTTPException(403, "Только Founder и System могут писать обновления")
     return user
 
+def require_announcer(
+    authorization: str = Header(default=None),
+    session: Session = Depends(get_session),
+) -> User:
+    """Founder/System ИЛИ право manage_announcements"""
+    user = get_current_user(authorization=authorization, session=session)
+    if get_user_level(user, session) >= 10 or has_permission(user, "manage_announcements", session):
+        return user
+    raise HTTPException(403, "Нужен уровень Founder или право manage_announcements")
 
 @app.get("/api/updates")
 def list_updates(
@@ -6969,7 +7122,7 @@ async def create_update( # 👈 ИЗМЕНИЛИ def на async def
     title: str = Form(...),
     content: str = Form(...),
     importance: str = Form("minor"),
-    user: User = Depends(require_founder),
+    user: User = Depends(require_announcer),
     session: Session = Depends(get_session),
 ):
     if len(title.strip()) < 3:
@@ -7002,7 +7155,7 @@ async def create_update( # 👈 ИЗМЕНИЛИ def на async def
 @app.delete("/api/updates/{update_id}")
 def delete_update(
     update_id: int,
-    user: User = Depends(require_founder),
+    user: User = Depends(require_announcer),   # 🆕 было require_founder
     session: Session = Depends(get_session),
 ):
     update = session.get(Update, update_id)
