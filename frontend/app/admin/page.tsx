@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
 import { Listbox } from '@headlessui/react'
-import { Shield, ShieldCheck, Ban, UserCheck, ImageOff, Crown, Palette, ExternalLink, Trash2, Flag, Search, Filter, Users, X, SmilePlus, } from "lucide-react";
+import { Shield, ShieldCheck, Ban, UserCheck, ImageOff, Crown, Palette, ExternalLink, Trash2, Flag, Search, Filter, Users, X, SmilePlus, AlertTriangle, MessageSquare, } from "lucide-react";
 
 export default function AdminPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -15,6 +15,10 @@ export default function AdminPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterType, setFilterType] = useState<"all" | "team" | "users">("all");
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
+  const [warnTarget, setWarnTarget] = useState<any>(null);
+  const [warnReason, setWarnReason] = useState("");
+  const [warnList, setWarnList] = useState<any[]>([]);
+  const [warnLoading, setWarnLoading] = useState(false);
   const router = useRouter();
 
   function can(permission: string): boolean {
@@ -87,6 +91,56 @@ export default function AdminPage() {
 
     return true;
   });
+
+
+  async function openWarns(u: any) {
+    setWarnTarget(u);
+    setWarnReason("");
+    setWarnLoading(true);
+    const token = getToken();
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${u.id}/warnings`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setWarnList(await res.json());
+      else setWarnList([]);
+    } catch { setWarnList([]); }
+    setWarnLoading(false);
+  }
+
+  async function issueWarn() {
+    if (!warnTarget || warnReason.trim().length < 3) {
+      alert("Причина: минимум 3 символа");
+      return;
+    }
+    const token = getToken();
+    const form = new FormData();
+    form.append("reason", warnReason.trim());
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${warnTarget.id}/warn`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (res.ok) {
+      setWarnReason("");
+      openWarns(warnTarget);
+      load();
+    } else {
+      const d = await res.json().catch(() => null);
+      alert(d?.detail || "Не удалось выдать варн");
+    }
+  }
+
+  async function revokeWarn(warnId: number) {
+    const token = getToken();
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/warnings/${warnId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (warnTarget) openWarns(warnTarget);
+    load();
+  }
+
 
   // ✅ ИСПРАВЛЕНО: используем userId (числовой ID)
   async function deleteAllPosts(userId: number) {
@@ -262,6 +316,16 @@ export default function AdminPage() {
                 >
                   <Flag size={16} />
                   Жалобы
+                </Link>
+              )}
+
+              {(me.is_admin || me.permissions?.includes("manage_groups")) && (
+                <Link
+                  href="/admin/chats"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-cyan-400/50 bg-cyan-500/20 text-cyan-400 text-sm font-bold hover:bg-cyan-500/30 transition-all"
+                >
+                  <MessageSquare size={16} />
+                  Модерация чатов
                 </Link>
               )}
             </div>
@@ -461,6 +525,22 @@ export default function AdminPage() {
                   </div>
 
                   <div className="flex gap-2 flex-wrap items-center">
+
+                    {u.warnings_count > 0 && (
+                      <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-500/15 border border-yellow-500/30 text-yellow-400 text-xs font-bold" title="Активные варны">
+                        <AlertTriangle size={12} /> {u.warnings_count}
+                      </span>
+                    )}
+                    {can("warn_users") && !u.is_admin && (
+                      <button
+                        onClick={() => openWarns(u)}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-yellow-400/30 text-yellow-400 text-xs font-bold hover:bg-yellow-500/10 transition-all"
+                      >
+                        <AlertTriangle size={12} />
+                        Варны
+                      </button>
+                    )}
+
                     {/* 🛡️ Кнопка бана с защитой иерархии */}
                     {can("ban_users") && !u.is_admin && u.id !== me.id && (
                       canSanction ? (
@@ -579,6 +659,72 @@ export default function AdminPage() {
             );
           })}
         </div>
+
+        {/* ⚠️ МОДАЛКА ВАРНОВ */}
+        {warnTarget && (
+          <>
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200]" onClick={() => setWarnTarget(null)} />
+            <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
+              <div className="w-full max-w-md bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto max-h-[80vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-black text-white flex items-center gap-2">
+                    <AlertTriangle className="text-yellow-400" size={18} />
+                    Варны: {warnTarget.display_name}
+                  </h2>
+                  <button onClick={() => setWarnTarget(null)} className="text-white/60 hover:text-white p-1">
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="mb-4 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
+                  <label className="block text-xs font-bold text-white/60 mb-1.5">Выдать предупреждение</label>
+                  <textarea
+                    value={warnReason}
+                    onChange={(e) => setWarnReason(e.target.value)}
+                    placeholder="Причина (спам, оскорбления...)"
+                    rows={2}
+                    className="w-full px-3 py-2 rounded-lg border border-white/15 bg-white/5 text-white text-sm placeholder-white/40 focus:outline-none focus:border-yellow-400 resize-none"
+                  />
+                  <button
+                    onClick={issueWarn}
+                    className="mt-2 w-full py-2 rounded-lg bg-yellow-500 text-black text-sm font-bold hover:bg-yellow-400 transition-all"
+                  >
+                    Выдать варн
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {warnLoading && <p className="text-sm text-white/40 text-center py-3">Загрузка...</p>}
+                  {!warnLoading && warnList.length === 0 && (
+                    <p className="text-sm text-white/40 text-center py-3">Варнов нет</p>
+                  )}
+                  {warnList.map((w: any) => (
+                    <div key={w.id} className={`p-3 rounded-xl border ${w.active ? "border-yellow-500/30 bg-yellow-500/5" : "border-white/10 bg-white/5 opacity-60"}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm text-white/90 flex-1">{w.reason}</p>
+                        {w.active && (
+                          <button
+                            onClick={() => revokeWarn(w.id)}
+                            className="shrink-0 px-2 py-1 rounded-lg border border-green-400/30 text-green-400 text-[10px] font-bold hover:bg-green-500/10"
+                          >
+                            Снять
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-white/40 mt-1.5">
+                        {w.issuer ? `Выдал: ${w.issuer.display_name}` : "Система"} · {new Date(w.created_at).toLocaleDateString("ru-RU")}
+                        {!w.active && " · снят"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+
+
       </main>
     </div>
   );
