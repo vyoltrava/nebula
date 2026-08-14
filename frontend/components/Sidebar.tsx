@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus,
   AtSign, X, Shield, ShieldCheck, MessageSquare, Palette,
-  Bug, Orbit, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft, ChevronRight
+  Bug, Orbit, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft, ChevronRight, History
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
@@ -23,14 +23,14 @@ const OUTER_RADIUS     = 215;
 const SNAP_RADIUS      = 48;
 const LONG_PRESS_MS    = 250;
 
-// Единая дуга: ровный полукруг вокруг направления "влево" (180°).
-// Работает и на мобилке, и на ПК в любом месте кнопки — всегда "от края до края".
-const ARC_SPAN     = Math.PI / 2;          // ±90° → полный полукруг
-const ARC_CENTER   = Math.PI;              // 180° = строго влево
-const ARC_START    = ARC_CENTER - ARC_SPAN; // 90°
-const ARC_END      = ARC_CENTER + ARC_SPAN; // 270°
-const ARC_OFFSET_X = -40;                  // сдвигаем центр дуги к краю кнопки
+const ARC_SPAN     = Math.PI / 2;
+const ARC_CENTER   = Math.PI;
+const ARC_START    = ARC_CENTER - ARC_SPAN;
+const ARC_END      = ARC_CENTER + ARC_SPAN;
+const ARC_OFFSET_X = -40;
 
+const FEED_MEMORY_KEY = "trelod_feed_memory";
+const FEED_TOOLTIP_KEY = "trelod_feed_tooltip";
 
 // ════════════════════════════════════════════════════════════════
 //  Админский dropdown (desktop classic)
@@ -123,7 +123,6 @@ function MobileAdminSheet({ user, onClose }: { user: any; onClose: () => void })
 
   return (
     <>
-      {/* Убрал md:hidden - теперь работает и на десктопе */}
       <div className="fixed inset-0 bg-black/60 z-[240]" onClick={onClose} />
       <div className="fixed bottom-0 left-0 right-0 z-[241] bg-[#1f1f23] border-t border-white/10 rounded-t-2xl p-4 pb-8 shadow-2xl max-w-md mx-auto">
         <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />
@@ -385,7 +384,6 @@ export function Sidebar() {
   const [layout, setLayout] = useState<SidebarLayout>(() => getSidebarLayout());
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
 
-  // 📱 Мобилка ли сейчас (чтобы скрыть "Интерфейс" в орбите)
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
@@ -415,13 +413,11 @@ export function Sidebar() {
   innerItems.push({ href: "/updates", icon: Megaphone, label: "Обновления", count: counts.updates });
   if (user) innerItems.push({ href: `/${user.username}`, icon: Home, label: "Профиль", isProfile: true });
 
-    // 🧰 ВНЕШНИЙ СЛОЙ
     const outerItems: WheelItem[] = [
       { href: "/settings", icon: Settings, label: "Настройки" },
       { href: "/rules", icon: Shield, label: "Правила" },
       { href: "#bug", icon: Bug, label: "Баг-трекер" },
     ];
-    // На мобилке кнопку смены темы/интерфейса скрываем, на десктопе оставляем
     if (!isMobile) {
       outerItems.push({ href: "#layout", icon: Palette, label: "Интерфейс" });
     }
@@ -531,7 +527,6 @@ export function Sidebar() {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
 
-    // Одна и та же ровная дуга-полукруг для мобилки и ПК, в любой позиции кнопки.
     arcParamsRef.current = {
       start: ARC_START,
       end: ARC_END,
@@ -698,13 +693,71 @@ export function Sidebar() {
 
   const isDock = layout === "dock";
   const isMessagesPage = pathname?.startsWith("/messages") ?? false;
-  // На сообщениях поднимаем орбиту выше кнопки "отправить" и её меню (запись/войс/видео)
   const orbitDesktopPos = "bottom-56 right-0 rounded-l-full";
-  // Ряд непрочитанных (сообщения/уведомления) — слева от орбиты, в одну линию
   const orbitRowPos = "bottom-[228px] right-[68px]";
   const iconClass = isDock ? "w-6 h-6 mx-auto shrink-0" : "w-[18px] h-[18px]";
   const textClass = isDock ? "hidden" : "block";
   const containerClass = isDock ? "justify-center px-0 py-3" : "items-center gap-3 px-4 py-3";
+
+  // ════════════════════════════════════════════════════════════════
+  // 🧠 ПАМЯТЬ ЛЕНТЫ (Logic)
+  // ════════════════════════════════════════════════════════════════
+  const [hasFeedMemory, setHasFeedMemory] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const lastTapRef = useRef(0);
+
+  useEffect(() => {
+    const checkMemory = () => {
+      const mem = localStorage.getItem(FEED_MEMORY_KEY);
+      setHasFeedMemory(!!mem);
+    };
+    checkMemory();
+    
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === FEED_MEMORY_KEY) checkMemory();
+    };
+    
+    window.addEventListener("feed-memory-save", checkMemory);
+    window.addEventListener("feed-memory-clear", checkMemory);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("feed-memory-save", checkMemory);
+      window.removeEventListener("feed-memory-clear", checkMemory);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (hasFeedMemory) {
+      const shown = parseInt(localStorage.getItem(FEED_TOOLTIP_KEY) || "0", 10);
+      if (shown < 3) {
+        setShowTooltip(true);
+        const timer = setTimeout(() => {
+          setShowTooltip(false);
+          localStorage.setItem(FEED_TOOLTIP_KEY, String(shown + 1));
+        }, 5000);
+        return () => clearTimeout(timer);
+      }
+    } else {
+      setShowTooltip(false);
+    }
+  }, [hasFeedMemory]);
+
+  const triggerRestore = useCallback(() => {
+    window.dispatchEvent(new CustomEvent("restore-feed-position"));
+  }, []);
+
+  const handleOrbitDoubleClick = useCallback(() => {
+    triggerRestore();
+  }, [triggerRestore]);
+
+  const handleOrbitTouchEnd = useCallback(() => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      triggerRestore();
+    }
+    lastTapRef.current = now;
+  }, [triggerRestore]);
 
   const desktopSidebarContent = (
     <>
@@ -714,6 +767,18 @@ export function Sidebar() {
       </div>
       
       <nav className="flex flex-col flex-1">
+        {/* 🔥 ПАМЯТЬ ЛЕНТЫ (Classic / Dock) */}
+        {hasFeedMemory && (
+          <button 
+            onClick={triggerRestore}
+            className={`flex ${containerClass} font-medium transition-all border-b border-[#8b5cf6]/20 group relative text-[#a78bfa] hover:bg-[#8b5cf6]/15 mb-1`}
+          >
+            <History size={18} className={`${iconClass} text-[#8b5cf6]`} />
+            <span className={textClass}>Продолжить чтение</span>
+            <span className={`${isDock ? "absolute top-2 right-2" : "ml-auto"} w-2 h-2 rounded-full bg-[#8b5cf6] animate-pulse shadow-[0_0_8px_#8b5cf6]`}></span>
+          </button>
+        )}
+
         {nav.map(({ href, icon: Icon, label }) => {
           const active = pathname === href;
           const showUpdatesBadge = href === "/updates" && (counts.updates || 0) > 0;
@@ -970,10 +1035,27 @@ export function Sidebar() {
     <>
       {/* ═══════ МОБИЛКА ИЛИ DESKTOP ORBIT ═══════ */}
       <div className={layout === "orbit" ? "block" : "md:hidden"}>
+        {/* 🔥 КРУГИ НА ВОДЕ (Память ленты) */}
+        {hasFeedMemory && (
+          <div 
+            className={`fixed z-[97] w-14 h-14 pointer-events-none flex items-center justify-center
+              ${layout === "orbit" 
+                ? orbitDesktopPos 
+                : "right-0 top-[calc(50%+8px)] -translate-y-1/2 rounded-l-full"
+              }
+            `}
+          >
+            <span className="absolute w-full h-full rounded-full border-2 border-[#8b5cf6]/80 feed-ripple"></span>
+            <span className="absolute w-full h-full rounded-full border-2 border-[#8b5cf6]/50 feed-ripple-delay"></span>
+          </div>
+        )}
+
         <button
           ref={buttonRef}
           onTouchStart={handleStart}
           onMouseDown={handleStart}
+          onDoubleClick={handleOrbitDoubleClick}
+          onTouchEnd={handleOrbitTouchEnd}
           className={`fixed z-[98] w-14 h-14 
             bg-[#171717]/90 backdrop-blur-sm border 
             flex items-center justify-center shadow-lg shadow-black/50
@@ -993,6 +1075,28 @@ export function Sidebar() {
         </button>
         {renderWheel()}
       </div>
+
+      {/* 🔥 ТУЛТИП ПАМЯТИ ЛЕНТЫ */}
+      {showTooltip && hasFeedMemory && (
+        <div 
+          className={`fixed z-[99] bg-[#8b5cf6] text-white text-xs font-bold px-3 py-2 rounded-lg shadow-xl whitespace-nowrap animate-bounce
+            ${layout === "orbit" 
+              ? (isMobile ? "right-20 top-[calc(50%+8px)] -translate-y-1/2" : "bottom-64 right-20") 
+              : (isDock ? "left-24 top-20" : "left-72 top-20")
+            }
+          `}
+        >
+          {layout === "orbit" ? "Двойной тап по орбите" : "Нажми, чтобы"} продолжить чтение
+          <div 
+            className={`absolute w-2 h-2 bg-[#8b5cf6] rotate-45
+              ${layout === "orbit" 
+                ? (isMobile ? "right-[-4px] top-1/2 -translate-y-1/2" : "bottom-[-4px] right-10") 
+                : "left-[-4px] top-4"
+              }
+            `}
+          ></div>
+        </div>
+      )}
 
       {/* ═══════ DESKTOP ORBIT: непрочитанное слева от орбиты ═══════ */}
       {layout === "orbit" && !isMobile && (counts.chats > 0 || counts.notifications > 0) && (

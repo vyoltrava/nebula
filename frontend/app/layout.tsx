@@ -53,6 +53,21 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru" className={`${jersey.variable} ${inter.variable}`} suppressHydrationWarning>
+      <head>
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes feed-ripple-anim {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(1.6); opacity: 0; }
+          }
+          .feed-ripple {
+            animation: feed-ripple-anim 2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+          }
+          .feed-ripple-delay {
+            animation: feed-ripple-anim 2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+            animation-delay: 1s;
+          }
+        `}} />
+      </head>
       <body className="font-sans">
       <ThemeProvider>
         <AnimatedBackground />
