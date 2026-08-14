@@ -17,7 +17,7 @@ import re
 import json
 import cloudinary
 import cloudinary.uploader
-from link_preview import router as lp_router; app.include_router(lp_router)
+from link_preview import router as lp_router
 from websocket_manager import manager
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -182,7 +182,7 @@ async def get_current_user_optional(authorization: str = Header(None), session: 
 # ============================================================
 
 app = FastAPI(title="Nebula API")
-app.include_router(link_preview_router)
+app.include_router(lp_router)
 
 @app.on_event("startup")
 def print_routes():
@@ -2908,6 +2908,12 @@ def admin_toggle_moderator(
     if target.id == admin.id:
         raise HTTPException(400, "Нельзя менять свой статус")
     check_sanction_rights(admin, target, session, "менять статус этого пользователя")
+    target.is_moderator = not target.is_moderator
+    session.add(target)
+    session.commit()
+    log_action(session, admin.id, "toggle_moderator", target_type="user", target_id=target.id,
+            details={"is_moderator": target.is_moderator})
+    return {"is_moderator": target.is_moderator}
 
 
 @app.delete("/api/admin/posts/{post_id}")
@@ -3908,10 +3914,11 @@ async def remove_group_member(
         select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user_id)
     ).first()
 
-    # Выход из группы (user_id == actor.id)
     if user_id == actor.id:
+        # === ВЫХОД ИЗ ГРУППЫ ===
         if not actor_member:
             raise HTTPException(404, "Не участник")
+        
         if actor_member.role == "owner":
             # Передача владения старшему админу или удаление группы
             others = session.exec(
@@ -3921,7 +3928,6 @@ async def remove_group_member(
                 )
             ).all()
             if not others:
-                # Удаляем всю группу
                 cascade_delete_chat(chat_id, session)
                 return {"ok": True, "deleted": True}
             new_owner = next((m for m in others if m.role == "admin"), others[0])
@@ -3929,20 +3935,23 @@ async def remove_group_member(
             chat.owner_id = new_owner.user_id
             session.add(chat)
             session.add(new_owner)
+        
+        # Удаляем membership выходящего участника (и owner после передачи, и обычного)
+        session.delete(actor_member)
+        session.commit()
+        
     else:
-        # Кик другого
-        can_manage = has_permission(actor, "manage_groups", session)   # 🆕
+        # === КИК ДРУГОГО УЧАСТНИКА ===
+        can_manage = has_permission(actor, "manage_groups", session)
         if not can_manage and (not actor_member or actor_member.role not in ("owner", "admin")):
             raise HTTPException(403, "Только админы или право manage_groups могут кикать")
         if not target_member:
             raise HTTPException(404, "Участник не найден")
-        # Нельзя кикать owner
         if target_member.role == "owner":
             raise HTTPException(403, "Нельзя кикнуть создателя")
-
-    session.delete(target_member)
-    session.add(Notification(user_id=user_id, actor_id=actor.id, type="group_kicked"))
-    session.commit()
+        session.delete(target_member)
+        session.add(Notification(user_id=user_id, actor_id=actor.id, type="group_kicked"))
+        session.commit()
 
     # Рассылаем оставшимся
     all_member_ids = session.exec(
@@ -4638,7 +4647,7 @@ def get_themes(
     if not themes_enabled:
         return []
 
-    user_level = user.level if user else 0
+    user_level = get_user_level(user, session) if user else 0
     is_admin = user.is_admin if user else False
 
     # Берём активные темы, доступные пользователю по уровню
