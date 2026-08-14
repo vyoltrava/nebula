@@ -14,12 +14,15 @@ import { getCachedUser, setCachedUser, clearCachedUser } from "@/lib/authCache";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 
 // ════════════════════════════════════════════════════════════════
-const ARC_RADIUS       = 220;
-const CENTER_OFFSET_X  = 60;   // уменьшил — центр ближе к кнопке
+// 🆕 ДВОЙНОЙ ПОЛУКРУГ: внутренний + внешний слой (БЕЗ SVG)
+// ════════════════════════════════════════════════════════════════
+const INNER_RADIUS     = 120;  // ближний слой к кнопке
+const OUTER_RADIUS     = 205;  // дальний слой
+const CENTER_OFFSET_X  = 40;
 const CENTER_OFFSET_Y  = 0;
 const ARC_ANGLE_START  = (11 * Math.PI) / 18;  // 110°
 const ARC_ANGLE_END    = (25 * Math.PI) / 18;  // 250°
-const SNAP_RADIUS      = 70;
+const SNAP_RADIUS      = 55;   // меньше = меньше промахов на соседнюю кнопку
 const LONG_PRESS_MS    = 250;
 
 export function Sidebar() {
@@ -46,28 +49,39 @@ export function Sidebar() {
 
   type WheelItem = { href: string; icon: any; label: string; isProfile?: boolean };
 
-  const wheelItems: WheelItem[] = [
+  const allWheelItems: WheelItem[] = [
     { href: "/",          icon: Home,        label: "Главная" },
     { href: "/bookmarks", icon: Bookmark,    label: "Закладки" },
     { href: "/updates",   icon: Megaphone,   label: "Обновления" },
     { href: "/rules",     icon: Shield,      label: "Правила" },
     { href: "/settings",  icon: Settings,    label: "Настройки" },
   ];
-  if (user) wheelItems.push({ href: "/messages", icon: MessageSquare, label: "Сообщения" });
+  if (user) allWheelItems.push({ href: "/messages", icon: MessageSquare, label: "Сообщения" });
   if (user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) {
-    wheelItems.push({
+    allWheelItems.push({
       href: "/admin",
       icon: user?.is_admin ? ShieldAlert : user?.is_moderator ? ShieldCheck : Shield,
       label: user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель",
     });
   }
-  wheelItems.push({ href: "/notifications", icon: Bell, label: "Уведомления" });
+  allWheelItems.push({ href: "/notifications", icon: Bell, label: "Уведомления" });
   if (user) {
-    wheelItems.push({ href: `/${user.username}`, icon: Home, label: "Профиль", isProfile: true });
-    wheelItems.push({ href: "#logout", icon: LogOut, label: "Выйти" });
+    allWheelItems.push({ href: `/${user.username}`, icon: Home, label: "Профиль", isProfile: true });
+    allWheelItems.push({ href: "#logout", icon: LogOut, label: "Выйти" });
   } else {
-    wheelItems.push({ href: "/login", icon: Home, label: "Войти" });
+    allWheelItems.push({ href: "/login", icon: Home, label: "Войти" });
   }
+
+  // 🆕 Разделяем на два слоя: первая половина — внутренний, вторая — внешний
+  const splitIdx = Math.ceil(allWheelItems.length / 2);
+  const innerItems = allWheelItems.slice(0, splitIdx);
+  const outerItems = allWheelItems.slice(splitIdx);
+  const wheelItems = allWheelItems;
+
+  // 🆕 Маппинг глобального индекса → слой
+  const itemLayerMap = new Map<number, { layer: "inner" | "outer"; localIdx: number }>();
+  innerItems.forEach((_, i) => itemLayerMap.set(i, { layer: "inner", localIdx: i }));
+  outerItems.forEach((_, i) => itemLayerMap.set(i + innerItems.length, { layer: "outer", localIdx: i }));
 
   const nav = [
     { href: "/",          icon: Home,      label: "Главная" },
@@ -138,15 +152,24 @@ export function Sidebar() {
   }
 
   // ══════════════════════════════════════════════════════════════
-  const getIconPos = useCallback((index: number) => {
-    const n = wheelItems.length;
-    const step = (ARC_ANGLE_END - ARC_ANGLE_START) / Math.max(n - 1, 1);
-    const angle = ARC_ANGLE_START + index * step;
+  // 🆕 getIconPos — учитывает слой (внутренний/внешний радиус)
+  // ══════════════════════════════════════════════════════════════
+  const getIconPos = useCallback((globalIdx: number) => {
+    const info = itemLayerMap.get(globalIdx);
+    if (!info) return { x: arcCenterRef.current.x, y: arcCenterRef.current.y };
+
+    const radius = info.layer === "inner" ? INNER_RADIUS : OUTER_RADIUS;
+    const items  = info.layer === "inner" ? innerItems : outerItems;
+    const n = items.length;
+
+    const step  = (ARC_ANGLE_END - ARC_ANGLE_START) / Math.max(n - 1, 1);
+    const angle = ARC_ANGLE_START + info.localIdx * step;
+
     return {
-      x: arcCenterRef.current.x + ARC_RADIUS * Math.cos(angle),
-      y: arcCenterRef.current.y + ARC_RADIUS * Math.sin(angle),
+      x: arcCenterRef.current.x + radius * Math.cos(angle),
+      y: arcCenterRef.current.y + radius * Math.sin(angle),
     };
-  }, [wheelItems.length]);
+  }, [innerItems.length, outerItems.length]);
 
   const openWheel = useCallback(() => {
     if (!buttonRef.current) return;
@@ -415,7 +438,7 @@ export function Sidebar() {
   );
 
   // ══════════════════════════════════════════════════════════════
-  //  Рендер колеса
+  //  Рендер колеса (БЕЗ SVG — только div)
   // ══════════════════════════════════════════════════════════════
   const buttonCx = useRef(0);
   const buttonCy = useRef(0);
@@ -437,22 +460,11 @@ export function Sidebar() {
         className="fixed inset-0 z-[100] pointer-events-none"
         style={{ touchAction: "none" }}
       >
-        {/* Тонкая линия от пальца к активной иконке */}
-        {fingerPos && activePos && hoveredIdx !== null && (
-          <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 15 }}>
-            <line
-              x1={fingerPos.x} y1={fingerPos.y}
-              x2={activePos.x} y2={activePos.y}
-              stroke="#8b5cf6" strokeWidth="1.5" strokeDasharray="3 4"
-              opacity="0.35"
-            />
-          </svg>
-        )}
-
         {/* Иконки */}
         {wheelItems.map((item, i) => {
           const finalPos = getIconPos(i);
           const isActive = i === hoveredIdx;
+          const isOuter  = itemLayerMap.get(i)?.layer === "outer";
           const x = (wheelReady && !closing) ? finalPos.x : buttonCx.current;
           const y = (wheelReady && !closing) ? finalPos.y : buttonCy.current;
 
@@ -471,33 +483,42 @@ export function Sidebar() {
                   transform 200ms ease,
                   opacity 200ms ease
                 `,
-                transitionDelay: `${i * 30}ms`,
+                transitionDelay: `${i * 25}ms`,
                 zIndex: isActive ? 20 : 10,
               }}
             >
-              <div className={`
-                flex items-center justify-center rounded-full overflow-hidden
-                transition-all duration-150
-                ${isActive
-                  ? "w-14 h-14 bg-[#8b5cf6] shadow-[0_0_28px_rgba(139,92,246,0.55)]"
-                  : "w-12 h-12 bg-[#1a1a1f]/95 border border-white/10 shadow-lg shadow-black/40"
-                }
-              `}>
-                {item.isProfile && user ? (
-                  <Avatar src={user.avatar_url} name={user.display_name} id={user.id} size={isActive ? 30 : 24} />
-                ) : (
-                  <item.icon size={isActive ? 26 : 20} className={isActive ? "text-white" : "text-white/70"} />
+              <div className="flex flex-col items-center gap-1">
+                <div className={`
+                  flex items-center justify-center rounded-full overflow-hidden
+                  transition-all duration-150
+                  ${isActive
+                    ? "w-14 h-14 bg-[#8b5cf6] shadow-[0_0_28px_rgba(139,92,246,0.55)]"
+                    : isOuter
+                      ? "w-11 h-11 bg-[#1a1a1f]/95 border border-white/15 shadow-lg shadow-black/40"
+                      : "w-12 h-12 bg-[#22222a]/95 border border-white/20 shadow-lg shadow-black/40"
+                  }
+                `}>
+                  {item.isProfile && user ? (
+                    <Avatar src={user.avatar_url} name={user.display_name} id={user.id} size={isActive ? 30 : isOuter ? 22 : 26} />
+                  ) : (
+                    <item.icon size={isActive ? 26 : isOuter ? 19 : 21} className={isActive ? "text-white" : "text-white/70"} />
+                  )}
+                </div>
+                {isActive && (
+                  <span className="text-[10px] font-bold text-white bg-[#8b5cf6] px-2 py-0.5 rounded-full whitespace-nowrap shadow-lg">
+                    {item.label}
+                  </span>
                 )}
               </div>
             </div>
           );
         })}
 
-        {/* Пульсация на активной */}
+        {/* Пульсация на активной (div, без SVG) */}
         {hoveredIdx !== null && activePos && (
           <div
             className="absolute w-16 h-16 rounded-full"
-            style={{ left: activePos.x, top: activePos.y, transform: "translate(-50%, -50%)", zIndex: 19 }}
+            style={{ left: activePos.x, top: activePos.y, transform: "translate(-50%, -50%)", zIndex: 9 }}
           >
             <div className="w-full h-full rounded-full border-2 border-[#8b5cf6]/30 animate-ping" />
           </div>
@@ -515,8 +536,8 @@ export function Sidebar() {
           ref={buttonRef}
           onTouchStart={handleStart}
           onMouseDown={handleStart}
-          className={`fixed right-3 z-[98] w-14 h-14 -translate-y-1/2
-            bg-[#171717]/90 backdrop-blur-sm border rounded-full
+          className={`fixed right-0 z-[98] w-14 h-14 -translate-y-1/2
+            bg-[#171717]/90 backdrop-blur-sm border rounded-l-full
             flex items-center justify-center shadow-lg shadow-black/50
             transition-all duration-200
             ${wheelOpen
