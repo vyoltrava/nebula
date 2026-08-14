@@ -23,13 +23,13 @@ const OUTER_RADIUS     = 215;
 const SNAP_RADIUS      = 48;
 const LONG_PRESS_MS    = 250;
 
-// Углы для мобилки (кнопка СПРАВА, дуга ВЛЕВО)
-const MOBILE_ARC_START = (11 * Math.PI) / 18;  // 110° (верх-лево)
-const MOBILE_ARC_END   = (25 * Math.PI) / 18;  // 250° (низ-лево)
-
-// Углы для десктопа ORBIT (кнопка справа внизу, дуга влево-вверх)
-const DESKTOP_ORBIT_ARC_START = Math.PI;       // 180°
-const DESKTOP_ORBIT_ARC_END   = 1.5 * Math.PI; // 270°
+// Единая дуга: ровный полукруг вокруг направления "влево" (180°).
+// Работает и на мобилке, и на ПК в любом месте кнопки — всегда "от края до края".
+const ARC_SPAN     = Math.PI / 2;          // ±90° → полный полукруг
+const ARC_CENTER   = Math.PI;              // 180° = строго влево
+const ARC_START    = ARC_CENTER - ARC_SPAN; // 90°
+const ARC_END      = ARC_CENTER + ARC_SPAN; // 270°
+const ARC_OFFSET_X = -40;                  // сдвигаем центр дуги к краю кнопки
 
 
 // ════════════════════════════════════════════════════════════════
@@ -530,33 +530,18 @@ export function Sidebar() {
   const openWheel = useCallback(() => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
-    const isDesktop = window.matchMedia("(min-width: 768px)").matches;
-    
-    if (isDesktop && layout === "orbit") {
-      // Десктоп Orbit: кнопка справа внизу, дуга влево-вверх
-      arcParamsRef.current = {
-        start: DESKTOP_ORBIT_ARC_START,
-        end: DESKTOP_ORBIT_ARC_END,
-        offsetX: 0,
-        offsetY: 0
-      };
-      arcCenterRef.current = {
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2,
-      };
-    } else {
-      // Мобилка: кнопка справа, дуга идет ВЛЕВО
-      arcParamsRef.current = {
-        start: MOBILE_ARC_START,
-        end: MOBILE_ARC_END,
-        offsetX: 40,   // ✅ Сдвигаем ЦЕНТР дуги вправо
-        offsetY: 0
-      };
-      arcCenterRef.current = {
-        x: rect.left + rect.width / 2 + 40,   // ✅ Из-за этого сама дуга рисуется ЛЕВЕЕ кнопки
-        y: rect.top + rect.height / 2,
-      };
-    }
+
+    // Одна и та же ровная дуга-полукруг для мобилки и ПК, в любой позиции кнопки.
+    arcParamsRef.current = {
+      start: ARC_START,
+      end: ARC_END,
+      offsetX: ARC_OFFSET_X,
+      offsetY: 0,
+    };
+    arcCenterRef.current = {
+      x: rect.left + rect.width / 2 + ARC_OFFSET_X,
+      y: rect.top + rect.height / 2,
+    };
 
     isLongPressed.current = true;
     setWheelOpen(true);
@@ -564,7 +549,7 @@ export function Sidebar() {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => { setWheelReady(true); });
     });
-  }, [layout]);
+  }, []);
 
   const closeWheel = useCallback((doAction: boolean) => {
     if (doAction && hoveredIdx !== null) {
