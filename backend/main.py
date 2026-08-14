@@ -182,7 +182,7 @@ async def get_current_user_optional(authorization: str = Header(None), session: 
 # ============================================================
 
 app = FastAPI(title="Nebula API")
-app.include_router(lp_router)
+app.include_router(lp_router, prefix="/api")
 
 @app.on_event("startup")
 def print_routes():
