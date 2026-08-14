@@ -114,6 +114,7 @@ class Message(SQLModel, table=True):
     pinned_by: Optional[int] = Field(default=None, foreign_key="user.id")  # ← ДОЛЖНО БЫТЬ
     forwarded_from_id: Optional[int] = Field(default=None, foreign_key="message.id")
     forwarded_sender_name: Optional[str] = None
+    reply_to_id: Optional[int] = Field(default=None, foreign_key="message.id") 
 
 class Role(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

@@ -58,6 +58,7 @@ export default function ChatPage() {
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
+  const [replyTo, setReplyTo] = useState<any | null>(null); // 🆕 сообщение на которое отвечаем
   const [showStickers, setShowStickers] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
@@ -282,6 +283,7 @@ export default function ChatPage() {
         const form = new FormData();
         form.append("file", encryptedBlob, audioFile.name);
         form.append("media_type", "audio");
+        if (replyTo) form.append("reply_to_id", String(replyTo.id)); // 🆕
 
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
@@ -297,6 +299,7 @@ export default function ChatPage() {
       } else {
         const form = new FormData();
         form.append("file", audioFile);
+        if (replyTo) form.append("reply_to_id", String(replyTo.id)); // 🆕
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
@@ -693,6 +696,7 @@ for (const msg of messagesToSend) {
     const form = new FormData();
     form.append("file", encryptedBlob, msg.file.name);
     form.append("media_type", mediaType);
+    if (replyTo) form.append("reply_to_id", String(replyTo.id)); // 🆕
 
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
@@ -743,6 +747,7 @@ for (const msg of messagesToSend) {
           const form = new FormData();
           form.append("ciphertext", encryptMessage(msg.text, sk));
           form.append("text", "");
+          if (replyTo) form.append("reply_to_id", String(replyTo.id)); 
 
           if (msg.file) {
             const { encryptMediaFile } = await import("@/lib/mediaCrypto");
@@ -774,6 +779,7 @@ for (const msg of messagesToSend) {
           const form = new FormData();
           if (msg.text) form.append("text", msg.text);
           if (msg.file) form.append("file", msg.file);
+          if (replyTo) form.append("reply_to_id", String(replyTo.id)); // 🆕
 
           const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
             method: "POST",
@@ -791,6 +797,7 @@ for (const msg of messagesToSend) {
 
       setText("");
       setFiles([]);
+      setReplyTo(null); // 🆕 сбрасываем ответ
 
       if (!isSecret && tempText) {
         setMessages((prev) => prev.filter((m) => m.id !== tempId));
@@ -857,6 +864,16 @@ for (const msg of messagesToSend) {
     setActiveMessageMenu(null);
   }
 
+  function startReply(msg: any) {
+    setReplyTo(msg);
+    setActiveMessageMenu(null);
+  }
+
+  function cancelReply() {
+    setReplyTo(null);
+  }
+
+
   function cancelEdit() {
     setEditingMessageId(null);
     setEditText("");
@@ -896,6 +913,7 @@ for (const msg of messagesToSend) {
     const form = new FormData();
     form.append("file", encryptedBlob);
     form.append("media_type", mediaType);
+    if (replyTo) form.append("reply_to_id", String(replyTo.id)); // 🆕
 
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
@@ -1715,6 +1733,35 @@ const ChatHeader = () => (
   </p>
 )}
 
+{/* 🆕 ЦИТАТА (ответ на сообщение) */}
+{msg.reply_preview && (
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      const el = document.getElementById(`msg-${msg.reply_preview.id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-[#8b5cf6]', 'rounded-lg');
+        setTimeout(() => {
+          el.classList.remove('ring-2', 'ring-[#8b5cf6]', 'rounded-lg');
+        }, 2000);
+      }
+    }}
+    className={`w-full text-left mb-2 p-2 rounded-lg border-l-2 transition-colors cursor-pointer ${
+      isMine
+        ? "bg-white/15 border-white/60 hover:bg-white/20"
+        : "bg-white/5 border-[#8b5cf6] hover:bg-white/10"
+    }`}
+  >
+    <p className={`text-[11px] font-bold mb-0.5 ${isMine ? "text-white/90" : "text-[#8b5cf6]"}`}>
+      {msg.reply_preview.sender_name}
+    </p>
+    <p className={`text-[11px] truncate ${isMine ? "text-white/70" : "text-white/50"}`}>
+      {msg.reply_preview.text || "📎 Вложение"}
+    </p>
+  </button>
+)}
+
   {isEditing ? (
                             <div className="flex gap-2 items-start">
                               <textarea
@@ -1818,6 +1865,14 @@ const ChatHeader = () => (
     <Copy size={14} /> Копировать
   </button>
 )} 
+
+{/* 🆕 Кнопка Ответить */}
+<button
+  onClick={() => startReply(msg)}
+  className="w-full px-3 sm:px-3 py-2.5 sm:py-2 text-left text-sm sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
+>
+  <Send size={14} className="rotate-180" /> Ответить
+</button>
 
 {!isSecret && (
   <button
@@ -1987,6 +2042,25 @@ const ChatHeader = () => (
         </button>
       </div>
     ) : (
+      <div className="flex flex-col gap-0">
+        {/* 🆕 Панель ответа (цитирование) */}
+        {replyTo && (
+          <div className="flex items-center gap-2.5 px-3 py-2 mb-1.5 bg-[#8b5cf6]/10 border border-[#8b5cf6]/30 rounded-xl">
+            <Send size={14} className="rotate-180 text-[#8b5cf6] shrink-0" />
+            <div className="flex-1 min-w-0 border-l-2 border-[#8b5cf6] pl-2.5">
+              <p className="text-[11px] font-bold text-[#8b5cf6]">{replyTo.sender_name}</p>
+              <p className="text-[11px] text-white/50 truncate">
+                {decryptDisplayText(replyTo) || (replyTo.media_type === 'audio' ? '🎙️ Голосовое' : replyTo.media_type === 'video' ? '🎬 Видео' : replyTo.media_type === 'image' ? '📷 Фото' : '📎 Вложение')}
+              </p>
+            </div>
+            <button
+              onClick={cancelReply}
+              className="p-1 text-white/40 hover:text-white rounded-full hover:bg-white/10 transition-colors shrink-0"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
       <div className="flex items-end gap-2 sm:gap-2">
         <input
           ref={fileRef}
@@ -2134,6 +2208,7 @@ const ChatHeader = () => (
             </div>
           )}
         </div>
+      </div>
       </div>
     )}
   </div>
@@ -2479,6 +2554,7 @@ const ChatHeader = () => (
           const form = new FormData();
           form.append("file", encryptedBlob, file.name);
           form.append("media_type", "video_note");
+          if (replyTo) form.append("reply_to_id", String(replyTo.id)); // 🆕
 
           const res = await fetch(
             `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
@@ -2496,6 +2572,7 @@ const ChatHeader = () => (
           const form = new FormData();
           form.append("file", file);
           form.append("media_type", "video_note");
+          if (replyTo) form.append("reply_to_id", String(replyTo.id)); // 🆕
 
           const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
             method: "POST",

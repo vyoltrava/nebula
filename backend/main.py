@@ -3532,11 +3532,17 @@ def startup():
     with engine.connect() as conn:
         try:
 
+            
+
             conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS pinned_by INTEGER REFERENCES \"user\"(id);"))
             conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMPTZ;"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chat_pinned ON chat(pinned_at DESC);"))
 
             conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS forwarded_from_id INTEGER REFERENCES message(id) ON DELETE SET NULL;"))
+            # ===== 🆕 REPLY (ОТВЕТ НА СООБЩЕНИЕ) =====
+            conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS reply_to_id INTEGER REFERENCES message(id) ON DELETE SET NULL;"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_message_reply ON message(reply_to_id);"))
+
             conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS forwarded_sender_name VARCHAR;"))
             conn.execute(text('''CREATE TABLE IF NOT EXISTS pushsubscription (
                 id SERIAL PRIMARY KEY,
@@ -4053,10 +4059,10 @@ async def create_secret_chat(
 @app.post("/api/chats/{chat_id}/messages/encrypted-media")
 @limiter.limit("10/minute")
 async def upload_encrypted_media(
-    request: Request,
     chat_id: int,
     file: UploadFile = File(...),
-    media_type: str = Form(...),  # "video_note", "audio", "image"
+    media_type: str = Form(...),
+    reply_to_id: int | None = Form(None),  # 🆕
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
@@ -4097,14 +4103,20 @@ async def upload_encrypted_media(
 
     media_url = filename  # Относительный путь
 
-    # Создаём сообщение с шифрованным медиа
-    msg = Message(
-        chat_id=chat_id,
+    # 🆕 Проверяем что сообщение для ответа существует и в том же чате
+    valid_reply_to = None
+    if reply_to_id:
+        reply_msg = session.get(Message, reply_to_id)
+        if reply_msg and reply_msg.chat_id == chat_id:
+            valid_reply_to = reply_to_id
+
+    msg = Message(chat_id=chat_id,
         sender_id=user.id,
         text=None,
         ciphertext="[encrypted_media]",
         media_url=media_url,
         media_type=media_type,
+        reply_to_id=valid_reply_to,  # 🆕
     )
     session.add(msg)
 
@@ -4139,6 +4151,8 @@ async def upload_encrypted_media(
             "media_type": media_type,
             "is_encrypted_media": True,
             "created_at": msg.created_at.isoformat(),
+            "reply_to_id": msg.reply_to_id,
+            "reply_preview": get_reply_preview(session, msg.reply_to_id) if msg.reply_to_id else None,
         },
         session,
     )
@@ -4195,6 +4209,33 @@ async def download_encrypted_media(
     return FileResponse(filepath, media_type="application/octet-stream")
 
 
+def get_reply_preview(session: Session, reply_to_id: int) -> dict | None:
+    """Возвращает краткое превью сообщения, на которое отвечают"""
+    if not reply_to_id:
+        return None
+    original = session.get(Message, reply_to_id)
+    if not original:
+        return None
+    sender = session.get(User, original.sender_id)
+    # Обрезаем текст для превью
+    preview_text = original.text or ""
+    if original.media_type and not original.text:
+        media_labels = {
+            "image": "📷 Фото",
+            "video": "🎬 Видео",
+            "audio": "🎙️ Голосовое",
+            "video_note": "📹 Видеокружок",
+            "gif": "🎞️ GIF",
+        }
+        preview_text = media_labels.get(original.media_type, "📎 Вложение")
+    return {
+        "id": original.id,
+        "sender_name": sender.display_name if sender else "Unknown",
+        "sender_id": original.sender_id,
+        "text": preview_text[:120],
+        "media_type": original.media_type,
+    }
+
 
 
 @app.post("/api/chats/{chat_id}/messages")
@@ -4204,6 +4245,7 @@ async def send_message_v2(
     chat_id: int,
     text: str = Form(""),
     ciphertext: str = Form(""),
+    reply_to_id: int | None = Form(None),  
     file: Optional[UploadFile] = File(None),
     media_type: Optional[str] = Form(None),
     is_encrypted_media: Optional[str] = Form(None),  # 🆕
@@ -4294,14 +4336,22 @@ async def send_message_v2(
         if not text.strip() and not media_url:
             raise HTTPException(400, "Пустое сообщение")
 
-    msg = Message(
-        chat_id=chat_id,
-        sender_id=user.id,
-        text=text.strip() if text else None,
-        ciphertext=ciphertext.strip() if ciphertext else None,
-        media_url=media_url,
-        media_type=media_type_final,
-    )
+        # 🆕 Проверяем что сообщение для ответа существует и в том же чате
+        valid_reply_to = None
+        if reply_to_id:
+            reply_msg = session.get(Message, reply_to_id)
+            if reply_msg and reply_msg.chat_id == chat_id:
+                valid_reply_to = reply_to_id
+
+        msg = Message(
+            chat_id=chat_id,
+            sender_id=user.id,
+            text=text.strip() if text else None,
+            ciphertext=ciphertext.strip() if ciphertext else None,
+            media_url=media_url,
+            media_type=media_type_final,
+            reply_to_id=valid_reply_to,  # 🆕
+        )
     session.add(msg)
 
     other_members = session.exec(
@@ -4425,6 +4475,8 @@ def get_messages_v2(
             "pinned_by": msg.pinned_by,
             "forwarded_from_id": msg.forwarded_from_id,
             "forwarded_sender_name": msg.forwarded_sender_name,
+            "reply_to_id": msg.reply_to_id,
+            "reply_preview": get_reply_preview(session, msg.reply_to_id) if msg.reply_to_id else None,
         })
     return result
 
