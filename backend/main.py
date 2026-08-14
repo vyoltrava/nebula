@@ -4059,6 +4059,7 @@ async def create_secret_chat(
 @app.post("/api/chats/{chat_id}/messages/encrypted-media")
 @limiter.limit("10/minute")
 async def upload_encrypted_media(
+    request: Request, 
     chat_id: int,
     file: UploadFile = File(...),
     media_type: str = Form(...),
