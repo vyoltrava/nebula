@@ -4612,51 +4612,6 @@ async def forward_message(
 
 
 
-@app.post("/api/chats/{chat_id}/pin")
-def pin_chat(chat_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    member = session.exec(select(ChatMember).where(
-        ChatMember.chat_id == chat_id, ChatMember.user_id == user.id
-    )).first()
-    if not member:
-        raise HTTPException(403, "Не участник чата")
-    
-    # Лимит 5 закреплённых чатов
-    pinned_count = session.exec(
-        select(func.count()).select_from(Chat).where(
-            Chat.pinned_by == user.id, Chat.pinned_at != None
-        )
-    ).one()
-    
-    chat = session.get(Chat, chat_id)
-    if not chat:
-        raise HTTPException(404, "Чат не найден")
-    
-    if chat.pinned_by == user.id:
-        raise HTTPException(400, "Чат уже закреплён")
-    
-    if pinned_count >= 5:
-        raise HTTPException(400, "Максимум 5 закреплённых чатов")
-    
-    chat.pinned_by = user.id
-    chat.pinned_at = utcnow()
-    session.add(chat)
-    session.commit()
-    return {"ok": True}
-
-@app.delete("/api/chats/{chat_id}/pin")
-def unpin_chat(chat_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    chat = session.get(Chat, chat_id)
-    if not chat:
-        raise HTTPException(404, "Чат не найден")
-    if chat.pinned_by != user.id:
-        raise HTTPException(403, "Этот чат закреплён не вами")
-    
-    chat.pinned_by = None
-    chat.pinned_at = None
-    session.add(chat)
-    session.commit()
-    return {"ok": True}
-
 class PushSubscribeIn(BaseModel):
     endpoint: str
     p256dh: str

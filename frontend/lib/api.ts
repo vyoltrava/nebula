@@ -1,5 +1,6 @@
 export const API_URL = 'https://nebula-qqm2.onrender.com';
 import { perfFetch } from "./perf";
+import { getToken } from '@/lib/auth';
 
 export async function apiFetch(url: string, options?: RequestInit) {
   return perfFetch(url, options);
@@ -57,12 +58,11 @@ export async function getPinnedMessages(chatId: number): Promise<any[]> {
 // ============================================================
 
 export async function pinChat(chatId: number): Promise<void> {
-  const token = localStorage.getItem('token');
+  const token = getToken();
+  if (!token) throw new Error("Не авторизован");
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/pin`, {
     method: 'POST',
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: 'Unknown error' }));
@@ -71,12 +71,11 @@ export async function pinChat(chatId: number): Promise<void> {
 }
 
 export async function unpinChat(chatId: number): Promise<void> {
-  const token = localStorage.getItem('token');
+  const token = getToken();
+  if (!token) throw new Error("Не авторизован");
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/pin`, {
     method: 'DELETE',
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({ detail: 'Unknown error' }));
