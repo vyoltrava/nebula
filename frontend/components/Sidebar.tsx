@@ -16,15 +16,191 @@ import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 // ════════════════════════════════════════════════════════════════
 // 🎯 ДВОЙНОЙ ПОЛУКРУГ: внутренний = частое, внешний = редкое
 // ════════════════════════════════════════════════════════════════
-const INNER_RADIUS     = 135;  // ближний слой
-const OUTER_RADIUS     = 215;  // дальний слой
+const INNER_RADIUS     = 135;
+const OUTER_RADIUS     = 215;
 const CENTER_OFFSET_X  = 40;
 const CENTER_OFFSET_Y  = 0;
-const ARC_ANGLE_START  = (11 * Math.PI) / 18;  // 110°
-const ARC_ANGLE_END    = (25 * Math.PI) / 18;  // 250°
-const SNAP_RADIUS      = 48;   // меньше = точнее наведение
+const ARC_ANGLE_START  = (11 * Math.PI) / 18;
+const ARC_ANGLE_END    = (25 * Math.PI) / 18;
+const SNAP_RADIUS      = 48;
 const LONG_PRESS_MS    = 250;
 
+// ════════════════════════════════════════════════════════════════
+//  Админский dropdown (desktop)
+// ════════════════════════════════════════════════════════════════
+function AdminDropdown({ user, pathname }: { user: any; pathname: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const items = [
+    {
+      href: "/admin",
+      icon: user?.is_admin ? ShieldAlert : user?.is_moderator ? ShieldCheck : ShieldAlert,
+      label: user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель",
+      show: true,
+    },
+    { href: "/admin/roles", icon: Palette, label: "Роли", show: !!user?.is_admin },
+    { href: "/admin/technical", icon: Wrench, label: "Техпанель", show: !!user?.permissions?.includes("tech_access") },
+  ].filter((i) => i.show);
+
+  const active = items.some((i) => pathname === i.href);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`w-full flex items-center gap-3 px-4 py-3 font-medium transition-all border-b border-white/5 group ${
+          active ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
+        }`}
+      >
+        {user?.is_admin ? (
+          <ShieldAlert size={18} className={active ? "text-[#8b5cf6]" : "text-[#f59e0b]"} />
+        ) : user?.is_moderator ? (
+          <ShieldCheck size={18} className={active ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} />
+        ) : (
+          <ShieldAlert size={18} className="text-[#f59e0b]" />
+        )}
+        <span>{user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель"}</span>
+        <ChevronLeft
+          size={14}
+          className={`ml-auto transition-transform duration-200 ${open ? "-rotate-90" : "rotate-180"}`}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute left-full top-0 ml-2 w-48 bg-[#1f1f23] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
+          {items.map(({ href, icon: Icon, label }) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={() => setOpen(false)}
+              className={`flex items-center gap-2 px-3 py-2.5 text-sm transition-colors ${
+                pathname === href ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/70 hover:bg-white/10"
+              }`}
+            >
+              <Icon size={15} />
+              <span>{label}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+//  Мобильный админ-лист (bottom sheet)
+// ════════════════════════════════════════════════════════════════
+function MobileAdminSheet({ user, onClose }: { user: any; onClose: () => void }) {
+  const router = useRouter();
+  const items = [
+    { href: "/admin", icon: ShieldAlert, label: user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель", show: true },
+    { href: "/admin/roles", icon: Palette, label: "Роли", show: !!user?.is_admin },
+    { href: "/admin/technical", icon: Wrench, label: "Техпанель", show: !!user?.permissions?.includes("tech_access") },
+  ].filter((i) => i.show);
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/60 z-[240] md:hidden" onClick={onClose} />
+      <div className="fixed bottom-0 left-0 right-0 z-[241] md:hidden bg-[#1f1f23] border-t border-white/10 rounded-t-2xl p-4 pb-8 shadow-2xl">
+        <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />
+        {items.map(({ href, icon: Icon, label }) => (
+          <button
+            key={href}
+            onClick={() => { onClose(); router.push(href); }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/80 hover:bg-white/5 transition-colors"
+          >
+            <Icon size={18} className="text-[#8b5cf6]" />
+            <span className="font-medium">{label}</span>
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+//  Мобильный поиск (полный экран)
+// ════════════════════════════════════════════════════════════════
+function MobileSearch({ onClose }: { onClose: () => void }) {
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  useEffect(() => {
+    if (!q.trim()) { setResults([]); return; }
+    setLoading(true);
+    const t = setTimeout(async () => {
+      try {
+        const token = getToken();
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/search?q=${encodeURIComponent(q)}`,
+          { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setResults(Array.isArray(data) ? data : data.users ?? data.items ?? []);
+        }
+      } finally { setLoading(false); }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  return (
+    <div className="fixed inset-0 z-[250] bg-[#171717] flex flex-col md:hidden">
+      <div className="flex items-center gap-2 p-3 border-b border-white/10 shrink-0">
+        <div className="flex-1 flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
+          <Search size={16} className="text-white/40" />
+          <input
+            ref={inputRef}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Поиск людей, постов..."
+            className="flex-1 bg-transparent text-white text-sm focus:outline-none placeholder-white/40"
+          />
+        </div>
+        <button onClick={onClose} className="p-2 text-white/60 hover:text-white">
+          <X size={20} />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {results.map((u: any) => (
+          <Link key={u.id} href={`/${u.username}`} onClick={onClose}
+            className="flex items-center gap-3 p-3 hover:bg-white/5 transition-colors">
+            <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={40} />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white truncate">{u.display_name}</p>
+              <p className="text-xs text-white/40">@{u.username}</p>
+            </div>
+          </Link>
+        ))}
+        {loading && <p className="text-center text-white/40 text-sm mt-10">Ищем...</p>}
+        {!loading && q.trim() && results.length === 0 && (
+          <p className="text-center text-white/40 text-sm mt-10">Никого не нашли 🤷</p>
+        )}
+        {!q.trim() && (
+          <p className="text-center text-white/30 text-sm mt-10">Начни вводить имя или ник</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+//  САЙДБАР
+// ════════════════════════════════════════════════════════════════
 export function Sidebar() {
   const pathname = usePathname();
   const router   = useRouter();
@@ -32,6 +208,8 @@ export function Sidebar() {
   const [showNotifs, setShowNotifs]   = useState(false);
   const [notifs, setNotifs]           = useState<any[]>([]);
   const [showBugModal, setShowBugModal] = useState(false);
+  const [showSearch, setShowSearch]     = useState(false);
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
 
   const [wheelOpen, setWheelOpen]   = useState(false);
   const [wheelReady, setWheelReady] = useState(false);
@@ -50,7 +228,7 @@ export function Sidebar() {
   type WheelItem = { href: string; icon: any; label: string; isProfile?: boolean; count?: number };
 
   // ══════════════════════════════════════════════════════════════
-  // ️ ВАРИАНТ А: ВНУТРЕННИЙ СЛОЙ — то, что жмёшь каждый день
+  // ️ ВАРИАНТ А: ВНУТРЕННИЙ СЛОЙ
   // ══════════════════════════════════════════════════════════════
   const innerItems: WheelItem[] = [
     { href: "/", icon: Home, label: "Главная" },
@@ -58,28 +236,27 @@ export function Sidebar() {
   if (user) innerItems.push({ href: "/messages", icon: MessageSquare, label: "Сообщения", count: counts.chats });
   if (user) innerItems.push({ href: "/notifications", icon: Bell, label: "Уведомления", count: counts.notifications });
   innerItems.push({ href: "/bookmarks", icon: Bookmark, label: "Закладки" });
+  innerItems.push({ href: "#search", icon: Search, label: "Поиск" });   // ← ПОИСК
   innerItems.push({ href: "/updates", icon: Megaphone, label: "Обновления", count: counts.updates });
   if (user) innerItems.push({ href: `/${user.username}`, icon: Home, label: "Профиль", isProfile: true });
 
-  // 🧰 ВНЕШНИЙ СЛОЙ — системное и редкое
+  // 🧰 ВНЕШНИЙ СЛОЙ
   const outerItems: WheelItem[] = [
     { href: "/settings", icon: Settings, label: "Настройки" },
     { href: "/rules", icon: Shield, label: "Правила" },
     { href: "#bug", icon: Bug, label: "Баг-трекер" },
   ];
+  // ← Админка одним пунктом, открывает bottom sheet
   if (user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) {
     outerItems.push({
-      href: "/admin",
+      href: "#admin",
       icon: user?.is_admin ? ShieldAlert : user?.is_moderator ? ShieldCheck : Shield,
       label: user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель",
     });
   }
-  if (user?.is_admin) outerItems.push({ href: "/admin/roles", icon: Palette, label: "Роли" });
-  if (user?.permissions?.includes("tech_access")) outerItems.push({ href: "/admin/technical", icon: Wrench, label: "Техпанель" });
   if (user) outerItems.push({ href: "#logout", icon: LogOut, label: "Выйти" });
   else outerItems.push({ href: "/login", icon: Home, label: "Войти" });
 
-  // Склеиваем в один массив + карта слоёв
   const wheelItems = [...innerItems, ...outerItems];
   const itemLayerMap = new Map<number, { layer: "inner" | "outer"; localIdx: number }>();
   innerItems.forEach((_, i) => itemLayerMap.set(i, { layer: "inner", localIdx: i }));
@@ -153,9 +330,6 @@ export function Sidebar() {
     }
   }
 
-  // ══════════════════════════════════════════════════════════════
-  //  Позиция иконки с учётом слоя
-  // ══════════════════════════════════════════════════════════════
   const getIconPos = useCallback((globalIdx: number) => {
     const info = itemLayerMap.get(globalIdx);
     if (!info) return { x: arcCenterRef.current.x, y: arcCenterRef.current.y };
@@ -196,6 +370,10 @@ export function Sidebar() {
           clearToken(); setUser(null); clearCachedUser(); router.push("/");
         } else if (item.href === "#bug") {
           setShowBugModal(true);
+        } else if (item.href === "#search") {
+          setShowSearch(true);
+        } else if (item.href === "#admin") {
+          setShowAdminMenu(true);
         } else {
           router.push(item.href);
         }
@@ -288,7 +466,6 @@ export function Sidebar() {
     };
   }, [hoveredIdx, closeWheel, findNearest]);
 
-  // ── Уведомления: иконки/цвета/тексты ──────────────────────────
   const icons = {
     like: <Heart size={12} fill="currentColor" />,
     reply: <MessageCircle size={12} />,
@@ -326,9 +503,6 @@ export function Sidebar() {
     : user.role?.color ?? null
     : null;
 
-  // ══════════════════════════════════════════════════════════════
-  //  Десктопный сайдбар
-  // ══════════════════════════════════════════════════════════════
   const desktopSidebarContent = (
     <>
       <div className="flex items-center gap-2">
@@ -365,35 +539,7 @@ export function Sidebar() {
           </Link>
         )}
         {(user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) && (
-          <Link href="/admin"
-            className={`flex items-center gap-3 px-4 py-3 font-medium transition-all border-b border-white/5 group ${
-              pathname === "/admin" ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
-            }`}>
-            {user?.is_admin
-              ? <ShieldAlert size={18} className={pathname === "/admin" ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} />
-              : user?.is_moderator
-                ? <ShieldCheck size={18} className={pathname === "/admin" ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} />
-                : <ShieldAlert size={18} className="text-[#f59e0b]" />}
-            <span>{user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель"}</span>
-          </Link>
-        )}
-        {user?.is_admin && (
-          <Link href="/admin/roles"
-            className={`flex items-center gap-3 px-4 py-3 font-medium transition-all border-b border-white/5 group ${
-              pathname === "/admin/roles" ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
-            }`}>
-            <Palette size={18} className={pathname === "/admin/roles" ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} />
-            <span>Роли</span>
-          </Link>
-        )}
-        {user?.permissions?.includes("tech_access") && (
-          <Link href="/admin/technical"
-            className={`flex items-center gap-3 px-4 py-3 font-medium transition-all border-b border-white/5 group ${
-              pathname === "/admin/technical" ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
-            }`}>
-            <Wrench size={18} className={pathname === "/admin/technical" ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} />
-            <span>Техпанель</span>
-          </Link>
+          <AdminDropdown user={user} pathname={pathname} />
         )}
         <button onClick={loadNotifications}
           className={`flex items-center gap-3 px-4 py-3 font-medium transition-all relative border-b border-white/5 group ${
@@ -441,9 +587,6 @@ export function Sidebar() {
     </>
   );
 
-  // ══════════════════════════════════════════════════════════════
-  //  Рендер колеса
-  // ══════════════════════════════════════════════════════════════
   const buttonCx = useRef(0);
   const buttonCy = useRef(0);
 
@@ -464,7 +607,6 @@ export function Sidebar() {
         className="fixed inset-0 z-[100] pointer-events-none"
         style={{ touchAction: "none" }}
       >
-        {/* Иконки */}
         {wheelItems.map((item, i) => {
           const finalPos = getIconPos(i);
           const isActive = i === hoveredIdx;
@@ -492,7 +634,6 @@ export function Sidebar() {
               }}
             >
               <div className="relative">
-              {/* ✅ overflow-hidden — аватарка обрезается по кругу, без обводок */}
               <div className={`
                 relative flex items-center justify-center rounded-full overflow-hidden
                 transition-all duration-150
@@ -504,7 +645,6 @@ export function Sidebar() {
                 }
               `}>
                 {item.isProfile && user ? (
-                  // ✅ Аватарка на ВЕСЬ круг: без сжатия и без двойной обводки
                   user.avatar_url ? (
                     <img
                       src={user.avatar_url}
@@ -520,10 +660,7 @@ export function Sidebar() {
                 ) : (
                   <item.icon size={isActive ? 26 : isOuter ? 19 : 21} className={isActive ? "text-white" : "text-white/70"} />
                 )}
-
                   </div>
-              
-                {/* Счётчик непрочитанного */}
                 {!!item.count && item.count > 0 && (
                   <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#8b5cf6] border-2 border-[#171717] text-white text-[9px] font-bold flex items-center justify-center">
                     {item.count > 9 ? "9+" : item.count}
@@ -534,7 +671,6 @@ export function Sidebar() {
           );
         })}
 
-        {/* Пульсация на активной */}
         {hoveredIdx !== null && activePos && (
           <div
             className="absolute w-16 h-16 rounded-full"
@@ -547,7 +683,6 @@ export function Sidebar() {
     );
   };
 
-  // ══════════════════════════════════════════════════════════════
   return (
     <>
       {/* ═══════ МОБИЛКА ═══════ */}
@@ -639,6 +774,8 @@ export function Sidebar() {
       )}
 
       {showBugModal && <BugReportModal onClose={() => setShowBugModal(false)} />}
+      {showSearch && <MobileSearch onClose={() => setShowSearch(false)} />}
+      {showAdminMenu && <MobileAdminSheet user={user} onClose={() => setShowAdminMenu(false)} />}
     </>
   );
 }

@@ -5591,7 +5591,36 @@ async def send_message_v2(
         "created_at": msg.created_at.isoformat(),
     }
 
+@app.post("/api/chats/{chat_id}/typing")
+async def send_typing(
+    chat_id: int,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),         # ← добавить
+):
+    # Проверяем что юзер участник чата
+    member = session.exec(
+        select(ChatMember).where(
+            ChatMember.chat_id == chat_id,
+            ChatMember.user_id == current_user.id,
+        )
+    ).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
 
+    # Собираем всех, КРОМЕ себя
+    all_member_ids = session.exec(
+        select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
+    ).all()
+    other_ids = [uid for uid in all_member_ids if uid != current_user.id]
+    
+    if other_ids:
+        await manager.broadcast_to_users(other_ids, "typing", {
+            "chat_id": chat_id,
+            "user_id": current_user.id,
+            "user_name": current_user.display_name,
+        })
+    
+    return {"ok": True}
 
 @app.get("/api/chats/{chat_id}/messages")
 def get_messages_v2(
@@ -6236,7 +6265,7 @@ def get_chat_media(
 
 
 @app.post("/api/chats/{chat_id}/read")
-def mark_chat_read(
+async def mark_chat_read(                        # ← def → async def
     chat_id: int,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
@@ -6249,8 +6278,8 @@ def mark_chat_read(
     ).first()
     if not member:
         raise HTTPException(403, "Not a member of this chat")
-
-    # ОДИН массовый UPDATE вместо N загрузок + N коммитов
+    
+    # ОДИН массовый UPDATE
     session.exec(
         update(Message)
         .where(
@@ -6261,6 +6290,29 @@ def mark_chat_read(
         .values(read=True)
     )
     session.commit()
+
+    # 🆕 Находим ID последнего сообщения в чате (для галочек ✓✓)
+    last_msg = session.exec(
+        select(Message.id)
+        .where(Message.chat_id == chat_id)
+        .order_by(Message.id.desc())
+        .limit(1)
+    ).first()
+
+    # 🆕 Рассылаем событие "прочитано" всем ДРУГИМ участникам
+    all_member_ids = session.exec(
+        select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
+    ).all()
+    other_ids = [uid for uid in all_member_ids if uid != user.id]
+    
+    if other_ids:
+        await manager.broadcast_to_users(other_ids, "message_read", {
+            "chat_id": chat_id,
+            "reader_id": user.id,
+            "reader_name": user.display_name,
+            "last_read_message_id": last_msg or 0,
+        })
+
     return {"ok": True}
 
 

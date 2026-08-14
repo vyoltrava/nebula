@@ -156,6 +156,13 @@ export default function ChatPage() {
   const [forwardingMessage, setForwardingMessage] = useState<any | null>(null);
   const [forwardChats, setForwardChats] = useState<any[]>([]);
   const [showForwardModal, setShowForwardModal] = useState(false);
+  // 💬 "Печатает..."
+  const [partnerTyping, setPartnerTyping] = useState(false);
+  const [typingUserName, setTypingUserName] = useState<string | null>(null); // для групп
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTypingSentRef = useRef<number>(0);
+
+
   const [mediaTab, setMediaTab] = useState<"image" | "video" | "video_note" | "audio">("image");
 
   const cancelRecordingRef = useRef(false);
@@ -1257,6 +1264,41 @@ function getMessageMenuItems(msg: any): { icon: any; label: string; onClick: () 
     }
   }, [isSecret, chatPartner, currentUser, isGroup]);
 
+
+// 📤 Отправляем "печатает" на бэк (с троттлингом раз в 3 сек)
+useEffect(() => {
+  if (!text.trim() || !currentUser) return;
+  
+  const now = Date.now();
+  if (now - lastTypingSentRef.current < 3000) return;
+  lastTypingSentRef.current = now;
+  
+  const token = getToken();
+  if (!token) return;
+  
+  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/typing`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  }).catch(() => {});
+}, [text, chatId, currentUser]);
+
+// ⏱ Сбрасываем индикатор "печатает" через 4 сек после последнего события
+useEffect(() => {
+  if (partnerTyping) {
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      setPartnerTyping(false);
+      setTypingUserName(null);
+    }, 4000);
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    };
+  }
+}, [partnerTyping]);
+
+
+
+
   useEffect(() => {
     if (!messages.length) return;
 
@@ -1415,6 +1457,30 @@ if (data.sender_id === currentUser?.id) {
     ));
   });
 
+// 💬 "печатает..." от собеседника
+useWebSocket("typing", (data: any) => {
+  if (String(data.chat_id) !== String(chatId)) return;
+  if (data.user_id === currentUser?.id) return; // своё игнорируем
+  
+  setPartnerTyping(true);
+  setTypingUserName(data.user_name || data.display_name || null);
+});
+
+// ✓✓ Галочки прочитано — собеседник открыл чат
+useWebSocket("message_read", (data: any) => {
+  if (String(data.chat_id) !== String(chatId)) return;
+  if (data.reader_id === currentUser?.id) return; // своё игнорируем
+  
+  setMessages(prev => prev.map(m => {
+    // Помечаем прочитанными все МОИ сообщения до last_read_message_id
+    if (m.sender_id === currentUser?.id && m.id <= data.last_read_message_id && !m.read) {
+      return { ...m, read: true };
+    }
+    return m;
+  }));
+});
+
+
   useEffect(() => {
     if (!showScanner) return;
     let cancelled = false;
@@ -1509,7 +1575,10 @@ const ChatHeader = () => (
                 {chatInfo.name}
               </p>
               <p className="text-[11px] sm:text-xs text-white/50 mt-0.5">
-                {chatInfo.members_count} участник{chatInfo.members_count === 1 ? "" : (chatInfo.members_count < 5 ? "а" : "ов")} · подробнее
+                {partnerTyping && typingUserName
+                  ? <span className="text-[#8b5cf6]">✎ {typingUserName} печатает...</span>
+                  : `${chatInfo.members_count} участник${chatInfo.members_count === 1 ? "" : (chatInfo.members_count < 5 ? "а" : "ов")} · подробнее`
+                }
               </p>
             </div>
           </button>
@@ -1548,8 +1617,15 @@ const ChatHeader = () => (
                   </span>
                 )}
               </div>
-              <p className={`text-[11px] sm:text-xs mt-0.5 ${isOnline(chatPartner.last_seen) ? "text-green-400" : "text-white/50"}`}>
-                {isOnline(chatPartner.last_seen) ? "● в сети" : lastSeenText(chatPartner.last_seen)}
+              <p className={`text-[11px] sm:text-xs mt-0.5 transition-colors ${
+                partnerTyping ? "text-[#8b5cf6] animate-pulse" : isOnline(chatPartner.last_seen) ? "text-green-400" : "text-white/50"
+              }`}>
+                {partnerTyping
+                  ? "✎ печатает..."
+                  : isOnline(chatPartner.last_seen)
+                    ? "● в сети"
+                    : lastSeenText(chatPartner.last_seen)
+                }
               </p>
             </div>
           </Link>
