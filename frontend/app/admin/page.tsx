@@ -219,7 +219,21 @@ export default function AdminPage() {
                 Уровень: {me.level ?? 1}
               </span>
             </div>
+
+
+            
             <div className="flex gap-2 flex-wrap">
+              {/* 🆕 КОНСТРУКТОР ТЕМ */}
+              {me.is_admin && (
+                <Link
+                  href="/admin/themes"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-emerald-400/50 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-bold hover:shadow-lg hover:shadow-purple-500/30 transition-all"
+                >
+                  <Palette size={16} />
+                  Темы
+                </Link>
+              )}
+
               {can("manage_roles") && (
                 <Link
                   href="/admin/roles"

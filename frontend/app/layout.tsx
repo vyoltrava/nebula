@@ -10,6 +10,8 @@ import {PermissionGate} from "@/components/PermissionGate";
 import PWARegister from "@/components/PWARegister";
 import InstallPrompt from "@/components/InstallPrompt";
 import { NotificationPermissionPrompt } from "@/components/NotificationPermissionPrompt";
+import { ThemeProvider } from "@/components/ThemeProvider";
+import { AnimatedBackground } from "@/components/AnimatedBackground";
 import "./globals.css";
 
 const jersey = Jersey_25({ weight: "400", subsets: ["latin"], variable: "--font-jersey" });
@@ -52,7 +54,9 @@ export default function RootLayout({
   return (
     <html lang="ru" className={`${jersey.variable} ${inter.variable}`} suppressHydrationWarning>
       <body className="font-sans">
-      <GlobalPlayerProvider>
+      <ThemeProvider>
+        <AnimatedBackground />
+        <GlobalPlayerProvider>
         <PWARegister />
         <InstallPrompt />
 
@@ -76,6 +80,7 @@ export default function RootLayout({
           </AuthGuard>
         </WebSocketProvider>
         </GlobalPlayerProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

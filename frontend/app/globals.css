@@ -158,3 +158,132 @@ body {
   from { background-position: 0% 0; }
   to { background-position: 300% 0; }
 }
+
+
+/* ============================================================
+   🎨 АНИМИРОВАННЫЕ ТЕМЫ (живые градиенты)
+   ============================================================ */
+
+.animated-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: #0a0a0e;
+}
+
+/* Тёмная вуаль поверх анимации — чтобы контент читался */
+.animated-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 14, 0.45);
+}
+
+/* ---------- AURORA: плавающие размытые пятна ---------- */
+.animated-bg .blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(var(--theme-blur, 70px));
+  opacity: var(--theme-intensity, 0.22);
+  will-change: transform;
+}
+
+.animated-bg .blob-1 {
+  width: 60vmax; height: 60vmax;
+  top: -25%; left: -20%;
+  animation: blob-drift-1 var(--theme-speed, 24s) ease-in-out infinite alternate;
+}
+.animated-bg .blob-2 {
+  width: 50vmax; height: 50vmax;
+  bottom: -25%; right: -20%;
+  animation: blob-drift-2 calc(var(--theme-speed, 24s) * 1.25) ease-in-out infinite alternate;
+}
+.animated-bg .blob-3 {
+  width: 40vmax; height: 40vmax;
+  top: 30%; left: 35%;
+  animation: blob-drift-3 calc(var(--theme-speed, 24s) * 0.8) ease-in-out infinite alternate;
+}
+
+@keyframes blob-drift-1 {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+  50%  { transform: translate(18vw, 12vh) scale(1.2) rotate(30deg); }
+  100% { transform: translate(-8vw, 25vh) scale(0.9) rotate(-20deg); }
+}
+@keyframes blob-drift-2 {
+  0%   { transform: translate(0, 0) scale(1.1); }
+  50%  { transform: translate(-20vw, -15vh) scale(0.85); }
+  100% { transform: translate(10vw, -30vh) scale(1.25); }
+}
+@keyframes blob-drift-3 {
+  0%   { transform: translate(0, 0) scale(0.9); }
+  50%  { transform: translate(-15vw, 10vh) scale(1.3); }
+  100% { transform: translate(20vw, -10vh) scale(1); }
+}
+
+/* ---------- GRADIENT: переливающийся поток ---------- */
+.animated-bg.type-gradient {
+  background: linear-gradient(-45deg, var(--c1), var(--c2), var(--c3), var(--c4));
+  background-size: 400% 400%;
+  animation: gradient-flow var(--theme-speed, 18s) ease infinite;
+}
+.animated-bg.type-gradient::after {
+  background: rgba(8, 8, 12, 0.65);
+}
+@keyframes gradient-flow {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ---------- LIQUID: "жидкие" вращающиеся формы ---------- */
+.animated-bg .wave {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 170vmax; height: 170vmax;
+  margin-left: -85vmax; margin-top: -85vmax;
+  border-radius: 42% 58% 62% 38% / 45% 42% 58% 55%;
+  opacity: var(--theme-intensity, 0.16);
+  filter: blur(var(--theme-blur, 40px));
+  will-change: transform;
+}
+.animated-bg .wave-1 {
+  animation: wave-rotate var(--theme-speed, 30s) linear infinite;
+}
+.animated-bg .wave-2 {
+  border-radius: 58% 42% 40% 60% / 55% 58% 42% 45%;
+  animation: wave-rotate calc(var(--theme-speed, 30s) * 1.4) linear infinite reverse;
+}
+@keyframes wave-rotate {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- NEON: пульсирующие неоновые пятна ---------- */
+.animated-bg .neon-spot {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(var(--theme-blur, 60px));
+  will-change: transform, opacity;
+}
+.animated-bg .neon-1 {
+  width: 45vmax; height: 45vmax; top: -10%; left: -10%;
+  animation: neon-pulse var(--theme-speed, 8s) ease-in-out infinite;
+}
+.animated-bg .neon-2 {
+  width: 40vmax; height: 40vmax; bottom: -10%; right: -10%;
+  animation: neon-pulse calc(var(--theme-speed, 8s) * 1.3) ease-in-out infinite 1s;
+}
+.animated-bg .neon-3 {
+  width: 30vmax; height: 30vmax; top: 40%; left: 45%;
+  animation: neon-pulse calc(var(--theme-speed, 8s) * 0.7) ease-in-out infinite 0.5s;
+}
+@keyframes neon-pulse {
+  0%, 100% { opacity: calc(var(--theme-intensity, 0.2) * 0.4); transform: scale(1); }
+  50%      { opacity: var(--theme-intensity, 0.2); transform: scale(1.25); }
+}
+
+/* Отключаем анимации если юзер просит меньше движения */
+@media (prefers-reduced-motion: reduce) {
+  .animated-bg * { animation: none !important; }
+}

@@ -25,6 +25,32 @@ class User(SQLModel, table=True):
     totp_enabled: bool = Field(default=False)
     cover_url: Optional[str] = None 
 
+
+# ============================================================
+# 🎨 ТЕМЫ (АНИМИРОВАННЫЕ ФОНЫ)
+# ============================================================
+
+class Theme(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(max_length=80)
+    type: str = Field(max_length=20)  # aurora | gradient | liquid | neon
+    colors: str = Field(default='[]')  # JSON-массив цветов: '["#8b5cf6","#6366f1"]'
+    speed: float = Field(default=24.0)
+    intensity: float = Field(default=0.22)
+    blur: int = Field(default=80)
+    is_default: bool = Field(default=False)
+    min_level: int = Field(default=0)  # 0 = всем, 3 = спонсорам, 9 = админам
+    is_active: bool = Field(default=True)  # админ может отключить тему
+    created_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class SystemSetting(SQLModel, table=True):
+    """Глобальные настройки системы (ключ-значение)"""
+    key: str = Field(primary_key=True, max_length=50)
+    value: str = Field(default="")
+    updated_at: datetime = Field(default_factory=utcnow)
+
 class Post(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     author_id: int = Field(foreign_key="user.id", index=True)
