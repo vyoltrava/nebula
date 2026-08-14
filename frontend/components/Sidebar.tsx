@@ -712,6 +712,12 @@ export function Sidebar() {
   const hasAdminAccess = user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users");
 
   const isDock = layout === "dock";
+  const isMessagesPage = pathname?.startsWith("/messages") ?? false;
+  // На сообщениях поднимаем орбиту выше кнопки "отправить" и её меню (запись/войс/видео)
+  const orbitDesktopPos = isMessagesPage
+    ? "bottom-56 right-6 rounded-full"
+    : "bottom-10 right-6 rounded-full";
+  const orbitRowPos = isMessagesPage ? "bottom-[228px]" : "bottom-11";
   const iconClass = isDock ? "w-6 h-6 mx-auto shrink-0" : "w-[18px] h-[18px]";
   const textClass = isDock ? "hidden" : "block";
   const containerClass = isDock ? "justify-center px-0 py-3" : "items-center gap-3 px-4 py-3";
@@ -992,9 +998,7 @@ export function Sidebar() {
               ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/20 scale-110"
               : "border-white/10 active:scale-95"}
             ${layout === "orbit" 
-              /* 🔥 DESKTOP ORBIT: Right Bottom */
-              ? "bottom-6 right-6 rounded-full" 
-              /* 🔥 MOBILE: Right side, slightly below center */
+              ? orbitDesktopPos
               : "right-0 top-[calc(50%+8px)] -translate-y-1/2 rounded-l-full"
             }
           `}
@@ -1008,7 +1012,7 @@ export function Sidebar() {
 
       {/* ═══════ DESKTOP ORBIT: непрочитанное слева от орбиты ═══════ */}
       {layout === "orbit" && !isMobile && (counts.chats > 0 || counts.notifications > 0) && (
-        <div className="fixed bottom-7 right-[92px] z-[97] flex flex-row items-center gap-3">
+      <div className={`fixed right-[92px] ${orbitRowPos} z-[97] flex flex-row items-center gap-3`}>
           {counts.chats > 0 && (
             <button
               onClick={() => router.push("/messages")}
