@@ -224,7 +224,7 @@ export default function AdminPage() {
             
             <div className="flex gap-2 flex-wrap">
 
-              {me.is_admin && (
+              {(me.is_admin || me.permissions?.includes("manage_stickers")) && (
                 <Link
                   href="/admin/stickers"
                   className="flex items-center gap-2 px-4 py-2 rounded-lg border border-yellow-400/50 bg-yellow-500/20 text-yellow-400 text-sm font-bold hover:bg-yellow-500/30 transition-all"

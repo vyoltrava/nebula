@@ -5,17 +5,38 @@ import { Sidebar } from "@/components/Sidebar";
 import { getToken } from "@/lib/auth";
 import { Palette, Plus, Trash2, Edit2, X, ShieldCheck, AlertTriangle, Info, ChevronUp, Crown, Sparkles, User } from "lucide-react";
 
-const AVAILABLE_PERMISSIONS = [
-  { id: "delete_posts", label: "Удалять посты", icon: "🗑️" },
-  { id: "ban_users", label: "Банить пользователей", icon: "🚫" },
-  { id: "remove_avatars", label: "Удалять аватарки", icon: "🖼️" },
-  { id: "assign_moderator", label: "Назначать модераторов", icon: "👮" },
-  { id: "manage_roles", label: "Управлять ролями", icon: "🎭" },
-  { id: "manage_users", label: "Доступ к панели управления", icon: "⚙️" },
-  { id: "manage_reports", label: "Просматривать жалобы", icon: "🚩" },
-  { id: "tech_access", label: "Техническая панель", icon: "🔧" },
-  { id: "delete_users", label: "Удалять аккаунты", icon: "☠️" },
-];
+// Категории прав с иконками и fallback
+const PERMISSION_META: Record<string, { icon: string; category: "content" | "users" | "chats" | "system" }> = {
+  // Контент
+  delete_posts:         { icon: "🗑️", category: "content" },
+  edit_posts:           { icon: "✏️", category: "content" },
+  remove_avatars:       { icon: "🖼️", category: "content" },
+  manage_stickers:      { icon: "🎨", category: "content" },
+  manage_announcements: { icon: "📢", category: "content" },
+  
+  // Пользователи
+  ban_users:            { icon: "🚫", category: "users" },
+  warn_users:           { icon: "⚠️", category: "users" },
+  delete_users:         { icon: "☠️", category: "users" },
+  assign_moderator:     { icon: "👮", category: "users" },
+  
+  // Чаты
+  pin_messages:         { icon: "📌", category: "chats" },
+  manage_groups:        { icon: "👥", category: "chats" },
+  
+  // Система
+  manage_roles:         { icon: "🎭", category: "system" },
+  manage_users:         { icon: "⚙️", category: "system" },
+  manage_reports:       { icon: "🚩", category: "system" },
+  tech_access:          { icon: "🔧", category: "system" },
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  content: "📝 Контент",
+  users: "👥 Пользователи",
+  chats: "💬 Чаты и группы",
+  system: "⚙️ Система",
+};
 
 // 🆕 Умная система описания уровней
 const LEVEL_DESCRIPTIONS: Record<number, { title: string; desc: string; bestFor: string }> = {
@@ -75,6 +96,8 @@ export default function RolesPage() {
   const [roles, setRoles] = useState<any[]>([]);
   const [me, setMe] = useState<any>(null);
   const [showForm, setShowForm] = useState(false);
+  const [availablePermissions, setAvailablePermissions] = useState<any[]>([]);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   const [editingRole, setEditingRole] = useState<any>(null);
   const [name, setName] = useState("");
   const [color, setColor] = useState("#8b5cf6");
@@ -101,6 +124,24 @@ export default function RolesPage() {
       if (!meRes.ok) throw new Error("Auth failed");
       
       const meData = await meRes.json();
+
+            // 🆕 Загружаем список прав с бэкенда
+      try {
+        const permsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/permissions`);
+        if (permsRes.ok) {
+          const permsData = await permsRes.json();
+          // Обогащаем права из бэка нашими мета-данными
+          const enriched = permsData.map((p: any) => ({
+            ...p,
+            icon: PERMISSION_META[p.id]?.icon || "🔑",
+            category: PERMISSION_META[p.id]?.category || p.category || "system",
+          }));
+          setAvailablePermissions(enriched);
+        }
+      } catch {
+        console.warn("Failed to load permissions, using fallback");
+      }
+      setPermissionsLoaded(true);
       setMe(meData);
 
       if (!meData.is_admin && !meData.permissions?.includes("manage_roles")) {
@@ -407,16 +448,24 @@ export default function RolesPage() {
               </div>
 
               {role.permissions && role.permissions.length > 0 && (
-                <div className="mt-3 flex gap-2 flex-wrap">
+                <div className="mt-3 flex gap-1.5 flex-wrap">
                   {role.permissions.map((perm: string) => {
-                    const permInfo = AVAILABLE_PERMISSIONS.find((p) => p.id === perm);
+                    const permInfo = availablePermissions.find((p: any) => p.id === perm);
+                    const meta = PERMISSION_META[perm];
+                    const categoryColor = {
+                      content: "border-orange-400/30 bg-orange-500/10 text-orange-300",
+                      users: "border-red-400/30 bg-red-500/10 text-red-300",
+                      chats: "border-blue-400/30 bg-blue-500/10 text-blue-300",
+                      system: "border-purple-400/30 bg-purple-500/10 text-purple-300",
+                    }[meta?.category || "system"];
+                    
                     return (
                       <span
                         key={perm}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70"
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-xs ${categoryColor}`}
                       >
-                        <ShieldCheck size={10} className="text-green-400" />
-                        {permInfo?.label || perm}
+                        <span>{meta?.icon || "🔑"}</span>
+                        <span>{permInfo?.label || perm}</span>
                       </span>
                     );
                   })}
@@ -625,27 +674,55 @@ export default function RolesPage() {
                   <div>
                     <label className="block text-sm font-bold text-white/80 mb-3">
                       Полномочия
+                      {!permissionsLoaded && <span className="ml-2 text-xs text-white/40 animate-pulse">Загрузка...</span>}
                     </label>
-                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
-                      {AVAILABLE_PERMISSIONS.map((perm) => (
-                        <label
-                          key={perm.id}
-                          className={`flex items-center gap-3 cursor-pointer p-3 rounded-lg border transition-all ${
-                            permissions.includes(perm.id)
-                              ? "border-[#8b5cf6] bg-purple-500/10"
-                              : "border-white/10 bg-white/5 hover:bg-white/10"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={permissions.includes(perm.id)}
-                            onChange={() => togglePermission(perm.id)}
-                            className="w-4 h-4 rounded border-white/30 bg-white/5 text-purple-500 focus:ring-purple-500"
-                          />
-                          <span className="text-lg">{perm.icon}</span>
-                          <span className="text-sm text-white/90 font-semibold">{perm.label}</span>
-                        </label>
-                      ))}
+                    <div className="space-y-4 max-h-80 overflow-y-auto pr-1 custom-scrollbar">
+                      {(() => {
+                        // Группируем по категориям
+                        const grouped: Record<string, any[]> = {};
+                        availablePermissions.forEach(p => {
+                          const cat = p.category || "system";
+                          if (!grouped[cat]) grouped[cat] = [];
+                          grouped[cat].push(p);
+                        });
+                        
+                        // Сортируем категории
+                        const categoryOrder = ["content", "users", "chats", "system"];
+                        const sortedCategories = Object.keys(grouped).sort(
+                          (a, b) => categoryOrder.indexOf(a) - categoryOrder.indexOf(b)
+                        );
+                        
+                        return sortedCategories.map(cat => (
+                          <div key={cat} className="space-y-1.5">
+                            <h4 className="text-xs font-black text-white/50 uppercase tracking-wider px-1">
+                              {CATEGORY_LABELS[cat] || cat}
+                            </h4>
+                            {grouped[cat].map((perm) => (
+                              <label
+                                key={perm.id}
+                                className={`flex items-center gap-3 cursor-pointer p-2.5 rounded-lg border transition-all ${
+                                  permissions.includes(perm.id)
+                                    ? "border-[#8b5cf6] bg-purple-500/10"
+                                    : "border-white/10 bg-white/5 hover:bg-white/10"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={permissions.includes(perm.id)}
+                                  onChange={() => togglePermission(perm.id)}
+                                  className="w-4 h-4 rounded border-white/30 bg-white/5 text-purple-500 focus:ring-purple-500"
+                                />
+                                <span className="text-base">{perm.icon}</span>
+                                <span className="text-sm text-white/90 font-semibold flex-1">{perm.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        ));
+                      })()}
+                      
+                      {availablePermissions.length === 0 && permissionsLoaded && (
+                        <p className="text-xs text-white/40 text-center py-4">Права не загружены</p>
+                      )}
                     </div>
                   </div>
 

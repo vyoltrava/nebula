@@ -24,7 +24,10 @@ export default function AdminStickersPage() {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
       headers: { Authorization: `Bearer ${token}` },
     }).then(r => r.json()).then(data => {
-      if (!data.is_admin) { router.push("/admin"); return; }
+      if (!data.is_admin && !data.permissions?.includes("manage_stickers")) {
+        router.push("/admin");
+        return;
+      }
       setMe(data);
       loadPacks();
     });

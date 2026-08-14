@@ -448,6 +448,12 @@ ALL_PERMISSIONS = [
     "manage_reports",
     "tech_access",
     "delete_users",
+    "manage_stickers",        # 🆕 Управление стикерами
+    "pin_messages",           # 🆕 Закрепление сообщений в любых чатах
+    "edit_posts",             # 🆕 Редактирование чужих постов
+    "manage_groups",          # 🆕 Администрирование любых групп
+    "manage_announcements",   # 🆕 Публикация объявлений
+    "warn_users",             # 🆕 Выдача предупреждений
 ]
 
 MODERATOR_PERMISSIONS = ALL_PERMISSIONS.copy()
@@ -2330,6 +2336,33 @@ def list_permissions():
         {"id": "delete_users", "label": "Удалять аккаунты"},
     ]
 
+@app.get("/api/permissions")
+def list_permissions():
+    return [
+        # === Модерация контента ===
+        {"id": "delete_posts", "label": "Удалять посты", "category": "content"},
+        {"id": "edit_posts", "label": "Редактировать чужие посты", "category": "content"},
+        {"id": "remove_avatars", "label": "Удалять аватарки", "category": "content"},
+        {"id": "manage_stickers", "label": "Управлять стикер-паками", "category": "content"},
+        {"id": "manage_announcements", "label": "Публиковать объявления", "category": "content"},
+        
+        # === Модерация пользователей ===
+        {"id": "ban_users", "label": "Банить пользователей", "category": "users"},
+        {"id": "warn_users", "label": "Выдавать предупреждения", "category": "users"},
+        {"id": "delete_users", "label": "Удалять пользователей", "category": "users"},
+        {"id": "assign_moderator", "label": "Назначать модераторов", "category": "users"},
+        
+        # === Чаты и группы ===
+        {"id": "pin_messages", "label": "Закреплять сообщения везде", "category": "chats"},
+        {"id": "manage_groups", "label": "Администрировать любые группы", "category": "chats"},
+        
+        # === Система ===
+        {"id": "manage_roles", "label": "Управлять ролями", "category": "system"},
+        {"id": "manage_users", "label": "Доступ к панели управления", "category": "system"},
+        {"id": "manage_reports", "label": "Управление жалобами", "category": "system"},
+        {"id": "tech_access", "label": "Технический доступ", "category": "system"},
+    ]
+
 
 
 
@@ -2872,8 +2905,8 @@ def admin_list_packs(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    if not user.is_admin:
-        raise HTTPException(403, "Только для админов")
+    if not has_permission(user, "manage_stickers", session):
+        raise HTTPException(403, "Нет права: manage_stickers")
     packs = session.exec(select(StickerPack).order_by(StickerPack.id)).all()
     result = []
     for p in packs:
@@ -2903,8 +2936,8 @@ def admin_create_pack(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    if not user.is_admin:
-        raise HTTPException(403, "Только для админов")
+    if not has_permission(user, "manage_stickers", session):
+        raise HTTPException(403, "Нет права: manage_stickers")
     pack = StickerPack(name=name.strip(), min_level=min_level)
     session.add(pack)
     session.commit()
@@ -2921,8 +2954,8 @@ def admin_update_pack(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    if not user.is_admin:
-        raise HTTPException(403, "Только для админов")
+    if not has_permission(user, "manage_stickers", session):
+        raise HTTPException(403, "Нет права: manage_stickers")
     pack = session.get(StickerPack, pack_id)
     if not pack:
         raise HTTPException(404, "Пак не найден")
@@ -2940,8 +2973,8 @@ def admin_delete_pack(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    if not user.is_admin:
-        raise HTTPException(403, "Только для админов")
+    if not has_permission(user, "manage_stickers", session):
+        raise HTTPException(403, "Нет права: manage_stickers")
     pack = session.get(StickerPack, pack_id)
     if not pack:
         raise HTTPException(404, "Пак не найден")
@@ -2959,8 +2992,8 @@ async def admin_add_stickers(
     session: Session = Depends(get_session),
 ):
     """Массовое добавление стикеров: эмодзи + картинки"""
-    if not user.is_admin:
-        raise HTTPException(403, "Только для админов")
+    if not has_permission(user, "manage_stickers", session):
+        raise HTTPException(403, "Нет права: manage_stickers")
     pack = session.get(StickerPack, pack_id)
     if not pack:
         raise HTTPException(404, "Пак не найден")
@@ -3019,8 +3052,8 @@ def admin_delete_sticker(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    if not user.is_admin:
-        raise HTTPException(403, "Только для админов")
+    if not has_permission(user, "manage_stickers", session):
+        raise HTTPException(403, "Нет права: manage_stickers")
     sticker = session.get(Sticker, sticker_id)
     if not sticker:
         raise HTTPException(404, "Стикер не найден")
@@ -3047,8 +3080,8 @@ def admin_reorder_stickers(
     session: Session = Depends(get_session),
 ):
     """Изменить порядок стикеров"""
-    if not user.is_admin:
-        raise HTTPException(403, "Только для админов")
+    if not has_permission(user, "manage_stickers", session):
+        raise HTTPException(403, "Нет права: manage_stickers")
     try:
         ids = json.loads(sticker_ids)
     except:
@@ -3745,13 +3778,11 @@ def startup():
     # Автоматическое добавление недостающих колонок
     with engine.connect() as conn:
         try:
-            # ===== 😂 СТИКЕРЫ И РЕАКЦИИ (НОВАЯ СИСТЕМА) =====
-            # Удаляем старые таблицы и создаём новые
-            conn.execute(text("DROP TABLE IF EXISTS message_reaction CASCADE;"))
-            conn.execute(text("DROP TABLE IF EXISTS sticker_pack CASCADE;"))
+            # ===== 😂 СТИКЕРЫ И РЕАКЦИИ (БЕЗОПАСНЫЕ МИГРАЦИИ) =====
 
+            # 1. Создаём sticker_pack если не существует
             conn.execute(text("""
-                CREATE TABLE sticker_pack (
+                CREATE TABLE IF NOT EXISTS sticker_pack (
                     id SERIAL PRIMARY KEY,
                     name VARCHAR(60) NOT NULL,
                     min_level INTEGER DEFAULT 1,
@@ -3761,8 +3792,9 @@ def startup():
                 );
             """))
 
+            # 2. Создаём sticker если не существует
             conn.execute(text("""
-                CREATE TABLE sticker (
+                CREATE TABLE IF NOT EXISTS sticker (
                     id SERIAL PRIMARY KEY,
                     pack_id INTEGER NOT NULL REFERENCES sticker_pack(id) ON DELETE CASCADE,
                     type VARCHAR(10) NOT NULL,
@@ -3773,20 +3805,35 @@ def startup():
             """))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_sticker_pack ON sticker(pack_id, "order");'))
 
-            conn.execute(text("""
-                CREATE TABLE message_reaction (
-                    id SERIAL PRIMARY KEY,
-                    message_id INTEGER NOT NULL REFERENCES message(id) ON DELETE CASCADE,
-                    user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-                    sticker_id INTEGER REFERENCES sticker(id) ON DELETE CASCADE,
-                    emoji VARCHAR(16),
-                    created_at TIMESTAMPTZ DEFAULT NOW()
-                );
-            """))
-            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_reaction_unique ON message_reaction(message_id, user_id, COALESCE(sticker_id, 0), COALESCE(emoji, ''));"))
-            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_reaction_message ON message_reaction(message_id);"))
+            # 3. message_reaction — удаляем старую таблицу ЕСЛИ она без sticker_id
+            # Проверяем, есть ли колонка sticker_id
+            cols_check = conn.execute(text("""
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'message_reaction' AND column_name = 'sticker_id'
+            """)).first()
 
-            # 🎁 Встроенные паки
+            if cols_check is None:
+                # Старая таблица без sticker_id — удаляем полностью
+                conn.execute(text("DROP TABLE IF EXISTS message_reaction CASCADE;"))
+                # Пересоздаём
+                conn.execute(text("""
+                    CREATE TABLE message_reaction (
+                        id SERIAL PRIMARY KEY,
+                        message_id INTEGER NOT NULL REFERENCES message(id) ON DELETE CASCADE,
+                        user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                        sticker_id INTEGER REFERENCES sticker(id) ON DELETE CASCADE,
+                        emoji VARCHAR(16),
+                        created_at TIMESTAMPTZ DEFAULT NOW()
+                    );
+                """))
+                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_reaction_unique ON message_reaction(message_id, user_id, COALESCE(sticker_id, 0), COALESCE(emoji, ''));"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_reaction_message ON message_reaction(message_id);"))
+            else:
+                # Таблица уже с sticker_id — просто создаём индексы если их нет
+                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_reaction_unique ON message_reaction(message_id, user_id, COALESCE(sticker_id, 0), COALESCE(emoji, ''));"))
+                conn.execute(text("CREATE INDEX IF NOT EXISTS idx_reaction_message ON message_reaction(message_id);"))
+
+            # 4. 🎁 Встроенные паки
             conn.execute(text("""
                 INSERT INTO sticker_pack (name, min_level, is_builtin)
                 SELECT 'Стандартный', 1, TRUE
@@ -3798,7 +3845,7 @@ def startup():
                 WHERE NOT EXISTS (SELECT 1 FROM sticker_pack WHERE name = 'Мемы (эксклюзив)');
             """))
 
-            # 🎁 Встроенные эмодзи-стикеры в "Стандартный" пак
+            # 5. 🎁 Встроенные эмодзи-стикеры
             std_pack = conn.execute(text("SELECT id FROM sticker_pack WHERE name = 'Стандартный'")).first()
             if std_pack:
                 std_id = std_pack[0]
@@ -5555,9 +5602,9 @@ async def pin_message(
             ChatMember.user_id == user.id,
         )
     ).first()
-    if not member:
-        raise HTTPException(403, "Не участник чата")
-    
+    has_pin_right = has_permission(user, "pin_messages", session)
+    if (not member or member.role not in ("owner", "admin")) and not has_pin_right:
+        raise HTTPException(403, "Только админы группы или владельцы права pin_messages")
     # 2. Получаем чат
     chat = session.get(Chat, chat_id)
     if not chat:
@@ -5723,8 +5770,8 @@ async def unpin_message(
             ChatMember.user_id == user.id,
         )
     ).first()
-    if not member:
-        raise HTTPException(403, "Не участник чата")
+    if (not member or member.role not in ("owner", "admin")) and not has_pin_right:
+        raise HTTPException(403, "Только админы группы или владельцы права pin_messages")
     
     # 2. Получаем чат
     chat = session.get(Chat, chat_id)
