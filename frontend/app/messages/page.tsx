@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
@@ -11,6 +11,96 @@ import { socket } from "@/lib/websocket";
 import { ChatListSkeleton } from "@/components/Skeletons";
 import { Pin, PinOff, MoreVertical } from "lucide-react";
 import { pinChat, unpinChat } from "@/lib/api";
+import { useSwipe } from "@/lib/useSwipe";
+
+// Компонент карточки чата со свайпом
+function SwipeableChatItem({
+  children,
+  onSwipeRight,
+  onSwipeLeft,
+  isPinned,
+  onClick,
+}: {
+  children: React.ReactNode;
+  onSwipeRight: () => void;
+  onSwipeLeft: () => void;
+  isPinned: boolean;
+  onClick: () => void;
+}) {
+  const { offset, direction, isSwiping, handlers } = useSwipe({
+    threshold: 70,
+    maxOffset: 100,
+    resistance: 0.35,
+    onSwipeRight,
+    onSwipeLeft,
+  });
+
+  const swipeRef = useRef(false);
+  if (isSwiping) swipeRef.current = true;
+
+  // Показываем иконки при свайпе
+  const showRightIcon = direction === "right" && offset > 25;
+  const showLeftIcon = direction === "left" && offset < -25;
+  const iconOpacity = Math.min(Math.abs(offset) / 60, 1);
+
+  return (
+    <div
+      className="relative overflow-hidden select-none"
+      style={{ touchAction: "pan-y" }}
+      {...handlers}
+      onClick={() => {
+        // Блокируем клик если был свайп
+        if (swipeRef.current) {
+          swipeRef.current = false;
+          return;
+        }
+        onClick();
+      }}
+    >
+      {/* Фон при свайпе вправо — меню */}
+      {showRightIcon && (
+        <div
+          className="absolute inset-y-0 left-0 flex items-center pl-5 pointer-events-none"
+          style={{ opacity: iconOpacity }}
+        >
+          <div className="w-9 h-9 rounded-full bg-[#8b5cf6]/20 border-2 border-[#8b5cf6] flex items-center justify-center">
+            <MoreVertical size={16} className="text-[#8b5cf6]" />
+          </div>
+        </div>
+      )}
+
+      {/* Фон при свайпе влево — закрепить/открепить */}
+      {showLeftIcon && (
+        <div
+          className="absolute inset-y-0 right-0 flex items-center pr-5 pointer-events-none"
+          style={{ opacity: iconOpacity }}
+        >
+          <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 ${
+            isPinned
+              ? "bg-yellow-500/20 border-yellow-500"
+              : "bg-emerald-500/20 border-emerald-500"
+          }`}>
+            {isPinned
+              ? <PinOff size={16} className="text-yellow-400" />
+              : <Pin size={16} className="text-emerald-400" />
+            }
+          </div>
+        </div>
+      )}
+
+      {/* Контент со смещением */}
+      <div
+        className="relative z-10 bg-[#171717] transition-transform"
+        style={{
+          transform: `translateX(${isSwiping ? offset : 0}px)`,
+          transition: isSwiping ? "none" : "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 
 export default function MessagesPage() {
@@ -201,16 +291,25 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
           const glow = !isGroup && otherUser ? getGlowColor(otherUser) : null;
 
           return (
-            <div
+            <SwipeableChatItem
               key={chat.id}
+              isPinned={!!chat.pinned}
               onClick={() => {
                 refresh();
                 router.push(`/messages/${chat.id}`);
               }}
-              className={`flex items-center gap-3 p-3 md:p-4 border-b border-white/10 hover:bg-white/5 transition-colors cursor-pointer ${
-                chat.unread_count > 0 ? "bg-purple-500/5" : ""
-              }`}
+              onSwipeRight={() => {
+                setActiveChatMenu(activeChatMenu === chat.id ? null : chat.id);
+              }}
+              onSwipeLeft={() => {
+                togglePinChat(chat.id, !!chat.pinned);
+              }}
             >
+              <div
+                className={`flex items-center gap-3 p-3 md:p-4 border-b border-white/10 hover:bg-white/5 transition-colors cursor-pointer ${
+                  chat.unread_count > 0 ? "bg-purple-500/5" : ""
+                }`}
+              >
               <div className="shrink-0 relative">
                 {isGroup ? (
                   chat.avatar_url ? (
@@ -364,6 +463,7 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
                 </span>
               )}
             </div>
+            </SwipeableChatItem>
           );
         })}
       </main>

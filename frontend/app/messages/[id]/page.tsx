@@ -10,10 +10,12 @@ import { GroupSettingsModal } from "@/components/GroupSettingsModal";
 import { VideoNoteRecorder } from "@/components/VideoNoteRecorder";
 import { VideoNotePlayer } from "@/components/VideoNotePlayer";
 import { VideoPlayer } from "@/components/VideoPlayer";
+import { MessageContextMenu } from "@/components/MessageContextMenu";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { STICKERS } from "@/lib/stickers";
 import { useDevicePermission } from "@/lib/useDevicePermission";
+import { useSwipe } from "@/lib/useSwipe";
 import { PermissionHelpModal } from "@/components/PermissionHelpModal";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { ChatWindowSkeleton } from "@/components/Skeletons";
@@ -32,7 +34,7 @@ import {
   FileText, Film, Edit2, Trash2, MoreVertical,
   Lock, Search, ShieldCheck, AlertTriangle,
   Check, CheckCheck, CheckSquare, Mic, Square, Users, Settings,
-  Pin, PinOff, Video, Copy,
+  Pin, PinOff, Video, Copy, Reply,
 } from "lucide-react";
 import {
   ensureKeyPair, getKeyPair, encryptMessage, decryptMessage,
@@ -46,6 +48,59 @@ function getSessionKeyOrThrow(chatId: number): Uint8Array {
   const sk = loadSessionKey(chatId);
   if (!sk) throw new Error("Нет session key");
   return sk;
+}
+
+// Компонент сообщения со свайпом
+function SwipeableMessage({
+  children,
+  onSwipeRight,
+  msgId,
+}: {
+  children: React.ReactNode;
+  onSwipeRight: () => void;
+  msgId: number;
+}) {
+  const { offset, direction, isSwiping, handlers } = useSwipe({
+    threshold: 80,
+    maxOffset: 120,
+    resistance: 0.3,
+    onSwipeRight,
+  });
+
+  // Показываем иконку ответа при свайпе вправо
+  const showReplyIcon = direction === "right" && offset > 30;
+  const iconOpacity = Math.min((offset - 30) / 50, 1);
+
+  return (
+    <div
+      className="relative select-none"
+      style={{ touchAction: "pan-y" }}
+      {...handlers}
+    >
+      {/* Фон с иконкой ответа */}
+      {showReplyIcon && (
+        <div
+          className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none"
+          style={{ opacity: iconOpacity }}
+        >
+          <div className="w-10 h-10 rounded-full bg-[#8b5cf6]/20 border-2 border-[#8b5cf6] flex items-center justify-center">
+            <Send size={18} className="text-[#8b5cf6] rotate-180" />
+          </div>
+        </div>
+      )}
+
+      {/* Сам контент сообщения со смещением */}
+      <div
+        className="relative z-10 transition-transform"
+        style={{
+          transform: `translateX(${isSwiping ? offset : 0}px)`,
+          transition: isSwiping ? "none" : "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
 }
 
 export default function ChatPage() {
@@ -66,6 +121,11 @@ export default function ChatPage() {
   const [mediaItems, setMediaItems] = useState<any[]>([]);
   const [selectedMedia, setSelectedMedia] = useState<any | null>(null);
   const [activeMessageMenu, setActiveMessageMenu] = useState<number | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+  msg: any;
+  x: number;
+  y: number;
+} | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [chatPartner, setChatPartner] = useState<any>(null);
   const [chatInfo, setChatInfo] = useState<any>(null);
@@ -869,6 +929,103 @@ for (const msg of messagesToSend) {
     setActiveMessageMenu(null);
   }
 
+function getMessageMenuItems(msg: any): { icon: any; label: string; onClick: () => void; danger?: boolean }[] {
+  const isMine = msg.sender_id === currentUser?.id;
+  const items: { icon: any; label: string; onClick: () => void; danger?: boolean }[] = [];
+
+  // Ответить (всегда доступно)
+  items.push({
+    icon: Reply,
+    label: "Ответить",
+    onClick: () => startReply(msg),
+  });
+
+  // Выбрать
+  items.push({
+    icon: CheckSquare,
+    label: "Выбрать",
+    onClick: () => {
+      setIsSelectMode(true);
+      toggleMessageSelection(msg.id);
+    },
+  });
+
+  // Копировать (только если есть текст и не секретный)
+  if (msg.text && !isSecret) {
+    items.push({
+      icon: Copy,
+      label: "Копировать",
+      onClick: () => navigator.clipboard.writeText(decryptDisplayText(msg)),
+    });
+  }
+
+  // Переслать (не секретный)
+  if (!isSecret) {
+    items.push({
+      icon: Send,
+      label: "Переслать",
+      onClick: async () => {
+        setForwardingMessage(msg);
+        await loadForwardChats();
+        setShowForwardModal(true);
+      },
+    });
+  }
+
+  // Редактировать (своё, с текстом)
+  if (isMine && msg.text && !isSecret) {
+    items.push({
+      icon: Edit2,
+      label: "Редактировать",
+      onClick: () => startEdit(msg),
+    });
+  }
+
+  // Удалить (своё)
+  if (isMine) {
+    items.push({
+      icon: Trash2,
+      label: "Удалить",
+      onClick: () => deleteMessage(msg.id),
+      danger: true,
+    });
+  }
+
+  // Закрепить/Открепить
+  if (!msg.pinned) {
+    items.push({
+      icon: Pin,
+      label: "Закрепить",
+      onClick: async () => {
+        try {
+          await pinMessage(Number(chatId), msg.id);
+          await loadPinned();
+          await loadMessages();
+        } catch (e: any) {
+          alert(e?.message || "Не удалось закрепить");
+        }
+      },
+    });
+  } else {
+    items.push({
+      icon: PinOff,
+      label: "Открепить",
+      onClick: async () => {
+        try {
+          await unpinMessage(Number(chatId), msg.id);
+          await loadPinned();
+          await loadMessages();
+        } catch (e: any) {
+          alert(e?.message || "Не удалось открепить");
+        }
+      },
+    });
+  }
+
+  return items;
+}
+
+
   function cancelReply() {
     setReplyTo(null);
   }
@@ -1578,16 +1735,35 @@ const ChatHeader = () => (
                   const isEncryptedMedia = !!msg.is_encrypted_media || msg.ciphertext === "[encrypted_media]";
                   const isForwarded = !!msg.forwarded_from_id;
                   return (
-                    <div
+                    <SwipeableMessage
                       key={msg.id}
-                      id={`msg-${msg.id}`}
-                      className={`flex gap-2 sm:gap-2 ${
-                        isMine ? "justify-end" : "justify-start"
-                      } ${isSelectMode ? "cursor-pointer select-none" : ""}`}
-                      onClick={() => {
-                        if (isSelectMode) toggleMessageSelection(msg.id);
-                      }}
+                      msgId={msg.id}
+                      onSwipeRight={() => startReply(msg)}
                     >
+                      <div
+                        id={`msg-${msg.id}`}
+                        className={`flex gap-2 sm:gap-2 ${
+                          isMine ? "justify-end" : "justify-start"
+                        } ${isSelectMode ? "cursor-pointer select-none" : ""}`}
+                        onClick={() => {
+                          if (isSelectMode) toggleMessageSelection(msg.id);
+                        }}
+                        onDoubleClick={() => {
+                          if (!isSelectMode && !isSecret) {
+                            startReply(msg);
+                          }
+                        }}
+                        onContextMenu={(e) => {
+                          if (isSelectMode || isSecret) return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setContextMenu({
+                            msg,
+                            x: e.clientX,
+                            y: e.clientY,
+                          });
+                        }}
+                      >
                       {isSelectMode && (
                         <div
                           className={`shrink-0 w-5 h-5 sm:w-5 sm:h-5 rounded-md border-2 flex items-center justify-center mt-2 transition-colors ${
@@ -1960,6 +2136,7 @@ const ChatHeader = () => (
                         )}
                       </div>
                     </div>
+                    </SwipeableMessage>
                   );
                 })}
               <div ref={messagesEndRef} />
@@ -2217,6 +2394,16 @@ const ChatHeader = () => (
         )}
 
         {isSelectMode && <div className="h-2" />}
+
+        {/* 🆕 Контекстное меню по ПКМ */}
+        {contextMenu && (
+          <MessageContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            items={getMessageMenuItems(contextMenu.msg)}
+            onClose={() => setContextMenu(null)}
+          />
+        )}
       </main>
 
       {showVerify && chatPartner && (
