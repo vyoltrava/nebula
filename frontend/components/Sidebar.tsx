@@ -247,6 +247,108 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
   );
 }
 
+
+// ════════════════════════════════════════════════════════════════
+// 🎛 ВАРИАНТЫ САЙДБАРА (безопасно: дефолт всегда classic)
+// ════════════════════════════════════════════════════════════════
+export type SidebarLayout = "classic" | "orbit" | "dock";
+const LAYOUT_KEY = "trelod_sidebar_layout";
+
+export function getSidebarLayout(): SidebarLayout {
+  if (typeof window === "undefined") return "classic";
+  const v = localStorage.getItem(LAYOUT_KEY);
+  return v === "orbit" || v === "dock" ? v : "classic";
+}
+
+export function setSidebarLayout(v: SidebarLayout) {
+  localStorage.setItem(LAYOUT_KEY, v);
+  window.dispatchEvent(new CustomEvent("sidebar-layout-change", { detail: v }));
+}
+
+
+function LayoutPreview({ kind }: { kind: SidebarLayout }) {
+  return (
+    <div className="w-full h-16 rounded-md bg-[#111114] border border-white/10 overflow-hidden flex">
+      {kind === "classic" && (
+        <>
+          <div className="w-7 bg-[#22222a] border-r border-white/10 p-1 space-y-1">
+            <div className="h-1.5 w-full rounded bg-white/25" />
+            <div className="h-1.5 w-3/4 rounded bg-white/15" />
+            <div className="h-1.5 w-full rounded bg-white/15" />
+            <div className="h-1.5 w-2/3 rounded bg-white/15" />
+          </div>
+          <div className="flex-1 p-1.5 space-y-1">
+            <div className="h-1.5 w-full rounded bg-white/10" />
+            <div className="h-1.5 w-3/4 rounded bg-white/10" />
+            <div className="h-1.5 w-1/2 rounded bg-white/10" />
+          </div>
+        </>
+      )}
+      {kind === "orbit" && (
+        <div className="relative flex-1 p-1.5 space-y-1">
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 rounded-r bg-[#8b5cf6]" />
+          <div className="h-1.5 w-full rounded bg-white/10" />
+          <div className="h-1.5 w-3/4 rounded bg-white/10" />
+          <div className="h-1.5 w-1/2 rounded bg-white/10" />
+        </div>
+      )}
+      {kind === "dock" && (
+        <>
+          <div className="w-4 bg-[#22222a] border-r border-white/10 flex flex-col items-center gap-1 py-1">
+            <div className="w-2 h-2 rounded bg-white/25" />
+            <div className="w-2 h-2 rounded bg-white/15" />
+            <div className="w-2 h-2 rounded bg-white/15" />
+            <div className="w-2 h-2 rounded bg-white/15" />
+          </div>
+          <div className="flex-1 p-1.5 space-y-1">
+            <div className="h-1.5 w-full rounded bg-white/10" />
+            <div className="h-1.5 w-3/4 rounded bg-white/10" />
+            <div className="h-1.5 w-1/2 rounded bg-white/10" />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function LayoutPicker({ current, onClose }: { current: SidebarLayout; onClose: () => void }) {
+  const variants: { key: SidebarLayout; name: string; desc: string }[] = [
+    { key: "classic", name: "Классика", desc: "Полная панель слева на ПК, орбита на мобилке. Твой нынешний вариант." },
+    { key: "orbit", name: "Орбита", desc: "Без панели на ПК: кнопка-орбита у левого края, как на мобилке." },
+    { key: "dock", name: "Док", desc: "Узкая рейка иконок слева — максимум места для ленты." },
+  ];
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/60 z-[310]" onClick={onClose} />
+      <div className="fixed right-3 top-1/2 -translate-y-1/2 z-[311] w-[250px] bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl p-3">
+        <div className="flex items-center justify-between mb-2 px-1">
+          <p className="text-sm font-black text-white">Интерфейс</p>
+          <button onClick={onClose} className="text-white/50 hover:text-white p-1"><X size={16} /></button>
+        </div>
+        <div className="space-y-2">
+          {variants.map((v) => (
+            <button
+              key={v.key}
+              onClick={() => setSidebarLayout(v.key)}
+              className={`w-full text-left rounded-xl border p-2 transition-all ${
+                current === v.key ? "border-[#8b5cf6] bg-[#8b5cf6]/10" : "border-white/10 bg-white/5 hover:bg-white/10"
+              }`}
+            >
+              <LayoutPreview kind={v.key} />
+              <p className="mt-1.5 text-xs font-bold text-white flex items-center gap-1.5">
+                {v.name}
+                {current === v.key && <span className="text-[9px] text-[#a78bfa] font-black uppercase">активен</span>}
+              </p>
+              <p className="text-[10px] text-white/50 mt-0.5 leading-snug">{v.desc}</p>
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[10px] text-white/40 text-center">Применяется сразу, хранится в этом браузере</p>
+      </div>
+    </>
+  );
+}
+
 // ════════════════════════════════════════════════════════════════
 //  САЙДБАР
 // ════════════════════════════════════════════════════════════════
@@ -275,22 +377,37 @@ export function Sidebar() {
 
   const { counts, refresh } = useUnreadCounts();
 
-
-
   // 🔄 Синхронизация лайков между устройствами через WebSocket
-useWebSocket("post_liked", (data: any) => {
-  window.dispatchEvent(new CustomEvent("like-sync", {
-    detail: { post_id: data.post_id, likes_count: data.likes_count },
-  }));
-
-  const me = getCachedUser();
-  if (me && data.liker_id === me.id) {
-    setLikedCache(data.post_id, !!data.liked);
-    window.dispatchEvent(new CustomEvent("like-state-sync", {
-      detail: { post_id: data.post_id, liked: !!data.liked },
+  useWebSocket("post_liked", (data: any) => {
+    window.dispatchEvent(new CustomEvent("like-sync", {
+      detail: { post_id: data.post_id, likes_count: data.likes_count },
     }));
-  }
-});
+    const me = getCachedUser();
+    if (me && data.liker_id === me.id) {
+      setLikedCache(data.post_id, !!data.liked);
+      window.dispatchEvent(new CustomEvent("like-state-sync", {
+        detail: { post_id: data.post_id, liked: !!data.liked },
+      }));
+    }
+  });
+
+
+
+
+
+  const [layout, setLayout] = useState<SidebarLayout>(() => getSidebarLayout());
+  const [showLayoutPicker, setShowLayoutPicker] = useState(false);
+  const arcParamsRef = useRef({ start: ARC_ANGLE_START, end: ARC_ANGLE_END, offsetX: CENTER_OFFSET_X });
+
+  useEffect(() => {
+    const on = (e: Event) => setLayout((e as CustomEvent).detail as SidebarLayout);
+    window.addEventListener("sidebar-layout-change", on);
+    return () => window.removeEventListener("sidebar-layout-change", on);
+  }, []);
+
+
+
+
 
   type WheelItem = { href: string; icon: any; label: string; isProfile?: boolean; count?: number };
 
@@ -312,6 +429,7 @@ useWebSocket("post_liked", (data: any) => {
     { href: "/settings", icon: Settings, label: "Настройки" },
     { href: "/rules", icon: Shield, label: "Правила" },
     { href: "#bug", icon: Bug, label: "Баг-трекер" },
+    { href: "#layout", icon: Palette, label: "Интерфейс" },  // ← ДОБАВИЛИ
   ];
   // ← Админка одним пунктом, открывает bottom sheet
   if (user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) {
@@ -405,8 +523,9 @@ useWebSocket("post_liked", (data: any) => {
     const items  = info.layer === "inner" ? innerItems : outerItems;
     const n = items.length;
 
-    const step  = (ARC_ANGLE_END - ARC_ANGLE_START) / Math.max(n - 1, 1);
-    const angle = ARC_ANGLE_START + info.localIdx * step;
+    const ap    = arcParamsRef.current;
+    const step  = (ap.end - ap.start) / Math.max(n - 1, 1);
+    const angle = ap.start + info.localIdx * step;
 
     return {
       x: arcCenterRef.current.x + radius * Math.cos(angle),
@@ -417,8 +536,13 @@ useWebSocket("post_liked", (data: any) => {
   const openWheel = useCallback(() => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
+    // На ПК в orbit/dock орбита слева → дуга зеркалится вправо
+    const desktopLeft = window.matchMedia("(min-width: 768px)").matches && layout !== "classic";
+    arcParamsRef.current = desktopLeft
+      ? { start: -(7 * Math.PI) / 18, end: (7 * Math.PI) / 18, offsetX: -40 }
+      : { start: ARC_ANGLE_START, end: ARC_ANGLE_END, offsetX: CENTER_OFFSET_X };
     arcCenterRef.current = {
-      x: rect.left + rect.width / 2 + CENTER_OFFSET_X,
+      x: rect.left + rect.width / 2 + arcParamsRef.current.offsetX,
       y: rect.top + rect.height / 2 + CENTER_OFFSET_Y,
     };
     isLongPressed.current = true;
@@ -441,6 +565,8 @@ useWebSocket("post_liked", (data: any) => {
           setShowSearch(true);
         } else if (item.href === "#admin") {
           setShowAdminMenu(true);
+        } else if (item.href === "#layout") {  // ← ДОБАВИЛИ
+          setShowLayoutPicker(true);            // ← ДОБАВИЛИ
         } else {
           router.push(item.href);
         }
@@ -630,10 +756,14 @@ useWebSocket("post_liked", (data: any) => {
           />
         )}
 
-        <div className="mt-4 px-4">
+        <div className="mt-4 px-4 flex items-center gap-2">
           <button onClick={() => setShowBugModal(true)}
-            className="w-fit p-2.5 rounded-xl text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all" title="Сообщить о проблеме">
+            className="p-2.5 rounded-xl text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all" title="Сообщить о проблеме">
             <Bug size={18} />
+          </button>
+          <button onClick={() => setShowLayoutPicker(true)}
+            className="p-2.5 rounded-xl text-[#8b5cf6]/80 hover:text-[#8b5cf6] hover:bg-[#8b5cf6]/10 transition-all" title="Настроить интерфейс">
+            <Palette size={18} />
           </button>
         </div>
       </nav>
@@ -855,6 +985,7 @@ useWebSocket("post_liked", (data: any) => {
       {showBugModal && <BugReportModal onClose={() => setShowBugModal(false)} />}
       {showSearch && <MobileSearch onClose={() => setShowSearch(false)} />}
       {showAdminMenu && <MobileAdminSheet user={user} onClose={() => setShowAdminMenu(false)} />}
+      {showLayoutPicker && <LayoutPicker current={layout} onClose={() => setShowLayoutPicker(false)} />}  // ← ДОБАВИЛИ
     </>
   );
 }
