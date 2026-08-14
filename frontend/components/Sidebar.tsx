@@ -384,7 +384,17 @@ export function Sidebar() {
 
   const [layout, setLayout] = useState<SidebarLayout>(() => getSidebarLayout());
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
-  
+
+  // 📱 Мобилка ли сейчас (чтобы скрыть "Интерфейс" в орбите)
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   const arcParamsRef = useRef({ start: 0, end: 0, offsetX: 0, offsetY: 0 });
 
   useEffect(() => {
@@ -405,12 +415,16 @@ export function Sidebar() {
   innerItems.push({ href: "/updates", icon: Megaphone, label: "Обновления", count: counts.updates });
   if (user) innerItems.push({ href: `/${user.username}`, icon: Home, label: "Профиль", isProfile: true });
 
-  const outerItems: WheelItem[] = [
-    { href: "/settings", icon: Settings, label: "Настройки" },
-    { href: "/rules", icon: Shield, label: "Правила" },
-    { href: "#bug", icon: Bug, label: "Баг-трекер" },
-    { href: "#layout", icon: Palette, label: "Интерфейс" },
-  ];
+    // 🧰 ВНЕШНИЙ СЛОЙ
+    const outerItems: WheelItem[] = [
+      { href: "/settings", icon: Settings, label: "Настройки" },
+      { href: "/rules", icon: Shield, label: "Правила" },
+      { href: "#bug", icon: Bug, label: "Баг-трекер" },
+    ];
+    // На мобилке кнопку смены темы/интерфейса скрываем, на десктопе оставляем
+    if (!isMobile) {
+      outerItems.push({ href: "#layout", icon: Palette, label: "Интерфейс" });
+    }
   
   if (user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) {
     outerItems.push({
@@ -698,9 +712,9 @@ export function Sidebar() {
   const hasAdminAccess = user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users");
 
   const isDock = layout === "dock";
-  const iconClass = isDock ? "w-6 h-6 mx-auto" : "w-[18px] h-[18px]";
+  const iconClass = isDock ? "w-6 h-6 mx-auto shrink-0" : "w-[18px] h-[18px]";
   const textClass = isDock ? "hidden" : "block";
-  const containerClass = isDock ? "justify-center px-2 py-3" : "items-center gap-3 px-4 py-3";
+  const containerClass = isDock ? "justify-center px-0 py-3" : "items-center gap-3 px-4 py-3";
 
   const desktopSidebarContent = (
     <>
@@ -795,12 +809,12 @@ export function Sidebar() {
         {isDock && (
           <div className="flex flex-col items-center gap-2 mb-2">
             <button onClick={() => setShowBugModal(true)}
-              className="p-2 rounded-lg text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all" title="Баг-трекер">
-              <Bug size={20} />
+              className="p-2 rounded-lg text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all shrink-0" title="Баг-трекер">
+              <Bug size={20} className="shrink-0" />
             </button>
             <button onClick={() => setShowLayoutPicker(true)}
-              className="p-2 rounded-lg text-[#8b5cf6]/80 hover:text-[#8b5cf6] hover:bg-[#8b5cf6]/10 transition-all" title="Интерфейс">
-              <Palette size={20} />
+              className="p-2 rounded-lg text-[#8b5cf6]/80 hover:text-[#8b5cf6] hover:bg-[#8b5cf6]/10 transition-all shrink-0" title="Интерфейс">
+              <Palette size={20} className="shrink-0" />
             </button>
           </div>
         )}
@@ -845,10 +859,10 @@ export function Sidebar() {
             {isDock && (
               <button 
                 onClick={() => { clearToken(); setUser(null); clearCachedUser(); router.push("/"); }}
-                className="flex justify-center items-center w-full py-2 text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                className="flex justify-center items-center w-full py-2 text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all shrink-0"
                 title="Выйти"
               >
-                <LogOut size={20} />
+                <LogOut size={20} className="shrink-0" />
               </button>
             )}
           </div>
@@ -994,8 +1008,8 @@ export function Sidebar() {
 
       {/* ═══════ ДЕСКТОП CLASSIC / DOCK ═══════ */}
       {layout !== "orbit" && (
-        <aside className={`hidden md:flex shrink-0 overflow-y-auto p-5 flex-col gap-5 bg-[#171717] transition-all duration-300 ${
-          isDock ? "md:w-20" : "md:w-64"
+        <aside className={`hidden md:flex shrink-0 overflow-y-auto flex-col bg-[#171717] transition-all duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+          isDock ? "md:w-20 md:min-w-20 px-0 py-4 gap-2" : "md:w-64 md:min-w-64 p-5 gap-5"
         }`}>
           {desktopSidebarContent}
         </aside>
