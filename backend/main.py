@@ -17,6 +17,7 @@ import re
 import json
 import cloudinary
 import cloudinary.uploader
+from link_preview import router as lp_router; app.include_router(lp_router)
 from websocket_manager import manager
 from slowapi import Limiter
 from slowapi.util import get_remote_address
@@ -181,7 +182,7 @@ async def get_current_user_optional(authorization: str = Header(None), session: 
 # ============================================================
 
 app = FastAPI(title="Nebula API")
-
+app.include_router(link_preview_router)
 
 @app.on_event("startup")
 def print_routes():

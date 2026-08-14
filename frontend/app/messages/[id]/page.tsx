@@ -11,6 +11,7 @@ import { VideoNoteRecorder } from "@/components/VideoNoteRecorder";
 import { VideoNotePlayer } from "@/components/VideoNotePlayer";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { MessageContextMenu } from "@/components/MessageContextMenu";
+import LinkPreview  from "@/components/LinkPreview";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { STICKERS } from "@/lib/stickers";
@@ -24,6 +25,7 @@ import { pinMessage, unpinMessage, getPinnedMessages } from "@/lib/api";
 import type { PinnedMessage } from "@/lib/types";
 import { EncryptedMediaPlayer } from "@/components/EncryptedMediaPlayer";
 import { clearSessionKey } from "@/lib/crypto";
+
 
 
 
@@ -413,6 +415,37 @@ export default function ChatPage() {
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
+
+function renderMessageText(text: string) {
+  if (!text) return null;
+  const parts = text.split(/(https?:\/\/[^\s<>"]+)/g);
+  return parts.map((part, i) => {
+    if (/^https?:\/\//.test(part)) {
+      const clean = part.replace(/[.,;:!?)]+$/, "");
+      const tail = part.slice(clean.length);
+      return (
+        <span key={i}>
+          <a
+            href={clean}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-sky-300 underline underline-offset-2 break-all"
+          >
+            {clean}
+          </a>
+          {tail}
+        </span>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
+}
+
+function extractFirstUrl(text: string): string | null {
+  const m = text.match(/https?:\/\/[^\s<>"]+/);
+  return m ? m[0].replace(/[.,;:!?)]+$/, "") : null;
+}
+
 
   function toggleSelectMode() {
     setIsSelectMode((prev) => !prev);
@@ -2125,8 +2158,18 @@ const ChatHeader = () => (
                               </div>
                             </div>
   ) : (
-    <>{displayText && <p className="whitespace-pre-wrap break-words text-[15px] sm:text-sm md:text-base leading-snug">{displayText}</p>}</>
+<>
+  {displayText && (
+    <>
+      <p className="whitespace-pre-wrap break-words text-[15px] sm:text-sm md:text-base leading-snug">
+        {renderMessageText(displayText)}
+      </p>
+      {!isSecret && extractFirstUrl(displayText) && (
+        <LinkPreview url={extractFirstUrl(displayText)!} />
+      )}
+    </>
   )}
+</>  )}
 </div>
 
                         {!isEditing && !isSelectMode && msg.reactions?.length > 0 && (

@@ -15,15 +15,33 @@ import { isLikedCached, setLikedCache } from "@/lib/postCache";
 import { getCachedUser } from "@/lib/authCache";
 import { timeAgo } from "@/lib/time";
 import { AudioPlayer } from "@/components/AudioPlayer";
-
+import LinkPreview from "@/components/LinkPreview";
 
 
 
 function renderText(text: string) {
   if (!text) return null;
-  const parts = text.split(/(#[\wа-яёА-ЯЁ]+|@[\wа-яёА-ЯЁ]+|:[\w]+:)/g);
+  const parts = text.split(/(https?:\/\/[^\s<>"]+|#[\wа-яёА-ЯЁ]+|@[\wа-яёА-ЯЁ]+|:[\w]+:)/g);
   return parts.map((part, i) => {
-    if (part.startsWith("#")) {
+  if (part.startsWith("http://") || part.startsWith("https://")) {
+    const clean = part.replace(/[.,;:!?)]+$/, "");
+    const tail = part.slice(clean.length);
+    return (
+      <span key={i}>
+        <a
+          href={clean}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="font-semibold text-sky-300 hover:text-sky-200 underline underline-offset-2 break-all"
+        >
+          {clean}
+        </a>
+        {tail}
+      </span>
+    );
+  }
+  if (part.startsWith("#")) {
       return (
         <Link
           key={i}
@@ -59,6 +77,12 @@ function renderText(text: string) {
     }
     return <span key={i}>{part}</span>;
   });
+}
+
+
+function extractFirstUrl(text: string): string | null {
+  const m = text.match(/https?:\/\/[^\s<>"]+/);
+  return m ? m[0].replace(/[.,;:!?)]+$/, "") : null;
 }
 
 function SmartMedia({ src, type, className }: { src: string; type?: string | null; className?: string }) {
@@ -591,7 +615,12 @@ export function Post({
           </div>
           
           {/* 🆕 Рендер текста и вложенного поста */}
-          {is_quote && <p className="mt-1 text-white/90 whitespace-pre-wrap break-words">{renderText(displayText)}</p>}
+          {is_quote && (
+              <>
+                <p className="mt-1 text-white/90 whitespace-pre-wrap break-words">{renderText(displayText)}</p>
+                {extractFirstUrl(displayText) && <LinkPreview url={extractFirstUrl(displayText)!} />}
+              </>
+            )}
           
           {repost_of && !repost_of.deleted ? (
             <div className="mt-2 border border-white/10 rounded-xl p-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
@@ -619,7 +648,12 @@ export function Post({
             </div>
           ) : (
             <>
-              {!is_quote && <p className="mt-1 text-white/90 whitespace-pre-wrap break-words">{renderText(displayText)}</p>}
+                {!is_quote && (
+                  <>
+                    <p className="mt-1 text-white/90 whitespace-pre-wrap break-words">{renderText(displayText)}</p>
+                    {extractFirstUrl(displayText) && <LinkPreview url={extractFirstUrl(displayText)!} />}
+                  </>
+                )}
               {media_url && (
                 <SmartMedia src={mediaUrl(media_url)} type={media_type} />
               )}

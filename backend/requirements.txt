@@ -13,3 +13,5 @@ PyJWT
 cryptography>=41.0.0
 pywebpush==2.0.3
 cryptography>=42.0.0
+httpx
+beautifulsoup4
