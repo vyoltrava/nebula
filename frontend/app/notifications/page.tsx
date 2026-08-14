@@ -122,23 +122,23 @@ export default function NotificationsPage() {
   return (
     <div className="h-screen flex overflow-hidden bg-[#18181b]">
       <Sidebar />
-      <div className="w-px shrink-0 bg-white/10 my-3" />
-      <main className="flex-1 overflow-y-auto border-x border-white/10">
+      <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
+      <main className="flex-1 overflow-y-auto overflow-x-hidden border-x border-white/10 md:border-x-0">
         {/* Шапка */}
-        <div className="p-4 border-b border-white/10 sticky top-0 bg-[#171717]/95 backdrop-blur-md z-10">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
+        <div className="p-3 sm:p-4 border-b border-white/10 sticky top-0 bg-[#171717]/95 backdrop-blur-md z-10">
+          <div className="flex items-center justify-between gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <button
                 onClick={() => router.back()}
-                className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all"
+                className="p-1.5 sm:p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all active:scale-95 shrink-0"
               >
-                <ArrowLeft size={20} />
+                <ArrowLeft size={18} className="sm:w-5 sm:h-5" />
               </button>
-              <div className="flex items-center gap-2">
-                <Bell size={24} className="text-[#8b5cf6]" />
-                <h1 className="text-2xl font-black text-white">Уведомления</h1>
+              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                <Bell size={20} className="sm:w-6 sm:h-6 text-[#8b5cf6] shrink-0" />
+                <h1 className="text-lg sm:text-2xl font-black text-white truncate">Уведомления</h1>
                 {unreadCount > 0 && (
-                  <span className="px-2 py-0.5 rounded-full bg-[#8b5cf6] text-white text-xs font-bold">
+                  <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-[#8b5cf6] text-white text-[10px] sm:text-xs font-bold shrink-0">
                     {unreadCount}
                   </span>
                 )}
@@ -148,14 +148,17 @@ export default function NotificationsPage() {
             <button
               onClick={markAllRead}
               disabled={unreadCount === 0 || markingAll}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-semibold transition-all ${
+              className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg border text-xs sm:text-sm font-semibold transition-all active:scale-95 shrink-0 ${
                 unreadCount === 0 || markingAll
                   ? "border-white/5 text-white/20 cursor-not-allowed"
                   : "border-[#8b5cf6]/40 text-[#8b5cf6] hover:bg-[#8b5cf6]/10 hover:text-[#a78bfa]"
               }`}
+              title="Прочитать все"
             >
-              <CheckCheck size={16} />
-              {markingAll ? "Отмечаем..." : "Прочитать все"}
+              <CheckCheck size={14} className="sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">
+                {markingAll ? "Отмечаем..." : "Прочитать все"}
+              </span>
             </button>
           </div>
         </div>
@@ -169,10 +172,10 @@ export default function NotificationsPage() {
           )}
 
           {!loading && notifs.length === 0 && (
-            <div className="text-center py-16">
-              <Bell size={56} className="text-white/20 mx-auto mb-4" />
-              <p className="text-white/50 text-lg">Пока нет уведомлений</p>
-              <p className="text-white/30 text-sm mt-2">
+            <div className="text-center py-12 sm:py-16 px-4">
+              <Bell size={44} className="sm:w-14 sm:h-14 text-white/20 mx-auto mb-3 sm:mb-4" />
+              <p className="text-white/50 text-base sm:text-lg font-semibold">Пока нет уведомлений</p>
+              <p className="text-white/30 text-xs sm:text-sm mt-1.5 sm:mt-2 max-w-xs mx-auto">
                 Здесь будут появляться лайки, ответы и новые подписчики
               </p>
             </div>
@@ -192,51 +195,53 @@ export default function NotificationsPage() {
                     onClick={() => {
                       if (!n.read) markRead(n.id);
                     }}
-                    className={`flex items-start gap-3 p-4 transition-all group ${
+                    className={`flex items-start gap-2.5 sm:gap-3 p-3 sm:p-4 transition-all group active:bg-white/10 ${
                       !n.read
                         ? "bg-[#8b5cf6]/5 hover:bg-[#8b5cf6]/10"
                         : "hover:bg-white/5"
                     }`}
                   >
                     {/* Аватарка */}
-                    <div className="shrink-0">
+                    <div className="shrink-0 mt-0.5">
                       <Avatar
                         src={n.actor?.avatar_url}
                         name={n.actor?.display_name || "User"}
                         id={n.actor?.id}
-                        size={44}
+                        size={38}
                       />
                     </div>
 
                     {/* Контент */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-white truncate group-hover:text-[#a78bfa] transition-colors">
+                      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                        <span className="font-bold text-[13px] sm:text-sm text-white truncate group-hover:text-[#a78bfa] transition-colors max-w-[40%] sm:max-w-none">
                           {n.actor?.display_name || "Неизвестный"}
                         </span>
-                        <span className="text-sm text-white/60">
+                        <span className="text-[11px] sm:text-sm text-white/60 truncate">
                           {texts[n.type as keyof typeof texts] || "совершил(а) действие"}
                         </span>
-                        <span className={`p-1 rounded-full ${
+                        <span className={`p-0.5 sm:p-1 rounded-full shrink-0 ${
                           !n.read ? "bg-white/10" : "bg-white/5"
                         }`}>
-                          {icons[n.type as keyof typeof icons] || <Bell size={12} />}
+                          {icons[n.type as keyof typeof icons] || <Bell size={11} className="sm:w-3 sm:h-3" />}
                         </span>
                       </div>
                       
-                      <p className="text-xs text-white/40 mt-1">
-                        {timeAgo(n.created_at)}
-                      </p>
+                      <div className="flex items-center justify-between gap-2 mt-1">
+                        <p className="text-[11px] sm:text-xs text-white/40 shrink-0">
+                          {timeAgo(n.created_at)}
+                        </p>
 
-                      {/* Подсказка куда ведёт */}
-                      <p className="text-xs text-[#8b5cf6]/80 mt-1.5 font-medium">
-                        → {link === "/messages" ? "Открыть сообщения" : "Перейти к профилю"}
-                      </p>
+                        {/* Подсказка куда ведёт — только на sm+ */}
+                        <p className="hidden sm:block text-xs text-[#8b5cf6]/80 font-medium truncate">
+                          → {link === "/messages" ? "Открыть сообщения" : "Перейти к профилю"}
+                        </p>
+                      </div>
                     </div>
 
                     {/* Индикатор непрочитанного */}
                     {!n.read && (
-                      <div className="w-2.5 h-2.5 rounded-full bg-[#8b5cf6] shrink-0 mt-2 shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
+                      <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#8b5cf6] shrink-0 mt-3 shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
                     )}
                   </Link>
                 );
