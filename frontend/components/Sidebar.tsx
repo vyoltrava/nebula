@@ -109,11 +109,6 @@ function AdminDropdown({ user, pathname, isOpen, onToggle, onClose }: {
   );
 }
 
-
-
-
-
-
 // ════════════════════════════════════════════════════════════════
 //  Мобильный админ-лист (bottom sheet)
 // ════════════════════════════════════════════════════════════════
@@ -391,10 +386,6 @@ export function Sidebar() {
     }
   });
 
-
-
-
-
   const [layout, setLayout] = useState<SidebarLayout>(() => getSidebarLayout());
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
   const arcParamsRef = useRef({ start: ARC_ANGLE_START, end: ARC_ANGLE_END, offsetX: CENTER_OFFSET_X });
@@ -404,10 +395,6 @@ export function Sidebar() {
     window.addEventListener("sidebar-layout-change", on);
     return () => window.removeEventListener("sidebar-layout-change", on);
   }, []);
-
-
-
-
 
   type WheelItem = { href: string; icon: any; label: string; isProfile?: boolean; count?: number };
 
@@ -420,7 +407,7 @@ export function Sidebar() {
   if (user) innerItems.push({ href: "/messages", icon: MessageSquare, label: "Сообщения", count: counts.chats });
   if (user) innerItems.push({ href: "/notifications", icon: Bell, label: "Уведомления", count: counts.notifications });
   innerItems.push({ href: "/bookmarks", icon: Bookmark, label: "Закладки" });
-  innerItems.push({ href: "#search", icon: Search, label: "Поиск" });   // ← ПОИСК
+  innerItems.push({ href: "#search", icon: Search, label: "Поиск" });
   innerItems.push({ href: "/updates", icon: Megaphone, label: "Обновления", count: counts.updates });
   if (user) innerItems.push({ href: `/${user.username}`, icon: Home, label: "Профиль", isProfile: true });
 
@@ -429,9 +416,9 @@ export function Sidebar() {
     { href: "/settings", icon: Settings, label: "Настройки" },
     { href: "/rules", icon: Shield, label: "Правила" },
     { href: "#bug", icon: Bug, label: "Баг-трекер" },
-    { href: "#layout", icon: Palette, label: "Интерфейс" },  // ← ДОБАВИЛИ
+    { href: "#layout", icon: Palette, label: "Интерфейс" },
   ];
-  // ← Админка одним пунктом, открывает bottom sheet
+  
   if (user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) {
     outerItems.push({
       href: "#admin",
@@ -551,7 +538,7 @@ export function Sidebar() {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => { setWheelReady(true); });
     });
-  }, []);
+  }, [layout]); // Добавил layout в зависимости
 
   const closeWheel = useCallback((doAction: boolean) => {
     if (doAction && hoveredIdx !== null) {
@@ -565,8 +552,8 @@ export function Sidebar() {
           setShowSearch(true);
         } else if (item.href === "#admin") {
           setShowAdminMenu(true);
-        } else if (item.href === "#layout") {  // ← ДОБАВИЛИ
-          setShowLayoutPicker(true);            // ← ДОБАВИЛИ
+        } else if (item.href === "#layout") {
+          setShowLayoutPicker(true);
         } else {
           router.push(item.href);
         }
@@ -696,59 +683,74 @@ export function Sidebar() {
     : user.role?.color ?? null
     : null;
 
-  // Проверяем, есть ли у пользователя админские права
   const hasAdminAccess = user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users");
+
+  // ════════════════════════════════════════════════════════════════
+  // 🔥 ФИКС 4: Хелперы для адаптации под DOCK
+  // ════════════════════════════════════════════════════════════════
+  const isDock = layout === "dock";
+  const iconClass = isDock ? "w-6 h-6 mx-auto" : "w-[18px] h-[18px]";
+  const textClass = isDock ? "hidden" : "block";
+  const containerClass = isDock ? "justify-center px-2 py-3" : "items-center gap-3 px-4 py-3";
 
   const desktopSidebarContent = (
     <>
-      <div className="flex items-center gap-2">
-        <img src="/logo-icon.svg" alt="Trelod logo" className="w-9 h-9" />
-        <h1 className="font-logo text-4xl text-[#8b5cf6]">trelod</h1>
+      <div className={`flex ${isDock ? "justify-center" : "items-center gap-2"}`}>
+        <img src="/logo-icon.svg" alt="Trelod logo" className={isDock ? "w-8 h-8" : "w-9 h-9"} />
+        {!isDock && <h1 className="font-logo text-4xl text-[#8b5cf6]">trelod</h1>}
       </div>
+      
       <nav className="flex flex-col">
         {nav.map(({ href, icon: Icon, label }) => {
           const active = pathname === href;
           const showUpdatesBadge = href === "/updates" && (counts.updates || 0) > 0;
           return (
             <Link key={href} href={href}
-              className={`flex items-center gap-3 px-4 py-3 font-medium transition-all border-b border-white/5 last:border-none group ${
+              className={`flex ${containerClass} font-medium transition-all border-b border-white/5 last:border-none group relative ${
                 active ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
               }`}>
-              <Icon size={18} className={active ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} />
-              <span>{label}</span>
+              <Icon size={18} className={`${iconClass} ${active ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"}`} />
+              <span className={textClass}>{label}</span>
+              
               {showUpdatesBadge && (
-                <span className="ml-auto bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm">{counts.updates}</span>
+                <span className={`${isDock ? "absolute top-2 right-2" : "ml-auto"} bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm`}>
+                  {counts.updates}
+                </span>
               )}
             </Link>
           );
         })}
+
         {user && (
           <Link href="/messages"
-            className={`flex items-center gap-3 px-4 py-3 font-medium transition-all relative border-b border-white/5 group ${
+            className={`flex ${containerClass} font-medium transition-all relative border-b border-white/5 group ${
               pathname?.startsWith("/messages") ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
             }`}>
-            <MessageSquare size={18} className={pathname?.startsWith("/messages") ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} />
-            <span>Сообщения</span>
+            <MessageSquare size={18} className={`${iconClass} ${pathname?.startsWith("/messages") ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"}`} />
+            <span className={textClass}>Сообщения</span>
             {counts.chats > 0 && (
-              <span className="ml-auto bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm">{counts.chats}</span>
+              <span className={`${isDock ? "absolute top-2 right-2" : "ml-auto"} bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm`}>
+                {counts.chats}
+              </span>
             )}
           </Link>
         )}
+
         <button onClick={loadNotifications}
-          className={`flex items-center gap-3 px-4 py-3 font-medium transition-all relative border-b border-white/5 group ${
+          className={`flex ${containerClass} font-medium transition-all relative border-b border-white/5 group ${
             pathname === "/notifications" ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
           }`}>
-          <Bell size={18} className={pathname === "/notifications" ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} />
-          <span>Уведомления</span>
+          <Bell size={18} className={`${iconClass} ${pathname === "/notifications" ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"}`} />
+          <span className={textClass}>Уведомления</span>
           {counts.notifications > 0 && (
-            <span className="ml-auto bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm">{counts.notifications}</span>
+            <span className={`${isDock ? "absolute top-2 right-2" : "ml-auto"} bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm`}>
+              {counts.notifications}
+            </span>
           )}
         </button>
 
-
-
-        {/* Админка - теперь отдельный пункт в навигации (только десктоп) */}
-        {hasAdminAccess && (
+        {/* Админка - только если есть права */}
+        {hasAdminAccess && !isDock && (
           <AdminDropdown 
             user={user} 
             pathname={pathname}
@@ -758,41 +760,57 @@ export function Sidebar() {
           />
         )}
 
-        <div className="mt-4 px-4 flex items-center gap-2">
-          <button onClick={() => setShowBugModal(true)}
-            className="p-2.5 rounded-xl text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all" title="Сообщить о проблеме">
-            <Bug size={18} />
-          </button>
-          <button onClick={() => setShowLayoutPicker(true)}
-            className="p-2.5 rounded-xl text-[#8b5cf6]/80 hover:text-[#8b5cf6] hover:bg-[#8b5cf6]/10 transition-all" title="Настроить интерфейс">
-            <Palette size={18} />
-          </button>
-        </div>
+        {/* В режиме Dock показываем просто иконку админки без дропдауна */}
+        {hasAdminAccess && isDock && (
+           <Link href="/admin" className={`flex ${containerClass} font-medium transition-all border-b border-white/5 group text-white/40 hover:bg-white/[0.03] hover:text-white/60`}>
+              <ShieldAlert size={18} className={iconClass} />
+           </Link>
+        )}
+
+        {!isDock && (
+          <div className="mt-4 px-4 flex items-center gap-2">
+            <button onClick={() => setShowBugModal(true)}
+              className="p-2.5 rounded-xl text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all" title="Сообщить о проблеме">
+              <Bug size={18} />
+            </button>
+            <button onClick={() => setShowLayoutPicker(true)}
+              className="p-2.5 rounded-xl text-[#8b5cf6]/80 hover:text-[#8b5cf6] hover:bg-[#8b5cf6]/10 transition-all" title="Настроить интерфейс">
+              <Palette size={18} />
+            </button>
+          </div>
+        )}
       </nav>
-      <div className="mt-4 flex flex-col gap-2 pt-4 border-t border-white/5">
+
+      <div className={`mt-4 flex flex-col gap-2 pt-4 border-t border-white/5 ${isDock ? "items-center" : ""}`}>
         {user ? (
           <Link href={`/${user.username}`}
-            className="flex items-center gap-3 px-2 py-2 -mx-2 rounded-lg hover:bg-white/5 transition-all cursor-pointer group w-full">
+            className={`flex ${isDock ? "justify-center" : "items-center gap-3 px-2 py-2 -mx-2"} rounded-lg hover:bg-white/5 transition-all cursor-pointer group w-full`}>
             <div className="shrink-0" style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}>
               <Avatar src={user.avatar_url} name={user.display_name} id={user.id} />
             </div>
-            <div className="leading-tight min-w-0 flex-1">
-              <p className={`font-semibold text-sm truncate transition-all ${glow ? "group-hover:opacity-80" : "text-white group-hover:text-[#8b5cf6]"}`}
-                style={glow ? { color: glow, textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66` } : undefined}>
-                {user.display_name}
-              </p>
-              <p className="text-sm text-white/40 truncate">@{user.username}</p>
-            </div>
-            <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); clearToken(); setUser(null); clearCachedUser(); }}
-              className="shrink-0 p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/20 transition-all" title="Выйти">
-              <LogOut size={18} />
-            </button>
+            {!isDock && (
+              <div className="leading-tight min-w-0 flex-1">
+                <p className={`font-semibold text-sm truncate transition-all ${glow ? "group-hover:opacity-80" : "text-white group-hover:text-[#8b5cf6]"}`}
+                  style={glow ? { color: glow, textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66` } : undefined}>
+                  {user.display_name}
+                </p>
+                <p className="text-sm text-white/40 truncate">@{user.username}</p>
+              </div>
+            )}
+            {!isDock && (
+              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); clearToken(); setUser(null); clearCachedUser(); }}
+                className="shrink-0 p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/20 transition-all" title="Выйти">
+                <LogOut size={18} />
+              </button>
+            )}
           </Link>
         ) : (
-          <Link href="/login"
-            className="flex items-center justify-center bg-[#8b5cf6]/15 border border-[#8b5cf6]/30 rounded-lg px-4 py-2.5 font-medium text-[#a78bfa] hover:bg-[#8b5cf6]/25 transition-all w-full">
-            Войти
-          </Link>
+          !isDock && (
+            <Link href="/login"
+              className="flex items-center justify-center bg-[#8b5cf6]/15 border border-[#8b5cf6]/30 rounded-lg px-4 py-2.5 font-medium text-[#a78bfa] hover:bg-[#8b5cf6]/25 transition-all w-full">
+              Войти
+            </Link>
+          )
         )}
       </div>
     </>
@@ -897,19 +915,25 @@ export function Sidebar() {
   return (
     <>
       {/* ═══════ МОБИЛКА ═══════ */}
-      <div className="md:hidden">
+      {/* Показываем кнопку орбиты на мобилках ВСЕГДА, а на десктопе ТОЛЬКО если layout === "orbit" */}
+      <div className={layout === "orbit" ? "block" : "md:hidden"}>
         <button
           ref={buttonRef}
           onTouchStart={handleStart}
           onMouseDown={handleStart}
-          className={`fixed right-0 z-[98] w-14 h-14 -translate-y-1/2
-            bg-[#171717]/90 backdrop-blur-sm border rounded-l-full
+          className={`fixed z-[98] w-14 h-14 -translate-y-1/2
+            bg-[#171717]/90 backdrop-blur-sm border 
             flex items-center justify-center shadow-lg shadow-black/50
             transition-all duration-200
             ${wheelOpen
               ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/20 scale-110"
-              : "border-white/10 active:scale-95"}`}
-          style={{ top: "calc(50% + 8px)", touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
+              : "border-white/10 active:scale-95"}
+            ${layout === "orbit" 
+              ? "left-4 top-1/2 rounded-r-full" 
+              : "right-0 top-[calc(50%+8px)] rounded-l-full"
+            }
+          `}
+          style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
           aria-label="Меню навигации"
         >
           <Orbit size={22} className={`transition-all duration-300 ${wheelOpen ? "text-[#8b5cf6] rotate-[60deg]" : "text-white/80"}`} />
@@ -918,15 +942,22 @@ export function Sidebar() {
       </div>
 
       {/* ═══════ ДЕСКТОП ═══════ */}
-      <aside className="hidden md:flex md:w-64 shrink-0 overflow-y-auto p-5 flex-col gap-5 bg-[#171717]">
-        {desktopSidebarContent}
-      </aside>
+      {/* 🔥 ФИКС 2: Динамический сайдбар. Скрываем если orbit, меняем ширину если dock */}
+      {layout !== "orbit" && (
+        <aside className={`hidden md:flex shrink-0 overflow-y-auto p-5 flex-col gap-5 bg-[#171717] transition-all duration-300 ${
+          isDock ? "md:w-20" : "md:w-64"
+        }`}>
+          {desktopSidebarContent}
+        </aside>
+      )}
 
       {/* ═══════ УВЕДОМЛЕНИЯ ═══════ */}
       {showNotifs && (
         <>
           <div className="fixed inset-0 bg-black/60 z-[99]" onClick={() => setShowNotifs(false)} />
-          <div className="fixed left-4 right-4 md:left-[272px] md:right-auto md:top-4 top-16 w-auto md:w-[380px] max-h-[70vh] md:max-h-[520px] overflow-hidden border border-white/10 rounded-2xl bg-[#1f1f23] shadow-2xl z-[100] flex flex-col">
+          <div className={`fixed left-4 right-4 md:right-auto md:top-4 top-16 w-auto md:w-[380px] max-h-[70vh] md:max-h-[520px] overflow-hidden border border-white/10 rounded-2xl bg-[#1f1f23] shadow-2xl z-[100] flex flex-col transition-all duration-300 ${
+             isDock ? "md:left-24" : "md:left-[272px]"
+          }`}>
             <div className="sticky top-0 bg-[#1f1f23]/95 backdrop-blur-md border-b border-white/10 p-3 flex items-center justify-between shrink-0">
               <h3 className="font-bold text-white">Уведомления</h3>
               <div className="flex items-center gap-1">
