@@ -745,7 +745,7 @@ export function Sidebar() {
           )}
         </button>
 
-        
+
 
         {/* Админка - теперь отдельный пункт в навигации (только десктоп) */}
         {hasAdminAccess && (
@@ -987,7 +987,7 @@ export function Sidebar() {
       {showBugModal && <BugReportModal onClose={() => setShowBugModal(false)} />}
       {showSearch && <MobileSearch onClose={() => setShowSearch(false)} />}
       {showAdminMenu && <MobileAdminSheet user={user} onClose={() => setShowAdminMenu(false)} />}
-      {showLayoutPicker && <LayoutPicker current={layout} onClose={() => setShowLayoutPicker(false)} />}  // ← ДОБАВИЛИ
+      {showLayoutPicker && <LayoutPicker current={layout} onClose={() => setShowLayoutPicker(false)} />}
     </>
   );
 }
