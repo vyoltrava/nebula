@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus,
   AtSign, X, Shield, ShieldCheck, MessageSquare, Palette,
-  Bug, Menu, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft
+  Bug, Orbit, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
@@ -16,13 +16,13 @@ import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 // ════════════════════════════════════════════════════════════════
 // 🆕 ДВОЙНОЙ ПОЛУКРУГ: внутренний + внешний слой (БЕЗ SVG)
 // ════════════════════════════════════════════════════════════════
-const INNER_RADIUS     = 120;  // ближний слой к кнопке
-const OUTER_RADIUS     = 205;  // дальний слой
+const INNER_RADIUS     = 135;  // ближний слой к кнопке
+const OUTER_RADIUS     = 215;  // дальний слой
 const CENTER_OFFSET_X  = 40;
 const CENTER_OFFSET_Y  = 0;
 const ARC_ANGLE_START  = (11 * Math.PI) / 18;  // 110°
 const ARC_ANGLE_END    = (25 * Math.PI) / 18;  // 250°
-const SNAP_RADIUS      = 55;   // меньше = меньше промахов на соседнюю кнопку
+const SNAP_RADIUS      = 48;   // меньше = меньше промахов на соседнюю кнопку
 const LONG_PRESS_MS    = 250;
 
 export function Sidebar() {
@@ -47,16 +47,16 @@ export function Sidebar() {
 
   const { counts, refresh } = useUnreadCounts();
 
-  type WheelItem = { href: string; icon: any; label: string; isProfile?: boolean };
+  type WheelItem = { href: string; icon: any; label: string; isProfile?: boolean; count?: number };
 
   const allWheelItems: WheelItem[] = [
     { href: "/",          icon: Home,        label: "Главная" },
     { href: "/bookmarks", icon: Bookmark,    label: "Закладки" },
-    { href: "/updates",   icon: Megaphone,   label: "Обновления" },
+    { href: "/updates",   icon: Megaphone,   label: "Обновления", count: counts.updates },
     { href: "/rules",     icon: Shield,      label: "Правила" },
     { href: "/settings",  icon: Settings,    label: "Настройки" },
   ];
-  if (user) allWheelItems.push({ href: "/messages", icon: MessageSquare, label: "Сообщения" });
+  if (user) allWheelItems.push({ href: "/messages", icon: MessageSquare, label: "Сообщения", count: counts.chats });
   if (user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) {
     allWheelItems.push({
       href: "/admin",
@@ -64,14 +64,22 @@ export function Sidebar() {
       label: user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель",
     });
   }
-  allWheelItems.push({ href: "/notifications", icon: Bell, label: "Уведомления" });
+  // 🆕 Как в десктопе: Роли и Техпанель
+  if (user?.is_admin) {
+    allWheelItems.push({ href: "/admin/roles", icon: Palette, label: "Роли" });
+  }
+  if (user?.permissions?.includes("tech_access")) {
+    allWheelItems.push({ href: "/admin/technical", icon: Wrench, label: "Техпанель" });
+  }
+  // 🆕 Баг-трекер (как оранжевая кнопка в десктопе)
+  allWheelItems.push({ href: "#bug", icon: Bug, label: "Баг-трекер" });
+  allWheelItems.push({ href: "/notifications", icon: Bell, label: "Уведомления", count: counts.notifications });
   if (user) {
     allWheelItems.push({ href: `/${user.username}`, icon: Home, label: "Профиль", isProfile: true });
     allWheelItems.push({ href: "#logout", icon: LogOut, label: "Выйти" });
   } else {
     allWheelItems.push({ href: "/login", icon: Home, label: "Войти" });
   }
-
   // 🆕 Разделяем на два слоя: первая половина — внутренний, вторая — внешний
   const splitIdx = Math.ceil(allWheelItems.length / 2);
   const innerItems = allWheelItems.slice(0, splitIdx);
@@ -192,6 +200,8 @@ export function Sidebar() {
       if (item) {
         if (item.href === "#logout") {
           clearToken(); setUser(null); clearCachedUser(); router.push("/");
+        } else if (item.href === "#bug") {
+          setShowBugModal(true);
         } else {
           router.push(item.href);
         }
@@ -487,26 +497,25 @@ export function Sidebar() {
                 zIndex: isActive ? 20 : 10,
               }}
             >
-              <div className="flex flex-col items-center gap-1">
-                <div className={`
-                  flex items-center justify-center rounded-full overflow-hidden
-                  transition-all duration-150
-                  ${isActive
-                    ? "w-14 h-14 bg-[#8b5cf6] shadow-[0_0_28px_rgba(139,92,246,0.55)]"
-                    : isOuter
-                      ? "w-11 h-11 bg-[#1a1a1f]/95 border border-white/15 shadow-lg shadow-black/40"
-                      : "w-12 h-12 bg-[#22222a]/95 border border-white/20 shadow-lg shadow-black/40"
-                  }
-                `}>
-                  {item.isProfile && user ? (
-                    <Avatar src={user.avatar_url} name={user.display_name} id={user.id} size={isActive ? 30 : isOuter ? 22 : 26} />
-                  ) : (
-                    <item.icon size={isActive ? 26 : isOuter ? 19 : 21} className={isActive ? "text-white" : "text-white/70"} />
-                  )}
-                </div>
-                {isActive && (
-                  <span className="text-[10px] font-bold text-white bg-[#8b5cf6] px-2 py-0.5 rounded-full whitespace-nowrap shadow-lg">
-                    {item.label}
+              <div className={`
+                relative flex items-center justify-center rounded-full
+                transition-all duration-150
+                ${isActive
+                  ? "w-14 h-14 bg-[#8b5cf6] shadow-[0_0_28px_rgba(139,92,246,0.55)]"
+                  : isOuter
+                    ? "w-11 h-11 bg-[#1a1a1f]/95 border border-white/15 shadow-lg shadow-black/40"
+                    : "w-12 h-12 bg-[#22222a]/95 border border-white/20 shadow-lg shadow-black/40"
+                }
+              `}>
+                {item.isProfile && user ? (
+                  <Avatar src={user.avatar_url} name={user.display_name} id={user.id} size={isActive ? 30 : isOuter ? 22 : 26} />
+                ) : (
+                  <item.icon size={isActive ? 26 : isOuter ? 19 : 21} className={isActive ? "text-white" : "text-white/70"} />
+                )}
+                {/* 🆕 Счётчик непрочитанного — виден даже без подписи */}
+                {!!item.count && item.count > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#8b5cf6] border-2 border-[#171717] text-white text-[9px] font-bold flex items-center justify-center">
+                    {item.count > 9 ? "9+" : item.count}
                   </span>
                 )}
               </div>
@@ -546,7 +555,7 @@ export function Sidebar() {
           style={{ top: "calc(50% + 8px)", touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
           aria-label="Меню навигации"
         >
-          <Menu size={22} className={`transition-colors ${wheelOpen ? "text-[#8b5cf6]" : "text-white/80"}`} />
+                    <Orbit size={22} className={`transition-all duration-300 ${wheelOpen ? "text-[#8b5cf6] rotate-[60deg]" : "text-white/80"}`} />
         </button>
         {renderWheel()}
       </div>
