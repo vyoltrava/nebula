@@ -745,6 +745,8 @@ export function Sidebar() {
           )}
         </button>
 
+        
+
         {/* Админка - теперь отдельный пункт в навигации (только десктоп) */}
         {hasAdminAccess && (
           <AdminDropdown 
