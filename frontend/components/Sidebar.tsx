@@ -12,6 +12,8 @@ import { getToken, clearToken } from "@/lib/auth";
 import { BugReportModal } from "@/components/BugReportModal";
 import { getCachedUser, setCachedUser, clearCachedUser } from "@/lib/authCache";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
+import { useWebSocket } from "@/src/hooks/useWebSocket";
+import { setLikedCache } from "@/lib/postCache";
 
 // ════════════════════════════════════════════════════════════════
 // 🎯 ДВОЙНОЙ ПОЛУКРУГ: внутренний = частое, внешний = редкое
@@ -107,6 +109,25 @@ function AdminDropdown({ user, pathname, isOpen, onToggle, onClose }: {
   );
 }
 
+
+useWebSocket("post_liked", (data: any) => {
+  // 1. Обновляем счётчик во всех открытых постах
+  window.dispatchEvent(new CustomEvent("like-sync", {
+    detail: { post_id: data.post_id, likes_count: data.likes_count },
+  }));
+
+  // 2. Если это Я лайкнул с другого устройства — синхронизируем активное состояние
+  const me = getCachedUser();
+  if (me && data.liker_id === me.id) {
+    setLikedCache(data.post_id, !!data.liked);
+    window.dispatchEvent(new CustomEvent("like-state-sync", {
+      detail: { post_id: data.post_id, liked: !!data.liked },
+    }));
+  }
+});
+
+
+
 // ════════════════════════════════════════════════════════════════
 //  Мобильный админ-лист (bottom sheet)
 // ════════════════════════════════════════════════════════════════
@@ -138,19 +159,18 @@ function MobileAdminSheet({ user, onClose }: { user: any; onClose: () => void })
   );
 }
 
-// ════════════════════════════════════════════════════════════════
-//  Мобильный поиск (полный экран)
-// ════════════════════════════════════════════════════════════════
 function MobileSearch({ onClose }: { onClose: () => void }) {
   const [q, setQ] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
   useEffect(() => {
-    if (!q.trim()) { setResults([]); return; }
+    if (!q.trim()) { setUsers([]); setPosts([]); return; }
     setLoading(true);
     const t = setTimeout(async () => {
       try {
@@ -161,7 +181,8 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
         );
         if (res.ok) {
           const data = await res.json();
-          setResults(Array.isArray(data) ? data : data.users ?? data.items ?? []);
+          setUsers(data.users ?? []);
+          setPosts(data.posts ?? []);
         }
       } finally { setLoading(false); }
     }, 300);
@@ -177,7 +198,7 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Поиск людей, постов..."
+            placeholder="Люди, посты, теги..."
             className="flex-1 bg-transparent text-white text-sm focus:outline-none placeholder-white/40"
           />
         </div>
@@ -187,22 +208,53 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {results.map((u: any) => (
-          <Link key={u.id} href={`/${u.username}`} onClick={onClose}
-            className="flex items-center gap-3 p-3 hover:bg-white/5 transition-colors">
-            <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={40} />
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{u.display_name}</p>
-              <p className="text-xs text-white/40">@{u.username}</p>
-            </div>
-          </Link>
-        ))}
+        {users.length > 0 && (
+          <div className="p-3 pb-1">
+            <p className="text-[11px] font-bold uppercase text-white/40 mb-2">Люди</p>
+            {users.map((u) => (
+              <Link key={u.id} href={`/${u.username}`} onClick={onClose}
+                className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-colors">
+                <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={40} />
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{u.display_name}</p>
+                  <p className="text-xs text-white/40">@{u.username}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {posts.length > 0 && (
+          <div className="p-3 pt-1">
+            <p className="text-[11px] font-bold uppercase text-white/40 mb-2">Посты</p>
+            {posts.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => { onClose(); router.push(`/post/${p.id}`); }}
+                className="w-full text-left p-3 rounded-xl hover:bg-white/5 transition-colors border-b border-white/5"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Avatar src={p.author_avatar} name={p.author} id={p.author_id} size={24} />
+                  <span className="text-xs font-bold text-white truncate">{p.author}</span>
+                  <span className="text-[10px] text-white/40">{p.handle}</span>
+                </div>
+                <p className="text-sm text-white/80 line-clamp-3 whitespace-pre-wrap break-words">{p.text}</p>
+                <div className="flex items-center gap-3 mt-1.5 text-[11px] text-white/40">
+                  <span>❤️ {p.likes_count}</span>
+                  <span>💬 {p.replies_count}</span>
+                  <span>👁 {p.views_count ?? 0}</span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
         {loading && <p className="text-center text-white/40 text-sm mt-10">Ищем...</p>}
-        {!loading && q.trim() && results.length === 0 && (
-          <p className="text-center text-white/40 text-sm mt-10">Никого не нашли 🤷</p>
+        {!loading && q.trim() && users.length === 0 && posts.length === 0 && (
+          <p className="text-center text-white/40 text-sm mt-10">Ничего не нашли 🤷</p>
         )}
         {!q.trim() && (
-          <p className="text-center text-white/30 text-sm mt-10">Начни вводить имя или ник</p>
+          <p className="text-center text-white/30 text-sm mt-10">Начни вводить имя, ник или текст поста</p>
         )}
       </div>
     </div>

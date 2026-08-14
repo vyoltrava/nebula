@@ -2426,7 +2426,7 @@ const ChatHeader = () => (
 
 
 {!isSelectMode && (
-  <div className="p-3 sm:p-3 md:p-4 border-t border-white/10 bg-[#171717]/80 backdrop-blur-md">
+  <div className="relative z-30 p-3 sm:p-3 md:p-4 border-t border-white/10 bg-[#171717]/80 backdrop-blur-md">
     {isRecording ? (
       <div className="flex items-center gap-2.5 sm:gap-3">
         <div className="relative w-2.5 h-2.5 shrink-0">
@@ -2653,9 +2653,9 @@ const ChatHeader = () => (
             <Send size={19} className="sm:w-[18px] sm:h-[18px]" />
           </button>
 
-          {showRecordMenu && (
-            <div className="absolute bottom-full right-0 mb-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none">
-              <button
+        {showRecordMenu && (
+          <div className="absolute bottom-full right-0 mb-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none">
+            <button
                 ref={(el) => { menuItemRefs.current.voice = el; }}
                 className={`w-full px-4 py-3 flex items-center gap-3 text-left text-sm transition-colors ${
                   selectedMenuItem === 'voice' ? 'bg-white/20' : ''

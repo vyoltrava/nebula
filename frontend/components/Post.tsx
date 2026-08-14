@@ -280,7 +280,17 @@ export function Post({
         });
     }, [author_id]);
 
-
+    useEffect(() => {
+      const handler = (e: Event) => {
+        const d = (e as CustomEvent).detail;
+        if (d.post_id === id) {
+          setLiked(d.liked);
+          setLikedCache(id, d.liked);
+        }
+      };
+      window.addEventListener("like-state-sync", handler);
+      return () => window.removeEventListener("like-state-sync", handler);
+    }, [id]);
 
     async function toggleLike() {
     const token = getToken();
