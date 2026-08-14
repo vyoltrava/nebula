@@ -699,10 +699,9 @@ export function Sidebar() {
   const isDock = layout === "dock";
   const isMessagesPage = pathname?.startsWith("/messages") ?? false;
   // На сообщениях поднимаем орбиту выше кнопки "отправить" и её меню (запись/войс/видео)
-  const orbitDesktopPos = isMessagesPage
-    ? "bottom-56 right-6 rounded-full"
-    : "bottom-10 right-6 rounded-full";
-  const orbitRowPos = isMessagesPage ? "bottom-[228px]" : "bottom-11";
+  const orbitDesktopPos = "bottom-56 right-0 rounded-l-full";
+  // Ряд непрочитанных (сообщения/уведомления) — слева от орбиты, в одну линию
+  const orbitRowPos = "bottom-[228px] right-[68px]";
   const iconClass = isDock ? "w-6 h-6 mx-auto shrink-0" : "w-[18px] h-[18px]";
   const textClass = isDock ? "hidden" : "block";
   const containerClass = isDock ? "justify-center px-0 py-3" : "items-center gap-3 px-4 py-3";

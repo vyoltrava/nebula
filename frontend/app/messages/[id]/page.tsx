@@ -180,6 +180,7 @@ export default function ChatPage() {
   const [showRecordMenu, setShowRecordMenu] = useState(false);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
+  const suppressClickRef = useRef(false);
   const [selectedMenuItem, setSelectedMenuItem] = useState<'voice' | 'video' | null>(null);
   const menuItemRefs = useRef<{ voice: HTMLButtonElement | null; video: HTMLButtonElement | null }>({ voice: null, video: null });
 
@@ -1201,52 +1202,78 @@ function getMessageMenuItems(msg: any): { icon: any; label: string; onClick: () 
     }, 400);
   };
 
-  const handleSendPointerMove = (e: React.PointerEvent) => {
-    if (showRecordMenu) {
-      const voiceRect = menuItemRefs.current.voice?.getBoundingClientRect();
-      const videoRect = menuItemRefs.current.video?.getBoundingClientRect();
-      if (voiceRect && e.clientY >= voiceRect.top && e.clientY <= voiceRect.bottom) {
-        setSelectedMenuItem('voice');
-      } else if (videoRect && e.clientY >= videoRect.top && e.clientY <= videoRect.bottom) {
-        setSelectedMenuItem('video');
-      } else {
-        setSelectedMenuItem(null);
-      }
-    }
-  };
-
-  const handleSendPointerUp = () => {
-    if (longPressTimerRef.current) {
+  // Отпустили ДО появления меню → обычный клик (отправка). Сбрасываем таймер.
+  const handleSendButtonPointerUp = () => {
+    if (!showRecordMenu && longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
-    if (isLongPressRef.current && showRecordMenu) {
-      if (selectedMenuItem === 'voice') {
+  };
+
+  const handleSendClick = () => {
+    // После зажатия/закрытия меню клик не должен отправлять сообщение
+    if (isLongPressRef.current || suppressClickRef.current) {
+      isLongPressRef.current = false;
+      suppressClickRef.current = false;
+      return;
+    }
+    sendMessage();
+  };
+
+  // 🖥️📱 Пока меню записи открыто — следим за движением и отпусканием ГЛОБАЛЬНО.
+  // На ПК onPointerLeave раньше закрывал меню при попытке дотянуться до пунктов.
+  useEffect(() => {
+    if (!showRecordMenu) return;
+
+    const track = (clientY: number) => {
+      const voiceRect = menuItemRefs.current.voice?.getBoundingClientRect();
+      const videoRect = menuItemRefs.current.video?.getBoundingClientRect();
+      if (voiceRect && clientY >= voiceRect.top && clientY <= voiceRect.bottom) {
+        setSelectedMenuItem("voice");
+      } else if (videoRect && clientY >= videoRect.top && clientY <= videoRect.bottom) {
+        setSelectedMenuItem("video");
+      } else {
+        setSelectedMenuItem(null);
+      }
+    };
+
+    const finish = () => {
+      if (selectedMenuItem === "voice") {
         startRecording();
-      } else if (selectedMenuItem === 'video') {
+      } else if (selectedMenuItem === "video") {
         (async () => {
           if (camPerm.status === "denied") { setPermHelp("camera"); return; }
           if (camPerm.status !== "granted") {
             const ok = await camPerm.request();
             if (!ok) { setPermHelp("camera"); return; }
           }
-          setVideoMode('expanded');
+          setVideoMode("expanded");
         })();
       }
       setShowRecordMenu(false);
       setSelectedMenuItem(null);
+      suppressClickRef.current = true;
+      setTimeout(() => { suppressClickRef.current = false; }, 350);
       isLongPressRef.current = false;
-      return;
-    }
-  };
+    };
 
-  const handleSendClick = () => {
-    if (isLongPressRef.current) {
-      isLongPressRef.current = false;
-      return;
-    }
-    sendMessage();
-  };
+    const onMouseMove = (e: MouseEvent) => track(e.clientY);
+    const onTouchMove = (e: TouchEvent) => { if (e.touches.length) track(e.touches[0].clientY); };
+    const onMouseUp = () => finish();
+    const onTouchEnd = () => finish();
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("mouseup", onMouseUp);
+    window.addEventListener("touchend", onTouchEnd);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      window.removeEventListener("touchend", onTouchEnd);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showRecordMenu, selectedMenuItem]);
 
   useEffect(() => {
     hasScrolledToUnreadRef.current = false; // 🆕 сбрасываем при смене чата
@@ -2638,10 +2665,7 @@ const ChatHeader = () => (
         <div className="relative shrink-0">
           <button
             onPointerDown={handleSendPointerDown}
-            onPointerMove={handleSendPointerMove}
-            onPointerUp={handleSendPointerUp}
-            onPointerLeave={handleSendPointerUp}
-            onPointerCancel={handleSendPointerUp}
+            onPointerUp={handleSendButtonPointerUp}
             onClick={handleSendClick}
             disabled={!!cryptoError}
             className={`p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none touch-none ${
