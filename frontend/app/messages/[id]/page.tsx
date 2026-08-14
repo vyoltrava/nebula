@@ -119,6 +119,8 @@ export default function ChatPage() {
   const [stickerPacks, setStickerPacks] = useState<any[]>([]);
   const [reactionPickerFor, setReactionPickerFor] = useState<number | null>(null);
   const [activePackTab, setActivePackTab] = useState<number>(0);
+  const [stickerPanelTab, setStickerPanelTab] = useState<"emoji" | "stickers">("emoji");
+  const [stickerPanelPack, setStickerPanelPack] = useState<number>(0);
   const [showStickers, setShowStickers] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
@@ -945,11 +947,13 @@ for (const msg of messagesToSend) {
     } catch {}
   }
 
-  async function toggleReaction(msgId: number, emoji: string) {
+  async function toggleReaction(msgId: number, stickerId?: number, emoji?: string) {
     const token = getToken();
     if (!token) return;
     const form = new FormData();
-    form.append("emoji", emoji);
+    if (stickerId) form.append("sticker_id", String(stickerId));
+    if (emoji) form.append("emoji", emoji);
+    
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/${msgId}/reactions`,
@@ -968,6 +972,28 @@ for (const msg of messagesToSend) {
     }
   }
 
+  async function sendStickerMessage(stickerId: number) {
+    const token = getToken();
+    if (!token) return;
+    const form = new FormData();
+    form.append("sticker_id", String(stickerId));
+    if (replyTo) form.append("reply_to_id", String(replyTo.id));
+    
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/sticker`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        alert(err?.detail || "Не удалось отправить стикер");
+      }
+      setShowStickers(false);
+    } catch {
+      alert("Ошибка сети");
+    }
+  }
 
 function getMessageMenuItems(msg: any): { icon: any; label: string; onClick: () => void; danger?: boolean }[] {
   const isMine = msg.sender_id === currentUser?.id;
@@ -1931,6 +1957,16 @@ const ChatHeader = () => (
         className={getMediaClasses("video")}
       />
     )}
+
+    {msg.media_url && msg.media_type === "sticker" && (
+      <img
+        src={mediaUrl(msg.media_url)}
+        alt="Стикер"
+        className="w-40 h-40 sm:w-48 sm:h-48 object-contain my-1"
+      />
+    )}
+
+
     {msg.media_url && msg.media_type === "audio" && (
       <div className="mb-1.5 sm:mb-2">
         <AudioPlayer
@@ -2017,20 +2053,26 @@ const ChatHeader = () => (
   )}
 </div>
 
-                        {/* 🆕 ЧИПСЫ РЕАКЦИЙ */}
                         {!isEditing && !isSelectMode && msg.reactions?.length > 0 && (
                           <div className={`flex flex-wrap gap-1 mt-1.5 ${isMine ? "justify-end" : "justify-start"}`}>
                             {msg.reactions.map((r: any) => (
                               <button
-                                key={r.emoji}
-                                onClick={() => toggleReaction(msg.id, r.emoji)}
+                                key={r.type === "sticker" ? `s_${r.sticker_id}` : `e_${r.emoji}`}
+                                onClick={() => {
+                                  if (r.type === "sticker") toggleReaction(msg.id, r.sticker_id);
+                                  else toggleReaction(msg.id, undefined, r.emoji);
+                                }}
                                 className={`flex items-center gap-1 px-2 py-1 rounded-full text-[13px] border transition-all active:scale-90 ${
                                   r.me
                                     ? "bg-[#8b5cf6]/25 border-[#8b5cf6] shadow-[0_0_8px_rgba(139,92,246,0.3)]"
                                     : "bg-white/5 border-white/15 hover:bg-white/10"
                                 }`}
                               >
-                                <span>{r.emoji}</span>
+                                {r.type === "sticker" ? (
+                                  <img src={r.content} alt="" className="w-5 h-5 object-contain" />
+                                ) : (
+                                  <span>{r.emoji}</span>
+                                )}
                                 <span className={`text-[11px] font-bold ${r.me ? "text-[#a78bfa]" : "text-white/60"}`}>
                                   {r.count}
                                 </span>
@@ -2347,9 +2389,25 @@ const ChatHeader = () => (
             {showStickers && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowStickers(false)} />
-                <div className="absolute bottom-full left-0 mb-2 w-64 sm:w-64 md:w-72 bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl z-50">
-                  <div className="p-3 border-b border-white/10 flex items-center justify-between">
-                    <span className="text-sm font-bold text-white">Стикеры</span>
+                <div className="absolute bottom-full left-0 mb-2 w-72 sm:w-72 md:w-80 bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl z-50">
+                  {/* Шапка с вкладками */}
+                  <div className="p-2 border-b border-white/10 flex items-center gap-1">
+                    <button
+                      onClick={() => setStickerPanelTab("emoji")}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        stickerPanelTab === "emoji" ? "bg-[#8b5cf6] text-white" : "text-white/50 hover:bg-white/10"
+                      }`}
+                    >
+                      😊 Эмодзи
+                    </button>
+                    <button
+                      onClick={() => setStickerPanelTab("stickers")}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        stickerPanelTab === "stickers" ? "bg-[#8b5cf6] text-white" : "text-white/50 hover:bg-white/10"
+                      }`}
+                    >
+                      🎨 Стикеры
+                    </button>
                     <button
                       onClick={() => setShowStickers(false)}
                       className="text-white/60 hover:text-white p-1"
@@ -2357,20 +2415,67 @@ const ChatHeader = () => (
                       <X size={16} />
                     </button>
                   </div>
-                  <div className="p-2 grid grid-cols-6 gap-1 max-h-64 sm:max-h-64 overflow-y-auto">
-                    {STICKERS.map((s) => (
-                      <button
-                        key={s.code}
-                        onClick={() => {
-                          insertSticker(s.emoji);
-                          setShowStickers(false);
-                        }}
-                        className="aspect-square flex items-center justify-center text-2xl hover:bg-white/10 rounded-lg active:scale-90 transition-transform"
-                      >
-                        {s.emoji}
-                      </button>
-                    ))}
-                  </div>
+
+                  {stickerPanelTab === "emoji" ? (
+                    <div className="p-2 grid grid-cols-6 gap-1 max-h-64 overflow-y-auto">
+                      {STICKERS.map((s) => (
+                        <button
+                          key={s.code}
+                          onClick={() => {
+                            insertSticker(s.emoji);
+                            setShowStickers(false);
+                          }}
+                          className="aspect-square flex items-center justify-center text-2xl hover:bg-white/10 rounded-lg active:scale-90 transition-transform"
+                        >
+                          {s.emoji}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col max-h-72">
+                      {/* Паки */}
+                      <div className="flex gap-1 p-2 pb-1 overflow-x-auto scrollbar-hide">
+                        {stickerPacks.map((pack, i) => (
+                          <button
+                            key={pack.id}
+                            onClick={() => setStickerPanelPack(i)}
+                            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap shrink-0 ${
+                              stickerPanelPack === i ? "bg-[#8b5cf6] text-white" : "bg-white/5 text-white/50"
+                            }`}
+                          >
+                            {pack.locked && <Lock size={9} className="text-yellow-400" />}
+                            {pack.name}
+                          </button>
+                        ))}
+                      </div>
+                      {/* Стикеры пака */}
+                      <div className="p-2 grid grid-cols-4 gap-1.5 overflow-y-auto">
+                        {stickerPacks[stickerPanelPack] && !stickerPacks[stickerPanelPack].locked ? (
+                          stickerPacks[stickerPanelPack].stickers.map((s: any) => (
+                            <button
+                              key={s.id}
+                              onClick={() => sendStickerMessage(s.id)}
+                              className="aspect-square flex items-center justify-center rounded-xl hover:bg-white/10 active:scale-90 transition-all"
+                              title="Отправить стикер"
+                            >
+                              {s.type === "emoji" ? (
+                                <span className="text-3xl">{s.content}</span>
+                              ) : (
+                                <img src={s.content} alt="" className="w-full h-full object-contain" />
+                              )}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="col-span-4 flex flex-col items-center gap-2 py-6 text-center">
+                            <Lock size={20} className="text-yellow-400" />
+                            <p className="text-[11px] text-white/40">
+                              Пак доступен с уровня {stickerPacks[stickerPanelPack]?.min_level}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -2525,13 +2630,23 @@ const ChatHeader = () => (
                     </div>
                   ) : (
                     <div className="grid grid-cols-6 gap-1.5">
-                      {stickerPacks[activePackTab].emojis.map((emoji: string) => (
+                      {stickerPacks[activePackTab].stickers.map((s: any) => (
                         <button
-                          key={emoji}
-                          onClick={() => toggleReaction(reactionPickerFor, emoji)}
-                          className="aspect-square flex items-center justify-center text-2xl rounded-xl hover:bg-white/10 active:scale-90 transition-all"
+                          key={s.id}
+                          onClick={() => {
+                            if (s.type === "emoji") {
+                              toggleReaction(reactionPickerFor!, undefined, s.content);
+                            } else {
+                              toggleReaction(reactionPickerFor!, s.id);
+                            }
+                          }}
+                          className="aspect-square flex items-center justify-center rounded-xl hover:bg-white/10 active:scale-90 transition-all"
                         >
-                          {emoji}
+                          {s.type === "emoji" ? (
+                            <span className="text-2xl">{s.content}</span>
+                          ) : (
+                            <img src={s.content} alt="" className="w-10 h-10 object-contain" />
+                          )}
                         </button>
                       ))}
                     </div>

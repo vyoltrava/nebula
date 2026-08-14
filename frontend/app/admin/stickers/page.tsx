@@ -1,19 +1,22 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { getToken } from "@/lib/auth";
-import { SmilePlus, Plus, Edit3, Trash2, ArrowLeft, Lock, Globe, X } from "lucide-react";
-
-// 🎁 Быстрые наборы для удобного добавления
-const QUICK_EMOJIS = ["❤️","🔥","","😮","😢","😡","👍","","🙏","💀","🗿","🤡","🫡","️","🌚","🦄","","🫠","🤌","✨","💅","🎯","🪩","","🫧","🍕","👽","","😈","","🥵","🤯","","🫶","","👀","🍀","⭐","🌈","💎"];
+import {
+  SmilePlus, Plus, Edit3, Trash2, ArrowLeft, Lock, Globe, X,
+  Image as ImageIcon, Type, Upload, Loader2,
+} from "lucide-react";
 
 export default function AdminStickersPage() {
   const router = useRouter();
   const [me, setMe] = useState<any>(null);
   const [packs, setPacks] = useState<any[]>([]);
-  const [showEditor, setShowEditor] = useState(false);
-  const [editing, setEditing] = useState<any>(null);
+  const [showPackEditor, setShowPackEditor] = useState(false);
+  const [editingPack, setEditingPack] = useState<any>(null);
+  const [uploadingPackId, setUploadingPackId] = useState<number | null>(null);
+  const [emojiInputs, setEmojiInputs] = useState<Record<number, string>>({});
+  const fileRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   useEffect(() => {
     const token = getToken();
@@ -35,35 +38,27 @@ export default function AdminStickersPage() {
     if (res.ok) setPacks(await res.json());
   }
 
-  function openCreate() {
-    setEditing({ id: null, name: "", emojis: [], min_level: 1, is_active: true });
-    setShowEditor(true);
-  }
-
   async function savePack() {
-    if (!editing) return;
-    if (!editing.name.trim()) { alert("Введи название пака"); return; }
-    if (editing.emojis.length === 0) { alert("Добавь хотя бы один эмодзи"); return; }
-
+    if (!editingPack) return;
+    if (!editingPack.name?.trim()) { alert("Введи название пака"); return; }
     const token = getToken();
     const form = new FormData();
-    form.append("name", editing.name);
-    form.append("emojis", JSON.stringify(editing.emojis));
-    form.append("min_level", String(editing.min_level));
-    if (editing.id) form.append("is_active", String(editing.is_active));
+    form.append("name", editingPack.name);
+    form.append("min_level", String(editingPack.min_level));
+    if (editingPack.id) form.append("is_active", String(editingPack.is_active));
 
-    const url = editing.id
-      ? `${process.env.NEXT_PUBLIC_API_URL}/api/admin/sticker-packs/${editing.id}`
+    const url = editingPack.id
+      ? `${process.env.NEXT_PUBLIC_API_URL}/api/admin/sticker-packs/${editingPack.id}`
       : `${process.env.NEXT_PUBLIC_API_URL}/api/admin/sticker-packs`;
 
     const res = await fetch(url, {
-      method: editing.id ? "PUT" : "POST",
+      method: editingPack.id ? "PUT" : "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: form,
     });
     if (res.ok) {
-      setShowEditor(false);
-      setEditing(null);
+      setShowPackEditor(false);
+      setEditingPack(null);
       loadPacks();
     } else {
       const err = await res.json().catch(() => null);
@@ -72,7 +67,7 @@ export default function AdminStickersPage() {
   }
 
   async function deletePack(id: number) {
-    if (!confirm("Удалить пак? Реакции останутся на сообщениях, но поставить новые будет нельзя.")) return;
+    if (!confirm("Удалить пак со всеми стикерами?")) return;
     const token = getToken();
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/sticker-packs/${id}`, {
       method: "DELETE",
@@ -85,13 +80,64 @@ export default function AdminStickersPage() {
     const token = getToken();
     const form = new FormData();
     form.append("name", pack.name);
-    form.append("emojis", JSON.stringify(pack.emojis));
     form.append("min_level", String(pack.min_level));
     form.append("is_active", String(!pack.is_active));
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/sticker-packs/${pack.id}`, {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}` },
       body: form,
+    });
+    loadPacks();
+  }
+
+  // 📤 Массовая загрузка картинок
+  async function uploadImages(packId: number, files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const token = getToken();
+    setUploadingPackId(packId);
+    const form = new FormData();
+    Array.from(files).forEach(f => form.append("files", f));
+    form.append("emojis", "[]");
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/sticker-packs/${packId}/stickers`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (res.ok) loadPacks();
+      else alert("Ошибка загрузки");
+    } finally {
+      setUploadingPackId(null);
+      if (fileRefs.current[packId]) fileRefs.current[packId]!.value = "";
+    }
+  }
+
+  // ➕ Добавить эмодзи в пак
+  async function addEmoji(packId: number) {
+    const val = (emojiInputs[packId] || "").trim();
+    if (!val) return;
+    const token = getToken();
+    const form = new FormData();
+    form.append("emojis", JSON.stringify(val.split(/\s+/)));
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/sticker-packs/${packId}/stickers`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (res.ok) {
+      setEmojiInputs(prev => ({ ...prev, [packId]: "" }));
+      loadPacks();
+    }
+  }
+
+  async function deleteSticker(stickerId: number) {
+    if (!confirm("Удалить стикер?")) return;
+    const token = getToken();
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/stickers/${stickerId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
     });
     loadPacks();
   }
@@ -112,22 +158,26 @@ export default function AdminStickersPage() {
               </button>
               <SmilePlus size={24} className="text-yellow-400" />
               <div>
-                <h1 className="text-xl sm:text-2xl font-black text-white">Паки реакций</h1>
-                <p className="text-[11px] sm:text-xs text-white/40">Управляй наборами реакций и уровнями доступа</p>
+                <h1 className="text-xl sm:text-2xl font-black text-white">Стикер-паки</h1>
+                <p className="text-[11px] sm:text-xs text-white/40">Реакции и стикеры для чатов</p>
               </div>
             </div>
-            <button onClick={openCreate} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-500 text-black text-sm font-bold hover:bg-yellow-400 transition-all">
+            <button
+              onClick={() => { setEditingPack({ id: null, name: "", min_level: 1, is_active: true }); setShowPackEditor(true); }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-500 text-black text-sm font-bold hover:bg-yellow-400 transition-all"
+            >
               <Plus size={16} /> Новый пак
             </button>
           </div>
         </div>
 
         {/* Список паков */}
-        <div className="p-4 space-y-3 max-w-3xl mx-auto">
+        <div className="p-4 space-y-4 max-w-4xl mx-auto">
           {packs.map(pack => (
-            <div key={pack.id} className={`border rounded-2xl p-4 transition-all ${pack.is_active ? "border-white/15 bg-white/5" : "border-white/5 bg-white/[0.02] opacity-60"}`}>
+            <div key={pack.id} className={`border rounded-2xl p-4 ${pack.is_active ? "border-white/15 bg-white/5" : "border-white/5 bg-white/[0.02] opacity-60"}`}>
+              {/* Шапка пака */}
               <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-bold text-white">{pack.name}</h3>
                   <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
                     pack.min_level <= 1 ? "bg-green-500/15 text-green-400" : "bg-yellow-500/15 text-yellow-400"
@@ -135,15 +185,13 @@ export default function AdminStickersPage() {
                     {pack.min_level <= 1 ? <Globe size={10} /> : <Lock size={10} />}
                     {pack.min_level <= 1 ? "Все" : `Lvl ${pack.min_level}+`}
                   </span>
-                  {pack.is_builtin && (
-                    <span className="px-2 py-0.5 rounded-full bg-white/10 text-white/40 text-[10px] font-black uppercase">Встроенный</span>
-                  )}
+                  <span className="text-[10px] text-white/30">{pack.stickers.length} стикеров</span>
                 </div>
                 <div className="flex gap-1.5">
-                  <button onClick={() => toggleActive(pack)} className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition-all ${pack.is_active ? "border-green-400/30 text-green-400 hover:bg-green-500/10" : "border-white/15 text-white/40 hover:bg-white/5"}`}>
+                  <button onClick={() => toggleActive(pack)} className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${pack.is_active ? "border-green-400/30 text-green-400" : "border-white/15 text-white/40"}`}>
                     {pack.is_active ? "Активен" : "Выключен"}
                   </button>
-                  <button onClick={() => { setEditing({ ...pack }); setShowEditor(true); }} className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10">
+                  <button onClick={() => { setEditingPack({ ...pack }); setShowPackEditor(true); }} className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10">
                     <Edit3 size={14} />
                   </button>
                   <button onClick={() => deletePack(pack.id)} className="p-1.5 rounded-lg text-red-400/60 hover:text-red-400 hover:bg-red-500/10">
@@ -151,32 +199,97 @@ export default function AdminStickersPage() {
                   </button>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {pack.emojis.map((e: string, i: number) => (
-                  <span key={i} className="w-9 h-9 flex items-center justify-center text-xl bg-white/5 border border-white/10 rounded-lg">{e}</span>
+
+              {/* Стикеры */}
+              <div className="flex flex-wrap gap-2 mb-3">
+                {pack.stickers.map((s: any) => (
+                  <div key={s.id} className="relative group">
+                    <div className="w-14 h-14 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl">
+                      {s.type === "emoji" ? (
+                        <span className="text-2xl">{s.content}</span>
+                      ) : (
+                        <img src={s.content} alt="" className="w-full h-full object-contain p-1" />
+                      )}
+                    </div>
+                    <button
+                      onClick={() => deleteSticker(s.id)}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      ×
+                    </button>
+                  </div>
                 ))}
+                {pack.stickers.length === 0 && (
+                  <p className="text-[11px] text-white/30">Пак пуст — добавь стикеры ниже ↓</p>
+                )}
+              </div>
+
+              {/* Добавление стикеров */}
+              <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-white/10">
+                {/* Загрузка картинок */}
+                <input
+                  ref={(el) => { fileRefs.current[pack.id] = el; }}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => uploadImages(pack.id, e.target.files)}
+                />
+                <button
+                  onClick={() => fileRefs.current[pack.id]?.click()}
+                  disabled={uploadingPackId === pack.id}
+                  className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/15 text-white/70 text-xs font-bold hover:bg-white/10 disabled:opacity-50"
+                >
+                  {uploadingPackId === pack.id ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Upload size={14} />
+                  )}
+                  Загрузить картинки
+                </button>
+
+                {/* Добавление эмодзи */}
+                <div className="flex-1 flex gap-2">
+                  <input
+                    value={emojiInputs[pack.id] || ""}
+                    onChange={(e) => setEmojiInputs(prev => ({ ...prev, [pack.id]: e.target.value }))}
+                    onKeyDown={(e) => { if (e.key === "Enter") addEmoji(pack.id); }}
+                    placeholder="Вставь эмодзи: 💀 🗿 🔥 (можно несколько через пробел)"
+                    className="flex-1 px-3 py-2 rounded-lg border border-white/15 bg-white/5 text-white text-xs placeholder-white/30 focus:outline-none focus:border-yellow-400"
+                  />
+                  <button
+                    onClick={() => addEmoji(pack.id)}
+                    className="px-3 py-2 rounded-lg bg-yellow-500/20 text-yellow-400 text-xs font-bold hover:bg-yellow-500/30"
+                  >
+                    + Эмодзи
+                  </button>
+                </div>
               </div>
             </div>
           ))}
+
+          {packs.length === 0 && (
+            <p className="text-center text-white/40 py-16">Паков пока нет — создай первый!</p>
+          )}
         </div>
 
         {/* Редактор пака */}
-        {showEditor && editing && (
+        {showPackEditor && editingPack && (
           <>
-            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => setShowEditor(false)} />
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => setShowPackEditor(false)} />
             <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none">
-              <div className="w-full max-w-md bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl pointer-events-auto max-h-[90vh] overflow-y-auto">
-                <div className="sticky top-0 bg-[#1f1f23] p-4 border-b border-white/10 flex items-center justify-between">
-                  <h2 className="font-black text-white">{editing.id ? "Редактировать пак" : "Новый пак"}</h2>
-                  <button onClick={() => setShowEditor(false)} className="text-white/60 hover:text-white p-1"><X size={18} /></button>
+              <div className="w-full max-w-sm bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="font-black text-white">{editingPack.id ? "Редактировать пак" : "Новый пак"}</h2>
+                  <button onClick={() => setShowPackEditor(false)} className="text-white/60 hover:text-white p-1"><X size={18} /></button>
                 </div>
 
-                <div className="p-4 space-y-4">
+                <div className="space-y-4">
                   <div>
                     <label className="block text-xs font-bold text-white/60 mb-1.5">Название</label>
                     <input
-                      value={editing.name}
-                      onChange={e => setEditing({ ...editing, name: e.target.value })}
+                      value={editingPack.name}
+                      onChange={e => setEditingPack({ ...editingPack, name: e.target.value })}
                       placeholder="Например: Мемы, Вайб, VIP..."
                       className="w-full px-3 py-2 rounded-lg border border-white/15 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-yellow-400"
                     />
@@ -185,8 +298,8 @@ export default function AdminStickersPage() {
                   <div>
                     <label className="block text-xs font-bold text-white/60 mb-1.5">Доступ</label>
                     <select
-                      value={editing.min_level}
-                      onChange={e => setEditing({ ...editing, min_level: Number(e.target.value) })}
+                      value={editingPack.min_level}
+                      onChange={e => setEditingPack({ ...editingPack, min_level: Number(e.target.value) })}
                       className="w-full px-3 py-2 rounded-lg border border-white/15 bg-white/5 text-white focus:outline-none focus:border-yellow-400"
                     >
                       <option value={1} className="bg-gray-900">Все пользователи (lvl 1+)</option>
@@ -195,61 +308,10 @@ export default function AdminStickersPage() {
                       <option value={9} className="bg-gray-900">Команда (lvl 9+)</option>
                     </select>
                   </div>
-
-                  {/* Выбранные эмодзи */}
-                  <div>
-                    <label className="block text-xs font-bold text-white/60 mb-1.5">
-                      В паке: {editing.emojis.length} эмодзи
-                    </label>
-                    <div className="flex flex-wrap gap-1.5 min-h-[50px] p-2 rounded-xl border border-white/15 bg-white/5">
-                      {editing.emojis.length === 0 && (
-                        <p className="text-[11px] text-white/30 p-1">Кликай по эмодзи ниже, чтобы добавить ↓</p>
-                      )}
-                      {editing.emojis.map((e: string, i: number) => (
-                        <button
-                          key={i}
-                          onClick={() => setEditing({ ...editing, emojis: editing.emojis.filter((_: any, j: number) => j !== i) })}
-                          className="w-9 h-9 flex items-center justify-center text-xl bg-yellow-500/15 border border-yellow-500/40 rounded-lg hover:bg-red-500/20 hover:border-red-500/40 transition-all"
-                          title="Убрать"
-                        >
-                          {e}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Быстрый набор */}
-                  <div>
-                    <label className="block text-xs font-bold text-white/60 mb-1.5">Быстрое добавление</label>
-                    <div className="grid grid-cols-8 gap-1 max-h-40 overflow-y-auto p-1">
-                      {QUICK_EMOJIS.map(e => (
-                        <button
-                          key={e}
-                          onClick={() => {
-                            if (!editing.emojis.includes(e)) {
-                              setEditing({ ...editing, emojis: [...editing.emojis, e] });
-                            }
-                          }}
-                          className={`aspect-square flex items-center justify-center text-xl rounded-lg transition-all ${
-                            editing.emojis.includes(e) ? "opacity-30" : "hover:bg-white/10 active:scale-90"
-                          }`}
-                        >
-                          {e}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Свои эмодзи */}
-                  <CustomEmojiInput onAdd={(e) => {
-                    if (e && !editing.emojis.includes(e)) {
-                      setEditing({ ...editing, emojis: [...editing.emojis, e] });
-                    }
-                  }} />
                 </div>
 
-                <div className="sticky bottom-0 bg-[#1f1f23] p-4 border-t border-white/10 flex gap-2">
-                  <button onClick={() => setShowEditor(false)} className="flex-1 py-2.5 rounded-lg border border-white/15 text-white/80 font-bold hover:bg-white/5">
+                <div className="flex gap-2 mt-5">
+                  <button onClick={() => setShowPackEditor(false)} className="flex-1 py-2.5 rounded-lg border border-white/15 text-white/80 font-bold hover:bg-white/5">
                     Отмена
                   </button>
                   <button onClick={savePack} className="flex-1 py-2.5 rounded-lg bg-yellow-500 text-black font-bold hover:bg-yellow-400">
@@ -261,28 +323,6 @@ export default function AdminStickersPage() {
           </>
         )}
       </main>
-    </div>
-  );
-}
-
-// Поле ввода своего эмодзи
-function CustomEmojiInput({ onAdd }: { onAdd: (e: string) => void }) {
-  const [value, setValue] = useState("");
-  return (
-    <div className="flex gap-2">
-      <input
-        value={value}
-        onChange={e => setValue(e.target.value)}
-        placeholder="Вставь свой эмодзи..."
-        className="flex-1 px-3 py-2 rounded-lg border border-white/15 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-yellow-400"
-      />
-      <button
-        onClick={() => { onAdd(value.trim()); setValue(""); }}
-        disabled={!value.trim()}
-        className="px-4 py-2 rounded-lg bg-white/10 text-white font-bold hover:bg-white/20 disabled:opacity-30"
-      >
-        +
-      </button>
     </div>
   );
 }
