@@ -22,20 +22,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<ThemeConfig | null>(null);
   const [themes, setThemes] = useState<ThemeConfig[]>(BUILTIN_THEMES);
 
-  // Загружаем выбранную тему из localStorage
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("active_theme");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.id) setThemeState(parsed);
-      } else {
-        // По умолчанию — встроенная дефолтная тема
-        const def = BUILTIN_THEMES.find((t) => t.is_default) || null;
-        setThemeState(def);
-      }
-    } catch {}
-  }, []);
+// ❌ ЗАКОММЕНТИРОВАТЬ ЭТОТ БЛОК ЦЕЛИКОМ:
+// useEffect(() => {
+//   try {
+//     const saved = localStorage.getItem("active_theme");
+//     if (saved) {
+//       const parsed = JSON.parse(saved);
+//       if (parsed && parsed.id) setThemeState(parsed);
+//     } else {
+//       // По умолчанию — встроенная дефолтная тема
+//       const def = BUILTIN_THEMES.find((t) => t.is_default) || null;
+//       setThemeState(def);
+//     }
+//   } catch {}
+// }, []);
 
   // Загрузка тем с бэкенда + глобального тумблера
   useEffect(() => {
