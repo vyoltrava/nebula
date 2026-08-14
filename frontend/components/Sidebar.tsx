@@ -491,6 +491,7 @@ export function Sidebar() {
                 zIndex: isActive ? 20 : 10,
               }}
             >
+              <div className="relative">
               {/* ✅ overflow-hidden — аватарка обрезается по кругу, без обводок */}
               <div className={`
                 relative flex items-center justify-center rounded-full overflow-hidden
@@ -519,6 +520,9 @@ export function Sidebar() {
                 ) : (
                   <item.icon size={isActive ? 26 : isOuter ? 19 : 21} className={isActive ? "text-white" : "text-white/70"} />
                 )}
+
+                  </div>
+              
                 {/* Счётчик непрочитанного */}
                 {!!item.count && item.count > 0 && (
                   <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#8b5cf6] border-2 border-[#171717] text-white text-[9px] font-bold flex items-center justify-center">
