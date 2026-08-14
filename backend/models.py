@@ -281,23 +281,34 @@ class PushSubscription(SQLModel, table=True):
 
 
 # ============================================================
-# 😂 РЕАКЦИИ И ПАКИ СТИКЕРОВ
+# 😂 СТИКЕРЫ И РЕАКЦИИ (УНИВЕРСАЛЬНАЯ СИСТЕМА)
 # ============================================================
 
 class StickerPack(SQLModel, table=True):
+    """Пак стикеров (содержит эмодзи и картинки)"""
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=60)
-    emojis: str = Field(default="[]")  # JSON-массив: '["🗿","💀"]'
-    min_level: int = Field(default=1)  # 1 = всем, 2+ = эксклюзив
+    min_level: int = Field(default=1)
     is_active: bool = Field(default=True)
     is_builtin: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utcnow)
 
 
+class Sticker(SQLModel, table=True):
+    """Отдельный стикер в паке (эмодзи или картинка)"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    pack_id: int = Field(foreign_key="stickerpack.id")
+    type: str = Field(max_length=10)  # "emoji" или "image"
+    content: str = Field(max_length=500)  # эмодзи или URL картинки
+    order: int = Field(default=0)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
 class MessageReaction(SQLModel, table=True):
+    """Реакция на сообщение (стикер или эмодзи)"""
     id: Optional[int] = Field(default=None, primary_key=True)
     message_id: int = Field(foreign_key="message.id")
     user_id: int = Field(foreign_key="user.id")
-    emoji: str = Field(max_length=16)
+    sticker_id: Optional[int] = Field(default=None, foreign_key="sticker.id")
+    emoji: Optional[str] = Field(default=None, max_length=16)  # fallback
     created_at: datetime = Field(default_factory=utcnow)
-
