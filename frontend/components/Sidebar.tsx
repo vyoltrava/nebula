@@ -14,15 +14,15 @@ import { getCachedUser, setCachedUser, clearCachedUser } from "@/lib/authCache";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 
 // ════════════════════════════════════════════════════════════════
-// 🆕 ДВОЙНОЙ ПОЛУКРУГ: внутренний + внешний слой (БЕЗ SVG)
+// 🎯 ДВОЙНОЙ ПОЛУКРУГ: внутренний = частое, внешний = редкое
 // ════════════════════════════════════════════════════════════════
-const INNER_RADIUS     = 135;  // ближний слой к кнопке
+const INNER_RADIUS     = 135;  // ближний слой
 const OUTER_RADIUS     = 215;  // дальний слой
 const CENTER_OFFSET_X  = 40;
 const CENTER_OFFSET_Y  = 0;
 const ARC_ANGLE_START  = (11 * Math.PI) / 18;  // 110°
 const ARC_ANGLE_END    = (25 * Math.PI) / 18;  // 250°
-const SNAP_RADIUS      = 48;   // меньше = меньше промахов на соседнюю кнопку
+const SNAP_RADIUS      = 48;   // меньше = точнее наведение
 const LONG_PRESS_MS    = 250;
 
 export function Sidebar() {
@@ -49,44 +49,38 @@ export function Sidebar() {
 
   type WheelItem = { href: string; icon: any; label: string; isProfile?: boolean; count?: number };
 
-  const allWheelItems: WheelItem[] = [
-    { href: "/",          icon: Home,        label: "Главная" },
-    { href: "/bookmarks", icon: Bookmark,    label: "Закладки" },
-    { href: "/updates",   icon: Megaphone,   label: "Обновления", count: counts.updates },
-    { href: "/rules",     icon: Shield,      label: "Правила" },
-    { href: "/settings",  icon: Settings,    label: "Настройки" },
+  // ══════════════════════════════════════════════════════════════
+  // ️ ВАРИАНТ А: ВНУТРЕННИЙ СЛОЙ — то, что жмёшь каждый день
+  // ══════════════════════════════════════════════════════════════
+  const innerItems: WheelItem[] = [
+    { href: "/", icon: Home, label: "Главная" },
   ];
-  if (user) allWheelItems.push({ href: "/messages", icon: MessageSquare, label: "Сообщения", count: counts.chats });
+  if (user) innerItems.push({ href: "/messages", icon: MessageSquare, label: "Сообщения", count: counts.chats });
+  if (user) innerItems.push({ href: "/notifications", icon: Bell, label: "Уведомления", count: counts.notifications });
+  innerItems.push({ href: "/bookmarks", icon: Bookmark, label: "Закладки" });
+  innerItems.push({ href: "/updates", icon: Megaphone, label: "Обновления", count: counts.updates });
+  if (user) innerItems.push({ href: `/${user.username}`, icon: Home, label: "Профиль", isProfile: true });
+
+  // 🧰 ВНЕШНИЙ СЛОЙ — системное и редкое
+  const outerItems: WheelItem[] = [
+    { href: "/settings", icon: Settings, label: "Настройки" },
+    { href: "/rules", icon: Shield, label: "Правила" },
+    { href: "#bug", icon: Bug, label: "Баг-трекер" },
+  ];
   if (user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) {
-    allWheelItems.push({
+    outerItems.push({
       href: "/admin",
       icon: user?.is_admin ? ShieldAlert : user?.is_moderator ? ShieldCheck : Shield,
       label: user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель",
     });
   }
-  // 🆕 Как в десктопе: Роли и Техпанель
-  if (user?.is_admin) {
-    allWheelItems.push({ href: "/admin/roles", icon: Palette, label: "Роли" });
-  }
-  if (user?.permissions?.includes("tech_access")) {
-    allWheelItems.push({ href: "/admin/technical", icon: Wrench, label: "Техпанель" });
-  }
-  // 🆕 Баг-трекер (как оранжевая кнопка в десктопе)
-  allWheelItems.push({ href: "#bug", icon: Bug, label: "Баг-трекер" });
-  allWheelItems.push({ href: "/notifications", icon: Bell, label: "Уведомления", count: counts.notifications });
-  if (user) {
-    allWheelItems.push({ href: `/${user.username}`, icon: Home, label: "Профиль", isProfile: true });
-    allWheelItems.push({ href: "#logout", icon: LogOut, label: "Выйти" });
-  } else {
-    allWheelItems.push({ href: "/login", icon: Home, label: "Войти" });
-  }
-  // 🆕 Разделяем на два слоя: первая половина — внутренний, вторая — внешний
-  const splitIdx = Math.ceil(allWheelItems.length / 2);
-  const innerItems = allWheelItems.slice(0, splitIdx);
-  const outerItems = allWheelItems.slice(splitIdx);
-  const wheelItems = allWheelItems;
+  if (user?.is_admin) outerItems.push({ href: "/admin/roles", icon: Palette, label: "Роли" });
+  if (user?.permissions?.includes("tech_access")) outerItems.push({ href: "/admin/technical", icon: Wrench, label: "Техпанель" });
+  if (user) outerItems.push({ href: "#logout", icon: LogOut, label: "Выйти" });
+  else outerItems.push({ href: "/login", icon: Home, label: "Войти" });
 
-  // 🆕 Маппинг глобального индекса → слой
+  // Склеиваем в один массив + карта слоёв
+  const wheelItems = [...innerItems, ...outerItems];
   const itemLayerMap = new Map<number, { layer: "inner" | "outer"; localIdx: number }>();
   innerItems.forEach((_, i) => itemLayerMap.set(i, { layer: "inner", localIdx: i }));
   outerItems.forEach((_, i) => itemLayerMap.set(i + innerItems.length, { layer: "outer", localIdx: i }));
@@ -160,7 +154,7 @@ export function Sidebar() {
   }
 
   // ══════════════════════════════════════════════════════════════
-  // 🆕 getIconPos — учитывает слой (внутренний/внешний радиус)
+  //  Позиция иконки с учётом слоя
   // ══════════════════════════════════════════════════════════════
   const getIconPos = useCallback((globalIdx: number) => {
     const info = itemLayerMap.get(globalIdx);
@@ -448,7 +442,7 @@ export function Sidebar() {
   );
 
   // ══════════════════════════════════════════════════════════════
-  //  Рендер колеса (БЕЗ SVG — только div)
+  //  Рендер колеса
   // ══════════════════════════════════════════════════════════════
   const buttonCx = useRef(0);
   const buttonCy = useRef(0);
@@ -497,8 +491,9 @@ export function Sidebar() {
                 zIndex: isActive ? 20 : 10,
               }}
             >
+              {/* ✅ overflow-hidden — аватарка обрезается по кругу, без обводок */}
               <div className={`
-                relative flex items-center justify-center rounded-full
+                relative flex items-center justify-center rounded-full overflow-hidden
                 transition-all duration-150
                 ${isActive
                   ? "w-14 h-14 bg-[#8b5cf6] shadow-[0_0_28px_rgba(139,92,246,0.55)]"
@@ -508,11 +503,23 @@ export function Sidebar() {
                 }
               `}>
                 {item.isProfile && user ? (
-                  <Avatar src={user.avatar_url} name={user.display_name} id={user.id} size={isActive ? 30 : isOuter ? 22 : 26} />
+                  // ✅ Аватарка на ВЕСЬ круг: без сжатия и без двойной обводки
+                  user.avatar_url ? (
+                    <img
+                      src={user.avatar_url}
+                      alt=""
+                      draggable={false}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className={`font-bold ${isActive ? "text-white" : "text-white/70"}`}>
+                      {(user.display_name || "?")[0]?.toUpperCase()}
+                    </span>
+                  )
                 ) : (
                   <item.icon size={isActive ? 26 : isOuter ? 19 : 21} className={isActive ? "text-white" : "text-white/70"} />
                 )}
-                {/* 🆕 Счётчик непрочитанного — виден даже без подписи */}
+                {/* Счётчик непрочитанного */}
                 {!!item.count && item.count > 0 && (
                   <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#8b5cf6] border-2 border-[#171717] text-white text-[9px] font-bold flex items-center justify-center">
                     {item.count > 9 ? "9+" : item.count}
@@ -523,7 +530,7 @@ export function Sidebar() {
           );
         })}
 
-        {/* Пульсация на активной (div, без SVG) */}
+        {/* Пульсация на активной */}
         {hoveredIdx !== null && activePos && (
           <div
             className="absolute w-16 h-16 rounded-full"
@@ -555,7 +562,7 @@ export function Sidebar() {
           style={{ top: "calc(50% + 8px)", touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
           aria-label="Меню навигации"
         >
-                    <Orbit size={22} className={`transition-all duration-300 ${wheelOpen ? "text-[#8b5cf6] rotate-[60deg]" : "text-white/80"}`} />
+          <Orbit size={22} className={`transition-all duration-300 ${wheelOpen ? "text-[#8b5cf6] rotate-[60deg]" : "text-white/80"}`} />
         </button>
         {renderWheel()}
       </div>
