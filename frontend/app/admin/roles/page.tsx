@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { getToken } from "@/lib/auth";
-import { Palette, Plus, Trash2, Edit2, X, ShieldCheck, AlertTriangle, Info, ChevronUp, Crown, Sparkles, User } from "lucide-react";
+import { Palette, Plus, Trash2, Edit2, X, ShieldCheck, AlertTriangle, Info, ChevronUp, Crown, Sparkles, User, FolderOpen, Settings } from "lucide-react";
 
 // Категории прав с иконками и fallback
 const PERMISSION_META: Record<string, { icon: string; category: "content" | "users" | "chats" | "system" }> = {
@@ -105,7 +105,16 @@ export default function RolesPage() {
   const [description, setDescription] = useState("");
   const [isStaff, setIsStaff] = useState(false);
   const [permissions, setPermissions] = useState<string[]>([]);
+  const [categoryId, setCategoryId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<number | "all">("all");
+  const [showCatManager, setShowCatManager] = useState(false);
+  const [editingCat, setEditingCat] = useState<any>(null);
+  const [catName, setCatName] = useState("");
+  const [catColor, setCatColor] = useState("#8b5cf6");
+  const [catDesc, setCatDesc] = useState("");
+  const [catSaving, setCatSaving] = useState(false);
   const router = useRouter();
 
   const myLevel = me?.is_admin ? 10 : me?.is_moderator ? 9 : me?.role?.level || 1;
@@ -153,6 +162,9 @@ export default function RolesPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setRoles(await res.json());
+
+      const catsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/role-categories`);
+      if (catsRes.ok) setCategories(await catsRes.json());
     } catch (err) {
       console.error("Load failed:", err);
       router.push("/");
@@ -172,6 +184,7 @@ export default function RolesPage() {
       setDescription(role.description || "");
       setIsStaff(role.is_staff || false);
       setPermissions(role.permissions || []);
+      setCategoryId(role.category_id ?? null);
     } else {
       setEditingRole(null);
       setName("");
@@ -180,6 +193,7 @@ export default function RolesPage() {
       setDescription("");
       setIsStaff(false);
       setPermissions([]);
+      setCategoryId(null);
     }
     setShowForm(true);
   }
@@ -210,6 +224,7 @@ export default function RolesPage() {
     form.append("description", description);
     form.append("is_staff", String(isStaff));
     form.append("permissions", JSON.stringify(permissions));
+    if (categoryId !== null) form.append("category_id", String(categoryId));
 
     const url = editingRole
       ? `${process.env.NEXT_PUBLIC_API_URL}/api/roles/${editingRole.id}`
@@ -279,6 +294,68 @@ export default function RolesPage() {
     </div>
   );
 
+
+  function openCatForm(cat?: any) {
+    if (cat) {
+      setEditingCat(cat);
+      setCatName(cat.name);
+      setCatColor(cat.color);
+      setCatDesc(cat.description || "");
+    } else {
+      setEditingCat(null);
+      setCatName("");
+      setCatColor("#8b5cf6");
+      setCatDesc("");
+    }
+    setShowCatManager(true);
+  }
+
+  async function saveCategory(e: React.FormEvent) {
+    e.preventDefault();
+    if (!catName.trim()) return;
+    setCatSaving(true);
+    const token = getToken();
+    const form = new FormData();
+    form.append("name", catName.trim());
+    form.append("color", catColor);
+    form.append("description", catDesc.trim());
+
+    const url = editingCat
+      ? `${process.env.NEXT_PUBLIC_API_URL}/api/role-categories/${editingCat.id}`
+      : `${process.env.NEXT_PUBLIC_API_URL}/api/role-categories`;
+    const method = editingCat ? "PUT" : "POST";
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (res.ok) {
+        setShowCatManager(false);
+        load();
+      } else {
+        const data = await res.json().catch(() => null);
+        alert(data?.detail || "Ошибка сохранения");
+      }
+    } catch {
+      alert("Ошибка сети");
+    } finally {
+      setCatSaving(false);
+    }
+  }
+
+  async function deleteCategory(catId: number) {
+    if (!confirm("Удалить группу? Роли останутся без группы.")) return;
+    const token = getToken();
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/role-categories/${catId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    load();
+  }
+
+
   function getLevelColor(lvl: number): string {
     if (lvl === 10) return "#ffffff";
     if (lvl === 9) return "#3b82f6";
@@ -293,7 +370,8 @@ export default function RolesPage() {
   }
 
   // Сортируем роли: сначала is_staff=true по position, потом остальные по уровню
-  const sortedRoles = [...roles].sort((a, b) => {
+  const filteredRoles = activeTab === "all" ? roles : roles.filter((r) => r.category_id === activeTab);
+  const sortedRoles = [...filteredRoles].sort((a, b) => {
     if (a.is_staff && !b.is_staff) return -1;
     if (!a.is_staff && b.is_staff) return 1;
     if (a.is_staff && b.is_staff) return (a.position || 0) - (b.position || 0);
@@ -328,7 +406,41 @@ export default function RolesPage() {
             </button>
           </div>
         </div>
+        {/* 🗂️ ВКЛАДКИ ГРУПП */}
+        <div className="px-6 pt-3 pb-0 border-b border-white/10 bg-[#171717]/40 flex items-center gap-1 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab("all")}
+            className={`px-4 py-2.5 text-sm font-bold whitespace-nowrap border-b-2 transition-all ${
+              activeTab === "all" ? "border-[#8b5cf6] text-[#8b5cf6]" : "border-transparent text-white/50 hover:text-white"
+            }`}
+          >
+            Все роли <span className="text-[10px] ml-1 text-white/30">({roles.length})</span>
+          </button>
+          {categories.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setActiveTab(c.id)}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold whitespace-nowrap border-b-2 transition-all ${
+                activeTab === c.id ? "border-[#8b5cf6] text-white" : "border-transparent text-white/50 hover:text-white"
+              }`}
+            >
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: c.color }} />
+              {c.name}
+              <span className="text-[10px] text-white/30">
+                ({roles.filter((r) => r.category_id === c.id).length})
+              </span>
+            </button>
+          ))}
+          <button
+            onClick={() => openCatForm()}
+            className="px-3 py-2.5 text-sm text-white/40 hover:text-[#8b5cf6] whitespace-nowrap flex items-center gap-1"
+            title="Управление группами"
+          >
+            <Settings size={14} />
+          </button>
+        </div>
 
+        <div className="p-4 border-b border-white/5"></div>
         <div className="p-4 border-b border-white/5">
           <div className="bg-[#8b5cf6]/10 border border-[#8b5cf6]/30 rounded-xl p-4 flex gap-3">
             <Info size={20} className="text-[#8b5cf6] shrink-0 mt-0.5" />
@@ -367,6 +479,20 @@ export default function RolesPage() {
                   {role.is_staff && (
                     <span className="px-2 py-0.5 rounded-full bg-[#8b5cf6]/20 text-[#8b5cf6] text-xs font-bold border border-[#8b5cf6]/40 flex items-center gap-1">
                       <Crown size={10} /> Staff
+                    </span>
+                  )}
+
+                                    {role.category_id && (
+                    <span
+                      className="px-2 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1"
+                      style={{
+                        color: categories.find((c) => c.id === role.category_id)?.color || "#8b5cf6",
+                        borderColor: `${categories.find((c) => c.id === role.category_id)?.color || "#8b5cf6"}60`,
+                        background: `${categories.find((c) => c.id === role.category_id)?.color || "#8b5cf6"}15`,
+                      }}
+                    >
+                      <FolderOpen size={10} />
+                      {categories.find((c) => c.id === role.category_id)?.name || "Группа"}
                     </span>
                   )}
                   
@@ -513,6 +639,26 @@ export default function RolesPage() {
                       className="w-full border border-white/15 rounded-lg px-3 py-2 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] transition-colors"
                     />
                   </div>
+
+
+                                    <div>
+                    <label className="block text-sm font-bold text-white/80 mb-2">
+                      Группа (отдел)
+                    </label>
+                    <select
+                      value={categoryId ?? ""}
+                      onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
+                      className="w-full border border-white/15 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]"
+                    >
+                      <option value="" className="bg-gray-900">Без группы</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id} className="bg-gray-900">
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
 
                   <div>
                     <label className="block text-sm font-bold text-white/80 mb-2">
@@ -749,6 +895,90 @@ export default function RolesPage() {
             </div>
           </>
         )}
+
+        {/* 🗂️ МОДАЛКА УПРАВЛЕНИЯ ГРУППАМИ */}
+        {showCatManager && (
+          <>
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200]" onClick={() => !catSaving && setShowCatManager(false)} />
+            <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
+              <div className="w-full max-w-md border border-white/20 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[80vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-black text-white flex items-center gap-2">
+                    <FolderOpen size={18} className="text-[#8b5cf6]" />
+                    {editingCat ? "Редактировать группу" : "Новая группа"}
+                  </h2>
+                  <button onClick={() => !catSaving && setShowCatManager(false)} className="text-white/60 hover:text-white p-1">
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <form onSubmit={saveCategory} className="space-y-4 mb-5">
+                  <div>
+                    <label className="block text-xs font-bold text-white/60 mb-1.5">Название группы</label>
+                    <input
+                      value={catName}
+                      onChange={(e) => setCatName(e.target.value)}
+                      placeholder="Например: Модерация, Тех. отдел, Дизайн"
+                      required
+                      className="w-full border border-white/15 rounded-lg px-3 py-2 bg-white/5 text-white text-sm placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-white/60 mb-1.5">Описание</label>
+                    <input
+                      value={catDesc}
+                      onChange={(e) => setCatDesc(e.target.value)}
+                      placeholder="Чем занимается этот отдел?"
+                      className="w-full border border-white/15 rounded-lg px-3 py-2 bg-white/5 text-white text-sm placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-white/60 mb-1.5">Цвет</label>
+                    <div className="flex items-center gap-3">
+                      <input type="color" value={catColor} onChange={(e) => setCatColor(e.target.value)}
+                        className="w-12 h-9 rounded-lg border border-white/20 cursor-pointer bg-transparent" />
+                      <input type="text" value={catColor} onChange={(e) => setCatColor(e.target.value)}
+                        className="flex-1 border border-white/15 rounded-lg px-3 py-2 bg-white/5 text-white font-mono text-sm focus:outline-none focus:border-[#8b5cf6]" />
+                    </div>
+                  </div>
+                  <button type="submit" disabled={catSaving || !catName.trim()}
+                    className="w-full py-2.5 rounded-lg bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed] disabled:opacity-40 transition-all">
+                    {catSaving ? "Сохранение..." : editingCat ? "Сохранить" : "Создать группу"}
+                  </button>
+                </form>
+
+                <div className="border-t border-white/10 pt-4">
+                  <p className="text-xs font-bold text-white/50 uppercase tracking-wider mb-3">Существующие группы</p>
+                  <div className="space-y-2">
+                    {categories.length === 0 && <p className="text-xs text-white/40 text-center py-3">Групп пока нет</p>}
+                    {categories.map((c) => (
+                      <div key={c.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                        <span className="w-3 h-3 rounded-full shrink-0" style={{ background: c.color }} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-white truncate">{c.name}</p>
+                          {c.description && <p className="text-[10px] text-white/40 truncate">{c.description}</p>}
+                          <p className="text-[10px] text-white/30">{roles.filter((r) => r.category_id === c.id).length} ролей</p>
+                        </div>
+                        <button onClick={() => openCatForm(c)} className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10">
+                          <Edit2 size={14} />
+                        </button>
+                        <button onClick={() => deleteCategory(c.id)} className="p-1.5 rounded-lg text-red-400/60 hover:text-red-400 hover:bg-red-500/10">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <button onClick={() => !catSaving && setShowCatManager(false)}
+                  className="w-full mt-4 py-2.5 rounded-lg border border-white/20 text-white/80 font-bold hover:bg-white/10 transition-all">
+                  Готово
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
       </main>
     </div>
   );

@@ -2507,6 +2507,7 @@ def list_roles(session: Session = Depends(get_session)):
             "description": r.description or "",
             "is_staff": r.is_staff,
             "position": r.position or 0,
+            "category_id": r.category_id,
             "permissions": json.loads(r.permissions),
         }
         for r in sorted_roles
@@ -2520,6 +2521,7 @@ def create_role(
     description: Optional[str] = Form(None),
     is_staff: bool = Form(False),
     permissions: str = Form("[]"),
+    category_id: Optional[int] = Form(None),
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
@@ -2542,6 +2544,7 @@ def create_role(
         name=name, color=color, level=level,
         description=description, is_staff=is_staff,
         position=position, permissions=permissions,
+        category_id=category_id,
     )
     session.add(role)
     session.commit()
@@ -2563,6 +2566,7 @@ def update_role(
     description: Optional[str] = Form(None),
     is_staff: Optional[bool] = Form(None),
     permissions: Optional[str] = Form(None),
+    category_id: Optional[int] = Form(None),
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
@@ -2595,7 +2599,8 @@ def update_role(
         role.is_staff = is_staff
     if permissions:
         role.permissions = permissions
-
+    if category_id is not None:
+        role.category_id = category_id if category_id > 0 else None
     session.add(role)
     session.commit()
     session.refresh(role)
@@ -3298,6 +3303,73 @@ def admin_chat_messages(
         "pinned": m.pinned,
         "created_at": m.created_at.isoformat(),
     } for m in messages]
+
+
+
+# ============================================================
+# 🗂️ КАТЕГОРИИ РОЛЕЙ (ГРУППЫ/ОТДЕЛЫ)
+# ============================================================
+@app.get("/api/role-categories")
+def list_role_categories(session: Session = Depends(get_session)):
+    cats = session.exec(select(RoleCategory).order_by(RoleCategory.order, RoleCategory.id)).all()
+    return [{"id": c.id, "name": c.name, "color": c.color, "description": c.description, "order": c.order} for c in cats]
+
+@app.post("/api/role-categories")
+def create_role_category(
+    name: str = Form(...),
+    color: str = Form("#8b5cf6"),
+    description: Optional[str] = Form(None),
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    if not has_permission(staff, "manage_roles", session):
+        raise HTTPException(403, "Нет права: manage_roles")
+    if not name.strip():
+        raise HTTPException(400, "Название обязательно")
+    max_order = session.exec(select(func.max(RoleCategory.order))).one() or 0
+    cat = RoleCategory(name=name.strip(), color=color, description=description.strip() if description else None, order=max_order + 1)
+    session.add(cat)
+    session.commit()
+    session.refresh(cat)
+    return {"ok": True, "id": cat.id, "name": cat.name, "color": cat.color, "description": cat.description, "order": cat.order}
+
+@app.put("/api/role-categories/{cat_id}")
+def update_role_category(
+    cat_id: int,
+    name: str = Form(...),
+    color: str = Form("#8b5cf6"),
+    description: Optional[str] = Form(None),
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    if not has_permission(staff, "manage_roles", session):
+        raise HTTPException(403, "Нет права: manage_roles")
+    cat = session.get(RoleCategory, cat_id)
+    if not cat:
+        raise HTTPException(404, "Категория не найдена")
+    cat.name = name.strip()
+    cat.color = color
+    cat.description = description.strip() if description else None
+    session.add(cat)
+    session.commit()
+    return {"ok": True}
+
+@app.delete("/api/role-categories/{cat_id}")
+def delete_role_category(
+    cat_id: int,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    if not has_permission(staff, "manage_roles", session):
+        raise HTTPException(403, "Нет права: manage_roles")
+    cat = session.get(RoleCategory, cat_id)
+    if not cat:
+        raise HTTPException(404, "Категория не найдена")
+    session.delete(cat)
+    session.commit()
+    return {"ok": True}
+
+
 
 
 # ---------- техническая панель ----------
@@ -4137,6 +4209,19 @@ def startup():
             conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0;'))
             conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS description VARCHAR;'))
             conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS is_staff BOOLEAN DEFAULT FALSE;'))
+
+            # ===== 🗂️ КАТЕГОРИИ РОЛЕЙ (ГРУППЫ/ОТДЕЛЫ) =====
+            conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS rolecategory (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(60) NOT NULL,
+                color VARCHAR(20) DEFAULT '#8b5cf6',
+                description VARCHAR(200),
+                "order" INTEGER DEFAULT 0,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            """))
+            conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS category_id INTEGER REFERENCES rolecategory(id) ON DELETE SET NULL;'))
 
             # ===== ДОПОЛНИТЕЛЬНЫЕ ТАБЛИЦЫ =====
             conn.execute(text('''CREATE TABLE IF NOT EXISTS pushsubscription (

@@ -144,6 +144,17 @@ class Message(SQLModel, table=True):
     forwarded_sender_name: Optional[str] = None
     reply_to_id: Optional[int] = Field(default=None, foreign_key="message.id") 
 
+
+class RoleCategory(SQLModel, table=True):
+    """Группа/отдел для структуризации ролей"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(max_length=60)
+    color: str = Field(default="#8b5cf6")
+    description: Optional[str] = Field(default=None, max_length=200)
+    order: int = Field(default=0)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
 class Role(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True)
@@ -152,18 +163,13 @@ class Role(SQLModel, table=True):
     description: Optional[str] = None      # 🆕 чем занимается роль
     is_staff: bool = Field(default=False)  # 🆕 показывать ли в правилах
     position: int = Field(default=0)       # 🆕 порядок отображения
+    category_id: Optional[int] = Field(default=None, foreign_key="rolecategory.id")
     permissions: str = "[]"
     created_at: datetime = Field(default_factory=utcnow)
-    category_id: Optional[int] = Field(default=None, foreign_key="rolecategory.id")
 
 
-class RoleCategory(SQLModel, table=True):
-    """Вкладка/отдел для группировки ролей"""
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(max_length=60)
-    color: str = Field(default="#8b5cf6")
-    order: int = Field(default=0)
-    created_at: datetime = Field(default_factory=utcnow)
+
+
 
 class Warning(SQLModel, table=True):
     """Предупреждение пользователю (право warn_users)"""
