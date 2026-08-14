@@ -3853,8 +3853,8 @@ def startup():
                 for i, emoji in enumerate(default_emojis):
                     conn.execute(
                         text("""
-                            INSERT INTO sticker (pack_id, type, content, "order")
-                            SELECT :pack_id, 'emoji', :content, :order
+                            INSERT INTO sticker (pack_id, type, content, "order", created_at)
+                            SELECT :pack_id, 'emoji', :content, :order, NOW()
                             WHERE NOT EXISTS (
                                 SELECT 1 FROM sticker WHERE pack_id = :pack_id AND content = :content
                             )
@@ -3862,21 +3862,21 @@ def startup():
                         {"pack_id": std_id, "content": emoji, "order": i}
                     )
 
-            memes_pack = conn.execute(text("SELECT id FROM sticker_pack WHERE name = 'Мемы (эксклюзив)'")).first()
-            if memes_pack:
-                memes_id = memes_pack[0]
-                memes_emojis = ["🗿", "💀", "🤡", "🫡", "👁️", "🌚", "🦄", "⚡", "🫠", "🤌"]
-                for i, emoji in enumerate(memes_emojis):
-                    conn.execute(
-                        text("""
-                            INSERT INTO sticker (pack_id, type, content, "order")
-                            SELECT :pack_id, 'emoji', :content, :order
-                            WHERE NOT EXISTS (
-                                SELECT 1 FROM sticker WHERE pack_id = :pack_id AND content = :content
-                            )
-                        """),
-                        {"pack_id": memes_id, "content": emoji, "order": i}
-                    )
+                memes_pack = conn.execute(text("SELECT id FROM sticker_pack WHERE name = 'Мемы (эксклюзив)'")).first()
+                if memes_pack:
+                    memes_id = memes_pack[0]
+                    memes_emojis = ["🗿", "💀", "🤡", "🫡", "👁️", "🌚", "🦄", "⚡", "🫠", "🤌"]
+                    for i, emoji in enumerate(memes_emojis):
+                        conn.execute(
+                            text("""
+                                INSERT INTO sticker (pack_id, type, content, "order", created_at)
+                                SELECT :pack_id, 'emoji', :content, :order, NOW()
+                                WHERE NOT EXISTS (
+                                    SELECT 1 FROM sticker WHERE pack_id = :pack_id AND content = :content
+                                )
+                            """),
+                            {"pack_id": memes_id, "content": emoji, "order": i}
+                        )
 
             conn.commit()
             
