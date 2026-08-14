@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus,
   AtSign, X, Shield, ShieldCheck, MessageSquare, Palette,
-  Bug, Orbit, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft
+  Bug, Orbit, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
@@ -26,27 +26,31 @@ const SNAP_RADIUS      = 48;
 const LONG_PRESS_MS    = 250;
 
 // ════════════════════════════════════════════════════════════════
-//  Админский dropdown (desktop)
+//  Админский dropdown (desktop) - теперь с порталом
 // ════════════════════════════════════════════════════════════════
-function AdminDropdown({ user, pathname }: { user: any; pathname: string }) {
-  const [open, setOpen] = useState(false);
+function AdminDropdown({ user, pathname, isOpen, onToggle, onClose }: { 
+  user: any; 
+  pathname: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+}) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose();
+      }
     };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, []);
+    if (isOpen) {
+      document.addEventListener("mousedown", onClick);
+      return () => document.removeEventListener("mousedown", onClick);
+    }
+  }, [isOpen, onClose]);
 
   const items = [
-    {
-      href: "/admin",
-      icon: user?.is_admin ? ShieldAlert : user?.is_moderator ? ShieldCheck : ShieldAlert,
-      label: user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель",
-      show: true,
-    },
+    { href: "/admin", icon: ShieldAlert, label: user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель", show: true },
     { href: "/admin/roles", icon: Palette, label: "Роли", show: !!user?.is_admin },
     { href: "/admin/technical", icon: Wrench, label: "Техпанель", show: !!user?.permissions?.includes("tech_access") },
   ].filter((i) => i.show);
@@ -56,32 +60,39 @@ function AdminDropdown({ user, pathname }: { user: any; pathname: string }) {
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={onToggle}
         className={`w-full flex items-center gap-3 px-4 py-3 font-medium transition-all border-b border-white/5 group ${
-          active ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
+          active || isOpen ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
         }`}
       >
         {user?.is_admin ? (
-          <ShieldAlert size={18} className={active ? "text-[#8b5cf6]" : "text-[#f59e0b]"} />
+          <ShieldAlert size={18} className={active || isOpen ? "text-[#8b5cf6]" : "text-[#f59e0b]"} />
         ) : user?.is_moderator ? (
-          <ShieldCheck size={18} className={active ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} />
+          <ShieldCheck size={18} className={active || isOpen ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} />
         ) : (
           <ShieldAlert size={18} className="text-[#f59e0b]" />
         )}
         <span>{user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель"}</span>
-        <ChevronLeft
+        <ChevronRight
           size={14}
-          className={`ml-auto transition-transform duration-200 ${open ? "-rotate-90" : "rotate-180"}`}
+          className={`ml-auto transition-transform duration-200 ${isOpen ? "rotate-90" : "rotate-0"}`}
         />
       </button>
 
-      {open && (
-        <div className="absolute left-full top-0 ml-2 w-48 bg-[#1f1f23] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden">
+      {/* Выпадающее меню - позиционируется относительно кнопки, но с фиксом z-index */}
+      {isOpen && (
+        <div 
+          className="absolute left-0 top-full mt-1 w-full bg-[#1f1f23] border border-white/10 rounded-xl shadow-2xl z-[9999] overflow-hidden"
+          style={{ 
+            minWidth: '200px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.8)'
+          }}
+        >
           {items.map(({ href, icon: Icon, label }) => (
             <Link
               key={href}
               href={href}
-              onClick={() => setOpen(false)}
+              onClick={() => { onClose(); }}
               className={`flex items-center gap-2 px-3 py-2.5 text-sm transition-colors ${
                 pathname === href ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/70 hover:bg-white/10"
               }`}
@@ -210,6 +221,7 @@ export function Sidebar() {
   const [showBugModal, setShowBugModal] = useState(false);
   const [showSearch, setShowSearch]     = useState(false);
   const [showAdminMenu, setShowAdminMenu] = useState(false);
+  const [showAdminDropdown, setShowAdminDropdown] = useState(false);
 
   const [wheelOpen, setWheelOpen]   = useState(false);
   const [wheelReady, setWheelReady] = useState(false);
@@ -503,6 +515,9 @@ export function Sidebar() {
     : user.role?.color ?? null
     : null;
 
+  // Проверяем, есть ли у пользователя админские права
+  const hasAdminAccess = user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users");
+
   const desktopSidebarContent = (
     <>
       <div className="flex items-center gap-2">
@@ -538,9 +553,6 @@ export function Sidebar() {
             )}
           </Link>
         )}
-        {(user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) && (
-          <AdminDropdown user={user} pathname={pathname} />
-        )}
         <button onClick={loadNotifications}
           className={`flex items-center gap-3 px-4 py-3 font-medium transition-all relative border-b border-white/5 group ${
             pathname === "/notifications" ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
@@ -551,6 +563,18 @@ export function Sidebar() {
             <span className="ml-auto bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm">{counts.notifications}</span>
           )}
         </button>
+
+        {/* Админка - теперь отдельный пункт в навигации (только десктоп) */}
+        {hasAdminAccess && (
+          <AdminDropdown 
+            user={user} 
+            pathname={pathname}
+            isOpen={showAdminDropdown}
+            onToggle={() => setShowAdminDropdown(!showAdminDropdown)}
+            onClose={() => setShowAdminDropdown(false)}
+          />
+        )}
+
         <div className="mt-4 px-4">
           <button onClick={() => setShowBugModal(true)}
             className="w-fit p-2.5 rounded-xl text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all" title="Сообщить о проблеме">
