@@ -34,7 +34,7 @@ import {
   FileText, Film, Edit2, Trash2, MoreVertical,
   Lock, Search, ShieldCheck, AlertTriangle,
   Check, CheckCheck, CheckSquare, Mic, Square, Users, Settings,
-  Pin, PinOff, Video, Copy, Reply,
+  Pin, PinOff, Video, Copy, SmilePlus,  Reply,
 } from "lucide-react";
 import {
   ensureKeyPair, getKeyPair, encryptMessage, decryptMessage,
@@ -116,6 +116,9 @@ export default function ChatPage() {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [replyTo, setReplyTo] = useState<any | null>(null); // 🆕 сообщение на которое отвечаем
+  const [stickerPacks, setStickerPacks] = useState<any[]>([]);
+  const [reactionPickerFor, setReactionPickerFor] = useState<number | null>(null);
+  const [activePackTab, setActivePackTab] = useState<number>(0);
   const [showStickers, setShowStickers] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
@@ -931,6 +934,41 @@ for (const msg of messagesToSend) {
     setActiveMessageMenu(null);
   }
 
+  async function loadStickerPacks() {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sticker-packs`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setStickerPacks(await res.json());
+    } catch {}
+  }
+
+  async function toggleReaction(msgId: number, emoji: string) {
+    const token = getToken();
+    if (!token) return;
+    const form = new FormData();
+    form.append("emoji", emoji);
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/${msgId}/reactions`,
+        { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(prev => prev.map(m => m.id === msgId ? { ...m, reactions: data.reactions } : m));
+        setReactionPickerFor(null);
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.detail || "Не удалось поставить реакцию");
+      }
+    } catch {
+      alert("Ошибка сети");
+    }
+  }
+
+
 function getMessageMenuItems(msg: any): { icon: any; label: string; onClick: () => void; danger?: boolean }[] {
   const isMine = msg.sender_id === currentUser?.id;
   const items: { icon: any; label: string; onClick: () => void; danger?: boolean }[] = [];
@@ -1167,6 +1205,7 @@ function getMessageMenuItems(msg: any): { icon: any; label: string; onClick: () 
     loadChatInfo();
     loadMessages();
     loadPinned();
+    loadStickerPacks(); // 🆕
 
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/read`, {
       method: "POST",
@@ -1341,6 +1380,13 @@ if (data.sender_id === currentUser?.id) {
       loadPinned();
       loadMessages();
     }
+  });
+
+  useWebSocket("message_reaction", (data: any) => {
+    if (String(data.chat_id) !== String(chatId)) return;
+    setMessages(prev => prev.map(m =>
+      m.id === data.message_id ? { ...m, reactions: data.reactions } : m
+    ));
   });
 
   useEffect(() => {
@@ -1971,6 +2017,28 @@ const ChatHeader = () => (
   )}
 </div>
 
+                        {/* 🆕 ЧИПСЫ РЕАКЦИЙ */}
+                        {!isEditing && !isSelectMode && msg.reactions?.length > 0 && (
+                          <div className={`flex flex-wrap gap-1 mt-1.5 ${isMine ? "justify-end" : "justify-start"}`}>
+                            {msg.reactions.map((r: any) => (
+                              <button
+                                key={r.emoji}
+                                onClick={() => toggleReaction(msg.id, r.emoji)}
+                                className={`flex items-center gap-1 px-2 py-1 rounded-full text-[13px] border transition-all active:scale-90 ${
+                                  r.me
+                                    ? "bg-[#8b5cf6]/25 border-[#8b5cf6] shadow-[0_0_8px_rgba(139,92,246,0.3)]"
+                                    : "bg-white/5 border-white/15 hover:bg-white/10"
+                                }`}
+                              >
+                                <span>{r.emoji}</span>
+                                <span className={`text-[11px] font-bold ${r.me ? "text-[#a78bfa]" : "text-white/60"}`}>
+                                  {r.count}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
                         {!isEditing && !isSelectMode && (
                           <div
                             className={`flex items-center gap-1.5 sm:gap-2 mt-1 px-1 ${
@@ -1994,6 +2062,19 @@ const ChatHeader = () => (
                                   <Check size={12} className="text-white/50" />
                                 ))}
                             </p>
+
+                                                        {/* 🆕 Кнопка реакции */}
+                            <button
+                              onClick={() => {
+                                setReactionPickerFor(reactionPickerFor === msg.id ? null : msg.id);
+                                setActivePackTab(0);
+                              }}
+                              className="p-1 text-white/40 hover:text-[#8b5cf6] active:scale-90 transition-transform"
+                              title="Реакция"
+                            >
+                              <SmilePlus size={14} />
+                            </button>
+
                             {/* Меню сообщений */}
                             {!isSecret && (
                               <div className="relative">
@@ -2397,6 +2478,69 @@ const ChatHeader = () => (
         )}
 
         {isSelectMode && <div className="h-2" />}
+
+        {/* 🆕 ПИКЕР РЕАКЦИЙ С ПАКАМИ */}
+        {reactionPickerFor !== null && (
+          <>
+            <div className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm" onClick={() => setReactionPickerFor(null)} />
+            <div className="fixed inset-0 z-[261] flex items-center justify-center p-4 pointer-events-none">
+              <div className="w-full max-w-sm bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl p-3 pointer-events-auto">
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <p className="text-xs font-bold text-white/60">Выбрать реакцию</p>
+                  <button onClick={() => setReactionPickerFor(null)} className="text-white/40 hover:text-white p-1">
+                    <X size={14} />
+                  </button>
+                </div>
+
+                {/* Вкладки паков */}
+                <div className="flex gap-1 mb-3 overflow-x-auto scrollbar-hide pb-1">
+                  {stickerPacks.map((pack, i) => (
+                    <button
+                      key={pack.id}
+                      onClick={() => setActivePackTab(i)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap shrink-0 transition-all ${
+                        activePackTab === i
+                          ? "bg-[#8b5cf6] text-white"
+                          : "bg-white/5 text-white/50 hover:bg-white/10"
+                      }`}
+                    >
+                      {pack.locked && <Lock size={10} className="text-yellow-400" />}
+                      {pack.name}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Содержимое пака */}
+                {stickerPacks[activePackTab] && (
+                  stickerPacks[activePackTab].locked ? (
+                    <div className="flex flex-col items-center gap-2 py-6 text-center">
+                      <div className="w-12 h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
+                        <Lock size={18} className="text-yellow-400" />
+                      </div>
+                      <p className="text-sm font-bold text-white">Пак заблокирован</p>
+                      <p className="text-[11px] text-white/40 max-w-[220px]">
+                        Доступен с уровня {stickerPacks[activePackTab].min_level}. 
+                        Повысь уровень, чтобы использовать эти реакции.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-6 gap-1.5">
+                      {stickerPacks[activePackTab].emojis.map((emoji: string) => (
+                        <button
+                          key={emoji}
+                          onClick={() => toggleReaction(reactionPickerFor, emoji)}
+                          className="aspect-square flex items-center justify-center text-2xl rounded-xl hover:bg-white/10 active:scale-90 transition-all"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* 🆕 Контекстное меню по ПКМ */}
         {contextMenu && (

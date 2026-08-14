@@ -279,3 +279,25 @@ class PushSubscription(SQLModel, table=True):
     auth: str
     created_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+
+# ============================================================
+# 😂 РЕАКЦИИ И ПАКИ СТИКЕРОВ
+# ============================================================
+
+class StickerPack(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(max_length=60)
+    emojis: str = Field(default="[]")  # JSON-массив: '["🗿","💀"]'
+    min_level: int = Field(default=1)  # 1 = всем, 2+ = эксклюзив
+    is_active: bool = Field(default=True)
+    is_builtin: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class MessageReaction(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    message_id: int = Field(foreign_key="message.id")
+    user_id: int = Field(foreign_key="user.id")
+    emoji: str = Field(max_length=16)
+    created_at: datetime = Field(default_factory=utcnow)
+

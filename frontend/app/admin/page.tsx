@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
 import { Listbox } from '@headlessui/react'
-import { Shield, ShieldCheck, Ban, UserCheck, ImageOff, Crown, Palette, ExternalLink, Trash2, Flag, Search, Filter, Users, X } from "lucide-react";
+import { Shield, ShieldCheck, Ban, UserCheck, ImageOff, Crown, Palette, ExternalLink, Trash2, Flag, Search, Filter, Users, X, SmilePlus, } from "lucide-react";
 
 export default function AdminPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -223,6 +223,17 @@ export default function AdminPage() {
 
             
             <div className="flex gap-2 flex-wrap">
+
+              {me.is_admin && (
+                <Link
+                  href="/admin/stickers"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-yellow-400/50 bg-yellow-500/20 text-yellow-400 text-sm font-bold hover:bg-yellow-500/30 transition-all"
+                >
+                  <SmilePlus size={16} />
+                  Стикеры
+                </Link>
+              )}
+
               {/* 🆕 КОНСТРУКТОР ТЕМ */}
               {me.is_admin && (
                 <Link

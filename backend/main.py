@@ -2860,6 +2860,94 @@ def admin_delete_all_user_posts(
     session.commit()
     return {"ok": True, "deleted_count": total_deleted}
 
+
+
+# ============================================================
+# 🎛️ АДМИНКА: УПРАВЛЕНИЕ ПАКАМИ СТИКЕРОВ
+# ============================================================
+
+@app.get("/api/admin/sticker-packs")
+def admin_list_packs(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    if not user.is_admin:
+        raise HTTPException(403, "Только для админов")
+    packs = session.exec(select(StickerPack).order_by(StickerPack.id)).all()
+    return [{
+        "id": p.id, "name": p.name, "emojis": json.loads(p.emojis),
+        "min_level": p.min_level, "is_active": p.is_active, "is_builtin": p.is_builtin,
+    } for p in packs]
+
+
+@app.post("/api/admin/sticker-packs")
+def admin_create_pack(
+    name: str = Form(...),
+    emojis: str = Form(...),  # JSON
+    min_level: int = Form(1),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    if not user.is_admin:
+        raise HTTPException(403, "Только для админов")
+    try:
+        emojis_list = json.loads(emojis)
+        if not isinstance(emojis_list, list) or len(emojis_list) == 0:
+            raise ValueError
+    except:
+        raise HTTPException(400, "Эмодзи должны быть JSON-массивом")
+    
+    pack = StickerPack(name=name.strip(), emojis=json.dumps(emojis_list), min_level=min_level)
+    session.add(pack)
+    session.commit()
+    session.refresh(pack)
+    return {"ok": True, "id": pack.id}
+
+
+@app.put("/api/admin/sticker-packs/{pack_id}")
+def admin_update_pack(
+    pack_id: int,
+    name: str = Form(...),
+    emojis: str = Form(...),
+    min_level: int = Form(1),
+    is_active: bool = Form(True),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    if not user.is_admin:
+        raise HTTPException(403, "Только для админов")
+    pack = session.get(StickerPack, pack_id)
+    if not pack:
+        raise HTTPException(404, "Пак не найден")
+    try:
+        emojis_list = json.loads(emojis)
+    except:
+        raise HTTPException(400, "Неверный формат эмодзи")
+    
+    pack.name = name.strip()
+    pack.emojis = json.dumps(emojis_list)
+    pack.min_level = min_level
+    pack.is_active = is_active
+    session.add(pack)
+    session.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/admin/sticker-packs/{pack_id}")
+def admin_delete_pack(
+    pack_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    if not user.is_admin:
+        raise HTTPException(403, "Только для админов")
+    pack = session.get(StickerPack, pack_id)
+    if not pack:
+        raise HTTPException(404, "Пак не найден")
+    session.delete(pack)
+    session.commit()
+    return {"ok": True}
+
 # ---------- техническая панель ----------
 
 @app.get("/api/admin/stats")
@@ -3543,7 +3631,46 @@ def startup():
     # Автоматическое добавление недостающих колонок
     with engine.connect() as conn:
         try:
+            # ===== 😂 РЕАКЦИИ И ПАКИ =====
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS sticker_pack (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(60) NOT NULL,
+                    emojis TEXT DEFAULT '[]',
+                    min_level INTEGER DEFAULT 1,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    is_builtin BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                );
+            """))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS message_reaction (
+                    id SERIAL PRIMARY KEY,
+                    message_id INTEGER NOT NULL REFERENCES message(id) ON DELETE CASCADE,
+                    user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                    emoji VARCHAR(16) NOT NULL,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                );
+            """))
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_reaction_unique ON message_reaction(message_id, user_id, emoji);"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_reaction_message ON message_reaction(message_id);"))
 
+            # 🎁 Встроенные паки (создаются один раз)
+            conn.execute(text("""
+                INSERT INTO sticker_pack (name, emojis, min_level, is_builtin)
+                SELECT 'Стандартный', '["❤️","🔥","","😮","😢","😡","👍",""]', 1, TRUE
+                WHERE NOT EXISTS (SELECT 1 FROM sticker_pack WHERE name = 'Стандартный');
+            """))
+            conn.execute(text("""
+                INSERT INTO sticker_pack (name, emojis, min_level, is_builtin)
+                SELECT 'Мемы (эксклюзив)', '["🗿","💀","🤡","🫡","👁️","🌚","🦄","⚡","🫠","🤌"]', 2, TRUE
+                WHERE NOT EXISTS (SELECT 1 FROM sticker_pack WHERE name = 'Мемы (эксклюзив)');
+            """))
+            conn.execute(text("""
+                INSERT INTO sticker_pack (name, emojis, min_level, is_builtin)
+                SELECT 'Вайб (эксклюзив)', '["✨","💅","🎯","🪩","🧿","🫧","🍕","👽","🎃","😈"]', 2, TRUE
+                WHERE NOT EXISTS (SELECT 1 FROM sticker_pack WHERE name = 'Вайб (эксклюзив)');
+            """))
             
 
             conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS pinned_by INTEGER REFERENCES \"user\"(id);"))
@@ -3694,6 +3821,125 @@ def startup():
             except Exception as e:
                 print(f"⚠️ STARTUP MIGRATION ERROR: {e}")
 
+
+
+# ============================================================
+# 😂 РЕАКЦИИ НА СООБЩЕНИЯ
+# ============================================================
+
+def reaction_limit_for(user: User, session: Session) -> int:
+    """Level 1 → 3 реакции, Level 2+ → 5"""
+    return 5 if get_user_level(user, session) >= 2 else 3
+
+
+def build_reactions_map(session: Session, message_ids: list, current_user_id: int) -> dict:
+    """Массово собирает реакции для списка сообщений (без N+1)"""
+    if not message_ids:
+        return {}
+    rows = session.exec(
+        select(MessageReaction).where(MessageReaction.message_id.in_(message_ids))
+    ).all()
+    
+    grouped: dict = {}
+    for r in rows:
+        grouped.setdefault(r.message_id, {})
+        e = grouped[r.message_id].setdefault(r.emoji, {"emoji": r.emoji, "count": 0, "me": False, "user_ids": []})
+        e["count"] += 1
+        e["user_ids"].append(r.user_id)
+        if r.user_id == current_user_id:
+            e["me"] = True
+    
+    result = {}
+    for mid, emojis in grouped.items():
+        result[mid] = [
+            {"emoji": v["emoji"], "count": v["count"], "me": v["me"]}
+            for v in sorted(emojis.values(), key=lambda x: -x["count"])
+        ]
+    return result
+
+
+@app.get("/api/sticker-packs")
+def get_sticker_packs(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Паки стикеров с учётом уровня пользователя"""
+    packs = session.exec(
+        select(StickerPack).where(StickerPack.is_active == True).order_by(StickerPack.id)
+    ).all()
+    user_level = get_user_level(user, session)
+    
+    return [{
+        "id": p.id,
+        "name": p.name,
+        "emojis": json.loads(p.emojis),
+        "min_level": p.min_level,
+        "locked": (user_level < p.min_level) and not user.is_admin,
+    } for p in packs]
+
+
+@app.post("/api/chats/{chat_id}/messages/{message_id}/reactions")
+async def toggle_reaction(
+    chat_id: int,
+    message_id: int,
+    emoji: str = Form(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    # 1. Участник чата?
+    member = session.exec(select(ChatMember).where(
+        ChatMember.chat_id == chat_id, ChatMember.user_id == user.id
+    )).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+    
+    # 2. Сообщение существует?
+    msg = session.get(Message, message_id)
+    if not msg or msg.chat_id != chat_id:
+        raise HTTPException(404, "Сообщение не найдено")
+    
+    # 3. Эмодзи доступен на уровне пользователя?
+    user_level = get_user_level(user, session)
+    packs = session.exec(select(StickerPack).where(StickerPack.is_active == True)).all()
+    allowed = any(
+        emoji in json.loads(p.emojis) and (user_level >= p.min_level or user.is_admin)
+        for p in packs
+    )
+    if not allowed:
+        raise HTTPException(403, "🔒 Эта реакция доступна с более высокого уровня")
+    
+    # 4. Toggle: уже стоит — убираем
+    existing = session.exec(select(MessageReaction).where(
+        MessageReaction.message_id == message_id,
+        MessageReaction.user_id == user.id,
+        MessageReaction.emoji == emoji,
+    )).first()
+    
+    if existing:
+        session.delete(existing)
+        session.commit()
+    else:
+        # 5. Лимит моих реакций на этом сообщении
+        my_count = session.exec(select(func.count(MessageReaction.id)).where(
+            MessageReaction.message_id == message_id,
+            MessageReaction.user_id == user.id,
+        )).one()
+        limit = reaction_limit_for(user, session)
+        if my_count >= limit:
+            raise HTTPException(400, f"Максимум {limit} реакций на вашем уровне")
+        
+        session.add(MessageReaction(message_id=message_id, user_id=user.id, emoji=emoji))
+        session.commit()
+    
+    # 6. Собираем актуальные реакции и шлём всем
+    reactions = build_reactions_map(session, [message_id], user.id).get(message_id, [])
+    all_member_ids = session.exec(select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)).all()
+    await manager.broadcast_to_users(list(all_member_ids), "message_reaction", {
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "reactions": reactions,
+    })
+    return {"ok": True, "reactions": reactions}
 
 
 
@@ -4423,6 +4669,7 @@ async def upload_encrypted_media(
             "created_at": msg.created_at.isoformat(),
             "reply_to_id": msg.reply_to_id,
             "reply_preview": get_reply_preview(session, msg.reply_to_id) if msg.reply_to_id else None,
+            "reactions": [],
         },
         session,
     )
@@ -4718,9 +4965,10 @@ def get_messages_v2(
             select(User).where(User.id.in_(sender_ids))
         ).all()
     }
+    reactions_map = build_reactions_map(session, [m.id for m in messages], user.id)
+
     result = []
     for msg in messages:
-        sender = senders.get(msg.sender_id)
         # 🆕 Определяем is_encrypted_media
         is_enc = bool(
             msg.media_url and 
@@ -4747,6 +4995,7 @@ def get_messages_v2(
             "forwarded_sender_name": msg.forwarded_sender_name,
             "reply_to_id": msg.reply_to_id,
             "reply_preview": get_reply_preview(session, msg.reply_to_id) if msg.reply_to_id else None,
+            "reactions": reactions_map.get(msg.id, []),  # 🆕
         })
     return result
 
