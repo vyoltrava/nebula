@@ -55,10 +55,12 @@ function SwipeableMessage({
   children,
   onSwipeRight,
   msgId,
+  raised = false,
 }: {
   children: React.ReactNode;
   onSwipeRight: () => void;
   msgId: number;
+  raised?: boolean;
 }) {
   const { offset, direction, isSwiping, handlers } = useSwipe({
     threshold: 80,
@@ -73,7 +75,7 @@ function SwipeableMessage({
 
   return (
     <div
-      className="relative select-none"
+      className={`relative select-none ${raised ? "z-50" : ""}`}
       style={{ touchAction: "pan-y" }}
       {...handlers}
     >
@@ -1739,6 +1741,7 @@ const ChatHeader = () => (
                       key={msg.id}
                       msgId={msg.id}
                       onSwipeRight={() => startReply(msg)}
+                      raised={activeMessageMenu === msg.id}
                     >
                       <div
                         id={`msg-${msg.id}`}

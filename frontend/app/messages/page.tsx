@@ -415,8 +415,8 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
                 )}
               </div>
 
-              {/* 🆕 КНОПКА МЕНЮ ЧАТА (закрепить/открепить) */}
-              <div className="relative shrink-0">
+              {/* КНОПКА МЕНЮ ЧАТА */}
+              <div className="shrink-0">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -430,29 +430,6 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
                     <MoreVertical size={16} />
                   )}
                 </button>
-                {activeChatMenu === chat.id && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveChatMenu(null);
-                      }}
-                    />
-                    <div className="absolute right-0 top-full mt-1 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px] z-50">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          togglePinChat(chat.id, !!chat.pinned);
-                        }}
-                        className="w-full px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
-                      >
-                        {chat.pinned ? <PinOff size={14} /> : <Pin size={14} />}
-                        {chat.pinned ? "Открепить" : "Закрепить"}
-                      </button>
-                    </div>
-                  </>
-                )}
               </div>
 
               {chat.unread_count > 0 && (
@@ -467,6 +444,48 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
           );
         })}
       </main>
+
+            {/* 🆕 BOTTOM-SHEET МЕНЮ ЧАТА (не режется карточкой) */}
+      {activeChatMenu !== null && (() => {
+        const menuChat = chats.find((c) => c.id === activeChatMenu);
+        if (!menuChat) return null;
+        return (
+          <>
+            <div
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250]"
+              onClick={() => setActiveChatMenu(null)}
+            />
+            <div className="fixed bottom-0 left-0 right-0 z-[251] bg-[#1f1f23] border-t border-white/15 rounded-t-2xl shadow-2xl p-3 pb-8 animate-in slide-in-from-bottom-4 duration-200 md:left-auto md:right-6 md:bottom-6 md:w-80 md:rounded-2xl md:border md:pb-3">
+              <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-3 md:hidden" />
+              <p className="text-xs text-white/40 mb-2 px-1 truncate">
+                {menuChat.is_group ? menuChat.name : menuChat.other?.display_name}
+              </p>
+              <button
+                onClick={() => togglePinChat(menuChat.id, !!menuChat.pinned)}
+                className="w-full px-3 py-3 rounded-xl text-left text-sm text-white hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+              >
+                {menuChat.pinned ? (
+                  <PinOff size={16} className="text-yellow-400" />
+                ) : (
+                  <Pin size={16} className="text-[#8b5cf6]" />
+                )}
+                {menuChat.pinned ? "Открепить" : "Закрепить"}
+              </button>
+              <button
+                onClick={() => {
+                  setActiveChatMenu(null);
+                  refresh();
+                  router.push(`/messages/${menuChat.id}`);
+                }}
+                className="w-full px-3 py-3 rounded-xl text-left text-sm text-white hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+              >
+                <MessageSquare size={16} className="text-white/60" />
+                Открыть чат
+              </button>
+            </div>
+          </>
+        );
+      })()}
 
       {/* 🆕 Модалка создания группы */}
       {showCreateGroup && (
