@@ -24,8 +24,8 @@ const SNAP_RADIUS      = 48;
 const LONG_PRESS_MS    = 250;
 
 // Углы для мобилки (кнопка СПРАВА, дуга ВЛЕВО)
-const MOBILE_ARC_START = (7 * Math.PI) / 6;   // 210°
-const MOBILE_ARC_END   = (11 * Math.PI) / 6;  // 330°
+const MOBILE_ARC_START = (11 * Math.PI) / 18;  // 110° (верх-лево)
+const MOBILE_ARC_END   = (25 * Math.PI) / 18;  // 250° (низ-лево)
 
 // Углы для десктопа ORBIT (кнопка справа внизу, дуга влево-вверх)
 const DESKTOP_ORBIT_ARC_START = Math.PI;       // 180°
@@ -123,8 +123,9 @@ function MobileAdminSheet({ user, onClose }: { user: any; onClose: () => void })
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 z-[240] md:hidden" onClick={onClose} />
-      <div className="fixed bottom-0 left-0 right-0 z-[241] md:hidden bg-[#1f1f23] border-t border-white/10 rounded-t-2xl p-4 pb-8 shadow-2xl">
+      {/* Убрал md:hidden - теперь работает и на десктопе */}
+      <div className="fixed inset-0 bg-black/60 z-[240]" onClick={onClose} />
+      <div className="fixed bottom-0 left-0 right-0 z-[241] bg-[#1f1f23] border-t border-white/10 rounded-t-2xl p-4 pb-8 shadow-2xl max-w-md mx-auto">
         <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />
         {items.map(({ href, icon: Icon, label }) => (
           <button
@@ -530,15 +531,15 @@ export function Sidebar() {
         y: rect.top + rect.height / 2,
       };
     } else {
-      // Мобилка: кнопка справа, дуга влево
+      // Мобилка: кнопка справа, дуга идет ВЛЕВО
       arcParamsRef.current = {
         start: MOBILE_ARC_START,
         end: MOBILE_ARC_END,
-        offsetX: -40,
+        offsetX: 40,   // ✅ Сдвигаем ЦЕНТР дуги вправо
         offsetY: 0
       };
       arcCenterRef.current = {
-        x: rect.left + rect.width / 2 - 40,
+        x: rect.left + rect.width / 2 + 40,   // ✅ Из-за этого сама дуга рисуется ЛЕВЕЕ кнопки
         y: rect.top + rect.height / 2,
       };
     }
