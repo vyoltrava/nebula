@@ -1006,6 +1006,40 @@ export function Sidebar() {
         {renderWheel()}
       </div>
 
+      {/* ═══════ DESKTOP ORBIT: непрочитанное слева ═══════ */}
+      {/* Показываем ТОЛЬКО в орбите на ПК, только если есть непрочитанное */}
+      {layout === "orbit" && !isMobile && (counts.chats > 0 || counts.notifications > 0) && (
+        <div className="fixed left-4 top-1/2 -translate-y-1/2 z-[97] flex flex-col gap-3">
+          {counts.chats > 0 && (
+            <button
+              onClick={() => router.push("/messages")}
+              className="relative w-12 h-12 rounded-full bg-[#171717]/90 backdrop-blur-sm border border-white/10 flex items-center justify-center shadow-lg shadow-black/50 text-white/80 hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
+              title="Сообщения"
+            >
+              <MessageSquare size={20} />
+              <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-[#8b5cf6] border-2 border-[#171717] text-white text-[10px] font-bold flex items-center justify-center">
+                {counts.chats > 9 ? "9+" : counts.chats}
+              </span>
+            </button>
+          )}
+
+          {counts.notifications > 0 && (
+            <button
+              onClick={() => router.push("/notifications")}
+              className="relative w-12 h-12 rounded-full bg-[#171717]/90 backdrop-blur-sm border border-white/10 flex items-center justify-center shadow-lg shadow-black/50 text-white/80 hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
+              title="Уведомления"
+            >
+              <Bell size={20} />
+              <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-[#8b5cf6] border-2 border-[#171717] text-white text-[10px] font-bold flex items-center justify-center">
+                {counts.notifications > 9 ? "9+" : counts.notifications}
+              </span>
+            </button>
+          )}
+        </div>
+      )}
+
+
+
       {/* ═══════ ДЕСКТОП CLASSIC / DOCK ═══════ */}
       {layout !== "orbit" && (
         <aside className={`hidden md:flex shrink-0 overflow-y-auto flex-col bg-[#171717] transition-all duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
