@@ -568,6 +568,29 @@ def protect_system_account(target: User, actor: User = None, action: str = "эт
         )
 
 
+def check_sanction_rights(actor: User, target: User, session: Session, action: str = "применять санкции к этому пользователю"):
+    """
+    ЕДИНАЯ проверка иммунитета для ВСЕХ санкций:
+    - Founder (is_admin, lvl 10) может всё и ко всем (даже к System lvl 11)
+    - Founder / Developer / System неприкосновенны для всех, КРОМЕ Founder
+    - Остальные — иерархия: уровень актора СТРОГО выше уровня цели
+    """
+    if actor.is_admin:
+        return  # Founder может всё
+    if target.is_admin or target.is_moderator or target.is_system:
+        raise HTTPException(
+            status_code=403,
+            detail=f"🛡️ Иммунитет: только Founder может {action}.",
+        )
+    actor_lvl = get_user_level(actor, session)
+    target_lvl = get_user_level(target, session)
+    if target_lvl >= actor_lvl:
+        raise HTTPException(
+            status_code=403,
+            detail=f"🛡️ Иммунитет: уровень цели ({target_lvl}) ≥ вашего ({actor_lvl}). Вы не можете {action}.",
+        )
+
+
 def user_out(user: User, session: Session = None) -> dict:
     """Сериализует пользователя в dict (использует кэш ролей)"""
     role_data = None
@@ -1964,8 +1987,11 @@ async def delete_post(
         raise HTTPException(404, "Post not found")
     if post.author_id != user.id and not has_permission(user, "delete_posts", session):
         raise HTTPException(403, "Not your post")
-    
-    # 🆕 Каскадное удаление
+    # 🛡️ Чужой пост — только если цель ниже по иерархии (Founder/Developer неприкосновенны)
+    if post.author_id != user.id:
+        author = session.get(User, post.author_id)
+        if author:
+            check_sanction_rights(user, author, session, "удалять посты этого пользователя")
     cascade_delete_post(post_id, session)
     log_action(
         session, user.id, "delete_post",
@@ -2664,9 +2690,9 @@ def assign_role(
         raise HTTPException(404, "User not found")
     protect_system_account(target, staff, "менять роль")
     
-    # 🛡️ Нельзя трогать пользователя с уровнем >= своего
+    # 🛡️ Единый иммунитет
     if target.id != staff.id:
-        check_hierarchy_or_403(staff, target, session, action="изменить роль этого пользователя")
+        check_sanction_rights(staff, target, session, "изменять роль этого пользователя")
     
     # Если назначается роль — проверяем её уровень
     if role_id:
@@ -2745,17 +2771,11 @@ def admin_ban_user(
     target = session.get(User, user_id)
     if not target:
         raise HTTPException(404, "User not found")
-    protect_system_account(target, admin, "банить")
-    
     # Нельзя банить себя
     if target.id == admin.id:
         raise HTTPException(400, "Нельзя забанить самого себя")
-        # 🛡️ Только Founder может трогать Founder
-    if target.is_admin and not admin.is_admin:
-        raise HTTPException(403, "Только Founder может применять санкции к Founder")
-    
-    # 🛡️ ПРОВЕРКА ИЕРАРХИИ
-    check_hierarchy_or_403(admin, target, session, action="забанить этого пользователя")
+    # 🛡️ Единый иммунитет: Founder/Developer/System трогает только Founder
+    check_sanction_rights(admin, target, session, "банить этого пользователя")
     
     target.is_banned = not target.is_banned
     session.add(target)
@@ -2848,7 +2868,7 @@ def admin_remove_avatar(
     if not target:
         raise HTTPException(404, "User not found")
     
-    protect_system_account(target, admin, "удалять аватар")
+    check_sanction_rights(admin, target, session, "удалять аватар этого пользователя")
     
     if target.avatar_url and "cloudinary.com" in target.avatar_url:
         try:
@@ -2871,22 +2891,17 @@ def admin_remove_avatar(
 @app.post("/api/admin/users/{user_id}/moderator")
 def admin_toggle_moderator(
     user_id: int,
-    admin: User = Depends(get_current_user), 
+    admin: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
+    if not (admin.is_admin or has_permission(admin, "assign_moderator", session)):
+        raise HTTPException(403, "Нет права: assign_moderator")
     target = session.get(User, user_id)
     if not target:
         raise HTTPException(404, "User not found")
-    protect_system_account(target, admin, "менять статус")
-    
-    # 🛡️ Только админ может трогать других админов
-    if target.is_admin and target.id != admin.id:
-        raise HTTPException(403, "Cannot change another admin's status")
-    
-    target.is_moderator = not target.is_moderator
-    session.add(target)
-    session.commit()
-    return {"is_moderator": target.is_moderator}
+    if target.id == admin.id:
+        raise HTTPException(400, "Нельзя менять свой статус")
+    check_sanction_rights(admin, target, session, "менять статус этого пользователя")
 
 
 @app.delete("/api/admin/posts/{post_id}")
@@ -2899,8 +2914,10 @@ async def admin_delete_post(
     post = session.get(Post, post_id)
     if not post:
         raise HTTPException(404, "Post not found")
-    
-    # 🆕 Каскадное удаление поста со всеми вложенными ответами
+    # 🛡️ Иммунитет автора поста
+    author = session.get(User, post.author_id)
+    if author and author.id != staff.id:
+        check_sanction_rights(staff, author, session, "удалять посты этого пользователя")
     cascade_delete_post(post_id, session)
     log_action(
         session, staff.id, "delete_post",
@@ -2921,12 +2938,11 @@ def admin_delete_all_user_posts(
 ):
     if not has_permission(staff, "delete_posts", session):
         raise HTTPException(403, "No permission: delete_posts")
-    
     target = session.get(User, user_id)
     if not target:
         raise HTTPException(404, "User not found")
-    if target.is_admin:
-        raise HTTPException(403, "Cannot delete admin posts")
+    # 🛡️ Единый иммунитет (Founder/Developer/System + иерархия)
+    check_sanction_rights(staff, target, session, "удалять посты этого пользователя")
     
     # Находим все посты пользователя (ТОЛЬКО корни, не ответы)
     user_posts = session.exec(
@@ -3174,6 +3190,115 @@ def admin_reorder_stickers(
             session.add(sticker)
     session.commit()
     return {"ok": True}
+
+# ============================================================
+# 💬 АДМИНКА: МОДЕРАЦИЯ ЧАТОВ (право manage_groups)
+# ============================================================
+@app.get("/api/admin/chats")
+def admin_list_chats(
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Все чаты КРОМЕ секретных. Личные чаты Founder/Developer/System — только для Founder."""
+    if not has_permission(staff, "manage_groups", session):
+        raise HTTPException(403, "Нет права: manage_groups")
+
+    chats = session.exec(
+        select(Chat).where(Chat.is_secret == False).order_by(Chat.created_at.desc())
+    ).all()
+    if not chats:
+        return []
+    chat_ids = [c.id for c in chats]
+
+    members = session.exec(select(ChatMember).where(ChatMember.chat_id.in_(chat_ids))).all()
+    user_ids = list({m.user_id for m in members})
+    users = {u.id: u for u in session.exec(select(User).where(User.id.in_(user_ids))).all()}
+    members_by_chat = {}
+    for m in members:
+        members_by_chat.setdefault(m.chat_id, []).append(users.get(m.user_id))
+
+    msgs = session.exec(
+        select(Message).where(Message.chat_id.in_(chat_ids)).order_by(Message.created_at.desc())
+    ).all()
+    last_by_chat = {}
+    for m in msgs:
+        if m.chat_id not in last_by_chat:
+            last_by_chat[m.chat_id] = m
+
+    result = []
+    for c in chats:
+        chat_users = [u for u in members_by_chat.get(c.id, []) if u]
+        # 🛡️ Личные чаты (DM) с иммунитетом скрыты от всех, кроме Founder
+        if not c.is_group:
+            has_immune = any(u.is_admin or u.is_moderator or u.is_system for u in chat_users)
+            if has_immune and not staff.is_admin:
+                continue
+        last = last_by_chat.get(c.id)
+        last_data = None
+        if last:
+            sender = users.get(last.sender_id)
+            last_data = {
+                "text": (last.text or "📎 Вложение")[:40],
+                "sender_name": sender.display_name if sender else "Unknown",
+                "created_at": last.created_at.isoformat(),
+            }
+        result.append({
+            "id": c.id,
+            "is_group": c.is_group,
+            "name": c.name if c.is_group else (" / ".join([u.display_name for u in chat_users]) or "Диалог"),
+            "avatar_url": c.avatar_url,
+            "members_count": len(chat_users),
+            "last_message": last_data,
+            "created_at": c.created_at.isoformat(),
+        })
+    return result
+
+
+@app.get("/api/admin/chats/{chat_id}/messages")
+def admin_chat_messages(
+    chat_id: int,
+    limit: int = 200,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Просмотр сообщений чата. Личные чаты Founder/Developer/System — только для Founder."""
+    if not has_permission(staff, "manage_groups", session):
+        raise HTTPException(403, "Нет права: manage_groups")
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    if chat.is_secret:
+        raise HTTPException(403, "🔒 Секретные чаты недоступны для модерации")
+
+    # 🛡️ Защита личных чатов с иммунитетом
+    if not chat.is_group:
+        member_rows = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id)).all()
+        member_users = [session.get(User, m.user_id) for m in member_rows]
+        has_immune = any(u and (u.is_admin or u.is_moderator or u.is_system) for u in member_users)
+        if has_immune and not staff.is_admin:
+            raise HTTPException(403, "🛡️ Личные чаты Founder/Developer недоступны для модерации")
+
+    messages = session.exec(
+        select(Message).where(Message.chat_id == chat_id)
+        .order_by(Message.created_at.desc()).limit(limit)
+    ).all()
+    messages.reverse()
+
+    sender_ids = list({m.sender_id for m in messages})
+    senders = {u.id: u for u in session.exec(select(User).where(User.id.in_(sender_ids))).all()}
+
+    return [{
+        "id": m.id,
+        "sender_id": m.sender_id,
+        "sender_name": senders[m.sender_id].display_name if senders.get(m.sender_id) else "Unknown",
+        "sender_avatar": senders[m.sender_id].avatar_url if senders.get(m.sender_id) else None,
+        "text": m.text,
+        "media_url": m.media_url,
+        "media_type": m.media_type,
+        "pinned": m.pinned,
+        "created_at": m.created_at.isoformat(),
+    } for m in messages]
+
 
 # ---------- техническая панель ----------
 
@@ -4625,16 +4750,9 @@ def admin_delete_user(
     if not target:
         raise HTTPException(404, "User not found")
     
-    protect_system_account(target, staff, "удалять")
-    
     if target.id == staff.id:
         raise HTTPException(400, "Cannot delete your own account")
-    
-    if target.is_admin and not staff.is_admin:
-        raise HTTPException(403, "Только Founder может удалить Founder")
-    
-    if target.is_moderator and staff.is_moderator and not staff.is_admin:
-        raise HTTPException(403, "Developer не может удалить другого Developer")
+    check_sanction_rights(staff, target, session, "удалять этот аккаунт")
 
     # Массовые удаления
     # 1. ActionLog
@@ -5514,8 +5632,14 @@ def delete_message(
         raise HTTPException(404, "Message not found")
     if msg.chat_id != chat_id:
         raise HTTPException(403, "Message not in this chat")
-    if msg.sender_id != user.id and not user.is_admin:
-        raise HTTPException(403, "You can only delete your own messages")
+    can_mod = has_permission(user, "manage_groups", session)
+    if msg.sender_id != user.id:
+        can_mod = has_permission(user, "manage_groups", session)
+        if not user.is_admin and not can_mod:
+            raise HTTPException(403, "Можно удалять только свои сообщения")
+        sender = session.get(User, msg.sender_id)
+        if sender:
+            check_sanction_rights(user, sender, session, "удалять сообщения этого пользователя")
     
     session.delete(msg)
     session.commit()
@@ -6172,27 +6296,34 @@ def mark_all_notifications_read(
 
 
 @app.patch("/api/posts/{post_id}")
-def edit_post(
+async def edit_post(
     post_id: int,
     text: str = Form(...),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
+    """Редактирование поста: автор ИЛИ право edit_posts (с учётом иерархии)"""
     post = session.get(Post, post_id)
     if not post:
-        raise HTTPException(404, "Пост не найден")
+        raise HTTPException(404, "Post not found")
     is_author = post.author_id == user.id
     if not is_author and not has_permission(user, "edit_posts", session):
-        raise HTTPException(403, "Не ваш пост или нет права: edit_posts")
+        raise HTTPException(403, "Нет права: edit_posts")
     if not text.strip():
         raise HTTPException(400, "Пост не может быть пустым")
-    post.text = text.strip()
-    post.edited = True
-    post.edited_at = datetime.now(timezone.utc)
-    session.add(post)
+    # 🛡️ Чужой пост — только если можешь санкционировать автора
     if not is_author:
-        log_action(session, user.id, "edit_post", target_type="post", target_id=post_id,
-                   details={"author_id": post.author_id})
+        author = session.get(User, post.author_id)
+        if author:
+            check_sanction_rights(user, author, session, "редактировать посты этого пользователя")
+    old_text = post.text
+    post.text = text.strip()
+    session.add(post)
+    log_action(session, user.id, "edit_post",
+               target_type="post", target_id=post_id,
+               details={"by_moderator": not is_author,
+                        "old_text": (old_text or "")[:100],
+                        "new_text": text.strip()[:100]})
     session.commit()
     return {"ok": True, "id": post.id, "text": post.text}
 
@@ -6517,16 +6648,16 @@ def resolve_report(
 
 
 
-    # Выполняем действие
     if action == "delete_post" and report.target_type == "post":
         if not has_permission(staff, "delete_posts", session):
             raise HTTPException(403, "No permission: delete_posts")
-        
         post = session.get(Post, report.target_id)
         if post:
-            # ✅ ЗАМЕНИЛИ 15 строк ручного удаления на одну надежную функцию:
+            # 🛡️ Иммунитет автора поста
+            author = session.get(User, post.author_id)
+            if author and author.id != staff.id:
+                check_sanction_rights(staff, author, session, "удалять посты этого пользователя")
             cascade_delete_post(post.id, session)
-    
     elif action == "ban_user":
         if not has_permission(staff, "ban_users", session):
             raise HTTPException(403, "No permission: ban_users")
@@ -6539,7 +6670,9 @@ def resolve_report(
                 target_user_id = post.author_id
         if target_user_id:
             target = session.get(User, target_user_id)
-            if target and not target.is_admin:
+            if target and target.id != staff.id:
+                # 🛡️ Единый иммунитет (Founder/Developer нельзя банить через жалобы)
+                check_sanction_rights(staff, target, session, "банить этого пользователя")
                 target.is_banned = True
                 session.add(target)
     
