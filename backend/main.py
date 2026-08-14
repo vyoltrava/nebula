@@ -2320,20 +2320,29 @@ async def create_post(
         "media_type": post.media_type,
     }
 
+@app.get("/api/admin/permission-tabs")
+def get_permission_tabs(staff: User = Depends(require_staff), session: Session = Depends(get_session)):
+    """Получить список кастомных вкладок и привязанных к ним прав"""
+    setting = session.get(SystemSetting, "permission_tabs_config")
+    if not setting:
+        return []
+    return json.loads(setting.value)
 
-@app.get("/api/permissions")
-def list_permissions():
-    return [
-        {"id": "delete_posts", "label": "Удалять посты"},
-        {"id": "ban_users", "label": "Банить пользователей"},
-        {"id": "remove_avatars", "label": "Удалять аватарки"},
-        {"id": "assign_moderator", "label": "Назначать модераторов"},
-        {"id": "manage_roles", "label": "Управлять ролями"},
-        {"id": "manage_users", "label": "Доступ к панели управления"},
-        {"id": "manage_reports", "label": "Управлять жалобами"},
-        {"id": "tech_access", "label": "Доступ к технической панели"},
-        {"id": "delete_users", "label": "Удалять аккаунты"},
-    ]
+@app.post("/api/admin/permission-tabs")
+def save_permission_tabs(
+    tabs: str = Form(...), # JSON массив вкладок
+    staff: User = Depends(require_staff), 
+    session: Session = Depends(get_session)
+):
+    """Сохранить кастомные вкладки"""
+    setting = session.get(SystemSetting, "permission_tabs_config")
+    if not setting:
+        setting = SystemSetting(key="permission_tabs_config", value=tabs)
+    else:
+        setting.value = tabs
+    session.add(setting)
+    session.commit()
+    return {"ok": True}
 
 @app.get("/api/permissions")
 def list_permissions():
