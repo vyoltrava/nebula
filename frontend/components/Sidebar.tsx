@@ -110,21 +110,7 @@ function AdminDropdown({ user, pathname, isOpen, onToggle, onClose }: {
 }
 
 
-useWebSocket("post_liked", (data: any) => {
-  // 1. Обновляем счётчик во всех открытых постах
-  window.dispatchEvent(new CustomEvent("like-sync", {
-    detail: { post_id: data.post_id, likes_count: data.likes_count },
-  }));
 
-  // 2. Если это Я лайкнул с другого устройства — синхронизируем активное состояние
-  const me = getCachedUser();
-  if (me && data.liker_id === me.id) {
-    setLikedCache(data.post_id, !!data.liked);
-    window.dispatchEvent(new CustomEvent("like-state-sync", {
-      detail: { post_id: data.post_id, liked: !!data.liked },
-    }));
-  }
-});
 
 
 
@@ -288,6 +274,23 @@ export function Sidebar() {
   const arcCenterRef     = useRef({ x: 0, y: 0 });
 
   const { counts, refresh } = useUnreadCounts();
+
+
+
+  // 🔄 Синхронизация лайков между устройствами через WebSocket
+useWebSocket("post_liked", (data: any) => {
+  window.dispatchEvent(new CustomEvent("like-sync", {
+    detail: { post_id: data.post_id, likes_count: data.likes_count },
+  }));
+
+  const me = getCachedUser();
+  if (me && data.liker_id === me.id) {
+    setLikedCache(data.post_id, !!data.liked);
+    window.dispatchEvent(new CustomEvent("like-state-sync", {
+      detail: { post_id: data.post_id, liked: !!data.liked },
+    }));
+  }
+});
 
   type WheelItem = { href: string; icon: any; label: string; isProfile?: boolean; count?: number };
 
