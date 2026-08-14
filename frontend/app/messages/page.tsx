@@ -9,6 +9,8 @@ import { getToken } from "@/lib/auth";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { socket } from "@/lib/websocket";
 import { ChatListSkeleton } from "@/components/Skeletons";
+import { Pin, PinOff, MoreVertical } from "lucide-react";
+import { pinChat, unpinChat } from "@/lib/api";
 
 
 export default function MessagesPage() {
@@ -19,6 +21,8 @@ export default function MessagesPage() {
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const router = useRouter();
   const { refresh } = useUnreadCounts();
+  const [activeChatMenu, setActiveChatMenu] = useState<number | null>(null);
+  const [pinningChat, setPinningChat] = useState<number | null>(null);
 
   function getGlowColor(user: any): string | null {
     if (user?.is_admin) return "#8b5cf6";
@@ -32,6 +36,25 @@ export default function MessagesPage() {
     if (!c) return undefined;
     return { color: c, textShadow: `0 0 6px ${c}B3, 0 0 14px ${c}66` };
   }
+
+
+async function togglePinChat(chatId: number, currentlyPinned: boolean) {
+  setPinningChat(chatId);
+  try {
+    if (currentlyPinned) {
+      await unpinChat(chatId);
+    } else {
+      await pinChat(chatId);
+    }
+    await load(query);
+  } catch (err: any) {
+    alert(err.message || "Ошибка");
+  } finally {
+    setPinningChat(null);
+    setActiveChatMenu(null);
+  }
+}
+
 
   async function load(q = "") {
     const token = getToken();
@@ -102,6 +125,15 @@ export default function MessagesPage() {
   }, [query]);
 
   const secretCount = chats.filter((c) => c.is_secret).length;
+  const sortedChats = [...chats].sort((a, b) => {
+    // Закреплённые сверху
+    if (a.pinned && !b.pinned) return -1;
+    if (!a.pinned && b.pinned) return 1;
+    // Потом по времени последнего сообщения
+    const aTime = a.last_message ? new Date(a.last_message.created_at).getTime() : 0;
+    const bTime = b.last_message ? new Date(b.last_message.created_at).getTime() : 0;
+    return bTime - aTime;
+  });
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -162,7 +194,7 @@ export default function MessagesPage() {
           </div>
         )}
 
-        {!loading && chats.map((chat) => {
+        {!loading && sortedChats.map((chat) => {
           // 🛡️ Защита: для групп chat.other может быть undefined
           const isGroup = !!chat.is_group;
           const otherUser = chat.other;
@@ -240,6 +272,10 @@ export default function MessagesPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
+                    {/* 🆕 ИКОНКА ЗАКРЕПЛЕНИЯ */}
+                    {chat.pinned && (
+                      <Pin size={12} className="text-[#8b5cf6] shrink-0" />
+                    )}
                     {isGroup ? (
                       <p className="font-bold truncate text-white">{chat.name}</p>
                     ) : (
@@ -277,6 +313,46 @@ export default function MessagesPage() {
                   <p className="text-sm text-white/40 mt-0.5">
                     {isGroup ? `${chat.members_count} участников` : "Начните переписку"}
                   </p>
+                )}
+              </div>
+
+              {/* 🆕 КНОПКА МЕНЮ ЧАТА (закрепить/открепить) */}
+              <div className="relative shrink-0">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveChatMenu(activeChatMenu === chat.id ? null : chat.id);
+                  }}
+                  className="p-1.5 text-white/40 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+                >
+                  {pinningChat === chat.id ? (
+                    <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <MoreVertical size={16} />
+                  )}
+                </button>
+                {activeChatMenu === chat.id && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveChatMenu(null);
+                      }}
+                    />
+                    <div className="absolute right-0 top-full mt-1 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px] z-50">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          togglePinChat(chat.id, !!chat.pinned);
+                        }}
+                        className="w-full px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
+                      >
+                        {chat.pinned ? <PinOff size={14} /> : <Pin size={14} />}
+                        {chat.pinned ? "Открепить" : "Закрепить"}
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
 

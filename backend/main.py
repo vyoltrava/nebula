@@ -3145,6 +3145,8 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "my_role": my_role,
             "last_message": last_message_data,
             "unread_count": unread,
+            "pinned": chat.pinned_by == user_id,  # 🆕
+            "pinned_at": chat.pinned_at.isoformat() if chat.pinned_at else None,
         }
     else:
         # DM — как раньше
@@ -3157,6 +3159,8 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "other": user_out(other, session) if other else None,
             "last_message": last_message_data,
             "unread_count": unread,
+            "pinned": chat.pinned_by == user_id,  # 🆕
+            "pinned_at": chat.pinned_at.isoformat() if chat.pinned_at else None,  # 🆕
         }
 
 @app.get("/api/chats")
@@ -3192,11 +3196,19 @@ def list_chats_v2(
 
         result.append(data)
 
-    # Сортировка: непрочитанные сверху, потом по дате последнего сообщения
-    result.sort(key=lambda x: (
-        0 if x["unread_count"] > 0 else 1,
-        -(datetime.fromisoformat(x["last_message"]["created_at"]).timestamp()) if x.get("last_message") else 0,
-    ))
+    # Сортировка:
+    # 1. Закреплённые чаты ВСЕГДА сверху
+    # 2. Среди закреплённых — по времени закрепления (новые выше)
+    # 3. Среди незакреплённых — непрочитанные выше
+    # 4. Потом по дате последнего сообщения
+    def sort_key(x):
+        is_pinned = 0 if x.get("pinned") else 1
+        pinned_time = -(datetime.fromisoformat(x["pinned_at"]).timestamp()) if x.get("pinned_at") else 0
+        has_unread = 0 if x["unread_count"] > 0 else 1
+        last_msg_time = -(datetime.fromisoformat(x["last_message"]["created_at"]).timestamp()) if x.get("last_message") else 0
+        return (is_pinned, pinned_time, has_unread, last_msg_time)
+
+    result.sort(key=sort_key)
     return result
 
 
@@ -3519,6 +3531,11 @@ def startup():
     # Автоматическое добавление недостающих колонок
     with engine.connect() as conn:
         try:
+
+            conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS pinned_by INTEGER REFERENCES \"user\"(id);"))
+            conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMPTZ;"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chat_pinned ON chat(pinned_at DESC);"))
+
             conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS forwarded_from_id INTEGER REFERENCES message(id) ON DELETE SET NULL;"))
             conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS forwarded_sender_name VARCHAR;"))
             conn.execute(text('''CREATE TABLE IF NOT EXISTS pushsubscription (
@@ -4594,6 +4611,52 @@ async def forward_message(
     return {"ok": True, "message_id": new_msg.id}
 
 
+
+@app.post("/api/chats/{chat_id}/pin")
+def pin_chat(chat_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    member = session.exec(select(ChatMember).where(
+        ChatMember.chat_id == chat_id, ChatMember.user_id == user.id
+    )).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+    
+    # Лимит 5 закреплённых чатов
+    pinned_count = session.exec(
+        select(func.count()).select_from(Chat).where(
+            Chat.pinned_by == user.id, Chat.pinned_at != None
+        )
+    ).one()
+    
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    
+    if chat.pinned_by == user.id:
+        raise HTTPException(400, "Чат уже закреплён")
+    
+    if pinned_count >= 5:
+        raise HTTPException(400, "Максимум 5 закреплённых чатов")
+    
+    chat.pinned_by = user.id
+    chat.pinned_at = utcnow()
+    session.add(chat)
+    session.commit()
+    return {"ok": True}
+
+@app.delete("/api/chats/{chat_id}/pin")
+def unpin_chat(chat_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    if chat.pinned_by != user.id:
+        raise HTTPException(403, "Этот чат закреплён не вами")
+    
+    chat.pinned_by = None
+    chat.pinned_at = None
+    session.add(chat)
+    session.commit()
+    return {"ok": True}
+
 class PushSubscribeIn(BaseModel):
     endpoint: str
     p256dh: str
@@ -4678,9 +4741,7 @@ async def pin_message(
     if not chat:
         raise HTTPException(404, "Чат не найден")
     
-    # 3. Закрепление ТОЛЬКО в группах
-    if not chat.is_group:
-        raise HTTPException(400, "Закрепление доступно только в группах")
+
     
     # 4. Получаем сообщение
     msg = session.get(Message, message_id)
@@ -4715,6 +4776,69 @@ async def pin_message(
         {"chat_id": chat_id, "message_id": message_id, "pinned_by": user.id}
     )
     
+    return {"ok": True}
+
+
+# ============================================================
+# 📌 ЗАКРЕПЛЕНИЕ ЧАТОВ (ДО 5 ШТУК НА ПОЛЬЗОВАТЕЛЯ)
+# ============================================================
+
+@app.post("/api/chats/{chat_id}/pin")
+async def pin_chat(chat_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    # 1. Проверяем, что пользователь участник чата
+    member = session.exec(select(ChatMember).where(
+        ChatMember.chat_id == chat_id,
+        ChatMember.user_id == user.id
+    )).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+
+    # 2. Получаем чат
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+
+    # 3. Уже закреплён?
+    if chat.pinned_by == user.id:
+        return {"ok": True, "already_pinned": True}
+
+    # 4. Лимит 5 закреплённых чатов
+    pinned_count = session.exec(
+        select(func.count()).select_from(Chat).where(Chat.pinned_by == user.id)
+    ).one()
+    if pinned_count >= 5:
+        raise HTTPException(400, "Максимум 5 закреплённых чатов. Открепите один из них.")
+
+    # 5. Закрепляем
+    chat.pinned_by = user.id
+    chat.pinned_at = datetime.now(timezone.utc)
+    session.add(chat)
+    session.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/chats/{chat_id}/pin")
+async def unpin_chat(chat_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    # 1. Получаем чат
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+
+    # 2. Проверяем, что чат закреплён именно этим пользователем
+    if chat.pinned_by != user.id:
+        raise HTTPException(400, "Этот чат не закреплён")
+
+    # 3. Открепляем
+    chat.pinned_by = None
+    chat.pinned_at = None
+    session.add(chat)
+    session.commit()
     return {"ok": True}
 
 
@@ -4785,9 +4909,6 @@ async def unpin_message(
     if not chat:
         raise HTTPException(404, "Чат не найден")
     
-    # 3. Только группы
-    if not chat.is_group:
-        raise HTTPException(400, "Открепление доступно только в группах")
     
     # 4. Получаем сообщение
     msg = session.get(Message, message_id)

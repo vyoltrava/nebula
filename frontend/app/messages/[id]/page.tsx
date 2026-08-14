@@ -120,6 +120,7 @@ export default function ChatPage() {
   const sendingRef = useRef(false);
   const skRefreshedForRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const hasScrolledToUnreadRef = useRef(false); //
 
   const isGroup = !!chatInfo?.is_group;
 
@@ -967,6 +968,8 @@ for (const msg of messagesToSend) {
   };
 
   useEffect(() => {
+    hasScrolledToUnreadRef.current = false; // 🆕 сбрасываем при смене чата
+
     const token = getToken();
     if (!token) {
       router.push("/login");
@@ -1013,8 +1016,42 @@ for (const msg of messagesToSend) {
   }, [isSecret, chatPartner, currentUser, isGroup]);
 
   useEffect(() => {
+    if (!messages.length) return;
+
+    // 🆕 Первый скролл при открытии чата — умный
+    if (!hasScrolledToUnreadRef.current) {
+      hasScrolledToUnreadRef.current = true;
+
+      // Ищем первое непрочитанное чужое сообщение
+      const firstUnread = messages.find(
+        (m) => !m.read && m.sender_id !== currentUser?.id
+      );
+
+      if (firstUnread) {
+        // Скроллим к первому непрочитанному
+        setTimeout(() => {
+          const el = document.getElementById(`msg-${firstUnread.id}`);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+            // Подсветим фиолетовым кольцом на 2 секунды
+            el.classList.add("ring-2", "ring-[#8b5cf6]", "rounded-lg");
+            setTimeout(() => {
+              el.classList.remove("ring-2", "ring-[#8b5cf6]", "rounded-lg");
+            }, 2000);
+          }
+        }, 150); // небольшая задержка чтобы DOM успел отрендериться
+      } else {
+        // Нет непрочитанных — скроллим в самый низ
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
+      }
+      return;
+    }
+
+    // При новых сообщениях (WebSocket) — всегда в конец
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, currentUser]);
 
   useEffect(() => {
     if (!isSecret) return;
@@ -1373,7 +1410,20 @@ const ChatHeader = () => (
         {pinnedMessages.map((msg) => (
           <div 
             key={msg.id} 
-            className="flex items-start gap-2 text-[11px] sm:text-xs text-white/60 hover:bg-white/5 rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer"
+            onClick={() => {
+              const el = document.getElementById(`msg-${msg.id}`);
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.add('ring-2', 'ring-[#8b5cf6]', 'rounded-lg', 'transition-all');
+                setTimeout(() => {
+                  el.classList.remove('ring-2', 'ring-[#8b5cf6]', 'rounded-lg', 'transition-all');
+                }, 2000);
+                setShowPinnedList(false);
+              } else {
+                alert('Сообщение не найдено. Возможно, оно было удалено или загружено не полностью.');
+              }
+            }}
+            className="flex items-start gap-2 text-[11px] sm:text-xs text-white/60 hover:bg-white/5 rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer active:scale-[0.98]"
           >
             <Pin size={10} className="text-[#8b5cf6] shrink-0 mt-0.5" />
             <div className="min-w-0 flex-1">
@@ -1512,6 +1562,7 @@ const ChatHeader = () => (
                   return (
                     <div
                       key={msg.id}
+                      id={`msg-${msg.id}`}
                       className={`flex gap-2 sm:gap-2 ${
                         isMine ? "justify-end" : "justify-start"
                       } ${isSelectMode ? "cursor-pointer select-none" : ""}`}
@@ -1808,7 +1859,7 @@ const ChatHeader = () => (
 
 
 
-                                      {isGroup && !msg.pinned && (
+                                      {!msg.pinned && (
                                         <button
                                           onClick={async () => {
                                             try {
@@ -1826,7 +1877,7 @@ const ChatHeader = () => (
                                         </button>
                                       )}
 
-                                      {isGroup && msg.pinned && (
+                                      {msg.pinned && (
                                         <button
                                           onClick={async () => {
                                             try {

@@ -54,6 +54,8 @@ export interface Chat {
   } | null;
   unread_count: number;
   other?: User;
+  pinned?: boolean;        // 🆕
+  pinned_at?: string | null; // 🆕
 }
 
 export interface Message {

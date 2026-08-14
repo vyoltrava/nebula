@@ -50,3 +50,36 @@ export async function getPinnedMessages(chatId: number): Promise<any[]> {
   }
   return res.json();
 }
+
+
+// ============================================================
+// 📌 ЗАКРЕПЛЕНИЕ ЧАТОВ (ДО 5 ШТУК)
+// ============================================================
+
+export async function pinChat(chatId: number): Promise<void> {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/pin`, {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(error.detail || 'Не удалось закрепить чат');
+  }
+}
+
+export async function unpinChat(chatId: number): Promise<void> {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/pin`, {
+    method: 'DELETE',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new Error(error.detail || 'Не удалось открепить чат');
+  }
+}

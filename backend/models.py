@@ -84,6 +84,8 @@ class Chat(SQLModel, table=True):
     name: Optional[str] = Field(default=None, max_length=80)
     avatar_url: Optional[str] = None
     owner_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    pinned_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    pinned_at: Optional[datetime] = None
 
 
 class ChatMember(SQLModel, table=True):
