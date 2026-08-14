@@ -6,13 +6,8 @@ import { apiFetch } from "@/lib/api";
 import { Post } from "@/components/Post";
 import { Sidebar } from "@/components/Sidebar";
 import { RightPanel } from "@/components/RightPanel";
- import { MainPostSkeleton } from "@/components/Skeletons";
-
-const getPlural = (n: number) => {
-  if (n % 10 === 1 && n % 100 !== 11) return "ответ";
-  if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)) return "ответа";
-  return "ответов";
-};
+import { MainPostSkeleton } from "@/components/Skeletons";
+import { useReadingProgress } from "@/src/hooks/useReadingProgress";
 
 export default function PostPage() {
   const { id } = useParams();
@@ -21,6 +16,10 @@ export default function PostPage() {
   const [replies, setReplies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  // ✅ Хук вызывается БЕЗУСЛОВНО в начале компонента
+  const postId = id ? parseInt(id as string) : 0;
+  useReadingProgress(postId);
 
   useEffect(() => {
     if (!id) return;
@@ -47,17 +46,17 @@ export default function PostPage() {
     load();
   }, [id]);
 
-   if (loading) {
-     return (
-       <div className="h-screen flex overflow-hidden bg-[#171717] text-white">
-         <Sidebar />
-         <main className="flex-1 overflow-y-auto border-x border-white/10 min-w-0">
-           <MainPostSkeleton />
-         </main>
-         <RightPanel />
-       </div>
-     );
-   }
+  if (loading) {
+    return (
+      <div className="h-screen flex overflow-hidden bg-[#171717] text-white">
+        <Sidebar />
+        <main className="flex-1 overflow-y-auto border-x border-white/10 min-w-0">
+          <MainPostSkeleton />
+        </main>
+        <RightPanel />
+      </div>
+    );
+  }
 
   if (error || !post) {
     return (
@@ -77,8 +76,6 @@ export default function PostPage() {
     );
   }
 
-  // Убираем поле replies из объекта поста, чтобы не передавать его в компонент
-  // (компонент сам загрузит ответы через showReplies=true, если нужно)
   const { replies: _replies, ...postWithoutReplies } = post;
 
   return (
@@ -98,12 +95,6 @@ export default function PostPage() {
             Назад
           </button>
 
-          {/* 
-            ГЛАВНЫЙ ПОСТ:
-            - isMainPost={true} → крупный размер
-            - showReplies={true} → ответы всегда раскрыты автоматически
-            - replies={replies} → передаем загруженные ответы, чтобы не было лишнего запроса
-          */}
           <div className="border-b border-white/10">
             <Post 
               {...postWithoutReplies} 
@@ -111,9 +102,6 @@ export default function PostPage() {
               externalReplies={replies} 
             />
           </div>
-
-          {/* Нижний блок с ответами УБРАН — они теперь внутри Post */}
-
         </div>
       </main>
 

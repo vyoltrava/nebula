@@ -340,3 +340,14 @@ class MessageReaction(SQLModel, table=True):
     sticker_id: Optional[int] = Field(default=None, foreign_key="sticker.id")
     emoji: Optional[str] = Field(default=None, max_length=16)  # fallback
     created_at: datetime = Field(default_factory=utcnow)
+
+
+
+
+class ReadProgress(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    post_id: int = Field(foreign_key="post.id", index=True)
+    scroll_y: int = 0           # Позиция скролла в пикселях
+    percent_read: float = 0.0   # Процент прочитанного (0-100)
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -30,7 +30,7 @@ from models import (
     User, Post, Like, Follow, Notification, Tag, PostTag, Role,
     Chat, ChatMember, Message, Report, UserKey, ChatSessionKey,
     IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead, PushSubscription, StickerPack, Sticker, MessageReaction, Theme, SystemSetting,
-RoleCategory, Warning
+RoleCategory, Warning, ReadProgress,
 )
 import logging
 from fastapi.responses import JSONResponse
@@ -4192,6 +4192,20 @@ def startup():
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_reaction_message ON message_reaction(message_id);"))
 
 
+            # ===== 📖 ПРОГРЕСС ЧТЕНИЯ (СИНХРОНИЗАЦИЯ МЕЖДУ УСТРОЙСТВАМИ) =====
+            conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS readprogress (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                post_id INTEGER NOT NULL REFERENCES post(id) ON DELETE CASCADE,
+                scroll_y INTEGER DEFAULT 0,
+                percent_read FLOAT DEFAULT 0.0,
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE(user_id, post_id)
+            );
+            """))
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_readprogress_user_post ON readprogress(user_id, post_id);'))
+
             # ===== ЧАТЫ И СООБЩЕНИЯ =====
             conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS pinned_by INTEGER REFERENCES \"user\"(id);"))
             conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS pinned_at TIMESTAMPTZ;"))
@@ -4389,6 +4403,63 @@ def startup():
         except Exception as e:
             print(f"⚠️ STARTUP SEQUENCE ERROR: {e}")
 
+
+
+
+from pydantic import BaseModel
+
+class ProgressIn(BaseModel):
+    scroll_y: int = 0
+    percent_read: float = 0.0
+
+@app.post("/api/posts/{post_id}/progress")
+def save_read_progress(
+    post_id: int,
+    data: ProgressIn,
+    user: User = Depends(get_current_user), # Требуем авторизации!
+    session: Session = Depends(get_session),
+):
+    """Сохраняет позицию чтения (с вызовом с фронта)"""
+    progress = session.exec(
+        select(ReadProgress).where(
+            ReadProgress.user_id == user.id,
+            ReadProgress.post_id == post_id
+        )
+    ).first()
+    
+    if progress:
+        progress.scroll_y = data.scroll_y
+        progress.percent_read = data.percent_read
+        progress.updated_at = datetime.now(timezone.utc)
+    else:
+        progress = ReadProgress(
+            user_id=user.id,
+            post_id=post_id,
+            scroll_y=data.scroll_y,
+            percent_read=data.percent_read,
+        )
+        session.add(progress)
+        
+    session.commit()
+    return {"ok": True}
+
+@app.get("/api/posts/{post_id}/progress")
+def get_read_progress(
+    post_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Отдает сохраненную позицию при заходе с нового устройства"""
+    progress = session.exec(
+        select(ReadProgress).where(
+            ReadProgress.user_id == user.id,
+            ReadProgress.post_id == post_id
+        )
+    ).first()
+    
+    if not progress:
+        return {"scroll_y": 0, "percent_read": 0.0}
+    return {"scroll_y": progress.scroll_y, "percent_read": progress.percent_read}
 
 
 # ============================================================

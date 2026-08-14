@@ -2,6 +2,7 @@ export const API_URL = 'https://nebula-qqm2.onrender.com';
 import { perfFetch } from "./perf";
 import { getToken } from '@/lib/auth';
 
+
 export async function apiFetch(url: string, options?: RequestInit) {
   return perfFetch(url, options);
 }
@@ -81,4 +82,37 @@ export async function unpinChat(chatId: number): Promise<void> {
     const error = await res.json().catch(() => ({ detail: 'Unknown error' }));
     throw new Error(error.detail || 'Не удалось открепить чат');
   }
+}
+
+
+// Сохранение прогресса
+export async function savePostProgress(postId: number, scrollY: number, percent: number) {
+    const token = getToken();
+    await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/progress`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ 
+            scroll_y: scrollY, 
+            percent_read: percent 
+        }),
+    });
+}
+
+// Получение прогресса
+export async function getPostProgress(postId: number) {
+    const token = getToken();
+    const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/progress`, {
+        headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+    });
+    
+    if (!res.ok) {
+        const error = await res.json().catch(() => ({ detail: 'Unknown error' }));
+        throw new Error(error.detail || 'Failed to get progress');
+    }
+    return res.json();
 }
