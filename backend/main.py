@@ -4476,7 +4476,7 @@ def update_themes_settings(
         row = SystemSetting(key="themes_enabled", value=str(enabled).lower())
     else:
         row.value = str(enabled).lower()
-        row.updated_at = datetime.now(timezone.utc).
+        row.updated_at = datetime.now(timezone.utc)
     session.add(row)
     session.commit()
     return {"ok": True, "enabled": enabled}
