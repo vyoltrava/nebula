@@ -16,19 +16,25 @@ import { useWebSocket } from "@/src/hooks/useWebSocket";
 import { setLikedCache } from "@/lib/postCache";
 
 // ════════════════════════════════════════════════════════════════
-// 🎯 ДВОЙНОЙ ПОЛУКРУГ: внутренний = частое, внешний = редкое
+// 🎯 КОНСТАНТЫ ОРБИТЫ
 // ════════════════════════════════════════════════════════════════
 const INNER_RADIUS     = 135;
 const OUTER_RADIUS     = 215;
-const CENTER_OFFSET_X  = 40;
-const CENTER_OFFSET_Y  = 0;
-const ARC_ANGLE_START  = (11 * Math.PI) / 18;
-const ARC_ANGLE_END    = (25 * Math.PI) / 18;
 const SNAP_RADIUS      = 48;
 const LONG_PRESS_MS    = 250;
 
+// Углы для мобилки (справа, дуга влево)
+const MOBILE_ARC_START = (11 * Math.PI) / 18; 
+const MOBILE_ARC_END   = (25 * Math.PI) / 18;
+
+// Углы для десктопа ORBIT (кнопка справа внизу, дуга влево-вверх)
+// Это 3-й квадрант (от 180 до 270 градусов) + небольшой отступ
+const DESKTOP_ORBIT_ARC_START = Math.PI;       // 180 deg (влево)
+const DESKTOP_ORBIT_ARC_END   = 1.5 * Math.PI; // 270 deg (вверх)
+
+
 // ════════════════════════════════════════════════════════════════
-//  Админский dropdown (desktop) - теперь с порталом
+//  Админский dropdown (desktop classic)
 // ════════════════════════════════════════════════════════════════
 function AdminDropdown({ user, pathname, isOpen, onToggle, onClose }: { 
   user: any; 
@@ -81,14 +87,10 @@ function AdminDropdown({ user, pathname, isOpen, onToggle, onClose }: {
         />
       </button>
 
-      {/* Выпадающее меню - позиционируется относительно кнопки, но с фиксом z-index */}
       {isOpen && (
         <div 
           className="absolute left-0 top-full mt-1 w-full bg-[#1f1f23] border border-white/10 rounded-xl shadow-2xl z-[9999] overflow-hidden"
-          style={{ 
-            minWidth: '200px',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.8)'
-          }}
+          style={{ minWidth: '200px', boxShadow: '0 20px 60px rgba(0,0,0,0.8)' }}
         >
           {items.map(({ href, icon: Icon, label }) => (
             <Link
@@ -244,7 +246,7 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
 
 
 // ════════════════════════════════════════════════════════════════
-// 🎛 ВАРИАНТЫ САЙДБАРА (безопасно: дефолт всегда classic)
+// 🎛 ВАРИАНТЫ САЙДБАРА
 // ════════════════════════════════════════════════════════════════
 export type SidebarLayout = "classic" | "orbit" | "dock";
 const LAYOUT_KEY = "trelod_sidebar_layout";
@@ -270,21 +272,19 @@ function LayoutPreview({ kind }: { kind: SidebarLayout }) {
             <div className="h-1.5 w-full rounded bg-white/25" />
             <div className="h-1.5 w-3/4 rounded bg-white/15" />
             <div className="h-1.5 w-full rounded bg-white/15" />
-            <div className="h-1.5 w-2/3 rounded bg-white/15" />
           </div>
           <div className="flex-1 p-1.5 space-y-1">
             <div className="h-1.5 w-full rounded bg-white/10" />
             <div className="h-1.5 w-3/4 rounded bg-white/10" />
-            <div className="h-1.5 w-1/2 rounded bg-white/10" />
           </div>
         </>
       )}
       {kind === "orbit" && (
         <div className="relative flex-1 p-1.5 space-y-1">
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 rounded-r bg-[#8b5cf6]" />
+          {/* Preview: Orbit button bottom-right */}
+          <div className="absolute right-2 bottom-2 w-4 h-4 rounded-full bg-[#8b5cf6]" />
           <div className="h-1.5 w-full rounded bg-white/10" />
           <div className="h-1.5 w-3/4 rounded bg-white/10" />
-          <div className="h-1.5 w-1/2 rounded bg-white/10" />
         </div>
       )}
       {kind === "dock" && (
@@ -293,12 +293,10 @@ function LayoutPreview({ kind }: { kind: SidebarLayout }) {
             <div className="w-2 h-2 rounded bg-white/25" />
             <div className="w-2 h-2 rounded bg-white/15" />
             <div className="w-2 h-2 rounded bg-white/15" />
-            <div className="w-2 h-2 rounded bg-white/15" />
           </div>
           <div className="flex-1 p-1.5 space-y-1">
             <div className="h-1.5 w-full rounded bg-white/10" />
             <div className="h-1.5 w-3/4 rounded bg-white/10" />
-            <div className="h-1.5 w-1/2 rounded bg-white/10" />
           </div>
         </>
       )}
@@ -308,8 +306,8 @@ function LayoutPreview({ kind }: { kind: SidebarLayout }) {
 
 function LayoutPicker({ current, onClose }: { current: SidebarLayout; onClose: () => void }) {
   const variants: { key: SidebarLayout; name: string; desc: string }[] = [
-    { key: "classic", name: "Классика", desc: "Полная панель слева на ПК, орбита на мобилке. Твой нынешний вариант." },
-    { key: "orbit", name: "Орбита", desc: "Без панели на ПК: кнопка-орбита у левого края, как на мобилке." },
+    { key: "classic", name: "Классика", desc: "Полная панель слева на ПК, орбита на мобилке." },
+    { key: "orbit", name: "Орбита", desc: "Кнопка справа внизу на ПК (как на iOS), орбита на мобилке." },
     { key: "dock", name: "Док", desc: "Узкая рейка иконок слева — максимум места для ленты." },
   ];
   return (
@@ -372,7 +370,6 @@ export function Sidebar() {
 
   const { counts, refresh } = useUnreadCounts();
 
-  // 🔄 Синхронизация лайков между устройствами через WebSocket
   useWebSocket("post_liked", (data: any) => {
     window.dispatchEvent(new CustomEvent("like-sync", {
       detail: { post_id: data.post_id, likes_count: data.likes_count },
@@ -388,7 +385,9 @@ export function Sidebar() {
 
   const [layout, setLayout] = useState<SidebarLayout>(() => getSidebarLayout());
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
-  const arcParamsRef = useRef({ start: ARC_ANGLE_START, end: ARC_ANGLE_END, offsetX: CENTER_OFFSET_X });
+  
+  // Храним текущие параметры дуги
+  const arcParamsRef = useRef({ start: 0, end: 0, offsetX: 0, offsetY: 0 });
 
   useEffect(() => {
     const on = (e: Event) => setLayout((e as CustomEvent).detail as SidebarLayout);
@@ -399,7 +398,7 @@ export function Sidebar() {
   type WheelItem = { href: string; icon: any; label: string; isProfile?: boolean; count?: number };
 
   // ══════════════════════════════════════════════════════════════
-  // ️ ВАРИАНТ А: ВНУТРЕННИЙ СЛОЙ
+  // ️ ЭЛЕМЕНТЫ КОЛЕСА
   // ══════════════════════════════════════════════════════════════
   const innerItems: WheelItem[] = [
     { href: "/", icon: Home, label: "Главная" },
@@ -411,7 +410,6 @@ export function Sidebar() {
   innerItems.push({ href: "/updates", icon: Megaphone, label: "Обновления", count: counts.updates });
   if (user) innerItems.push({ href: `/${user.username}`, icon: Home, label: "Профиль", isProfile: true });
 
-  // 🧰 ВНЕШНИЙ СЛОЙ
   const outerItems: WheelItem[] = [
     { href: "/settings", icon: Settings, label: "Настройки" },
     { href: "/rules", icon: Shield, label: "Правила" },
@@ -523,22 +521,42 @@ export function Sidebar() {
   const openWheel = useCallback(() => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
-    // На ПК в orbit/dock орбита слева → дуга зеркалится вправо
-    const desktopLeft = window.matchMedia("(min-width: 768px)").matches && layout !== "classic";
-    arcParamsRef.current = desktopLeft
-      ? { start: -(7 * Math.PI) / 18, end: (7 * Math.PI) / 18, offsetX: -40 }
-      : { start: ARC_ANGLE_START, end: ARC_ANGLE_END, offsetX: CENTER_OFFSET_X };
-    arcCenterRef.current = {
-      x: rect.left + rect.width / 2 + arcParamsRef.current.offsetX,
-      y: rect.top + rect.height / 2 + CENTER_OFFSET_Y,
-    };
+    const isDesktop = window.matchMedia("(min-width: 768px)").matches;
+    
+    // 🔥 НОВАЯ ЛОГИКА ПОЗИЦИОНИРОВАНИЯ
+    if (isDesktop && layout === "orbit") {
+      // Десктоп + Орбита: Кнопка справа внизу. Дуга идет ВЛЕВО и ВВЕРХ.
+      arcParamsRef.current = {
+        start: DESKTOP_ORBIT_ARC_START,
+        end: DESKTOP_ORBIT_ARC_END,
+        offsetX: 0,
+        offsetY: 0
+      };
+      arcCenterRef.current = {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      };
+    } else {
+      // Мобилка (или старый режим): Кнопка слева. Дуга идет ВПРАВО.
+      arcParamsRef.current = {
+        start: MOBILE_ARC_START,
+        end: MOBILE_ARC_END,
+        offsetX: 40, // Чуть смещаем центр для красоты
+        offsetY: 0
+      };
+      arcCenterRef.current = {
+        x: rect.left + rect.width / 2 + 40,
+        y: rect.top + rect.height / 2,
+      };
+    }
+
     isLongPressed.current = true;
     setWheelOpen(true);
     setClosing(false);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => { setWheelReady(true); });
     });
-  }, [layout]); // Добавил layout в зависимости
+  }, [layout]);
 
   const closeWheel = useCallback((doAction: boolean) => {
     if (doAction && hoveredIdx !== null) {
@@ -686,7 +704,7 @@ export function Sidebar() {
   const hasAdminAccess = user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users");
 
   // ════════════════════════════════════════════════════════════════
-  // 🔥 ФИКС 4: Хелперы для адаптации под DOCK
+  // 🔥 ФИКС ДЛЯ DOCK
   // ════════════════════════════════════════════════════════════════
   const isDock = layout === "dock";
   const iconClass = isDock ? "w-6 h-6 mx-auto" : "w-[18px] h-[18px]";
@@ -766,44 +784,63 @@ export function Sidebar() {
               <ShieldAlert size={18} className={iconClass} />
            </Link>
         )}
-
-        {!isDock && (
-          <div className="mt-4 px-4 flex items-center gap-2">
-            <button onClick={() => setShowBugModal(true)}
-              className="p-2.5 rounded-xl text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all" title="Сообщить о проблеме">
-              <Bug size={18} />
-            </button>
-            <button onClick={() => setShowLayoutPicker(true)}
-              className="p-2.5 rounded-xl text-[#8b5cf6]/80 hover:text-[#8b5cf6] hover:bg-[#8b5cf6]/10 transition-all" title="Настроить интерфейс">
-              <Palette size={18} />
-            </button>
-          </div>
-        )}
       </nav>
 
-      <div className={`mt-4 flex flex-col gap-2 pt-4 border-t border-white/5 ${isDock ? "items-center" : ""}`}>
+      {/* 🔥 ВОЗВРАЩЕННЫЕ КНОПКИ ДЛЯ DOCK */}
+      <div className={`mt-auto flex flex-col gap-2 pt-4 border-t border-white/5 ${isDock ? "items-center" : ""}`}>
+        
+        {/* Баг трекер */}
+        <button 
+          onClick={() => setShowBugModal(true)}
+          className={`flex ${containerClass} font-medium transition-all border-b border-white/5 group text-white/40 hover:bg-white/[0.03] hover:text-orange-400`}
+          title="Сообщить о проблеме"
+        >
+          <Bug size={18} className={iconClass} />
+          <span className={textClass}>Баг-трекер</span>
+        </button>
+
+        {/* Смена темы / Интерфейс */}
+        <button 
+          onClick={() => setShowLayoutPicker(true)}
+          className={`flex ${containerClass} font-medium transition-all border-b border-white/5 group text-white/40 hover:bg-white/[0.03] hover:text-[#8b5cf6]`}
+          title="Настроить интерфейс"
+        >
+          <Palette size={18} className={iconClass} />
+          <span className={textClass}>Интерфейс</span>
+        </button>
+
+        {/* Разделитель или отступ */}
+        <div className="my-1 w-full h-px bg-white/5" />
+
         {user ? (
-          <Link href={`/${user.username}`}
-            className={`flex ${isDock ? "justify-center" : "items-center gap-3 px-2 py-2 -mx-2"} rounded-lg hover:bg-white/5 transition-all cursor-pointer group w-full`}>
-            <div className="shrink-0" style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}>
-              <Avatar src={user.avatar_url} name={user.display_name} id={user.id} />
-            </div>
-            {!isDock && (
-              <div className="leading-tight min-w-0 flex-1">
-                <p className={`font-semibold text-sm truncate transition-all ${glow ? "group-hover:opacity-80" : "text-white group-hover:text-[#8b5cf6]"}`}
-                  style={glow ? { color: glow, textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66` } : undefined}>
-                  {user.display_name}
-                </p>
-                <p className="text-sm text-white/40 truncate">@{user.username}</p>
+          <>
+            {/* Профиль */}
+            <Link href={`/${user.username}`}
+              className={`flex ${isDock ? "justify-center" : "items-center gap-3 px-2 py-2 -mx-2"} rounded-lg hover:bg-white/5 transition-all cursor-pointer group w-full`}>
+              <div className="shrink-0" style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}>
+                <Avatar src={user.avatar_url} name={user.display_name} id={user.id} />
               </div>
-            )}
-            {!isDock && (
-              <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); clearToken(); setUser(null); clearCachedUser(); }}
-                className="shrink-0 p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/20 transition-all" title="Выйти">
-                <LogOut size={18} />
-              </button>
-            )}
-          </Link>
+              {!isDock && (
+                <div className="leading-tight min-w-0 flex-1">
+                  <p className={`font-semibold text-sm truncate transition-all ${glow ? "group-hover:opacity-80" : "text-white group-hover:text-[#8b5cf6]"}`}
+                    style={glow ? { color: glow, textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66` } : undefined}>
+                    {user.display_name}
+                  </p>
+                  <p className="text-sm text-white/40 truncate">@{user.username}</p>
+                </div>
+              )}
+            </Link>
+
+            {/* Кнопка ВЫЙТИ (особенно важна для Dock) */}
+            <button 
+              onClick={() => { clearToken(); setUser(null); clearCachedUser(); router.push("/"); }}
+              className={`flex ${containerClass} font-medium transition-all group text-white/40 hover:bg-red-500/10 hover:text-red-400 w-full`}
+              title="Выйти из аккаунта"
+            >
+              <LogOut size={18} className={iconClass} />
+              <span className={textClass}>Выйти</span>
+            </button>
+          </>
         ) : (
           !isDock && (
             <Link href="/login"
@@ -914,14 +951,14 @@ export function Sidebar() {
 
   return (
     <>
-      {/* ═══════ МОБИЛКА ═══════ */}
-      {/* Показываем кнопку орбиты на мобилках ВСЕГДА, а на десктопе ТОЛЬКО если layout === "orbit" */}
+      {/* ═══════ МОБИЛКА ИЛИ DESKTOP ORBIT ═══════ */}
+      {/* Показываем кнопку если мобилка ИЛИ если десктоп + orbit */}
       <div className={layout === "orbit" ? "block" : "md:hidden"}>
         <button
           ref={buttonRef}
           onTouchStart={handleStart}
           onMouseDown={handleStart}
-          className={`fixed z-[98] w-14 h-14 -translate-y-1/2
+          className={`fixed z-[98] w-14 h-14 
             bg-[#171717]/90 backdrop-blur-sm border 
             flex items-center justify-center shadow-lg shadow-black/50
             transition-all duration-200
@@ -929,8 +966,10 @@ export function Sidebar() {
               ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/20 scale-110"
               : "border-white/10 active:scale-95"}
             ${layout === "orbit" 
-              ? "left-4 top-1/2 rounded-r-full" 
-              : "right-0 top-[calc(50%+8px)] rounded-l-full"
+              /* 🔥 DESKTOP ORBIT POSITION: Right Bottom */
+              ? "bottom-6 right-6 rounded-full" 
+              /* 🔥 MOBILE POSITION: Left Center */
+              : "left-0 top-[calc(50%+8px)] -translate-y-1/2 rounded-r-full"
             }
           `}
           style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
@@ -941,8 +980,7 @@ export function Sidebar() {
         {renderWheel()}
       </div>
 
-      {/* ═══════ ДЕСКТОП ═══════ */}
-      {/* 🔥 ФИКС 2: Динамический сайдбар. Скрываем если orbit, меняем ширину если dock */}
+      {/* ═══════ ДЕСКТОП CLASSIC / DOCK ═══════ */}
       {layout !== "orbit" && (
         <aside className={`hidden md:flex shrink-0 overflow-y-auto p-5 flex-col gap-5 bg-[#171717] transition-all duration-300 ${
           isDock ? "md:w-20" : "md:w-64"
