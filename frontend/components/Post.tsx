@@ -16,6 +16,7 @@ import { getCachedUser } from "@/lib/authCache";
 import { timeAgo } from "@/lib/time";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import LinkPreview from "@/components/LinkPreview";
+import { EchoTree } from "@/components/EchoTree";
 
 
 
@@ -832,6 +833,9 @@ export function Post({
           )}
         </div>
       </div>
+
+      {/* 🔊 ЭХО-ДЕРЕВО */}
+        <EchoTree postId={id} />
 
       {showReport && (
         <ReportModal

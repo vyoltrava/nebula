@@ -60,7 +60,8 @@ class Post(SQLModel, table=True):
     media_url: Optional[str] = None
     media_type: Optional[str] = None
     reply_to_id: Optional[int] = Field(default=None, foreign_key="post.id")
-    repost_of_id: Optional[int] = Field(default=None, foreign_key="post.id")  # 🆕
+    repost_of_id: Optional[int] = Field(default=None, foreign_key="post.id")
+    echo_parent_id: Optional[int] = Field(default=None, foreign_key="post.id", index=True)  # 🆕 ЭХО
     created_at: datetime = Field(default_factory=utcnow, index=True)
     views_count: int = Field(default=0)
     edited: bool = Field(default=False)
