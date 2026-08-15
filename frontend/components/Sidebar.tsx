@@ -450,8 +450,14 @@ const continueConfig = lastReadPost
   const [closing, setClosing]       = useState(false);
   const [pullingBack, setPullingBack] = useState(false);
   const [scrollVelocity, setScrollVelocity] = useState(0);
-  const [isDragging, setIsDragging] = useState(false); // 🆕 режим оттягивания
+  const [isDragging, setIsDragging] = useState(false);
   const scrollRafRef = useRef<number>(0);
+  const scrollVelocityRef = useRef(0);  // 🆕 всегда актуальное значение
+
+
+
+
+
 
   const buttonRef        = useRef<HTMLButtonElement>(null);
   const longPressTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -847,17 +853,16 @@ const continueConfig = lastReadPost
     };
   }, [hoveredIdx, closeWheel, findNearest, isDragging, pullingBack, router]);
 
-  // 🆕 Автоскролл страницы когда scrollVelocity !== 0 (ОТДЕЛЬНЫЙ хук!)
+  // 🆕 ОДИН долгоживущий интервал скролла (читает актуальное значение из ref)
   useEffect(() => {
-    if (scrollVelocity === 0) return;
-
     const intervalId = setInterval(() => {
-      window.scrollBy(0, scrollVelocity);
+      if (scrollVelocityRef.current !== 0) {
+        window.scrollBy(0, scrollVelocityRef.current);
+      }
     }, 16); // ~60fps
 
     return () => clearInterval(intervalId);
-  }, [scrollVelocity]);
-
+  }, []); // пустые зависимости — создаётся один раз
 
 
 
@@ -1105,6 +1110,12 @@ const continueConfig = lastReadPost
 
   const buttonCx = useRef(0);
   const buttonCy = useRef(0);
+
+  // 🆕 Синхронизация ref с state
+  useEffect(() => {
+    scrollVelocityRef.current = scrollVelocity;
+  }, [scrollVelocity]);
+
 
   useEffect(() => {
     if (buttonRef.current && wheelOpen) {
