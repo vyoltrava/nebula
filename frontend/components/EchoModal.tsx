@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
-import { X, Quote, RefreshCw, Star, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, Quote, RefreshCw, Star, Sparkles, ChevronDown } from "lucide-react";
 import { Avatar } from "./Avatar";
 import Link from "next/link";
 import { timeAgo } from "@/lib/time";
@@ -23,7 +23,6 @@ interface EchoNode {
 export function EchoModal({ postId, onClose }: { postId: number; onClose: () => void }) {
   const [nodes, setNodes] = useState<EchoNode[]>([]);
   const [loading, setLoading] = useState(true);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${postId}/echo`)
@@ -35,63 +34,6 @@ export function EchoModal({ postId, onClose }: { postId: number; onClose: () => 
       .catch(() => setLoading(false));
   }, [postId]);
 
-  // 🌌 Анимация звёзд на фоне
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    let animationId: number;
-    const stars: { x: number; y: number; r: number; speed: number; opacity: number }[] = [];
-
-    const resize = () => {
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
-    };
-    resize();
-    window.addEventListener("resize", resize);
-
-    // Генерируем звёзды
-    for (let i = 0; i < 80; i++) {
-      stars.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        r: Math.random() * 1.5 + 0.3,
-        speed: Math.random() * 0.3 + 0.05,
-        opacity: Math.random() * 0.7 + 0.3,
-      });
-    }
-
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      stars.forEach(star => {
-        ctx.beginPath();
-        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${star.opacity})`;
-        ctx.fill();
-
-        // Мерцание
-        star.opacity += (Math.random() - 0.5) * 0.02;
-        star.opacity = Math.max(0.1, Math.min(1, star.opacity));
-
-        // Движение
-        star.y -= star.speed;
-        if (star.y < -5) {
-          star.y = canvas.height + 5;
-          star.x = Math.random() * canvas.width;
-        }
-      });
-      animationId = requestAnimationFrame(animate);
-    };
-    animate();
-
-    return () => {
-      cancelAnimationFrame(animationId);
-      window.removeEventListener("resize", resize);
-    };
-  }, []);
-
   const root = nodes.find(n => n.repost_of_id === null);
   const childrenMap = new Map<number, EchoNode[]>();
   nodes.forEach(n => {
@@ -101,101 +43,120 @@ export function EchoModal({ postId, onClose }: { postId: number; onClose: () => 
     }
   });
 
-  const renderNode = (node: EchoNode, depth: number = 0) => {
+  // Рекурсивный рендер уровня дерева
+  const renderLevel = (node: EchoNode, depth: number = 0) => {
     const children = childrenMap.get(node.id) || [];
-    const isRoot = node.repost_of_id === null;
+    const isRoot = depth === 0;
 
     return (
-      <div key={node.id} className="relative">
-        {/* 🕸️ Линия связи (паутинка) */}
-        {depth > 0 && (
-          <div className="absolute left-5 top-0 w-px h-full -ml-px">
-            <div className="w-full h-full bg-gradient-to-b from-purple-500/60 via-cyan-400/40 to-transparent" />
-            {/* Узел соединения */}
-            <div className="absolute -left-1 top-0 w-2.5 h-2.5 rounded-full bg-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.8)]" />
-          </div>
-        )}
+      <div key={node.id} className="flex flex-col items-center">
+        {/* Карточка поста */}
+        <div className={`w-full max-w-lg rounded-2xl border transition-all duration-300 ${
+          isRoot 
+            ? "bg-gradient-to-br from-purple-900/30 to-indigo-900/30 border-purple-500/50 shadow-[0_0_30px_rgba(168,85,247,0.2)]" 
+            : "bg-white/[0.04] border-white/15 hover:border-purple-400/40 hover:bg-white/[0.06]"
+        }`}>
+          <div className="p-4">
+            <div className="flex gap-3">
+              <Link 
+                href={`/${node.handle?.replace("@", "")}`} 
+                className="shrink-0" 
+                onClick={e => e.stopPropagation()}
+              >
+                <Avatar src={node.author_avatar} name={node.author} id={node.author_id} size={40} />
+              </Link>
 
-        <div className={`${depth > 0 ? "ml-10 pl-4" : ""} mb-5 relative`}>
-          <div className={`relative rounded-2xl border transition-all duration-300 hover:scale-[1.01] ${
-            isRoot 
-              ? "bg-gradient-to-br from-purple-900/40 to-indigo-900/40 border-purple-500/40 shadow-[0_0_20px_rgba(168,85,247,0.3)]" 
-              : "bg-white/[0.03] border-white/10 hover:border-purple-500/30 hover:bg-white/[0.05]"
-          }`}>
-            {/* ✨ Свечение для корня */}
-            {isRoot && (
-              <div className="absolute -inset-px rounded-2xl bg-gradient-to-r from-purple-500/20 via-cyan-500/20 to-pink-500/20 blur-sm opacity-50" />
-            )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 text-sm flex-wrap">
+                  <Link 
+                    href={`/${node.handle?.replace("@", "")}`} 
+                    className="font-bold text-white hover:text-purple-300 transition-colors" 
+                    onClick={e => e.stopPropagation()}
+                  >
+                    {node.author}
+                  </Link>
+                  <span className="text-white/40 text-xs">{node.handle}</span>
+                  <span className="text-white/25 text-xs">· {timeAgo(node.created_at)}</span>
+                </div>
 
-            <div className="relative p-4">
-              <div className="flex gap-3">
-                <Link 
-                  href={`/${node.handle?.replace("@", "")}`} 
-                  className="shrink-0 relative group" 
-                  onClick={e => e.stopPropagation()}
-                >
-                  {/* Орбита вокруг аватарки */}
-                  <div className="absolute -inset-1.5 rounded-full border border-purple-500/30 group-hover:border-purple-400/60 transition-colors" />
-                  <Avatar src={node.author_avatar} name={node.author} id={node.author_id} size={36} />
-                </Link>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 text-sm flex-wrap">
-                    <Link 
-                      href={`/${node.handle?.replace("@", "")}`} 
-                      className="font-bold text-white hover:text-purple-300 transition-colors" 
-                      onClick={e => e.stopPropagation()}
-                    >
-                      {node.author}
-                    </Link>
-                    <span className="text-white/40">{node.handle}</span>
-                    <span className="text-white/30">· {timeAgo(node.created_at)}</span>
-                    
-                    {node.is_quote ? (
-                      <span className="text-cyan-400 text-xs flex items-center gap-1 bg-cyan-400/10 px-2 py-0.5 rounded-full">
-                        <Quote size={10} /> Цитата
-                      </span>
-                    ) : !isRoot ? (
-                      <span className="text-emerald-400 text-xs flex items-center gap-1 bg-emerald-400/10 px-2 py-0.5 rounded-full">
-                        <RefreshCw size={10} /> Репост
-                      </span>
-                    ) : (
-                      <span className="text-yellow-400 text-xs flex items-center gap-1 bg-yellow-400/10 px-2 py-0.5 rounded-full">
-                        <Star size={10} fill="currentColor" /> Оригинал
-                      </span>
-                    )}
-                  </div>
-
-                  {node.text && (
-                    <p className="text-white/85 text-sm mt-2 whitespace-pre-wrap break-words leading-relaxed">
-                      {node.text}
-                    </p>
-                  )}
-
-                  <div className="flex items-center gap-4 mt-3">
-                    <span className="text-white/40 text-xs flex items-center gap-1.5">
-                      <span className="text-pink-400">♥</span> {node.likes_count}
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  {node.is_quote ? (
+                    <span className="text-cyan-400 text-[11px] flex items-center gap-1 bg-cyan-400/10 px-2 py-0.5 rounded-full border border-cyan-400/20">
+                      <Quote size={10} /> Цитата
                     </span>
-                    <Link 
-                      href={`/post/${node.id}`} 
-                      className="text-purple-400 text-xs hover:text-purple-300 hover:underline underline-offset-2 transition-colors" 
-                      onClick={e => e.stopPropagation()}
-                    >
-                      Открыть пост →
-                    </Link>
-                  </div>
+                  ) : isRoot ? (
+                    <span className="text-yellow-400 text-[11px] flex items-center gap-1 bg-yellow-400/10 px-2 py-0.5 rounded-full border border-yellow-400/20">
+                      <Star size={10} fill="currentColor" /> Оригинал
+                    </span>
+                  ) : (
+                    <span className="text-emerald-400 text-[11px] flex items-center gap-1 bg-emerald-400/10 px-2 py-0.5 rounded-full border border-emerald-400/20">
+                      <RefreshCw size={10} /> Репост
+                    </span>
+                  )}
+                </div>
+
+                {node.text && (
+                  <p className="text-white/85 text-sm mt-2 whitespace-pre-wrap break-words leading-relaxed">
+                    {node.text}
+                  </p>
+                )}
+
+                <div className="flex items-center gap-4 mt-3">
+                  <span className="text-white/40 text-xs flex items-center gap-1.5">
+                    <span className="text-pink-400">♥</span> {node.likes_count}
+                  </span>
+                  <Link 
+                    href={`/post/${node.id}`} 
+                    className="text-purple-400 text-xs hover:text-purple-300 hover:underline underline-offset-2 transition-colors" 
+                    onClick={e => e.stopPropagation()}
+                  >
+                    Открыть пост →
+                  </Link>
                 </div>
               </div>
             </div>
           </div>
-
-          {/* Рекурсивный рендер детей */}
-          {children.length > 0 && (
-            <div className="mt-3 relative">
-              {children.map(child => renderNode(child, depth + 1))}
-            </div>
-          )}
         </div>
+
+        {/* Стрелка и дети */}
+        {children.length > 0 && (
+          <div className="flex flex-col items-center mt-0">
+            {/* Вертикальная линия-стрелка */}
+            <div className="flex flex-col items-center py-2">
+              <div className="w-0.5 h-6 bg-gradient-to-b from-purple-500/60 to-purple-400/40" />
+              <ChevronDown size={18} className="text-purple-400/70 -mt-1" />
+              <div className="w-0.5 h-4 bg-gradient-to-b from-purple-400/40 to-transparent" />
+            </div>
+
+            {/* Горизонтальная линия если несколько детей */}
+            {children.length > 1 && (
+              <div className="relative w-full flex justify-center mb-2">
+                <div 
+                  className="h-0.5 bg-purple-500/30 rounded-full"
+                  style={{ 
+                    width: `calc(${Math.min(children.length * 280, 800)}px - 40px)`,
+                    maxWidth: '90%'
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Дети в ряд (или колонкой если много) */}
+            <div className={`flex ${children.length > 2 ? 'flex-col' : 'flex-row flex-wrap justify-center'} gap-4 w-full`}>
+              {children.map((child, idx) => (
+                <div key={child.id} className="flex flex-col items-center">
+                  {/* Вертикальная ветка к каждому ребёнку */}
+                  {children.length > 1 && (
+                    <div className="flex flex-col items-center -mt-2 mb-0">
+                      <div className="w-0.5 h-5 bg-purple-500/40" />
+                    </div>
+                  )}
+                  {renderLevel(child, depth + 1)}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
@@ -210,20 +171,11 @@ export function EchoModal({ postId, onClose }: { postId: number; onClose: () => 
       onClick={onClose}
     >
       <div 
-        className="w-full max-w-2xl max-h-[85vh] bg-[#0d0d14] border border-purple-500/20 rounded-3xl shadow-[0_0_60px_rgba(168,85,247,0.15)] flex flex-col overflow-hidden relative animate-in zoom-in-95 duration-300" 
+        className="w-full max-w-3xl max-h-[85vh] bg-[#0d0d14] border border-purple-500/20 rounded-3xl shadow-[0_0_60px_rgba(168,85,247,0.15)] flex flex-col overflow-hidden relative animate-in zoom-in-95 duration-300" 
         onClick={e => e.stopPropagation()}
       >
-        {/* 🌌 Canvas со звёздами */}
-        <canvas 
-          ref={canvasRef} 
-          className="absolute inset-0 w-full h-full pointer-events-none opacity-40" 
-        />
-
-        {/* Туманность сверху */}
-        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-purple-900/20 via-transparent to-transparent pointer-events-none" />
-
         {/* Шапка */}
-        <div className="relative flex items-center justify-between p-5 border-b border-white/10 bg-gradient-to-r from-purple-900/30 via-indigo-900/20 to-transparent">
+        <div className="relative flex items-center justify-between p-5 border-b border-white/10 bg-gradient-to-r from-purple-900/20 via-indigo-900/10 to-transparent">
           <div className="flex items-center gap-3">
             <div className="relative">
               <Sparkles size={22} className="text-purple-400" />
@@ -265,7 +217,7 @@ export function EchoModal({ postId, onClose }: { postId: number; onClose: () => 
                 <div className="w-12 h-12 rounded-full border-2 border-purple-500/30 border-t-purple-400 animate-spin" />
                 <div className="absolute inset-0 w-12 h-12 rounded-full border-2 border-cyan-500/20 border-b-cyan-400 animate-spin [animation-direction:reverse] [animation-duration:1.5s]" />
               </div>
-              <p className="text-white/40 text-sm">Сканируем космос...</p>
+              <p className="text-white/40 text-sm">Загружаем эхо...</p>
             </div>
           ) : nodes.length <= 1 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
@@ -277,12 +229,11 @@ export function EchoModal({ postId, onClose }: { postId: number; onClose: () => 
               </p>
             </div>
           ) : (
-            root && renderNode(root)
+            <div className="flex flex-col items-center">
+              {root && renderLevel(root)}
+            </div>
           )}
         </div>
-
-        {/* Нижняя туманность */}
-        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#0d0d14] via-[#0d0d14]/80 to-transparent pointer-events-none" />
       </div>
     </div>
   );

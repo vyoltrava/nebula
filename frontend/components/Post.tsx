@@ -220,8 +220,8 @@ export function Post({
       return liked_by_me;
     });
     const [count, setCount] = useState(likes_count);
-    useEffect(() => {
-      setCount(likes_count);
+  useEffect(() => {
+    setCount(likes_count ?? 0);
     }, [likes_count]);
     const [rCount, setRCount] = useState(replies_count);
     const [replying, setReplying] = useState(false);
@@ -254,8 +254,8 @@ useEffect(() => {
   const handler = (e: Event) => {
     const d = (e as CustomEvent).detail;
     if (d.post_id === id) {
-      // 🛡️ Защита от отрицательных значений
-      setCount(Math.max(0, d.likes_count));
+      // 🛡️ Защита от отрицательных значений и undefined
+      setCount(Math.max(0, d.likes_count ?? 0));
     }
   };
   window.addEventListener("like-sync", handler);
@@ -302,7 +302,7 @@ async function toggleLike() {
 
   const next = !liked;
   setLiked(next);
-  setCount((c) => Math.max(0, next ? c + 1 : c - 1)); // 🛡️ Защита от минуса
+  setCount((c) => Math.max(0, next ? (c ?? 0) + 1 : (c ?? 0) - 1)); // 🛡️ Защита от минуса и NaN
   setLikedCache(id, next);
 
   const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/like`, {
@@ -319,7 +319,7 @@ async function toggleLike() {
   } else {
     // Откат
     setLiked(!next);
-    setCount((c) => Math.max(0, next ? c - 1 : c + 1)); // 🛡️ Защита от минуса
+    setCount((c) => Math.max(0, next ? (c ?? 0) - 1 : (c ?? 0) + 1)); // 🛡️ Защита от минуса и NaN
     setLikedCache(id, !next);
   }
 }
@@ -577,10 +577,10 @@ async function toggleLike() {
                       setEditText(displayText);
                       setEditing(true);
                     }}
-                    className="text-white/30 hover:text-blue-400 transition-colors"
+                    className="text-white/30 hover:text-blue-400 transition-colors p-1.5 -m-1.5 rounded-full hover:bg-blue-400/10 active:scale-95"
                     title={currentUser?.id === author_id ? "Редактировать" : "Модераторское редактирование"}
                   >
-                    <Pencil size={12} />
+                    <Pencil size={15} />
                   </button>
                 )}
                 
@@ -590,10 +590,10 @@ async function toggleLike() {
                     e.stopPropagation();
                     setShowEcho(true);
                   }}
-                  className="text-white/30 hover:text-purple-400 transition-colors"
+                  className="text-white/30 hover:text-purple-400 transition-colors p-1.5 -m-1.5 rounded-full hover:bg-purple-400/10 active:scale-95"
                   title="Эхо поста (репосты и цитаты)"
                 >
-                  <Radio size={12} />
+                  <Radio size={15} />
                 </button>
               </span>
             </div>
