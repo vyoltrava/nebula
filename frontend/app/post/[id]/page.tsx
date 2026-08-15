@@ -20,14 +20,26 @@ export default function PostPage() {
   const postId = id ? parseInt(id as string) : 0;
   const { save, clear } = useLastReadPost();
 
-  // 🎯 Сохраняем в БД и СРАЗУ чистим запись
-  // (пользователь УЖЕ на этом посте, плашка "Продолжить" должна исчезнуть)
-  useEffect(() => {
-    if (!postId || postId <= 0) return;
+// 🎯 ЛОГИКА "ПРОДОЛЖИТЬ ЧТЕНИЕ"
+// - Сохраняем пост как последний читаемый (чтобы кнопка появилась в Sidebar)
+// - Чистим ТОЛЬКО если пришли по кнопке "Продолжить" (?continue=1)
+useEffect(() => {
+  if (!postId || postId <= 0) return;
 
-    save(postId).then(() => clear());
-    window.dispatchEvent(new CustomEvent("last-read-saved"));
-  }, [postId, save, clear]);
+  const url = new URL(window.location.href);
+  const cameFromContinue = url.searchParams.get('continue') === '1';
+
+  if (cameFromContinue) {
+    // Пришли по кнопке "Продолжить" — чистим запись и убираем параметр из URL
+    clear();
+    url.searchParams.delete('continue');
+    window.history.replaceState({}, '', url.toString());
+  } else {
+    // Обычное открытие поста — сохраняем его как "последний читаемый"
+    save(postId);
+  }
+}, [postId, save, clear]);
+
 
   // 📦 Загрузка самого поста и ответов
   useEffect(() => {

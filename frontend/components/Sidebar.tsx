@@ -408,11 +408,15 @@ const { post: lastReadPost, clear: clearLastRead } = useLastReadPost();
 // 🎯 УНИВЕРСАЛЬНАЯ ФУНКЦИЯ "ПРОДОЛЖИТЬ" (приоритет: пост > память ленты)
 const handleContinueClick = useCallback(() => {
   if (lastReadPost) {
-    router.push(`/post/${lastReadPost.post_id}`);
+    // 🎯 Клик по "Продолжить чтение" — ведём на пост с флагом ?continue=1
+    // PostPage увидит флаг и почистит запись
+    router.push(`/post/${lastReadPost.post_id}?continue=1`);
+    // Сразу чистим локально, чтобы кнопка исчезла мгновенно (без ожидания ответа сервера)
+    clearLastRead();
   } else if (hasFeedMemory) {
     triggerRestore();
   }
-}, [lastReadPost, hasFeedMemory, router, triggerRestore]);
+}, [lastReadPost, hasFeedMemory, router, clearLastRead, triggerRestore]);
 
 // Показывать ли кнопку вообще
 const showContinueButton = !!lastReadPost || hasFeedMemory;
