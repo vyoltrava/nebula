@@ -448,11 +448,14 @@ const continueConfig = lastReadPost
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [fingerPos, setFingerPos]   = useState<{ x: number; y: number } | null>(null);
   const [closing, setClosing]       = useState(false);
+  // 🎯 ВСЕ жесты через ref — синхронные, без задержек React state
   const [pullingBack, setPullingBack] = useState(false);
   const [scrollVelocity, setScrollVelocity] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-  const scrollRafRef = useRef<number>(0);
-  const scrollVelocityRef = useRef(0);  // 🆕 всегда актуальное значение
+  
+  const pullingBackRef = useRef(false);
+  const scrollVelocityRef = useRef(0);
+  const isDraggingRef = useRef(false);      // 🎯 ref вместо state
+  const scrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
 
 
@@ -650,7 +653,7 @@ const continueConfig = lastReadPost
     setClosing(false);
     setPullingBack(false);
     setScrollVelocity(0);
-    setIsDragging(false); // 🆕
+    isDraggingRef.current = false;
     requestAnimationFrame(() => {
       requestAnimationFrame(() => { setWheelReady(true); });
     });
@@ -687,7 +690,8 @@ const continueConfig = lastReadPost
     setHoveredIdx(null);
     setFingerPos(null);
     setScrollVelocity(0); // 🆕 останавливаем скролл
-    setIsDragging(false); // 🆕
+    isDraggingRef.current = false;
+    scrollVelocityRef.current = 0;
     setTimeout(() => {
       setWheelOpen(false);
       setClosing(false);
@@ -725,7 +729,41 @@ const continueConfig = lastReadPost
 
   useEffect(() => {
     const cancelTimer = () => {
-      if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+    };
+
+    const updateGesture = (dx: number, dy: number) => {
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+
+      // 🎯 Горизонталь доминирует → назад
+      if (dx < -PULL_BACK_THRESHOLD && absDx >= absDy * 0.7) {
+        pullingBackRef.current = true;
+        scrollVelocityRef.current = 0;
+        setPullingBack(true);
+        setScrollVelocity(0);
+        return;
+      }
+
+      // 🎯 Вертикаль доминирует → скролл
+      if (absDy > SCROLL_DEAD_ZONE && absDy >= absDx * 0.6) {
+        pullingBackRef.current = false;
+        const speed = Math.min(absDy * SCROLL_SENSITIVITY, SCROLL_MAX_SPEED);
+        const velocity = dy > 0 ? -speed : speed;
+        scrollVelocityRef.current = velocity;
+        setPullingBack(false);
+        setScrollVelocity(velocity);
+        return;
+      }
+
+      // 🎯 Мёртвая зона
+      pullingBackRef.current = false;
+      scrollVelocityRef.current = 0;
+      setPullingBack(false);
+      setScrollVelocity(0);
     };
 
     const handleMove = (px: number, py: number) => {
@@ -735,82 +773,59 @@ const continueConfig = lastReadPost
       const dy = py - start.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      // ═══ ФАЗА 1: ДО открытия меню (таймер ещё тикает) ═══
+      // ═══ ФАЗА 1: Таймер ещё тикает ═══
       if (longPressTimer.current) {
         if (dist > DRAG_ACTIVATION) {
-          // 🆕 Потянули — отменяем таймер меню, включаем режим оттягивания
           cancelTimer();
-          setIsDragging(true);
-          // Сразу определяем тип жеста
+          isDraggingRef.current = true;
           updateGesture(dx, dy);
         }
         return;
       }
 
-      // ═══ ФАЗА 2: Меню открыто (long press сработал) ═══
+      // ═══ ФАЗА 2: Меню открыто ═══
       if (isLongPressed.current) {
-        // Обычная логика выбора пункта меню
         const idx = findNearest(px, py);
         setHoveredIdx(idx);
         setFingerPos({ x: px, y: py });
 
-        // + жесты оттягивания из меню
         const cx = arcCenterRef.current.x;
         const cy = arcCenterRef.current.y;
         const mdx = px - cx;
         const mdy = py - cy;
 
-        if (mdx < -PULL_BACK_THRESHOLD && Math.abs(mdy) < PULL_BACK_THRESHOLD) {
+        if (mdx < -PULL_BACK_THRESHOLD && Math.abs(mdx) >= Math.abs(mdy) * 0.7) {
+          pullingBackRef.current = true;
+          scrollVelocityRef.current = 0;
           setPullingBack(true);
           setScrollVelocity(0);
-        } else if (Math.abs(mdy) > SCROLL_DEAD_ZONE && Math.abs(mdx) < PULL_BACK_THRESHOLD * 0.8) {
-          setPullingBack(false);
+        } else if (Math.abs(mdy) > SCROLL_DEAD_ZONE && Math.abs(mdy) >= Math.abs(mdx) * 0.6) {
+          pullingBackRef.current = false;
           const speed = Math.min(Math.abs(mdy) * SCROLL_SENSITIVITY, SCROLL_MAX_SPEED);
-          setScrollVelocity(mdy > 0 ? -speed : speed);
+          const velocity = mdy > 0 ? -speed : speed;
+          scrollVelocityRef.current = velocity;
+          setPullingBack(false);
+          setScrollVelocity(velocity);
         } else {
+          pullingBackRef.current = false;
+          scrollVelocityRef.current = 0;
           setPullingBack(false);
           setScrollVelocity(0);
         }
         return;
       }
 
-      // ═══ ФАЗА 3: Режим оттягивания (меню не открывалось, но мы тянем) ═══
-      if (isDragging) {
+      // ═══ ФАЗА 3: Drag (меню не открывалось) ═══
+      if (isDraggingRef.current) {
         updateGesture(dx, dy);
       }
-    };
-
-    // 🆕 Вспомогательная функция: приоритет по оси движения
-    const updateGesture = (dx: number, dy: number) => {
-      const absDx = Math.abs(dx);
-      const absDy = Math.abs(dy);
-
-      // 🎯 Сильный свайп ВЛЕВО → назад (приоритет если горизонталь ≥ вертикали)
-      if (dx < -PULL_BACK_THRESHOLD && absDx >= absDy * 0.7) {
-        setPullingBack(true);
-        setScrollVelocity(0);
-        return;
-      }
-
-      // 🎯 Движение по вертикали → скролл (без жёсткого ограничения на dx!)
-      if (absDy > SCROLL_DEAD_ZONE && absDy >= absDx * 0.6) {
-        setPullingBack(false);
-        const speed = Math.min(absDy * SCROLL_SENSITIVITY, SCROLL_MAX_SPEED);
-        setScrollVelocity(dy > 0 ? -speed : speed);
-        return;
-      }
-
-      // Мёртвая зона
-      setPullingBack(false);
-      setScrollVelocity(0);
     };
 
     const handleEnd = () => {
       cancelTimer();
 
-      // 🆕 Режим оттягивания (без меню) — выполняем действие
-      if (isDragging) {
-        if (pullingBack) {
+      if (isDraggingRef.current) {
+        if (pullingBackRef.current) {
           try {
             if (typeof window !== 'undefined' && window.history.length > 1) {
               window.history.back();
@@ -821,28 +836,28 @@ const continueConfig = lastReadPost
             router.push("/");
           }
         }
-        // Сброс
-        setIsDragging(false);
+        isDraggingRef.current = false;
+        pullingBackRef.current = false;
+        scrollVelocityRef.current = 0;
         setPullingBack(false);
         setScrollVelocity(0);
         startPos.current = null;
         return;
       }
 
-      // Обычная логика меню
       if (isLongPressed.current) {
         closeWheel(hoveredIdx !== null);
       }
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (!isLongPressed.current && !longPressTimer.current && !isDragging) return;
-      // 🎯 Блокируем нативный скролл когда жест активен
-      // (passive: false уже установлен на addEventListener, так что preventDefault работает)
-      if (e.cancelable && (isDragging || isLongPressed.current)) {
+      if (!isLongPressed.current && !longPressTimer.current && !isDraggingRef.current) return;
+      if (e.cancelable && (isDraggingRef.current || isLongPressed.current)) {
         e.preventDefault();
       }
-      if (e.touches.length > 0) handleMove(e.touches[0].clientX, e.touches[0].clientY);
+      if (e.touches.length > 0) {
+        handleMove(e.touches[0].clientX, e.touches[0].clientY);
+      }
     };
     const onTouchEnd = () => handleEnd();
     const onMouseMove = (e: MouseEvent) => handleMove(e.clientX, e.clientY);
@@ -861,18 +876,18 @@ const continueConfig = lastReadPost
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
     };
-  }, [hoveredIdx, closeWheel, findNearest, isDragging, pullingBack, router]);
+  }, [hoveredIdx, closeWheel, findNearest, router]);
 
-  // 🆕 ОДИН долгоживущий интервал скролла (читает актуальное значение из ref)
+  // 🎯 Скролл-интервал (читает ref)
   useEffect(() => {
     const intervalId = setInterval(() => {
-      if (scrollVelocityRef.current !== 0) {
-        window.scrollBy(0, scrollVelocityRef.current);
+      const v = scrollVelocityRef.current;
+      if (v !== 0) {
+        window.scrollBy(0, v);
       }
-    }, 16); // ~60fps
-
+    }, 16);
     return () => clearInterval(intervalId);
-  }, []); // пустые зависимости — создаётся один раз
+  }, []);
 
 
 
@@ -1218,7 +1233,7 @@ const continueConfig = lastReadPost
         )}
 
         {/* 🆕 Индикатор "тянешь назад" */}
-        {(pullingBack || isDragging) && pullingBack && (
+        {pullingBack && (
           <div
             className="absolute pointer-events-none"
             style={{
@@ -1236,7 +1251,7 @@ const continueConfig = lastReadPost
         )}
 
         {/* 🆕 Индикатор скролла */}
-        {scrollVelocity !== 0 && !pullingBack && isDragging && (
+        {scrollVelocity !== 0 && !pullingBack && (
           <div
             className="absolute pointer-events-none"
             style={{
