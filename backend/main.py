@@ -6,6 +6,8 @@ from sqlmodel import Session, select, func, col
 from sqlalchemy import text, update, delete
 from typing import Optional, List
 from fastapi.concurrency import run_in_threadpool
+from sqlalchemy import delete
+from fastapi import BackgroundTasks 
 
 
 
@@ -290,21 +292,20 @@ def create_token(user_id: int, token_version: int = 0) -> str:
     }
     return jwt.encode(payload, SECRET, algorithm=ALGORITHM)
 
+from fastapi import BackgroundTasks  # ← добавь в импорты
 
 def get_current_user(
     authorization: str = Header(default=None),
     session: Session = Depends(get_session),
+    background_tasks: BackgroundTasks = None,  # ← НОВОЕ
 ) -> User:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(401, "Not authenticated")
-
     token = authorization.split(" ", 1)[1]
-
     try:
         payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
     except Exception:
         raise HTTPException(401, "Invalid token")
-
     user = session.get(User, int(payload["sub"]))
     if not user:
         raise HTTPException(401, "User not found")
@@ -313,13 +314,23 @@ def get_current_user(
     if user.is_banned:
         raise HTTPException(403, "Account banned")
 
-    # Обновляем last_seen не чаще раза в 3 минуты (было 60 сек — спамили БД)
+    # 🚀 НЕ БЛОКИРУЕМ ОТВЕТ — обновление в фоне
     now = datetime.now(timezone.utc)
     if not user.last_seen or (now - user.last_seen).total_seconds() > 180:
-        user.last_seen = now
-        session.add(user)
-        session.commit()
-        session.refresh(user)
+        if background_tasks:
+            background_tasks.add_task(_update_last_seen_sync, user.id)
+        # Убрали session.add(user) и session.commit() отсюда!
+
+    return user
+
+def _update_last_seen_sync(user_id: int):
+    """Обновляет last_seen в отдельной транзакции"""
+    with Session(engine) as session:
+        user = session.get(User, user_id)
+        if user:
+            user.last_seen = datetime.now(timezone.utc)
+            session.add(user)
+            session.commit()
 
     return user
 
@@ -350,16 +361,11 @@ def get_optional_user(
 # 🗑️ ОПТИМИЗИРОВАННОЕ УДАЛЕНИЕ ПОСТА
 # ============================================================
 
-def cascade_delete_post(post_id: int, session: Session):
-    """
-    Удаляет пост и всё дерево ответов.
-    Было: куча запросов в циклах.
-    Стало: 5-6 массовых запросов.
-    """
-    # 1. Собираем все ID в дереве (BFS/рекурсия)
+async def cascade_delete_post(post_id: int, session: Session):
+    """Асинхронная версия — НЕ блокирует Event Loop при Cloudinary"""
+    # 1. BFS — оставляем как было
     ids_to_clean = {post_id}
     queue = [post_id]
-
     while queue:
         current_id = queue.pop(0)
         children = session.exec(
@@ -369,73 +375,55 @@ def cascade_delete_post(post_id: int, session: Session):
             if child_id not in ids_to_clean:
                 ids_to_clean.add(child_id)
                 queue.append(child_id)
-
     id_list = list(ids_to_clean)
 
-    # 2. Собираем media_url ДО удаления постов
     posts_with_media = session.exec(
         select(Post).where(Post.id.in_(id_list))
     ).all()
 
-    # 3. Массовое удаление лайков одним запросом
-    for like in session.exec(select(Like).where(Like.post_id.in_(id_list))).all():
-        session.delete(like)
+    # 2. Массовые DELETE (ОПТИМИЗАЦИЯ 1)
+    session.exec(delete(Like).where(Like.post_id.in_(id_list)))
+    session.exec(delete(PostTag).where(PostTag.post_id.in_(id_list)))
+    session.exec(delete(Notification).where(Notification.post_id.in_(id_list)))
+    session.exec(delete(Bookmark).where(Bookmark.post_id.in_(id_list)))
+    session.exec(delete(PostView).where(PostView.post_id.in_(id_list)))
+    session.exec(delete(LastReadPost).where(LastReadPost.post_id.in_(id_list)))
 
-    # 4. Массовое удаление тегов
-    for pt in session.exec(select(PostTag).where(PostTag.post_id.in_(id_list))).all():
-        session.delete(pt)
-
-   # 5. Массовое удаление уведомлений
-    for notif in session.exec(select(Notification).where(Notification.post_id.in_(id_list))).all():
-        session.delete(notif)
-        # 5.5. 🆕 Массовое удаление закладок — иначе внешний ключ не даст удалить пост
-        for bm in session.exec(select(Bookmark).where(Bookmark.post_id.in_(id_list))).all():
-            session.delete(bm)
-            
-        # 👇 ДОБАВЬ ВОТ ЭТОТ БЛОК (5.6) 👇
-        # 5.6. 🆕 Массовое удаление просмотров — иначе внешний ключ не даст удалить пост
-        for pv in session.exec(select(PostView).where(PostView.post_id.in_(id_list))).all():
-            session.delete(pv)
-        # 👆 КОНЕЦ ДОБАВЛЕНИЯ 👆
-
-        # 👇 ДОБАВЬ ВОТ ЭТОТ БЛОК (5.7) 👇
-        # 5.7. 🆕 Массовое удаление записей "последний читаемый пост"
-        for lr in session.exec(select(LastReadPost).where(LastReadPost.post_id.in_(id_list))).all():
-            session.delete(lr)
-
-        # 🆕 Обнуляем repost_of_id у всех постов, которые репостят удаляемый пост
+    # Обнуляем repost_of_id
     reposts_to_detach = session.exec(
         select(Post).where(Post.repost_of_id.in_(id_list))
     ).all()
     for rp in reposts_to_detach:
         rp.repost_of_id = None
         session.add(rp)
-    
 
-
-    # 6. Удаляем медиа
+    # 3. 🚀 УДАЛЕНИЕ МЕДИА ЧЕРЕЗ THREAD POOL
     for post in posts_with_media:
         if post.media_url:
             if "cloudinary.com" in post.media_url:
                 try:
                     public_id = extract_cloudinary_public_id(post.media_url)
                     if public_id:
-                        cloudinary.uploader.destroy(public_id, resource_type="auto")
+                        await run_in_threadpool(
+                            cloudinary.uploader.destroy,
+                            public_id,
+                            resource_type="auto"
+                        )
                 except Exception:
                     pass
             else:
                 file_path = os.path.join("uploads", post.media_url.split("/")[-1])
                 if os.path.exists(file_path):
                     try:
-                        os.remove(file_path)
+                        await run_in_threadpool(os.remove, file_path)
                     except Exception:
                         pass
 
-    # 7. Удаляем корневой пост — БД каскадно удалит все ответы
+    # 4. Удаляем корневой пост
     root_post = session.get(Post, post_id)
     if root_post:
         session.delete(root_post)
-
+    
     session.commit()
     return len(ids_to_clean)
 
@@ -1029,13 +1017,10 @@ def search_users_by_query(
         return {"users": [], "posts": []}
 
     pattern = f"%{q.strip().lower()}%"
-
-    # Поиск пользователей
     users = session.exec(
         select(User)
         .where(
-            (func.lower(User.username).like(pattern))
-            | (func.lower(User.display_name).like(pattern))
+            User.username.ilike(pattern) | User.display_name.ilike(pattern)  # 🚀 ilike вместо func.lower().like()
         )
         .limit(limit)
     ).all()
@@ -1218,7 +1203,11 @@ def get_user_posts(
     if cursor:
         last_post = session.get(Post, cursor)
         if last_post:
-            query = query.where(Post.created_at < last_post.created_at)
+            # 🚀 Учитываем одинаковое время создания
+            query = query.where(
+                (Post.created_at < last_post.created_at) |
+                ((Post.created_at == last_post.created_at) & (Post.id < last_post.id))
+            )
 
     posts = session.exec(query.limit(limit)).all()
 
@@ -1384,8 +1373,7 @@ def search(
         select(User)
         .where(
             User.is_banned == False,
-            (func.lower(User.username).like(pattern))
-            | (func.lower(User.display_name).like(pattern))
+            User.username.ilike(pattern) | User.display_name.ilike(pattern)
         )
         .limit(15)
     ).all()
@@ -1529,7 +1517,11 @@ def get_following_posts(
     if cursor:
         last_post = session.get(Post, cursor)
         if last_post:
-            query = query.where(Post.created_at < last_post.created_at)
+            # 🚀 Учитываем одинаковое время создания
+            query = query.where(
+                (Post.created_at < last_post.created_at) |
+                ((Post.created_at == last_post.created_at) & (Post.id < last_post.id))
+            )
 
     posts = session.exec(query.limit(limit)).all()
 
@@ -2075,7 +2067,7 @@ async def delete_post(
         author = session.get(User, post.author_id)
         if author:
             check_sanction_rights(user, author, session, "удалять посты этого пользователя")
-    cascade_delete_post(post_id, session)
+    await cascade_delete_post(post_id, session)
     log_action(
         session, user.id, "delete_post",
         target_type="post", target_id=post_id,
@@ -2118,7 +2110,11 @@ def get_posts(
     if cursor:
         last_post = session.get(Post, cursor)
         if last_post:
-            query = query.where(Post.created_at < last_post.created_at)
+            # 🚀 Учитываем одинаковое время создания
+            query = query.where(
+                (Post.created_at < last_post.created_at) |
+                ((Post.created_at == last_post.created_at) & (Post.id < last_post.id))
+            )
 
     posts = session.exec(query.limit(limit)).all()
 
@@ -3012,7 +3008,7 @@ async def admin_delete_post(
     author = session.get(User, post.author_id)
     if author and author.id != staff.id:
         check_sanction_rights(staff, author, session, "удалять посты этого пользователя")
-    cascade_delete_post(post_id, session)
+    await cascade_delete_post(post_id, session)
     log_action(
         session, staff.id, "delete_post",
         target_type="post", target_id=post_id,
@@ -3025,7 +3021,7 @@ async def admin_delete_post(
 
 
 @app.delete("/api/admin/users/{user_id}/posts")
-def admin_delete_all_user_posts(
+async def admin_delete_all_user_posts(
     user_id: int,
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
@@ -3045,34 +3041,39 @@ def admin_delete_all_user_posts(
     
     total_deleted = 0
     for post in user_posts:
-        # 🆕 Каскадное удаление каждого поста с его деревом ответов
-        total_deleted += cascade_delete_post(post.id, session)
+        total_deleted += await cascade_delete_post(post.id, session)
     
     # Также удаляем ответы пользователя на чужие посты
     user_replies = session.exec(
         select(Post).where(Post.author_id == user_id, Post.reply_to_id != None)
     ).all()
+    
+    reply_ids = [r.id for r in user_replies]
+    if reply_ids:
+        session.exec(delete(Like).where(Like.post_id.in_(reply_ids)))
+        session.exec(delete(PostTag).where(PostTag.post_id.in_(reply_ids)))
+        session.exec(delete(Notification).where(Notification.post_id.in_(reply_ids)))
+        session.exec(delete(PostView).where(PostView.post_id.in_(reply_ids)))
+
     for reply in user_replies:
-        # Удаляем только сам ответ (не трогая родительский пост)
-        for like in session.exec(select(Like).where(Like.post_id == reply.id)).all():
-            session.delete(like)
-        for pt in session.exec(select(PostTag).where(PostTag.post_id == reply.id)).all():
-            session.delete(pt)
-        for notif in session.exec(select(Notification).where(Notification.post_id == reply.id)).all():
-            session.delete(notif)
-        for pv in session.exec(select(PostView).where(PostView.post_id == reply.id)).all():
-            session.delete(pv)
         if reply.media_url and "cloudinary.com" in reply.media_url:
             try:
                 public_id = extract_cloudinary_public_id(reply.media_url)
                 if public_id:
-                    cloudinary.uploader.destroy(public_id, resource_type="auto")
+                    await run_in_threadpool(
+                        cloudinary.uploader.destroy,
+                        public_id,
+                        resource_type="auto"
+                    )
             except Exception:
                 pass
         elif reply.media_url:
             file_path = os.path.join("uploads", reply.media_url.split("/")[-1])
             if os.path.exists(file_path):
-                os.remove(file_path)
+                try:
+                    await run_in_threadpool(os.remove, file_path)
+                except Exception:
+                    pass
         session.delete(reply)
         total_deleted += 1
     
@@ -4393,6 +4394,33 @@ def startup():
             conn.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS edited BOOLEAN DEFAULT FALSE;'))
             conn.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;'))
 
+            # ===== 🚀 КРИТИЧЕСКИ ВАЖНЫЕ ИНДЕКСЫ ДЛЯ ПРОИЗВОДИТЕЛЬНОСТИ =====
+            # 1. Лента подписок (get_following_posts)
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_post_author_created ON post(author_id, created_at DESC);'))
+
+            # 2. Сообщения в чате (get_messages_v2)
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_message_chat_id_desc ON message(chat_id, id DESC);'))
+
+            # 3. Популярные теги
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_posttag_tag ON posttag(tag_id);'))
+
+            # 4. Уведомления пользователя
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_notification_user_created ON notification(user_id, created_at DESC);'))
+
+            # 5. Быстрый поиск по username (case-insensitive)
+            conn.execute(text('CREATE UNIQUE INDEX IF NOT EXISTS idx_user_username_lower ON "user" (LOWER(username));'))
+
+            # 6. Поиск по display_name
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_user_display_name_lower ON "user" (LOWER(display_name));'))
+
+            # 7. Закладки пользователя (list_bookmarks)
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_bookmark_user_created ON bookmark(user_id, created_at DESC);'))
+
+            # 8. Лайки пользователя (get_liked_posts)
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_like_user_created ON "like"(user_id, created_at DESC);'))
+
+            # 9. Подписки пользователя (get_following)
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_follow_follower_followee ON follow(follower_id, followee_id);'))
 
             # Финальный коммит всех миграций
             conn.commit()
@@ -5766,6 +5794,8 @@ async def send_typing(
 @app.get("/api/chats/{chat_id}/messages")
 def get_messages_v2(
     chat_id: int,
+    cursor: Optional[int] = None,  # ← НОВОЕ: ID последнего сообщения
+    limit: int = 50,               # ← НОВОЕ: лимит
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
@@ -5774,12 +5804,22 @@ def get_messages_v2(
     ).first()
     if not member:
         raise HTTPException(403, "Не участник чата")
-    messages = session.exec(
-        select(Message).where(Message.chat_id == chat_id).order_by(Message.created_at)
-    ).all()
+    
+    # 🚀 Курсорная пагинация — загружаем только последние N сообщений
+    query = (
+        select(Message)
+        .where(Message.chat_id == chat_id)
+        .order_by(Message.id.desc())
+    )
+    if cursor:
+        query = query.where(Message.id < cursor)
+    
+    messages = session.exec(query.limit(limit)).all()
+    messages = list(reversed(messages))  # Хронологический порядок
+    
     if not messages:
-        return []
-
+        return {"messages": [], "has_more": False, "next_cursor": None}
+    
     sender_ids = list({msg.sender_id for msg in messages})
     senders = {
         u.id: u for u in session.exec(
@@ -5787,15 +5827,13 @@ def get_messages_v2(
         ).all()
     }
     reactions_map = build_reactions_map(session, [m.id for m in messages], user.id)
-
+    
     result = []
     for msg in messages:
-        sender = senders.get(msg.sender_id)  # ✅ ДОБАВЬ ЭТУ СТРОКУ
-
-        # 🆕 Определяем is_encrypted_media
+        sender = senders.get(msg.sender_id)
         is_enc = bool(
-            msg.media_url and 
-            not msg.media_url.startswith("http") and 
+            msg.media_url and
+            not msg.media_url.startswith("http") and
             msg.media_url.endswith(".enc")
         )
         result.append({
@@ -5807,7 +5845,7 @@ def get_messages_v2(
             "ciphertext": msg.ciphertext,
             "media_url": msg.media_url,
             "media_type": msg.media_type,
-            "is_encrypted_media": msg.ciphertext == "[encrypted_media]",   # 🆕
+            "is_encrypted_media": msg.ciphertext == "[encrypted_media]",
             "read": msg.read,
             "edited": msg.edited,
             "edited_at": msg.edited_at.isoformat() if msg.edited_at else None,
@@ -5818,9 +5856,15 @@ def get_messages_v2(
             "forwarded_sender_name": msg.forwarded_sender_name,
             "reply_to_id": msg.reply_to_id,
             "reply_preview": get_reply_preview(session, msg.reply_to_id) if msg.reply_to_id else None,
-            "reactions": reactions_map.get(msg.id, []),  # 🆕
+            "reactions": reactions_map.get(msg.id, []),
         })
-    return result
+    
+    has_more = len(messages) == limit
+    return {
+        "messages": result,
+        "has_more": has_more,
+        "next_cursor": messages[0].id if messages else None,  # ID самого старого
+    }
 
 @app.patch("/api/chats/{chat_id}/messages/{message_id}")
 def edit_message(
@@ -6908,7 +6952,7 @@ def list_reports(
 
 
 @app.post("/api/reports/{report_id}/resolve")
-def resolve_report(
+async def resolve_report( 
     request: Request,  # ← ДОБАВЬ
     report_id: int,
     action: str = Form(...),
