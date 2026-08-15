@@ -839,6 +839,32 @@ def change_password(
     session.commit()
     return {"ok": True}
 
+@app.get("/api/me/live-text-settings")
+def get_live_text_settings(
+    user: User = Depends(get_current_user),
+):
+    """🆕 Настройки живых сообщений"""
+    return {
+        "enabled": bool(user.live_text_enabled),
+        "broadcast": bool(user.live_text_broadcast),
+    }
+
+@app.post("/api/me/live-text-settings")
+def set_live_text_settings(
+    enabled: Optional[bool] = Form(None),
+    broadcast: Optional[bool] = Form(None),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """🆕 Обновление настроек живых сообщений"""
+    if enabled is not None:
+        user.live_text_enabled = enabled
+    if broadcast is not None:
+        user.live_text_broadcast = broadcast
+    session.add(user)
+    session.commit()
+    return {"ok": True, "enabled": bool(user.live_text_enabled), "broadcast": bool(user.live_text_broadcast)}
+
 
 @app.post("/api/me/avatar")
 @limiter.limit("5/minute")
@@ -4154,6 +4180,9 @@ def startup():
     # Автоматическое добавление недостающих колонок и таблиц
     with engine.connect() as conn:
         try:
+
+
+
             # ===== 😂 СТИКЕРЫ И РЕАКЦИИ (БЕЗОПАСНЫЕ МИГРАЦИИ) =====
             
             # 1. Создаём sticker_pack
@@ -4252,6 +4281,9 @@ def startup():
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN DEFAULT FALSE;'))
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS bio VARCHAR(500);'))
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ;'))
+            # 🆕 ЖИВЫЕ СООБЩЕНИЯ: настройки приватности
+            conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS live_text_enabled BOOLEAN DEFAULT TRUE;'))
+            conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS live_text_broadcast BOOLEAN DEFAULT TRUE;'))
             # ===== ⚠️ ПРЕДУПРЕЖДЕНИЯ (warn_users) =====
             conn.execute(text("""
             CREATE TABLE IF NOT EXISTS warning (
@@ -5799,14 +5831,18 @@ async def send_live_text(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """🆕 ЖИВЫЕ СООБЩЕНИЯ: трансляция набираемого текста собеседникам"""
+    """🆕 ЖИВЫЕ СООБЩЕНИЯ с учётом приватности"""
+    # 🛡️ Пользователь выключил трансляцию своего набора — не шлём
+    if not user.live_text_broadcast:
+        return {"ok": True}
+
     member = session.exec(
         select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
     ).first()
     if not member:
         raise HTTPException(403, "Не участник чата")
 
-    # В секретных чатах не светим plaintext на сервере
+    # В секретных чатах не светим plaintext
     chat = session.get(Chat, chat_id)
     if chat and chat.is_secret:
         return {"ok": True}
@@ -5815,8 +5851,18 @@ async def send_live_text(
         select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
     ).all()
     other_ids = [uid for uid in all_member_ids if uid != user.id]
-    if other_ids:
-        await manager.broadcast_to_users(other_ids, "live_text", {
+    if not other_ids:
+        return {"ok": True}
+
+    # 🛡️ Шлём ТОЛЬКО тем, у кого включён показ живых сообщений
+    recipients = session.exec(
+        select(User.id).where(
+            User.id.in_(other_ids),
+            User.live_text_enabled == True,
+        )
+    ).all()
+    if recipients:
+        await manager.broadcast_to_users(recipients, "live_text", {
             "chat_id": chat_id,
             "user_id": user.id,
             "user_name": user.display_name,

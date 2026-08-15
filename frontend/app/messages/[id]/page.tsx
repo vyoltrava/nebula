@@ -163,6 +163,10 @@ export default function ChatPage() {
   const liveTextsRef = useRef(liveTexts);
   useEffect(() => { liveTextsRef.current = liveTexts; }, [liveTexts]);
   const liveThrottleRef = useRef(0);
+    // 🆕 Настройки приватности живых сообщений
+  const [liveSettings, setLiveSettings] = useState({ enabled: true, broadcast: true });
+  const liveSettingsRef = useRef(liveSettings);
+  useEffect(() => { liveSettingsRef.current = liveSettings; }, [liveSettings]);
   // 💬 "Печатает..."
   const [partnerTyping, setPartnerTyping] = useState(false);
   const [typingUserName, setTypingUserName] = useState<string | null>(null); // для групп
@@ -1025,6 +1029,7 @@ for (const msg of messagesToSend) {
   function sendLiveText(v: string) {
     setText(v);
     if (isSecret) return; // секретные чаты — без live
+    if (!liveSettingsRef.current.broadcast) return; // 🛡️ приватность: не транслируем мой набор
     const isEmpty = !v.trim();
     const now = Date.now();
     if (!isEmpty && now - liveThrottleRef.current < 300) return;
@@ -1340,6 +1345,14 @@ function getMessageMenuItems(msg: any): { icon: any; label: string; onClick: () 
       .then((r) => r.json())
       .then(setCurrentUser)
       .catch(() => {});
+        // 🆕 настройки живых сообщений
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/live-text-settings`, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal,
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setLiveSettings(d); })
+      .catch(() => {});
 
     loadChatInfo();
     loadMessages();
@@ -1358,7 +1371,7 @@ function getMessageMenuItems(msg: any): { icon: any; label: string; onClick: () 
       controller.abort();
       // 🆕 гасим живой текст при выходе/смене чата
       const t = getToken();
-      if (t && !isSecret) {
+      if (t && !isSecret && liveSettingsRef.current.broadcast) {
         const body = new FormData();
         body.append("text", "");
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/live-text`, {
@@ -1599,6 +1612,7 @@ useWebSocket("typing", (data: any) => {
 useWebSocket("live_text", (data: any) => {
   if (String(data.chat_id) !== String(chatId)) return;
   if (data.user_id === currentUser?.id) return;
+  if (!liveSettingsRef.current.enabled) return; // 🛡️ функция выключена — игнорируем
   if (!data.text || !data.text.trim()) {
     dismissLive(data.user_id); // 🆕 плавно гасим
     return;

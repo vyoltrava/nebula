@@ -19,6 +19,8 @@ class User(SQLModel, table=True):
     role_id: Optional[int] = Field(default=None, foreign_key="role.id")
     created_at: datetime = Field(default_factory=utcnow)
     bio: Optional[str] = None
+    live_text_enabled: bool = True     # 🆕 показывать ли живые сообщения других
+    live_text_broadcast: bool = True   # 🆕 транслировать ли мой набор текста
     last_seen: Optional[datetime] = None
     token_version: int = Field(default=0)   # для "выйти со всех устройств"
     totp_secret: Optional[str] = None       # задел под будущую 2FA
