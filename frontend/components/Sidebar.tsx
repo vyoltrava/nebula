@@ -703,7 +703,7 @@ const continueConfig = lastReadPost
   }, [wheelItems.length, getIconPos]);
 
   const handleStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    e.preventDefault();
+    if (e.cancelable) e.preventDefault();
     const px = "touches" in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
     const py = "touches" in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
     startPos.current = { x: px, y: py };
@@ -821,7 +821,7 @@ const continueConfig = lastReadPost
 
     const onTouchMove = (e: TouchEvent) => {
       if (!isLongPressed.current && !longPressTimer.current && !isDragging) return;
-      e.preventDefault();
+      if (e.cancelable) e.preventDefault();
       if (e.touches.length > 0) handleMove(e.touches[0].clientX, e.touches[0].clientY);
     };
     const onTouchEnd = () => handleEnd();
@@ -1270,7 +1270,12 @@ const continueConfig = lastReadPost
               : "right-0 top-[calc(50%+8px)] -translate-y-1/2 rounded-l-full"
             }
           `}
-          style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
+          style={{ 
+            touchAction: "none", 
+            userSelect: "none", 
+            WebkitUserSelect: "none",
+            WebkitTouchCallout: "none" as any,
+          }}
           aria-label="Меню навигации"
         >
           <Orbit size={22} className={`transition-all duration-300 ${wheelOpen ? "text-[#8b5cf6] rotate-[60deg]" : "text-white/80"}`} />
