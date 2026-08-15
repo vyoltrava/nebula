@@ -581,9 +581,11 @@ function extractFirstUrl(text: string): string | null {
         router.push("/messages");
         return;
       }
-      if (res.ok) {
-        setMessages(await res.json());
-      }
+    if (res.ok) {
+      const data = await res.json();
+      // ✅ Совместимо со старым (массив) и новым ({messages, ...}) форматом
+      setMessages(Array.isArray(data) ? data : (data.messages ?? []));
+    }
     } catch (err) {
       console.error("Failed to load messages", err);
     } finally {
