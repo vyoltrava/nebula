@@ -790,17 +790,17 @@ const continueConfig = lastReadPost
   const containerClass = isDock ? "justify-center px-0 py-3" : "items-center gap-3 px-4 py-3";
 
   const handleOrbitDoubleClick = useCallback(() => {
-    triggerRestore();
-  }, [triggerRestore]);
+    handleContinueClick();
+  }, [handleContinueClick]);
 
   const handleOrbitTouchEnd = useCallback(() => {
     const now = Date.now();
     if (now - lastTapRef.current < 300) {
-      triggerRestore();
+      handleContinueClick();
     }
     lastTapRef.current = now;
-  }, [triggerRestore]);
-
+  }, [handleContinueClick]);
+  
   const desktopSidebarContent = (
     <>
       <div className={`flex ${isDock ? "justify-center" : "items-center gap-2"}`}>
@@ -817,9 +817,8 @@ const continueConfig = lastReadPost
     title={continueConfig.sublabel}
   >
     <BookOpen size={18} className={`${iconClass} text-[#8b5cf6]`} />
-    <span className={textClass}>Продолжить чтение</span>
     {!isDock && (
-      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#8b5cf6] animate-pulse shadow-[0_0_6px_#8b5cf6]"></span>
+      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#8b5cf6] shadow-[0_0_6px_#8b5cf6]"></span>
     )}
   </button>
 )}
@@ -1080,6 +1079,7 @@ const continueConfig = lastReadPost
       {/* ═══════ МОБИЛКА ИЛИ DESKTOP ORBIT ═══════ */}
       <div className={layout === "orbit" ? "block" : "md:hidden"}>
         {/* 🔥 КРУГИ НА ВОДЕ (Память ленты) */}
+        {/* 🔥 МЯГКОЕ СВЕЧЕНИЕ (Сохраненный пост) */}
         {lastReadPost && (
           <div 
             className={`fixed z-[97] w-14 h-14 pointer-events-none flex items-center justify-center
@@ -1089,8 +1089,8 @@ const continueConfig = lastReadPost
               }
             `}
           >
-            <span className="absolute w-full h-full rounded-full border-2 border-[#8b5cf6]/80 feed-ripple"></span>
-            <span className="absolute w-full h-full rounded-full border-2 border-[#8b5cf6]/50 feed-ripple-delay"></span>
+            {/* Статичное свечение вместо бесконечной пульсации */}
+            <span className="absolute inset-0 rounded-full bg-[#8b5cf6]/10 ring-2 ring-[#8b5cf6]/40 shadow-[0_0_15px_rgba(139,92,246,0.4)]"></span>
           </div>
         )}
 
@@ -1156,7 +1156,7 @@ const continueConfig = lastReadPost
     title={continueConfig.sublabel}
   >
     <BookOpen size={20} />
-    <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#8b5cf6] shadow-[0_0_8px_#8b5cf6] animate-pulse" />
+<span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#8b5cf6] shadow-[0_0_8px_#8b5cf6]" />
   </button>
 )}
 
