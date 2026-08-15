@@ -16,19 +16,20 @@ export default function LinkPreview({ url }: { url: string }) {
   const [data, setData] = useState<Preview | null>(null);
   const [imgOk, setImgOk] = useState(true);
 
-  useEffect(() => {
-    const ctrl = new AbortController();
-    
-    // ⚠️ УБЕДИСЬ, ЧТО ПУТЬ СОВПАДАЕТ С main.py
-    // Если в main.py: app.include_router(lp_router) → используй /unfurl
-    // Если в main.py: app.include_router(lp_router, prefix="/api") → используй /api/unfurl
-    fetch(`${API_BASE}/unfurl?url=${encodeURIComponent(url)}`, { signal: ctrl.signal })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("bad"))))
-      .then((d) => setData(d))
-      .catch(() => {});
-    
-    return () => ctrl.abort();
-  }, [url]);
+useEffect(() => {
+  const ctrl = new AbortController();
+  
+  fetch(`${API_BASE}/api/unfurl?url=${encodeURIComponent(url)}`, { signal: ctrl.signal })
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+    .then((d) => setData(d))
+    .catch((err) => {
+      console.error("[LinkPreview] failed:", err.message, url);
+    });
+  
+  return () => ctrl.abort();
+}, [url]);
+
+  
 
   if (!data) return null;
 
