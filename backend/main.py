@@ -398,6 +398,11 @@ def cascade_delete_post(post_id: int, session: Session):
             session.delete(pv)
         # 👆 КОНЕЦ ДОБАВЛЕНИЯ 👆
 
+        # 👇 ДОБАВЬ ВОТ ЭТОТ БЛОК (5.7) 👇
+        # 5.7. 🆕 Массовое удаление записей "последний читаемый пост"
+        for lr in session.exec(select(LastReadPost).where(LastReadPost.post_id.in_(id_list))).all():
+            session.delete(lr)
+
         # 🆕 Обнуляем repost_of_id у всех постов, которые репостят удаляемый пост
     reposts_to_detach = session.exec(
         select(Post).where(Post.repost_of_id.in_(id_list))
@@ -4412,6 +4417,10 @@ def startup():
 
 
 
+# ============================================================
+# 📖 ПОСЛЕДНИЙ ЧИТАЕМЫЙ ПОСТ (вместо прогресса скролла)
+# ============================================================
+
 class MarkReadingIn(BaseModel):
     post_id: int
 
@@ -4421,8 +4430,11 @@ def mark_as_last_read(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Запоминаем, что юзер начал читать этот пост.
-    Вызывается ТОЛЬКО когда пользователь открыл /post/{id} отдельной страницей."""
+    """Запоминаем последний открытый пост. Вызывается с /post/{id}."""
+    post = session.get(Post, data.post_id)
+    if not post:
+        raise HTTPException(404, "Post not found")
+    
     existing = session.get(LastReadPost, user.id)
     if existing:
         existing.post_id = data.post_id
@@ -4438,7 +4450,7 @@ def get_last_read_post(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Возвращает последний читаемый пост для плашки 'Продолжить чтение'"""
+    """Возвращает последний читаемый пост для кнопки 'Продолжить'"""
     record = session.get(LastReadPost, user.id)
     if not record:
         return {"has_post": False}
@@ -4453,8 +4465,8 @@ def get_last_read_post(
     return {
         "has_post": True,
         "post_id": post.id,
-        "text_preview": (post.text or "📎 Медиа")[:80],
-        "author_name": author.display_name if author else "Unknown",
+        "text_preview": (post.text or "📎 Медиа")[:100],
+        "author_name": author.display_name if author else "Удалённый пользователь",
         "author_avatar": author.avatar_url if author else None,
         "saved_at": record.saved_at.isoformat(),
     }
@@ -4465,7 +4477,7 @@ def clear_last_read_post(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Стираем запись. Вызывается когда юзер открыл пост ИЛИ нажал 'Больше не показывать'."""
+    """Стираем запись. Вызывается при открытии поста ИЛИ при клике '✕'."""
     record = session.get(LastReadPost, user.id)
     if record:
         session.delete(record)
@@ -4976,6 +4988,10 @@ def admin_delete_user(
     # 3. Bookmarks
     for bookmark in session.exec(select(Bookmark).where(Bookmark.user_id == user_id)).all():
         session.delete(bookmark)
+
+    # 3.1. 🆕 LastReadPost (запись о последнем читаемом посте)
+    for lr in session.exec(select(LastReadPost).where(LastReadPost.user_id == user_id)).all():
+        session.delete(lr)
 
     # 4. UserKey
     for key in session.exec(select(UserKey).where(UserKey.user_id == user_id)).all():
