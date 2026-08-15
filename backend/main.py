@@ -1952,11 +1952,13 @@ async def toggle_like(
         cnt = session.exec(
             select(func.count()).select_from(Like).where(Like.post_id == post_id)
         ).one()
+        
+        # ИСПРАВЛЕНО: при снятии лайка отправляем liked: False
         await manager.broadcast_all("post_liked", {
             "post_id": post_id,
             "likes_count": cnt,
             "liker_id": user.id,
-            "liked": True,   # или False в ветке снятия лайка
+            "liked": False,   
         })
         return {"liked": False}
     
@@ -1973,7 +1975,14 @@ async def toggle_like(
     cnt = session.exec(
         select(func.count()).select_from(Like).where(Like.post_id == post_id)
     ).one()
-    await manager.broadcast_to_followers(user.id, "post_liked", {"post_id": post_id, "likes_count": cnt}, session)
+    
+    # Рассылаем обновления подписчикам
+    await manager.broadcast_to_followers(
+        user.id, 
+        "post_liked", 
+        {"post_id": post_id, "likes_count": cnt, "liker_id": user.id, "liked": True}, 
+        session
+    )
     return {"liked": True}
 
 
