@@ -9,13 +9,13 @@ export function useReadingProgress(postId: number | null) {
     if (!postId) return;
     
     getPostProgress(postId).then(data => {
-      if (data && data.scroll_y > 100) {
-        // Небольшая задержка, чтобы DOM и картинки успели отрисоваться
+      // ✅ Восстанавливаем скролл ТОЛЬКО если пост не прочитан до конца
+      if (data && data.scroll_y > 100 && data.percent_read < 95) {
         setTimeout(() => {
           window.scrollTo({ top: data.scroll_y, behavior: 'instant' });
         }, 300);
       }
-    }).catch(() => {}); // Игнорируем ошибки, если юзер не авторизован
+    }).catch(() => {}); 
   }, [postId]);
 
   // 2. СОХРАНЕНИЕ: Слушаем скролл и отправляем на сервер
@@ -25,7 +25,6 @@ export function useReadingProgress(postId: number | null) {
     const handleScroll = () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       
-      // Debounce: ждем 1.5 секунды остановки скролла
       timeoutRef.current = setTimeout(() => {
         const scrollY = window.scrollY;
         const docHeight = document.documentElement.scrollHeight - window.innerHeight;
@@ -35,25 +34,26 @@ export function useReadingProgress(postId: number | null) {
       }, 1500); 
     };
 
-    // 3. STRAHOVKA: Если юзер закрыл вкладку, отправляем финальный прогресс через Beacon
+    // 3. ФИНАЛЬНОЕ СОХРАНЕНИЕ ПРИ ЗАКРЫТИИ ВКЛАДКИ
     const handleBeforeUnload = () => {
        const scrollY = window.scrollY;
        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
        const percent = docHeight > 0 ? Math.min(100, (scrollY / docHeight) * 100) : 0;
        
-       const token = localStorage.getItem('token'); // Или как у тебя хранится токен
+       const token = localStorage.getItem('token');
        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
        
-       // sendBeacon работает асинхронно и гарантированно отправит данные при закрытии
-       const blob = new Blob(
-           [JSON.stringify({ scroll_y: scrollY, percent_read: percent })], 
-           { type: 'application/json' }
-       );
-       
-       // Внимание: sendBeacon не умеет слать кастомные заголовки (Authorization).
-       // Если твой бэк требует токен СТРОГО в заголовке, beacon не пройдет.
-       // Но если ты добавишь поддержку токена в query-параметрах или cookie, это сработает идеально.
-       navigator.sendBeacon(`${apiUrl}/api/posts/${postId}/progress?token=${token}`, blob);
+       // ❌ sendBeacon НЕ поддерживает заголовки, бэк отдавал 401 и прогресс терялся!
+       // ✅ fetch с keepalive: true — идеальная замена, поддерживает Authorization
+       fetch(`${apiUrl}/api/posts/${postId}/progress`, {
+           method: 'POST',
+           headers: {
+               'Content-Type': 'application/json',
+               ...(token ? { Authorization: `Bearer ${token}` } : {}),
+           },
+           body: JSON.stringify({ scroll_y: scrollY, percent_read: percent }),
+           keepalive: true, // Гарантирует отправку запроса при уничтожении страницы
+       }).catch(() => {});
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });

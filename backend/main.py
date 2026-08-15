@@ -4407,6 +4407,8 @@ def startup():
 
 
 from pydantic import BaseModel
+from sqlmodel import select
+from datetime import datetime, timezone
 
 class ProgressIn(BaseModel):
     scroll_y: int = 0
@@ -4416,17 +4418,31 @@ class ProgressIn(BaseModel):
 def save_read_progress(
     post_id: int,
     data: ProgressIn,
-    user: User = Depends(get_current_user), # Требуем авторизации!
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Сохраняет позицию чтения (с вызовом с фронта)"""
     progress = session.exec(
         select(ReadProgress).where(
             ReadProgress.user_id == user.id,
             ReadProgress.post_id == post_id
         )
     ).first()
-    
+
+    # 🧹 1. Если пост прочитан почти до конца (>= 95%) — удаляем из истории!
+    # Благодаря этому кнопка "Продолжить чтение" исчезнет, а пост пропадёт из списка истории.
+    if data.percent_read >= 95.0:
+        if progress:
+            session.delete(progress)
+            session.commit()
+        return {"ok": True, "cleared": True}
+
+    # 🧹 2. Не сохраняем прогресс, если пользователь почти не скроллил (защита от мусора в БД)
+    if data.scroll_y < 100 and data.percent_read < 5.0:
+        if progress:
+            session.delete(progress)
+            session.commit()
+        return {"ok": True}
+
     if progress:
         progress.scroll_y = data.scroll_y
         progress.percent_read = data.percent_read
@@ -4439,9 +4455,52 @@ def save_read_progress(
             percent_read=data.percent_read,
         )
         session.add(progress)
-        
+    
     session.commit()
-    return {"ok": True}
+    return {"ok": True, "cleared": False}
+
+
+
+@app.get("/api/posts/reading-history")
+def get_reading_history(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Возвращает список постов, которые пользователь не дочитал (percent < 95%)"""
+    progresses = session.exec(
+        select(ReadProgress)
+        .where(ReadProgress.user_id == user.id, ReadProgress.percent_read < 95.0)
+        .order_by(ReadProgress.updated_at.desc())
+        .limit(10)
+    ).all()
+    
+    if not progresses:
+        return []
+        
+    post_ids = [p.post_id for p in progresses]
+    posts = session.exec(select(Post).where(Post.id.in_(post_ids))).all()
+    posts_map = {p.id: p for p in posts}
+    
+    author_ids = list({p.author_id for p in posts})
+    authors = session.exec(select(User).where(User.id.in_(author_ids))).all()
+    authors_map = {u.id: u for u in authors}
+    
+    result = []
+    for prog in progresses:
+        post = posts_map.get(prog.post_id)
+        if not post: continue
+        author = authors_map.get(post.author_id)
+        
+        result.append({
+            "post_id": post.id,
+            "text": post.text[:150] + "..." if len(post.text) > 150 else post.text,
+            "author_name": author.display_name if author else "Unknown",
+            "author_avatar": author.avatar_url if author else None,
+            "percent_read": prog.percent_read,
+            "scroll_y": prog.scroll_y,
+            "updated_at": prog.updated_at.isoformat(),
+        })
+    return result
 
 @app.get("/api/posts/{post_id}/progress")
 def get_read_progress(
