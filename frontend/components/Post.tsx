@@ -3,7 +3,7 @@ import { STICKERS } from "@/lib/stickers";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, X } from "lucide-react";
+import { Heart, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, X, Radio } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
 import { safeFetch } from "@/lib/ban";
@@ -16,9 +16,7 @@ import { getCachedUser } from "@/lib/authCache";
 import { timeAgo } from "@/lib/time";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import LinkPreview from "@/components/LinkPreview";
-import { EchoTree } from "@/components/EchoTree";
-
-
+import { EchoModal } from "@/components/EchoModal"; // Импортируем модалку
 
 function renderText(text: string) {
   if (!text) return null;
@@ -80,20 +78,16 @@ function renderText(text: string) {
   });
 }
 
-
 function extractFirstUrl(text: string): string | null {
   const m = text.match(/https?:\/\/[^\s<>"]+/);
   return m ? m[0].replace(/[.,;:!?)]+$/, "") : null;
 }
 
 function SmartMedia({ src, type, className }: { src: string; type?: string | null; className?: string }) {
-  // ✅ Синхронно определяем тип ДО первого рендера
   const [mediaKind, setMediaKind] = useState<"image" | "audio" | "video" | "loading">(() => {
     if (type === "audio") return "audio";
     if (type === "video") return "video";
     if (type === "image") return "image";
-    
-    // Проверяем расширение в URL
     if (src) {
       const clean = src.split("?")[0].toLowerCase();
       if (/\.(mp3|wav|ogg|m4a|aac)$/.test(clean)) return "audio";
@@ -103,7 +97,6 @@ function SmartMedia({ src, type, className }: { src: string; type?: string | nul
     return "loading";
   });
 
-  // Фолбэк только для файлов без расширения
   useEffect(() => {
     if (mediaKind !== "loading") return;
     const img = new Image();
@@ -206,8 +199,8 @@ export function Post({
   repost_of?: any;
   is_repost?: boolean;
   is_quote?: boolean;
-  isMainPost?: boolean;    // 🆕 Добавлено
-  externalReplies?: any[]; // 🆕 Добавлено
+  isMainPost?: boolean;
+  externalReplies?: any[];
 }) {
     const [currentUser] = useState(() => {
       const cached = getCachedUser();
@@ -242,13 +235,13 @@ export function Post({
     const [displayText, setDisplayText] = useState(text);
     const [isEdited, setIsEdited] = useState(false);
     const [savingEdit, setSavingEdit] = useState(false);
+    const [showEcho, setShowEcho] = useState(false); // Состояние для Эхо
     const router = useRouter();
 
   useEffect(() => {
     setDisplayText(text);
     setEditText(text);
   }, [text]);
-
 
   useEffect(() => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/view`, {
@@ -326,8 +319,6 @@ export function Post({
 
   const handlePostClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    
-    // Игнорируем клики по интерактивным элементам, чтобы не ломать кнопки, ссылки, медиа и выделение текста
     if (
       target.closest("a") ||
       target.closest("button") ||
@@ -340,11 +331,8 @@ export function Post({
     ) {
       return;
     }
-    
-    // Переходим на страницу поста
     router.push(`/post/${id}`);
   };
-
 
   async function toggleFollow(e: React.MouseEvent) {
     e.stopPropagation();
@@ -416,6 +404,7 @@ export function Post({
       triggerFeedRefresh();
     }
   }
+
   async function saveEdit() {
     if (!editText.trim() || editText === displayText) {
       setEditing(false);
@@ -450,6 +439,7 @@ export function Post({
       }
     }
   }
+
   async function deletePost() {
     if (!confirm("Удалить пост?")) return;
     const token = getToken();
@@ -471,42 +461,19 @@ export function Post({
     }
   }
 
-  // 🆕 Функции для репостов и цитат
-  async function handleRepost(postId: number) {
+  // 🆕 ЕДИНАЯ ФУНКЦИЯ ДЛЯ РЕПОСТА И ЦИТАТЫ
+  async function handleRepostOrQuote(postId: number) {
     const token = getToken();
     if (!token) { router.push("/login"); return; }
-    if (!confirm("Сделать репост?")) return;
+    
+    const text = prompt("Добавить комментарий? (Оставьте пустым для обычного репоста)");
+    if (text === null) return; // Пользователь нажал "Отмена"
 
     const form = new FormData();
     form.append("repost_of", String(postId));
-
-    const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
-    });
-
-    if (res.ok) {
-      triggerFeedRefresh();
-    } else {
-      try {
-        const err = await res.json();
-        alert(err.detail || "Ошибка репоста");
-      } catch {
-        alert("Ошибка репоста");
-      }
+    if (text.trim()) {
+      form.append("text", text.trim());
     }
-  }
-
-  async function handleQuote(postId: number) {
-    const token = getToken();
-    if (!token) { router.push("/login"); return; }
-    const text = prompt("Ваш комментарий к цитате:");
-    if (!text) return;
-
-    const form = new FormData();
-    form.append("repost_of", String(postId));
-    form.append("text", text);
 
     const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts`, {
       method: "POST",
@@ -519,9 +486,9 @@ export function Post({
     } else {
       try {
         const err = await res.json();
-        alert(err.detail || "Ошибка цитирования");
+        alert(err.detail || "Ошибка");
       } catch {
-        alert("Ошибка цитирования");
+        alert("Ошибка");
       }
     }
   }
@@ -553,7 +520,6 @@ export function Post({
     }
   }, [liked_by_me, id]);
 
-
   const canDelete = currentUser?.id === author_id || myPermissions.includes("delete_posts");
   const canEdit = currentUser?.id === author_id || myPermissions.includes("edit_posts");
 
@@ -562,7 +528,6 @@ export function Post({
       className="p-4 border-b border-white/10 hover:bg-white/5 transition-colors cursor-pointer"
       onClick={handlePostClick}
       >
-      {/* 🆕 Плашка репоста */}
       {is_repost && (
         <div className="flex items-center gap-2 text-xs text-white/50 ml-12 mb-1">
           <RefreshCw size={14} />
@@ -596,6 +561,8 @@ export function Post({
               <span className="font-normal text-white/50 flex items-center gap-1.5">
                 {handle} {created_at ? `· ${timeAgo(created_at)}` : ""}
                 {isEdited && <span className="text-white/40 text-[10px] italic">(ред.)</span>}
+                
+                {/* Карандаш (Редактировать) */}
                 {canEdit && !is_repost && !editing && (
                   <button
                     onClick={(e) => {
@@ -609,6 +576,18 @@ export function Post({
                     <Pencil size={12} />
                   </button>
                 )}
+                
+                {/* 🆕 Иконка Эхо (Рядом с карандашом) */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowEcho(true);
+                  }}
+                  className="text-white/30 hover:text-purple-400 transition-colors"
+                  title="Эхо поста (репосты и цитаты)"
+                >
+                  <Radio size={12} />
+                </button>
               </span>
             </div>
             {currentUser?.id !== author_id && !is_repost && (
@@ -625,7 +604,6 @@ export function Post({
             )}
           </div>
           
-          {/* 🆕 Рендер текста и вложенного поста */}
           {is_quote && (
               <>
                 <p className="mt-1 text-white/90 whitespace-pre-wrap break-words">{renderText(displayText)}</p>
@@ -692,27 +670,17 @@ export function Post({
               <Reply size={16} />
             </button>
 
-            {/* 🆕 Кнопки Репоста и Цитаты */}
+            {/* 🆕 ЕДИНАЯ КНОПКА РЕПОСТА И ЦИТАТЫ */}
             {currentUser && currentUser.id !== author_id && !is_repost && !is_quote && (
-              <>
-                <button
-                  onClick={() => handleRepost(id)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-white/20 text-white/70 hover:bg-emerald-500/10 hover:border-emerald-400/30 hover:text-emerald-400 transition-all"
-                  title="Репост"
-                >
-                  <RefreshCw size={16} />
-                </button>
-                <button
-                  onClick={() => handleQuote(id)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-white/20 text-white/70 hover:bg-cyan-500/10 hover:border-cyan-400/30 hover:text-cyan-400 transition-all"
-                  title="Цитировать"
-                >
-                  <Quote size={16} />
-                </button>
-              </>
+              <button
+                onClick={() => handleRepostOrQuote(id)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-white/20 text-white/70 hover:bg-emerald-500/10 hover:border-emerald-400/30 hover:text-emerald-400 transition-all"
+                title="Репост / Цитата"
+              >
+                <RefreshCw size={16} />
+              </button>
             )}
 
-            {/* 🆕 Отмена своего репоста */}
             {is_repost && currentUser?.id === author_id && (
               <button
                 onClick={() => handleCancelRepost(id)}
@@ -733,8 +701,6 @@ export function Post({
               </button>
             )}
 
-
-
             {canDelete && (
               <button
                 onClick={deletePost}
@@ -751,7 +717,7 @@ export function Post({
               </span>
             )}
 
-            {rCount > 0 && !isMainPost && ( // 🆕 Добавлено !isMainPost, чтобы скрыть кнопку на странице отдельного поста
+            {rCount > 0 && !isMainPost && ( 
               <button
                 onClick={loadReplies}
                 className="text-sm font-semibold text-[#8b5cf6] hover:text-[#a78bfa] underline underline-offset-4 transition-colors"
@@ -834,8 +800,8 @@ export function Post({
         </div>
       </div>
 
-      {/* 🔊 ЭХО-ДЕРЕВО */}
-        <EchoTree postId={id} />
+      {/* 🔊 ЭХО-МОДАЛКА (Открывается по клику на иконку Radio) */}
+      {showEcho && <EchoModal postId={id} onClose={() => setShowEcho(false)} />}
 
       {showReport && (
         <ReportModal
@@ -845,7 +811,6 @@ export function Post({
         />
       )}
 
-      {/* ✏️ МОДАЛКА РЕДАКТИРОВАНИЯ */}
       {editing && (
         <>
           <div
@@ -918,8 +883,6 @@ export function Post({
           </div>
         </>
       )}
-
-
     </article>
   );
 }

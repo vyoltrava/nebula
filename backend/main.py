@@ -1814,204 +1814,58 @@ def get_replies(post_id: int, session: Session = Depends(get_session)):
 
 
 # ============================================================
-# 🔊 ЭХО-СИСТЕМА — ДЕРЕВО ЭХО
+# 🌳 ЭХО ПОСТА (ДЕРЕВО РЕПОСТОВ И ЦИТАТ)
 # ============================================================
-
-@app.get("/api/posts/{post_id}/echoes")
-def get_echo_tree(
-    post_id: int,
-    viewer: Optional[User] = Depends(get_optional_user),
-    session: Session = Depends(get_session),
-):
-    """Возвращает полное дерево эхо для поста (рекурсивно)"""
-    root_post = session.get(Post, post_id)
-    if not root_post:
-        raise HTTPException(404, "Post not found")
-
-    # BFS для сбора всех эхо
-    echo_ids = set()
+@app.get("/api/posts/{post_id}/echo")
+def get_echo_tree(post_id: int, session: Session = Depends(get_session)):
+    """Рекурсивный сбор всей цепочки репостов и цитат"""
+    visited = set()
     queue = [post_id]
+    all_ids = []
+    
     while queue:
-        current_id = queue.pop(0)
-        children = session.exec(
-            select(Post.id).where(Post.echo_parent_id == current_id)
-        ).all()
-        for child_id in children:
-            if child_id not in echo_ids:
-                echo_ids.add(child_id)
-                queue.append(child_id)
-
-    if not echo_ids:
-        return {"root_id": post_id, "echoes": [], "total_count": 0}
-
-    id_list = list(echo_ids)
-
-    # Один запрос на все эхо
-    echoes = session.exec(
-        select(Post).where(Post.id.in_(id_list)).order_by(Post.created_at.asc())
-    ).all()
-
-    if not echoes:
-        return {"root_id": post_id, "echoes": [], "total_count": 0}
-
-    echo_id_list = [p.id for p in echoes]
-
-    # Массовые запросы
-    author_ids = list({p.author_id for p in echoes})
-    authors = {u.id: u for u in session.exec(
-        select(User).where(User.id.in_(author_ids))
-    ).all()}
-
-    likes_counts = dict(session.exec(
+        curr = queue.pop(0)
+        if curr in visited: 
+            continue
+        visited.add(curr)
+        all_ids.append(curr)
+        
+        children = session.exec(select(Post.id).where(Post.repost_of_id == curr)).all()
+        for c in children:
+            if c not in visited:
+                queue.append(c)
+                
+    if not all_ids:
+        return []
+        
+    posts = session.exec(select(Post).where(Post.id.in_(all_ids))).all()
+    author_ids = list({p.author_id for p in posts})
+    authors = {u.id: u for u in session.exec(select(User).where(User.id.in_(author_ids))).all()}
+    
+    # Массовый подсчет лайков
+    likes_map = dict(session.exec(
         select(Like.post_id, func.count(Like.id))
-        .where(Like.post_id.in_(echo_id_list))
+        .where(Like.post_id.in_(all_ids))
         .group_by(Like.post_id)
     ).all())
-
-    # Лайки текущего пользователя
-    liked_ids = set()
-    if viewer:
-        liked_ids = set(session.exec(
-            select(Like.post_id).where(Like.user_id == viewer.id, Like.post_id.in_(echo_id_list))
-        ).all())
-
-    # Считаем количество эхо у каждого эха
-    echo_counts = dict(session.exec(
-        select(Post.echo_parent_id, func.count(Post.id))
-        .where(Post.echo_parent_id.in_(echo_id_list + [post_id]))
-        .group_by(Post.echo_parent_id)
-    ).all())
-
+    
     result = []
-    for p in echoes:
+    for p in posts:
         author = authors.get(p.author_id)
         result.append({
             "id": p.id,
             "author_id": p.author_id,
             "author": author.display_name if author else "Unknown",
             "handle": f"@{author.username}" if author else "@unknown",
-            "username": author.username if author else "unknown",
             "author_avatar": author.avatar_url if author else None,
-            "author_is_admin": author.is_admin if author else False,
-            "author_is_moderator": author.is_moderator if author else False,
-            "author_is_banned": author.is_banned if author else False,
-            "author_role": get_author_role(author, session) if author else None,
             "text": p.text,
             "media_url": p.media_url,
-            "media_type": p.media_type,
-            "echo_parent_id": p.echo_parent_id,
-            "likes_count": likes_counts.get(p.id, 0),
-            "liked_by_me": p.id in liked_ids,
-            "echoes_count": echo_counts.get(p.id, 0),
             "created_at": p.created_at.isoformat(),
+            "repost_of_id": p.repost_of_id,
+            "is_quote": bool(p.text.strip()),
+            "likes_count": likes_map.get(p.id, 0),
         })
-
-    return {
-        "root_id": post_id,
-        "echoes": result,
-        "total_count": len(result),
-    }
-
-
-@app.post("/api/posts/{post_id}/echo")
-@limiter.limit("10/minute")
-async def create_echo(
-    request: Request,
-    post_id: int,
-    text: str = Form(""),
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Создать эхо (ответ-ветку) к посту"""
-    parent_post = session.get(Post, post_id)
-    if not parent_post:
-        raise HTTPException(404, "Пост не найден")
-
-    if not text.strip():
-        raise HTTPException(400, "Эхо не может быть пустым")
-
-    echo_post = Post(
-        author_id=user.id,
-        text=text.strip(),
-        echo_parent_id=post_id,
-    )
-    session.add(echo_post)
-    session.commit()
-    session.refresh(echo_post)
-
-    # Теги
-    for tag_name in extract_tags(text):
-        tag = session.exec(select(Tag).where(Tag.name == tag_name)).first()
-        if not tag:
-            tag = Tag(name=tag_name)
-            session.add(tag)
-            session.commit()
-            session.refresh(tag)
-        session.add(PostTag(post_id=echo_post.id, tag_id=tag.id))
-
-    # Упоминания
-    for username in extract_mentions(text):
-        mentioned = session.exec(
-            select(User).where(func.lower(User.username) == username)
-        ).first()
-        if mentioned and mentioned.id != user.id:
-            session.add(Notification(
-                user_id=mentioned.id, actor_id=user.id,
-                type="mention", post_id=echo_post.id,
-            ))
-
-    # Уведомление автору оригинала
-    if parent_post.author_id != user.id:
-        session.add(Notification(
-            user_id=parent_post.author_id,
-            actor_id=user.id,
-            type="echo",
-            post_id=echo_post.id,
-        ))
-
-    log_action(
-        session, user.id, "create_echo",
-        target_type="post", target_id=echo_post.id,
-        details={"text": echo_post.text[:100], "echo_parent_id": post_id},
-        ip_address=get_client_ip(request),
-    )
-    session.commit()
-
-    # WebSocket — уведомляем автора оригинала
-    if parent_post.author_id != user.id:
-        await manager.broadcast_to_users(
-            [parent_post.author_id],
-            "new_echo",
-            {
-                "echo_id": echo_post.id,
-                "parent_id": post_id,
-                "author_id": user.id,
-                "author_name": user.display_name,
-                "text": echo_post.text[:200],
-            }
-        )
-
-    author = session.get(User, user.id)
-    return {
-        "id": echo_post.id,
-        "author_id": user.id,
-        "author": user.display_name,
-        "handle": f"@{user.username}",
-        "username": user.username,
-        "author_avatar": user.avatar_url,
-        "author_is_admin": user.is_admin,
-        "author_is_moderator": user.is_moderator,
-        "author_is_banned": user.is_banned,
-        "author_role": get_author_role(user, session),
-        "text": echo_post.text,
-        "media_url": None,
-        "media_type": None,
-        "echo_parent_id": post_id,
-        "likes_count": 0,
-        "liked_by_me": False,
-        "echoes_count": 0,
-        "created_at": echo_post.created_at.isoformat(),
-    }
+    return result
 
 @app.get("/api/posts/{post_id}")
 def get_single_post(
