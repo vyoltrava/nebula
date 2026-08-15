@@ -24,6 +24,12 @@ const OUTER_RADIUS     = 215;
 const SNAP_RADIUS      = 48;
 const LONG_PRESS_MS    = 250;
 
+// 🆕 ЖЕСТЫ ОТТЯГИВАНИЯ
+const PULL_BACK_THRESHOLD = INNER_RADIUS * 0.65;   // ~88px влево = назад
+const SCROLL_DEAD_ZONE    = 25;                     // мёртвая зона вокруг центра
+const SCROLL_MAX_SPEED    = 50;                     // max px/frame
+const SCROLL_SENSITIVITY  = 0.8;                    // множитель скорости
+
 const ARC_SPAN     = Math.PI / 2;
 const ARC_CENTER   = Math.PI;
 const ARC_START    = ARC_CENTER - ARC_SPAN;
@@ -441,6 +447,9 @@ const continueConfig = lastReadPost
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [fingerPos, setFingerPos]   = useState<{ x: number; y: number } | null>(null);
   const [closing, setClosing]       = useState(false);
+  const [pullingBack, setPullingBack] = useState(false);
+  const [scrollVelocity, setScrollVelocity] = useState(0);
+  const scrollRafRef = useRef<number>(0);
 
   const buttonRef        = useRef<HTMLButtonElement>(null);
   const longPressTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -631,13 +640,22 @@ const continueConfig = lastReadPost
     isLongPressed.current = true;
     setWheelOpen(true);
     setClosing(false);
+    setPullingBack(false);     // 🆕 сбрасываем жесты
+    setScrollVelocity(0);      // 🆕 сбрасываем скролл
     requestAnimationFrame(() => {
       requestAnimationFrame(() => { setWheelReady(true); });
     });
   }, []);
 
   const closeWheel = useCallback((doAction: boolean) => {
-    if (doAction && hoveredIdx !== null) {
+    // 🆕 Если тянул ВЛЕВО → router.back()
+    if (pullingBack) {
+      setPullingBack(false);
+      setScrollVelocity(0);
+      router.back();
+    }
+    // 🆕 Иначе обычная логика выбора пункта меню
+    else if (doAction && hoveredIdx !== null) {
       const item = wheelItems[hoveredIdx];
       if (item) {
         if (item.href === "#logout") {
@@ -659,12 +677,13 @@ const continueConfig = lastReadPost
     setClosing(true);
     setHoveredIdx(null);
     setFingerPos(null);
+    setScrollVelocity(0); // 🆕 останавливаем скролл
     setTimeout(() => {
       setWheelOpen(false);
       setClosing(false);
       isLongPressed.current = false;
     }, 280);
-  }, [hoveredIdx, wheelItems, router]);
+  }, [hoveredIdx, wheelItems, router, pullingBack]);
 
   const findNearest = useCallback((px: number, py: number): number | null => {
     let minDist = Infinity;
@@ -700,18 +719,60 @@ const continueConfig = lastReadPost
     };
 
     const handleMove = (px: number, py: number) => {
+      // 🆕 До открытия меню — если сдвинул >15px, отменяем long press (меню не откроется)
       if (longPressTimer.current && startPos.current) {
         const dx = px - startPos.current.x;
         const dy = py - startPos.current.y;
         if (Math.sqrt(dx * dx + dy * dy) > 15) cancelTimer();
         return;
       }
+      
+      // 🆕 Меню открыто — отслеживаем жесты оттягивания
       if (isLongPressed.current) {
         const idx = findNearest(px, py);
         setHoveredIdx(idx);
         setFingerPos({ x: px, y: py });
+
+        const cx = arcCenterRef.current.x;
+        const cy = arcCenterRef.current.y;
+        const dx = px - cx;
+        const dy = py - cy;
+
+        // 🆕 Тянем ВЛЕВО → готовимся к router.back()
+        if (dx < -PULL_BACK_THRESHOLD && Math.abs(dy) < PULL_BACK_THRESHOLD) {
+          setPullingBack(true);
+          setScrollVelocity(0);
+        } 
+        // 🆕 Тянем ВВЕРХ или ВНИЗ → автоскролл
+        else if (Math.abs(dy) > SCROLL_DEAD_ZONE && Math.abs(dx) < PULL_BACK_THRESHOLD * 0.8) {
+          setPullingBack(false);
+          const speed = Math.min(Math.abs(dy) * SCROLL_SENSITIVITY, SCROLL_MAX_SPEED);
+          setScrollVelocity(dy > 0 ? -speed : speed); // вверх = отрицательный scroll
+        } 
+        // 🆕 Вернулись в центр — сбрасываем
+        else {
+          setPullingBack(false);
+          setScrollVelocity(0);
+        }
       }
     };
+
+    // 🆕 Автоскролл страницы когда scrollVelocity !== 0
+    useEffect(() => {
+      if (scrollVelocity === 0) {
+        cancelAnimationFrame(scrollRafRef.current);
+        return;
+      }
+
+      const scroll = () => {
+        window.scrollBy({ top: scrollVelocity, behavior: "instant" as ScrollBehavior });
+        scrollRafRef.current = requestAnimationFrame(scroll);
+      };
+      scrollRafRef.current = requestAnimationFrame(scroll);
+
+      return () => cancelAnimationFrame(scrollRafRef.current);
+    }, [scrollVelocity]);
+
 
     const handleEnd = () => {
       cancelTimer();
@@ -1073,6 +1134,43 @@ const continueConfig = lastReadPost
             style={{ left: activePos.x, top: activePos.y, transform: "translate(-50%, -50%)", zIndex: 9 }}
           >
             <div className="w-full h-full rounded-full border-2 border-[#8b5cf6]/30 animate-ping" />
+          </div>
+        )}
+
+        {/* 🆕 Индикатор "тянешь назад" */}
+        {pullingBack && (
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              left: arcCenterRef.current.x - 100,
+              top: arcCenterRef.current.y,
+              transform: "translate(-50%, -50%)",
+              zIndex: 30,
+            }}
+          >
+            <div className="flex items-center gap-2 bg-[#8b5cf6] text-white px-4 py-2 rounded-full shadow-2xl animate-pulse">
+              <ChevronLeft size={20} />
+              <span className="text-sm font-bold">Назад</span>
+            </div>
+          </div>
+        )}
+
+        {/* 🆕 Индикатор скролла */}
+        {scrollVelocity !== 0 && !pullingBack && (
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              left: arcCenterRef.current.x,
+              top: arcCenterRef.current.y + (scrollVelocity > 0 ? -80 : 80),
+              transform: "translate(-50%, -50%)",
+              zIndex: 30,
+            }}
+          >
+            <div className="flex items-center gap-2 bg-[#8b5cf6]/80 text-white px-3 py-1.5 rounded-full shadow-lg backdrop-blur-sm">
+              <span className="text-xs font-bold">
+                {scrollVelocity > 0 ? "↑" : "↓"} {Math.abs(Math.round(scrollVelocity))}px
+              </span>
+            </div>
           </div>
         )}
       </div>
