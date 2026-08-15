@@ -4191,20 +4191,13 @@ def startup():
             conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_reaction_unique ON message_reaction(message_id, user_id, COALESCE(sticker_id, 0), COALESCE(emoji, ''));"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_reaction_message ON message_reaction(message_id);"))
 
-
-            # ===== 📖 ПРОГРЕСС ЧТЕНИЯ (СИНХРОНИЗАЦИЯ МЕЖДУ УСТРОЙСТВАМИ) =====
             conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS readprogress (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+            CREATE TABLE IF NOT EXISTS lastreadpost (
+                user_id INTEGER PRIMARY KEY REFERENCES "user"(id) ON DELETE CASCADE,
                 post_id INTEGER NOT NULL REFERENCES post(id) ON DELETE CASCADE,
-                scroll_y INTEGER DEFAULT 0,
-                percent_read FLOAT DEFAULT 0.0,
-                updated_at TIMESTAMPTZ DEFAULT NOW(),
-                UNIQUE(user_id, post_id)
+                saved_at TIMESTAMPTZ DEFAULT NOW()
             );
             """))
-            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_readprogress_user_post ON readprogress(user_id, post_id);'))
 
             # ===== ЧАТЫ И СООБЩЕНИЯ =====
             conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS pinned_by INTEGER REFERENCES \"user\"(id);"))
@@ -4406,119 +4399,65 @@ def startup():
 
 
 
-from pydantic import BaseModel
-from sqlmodel import select
-from datetime import datetime, timezone
+class MarkReadingIn(BaseModel):
+    post_id: int
 
-class ProgressIn(BaseModel):
-    scroll_y: int = 0
-    percent_read: float = 0.0
-
-@app.post("/api/posts/{post_id}/progress")
-def save_read_progress(
-    post_id: int,
-    data: ProgressIn,
+@app.post("/api/me/last-read")
+def mark_as_last_read(
+    data: MarkReadingIn,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    progress = session.exec(
-        select(ReadProgress).where(
-            ReadProgress.user_id == user.id,
-            ReadProgress.post_id == post_id
-        )
-    ).first()
-
-    # 🧹 1. Если пост прочитан почти до конца (>= 95%) — удаляем из истории!
-    # Благодаря этому кнопка "Продолжить чтение" исчезнет, а пост пропадёт из списка истории.
-    if data.percent_read >= 95.0:
-        if progress:
-            session.delete(progress)
-            session.commit()
-        return {"ok": True, "cleared": True}
-
-    # 🧹 2. Не сохраняем прогресс, если пользователь почти не скроллил (защита от мусора в БД)
-    if data.scroll_y < 100 and data.percent_read < 5.0:
-        if progress:
-            session.delete(progress)
-            session.commit()
-        return {"ok": True}
-
-    if progress:
-        progress.scroll_y = data.scroll_y
-        progress.percent_read = data.percent_read
-        progress.updated_at = datetime.now(timezone.utc)
+    """Запоминаем, что юзер начал читать этот пост.
+    Вызывается ТОЛЬКО когда пользователь открыл /post/{id} отдельной страницей."""
+    existing = session.get(LastReadPost, user.id)
+    if existing:
+        existing.post_id = data.post_id
+        existing.saved_at = datetime.now(timezone.utc)
     else:
-        progress = ReadProgress(
-            user_id=user.id,
-            post_id=post_id,
-            scroll_y=data.scroll_y,
-            percent_read=data.percent_read,
-        )
-        session.add(progress)
-    
+        session.add(LastReadPost(user_id=user.id, post_id=data.post_id))
     session.commit()
-    return {"ok": True, "cleared": False}
+    return {"ok": True}
 
 
-
-@app.get("/api/posts/reading-history")
-def get_reading_history(
+@app.get("/api/me/last-read")
+def get_last_read_post(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Возвращает список постов, которые пользователь не дочитал (percent < 95%)"""
-    progresses = session.exec(
-        select(ReadProgress)
-        .where(ReadProgress.user_id == user.id, ReadProgress.percent_read < 95.0)
-        .order_by(ReadProgress.updated_at.desc())
-        .limit(10)
-    ).all()
+    """Возвращает последний читаемый пост для плашки 'Продолжить чтение'"""
+    record = session.get(LastReadPost, user.id)
+    if not record:
+        return {"has_post": False}
     
-    if not progresses:
-        return []
-        
-    post_ids = [p.post_id for p in progresses]
-    posts = session.exec(select(Post).where(Post.id.in_(post_ids))).all()
-    posts_map = {p.id: p for p in posts}
+    post = session.get(Post, record.post_id)
+    if not post:
+        session.delete(record)
+        session.commit()
+        return {"has_post": False}
     
-    author_ids = list({p.author_id for p in posts})
-    authors = session.exec(select(User).where(User.id.in_(author_ids))).all()
-    authors_map = {u.id: u for u in authors}
-    
-    result = []
-    for prog in progresses:
-        post = posts_map.get(prog.post_id)
-        if not post: continue
-        author = authors_map.get(post.author_id)
-        
-        result.append({
-            "post_id": post.id,
-            "text": post.text[:150] + "..." if len(post.text) > 150 else post.text,
-            "author_name": author.display_name if author else "Unknown",
-            "author_avatar": author.avatar_url if author else None,
-            "percent_read": prog.percent_read,
-            "scroll_y": prog.scroll_y,
-            "updated_at": prog.updated_at.isoformat(),
-        })
-    return result
+    author = session.get(User, post.author_id)
+    return {
+        "has_post": True,
+        "post_id": post.id,
+        "text_preview": (post.text or "📎 Медиа")[:80],
+        "author_name": author.display_name if author else "Unknown",
+        "author_avatar": author.avatar_url if author else None,
+        "saved_at": record.saved_at.isoformat(),
+    }
 
-@app.get("/api/posts/{post_id}/progress")
-def get_read_progress(
-    post_id: int,
+
+@app.delete("/api/me/last-read")
+def clear_last_read_post(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Отдает сохраненную позицию при заходе с нового устройства"""
-    progress = session.exec(
-        select(ReadProgress).where(
-            ReadProgress.user_id == user.id,
-            ReadProgress.post_id == post_id
-        )
-    ).first()
-    
-    if not progress:
-        return {"scroll_y": 0, "percent_read": 0.0}
-    return {"scroll_y": progress.scroll_y, "percent_read": progress.percent_read}
+    """Стираем запись. Вызывается когда юзер открыл пост ИЛИ нажал 'Больше не показывать'."""
+    record = session.get(LastReadPost, user.id)
+    if record:
+        session.delete(record)
+        session.commit()
+    return {"ok": True}
 
 
 # ============================================================

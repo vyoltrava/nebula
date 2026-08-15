@@ -7,7 +7,7 @@ import { Post } from "@/components/Post";
 import { Sidebar } from "@/components/Sidebar";
 import { RightPanel } from "@/components/RightPanel";
 import { MainPostSkeleton } from "@/components/Skeletons";
-import { useReadingProgress } from "@/src/hooks/useReadingProgress";
+import { useLastReadPost } from "@/src/hooks/useLastReadPost";
 
 export default function PostPage() {
   const { id } = useParams();
@@ -17,10 +17,19 @@ export default function PostPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  // ✅ Хук вызывается БЕЗУСЛОВНО в начале компонента
   const postId = id ? parseInt(id as string) : 0;
-  useReadingProgress(postId);
+  const { save, clear } = useLastReadPost();
 
+  // 🎯 Сохраняем в БД и СРАЗУ чистим запись
+  // (пользователь УЖЕ на этом посте, плашка "Продолжить" должна исчезнуть)
+  useEffect(() => {
+    if (!postId || postId <= 0) return;
+
+    save(postId).then(() => clear());
+    window.dispatchEvent(new CustomEvent("last-read-saved"));
+  }, [postId, save, clear]);
+
+  // 📦 Загрузка самого поста и ответов
   useEffect(() => {
     if (!id) return;
 
@@ -81,10 +90,8 @@ export default function PostPage() {
   return (
     <div className="h-screen flex overflow-hidden bg-[#171717] text-white">
       <Sidebar />
-      
       <main className="flex-1 overflow-y-auto border-x border-white/10 min-w-0">
         <div className="w-full">
-          
           <button
             onClick={() => router.back()}
             className="sticky top-0 z-10 w-full px-4 py-3 bg-[#171717]/90 backdrop-blur-md border-b border-white/10 flex items-center gap-2 text-white/60 hover:text-white transition-colors font-medium"
@@ -96,15 +103,14 @@ export default function PostPage() {
           </button>
 
           <div className="border-b border-white/10">
-            <Post 
-              {...postWithoutReplies} 
-              isMainPost={true} 
-              externalReplies={replies} 
+            <Post
+              {...postWithoutReplies}
+              isMainPost={true}
+              externalReplies={replies}
             />
           </div>
         </div>
       </main>
-
       <RightPanel />
     </div>
   );

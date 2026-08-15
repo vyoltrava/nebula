@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus,
   AtSign, X, Shield, ShieldCheck, MessageSquare, Palette,
-  Bug, Orbit, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft, ChevronRight, History
+  Bug, Orbit, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft, ChevronRight, History, BookOpen
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
@@ -14,6 +14,7 @@ import { getCachedUser, setCachedUser, clearCachedUser } from "@/lib/authCache";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { useWebSocket } from "@/src/hooks/useWebSocket";
 import { setLikedCache } from "@/lib/postCache";
+import { useLastReadPost } from "@/src/hooks/useLastReadPost"; 
 
 // ════════════════════════════════════════════════════════════════
 // 🎯 КОНСТАНТЫ ОРБИТЫ
@@ -353,6 +354,83 @@ export function Sidebar() {
   const [showSearch, setShowSearch]     = useState(false);
   const [showAdminMenu, setShowAdminMenu] = useState(false);
   const [showAdminDropdown, setShowAdminDropdown] = useState(false);
+  // ════════════════════════════════════════════════════════════════
+// 🧠 ПАМЯТЬ ЛЕНТЫ (Logic) — ОБЪЯВЛЯЕМ РАНЬШЕ, ЧЕМ ИСПОЛЬЗУЕМ
+// ════════════════════════════════════════════════════════════════
+const [hasFeedMemory, setHasFeedMemory] = useState(false);
+const [showTooltip, setShowTooltip] = useState(false);
+const lastTapRef = useRef(0);
+
+useEffect(() => {
+  const checkMemory = () => {
+    const mem = localStorage.getItem(FEED_MEMORY_KEY);
+    setHasFeedMemory(!!mem);
+  };
+  checkMemory();
+  
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === FEED_MEMORY_KEY) checkMemory();
+  };
+  
+  window.addEventListener("feed-memory-save", checkMemory);
+  window.addEventListener("feed-memory-clear", checkMemory);
+  window.addEventListener("storage", onStorage);
+  return () => {
+    window.removeEventListener("feed-memory-save", checkMemory);
+    window.removeEventListener("feed-memory-clear", checkMemory);
+    window.removeEventListener("storage", onStorage);
+  };
+}, []);
+
+const triggerRestore = useCallback(() => {
+  window.dispatchEvent(new CustomEvent("restore-feed-position"));
+}, []);
+
+useEffect(() => {
+  if (hasFeedMemory) {
+    const shown = parseInt(localStorage.getItem(FEED_TOOLTIP_KEY) || "0", 10);
+    if (shown < 3) {
+      setShowTooltip(true);
+      const timer = setTimeout(() => {
+        setShowTooltip(false);
+        localStorage.setItem(FEED_TOOLTIP_KEY, String(shown + 1));
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  } else {
+    setShowTooltip(false);
+  }
+}, [hasFeedMemory]);
+
+// 🆕 ═══ ПОСЛЕДНИЙ ЧИТАЕМЫЙ ПОСТ ═══
+const { post: lastReadPost, clear: clearLastRead } = useLastReadPost();
+
+// 🎯 УНИВЕРСАЛЬНАЯ ФУНКЦИЯ "ПРОДОЛЖИТЬ" (приоритет: пост > память ленты)
+const handleContinueClick = useCallback(() => {
+  if (lastReadPost) {
+    router.push(`/post/${lastReadPost.post_id}`);
+  } else if (hasFeedMemory) {
+    triggerRestore();
+  }
+}, [lastReadPost, hasFeedMemory, router, triggerRestore]);
+
+// Показывать ли кнопку вообще
+const showContinueButton = !!lastReadPost || hasFeedMemory;
+
+// Конфиг кнопки (текст, иконка, тип)
+const continueConfig = lastReadPost
+  ? {
+      icon: BookOpen,
+      label: "Продолжить чтение",
+      sublabel: `${lastReadPost.author_name}: ${lastReadPost.text_preview}`,
+      isPost: true,
+    }
+  : {
+      icon: History,
+      label: "Продолжить чтение",
+      sublabel: "Место в ленте",
+      isPost: false,
+    };
 
   const [wheelOpen, setWheelOpen]   = useState(false);
   const [wheelReady, setWheelReady] = useState(false);
@@ -406,6 +484,14 @@ export function Sidebar() {
   const innerItems: WheelItem[] = [
     { href: "/", icon: Home, label: "Главная" },
   ];
+
+    if (lastReadPost) {
+    innerItems.push({
+      href: `/post/${lastReadPost.post_id}`,
+      icon: BookOpen,
+      label: "Продолжить чтение",
+    });
+  }
   if (user) innerItems.push({ href: "/messages", icon: MessageSquare, label: "Сообщения", count: counts.chats });
   if (user) innerItems.push({ href: "/notifications", icon: Bell, label: "Уведомления", count: counts.notifications });
   innerItems.push({ href: "/bookmarks", icon: Bookmark, label: "Закладки" });
@@ -699,54 +785,6 @@ export function Sidebar() {
   const textClass = isDock ? "hidden" : "block";
   const containerClass = isDock ? "justify-center px-0 py-3" : "items-center gap-3 px-4 py-3";
 
-  // ════════════════════════════════════════════════════════════════
-  // 🧠 ПАМЯТЬ ЛЕНТЫ (Logic)
-  // ════════════════════════════════════════════════════════════════
-  const [hasFeedMemory, setHasFeedMemory] = useState(false);
-  const [showTooltip, setShowTooltip] = useState(false);
-  const lastTapRef = useRef(0);
-
-  useEffect(() => {
-    const checkMemory = () => {
-      const mem = localStorage.getItem(FEED_MEMORY_KEY);
-      setHasFeedMemory(!!mem);
-    };
-    checkMemory();
-    
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === FEED_MEMORY_KEY) checkMemory();
-    };
-    
-    window.addEventListener("feed-memory-save", checkMemory);
-    window.addEventListener("feed-memory-clear", checkMemory);
-    window.addEventListener("storage", onStorage);
-    return () => {
-      window.removeEventListener("feed-memory-save", checkMemory);
-      window.removeEventListener("feed-memory-clear", checkMemory);
-      window.removeEventListener("storage", onStorage);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (hasFeedMemory) {
-      const shown = parseInt(localStorage.getItem(FEED_TOOLTIP_KEY) || "0", 10);
-      if (shown < 3) {
-        setShowTooltip(true);
-        const timer = setTimeout(() => {
-          setShowTooltip(false);
-          localStorage.setItem(FEED_TOOLTIP_KEY, String(shown + 1));
-        }, 5000);
-        return () => clearTimeout(timer);
-      }
-    } else {
-      setShowTooltip(false);
-    }
-  }, [hasFeedMemory]);
-
-  const triggerRestore = useCallback(() => {
-    window.dispatchEvent(new CustomEvent("restore-feed-position"));
-  }, []);
-
   const handleOrbitDoubleClick = useCallback(() => {
     triggerRestore();
   }, [triggerRestore]);
@@ -767,18 +805,39 @@ export function Sidebar() {
       </div>
       
       <nav className="flex flex-col flex-1">
-        {/* 🔥 ПАМЯТЬ ЛЕНТЫ (Classic / Dock) */}
-        {hasFeedMemory && (
-          <button 
-            onClick={triggerRestore}
-            className={`flex ${containerClass} font-medium transition-all border-b border-[#8b5cf6]/20 group relative text-[#a78bfa] hover:bg-[#8b5cf6]/15 mb-1`}
-          >
-            <History size={18} className={`${iconClass} text-[#8b5cf6]`} />
-            <span className={textClass}>Продолжить чтение</span>
-            <span className={`${isDock ? "absolute top-2 right-2" : "ml-auto"} w-2 h-2 rounded-full bg-[#8b5cf6] animate-pulse shadow-[0_0_8px_#8b5cf6]`}></span>
-          </button>
-        )}
-
+{/* 🆕 🔥 УНИВЕРСАЛЬНАЯ КНОПКА "ПРОДОЛЖИТЬ" (Classic / Dock) */}
+{showContinueButton && (
+  <button 
+    onClick={handleContinueClick}
+    className={`flex ${containerClass} font-medium transition-all border-b border-[#8b5cf6]/20 group relative text-[#a78bfa] hover:bg-[#8b5cf6]/15 mb-1`}
+  >
+    <continueConfig.icon size={18} className={`${iconClass} text-[#8b5cf6]`} />
+    <div className={`${textClass} flex-1 min-w-0 text-left`}>
+      <div className="flex items-center gap-1.5">
+        <span>{continueConfig.label}</span>
+        <span className="w-1.5 h-1.5 rounded-full bg-[#8b5cf6] animate-pulse shadow-[0_0_6px_#8b5cf6]"></span>
+      </div>
+      {!isDock && (
+        <p className="text-[10px] text-white/40 truncate font-normal mt-0.5">
+          {continueConfig.sublabel}
+        </p>
+      )}
+    </div>
+    {/* Кнопка ✕ для очистки поста */}
+    {continueConfig.isPost && !isDock && (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          clearLastRead();
+        }}
+        className="shrink-0 p-1 rounded text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all"
+        title="Больше не напоминать"
+      >
+        <X size={12} />
+      </button>
+    )}
+  </button>
+)}
         {nav.map(({ href, icon: Icon, label }) => {
           const active = pathname === href;
           const showUpdatesBadge = href === "/updates" && (counts.updates || 0) > 0;
@@ -1036,7 +1095,7 @@ export function Sidebar() {
       {/* ═══════ МОБИЛКА ИЛИ DESKTOP ORBIT ═══════ */}
       <div className={layout === "orbit" ? "block" : "md:hidden"}>
         {/* 🔥 КРУГИ НА ВОДЕ (Память ленты) */}
-        {hasFeedMemory && (
+        {lastReadPost && (
           <div 
             className={`fixed z-[97] w-14 h-14 pointer-events-none flex items-center justify-center
               ${layout === "orbit" 
@@ -1076,58 +1135,78 @@ export function Sidebar() {
         {renderWheel()}
       </div>
 
-      {/* 🔥 ТУЛТИП ПАМЯТИ ЛЕНТЫ */}
-      {showTooltip && hasFeedMemory && (
-        <div 
-          className={`fixed z-[99] bg-[#8b5cf6] text-white text-xs font-bold px-3 py-2 rounded-lg shadow-xl whitespace-nowrap animate-bounce
-            ${layout === "orbit" 
-              ? (isMobile ? "right-20 top-[calc(50%+8px)] -translate-y-1/2" : "bottom-64 right-20") 
-              : (isDock ? "left-24 top-20" : "left-72 top-20")
-            }
-          `}
-        >
-          {layout === "orbit" ? "Двойной тап по орбите" : "Нажми, чтобы"} продолжить чтение
-          <div 
-            className={`absolute w-2 h-2 bg-[#8b5cf6] rotate-45
-              ${layout === "orbit" 
-                ? (isMobile ? "right-[-4px] top-1/2 -translate-y-1/2" : "bottom-[-4px] right-10") 
-                : "left-[-4px] top-4"
-              }
-            `}
-          ></div>
-        </div>
-      )}
+ {/* 🆕 🔥 ТУЛТИП "ПРОДОЛЖИТЬ ЧТЕНИЕ" */}
+{showTooltip && showContinueButton && (
+  <div 
+    className={`fixed z-[99] bg-[#8b5cf6] text-white text-xs font-bold px-3 py-2 rounded-lg shadow-xl whitespace-nowrap animate-bounce
+      ${layout === "orbit" 
+        ? (isMobile ? "right-20 top-[calc(50%+8px)] -translate-y-1/2" : "bottom-64 right-20") 
+        : (isDock ? "left-24 top-20" : "left-72 top-20")
+      }
+    `}
+  >
+    {layout === "orbit" 
+      ? "Нажми на орбиту → Продолжить чтение"
+      : "Нажми, чтобы продолжить чтение"
+    }
+    <div 
+      className={`absolute w-2 h-2 bg-[#8b5cf6] rotate-45
+        ${layout === "orbit" 
+          ? (isMobile ? "right-[-4px] top-1/2 -translate-y-1/2" : "bottom-[-4px] right-10") 
+          : "left-[-4px] top-4"
+        }
+      `}
+    ></div>
+  </div>
+)}
 
-      {/* ═══════ DESKTOP ORBIT: непрочитанное слева от орбиты ═══════ */}
-      {layout === "orbit" && !isMobile && (counts.chats > 0 || counts.notifications > 0) && (
-      <div className={`fixed right-[92px] ${orbitRowPos} z-[97] flex flex-row items-center gap-3`}>
-          {counts.chats > 0 && (
-            <button
-              onClick={() => router.push("/messages")}
-              className="relative w-12 h-12 rounded-full bg-[#171717]/90 backdrop-blur-sm border border-white/10 flex items-center justify-center shadow-lg shadow-black/50 text-white/80 hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
-              title="Сообщения"
-            >
-              <MessageSquare size={20} />
-              <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-[#8b5cf6] border-2 border-[#171717] text-white text-[10px] font-bold flex items-center justify-center">
-                {counts.chats > 9 ? "9+" : counts.chats}
-              </span>
-            </button>
-          )}
+{/* ═══════ DESKTOP ORBIT: плавающие кнопки слева от орбиты ═══════ */}
+{layout === "orbit" && !isMobile && (
+  <div className={`fixed right-[92px] ${orbitRowPos} z-[97] flex flex-row items-center gap-3`}>
+    {/* 🆕 КНОПКА "ПРОДОЛЖИТЬ ЧТЕНИЕ" */}
+    {showContinueButton && (
+      <button
+        onClick={handleContinueClick}
+        className="relative w-12 h-12 rounded-full bg-[#8b5cf6]/20 backdrop-blur-sm border border-[#8b5cf6]/40 flex items-center justify-center shadow-lg shadow-[#8b5cf6]/20 text-[#a78bfa] hover:text-white hover:border-[#8b5cf6] hover:bg-[#8b5cf6]/30 transition-all group"
+        title={continueConfig.label}
+      >
+        <continueConfig.icon size={20} />
+        {continueConfig.isPost && (
+          <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#8b5cf6] shadow-[0_0_8px_#8b5cf6] animate-pulse" />
+        )}
+        <span className="absolute right-full mr-3 whitespace-nowrap bg-[#1f1f23] border border-white/10 text-white text-xs px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl">
+          {continueConfig.label}
+        </span>
+      </button>
+    )}
 
-          {counts.notifications > 0 && (
-            <button
-              onClick={() => router.push("/notifications")}
-              className="relative w-12 h-12 rounded-full bg-[#171717]/90 backdrop-blur-sm border border-white/10 flex items-center justify-center shadow-lg shadow-black/50 text-white/80 hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
-              title="Уведомления"
-            >
-              <Bell size={20} />
-              <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-[#8b5cf6] border-2 border-[#171717] text-white text-[10px] font-bold flex items-center justify-center">
-                {counts.notifications > 9 ? "9+" : counts.notifications}
-              </span>
-            </button>
-          )}
-        </div>
-      )}
+    {counts.chats > 0 && (
+      <button
+        onClick={() => router.push("/messages")}
+        className="relative w-12 h-12 rounded-full bg-[#171717]/90 backdrop-blur-sm border border-white/10 flex items-center justify-center shadow-lg shadow-black/50 text-white/80 hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
+        title="Сообщения"
+      >
+        <MessageSquare size={20} />
+        <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-[#8b5cf6] border-2 border-[#171717] text-white text-[10px] font-bold flex items-center justify-center">
+          {counts.chats > 9 ? "9+" : counts.chats}
+        </span>
+      </button>
+    )}
+
+    {counts.notifications > 0 && (
+      <button
+        onClick={() => router.push("/notifications")}
+        className="relative w-12 h-12 rounded-full bg-[#171717]/90 backdrop-blur-sm border border-white/10 flex items-center justify-center shadow-lg shadow-black/50 text-white/80 hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
+        title="Уведомления"
+      >
+        <Bell size={20} />
+        <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-[#8b5cf6] border-2 border-[#171717] text-white text-[10px] font-bold flex items-center justify-center">
+          {counts.notifications > 9 ? "9+" : counts.notifications}
+        </span>
+      </button>
+    )}
+  </div>
+)}
 
 
 
