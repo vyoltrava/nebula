@@ -809,19 +809,7 @@ const continueConfig = lastReadPost
       </div>
       
       <nav className="flex flex-col flex-1">
-{/* 🆕 Минималистичная иконка "Продолжить чтение" */}
-{showContinueButton && continueConfig.isPost && (
-  <button
-    onClick={handleContinueClick}
-    className={`flex ${containerClass} font-medium transition-all border-b border-white/5 group relative text-white/40 hover:bg-white/[0.03] hover:text-white/60`}
-    title={continueConfig.sublabel}
-  >
-    <BookOpen size={18} className={`${iconClass} text-[#8b5cf6]`} />
-    {!isDock && (
-      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#8b5cf6] shadow-[0_0_6px_#8b5cf6]"></span>
-    )}
-  </button>
-)}
+
         {nav.map(({ href, icon: Icon, label }) => {
           const active = pathname === href;
           const showUpdatesBadge = href === "/updates" && (counts.updates || 0) > 0;
