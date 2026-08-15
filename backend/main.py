@@ -1946,44 +1946,45 @@ async def toggle_like(
         select(Like).where(Like.user_id == user.id, Like.post_id == post_id)
     ).first()
     
+    # True, если мы ставим лайк. False, если снимаем.
+    is_liking = not bool(existing)
+    
     if existing:
         session.delete(existing)
-        session.commit()
-        cnt = session.exec(
-            select(func.count()).select_from(Like).where(Like.post_id == post_id)
-        ).one()
+    else:
+        like = Like(user_id=user.id, post_id=post_id)
+        session.add(like)
+        log_action(session, user.id, "like_post", target_type="post", target_id=post_id)
         
-        # ИСПРАВЛЕНО: при снятии лайка отправляем liked: False
-        await manager.broadcast_all("post_liked", {
-            "post_id": post_id,
-            "likes_count": cnt,
-            "liker_id": user.id,
-            "liked": False,   
-        })
-        return {"liked": False}
-    
-    like = Like(user_id=user.id, post_id=post_id)
-    session.add(like)
-    log_action(session, user.id, "like_post", target_type="post", target_id=post_id)
-    
-    post = session.get(Post, post_id)
-    if post and post.author_id != user.id:
-        notif = Notification(user_id=post.author_id, actor_id=user.id, type="like", post_id=post_id)
-        session.add(notif)
-    
+        # Уведомление автору поста
+        post = session.get(Post, post_id)
+        if post and post.author_id != user.id:
+            notif = Notification(user_id=post.author_id, actor_id=user.id, type="like", post_id=post_id)
+            session.add(notif)
+            
     session.commit()
+    
+    # Считаем актуальное количество лайков после коммита
     cnt = session.exec(
         select(func.count()).select_from(Like).where(Like.post_id == post_id)
     ).one()
     
-    # Рассылаем обновления подписчикам
-    await manager.broadcast_to_followers(
-        user.id, 
-        "post_liked", 
-        {"post_id": post_id, "likes_count": cnt, "liker_id": user.id, "liked": True}, 
-        session
-    )
-    return {"liked": True}
+    # 🚀 Единый payload для WebSocket (всё, что нужно фронту)
+    ws_payload = {
+        "post_id": post_id,
+        "likes_count": cnt,
+        "liker_id": user.id,      # 👈 КРИТИЧЕСКИ ВАЖНО: фронт должен знать, КТО лайкнул
+        "liked": is_liking,       # 👈 True (поставил) / False (снял)
+    }
+    
+    # Рассылаем ВСЕМ подключенным клиентам (включая второе/третье устройство этого же юзера)
+    await manager.broadcast_all("post_liked", ws_payload)
+    
+    # Возвращаем полные данные на фронт, чтобы UI обновился мгновенно из HTTP-ответа
+    return {
+        "liked": is_liking,
+        "likes_count": cnt
+    }
 
 
 @app.get("/api/counts")
