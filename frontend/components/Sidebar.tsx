@@ -757,21 +757,7 @@ const continueConfig = lastReadPost
       }
     };
 
-    // 🆕 Автоскролл страницы когда scrollVelocity !== 0
-    useEffect(() => {
-      if (scrollVelocity === 0) {
-        cancelAnimationFrame(scrollRafRef.current);
-        return;
-      }
 
-      const scroll = () => {
-        window.scrollBy({ top: scrollVelocity, behavior: "instant" as ScrollBehavior });
-        scrollRafRef.current = requestAnimationFrame(scroll);
-      };
-      scrollRafRef.current = requestAnimationFrame(scroll);
-
-      return () => cancelAnimationFrame(scrollRafRef.current);
-    }, [scrollVelocity]);
 
 
     const handleEnd = () => {
@@ -802,6 +788,23 @@ const continueConfig = lastReadPost
       document.removeEventListener("mouseup",    onMouseUp);
     };
   }, [hoveredIdx, closeWheel, findNearest]);
+
+    // 🆕 Автоскролл страницы когда scrollVelocity !== 0
+    useEffect(() => {
+      if (scrollVelocity === 0) {
+        cancelAnimationFrame(scrollRafRef.current);
+        return;
+      }
+
+      const scroll = () => {
+        window.scrollBy({ top: scrollVelocity, behavior: "instant" as ScrollBehavior });
+        scrollRafRef.current = requestAnimationFrame(scroll);
+      };
+      scrollRafRef.current = requestAnimationFrame(scroll);
+
+      return () => cancelAnimationFrame(scrollRafRef.current);
+    }, [scrollVelocity]);
+
 
   const icons = {
     like: <Heart size={12} fill="currentColor" />,
