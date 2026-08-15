@@ -780,19 +780,29 @@ const continueConfig = lastReadPost
       }
     };
 
-    // 🆕 Вспомогательная функция обновления жеста по смещению от старта
+    // 🆕 Вспомогательная функция: приоритет по оси движения
     const updateGesture = (dx: number, dy: number) => {
-      if (dx < -PULL_BACK_THRESHOLD && Math.abs(dy) < PULL_BACK_THRESHOLD) {
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+
+      // 🎯 Сильный свайп ВЛЕВО → назад (приоритет если горизонталь ≥ вертикали)
+      if (dx < -PULL_BACK_THRESHOLD && absDx >= absDy * 0.7) {
         setPullingBack(true);
         setScrollVelocity(0);
-      } else if (Math.abs(dy) > SCROLL_DEAD_ZONE && Math.abs(dx) < PULL_BACK_THRESHOLD * 0.8) {
-        setPullingBack(false);
-        const speed = Math.min(Math.abs(dy) * SCROLL_SENSITIVITY, SCROLL_MAX_SPEED);
-        setScrollVelocity(dy > 0 ? -speed : speed);
-      } else {
-        setPullingBack(false);
-        setScrollVelocity(0);
+        return;
       }
+
+      // 🎯 Движение по вертикали → скролл (без жёсткого ограничения на dx!)
+      if (absDy > SCROLL_DEAD_ZONE && absDy >= absDx * 0.6) {
+        setPullingBack(false);
+        const speed = Math.min(absDy * SCROLL_SENSITIVITY, SCROLL_MAX_SPEED);
+        setScrollVelocity(dy > 0 ? -speed : speed);
+        return;
+      }
+
+      // Мёртвая зона
+      setPullingBack(false);
+      setScrollVelocity(0);
     };
 
     const handleEnd = () => {
