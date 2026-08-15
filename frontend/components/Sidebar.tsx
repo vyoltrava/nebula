@@ -821,7 +821,11 @@ const continueConfig = lastReadPost
 
     const onTouchMove = (e: TouchEvent) => {
       if (!isLongPressed.current && !longPressTimer.current && !isDragging) return;
-      // preventDefault убран — touchAction: "none" + passive listener
+      // 🎯 Блокируем нативный скролл когда жест активен
+      // (passive: false уже установлен на addEventListener, так что preventDefault работает)
+      if (e.cancelable && (isDragging || isLongPressed.current)) {
+        e.preventDefault();
+      }
       if (e.touches.length > 0) handleMove(e.touches[0].clientX, e.touches[0].clientY);
     };
     const onTouchEnd = () => handleEnd();
