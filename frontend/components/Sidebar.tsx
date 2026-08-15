@@ -27,8 +27,8 @@ const LONG_PRESS_MS    = 250;
 // 🆕 ЖЕСТЫ ОТТЯГИВАНИЯ
 const PULL_BACK_THRESHOLD = 80;        // 80px влево = назад (меньше = быстрее отклик)
 const SCROLL_DEAD_ZONE    = 15;        // 15px мёртвая зона
-const SCROLL_MAX_SPEED    = 40;
-const SCROLL_SENSITIVITY  = 0.7;
+const SCROLL_MAX_SPEED = 14;
+const SCROLL_SENSITIVITY = 0.06;  // максимум за ~230px
 const DRAG_ACTIVATION     = 20;        // 🆕 после 20px движения — режим оттягивания
 
 const ARC_SPAN     = Math.PI / 2;
