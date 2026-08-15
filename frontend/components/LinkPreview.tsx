@@ -2,60 +2,81 @@
 
 import { useEffect, useState } from "react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+// Кэш на уровне модуля — не дёргаем API повторно при ре-рендерах
+const cache = new Map<string, any>();
 
-type Preview = {
-  url: string;
-  site: string;
-  title: string;
-  description: string;
-  image: string | null;
-};
-
-export default function LinkPreview({ url }: { url: string }) {
-  const [data, setData] = useState<Preview | null>(null);
-  const [imgOk, setImgOk] = useState(true);
+export function LinkPreview({ url }: { url: string }) {
+  const [data, setData] = useState<any | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    const ctrl = new AbortController();
-    
-    // ⚠️ УБЕДИСЬ, ЧТО ПУТЬ СОВПАДАЕТ С main.py
-    // Если в main.py: app.include_router(lp_router) → используй /unfurl
-    // Если в main.py: app.include_router(lp_router, prefix="/api") → используй /api/unfurl
-    fetch(`${API_BASE}/unfurl?url=${encodeURIComponent(url)}`, { signal: ctrl.signal })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("bad"))))
-      .then((d) => setData(d))
-      .catch(() => {});
-    
-    return () => ctrl.abort();
+    if (!url) return;
+    if (cache.has(url)) { 
+      setData(cache.get(url)); 
+      return; 
+    }
+
+    let cancelled = false;
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/link-preview?url=${encodeURIComponent(url)}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("bad status"))))
+      .then((d) => {
+        if (cancelled) return;
+        cache.set(url, d);
+        setData(d);
+      })
+      .catch(() => { if (!cancelled) setFailed(true); });
+      
+    return () => { cancelled = true; };
   }, [url]);
 
-  if (!data) return null;
+  // Нет ссылки, ошибка или нечего показывать — не рисуем ничего
+  if (!url || failed || !data) return null;
+  if (!data.title && !data.image && !data.description) return null;
 
   return (
-    <a 
-      href={url} 
-      target="_blank" 
-      rel="noopener noreferrer"
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer nofollow"
       onClick={(e) => e.stopPropagation()}
-      className="mt-2 flex gap-3 rounded-lg border border-white/10 bg-white/5 p-3 transition-colors hover:bg-white/10"
+      className="block mt-3 rounded-2xl overflow-hidden border border-white/10 bg-[#1f1f23] hover:border-[#8b5cf6]/40 hover:bg-[#8b5cf6]/5 transition-all group"
     >
-      <div className="min-w-0 flex-1 border-l-2 border-pink-500 pl-3">
-        <div className="truncate text-xs text-pink-400">{data.site}</div>
-        <div className="mt-0.5 line-clamp-2 text-sm font-semibold">{data.title}</div>
-        {data.description && (
-          <div className="mt-0.5 line-clamp-2 text-xs text-zinc-400">{data.description}</div>
-        )}
-      </div>
-      {data.image && imgOk && (
-        <img 
-          src={data.image} 
-          alt="" 
-          loading="lazy" 
-          onError={() => setImgOk(false)}
-          className="h-16 w-16 shrink-0 rounded-md object-cover" 
-        />
+      {data.image && (
+        <div className="w-full aspect-[2/1] overflow-hidden bg-black/30">
+          <img
+            src={data.image}
+            alt=""
+            loading="lazy"
+            className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+        </div>
       )}
+      <div className="p-3.5">
+        <div className="flex items-center gap-2 mb-1">
+          {data.favicon && (
+            <img
+              src={data.favicon}
+              alt=""
+              loading="lazy"
+              className="w-4 h-4 rounded-full"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+          )}
+          <span className="text-[11px] text-white/40 truncate uppercase">
+            {data.site_name || url.replace(/^https?:\/\//, "").split("/")[0]}
+          </span>
+        </div>
+        {data.title && (
+          <p className="text-sm font-semibold text-white/90 line-clamp-2 group-hover:text-[#a78bfa] transition-colors">
+            {data.title}
+          </p>
+        )}
+        {data.description && (
+          <p className="text-[13px] text-white/50 line-clamp-2 mt-1">{data.description}</p>
+        )}
+        <p className="text-[11px] text-[#8b5cf6]/70 truncate mt-1.5">{url}</p>
+      </div>
     </a>
   );
 }

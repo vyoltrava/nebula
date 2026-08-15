@@ -15,7 +15,7 @@ import { isLikedCached, setLikedCache } from "@/lib/postCache";
 import { getCachedUser } from "@/lib/authCache";
 import { timeAgo } from "@/lib/time";
 import { AudioPlayer } from "@/components/AudioPlayer";
-import LinkPreview from "@/components/LinkPreview";
+import {LinkPreview} from "@/components/LinkPreview";
 
 
 
@@ -625,7 +625,7 @@ export function Post({
           </div>
           
           {/* 🆕 Рендер текста и вложенного поста */}
-          {is_quote && (
+            {is_quote && (
               <>
                 <p className="mt-1 text-white/90 whitespace-pre-wrap break-words">{renderText(displayText)}</p>
                 {extractFirstUrl(displayText) && <LinkPreview url={extractFirstUrl(displayText)!} />}
@@ -644,6 +644,11 @@ export function Post({
                 <span className="text-sm text-white/40">{repost_of.handle}</span>
               </div>
               <p className="text-white/90 text-sm whitespace-pre-wrap break-words">{renderText(repost_of.text)}</p>
+              
+                {extractFirstUrl(repost_of.text) && <LinkPreview url={extractFirstUrl(repost_of.text)!} />}
+
+              
+              
               {repost_of.media_url && (
                 <SmartMedia 
                   src={mediaUrl(repost_of.media_url)} 
@@ -658,12 +663,12 @@ export function Post({
             </div>
           ) : (
             <>
-                {!is_quote && (
-                  <>
-                    <p className="mt-1 text-white/90 whitespace-pre-wrap break-words">{renderText(displayText)}</p>
-                    {extractFirstUrl(displayText) && <LinkPreview url={extractFirstUrl(displayText)!} />}
-                  </>
-                )}
+              {!is_quote && (
+                <>
+                  <p className="mt-1 text-white/90 whitespace-pre-wrap break-words">{renderText(displayText)}</p>
+                  {extractFirstUrl(displayText) && <LinkPreview url={extractFirstUrl(displayText)!} />}
+                </>
+              )}
               {media_url && (
                 <SmartMedia src={mediaUrl(media_url)} type={media_type} />
               )}
