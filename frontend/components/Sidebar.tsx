@@ -843,6 +843,21 @@ const continueConfig = lastReadPost
     };
   }, [hoveredIdx, closeWheel, findNearest, isDragging, pullingBack, router]);
 
+  // 🆕 Автоскролл страницы когда scrollVelocity !== 0 (ОТДЕЛЬНЫЙ хук!)
+  useEffect(() => {
+    if (scrollVelocity === 0) return;
+
+    const intervalId = setInterval(() => {
+      window.scrollBy(0, scrollVelocity);
+    }, 16); // ~60fps
+
+    return () => clearInterval(intervalId);
+  }, [scrollVelocity]);
+
+
+
+
+
   const icons = {
     like: <Heart size={12} fill="currentColor" />,
     reply: <MessageCircle size={12} />,
