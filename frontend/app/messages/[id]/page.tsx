@@ -158,8 +158,10 @@ export default function ChatPage() {
   const [forwardingMessage, setForwardingMessage] = useState<any | null>(null);
   const [forwardChats, setForwardChats] = useState<any[]>([]);
   const [showForwardModal, setShowForwardModal] = useState(false);
-    // 🆕 ЖИВЫЕ СООБЩЕНИЯ: собеседники видят текст по мере набора
-  const [liveTexts, setLiveTexts] = useState<Record<number, { text: string; name: string; ts: number }>>({});
+  // 🆕 ЖИВЫЕ СООБЩЕНИЯ: собеседники видят текст по мере набора
+  const [liveTexts, setLiveTexts] = useState<Record<number, { text: string; name: string; ts: number; leaving?: boolean }>>({});
+  const liveTextsRef = useRef(liveTexts);
+  useEffect(() => { liveTextsRef.current = liveTexts; }, [liveTexts]);
   const liveThrottleRef = useRef(0);
   // 💬 "Печатает..."
   const [partnerTyping, setPartnerTyping] = useState(false);
@@ -1039,6 +1041,24 @@ for (const msg of messagesToSend) {
   }
 
 
+    // 🆕 Плавное исчезновение пузыря: fade-out → потом удаляем из состояния
+  function dismissLive(userId: number) {
+    setLiveTexts((prev) => {
+      const cur = prev[userId];
+      if (!cur || cur.leaving) return prev;
+      return { ...prev, [userId]: { ...cur, leaving: true } };
+    });
+    setTimeout(() => {
+      setLiveTexts((prev) => {
+        const cur = prev[userId];
+        if (!cur || !cur.leaving) return prev; // текст снова пошёл — не трогаем
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+    }, 300); // = duration анимации
+  }
+
   async function sendStickerMessage(stickerId: number) {
     const token = getToken();
     if (!token) return;
@@ -1478,14 +1498,8 @@ useEffect(() => {
   useWebSocket("new_message", (data: any) => {
     if (String(data.chat_id) !== String(chatId)) return;
 
-        // 🆕 гасим живой текст — пришло настоящее сообщение
-    setLiveTexts((prev) => {
-      if (!(data.sender_id in prev)) return prev;
-      const next = { ...prev };
-      delete next[data.sender_id];
-      return next;
-    });
-
+    // 🆕 плавно гасим живой текст — пришло настоящее сообщение
+    dismissLive(data.sender_id);
 if (data.sender_id === currentUser?.id) {
     setMessages((prev) => {
       // Находим временное сообщение с таким же текстом и без media_url
@@ -1585,30 +1599,26 @@ useWebSocket("typing", (data: any) => {
 useWebSocket("live_text", (data: any) => {
   if (String(data.chat_id) !== String(chatId)) return;
   if (data.user_id === currentUser?.id) return;
-  setLiveTexts((prev) => {
-    const next = { ...prev };
-    if (!data.text || !data.text.trim()) {
-      delete next[data.user_id];
-    } else {
-      next[data.user_id] = { text: data.text, name: data.user_name || "…", ts: Date.now() };
-    }
-    return next;
-  });
+  if (!data.text || !data.text.trim()) {
+    dismissLive(data.user_id); // 🆕 плавно гасим
+    return;
+  }
+  setLiveTexts((prev) => ({
+    ...prev,
+    [data.user_id]: { text: data.text, name: data.user_name || "…", ts: Date.now(), leaving: false },
+  }));
 });
 
 // 🆕 Протухший живой текст (нет обновлений > 5 сек) — убираем
 useEffect(() => {
   const int = setInterval(() => {
-    setLiveTexts((prev) => {
-      const now = Date.now();
-      const stale = Object.keys(prev).filter((k) => now - prev[Number(k)].ts > 5000);
-      if (!stale.length) return prev;
-      const next = { ...prev };
-      stale.forEach((k) => delete next[Number(k)]);
-      return next;
+    const now = Date.now();
+    Object.entries(liveTextsRef.current).forEach(([uid, lt]) => {
+      if (!lt.leaving && now - lt.ts > 5000) dismissLive(Number(uid)); // 🆕 тоже плавно
     });
   }, 1000);
   return () => clearInterval(int);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
 
 
@@ -2502,11 +2512,18 @@ const ChatHeader = () => (
                     </SwipeableMessage>
                   );
                 })}
-              {/* 🆕 ЖИВЫЕ ПУЗЫРИ — текст рождается на глазах */}
+              {/* 🆕 ЖИВЫЕ ПУЗЫРИ — плавное появление / рост / исчезновение */}
               {!isSecret &&
                 Object.entries(liveTexts).map(([uid, lt]) => (
-                  <div key={uid} className="flex justify-start">
-                    <div className="max-w-[85%] sm:max-w-[75%] px-3 sm:px-3.5 py-2 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl rounded-bl-[4px] bg-white/5 border border-[#8b5cf6]/40 shadow-[0_0_14px_rgba(139,92,246,0.15)]">
+                  <div
+                    key={uid}
+                    className={`flex justify-start ${
+                      lt.leaving
+                        ? "animate-out fade-out slide-out-to-bottom-2 zoom-out-95 duration-300"
+                        : "animate-in fade-in slide-in-from-bottom-2 zoom-in-95 duration-300"
+                    }`}
+                  >
+                    <div className="max-w-[85%] sm:max-w-[75%] px-3 sm:px-3.5 py-2 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl rounded-bl-[4px] bg-white/5 border border-[#8b5cf6]/40 shadow-[0_0_14px_rgba(139,92,246,0.15)] transition-all duration-200 ease-out">
                       <p className="text-[11px] font-bold text-[#8b5cf6] mb-0.5">
                         {lt.name} · печатает вживую
                       </p>
