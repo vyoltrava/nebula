@@ -9,21 +9,19 @@ import { getToken } from "@/lib/auth";
 import { onFeedRefresh } from "@/lib/events";
 import { useWebSocket } from "@/src/hooks/useWebSocket";
 
-const FEED_MEMORY_KEY = "trelod_feed_memory";
-
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<"all" | "following">("all");
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [nextCursor, setNextCursor] = useState<number | null>(null);
-  const [highlightedPostId, setHighlightedPostId] = useState<number | null>(null);
   
   const mainRef = useRef<HTMLElement>(null);
-  const hasRestoredRef = useRef(false);
+  const isLoadingRef = useRef(false);
 
   async function loadMore(reset = false) {
-    if (loading && !reset) return;
+    if (isLoadingRef.current && !reset) return;
+    isLoadingRef.current = true;
     setLoading(true);
 
     const token = getToken();
@@ -57,6 +55,7 @@ export default function HomePage() {
       console.error("Failed to load posts:", err);
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
   }
 
@@ -64,7 +63,6 @@ export default function HomePage() {
     setPosts([]);
     setNextCursor(null);
     setHasMore(true);
-    hasRestoredRef.current = false; // Сбрасываем флаг при смене вкладки
     loadMore(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
@@ -86,132 +84,12 @@ export default function HomePage() {
   useWebSocket("post_liked", handlePostLiked);
 
   useEffect(() => {
-    const handler = (e: Event) => {
-      const id = (e as CustomEvent).detail.id;
-      setPosts((prev) => prev.filter((p) => p.id !== id));
-    };
-    window.addEventListener("post-deleted", handler);
-    return () => window.removeEventListener("post-deleted", handler);
-  }, []);
-
-  useEffect(() => {
     const cleanup = onFeedRefresh(() => {
       loadMore(true);
     });
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, nextCursor]);
-
-  // ════════════════════════════════════════════════════════════════
-  // 🧠 ПАМЯТЬ ЛЕНТЫ: Сохранение и Восстановление
-  // ════════════════════════════════════════════════════════════════
-  const savePosition = useCallback(() => {
-    if (!mainRef.current) return;
-    const scrollTop = mainRef.current.scrollTop;
-    
-    // Если находимся в самом верху — очищаем память (дочитал)
-    if (scrollTop < 100) {
-      localStorage.removeItem(FEED_MEMORY_KEY);
-      window.dispatchEvent(new CustomEvent("feed-memory-clear"));
-      return;
-    }
-    
-    const postElements = document.querySelectorAll("[data-post-id]");
-    let targetPostId: number | null = null;
-    const mainRect = mainRef.current.getBoundingClientRect();
-    const viewportTrigger = mainRect.top + 150; 
-    
-    for (const el of postElements) {
-      const rect = el.getBoundingClientRect();
-      if (rect.top >= viewportTrigger - 50 && rect.top <= viewportTrigger + 300) {
-        targetPostId = Number(el.getAttribute("data-post-id"));
-        break;
-      }
-    }
-    
-    if (!targetPostId) {
-       for (const el of postElements) {
-         const rect = el.getBoundingClientRect();
-         if (rect.top >= mainRect.top + 100) {
-           targetPostId = Number(el.getAttribute("data-post-id"));
-           break;
-         }
-       }
-    }
-    
-    if (targetPostId) {
-      localStorage.setItem(FEED_MEMORY_KEY, JSON.stringify({ postId: targetPostId, timestamp: Date.now() }));
-      window.dispatchEvent(new CustomEvent("feed-memory-save"));
-    }
-  }, []);
-
-  useEffect(() => {
-    const el = mainRef.current;
-    if (!el) return;
-    let ticking = false;
-    const onScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          savePosition();
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    
-    const onUnload = () => savePosition();
-    window.addEventListener("beforeunload", onUnload);
-    
-    const onVisibility = () => {
-      if (document.visibilityState === "hidden") savePosition();
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    
-    return () => {
-      el.removeEventListener("scroll", onScroll);
-      window.removeEventListener("beforeunload", onUnload);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [savePosition]);
-
-  const restorePosition = useCallback(() => {
-    const memStr = localStorage.getItem(FEED_MEMORY_KEY);
-    if (!memStr || !mainRef.current) return;
-    try {
-      const mem = JSON.parse(memStr);
-      const el = document.querySelector(`[data-post-id="${mem.postId}"]`);
-      if (el) {
-        const mainRect = mainRef.current.getBoundingClientRect();
-        const elRect = el.getBoundingClientRect();
-        const offset = elRect.top - mainRect.top + mainRef.current.scrollTop - 80;
-        mainRef.current.scrollTo({ top: offset, behavior: "smooth" });
-        setHighlightedPostId(mem.postId);
-        setTimeout(() => setHighlightedPostId(null), 3000);
-      }
-    } catch (e) {}
-  }, []);
-
-  useEffect(() => {
-    if (posts.length > 0 && !loading && !hasRestoredRef.current) {
-      const memStr = localStorage.getItem(FEED_MEMORY_KEY);
-      if (memStr) {
-        const timer = setTimeout(() => {
-          restorePosition();
-          hasRestoredRef.current = true;
-        }, 400);
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [posts.length, loading, restorePosition]);
-
-  useEffect(() => {
-    const handler = () => {
-       restorePosition();
-    };
-    window.addEventListener("restore-feed-position", handler);
-    return () => window.removeEventListener("restore-feed-position", handler);
-  }, [restorePosition]);
+  }, [activeTab]);
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -258,11 +136,7 @@ export default function HomePage() {
               <div 
                 key={post.id} 
                 data-post-id={post.id}
-                className={`transition-all duration-500 rounded-2xl ${
-                  highlightedPostId === post.id 
-                    ? "ring-2 ring-[#8b5cf6] ring-offset-4 ring-offset-[#171717] bg-[#8b5cf6]/5 shadow-[0_0_30px_rgba(139,92,246,0.3)]" 
-                    : ""
-                }`}
+                className="transition-all duration-500 rounded-2xl"
               >
                 <Post {...post} />
               </div>
