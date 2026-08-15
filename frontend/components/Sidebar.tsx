@@ -1137,42 +1137,9 @@ const continueConfig = lastReadPost
           </div>
         )}
 
-        {/* 🆕 Индикатор "тянешь назад" */}
-        {pullingBack && (
-          <div
-            className="absolute pointer-events-none"
-            style={{
-              left: arcCenterRef.current.x - 100,
-              top: arcCenterRef.current.y,
-              transform: "translate(-50%, -50%)",
-              zIndex: 30,
-            }}
-          >
-            <div className="flex items-center gap-2 bg-[#8b5cf6] text-white px-4 py-2 rounded-full shadow-2xl animate-pulse">
-              <ChevronLeft size={20} />
-              <span className="text-sm font-bold">Назад</span>
-            </div>
-          </div>
-        )}
 
-        {/* 🆕 Индикатор скролла */}
-        {scrollVelocity !== 0 && !pullingBack && (
-          <div
-            className="absolute pointer-events-none"
-            style={{
-              left: arcCenterRef.current.x,
-              top: arcCenterRef.current.y + (scrollVelocity > 0 ? -80 : 80),
-              transform: "translate(-50%, -50%)",
-              zIndex: 30,
-            }}
-          >
-            <div className="flex items-center gap-2 bg-[#8b5cf6]/80 text-white px-3 py-1.5 rounded-full shadow-lg backdrop-blur-sm">
-              <span className="text-xs font-bold">
-                {scrollVelocity > 0 ? "↑" : "↓"} {Math.abs(Math.round(scrollVelocity))}px
-              </span>
-            </div>
-          </div>
-        )}
+
+
       </div>
     );
   };
