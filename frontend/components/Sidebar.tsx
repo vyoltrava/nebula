@@ -878,14 +878,35 @@ const continueConfig = lastReadPost
     };
   }, [hoveredIdx, closeWheel, findNearest, router]);
 
-  // 🎯 Скролл-интервал (читает ref)
+  // 🎯 Скролл-интервал (находит правильный скроллящийся элемент)
   useEffect(() => {
+    const getScrollTarget = (): HTMLElement => {
+      // 1. document.scrollingElement (html/body)
+      if (document.scrollingElement && document.scrollingElement.scrollHeight > document.scrollingElement.clientHeight) {
+        return document.scrollingElement as HTMLElement;
+      }
+      // 2. Ищем первый элемент с overflow-y: auto/scroll
+      const candidates = document.querySelectorAll('*');
+      for (const el of candidates) {
+        const style = window.getComputedStyle(el);
+        if ((style.overflowY === 'auto' || style.overflowY === 'scroll') 
+            && el.scrollHeight > el.clientHeight) {
+          return el as HTMLElement;
+        }
+      }
+      // 3. Fallback
+      return document.documentElement;
+    };
+
     const intervalId = setInterval(() => {
       const v = scrollVelocityRef.current;
       if (v !== 0) {
-        window.scrollBy(0, v);
+        const target = getScrollTarget();
+        console.log(`[SCROLL] velocity=${v}, target=`, target.tagName, target.className);
+        target.scrollBy(0, v);
       }
     }, 16);
+
     return () => clearInterval(intervalId);
   }, []);
 
@@ -1136,10 +1157,7 @@ const continueConfig = lastReadPost
   const buttonCx = useRef(0);
   const buttonCy = useRef(0);
 
-  // 🆕 Синхронизация ref с state
-  useEffect(() => {
-    scrollVelocityRef.current = scrollVelocity;
-  }, [scrollVelocity]);
+
 
 
   useEffect(() => {
