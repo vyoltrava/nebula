@@ -28,6 +28,7 @@ export function VideoNoteRecorder({
   const audioStreamRef = useRef<MediaStream | null>(null);   // только аудио
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const startTsRef = useRef(0); // 🆕 момент начала записи
   const rafRef = useRef<number>(0);
   const mimeRef = useRef<string>("video/webm");
   const mirroredRef = useRef(true);
@@ -179,7 +180,7 @@ export function VideoNoteRecorder({
 
     const recorder = new MediaRecorder(
       combined,
-      mime ? { mimeType: mime, videoBitsPerSecond: 2_500_000 } : undefined
+      mime ? { mimeType: mime, videoBitsPerSecond: 1_500_000 } : undefined
     );
     mediaRecorderRef.current = recorder;
 
@@ -200,13 +201,17 @@ export function VideoNoteRecorder({
     recorder.start(250);
     setIsRecording(true);
     setSeconds(0);
+    startTsRef.current = Date.now();
 
+    // 🆕 Таймер по реальному времени. СТОП — в колбэке интервала,
+    // а не в апдейтере состояния → срабатывает гарантированно.
     timerRef.current = setInterval(() => {
-      setSeconds((s) => {
-        if (s + 1 >= maxDuration) stopRecording();
-        return s + 1;
-      });
-    }, 1000);
+      const elapsed = Math.floor((Date.now() - startTsRef.current) / 1000);
+      setSeconds(elapsed);
+      if (elapsed >= maxDuration) {
+        stopRecording(); // ✅ сам остановился и отправил файл
+      }
+    }, 500);
   }
 
   function stopRecording() {
