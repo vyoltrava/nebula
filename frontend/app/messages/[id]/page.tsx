@@ -158,6 +158,9 @@ export default function ChatPage() {
   const [forwardingMessage, setForwardingMessage] = useState<any | null>(null);
   const [forwardChats, setForwardChats] = useState<any[]>([]);
   const [showForwardModal, setShowForwardModal] = useState(false);
+    // 🆕 ЖИВЫЕ СООБЩЕНИЯ: собеседники видят текст по мере набора
+  const [liveTexts, setLiveTexts] = useState<Record<number, { text: string; name: string; ts: number }>>({});
+  const liveThrottleRef = useRef(0);
   // 💬 "Печатает..."
   const [partnerTyping, setPartnerTyping] = useState(false);
   const [typingUserName, setTypingUserName] = useState<string | null>(null); // для групп
@@ -907,7 +910,8 @@ for (const msg of messagesToSend) {
 
       setText("");
       setFiles([]);
-      setReplyTo(null); // 🆕 сбрасываем ответ
+      setReplyTo(null);
+      sendLiveText(""); // 🆕 гасим живой текст у собеседников
 
       if (!isSecret && tempText) {
         setMessages((prev) => prev.filter((m) => m.id !== tempId));
@@ -1014,6 +1018,26 @@ for (const msg of messagesToSend) {
       alert("Ошибка сети");
     }
   }
+
+  // 🆕 Отправка живого текста: пустой — сразу, остальное с троттлингом 300мс
+  function sendLiveText(v: string) {
+    setText(v);
+    if (isSecret) return; // секретные чаты — без live
+    const isEmpty = !v.trim();
+    const now = Date.now();
+    if (!isEmpty && now - liveThrottleRef.current < 300) return;
+    liveThrottleRef.current = now;
+    const token = getToken();
+    if (!token) return;
+    const body = new FormData();
+    body.append("text", v.slice(0, 2000));
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/live-text`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body,
+    }).catch(() => {});
+  }
+
 
   async function sendStickerMessage(stickerId: number) {
     const token = getToken();
@@ -1312,6 +1336,18 @@ function getMessageMenuItems(msg: any): { icon: any; label: string; onClick: () 
 
     return () => {
       controller.abort();
+      // 🆕 гасим живой текст при выходе/смене чата
+      const t = getToken();
+      if (t && !isSecret) {
+        const body = new FormData();
+        body.append("text", "");
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/live-text`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${t}` },
+          body,
+        }).catch(() => {});
+      }
+      setLiveTexts({});
     };
   }, [chatId]);
 
@@ -1399,6 +1435,15 @@ useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, currentUser]);
 
+    // 🆕 живой текст — доскроллить только если пользователь уже внизу
+  useEffect(() => {
+    if (!Object.keys(liveTexts).length) return;
+    const container = messagesEndRef.current?.parentElement;
+    if (!container) return;
+    const nearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+    if (nearBottom) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [liveTexts]);
+
   useEffect(() => {
     if (!isSecret) return;
     if (skRefreshedForRef.current === chatId) return;
@@ -1432,6 +1477,14 @@ useEffect(() => {
 
   useWebSocket("new_message", (data: any) => {
     if (String(data.chat_id) !== String(chatId)) return;
+
+        // 🆕 гасим живой текст — пришло настоящее сообщение
+    setLiveTexts((prev) => {
+      if (!(data.sender_id in prev)) return prev;
+      const next = { ...prev };
+      delete next[data.sender_id];
+      return next;
+    });
 
 if (data.sender_id === currentUser?.id) {
     setMessages((prev) => {
@@ -1527,6 +1580,42 @@ useWebSocket("typing", (data: any) => {
   setPartnerTyping(true);
   setTypingUserName(data.user_name || data.display_name || null);
 });
+
+// 🆕 ЖИВОЙ ТЕКСТ от собеседника
+useWebSocket("live_text", (data: any) => {
+  if (String(data.chat_id) !== String(chatId)) return;
+  if (data.user_id === currentUser?.id) return;
+  setLiveTexts((prev) => {
+    const next = { ...prev };
+    if (!data.text || !data.text.trim()) {
+      delete next[data.user_id];
+    } else {
+      next[data.user_id] = { text: data.text, name: data.user_name || "…", ts: Date.now() };
+    }
+    return next;
+  });
+});
+
+// 🆕 Протухший живой текст (нет обновлений > 5 сек) — убираем
+useEffect(() => {
+  const int = setInterval(() => {
+    setLiveTexts((prev) => {
+      const now = Date.now();
+      const stale = Object.keys(prev).filter((k) => now - prev[Number(k)].ts > 5000);
+      if (!stale.length) return prev;
+      const next = { ...prev };
+      stale.forEach((k) => delete next[Number(k)]);
+      return next;
+    });
+  }, 1000);
+  return () => clearInterval(int);
+}, []);
+
+
+// 🆕 Пришло настоящее сообщение — убираем живой пузырь автора
+useEffect(() => {
+  // вешаем на messages: если сообщение от юзера с живым текстом — чистим
+}, []);
 
 // ✓✓ Галочки прочитано — собеседник открыл чат
 useWebSocket("message_read", (data: any) => {
@@ -2413,6 +2502,21 @@ const ChatHeader = () => (
                     </SwipeableMessage>
                   );
                 })}
+              {/* 🆕 ЖИВЫЕ ПУЗЫРИ — текст рождается на глазах */}
+              {!isSecret &&
+                Object.entries(liveTexts).map(([uid, lt]) => (
+                  <div key={uid} className="flex justify-start">
+                    <div className="max-w-[85%] sm:max-w-[75%] px-3 sm:px-3.5 py-2 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl rounded-bl-[4px] bg-white/5 border border-[#8b5cf6]/40 shadow-[0_0_14px_rgba(139,92,246,0.15)]">
+                      <p className="text-[11px] font-bold text-[#8b5cf6] mb-0.5">
+                        {lt.name} · печатает вживую
+                      </p>
+                      <p className="whitespace-pre-wrap break-words text-[15px] sm:text-sm text-white/80 leading-snug">
+                        {lt.text}
+                        <span className="inline-block w-[2px] h-4 bg-[#8b5cf6] ml-0.5 align-middle animate-pulse" />
+                      </p>
+                    </div>
+                  </div>
+                ))}
               <div ref={messagesEndRef} />
             </div>
 
@@ -2648,7 +2752,7 @@ const ChatHeader = () => (
 
         <textarea
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => sendLiveText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();

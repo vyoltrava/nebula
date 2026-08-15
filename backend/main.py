@@ -5791,6 +5791,40 @@ async def send_typing(
     
     return {"ok": True}
 
+
+@app.post("/api/chats/{chat_id}/live-text")
+async def send_live_text(
+    chat_id: int,
+    text: str = Form(""),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """🆕 ЖИВЫЕ СООБЩЕНИЯ: трансляция набираемого текста собеседникам"""
+    member = session.exec(
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
+    ).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+
+    # В секретных чатах не светим plaintext на сервере
+    chat = session.get(Chat, chat_id)
+    if chat and chat.is_secret:
+        return {"ok": True}
+
+    all_member_ids = session.exec(
+        select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
+    ).all()
+    other_ids = [uid for uid in all_member_ids if uid != user.id]
+    if other_ids:
+        await manager.broadcast_to_users(other_ids, "live_text", {
+            "chat_id": chat_id,
+            "user_id": user.id,
+            "user_name": user.display_name,
+            "text": text[:2000],
+        })
+    return {"ok": True}
+
+
 @app.get("/api/chats/{chat_id}/messages")
 def get_messages_v2(
     chat_id: int,
