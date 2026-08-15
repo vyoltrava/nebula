@@ -454,8 +454,11 @@ const continueConfig = lastReadPost
   
   const pullingBackRef = useRef(false);
   const scrollVelocityRef = useRef(0);
-  const isDraggingRef = useRef(false);      // 🎯 ref вместо state
+  const isDraggingRef = useRef(false);
   const scrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const smoothVelocityRef = useRef(0);          // 🆕 сглаженная скорость
+  const scrollTargetRef = useRef<HTMLElement | null>(null); // 🆕 кэш элемента скролла
+  const scrollRafRef = useRef<number>(0);       // 🆕 для requestAnimationFrame
 
 
 
@@ -654,6 +657,8 @@ const continueConfig = lastReadPost
     setPullingBack(false);
     setScrollVelocity(0);
     isDraggingRef.current = false;
+    scrollVelocityRef.current = 0;
+    smoothVelocityRef.current = 0; // 🆕
     requestAnimationFrame(() => {
       requestAnimationFrame(() => { setWheelReady(true); });
     });
@@ -689,9 +694,10 @@ const continueConfig = lastReadPost
     setClosing(true);
     setHoveredIdx(null);
     setFingerPos(null);
-    setScrollVelocity(0); // 🆕 останавливаем скролл
+    setScrollVelocity(0);
     isDraggingRef.current = false;
     scrollVelocityRef.current = 0;
+    smoothVelocityRef.current = 0; // 🆕
     setTimeout(() => {
       setWheelOpen(false);
       setClosing(false);
@@ -712,11 +718,26 @@ const continueConfig = lastReadPost
     return minDist <= SNAP_RADIUS ? nearest : null;
   }, [wheelItems.length, getIconPos]);
 
+  // 🆕 Ищем скроллящийся элемент (вызывается 1 раз при нажатии, не 60 раз/сек)
+  const findScrollTarget = (): HTMLElement => {
+    const se = document.scrollingElement as HTMLElement | null;
+    if (se && se.scrollHeight > se.clientHeight) return se;
+    const all = document.querySelectorAll<HTMLElement>("*");
+    for (const el of all) {
+      const st = window.getComputedStyle(el);
+      if ((st.overflowY === "auto" || st.overflowY === "scroll") && el.scrollHeight > el.clientHeight) {
+        return el;
+      }
+    }
+    return document.documentElement;
+  };
+
   const handleStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    // preventDefault убран — touchAction: "none" на кнопке делает это на уровне CSS
     const px = "touches" in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
     const py = "touches" in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
     startPos.current = { x: px, y: py };
+    // 🆕 нашли элемент скролла ОДИН раз — дальше только лёгкий scrollBy
+    scrollTargetRef.current = findScrollTarget();
 
     longPressTimer.current = setTimeout(() => {
       longPressTimer.current = null;
@@ -783,35 +804,11 @@ const continueConfig = lastReadPost
         return;
       }
 
-      // ═══ ФАЗА 2: Меню открыто ═══
+      // ═══ ФАЗА 2: Дуга открыта — свайпы ВЫКЛЮЧЕНЫ, только выбор пункта ═══
       if (isLongPressed.current) {
         const idx = findNearest(px, py);
         setHoveredIdx(idx);
         setFingerPos({ x: px, y: py });
-
-        const cx = arcCenterRef.current.x;
-        const cy = arcCenterRef.current.y;
-        const mdx = px - cx;
-        const mdy = py - cy;
-
-        if (mdx < -PULL_BACK_THRESHOLD && Math.abs(mdx) >= Math.abs(mdy) * 0.7) {
-          pullingBackRef.current = true;
-          scrollVelocityRef.current = 0;
-          setPullingBack(true);
-          setScrollVelocity(0);
-        } else if (Math.abs(mdy) > SCROLL_DEAD_ZONE && Math.abs(mdy) >= Math.abs(mdx) * 0.6) {
-          pullingBackRef.current = false;
-          const speed = Math.min(Math.abs(mdy) * SCROLL_SENSITIVITY, SCROLL_MAX_SPEED);
-          const velocity = mdy > 0 ? -speed : speed;
-          scrollVelocityRef.current = velocity;
-          setPullingBack(false);
-          setScrollVelocity(velocity);
-        } else {
-          pullingBackRef.current = false;
-          scrollVelocityRef.current = 0;
-          setPullingBack(false);
-          setScrollVelocity(0);
-        }
         return;
       }
 
@@ -839,9 +836,11 @@ const continueConfig = lastReadPost
         isDraggingRef.current = false;
         pullingBackRef.current = false;
         scrollVelocityRef.current = 0;
+        smoothVelocityRef.current = 0; // 🆕 — плавно остановится
         setPullingBack(false);
         setScrollVelocity(0);
         startPos.current = null;
+        scrollTargetRef.current = null;
         return;
       }
 
@@ -878,36 +877,22 @@ const continueConfig = lastReadPost
     };
   }, [hoveredIdx, closeWheel, findNearest, router]);
 
-  // 🎯 Скролл-интервал (находит правильный скроллящийся элемент)
+  // 🎯 ПЛАВНЫЙ скролл: rAF + сглаживание (нет дрожания, мягкое дотормаживание)
   useEffect(() => {
-    const getScrollTarget = (): HTMLElement => {
-      // 1. document.scrollingElement (html/body)
-      if (document.scrollingElement && document.scrollingElement.scrollHeight > document.scrollingElement.clientHeight) {
-        return document.scrollingElement as HTMLElement;
+    const loop = () => {
+      const target = scrollVelocityRef.current;
+      const cur = smoothVelocityRef.current;
+      // плавно разгоняемся/тормозим к целевой скорости (0.12 = мягкость)
+      const next = cur + (target - cur) * 0.12;
+      smoothVelocityRef.current = Math.abs(next) < 0.05 ? 0 : next;
+
+      if (smoothVelocityRef.current !== 0 && scrollTargetRef.current) {
+        scrollTargetRef.current.scrollBy(0, smoothVelocityRef.current);
       }
-      // 2. Ищем первый элемент с overflow-y: auto/scroll
-      const candidates = document.querySelectorAll('*');
-      for (const el of candidates) {
-        const style = window.getComputedStyle(el);
-        if ((style.overflowY === 'auto' || style.overflowY === 'scroll') 
-            && el.scrollHeight > el.clientHeight) {
-          return el as HTMLElement;
-        }
-      }
-      // 3. Fallback
-      return document.documentElement;
+      scrollRafRef.current = requestAnimationFrame(loop);
     };
-
-    const intervalId = setInterval(() => {
-      const v = scrollVelocityRef.current;
-      if (v !== 0) {
-        const target = getScrollTarget();
-        console.log(`[SCROLL] velocity=${v}, target=`, target.tagName, target.className);
-        target.scrollBy(0, v);
-      }
-    }, 16);
-
-    return () => clearInterval(intervalId);
+    scrollRafRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(scrollRafRef.current);
   }, []);
 
 
