@@ -920,18 +920,7 @@ const continueConfig = lastReadPost
     </button>
   </div>
 )}
-        {isDock && (
-          <div className="flex flex-col items-center gap-2 mb-2">
-            <button onClick={() => setShowBugModal(true)}
-              className="p-2 rounded-lg text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all shrink-0" title="Баг-трекер">
-              <Bug size={20} className="shrink-0" />
-            </button>
-            <button onClick={() => setShowLayoutPicker(true)}
-              className="p-2 rounded-lg text-[#8b5cf6]/80 hover:text-[#8b5cf6] hover:bg-[#8b5cf6]/10 transition-all shrink-0" title="Интерфейс">
-              <Palette size={20} className="shrink-0" />
-            </button>
-          </div>
-        )}
+
 
         {/* Профиль и Выход */}
         {user ? (
