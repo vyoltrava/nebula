@@ -250,14 +250,17 @@ export function Post({
     });
   }, [id]);
 
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const d = (e as CustomEvent).detail;
-      if (d.post_id === id) setCount(d.likes_count);
-    };
-    window.addEventListener("like-sync", handler);
-    return () => window.removeEventListener("like-sync", handler);
-  }, [id]);
+useEffect(() => {
+  const handler = (e: Event) => {
+    const d = (e as CustomEvent).detail;
+    if (d.post_id === id) {
+      // 🛡️ Защита от отрицательных значений
+      setCount(Math.max(0, d.likes_count));
+    }
+  };
+  window.addEventListener("like-sync", handler);
+  return () => window.removeEventListener("like-sync", handler);
+}, [id]);
 
     const cleanUsername = username || handle?.replace("@", "");
 
@@ -286,36 +289,40 @@ export function Post({
       return () => window.removeEventListener("like-state-sync", handler);
     }, [id]);
 
-    async function toggleLike() {
-    const token = getToken();
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+// Было:
+// setCount((c) => (next ? c + 1 : c - 1));
 
-    const next = !liked;
-    setLiked(next);
-    setCount((c) => (next ? c + 1 : c - 1));
-    setLikedCache(id, next);
-
-    const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/like`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      if (data.liked !== next) {
-        setLiked(data.liked);
-        setCount((c) => (data.liked ? c + 1 : c - 1));
-        setLikedCache(id, data.liked);
-      }
-    } else {
-      setLiked(!next);
-      setCount((c) => (next ? c - 1 : c + 1));
-      setLikedCache(id, !next);
-    }
+// Стало (везде где есть setCount с декрементом):
+async function toggleLike() {
+  const token = getToken();
+  if (!token) {
+    router.push("/login");
+    return;
   }
+
+  const next = !liked;
+  setLiked(next);
+  setCount((c) => Math.max(0, next ? c + 1 : c - 1)); // 🛡️ Защита от минуса
+  setLikedCache(id, next);
+
+  const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/like`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (res.ok) {
+    const data = await res.json();
+    setLiked(data.liked);
+    // 🛡️ Сервер — источник правды, просто берём его значение
+    setCount(data.likes_count); 
+    setLikedCache(id, data.liked);
+  } else {
+    // Откат
+    setLiked(!next);
+    setCount((c) => Math.max(0, next ? c - 1 : c + 1)); // 🛡️ Защита от минуса
+    setLikedCache(id, !next);
+  }
+}
 
   const handlePostClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;

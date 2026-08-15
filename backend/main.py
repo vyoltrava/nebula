@@ -1818,26 +1818,32 @@ def get_replies(post_id: int, session: Session = Depends(get_session)):
 # ============================================================
 @app.get("/api/posts/{post_id}/echo")
 def get_echo_tree(post_id: int, session: Session = Depends(get_session)):
-    """Рекурсивный сбор всей цепочки репостов и цитат"""
-    visited = set()
-    queue = [post_id]
-    all_ids = []
+    """Рекурсивный сбор всей цепочки репостов и цитат ОТ КОРНЯ"""
+    # 1. Находим корневой пост (оригинал), поднимаясь вверх по repost_of_id
+    root_id = post_id
+    current = session.get(Post, post_id)
+    while current and current.repost_of_id:
+        root_id = current.repost_of_id
+        current = session.get(Post, root_id)
     
+    # 2. BFS от корня — собираем ВСЕХ потомков
+    visited = set()
+    queue = [root_id]
+    all_ids = []
     while queue:
         curr = queue.pop(0)
-        if curr in visited: 
+        if curr in visited:
             continue
         visited.add(curr)
         all_ids.append(curr)
-        
         children = session.exec(select(Post.id).where(Post.repost_of_id == curr)).all()
         for c in children:
             if c not in visited:
                 queue.append(c)
-                
+    
     if not all_ids:
         return []
-        
+    
     posts = session.exec(select(Post).where(Post.id.in_(all_ids))).all()
     author_ids = list({p.author_id for p in posts})
     authors = {u.id: u for u in session.exec(select(User).where(User.id.in_(author_ids))).all()}
