@@ -703,7 +703,7 @@ const continueConfig = lastReadPost
   }, [wheelItems.length, getIconPos]);
 
   const handleStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    if (e.cancelable) e.preventDefault();
+    // preventDefault убран — touchAction: "none" на кнопке делает это на уровне CSS
     const px = "touches" in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
     const py = "touches" in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
     startPos.current = { x: px, y: py };
@@ -821,7 +821,7 @@ const continueConfig = lastReadPost
 
     const onTouchMove = (e: TouchEvent) => {
       if (!isLongPressed.current && !longPressTimer.current && !isDragging) return;
-      if (e.cancelable) e.preventDefault();
+      // preventDefault убран — touchAction: "none" + passive listener
       if (e.touches.length > 0) handleMove(e.touches[0].clientX, e.touches[0].clientY);
     };
     const onTouchEnd = () => handleEnd();
