@@ -809,36 +809,17 @@ const continueConfig = lastReadPost
       </div>
       
       <nav className="flex flex-col flex-1">
-{/* 🆕 🔥 УНИВЕРСАЛЬНАЯ КНОПКА "ПРОДОЛЖИТЬ" (Classic / Dock) */}
-{showContinueButton && (
-  <button 
+{/* 🆕 Минималистичная иконка "Продолжить чтение" */}
+{showContinueButton && continueConfig.isPost && (
+  <button
     onClick={handleContinueClick}
-    className={`flex ${containerClass} font-medium transition-all border-b border-[#8b5cf6]/20 group relative text-[#a78bfa] hover:bg-[#8b5cf6]/15 mb-1`}
+    className={`flex ${containerClass} font-medium transition-all border-b border-white/5 group relative text-white/40 hover:bg-white/[0.03] hover:text-white/60`}
+    title={continueConfig.sublabel}
   >
-    <continueConfig.icon size={18} className={`${iconClass} text-[#8b5cf6]`} />
-    <div className={`${textClass} flex-1 min-w-0 text-left`}>
-      <div className="flex items-center gap-1.5">
-        <span>{continueConfig.label}</span>
-        <span className="w-1.5 h-1.5 rounded-full bg-[#8b5cf6] animate-pulse shadow-[0_0_6px_#8b5cf6]"></span>
-      </div>
-      {!isDock && (
-        <p className="text-[10px] text-white/40 truncate font-normal mt-0.5">
-          {continueConfig.sublabel}
-        </p>
-      )}
-    </div>
-    {/* Кнопка ✕ для очистки поста */}
-    {continueConfig.isPost && !isDock && (
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          clearLastRead();
-        }}
-        className="shrink-0 p-1 rounded text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all"
-        title="Больше не напоминать"
-      >
-        <X size={12} />
-      </button>
+    <BookOpen size={18} className={`${iconClass} text-[#8b5cf6]`} />
+    <span className={textClass}>Продолжить чтение</span>
+    {!isDock && (
+      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#8b5cf6] animate-pulse shadow-[0_0_6px_#8b5cf6]"></span>
     )}
   </button>
 )}
@@ -1167,22 +1148,17 @@ const continueConfig = lastReadPost
 {/* ═══════ DESKTOP ORBIT: плавающие кнопки слева от орбиты ═══════ */}
 {layout === "orbit" && !isMobile && (
   <div className={`fixed right-[92px] ${orbitRowPos} z-[97] flex flex-row items-center gap-3`}>
-    {/* 🆕 КНОПКА "ПРОДОЛЖИТЬ ЧТЕНИЕ" */}
-    {showContinueButton && (
-      <button
-        onClick={handleContinueClick}
-        className="relative w-12 h-12 rounded-full bg-[#8b5cf6]/20 backdrop-blur-sm border border-[#8b5cf6]/40 flex items-center justify-center shadow-lg shadow-[#8b5cf6]/20 text-[#a78bfa] hover:text-white hover:border-[#8b5cf6] hover:bg-[#8b5cf6]/30 transition-all group"
-        title={continueConfig.label}
-      >
-        <continueConfig.icon size={20} />
-        {continueConfig.isPost && (
-          <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#8b5cf6] shadow-[0_0_8px_#8b5cf6] animate-pulse" />
-        )}
-        <span className="absolute right-full mr-3 whitespace-nowrap bg-[#1f1f23] border border-white/10 text-white text-xs px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl">
-          {continueConfig.label}
-        </span>
-      </button>
-    )}
+{/* 🆕 Минималистичная иконка "Продолжить чтение" */}
+{showContinueButton && continueConfig.isPost && (
+  <button
+    onClick={handleContinueClick}
+    className="relative w-12 h-12 rounded-full bg-[#171717]/90 backdrop-blur-sm border border-white/10 flex items-center justify-center shadow-lg shadow-black/50 text-white/80 hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
+    title={continueConfig.sublabel}
+  >
+    <BookOpen size={20} />
+    <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#8b5cf6] shadow-[0_0_8px_#8b5cf6] animate-pulse" />
+  </button>
+)}
 
     {counts.chats > 0 && (
       <button
