@@ -30,7 +30,7 @@ from models import (
     User, Post, Like, Follow, Notification, Tag, PostTag, Role,
     Chat, ChatMember, Message, Report, UserKey, ChatSessionKey,
     IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead, PushSubscription, StickerPack, Sticker, MessageReaction, Theme, SystemSetting,
-RoleCategory, Warning, ReadProgress,
+RoleCategory, Warning, LastReadPost,
 )
 import logging
 from fastapi.responses import JSONResponse
@@ -4198,6 +4198,19 @@ def startup():
                 saved_at TIMESTAMPTZ DEFAULT NOW()
             );
             """))
+
+            # ===== 📖 ПОСЛЕДНИЙ ЧИТАЕМЫЙ ПОСТ (один на пользователя) =====
+            conn.execute(text('DROP TABLE IF EXISTS readprogress;'))
+            conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS lastreadpost (
+                user_id INTEGER PRIMARY KEY REFERENCES "user"(id) ON DELETE CASCADE,
+                post_id INTEGER NOT NULL REFERENCES post(id) ON DELETE CASCADE,
+                saved_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            """))
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_lastreadpost_user ON lastreadpost(user_id);'))
+
+
 
             # ===== ЧАТЫ И СООБЩЕНИЯ =====
             conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS pinned_by INTEGER REFERENCES \"user\"(id);"))
