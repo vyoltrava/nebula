@@ -313,8 +313,11 @@ async function toggleLike() {
   if (res.ok) {
     const data = await res.json();
     setLiked(data.liked);
-    // 🛡️ Сервер — источник правды, просто берём его значение
-    setCount(data.likes_count); 
+    
+    // 🛡️ Сервер — источник правды. Берем count, только если он точно пришел
+    if (data.likes_count !== undefined) {
+      setCount(data.likes_count); 
+    }
     setLikedCache(id, data.liked);
   } else {
     // Откат
