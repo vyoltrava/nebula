@@ -1,10 +1,9 @@
 "use client";
-import { useEffect, useRef, useState, ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getToken, clearToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import {
-  Upload,
   Lock,
   Eye,
   EyeOff,
@@ -25,20 +24,7 @@ import { PushSettings } from "@/components/PushSettings";
 import { DevicePermissionsSection } from "@/components/DevicePermissionsSection";
 import { LiveTextSettings } from "@/components/LiveTextSettings";
 
-/* Большой lowercase-заголовок раздела, обрезанный сверху — как в Zune */
-function SectionTitle({ children, big = false }: { children: ReactNode; big?: boolean }) {
-  return (
-    <div className="overflow-hidden">
-      <h2
-        className={`font-extralight lowercase leading-none text-[#c084fc] drop-shadow-[0_0_20px_rgba(168,85,247,0.4)] ${
-          big ? "text-7xl sm:text-8xl -mt-4 sm:-mt-5" : "text-4xl sm:text-5xl -mt-2 sm:-mt-3"
-        }`}
-      >
-        {children}
-      </h2>
-    </div>
-  );
-}
+type View = "root" | "profile" | "permissions" | "messages" | "security";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
@@ -46,6 +32,8 @@ export default function SettingsPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+
+  const [view, setView] = useState<View>("root");
 
   // Пароли
   const [oldPassword, setOldPassword] = useState("");
@@ -70,7 +58,6 @@ export default function SettingsPage() {
   const [loading2FA, setLoading2FA] = useState(false);
 
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState("profile");
 
   useEffect(() => {
     const token = getToken();
@@ -91,20 +78,6 @@ export default function SettingsPage() {
 
     fetchSecurityStatus();
   }, []);
-
-  // Подсветка активной вкладки (только мобилка)
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) setActiveTab(entry.target.id);
-        });
-      },
-      { rootMargin: "-20% 0px -70% 0px" }
-    );
-    document.querySelectorAll("section[id]").forEach((s) => observer.observe(s));
-    return () => observer.disconnect();
-  }, [user]);
 
   async function fetchSecurityStatus() {
     const token = getToken();
@@ -309,8 +282,9 @@ export default function SettingsPage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  function scrollTo(id: string) {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  function goBack() {
+    if (view !== "root") setView("root");
+    else router.push("/");
   }
 
   if (!user)
@@ -334,39 +308,44 @@ export default function SettingsPage() {
   const btnGhost =
     "uppercase text-[11px] tracking-[0.25em] border border-white/15 text-white/50 hover:text-white hover:border-white/50 px-5 py-2.5 transition-colors";
 
-  const tabs = [
+  const tabs: { id: View; label: string }[] = [
     { id: "profile", label: "profile" },
     { id: "permissions", label: "permissions" },
     { id: "messages", label: "messages" },
     { id: "security", label: "security" },
   ];
 
+  const title = view === "root" ? "settings" : view;
+
   return (
     <div
-      className="min-h-screen text-white"
+      className="min-h-screen text-white overflow-x-hidden"
       style={{ fontFamily: "'Segoe UI', 'Zune', -apple-system, system-ui, sans-serif" }}
     >
-      {/* ===== МОБИЛЬНАЯ ШАПКА: назад + вкладки (на десктопе скрыта) ===== */}
+      <style>{`
+        @keyframes zuneIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+        .zune-in { animation: zuneIn .25s ease-out; }
+      `}</style>
+
+      {/* ===== МОБИЛЬНАЯ ШАПКА: назад + 4 кнопки ===== */}
       <div className="lg:hidden sticky top-0 z-40 backdrop-blur-xl bg-black/30 border-b border-white/5">
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
           <button
-            onClick={() => router.push("/")}
+            onClick={goBack}
             className="w-8 h-8 rounded-full border border-white/20 text-white/60 flex items-center justify-center hover:text-white hover:border-white/60 transition-colors"
             aria-label="Назад"
           >
             <ArrowLeft size={14} />
           </button>
-          <span className="text-[10px] uppercase tracking-[0.3em] text-white/50">settings</span>
+          <span className="text-[10px] uppercase tracking-[0.3em] text-white/50">{title}</span>
         </div>
         <nav className="flex gap-6 px-4 pb-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {tabs.map((t) => (
             <button
               key={t.id}
-              onClick={() => scrollTo(t.id)}
+              onClick={() => setView(t.id)}
               className={`shrink-0 text-[10px] uppercase tracking-[0.25em] pb-1 border-b transition-colors ${
-                activeTab === t.id
-                  ? "text-white border-[#a855f7]"
-                  : "text-white/35 border-transparent"
+                view === t.id ? "text-white border-[#a855f7]" : "text-white/35 border-transparent"
               }`}
             >
               {t.label}
@@ -375,288 +354,336 @@ export default function SettingsPage() {
         </nav>
       </div>
 
-      <main className="px-5 sm:px-10 lg:px-16 max-w-3xl mx-auto pb-28 pt-6 lg:pt-12">
-        {/* ===== ГЛАВНЫЙ ЗАГОЛОВОК, обрезанный сверху ===== */}
-        <SectionTitle big>settings</SectionTitle>
+      <main className="px-5 sm:px-10 lg:px-16 max-w-3xl mx-auto pb-28 pt-1 lg:pt-4">
+        {/* ===== ОГРОМНОЕ СЛОВО, ОБРЕЗАННОЕ СВЕРХУ И СПРАВА ===== */}
+        <div className="overflow-hidden pointer-events-none select-none">
+          <h1
+            key={title}
+            className="zune-in font-extralight lowercase leading-none whitespace-nowrap text-[#c084fc] drop-shadow-[0_0_25px_rgba(168,85,247,0.45)] text-[17vw] lg:text-[7.5rem] -mt-[0.45em]"
+          >
+            {title}
+          </h1>
+        </div>
+
+        {/* ==================== ROOT: СПИСОК КАК НА ФОТО ==================== */}
+        {view === "root" && (
+          <nav key="root" className="zune-in mt-10 space-y-1">
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setView(t.id)}
+                className="block w-full text-left uppercase text-[12px] font-semibold tracking-[0.35em] text-white/85 hover:text-white hover:pl-2 transition-all py-2.5"
+              >
+                {t.label}
+              </button>
+            ))}
+          </nav>
+        )}
 
         {/* ==================== PROFILE ==================== */}
-        <section id="profile" className="mt-12 lg:mt-16 scroll-mt-28">
-          <SectionTitle>profile</SectionTitle>
+        {view === "profile" && (
+          <div key="profile" className="zune-in mt-8 lg:mt-10">
+            <button
+              onClick={() => setView("root")}
+              className="hidden lg:flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-white/40 hover:text-white transition-colors mb-8"
+            >
+              <ArrowLeft size={12} /> settings
+            </button>
 
-          <div className="mt-6 divide-y divide-white/10">
-            {/* Аватар */}
-            <div className="py-5 flex items-center gap-5">
-              <div className="relative group">
-                {preview ? (
-                  <img
-                    src={preview}
-                    alt=""
-                    className="w-20 h-20 rounded-md object-cover ring-1 ring-[#a855f7]/70 shadow-[0_0_20px_rgba(168,85,247,0.35)]"
-                  />
-                ) : (
-                  <div className="w-20 h-20 rounded-md bg-white/5 ring-1 ring-white/15 flex items-center justify-center">
-                    <User size={26} className="text-white/25" />
-                  </div>
-                )}
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full bg-[#a855f7] hover:bg-[#9333ea] flex items-center justify-center shadow-[0_0_12px_rgba(168,85,247,0.6)] transition-colors"
-                  title="Сменить аватар"
-                >
-                  <Camera size={12} />
-                </button>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.25em] text-white/40 mb-1.5">аватарка</p>
-                <button
-                  onClick={() => fileRef.current?.click()}
-                  className="text-sm text-[#c084fc] hover:text-white transition-colors underline underline-offset-4 decoration-[#a855f7]/50"
-                >
-                  выбрать фото
-                </button>
-                <p className="text-[9px] text-white/30 mt-1.5 tracking-wider">jpg · png · gif · webp · max 5 mb</p>
-              </div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => onFile(e.target.files?.[0] ?? null)}
-              />
-            </div>
-
-            {/* Имя */}
-            <div className="py-5">
-              <label className={labelCls}>имя</label>
-              <input
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="ваше имя"
-                className={underlineInput}
-              />
-            </div>
-
-            {/* О себе */}
-            <div className="py-5">
-              <label className={labelCls}>о себе</label>
-              <textarea
-                value={bio}
-                onChange={(e) => setBio(e.target.value.slice(0, 500))}
-                rows={3}
-                placeholder="расскажи о себе"
-                className="w-full bg-transparent border-b border-white/20 rounded-none px-0 py-2 text-white placeholder-white/25 focus:outline-none focus:border-[#a855f7] resize-none transition-colors"
-              />
-              <p className="text-[9px] text-white/25 mt-1 text-right tracking-[0.2em]">
-                <span className={bio.length > 450 ? "text-amber-400" : ""}>{bio.length}</span> / 500
-              </p>
-            </div>
-
-            {/* Username */}
-            <div className="py-5 flex items-center gap-3">
-              <span className="text-[10px] uppercase tracking-[0.25em] text-white/40">username</span>
-              <span className="px-3 py-1 rounded-full border border-[#a855f7]/50 text-[#c084fc] text-sm shadow-[0_0_12px_rgba(168,85,247,0.25)]">
-                @{user.username}
-              </span>
-              <button
-                onClick={copyUsername}
-                className="p-1 text-white/30 hover:text-white transition-colors"
-                title="Скопировать"
-              >
-                {copied ? <CheckCircle2 size={14} className="text-emerald-400" /> : <Copy size={14} />}
-              </button>
-            </div>
-
-            {/* Кнопки */}
-            <div className="py-5 flex flex-wrap gap-4">
-              <button onClick={saveProfile} className={btnPrimary}>
-                + сохранить
-              </button>
-              <button onClick={() => router.push("/")} className={btnGhost}>
-                отмена
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* ==================== PERMISSIONS ==================== */}
-        <section id="permissions" className="mt-12 lg:mt-16 scroll-mt-28">
-          <SectionTitle>permissions</SectionTitle>
-          <div className="mt-6 space-y-8">
-            <PushSettings />
-            <DevicePermissionsSection />
-          </div>
-        </section>
-
-        {/* ==================== MESSAGES ==================== */}
-        <section id="messages" className="mt-12 lg:mt-16 scroll-mt-28">
-          <SectionTitle>messages</SectionTitle>
-          <div className="mt-6">
-            <LiveTextSettings />
-          </div>
-        </section>
-
-        {/* ==================== SECURITY ==================== */}
-        <section id="security" className="mt-12 lg:mt-16 scroll-mt-28">
-          <SectionTitle>security</SectionTitle>
-
-          <div className="mt-6 divide-y divide-white/10">
-            {/* 2FA */}
-            <div className="py-5">
-              <div className="flex items-center justify-between mb-2">
-                <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-white/40">
-                  <ShieldCheck
-                    size={12}
-                    className={securityStatus?.enabled ? "text-emerald-400" : "text-white/30"}
-                  />
-                  two-factor auth
-                </p>
-                {securityStatus?.enabled ? (
-                  <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-emerald-400">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" /> on
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-white/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white/30" /> off
-                  </span>
-                )}
-              </div>
-
-              <p className="text-xs text-white/45 leading-relaxed mb-3">
-                {securityStatus?.enabled
-                  ? "Аккаунт защищён. При входе потребуется код из аутентификатора."
-                  : "Дополнительный уровень защиты: код из Google Authenticator при входе."}
-              </p>
-
-              {securityStatus?.enabled && (
-                <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-400/80 mb-3">
-                  резервных кодов: {securityStatus.backup_codes_left}/10
-                </p>
-              )}
-
-              {!securityStatus?.enabled ? (
-                <button
-                  onClick={start2FASetup}
-                  disabled={loading2FA}
-                  className="uppercase text-[11px] tracking-[0.25em] border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/15 px-5 py-2.5 transition-colors disabled:opacity-40"
-                >
-                  + включить 2fa
-                </button>
-              ) : (
-                <button
-                  onClick={() => setShowDisable2FA(true)}
-                  disabled={loading2FA}
-                  className="uppercase text-[11px] tracking-[0.25em] border border-red-500/50 text-red-400 hover:bg-red-500/15 px-5 py-2.5 transition-colors disabled:opacity-40"
-                >
-                  − отключить 2fa
-                </button>
-              )}
-            </div>
-
-            {/* Email */}
-            <div className="py-5">
-              <div className="flex items-center justify-between mb-2">
-                <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-white/40">
-                  <Mail size={12} className="text-amber-400" /> email
-                </p>
-                <span className="text-[10px] uppercase tracking-[0.2em] text-amber-400/80">🚧 скоро</span>
-              </div>
-              <p className="text-xs text-white/45 leading-relaxed">
-                На доработке: восстановление пароля, уведомления, подтверждение email.
-              </p>
-            </div>
-
-            {/* Пароль */}
-            <div className="py-5">
-              <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-white/40 mb-5">
-                <Lock size={12} className="text-[#a855f7]" /> сменить пароль
-              </p>
-
-              <form onSubmit={changePassword} className="space-y-5">
-                <div className="relative">
-                  <input
-                    type={showOld ? "text" : "password"}
-                    value={oldPassword}
-                    onChange={(e) => setOldPassword(e.target.value)}
-                    placeholder="текущий пароль"
-                    required
-                    className={underlineInput + " pr-8"}
-                  />
+            <div className="space-y-7">
+              {/* Аватар */}
+              <div className="flex items-center gap-5">
+                <div className="relative group">
+                  {preview ? (
+                    <img
+                      src={preview}
+                      alt=""
+                      className="w-20 h-20 rounded-md object-cover ring-1 ring-[#a855f7]/70 shadow-[0_0_20px_rgba(168,85,247,0.35)]"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-md bg-white/5 ring-1 ring-white/15 flex items-center justify-center">
+                      <User size={26} className="text-white/25" />
+                    </div>
+                  )}
                   <button
-                    type="button"
-                    onClick={() => setShowOld(!showOld)}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 text-white/30 hover:text-white transition-colors p-1"
+                    onClick={() => fileRef.current?.click()}
+                    className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full bg-[#a855f7] hover:bg-[#9333ea] flex items-center justify-center shadow-[0_0_12px_rgba(168,85,247,0.6)] transition-colors"
+                    title="Сменить аватар"
                   >
-                    {showOld ? <EyeOff size={14} /> : <Eye size={14} />}
+                    <Camera size={12} />
                   </button>
                 </div>
-
-                <div className="relative">
-                  <input
-                    type={showNew ? "text" : "password"}
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="новый пароль (мин. 6)"
-                    required
-                    minLength={6}
-                    className={underlineInput + " pr-8"}
-                  />
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.25em] text-white/40 mb-1.5">аватарка</p>
                   <button
-                    type="button"
-                    onClick={() => setShowNew(!showNew)}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 text-white/30 hover:text-white transition-colors p-1"
+                    onClick={() => fileRef.current?.click()}
+                    className="text-sm text-[#c084fc] hover:text-white transition-colors underline underline-offset-4 decoration-[#a855f7]/50"
                   >
-                    {showNew ? <EyeOff size={14} /> : <Eye size={14} />}
+                    выбрать фото
                   </button>
+                  <p className="text-[9px] text-white/30 mt-1.5 tracking-wider">jpg · png · gif · webp · max 5 mb</p>
                 </div>
-
                 <input
-                  type={showNew ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="повторите пароль"
-                  required
-                  minLength={6}
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+
+              {/* Имя */}
+              <div>
+                <label className={labelCls}>имя</label>
+                <input
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="ваше имя"
                   className={underlineInput}
                 />
+              </div>
 
-                {passwordMsg && (
-                  <p
-                    className={`flex items-center gap-2 text-xs ${
-                      passwordMsg.type === "ok" ? "text-emerald-400" : "text-red-400"
-                    }`}
-                  >
-                    {passwordMsg.type === "ok" ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
-                    {passwordMsg.text}
+              {/* О себе */}
+              <div>
+                <label className={labelCls}>о себе</label>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value.slice(0, 500))}
+                  rows={3}
+                  placeholder="расскажи о себе"
+                  className="w-full bg-transparent border-b border-white/20 rounded-none px-0 py-2 text-white placeholder-white/25 focus:outline-none focus:border-[#a855f7] resize-none transition-colors"
+                />
+                <p className="text-[9px] text-white/25 mt-1 text-right tracking-[0.2em]">
+                  <span className={bio.length > 450 ? "text-amber-400" : ""}>{bio.length}</span> / 500
+                </p>
+              </div>
+
+              {/* Username */}
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] uppercase tracking-[0.25em] text-white/40">username</span>
+                <span className="px-3 py-1 rounded-full border border-[#a855f7]/50 text-[#c084fc] text-sm shadow-[0_0_12px_rgba(168,85,247,0.25)]">
+                  @{user.username}
+                </span>
+                <button
+                  onClick={copyUsername}
+                  className="p-1 text-white/30 hover:text-white transition-colors"
+                  title="Скопировать"
+                >
+                  {copied ? <CheckCircle2 size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                </button>
+              </div>
+
+              {/* Кнопки */}
+              <div className="flex flex-wrap gap-4 pt-2">
+                <button onClick={saveProfile} className={btnPrimary}>
+                  + сохранить
+                </button>
+                <button onClick={() => router.push("/")} className={btnGhost}>
+                  отмена
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== PERMISSIONS ==================== */}
+        {view === "permissions" && (
+          <div key="permissions" className="zune-in mt-8 lg:mt-10">
+            <button
+              onClick={() => setView("root")}
+              className="hidden lg:flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-white/40 hover:text-white transition-colors mb-8"
+            >
+              <ArrowLeft size={12} /> settings
+            </button>
+            <div className="space-y-10">
+              <PushSettings />
+              <DevicePermissionsSection />
+            </div>
+          </div>
+        )}
+
+        {/* ==================== MESSAGES ==================== */}
+        {view === "messages" && (
+          <div key="messages" className="zune-in mt-8 lg:mt-10">
+            <button
+              onClick={() => setView("root")}
+              className="hidden lg:flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-white/40 hover:text-white transition-colors mb-8"
+            >
+              <ArrowLeft size={12} /> settings
+            </button>
+            <LiveTextSettings />
+          </div>
+        )}
+
+        {/* ==================== SECURITY ==================== */}
+        {view === "security" && (
+          <div key="security" className="zune-in mt-8 lg:mt-10">
+            <button
+              onClick={() => setView("root")}
+              className="hidden lg:flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-white/40 hover:text-white transition-colors mb-8"
+            >
+              <ArrowLeft size={12} /> settings
+            </button>
+
+            <div className="space-y-9">
+              {/* 2FA */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-white/40">
+                    <ShieldCheck
+                      size={12}
+                      className={securityStatus?.enabled ? "text-emerald-400" : "text-white/30"}
+                    />
+                    two-factor auth
+                  </p>
+                  {securityStatus?.enabled ? (
+                    <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-emerald-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" /> on
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-white/30">
+                      <span className="w-1.5 h-1.5 rounded-full bg-white/30" /> off
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-xs text-white/45 leading-relaxed mb-3">
+                  {securityStatus?.enabled
+                    ? "Аккаунт защищён. При входе потребуется код из аутентификатора."
+                    : "Дополнительный уровень защиты: код из Google Authenticator при входе."}
+                </p>
+
+                {securityStatus?.enabled && (
+                  <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-400/80 mb-3">
+                    резервных кодов: {securityStatus.backup_codes_left}/10
                   </p>
                 )}
 
-                <button type="submit" className={btnPrimary + " w-full"}>
-                  + обновить пароль
-                </button>
-              </form>
-            </div>
+                {!securityStatus?.enabled ? (
+                  <button
+                    onClick={start2FASetup}
+                    disabled={loading2FA}
+                    className="uppercase text-[11px] tracking-[0.25em] border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/15 px-5 py-2.5 transition-colors disabled:opacity-40"
+                  >
+                    + включить 2fa
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowDisable2FA(true)}
+                    disabled={loading2FA}
+                    className="uppercase text-[11px] tracking-[0.25em] border border-red-500/50 text-red-400 hover:bg-red-500/15 px-5 py-2.5 transition-colors disabled:opacity-40"
+                  >
+                    − отключить 2fa
+                  </button>
+                )}
+              </div>
 
-            {/* Выход со всех устройств */}
-            <div className="py-5 flex items-center justify-between gap-4">
+              {/* Email */}
               <div>
-                <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-red-400/80">
-                  <ShieldAlert size={12} /> log out all
-                </p>
-                <p className="text-xs text-white/40 mt-1.5 leading-relaxed">
-                  Завершить все сессии на всех устройствах
+                <div className="flex items-center justify-between mb-2">
+                  <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-white/40">
+                    <Mail size={12} className="text-amber-400" /> email
+                  </p>
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-amber-400/80">🚧 скоро</span>
+                </div>
+                <p className="text-xs text-white/45 leading-relaxed">
+                На доработке: восстановление пароля, уведомления, подтверждение email.
                 </p>
               </div>
-              <button
-                onClick={logoutAll}
-                disabled={loggingOutAll}
-                className="shrink-0 w-11 h-11 rounded-full border border-red-500/60 text-red-400 hover:bg-red-500/15 hover:shadow-[0_0_18px_rgba(239,68,68,0.4)] flex items-center justify-center transition-all disabled:opacity-40"
-                title="Выйти со всех устройств"
-              >
-                {loggingOutAll ? <RefreshCw size={15} className="animate-spin" /> : <LogOut size={15} />}
-              </button>
+
+              {/* Пароль */}
+              <div>
+                <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-white/40 mb-5">
+                  <Lock size={12} className="text-[#a855f7]" /> сменить пароль
+                </p>
+
+                <form onSubmit={changePassword} className="space-y-5">
+                  <div className="relative">
+                    <input
+                      type={showOld ? "text" : "password"}
+                      value={oldPassword}
+                      onChange={(e) => setOldPassword(e.target.value)}
+                      placeholder="текущий пароль"
+                      required
+                      className={underlineInput + " pr-8"}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowOld(!showOld)}
+                      className="absolute right-0 top-1/2 -translate-y-1/2 text-white/30 hover:text-white transition-colors p-1"
+                    >
+                      {showOld ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type={showNew ? "text" : "password"}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="новый пароль (мин. 6)"
+                      required
+                      minLength={6}
+                      className={underlineInput + " pr-8"}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNew(!showNew)}
+                      className="absolute right-0 top-1/2 -translate-y-1/2 text-white/30 hover:text-white transition-colors p-1"
+                    >
+                      {showNew ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+
+                  <input
+                    type={showNew ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="повторите пароль"
+                    required
+                    minLength={6}
+                    className={underlineInput}
+                  />
+
+                  {passwordMsg && (
+                    <p
+                      className={`flex items-center gap-2 text-xs ${
+                        passwordMsg.type === "ok" ? "text-emerald-400" : "text-red-400"
+                      }`}
+                    >
+                      {passwordMsg.type === "ok" ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
+                      {passwordMsg.text}
+                    </p>
+                  )}
+
+                  <button type="submit" className={btnPrimary + " w-full"}>
+                    + обновить пароль
+                  </button>
+                </form>
+              </div>
+
+              {/* Выход со всех устройств */}
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-red-400/80">
+                    <ShieldAlert size={12} /> log out all
+                  </p>
+                  <p className="text-xs text-white/40 mt-1.5 leading-relaxed">
+                    Завершить все сессии на всех устройствах
+                  </p>
+                </div>
+                <button
+                  onClick={logoutAll}
+                  disabled={loggingOutAll}
+                  className="shrink-0 w-11 h-11 rounded-full border border-red-500/60 text-red-400 hover:bg-red-500/15 hover:shadow-[0_0_18px_rgba(239,68,68,0.4)] flex items-center justify-center transition-all disabled:opacity-40"
+                  title="Выйти со всех устройств"
+                >
+                  {loggingOutAll ? <RefreshCw size={15} className="animate-spin" /> : <LogOut size={15} />}
+                </button>
+              </div>
             </div>
           </div>
-        </section>
+        )}
       </main>
 
       {/* ===== MODAL: 2FA Setup ===== */}
