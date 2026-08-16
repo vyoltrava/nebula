@@ -216,14 +216,24 @@ export function Post({
     });
 
     const [liked, setLiked] = useState<boolean>(() => {
-      return liked_by_me ?? isLikedCached(id) ?? false;
+      if (liked_by_me === true) return true;
+      return isLikedCached(id) || false;
     });
-    const [count, setCount] = useState(likes_count);
+
     useEffect(() => {
-      if (liked_by_me !== undefined) {
-        setLiked(liked_by_me);
+      // Серверный false не перетирает кэш (API профиля багованный)
+      if (liked_by_me === true) {
+        setLiked(true);
+        setLikedCache(id, true);
       }
-    }, [liked_by_me]);
+    }, [id, liked_by_me]);
+
+
+    const [count, setCount] = useState(likes_count ?? 0);
+    useEffect(() => {
+      setCount(likes_count ?? 0);
+    }, [likes_count]);
+
     const [rCount, setRCount] = useState(replies_count);
     const [replying, setReplying] = useState(false);
     const [replyText, setReplyText] = useState("");
@@ -328,7 +338,6 @@ useEffect(() => {
 // Было:
 // setCount((c) => (next ? c + 1 : c - 1));
 
-// Стало (везде где есть setCount с декрементом):
 async function toggleLike() {
   const token = getToken();
   if (!token) {
@@ -336,10 +345,10 @@ async function toggleLike() {
     return;
   }
 
-    const next = !liked;
-    setLiked(next);
-    setCount((c) => Math.max(0, next ? (c ?? 0) + 1 : (c ?? 0) - 1));
-    setLikedCache(id, next); // ← УБРАТЬ ДВОЙНОЙ СЛЭШ, РАСКОММЕНТИРОВАТЬ
+  const next = !liked;
+  setLiked(next);
+  setCount((c) => Math.max(0, next ? (c ?? 0) + 1 : (c ?? 0) - 1));
+  setLikedCache(id, next); // ← РАСКОММЕНТИРОВАТЬ, пишем сразу
 
   const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/like`, {
     method: "POST",
@@ -349,17 +358,14 @@ async function toggleLike() {
   if (res.ok) {
     const data = await res.json();
     setLiked(data.liked);
-    
-    // 🛡️ Сервер — источник правды. Берем count, только если он точно пришел
     if (data.likes_count !== undefined) {
       setCount(data.likes_count); 
     }
     setLikedCache(id, data.liked);
   } else {
-    // Откат
     setLiked(!next);
-    setCount((c) => Math.max(0, next ? (c ?? 0) - 1 : (c ?? 0) + 1)); // 🛡️ Защита от минуса и NaN
-    setLikedCache(id, !next);
+    setCount((c) => Math.max(0, next ? (c ?? 0) - 1 : (c ?? 0) + 1));
+    setLikedCache(id, !next); // откат кэша
   }
 }
 
@@ -568,9 +574,6 @@ async function toggleLike() {
     }
   }
 
-  useEffect(() => {
-    setLiked(liked_by_me ?? isLikedCached(id) ?? false);
-  }, [id, liked_by_me]);
 
   const canDelete = currentUser?.id === author_id || myPermissions.includes("delete_posts");
   const canEdit = currentUser?.id === author_id || myPermissions.includes("edit_posts");
