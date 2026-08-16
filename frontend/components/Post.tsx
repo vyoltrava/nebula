@@ -191,7 +191,7 @@ export function Post({
   media_url?: string | null;
   media_type?: string | null;
   likes_count: number;
-  liked_by_me: boolean;
+  liked_by_me?: boolean;
   bookmarked?: boolean;
   replies_count: number;
   created_at: string;
@@ -215,7 +215,7 @@ export function Post({
       return cached?.permissions || [];
     });
 
-    const [liked, setLiked] = useState<boolean>(liked_by_me);
+    const [liked, setLiked] = useState<boolean>(liked_by_me ?? false);
     const [count, setCount] = useState(likes_count);
   useEffect(() => {
     setCount(likes_count ?? 0);
@@ -565,7 +565,7 @@ async function toggleLike() {
   }
 
     useEffect(() => {
-      setLiked(liked_by_me);
+      setLiked(liked_by_me ?? false);
     }, [liked_by_me]);
 
   const canDelete = currentUser?.id === author_id || myPermissions.includes("delete_posts");

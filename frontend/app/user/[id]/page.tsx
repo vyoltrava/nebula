@@ -559,7 +559,11 @@ export default function UserProfilePage() {
 
         {/* ================= ПОСТЫ ================= */}
         {posts.map((post) => (
-          <Post key={post.id} {...post} currentUser={currentUser} />
+          <Post 
+            key={post.id} 
+            {...post} 
+            liked_by_me={post.liked_by_me ?? post.is_liked ?? false} 
+          />
         ))}
         {posts.length === 0 && !postsLoading && <p className="p-8 text-center text-white/50">Пока нет постов</p>}
         {hasMore && posts.length > 0 && !postsLoading && (
