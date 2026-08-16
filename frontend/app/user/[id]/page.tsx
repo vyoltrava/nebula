@@ -558,7 +558,9 @@ export default function UserProfilePage() {
         </div>
 
         {/* ================= ПОСТЫ ================= */}
-        {posts.map((post) => <Post key={post.id} {...post} />)}
+        {posts.map((post) => (
+          <Post key={post.id} {...post} currentUser={currentUser} />
+        ))}
         {posts.length === 0 && !postsLoading && <p className="p-8 text-center text-white/50">Пока нет постов</p>}
         {hasMore && posts.length > 0 && !postsLoading && (
           <button onClick={() => loadMorePosts()} className="w-full p-4 text-center text-[#8b5cf6] font-semibold hover:bg-white/5 transition-all">
