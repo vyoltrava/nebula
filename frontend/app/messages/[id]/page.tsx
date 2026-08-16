@@ -362,9 +362,17 @@ export default function ChatPage() {
     const token = getToken();
     if (!token) return;
     try {
-      if (isSecret) {
-        const sk = getSessionKeyOrThrow(Number(chatId));
-        const { encryptMediaFile } = await import("@/lib/mediaCrypto");
+          if (isSecret) {
+            let sk = loadSessionKey(Number(chatId));
+            if (!sk) {
+              await establishNewSession();
+              sk = loadSessionKey(Number(chatId));
+            }
+            if (!sk) {
+              alert("Не удалось установить защищённую сессию");
+              return;
+            }
+            const { encryptMediaFile } = await import("@/lib/mediaCrypto");
         const encryptedBlob = await encryptMediaFile(audioFile, sk);
 
         const form = new FormData();
@@ -1567,12 +1575,35 @@ if (data.sender_id === currentUser?.id) {
   if (isGroup) loadChatInfo();
 });
 
-  useWebSocket("chat_deleted", (data: any) => {
-    if (String(data.chat_id) === String(chatId)) {
-      alert("Этот чат был удалён");
-      router.push("/messages");
-    }
-  });
+useWebSocket("chat_deleted", (data: any) => {
+  if (String(data.chat_id) === String(chatId)) {
+    clearSessionKey(Number(chatId)); // 🆕 сбрасываем локальный ключ
+    alert("Этот чат был удалён");
+    router.push("/messages");
+  }
+});
+
+// 🆕 Собеседник установил новый ключ сессии — забираем, чтобы медиа/текст расшифровались
+useWebSocket("session_key_updated", (data: any) => {
+  if (String(data.chat_id) !== String(chatId)) return;
+  const token = getToken();
+  if (!token) return;
+  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/session-key`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((d) => {
+      if (!d) return;
+      try {
+        const newSk = decryptSessionKey(d.encrypted_session_key);
+        storeSessionKey(Number(chatId), newSk);
+        setMessages((prev) => [...prev]); // ре-рендер → повторная расшифровка
+      } catch (e) {
+        console.error("Failed to apply updated session key:", e);
+      }
+    })
+    .catch(() => {});
+});
 
   useWebSocket("group_member_added", (data: any) => {
     if (String(data.chat_id) === String(chatId)) loadChatInfo();
@@ -3268,7 +3299,15 @@ const ChatHeader = () => (
 
       try {
         if (isSecret) {
-          const sk = getSessionKeyOrThrow(Number(chatId));
+          let sk = loadSessionKey(Number(chatId));
+          if (!sk) {
+            await establishNewSession();
+            sk = loadSessionKey(Number(chatId));
+          }
+          if (!sk) {
+            alert("Не удалось установить защищённую сессию");
+            return;
+          }
           const { encryptMediaFile } = await import("@/lib/mediaCrypto");
           const encryptedBlob = await encryptMediaFile(file, sk);
 

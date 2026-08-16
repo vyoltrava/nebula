@@ -5508,7 +5508,7 @@ def get_user_public_key(user_id: int, session: Session = Depends(get_session)):
 # ---------- E2EE: SESSION KEYS ----------
 
 @app.post("/api/chats/{chat_id}/session-key")
-def store_session_key(
+async def store_session_key(
     chat_id: int,
     recipient_id: int = Form(...),
     encrypted_session_key: str = Form(...),
@@ -5546,6 +5546,13 @@ def store_session_key(
         )
         session.add(sk)
     session.commit()
+    # 🆕 Уведомляем получателя: ключ сессии обновлён — устройство должно перечитать
+    if recipient_id != user.id:
+        await manager.broadcast_to_users(
+            [recipient_id],
+            "session_key_updated",
+            {"chat_id": chat_id},
+        )
     return {"ok": True}
 
 @app.get("/api/chats/{chat_id}/session-key")
