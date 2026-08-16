@@ -3,11 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getToken, clearToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
-import { Upload, Lock, Eye, EyeOff, LogOut, ShieldAlert, Bell } from "lucide-react";
+import { 
+  Upload, Lock, Eye, EyeOff, LogOut, ShieldAlert, Bell,
+  ShieldCheck, Mail, X, RefreshCw, Copy, CheckCircle2, AlertCircle
+} from "lucide-react";
 import { PushSettings } from "@/components/PushSettings";
 import { DevicePermissionsSection } from "@/components/DevicePermissionsSection";
 import { LiveTextSettings } from "@/components/LiveTextSettings";
-
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
@@ -25,6 +27,18 @@ export default function SettingsPage() {
   const [passwordMsg, setPasswordMsg] = useState<{ text: string; type: "ok" | "err" } | null>(null);
   const [bio, setBio] = useState("");
   const [loggingOutAll, setLoggingOutAll] = useState(false);
+
+  // 🆕 2FA States
+  const [securityStatus, setSecurityStatus] = useState<any>(null);
+  const [show2FASetup, setShow2FASetup] = useState(false);
+  const [qrCode, setQrCode] = useState("");
+  const [secret, setSecret] = useState("");
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [verifyCode, setVerifyCode] = useState("");
+  const [setupStep, setSetupStep] = useState<"scan" | "verify" | "backup">("scan");
+  const [showDisable2FA, setShowDisable2FA] = useState(false);
+  const [disableCode, setDisableCode] = useState("");
+  const [loading2FA, setLoading2FA] = useState(false);
 
   useEffect(() => {
     const token = getToken();
@@ -44,7 +58,23 @@ export default function SettingsPage() {
           setPreview(mediaUrl(data.avatar_url));
         }
       });
+    
+    // Загружаем статус безопасности
+    fetchSecurityStatus();
   }, []);
+
+  async function fetchSecurityStatus() {
+    const token = getToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/2fa/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setSecurityStatus(await res.json());
+      }
+    } catch {}
+  }
 
   async function saveProfile() {
     const token = getToken();
@@ -158,6 +188,82 @@ export default function SettingsPage() {
     router.push("/login");
   }
 
+  // 🆕 2FA Functions
+  async function start2FASetup() {
+    const token = getToken();
+    if (!token) return;
+    setLoading2FA(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/2fa/setup`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setQrCode(data.qr_code);
+        setSecret(data.secret);
+        setBackupCodes(data.backup_codes);
+        setShow2FASetup(true);
+        setSetupStep("scan");
+      } else {
+        const err = await res.json();
+        alert(err.detail || "Ошибка");
+      }
+    } catch {}
+    setLoading2FA(false);
+  }
+
+  async function activate2FA() {
+    const token = getToken();
+    if (!token) return;
+    setLoading2FA(true);
+    try {
+      const form = new FormData();
+      form.append("code", verifyCode);
+      form.append("backup_codes", JSON.stringify(backupCodes));
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/2fa/activate`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (res.ok) {
+        alert("✅ 2FA активирована! Сохраните резервные коды в безопасном месте.");
+        setShow2FASetup(false);
+        setVerifyCode("");
+        fetchSecurityStatus();
+      } else {
+        const err = await res.json();
+        alert(err.detail || "Неверный код");
+      }
+    } catch {}
+    setLoading2FA(false);
+  }
+
+  async function disable2FA() {
+    const token = getToken();
+    if (!token) return;
+    setLoading2FA(true);
+    try {
+      const form = new FormData();
+      form.append("code", disableCode);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/2fa/disable`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (res.ok) {
+        alert("2FA отключена");
+        setShowDisable2FA(false);
+        setDisableCode("");
+        fetchSecurityStatus();
+      } else {
+        const err = await res.json();
+        alert(err.detail || "Неверный код");
+      }
+    } catch {}
+    setLoading2FA(false);
+  }
+
   function onFile(f: File | null) {
     if (f) {
       setPreview(URL.createObjectURL(f));
@@ -251,25 +357,117 @@ export default function SettingsPage() {
           </div>
         </div>
 
-          {/* === УВЕДОМЛЕНИЯ === */}
-          <div className="bg-[#1f1f23] border border-white/10 rounded-2xl overflow-hidden">
-            <div className="px-4 sm:px-5 py-3 border-b border-white/10">
-              <h2 className="font-bold text-white flex items-center gap-2">
-                <Bell size={16} className="text-[#8b5cf6]" />
-                Уведомления
-              </h2>
-              <p className="text-xs text-white/40 mt-0.5">
-                Push-уведомления работают даже когда приложение закрыто
-              </p>
-            </div>
-            <div className="p-4 sm:p-5 space-y-3">
-              <PushSettings />
+        {/* === УВЕДОМЛЕНИЯ === */}
+        <div className="bg-[#1f1f23] border border-white/10 rounded-2xl overflow-hidden">
+          <div className="px-4 sm:px-5 py-3 border-b border-white/10">
+            <h2 className="font-bold text-white flex items-center gap-2">
+              <Bell size={16} className="text-[#8b5cf6]" />
+              Уведомления
+            </h2>
+            <p className="text-xs text-white/40 mt-0.5">
+              Push-уведомления работают даже когда приложение закрыто
+            </p>
+          </div>
+          <div className="p-4 sm:p-5 space-y-3">
+            <PushSettings />
+          </div>
+        </div>
+
+        {/* === РАЗРЕШЕНИЯ УСТРОЙСТВА === */}
+        <DevicePermissionsSection />
+        <LiveTextSettings />
+
+        {/* ========== 🆕 Блок 2FA ========== */}
+        <div className="border border-emerald-500/30 rounded-2xl bg-gradient-to-br from-emerald-500/5 to-transparent backdrop-blur-md p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg ${securityStatus?.enabled ? 'bg-emerald-500/20' : 'bg-white/5'}`}>
+                <ShieldCheck size={24} className={securityStatus?.enabled ? 'text-emerald-400' : 'text-white/40'} />
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-white">Двухфакторная аутентификация</h2>
+                <p className="text-sm text-white/60 mt-0.5">
+                  {securityStatus?.enabled ? (
+                    <span className="flex items-center gap-1 text-emerald-400">
+                      <CheckCircle2 size={14} /> Включена
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-white/40">
+                      <AlertCircle size={14} /> Выключена
+                    </span>
+                  )}
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* === РАЗРЕШЕНИЯ УСТРОЙСТВА === */}
-          <DevicePermissionsSection />
-          <LiveTextSettings />
+          <p className="text-sm text-white/70 mb-5 leading-relaxed">
+            {securityStatus?.enabled 
+              ? "Ваш аккаунт защищён. При входе потребуется код из приложения-аутентификатора."
+              : "Добавьте дополнительный уровень защиты. При входе потребуется код из Google Authenticator или подобного приложения."
+            }
+          </p>
+
+          {securityStatus?.enabled && (
+            <div className="mb-4 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+              <p className="text-xs text-emerald-300 font-semibold">
+                🔐 Резервных кодов осталось: {securityStatus.backup_codes_left}/10
+              </p>
+            </div>
+          )}
+
+          {!securityStatus?.enabled ? (
+            <button
+              onClick={start2FASetup}
+              disabled={loading2FA}
+              className="w-full flex items-center justify-center gap-2 border border-emerald-500/40 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/60 font-bold rounded-lg py-3 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ShieldCheck size={18} />
+              {loading2FA ? "Загрузка..." : "Включить 2FA"}
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowDisable2FA(true)}
+              disabled={loading2FA}
+              className="w-full flex items-center justify-center gap-2 border border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:border-red-500/60 font-bold rounded-lg py-3 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <X size={18} />
+              Отключить 2FA
+            </button>
+          )}
+        </div>
+
+        {/* ========== 🆕 Блок Email (На доработке) ========== */}
+        <div className="border border-amber-500/30 rounded-2xl bg-gradient-to-br from-amber-500/5 to-transparent backdrop-blur-md p-6 opacity-75">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-amber-500/20">
+                <Mail size={24} className="text-amber-400" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-white">Email</h2>
+                <p className="text-sm text-white/60 mt-0.5 flex items-center gap-1">
+                  <span className="text-amber-400">🚧 На доработке</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <p className="text-sm text-white/70 mb-5 leading-relaxed">
+            Привязка email для восстановления доступа и уведомлений. Функция в разработке.
+          </p>
+
+          <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <p className="text-xs text-amber-300 font-semibold mb-2">
+              ⏳ Скоро будет доступно:
+            </p>
+            <ul className="text-xs text-amber-200/80 space-y-1">
+              <li>• Восстановление пароля через email</li>
+              <li>• Уведомления о важных событиях</li>
+              <li>• Подтверждение email</li>
+            </ul>
+          </div>
+        </div>
 
         {/* ========== Блок смены пароля ========== */}
         <div className="border border-white/15 rounded-2xl bg-white/5 backdrop-blur-md p-6">
@@ -362,7 +560,7 @@ export default function SettingsPage() {
           </form>
         </div>
 
-        {/* ========== 🆕 Блок безопасности ========== */}
+        {/* ========== Блок безопасности ========== */}
         <div className="border border-red-500/30 rounded-2xl bg-red-500/5 backdrop-blur-md p-6">
           <div className="flex items-center gap-2 mb-4">
             <ShieldAlert size={20} className="text-red-400" />
@@ -383,6 +581,155 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
+
+      {/* ========== 🆕 Модалка настройки 2FA ========== */}
+      {show2FASetup && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => !loading2FA && setShow2FASetup(false)} />
+          <div className="relative bg-[#1f1f23] border border-white/15 rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={24} className="text-emerald-400" />
+                <h3 className="text-xl font-black text-white">Настройка 2FA</h3>
+              </div>
+              <button 
+                onClick={() => !loading2FA && setShow2FASetup(false)} 
+                className="text-white/50 hover:text-white transition-colors"
+                disabled={loading2FA}
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            {setupStep === "scan" && (
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-white/5">
+                    <div className="w-6 h-6 rounded-full bg-[#8b5cf6] flex items-center justify-center text-white text-xs font-bold shrink-0">1</div>
+                    <p className="text-sm text-white/80">
+                      Откройте <span className="font-bold text-white">Google Authenticator</span>, <span className="font-bold text-white">Authy</span> или подобное приложение
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-white/5">
+                    <div className="w-6 h-6 rounded-full bg-[#8b5cf6] flex items-center justify-center text-white text-xs font-bold shrink-0">2</div>
+                    <p className="text-sm text-white/80">
+                      Нажмите <span className="font-bold text-white">«+»</span> → <span className="font-bold text-white">«Сканировать QR-код»</span>
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-white/5">
+                    <div className="w-6 h-6 rounded-full bg-[#8b5cf6] flex items-center justify-center text-white text-xs font-bold shrink-0">3</div>
+                    <p className="text-sm text-white/80">
+                      Отсканируйте QR-код ниже
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-center bg-white rounded-xl p-5 shadow-lg">
+                  <img src={qrCode} alt="QR" className="w-52 h-52" />
+                </div>
+
+                <details className="group">
+                  <summary className="text-sm text-white/60 cursor-pointer hover:text-white/80 transition-colors flex items-center gap-2">
+                    <span className="group-open:rotate-90 transition-transform">▶</span>
+                    Нет камеры? Введите ключ вручную
+                  </summary>
+                  <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <p className="text-xs text-amber-300 mb-2 font-semibold">Секретный ключ:</p>
+                    <p className="font-mono text-sm text-amber-200 break-all select-all">{secret}</p>
+                  </div>
+                </details>
+
+                <button
+                  onClick={() => setSetupStep("verify")}
+                  className="w-full py-3 rounded-lg bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed] transition-colors"
+                >
+                  Далее →
+                </button>
+              </div>
+            )}
+
+            {setupStep === "verify" && (
+              <div className="space-y-4">
+                <p className="text-sm text-white/70">
+                  Введите 6-значный код из приложения-аутентификатора:
+                </p>
+                <input
+                  value={verifyCode}
+                  onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="000000"
+                  className="w-full px-4 py-4 rounded-lg bg-white/5 border border-white/15 text-white text-center text-3xl tracking-[0.5em] font-mono focus:outline-none focus:border-emerald-500 transition-colors"
+                  autoFocus
+                  disabled={loading2FA}
+                />
+                <button
+                  onClick={activate2FA}
+                  disabled={verifyCode.length !== 6 || loading2FA}
+                  className="w-full py-3 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  {loading2FA ? "Проверка..." : "✓ Активировать 2FA"}
+                </button>
+                <button
+                  onClick={() => setSetupStep("scan")}
+                  disabled={loading2FA}
+                  className="w-full py-2.5 text-white/60 hover:text-white text-sm font-semibold transition-colors disabled:opacity-40"
+                >
+                  ← Назад
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========== 🆕 Модалка отключения 2FA ========== */}
+      {showDisable2FA && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => !loading2FA && setShowDisable2FA(false)} />
+          <div className="relative bg-[#1f1f23] border border-white/15 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <X size={22} className="text-red-400" />
+                <h3 className="text-lg font-black text-white">Отключить 2FA</h3>
+              </div>
+              <button 
+                onClick={() => !loading2FA && setShowDisable2FA(false)} 
+                className="text-white/50 hover:text-white transition-colors"
+                disabled={loading2FA}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p className="text-sm text-white/70 mb-4">
+              Введите код из приложения-аутентификатора или один из резервных кодов:
+            </p>
+            <input
+              value={disableCode}
+              onChange={(e) => setDisableCode(e.target.value)}
+              placeholder="Код или резервный код"
+              className="w-full px-4 py-4 rounded-lg bg-white/5 border border-white/15 text-white text-center text-xl tracking-wider font-mono focus:outline-none focus:border-red-500 mb-4 transition-colors"
+              autoFocus
+              disabled={loading2FA}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={disable2FA}
+                disabled={!disableCode || loading2FA}
+                className="flex-1 py-3 rounded-lg bg-red-600 text-white font-bold hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                {loading2FA ? "Проверка..." : "Отключить"}
+              </button>
+              <button
+                onClick={() => !loading2FA && setShowDisable2FA(false)}
+                disabled={loading2FA}
+                className="flex-1 py-3 rounded-lg bg-white/10 text-white font-bold hover:bg-white/15 disabled:opacity-40 transition-colors"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
