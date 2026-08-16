@@ -1,9 +1,9 @@
 // lib/uploadRules.ts
 export const UPLOAD_RULES = {
   avatar: {
-    maxBytes: 2 * 1024 * 1024,
+    maxBytes: 5 * 1024 * 1024,
     types: ["image/png", "image/jpeg", "image/webp", "image/gif"],
-    hint: "PNG / JPG / WEBP / GIF · до 2 МБ",
+    hint: "PNG / JPG / WEBP / GIF · до 5 МБ",
   },
   banner: {
     maxBytes: 5 * 1024 * 1024,
