@@ -115,45 +115,52 @@ export default function UserProfilePage() {
       });
   }, []);
 
-async function startChat() {
-  const token = getToken();
-  if (!token) {
-    router.push("/login");
-    return;
-  }
-  // 🆕 Используем числовой ID из профиля, а не userId из URL (который может быть username)
-  const targetId = profile?.id;
-  if (!targetId) {
-    alert("Профиль не загружен");
-    return;
-  }
-  try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/chats?other_user_id=${targetId}`,
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      router.push(`/messages/${data.chat_id}`);
-    } else {
-      const err = await res.json().catch(() => null);
-      alert(err?.detail || "Не удалось начать переписку");
+  async function startChat() {
+    const token = getToken();
+    if (!token) {
+      router.push("/login");
+      return;
     }
-  } catch (e) {
-    alert("Ошибка сети");
+    const targetId = profile?.id;
+    if (!targetId) {
+      alert("Профиль не загружен");
+      return;
+    }
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/chats?other_user_id=${targetId}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/messages/${data.chat_id}`);
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.detail || "Не удалось начать переписку");
+      }
+    } catch (e) {
+      alert("Ошибка сети");
+    }
   }
-}
 
-  async function loadMorePosts(reset = false) {
+  async function loadMorePosts(reset = false, targetId?: number) {
     if (postsLoading) return;
     setPostsLoading(true);
+    
+    // 🔥 Используем переданный ID или profile.id, НЕ userId из URL (он может быть username)
+    const targetUserId = targetId ?? profile?.id;
+    if (!targetUserId) {
+      setPostsLoading(false);
+      return;
+    }
+    
     const cursor = reset ? null : nextCursor;
     const url = cursor
-      ? `${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/posts?cursor=${cursor}&limit=20`
-      : `${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/posts?limit=20`;
+      ? `${process.env.NEXT_PUBLIC_API_URL}/api/users/${targetUserId}/posts?cursor=${cursor}&limit=20`
+      : `${process.env.NEXT_PUBLIC_API_URL}/api/users/${targetUserId}/posts?limit=20`;
 
     try {
       const postsRes = await fetch(url);
@@ -170,60 +177,74 @@ async function startChat() {
     }
   }
 
-async function loadData() {
-  setLoading(true);
-  try {
-    const token = getToken();
+  async function loadData() {
+    setLoading(true);
+    setPosts([]); // Сброс постов при смене пользователя
+    setNextCursor(null);
+    setHasMore(true);
     
-    // 🔥 Параллельные запросы вместо последовательных
-    const [profileRes, followRes] = await Promise.all([
-      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`),
-      token 
-        ? fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/is-following`, {
-            headers: { Authorization: `Bearer ${token}` },
-          })
-        : Promise.resolve(null),
-    ]);
+    try {
+      const token = getToken();
+      
+      // Параллельные запросы
+      const [profileRes, followRes] = await Promise.all([
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`),
+        token 
+          ? fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/is-following`, {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+          : Promise.resolve(null),
+      ]);
 
-    if (!profileRes.ok) {
+      if (!profileRes.ok) {
+        setLoading(false);
+        return;
+      }
+      
+      const profileData = await profileRes.json();
+      setProfile(profileData);
+
+      // 🔥 Редирект с числового ID на username
+      if (profileData.username && /^\d+$/.test(userId)) {
+        router.replace(`/${profileData.username}`);
+      }
+
+      // Подписка
+      if (followRes && followRes.ok) {
+        const data = await followRes.json();
+        setFollowing(data.following);
+      }
+
+      // 🔥 Посты загружаем через profile.id (числовой), а не userId
+      await loadMorePosts(true, profileData.id);
+      
+    } catch (err) {
+      console.error("Failed to load profile:", err);
+    } finally {
       setLoading(false);
-      return;
     }
-    
-    const profileData = await profileRes.json();
-    setProfile(profileData);
-
-    if (profileData.username && /^\d+$/.test(userId)) {
-      router.replace(`/${profileData.username}`);
-    }
-
-    // Обработка подписки
-    if (followRes && followRes.ok) {
-      const data = await followRes.json();
-      setFollowing(data.following);
-    }
-
-    // Посты загружаем параллельно с рендером
-    loadMorePosts(true);
-    
-  } catch (err) {
-    console.error("Failed to load profile:", err);
-  } finally {
-    setLoading(false);
   }
-}
+
+  // 🔥 КРИТИЧНО: добавлен useEffect для загрузки данных при смене userId
+  useEffect(() => {
+    if (userId) {
+      loadData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   async function toggleFollow() {
     const token = getToken();
     if (!token) return;
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/follow`, {
+    // 🔥 Используем profile.id, а не userId
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${profile.id}/follow`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
       const data = await res.json();
       setFollowing(data.following);
-      const p = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`).then((r) => r.json());
+      const p = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${profile.id}`).then((r) => r.json());
       setProfile(p);
     }
   }
@@ -258,7 +279,8 @@ async function loadData() {
     setModalLoading(true);
     setModalUsers([]);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/${type}`);
+      // 🔥 Используем profile.id
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${profile.id}/${type}`);
       if (res.ok) setModalUsers(await res.json());
     } catch (err) {
       console.error("Failed to load users:", err);
@@ -344,7 +366,7 @@ async function loadData() {
           <div className="px-4 md:px-6 pb-6">
             <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
               
-              {/* АВАТАРКА — залазит на баннер */}
+              {/* АВАТАРКА */}
               <div
                 className={`relative group shrink-0 w-32 h-32 rounded-full ring-4 ring-[#171717] z-10 ${
                   profile.cover_url ? "mt-[-3.5rem] md:mt-[-5rem]" : "mt-6"
@@ -421,11 +443,10 @@ async function loadData() {
                       )}
                     </div>
 
-                    {/* 🆕 Юзернейм ПРИЖАТ к имени (минимальный отступ) */}
                     <p className="text-white/50 text-sm leading-tight mt-0.5">@{profile.username}</p>
                   </div>
 
-                  {/* 🆕 Кнопки действий — ДЕСКТОП (вынесены в отдельный блок справа) */}
+                  {/* Кнопки действий — ДЕСКТОП */}
                   {!isOwnProfile && (
                     <div className="hidden md:flex items-center gap-2 shrink-0 pt-1">
                       <button onClick={toggleFollow} className={`px-4 py-2 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-white/20 text-white/80 hover:bg-white/10 hover:border-white/40 hover:text-white"}`}>
@@ -476,7 +497,7 @@ async function loadData() {
                     </p>
                   )}
 
-                {/* 🆕 Кнопки действий — МОБИЛЬНЫЕ (остались внизу, не влияют на расстояние имя/юзернейм) */}
+                {/* Кнопки действий — МОБИЛЬНЫЕ */}
                 {!isOwnProfile && (
                   <div className="flex md:hidden items-center justify-center gap-2 mt-4">
                     <button onClick={toggleFollow} className={`px-5 py-2.5 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-white/20 text-white/80 hover:bg-white/10 hover:border-white/40 hover:text-white"}`}>
