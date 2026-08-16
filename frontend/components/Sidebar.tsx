@@ -522,7 +522,9 @@ const continueConfig = lastReadPost
   if (user) innerItems.push({ href: "/messages", icon: MessageSquare, label: "Сообщения", count: counts.chats });
   if (user) innerItems.push({ href: "/notifications", icon: Bell, label: "Уведомления", count: counts.notifications });
   innerItems.push({ href: "/bookmarks", icon: Bookmark, label: "Закладки" });
-  innerItems.push({ href: "#search", icon: Search, label: "Поиск" });
+  if (isMobile) {
+    innerItems.push({ href: "#search", icon: Search, label: "Поиск" });
+  }
   innerItems.push({ href: "/updates", icon: Megaphone, label: "Обновления", count: counts.updates });
   if (user) innerItems.push({ href: `/${user.username}`, icon: Home, label: "Профиль", isProfile: true });
 
