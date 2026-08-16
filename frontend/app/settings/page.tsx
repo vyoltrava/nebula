@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { getToken, clearToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
@@ -26,7 +26,7 @@ import { DevicePermissionsSection } from "@/components/DevicePermissionsSection"
 import { LiveTextSettings } from "@/components/LiveTextSettings";
 
 /* Большой lowercase-заголовок раздела, обрезанный сверху — как в Zune */
-function SectionTitle({ children, big = false }) {
+function SectionTitle({ children, big = false }: { children: ReactNode; big?: boolean }) {
   return (
     <div className="overflow-hidden">
       <h2
