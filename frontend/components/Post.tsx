@@ -216,7 +216,6 @@ export function Post({
     });
 
     const [liked, setLiked] = useState<boolean>(() => {
-      // Сервер может не слать liked_by_me для профиля — берём из кэша
       return liked_by_me ?? isLikedCached(id) ?? false;
     });
     const [count, setCount] = useState(likes_count);
@@ -337,10 +336,10 @@ async function toggleLike() {
     return;
   }
 
-  const next = !liked;
-  setLiked(next);
-  setCount((c) => Math.max(0, next ? (c ?? 0) + 1 : (c ?? 0) - 1));
-  // setLikedCache(id, next); // убрали — кэш обновим только после ответа сервера
+    const next = !liked;
+    setLiked(next);
+    setCount((c) => Math.max(0, next ? (c ?? 0) + 1 : (c ?? 0) - 1));
+    setLikedCache(id, next); // ← УБРАТЬ ДВОЙНОЙ СЛЭШ, РАСКОММЕНТИРОВАТЬ
 
   const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/like`, {
     method: "POST",
@@ -569,9 +568,9 @@ async function toggleLike() {
     }
   }
 
-    useEffect(() => {
-      setLiked(liked_by_me ?? false);
-    }, [liked_by_me]);
+  useEffect(() => {
+    setLiked(liked_by_me ?? isLikedCached(id) ?? false);
+  }, [id, liked_by_me]);
 
   const canDelete = currentUser?.id === author_id || myPermissions.includes("delete_posts");
   const canEdit = currentUser?.id === author_id || myPermissions.includes("edit_posts");
