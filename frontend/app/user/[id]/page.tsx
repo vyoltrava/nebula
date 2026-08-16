@@ -150,20 +150,22 @@ export default function UserProfilePage() {
     if (postsLoading) return;
     setPostsLoading(true);
     
-    // 🔥 Используем переданный ID или profile.id, НЕ userId из URL (он может быть username)
     const targetUserId = targetId ?? profile?.id;
     if (!targetUserId) {
       setPostsLoading(false);
       return;
     }
     
+    const token = getToken(); // ← добавить
     const cursor = reset ? null : nextCursor;
     const url = cursor
       ? `${process.env.NEXT_PUBLIC_API_URL}/api/users/${targetUserId}/posts?cursor=${cursor}&limit=20`
       : `${process.env.NEXT_PUBLIC_API_URL}/api/users/${targetUserId}/posts?limit=20`;
 
     try {
-      const postsRes = await fetch(url);
+      const postsRes = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined, // ← добавить
+      });
       if (postsRes.ok) {
         const data = await postsRes.json();
         setPosts((prev) => (reset ? data.posts : [...prev, ...data.posts]));
