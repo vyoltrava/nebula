@@ -9,7 +9,7 @@ import { getToken } from "@/lib/auth";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { socket } from "@/lib/websocket";
 import { ChatListSkeleton } from "@/components/Skeletons";
-import { Pin, PinOff, MoreVertical } from "lucide-react";
+import { Pin, PinOff, MoreVertical, Trash2 } from "lucide-react";
 import { pinChat, unpinChat } from "@/lib/api";
 import { useSwipe } from "@/lib/useSwipe";
 
@@ -69,21 +69,14 @@ function SwipeableChatItem({
         </div>
       )}
 
-      {/* Фон при свайпе влево — закрепить/открепить */}
+      {/* Фон при свайпе влево — УДАЛИТЬ (красный) */}
       {showLeftIcon && (
         <div
           className="absolute inset-y-0 right-0 flex items-center pr-5 pointer-events-none"
           style={{ opacity: iconOpacity }}
         >
-          <div className={`w-9 h-9 rounded-full flex items-center justify-center border-2 ${
-            isPinned
-              ? "bg-yellow-500/20 border-yellow-500"
-              : "bg-emerald-500/20 border-emerald-500"
-          }`}>
-            {isPinned
-              ? <PinOff size={16} className="text-yellow-400" />
-              : <Pin size={16} className="text-emerald-400" />
-            }
+          <div className="w-10 h-10 rounded-full bg-red-500/90 border-2 border-red-400 flex items-center justify-center shadow-[0_0_15px_rgba(239,68,68,0.5)]">
+            <Trash2 size={18} className="text-white" />
           </div>
         </div>
       )}
@@ -127,6 +120,59 @@ export default function MessagesPage() {
     return { color: c, textShadow: `0 0 6px ${c}B3, 0 0 14px ${c}66` };
   }
 
+
+  // 🔴 Удаление чата
+async function deleteChat(chatId: number, chatName: string) {
+  if (!confirm(`Удалить чат "${chatName}"? Все сообщения будут удалены навсегда.`)) return;
+  const token = getToken();
+  if (!token) return;
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      await load(query);
+      refresh();
+    } else {
+      const err = await res.json().catch(() => ({ detail: "Ошибка" }));
+      alert(err.detail || "Не удалось удалить чат");
+    }
+  } catch {
+    alert("Ошибка сети");
+  }
+}
+
+// 🟣 Подсветка совпадений в поиске
+function highlight(text: string | null | undefined, q: string): React.ReactNode {
+  if (!text) return null;
+  if (!q.trim()) return text;
+  const idx = text.toLowerCase().indexOf(q.toLowerCase());
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-[#8b5cf6]/50 text-white rounded px-0.5 font-semibold">
+        {text.slice(idx, idx + q.length)}
+      </mark>
+      {text.slice(idx + q.length)}
+    </>
+  );
+}
+
+// Показывает сниппет вокруг совпадения в тексте сообщения
+function snippet(text: string | null | undefined, q: string, maxLen = 80): string {
+  if (!text) return "";
+  if (!q.trim()) return text;
+  const idx = text.toLowerCase().indexOf(q.toLowerCase());
+  if (idx === -1) return text;
+  const start = Math.max(0, idx - 20);
+  const end = Math.min(text.length, idx + q.length + 40);
+  let s = text.slice(start, end);
+  if (start > 0) s = "…" + s;
+  if (end < text.length) s = s + "…";
+  return s;
+}
 
 async function togglePinChat(chatId: number, currentlyPinned: boolean) {
   setPinningChat(chatId);
@@ -215,15 +261,39 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
   }, [query]);
 
   const secretCount = chats.filter((c) => c.is_secret).length;
+  const q = query.trim().toLowerCase();
+
   const sortedChats = [...chats].sort((a, b) => {
+    // 🔎 При поиске: сначала совпадения в имени, потом в сообщениях
+    if (q) {
+      const aName = (a.is_group ? a.name : a.other?.display_name || "").toLowerCase() + " " + (a.other?.username || "").toLowerCase();
+      const bName = (b.is_group ? b.name : b.other?.display_name || "").toLowerCase() + " " + (b.other?.username || "").toLowerCase();
+      const aText = (a.last_message?.text || "").toLowerCase();
+      const bText = (b.last_message?.text || "").toLowerCase();
+      const aNameMatch = aName.includes(q);
+      const bNameMatch = bName.includes(q);
+      const aTextMatch = !aNameMatch && aText.includes(q);
+      const bTextMatch = !bNameMatch && bText.includes(q);
+      if (aNameMatch && !bNameMatch) return -1;
+      if (!aNameMatch && bNameMatch) return 1;
+      if (aTextMatch && !bTextMatch && !bNameMatch) return -1;
+      if (!aTextMatch && !aNameMatch && bTextMatch) return 1;
+    }
     // Закреплённые сверху
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;
-    // Потом по времени последнего сообщения
+    // По времени
     const aTime = a.last_message ? new Date(a.last_message.created_at).getTime() : 0;
     const bTime = b.last_message ? new Date(b.last_message.created_at).getTime() : 0;
     return bTime - aTime;
   });
+
+  // 🔎 Счётчики для заголовка
+  const nameMatches = sortedChats.filter((c) => {
+    const n = ((c.is_group ? c.name : c.other?.display_name || "") + " " + (c.other?.username || "")).toLowerCase();
+    return n.includes(q);
+  }).length;
+  const textMatches = sortedChats.length - nameMatches;
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -269,7 +339,23 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
         </div>
 
         {loading && <ChatListSkeleton />}
-
+        {/* 🔎 Заголовок результатов поиска */}
+        {!loading && q && sortedChats.length > 0 && (
+          <div className="px-4 md:px-6 py-2.5 border-b border-white/10 bg-[#8b5cf6]/5 flex items-center gap-3 sticky top-[125px] md:top-[132px] z-[5] backdrop-blur-md">
+            <Search size={14} className="text-[#8b5cf6] shrink-0" />
+            <div className="flex items-center gap-2 text-xs flex-wrap">
+              <span className="text-white/80">
+                Найдено <span className="font-bold text-white">{sortedChats.length}</span>
+              </span>
+              {nameMatches > 0 && (
+                <span className="text-[#a78bfa]">· {nameMatches} по имени</span>
+              )}
+              {textMatches > 0 && (
+                <span className="text-[#a78bfa]">· {textMatches} в сообщениях</span>
+              )}
+            </div>
+          </div>
+        )}
         {!loading && chats.length === 0 && (
           <div className="p-12 text-center">
             <MessageSquare size={48} className="text-white/20 mx-auto mb-4" />
@@ -290,6 +376,15 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
           const otherUser = chat.other;
           const glow = !isGroup && otherUser ? getGlowColor(otherUser) : null;
 
+          // 🔎 ПОИСК: определяем тип совпадения для группировки
+          const q = query.trim().toLowerCase();
+          const chatName = (isGroup ? chat.name : otherUser?.display_name || "").toLowerCase();
+          const chatUsername = (!isGroup ? otherUser?.username || "" : "").toLowerCase();
+          const lastText = (chat.last_message?.text || "").toLowerCase();
+          const nameMatch = q && (chatName.includes(q) || chatUsername.includes(q));
+          const textMatch = q && !nameMatch && lastText.includes(q);
+          const matchType = nameMatch ? "name" : textMatch ? "text" : null;
+
           return (
             <SwipeableChatItem
               key={chat.id}
@@ -302,7 +397,8 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
                 setActiveChatMenu(activeChatMenu === chat.id ? null : chat.id);
               }}
               onSwipeLeft={() => {
-                togglePinChat(chat.id, !!chat.pinned);
+                const name = isGroup ? chat.name : otherUser?.display_name || "чат";
+                deleteChat(chat.id, name);
               }}
             >
               <div
@@ -376,14 +472,16 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
                       <Pin size={12} className="text-[#8b5cf6] shrink-0" />
                     )}
                     {isGroup ? (
-                      <p className="font-bold truncate text-white">{chat.name}</p>
+                      <p className="font-bold truncate text-white">
+                        {query.trim() ? highlight(chat.name, query.trim()) : chat.name}
+                      </p>
                     ) : (
                       <>
                         <p
                           className={`font-bold truncate ${glowStyle(otherUser) ? "" : "text-white"}`}
                           style={glowStyle(otherUser)}
                         >
-                          {otherUser?.display_name}
+                          {query.trim() ? highlight(otherUser?.display_name, query.trim()) : otherUser?.display_name}
                         </p>
                         {chat.is_secret && (
                           <span className="text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0">
@@ -403,11 +501,23 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
                   )}
                 </div>
                 {chat.last_message ? (
-                  <p className={`text-sm truncate mt-0.5 ${
-                    chat.unread_count > 0 ? "text-white" : "text-white/50"
-                  }`}>
-                    {chat.last_message.text}
-                  </p>
+                  <div className="mt-0.5">
+                    <p className={`text-sm truncate ${
+                      chat.unread_count > 0 ? "text-white" : "text-white/50"
+                    }`}>
+                      {query.trim() && textMatch
+                        ? highlight(snippet(chat.last_message.text, query.trim()), query.trim())
+                        : query.trim()
+                        ? highlight(chat.last_message.text, query.trim())
+                        : chat.last_message.text
+                      }
+                    </p>
+                    {textMatch && (
+                      <span className="inline-flex items-center gap-1 mt-0.5 text-[9px] font-bold uppercase tracking-widest text-[#a78bfa]">
+                        <Search size={9} /> в сообщении
+                      </span>
+                    )}
+                  </div>
                 ) : (
                   <p className="text-sm text-white/40 mt-0.5">
                     {isGroup ? `${chat.members_count} участников` : "Начните переписку"}
@@ -481,6 +591,18 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
               >
                 <MessageSquare size={16} className="text-white/60" />
                 Открыть чат
+              </button>
+              <div className="h-px bg-white/10 my-1" />
+              <button
+                onClick={() => {
+                  const name = menuChat.is_group ? menuChat.name : menuChat.other?.display_name || "чат";
+                  setActiveChatMenu(null);
+                  deleteChat(menuChat.id, name);
+                }}
+                className="w-full px-3 py-3 rounded-xl text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
+              >
+                <Trash2 size={16} className="text-red-400" />
+                Удалить чат
               </button>
             </div>
           </>

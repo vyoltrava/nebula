@@ -51,6 +51,8 @@ export default function UserProfilePage() {
   const coverInputRef = useRef<HTMLInputElement>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [showCoverMenu, setShowCoverMenu] = useState(false);
+  const [showAvatarMenu, setShowAvatarMenu] = useState(false);
 
   // Обёртка для аватарки с валидацией
   async function handleAvatarFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -358,44 +360,62 @@ async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
           
           {/* ОБЛОЖКА */}
 {profile.cover_url ? (
-  <div className="relative w-full h-48 md:h-64 overflow-hidden group">
+  <div 
+    className="relative w-full h-48 md:h-64 overflow-hidden group cursor-pointer"
+    onClick={() => isOwnProfile && setShowCoverMenu(!showCoverMenu)}
+  >
     <SmartImage 
       src={profile.cover_url} 
       wrapperClassName="w-full h-full"
       alt="Cover" 
     />
     {isOwnProfile && (
-<div className="absolute top-3 right-3 flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 z-20">
-          <button
-          onClick={() => coverInputRef.current?.click()}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-sm text-white text-xs font-bold hover:bg-black/90 transition-all"
-        >
-          <ImageIcon size={14} />
-          Сменить
-        </button>
-        <button
-          onClick={removeCover}
-          className="p-1.5 rounded-lg bg-black/70 backdrop-blur-sm text-white hover:bg-red-500/80 transition-all"
-          title="Удалить обложку"
-        >
-          <XIcon size={14} />
-        </button>
-      </div>
+      <>
+        {/* Затемнение при hover */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 pointer-events-none" />
+        
+        {/* Иконка камеры в центре при hover */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+          <div className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center">
+            <ImageIcon size={24} className="text-white" />
+          </div>
+        </div>
+
+        {/* Меню обложки */}
+        {showCoverMenu && (
+          <>
+            <div className="fixed inset-0 z-30" onClick={() => setShowCoverMenu(false)} />
+            <div className="absolute top-4 right-4 z-40 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
+              <button
+                onClick={(e) => { e.stopPropagation(); coverInputRef.current?.click(); setShowCoverMenu(false); }}
+                className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+              >
+                <ImageIcon size={16} className="text-[#8b5cf6]" />
+                Сменить обложку
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); removeCover(); setShowCoverMenu(false); }}
+                className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
+              >
+                <XIcon size={16} />
+                Удалить
+              </button>
+            </div>
+          </>
+        )}
+      </>
     )}
   </div>
 ) : (
   isOwnProfile && (
     <div
-      className="relative w-full h-12 md:h-16 bg-white/[0.02] hover:bg-white/[0.06] transition-colors cursor-pointer flex flex-col items-center justify-center group"
+      className="relative w-full h-16 md:h-20 bg-white/[0.02] hover:bg-white/[0.06] transition-colors cursor-pointer flex items-center justify-center group"
       onClick={() => coverInputRef.current?.click()}
     >
-      <span className="flex items-center gap-1.5 text-white/25 group-hover:text-white/60 text-xs font-bold opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-        <ImageIcon size={14} />
+      <span className="flex items-center gap-2 text-white/30 group-hover:text-white/60 text-sm font-bold transition-colors">
+        <ImageIcon size={18} />
         Добавить обложку
       </span>
-      <p className="text-[9px] text-white/20 mt-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-        {UPLOAD_RULES.banner.hint}
-      </p>
     </div>
   )
 )}
@@ -415,8 +435,11 @@ async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
   <div className={`flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6 ${profile.cover_url ? "" : "mt-6"}`}>
     
 {/* АВАТАРКА */}
-<div className={`group flex flex-col items-center md:items-start ${profile.cover_url ? "mt-[-3.5rem] md:mt-[-5rem]" : ""} z-10`}>
-  <div className="relative shrink-0 w-32 h-32 rounded-full ring-4 ring-[#171717]">
+<div className={`flex flex-col items-center md:items-start ${profile.cover_url ? "mt-[-3.5rem] md:mt-[-5rem]" : ""} z-10`}>
+  <div 
+    className="relative shrink-0 w-32 h-32 rounded-full ring-4 ring-[#171717] cursor-pointer group"
+    onClick={() => isOwnProfile && setShowAvatarMenu(!showAvatarMenu)}
+  >
     <Avatar 
       src={profile.avatar_url} 
       name={profile.display_name} 
@@ -425,26 +448,43 @@ async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
       online={isOnline(profile.last_seen)}
     />
     
-    {isOwnProfile && (
-      <button
-        onClick={openFilePicker}
-        disabled={uploading}
-className="absolute bottom-1 right-1 p-2 rounded-full bg-[#8b5cf6] text-white shadow-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all hover:scale-110 cursor-pointer z-10"
-        title={`Сменить аватарку · ${UPLOAD_RULES.avatar.hint}`}
-      >
-        {uploading ? (
-          <span className="block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-        ) : (
-          <Camera size={16} />
-        )}
-      </button>
-    )}
-    
     {/* Overlay "загрузка" при uploading */}
     {uploading && (
       <div className="absolute inset-0 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
         <span className="block w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
       </div>
+    )}
+
+    {/* Затемнение при hover */}
+    {isOwnProfile && !uploading && (
+      <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/30 transition-colors duration-200 flex items-center justify-center">
+        <Camera size={28} className="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+      </div>
+    )}
+
+    {/* Меню аватарки */}
+    {isOwnProfile && showAvatarMenu && !uploading && (
+      <>
+        <div className="fixed inset-0 z-30" onClick={() => setShowAvatarMenu(false)} />
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-40 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
+          <button
+            onClick={(e) => { e.stopPropagation(); openFilePicker(); setShowAvatarMenu(false); }}
+            className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+          >
+            <Camera size={16} className="text-[#8b5cf6]" />
+            Сменить аватарку
+          </button>
+          {profile.avatar_url && (
+            <button
+              onClick={(e) => { e.stopPropagation(); alert("Функция удаления аватарки пока недоступна"); setShowAvatarMenu(false); }}
+              className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
+            >
+              <XIcon size={16} />
+              Удалить
+            </button>
+          )}
+        </div>
+      </>
     )}
   </div>
   
@@ -457,13 +497,6 @@ className="absolute bottom-1 right-1 p-2 rounded-full bg-[#8b5cf6] text-white sh
         <X size={12} />
       </button>
     </div>
-  )}
-  
-  {/* Подсказка лимитов — видна ТОЛЬКО при наведении на аватарку */}
-  {isOwnProfile && !avatarError && (
-    <p className="mt-1.5 text-[9px] text-white/25 text-center md:text-left opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none select-none">
-      {UPLOAD_RULES.avatar.hint}
-    </p>
   )}
 </div>
 
@@ -658,6 +691,12 @@ className="absolute bottom-1 right-1 p-2 rounded-full bg-[#8b5cf6] text-white sh
         />
         {cropperImage && (
           <AvatarCropper imageSrc={cropperImage} onCropComplete={handleCropComplete} onClose={() => setCropperImage(null)} />
+        )}
+        {/* Подсказка лимитов для обложки */}
+        {showCoverMenu && (
+          <div className="absolute top-[calc(100%+8px)] right-4 z-30 text-[10px] text-white/40 bg-[#1f1f23] border border-white/10 rounded-lg px-2.5 py-1.5 shadow-lg">
+            {UPLOAD_RULES.banner.hint}
+          </div>
         )}
 
         <input 
