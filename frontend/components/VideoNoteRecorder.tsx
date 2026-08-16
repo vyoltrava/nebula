@@ -32,7 +32,6 @@ export function VideoNoteRecorder({
   const rafRef = useRef<number>(0);
   const mimeRef = useRef<string>("video/webm");
   const mirroredRef = useRef(true);
-  const drawIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const canvasVideoTrackRef = useRef<MediaStreamTrack | null>(null);
 
   const [isRecording, setIsRecording] = useState(false);
@@ -108,41 +107,46 @@ export function VideoNoteRecorder({
     }
   }
 
-  function startDrawLoop() {
-    if (drawIntervalRef.current) {
-      clearInterval(drawIntervalRef.current);
-      drawIntervalRef.current = null;
+  function drawFrame() {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas || video.readyState < 2 || video.videoWidth === 0) {
+      rafRef.current = requestAnimationFrame(drawFrame);
+      return;
     }
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      rafRef.current = requestAnimationFrame(drawFrame);
+      return;
+    }
+
+    const size = canvas.width;
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    const side = Math.min(vw, vh);
+    const sx = (vw - side) / 2;
+    const sy = (vh - side) / 2;
+
+    ctx.save();
+    ctx.clearRect(0, 0, size, size);
+    if (mirroredRef.current) {
+      ctx.translate(size, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(video, sx, sy, side, side, 0, 0, size, size);
+    ctx.restore();
+
+    if (canvasVideoTrackRef.current && "requestFrame" in canvasVideoTrackRef.current) {
+      (canvasVideoTrackRef.current as any).requestFrame();
+    }
+
+    rafRef.current = requestAnimationFrame(drawFrame);
+  }
+
+  function startDrawLoop() {
     cancelAnimationFrame(rafRef.current);
-
-    drawIntervalRef.current = setInterval(() => {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      if (!video || !canvas || video.readyState < 2 || video.videoWidth === 0) return;
-
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      const size = canvas.width;
-      const vw = video.videoWidth;
-      const vh = video.videoHeight;
-      const side = Math.min(vw, vh);
-      const sx = (vw - side) / 2;
-      const sy = (vh - side) / 2;
-
-      ctx.save();
-      ctx.clearRect(0, 0, size, size);
-      if (mirroredRef.current) {
-        ctx.translate(size, 0);
-        ctx.scale(-1, 1);
-      }
-      ctx.drawImage(video, sx, sy, side, side, 0, 0, size, size);
-      ctx.restore();
-
-      if (canvasVideoTrackRef.current && (canvasVideoTrackRef.current as any).requestFrame) {
-        (canvasVideoTrackRef.current as any).requestFrame();
-      }
-    }, 1000 / 30);
+    rafRef.current = requestAnimationFrame(drawFrame);
   }
 
   async function toggleFacing() {
@@ -163,7 +167,7 @@ export function VideoNoteRecorder({
 
     chunksRef.current = [];
 
-    const canvasStream = canvas.captureStream(0);
+    const canvasStream = canvas.captureStream(30);
     canvasVideoTrackRef.current = canvasStream.getVideoTracks()[0] || null;
     const combined = new MediaStream([
       ...canvasStream.getVideoTracks(),
@@ -210,7 +214,7 @@ export function VideoNoteRecorder({
       if (elapsed >= maxDuration) {
         stopRecording();
       }
-    }, 500);
+    }, 1000);
   }
 
   function stopRecording() {
@@ -225,10 +229,7 @@ export function VideoNoteRecorder({
   }
 
   function cleanupResources() {
-    if (drawIntervalRef.current) {
-      clearInterval(drawIntervalRef.current);
-      drawIntervalRef.current = null;
-    }
+    cancelAnimationFrame(rafRef.current);
     if (mediaRecorderRef.current) {
       try {
         if (mediaRecorderRef.current.state === "recording") {
@@ -339,13 +340,20 @@ export function VideoNoteRecorder({
           onClick={handlePreviewClick}
           title="Нажмите чтобы включить/выключить зеркало"
         >
+          {/* Видео скрыто — используется только как источник кадров */}
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            className="w-full h-full object-cover transition-transform"
-            style={{ transform: mirrored ? "scaleX(-1)" : "none" }}
+            className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
+          />
+          {/* Canvas — видимое превью и источник записи */}
+          <canvas
+            ref={canvasRef}
+            width={720}
+            height={720}
+            className="w-full h-full object-cover"
           />
           <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100">
             <rect x="1.5" y="1.5" width="97" height="97" rx="10" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" />
@@ -420,7 +428,6 @@ export function VideoNoteRecorder({
           </p>
         </div>
       </div>
-      <canvas ref={canvasRef} width={720} height={720} className="hidden" />
     </div>
   );
 }
