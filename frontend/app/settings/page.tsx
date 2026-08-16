@@ -223,31 +223,31 @@ export default function SettingsPage() {
     setLoading2FA(false);
   }
 
-  async function activate2FA() {
-    const token = getToken();
-    if (!token) return;
-    setLoading2FA(true);
-    try {
-      const form = new FormData();
-      form.append("code", verifyCode);
-      form.append("backup_codes", JSON.stringify(backupCodes));
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/2fa/activate`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-      if (res.ok) {
-        alert("✅ 2FA активирована! Сохраните резервные коды в безопасном месте.");
-        setShow2FASetup(false);
-        setVerifyCode("");
-        fetchSecurityStatus();
-      } else {
-        const err = await res.json();
-        alert(err.detail || "Неверный код");
-      }
-    } catch {}
-    setLoading2FA(false);
-  }
+async function activate2FA() {
+  const token = getToken();
+  if (!token) return;
+  setLoading2FA(true);
+  try {
+    const form = new FormData();
+    form.append("code", verifyCode);
+    form.append("backup_codes", JSON.stringify(backupCodes));
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/2fa/activate`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (res.ok) {
+      // ✅ НЕ закрываем модалку — переходим к показу кодов
+      setSetupStep("backup");
+      setVerifyCode("");
+      fetchSecurityStatus();
+    } else {
+      const err = await res.json();
+      alert(err.detail || "Неверный код");
+    }
+  } catch {}
+  setLoading2FA(false);
+}
 
   async function disable2FA() {
     const token = getToken();
@@ -726,6 +726,79 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+{setupStep === "backup" && (
+  <div className="space-y-4">
+    <div className="flex items-center gap-2 mb-2">
+      <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+        <CheckCircle2 size={18} className="text-emerald-400" />
+      </div>
+      <div>
+        <h4 className="text-white font-bold">2FA активирована!</h4>
+        <p className="text-xs text-white/50">Сохраните резервные коды</p>
+      </div>
+    </div>
+
+    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+      <p className="text-xs text-amber-300 font-semibold mb-2">
+        ⚠️ Важно! Сохраните эти коды в надёжном месте.
+      </p>
+      <p className="text-[11px] text-amber-200/70 mb-3">
+        Если потеряете телефон — это единственный способ войти в аккаунт.
+        Каждый код можно использовать только один раз.
+      </p>
+    </div>
+
+    <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-[#1C1C1F] border border-white/10">
+      {backupCodes.map((code, i) => (
+        <div
+          key={i}
+          className="font-mono text-sm text-white bg-white/5 px-3 py-2 rounded border border-white/10 text-center tracking-wider select-all"
+        >
+          {code}
+        </div>
+      ))}
+    </div>
+
+    <div className="flex gap-2">
+      <button
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(backupCodes.join("\n"));
+            alert("✅ Коды скопированы в буфер обмена!\n\nВставьте их в заметки или сохраните в безопасное место.");
+          } catch {
+            // fallback
+            const textarea = document.createElement("textarea");
+            textarea.value = backupCodes.join("\n");
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textarea);
+            alert("✅ Коды скопированы!");
+          }
+        }}
+        className="flex-1 py-2.5 rounded-lg bg-[#7B3FF2] text-white font-bold text-sm hover:bg-[#6a34d3] transition-colors flex items-center justify-center gap-2"
+      >
+        <Copy size={14} /> Скопировать все
+      </button>
+      <button
+        onClick={() => {
+          if (confirm("Вы точно сохранили коды?\n\nБез них вы не сможете войти если потеряете телефон!")) {
+            setShow2FASetup(false);
+          }
+        }}
+        className="flex-1 py-2.5 rounded-lg border border-emerald-500/50 text-emerald-400 font-bold text-sm hover:bg-emerald-500/10 transition-colors"
+      >
+        ✓ Я сохранил
+      </button>
+    </div>
+
+    <p className="text-[10px] text-white/30 text-center">
+      Кнопка "Я сохранил" закроет окно без повторного показа кодов
+    </p>
+  </div>
+)}
+
 
       {/* ===== MODAL: Disable 2FA ===== */}
       {showDisable2FA && (
