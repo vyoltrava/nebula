@@ -26,6 +26,25 @@ import { LiveTextSettings } from "@/components/LiveTextSettings";
 
 type View = "root" | "profile" | "permissions" | "messages" | "security";
 
+/* Огромное название, ОБРЕЗАННОЕ верхней гранью экрана — inline-стилями, чтобы работало всегда */
+function BigTitle({ text }: { text: string }) {
+  return (
+    <div
+      aria-hidden
+      className="overflow-hidden pointer-events-none select-none"
+      style={{ fontSize: "clamp(4.5rem, 18vw, 10rem)", height: "0.6em" }}
+    >
+      <h1
+        key={text}
+        className="zune-in font-extralight lowercase whitespace-nowrap text-[#c084fc] drop-shadow-[0_0_25px_rgba(168,85,247,0.45)]"
+        style={{ fontSize: "1em", lineHeight: 1, marginTop: "-0.4em" }}
+      >
+        {text}
+      </h1>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
   const [displayName, setDisplayName] = useState("");
@@ -196,7 +215,6 @@ export default function SettingsPage() {
     router.push("/login");
   }
 
-  // 2FA Functions
   async function start2FASetup() {
     const token = getToken();
     if (!token) return;
@@ -319,77 +337,80 @@ export default function SettingsPage() {
 
   return (
     <div
-      className="min-h-screen text-white overflow-x-hidden"
+      className="min-h-screen text-white relative overflow-x-hidden"
       style={{ fontFamily: "'Segoe UI', 'Zune', -apple-system, system-ui, sans-serif" }}
     >
       <style>{`
-        @keyframes zuneIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+        @keyframes zuneIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
         .zune-in { animation: zuneIn .25s ease-out; }
       `}</style>
 
-      {/* ===== МОБИЛЬНАЯ ШАПКА: назад + 4 кнопки ===== */}
-      <div className="lg:hidden sticky top-0 z-40 backdrop-blur-xl bg-black/30 border-b border-white/5">
-        <div className="flex items-center gap-3 px-4 pt-3 pb-2">
-          <button
-            onClick={goBack}
-            className="w-8 h-8 rounded-full border border-white/20 text-white/60 flex items-center justify-center hover:text-white hover:border-white/60 transition-colors"
-            aria-label="Назад"
-          >
-            <ArrowLeft size={14} />
-          </button>
-          <span className="text-[10px] uppercase tracking-[0.3em] text-white/50">{title}</span>
-        </div>
-        <nav className="flex gap-6 px-4 pb-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setView(t.id)}
-              className={`shrink-0 text-[10px] uppercase tracking-[0.25em] pb-1 border-b transition-colors ${
-                view === t.id ? "text-white border-[#a855f7]" : "text-white/35 border-transparent"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </nav>
+      {/* ===== КРУГЛАЯ КНОПКА НАЗАД — как на фото Zune ===== */}
+      <button
+        onClick={goBack}
+        aria-label="Назад"
+        className="fixed top-4 left-4 z-50 w-11 h-11 rounded-full border-2 border-white/50 text-white/80 bg-black/30 backdrop-blur-sm flex items-center justify-center hover:border-white hover:text-white transition-colors"
+      >
+        <ArrowLeft size={18} />
+      </button>
+
+      {/* ===== СТАТУС СПРАВА СВЕРХУ (как батарейка на zune) ===== */}
+      <div className="fixed top-6 right-5 z-50 text-[10px] uppercase tracking-[0.3em] text-white/40">
+        @<span className="text-[#c084fc]">{user.username}</span>
       </div>
 
-      <main className="px-5 sm:px-10 lg:px-16 max-w-3xl mx-auto pb-28 pt-1 lg:pt-4">
-        {/* ===== ОГРОМНОЕ СЛОВО, ОБРЕЗАННОЕ СВЕРХУ И СПРАВА ===== */}
-        <div className="overflow-hidden pointer-events-none select-none">
-          <h1
-            key={title}
-            className="zune-in font-extralight lowercase leading-none whitespace-nowrap text-[#c084fc] drop-shadow-[0_0_25px_rgba(168,85,247,0.45)] text-[17vw] lg:text-[7.5rem] -mt-[0.45em]"
-          >
-            {title}
-          </h1>
-        </div>
+      <main className="px-5 sm:px-10 lg:px-16 max-w-5xl mx-auto pb-24">
+        {/* ===== ОГРОМНОЕ СЛОВО, СРЕЗАННОЕ ВЕРХНЕЙ ГРАНЬЮ ЭКРАНА ===== */}
+        <BigTitle text={title} />
 
         {/* ==================== ROOT: СПИСОК КАК НА ФОТО ==================== */}
         {view === "root" && (
-          <nav key="root" className="zune-in mt-10 space-y-1">
-            {tabs.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setView(t.id)}
-                className="block w-full text-left uppercase text-[12px] font-semibold tracking-[0.35em] text-white/85 hover:text-white hover:pl-2 transition-all py-2.5"
-              >
-                {t.label}
-              </button>
-            ))}
-          </nav>
+          <div key="root" className="zune-in mt-10 lg:mt-14 lg:grid lg:grid-cols-[1fr_auto] lg:gap-24 lg:items-start">
+            <nav className="space-y-1.5">
+              {tabs.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setView(t.id)}
+                  className="block w-full text-left uppercase text-[12px] font-bold tracking-[0.35em] text-white/90 hover:text-[#c084fc] hover:pl-2 transition-all py-2.5"
+                >
+                  {t.label}
+                </button>
+              ))}
+            </nav>
+
+            {/* правая колонка на десктопе — metro-вид */}
+            <div className="hidden lg:flex flex-col items-end gap-6 pt-1">
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-sm text-white/80">{user.display_name || user.username}</p>
+                  <p className="text-[10px] uppercase tracking-[0.25em] text-white/40 mt-1">
+                    2fa:{" "}
+                    {securityStatus?.enabled ? (
+                      <span className="text-emerald-400">on</span>
+                    ) : (
+                      <span className="text-white/50">off</span>
+                    )}
+                  </p>
+                </div>
+                {preview ? (
+                  <img
+                    src={preview}
+                    alt=""
+                    className="w-16 h-16 object-cover ring-1 ring-[#a855f7]/60 shadow-[0_0_20px_rgba(168,85,247,0.3)]"
+                  />
+                ) : (
+                  <div className="w-16 h-16 bg-white/5 ring-1 ring-white/15 flex items-center justify-center">
+                    <User size={22} className="text-white/30" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* ==================== PROFILE ==================== */}
         {view === "profile" && (
-          <div key="profile" className="zune-in mt-8 lg:mt-10">
-            <button
-              onClick={() => setView("root")}
-              className="hidden lg:flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-white/40 hover:text-white transition-colors mb-8"
-            >
-              <ArrowLeft size={12} /> settings
-            </button>
-
+          <div key="profile" className="zune-in mt-8 lg:mt-12 max-w-2xl">
             <div className="space-y-7">
               {/* Аватар */}
               <div className="flex items-center gap-5">
@@ -398,10 +419,10 @@ export default function SettingsPage() {
                     <img
                       src={preview}
                       alt=""
-                      className="w-20 h-20 rounded-md object-cover ring-1 ring-[#a855f7]/70 shadow-[0_0_20px_rgba(168,85,247,0.35)]"
+                      className="w-20 h-20 object-cover ring-1 ring-[#a855f7]/70 shadow-[0_0_20px_rgba(168,85,247,0.35)]"
                     />
                   ) : (
-                    <div className="w-20 h-20 rounded-md bg-white/5 ring-1 ring-white/15 flex items-center justify-center">
+                    <div className="w-20 h-20 bg-white/5 ring-1 ring-white/15 flex items-center justify-center">
                       <User size={26} className="text-white/25" />
                     </div>
                   )}
@@ -488,43 +509,22 @@ export default function SettingsPage() {
 
         {/* ==================== PERMISSIONS ==================== */}
         {view === "permissions" && (
-          <div key="permissions" className="zune-in mt-8 lg:mt-10">
-            <button
-              onClick={() => setView("root")}
-              className="hidden lg:flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-white/40 hover:text-white transition-colors mb-8"
-            >
-              <ArrowLeft size={12} /> settings
-            </button>
-            <div className="space-y-10">
-              <PushSettings />
-              <DevicePermissionsSection />
-            </div>
+          <div key="permissions" className="zune-in mt-8 lg:mt-12 max-w-2xl space-y-10">
+            <PushSettings />
+            <DevicePermissionsSection />
           </div>
         )}
 
         {/* ==================== MESSAGES ==================== */}
         {view === "messages" && (
-          <div key="messages" className="zune-in mt-8 lg:mt-10">
-            <button
-              onClick={() => setView("root")}
-              className="hidden lg:flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-white/40 hover:text-white transition-colors mb-8"
-            >
-              <ArrowLeft size={12} /> settings
-            </button>
+          <div key="messages" className="zune-in mt-8 lg:mt-12 max-w-2xl">
             <LiveTextSettings />
           </div>
         )}
 
         {/* ==================== SECURITY ==================== */}
         {view === "security" && (
-          <div key="security" className="zune-in mt-8 lg:mt-10">
-            <button
-              onClick={() => setView("root")}
-              className="hidden lg:flex items-center gap-2 text-[10px] uppercase tracking-[0.3em] text-white/40 hover:text-white transition-colors mb-8"
-            >
-              <ArrowLeft size={12} /> settings
-            </button>
-
+          <div key="security" className="zune-in mt-8 lg:mt-12 max-w-2xl">
             <div className="space-y-9">
               {/* 2FA */}
               <div>
@@ -587,7 +587,7 @@ export default function SettingsPage() {
                   <span className="text-[10px] uppercase tracking-[0.2em] text-amber-400/80">🚧 скоро</span>
                 </div>
                 <p className="text-xs text-white/45 leading-relaxed">
-                На доработке: восстановление пароля, уведомления, подтверждение email.
+                  На доработке: восстановление пароля, уведомления, подтверждение email.
                 </p>
               </div>
 
