@@ -1,5 +1,5 @@
 "use client";
-import { Shield, ShieldCheck, Ban, X, MessageSquare, Flag, Lock, Camera, Image as ImageIcon, X as XIcon } from "lucide-react";
+import { Shield, ShieldCheck, Ban, X, MessageSquare, Flag, Lock, Camera, Image as ImageIcon, X as XIcon, AlertTriangle } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -15,6 +15,8 @@ import { getCachedUser } from "@/lib/authCache";
 import { ProfileSkeleton, PostSkeleton } from "@/components/Skeletons";
 import { useAvatarUploader } from "@/components/AvatarUploader";
 import { AvatarCropper } from "@/components/AvatarCropper";
+import { SmartImage } from "@/components/SmartImage";
+import { validateUpload, uploadErrorText, UPLOAD_RULES } from "@/lib/uploadRules";
 
 export default function UserProfilePage() {
   const params = useParams();
@@ -47,24 +49,55 @@ export default function UserProfilePage() {
   }, "/api/me/avatar");
 
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const [coverError, setCoverError] = useState<string | null>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
 
-  async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
+  // Обёртка для аватарки с валидацией
+  async function handleAvatarFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const token = getToken();
-    if (!token) return;
-    const form = new FormData();
-    form.append("file", file);
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/cover`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setProfile((prev: any) => (prev ? { ...prev, cover_url: data.cover_url } : prev));
+    setAvatarError(null);
+    const err = await validateUpload(file, "avatar");
+    if (err) { 
+      setAvatarError(err); 
+      e.target.value = ""; // сбрасываем инпут
+      return; 
     }
+    handleFileSelect(e); // передаём дальше в хук
   }
+
+async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  setCoverError(null);
+  
+  // ✅ Валидация ДО отправки
+  const localErr = await validateUpload(file, "banner");
+  if (localErr) { 
+    setCoverError(localErr); 
+    e.target.value = "";
+    return; 
+  }
+  
+  const token = getToken();
+  if (!token) return;
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/cover`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (res.ok) {
+    const data = await res.json();
+    setProfile((prev: any) => (prev ? { ...prev, cover_url: data.cover_url } : prev));
+    setCoverError(null);
+  } else {
+    // ✅ Человекочитаемая ошибка от сервера
+    setCoverError(await uploadErrorText(res));
+  }
+  e.target.value = "";
+}
 
   async function removeCover() {
     if (!confirm("Удалить обложку?")) return;
@@ -324,75 +357,116 @@ export default function UserProfilePage() {
         <div className="border-b border-white/10">
           
           {/* ОБЛОЖКА */}
-          {profile.cover_url ? (
-            <div className="relative w-full h-48 md:h-64 overflow-hidden group">
-              <img 
-                src={profile.cover_url} 
-                alt="Cover" 
-                className="w-full h-full object-cover" 
-              />
-              {isOwnProfile && (
-                <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
-                  <button
-                    onClick={() => coverInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-sm text-white text-xs font-bold hover:bg-black/90 transition-all"
-                  >
-                    <ImageIcon size={14} />
-                    Сменить
-                  </button>
-                  <button
-                    onClick={removeCover}
-                    className="p-1.5 rounded-lg bg-black/70 backdrop-blur-sm text-white hover:bg-red-500/80 transition-all"
-                    title="Удалить обложку"
-                  >
-                    <XIcon size={14} />
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            isOwnProfile && (
-              <div
-                className="relative w-full h-12 md:h-16 bg-white/[0.02] hover:bg-white/[0.06] transition-colors cursor-pointer flex items-center justify-center group"
-                onClick={() => coverInputRef.current?.click()}
-              >
-                <span className="flex items-center gap-1.5 text-white/25 group-hover:text-white/60 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ImageIcon size={14} />
-                  Добавить обложку
-                </span>
-              </div>
-            )
-          )}
+{profile.cover_url ? (
+  <div className="relative w-full h-48 md:h-64 overflow-hidden group">
+    <SmartImage 
+      src={profile.cover_url} 
+      wrapperClassName="w-full h-full"
+      alt="Cover" 
+    />
+    {isOwnProfile && (
+      <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
+        <button
+          onClick={() => coverInputRef.current?.click()}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-sm text-white text-xs font-bold hover:bg-black/90 transition-all"
+        >
+          <ImageIcon size={14} />
+          Сменить
+        </button>
+        <button
+          onClick={removeCover}
+          className="p-1.5 rounded-lg bg-black/70 backdrop-blur-sm text-white hover:bg-red-500/80 transition-all"
+          title="Удалить обложку"
+        >
+          <XIcon size={14} />
+        </button>
+      </div>
+    )}
+  </div>
+) : (
+  isOwnProfile && (
+    <div
+      className="relative w-full h-12 md:h-16 bg-white/[0.02] hover:bg-white/[0.06] transition-colors cursor-pointer flex flex-col items-center justify-center group"
+      onClick={() => coverInputRef.current?.click()}
+    >
+      <span className="flex items-center gap-1.5 text-white/25 group-hover:text-white/60 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+        <ImageIcon size={14} />
+        Добавить обложку
+      </span>
+      <p className="text-[9px] text-white/20 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {UPLOAD_RULES.banner.hint}
+      </p>
+    </div>
+  )
+)}
+
+{/* ❌ Ошибка загрузки обложки */}
+{coverError && (
+  <div className="px-4 md:px-6 py-2.5 bg-red-500/10 border-b border-red-500/30 flex items-center gap-2">
+    <AlertTriangle size={14} className="text-red-400 shrink-0" />
+    <p className="text-xs md:text-sm text-red-300 font-semibold flex-1">{coverError}</p>
+    <button onClick={() => setCoverError(null)} className="text-red-400 hover:text-red-300 p-1 shrink-0">
+      <X size={14} />
+    </button>
+  </div>
+)}
 
           {/* КОНТЕНТ ПРОФИЛЯ */}
           <div className="px-4 md:px-6 pb-6">
             <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
               
-              {/* АВАТАРКА */}
-              <div
-                className={`relative group shrink-0 w-32 h-32 rounded-full ring-4 ring-[#171717] z-10 ${
-                  profile.cover_url ? "mt-[-3.5rem] md:mt-[-5rem]" : "mt-6"
-                }`}
-              >
-                <Avatar 
-                  src={profile.avatar_url} 
-                  name={profile.display_name} 
-                  id={profile.id} 
-                  size={128}
-                  online={isOnline(profile.last_seen)}
-                />
-                
-                {isOwnProfile && (
-                  <button
-                    onClick={openFilePicker}
-                    disabled={uploading}
-                    className="absolute bottom-1 right-1 p-2 rounded-full bg-[#8b5cf6] text-white shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-110 cursor-pointer z-10"
-                    title="Сменить аватарку"
-                  >
-                    <Camera size={16} />
-                  </button>
-                )}
-              </div>
+{/* АВАТАРКА */}
+<div className={`flex flex-col items-center md:items-start ${profile.cover_url ? "mt-[-3.5rem] md:mt-[-5rem]" : "mt-6"} z-10`}>
+  <div className="relative group shrink-0 w-32 h-32 rounded-full ring-4 ring-[#171717]">
+    <Avatar 
+      src={profile.avatar_url} 
+      name={profile.display_name} 
+      id={profile.id} 
+      size={128}
+      online={isOnline(profile.last_seen)}
+    />
+    
+    {isOwnProfile && (
+      <button
+        onClick={openFilePicker}
+        disabled={uploading}
+        className="absolute bottom-1 right-1 p-2 rounded-full bg-[#8b5cf6] text-white shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-110 cursor-pointer z-10"
+        title="Сменить аватарку"
+      >
+        {uploading ? (
+          <span className="block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+        ) : (
+          <Camera size={16} />
+        )}
+      </button>
+    )}
+    
+    {/* Overlay "загрузка" при uploading */}
+    {uploading && (
+      <div className="absolute inset-0 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+        <span className="block w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
+      </div>
+    )}
+  </div>
+  
+  {/* ❌ Ошибка загрузки аватарки */}
+  {avatarError && isOwnProfile && (
+    <div className="mt-2 flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-1.5 max-w-xs">
+      <AlertTriangle size={12} className="text-red-400 shrink-0" />
+      <p className="text-[11px] text-red-300 font-semibold flex-1 leading-tight">{avatarError}</p>
+      <button onClick={() => setAvatarError(null)} className="text-red-400 hover:text-red-300 p-0.5 shrink-0">
+        <X size={12} />
+      </button>
+    </div>
+  )}
+  
+  {/* Подсказка лимитов */}
+  {isOwnProfile && !avatarError && (
+    <p className="mt-1.5 text-[9px] text-white/25 text-center md:text-left">
+      {UPLOAD_RULES.avatar.hint}
+    </p>
+  )}
+</div>
 
               {/* ИНФА */}
               <div className={`flex-1 min-w-0 w-full text-center md:text-left relative ${profile.cover_url ? "" : "mt-6"}`}>
@@ -576,13 +650,24 @@ export default function UserProfilePage() {
 
         {/* ================= МОДАЛКИ ================= */}
         
-        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+        <input 
+          ref={inputRef} 
+          type="file" 
+          accept={UPLOAD_RULES.avatar.types.join(",")} 
+          className="hidden" 
+          onChange={handleAvatarFileSelect} 
+        />
         {cropperImage && (
           <AvatarCropper imageSrc={cropperImage} onCropComplete={handleCropComplete} onClose={() => setCropperImage(null)} />
         )}
 
-        <input ref={coverInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={uploadCover} />
-
+        <input 
+          ref={coverInputRef} 
+          type="file" 
+          accept={UPLOAD_RULES.banner.types.join(",")} 
+          className="hidden" 
+          onChange={uploadCover} 
+        />
         {modalType && (
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200]" onClick={() => setModalType(null)} />

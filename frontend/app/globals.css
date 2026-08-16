@@ -287,3 +287,13 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .animated-bg * { animation: none !important; }
 }
+
+/* 🦴 Скелетоны — фиолетовый шиммер */
+@keyframes skeleton-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.skeleton-shimmer {
+  background: linear-gradient(100deg, transparent 25%, rgba(139, 92, 246, 0.16) 50%, transparent 75%);
+  animation: skeleton-shimmer 1.3s ease-in-out infinite;
+}

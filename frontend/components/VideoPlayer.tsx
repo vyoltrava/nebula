@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState, useEffect } from "react";
-import { Play, Pause, Rewind, FastForward, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, Rewind, FastForward, Volume2, VolumeX, Film } from "lucide-react";
 import { mediaUrl } from "@/lib/media";
 
 interface VideoPlayerProps {
@@ -16,6 +16,8 @@ export function VideoPlayer({ src, className = "" }: VideoPlayerProps) {
   const [muted, setMuted] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [feedback, setFeedback] = useState<{ type: FeedbackType; id: number } | null>(null);
   const feedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const feedbackIdRef = useRef(0);
@@ -141,15 +143,17 @@ export function VideoPlayer({ src, className = "" }: VideoPlayerProps) {
 
   return (
     <div
-      className={`relative rounded-xl overflow-hidden bg-black select-none ${className}`}
+      className={`relative rounded-xl overflow-hidden bg-black select-none ${!loaded && !failed ? "aspect-video" : ""} ${className}`}
       onClick={handleVideoClick}
     >
       <video
         ref={videoRef}
         src={mediaUrl(src)}
-        className="w-full h-auto max-h-64 sm:max-h-80 md:max-h-96 cursor-pointer"
+        className={`w-full h-auto max-h-64 sm:max-h-80 md:max-h-96 cursor-pointer transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
         playsInline
         muted={muted}
+        onLoadedData={() => setLoaded(true)}
+        onError={() => setFailed(true)}
       />
 
       {/* Прогресс-бар снизу как в Telegram */}
@@ -175,6 +179,27 @@ export function VideoPlayer({ src, className = "" }: VideoPlayerProps) {
 
       {/* ❗ ТОЛЬКО ВСПЛЫВАЮЩИЙ ФИДБЕК - БЕЗ БОЛЬШОЙ КНОПКИ PLAY */}
       {renderFeedbackIcon()}
+
+      {/* 🦴 Скелет, пока видео грузится */}
+      {!loaded && !failed && (
+        <div className="absolute inset-0 bg-[#0d0d10]">
+          <div className="absolute inset-0 skeleton-shimmer" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+            <div className="w-12 h-12 rounded-full bg-white/10 animate-pulse flex items-center justify-center">
+              <Film size={20} className="text-[#a78bfa]" />
+            </div>
+            <span className="text-[10px] font-medium text-white/30">Загрузка видео…</span>
+          </div>
+        </div>
+      )}
+
+      {/* ❌ Видео не загрузилось */}
+      {failed && (
+        <div className="absolute inset-0 bg-[#0d0d10] flex flex-col items-center justify-center gap-1.5 text-white/30">
+          <Film size={20} />
+          <span className="text-[10px] font-bold">видео недоступно</span>
+        </div>
+      )}
     </div>
   );
 }

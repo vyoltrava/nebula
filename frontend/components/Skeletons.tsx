@@ -1,5 +1,6 @@
 "use client";
-
+import { Video,
+} from "lucide-react";
 // ==========================================
 // 🦴 Скелетон для поста в закладках/профиле (сложный)
 // ==========================================
@@ -217,6 +218,45 @@ export function ChatWindowSkeleton() {
       <div className="p-4 border-t border-white/10">
         <div className="h-10 w-full bg-white/5 rounded-xl" />
       </div>
+    </div>
+  );
+}
+
+
+// 🦴 ===== УНИВЕРСАЛЬНЫЕ СКЕЛЕТОНЫ МЕДИА =====
+export function Shimmer() {
+  return <div className="absolute inset-0 skeleton-shimmer pointer-events-none" />;
+}
+
+// Скелет видео-квадрата в чате (ложится поверх, absolute)
+export function VideoNoteSkeleton() {
+  return (
+    <div className="absolute inset-0 overflow-hidden rounded-2xl bg-white/5 border border-white/10">
+      <Shimmer />
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+        <div className="w-11 h-11 rounded-full bg-white/10 animate-pulse flex items-center justify-center">
+          <Video size={18} className="text-[#a78bfa]" />
+        </div>
+        <span className="text-[10px] font-medium text-white/30">Загрузка видео…</span>
+      </div>
+    </div>
+  );
+}
+
+// Скелет баннера
+export function BannerSkeleton({ className = "h-40 sm:h-52 rounded-2xl" }: { className?: string }) {
+  return (
+    <div className={`relative w-full overflow-hidden bg-white/5 ${className}`}>
+      <Shimmer />
+    </div>
+  );
+}
+
+// Скелет аватарки
+export function AvatarSkeleton({ size = 96 }: { size?: number }) {
+  return (
+    <div className="relative rounded-full bg-white/5 overflow-hidden" style={{ width: size, height: size }}>
+      <Shimmer />
     </div>
   );
 }
