@@ -15,6 +15,7 @@ import LinkPreview  from "@/components/LinkPreview";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { STICKERS } from "@/lib/stickers";
+import { formatChatTime } from "@/lib/time";
 import { useDevicePermission } from "@/lib/useDevicePermission";
 import { useSwipe } from "@/lib/useSwipe";
 import { PermissionHelpModal } from "@/components/PermissionHelpModal";
@@ -2223,7 +2224,7 @@ const ChatHeader = () => (
         <AudioPlayer
           src={mediaUrl(msg.media_url)}
           trackId={msg.id}
-          title={`${msg.sender_name} · ${new Date(msg.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`}
+          title={`${msg.sender_name} · ${formatChatTime(msg.created_at)}`}
         />
       </div>
     )}
@@ -2231,7 +2232,7 @@ const ChatHeader = () => (
       <VideoNotePlayer
         src={mediaUrl(msg.media_url)}
         trackId={msg.id}
-        title={`${msg.sender_name} · ${new Date(msg.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`}
+        title={`${msg.sender_name} · ${formatChatTime(msg.created_at)}`}
       />
     )}
   </>
@@ -2354,10 +2355,7 @@ const ChatHeader = () => (
                               }`}
                             >
                               {isPinned && <Pin size={10} className="text-[#8b5cf6]" />}
-                              {new Date(msg.created_at).toLocaleTimeString("ru-RU", {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {formatChatTime(msg.created_at)}
                               {isMine &&
                                 (msg.read ? (
                                   <CheckCheck size={12} className="text-sky-300" />
@@ -3199,9 +3197,7 @@ const ChatHeader = () => (
                     />
                   )}
                   <p className="text-[10px] text-white/30 mt-1.5">
-                    {new Date(item.created_at).toLocaleString("ru-RU", {
-                      day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
-                    })}
+                    {formatChatTime(item.created_at)}
                   </p>
                 </div>
               ))}

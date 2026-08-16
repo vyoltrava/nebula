@@ -32,3 +32,40 @@ export function timeAgo(date: string | Date | undefined): string {
     year: now.getFullYear() !== then.getFullYear() ? "numeric" : undefined,
   });
 }
+
+
+// lib/time.ts — добавь рядом с timeAgo
+
+function parseServerDate(date: string | Date): Date {
+  if (date instanceof Date) return date;
+  // Сервер отдаёт UTC без Z — принудительно говорим браузеру, что это UTC
+  if (!date.endsWith("Z") && !date.includes("+")) {
+    return new Date(date + "Z");
+  }
+  return new Date(date);
+}
+
+export function formatChatTime(iso: string): string {
+  const d = parseServerDate(iso);
+  if (isNaN(d.getTime())) return "";
+
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  
+  const time = d.toLocaleTimeString("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  if (isToday) return time;
+
+  const isYesterday = new Date(now.setDate(now.getDate() - 1)).toDateString() === d.toDateString();
+  if (isYesterday) return `вчера, ${time}`;
+
+  return d.toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
