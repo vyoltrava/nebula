@@ -8,6 +8,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { RightPanel } from "@/components/RightPanel";
 import { MainPostSkeleton } from "@/components/Skeletons";
 import { useLastReadPost } from "@/src/hooks/useLastReadPost";
+import { getToken } from "@/lib/auth";
 
 export default function PostPage() {
   const { id } = useParams();
@@ -47,11 +48,13 @@ useEffect(() => {
 
     const load = async () => {
       try {
+          const token = getToken();
+          const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+
         const [postRes, repliesRes] = await Promise.all([
           apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}`),
           apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/replies`),
         ]);
-
         if (!postRes.ok || !repliesRes.ok) throw new Error("Failed to fetch");
 
         setPost(await postRes.json());

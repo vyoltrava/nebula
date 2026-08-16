@@ -3,8 +3,19 @@ import { perfFetch } from "./perf";
 import { getToken } from '@/lib/auth';
 
 
-export async function apiFetch(url: string, options?: RequestInit) {
-  return perfFetch(url, options);
+export async function apiFetch(url: string, options: RequestInit = {}) {
+  const token = getToken();
+  
+  // Мержим headers: не трогаем существующие, добавляем Authorization если есть токен
+  const headers = {
+    ...(options.headers || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
+  return perfFetch(url, {
+    ...options,
+    headers,
+  });
 }
 
 // ============================================================
