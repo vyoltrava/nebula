@@ -19,6 +19,8 @@ import re
 import json
 import cloudinary
 import cloudinary.uploader
+import subprocess
+import tempfile
 from link_preview import router as lp_router
 from websocket_manager import manager
 from slowapi import Limiter
@@ -40,11 +42,12 @@ from performance import PerfMiddleware, get_perf_summary
 import sql_profiler
 import time
 import asyncio
+from fastapi import Response
 
 
 ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 ALLOWED_AUDIO_EXT = {".mp3", ".wav", ".ogg", ".m4a", ".aac"}
-ALLOWED_VIDEO_EXT = {".mp4", ".webm", ".mov"}
+ALLOWED_VIDEO_EXT = {".mp4", ".webm", ".mov", ".mkv"}
 
 
 # ============================================================
@@ -2546,6 +2549,83 @@ async def create_post(
         "repost_of_id": post.repost_of_id,  # 🆕
         "media_type": post.media_type,
     }
+
+
+
+@app.post("/api/video-note")
+@limiter.limit("10/minute")
+async def process_video_note(
+    request: Request,
+    file: UploadFile = File(...),
+    mirror: str = Form("0"),
+    size: str = Form("640"),
+    user: User = Depends(get_current_user),
+):
+    """Обрезает видео в квадрат, применяет зеркало, отдаёт mp4"""
+    if not file.filename:
+        raise HTTPException(400, "No file provided")
+    
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ALLOWED_VIDEO_EXT:
+        raise HTTPException(400, f"Неверный формат: {ext}")
+    
+    content = await file.read()
+    if len(content) > 50 * 1024 * 1024:
+        raise HTTPException(400, "Файл слишком большой (макс 50 МБ)")
+    
+    target_size = int(size) if size.isdigit() else 640
+    
+    # Временные файлы
+    with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp_in:
+        tmp_in.write(content)
+        input_path = tmp_in.name
+    
+    output_path = input_path.replace(ext, "_square.mp4")
+    
+    try:
+        # Фильтр ffmpeg: квадрат по центру → ресайз → зеркало (если нужно)
+        vf = f"crop=min(iw\\,ih):min(iw\\,ih):(iw-min(iw\\,ih))/2:(ih-min(iw\\,ih))/2,scale={target_size}:{target_size}"
+        if mirror == "1":
+            vf += ",hflip"
+        
+        cmd = [
+            "ffmpeg", "-y", "-i", input_path,
+            "-vf", vf,
+            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+            "-movflags", "+faststart",
+            "-c:a", "aac", "-b:a", "128k",
+            "-pix_fmt", "yuv420p",
+            output_path
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        
+        if result.returncode != 0:
+            print(f"FFMPEG ERROR: {result.stderr}")
+            raise HTTPException(500, "Ошибка обработки видео")
+        
+        with open(output_path, "rb") as f:
+            output_bytes = f.read()
+        
+        return Response(
+            content=output_bytes,
+            media_type="video/mp4",
+            headers={"Content-Disposition": f"attachment; filename=video-note-{int(time.time())}.mp4"}
+        )
+        
+    except subprocess.TimeoutExpired:
+        raise HTTPException(500, "Видео обрабатывается слишком долго")
+    except Exception as e:
+        raise HTTPException(500, f"Ошибка обработки: {str(e)}")
+    finally:
+        # Чистим мусор
+        for p in [input_path, output_path]:
+            try:
+                if os.path.exists(p):
+                    os.unlink(p)
+            except:
+                pass
+
 
 @app.get("/api/admin/permission-tabs")
 def get_permission_tabs(staff: User = Depends(require_staff), session: Session = Depends(get_session)):

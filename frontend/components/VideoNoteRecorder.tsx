@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   Camera,
+  FlipHorizontal,
   Maximize2,
   Minimize2,
   RotateCcw,
@@ -25,56 +26,35 @@ interface Props {
   maxDuration?: number;
 }
 
-/**
- * Важно:
- *
- * Preview:
- *   camera stream -> <video>
- *
- * Recording:
- *   <video> -> canvas -> canvas.captureStream() + microphone -> MediaRecorder
- *
- * Поэтому canvas вообще не работает, пока запись не началась.
- */
+type FacingMode = "user" | "environment";
 
-const IS_MOBILE =
-  typeof navigator !== "undefined" &&
-  /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const MAX_WIDTH = 1920;
+const MAX_HEIGHT = 1080;
+const FPS = 30;
 
-const VIDEO_SIZE = IS_MOBILE ? 480 : 640;
-const FPS = IS_MOBILE ? 24 : 30;
-
-const VIDEO_BITRATE = IS_MOBILE ? 1_000_000 : 2_500_000;
+const VIDEO_BITRATE = 4_000_000;
 const AUDIO_BITRATE = 128_000;
 
-const MIME_TYPES = IS_MOBILE
-  ? [
-      "video/mp4;codecs=h264,aac",
-      "video/mp4",
-      "video/webm;codecs=h264,opus",
-      "video/webm;codecs=vp8,opus",
-      "video/webm",
-    ]
-  : [
-      "video/webm;codecs=vp9,opus",
-      "video/webm;codecs=vp8,opus",
-      "video/webm",
-      "video/mp4;codecs=h264,aac",
-      "video/mp4",
-    ];
+const PROCESS_ENDPOINT = "/api/video-note";
 
 function getSupportedMimeType() {
-  if (typeof MediaRecorder === "undefined") {
-    return "";
-  }
-
-  return MIME_TYPES.find((type) =>
-    MediaRecorder.isTypeSupported(type)
-  ) ?? "";
+  if (typeof MediaRecorder === "undefined") return "";
+  const types = [
+    "video/mp4;codecs=h264,aac",
+    "video/mp4",
+    "video/webm;codecs=vp9,opus",
+    "video/webm;codecs=vp8,opus",
+    "video/webm",
+  ];
+  return types.find((type) => MediaRecorder.isTypeSupported(type)) || "";
 }
 
-function getFileExtension(mime: string) {
-  return mime.includes("mp4") ? "mp4" : "webm";
+function getExtension(type: string) {
+  return type.includes("mp4") ? "mp4" : "webm";
+}
+
+function formatTime(seconds: number) {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 export function VideoNoteRecorder({
@@ -87,61 +67,32 @@ export function VideoNoteRecorder({
   maxDuration = 60,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const recordingStreamRef = useRef<MediaStream | null>(null);
-
+  const streamRef = useRef<MediaStream | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const animationFrameRef = useRef<number | null>(null);
 
-  const mountedRef = useRef(true);
+  const mountedRef = useRef(false);
   const recordingRef = useRef(false);
+  const processingRef = useRef(false);
+  const facingRef = useRef<FacingMode>("user");
   const mirroredRef = useRef(true);
-  const facingRef = useRef<"user" | "environment">("user");
 
-  const [isReady, setIsReady] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-
+  const [ready, setReady] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [seconds, setSeconds] = useState(0);
-
-  const [facing, setFacing] = useState<"user" | "environment">("user");
-
+  const [facing, setFacing] = useState<FacingMode>("user");
   const [mirrored, setMirrored] = useState(true);
-
-  const [hasFrontCamera, setHasFrontCamera] = useState(false);
-  const [hasBackCamera, setHasBackCamera] = useState(false);
-
+  const [canSwitchCamera, setCanSwitchCamera] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [isSwitchingCamera, setIsSwitchingCamera] =
-    useState(false);
-
-  /**
-   * ---------------------------------------------------------
-   * Helpers
-   * ---------------------------------------------------------
-   */
+  const [switching, setSwitching] = useState(false);
 
   const stopStream = useCallback((stream: MediaStream | null) => {
     if (!stream) return;
-
     stream.getTracks().forEach((track) => {
-      try {
-        track.stop();
-      } catch {
-        // ignore
-      }
+      try { track.stop(); } catch {}
     });
-  }, []);
-
-  const stopAnimation = useCallback(() => {
-    if (animationFrameRef.current !== null) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
   }, []);
 
   const stopTimer = useCallback(() => {
@@ -151,214 +102,36 @@ export function VideoNoteRecorder({
     }
   }, []);
 
-  /**
-   * ---------------------------------------------------------
-   * Camera detection
-   * ---------------------------------------------------------
-   */
-
   const detectCameras = useCallback(async () => {
     try {
-      const devices =
-        await navigator.mediaDevices.enumerateDevices();
-
-      const cameras = devices.filter(
-        (device) => device.kind === "videoinput"
-      );
-
-      const hasFront = cameras.some((camera) =>
-        /front|user|facetime/i.test(camera.label)
-      );
-
-      const hasBack = cameras.some((camera) =>
-        /back|rear|environment/i.test(camera.label)
-      );
-
-      /**
-       * После permission labels становятся доступными.
-       *
-       * На мобильном Safari label может быть пустым,
-       * поэтому если камер > 1 — считаем, что flip доступен.
-       */
-      if (cameras.length > 1) {
-        setHasFrontCamera(true);
-        setHasBackCamera(true);
-      } else {
-        setHasFrontCamera(hasFront);
-        setHasBackCamera(hasBack);
-      }
-    } catch (err) {
-      console.warn("enumerateDevices failed:", err);
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = devices.filter((d) => d.kind === "videoinput");
+      setCanSwitchCamera(cameras.length > 1);
+    } catch {
+      setCanSwitchCamera(false);
     }
   }, []);
 
-  /**
-   * ---------------------------------------------------------
-   * Camera
-   * ---------------------------------------------------------
-   */
-
   const startCamera = useCallback(
-    async (
-      facingMode: "user" | "environment",
-      keepAudio = false
-    ) => {
+    async (mode: FacingMode) => {
       if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error(
-          "Камера не поддерживается этим браузером"
-        );
+        throw new Error("Камера не поддерживается браузером");
       }
 
-      setIsSwitchingCamera(true);
-
-      try {
-        /**
-         * При смене камеры старый stream нужно обязательно
-         * остановить до getUserMedia().
-         *
-         * Это особенно важно для iOS/PWA.
-         */
-        const oldStream = mediaStreamRef.current;
-
-        if (oldStream) {
-          oldStream
-            .getVideoTracks()
-            .forEach((track) => track.stop());
-        }
-
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: {
-              ideal: facingMode,
-            },
-
-            /**
-             * Не используем exact.
-             *
-             * exact + iOS/PWA иногда приводит к
-             * OverconstrainedError.
-             */
-            width: {
-              ideal: IS_MOBILE ? 720 : 1280,
-            },
-
-            height: {
-              ideal: IS_MOBILE ? 720 : 720,
-            },
-
-            frameRate: {
-              ideal: FPS,
-              max: 30,
-            },
-          },
-
-          /**
-           * Если уже есть audio stream, при переключении камеры
-           * новый микрофон не нужен.
-           */
-          audio: keepAudio
-            ? false
-            : {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true,
-              },
+      const oldStream = streamRef.current;
+      if (oldStream) {
+        oldStream.getVideoTracks().forEach((track) => {
+          try { track.stop(); } catch {}
         });
-
-        if (!mountedRef.current) {
-          stopStream(stream);
-          return;
-        }
-
-        if (keepAudio && mediaStreamRef.current) {
-          const audioTracks =
-            mediaStreamRef.current.getAudioTracks();
-
-          audioTracks.forEach((track) => {
-            try {
-              stream.addTrack(track);
-            } catch {
-              // ignore
-            }
-          });
-        }
-
-        mediaStreamRef.current = stream;
-
-        const video = videoRef.current;
-
-        if (video) {
-          video.srcObject = stream;
-
-          /**
-           * На iOS важно:
-           * muted + playsInline + play()
-           */
-          video.muted = true;
-          video.playsInline = true;
-
-          try {
-            await video.play();
-          } catch {
-            /**
-             * Если autoplay был заблокирован, пользовательский
-             * click позже повторит play().
-             */
-          }
-        }
-
-        facingRef.current = facingMode;
-
-        if (mountedRef.current) {
-          setFacing(facingMode);
-          setMirrored(facingMode === "user");
-          mirroredRef.current = facingMode === "user";
-          setIsReady(true);
-          setError(null);
-        }
-
-        await detectCameras();
-      } finally {
-        if (mountedRef.current) {
-          setIsSwitchingCamera(false);
-        }
       }
-    },
-    [detectCameras, stopStream]
-  );
 
-  /**
-   * ---------------------------------------------------------
-   * Initial setup
-   * ---------------------------------------------------------
-   */
-
-  const initialize = useCallback(async () => {
-    try {
-      setError(null);
-
-      /**
-       * Один getUserMedia вместо двух.
-       *
-       * Это заметно надежнее для Safari/PWA.
-       */
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: {
-            ideal: "user",
-          },
-          width: {
-            ideal: IS_MOBILE ? 720 : 1280,
-          },
-          height: {
-            ideal: IS_MOBILE ? 720 : 720,
-          },
-          frameRate: {
-            ideal: FPS,
-            max: 30,
-          },
+          facingMode: { ideal: mode },
+          width: { ideal: MAX_WIDTH, min: 640 },
+          height: { ideal: MAX_HEIGHT, min: 480 },
+          frameRate: { ideal: FPS, max: FPS },
         },
-
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
@@ -371,134 +144,85 @@ export function VideoNoteRecorder({
         return;
       }
 
-      mediaStreamRef.current = stream;
+      streamRef.current = stream;
 
       const video = videoRef.current;
-
       if (video) {
         video.srcObject = stream;
         video.muted = true;
         video.playsInline = true;
-
-        try {
-          await video.play();
-        } catch {
-          // user interaction will retry
-        }
+        try { await video.play(); } catch {}
       }
 
-      facingRef.current = "user";
-      mirroredRef.current = true;
+      facingRef.current = mode;
+      mirroredRef.current = mode === "user";
 
-      setFacing("user");
-      setMirrored(true);
-      setIsReady(true);
+      setFacing(mode);
+      setMirrored(mode === "user");
+      setReady(true);
 
       await detectCameras();
+    },
+    [detectCameras, stopStream]
+  );
+
+  const initialize = useCallback(async () => {
+    try {
+      setError(null);
+      setReady(false);
+      await startCamera("user");
     } catch (err: any) {
-      console.error("getUserMedia error:", err);
-
-      if (!mountedRef.current) return;
-
+      console.error("Camera initialization error:", err);
       let message = "Не удалось получить доступ к камере";
 
-      if (
-        err?.name === "NotAllowedError" ||
-        err?.name === "PermissionDeniedError"
-      ) {
-        message =
-          "Разрешите доступ к камере и микрофону";
-      } else if (err?.name === "NotFoundError") {
-        message = "Камера или микрофон не найдены";
-      } else if (err?.name === "NotReadableError") {
-        message =
-          "Камера уже используется другим приложением";
-      } else if (err?.name === "SecurityError") {
-        message =
-          "Доступ к камере запрещен браузером";
+      switch (err?.name) {
+        case "NotAllowedError":
+        case "PermissionDeniedError":
+          message = "Разрешите доступ к камере и микрофону";
+          break;
+        case "NotFoundError":
+          message = "Камера или микрофон не найдены";
+          break;
+        case "NotReadableError":
+          message = "Камера уже используется другим приложением";
+          break;
+        case "SecurityError":
+          message = "Браузер запретил доступ к камере";
+          break;
+        case "OverconstrainedError":
+          message = "Камера не поддерживает выбранный режим";
+          break;
       }
 
-      setError(message);
-
+      if (mountedRef.current) setError(message);
       onDenied?.();
     }
-  }, [detectCameras, onDenied, stopStream]);
-
-  /**
-   * ---------------------------------------------------------
-   * Mount
-   * ---------------------------------------------------------
-   */
+  }, [onDenied, startCamera]);
 
   useEffect(() => {
     mountedRef.current = true;
-
     initialize();
 
     return () => {
       mountedRef.current = false;
-
-      stopAnimation();
       stopTimer();
 
-      const recorder = mediaRecorderRef.current;
-
+      const recorder = recorderRef.current;
       if (recorder) {
         try {
+          recorder.onstop = null;
           recorder.ondataavailable = null;
           recorder.onerror = null;
-          recorder.onstop = null;
-
-          if (recorder.state !== "inactive") {
-            recorder.stop();
-          }
-        } catch {
-          // ignore
-        }
+          if (recorder.state !== "inactive") recorder.stop();
+        } catch {}
       }
+      recorderRef.current = null;
 
-      mediaRecorderRef.current = null;
-
-      stopStream(recordingStreamRef.current);
-      stopStream(mediaStreamRef.current);
-
-      recordingStreamRef.current = null;
-      mediaStreamRef.current = null;
+      stopStream(streamRef.current);
+      streamRef.current = null;
+      chunksRef.current = [];
     };
-  }, [initialize, stopAnimation, stopStream, stopTimer]);
-
-  /**
-   * ---------------------------------------------------------
-   * Camera switching
-   * ---------------------------------------------------------
-   */
-
-  const switchCamera = useCallback(async () => {
-    if (isRecording || isSwitchingCamera) return;
-
-    const next =
-      facingRef.current === "user"
-        ? "environment"
-        : "user";
-
-    try {
-      await startCamera(next, true);
-    } catch (err) {
-      console.error("Camera switch failed:", err);
-
-      /**
-       * Если environment камера отсутствует или не поддерживается,
-       * возвращаемся к текущему состоянию.
-       */
-      setError("Не удалось переключить камеру");
-    }
-  }, [isRecording, isSwitchingCamera, startCamera]);
-
-  /**
-   * ---------------------------------------------------------
-   * Mirror
-   * ---------------------------------------------------------
-   */
+  }, [initialize, stopStream, stopTimer]);
 
   const toggleMirror = useCallback(() => {
     setMirrored((value) => {
@@ -508,198 +232,104 @@ export function VideoNoteRecorder({
     });
   }, []);
 
-  /**
-   * ---------------------------------------------------------
-   * Canvas drawing
-   * ---------------------------------------------------------
-   *
-   * Canvas запускается ТОЛЬКО во время записи.
-   *
-   * Никаких постоянных requestAnimationFrame в preview.
-   */
+  const switchCamera = useCallback(async () => {
+    if (recordingRef.current || processingRef.current || switching || !canSwitchCamera) return;
 
-  const drawFrame = useCallback(() => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
+    const next: FacingMode = facingRef.current === "user" ? "environment" : "user";
 
-    if (!video || !canvas) return;
-
-    if (
-      video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
-      video.videoWidth === 0 ||
-      video.videoHeight === 0
-    ) {
-      return;
+    try {
+      setSwitching(true);
+      await startCamera(next);
+    } catch (err) {
+      console.error("Camera switch error:", err);
+      setError("Не удалось переключить камеру");
+    } finally {
+      if (mountedRef.current) setSwitching(false);
     }
+  }, [canSwitchCamera, startCamera, switching]);
 
-    const ctx = canvas.getContext("2d", {
-      alpha: false,
-      desynchronized: true,
-    });
+  const processVideo = useCallback(
+    async (blob: Blob, mimeType: string, mirror: boolean) => {
+      const extension = getExtension(mimeType);
+      const inputFile = new File(
+        [blob],
+        `video-note-source-${Date.now()}.${extension}`,
+        { type: mimeType }
+      );
 
-    if (!ctx) return;
+      const formData = new FormData();
+      formData.append("file", inputFile);
+      formData.append("mirror", mirror ? "1" : "0");
+      formData.append("size", "640");
 
-    const size = canvas.width;
+      const response = await fetch(PROCESS_ENDPOINT, {
+        method: "POST",
+        body: formData,
+      });
 
-    const vw = video.videoWidth;
-    const vh = video.videoHeight;
-
-    /**
-     * Center crop -> square.
-     */
-    const sourceSize = Math.min(vw, vh);
-
-    const sx = (vw - sourceSize) / 2;
-    const sy = (vh - sourceSize) / 2;
-
-    ctx.save();
-
-    /**
-     * Mirror only the recorded video.
-     */
-    if (mirroredRef.current) {
-      ctx.translate(size, 0);
-      ctx.scale(-1, 1);
-    }
-
-    ctx.drawImage(
-      video,
-      sx,
-      sy,
-      sourceSize,
-      sourceSize,
-      0,
-      0,
-      size,
-      size
-    );
-
-    ctx.restore();
-  }, []);
-
-  /**
-   * ---------------------------------------------------------
-   * Recording render loop
-   * ---------------------------------------------------------
-   */
-
-  const startCanvasLoop = useCallback(() => {
-    stopAnimation();
-
-    const render = () => {
-      if (!recordingRef.current) {
-        animationFrameRef.current = null;
-        return;
+      if (!response.ok) {
+        let message = "Не удалось обработать видео";
+        try {
+          const data = await response.json();
+          if (data?.error) message = data.error;
+        } catch {}
+        throw new Error(message);
       }
 
-      drawFrame();
+      const resultBlob = await response.blob();
+      if (!resultBlob.size) throw new Error("Сервер вернул пустое видео");
 
-      animationFrameRef.current =
-        requestAnimationFrame(render);
-    };
-
-    animationFrameRef.current =
-      requestAnimationFrame(render);
-  }, [drawFrame, stopAnimation]);
-
-  /**
-   * ---------------------------------------------------------
-   * Start recording
-   * ---------------------------------------------------------
-   */
+      return new File(
+        [resultBlob],
+        `video-note-${Date.now()}.mp4`,
+        { type: "video/mp4", lastModified: Date.now() }
+      );
+    },
+    []
+  );
 
   const startRecording = useCallback(async () => {
-    if (recordingRef.current) return;
+    if (recordingRef.current || processingRef.current) return;
 
-    const sourceStream = mediaStreamRef.current;
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-
-    if (!sourceStream || !canvas || !video) {
+    const stream = streamRef.current;
+    if (!stream) {
       setError("Камера еще не готова");
       return;
     }
 
+    const videoTrack = stream.getVideoTracks()[0];
+    const audioTrack = stream.getAudioTracks()[0];
+
+    if (!videoTrack) {
+      setError("Видеотрек отсутствует");
+      return;
+    }
+    if (!audioTrack) {
+      setError("Аудиотрек отсутствует");
+      return;
+    }
+
+    const mimeType = getSupportedMimeType();
+    if (!mimeType) {
+      setError("Браузер не поддерживает запись видео");
+      return;
+    }
+
     try {
-      /**
-       * Если autoplay был заблокирован — здесь уже есть
-       * пользовательский gesture.
-       */
-      try {
-        await video.play();
-      } catch {
-        // continue, MediaRecorder may still work
-      }
-
-      const videoTracks =
-        sourceStream.getVideoTracks();
-
-      const audioTracks =
-        sourceStream.getAudioTracks();
-
-      if (!videoTracks.length) {
-        throw new Error("Видеотрек отсутствует");
-      }
-
-      if (!audioTracks.length) {
-        throw new Error("Аудиотрек отсутствует");
-      }
-
-      /**
-       * Размер canvas задаем только перед записью.
-       */
-      canvas.width = VIDEO_SIZE;
-      canvas.height = VIDEO_SIZE;
-
-      /**
-       * Первый кадр рисуем сразу.
-       */
-      drawFrame();
-
-      /**
-       * Canvas stream существует только во время записи.
-       */
-      const canvasStream =
-        canvas.captureStream(FPS);
-
-      const canvasVideoTrack =
-        canvasStream.getVideoTracks()[0];
-
-      if (!canvasVideoTrack) {
-        throw new Error(
-          "Не удалось создать видеопоток"
-        );
-      }
-
-      const audioTrack = audioTracks[0];
-
-      const recordingStream = new MediaStream([
-        canvasVideoTrack,
-        audioTrack,
-      ]);
-
-      recordingStreamRef.current = recordingStream;
-
-      const mimeType = getSupportedMimeType();
-
-      if (!mimeType) {
-        throw new Error(
-          "Этот браузер не поддерживает запись видео"
-        );
+      const video = videoRef.current;
+      if (video) {
+        try { await video.play(); } catch {}
       }
 
       chunksRef.current = [];
 
-      const recorder = new MediaRecorder(
-        recordingStream,
-        {
-          mimeType,
-          videoBitsPerSecond: VIDEO_BITRATE,
-          audioBitsPerSecond: AUDIO_BITRATE,
-        }
-      );
+      const recorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: VIDEO_BITRATE,
+        audioBitsPerSecond: AUDIO_BITRATE,
+      });
 
-      mediaRecorderRef.current = recorder;
+      recorderRef.current = recorder;
 
       recorder.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
@@ -708,340 +338,155 @@ export function VideoNoteRecorder({
       };
 
       recorder.onerror = (event) => {
-        console.error(
-          "MediaRecorder error:",
-          event
-        );
-
-        if (mountedRef.current) {
-          setError("Ошибка во время записи");
-        }
+        console.error("MediaRecorder error:", event);
+        if (mountedRef.current) setError("Ошибка во время записи");
       };
 
-      recorder.onstop = () => {
-        stopAnimation();
+      recorder.onstop = async () => {
         stopTimer();
-
         const chunks = chunksRef.current;
-
-        /**
-         * Закрываем только canvas stream.
-         * Камера и микрофон должны продолжить жить,
-         * чтобы пользователь мог сразу записать еще раз.
-         */
-        stopStream(recordingStreamRef.current);
-        recordingStreamRef.current = null;
+        chunksRef.current = [];
 
         if (!chunks.length) {
           if (mountedRef.current) {
+            setRecording(false);
             setError("Запись не содержит данных");
           }
           return;
         }
 
-        const blob = new Blob(chunks, {
-          type: mimeType,
-        });
-
-        if (!blob.size) {
+        const sourceBlob = new Blob(chunks, { type: mimeType });
+        if (!sourceBlob.size) {
           if (mountedRef.current) {
+            setRecording(false);
             setError("Получен пустой файл");
           }
           return;
         }
 
-        const extension =
-          getFileExtension(mimeType);
-
-        const file = new File(
-          [blob],
-          `video-note-${Date.now()}.${extension}`,
-          {
-            type: mimeType,
-            lastModified: Date.now(),
-          }
-        );
-
-        chunksRef.current = [];
-
+        processingRef.current = true;
         if (mountedRef.current) {
-          setIsRecording(false);
-          setSeconds(0);
-          onRecorded(file);
+          setRecording(false);
+          setProcessing(true);
+        }
+
+        try {
+          const finalFile = await processVideo(sourceBlob, mimeType, mirroredRef.current);
+          if (!mountedRef.current) return;
+          onRecorded(finalFile);
+        } catch (err: any) {
+          console.error("Video processing error:", err);
+          if (mountedRef.current) setError(err?.message || "Не удалось обработать видео");
+        } finally {
+          processingRef.current = false;
+          if (mountedRef.current) setProcessing(false);
         }
       };
 
-      /**
-       * Небольшой timeslice.
-       *
-       * 1000ms достаточно стабильно для Safari/PWA
-       * и не создает слишком много Blob.
-       */
       recorder.start(1000);
 
       recordingRef.current = true;
-
-      setIsRecording(true);
+      setRecording(true);
       setSeconds(0);
       setError(null);
 
-      startCanvasLoop();
-
       const startedAt = Date.now();
-
       timerRef.current = setInterval(() => {
-        const elapsed = Math.floor(
-          (Date.now() - startedAt) / 1000
-        );
-
+        const elapsed = Math.floor((Date.now() - startedAt) / 1000);
         if (!mountedRef.current) return;
-
         setSeconds(elapsed);
-
-        if (elapsed >= maxDuration) {
-          stopRecording();
-        }
+        if (elapsed >= maxDuration) stopRecording();
       }, 250);
     } catch (err: any) {
-      console.error(
-        "Start recording failed:",
-        err
-      );
-
-      stopAnimation();
-      stopTimer();
-
-      stopStream(recordingStreamRef.current);
-      recordingStreamRef.current = null;
-
+      console.error("Start recording error:", err);
       recordingRef.current = false;
-
+      stopTimer();
       if (mountedRef.current) {
-        setIsRecording(false);
-        setError(
-          err?.message ||
-            "Не удалось начать запись"
-        );
+        setRecording(false);
+        setError(err?.message || "Не удалось начать запись");
       }
     }
-  }, [
-    drawFrame,
-    maxDuration,
-    onRecorded,
-    startCanvasLoop,
-    stopAnimation,
-    stopStream,
-    stopTimer,
-  ]);
-
-  /**
-   * ---------------------------------------------------------
-   * Stop recording
-   * ---------------------------------------------------------
-   */
+  }, [maxDuration, onRecorded, processVideo, stopTimer]);
 
   const stopRecording = useCallback(() => {
-    const recorder =
-      mediaRecorderRef.current;
-
+    const recorder = recorderRef.current;
     recordingRef.current = false;
-
-    stopAnimation();
     stopTimer();
 
     if (!recorder) {
-      setIsRecording(false);
+      setRecording(false);
       return;
     }
 
     if (recorder.state === "recording") {
       try {
-        /**
-         * Последний кадр перед stop.
-         */
-        drawFrame();
-
         recorder.stop();
       } catch (err) {
-        console.error(
-          "Stop recording failed:",
-          err
-        );
-
-        if (mountedRef.current) {
-          setIsRecording(false);
-        }
+        console.error("Stop recording error:", err);
+        if (mountedRef.current) setRecording(false);
       }
     } else {
-      setIsRecording(false);
+      setRecording(false);
     }
-  }, [
-    drawFrame,
-    stopAnimation,
-    stopTimer,
-  ]);
-
-  /**
-   * ---------------------------------------------------------
-   * Cancel
-   * ---------------------------------------------------------
-   */
+  }, [stopTimer]);
 
   const cancel = useCallback(() => {
     recordingRef.current = false;
-
-    stopAnimation();
+    processingRef.current = false;
     stopTimer();
 
-    const recorder =
-      mediaRecorderRef.current;
-
+    const recorder = recorderRef.current;
     if (recorder) {
       try {
         recorder.onstop = null;
         recorder.ondataavailable = null;
-
-        if (recorder.state !== "inactive") {
-          recorder.stop();
-        }
-      } catch {
-        // ignore
-      }
+        recorder.onerror = null;
+        if (recorder.state !== "inactive") recorder.stop();
+      } catch {}
     }
+    recorderRef.current = null;
 
-    mediaRecorderRef.current = null;
-
-    stopStream(recordingStreamRef.current);
-    recordingStreamRef.current = null;
-
-    stopStream(mediaStreamRef.current);
-    mediaStreamRef.current = null;
-
+    stopStream(streamRef.current);
+    streamRef.current = null;
     chunksRef.current = [];
 
     onCancel();
-  }, [
-    onCancel,
-    stopAnimation,
-    stopStream,
-    stopTimer,
-  ]);
-
-  /**
-   * ---------------------------------------------------------
-   * Visibility
-   * ---------------------------------------------------------
-   *
-   * В PWA пользователь может свернуть приложение.
-   *
-   * Не пытаемся продолжать запись при hidden —
-   * Safari может заморозить JS/video.
-   */
+  }, [onCancel, stopStream, stopTimer]);
 
   useEffect(() => {
-    const handleVisibility = () => {
-      if (
-        document.visibilityState === "hidden" &&
-        recordingRef.current
-      ) {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden" && recordingRef.current) {
         stopRecording();
       }
     };
-
-    document.addEventListener(
-      "visibilitychange",
-      handleVisibility
-    );
-
-    return () => {
-      document.removeEventListener(
-        "visibilitychange",
-        handleVisibility
-      );
-    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [stopRecording]);
 
-  /**
-   * ---------------------------------------------------------
-   * UI
-   * ---------------------------------------------------------
-   */
-
-  const progress =
-    maxDuration > 0
-      ? Math.min(
-          (seconds / maxDuration) * 100,
-          100
-        )
-      : 0;
-
-  const time =
-    `${Math.floor(seconds / 60)}:` +
-    String(seconds % 60).padStart(2, "0");
-
-  const maxTime =
-    `${Math.floor(maxDuration / 60)}:` +
-    String(maxDuration % 60).padStart(2, "0");
-
-  const canSwitchCamera =
-    hasFrontCamera && hasBackCamera;
-
-  /**
-   * ---------------------------------------------------------
-   * Error screen
-   * ---------------------------------------------------------
-   */
+  const progress = maxDuration > 0 ? Math.min(100, (seconds / maxDuration) * 100) : 0;
+  const time = formatTime(seconds);
+  const maxTime = formatTime(maxDuration);
 
   if (error) {
     return (
-      <div className="fixed inset-0 z-[300] bg-black flex items-center justify-center p-6">
+      <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black p-5">
         <div className="w-full max-w-sm text-center">
-          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10">
-            <Camera
-              size={24}
-              className="text-red-400"
-            />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10">
+            <Camera size={24} className="text-red-400" />
           </div>
-
-          <p className="text-sm text-white/80">
-            {error}
-          </p>
-
+          <p className="mt-4 text-sm text-white/80">{error}</p>
           <div className="mt-5 flex justify-center gap-2">
             <button
               type="button"
-              onClick={() => {
-                setError(null);
-                initialize();
-              }}
-              className="
-                rounded-xl
-                bg-white
-                px-4
-                py-2.5
-                text-sm
-                font-medium
-                text-black
-                transition
-                active:scale-95
-              "
+              onClick={() => { setError(null); initialize(); }}
+              className="rounded-xl bg-white px-4 py-2.5 text-sm font-medium text-black active:scale-95"
             >
-              Попробовать снова
+              Повторить
             </button>
-
             <button
               type="button"
               onClick={cancel}
-              className="
-                rounded-xl
-                bg-white/10
-                px-4
-                py-2.5
-                text-sm
-                text-white
-                transition
-                active:scale-95
-              "
+              className="rounded-xl bg-white/10 px-4 py-2.5 text-sm text-white active:scale-95"
             >
               Отмена
             </button>
@@ -1051,52 +496,26 @@ export function VideoNoteRecorder({
     );
   }
 
-  /**
-   * ---------------------------------------------------------
-   * Minimized
-   * ---------------------------------------------------------
-   */
+  if (processing) {
+    return (
+      <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black">
+        <div className="text-center">
+          <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+          <p className="mt-4 text-sm text-white/70">Подготавливаем видео…</p>
+          <p className="mt-1 text-xs text-white/30">Формируем квадратное видео</p>
+        </div>
+      </div>
+    );
+  }
 
   if (mode === "minimized") {
     return (
-      <div
-        className="
-          fixed
-          bottom-4
-          left-3
-          right-3
-          z-[300]
-          md:left-auto
-          md:right-5
-          md:w-[430px]
-        "
-      >
-        <div
-          className="
-            flex
-            items-center
-            gap-3
-            rounded-2xl
-            border
-            border-white/10
-            bg-[#18181b]/95
-            p-2.5
-            shadow-2xl
-            backdrop-blur-xl
-          "
-        >
+      <div className="fixed bottom-4 left-3 right-3 z-[300] md:left-auto md:right-5 md:w-[440px]">
+        <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#18181b]/95 p-2.5 shadow-2xl backdrop-blur-xl">
           <button
             type="button"
             onClick={toggleMirror}
-            className="
-              relative
-              h-14
-              w-14
-              shrink-0
-              overflow-hidden
-              rounded-xl
-              bg-black
-            "
+            className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-black"
           >
             <video
               ref={videoRef}
@@ -1104,103 +523,43 @@ export function VideoNoteRecorder({
               muted
               playsInline
               className="h-full w-full object-cover"
-              style={{
-                transform: mirrored
-                  ? "scaleX(-1)"
-                  : undefined,
-              }}
+              style={{ transform: mirrored ? "scaleX(-1)" : undefined }}
             />
-
-            {isRecording && (
-              <span
-                className="
-                  absolute
-                  left-1.5
-                  top-1.5
-                  h-2
-                  w-2
-                  rounded-full
-                  bg-red-500
-                "
-              />
-            )}
+            {recording && <span className="absolute left-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />}
           </button>
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-sm font-semibold tabular-nums text-white">
-                {time}
-              </span>
-
-              <span className="text-xs text-white/30">
-                / {maxTime}
-              </span>
+              <span className="font-mono text-sm font-semibold text-white">{time}</span>
+              <span className="text-xs text-white/30">/ {maxTime}</span>
             </div>
-
             <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-red-500 transition-[width] duration-200"
-                style={{
-                  width: `${progress}%`,
-                }}
-              />
+              <div className="h-full bg-red-500 transition-[width] duration-200" style={{ width: `${progress}%` }} />
             </div>
           </div>
 
           <div className="flex items-center gap-1">
-            {canSwitchCamera && !isRecording && (
+            {canSwitchCamera && !recording && (
               <button
                 type="button"
                 onClick={switchCamera}
-                disabled={isSwitchingCamera}
-                className="
-                  rounded-lg
-                  p-2
-                  text-white/60
-                  transition
-                  hover:bg-white/10
-                  hover:text-white
-                  disabled:opacity-30
-                "
+                disabled={switching}
+                className="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white disabled:opacity-30"
               >
-                <RotateCcw size={16} />
+                <RotateCcw size={16} className={switching ? "animate-spin" : ""} />
               </button>
             )}
-
             {onExpand && (
-              <button
-                type="button"
-                onClick={onExpand}
-                className="
-                  rounded-lg
-                  p-2
-                  text-white/60
-                  transition
-                  hover:bg-white/10
-                  hover:text-white
-                "
-              >
+              <button type="button" onClick={onExpand} className="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white">
                 <Maximize2 size={16} />
               </button>
             )}
-
-            {!isRecording ? (
+            {!recording ? (
               <button
                 type="button"
                 onClick={startRecording}
-                disabled={!isReady || isSwitchingCamera}
-                className="
-                  rounded-xl
-                  bg-violet-500
-                  px-3
-                  py-2
-                  text-xs
-                  font-semibold
-                  text-white
-                  transition
-                  active:scale-95
-                  disabled:opacity-40
-                "
+                disabled={!ready}
+                className="rounded-xl bg-violet-500 px-3 py-2 text-xs font-semibold text-white active:scale-95 disabled:opacity-40"
               >
                 Запись
               </button>
@@ -1208,352 +567,122 @@ export function VideoNoteRecorder({
               <button
                 type="button"
                 onClick={stopRecording}
-                className="
-                  flex
-                  items-center
-                  gap-1.5
-                  rounded-xl
-                  bg-red-500
-                  px-3
-                  py-2
-                  text-xs
-                  font-semibold
-                  text-white
-                  transition
-                  active:scale-95
-                "
+                className="flex items-center gap-1.5 rounded-xl bg-red-500 px-3 py-2 text-xs font-semibold text-white active:scale-95"
               >
-                <Square
-                  size={10}
-                  fill="currentColor"
-                />
+                <Square size={10} fill="currentColor" />
                 Стоп
               </button>
             )}
-
-            <button
-              type="button"
-              onClick={cancel}
-              className="
-                rounded-lg
-                p-2
-                text-white/40
-                transition
-                hover:bg-red-500/10
-                hover:text-red-400
-              "
-            >
+            <button type="button" onClick={cancel} className="rounded-lg p-2 text-white/40 hover:bg-red-500/10 hover:text-red-400">
               <X size={16} />
             </button>
           </div>
         </div>
-
-        <canvas
-          ref={canvasRef}
-          width={VIDEO_SIZE}
-          height={VIDEO_SIZE}
-          className="hidden"
-        />
       </div>
     );
   }
 
-  /**
-   * ---------------------------------------------------------
-   * Expanded
-   * ---------------------------------------------------------
-   */
-
+  // ========== EXPANDED MODE (полноэкранный) ==========
   return (
-    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black p-4">
-      <div className="flex w-full max-w-[520px] flex-col items-center">
-        {/* Preview */}
-        <div
-          className="
-            relative
-            aspect-square
-            w-full
-            max-w-[460px]
-            overflow-hidden
-            rounded-[28px]
-            bg-[#111]
-            shadow-2xl
-          "
-        >
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            className="absolute inset-0 h-full w-full object-cover"
-            style={{
-              transform: mirrored
-                ? "scaleX(-1)"
-                : undefined,
-            }}
-          />
+    <div className="fixed inset-0 z-[300] flex flex-col bg-black">
+      <div className="relative flex-1 overflow-hidden">
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          playsInline
+          className="h-full w-full object-cover"
+          style={{ transform: mirrored ? "scaleX(-1)" : undefined }}
+        />
 
-          {/* recording canvas — hidden from UI */}
-          <canvas
-            ref={canvasRef}
-            width={VIDEO_SIZE}
-            height={VIDEO_SIZE}
-            className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
-          />
-
-          {/* Top bar */}
-          <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
-            <div
-              className="
-                rounded-full
-                bg-black/40
-                px-3
-                py-1.5
-                text-xs
-                text-white/70
-                backdrop-blur-md
-              "
-            >
-              {facing === "user"
-                ? "Фронтальная"
-                : "Основная"}
-            </div>
-
-            {isRecording && (
-              <div
-                className="
-                  flex
-                  items-center
-                  gap-2
-                  rounded-full
-                  bg-black/50
-                  px-3
-                  py-1.5
-                  font-mono
-                  text-xs
-                  text-white
-                  backdrop-blur-md
-                "
-              >
-                <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-
-                {time}
-
-                <span className="text-white/40">
-                  / {maxTime}
-                </span>
-              </div>
-            )}
+        {/* REC-индикатор */}
+        {recording && (
+          <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-black/40 px-3 py-1.5 backdrop-blur-md">
+            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
+            <span className="text-xs font-semibold tracking-wider text-white">REC</span>
           </div>
+        )}
 
-          {/* Mirror */}
-          {!isRecording && (
+        {/* Верхняя панель */}
+        <div className="absolute right-4 top-4 flex items-center gap-2">
+          {onMinimize && (
             <button
               type="button"
-              onClick={toggleMirror}
-              className="
-                absolute
-                bottom-4
-                left-4
-                flex
-                items-center
-                gap-2
-                rounded-full
-                bg-black/45
-                px-3
-                py-2
-                text-xs
-                text-white/80
-                backdrop-blur-md
-                transition
-                active:scale-95
-              "
+              onClick={onMinimize}
+              className="rounded-xl bg-black/40 p-2.5 text-white/80 backdrop-blur-md transition hover:bg-white/20"
             >
-              <span>
-                {mirrored ? "Зеркало" : "Оригинал"}
-              </span>
+              <Minimize2 size={20} />
             </button>
           )}
-
-          {/* Loading */}
-          {!isReady && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-              <div className="text-center">
-                <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-
-                <p className="mt-3 text-xs text-white/50">
-                  Камера запускается…
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Progress */}
-          {isRecording && (
-            <div className="absolute inset-x-0 bottom-0 h-1 bg-white/10">
-              <div
-                className="h-full bg-red-500 transition-[width] duration-200"
-                style={{
-                  width: `${progress}%`,
-                }}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Controls */}
-        <div className="mt-6 flex w-full items-center justify-center gap-4">
-          {/* Cancel */}
           <button
             type="button"
             onClick={cancel}
-            className="
-              flex
-              h-12
-              w-12
-              items-center
-              justify-center
-              rounded-full
-              bg-white/10
-              text-white/70
-              transition
-              hover:bg-white/15
-              active:scale-95
-            "
+            className="rounded-xl bg-black/40 p-2.5 text-white/80 backdrop-blur-md transition hover:bg-red-500/20 hover:text-red-400"
           >
             <X size={20} />
           </button>
-
-          {/* Camera */}
-          <button
-            type="button"
-            onClick={switchCamera}
-            disabled={
-              !canSwitchCamera ||
-              isRecording ||
-              isSwitchingCamera
-            }
-            className="
-              flex
-              h-12
-              w-12
-              items-center
-              justify-center
-              rounded-full
-              bg-white/10
-              text-white/70
-              transition
-              hover:bg-white/15
-              active:scale-95
-              disabled:cursor-not-allowed
-              disabled:opacity-25
-            "
-            title={
-              canSwitchCamera
-                ? "Сменить камеру"
-                : "Доступна одна камера"
-            }
-          >
-            <RotateCcw
-              size={20}
-              className={
-                isSwitchingCamera
-                  ? "animate-spin"
-                  : ""
-              }
-            />
-          </button>
-
-          {/* Record */}
-          {!isRecording ? (
-            <button
-              type="button"
-              onClick={startRecording}
-              disabled={!isReady}
-              className="
-                flex
-                h-[72px]
-                w-[72px]
-                items-center
-                justify-center
-                rounded-full
-                bg-white
-                shadow-xl
-                shadow-black/30
-                transition
-                active:scale-95
-                disabled:cursor-not-allowed
-                disabled:opacity-40
-              "
-            >
-              <span
-                className="
-                  h-5
-                  w-5
-                  rounded-full
-                  bg-red-500
-                "
-              />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={stopRecording}
-              className="
-                flex
-                h-[72px]
-                w-[72px]
-                items-center
-                justify-center
-                rounded-full
-                bg-red-500
-                shadow-xl
-                shadow-red-500/20
-                transition
-                active:scale-95
-              "
-            >
-              <span
-                className="
-                  h-6
-                  w-6
-                  rounded-md
-                  bg-white
-                "
-              />
-            </button>
-          )}
-
-          {/* Minimize */}
-          <button
-            type="button"
-            onClick={onMinimize}
-            disabled={isSwitchingCamera}
-            className="
-              flex
-              h-12
-              w-12
-              items-center
-              justify-center
-              rounded-full
-              bg-white/10
-              text-white/70
-              transition
-              hover:bg-white/15
-              active:scale-95
-            "
-          >
-            <Minimize2 size={20} />
-          </button>
         </div>
 
-        {/* Hint */}
-        <div className="mt-4 text-center">
-          <p className="text-[11px] text-white/30">
-            {isRecording
-              ? "Нажмите кнопку, чтобы остановить"
-              : "Тап по «Зеркало» меняет отражение"}
-          </p>
+        {/* Нижняя панель управления */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-6 pb-10 pt-16">
+          {/* Таймер + прогресс */}
+          <div className="mx-auto mb-6 max-w-md">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="font-mono text-lg font-semibold text-white">{time}</span>
+              <span className="text-sm text-white/40">/ {maxTime}</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-red-500 transition-[width] duration-200"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Кнопки */}
+          <div className="flex items-center justify-center gap-8">
+            {/* Переключение камеры */}
+            {canSwitchCamera && !recording && (
+              <button
+                type="button"
+                onClick={switchCamera}
+                disabled={switching}
+                className="rounded-full bg-white/10 p-4 text-white backdrop-blur-md transition hover:bg-white/20 disabled:opacity-30"
+              >
+                <RotateCcw size={22} className={switching ? "animate-spin" : ""} />
+              </button>
+            )}
+
+            {/* Зеркало */}
+            <button
+              type="button"
+              onClick={toggleMirror}
+              disabled={recording}
+              className="rounded-full bg-white/10 p-4 text-white backdrop-blur-md transition hover:bg-white/20 disabled:opacity-30"
+            >
+              <FlipHorizontal size={22} />
+            </button>
+
+            {/* Запись / Стоп */}
+            {!recording ? (
+              <button
+                type="button"
+                onClick={startRecording}
+                disabled={!ready}
+                className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-white/20 bg-red-500 text-white shadow-lg transition active:scale-95 disabled:opacity-40"
+              >
+                <div className="h-6 w-6 rounded-sm bg-white" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={stopRecording}
+                className="flex h-20 w-20 items-center justify-center rounded-full bg-red-500 text-white shadow-lg transition active:scale-95"
+              >
+                <Square size={28} fill="currentColor" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
