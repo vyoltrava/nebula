@@ -1,25 +1,27 @@
 "use client";
 import { useState } from "react";
-import { Mic, Video, RefreshCw, CheckCircle2, XCircle, HelpCircle, AlertTriangle } from "lucide-react";
+import { Mic, Video, RefreshCw, CheckCircle2, XCircle, HelpCircle, AlertTriangle, Loader2 } from "lucide-react";
 import { useDevicePermission } from "@/lib/useDevicePermission";
 import type { PermStatus } from "@/lib/useDevicePermission";
 
-const STATUS_CONFIG: Record<PermStatus, { label: string; color: string; icon: any }> = {
-  granted: { label: "Доступ есть", color: "text-emerald-400", icon: CheckCircle2 },
-  denied: { label: "Заблокировано", color: "text-red-400", icon: XCircle },
-  prompt: { label: "Не запрошено", color: "text-amber-400", icon: HelpCircle },
-  unknown: { label: "Неизвестно", color: "text-white/40", icon: HelpCircle },
+const STATUS_CONFIG: Record<PermStatus, { label: string; color: string; bg: string; border: string; icon: any }> = {
+  granted: { label: "Разрешено", color: "text-[#2ECC71]", bg: "bg-[#2ECC71]/15", border: "border-[#2ECC71]/30", icon: CheckCircle2 },
+  denied: { label: "Запрещено", color: "text-[#E74C3C]", bg: "bg-[#E74C3C]/15", border: "border-[#E74C3C]/30", icon: XCircle },
+  prompt: { label: "Не запрошено", color: "text-[#F39C12]", bg: "bg-[#F39C12]/15", border: "border-[#F39C12]/30", icon: HelpCircle },
+  unknown: { label: "Неизвестно", color: "text-[#B9B8BD]", bg: "bg-white/5", border: "border-white/10", icon: HelpCircle },
 };
 
 function PermissionRow({
   kind,
   icon: Icon,
+  iconColor,
   title,
   description,
   isLast = false,
 }: {
   kind: "microphone" | "camera";
   icon: any;
+  iconColor: string;
   title: string;
   description: string;
   isLast?: boolean;
@@ -36,36 +38,41 @@ function PermissionRow({
   }
 
   return (
-    <div className={`flex items-center justify-between gap-4 py-5 ${!isLast ? "border-b border-white/10" : ""}`}>
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <Icon size={16} className={kind === "microphone" ? "text-rose-400" : "text-sky-400"} />
-        <div className="min-w-0">
-          <p className="text-[10px] uppercase tracking-[0.25em] text-white/40 mb-1">{title}</p>
-          <p className="text-xs text-white/55 truncate">{description}</p>
-          <div className={`flex items-center gap-1.5 mt-1.5 ${cfg.color}`}>
-            <StatusIcon size={11} />
-            <span className="text-[9px] uppercase tracking-[0.25em] font-semibold">{cfg.label}</span>
+    <div className={`p-4 rounded-lg bg-white/5 border border-white/10 ${!isLast ? "mb-3" : ""}`}>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+            <Icon size={18} className={iconColor} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium">{title}</p>
+            <p className="text-xs text-[#B9B8BD] mt-0.5">{description}</p>
+            <div className={`inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 rounded-md ${cfg.bg} ${cfg.border} border`}>
+              <StatusIcon size={11} className={cfg.color} />
+              <span className={`text-[11px] font-medium ${cfg.color}`}>{cfg.label}</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="flex items-center gap-1.5 shrink-0">
-        {status !== "granted" && (
+        <div className="flex items-center gap-2 shrink-0">
+          {status !== "granted" && (
+            <button
+              onClick={handleEnable}
+              disabled={requesting}
+              className="border border-[#7B3FF2]/60 text-[#a678f7] hover:bg-[#7B3FF2]/10 text-sm font-medium rounded-lg px-4 py-2 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {requesting ? <Loader2 size={14} className="animate-spin" /> : null}
+              {requesting ? "Запрос..." : "Включить"}
+            </button>
+          )}
           <button
-            onClick={handleEnable}
-            disabled={requesting}
-            className="uppercase text-[10px] tracking-[0.25em] border border-[#7B3FF2]/50 text-[#a678f7] hover:bg-[#7B3FF2] hover:text-white px-3 py-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            onClick={refresh}
+            className="w-10 h-10 shrink-0 rounded-lg border border-white/10 text-[#B9B8BD] hover:text-white hover:bg-white/5 flex items-center justify-center transition-colors"
+            title="Обновить"
           >
-            {requesting ? "..." : "+ Разрешить"}
+            <RefreshCw size={15} />
           </button>
-        )}
-        <button
-          onClick={refresh}
-          className="w-7 h-7 flex items-center justify-center text-white/30 hover:text-white hover:border-white/30 border border-transparent transition-colors"
-          title="Обновить"
-        >
-          <RefreshCw size={12} />
-        </button>
+        </div>
       </div>
     </div>
   );
@@ -79,13 +86,17 @@ function PermissionDeniedHint() {
   if (!hasDenied) return null;
 
   return (
-    <div className="flex items-start gap-3 pt-4 mt-2 border-t border-amber-500/20">
-      <AlertTriangle size={13} className="text-amber-400 shrink-0 mt-0.5" />
-      <div className="text-[11px] text-white/50 leading-relaxed">
-        <p className="text-[10px] uppercase tracking-[0.25em] text-amber-400/80 mb-1.5 font-semibold">Доступ заблокирован</p>
-        <p>
-          Если кнопка «Разрешить» не помогает — нажми на 🔒 в адресной строке → «Настройки сайта» → разреши доступ вручную.
-        </p>
+    <div className="mt-3 p-4 rounded-lg bg-[#E74C3C]/5 border border-[#E74C3C]/30">
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-lg bg-[#E74C3C]/15 flex items-center justify-center shrink-0">
+          <AlertTriangle size={18} className="text-[#E74C3C]" />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-[#E74C3C]">Доступ отклонён</p>
+          <p className="text-xs text-[#B9B8BD] mt-1 leading-relaxed">
+            Если кнопка «Включить» не помогает — нажмите на 🔒 в адресной строке → «Настройки сайта» → разрешите доступ вручную.
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -97,14 +108,16 @@ export function DevicePermissionsSection() {
       <PermissionRow
         kind="microphone"
         icon={Mic}
+        iconColor="text-[#FB7185]"
         title="Микрофон"
         description="Голосовые сообщения"
       />
       <PermissionRow
         kind="camera"
         icon={Video}
+        iconColor="text-[#38BDF8]"
         title="Камера"
-        description="Видеозвонки"
+        description="Видеосообщения"
         isLast
       />
       <PermissionDeniedHint />
