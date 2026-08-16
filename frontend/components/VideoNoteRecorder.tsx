@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { Square, X, Minimize2, Maximize2, SwitchCamera } from "lucide-react";
 
 interface Props {
@@ -11,6 +11,14 @@ interface Props {
   onDenied?: () => void;
   maxDuration?: number;
 }
+
+const IS_MOBILE =
+  typeof navigator !== "undefined" &&
+  /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+const CANVAS_SIZE = IS_MOBILE ? 480 : 720;
+const CAPTURE_FPS = IS_MOBILE ? 24 : 30;
+const VIDEO_BITRATE = IS_MOBILE ? 1_200_000 : 2_500_000;
 
 export function VideoNoteRecorder({
   mode = 'expanded',
@@ -33,6 +41,7 @@ export function VideoNoteRecorder({
   const mimeRef = useRef<string>("video/webm");
   const mirroredRef = useRef(true);
   const canvasVideoTrackRef = useRef<MediaStreamTrack | null>(null);
+  const drawScheduledRef = useRef(false);
 
   const [isRecording, setIsRecording] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
@@ -42,7 +51,9 @@ export function VideoNoteRecorder({
   const [mirrored, setMirrored] = useState(true);
   const [hasFlip, setHasFlip] = useState(false);
 
-  useEffect(() => { mirroredRef.current = mirrored; }, [mirrored]);
+  useEffect(() => {
+    mirroredRef.current = mirrored;
+  }, [mirrored]);
 
   useEffect(() => {
     startAll();
@@ -63,8 +74,8 @@ export function VideoNoteRecorder({
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: facingMode,
-          width: { ideal: 720 },
-          height: { ideal: 720 },
+          width: { ideal: CANVAS_SIZE },
+          height: { ideal: CANVAS_SIZE },
         },
       });
       videoStreamRef.current = stream;
@@ -107,19 +118,13 @@ export function VideoNoteRecorder({
     }
   }
 
-  function drawFrame() {
+  const drawOnce = useCallback(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas || video.readyState < 2 || video.videoWidth === 0) {
-      rafRef.current = requestAnimationFrame(drawFrame);
-      return;
-    }
+    if (!video || !canvas || video.readyState < 2 || video.videoWidth === 0) return;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      rafRef.current = requestAnimationFrame(drawFrame);
-      return;
-    }
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) return;
 
     const size = canvas.width;
     const vw = video.videoWidth;
@@ -129,7 +134,6 @@ export function VideoNoteRecorder({
     const sy = (vh - side) / 2;
 
     ctx.save();
-    ctx.clearRect(0, 0, size, size);
     if (mirroredRef.current) {
       ctx.translate(size, 0);
       ctx.scale(-1, 1);
@@ -137,16 +141,50 @@ export function VideoNoteRecorder({
     ctx.drawImage(video, sx, sy, side, side, 0, 0, size, size);
     ctx.restore();
 
-    if (canvasVideoTrackRef.current && "requestFrame" in canvasVideoTrackRef.current) {
+    if (
+      canvasVideoTrackRef.current &&
+      "requestFrame" in canvasVideoTrackRef.current
+    ) {
       (canvasVideoTrackRef.current as any).requestFrame();
     }
+  }, []);
 
-    rafRef.current = requestAnimationFrame(drawFrame);
-  }
+  const scheduleDraw = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || !isCameraReady) return;
+
+    drawScheduledRef.current = true;
+
+    // Идеально: рисуем ровно когда камера отдала новый кадр (30 FPS на мобилке)
+    if ("requestVideoFrameCallback" in video) {
+      (video as any).requestVideoFrameCallback(() => {
+        drawOnce();
+        if (drawScheduledRef.current) scheduleDraw();
+      });
+    } else {
+      // Fallback: rAF, но на мобилках пропускаем каждый второй кадр (~30 FPS)
+      rafRef.current = requestAnimationFrame(() => {
+        if (IS_MOBILE) {
+          rafRef.current = requestAnimationFrame(() => {
+            drawOnce();
+            if (drawScheduledRef.current) scheduleDraw();
+          });
+        } else {
+          drawOnce();
+          if (drawScheduledRef.current) scheduleDraw();
+        }
+      });
+    }
+  }, [drawOnce, isCameraReady]);
 
   function startDrawLoop() {
+    drawScheduledRef.current = false;
     cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(drawFrame);
+    // небольшой таймаут, чтобы video успел отдать первый кадр
+    setTimeout(() => {
+      drawScheduledRef.current = true;
+      scheduleDraw();
+    }, 200);
   }
 
   async function toggleFacing() {
@@ -167,7 +205,7 @@ export function VideoNoteRecorder({
 
     chunksRef.current = [];
 
-    const canvasStream = canvas.captureStream(30);
+    const canvasStream = canvas.captureStream(CAPTURE_FPS);
     canvasVideoTrackRef.current = canvasStream.getVideoTracks()[0] || null;
     const combined = new MediaStream([
       ...canvasStream.getVideoTracks(),
@@ -185,7 +223,9 @@ export function VideoNoteRecorder({
 
     const recorder = new MediaRecorder(
       combined,
-      mime ? { mimeType: mime, videoBitsPerSecond: 1_500_000 } : undefined
+      mime
+        ? { mimeType: mime, videoBitsPerSecond: VIDEO_BITRATE }
+        : undefined
     );
     mediaRecorderRef.current = recorder;
 
@@ -229,6 +269,7 @@ export function VideoNoteRecorder({
   }
 
   function cleanupResources() {
+    drawScheduledRef.current = false;
     cancelAnimationFrame(rafRef.current);
     if (mediaRecorderRef.current) {
       try {
@@ -327,7 +368,7 @@ export function VideoNoteRecorder({
             </button>
           </div>
         </div>
-        <canvas ref={canvasRef} width={720} height={720} className="hidden" />
+        <canvas ref={canvasRef} width={CANVAS_SIZE} height={CANVAS_SIZE} className="hidden" />
       </div>
     );
   }
@@ -340,7 +381,7 @@ export function VideoNoteRecorder({
           onClick={handlePreviewClick}
           title="Нажмите чтобы включить/выключить зеркало"
         >
-          {/* Видео скрыто — используется только как источник кадров */}
+          {/* Video — только источник кадров, не виден пользователю */}
           <video
             ref={videoRef}
             autoPlay
@@ -348,11 +389,11 @@ export function VideoNoteRecorder({
             muted
             className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
           />
-          {/* Canvas — видимое превью и источник записи */}
+          {/* Canvas — единственное видимое превью */}
           <canvas
             ref={canvasRef}
-            width={720}
-            height={720}
+            width={CANVAS_SIZE}
+            height={CANVAS_SIZE}
             className="w-full h-full object-cover"
           />
           <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100">
@@ -404,7 +445,17 @@ export function VideoNoteRecorder({
           </button>
 
           {!isRecording ? (
-            <button onClick={() => { if (!isCameraReady) startCamera(facing); setTimeout(startRecording, 300); }} disabled={!isCameraReady} className="w-20 h-20 rounded-full bg-[#8b5cf6] hover:bg-[#7c3aed] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-lg shadow-[#8b5cf6]/30 ring-4 ring-[#8b5cf6]/20">
+            <button
+              onClick={() => {
+                if (!isCameraReady) {
+                  startCamera(facing).then(() => startRecording());
+                } else {
+                  startRecording();
+                }
+              }}
+              disabled={!isCameraReady}
+              className="w-20 h-20 rounded-full bg-[#8b5cf6] hover:bg-[#7c3aed] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-lg shadow-[#8b5cf6]/30 ring-4 ring-[#8b5cf6]/20"
+            >
               <div className="w-9 h-9 rounded-full border-[3px] border-white flex items-center justify-center"><div className="w-5 h-5 rounded-sm bg-white" /></div>
             </button>
           ) : (
