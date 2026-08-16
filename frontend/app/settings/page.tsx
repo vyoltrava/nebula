@@ -26,33 +26,13 @@ import { LiveTextSettings } from "@/components/LiveTextSettings";
 
 type View = "root" | "profile" | "permissions" | "messages" | "security";
 
-/*
-  Заголовок как в WP7 Metro / Zune:
-  - ширина слова ~85vw (видно ~75%, остальное за правым краем)
-  - обрезан сверху и справа
-  - тап по слову = назад (как в Zune HD)
-*/
 function BigTitle({ text, onBack }: { text: string; onBack?: () => void }) {
-  const sizeVw = Math.round(170 / text.length);
   return (
-    <div
-      className="relative overflow-hidden"
-      style={{ fontSize: `clamp(3.5rem, ${sizeVw}vw, 20rem)`, height: "0.62em" }}
-    >
+    <div className="bigtitle">
       <h1
         key={text}
         onClick={onBack}
-        className={`zune-in font-extralight lowercase whitespace-nowrap text-[#a855f7] ${
-          onBack ? "cursor-pointer active:opacity-50 transition-opacity" : ""
-        }`}
-        style={{
-          position: "absolute",
-          top: "-0.38em",
-          right: 0,
-          transform: "translateX(12%)",
-          fontSize: "1em",
-          lineHeight: 1,
-        }}
+        className={onBack ? "cursor-pointer active:opacity-50" : ""}
       >
         {text}
       </h1>
@@ -358,19 +338,59 @@ export default function SettingsPage() {
       <style>{`
         @keyframes zuneIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
         .zune-in { animation: zuneIn .25s ease-out; }
+
+        /* ===== ЗАГОЛОВОК =====
+           МОБИЛКА: огромное слово, ~40% сверху срезано гранью экрана,
+           хвост уходит за правый край.
+           ПК (>=1024px): минимализм, слово ЦЕЛИКОМ, ничего не режется. */
+        .bigtitle {
+          position: relative;
+          overflow: hidden;
+          font-size: 27vw;
+          height: 0.62em;
+        }
+        .bigtitle h1 {
+          position: absolute;
+          right: 0;
+          top: -0.38em;
+          transform: translateX(15%);
+          font-size: 1em;
+          line-height: 1;
+          font-weight: 200;
+          text-transform: lowercase;
+          white-space: nowrap;
+          color: #a855f7;
+          margin: 0;
+          transition: opacity .15s;
+        }
+        @media (min-width: 1024px) {
+          .bigtitle {
+            font-size: clamp(4rem, 7.5vw, 8rem);
+            height: auto;
+            overflow: visible;
+            padding-top: 0.5rem;
+          }
+          .bigtitle h1 {
+            position: static;
+            top: auto;
+            transform: none;
+          }
+        }
       `}</style>
 
-      {/* ===== КНОПКА НАЗАД: круг, чуть выходит за левый край экрана ===== */}
+      {/* ===== КНОПКА НАЗАД =====
+          МОБИЛКА: в углу, чуть выходит за левый край
+          ПК: аккуратно в углу, целиком */}
       <button
         onClick={goBack}
         aria-label="Назад"
-        className="fixed -left-4 top-5 z-50 w-14 h-14 rounded-full border-2 border-white/60 text-white/80 flex items-center justify-center hover:border-white hover:text-white transition-colors"
+        className="fixed -left-4 top-4 z-50 w-12 h-12 lg:left-6 lg:top-6 lg:w-12 lg:h-12 rounded-full border-2 border-white/60 text-white/80 flex items-center justify-center hover:border-white hover:text-white transition-colors"
       >
-        <ArrowLeft size={20} />
+        <ArrowLeft size={18} />
       </button>
 
       <main className="px-5 sm:px-10 lg:px-16 max-w-5xl mx-auto pb-24">
-        {/* ===== НАЗВАНИЕ: вправо, ~75% ширины, режется правым краем и сверху; тап = назад ===== */}
+        {/* ===== НАЗВАНИЕ РАЗДЕЛА ===== */}
         <BigTitle
           text={title}
           onBack={view !== "root" ? () => setView("root") : undefined}
@@ -378,8 +398,8 @@ export default function SettingsPage() {
 
         {/* ==================== ROOT: СПИСОК ПУНКТОВ ==================== */}
         {view === "root" && (
-          <div key="root" className="zune-in mt-10 lg:mt-14 lg:grid lg:grid-cols-[1fr_auto] lg:gap-24 lg:items-start">
-            <nav className="space-y-1.5">
+          <div key="root" className="zune-in mt-6 lg:mt-10">
+            <nav className="space-y-1">
               {tabs.map((t) => (
                 <button
                   key={t.id}
@@ -390,40 +410,12 @@ export default function SettingsPage() {
                 </button>
               ))}
             </nav>
-
-            {/* правая колонка на десктопе — metro */}
-            <div className="hidden lg:flex flex-col items-end gap-6 pt-1">
-              <div className="flex items-center gap-4">
-                <div className="text-right">
-                  <p className="text-sm text-white/80">{user.display_name || user.username}</p>
-                  <p className="text-[10px] uppercase tracking-[0.25em] text-white/40 mt-1">
-                    2fa:{" "}
-                    {securityStatus?.enabled ? (
-                      <span className="text-emerald-400">on</span>
-                    ) : (
-                      <span className="text-white/50">off</span>
-                    )}
-                  </p>
-                </div>
-                {preview ? (
-                  <img
-                    src={preview}
-                    alt=""
-                    className="w-16 h-16 object-cover ring-1 ring-[#a855f7]/60"
-                  />
-                ) : (
-                  <div className="w-16 h-16 bg-white/5 ring-1 ring-white/15 flex items-center justify-center">
-                    <User size={22} className="text-white/30" />
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         )}
 
         {/* ==================== PROFILE ==================== */}
         {view === "profile" && (
-          <div key="profile" className="zune-in mt-8 lg:mt-12 max-w-2xl">
+          <div key="profile" className="zune-in mt-6 lg:mt-10 max-w-2xl">
             <div className="space-y-7">
               {/* Аватар */}
               <div className="flex items-center gap-5">
@@ -522,7 +514,7 @@ export default function SettingsPage() {
 
         {/* ==================== PERMISSIONS ==================== */}
         {view === "permissions" && (
-          <div key="permissions" className="zune-in mt-8 lg:mt-12 max-w-2xl space-y-10">
+          <div key="permissions" className="zune-in mt-6 lg:mt-10 max-w-2xl space-y-10">
             <PushSettings />
             <DevicePermissionsSection />
           </div>
@@ -530,14 +522,14 @@ export default function SettingsPage() {
 
         {/* ==================== MESSAGES ==================== */}
         {view === "messages" && (
-          <div key="messages" className="zune-in mt-8 lg:mt-12 max-w-2xl">
+          <div key="messages" className="zune-in mt-6 lg:mt-10 max-w-2xl">
             <LiveTextSettings />
           </div>
         )}
 
         {/* ==================== SECURITY ==================== */}
         {view === "security" && (
-          <div key="security" className="zune-in mt-8 lg:mt-12 max-w-2xl">
+          <div key="security" className="zune-in mt-6 lg:mt-10 max-w-2xl">
             <div className="space-y-9">
               {/* 2FA */}
               <div>
