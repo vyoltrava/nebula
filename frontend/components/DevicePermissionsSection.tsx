@@ -1,14 +1,14 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Mic, Video, RefreshCw, CheckCircle2, XCircle, HelpCircle, AlertTriangle } from "lucide-react";
 import { useDevicePermission } from "@/lib/useDevicePermission";
 import type { PermStatus } from "@/lib/useDevicePermission";
 
 const STATUS_CONFIG: Record<PermStatus, { label: string; color: string; icon: any }> = {
-  granted: { label: "granted", color: "text-emerald-400", icon: CheckCircle2 },
-  denied: { label: "denied", color: "text-red-400", icon: XCircle },
-  prompt: { label: "not requested", color: "text-amber-400", icon: HelpCircle },
-  unknown: { label: "unknown", color: "text-white/40", icon: HelpCircle },
+  granted: { label: "Доступ есть", color: "text-emerald-400", icon: CheckCircle2 },
+  denied: { label: "Заблокировано", color: "text-red-400", icon: XCircle },
+  prompt: { label: "Не запрошено", color: "text-amber-400", icon: HelpCircle },
+  unknown: { label: "Неизвестно", color: "text-white/40", icon: HelpCircle },
 };
 
 function PermissionRow({
@@ -54,15 +54,15 @@ function PermissionRow({
           <button
             onClick={handleEnable}
             disabled={requesting}
-            className="uppercase text-[10px] tracking-[0.25em] border border-[#a855f7]/50 text-[#c084fc] hover:bg-[#a855f7] hover:text-black px-3 py-1.5 transition-all disabled:opacity-40"
+            className="uppercase text-[10px] tracking-[0.25em] border border-[#7B3FF2]/50 text-[#a678f7] hover:bg-[#7B3FF2] hover:text-white px-3 py-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {requesting ? "..." : "+ enable"}
+            {requesting ? "..." : "+ Разрешить"}
           </button>
         )}
         <button
           onClick={refresh}
           className="w-7 h-7 flex items-center justify-center text-white/30 hover:text-white hover:border-white/30 border border-transparent transition-colors"
-          title="refresh"
+          title="Обновить"
         >
           <RefreshCw size={12} />
         </button>
@@ -82,9 +82,9 @@ function PermissionDeniedHint() {
     <div className="flex items-start gap-3 pt-4 mt-2 border-t border-amber-500/20">
       <AlertTriangle size={13} className="text-amber-400 shrink-0 mt-0.5" />
       <div className="text-[11px] text-white/50 leading-relaxed">
-        <p className="text-[10px] uppercase tracking-[0.25em] text-amber-400/80 mb-1.5 font-semibold">access revoked</p>
+        <p className="text-[10px] uppercase tracking-[0.25em] text-amber-400/80 mb-1.5 font-semibold">Доступ заблокирован</p>
         <p>
-          если кнопка «+ enable» не помогает — нажми на 🔒 в адресной строке → «настройки сайта» → разреши доступ вручную.
+          Если кнопка «Разрешить» не помогает — нажми на 🔒 в адресной строке → «Настройки сайта» → разреши доступ вручную.
         </p>
       </div>
     </div>
@@ -97,14 +97,14 @@ export function DevicePermissionsSection() {
       <PermissionRow
         kind="microphone"
         icon={Mic}
-        title="microphone"
-        description="voice messages"
+        title="Микрофон"
+        description="Голосовые сообщения"
       />
       <PermissionRow
         kind="camera"
         icon={Video}
-        title="camera"
-        description="video bubbles"
+        title="Камера"
+        description="Видеозвонки"
         isLast
       />
       <PermissionDeniedHint />
