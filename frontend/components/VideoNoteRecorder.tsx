@@ -20,7 +20,7 @@ const MAX_HEIGHT = 1080;
 const FPS = 30;
 const VIDEO_BITRATE = 4_000_000;
 const AUDIO_BITRATE = 128_000;
-const PROCESS_ENDPOINT = "/api/video-note";
+const PROCESS_ENDPOINT = `${process.env.NEXT_PUBLIC_API_URL}/api/video-note`;
 
 function getSupportedMimeType() {
   if (typeof MediaRecorder === "undefined") return "";
