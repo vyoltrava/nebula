@@ -360,8 +360,7 @@ async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
           
           {/* ОБЛОЖКА */}
 {profile.cover_url ? (
-  <div 
-    className="relative w-full h-48 md:h-64 overflow-hidden group cursor-pointer"
+  <div className="relative w-full aspect-[21/9] max-h-[280px] md:max-h-[360px] overflow-hidden group cursor-pointer"
     onClick={() => isOwnProfile && setShowCoverMenu(!showCoverMenu)}
   >
     <SmartImage 
