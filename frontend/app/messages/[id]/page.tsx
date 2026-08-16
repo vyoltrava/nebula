@@ -14,6 +14,7 @@ import { MessageContextMenu } from "@/components/MessageContextMenu";
 import LinkPreview  from "@/components/LinkPreview";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
+import { initCryptoOnLogin } from "@/lib/cryptoInit";
 import { STICKERS } from "@/lib/stickers";
 import { formatChatTime } from "@/lib/time";
 import { useDevicePermission } from "@/lib/useDevicePermission";
@@ -25,7 +26,7 @@ import { isPushSubscribed } from "@/lib/push";
 import { pinMessage, unpinMessage, getPinnedMessages } from "@/lib/api";
 import type { PinnedMessage } from "@/lib/types";
 import { EncryptedMediaPlayer } from "@/components/EncryptedMediaPlayer";
-import { clearSessionKey } from "@/lib/crypto";
+
 
 
 
@@ -39,19 +40,15 @@ import {
   Check, CheckCheck, CheckSquare, Mic, Square, Users, Settings,
   Pin, PinOff, Video, Copy, SmilePlus,  Reply,
 } from "lucide-react";
+// ✅ НОВЫЕ ИМПОРТЫ:
 import {
-  ensureKeyPair, getKeyPair, encryptMessage, decryptMessage,
+  getKeyPair, encryptMessage, decryptMessage,
   generateSessionKey, encryptSessionKeyForUser, decryptSessionKey,
   storeSessionKey, loadSessionKey,
-  exportKeyPairPayload, importKeyPairPayload,
 } from "@/lib/crypto";
-import { QRCodeSVG } from "qrcode.react";
-import { Html5Qrcode } from "html5-qrcode";
-function getSessionKeyOrThrow(chatId: number): Uint8Array {
-  const sk = loadSessionKey(chatId);
-  if (!sk) throw new Error("Нет session key");
-  return sk;
-}
+
+
+
 
 // Компонент сообщения со свайпом
 function SwipeableMessage({
@@ -140,13 +137,13 @@ export default function ChatPage() {
   const [chatPartner, setChatPartner] = useState<any>(null);
   const [chatInfo, setChatInfo] = useState<any>(null);
   const [isSecret, setIsSecret] = useState(false);
-  const [cryptoError, setCryptoError] = useState<string | null>(null);
-  const [showVerify, setShowVerify] = useState(false);
-  const [showQR, setShowQR] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
-  const scannerRef = useRef<any>(null);
-  const [myFingerprint, setMyFingerprint] = useState("");
-  const [partnerFingerprint, setPartnerFingerprint] = useState("");
+
+  // ✅ НОВЫЕ STATES:
+  const [secretState, setSecretState] = useState<"loading" | "ready" | "waiting" | "error">("loading");
+  const [secretError, setSecretError] = useState<string | null>(null);
+  const [secretSessionKey, setSecretSessionKey] = useState<Uint8Array | null>(null);
+  const secretInitRef = useRef(false);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
 
@@ -206,7 +203,6 @@ export default function ChatPage() {
 
   const fileRef = useRef<HTMLInputElement>(null);
   const sendingRef = useRef(false);
-  const skRefreshedForRef = useRef<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const hasScrolledToUnreadRef = useRef(false); //
 
@@ -237,6 +233,143 @@ export default function ChatPage() {
   }
 
 
+  // ✅ НОВАЯ ФУНКЦИЯ: Инициализация секретного чата
+async function initSecretChat() {
+  if (!isSecret || !chatPartner || isGroup) return;
+  const token = getToken();
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (!token || !apiUrl) return;
+
+  setSecretState("loading");
+  setSecretError(null);
+
+  try {
+    // 1. Проверяем локальный session key
+    let sk = loadSessionKey(Number(chatId));
+
+    if (sk) {
+      setSecretSessionKey(sk);
+      setSecretState("ready");
+      return;
+    }
+
+    // 2. Пробуем загрузить с сервера
+    const res = await fetch(`${apiUrl}/api/chats/${chatId}/session-key`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      try {
+        sk = decryptSessionKey(data.encrypted_session_key);
+        storeSessionKey(Number(chatId), sk);
+        setSecretSessionKey(sk);
+        setSecretState("ready");
+        return;
+      } catch (e) {
+        console.warn("[SecretChat] Stored session key invalid, creating new");
+      }
+    }
+
+    // 3. Session key нет — создаём новый
+    const pkRes = await fetch(`${apiUrl}/api/users/${chatPartner.id}/public-key`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!pkRes.ok) {
+      setSecretState("waiting");
+      setSecretError("Собеседник ещё не был в сети. Ключи создадутся автоматически.");
+      return;
+    }
+
+    const pkData = await pkRes.json();
+
+    // Если ключи ещё placeholder — ждём
+    if (pkData.is_pending || (pkData.public_key && pkData.public_key.startsWith("pending_"))) {
+      setSecretState("waiting");
+      setSecretError("Собеседник ещё не заходил. Чат будет готов когда он войдёт.");
+      return;
+    }
+
+    // 4. Генерируем session key
+    const myKeys = getKeyPair();
+    if (!myKeys) {
+      setSecretState("error");
+      setSecretError("Ваши ключи не загружены. Перезагрузите страницу.");
+      return;
+    }
+
+    const newSk = generateSessionKey();
+
+    // Шифруем для себя
+    const forMe = encryptSessionKeyForUser(newSk, myKeys.publicKeyBase64);
+    // Шифруем для собеседника
+    const forPartner = encryptSessionKeyForUser(newSk, pkData.public_key);
+
+    // Сохраняем для себя
+    const myId = getMyUserIdFromToken();
+    const fd1 = new FormData();
+    fd1.append("recipient_id", String(myId));
+    fd1.append("encrypted_session_key", forMe);
+    await fetch(`${apiUrl}/api/chats/${chatId}/session-key`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: fd1,
+    });
+
+    // Сохраняем для собеседника
+    const fd2 = new FormData();
+    fd2.append("recipient_id", String(chatPartner.id));
+    fd2.append("encrypted_session_key", forPartner);
+    await fetch(`${apiUrl}/api/chats/${chatId}/session-key`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: fd2,
+    });
+
+    // Сохраняем локально
+    storeSessionKey(Number(chatId), newSk);
+    setSecretSessionKey(newSk);
+    setSecretState("ready");
+
+  } catch (err) {
+    console.error("[SecretChat] Init error:", err);
+    setSecretState("error");
+    setSecretError("Ошибка инициализации шифрования");
+  }
+}
+
+// Вспомогательная: получить свой ID из токена
+function getMyUserIdFromToken(): number {
+  const token = getToken();
+  if (!token) return 0;
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return parseInt(payload.sub);
+  } catch {
+    return 0;
+  }
+}
+
+// ✅ Шифрование текста
+function encryptText(text: string): string | null {
+  if (!secretSessionKey) return null;
+  return encryptMessage(text, secretSessionKey);
+}
+
+// ✅ Расшифровка текста
+function decryptText(ciphertext: string): string {
+  if (!ciphertext || ciphertext === "[encrypted_media]") return "";
+  if (!secretSessionKey) {
+    const sk = loadSessionKey(Number(chatId));
+    if (sk) {
+      setSecretSessionKey(sk);
+      return decryptMessage(ciphertext, sk);
+    }
+    return "[Ключ не загружен]";
+  }
+  return decryptMessage(ciphertext, secretSessionKey);
+}
 
   async function loadForwardChats() {
     const token = getToken();
@@ -358,57 +491,59 @@ export default function ChatPage() {
     }
   }
 
-  async function sendVoiceMessage(audioFile: File) {
-    const token = getToken();
-    if (!token) return;
-    try {
-          if (isSecret) {
-            let sk = loadSessionKey(Number(chatId));
-            if (!sk) {
-              await establishNewSession();
-              sk = loadSessionKey(Number(chatId));
-            }
-            if (!sk) {
-              alert("Не удалось установить защищённую сессию");
-              return;
-            }
-            const { encryptMediaFile } = await import("@/lib/mediaCrypto");
-        const encryptedBlob = await encryptMediaFile(audioFile, sk);
+async function sendVoiceMessage(audioFile: File) {
+  const token = getToken();
+  if (!token) return;
+  try {
+    if (isSecret) {
+      // 🔒 СЕКРЕТНЫЙ ЧАТ
+      if (secretState !== "ready") {
+        alert("Шифрование ещё не готово");
+        return;
+      }
+      const sk = secretSessionKey || loadSessionKey(Number(chatId));
+      if (!sk) {
+        alert("Ошибка: ключ сессии потерян");
+        return;
+      }
+      const { encryptMediaFile } = await import("@/lib/mediaCrypto");
+      const encryptedBlob = await encryptMediaFile(audioFile, sk);
 
-        const form = new FormData();
-        form.append("file", encryptedBlob, audioFile.name);
-        form.append("media_type", "audio");
-        if (replyTo) form.append("reply_to_id", String(replyTo.id)); // 🆕
+      const form = new FormData();
+      form.append("file", encryptedBlob, audioFile.name);
+      form.append("media_type", "audio");
+      if (replyTo) form.append("reply_to_id", String(replyTo.id));
 
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
-          {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-            body: form,
-          }
-        );
-        if (!res.ok) {
-          alert("Не удалось отправить зашифрованное голосовое");
-        }
-      } else {
-        const form = new FormData();
-        form.append("file", audioFile);
-        if (replyTo) form.append("reply_to_id", String(replyTo.id)); // 🆕
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
+        {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: form,
-        });
-        if (!res.ok) {
-          alert("Не удалось отправить голосовое сообщение");
         }
+      );
+      if (!res.ok) {
+        alert("Не удалось отправить зашифрованное голосовое");
       }
-    } catch (err) {
-      console.error("Failed to send voice:", err);
-      alert("Ошибка сети");
+    } else {
+      // 📨 ОБЫЧНЫЙ ЧАТ
+      const form = new FormData();
+      form.append("file", audioFile);
+      if (replyTo) form.append("reply_to_id", String(replyTo.id));
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (!res.ok) {
+        alert("Не удалось отправить голосовое сообщение");
+      }
     }
+  } catch (err) {
+    console.error("Failed to send voice:", err);
+    alert("Ошибка сети");
   }
+}
 
   function formatRecordingTime(seconds: number): string {
     const mins = Math.floor(seconds / 60);
@@ -540,23 +675,11 @@ function extractFirstUrl(text: string): string | null {
     }
   }
 
-  function decryptDisplayText(msg: any): string {
-      if (!isSecret) return msg.text || "";
-      
-      // Для шифрованных медиа нет текста — это нормально
-      if (!msg.ciphertext || msg.ciphertext === "[encrypted_media]") return "";
-      
-      const sk = loadSessionKey(Number(chatId));
-      if (!sk) return "[Сессия не установлена]";
-      
-      try {
-        const decrypted = decryptMessage(msg.ciphertext, sk);
-        if (decrypted === "[Ошибка расшифровки]") return "[Ошибка расшифровки]";
-        return decrypted;
-      } catch {
-        return "[Ошибка расшифровки]";
-      }
-    }
+ function decryptDisplayText(msg: any): string {
+  if (!isSecret) return msg.text || "";
+  if (!msg.ciphertext || msg.ciphertext === "[encrypted_media]") return "";
+  return decryptText(msg.ciphertext);
+}
 
   async function loadChatInfo() {
     const token = getToken();
@@ -620,135 +743,6 @@ function extractFirstUrl(text: string): string | null {
     }
   }
 
-async function initCryptoForSecretChat() {
-  if (!isSecret || !chatPartner || isGroup) return;
-  const token = getToken();
-  if (!token) return;
-  try {
-    const myKeyData = await ensureKeyPair(token, process.env.NEXT_PUBLIC_API_URL!);
-    getKeyPair();
-    setMyFingerprint(myKeyData.fingerprint);
-
-    let sk = loadSessionKey(Number(chatId));
-    
-    // 🆕 Если ключ есть, но сообщения не расшифровываются — пересоздаём
-      if (sk && messages.length > 0) {
-        const currentSk = sk; // ✅ сужаем тип до Uint8Array
-        const hasFail = messages.some(
-          (m) => m.ciphertext && m.ciphertext !== "[encrypted_media]" && decryptMessage(m.ciphertext, currentSk) === "[Ошибка расшифровки]"
-        );
-      if (hasFail) {
-        console.log("Session key invalid, re-establishing...");
-        localStorage.removeItem(`nebula_session_key_${chatId}`);
-        sk = null;
-      }
-    }
-    
-    if (!sk) {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/session-key`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const keys = getKeyPair();
-          if (!keys) {
-            setCryptoError("Не удалось загрузить ключи");
-            return;
-          }
-          try {
-            sk = decryptSessionKey(data.encrypted_session_key);
-            storeSessionKey(Number(chatId), sk);
-          } catch (e) {
-            console.error("Failed to decrypt session key, establishing new session:", e);
-            await establishNewSession();
-            sk = loadSessionKey(Number(chatId));
-          }
-        } else if (res.status === 404) {
-          await establishNewSession();
-          sk = loadSessionKey(Number(chatId));
-        }
-      } catch {
-        await establishNewSession();
-        sk = loadSessionKey(Number(chatId));
-      }
-    }
-  } catch (err) {
-    console.error("Crypto init failed:", err);
-    setCryptoError("Ошибка инициализации E2EE");
-  }
-}
-
-  async function establishNewSession() {
-    const token = getToken();
-    if (!token || !chatPartner) return;
-    try {
-      const myKeys = getKeyPair();
-      if (!myKeys) {
-        setCryptoError("Не удалось загрузить ключи");
-        return;
-      }
-
-      // 🆕 Проверяем, что наш публичный ключ зарегистрирован на сервере
-      const myKeyRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/keys/me`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!myKeyRes.ok) {
-        // ✅ ИСПРАВЛЕНО: создаём FormData правильно
-        const registerFd = new FormData();
-        registerFd.append("public_key", myKeys.publicKeyBase64);
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/keys/register`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: registerFd,
-        });
-      }
-
-      const pkRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/users/${chatPartner.id}/public-key`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!pkRes.ok) {
-        setCryptoError(
-          "Собеседник ещё не активировал шифрование. " +
-          "Он должен хотя бы раз открыть любой секретный чат, " +
-          "чтобы сгенерировать ключи на своём устройстве."
-        );
-        return;
-      }
-      const pkData = await pkRes.json();
-      setPartnerFingerprint(pkData.fingerprint);
-
-      const sk = generateSessionKey();
-      const forMe = encryptSessionKeyForUser(sk, myKeys.publicKeyBase64);
-      const forOther = encryptSessionKeyForUser(sk, pkData.public_key);
-
-      for (const [uid, enc] of [
-        [currentUser.id, forMe],
-        [chatPartner.id, forOther],
-      ] as [number, string][]) {
-        const fd = new FormData();
-        fd.append("recipient_id", String(uid));
-        fd.append("encrypted_session_key", enc);
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/session-key`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: fd,
-        });
-        if (!res.ok) {
-          console.error(`Failed to store session key for user ${uid}`);
-        }
-      }
-
-      storeSessionKey(Number(chatId), sk);
-      setCryptoError(null);
-    } catch (err) {
-      console.error("establishNewSession failed:", err);
-      setCryptoError("Не удалось установить защищённую сессию");
-    }
-  }
-
   async function sendMessage() {
     if (sendingRef.current) return;
     const token = getToken();
@@ -785,14 +779,14 @@ async function initCryptoForSecretChat() {
 for (const msg of messagesToSend) {
   // 🆕 ШИФРОВАННОЕ МЕДИА для секретных чатов
   if (isSecret && msg.file) {
-    let sk = loadSessionKey(Number(chatId));
-    if (!sk) {
-      await establishNewSession();
-      sk = loadSessionKey(Number(chatId));
+    if (secretState !== "ready") {
+      alert("Шифрование ещё не готово");
+      return;
     }
-    
+    let sk = secretSessionKey || loadSessionKey(Number(chatId));
     if (!sk) {
-      throw new Error("Не удалось получить session key");
+      alert("Ошибка: ключ сессии потерян");
+      return;
     }
 
     // ✅ СОЗДАЁМ ВРЕМЕННОЕ СООБЩЕНИЕ ДЛЯ ШИФРОВАННОГО МЕДИА
@@ -861,19 +855,22 @@ for (const msg of messagesToSend) {
 
         // 🆕 ШИФРОВАННЫЙ ТЕКСТ + обычное медиа
         else if (isSecret && msg.text) {
-          let sk = loadSessionKey(Number(chatId));
-          if (!sk) {
-            await establishNewSession();
-            sk = loadSessionKey(Number(chatId));
+          if (secretState !== "ready") {
+            alert("Шифрование ещё не готово");
+            return;
           }
-          
-          // ✅ ЯВНАЯ ПРОВЕРКА
+          let sk = secretSessionKey || loadSessionKey(Number(chatId));
           if (!sk) {
-            throw new Error("Не удалось получить session key");
+            alert("Ошибка: ключ сессии потерян");
+            return;
           }
-
           const form = new FormData();
-          form.append("ciphertext", encryptMessage(msg.text, sk));
+          const encrypted = encryptText(msg.text);
+          if (!encrypted) {
+            alert("Ошибка шифрования");
+            return;
+          }
+          form.append("ciphertext", encrypted);
           form.append("text", "");
           if (replyTo) form.append("reply_to_id", String(replyTo.id)); 
 
@@ -1216,42 +1213,42 @@ function getMessageMenuItems(msg: any): { icon: any; label: string; onClick: () 
     }
   }
 
-  async function sendEncryptedMedia(file: File, mediaType: string) {
-    const token = getToken();
-    if (!token) return;
+async function sendEncryptedMedia(file: File, mediaType: string) {
+  const token = getToken();
+  if (!token) return;
 
-    let sk = loadSessionKey(Number(chatId));
-    if (!sk) {
-      await establishNewSession();
-      sk = loadSessionKey(Number(chatId));
-    }
-    if (!sk) {
-      alert("Не удалось установить защищённую сессию");
-      return;
-    }
-
-    const { encryptMediaFile } = await import("@/lib/mediaCrypto");
-    // ✅ ИСПОЛЬЗУЕМ УЖЕ ПРОВЕРЕННЫЙ sk
-    const encryptedBlob = await encryptMediaFile(file, sk);
-
-    const form = new FormData();
-    form.append("file", encryptedBlob);
-    form.append("media_type", mediaType);
-    if (replyTo) form.append("reply_to_id", String(replyTo.id)); // 🆕
-
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      }
-    );
-
-    if (!res.ok) {
-      alert("Не удалось отправить шифрованное медиа");
-    }
+  if (secretState !== "ready") {
+    alert("Шифрование ещё не готово");
+    return;
   }
+
+  const sk = secretSessionKey || loadSessionKey(Number(chatId));
+  if (!sk) {
+    alert("Ошибка: ключ сессии потерян");
+    return;
+  }
+
+  const { encryptMediaFile } = await import("@/lib/mediaCrypto");
+  const encryptedBlob = await encryptMediaFile(file, sk);
+
+  const form = new FormData();
+  form.append("file", encryptedBlob);
+  form.append("media_type", mediaType);
+  if (replyTo) form.append("reply_to_id", String(replyTo.id));
+
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    }
+  );
+
+  if (!res.ok) {
+    alert("Не удалось отправить шифрованное медиа");
+  }
+}
 
   const handleSendPointerDown = (e: React.PointerEvent) => {
     if (text.trim() || files.length > 0) return;
@@ -1393,16 +1390,6 @@ function getMessageMenuItems(msg: any): { icon: any; label: string; onClick: () 
     };
   }, [chatId]);
 
-  useEffect(() => {
-    if (isGroup) {
-      setIsSecret(false);
-      setCryptoError(null);
-      return;
-    }
-    if (isSecret && chatPartner && currentUser) {
-      initCryptoForSecretChat();
-    }
-  }, [isSecret, chatPartner, currentUser, isGroup]);
 
 
 // 📤 Отправляем "печатает" на бэк (с троттлингом раз в 3 сек)
@@ -1486,36 +1473,42 @@ useEffect(() => {
     if (nearBottom) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [liveTexts]);
 
-  useEffect(() => {
-    if (!isSecret) return;
-    if (skRefreshedForRef.current === chatId) return;
-    const sk = loadSessionKey(Number(chatId));
-    if (!sk) return;
-    const currentSk = sk; // ✅
+// ✅ НОВЫЙ useEffect: инициализация крипто при загрузке
+useEffect(() => {
+  initCryptoOnLogin();
+}, []);
 
-    const hasFail = messages.some(
-      (m) => m.ciphertext && decryptMessage(m.ciphertext, currentSk) === "[Ошибка расшифровки]"
-    );
-    if (!hasFail) return;
+// ✅ НОВЫЙ useEffect: инициализация секретного чата
+useEffect(() => {
+  if (isGroup) {
+    setIsSecret(false);
+    setSecretState("ready");
+    return;
+  }
+  if (isSecret && chatPartner && currentUser) {
+    if (secretInitRef.current) return;
+    secretInitRef.current = true;
+    initSecretChat();
+  }
+}, [isSecret, chatPartner, currentUser, isGroup]);
 
-    skRefreshedForRef.current = chatId;
-    const token = getToken();
-    if (!token) return;
+// ✅ НОВЫЙ useEffect: сброс при смене чата
+useEffect(() => {
+  secretInitRef.current = false;
+  setSecretState("loading");
+  setSecretError(null);
+  setSecretSessionKey(null);
+}, [chatId]);
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/session-key`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(async (res) => {
-        if (!res.ok) return;
-        const d = await res.json();
-        const keys = getKeyPair();
-        if (!keys) return;
-        const newSk = decryptSessionKey(d.encrypted_session_key);
-        storeSessionKey(Number(chatId), newSk);
-        setMessages((prev) => [...prev]);
-      })
-      .catch((e) => console.error("SK refresh failed:", e));
-  }, [messages, isSecret, chatId]);
+// ✅ НОВЫЙ useEffect: периодическая проверка если waiting
+useEffect(() => {
+  if (secretState !== "waiting") return;
+  const interval = setInterval(() => {
+    secretInitRef.current = false;
+    initSecretChat();
+  }, 5000);
+  return () => clearInterval(interval);
+}, [secretState]);
 
   useWebSocket("new_message", (data: any) => {
     if (String(data.chat_id) !== String(chatId)) return;
@@ -1577,32 +1570,24 @@ if (data.sender_id === currentUser?.id) {
 
 useWebSocket("chat_deleted", (data: any) => {
   if (String(data.chat_id) === String(chatId)) {
-    clearSessionKey(Number(chatId)); // 🆕 сбрасываем локальный ключ
+    // Очищаем локальный ключ
+    localStorage.removeItem(`nebula_session_key_${chatId}`);
     alert("Этот чат был удалён");
     router.push("/messages");
   }
 });
 
-// 🆕 Собеседник установил новый ключ сессии — забираем, чтобы медиа/текст расшифровались
-useWebSocket("session_key_updated", (data: any) => {
+// ✅ НОВЫЙ: Собеседник зарегистрировал ключи
+useWebSocket("secret_chat_created", (data: any) => {
   if (String(data.chat_id) !== String(chatId)) return;
-  const token = getToken();
-  if (!token) return;
-  fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/session-key`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-    .then((r) => (r.ok ? r.json() : null))
-    .then((d) => {
-      if (!d) return;
-      try {
-        const newSk = decryptSessionKey(d.encrypted_session_key);
-        storeSessionKey(Number(chatId), newSk);
-        setMessages((prev) => [...prev]); // ре-рендер → повторная расшифровка
-      } catch (e) {
-        console.error("Failed to apply updated session key:", e);
-      }
-    })
-    .catch(() => {});
+  loadChatInfo();
+});
+
+// ✅ НОВЫЙ: Session key стал доступен
+useWebSocket("session_key_available", (data: any) => {
+  if (String(data.chat_id) !== String(chatId)) return;
+  secretInitRef.current = false;
+  initSecretChat();
 });
 
   useWebSocket("group_member_added", (data: any) => {
@@ -1688,44 +1673,7 @@ useWebSocket("message_read", (data: any) => {
 });
 
 
-  useEffect(() => {
-    if (!showScanner) return;
-    let cancelled = false;
-
-    const t = setTimeout(async () => {
-      try {
-        const scanner = new Html5Qrcode("qr-scanner-region");
-        scannerRef.current = scanner;
-        await scanner.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 220, height: 220 } },
-          (decoded: string) => {
-            if (cancelled) return;
-            if (importKeyPairPayload(decoded)) {
-              cancelled = true;
-              setShowScanner(false);
-              alert("Ключ импортирован! Перезагружаем страницу...");
-              window.location.reload();
-            }
-          },
-          () => {}
-        );
-      } catch (e) {
-        console.error("Scanner error:", e);
-        alert("Не удалось получить доступ к камере");
-        setShowScanner(false);
-      }
-    }, 150);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
-        scannerRef.current = null;
-      }
-    };
-  }, [showScanner]);
+ 
 
   function onFiles(newFiles: FileList | null) {
     if (!newFiles) return;
@@ -1853,15 +1801,7 @@ const ChatHeader = () => (
             <Search size={19} className="sm:w-5 sm:h-5" />
           </button>
           
-          {isSecret && !isGroup && (
-            <button
-              onClick={() => setShowVerify(true)}
-              className="p-2.5 sm:p-2 text-emerald-400 hover:text-emerald-300 transition-colors active:scale-95"
-              title="Проверить шифрование"
-            >
-              <ShieldCheck size={19} className="sm:w-5 sm:h-5" />
-            </button>
-          )}
+
 
           <button
             onClick={() => { setMediaTab("image"); loadMedia(); setShowMediaGallery(true); }}
@@ -2041,7 +1981,7 @@ const ChatHeader = () => (
           <ChatWindowSkeleton />
         ) : (
           <>
-            {isSecret && messages.length === 0 && !cryptoError && (
+{isSecret && messages.length === 0 && secretState !== "error" && secretState !== "waiting" && (
               <div className="p-3 sm:p-4 bg-emerald-500/5 border-b border-emerald-500/20">
                 <div className="flex items-start gap-2 max-w-2xl mx-auto text-center">
                   <Lock size={15} className="text-emerald-400 mt-0.5 shrink-0" />
@@ -2056,22 +1996,42 @@ const ChatHeader = () => (
               </div>
             )}
 
-            {cryptoError && (
-              <div className="p-3 sm:p-4 bg-red-500/10 border-b border-red-500/30">
-                <div className="flex items-start gap-2 max-w-2xl mx-auto">
-                  <AlertTriangle size={15} className="text-red-400 mt-0.5 shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-xs sm:text-sm text-red-300 font-bold">{cryptoError}</p>
-                    <button
-                      onClick={establishNewSession}
-                      className="mt-2 text-[11px] sm:text-xs px-3 py-1 rounded bg-red-500/20 text-red-200 hover:bg-red-500/30 border border-red-500/30"
-                    >
-                      Попробовать снова
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+{/* Ожидание собеседника */}
+{isSecret && secretState === "waiting" && (
+  <div className="p-3 sm:p-4 bg-amber-500/10 border-b border-amber-500/30">
+    <div className="flex items-start gap-2 max-w-2xl mx-auto">
+      <Lock size={15} className="text-amber-400 mt-0.5 shrink-0" />
+      <div className="flex-1">
+        <p className="text-xs sm:text-sm text-amber-300 font-bold">Ожидание собеседника</p>
+        <p className="text-[11px] sm:text-xs text-amber-200/70 mt-1">{secretError}</p>
+        <button
+          onClick={() => { secretInitRef.current = false; initSecretChat(); }}
+          className="mt-2 text-[11px] px-3 py-1 rounded bg-amber-500/20 text-amber-200 hover:bg-amber-500/30 border border-amber-500/30"
+        >
+          Проверить снова
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* Ошибка шифрования */}
+{isSecret && secretState === "error" && (
+  <div className="p-3 sm:p-4 bg-red-500/10 border-b border-red-500/30">
+    <div className="flex items-start gap-2 max-w-2xl mx-auto">
+      <AlertTriangle size={15} className="text-red-400 mt-0.5 shrink-0" />
+      <div className="flex-1">
+        <p className="text-xs sm:text-sm text-red-300 font-bold">{secretError}</p>
+        <button
+          onClick={() => { secretInitRef.current = false; initSecretChat(); }}
+          className="mt-2 text-[11px] px-3 py-1 rounded bg-red-500/20 text-red-200 hover:bg-red-500/30 border border-red-500/30"
+        >
+          Попробовать снова
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
             <div className="flex-1 overflow-y-auto p-3 sm:p-3 md:p-4 space-y-2.5 sm:space-y-3">
               {currentUser &&
@@ -2810,30 +2770,35 @@ const ChatHeader = () => (
           </button>
         </div>
 
-        <textarea
-          value={text}
-          onChange={(e) => sendLiveText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              sendMessage();
-            }
-          }}
-          placeholder={isSecret ? "Зашифрованное..." : isGroup ? "Сообщение группе..." : "Сообщение..."}
-          rows={1}
-          className={`flex-1 border rounded-xl px-3.5 sm:px-3 md:px-4 py-2.5 sm:py-2 bg-white/5 text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-28 sm:max-h-24 md:max-h-32 leading-snug ${
-            isSecret
-              ? "border-emerald-500/40 focus:border-emerald-500"
-              : "border-white/15 focus:border-[#8b5cf6]"
-          }`}
-        />
+<textarea
+  value={text}
+  onChange={(e) => sendLiveText(e.target.value)}
+  onKeyDown={(e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  }}
+  disabled={isSecret && secretState !== "ready"}
+  placeholder={
+    isSecret
+      ? (secretState === "ready" ? "Зашифрованное сообщение..." : "Ожидание шифрования...")
+      : isGroup ? "Сообщение группе..." : "Сообщение..."
+  }
+  rows={1}
+  className={`flex-1 border rounded-xl px-3.5 sm:px-3 md:px-4 py-2.5 sm:py-2 bg-white/5 text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-28 sm:max-h-24 md:max-h-32 leading-snug disabled:opacity-50 disabled:cursor-not-allowed ${
+    isSecret
+      ? "border-emerald-500/40 focus:border-emerald-500"
+      : "border-white/15 focus:border-[#8b5cf6]"
+  }`}
+/>
 
         <div className="relative shrink-0">
           <button
             onPointerDown={handleSendPointerDown}
             onPointerUp={handleSendButtonPointerUp}
             onClick={handleSendClick}
-            disabled={!!cryptoError}
+            disabled={isSecret && secretState !== "ready"}
             className={`p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none touch-none ${
               isSecret
                 ? "border border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700"
@@ -2977,138 +2942,6 @@ const ChatHeader = () => (
         )}
       </main>
 
-      {showVerify && chatPartner && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]"
-            onClick={() => { setShowVerify(false); setShowQR(false); setShowScanner(false); }}
-          />
-          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full max-w-sm sm:max-w-md border border-emerald-500/30 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-4 sm:p-6 pointer-events-auto max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-4 sm:mb-5">
-
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="text-emerald-400" size={20} />
-                  <h2 className="text-lg sm:text-xl font-black text-white">Проверка шифрования</h2>
-                </div>
-                <button
-                  onClick={() => { setShowVerify(false); setShowQR(false); setShowScanner(false); }}
-                  className="text-white/60 hover:text-white p-1"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <p className="text-xs sm:text-sm text-white/60 mb-3 sm:mb-4">
-                Сравните эти отпечатки с собеседником через другой канал (голосом или лично).
-                Если они совпадают — канал защищён от перехвата.
-              </p>
-
-              <div className="space-y-2 sm:space-y-3">
-                <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                  <p className="text-[11px] sm:text-xs text-white/50 mb-1">Ваш отпечаток:</p>
-                  <p className="font-mono text-xs sm:text-sm text-emerald-300 tracking-wider break-all">
-                    {myFingerprint || "—"}
-                  </p>
-                </div>
-                <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                  <p className="text-[11px] sm:text-xs text-white/50 mb-1">
-                    Отпечаток @{chatPartner?.username}:
-                  </p>
-                  <p className="font-mono text-xs sm:text-sm text-emerald-300 tracking-wider break-all">
-                    {partnerFingerprint || "—"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 p-3 rounded-xl bg-white/5 border border-white/10">
-                <p className="text-sm font-bold text-white mb-2">Перенос на другое устройство</p>
-                <div className="space-y-2">
-                  <button
-                    onClick={() => { setShowQR(!showQR); setShowScanner(false); }}
-                    className="w-full px-3 py-2.5 rounded-lg bg-white/5 border border-white/15 text-white/80 text-sm font-bold hover:bg-white/10 transition-colors"
-                  >
-                    🖥️ Показать QR с ключом (я на ПК)
-                  </button>
-                  <button
-                    onClick={() => { setShowScanner(true); setShowQR(false); }}
-                    className="w-full px-3 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm font-bold hover:bg-emerald-500/20 transition-colors"
-                  >
-                    📱 Отсканировать QR (я на телефоне)
-                  </button>
-                </div>
-
-                {showQR && (
-                  <div className="mt-3 p-3 rounded-xl bg-white flex flex-col items-center gap-2">
-                    <QRCodeSVG value={exportKeyPairPayload() || ""} size={200} />
-                    <p className="text-[11px] text-black/60 text-center font-bold">
-                      ⚠️ Этот QR = твой приватный ключ.
-                      <br />
-                      Показывай его только своей камере, никому не отправляй!
-                    </p>
-                  </div>
-                )}
-
-                {showScanner && (
-                  <div className="mt-3 rounded-xl overflow-hidden border border-emerald-500/30">
-                    <div id="qr-scanner-region" />
-                    <button
-                      onClick={() => setShowScanner(false)}
-                      className="w-full py-2 bg-white/5 text-white/70 text-xs font-bold hover:bg-white/10"
-                    >
-                      Отменить сканирование
-                    </button>
-                  </div>
-                )}
-
-                <details className="mt-2">
-                  <summary className="text-[11px] sm:text-xs text-white/40 cursor-pointer hover:text-white/60">
-                    Нет камеры? Скопировать/вставить вручную
-                  </summary>
-                  <div className="mt-2 space-y-2">
-                    <button
-                      onClick={async () => {
-                        const payload = exportKeyPairPayload();
-                        if (!payload) return;
-                        try {
-                          await navigator.clipboard.writeText(payload);
-                          alert("Ключ скопирован! Вставь его на втором устройстве.");
-                        } catch {
-                          prompt("Скопируй ключ вручную:", payload);
-                        }
-                      }}
-                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/15 text-white/60 text-[11px] sm:text-xs font-bold hover:bg-white/10 transition-colors"
-                    >
-                      📤 Скопировать ключ текстом
-                    </button>
-                    <button
-                      onClick={() => {
-                        const payload = prompt("Вставь ключ с другого устройства:");
-                        if (!payload) return;
-                        if (importKeyPairPayload(payload)) {
-                          alert("Ключ импортирован! Перезагружаем страницу...");
-                          window.location.reload();
-                        } else {
-                          alert("Неверный формат ключа");
-                        }
-                      }}
-                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/15 text-white/60 text-[11px] sm:text-xs font-bold hover:bg-white/10 transition-colors"
-                    >
-                      📥 Вставить ключ текстом
-                    </button>
-                  </div>
-                </details>
-              </div>
-
-              <div className="mt-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <p className="text-[11px] sm:text-xs text-emerald-200">
-                  🔒 Сообщения шифруются на вашем устройстве и расшифровываются только на устройстве собеседника.
-                </p>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
 
  {showMediaGallery && (
   <>
@@ -3299,13 +3132,13 @@ const ChatHeader = () => (
 
       try {
         if (isSecret) {
-          let sk = loadSessionKey(Number(chatId));
-          if (!sk) {
-            await establishNewSession();
-            sk = loadSessionKey(Number(chatId));
+          if (secretState !== "ready") {
+            alert("Шифрование ещё не готово");
+            return;
           }
+          const sk = secretSessionKey || loadSessionKey(Number(chatId));
           if (!sk) {
-            alert("Не удалось установить защищённую сессию");
+            alert("Ошибка: ключ сессии потерян");
             return;
           }
           const { encryptMediaFile } = await import("@/lib/mediaCrypto");

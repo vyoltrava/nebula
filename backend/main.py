@@ -763,10 +763,12 @@ def register(request: Request, data: RegisterIn, session: Session = Depends(get_
         username=username,
         display_name=data.display_name,
         password_hash=hash_password(data.password),
+        
     )
     session.add(user)
     session.commit()
     session.refresh(user)
+    ensure_user_has_keys(user.id, session)
         # Логируем IP регистрации
     ip = get_client_ip(request)
     session.add(IPLog(user_id=user.id, ip_address=ip, user_agent=request.headers.get("user-agent"), action="register"))
@@ -782,6 +784,8 @@ def login(request: Request, data: LoginIn, session: Session = Depends(get_sessio
         raise HTTPException(401, "Wrong username or password")
     if user.is_banned:
         raise HTTPException(403, "Account banned")
+        # 🆕 АВТОГЕНЕРАЦИЯ КЛЮЧЕЙ
+    ensure_user_has_keys(user.id, session)
         # Логируем IP входа
     ip = get_client_ip(request)
     ua = request.headers.get("user-agent")
@@ -4383,7 +4387,9 @@ def startup():
     with engine.connect() as conn:
         try:
 
-
+            # 🆕 E2EE: is_pending для ключей
+            conn.execute(text('ALTER TABLE userkey ADD COLUMN IF NOT EXISTS is_pending BOOLEAN DEFAULT TRUE;'))
+            conn.execute(text("UPDATE userkey SET is_pending = FALSE WHERE public_key NOT LIKE 'pending_%';"))
 
 
             # ===== 😂 СТИКЕРЫ И РЕАКЦИИ (БЕЗОПАСНЫЕ МИГРАЦИИ) =====
@@ -5462,7 +5468,33 @@ def open_or_create_chat(
 
 
 
-# ---------- E2EE: КЛЮЧИ ----------
+# ============================================================
+# 🔐 E2EE: НОВАЯ СИСТЕМА (автогенерация ключей)
+# ============================================================
+
+def ensure_user_has_keys(user_id: int, session: Session):
+    """
+    Вызывается при каждом логине/регистрации.
+    Создаёт placeholder если ключей нет.
+    Реальные ключи клиент перезапишет при первом входе.
+    """
+    import hashlib
+    existing = session.exec(
+        select(UserKey).where(UserKey.user_id == user_id)
+    ).first()
+    if existing:
+        return
+    placeholder_key = f"pending_{user_id}_{uuid.uuid4().hex[:16]}"
+    fingerprint = hashlib.sha256(placeholder_key.encode()).hexdigest()[:16]
+    key = UserKey(
+        user_id=user_id,
+        public_key=placeholder_key,
+        fingerprint=fingerprint,
+        is_pending=True,
+    )
+    session.add(key)
+    session.commit()
+
 
 @app.get("/api/keys/me")
 def get_my_public_key(
@@ -5481,17 +5513,21 @@ def register_public_key(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
+    """Клиент регистрирует РЕАЛЬНЫЕ ключи. Перезаписывает placeholder."""
     import hashlib
     fingerprint = hashlib.sha256(public_key.encode()).hexdigest()[:16]
-    
+
     existing = session.exec(select(UserKey).where(UserKey.user_id == user.id)).first()
     if existing:
-        # НЕ перезаписываем — возвращаем существующий ключ
-        # Это защищает от поломки E2EE при входе с другого устройства
-        return {"ok": True, "fingerprint": existing.fingerprint, "already_existed": True}
-    
-    # Создаём новый ключ только если его ещё нет
-    key = UserKey(user_id=user.id, public_key=public_key, fingerprint=fingerprint)
+        # ✅ ПЕРЕЗАПИСЫВАЕМ — клиент прислал реальный ключ
+        existing.public_key = public_key
+        existing.fingerprint = fingerprint
+        existing.is_pending = False
+        session.add(existing)
+        session.commit()
+        return {"ok": True, "fingerprint": fingerprint, "already_existed": True}
+
+    key = UserKey(user_id=user.id, public_key=public_key, fingerprint=fingerprint, is_pending=False)
     session.add(key)
     session.commit()
     return {"ok": True, "fingerprint": fingerprint, "already_existed": False}
@@ -5502,10 +5538,12 @@ def get_user_public_key(user_id: int, session: Session = Depends(get_session)):
     key = session.exec(select(UserKey).where(UserKey.user_id == user_id)).first()
     if not key:
         raise HTTPException(404, "У пользователя нет ключа")
-    return {"public_key": key.public_key, "fingerprint": key.fingerprint}
+    return {
+        "public_key": key.public_key,
+        "fingerprint": key.fingerprint,
+        "is_pending": getattr(key, 'is_pending', False),
+    }
 
-
-# ---------- E2EE: SESSION KEYS ----------
 
 @app.post("/api/chats/{chat_id}/session-key")
 async def store_session_key(
@@ -5523,12 +5561,7 @@ async def store_session_key(
     ).first()
     if not my_member or not other_member:
         raise HTTPException(403, "Оба должны быть в чате")
-    
-    # 🆕 Проверяем, что у получателя есть публичный ключ
-    recipient_key = session.exec(select(UserKey).where(UserKey.user_id == recipient_id)).first()
-    if not recipient_key:
-        raise HTTPException(400, f"У пользователя {recipient_id} нет публичного ключа")
-    
+
     existing = session.exec(
         select(ChatSessionKey).where(
             ChatSessionKey.chat_id == chat_id,
@@ -5546,14 +5579,15 @@ async def store_session_key(
         )
         session.add(sk)
     session.commit()
-    # 🆕 Уведомляем получателя: ключ сессии обновлён — устройство должно перечитать
+
+    # Уведомляем получателя
     if recipient_id != user.id:
-        await manager.broadcast_to_users(
-            [recipient_id],
-            "session_key_updated",
-            {"chat_id": chat_id},
-        )
+        await manager.broadcast_to_users([recipient_id], "session_key_available", {
+            "chat_id": chat_id,
+        })
+
     return {"ok": True}
+
 
 @app.get("/api/chats/{chat_id}/session-key")
 def get_my_session_key(
@@ -5572,31 +5606,25 @@ def get_my_session_key(
     return {"encrypted_session_key": sk.encrypted_session_key}
 
 
-# ---------- E2EE: СОЗДАНИЕ СЕКРЕТНОГО ЧАТА ----------
-
 @app.post("/api/chats/secret")
 async def create_secret_chat(
     request: Request,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Создаёт секретный чат. Принимает other_user_id из query, form или JSON."""
     other_user_id = request.query_params.get("other_user_id")
-
     if other_user_id is None:
         try:
             form = await request.form()
             other_user_id = form.get("other_user_id")
         except Exception:
             pass
-
     if other_user_id is None:
         try:
             data = await request.json()
             other_user_id = data.get("other_user_id")
         except Exception:
             pass
-
     if other_user_id is None:
         raise HTTPException(400, "other_user_id обязателен")
     other_user_id = int(other_user_id)
@@ -5608,10 +5636,9 @@ async def create_secret_chat(
     if not other:
         raise HTTPException(404, "Пользователь не найден")
 
-    my_key = session.exec(select(UserKey).where(UserKey.user_id == user.id)).first()
-    other_key = session.exec(select(UserKey).where(UserKey.user_id == other_user_id)).first()
-    if not my_key or not other_key:
-        raise HTTPException(400, "У одного из пользователей нет ключа")
+    # ✅ Автогенерация ключей для обоих (placeholder если нет)
+    ensure_user_has_keys(user.id, session)
+    ensure_user_has_keys(other_user_id, session)
 
     # Уже есть секретный чат?
     my_chats = session.exec(select(ChatMember.chat_id).where(ChatMember.user_id == user.id)).all()
@@ -5630,10 +5657,20 @@ async def create_secret_chat(
     session.refresh(chat)
     session.add(ChatMember(chat_id=chat.id, user_id=user.id))
     session.add(ChatMember(chat_id=chat.id, user_id=other_user_id))
+
+    # Уведомление
+    session.add(Notification(
+        user_id=other_user_id, actor_id=user.id, type="secret_chat_created",
+        details=json.dumps({"chat_id": chat.id}),
+    ))
     session.commit()
 
-    return {"chat_id": chat.id, "already_existed": False}
+    await manager.broadcast_to_users([other_user_id], "secret_chat_created", {
+        "chat_id": chat.id,
+        "from_user": user.display_name,
+    })
 
+    return {"chat_id": chat.id, "already_existed": False}
 
 
 @app.post("/api/chats/{chat_id}/messages/encrypted-media")
