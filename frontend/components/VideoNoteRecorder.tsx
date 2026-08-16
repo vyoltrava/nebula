@@ -24,33 +24,33 @@ export function VideoNoteRecorder({
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const videoStreamRef = useRef<MediaStream | null>(null);   // только видео
-  const audioStreamRef = useRef<MediaStream | null>(null);   // только аудио
+  const videoStreamRef = useRef<MediaStream | null>(null);
+  const audioStreamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const startTsRef = useRef(0); // 🆕 момент начала записи
+  const startTsRef = useRef(0);
   const rafRef = useRef<number>(0);
   const mimeRef = useRef<string>("video/webm");
   const mirroredRef = useRef(true);
+  const drawIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const canvasVideoTrackRef = useRef<MediaStreamTrack | null>(null);
 
   const [isRecording, setIsRecording] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [seconds, setSeconds] = useState(0);
 
   const [facing, setFacing] = useState<"user" | "environment">("user");
-  const [mirrored, setMirrored] = useState(true);            // по умолчанию ВКЛ для селфи
-  const [hasFlip, setHasFlip] = useState(false);             // есть ли 2+ камеры
+  const [mirrored, setMirrored] = useState(true);
+  const [hasFlip, setHasFlip] = useState(false);
 
   useEffect(() => { mirroredRef.current = mirrored; }, [mirrored]);
 
-  // --- запуск и остановка ---
   useEffect(() => {
     startAll();
     return () => cleanupResources();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // привязываем видео к элементу когда mode/isCameraReady меняются
   useEffect(() => {
     if (videoRef.current && videoStreamRef.current) {
       videoRef.current.srcObject = videoStreamRef.current;
@@ -58,7 +58,6 @@ export function VideoNoteRecorder({
     }
   }, [mode, isCameraReady]);
 
-  // --- КАМЕРА + МИКРОФОН (раздельно) ---
   async function startCamera(facingMode: "user" | "environment" = "user") {
     videoStreamRef.current?.getTracks().forEach((t) => t.stop());
     try {
@@ -94,7 +93,6 @@ export function VideoNoteRecorder({
       await startMicrophone();
       await startCamera("user");
 
-      // Сколько камер доступно?
       const devices = await navigator.mediaDevices.enumerateDevices();
       const cams = devices.filter((d) => d.kind === "videoinput");
       setHasFlip(cams.length > 1);
@@ -109,50 +107,55 @@ export function VideoNoteRecorder({
       onCancel();
     }
   }
-  const drawIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function startDrawLoop() {
-    if (drawIntervalRef.current) clearInterval(drawIntervalRef.current);
+    if (drawIntervalRef.current) {
+      clearInterval(drawIntervalRef.current);
+      drawIntervalRef.current = null;
+    }
+    cancelAnimationFrame(rafRef.current);
+
     drawIntervalRef.current = setInterval(() => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      if (video && canvas && video.readyState >= 2 && video.videoWidth > 0) {
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          const size = canvas.width;
-          const vw = video.videoWidth;
-          const vh = video.videoHeight;
-          const side = Math.min(vw, vh);
-          const sx = (vw - side) / 2;
-          const sy = (vh - side) / 2;
-          ctx.save();
-          ctx.clearRect(0, 0, size, size);
-          if (mirroredRef.current) {
-            ctx.translate(size, 0);
-            ctx.scale(-1, 1);
-          }
-          ctx.drawImage(video, sx, sy, side, side, 0, 0, size, size);
-          ctx.restore();
-        }
+      if (!video || !canvas || video.readyState < 2 || video.videoWidth === 0) return;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const size = canvas.width;
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const side = Math.min(vw, vh);
+      const sx = (vw - side) / 2;
+      const sy = (vh - side) / 2;
+
+      ctx.save();
+      ctx.clearRect(0, 0, size, size);
+      if (mirroredRef.current) {
+        ctx.translate(size, 0);
+        ctx.scale(-1, 1);
+      }
+      ctx.drawImage(video, sx, sy, side, side, 0, 0, size, size);
+      ctx.restore();
+
+      if (canvasVideoTrackRef.current && (canvasVideoTrackRef.current as any).requestFrame) {
+        (canvasVideoTrackRef.current as any).requestFrame();
       }
     }, 1000 / 30);
   }
 
-  // --- ПЕРЕКЛЮЧЕНИЕ КАМЕРЫ (работает даже во время записи) ---
   async function toggleFacing() {
     const next = facing === "user" ? "environment" : "user";
     try {
       await startCamera(next);
       setFacing(next);
-      // при переключении на тыльную камеру — выключаем зеркало (естественно для мира)
-      // при возврате на фронталку — включаем
       setMirrored(next === "user");
     } catch {
       // камера недоступна
     }
   }
 
-  // --- ЗАПИСЬ (canvas + аудио) ---
   function startRecording() {
     const canvas = canvasRef.current;
     const audio = audioStreamRef.current;
@@ -160,14 +163,13 @@ export function VideoNoteRecorder({
 
     chunksRef.current = [];
 
-    // Составной стрим: видео с canvas + аудио с микрофона
-    const canvasStream = canvas.captureStream(30);
+    const canvasStream = canvas.captureStream(0);
+    canvasVideoTrackRef.current = canvasStream.getVideoTracks()[0] || null;
     const combined = new MediaStream([
       ...canvasStream.getVideoTracks(),
       ...audio.getAudioTracks(),
     ]);
 
-    // Подбираем MIME (iOS не умеет webm)
     const candidates = [
       "video/webm;codecs=vp9,opus",
       "video/webm;codecs=vp8,opus",
@@ -202,13 +204,11 @@ export function VideoNoteRecorder({
     setSeconds(0);
     startTsRef.current = Date.now();
 
-    // 🆕 Таймер по реальному времени. СТОП — в колбэке интервала,
-    // а не в апдейтере состояния → срабатывает гарантированно.
     timerRef.current = setInterval(() => {
       const elapsed = Math.floor((Date.now() - startTsRef.current) / 1000);
       setSeconds(elapsed);
       if (elapsed >= maxDuration) {
-        stopRecording(); // ✅ сам остановился и отправил файл
+        stopRecording();
       }
     }, 500);
   }
@@ -232,7 +232,7 @@ export function VideoNoteRecorder({
     if (mediaRecorderRef.current) {
       try {
         if (mediaRecorderRef.current.state === "recording") {
-          mediaRecorderRef.current.onstop = null as any; // не отправлять при отмене
+          mediaRecorderRef.current.onstop = null as any;
           mediaRecorderRef.current.stop();
         }
       } catch {}
@@ -242,6 +242,8 @@ export function VideoNoteRecorder({
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    canvasVideoTrackRef.current = null;
+
     videoStreamRef.current?.getTracks().forEach((t) => t.stop());
     videoStreamRef.current = null;
     audioStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -260,12 +262,10 @@ export function VideoNoteRecorder({
   const progress = maxDuration > 0 ? Math.min((seconds / maxDuration) * 100, 100) : 0;
   const perimeter = 2 * (94 + 94);
 
-  // --- КЛИК по превью = переключение зеркала ---
   function handlePreviewClick() {
     setMirrored((m) => !m);
   }
 
-  // ==================== MINIMIZED ====================
   if (mode === 'minimized') {
     return (
       <div className="fixed bottom-20 left-3 right-3 md:left-auto md:right-6 md:w-[480px] z-[60] bg-[#1f1f23]/95 backdrop-blur-md border border-white/15 rounded-2xl shadow-2xl shadow-black/60 p-3 animate-in slide-in-from-bottom-4 duration-300">
@@ -298,7 +298,6 @@ export function VideoNoteRecorder({
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            {/* 🆕 СМЕНА КАМЕРЫ */}
             {hasFlip && (
               <button
                 onClick={toggleFacing}
@@ -327,17 +326,14 @@ export function VideoNoteRecorder({
             </button>
           </div>
         </div>
-        {/* скрытый canvas для записи */}
         <canvas ref={canvasRef} width={720} height={720} className="hidden" />
       </div>
     );
   }
 
-  // ==================== EXPANDED ====================
   return (
     <div className="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center">
       <div className="relative flex flex-col items-center">
-        {/* 🆕 КЛИКАЕМЫЙ КАРКАС — зеркало */}
         <div
           className="relative w-[340px] h-[340px] sm:w-[440px] sm:h-[440px] rounded-2xl overflow-hidden bg-black shadow-2xl ring-1 ring-white/10 cursor-pointer active:scale-[0.99] transition-transform"
           onClick={handlePreviewClick}
@@ -356,7 +352,6 @@ export function VideoNoteRecorder({
             <rect x="1.5" y="1.5" width="97" height="97" rx="10" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeDasharray={perimeter} strokeDashoffset={perimeter * (1 - progress / 100)} className="transition-all duration-300 ease-linear" />
           </svg>
 
-          {/* 🆕 Индикатор зеркала */}
           <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/70 backdrop-blur-sm rounded-full px-2.5 py-1 ring-1 ring-white/10 pointer-events-none">
             <span className="text-[11px] text-white/90 font-bold">
               {mirrored ? "🪞 зеркало" : "без зеркала"}
@@ -382,13 +377,11 @@ export function VideoNoteRecorder({
           )}
         </div>
 
-        {/* кнопки снизу */}
         <div className="mt-6 flex items-center justify-center gap-6 sm:gap-8">
           <button onClick={() => { cleanupResources(); onCancel(); }} className="w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 transition-colors active:scale-95 flex items-center justify-center text-white/80" title="Отменить">
             <X size={24} />
           </button>
 
-          {/* 🆕 СМЕНА КАМЕРЫ */}
           <button
             onClick={toggleFacing}
             disabled={!hasFlip}
@@ -427,8 +420,6 @@ export function VideoNoteRecorder({
           </p>
         </div>
       </div>
-
-      {/* скрытый canvas — источник записи */}
       <canvas ref={canvasRef} width={720} height={720} className="hidden" />
     </div>
   );
