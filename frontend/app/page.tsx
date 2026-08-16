@@ -39,7 +39,7 @@ export default function HomePage() {
     }
 
     const headers: Record<string, string> = {};
-    if (activeTab === "following" && token) {
+    if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
 
