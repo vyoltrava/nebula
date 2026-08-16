@@ -2,7 +2,7 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback } from "react";
-import { X, Mic, MicOff, RefreshCcw, Video, VideoOff, Square } from "lucide-react";
+import { X, Mic, MicOff, RefreshCcw, Maximize2, Square, Minimize2 } from "lucide-react";
 
 interface Props {
   mode?: "expanded" | "minimized";
@@ -183,12 +183,17 @@ export function VideoNoteRecorder({
 
   const progress = maxDuration > 0 ? Math.min((seconds / maxDuration) * 100, 100) : 0;
 
-  // ==================== MINIMIZED ====================
+  // ==================== MINIMIZED BAR ====================
   if (mode === "minimized") {
     return (
-      <div className="fixed bottom-4 left-3 right-3 z-[300] md:left-auto md:right-5 md:w-[400px]">
-        <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#0a0a0a]/95 p-2 shadow-2xl backdrop-blur-xl">
-          <button onClick={toggleMirror} className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-black ring-2 ring-white/10">
+      <div className="fixed bottom-4 left-3 right-3 z-[300] md:left-auto md:right-5 md:w-[420px]">
+        <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#0a0a0a]/95 p-2.5 shadow-2xl backdrop-blur-xl">
+          {/* Превью камеры */}
+          <button
+            type="button"
+            onClick={toggleMirror}
+            className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-black ring-2 ring-white/10 active:scale-95 transition"
+          >
             <video
               ref={videoRef}
               autoPlay
@@ -197,30 +202,52 @@ export function VideoNoteRecorder({
               className="h-full w-full object-cover"
               style={{ transform: mirrored ? "scaleX(-1)" : undefined }}
             />
-            {isRecording && <span className="absolute left-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 animate-pulse" />}
+            {isRecording && (
+              <span className="absolute left-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+            )}
           </button>
 
+          {/* Таймер + прогресс */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-sm font-semibold text-white tabular-nums">{formatTime(seconds)}</span>
+              <span className="font-mono text-sm font-semibold text-white tabular-nums">
+                {formatTime(seconds)}
+              </span>
               <span className="text-xs text-white/30">/ {formatTime(maxDuration)}</span>
             </div>
             <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
-              <div className="h-full bg-red-500 transition-all duration-200" style={{ width: `${progress}%` }} />
+              <div 
+                className="h-full bg-red-500 transition-all duration-200" 
+                style={{ width: `${progress}%` }} 
+              />
             </div>
           </div>
 
+          {/* Кнопки управления */}
           <div className="flex items-center gap-1">
+            {/* Смена камеры */}
             {canSwitchCamera && !isRecording && (
-              <button onClick={switchCamera} className="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white transition">
+              <button
+                onClick={switchCamera}
+                className="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white transition"
+                title="Сменить камеру"
+              >
                 <RefreshCcw size={16} />
               </button>
             )}
+
+            {/* Развернуть */}
             {onExpand && (
-              <button onClick={onExpand} className="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white transition">
-                <Video size={16} />
+              <button
+                onClick={onExpand}
+                className="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white transition"
+                title="Развернуть"
+              >
+                <Maximize2 size={16} />
               </button>
             )}
+
+            {/* Запись / Стоп */}
             {!isRecording ? (
               <button
                 onClick={startRecording}
@@ -238,7 +265,12 @@ export function VideoNoteRecorder({
                 Стоп
               </button>
             )}
-            <button onClick={() => { cleanupResources(); onCancel(); }} className="rounded-lg p-2 text-white/40 hover:bg-red-500/10 hover:text-red-400 transition">
+
+            {/* Отмена */}
+            <button
+              onClick={() => { cleanupResources(); onCancel(); }}
+              className="rounded-lg p-2 text-white/40 hover:bg-red-500/10 hover:text-red-400 transition"
+            >
               <X size={16} />
             </button>
           </div>
@@ -276,8 +308,9 @@ export function VideoNoteRecorder({
           <button
             onClick={onMinimize}
             className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-white/70 backdrop-blur-md transition hover:bg-white/10 hover:text-white active:scale-95"
+            title="Свернуть"
           >
-            <VideoOff size={20} />
+            <Minimize2 size={20} />
           </button>
         )}
       </div>
