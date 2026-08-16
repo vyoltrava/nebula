@@ -4295,16 +4295,39 @@ async def update_group_info(
 
 def cascade_delete_chat(chat_id: int, session: Session):
     """Удаляет чат со всеми сообщениями и участниками (массовые DELETE для правильного порядка)"""
-    # 1. Удаляем сообщения (нет внешних ключей на message)
+    # 0. Получаем ID всех сообщений в чате (для удаления зависимостей)
+    message_ids = session.exec(
+        select(Message.id).where(Message.chat_id == chat_id)
+    ).all()
+    
+    if message_ids:
+        # 1. Удаляем реакции на сообщения
+        session.exec(delete(MessageReaction).where(MessageReaction.message_id.in_(message_ids)))
+        
+        # 2. Обнуляем reply_to_id в ДРУГИХ чатах, если они ссылаются на эти сообщения
+        session.exec(
+            update(Message)
+            .where(Message.reply_to_id.in_(message_ids))
+            .values(reply_to_id=None)
+        )
+        
+        # 3. Обнуляем forwarded_from_id в ДРУГИХ чатах
+        session.exec(
+            update(Message)
+            .where(Message.forwarded_from_id.in_(message_ids))
+            .values(forwarded_from_id=None)
+        )
+    
+    # 4. Удаляем сообщения
     session.exec(delete(Message).where(Message.chat_id == chat_id))
     
-    # 2. Удаляем сессионные ключи (зависят от chat_id и user_id)
+    # 5. Удаляем сессионные ключи
     session.exec(delete(ChatSessionKey).where(ChatSessionKey.chat_id == chat_id))
     
-    # 3. Удаляем участников чата (зависят от chat_id)
+    # 6. Удаляем участников чата
     session.exec(delete(ChatMember).where(ChatMember.chat_id == chat_id))
     
-    # 4. Удаляем сам чат (теперь ничто не ссылается на него)
+    # 7. Удаляем сам чат
     session.exec(delete(Chat).where(Chat.id == chat_id))
     
     session.commit()
@@ -4316,36 +4339,39 @@ async def delete_chat(
     session: Session = Depends(get_session),
 ):
     """Удалить чат (DM или группа). Для DM — удаляет у обоих."""
-    chat = session.get(Chat, chat_id)
-    if not chat:
-        raise HTTPException(404, "Чат не найден")
-
-    member = session.exec(
-        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
-    ).first()
-    if not member:
-        raise HTTPException(403, "Не участник")
-
-    # Для групп: создатель, админ сайта или право manage_groups
-    if chat.is_group and member.role != "owner" and not user.is_admin and not has_permission(user, "manage_groups", session):
-        raise HTTPException(403, "Только создатель или право manage_groups может удалить группу")
-
-    # Собираем ID всех участников ДО удаления (для рассылки)
-    all_member_ids = session.exec(
-        select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
-    ).all()
-
-    # Каскадное удаление
-    cascade_delete_chat(chat_id, session)
-
-    # 🆕 Рассылаем событие ВСЕМ бывшим участникам
-    await manager.broadcast_to_users(
-        list(all_member_ids),
-        "chat_deleted",
-        {"chat_id": chat_id}
-    )
-
-    return {"ok": True}
+    try:
+        chat = session.get(Chat, chat_id)
+        if not chat:
+            raise HTTPException(404, "Чат не найден")
+        member = session.exec(
+            select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
+        ).first()
+        if not member:
+            raise HTTPException(403, "Не участник")
+        # Для групп: создатель, админ сайта или право manage_groups
+        if chat.is_group and member.role != "owner" and not user.is_admin and not has_permission(user, "manage_groups", session):
+            raise HTTPException(403, "Только создатель или право manage_groups может удалить группу")
+        # Собираем ID всех участников ДО удаления (для рассылки)
+        all_member_ids = session.exec(
+            select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
+        ).all()
+        # Каскадное удаление
+        cascade_delete_chat(chat_id, session)
+        # 🆕 Рассылаем событие ВСЕМ бывшим участникам
+        await manager.broadcast_to_users(
+            list(all_member_ids),
+            "chat_deleted",
+            {"chat_id": chat_id}
+        )
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        session.rollback()
+        print(f"❌ Error deleting chat {chat_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"Ошибка удаления чата: {str(e)}")
 
 
 
