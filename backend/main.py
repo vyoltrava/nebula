@@ -5834,6 +5834,7 @@ async def send_message_v2(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
+    valid_reply_to = None  # ← ДОБАВЬ ЭТУ СТРОКУ
     member = session.exec(
         select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
     ).first()
@@ -6020,6 +6021,7 @@ async def send_typing(
     current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),         # ← добавить
 ):
+    
     # Проверяем что юзер участник чата
     member = session.exec(
         select(ChatMember).where(
