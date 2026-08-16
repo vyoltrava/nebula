@@ -1,9 +1,22 @@
 "use client";
-import { useRef, useState, useEffect, useCallback } from "react";
-import { Square, X, Minimize2, Maximize2, SwitchCamera } from "lucide-react";
+
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import {
+  Camera,
+  Maximize2,
+  Minimize2,
+  RotateCcw,
+  Square,
+  X,
+} from "lucide-react";
 
 interface Props {
-  mode: 'expanded' | 'minimized';
+  mode?: "expanded" | "minimized";
   onRecorded: (file: File) => void;
   onCancel: () => void;
   onMinimize: () => void;
@@ -12,8 +25,60 @@ interface Props {
   maxDuration?: number;
 }
 
+/**
+ * Важно:
+ *
+ * Preview:
+ *   camera stream -> <video>
+ *
+ * Recording:
+ *   <video> -> canvas -> canvas.captureStream() + microphone -> MediaRecorder
+ *
+ * Поэтому canvas вообще не работает, пока запись не началась.
+ */
+
+const IS_MOBILE =
+  typeof navigator !== "undefined" &&
+  /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+const VIDEO_SIZE = IS_MOBILE ? 480 : 640;
+const FPS = IS_MOBILE ? 24 : 30;
+
+const VIDEO_BITRATE = IS_MOBILE ? 1_000_000 : 2_500_000;
+const AUDIO_BITRATE = 128_000;
+
+const MIME_TYPES = IS_MOBILE
+  ? [
+      "video/mp4;codecs=h264,aac",
+      "video/mp4",
+      "video/webm;codecs=h264,opus",
+      "video/webm;codecs=vp8,opus",
+      "video/webm",
+    ]
+  : [
+      "video/webm;codecs=vp9,opus",
+      "video/webm;codecs=vp8,opus",
+      "video/webm",
+      "video/mp4;codecs=h264,aac",
+      "video/mp4",
+    ];
+
+function getSupportedMimeType() {
+  if (typeof MediaRecorder === "undefined") {
+    return "";
+  }
+
+  return MIME_TYPES.find((type) =>
+    MediaRecorder.isTypeSupported(type)
+  ) ?? "";
+}
+
+function getFileExtension(mime: string) {
+  return mime.includes("mp4") ? "mp4" : "webm";
+}
+
 export function VideoNoteRecorder({
-  mode = 'expanded',
+  mode = "expanded",
   onRecorded,
   onCancel,
   onMinimize,
@@ -21,472 +86,1473 @@ export function VideoNoteRecorder({
   onDenied,
   maxDuration = 60,
 }: Props) {
-  // Refs
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // State
-  const [isRecording, setIsRecording] = useState(false);
-  const [isReady, setIsReady] = useState(false);
-  const [seconds, setSeconds] = useState(0);
-  const [facing, setFacing] = useState<"user" | "environment">("user");
-  const [mirrored, setMirrored] = useState(true);
-  const [hasFlip, setHasFlip] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Cleanup function
-  const cleanup = useCallback(() => {
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+
+  const mountedRef = useRef(true);
+  const recordingRef = useRef(false);
+  const mirroredRef = useRef(true);
+  const facingRef = useRef<"user" | "environment">("user");
+
+  const [isReady, setIsReady] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+
+  const [seconds, setSeconds] = useState(0);
+
+  const [facing, setFacing] = useState<"user" | "environment">("user");
+
+  const [mirrored, setMirrored] = useState(true);
+
+  const [hasFrontCamera, setHasFrontCamera] = useState(false);
+  const [hasBackCamera, setHasBackCamera] = useState(false);
+
+  const [error, setError] = useState<string | null>(null);
+
+  const [isSwitchingCamera, setIsSwitchingCamera] =
+    useState(false);
+
+  /**
+   * ---------------------------------------------------------
+   * Helpers
+   * ---------------------------------------------------------
+   */
+
+  const stopStream = useCallback((stream: MediaStream | null) => {
+    if (!stream) return;
+
+    stream.getTracks().forEach((track) => {
+      try {
+        track.stop();
+      } catch {
+        // ignore
+      }
+    });
+  }, []);
+
+  const stopAnimation = useCallback(() => {
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  }, []);
+
+  const stopTimer = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-    
-    if (mediaRecorderRef.current) {
-      try {
-        if (mediaRecorderRef.current.state === 'recording') {
-          mediaRecorderRef.current.stop();
-        }
-      } catch (e) {}
-      mediaRecorderRef.current = null;
-    }
-    
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    
-    chunksRef.current = [];
-    setIsRecording(false);
-    setSeconds(0);
   }, []);
 
-  // Start camera and mic
-  const startDevices = useCallback(async (facingMode: "user" | "environment" = "user") => {
+  /**
+   * ---------------------------------------------------------
+   * Camera detection
+   * ---------------------------------------------------------
+   */
+
+  const detectCameras = useCallback(async () => {
     try {
-      // Cleanup old streams
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
+      const devices =
+        await navigator.mediaDevices.enumerateDevices();
+
+      const cameras = devices.filter(
+        (device) => device.kind === "videoinput"
+      );
+
+      const hasFront = cameras.some((camera) =>
+        /front|user|facetime/i.test(camera.label)
+      );
+
+      const hasBack = cameras.some((camera) =>
+        /back|rear|environment/i.test(camera.label)
+      );
+
+      /**
+       * После permission labels становятся доступными.
+       *
+       * На мобильном Safari label может быть пустым,
+       * поэтому если камер > 1 — считаем, что flip доступен.
+       */
+      if (cameras.length > 1) {
+        setHasFrontCamera(true);
+        setHasBackCamera(true);
+      } else {
+        setHasFrontCamera(hasFront);
+        setHasBackCamera(hasBack);
+      }
+    } catch (err) {
+      console.warn("enumerateDevices failed:", err);
+    }
+  }, []);
+
+  /**
+   * ---------------------------------------------------------
+   * Camera
+   * ---------------------------------------------------------
+   */
+
+  const startCamera = useCallback(
+    async (
+      facingMode: "user" | "environment",
+      keepAudio = false
+    ) => {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error(
+          "Камера не поддерживается этим браузером"
+        );
       }
 
-      const constraints: MediaStreamConstraints = {
+      setIsSwitchingCamera(true);
+
+      try {
+        /**
+         * При смене камеры старый stream нужно обязательно
+         * остановить до getUserMedia().
+         *
+         * Это особенно важно для iOS/PWA.
+         */
+        const oldStream = mediaStreamRef.current;
+
+        if (oldStream) {
+          oldStream
+            .getVideoTracks()
+            .forEach((track) => track.stop());
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: {
+              ideal: facingMode,
+            },
+
+            /**
+             * Не используем exact.
+             *
+             * exact + iOS/PWA иногда приводит к
+             * OverconstrainedError.
+             */
+            width: {
+              ideal: IS_MOBILE ? 720 : 1280,
+            },
+
+            height: {
+              ideal: IS_MOBILE ? 720 : 720,
+            },
+
+            frameRate: {
+              ideal: FPS,
+              max: 30,
+            },
+          },
+
+          /**
+           * Если уже есть audio stream, при переключении камеры
+           * новый микрофон не нужен.
+           */
+          audio: keepAudio
+            ? false
+            : {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+              },
+        });
+
+        if (!mountedRef.current) {
+          stopStream(stream);
+          return;
+        }
+
+        if (keepAudio && mediaStreamRef.current) {
+          const audioTracks =
+            mediaStreamRef.current.getAudioTracks();
+
+          audioTracks.forEach((track) => {
+            try {
+              stream.addTrack(track);
+            } catch {
+              // ignore
+            }
+          });
+        }
+
+        mediaStreamRef.current = stream;
+
+        const video = videoRef.current;
+
+        if (video) {
+          video.srcObject = stream;
+
+          /**
+           * На iOS важно:
+           * muted + playsInline + play()
+           */
+          video.muted = true;
+          video.playsInline = true;
+
+          try {
+            await video.play();
+          } catch {
+            /**
+             * Если autoplay был заблокирован, пользовательский
+             * click позже повторит play().
+             */
+          }
+        }
+
+        facingRef.current = facingMode;
+
+        if (mountedRef.current) {
+          setFacing(facingMode);
+          setMirrored(facingMode === "user");
+          mirroredRef.current = facingMode === "user";
+          setIsReady(true);
+          setError(null);
+        }
+
+        await detectCameras();
+      } finally {
+        if (mountedRef.current) {
+          setIsSwitchingCamera(false);
+        }
+      }
+    },
+    [detectCameras, stopStream]
+  );
+
+  /**
+   * ---------------------------------------------------------
+   * Initial setup
+   * ---------------------------------------------------------
+   */
+
+  const initialize = useCallback(async () => {
+    try {
+      setError(null);
+
+      /**
+       * Один getUserMedia вместо двух.
+       *
+       * Это заметно надежнее для Safari/PWA.
+       */
+      const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: facingMode,
-          width: { ideal: 640 },
-          height: { ideal: 640 },
-          frameRate: { ideal: 30 }
+          facingMode: {
+            ideal: "user",
+          },
+          width: {
+            ideal: IS_MOBILE ? 720 : 1280,
+          },
+          height: {
+            ideal: IS_MOBILE ? 720 : 720,
+          },
+          frameRate: {
+            ideal: FPS,
+            max: 30,
+          },
         },
+
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
-          autoGainControl: true
+          autoGainControl: true,
+        },
+      });
+
+      if (!mountedRef.current) {
+        stopStream(stream);
+        return;
+      }
+
+      mediaStreamRef.current = stream;
+
+      const video = videoRef.current;
+
+      if (video) {
+        video.srcObject = stream;
+        video.muted = true;
+        video.playsInline = true;
+
+        try {
+          await video.play();
+        } catch {
+          // user interaction will retry
         }
-      };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play().catch(() => {});
       }
-      
-      // Check if multiple cameras available
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter(d => d.kind === 'videoinput');
-      setHasFlip(videoDevices.length > 1);
-      
+
+      facingRef.current = "user";
+      mirroredRef.current = true;
+
+      setFacing("user");
+      setMirrored(true);
       setIsReady(true);
-    } catch (error) {
-      console.error('Error starting devices:', error);
-      if (onDenied) {
-        onDenied();
-      } else {
-        alert('Нет доступа к камере или микрофону');
-      }
-      onCancel();
-    }
-  }, [onDenied, onCancel]);
 
-  // Start recording
-  const startRecording = useCallback(() => {
-    if (!streamRef.current) {
-      alert('Камера не готова');
+      await detectCameras();
+    } catch (err: any) {
+      console.error("getUserMedia error:", err);
+
+      if (!mountedRef.current) return;
+
+      let message = "Не удалось получить доступ к камере";
+
+      if (
+        err?.name === "NotAllowedError" ||
+        err?.name === "PermissionDeniedError"
+      ) {
+        message =
+          "Разрешите доступ к камере и микрофону";
+      } else if (err?.name === "NotFoundError") {
+        message = "Камера или микрофон не найдены";
+      } else if (err?.name === "NotReadableError") {
+        message =
+          "Камера уже используется другим приложением";
+      } else if (err?.name === "SecurityError") {
+        message =
+          "Доступ к камере запрещен браузером";
+      }
+
+      setError(message);
+
+      onDenied?.();
+    }
+  }, [detectCameras, onDenied, stopStream]);
+
+  /**
+   * ---------------------------------------------------------
+   * Mount
+   * ---------------------------------------------------------
+   */
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    initialize();
+
+    return () => {
+      mountedRef.current = false;
+
+      stopAnimation();
+      stopTimer();
+
+      const recorder = mediaRecorderRef.current;
+
+      if (recorder) {
+        try {
+          recorder.ondataavailable = null;
+          recorder.onerror = null;
+          recorder.onstop = null;
+
+          if (recorder.state !== "inactive") {
+            recorder.stop();
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      mediaRecorderRef.current = null;
+
+      stopStream(recordingStreamRef.current);
+      stopStream(mediaStreamRef.current);
+
+      recordingStreamRef.current = null;
+      mediaStreamRef.current = null;
+    };
+  }, [initialize, stopAnimation, stopStream, stopTimer]);
+
+  /**
+   * ---------------------------------------------------------
+   * Camera switching
+   * ---------------------------------------------------------
+   */
+
+  const switchCamera = useCallback(async () => {
+    if (isRecording || isSwitchingCamera) return;
+
+    const next =
+      facingRef.current === "user"
+        ? "environment"
+        : "user";
+
+    try {
+      await startCamera(next, true);
+    } catch (err) {
+      console.error("Camera switch failed:", err);
+
+      /**
+       * Если environment камера отсутствует или не поддерживается,
+       * возвращаемся к текущему состоянию.
+       */
+      setError("Не удалось переключить камеру");
+    }
+  }, [isRecording, isSwitchingCamera, startCamera]);
+
+  /**
+   * ---------------------------------------------------------
+   * Mirror
+   * ---------------------------------------------------------
+   */
+
+  const toggleMirror = useCallback(() => {
+    setMirrored((value) => {
+      const next = !value;
+      mirroredRef.current = next;
+      return next;
+    });
+  }, []);
+
+  /**
+   * ---------------------------------------------------------
+   * Canvas drawing
+   * ---------------------------------------------------------
+   *
+   * Canvas запускается ТОЛЬКО во время записи.
+   *
+   * Никаких постоянных requestAnimationFrame в preview.
+   */
+
+  const drawFrame = useCallback(() => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+
+    if (!video || !canvas) return;
+
+    if (
+      video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA ||
+      video.videoWidth === 0 ||
+      video.videoHeight === 0
+    ) {
+      return;
+    }
+
+    const ctx = canvas.getContext("2d", {
+      alpha: false,
+      desynchronized: true,
+    });
+
+    if (!ctx) return;
+
+    const size = canvas.width;
+
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+
+    /**
+     * Center crop -> square.
+     */
+    const sourceSize = Math.min(vw, vh);
+
+    const sx = (vw - sourceSize) / 2;
+    const sy = (vh - sourceSize) / 2;
+
+    ctx.save();
+
+    /**
+     * Mirror only the recorded video.
+     */
+    if (mirroredRef.current) {
+      ctx.translate(size, 0);
+      ctx.scale(-1, 1);
+    }
+
+    ctx.drawImage(
+      video,
+      sx,
+      sy,
+      sourceSize,
+      sourceSize,
+      0,
+      0,
+      size,
+      size
+    );
+
+    ctx.restore();
+  }, []);
+
+  /**
+   * ---------------------------------------------------------
+   * Recording render loop
+   * ---------------------------------------------------------
+   */
+
+  const startCanvasLoop = useCallback(() => {
+    stopAnimation();
+
+    const render = () => {
+      if (!recordingRef.current) {
+        animationFrameRef.current = null;
+        return;
+      }
+
+      drawFrame();
+
+      animationFrameRef.current =
+        requestAnimationFrame(render);
+    };
+
+    animationFrameRef.current =
+      requestAnimationFrame(render);
+  }, [drawFrame, stopAnimation]);
+
+  /**
+   * ---------------------------------------------------------
+   * Start recording
+   * ---------------------------------------------------------
+   */
+
+  const startRecording = useCallback(async () => {
+    if (recordingRef.current) return;
+
+    const sourceStream = mediaStreamRef.current;
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+
+    if (!sourceStream || !canvas || !video) {
+      setError("Камера еще не готова");
       return;
     }
 
     try {
-      // Reset chunks
-      chunksRef.current = [];
-
-      // Get video and audio tracks
-      const videoTracks = streamRef.current.getVideoTracks();
-      const audioTracks = streamRef.current.getAudioTracks();
-
-      if (videoTracks.length === 0) {
-        alert('Нет видеотрека');
-        return;
+      /**
+       * Если autoplay был заблокирован — здесь уже есть
+       * пользовательский gesture.
+       */
+      try {
+        await video.play();
+      } catch {
+        // continue, MediaRecorder may still work
       }
 
-      // Create new stream with both tracks
+      const videoTracks =
+        sourceStream.getVideoTracks();
+
+      const audioTracks =
+        sourceStream.getAudioTracks();
+
+      if (!videoTracks.length) {
+        throw new Error("Видеотрек отсутствует");
+      }
+
+      if (!audioTracks.length) {
+        throw new Error("Аудиотрек отсутствует");
+      }
+
+      /**
+       * Размер canvas задаем только перед записью.
+       */
+      canvas.width = VIDEO_SIZE;
+      canvas.height = VIDEO_SIZE;
+
+      /**
+       * Первый кадр рисуем сразу.
+       */
+      drawFrame();
+
+      /**
+       * Canvas stream существует только во время записи.
+       */
+      const canvasStream =
+        canvas.captureStream(FPS);
+
+      const canvasVideoTrack =
+        canvasStream.getVideoTracks()[0];
+
+      if (!canvasVideoTrack) {
+        throw new Error(
+          "Не удалось создать видеопоток"
+        );
+      }
+
+      const audioTrack = audioTracks[0];
+
       const recordingStream = new MediaStream([
-        ...videoTracks,
-        ...audioTracks
+        canvasVideoTrack,
+        audioTrack,
       ]);
 
-      // Find supported mime type
-      const mimeTypes = [
-        'video/webm;codecs=vp9,opus',
-        'video/webm;codecs=vp8,opus',
-        'video/webm;codecs=h264,opus',
-        'video/webm'
-      ];
-      
-      let mimeType = '';
-      for (const type of mimeTypes) {
-        if (MediaRecorder.isTypeSupported(type)) {
-          mimeType = type;
-          break;
-        }
+      recordingStreamRef.current = recordingStream;
+
+      const mimeType = getSupportedMimeType();
+
+      if (!mimeType) {
+        throw new Error(
+          "Этот браузер не поддерживает запись видео"
+        );
       }
 
-      // Create MediaRecorder
-      const options: MediaRecorderOptions = {
-        mimeType: mimeType || undefined,
-        videoBitsPerSecond: 2500000,
-        audioBitsPerSecond: 128000
-      };
+      chunksRef.current = [];
 
-      const recorder = new MediaRecorder(recordingStream, options);
+      const recorder = new MediaRecorder(
+        recordingStream,
+        {
+          mimeType,
+          videoBitsPerSecond: VIDEO_BITRATE,
+          audioBitsPerSecond: AUDIO_BITRATE,
+        }
+      );
+
       mediaRecorderRef.current = recorder;
 
-      // Handle data
       recorder.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
           chunksRef.current.push(event.data);
         }
       };
 
-      // Handle stop
-      recorder.onstop = () => {
-        if (chunksRef.current.length === 0) {
-          alert('Запись не удалась');
-          return;
-        }
+      recorder.onerror = (event) => {
+        console.error(
+          "MediaRecorder error:",
+          event
+        );
 
-        try {
-          const blob = new Blob(chunksRef.current, { 
-            type: mimeType || 'video/webm' 
-          });
-          
-          if (blob.size === 0) {
-            alert('Файл пуст');
-            return;
-          }
-
-          const ext = mimeType.includes('mp4') ? '.mp4' : '.webm';
-          const file = new File([blob], `video-${Date.now()}${ext}`, {
-            type: mimeType || 'video/webm'
-          });
-          
-          cleanup();
-          onRecorded(file);
-        } catch (error) {
-          console.error('Error creating file:', error);
-          alert('Ошибка создания файла');
+        if (mountedRef.current) {
+          setError("Ошибка во время записи");
         }
       };
 
-      // Start recording
+      recorder.onstop = () => {
+        stopAnimation();
+        stopTimer();
+
+        const chunks = chunksRef.current;
+
+        /**
+         * Закрываем только canvas stream.
+         * Камера и микрофон должны продолжить жить,
+         * чтобы пользователь мог сразу записать еще раз.
+         */
+        stopStream(recordingStreamRef.current);
+        recordingStreamRef.current = null;
+
+        if (!chunks.length) {
+          if (mountedRef.current) {
+            setError("Запись не содержит данных");
+          }
+          return;
+        }
+
+        const blob = new Blob(chunks, {
+          type: mimeType,
+        });
+
+        if (!blob.size) {
+          if (mountedRef.current) {
+            setError("Получен пустой файл");
+          }
+          return;
+        }
+
+        const extension =
+          getFileExtension(mimeType);
+
+        const file = new File(
+          [blob],
+          `video-note-${Date.now()}.${extension}`,
+          {
+            type: mimeType,
+            lastModified: Date.now(),
+          }
+        );
+
+        chunksRef.current = [];
+
+        if (mountedRef.current) {
+          setIsRecording(false);
+          setSeconds(0);
+          onRecorded(file);
+        }
+      };
+
+      /**
+       * Небольшой timeslice.
+       *
+       * 1000ms достаточно стабильно для Safari/PWA
+       * и не создает слишком много Blob.
+       */
       recorder.start(1000);
+
+      recordingRef.current = true;
+
       setIsRecording(true);
       setSeconds(0);
-      
-      // Timer
-      const startTime = Date.now();
+      setError(null);
+
+      startCanvasLoop();
+
+      const startedAt = Date.now();
+
       timerRef.current = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const elapsed = Math.floor(
+          (Date.now() - startedAt) / 1000
+        );
+
+        if (!mountedRef.current) return;
+
         setSeconds(elapsed);
-        
+
         if (elapsed >= maxDuration) {
           stopRecording();
         }
-      }, 1000);
-      
-    } catch (error) {
-      console.error('Error starting recording:', error);
-      alert('Ошибка начала записи');
-      cleanup();
-    }
-  }, [cleanup, maxDuration, onRecorded]);
+      }, 250);
+    } catch (err: any) {
+      console.error(
+        "Start recording failed:",
+        err
+      );
 
-  // Stop recording
+      stopAnimation();
+      stopTimer();
+
+      stopStream(recordingStreamRef.current);
+      recordingStreamRef.current = null;
+
+      recordingRef.current = false;
+
+      if (mountedRef.current) {
+        setIsRecording(false);
+        setError(
+          err?.message ||
+            "Не удалось начать запись"
+        );
+      }
+    }
+  }, [
+    drawFrame,
+    maxDuration,
+    onRecorded,
+    startCanvasLoop,
+    stopAnimation,
+    stopStream,
+    stopTimer,
+  ]);
+
+  /**
+   * ---------------------------------------------------------
+   * Stop recording
+   * ---------------------------------------------------------
+   */
+
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
-    
-    setIsRecording(false);
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
+    const recorder =
+      mediaRecorderRef.current;
 
-  // Toggle camera
-  const toggleCamera = useCallback(async () => {
-    const newFacing = facing === 'user' ? 'environment' : 'user';
-    setFacing(newFacing);
-    setMirrored(newFacing === 'user');
-    await startDevices(newFacing);
-  }, [facing, startDevices]);
+    recordingRef.current = false;
 
-  // Init
+    stopAnimation();
+    stopTimer();
+
+    if (!recorder) {
+      setIsRecording(false);
+      return;
+    }
+
+    if (recorder.state === "recording") {
+      try {
+        /**
+         * Последний кадр перед stop.
+         */
+        drawFrame();
+
+        recorder.stop();
+      } catch (err) {
+        console.error(
+          "Stop recording failed:",
+          err
+        );
+
+        if (mountedRef.current) {
+          setIsRecording(false);
+        }
+      }
+    } else {
+      setIsRecording(false);
+    }
+  }, [
+    drawFrame,
+    stopAnimation,
+    stopTimer,
+  ]);
+
+  /**
+   * ---------------------------------------------------------
+   * Cancel
+   * ---------------------------------------------------------
+   */
+
+  const cancel = useCallback(() => {
+    recordingRef.current = false;
+
+    stopAnimation();
+    stopTimer();
+
+    const recorder =
+      mediaRecorderRef.current;
+
+    if (recorder) {
+      try {
+        recorder.onstop = null;
+        recorder.ondataavailable = null;
+
+        if (recorder.state !== "inactive") {
+          recorder.stop();
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    mediaRecorderRef.current = null;
+
+    stopStream(recordingStreamRef.current);
+    recordingStreamRef.current = null;
+
+    stopStream(mediaStreamRef.current);
+    mediaStreamRef.current = null;
+
+    chunksRef.current = [];
+
+    onCancel();
+  }, [
+    onCancel,
+    stopAnimation,
+    stopStream,
+    stopTimer,
+  ]);
+
+  /**
+   * ---------------------------------------------------------
+   * Visibility
+   * ---------------------------------------------------------
+   *
+   * В PWA пользователь может свернуть приложение.
+   *
+   * Не пытаемся продолжать запись при hidden —
+   * Safari может заморозить JS/video.
+   */
+
   useEffect(() => {
-    startDevices('user');
-    return cleanup;
-  }, [startDevices, cleanup]);
+    const handleVisibility = () => {
+      if (
+        document.visibilityState === "hidden" &&
+        recordingRef.current
+      ) {
+        stopRecording();
+      }
+    };
 
-  // Format time
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibility
+    );
 
-  // Progress
-  const progress = maxDuration > 0 ? (seconds / maxDuration) * 100 : 0;
-  const perimeter = 2 * (94 + 94);
+    return () => {
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibility
+      );
+    };
+  }, [stopRecording]);
 
-  // Error state
-  if (!isReady) {
+  /**
+   * ---------------------------------------------------------
+   * UI
+   * ---------------------------------------------------------
+   */
+
+  const progress =
+    maxDuration > 0
+      ? Math.min(
+          (seconds / maxDuration) * 100,
+          100
+        )
+      : 0;
+
+  const time =
+    `${Math.floor(seconds / 60)}:` +
+    String(seconds % 60).padStart(2, "0");
+
+  const maxTime =
+    `${Math.floor(maxDuration / 60)}:` +
+    String(maxDuration % 60).padStart(2, "0");
+
+  const canSwitchCamera =
+    hasFrontCamera && hasBackCamera;
+
+  /**
+   * ---------------------------------------------------------
+   * Error screen
+   * ---------------------------------------------------------
+   */
+
+  if (error) {
     return (
-      <div className="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-white/20 border-t-[#8b5cf6] rounded-full animate-spin mx-auto" />
-          <p className="text-white/60 mt-4 text-sm">Загрузка камеры...</p>
+      <div className="fixed inset-0 z-[300] bg-black flex items-center justify-center p-6">
+        <div className="w-full max-w-sm text-center">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10">
+            <Camera
+              size={24}
+              className="text-red-400"
+            />
+          </div>
+
+          <p className="text-sm text-white/80">
+            {error}
+          </p>
+
+          <div className="mt-5 flex justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                initialize();
+              }}
+              className="
+                rounded-xl
+                bg-white
+                px-4
+                py-2.5
+                text-sm
+                font-medium
+                text-black
+                transition
+                active:scale-95
+              "
+            >
+              Попробовать снова
+            </button>
+
+            <button
+              type="button"
+              onClick={cancel}
+              className="
+                rounded-xl
+                bg-white/10
+                px-4
+                py-2.5
+                text-sm
+                text-white
+                transition
+                active:scale-95
+              "
+            >
+              Отмена
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
-  // Minimized mode
-  if (mode === 'minimized') {
+  /**
+   * ---------------------------------------------------------
+   * Minimized
+   * ---------------------------------------------------------
+   */
+
+  if (mode === "minimized") {
     return (
-      <div className="fixed bottom-20 left-3 right-3 md:left-auto md:right-6 md:w-[480px] z-[60] bg-[#1f1f23]/95 backdrop-blur-md border border-white/15 rounded-2xl shadow-2xl shadow-black/60 p-3">
-        <div className="flex items-center gap-3">
-          {/* Video preview */}
-          <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-black flex-shrink-0 ring-1 ring-white/10">
+      <div
+        className="
+          fixed
+          bottom-4
+          left-3
+          right-3
+          z-[300]
+          md:left-auto
+          md:right-5
+          md:w-[430px]
+        "
+      >
+        <div
+          className="
+            flex
+            items-center
+            gap-3
+            rounded-2xl
+            border
+            border-white/10
+            bg-[#18181b]/95
+            p-2.5
+            shadow-2xl
+            backdrop-blur-xl
+          "
+        >
+          <button
+            type="button"
+            onClick={toggleMirror}
+            className="
+              relative
+              h-14
+              w-14
+              shrink-0
+              overflow-hidden
+              rounded-xl
+              bg-black
+            "
+          >
             <video
               ref={videoRef}
               autoPlay
-              playsInline
               muted
-              className="w-full h-full object-cover"
-              style={{ transform: mirrored ? 'scaleX(-1)' : 'none' }}
+              playsInline
+              className="h-full w-full object-cover"
+              style={{
+                transform: mirrored
+                  ? "scaleX(-1)"
+                  : undefined,
+              }}
             />
-            {isRecording && (
-              <div className="absolute top-1 left-1 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            )}
-          </div>
 
-          {/* Timer */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 mb-1">
-              <span className="text-sm font-bold text-red-400 tabular-nums">
-                {formatTime(seconds)}
+            {isRecording && (
+              <span
+                className="
+                  absolute
+                  left-1.5
+                  top-1.5
+                  h-2
+                  w-2
+                  rounded-full
+                  bg-red-500
+                "
+              />
+            )}
+          </button>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-sm font-semibold tabular-nums text-white">
+                {time}
               </span>
-              <span className="text-[10px] text-white/40 tabular-nums">
-                / {formatTime(maxDuration)}
+
+              <span className="text-xs text-white/30">
+                / {maxTime}
               </span>
             </div>
-            <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-              <div 
-                className="h-full bg-red-500 transition-all duration-300" 
-                style={{ width: `${progress}%` }} 
+
+            <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full bg-red-500 transition-[width] duration-200"
+                style={{
+                  width: `${progress}%`,
+                }}
               />
             </div>
           </div>
 
-          {/* Controls */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            {hasFlip && (
+          <div className="flex items-center gap-1">
+            {canSwitchCamera && !isRecording && (
               <button
-                onClick={toggleCamera}
-                className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                type="button"
+                onClick={switchCamera}
+                disabled={isSwitchingCamera}
+                className="
+                  rounded-lg
+                  p-2
+                  text-white/60
+                  transition
+                  hover:bg-white/10
+                  hover:text-white
+                  disabled:opacity-30
+                "
               >
-                <SwitchCamera size={15} />
-              </button>
-            )}
-            
-            {onExpand && (
-              <button
-                onClick={onExpand}
-                className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
-              >
-                <Maximize2 size={15} />
+                <RotateCcw size={16} />
               </button>
             )}
 
-            {isRecording ? (
+            {onExpand && (
               <button
-                onClick={stopRecording}
-                className="px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition-colors flex items-center gap-1"
+                type="button"
+                onClick={onExpand}
+                className="
+                  rounded-lg
+                  p-2
+                  text-white/60
+                  transition
+                  hover:bg-white/10
+                  hover:text-white
+                "
               >
-                <Square size={10} fill="currentColor" />
-                Стоп
+                <Maximize2 size={16} />
+              </button>
+            )}
+
+            {!isRecording ? (
+              <button
+                type="button"
+                onClick={startRecording}
+                disabled={!isReady || isSwitchingCamera}
+                className="
+                  rounded-xl
+                  bg-violet-500
+                  px-3
+                  py-2
+                  text-xs
+                  font-semibold
+                  text-white
+                  transition
+                  active:scale-95
+                  disabled:opacity-40
+                "
+              >
+                Запись
               </button>
             ) : (
               <button
-                onClick={startRecording}
-                className="px-3 py-1.5 rounded-lg bg-[#8b5cf6] text-white text-xs font-bold hover:bg-[#7c3aed] transition-colors flex items-center gap-1"
+                type="button"
+                onClick={stopRecording}
+                className="
+                  flex
+                  items-center
+                  gap-1.5
+                  rounded-xl
+                  bg-red-500
+                  px-3
+                  py-2
+                  text-xs
+                  font-semibold
+                  text-white
+                  transition
+                  active:scale-95
+                "
               >
-                <div className="w-2 h-2 rounded-full bg-white" />
-                Запись
+                <Square
+                  size={10}
+                  fill="currentColor"
+                />
+                Стоп
               </button>
             )}
 
             <button
-              onClick={() => {
-                cleanup();
-                onCancel();
-              }}
-              className="p-2 rounded-lg text-white/50 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              type="button"
+              onClick={cancel}
+              className="
+                rounded-lg
+                p-2
+                text-white/40
+                transition
+                hover:bg-red-500/10
+                hover:text-red-400
+              "
             >
               <X size={16} />
             </button>
           </div>
         </div>
+
+        <canvas
+          ref={canvasRef}
+          width={VIDEO_SIZE}
+          height={VIDEO_SIZE}
+          className="hidden"
+        />
       </div>
     );
   }
 
-  // Expanded mode
+  /**
+   * ---------------------------------------------------------
+   * Expanded
+   * ---------------------------------------------------------
+   */
+
   return (
-    <div className="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center">
-      <div className="relative flex flex-col items-center">
-        {/* Video preview */}
-        <div className="relative w-[340px] h-[340px] sm:w-[440px] sm:h-[440px] rounded-2xl overflow-hidden bg-black shadow-2xl ring-1 ring-white/10">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black p-4">
+      <div className="flex w-full max-w-[520px] flex-col items-center">
+        {/* Preview */}
+        <div
+          className="
+            relative
+            aspect-square
+            w-full
+            max-w-[460px]
+            overflow-hidden
+            rounded-[28px]
+            bg-[#111]
+            shadow-2xl
+          "
+        >
           <video
             ref={videoRef}
             autoPlay
-            playsInline
             muted
-            className="w-full h-full object-cover"
-            style={{ transform: mirrored ? 'scaleX(-1)' : 'none' }}
+            playsInline
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{
+              transform: mirrored
+                ? "scaleX(-1)"
+                : undefined,
+            }}
           />
 
-          {/* Progress ring */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100">
-            <rect 
-              x="1.5" y="1.5" width="97" height="97" rx="10" 
-              fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" 
-            />
-            {isRecording && (
-              <rect 
-                x="1.5" y="1.5" width="97" height="97" rx="10" 
-                fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round"
-                strokeDasharray={perimeter} 
-                strokeDashoffset={perimeter * (1 - progress / 100)}
-                className="transition-all duration-300" 
-              />
-            )}
-          </svg>
+          {/* recording canvas — hidden from UI */}
+          <canvas
+            ref={canvasRef}
+            width={VIDEO_SIZE}
+            height={VIDEO_SIZE}
+            className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
+          />
 
-          {/* Status badge */}
-          <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm rounded-full px-2.5 py-1 ring-1 ring-white/10">
-            <span className="text-[11px] text-white/90 font-bold">
-              {mirrored ? '🪞 зеркало' : 'без зеркала'}
-            </span>
+          {/* Top bar */}
+          <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
+            <div
+              className="
+                rounded-full
+                bg-black/40
+                px-3
+                py-1.5
+                text-xs
+                text-white/70
+                backdrop-blur-md
+              "
+            >
+              {facing === "user"
+                ? "Фронтальная"
+                : "Основная"}
+            </div>
+
+            {isRecording && (
+              <div
+                className="
+                  flex
+                  items-center
+                  gap-2
+                  rounded-full
+                  bg-black/50
+                  px-3
+                  py-1.5
+                  font-mono
+                  text-xs
+                  text-white
+                  backdrop-blur-md
+                "
+              >
+                <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+
+                {time}
+
+                <span className="text-white/40">
+                  / {maxTime}
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* Timer */}
-          {isRecording && (
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm rounded-full px-4 py-1.5 ring-1 ring-white/10 flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-white text-sm font-mono font-bold tabular-nums">
-                {formatTime(seconds)}
+          {/* Mirror */}
+          {!isRecording && (
+            <button
+              type="button"
+              onClick={toggleMirror}
+              className="
+                absolute
+                bottom-4
+                left-4
+                flex
+                items-center
+                gap-2
+                rounded-full
+                bg-black/45
+                px-3
+                py-2
+                text-xs
+                text-white/80
+                backdrop-blur-md
+                transition
+                active:scale-95
+              "
+            >
+              <span>
+                {mirrored ? "Зеркало" : "Оригинал"}
               </span>
-              <span className="text-white/40 text-xs font-mono">
-                / {formatTime(maxDuration)}
-              </span>
+            </button>
+          )}
+
+          {/* Loading */}
+          {!isReady && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+              <div className="text-center">
+                <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+
+                <p className="mt-3 text-xs text-white/50">
+                  Камера запускается…
+                </p>
+              </div>
             </div>
           )}
 
-          {/* Hint */}
-          {!isRecording && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="text-center">
-                <p className="text-white/40 text-sm font-medium">
-                  Нажмите ● для записи
-                </p>
-                <p className="text-white/20 text-xs mt-1">
-                  {facing === 'user' ? 'фронтальная' : 'тыловая'} камера
-                </p>
-              </div>
+          {/* Progress */}
+          {isRecording && (
+            <div className="absolute inset-x-0 bottom-0 h-1 bg-white/10">
+              <div
+                className="h-full bg-red-500 transition-[width] duration-200"
+                style={{
+                  width: `${progress}%`,
+                }}
+              />
             </div>
           )}
         </div>
 
         {/* Controls */}
-        <div className="mt-6 flex items-center justify-center gap-6 sm:gap-8">
+        <div className="mt-6 flex w-full items-center justify-center gap-4">
+          {/* Cancel */}
           <button
-            onClick={() => {
-              cleanup();
-              onCancel();
-            }}
-            className="w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center text-white/80"
+            type="button"
+            onClick={cancel}
+            className="
+              flex
+              h-12
+              w-12
+              items-center
+              justify-center
+              rounded-full
+              bg-white/10
+              text-white/70
+              transition
+              hover:bg-white/15
+              active:scale-95
+            "
           >
-            <X size={24} />
+            <X size={20} />
           </button>
 
+          {/* Camera */}
           <button
-            onClick={toggleCamera}
-            disabled={!hasFlip}
-            className={`w-14 h-14 rounded-full transition-colors flex items-center justify-center ${
-              hasFlip 
-                ? 'bg-white/10 hover:bg-white/20 text-white/80' 
-                : 'bg-white/5 text-white/20 cursor-not-allowed'
-            }`}
+            type="button"
+            onClick={switchCamera}
+            disabled={
+              !canSwitchCamera ||
+              isRecording ||
+              isSwitchingCamera
+            }
+            className="
+              flex
+              h-12
+              w-12
+              items-center
+              justify-center
+              rounded-full
+              bg-white/10
+              text-white/70
+              transition
+              hover:bg-white/15
+              active:scale-95
+              disabled:cursor-not-allowed
+              disabled:opacity-25
+            "
+            title={
+              canSwitchCamera
+                ? "Сменить камеру"
+                : "Доступна одна камера"
+            }
           >
-            <SwitchCamera size={22} />
+            <RotateCcw
+              size={20}
+              className={
+                isSwitchingCamera
+                  ? "animate-spin"
+                  : ""
+              }
+            />
           </button>
 
-          {isRecording ? (
+          {/* Record */}
+          {!isRecording ? (
             <button
-              onClick={stopRecording}
-              className="w-20 h-20 rounded-full bg-red-500 hover:bg-red-600 transition-colors flex items-center justify-center shadow-lg shadow-red-500/30 ring-4 ring-red-500/20"
+              type="button"
+              onClick={startRecording}
+              disabled={!isReady}
+              className="
+                flex
+                h-[72px]
+                w-[72px]
+                items-center
+                justify-center
+                rounded-full
+                bg-white
+                shadow-xl
+                shadow-black/30
+                transition
+                active:scale-95
+                disabled:cursor-not-allowed
+                disabled:opacity-40
+              "
             >
-              <Square size={28} className="text-white" fill="white" />
+              <span
+                className="
+                  h-5
+                  w-5
+                  rounded-full
+                  bg-red-500
+                "
+              />
             </button>
           ) : (
             <button
-              onClick={startRecording}
-              className="w-20 h-20 rounded-full bg-[#8b5cf6] hover:bg-[#7c3aed] transition-colors flex items-center justify-center shadow-lg shadow-[#8b5cf6]/30 ring-4 ring-[#8b5cf6]/20"
+              type="button"
+              onClick={stopRecording}
+              className="
+                flex
+                h-[72px]
+                w-[72px]
+                items-center
+                justify-center
+                rounded-full
+                bg-red-500
+                shadow-xl
+                shadow-red-500/20
+                transition
+                active:scale-95
+              "
             >
-              <div className="w-9 h-9 rounded-full border-[3px] border-white flex items-center justify-center">
-                <div className="w-5 h-5 rounded-sm bg-white" />
-              </div>
+              <span
+                className="
+                  h-6
+                  w-6
+                  rounded-md
+                  bg-white
+                "
+              />
             </button>
           )}
 
+          {/* Minimize */}
           <button
+            type="button"
             onClick={onMinimize}
-            className="w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center text-white/80"
+            disabled={isSwitchingCamera}
+            className="
+              flex
+              h-12
+              w-12
+              items-center
+              justify-center
+              rounded-full
+              bg-white/10
+              text-white/70
+              transition
+              hover:bg-white/15
+              active:scale-95
+            "
           >
-            <Minimize2 size={22} />
+            <Minimize2 size={20} />
           </button>
         </div>
 
-        {/* Footer info */}
+        {/* Hint */}
         <div className="mt-4 text-center">
-          <p className="text-white/30 text-xs font-medium">
-            {isRecording 
-              ? `⏺ ${formatTime(seconds)} · ${mirrored ? '🪞' : ''} ${facing === 'user' ? 'фронт' : 'тыл'}`
-              : '↓ Свернуть · 🔄 Камера · ● Записать · ✕ Отменить'
-            }
+          <p className="text-[11px] text-white/30">
+            {isRecording
+              ? "Нажмите кнопку, чтобы остановить"
+              : "Тап по «Зеркало» меняет отражение"}
           </p>
         </div>
       </div>
