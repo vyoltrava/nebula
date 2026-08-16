@@ -215,11 +215,7 @@ export function Post({
       return cached?.permissions || [];
     });
 
-    const [liked, setLiked] = useState<boolean>(() => {
-      const cached = isLikedCached(id);
-      if (cached !== undefined && cached !== null) return cached;
-      return liked_by_me;
-    });
+    const [liked, setLiked] = useState<boolean>(liked_by_me);
     const [count, setCount] = useState(likes_count);
   useEffect(() => {
     setCount(likes_count ?? 0);
@@ -338,8 +334,8 @@ async function toggleLike() {
 
   const next = !liked;
   setLiked(next);
-  setCount((c) => Math.max(0, next ? (c ?? 0) + 1 : (c ?? 0) - 1)); // 🛡️ Защита от минуса и NaN
-  setLikedCache(id, next);
+  setCount((c) => Math.max(0, next ? (c ?? 0) + 1 : (c ?? 0) - 1));
+  // setLikedCache(id, next); // убрали — кэш обновим только после ответа сервера
 
   const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/like`, {
     method: "POST",
@@ -568,14 +564,9 @@ async function toggleLike() {
     }
   }
 
-  useEffect(() => {
-    const cached = isLikedCached(id);
-    if (cached !== undefined && cached !== null) {
-      setLiked(cached);
-    } else {
+    useEffect(() => {
       setLiked(liked_by_me);
-    }
-  }, [liked_by_me, id]);
+    }, [liked_by_me]);
 
   const canDelete = currentUser?.id === author_id || myPermissions.includes("delete_posts");
   const canEdit = currentUser?.id === author_id || myPermissions.includes("edit_posts");
