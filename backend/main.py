@@ -5925,6 +5925,8 @@ async def send_message_v2(
             if reply_msg and reply_msg.chat_id == chat_id:
                 valid_reply_to = reply_to_id
 
+    msg = None
+    try:
         msg = Message(
             chat_id=chat_id,
             sender_id=user.id,
@@ -5932,8 +5934,15 @@ async def send_message_v2(
             ciphertext=ciphertext.strip() if ciphertext else None,
             media_url=media_url,
             media_type=media_type_final,
-            reply_to_id=valid_reply_to,  # 🆕
+            reply_to_id=valid_reply_to,
         )
+    except Exception as e:
+        print(f"❌ Failed to create Message: {e}")
+        raise HTTPException(500, f"Ошибка создания сообщения: {str(e)}")
+    
+    if msg is None:
+        raise HTTPException(500, "Не удалось создать сообщение")
+    
     session.add(msg)
 
     other_members = session.exec(
