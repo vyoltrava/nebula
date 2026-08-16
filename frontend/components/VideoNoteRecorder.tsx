@@ -109,10 +109,11 @@ export function VideoNoteRecorder({
       onCancel();
     }
   }
+  const drawIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // --- CANVAS: квадрат 720×720 + зеркало. ИМЕННО ЭТО пишем в файл ---
   function startDrawLoop() {
-    const loop = () => {
+    if (drawIntervalRef.current) clearInterval(drawIntervalRef.current);
+    drawIntervalRef.current = setInterval(() => {
       const video = videoRef.current;
       const canvas = canvasRef.current;
       if (video && canvas && video.readyState >= 2 && video.videoWidth > 0) {
@@ -121,7 +122,7 @@ export function VideoNoteRecorder({
           const size = canvas.width;
           const vw = video.videoWidth;
           const vh = video.videoHeight;
-          const side = Math.min(vw, vh);          // квадрат по центру кадра
+          const side = Math.min(vw, vh);
           const sx = (vw - side) / 2;
           const sy = (vh - side) / 2;
           ctx.save();
@@ -134,9 +135,7 @@ export function VideoNoteRecorder({
           ctx.restore();
         }
       }
-      rafRef.current = requestAnimationFrame(loop);
-    };
-    rafRef.current = requestAnimationFrame(loop);
+    }, 1000 / 30);
   }
 
   // --- ПЕРЕКЛЮЧЕНИЕ КАМЕРЫ (работает даже во время записи) ---
@@ -226,7 +225,10 @@ export function VideoNoteRecorder({
   }
 
   function cleanupResources() {
-    cancelAnimationFrame(rafRef.current);
+    if (drawIntervalRef.current) {
+      clearInterval(drawIntervalRef.current);
+      drawIntervalRef.current = null;
+    }
     if (mediaRecorderRef.current) {
       try {
         if (mediaRecorderRef.current.state === "recording") {
