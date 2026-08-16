@@ -658,152 +658,157 @@ async function activate2FA() {
         </div>
       </div>
 
-      {/* ===== MODAL: 2FA Setup ===== */}
-      {show2FASetup && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70" onClick={() => !loading2FA && setShow2FASetup(false)} />
-          <div className="relative bg-[#1E1E23] border border-white/10 rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-semibold">Настройка 2FA</h3>
-              <button
-                onClick={() => !loading2FA && setShow2FASetup(false)}
-                className="text-[#B9B8BD] hover:text-white transition-colors p-1"
-                disabled={loading2FA}
-              >
-                <X size={20} />
-              </button>
-            </div>
+{/* ===== MODAL: 2FA Setup ===== */}
+{show2FASetup && (
+  <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+    <div className="absolute inset-0 bg-black/70" onClick={() => !loading2FA && setShow2FASetup(false)} />
+    <div className="relative bg-[#1E1E23] border border-white/10 rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="flex items-center justify-between mb-5">
+        <h3 className="text-lg font-semibold">
+          {setupStep === "backup" ? "2FA активирована!" : "Настройка 2FA"}
+        </h3>
+        <button
+          onClick={() => !loading2FA && setShow2FASetup(false)}
+          className="text-[#B9B8BD] hover:text-white transition-colors p-1"
+          disabled={loading2FA}
+        >
+          <X size={20} />
+        </button>
+      </div>
 
-            {setupStep === "scan" && (
-              <div className="space-y-4">
-                <div className="space-y-2 text-sm text-[#B9B8BD]">
-                  <p><span className="text-[#a678f7] font-semibold mr-2">1</span>Откройте Google Authenticator / Authy</p>
-                  <p><span className="text-[#a678f7] font-semibold mr-2">2</span>Нажмите «+» → «Сканировать QR-код»</p>
-                  <p><span className="text-[#a678f7] font-semibold mr-2">3</span>Отсканируйте код ниже</p>
-                </div>
-
-                <div className="flex justify-center bg-white rounded-lg p-5">
-                  <img src={qrCode} alt="QR" className="w-52 h-52" />
-                </div>
-
-                <details className="group">
-                  <summary className="text-sm text-[#B9B8BD] cursor-pointer hover:text-white transition-colors">
-                    Нет камеры? Введите ключ вручную
-                  </summary>
-                  <div className="mt-3 p-3 rounded-lg bg-white/5 border border-white/10">
-                    <p className="text-xs text-[#B9B8BD] mb-1">Секретный ключ:</p>
-                    <p className="font-mono text-sm text-white break-all select-all">{secret}</p>
-                  </div>
-                </details>
-
-                <button onClick={() => setSetupStep("verify")} className={btnPrimary + " w-full"}>
-                  Далее
-                </button>
-              </div>
-            )}
-
-            {setupStep === "verify" && (
-              <div className="space-y-4">
-                <p className="text-sm text-[#B9B8BD]">Введите 6-значный код из приложения-аутентификатора:</p>
-                <input
-                  value={verifyCode}
-                  onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="000000"
-                  className={inputCls + " text-center text-2xl tracking-[0.5em] font-mono py-3"}
-                  autoFocus
-                  disabled={loading2FA}
-                />
-                <button
-                  onClick={activate2FA}
-                  disabled={verifyCode.length !== 6 || loading2FA}
-                  className={btnPrimary + " w-full"}
-                >
-                  {loading2FA ? "Проверка..." : "Активировать 2FA"}
-                </button>
-                <button
-                  onClick={() => setSetupStep("scan")}
-                  disabled={loading2FA}
-                  className="w-full text-sm text-[#B9B8BD] hover:text-white transition-colors disabled:opacity-40"
-                >
-                  ← Назад
-                </button>
-              </div>
-            )}
+      {setupStep === "scan" && (
+        <div className="space-y-4">
+          <div className="space-y-2 text-sm text-[#B9B8BD]">
+            <p><span className="text-[#a678f7] font-semibold mr-2">1</span>Откройте Google Authenticator / Authy</p>
+            <p><span className="text-[#a678f7] font-semibold mr-2">2</span>Нажмите «+» → «Сканировать QR-код»</p>
+            <p><span className="text-[#a678f7] font-semibold mr-2">3</span>Отсканируйте код ниже</p>
           </div>
+
+          <div className="flex justify-center bg-white rounded-lg p-5">
+            <img src={qrCode} alt="QR" className="w-52 h-52" />
+          </div>
+
+          <details className="group">
+            <summary className="text-sm text-[#B9B8BD] cursor-pointer hover:text-white transition-colors">
+              Нет камеры? Введите ключ вручную
+            </summary>
+            <div className="mt-3 p-3 rounded-lg bg-white/5 border border-white/10">
+              <p className="text-xs text-[#B9B8BD] mb-1">Секретный ключ:</p>
+              <p className="font-mono text-sm text-white break-all select-all">{secret}</p>
+            </div>
+          </details>
+
+          <button onClick={() => setSetupStep("verify")} className={btnPrimary + " w-full"}>
+            Далее
+          </button>
         </div>
       )}
 
-{setupStep === "backup" && (
-  <div className="space-y-4">
-    <div className="flex items-center gap-2 mb-2">
-      <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
-        <CheckCircle2 size={18} className="text-emerald-400" />
-      </div>
-      <div>
-        <h4 className="text-white font-bold">2FA активирована!</h4>
-        <p className="text-xs text-white/50">Сохраните резервные коды</p>
-      </div>
-    </div>
-
-    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-      <p className="text-xs text-amber-300 font-semibold mb-2">
-        ⚠️ Важно! Сохраните эти коды в надёжном месте.
-      </p>
-      <p className="text-[11px] text-amber-200/70 mb-3">
-        Если потеряете телефон — это единственный способ войти в аккаунт.
-        Каждый код можно использовать только один раз.
-      </p>
-    </div>
-
-    <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-[#1C1C1F] border border-white/10">
-      {backupCodes.map((code, i) => (
-        <div
-          key={i}
-          className="font-mono text-sm text-white bg-white/5 px-3 py-2 rounded border border-white/10 text-center tracking-wider select-all"
-        >
-          {code}
+      {setupStep === "verify" && (
+        <div className="space-y-4">
+          <p className="text-sm text-[#B9B8BD]">Введите 6-значный код из приложения-аутентификатора:</p>
+          <input
+            value={verifyCode}
+            onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="000000"
+            className={inputCls + " text-center text-2xl tracking-[0.5em] font-mono py-3"}
+            autoFocus
+            disabled={loading2FA}
+          />
+          <button
+            onClick={activate2FA}
+            disabled={verifyCode.length !== 6 || loading2FA}
+            className={btnPrimary + " w-full"}
+          >
+            {loading2FA ? "Проверка..." : "Активировать 2FA"}
+          </button>
+          <button
+            onClick={() => setSetupStep("scan")}
+            disabled={loading2FA}
+            className="w-full text-sm text-[#B9B8BD] hover:text-white transition-colors disabled:opacity-40"
+          >
+            ← Назад
+          </button>
         </div>
-      ))}
-    </div>
+      )}
 
-    <div className="flex gap-2">
-      <button
-        onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(backupCodes.join("\n"));
-            alert("✅ Коды скопированы в буфер обмена!\n\nВставьте их в заметки или сохраните в безопасное место.");
-          } catch {
-            // fallback
-            const textarea = document.createElement("textarea");
-            textarea.value = backupCodes.join("\n");
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand("copy");
-            document.body.removeChild(textarea);
-            alert("✅ Коды скопированы!");
-          }
-        }}
-        className="flex-1 py-2.5 rounded-lg bg-[#7B3FF2] text-white font-bold text-sm hover:bg-[#6a34d3] transition-colors flex items-center justify-center gap-2"
-      >
-        <Copy size={14} /> Скопировать все
-      </button>
-      <button
-        onClick={() => {
-          if (confirm("Вы точно сохранили коды?\n\nБез них вы не сможете войти если потеряете телефон!")) {
-            setShow2FASetup(false);
-          }
-        }}
-        className="flex-1 py-2.5 rounded-lg border border-emerald-500/50 text-emerald-400 font-bold text-sm hover:bg-emerald-500/10 transition-colors"
-      >
-        ✓ Я сохранил
-      </button>
-    </div>
+      {/* 🆕 ШАГ 3: ПОКАЗ РЕЗЕРВНЫХ КОДОВ — ВНУТРИ МОДАЛКИ */}
+      {setupStep === "backup" && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+              <CheckCircle2 size={18} className="text-emerald-400" />
+            </div>
+            <div>
+              <h4 className="text-white font-bold">2FA активирована!</h4>
+              <p className="text-xs text-white/50">Сохраните резервные коды</p>
+            </div>
+          </div>
 
-    <p className="text-[10px] text-white/30 text-center">
-      Кнопка "Я сохранил" закроет окно без повторного показа кодов
-    </p>
+          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+            <p className="text-xs text-amber-300 font-semibold mb-2">
+              ⚠️ Важно! Сохраните эти коды в надёжном месте.
+            </p>
+            <p className="text-[11px] text-amber-200/70 mb-3">
+              Если потеряете телефон — это единственный способ войти в аккаунт.
+              Каждый код можно использовать только один раз.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-[#1C1C1F] border border-white/10">
+            {backupCodes.map((code, i) => (
+              <div
+                key={i}
+                className="font-mono text-sm text-white bg-white/5 px-3 py-2 rounded border border-white/10 text-center tracking-wider select-all"
+              >
+                {code}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(backupCodes.join("\n"));
+                  alert("✅ Коды скопированы в буфер обмена!\n\nВставьте их в заметки или сохраните в безопасное место.");
+                } catch {
+                  const textarea = document.createElement("textarea");
+                  textarea.value = backupCodes.join("\n");
+                  document.body.appendChild(textarea);
+                  textarea.select();
+                  document.execCommand("copy");
+                  document.body.removeChild(textarea);
+                  alert("✅ Коды скопированы!");
+                }
+              }}
+              className="flex-1 py-2.5 rounded-lg bg-[#7B3FF2] text-white font-bold text-sm hover:bg-[#6a34d3] transition-colors flex items-center justify-center gap-2"
+            >
+              <Copy size={14} /> Скопировать все
+            </button>
+            <button
+              onClick={() => {
+                if (confirm("Вы точно сохранили коды?\n\nБез них вы не сможете войти если потеряете телефон!")) {
+                  setShow2FASetup(false);
+                }
+              }}
+              className="flex-1 py-2.5 rounded-lg border border-emerald-500/50 text-emerald-400 font-bold text-sm hover:bg-emerald-500/10 transition-colors"
+            >
+              ✓ Я сохранил
+            </button>
+          </div>
+
+          <p className="text-[10px] text-white/30 text-center">
+            Кнопка "Я сохранил" закроет окно без повторного показа кодов
+          </p>
+        </div>
+      )}
+    </div>
   </div>
 )}
+
+
+
 
 
       {/* ===== MODAL: Disable 2FA ===== */}

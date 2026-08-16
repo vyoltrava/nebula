@@ -220,47 +220,80 @@ export default function SecuritySettingsPage() {
         </div>
 
         {/* ===== МОДАЛКА: Настройка 2FA ===== */}
-        {show2FASetup && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-            <div className="absolute inset-0 bg-black/80" onClick={() => setShow2FASetup(false)} />
-            <div className="relative bg-[#1f1f23] border border-white/15 rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-white">Настройка 2FA</h3>
-                <button onClick={() => setShow2FASetup(false)} className="text-white/50 hover:text-white">
-                  <X size={20} />
-                </button>
-              </div>
+{/* ===== MODAL: 2FA Setup ===== */}
+{show2FASetup && (
+  <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+    <div className="absolute inset-0 bg-black/70" onClick={() => !loading2FA && setShow2FASetup(false)} />
+    <div className="relative bg-[#1E1E23] border border-white/10 rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+      <div className="flex items-center justify-between mb-5">
+        <h3 className="text-lg font-semibold">
+          {setupStep === "backup" ? "2FA активирована!" : "Настройка 2FA"}
+        </h3>
+        <button
+          onClick={() => !loading2FA && setShow2FASetup(false)}
+          className="text-[#B9B8BD] hover:text-white transition-colors p-1"
+          disabled={loading2FA}
+        >
+          <X size={20} />
+        </button>
+      </div>
 
-              {setupStep === "scan" && (
-                <div className="space-y-4">
-                  <p className="text-sm text-white/60">
-                    1. Откройте Google Authenticator или Authy
-                  </p>
-                  <p className="text-sm text-white/60">
-                    2. Нажмите «+» → «Сканировать QR-код»
-                  </p>
-                  <p className="text-sm text-white/60">
-                    3. Отсканируйте этот QR-код:
-                  </p>
-                  <div className="flex justify-center bg-white rounded-xl p-4">
-                    <img src={qrCode} alt="QR" className="w-48 h-48" />
-                  </div>
-                  <details>
-                    <summary className="text-xs text-white/40 cursor-pointer">
-                      Нет камеры? Введите ключ вручную
-                    </summary>
-                    <p className="mt-2 font-mono text-sm text-amber-300 break-all bg-white/5 p-3 rounded-lg">
-                      {secret}
-                    </p>
-                  </details>
-                  <button
-                    onClick={() => setSetupStep("verify")}
-                    className="w-full py-2.5 rounded-lg bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed]"
-                  >
-                    Далее →
-                  </button>
-                </div>
-              )}
+      {setupStep === "scan" && (
+        <div className="space-y-4">
+          <div className="space-y-2 text-sm text-[#B9B8BD]">
+            <p><span className="text-[#a678f7] font-semibold mr-2">1</span>Откройте Google Authenticator / Authy</p>
+            <p><span className="text-[#a678f7] font-semibold mr-2">2</span>Нажмите «+» → «Сканировать QR-код»</p>
+            <p><span className="text-[#a678f7] font-semibold mr-2">3</span>Отсканируйте код ниже</p>
+          </div>
+
+          <div className="flex justify-center bg-white rounded-lg p-5">
+            <img src={qrCode} alt="QR" className="w-52 h-52" />
+          </div>
+
+          <details className="group">
+            <summary className="text-sm text-[#B9B8BD] cursor-pointer hover:text-white transition-colors">
+              Нет камеры? Введите ключ вручную
+            </summary>
+            <div className="mt-3 p-3 rounded-lg bg-white/5 border border-white/10">
+              <p className="text-xs text-[#B9B8BD] mb-1">Секретный ключ:</p>
+              <p className="font-mono text-sm text-white break-all select-all">{secret}</p>
+            </div>
+          </details>
+
+          <button onClick={() => setSetupStep("verify")} className={btnPrimary + " w-full"}>
+            Далее
+          </button>
+        </div>
+      )}
+
+      {setupStep === "verify" && (
+        <div className="space-y-4">
+          <p className="text-sm text-[#B9B8BD]">Введите 6-значный код из приложения-аутентификатора:</p>
+          <input
+            value={verifyCode}
+            onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="000000"
+            className={inputCls + " text-center text-2xl tracking-[0.5em] font-mono py-3"}
+            autoFocus
+            disabled={loading2FA}
+          />
+          <button
+            onClick={activate2FA}
+            disabled={verifyCode.length !== 6 || loading2FA}
+            className={btnPrimary + " w-full"}
+          >
+            {loading2FA ? "Проверка..." : "Активировать 2FA"}
+          </button>
+          <button
+            onClick={() => setSetupStep("scan")}
+            disabled={loading2FA}
+            className="w-full text-sm text-[#B9B8BD] hover:text-white transition-colors disabled:opacity-40"
+          >
+            ← Назад
+          </button>
+        </div>
+      )}
+
 
               {setupStep === "verify" && (
                 <div className="space-y-4">
