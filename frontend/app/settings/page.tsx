@@ -26,18 +26,33 @@ import { LiveTextSettings } from "@/components/LiveTextSettings";
 
 type View = "root" | "profile" | "permissions" | "messages" | "security";
 
-/* Огромное название, ОБРЕЗАННОЕ верхней гранью экрана — inline-стилями, чтобы работало всегда */
-function BigTitle({ text }: { text: string }) {
+/*
+  Заголовок как в WP7 Metro / Zune:
+  - ширина слова ~85vw (видно ~75%, остальное за правым краем)
+  - обрезан сверху и справа
+  - тап по слову = назад (как в Zune HD)
+*/
+function BigTitle({ text, onBack }: { text: string; onBack?: () => void }) {
+  const sizeVw = Math.round(170 / text.length);
   return (
     <div
-      aria-hidden
-      className="overflow-hidden pointer-events-none select-none"
-      style={{ fontSize: "clamp(4.5rem, 18vw, 10rem)", height: "0.6em" }}
+      className="relative overflow-hidden"
+      style={{ fontSize: `clamp(3.5rem, ${sizeVw}vw, 20rem)`, height: "0.62em" }}
     >
       <h1
         key={text}
-        className="zune-in font-extralight lowercase whitespace-nowrap text-[#c084fc] drop-shadow-[0_0_25px_rgba(168,85,247,0.45)]"
-        style={{ fontSize: "1em", lineHeight: 1, marginTop: "-0.4em" }}
+        onClick={onBack}
+        className={`zune-in font-extralight lowercase whitespace-nowrap text-[#a855f7] ${
+          onBack ? "cursor-pointer active:opacity-50 transition-opacity" : ""
+        }`}
+        style={{
+          position: "absolute",
+          top: "-0.38em",
+          right: 0,
+          transform: "translateX(12%)",
+          fontSize: "1em",
+          lineHeight: 1,
+        }}
       >
         {text}
       </h1>
@@ -345,25 +360,23 @@ export default function SettingsPage() {
         .zune-in { animation: zuneIn .25s ease-out; }
       `}</style>
 
-      {/* ===== КРУГЛАЯ КНОПКА НАЗАД — как на фото Zune ===== */}
+      {/* ===== КНОПКА НАЗАД: круг, чуть выходит за левый край экрана ===== */}
       <button
         onClick={goBack}
         aria-label="Назад"
-        className="fixed top-4 left-4 z-50 w-11 h-11 rounded-full border-2 border-white/50 text-white/80 bg-black/30 backdrop-blur-sm flex items-center justify-center hover:border-white hover:text-white transition-colors"
+        className="fixed -left-4 top-5 z-50 w-14 h-14 rounded-full border-2 border-white/60 text-white/80 flex items-center justify-center hover:border-white hover:text-white transition-colors"
       >
-        <ArrowLeft size={18} />
+        <ArrowLeft size={20} />
       </button>
 
-      {/* ===== СТАТУС СПРАВА СВЕРХУ (как батарейка на zune) ===== */}
-      <div className="fixed top-6 right-5 z-50 text-[10px] uppercase tracking-[0.3em] text-white/40">
-        @<span className="text-[#c084fc]">{user.username}</span>
-      </div>
-
       <main className="px-5 sm:px-10 lg:px-16 max-w-5xl mx-auto pb-24">
-        {/* ===== ОГРОМНОЕ СЛОВО, СРЕЗАННОЕ ВЕРХНЕЙ ГРАНЬЮ ЭКРАНА ===== */}
-        <BigTitle text={title} />
+        {/* ===== НАЗВАНИЕ: вправо, ~75% ширины, режется правым краем и сверху; тап = назад ===== */}
+        <BigTitle
+          text={title}
+          onBack={view !== "root" ? () => setView("root") : undefined}
+        />
 
-        {/* ==================== ROOT: СПИСОК КАК НА ФОТО ==================== */}
+        {/* ==================== ROOT: СПИСОК ПУНКТОВ ==================== */}
         {view === "root" && (
           <div key="root" className="zune-in mt-10 lg:mt-14 lg:grid lg:grid-cols-[1fr_auto] lg:gap-24 lg:items-start">
             <nav className="space-y-1.5">
@@ -378,7 +391,7 @@ export default function SettingsPage() {
               ))}
             </nav>
 
-            {/* правая колонка на десктопе — metro-вид */}
+            {/* правая колонка на десктопе — metro */}
             <div className="hidden lg:flex flex-col items-end gap-6 pt-1">
               <div className="flex items-center gap-4">
                 <div className="text-right">
@@ -396,7 +409,7 @@ export default function SettingsPage() {
                   <img
                     src={preview}
                     alt=""
-                    className="w-16 h-16 object-cover ring-1 ring-[#a855f7]/60 shadow-[0_0_20px_rgba(168,85,247,0.3)]"
+                    className="w-16 h-16 object-cover ring-1 ring-[#a855f7]/60"
                   />
                 ) : (
                   <div className="w-16 h-16 bg-white/5 ring-1 ring-white/15 flex items-center justify-center">
@@ -419,7 +432,7 @@ export default function SettingsPage() {
                     <img
                       src={preview}
                       alt=""
-                      className="w-20 h-20 object-cover ring-1 ring-[#a855f7]/70 shadow-[0_0_20px_rgba(168,85,247,0.35)]"
+                      className="w-20 h-20 object-cover ring-1 ring-[#a855f7]/70"
                     />
                   ) : (
                     <div className="w-20 h-20 bg-white/5 ring-1 ring-white/15 flex items-center justify-center">
@@ -428,7 +441,7 @@ export default function SettingsPage() {
                   )}
                   <button
                     onClick={() => fileRef.current?.click()}
-                    className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full bg-[#a855f7] hover:bg-[#9333ea] flex items-center justify-center shadow-[0_0_12px_rgba(168,85,247,0.6)] transition-colors"
+                    className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full bg-[#a855f7] hover:bg-[#9333ea] flex items-center justify-center transition-colors"
                     title="Сменить аватар"
                   >
                     <Camera size={12} />
@@ -482,7 +495,7 @@ export default function SettingsPage() {
               {/* Username */}
               <div className="flex items-center gap-3">
                 <span className="text-[10px] uppercase tracking-[0.25em] text-white/40">username</span>
-                <span className="px-3 py-1 rounded-full border border-[#a855f7]/50 text-[#c084fc] text-sm shadow-[0_0_12px_rgba(168,85,247,0.25)]">
+                <span className="px-3 py-1 rounded-full border border-[#a855f7]/50 text-[#c084fc] text-sm">
                   @{user.username}
                 </span>
                 <button
@@ -538,7 +551,7 @@ export default function SettingsPage() {
                   </p>
                   {securityStatus?.enabled ? (
                     <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-emerald-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" /> on
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> on
                     </span>
                   ) : (
                     <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-white/30">
@@ -675,7 +688,7 @@ export default function SettingsPage() {
                 <button
                   onClick={logoutAll}
                   disabled={loggingOutAll}
-                  className="shrink-0 w-11 h-11 rounded-full border border-red-500/60 text-red-400 hover:bg-red-500/15 hover:shadow-[0_0_18px_rgba(239,68,68,0.4)] flex items-center justify-center transition-all disabled:opacity-40"
+                  className="shrink-0 w-11 h-11 rounded-full border border-red-500/60 text-red-400 hover:bg-red-500/15 flex items-center justify-center transition-all disabled:opacity-40"
                   title="Выйти со всех устройств"
                 >
                   {loggingOutAll ? <RefreshCw size={15} className="animate-spin" /> : <LogOut size={15} />}
@@ -693,7 +706,7 @@ export default function SettingsPage() {
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             onClick={() => !loading2FA && setShow2FASetup(false)}
           />
-          <div className="relative bg-[#141416] border border-white/15 rounded-md p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-[0_0_60px_rgba(168,85,247,0.15)]">
+          <div className="relative bg-[#141416] border border-white/15 rounded-md p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-extralight lowercase text-[#c084fc]">2fa setup</h3>
               <button
@@ -777,7 +790,7 @@ export default function SettingsPage() {
             className="absolute inset-0 bg-black/80 backdrop-blur-sm"
             onClick={() => !loading2FA && setShowDisable2FA(false)}
           />
-          <div className="relative bg-[#141416] border border-white/15 rounded-md p-6 max-w-sm w-full shadow-[0_0_60px_rgba(239,68,68,0.1)]">
+          <div className="relative bg-[#141416] border border-white/15 rounded-md p-6 max-w-sm w-full">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-2xl font-extralight lowercase text-red-400">disable 2fa</h3>
               <button
