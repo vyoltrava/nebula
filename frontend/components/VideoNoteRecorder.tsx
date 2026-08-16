@@ -12,9 +12,14 @@ interface Props {
   maxDuration?: number;
 }
 
+// Исправляем проверку на PWA
 const IS_MOBILE =
   typeof navigator !== "undefined" &&
   /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+const IS_PWA = typeof window !== 'undefined' && 
+  (window.matchMedia('(display-mode: standalone)').matches ||
+   (window.navigator as any).standalone === true);
 
 const SIZE = IS_MOBILE ? 480 : 720;
 const REC_FPS = IS_MOBILE ? 24 : 30;
@@ -48,6 +53,7 @@ export function VideoNoteRecorder({
   const [facing, setFacing] = useState<"user" | "environment">("user");
   const [mirrored, setMirrored] = useState(true);
   const [hasFlip, setHasFlip] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => { mirroredRef.current = mirrored; }, [mirrored]);
 
@@ -62,31 +68,71 @@ export function VideoNoteRecorder({
     const s = videoStreamRef.current;
     if (v && s) {
       v.srcObject = s;
-      v.play().catch(() => {});
+      v.play().catch((err) => console.warn("Video play error:", err));
     }
   }, [mode, isReady]);
 
   async function startCamera(facingMode: "user" | "environment" = "user") {
-    videoStreamRef.current?.getTracks().forEach((t) => t.stop());
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: {
+    try {
+      videoStreamRef.current?.getTracks().forEach((t) => t.stop());
+      
+      // Исправляем типизацию constraints
+      const videoConstraints: MediaTrackConstraints = {
         facingMode: facingMode,
         width: { ideal: SIZE },
         height: { ideal: SIZE },
-      },
-    });
-    videoStreamRef.current = stream;
-    const v = videoRef.current;
-    if (v) {
-      v.srcObject = stream;
-      await v.play().catch(() => {});
+        frameRate: { ideal: REC_FPS },
+      };
+
+      // На мобильных устройствах и в PWA может потребоваться дополнительная настройка
+      if (IS_MOBILE || IS_PWA) {
+        videoConstraints.width = { ideal: Math.min(SIZE, 640) };
+        videoConstraints.height = { ideal: Math.min(SIZE, 640) };
+      }
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: videoConstraints,
+        audio: false,
+      });
+      
+      videoStreamRef.current = stream;
+      
+      const v = videoRef.current;
+      if (v) {
+        v.srcObject = stream;
+        await v.play().catch(() => {});
+      }
+      
+      setError(null);
+    } catch (err) {
+      console.error("Camera error:", err);
+      setError("Не удалось получить доступ к камере");
+      throw err;
     }
   }
 
   async function startMic() {
-    audioStreamRef.current?.getTracks().forEach((t) => t.stop());
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    audioStreamRef.current = stream;
+    try {
+      audioStreamRef.current?.getTracks().forEach((t) => t.stop());
+      
+      const audioConstraints: MediaTrackConstraints = {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: audioConstraints,
+        video: false,
+      });
+      
+      audioStreamRef.current = stream;
+      setError(null);
+    } catch (err) {
+      console.error("Mic error:", err);
+      setError("Не удалось получить доступ к микрофону");
+      throw err;
+    }
   }
 
   async function startAll() {
@@ -144,7 +190,6 @@ export function VideoNoteRecorder({
       if ("requestVideoFrameCallback" in v) {
         (v as any).requestVideoFrameCallback(tick);
       } else {
-        // fallback: мобилки — рисуем каждый второй кадр (~30 fps вместо 60)
         if (IS_MOBILE) {
           rafRef.current = requestAnimationFrame(() => {
             rafRef.current = requestAnimationFrame(tick);
@@ -168,68 +213,130 @@ export function VideoNoteRecorder({
       await startCamera(next);
       setFacing(next);
       setMirrored(next === "user");
-    } catch {}
+    } catch (err) {
+      console.error("Toggle camera error:", err);
+    }
   }
 
-  function startRecording() {
+  async function startRecording() {
     const c = canvasRef.current;
     const a = audioStreamRef.current;
-    if (!c || !a) return;
+    if (!c || !a) {
+      setError("Камера или микрофон не готовы");
+      return;
+    }
 
-    chunksRef.current = [];
+    try {
+      chunksRef.current = [];
 
-    const cStream = c.captureStream(REC_FPS);
-    canvasTrackRef.current = cStream.getVideoTracks()[0] || null;
+      const cStream = c.captureStream(REC_FPS);
+      const videoTracks = cStream.getVideoTracks();
+      
+      if (videoTracks.length === 0) {
+        throw new Error("Не удалось создать видеопоток с canvas");
+      }
+      
+      canvasTrackRef.current = videoTracks[0] || null;
 
-    const combined = new MediaStream([
-      ...cStream.getVideoTracks(),
-      ...a.getAudioTracks(),
-    ]);
+      const audioTracks = a.getAudioTracks();
+      if (audioTracks.length === 0) {
+        throw new Error("Нет аудио треков");
+      }
 
-    const codecs = [
-      "video/webm;codecs=vp9,opus",
-      "video/webm;codecs=vp8,opus",
-      "video/webm",
-      "video/mp4",
-    ];
-    const mime = codecs.find((m) => MediaRecorder.isTypeSupported(m)) || "";
-    mimeRef.current = mime || "video/webm";
+      const combined = new MediaStream([
+        ...videoTracks,
+        ...audioTracks,
+      ]);
 
-    const rec = new MediaRecorder(
-      combined,
-      mime ? { mimeType: mime, videoBitsPerSecond: BITRATE } : undefined
-    );
-    mediaRecorderRef.current = rec;
+      const codecs = [
+        "video/webm;codecs=vp9,opus",
+        "video/webm;codecs=vp8,opus",
+        "video/webm;codecs=h264,opus",
+        "video/webm",
+        "video/mp4;codecs=h264,aac",
+        "video/mp4",
+      ];
+      
+      const mime = codecs.find((m) => MediaRecorder.isTypeSupported(m)) || "";
+      if (!mime) {
+        throw new Error("Браузер не поддерживает запись видео");
+      }
+      
+      mimeRef.current = mime;
 
-    rec.ondataavailable = (e) => {
-      if (e.data.size > 0) chunksRef.current.push(e.data);
-    };
+      const options: MediaRecorderOptions = {
+        mimeType: mime,
+        videoBitsPerSecond: BITRATE,
+        audioBitsPerSecond: 128000,
+      };
 
-    rec.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: mimeRef.current });
-      const ext = mimeRef.current.includes("mp4") ? ".mp4" : ".webm";
-      const file = new File([blob], `note-${Date.now()}${ext}`, {
-        type: mimeRef.current,
-      });
-      cleanup();
-      onRecorded(file);
-    };
+      const rec = new MediaRecorder(combined, options);
+      mediaRecorderRef.current = rec;
 
-    rec.start(250);
-    setIsRecording(true);
-    setSeconds(0);
-    startTsRef.current = Date.now();
+      rec.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
 
-    timerRef.current = setInterval(() => {
-      const e = Math.floor((Date.now() - startTsRef.current) / 1000);
-      setSeconds(e);
-      if (e >= maxDuration) stopRecording();
-    }, 1000);
+      rec.onstop = () => {
+        if (chunksRef.current.length === 0) {
+          setError("Запись не удалась - нет данных");
+          return;
+        }
+
+        try {
+          const blob = new Blob(chunksRef.current, { type: mimeRef.current });
+          if (blob.size === 0) {
+            setError("Запись не удалась - файл пуст");
+            return;
+          }
+
+          const ext = mimeRef.current.includes("mp4") ? ".mp4" : 
+                     mimeRef.current.includes("webm") ? ".webm" : ".mp4";
+          
+          const file = new File([blob], `note-${Date.now()}${ext}`, {
+            type: mimeRef.current,
+          });
+
+          cleanup();
+          onRecorded(file);
+        } catch (err) {
+          console.error("File creation error:", err);
+          setError("Ошибка при создании файла");
+        }
+      };
+
+      rec.start(1000);
+      setIsRecording(true);
+      setSeconds(0);
+      startTsRef.current = Date.now();
+
+      timerRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startTsRef.current) / 1000);
+        setSeconds(elapsed);
+        if (elapsed >= maxDuration) {
+          stopRecording();
+        }
+      }, 1000);
+
+      setError(null);
+    } catch (err) {
+      console.error("Recording error:", err);
+      setError(err instanceof Error ? err.message : "Ошибка при старте записи");
+      alert("Ошибка записи: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
+    }
   }
 
   function stopRecording() {
     const rec = mediaRecorderRef.current;
-    if (rec && rec.state === "recording") rec.stop();
+    if (rec && rec.state === "recording") {
+      try {
+        rec.stop();
+      } catch (err) {
+        console.error("Stop recording error:", err);
+      }
+    }
     setIsRecording(false);
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -239,6 +346,7 @@ export function VideoNoteRecorder({
 
   function cleanup() {
     cancelAnimationFrame(rafRef.current);
+    
     const rec = mediaRecorderRef.current;
     if (rec) {
       try {
@@ -249,15 +357,20 @@ export function VideoNoteRecorder({
       } catch {}
       mediaRecorderRef.current = null;
     }
+    
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    
     canvasTrackRef.current = null;
+    
     videoStreamRef.current?.getTracks().forEach((t) => t.stop());
     videoStreamRef.current = null;
+    
     audioStreamRef.current?.getTracks().forEach((t) => t.stop());
     audioStreamRef.current = null;
+    
     setIsRecording(false);
     setSeconds(0);
     chunksRef.current = [];
@@ -267,6 +380,22 @@ export function VideoNoteRecorder({
     `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
   const progress = maxDuration > 0 ? Math.min((seconds / maxDuration) * 100, 100) : 0;
   const perim = 2 * (94 + 94);
+
+  if (error) {
+    return (
+      <div className="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center">
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 max-w-sm text-center">
+          <p className="text-red-400 text-sm">{error}</p>
+          <button 
+            onClick={() => { setError(null); startAll(); }}
+            className="mt-4 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm"
+          >
+            Попробовать снова
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (mode === 'minimized') {
     return (
@@ -337,7 +466,6 @@ export function VideoNoteRecorder({
           onClick={() => setMirrored((m) => !m)}
           title="Тап — зеркало"
         >
-          {/* Видео только для превью, управление скрыто */}
           <video
             ref={videoRef}
             autoPlay
@@ -346,7 +474,6 @@ export function VideoNoteRecorder({
             className="absolute inset-0 w-full h-full object-cover"
             style={{ transform: mirrored ? "scaleX(-1)" : "none" }}
           />
-          {/* Canvas только для захвата записи, скрыт */}
           <canvas
             ref={canvasRef}
             width={SIZE}
@@ -380,6 +507,9 @@ export function VideoNoteRecorder({
                 <p className="text-white/20 text-xs mt-1">
                   Тап — зеркало · {facing === "user" ? "фронт" : "тыл"}
                 </p>
+                {IS_PWA && (
+                  <p className="text-white/10 text-[10px] mt-2">PWA режим</p>
+                )}
               </div>
             </div>
           )}
