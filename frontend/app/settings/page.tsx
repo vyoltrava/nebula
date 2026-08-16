@@ -4,41 +4,30 @@ import { useRouter } from "next/navigation";
 import { getToken, clearToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import {
-  Lock,
-  Eye,
-  EyeOff,
-  LogOut,
-  ShieldAlert,
+  ArrowLeft,
+  User,
+  Bell,
+  Mic,
+  Zap,
   ShieldCheck,
-  Mail,
-  X,
-  RefreshCw,
+  LogOut,
+  Camera,
   Copy,
   CheckCircle2,
   AlertCircle,
-  ArrowLeft,
-  Camera,
-  User,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  X,
+  RefreshCw,
+  ShieldAlert,
 } from "lucide-react";
 import { PushSettings } from "@/components/PushSettings";
 import { DevicePermissionsSection } from "@/components/DevicePermissionsSection";
 import { LiveTextSettings } from "@/components/LiveTextSettings";
 
-type View = "root" | "profile" | "permissions" | "messages" | "security";
-
-function BigTitle({ text, onBack }: { text: string; onBack?: () => void }) {
-  return (
-    <div className="bigtitle">
-      <h1
-        key={text}
-        onClick={onBack}
-        className={onBack ? "cursor-pointer active:opacity-50" : ""}
-      >
-        {text}
-      </h1>
-    </div>
-  );
-}
+type View = "profile" | "notifications" | "permissions" | "messages" | "security";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
@@ -47,7 +36,7 @@ export default function SettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  const [view, setView] = useState<View>("root");
+  const [view, setView] = useState<View>("profile");
 
   // Пароли
   const [oldPassword, setOldPassword] = useState("");
@@ -295,479 +284,442 @@ export default function SettingsPage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
-  function goBack() {
-    if (view !== "root") setView("root");
-    else router.push("/");
-  }
-
   if (!user)
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="flex items-center gap-3 text-white/50">
-          <RefreshCw size={16} className="animate-spin text-[#a855f7]" />
-          <span className="text-[11px] uppercase tracking-[0.3em]">загрузка</span>
+      <div className="min-h-screen bg-[#1C1C1F] flex items-center justify-center">
+        <div className="flex items-center gap-3 text-[#B9B8BD]">
+          <RefreshCw size={16} className="animate-spin text-[#7B3FF2]" />
+          <span className="text-sm">Загрузка...</span>
         </div>
       </div>
     );
 
-  const labelCls = "block text-[10px] uppercase tracking-[0.25em] text-white/40 mb-2";
-
-  const underlineInput =
-    "w-full bg-transparent border-b border-white/20 rounded-none px-0 py-2 text-white placeholder-white/25 focus:outline-none focus:border-[#a855f7] transition-colors";
-
-  const btnPrimary =
-    "uppercase text-[11px] tracking-[0.25em] border border-[#a855f7] text-[#c084fc] hover:bg-[#a855f7] hover:text-black px-5 py-2.5 transition-all";
-
-  const btnGhost =
-    "uppercase text-[11px] tracking-[0.25em] border border-white/15 text-white/50 hover:text-white hover:border-white/50 px-5 py-2.5 transition-colors";
-
-  const tabs: { id: View; label: string }[] = [
-    { id: "profile", label: "profile" },
-    { id: "permissions", label: "permissions" },
-    { id: "messages", label: "messages" },
-    { id: "security", label: "security" },
+  const nav: { id: View; label: string; icon: any }[] = [
+    { id: "profile", label: "Профиль", icon: User },
+    { id: "notifications", label: "Уведомления", icon: Bell },
+    { id: "permissions", label: "Разрешения", icon: Mic },
+    { id: "messages", label: "Живые сообщения", icon: Zap },
+    { id: "security", label: "Безопасность", icon: ShieldCheck },
   ];
 
-  const title = view === "root" ? "settings" : view;
+  const labelCls = "block text-xs font-medium text-[#B9B8BD] mb-1.5";
+
+  const inputCls =
+    "w-full bg-[#1C1C1F] border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[#7B3FF2] transition-colors";
+
+  const btnPrimary =
+    "bg-[#7B3FF2] hover:bg-[#6a34d3] active:bg-[#5b2cb8] text-white text-sm font-medium rounded-lg px-5 py-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
+
+  const btnSecondary =
+    "border border-[#7B3FF2]/60 text-[#a678f7] hover:bg-[#7B3FF2]/10 text-sm font-medium rounded-lg px-5 py-2.5 transition-colors";
+
+  const btnDanger =
+    "border border-[#E74C3C]/50 bg-[#E74C3C]/10 text-[#E74C3C] hover:bg-[#E74C3C]/20 text-sm font-medium rounded-lg px-5 py-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
 
   return (
     <div
-      className="min-h-screen text-white relative overflow-x-hidden"
-      style={{ fontFamily: "'Segoe UI', 'Zune', -apple-system, system-ui, sans-serif" }}
+      className="min-h-screen bg-[#1C1C1F] text-white"
+      style={{ fontFamily: "'Inter', -apple-system, system-ui, sans-serif" }}
     >
-      <style>{`
-        @keyframes zuneIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
-        .zune-in { animation: zuneIn .25s ease-out; }
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 lg:py-10">
+        {/* ===== Шапка ===== */}
+        <header className="flex items-center gap-3 mb-6">
+          <button
+            onClick={() => router.push("/")}
+            className="w-10 h-10 rounded-lg border border-white/10 bg-[#1E1E23] text-[#B9B8BD] hover:text-white hover:bg-white/5 flex items-center justify-center transition-colors"
+            aria-label="Назад"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <h1 className="text-2xl font-bold">Настройки</h1>
+        </header>
 
-        /* ===== ЗАГОЛОВОК =====
-           МОБИЛКА: огромное слово, ~40% сверху срезано гранью экрана,
-           хвост уходит за правый край.
-           ПК (>=1024px): минимализм, слово ЦЕЛИКОМ, ничего не режется. */
-        .bigtitle {
-          position: relative;
-          overflow: hidden;
-          font-size: 27vw;
-          height: 0.62em;
-        }
-        .bigtitle h1 {
-          position: absolute;
-          right: 0;
-          top: -0.38em;
-          transform: translateX(15%);
-          font-size: 1em;
-          line-height: 1;
-          font-weight: 200;
-          text-transform: lowercase;
-          white-space: nowrap;
-          color: #a855f7;
-          margin: 0;
-          transition: opacity .15s;
-        }
-        @media (min-width: 1024px) {
-          .bigtitle {
-            font-size: clamp(4rem, 7.5vw, 8rem);
-            height: auto;
-            overflow: visible;
-            padding-top: 0.5rem;
-          }
-          .bigtitle h1 {
-            position: static;
-            top: auto;
-            transform: none;
-          }
-        }
-      `}</style>
+        {/* ===== Мобильные чипы ===== */}
+        <div className="lg:hidden flex gap-2 overflow-x-auto pb-2 mb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {nav.map((n) => (
+            <button
+              key={n.id}
+              onClick={() => setView(n.id)}
+              className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+                view === n.id
+                  ? "bg-[#7B3FF2] text-white"
+                  : "bg-[#1E1E23] border border-white/10 text-[#B9B8BD] hover:text-white"
+              }`}
+            >
+              {n.label}
+            </button>
+          ))}
+        </div>
 
-      {/* ===== КНОПКА НАЗАД =====
-          МОБИЛКА: в углу, чуть выходит за левый край
-          ПК: аккуратно в углу, целиком */}
-      <button
-        onClick={goBack}
-        aria-label="Назад"
-        className="fixed -left-4 top-4 z-50 w-12 h-12 lg:left-6 lg:top-6 lg:w-12 lg:h-12 rounded-full border-2 border-white/60 text-white/80 flex items-center justify-center hover:border-white hover:text-white transition-colors"
-      >
-        <ArrowLeft size={18} />
-      </button>
-
-      <main className="px-5 sm:px-10 lg:px-16 max-w-5xl mx-auto pb-24">
-        {/* ===== НАЗВАНИЕ РАЗДЕЛА ===== */}
-        <BigTitle
-          text={title}
-          onBack={view !== "root" ? () => setView("root") : undefined}
-        />
-
-        {/* ==================== ROOT: СПИСОК ПУНКТОВ ==================== */}
-        {view === "root" && (
-          <div key="root" className="zune-in mt-6 lg:mt-10">
-            <nav className="space-y-1">
-              {tabs.map((t) => (
+        <div className="lg:grid lg:grid-cols-[240px_1fr] lg:gap-6 items-start">
+          {/* ===== Сайдбар (ПК) ===== */}
+          <aside className="hidden lg:flex flex-col gap-1 bg-[#1E1E23] border border-white/10 rounded-xl p-3 sticky top-6">
+            {nav.map((n) => {
+              const Icon = n.icon;
+              const active = view === n.id;
+              return (
                 <button
-                  key={t.id}
-                  onClick={() => setView(t.id)}
-                  className="block w-full text-left uppercase text-[12px] font-bold tracking-[0.35em] text-white/90 hover:text-[#c084fc] hover:pl-2 transition-all py-2.5"
+                  key={n.id}
+                  onClick={() => setView(n.id)}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                    active ? "bg-[#7B3FF2] text-white" : "text-[#B9B8BD] hover:bg-white/5 hover:text-white"
+                  }`}
                 >
-                  {t.label}
+                  <Icon size={16} />
+                  {n.label}
                 </button>
-              ))}
-            </nav>
-          </div>
-        )}
+              );
+            })}
+            <div className="my-2 h-px bg-white/10" />
+            <button
+              onClick={logoutAll}
+              disabled={loggingOutAll}
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[#E74C3C] hover:bg-[#E74C3C]/10 transition-colors disabled:opacity-40"
+            >
+              <LogOut size={16} />
+              {loggingOutAll ? "Завершаем..." : "Выход"}
+            </button>
+          </aside>
 
-        {/* ==================== PROFILE ==================== */}
-        {view === "profile" && (
-          <div key="profile" className="zune-in mt-6 lg:mt-10 max-w-2xl">
-            <div className="space-y-7">
-              {/* Аватар */}
-              <div className="flex items-center gap-5">
-                <div className="relative group">
+          {/* ===== Контент ===== */}
+          <section className="bg-[#1E1E23] border border-white/10 rounded-xl p-5 sm:p-6">
+            {/* ---------- ПРОФИЛЬ ---------- */}
+            {view === "profile" && (
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold">Профиль</h2>
+
+                {/* Аватар */}
+                <div className="flex items-center gap-4">
                   {preview ? (
-                    <img
-                      src={preview}
-                      alt=""
-                      className="w-20 h-20 object-cover ring-1 ring-[#a855f7]/70"
-                    />
+                    <img src={preview} alt="" className="w-20 h-20 rounded-xl object-cover border border-white/10" />
                   ) : (
-                    <div className="w-20 h-20 bg-white/5 ring-1 ring-white/15 flex items-center justify-center">
-                      <User size={26} className="text-white/25" />
+                    <div className="w-20 h-20 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                      <User size={28} className="text-[#B9B8BD]" />
                     </div>
                   )}
-                  <button
-                    onClick={() => fileRef.current?.click()}
-                    className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full bg-[#a855f7] hover:bg-[#9333ea] flex items-center justify-center transition-colors"
-                    title="Сменить аватар"
-                  >
-                    <Camera size={12} />
-                  </button>
-                </div>
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.25em] text-white/40 mb-1.5">аватарка</p>
-                  <button
-                    onClick={() => fileRef.current?.click()}
-                    className="text-sm text-[#c084fc] hover:text-white transition-colors underline underline-offset-4 decoration-[#a855f7]/50"
-                  >
-                    выбрать фото
-                  </button>
-                  <p className="text-[9px] text-white/30 mt-1.5 tracking-wider">jpg · png · gif · webp · max 5 mb</p>
-                </div>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => onFile(e.target.files?.[0] ?? null)}
-                />
-              </div>
-
-              {/* Имя */}
-              <div>
-                <label className={labelCls}>имя</label>
-                <input
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="ваше имя"
-                  className={underlineInput}
-                />
-              </div>
-
-              {/* О себе */}
-              <div>
-                <label className={labelCls}>о себе</label>
-                <textarea
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value.slice(0, 500))}
-                  rows={3}
-                  placeholder="расскажи о себе"
-                  className="w-full bg-transparent border-b border-white/20 rounded-none px-0 py-2 text-white placeholder-white/25 focus:outline-none focus:border-[#a855f7] resize-none transition-colors"
-                />
-                <p className="text-[9px] text-white/25 mt-1 text-right tracking-[0.2em]">
-                  <span className={bio.length > 450 ? "text-amber-400" : ""}>{bio.length}</span> / 500
-                </p>
-              </div>
-
-              {/* Username */}
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] uppercase tracking-[0.25em] text-white/40">username</span>
-                <span className="px-3 py-1 rounded-full border border-[#a855f7]/50 text-[#c084fc] text-sm">
-                  @{user.username}
-                </span>
-                <button
-                  onClick={copyUsername}
-                  className="p-1 text-white/30 hover:text-white transition-colors"
-                  title="Скопировать"
-                >
-                  {copied ? <CheckCircle2 size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                </button>
-              </div>
-
-              {/* Кнопки */}
-              <div className="flex flex-wrap gap-4 pt-2">
-                <button onClick={saveProfile} className={btnPrimary}>
-                  + сохранить
-                </button>
-                <button onClick={() => router.push("/")} className={btnGhost}>
-                  отмена
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ==================== PERMISSIONS ==================== */}
-        {view === "permissions" && (
-          <div key="permissions" className="zune-in mt-6 lg:mt-10 max-w-2xl space-y-10">
-            <PushSettings />
-            <DevicePermissionsSection />
-          </div>
-        )}
-
-        {/* ==================== MESSAGES ==================== */}
-        {view === "messages" && (
-          <div key="messages" className="zune-in mt-6 lg:mt-10 max-w-2xl">
-            <LiveTextSettings />
-          </div>
-        )}
-
-        {/* ==================== SECURITY ==================== */}
-        {view === "security" && (
-          <div key="security" className="zune-in mt-6 lg:mt-10 max-w-2xl">
-            <div className="space-y-9">
-              {/* 2FA */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-white/40">
-                    <ShieldCheck
-                      size={12}
-                      className={securityStatus?.enabled ? "text-emerald-400" : "text-white/30"}
-                    />
-                    two-factor auth
-                  </p>
-                  {securityStatus?.enabled ? (
-                    <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-emerald-400">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> on
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] text-white/30">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white/30" /> off
-                    </span>
-                  )}
-                </div>
-
-                <p className="text-xs text-white/45 leading-relaxed mb-3">
-                  {securityStatus?.enabled
-                    ? "Аккаунт защищён. При входе потребуется код из аутентификатора."
-                    : "Дополнительный уровень защиты: код из Google Authenticator при входе."}
-                </p>
-
-                {securityStatus?.enabled && (
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-400/80 mb-3">
-                    резервных кодов: {securityStatus.backup_codes_left}/10
-                  </p>
-                )}
-
-                {!securityStatus?.enabled ? (
-                  <button
-                    onClick={start2FASetup}
-                    disabled={loading2FA}
-                    className="uppercase text-[11px] tracking-[0.25em] border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/15 px-5 py-2.5 transition-colors disabled:opacity-40"
-                  >
-                    + включить 2fa
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setShowDisable2FA(true)}
-                    disabled={loading2FA}
-                    className="uppercase text-[11px] tracking-[0.25em] border border-red-500/50 text-red-400 hover:bg-red-500/15 px-5 py-2.5 transition-colors disabled:opacity-40"
-                  >
-                    − отключить 2fa
-                  </button>
-                )}
-              </div>
-
-              {/* Email */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-white/40">
-                    <Mail size={12} className="text-amber-400" /> email
-                  </p>
-                  <span className="text-[10px] uppercase tracking-[0.2em] text-amber-400/80">🚧 скоро</span>
-                </div>
-                <p className="text-xs text-white/45 leading-relaxed">
-                  На доработке: восстановление пароля, уведомления, подтверждение email.
-                </p>
-              </div>
-
-              {/* Пароль */}
-              <div>
-                <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-white/40 mb-5">
-                  <Lock size={12} className="text-[#a855f7]" /> сменить пароль
-                </p>
-
-                <form onSubmit={changePassword} className="space-y-5">
-                  <div className="relative">
-                    <input
-                      type={showOld ? "text" : "password"}
-                      value={oldPassword}
-                      onChange={(e) => setOldPassword(e.target.value)}
-                      placeholder="текущий пароль"
-                      required
-                      className={underlineInput + " pr-8"}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowOld(!showOld)}
-                      className="absolute right-0 top-1/2 -translate-y-1/2 text-white/30 hover:text-white transition-colors p-1"
-                    >
-                      {showOld ? <EyeOff size={14} /> : <Eye size={14} />}
+                  <div>
+                    <button onClick={() => fileRef.current?.click()} className={btnSecondary + " flex items-center gap-2"}>
+                      <Camera size={15} /> Выбрать фото
                     </button>
+                    <p className="text-xs text-[#B9B8BD] mt-2">JPG, PNG, GIF или WebP, максимум 5 МБ</p>
                   </div>
-
-                  <div className="relative">
-                    <input
-                      type={showNew ? "text" : "password"}
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="новый пароль (мин. 6)"
-                      required
-                      minLength={6}
-                      className={underlineInput + " pr-8"}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNew(!showNew)}
-                      className="absolute right-0 top-1/2 -translate-y-1/2 text-white/30 hover:text-white transition-colors p-1"
-                    >
-                      {showNew ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
-
                   <input
-                    type={showNew ? "text" : "password"}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="повторите пароль"
-                    required
-                    minLength={6}
-                    className={underlineInput}
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => onFile(e.target.files?.[0] ?? null)}
                   />
+                </div>
 
-                  {passwordMsg && (
-                    <p
-                      className={`flex items-center gap-2 text-xs ${
-                        passwordMsg.type === "ok" ? "text-emerald-400" : "text-red-400"
-                      }`}
-                    >
-                      {passwordMsg.type === "ok" ? <CheckCircle2 size={13} /> : <AlertCircle size={13} />}
-                      {passwordMsg.text}
-                    </p>
-                  )}
-
-                  <button type="submit" className={btnPrimary + " w-full"}>
-                    + обновить пароль
-                  </button>
-                </form>
-              </div>
-
-              {/* Выход со всех устройств */}
-              <div className="flex items-center justify-between gap-4">
+                {/* Имя */}
                 <div>
-                  <p className="flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-red-400/80">
-                    <ShieldAlert size={12} /> log out all
-                  </p>
-                  <p className="text-xs text-white/40 mt-1.5 leading-relaxed">
-                    Завершить все сессии на всех устройствах
+                  <label className={labelCls}>Отображаемое имя</label>
+                  <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputCls} />
+                </div>
+
+                {/* О себе */}
+                <div>
+                  <label className={labelCls}>О себе</label>
+                  <textarea
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value.slice(0, 500))}
+                    rows={3}
+                    placeholder="Расскажи о себе"
+                    className={inputCls + " resize-none"}
+                  />
+                  <p className="text-xs text-[#B9B8BD] mt-1 text-right">
+                    <span className={bio.length > 450 ? "text-[#E74C3C]" : ""}>{bio.length}</span>/500
                   </p>
                 </div>
-                <button
-                  onClick={logoutAll}
-                  disabled={loggingOutAll}
-                  className="shrink-0 w-11 h-11 rounded-full border border-red-500/60 text-red-400 hover:bg-red-500/15 flex items-center justify-center transition-all disabled:opacity-40"
-                  title="Выйти со всех устройств"
-                >
-                  {loggingOutAll ? <RefreshCw size={15} className="animate-spin" /> : <LogOut size={15} />}
-                </button>
+
+                {/* Username */}
+                <div>
+                  <label className={labelCls}>Username</label>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-[#1C1C1F] border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-[#B9B8BD]">
+                      @{user.username}
+                    </div>
+                    <button
+                      onClick={copyUsername}
+                      className="w-10 h-10 shrink-0 rounded-lg border border-white/10 text-[#B9B8BD] hover:text-white hover:bg-white/5 flex items-center justify-center transition-colors"
+                      title="Скопировать"
+                    >
+                      {copied ? <CheckCircle2 size={16} className="text-[#2ECC71]" /> : <Copy size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-1">
+                  <button onClick={saveProfile} className={btnPrimary}>
+                    Сохранить
+                  </button>
+                  <button onClick={() => router.push("/")} className={btnSecondary}>
+                    Отмена
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
-        )}
-      </main>
+            )}
+
+            {/* ---------- УВЕДОМЛЕНИЯ ---------- */}
+            {view === "notifications" && (
+              <div>
+                <h2 className="text-lg font-semibold mb-1">Уведомления</h2>
+                <p className="text-sm text-[#B9B8BD] mb-4">Push-уведомления работают даже когда приложение закрыто</p>
+                <PushSettings />
+              </div>
+            )}
+
+            {/* ---------- РАЗРЕШЕНИЯ ---------- */}
+            {view === "permissions" && (
+              <div>
+                <h2 className="text-lg font-semibold mb-4">Разрешения</h2>
+                <DevicePermissionsSection />
+              </div>
+            )}
+
+            {/* ---------- ЖИВЫЕ СООБЩЕНИЯ ---------- */}
+            {view === "messages" && (
+              <div>
+                <h2 className="text-lg font-semibold mb-4">Живые сообщения</h2>
+                <LiveTextSettings />
+              </div>
+            )}
+
+            {/* ---------- БЕЗОПАСНОСТЬ ---------- */}
+            {view === "security" && (
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold">Безопасность</h2>
+
+                {/* 2FA */}
+                <div className="p-4 rounded-lg bg-white/5 border border-white/10">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          securityStatus?.enabled ? "bg-[#2ECC71]/15 text-[#2ECC71]" : "bg-white/5 text-[#B9B8BD]"
+                        }`}
+                      >
+                        <ShieldCheck size={18} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Двухфакторная аутентификация</p>
+                        <p className={`text-xs mt-0.5 ${securityStatus?.enabled ? "text-[#2ECC71]" : "text-[#B9B8BD]"}`}>
+                          {securityStatus?.enabled ? "Включена" : "Выключена"}
+                          {securityStatus?.enabled && ` · кодов осталось: ${securityStatus.backup_codes_left}/10`}
+                        </p>
+                      </div>
+                    </div>
+                    {!securityStatus?.enabled ? (
+                      <button onClick={start2FASetup} disabled={loading2FA} className={btnPrimary}>
+                        {loading2FA ? "Загрузка..." : "Включить"}
+                      </button>
+                    ) : (
+                      <button onClick={() => setShowDisable2FA(true)} disabled={loading2FA} className={btnDanger}>
+                        Отключить
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-sm text-[#B9B8BD] mt-3 leading-relaxed">
+                    {securityStatus?.enabled
+                      ? "Аккаунт защищён. При входе потребуется код из приложения-аутентификатора."
+                      : "Дополнительный уровень защиты: при входе потребуется код из Google Authenticator или подобного приложения."}
+                  </p>
+                </div>
+
+                {/* Email */}
+                <div className="p-4 rounded-lg bg-white/5 border border-white/10">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
+                        <Mail size={18} className="text-[#B9B8BD]" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">Email</p>
+                        <p className="text-xs mt-0.5 text-[#B9B8BD]">🚧 На доработке</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-[#B9B8BD] mt-3 leading-relaxed">
+                    Привязка email для восстановления доступа и уведомлений. Функция в разработке.
+                  </p>
+                </div>
+
+                {/* Пароль */}
+                <div className="p-4 rounded-lg bg-white/5 border border-white/10">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
+                      <Lock size={18} className="text-[#a678f7]" />
+                    </div>
+                    <p className="text-sm font-medium">Сменить пароль</p>
+                  </div>
+
+                  <form onSubmit={changePassword} className="space-y-4">
+                    <div>
+                      <label className={labelCls}>Текущий пароль</label>
+                      <div className="relative">
+                        <input
+                          type={showOld ? "text" : "password"}
+                          value={oldPassword}
+                          onChange={(e) => setOldPassword(e.target.value)}
+                          placeholder="Введите старый пароль"
+                          required
+                          className={inputCls + " pr-10"}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowOld(!showOld)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#B9B8BD] hover:text-white transition-colors"
+                        >
+                          {showOld ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={labelCls}>Новый пароль</label>
+                      <div className="relative">
+                        <input
+                          type={showNew ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Минимум 6 символов"
+                          required
+                          minLength={6}
+                          className={inputCls + " pr-10"}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNew(!showNew)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#B9B8BD] hover:text-white transition-colors"
+                        >
+                          {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={labelCls}>Повторите новый пароль</label>
+                      <input
+                        type={showNew ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Повторите пароль"
+                        required
+                        minLength={6}
+                        className={inputCls}
+                      />
+                    </div>
+
+                    {passwordMsg && (
+                      <div
+                        className={`p-3 rounded-lg border text-sm font-medium flex items-center gap-2 ${
+                          passwordMsg.type === "ok"
+                            ? "bg-[#2ECC71]/10 border-[#2ECC71]/30 text-[#2ECC71]"
+                            : "bg-[#E74C3C]/10 border-[#E74C3C]/30 text-[#E74C3C]"
+                        }`}
+                      >
+                        {passwordMsg.type === "ok" ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                        {passwordMsg.text}
+                      </div>
+                    )}
+
+                    <button type="submit" className={btnPrimary + " w-full"}>
+                      Сменить пароль
+                    </button>
+                  </form>
+                </div>
+
+                {/* Выход со всех устройств */}
+                <div className="p-4 rounded-lg border border-[#E74C3C]/30 bg-[#E74C3C]/5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-lg bg-[#E74C3C]/15 flex items-center justify-center">
+                      <ShieldAlert size={18} className="text-[#E74C3C]" />
+                    </div>
+                    <p className="text-sm font-medium">Выйти со всех устройств</p>
+                  </div>
+                  <p className="text-sm text-[#B9B8BD] mb-4 leading-relaxed">
+                    Завершает все активные сессии. Если кто-то вошёл в твой аккаунт — он будет выброшен, тебе придётся войти заново.
+                  </p>
+                  <button onClick={logoutAll} disabled={loggingOutAll} className={btnDanger + " w-full flex items-center justify-center gap-2"}>
+                    <LogOut size={16} />
+                    {loggingOutAll ? "Завершаем сессии..." : "Выйти со всех устройств"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
 
       {/* ===== MODAL: 2FA Setup ===== */}
       {show2FASetup && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            onClick={() => !loading2FA && setShow2FASetup(false)}
-          />
-          <div className="relative bg-[#141416] border border-white/15 rounded-md p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-extralight lowercase text-[#c084fc]">2fa setup</h3>
+          <div className="absolute inset-0 bg-black/70" onClick={() => !loading2FA && setShow2FASetup(false)} />
+          <div className="relative bg-[#1E1E23] border border-white/10 rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold">Настройка 2FA</h3>
               <button
                 onClick={() => !loading2FA && setShow2FASetup(false)}
-                className="text-white/40 hover:text-white transition-colors p-1"
+                className="text-[#B9B8BD] hover:text-white transition-colors p-1"
                 disabled={loading2FA}
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
 
             {setupStep === "scan" && (
-              <div className="space-y-5">
-                <div className="space-y-2">
-                  <p className="text-xs text-white/60">
-                    <span className="text-[#a855f7] mr-2">1</span>Откройте Google Authenticator / Authy
-                  </p>
-                  <p className="text-xs text-white/60">
-                    <span className="text-[#a855f7] mr-2">2</span>Нажмите «+» → «Сканировать QR-код»
-                  </p>
-                  <p className="text-xs text-white/60">
-                    <span className="text-[#a855f7] mr-2">3</span>Отсканируйте код ниже
-                  </p>
+              <div className="space-y-4">
+                <div className="space-y-2 text-sm text-[#B9B8BD]">
+                  <p><span className="text-[#a678f7] font-semibold mr-2">1</span>Откройте Google Authenticator / Authy</p>
+                  <p><span className="text-[#a678f7] font-semibold mr-2">2</span>Нажмите «+» → «Сканировать QR-код»</p>
+                  <p><span className="text-[#a678f7] font-semibold mr-2">3</span>Отсканируйте код ниже</p>
                 </div>
 
-                <div className="flex justify-center bg-white p-5">
+                <div className="flex justify-center bg-white rounded-lg p-5">
                   <img src={qrCode} alt="QR" className="w-52 h-52" />
                 </div>
 
                 <details className="group">
-                  <summary className="text-[10px] uppercase tracking-[0.25em] text-white/40 cursor-pointer hover:text-white/80 transition-colors">
-                    нет камеры? ключ вручную
+                  <summary className="text-sm text-[#B9B8BD] cursor-pointer hover:text-white transition-colors">
+                    Нет камеры? Введите ключ вручную
                   </summary>
-                  <div className="mt-3 p-3 border border-amber-500/30">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-amber-400 mb-1">secret key</p>
-                    <p className="font-mono text-sm text-amber-200 break-all select-all">{secret}</p>
+                  <div className="mt-3 p-3 rounded-lg bg-white/5 border border-white/10">
+                    <p className="text-xs text-[#B9B8BD] mb-1">Секретный ключ:</p>
+                    <p className="font-mono text-sm text-white break-all select-all">{secret}</p>
                   </div>
                 </details>
 
                 <button onClick={() => setSetupStep("verify")} className={btnPrimary + " w-full"}>
-                  далее →
+                  Далее
                 </button>
               </div>
             )}
 
             {setupStep === "verify" && (
-              <div className="space-y-5">
-                <p className="text-xs text-white/60">Введите 6-значный код из аутентификатора:</p>
+              <div className="space-y-4">
+                <p className="text-sm text-[#B9B8BD]">Введите 6-значный код из приложения-аутентификатора:</p>
                 <input
                   value={verifyCode}
                   onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   placeholder="000000"
-                  className="w-full bg-transparent border-b border-white/20 px-0 py-3 text-white text-center text-3xl tracking-[0.5em] font-mono focus:outline-none focus:border-emerald-400 transition-colors"
+                  className={inputCls + " text-center text-2xl tracking-[0.5em] font-mono py-3"}
                   autoFocus
                   disabled={loading2FA}
                 />
                 <button
                   onClick={activate2FA}
                   disabled={verifyCode.length !== 6 || loading2FA}
-                  className="w-full uppercase text-[11px] tracking-[0.25em] border border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/15 py-3 transition-colors disabled:opacity-40"
+                  className={btnPrimary + " w-full"}
                 >
-                  {loading2FA ? "проверка..." : "✓ активировать 2fa"}
+                  {loading2FA ? "Проверка..." : "Активировать 2FA"}
                 </button>
                 <button
                   onClick={() => setSetupStep("scan")}
                   disabled={loading2FA}
-                  className="w-full text-[10px] uppercase tracking-[0.25em] text-white/40 hover:text-white transition-colors disabled:opacity-40"
+                  className="w-full text-sm text-[#B9B8BD] hover:text-white transition-colors disabled:opacity-40"
                 >
-                  ← назад
+                  ← Назад
                 </button>
               </div>
             )}
@@ -778,45 +730,38 @@ export default function SettingsPage() {
       {/* ===== MODAL: Disable 2FA ===== */}
       {showDisable2FA && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
-            onClick={() => !loading2FA && setShowDisable2FA(false)}
-          />
-          <div className="relative bg-[#141416] border border-white/15 rounded-md p-6 max-w-sm w-full">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-extralight lowercase text-red-400">disable 2fa</h3>
+          <div className="absolute inset-0 bg-black/70" onClick={() => !loading2FA && setShowDisable2FA(false)} />
+          <div className="relative bg-[#1E1E23] border border-white/10 rounded-xl p-6 max-w-sm w-full">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold">Отключить 2FA</h3>
               <button
                 onClick={() => !loading2FA && setShowDisable2FA(false)}
-                className="text-white/40 hover:text-white transition-colors p-1"
+                className="text-[#B9B8BD] hover:text-white transition-colors p-1"
                 disabled={loading2FA}
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
 
-            <p className="text-xs text-white/60 mb-5">Код из аутентификатора или резервный код:</p>
+            <p className="text-sm text-[#B9B8BD] mb-4">Введите код из приложения или резервный код:</p>
             <input
               value={disableCode}
               onChange={(e) => setDisableCode(e.target.value)}
-              placeholder="code"
-              className="w-full bg-transparent border-b border-white/20 px-0 py-3 text-white text-center text-xl tracking-widest font-mono focus:outline-none focus:border-red-400 mb-6 transition-colors"
+              placeholder="Код"
+              className={inputCls + " text-center text-xl tracking-widest font-mono py-3 mb-4"}
               autoFocus
               disabled={loading2FA}
             />
             <div className="flex gap-3">
-              <button
-                onClick={disable2FA}
-                disabled={!disableCode || loading2FA}
-                className="flex-1 uppercase text-[11px] tracking-[0.25em] border border-red-500/50 text-red-400 hover:bg-red-500/15 py-3 transition-colors disabled:opacity-40"
-              >
-                {loading2FA ? "..." : "отключить"}
+              <button onClick={disable2FA} disabled={!disableCode || loading2FA} className={btnDanger + " flex-1"}>
+                {loading2FA ? "Проверка..." : "Отключить"}
               </button>
               <button
                 onClick={() => !loading2FA && setShowDisable2FA(false)}
                 disabled={loading2FA}
-                className={btnGhost + " flex-1"}
+                className={btnSecondary + " flex-1"}
               >
-                отмена
+                Отмена
               </button>
             </div>
           </div>
