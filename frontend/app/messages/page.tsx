@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
@@ -97,7 +97,20 @@ function SwipeableChatItem({
 
 
 export default function MessagesPage() {
-  const [chats, setChats] = useState<any[]>([]);
+  const [allChats, setAllChats] = useState<any[]>([]);
+
+  // 🔎 Клиентский поиск по имени, username и тексту последнего сообщения
+  const chats = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return allChats;
+    return allChats.filter((c) => {
+      const isGroup = !!c.is_group;
+      const name = (isGroup ? c.name : c.other?.display_name || "").toLowerCase();
+      const username = (!isGroup ? c.other?.username || "" : "").toLowerCase();
+      const text = (c.last_message?.text || "").toLowerCase();
+      return name.includes(q) || username.includes(q) || text.includes(q);
+    });
+  }, [allChats]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
@@ -132,7 +145,7 @@ async function deleteChat(chatId: number, chatName: string) {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
-      await load(query);
+      await load();
       refresh();
     } else {
       const err = await res.json().catch(() => ({ detail: "Ошибка" }));
@@ -182,7 +195,7 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
     } else {
       await pinChat(chatId);
     }
-    await load(query);
+    await load();
   } catch (err: any) {
     alert(err.message || "Ошибка");
   } finally {
@@ -192,52 +205,48 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
 }
 
 
-  async function load(q = "") {
+  async function load() {
     const token = getToken();
     if (!token) {
       router.push("/login");
       return;
     }
     try {
-      const url = q
-        ? `${process.env.NEXT_PUBLIC_API_URL}/api/chats?q=${encodeURIComponent(q)}`
-        : `${process.env.NEXT_PUBLIC_API_URL}/api/chats`;
-      const res = await fetch(url, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) setChats(await res.json());
+      if (res.ok) setAllChats(await res.json());
     } finally {
       setLoading(false);
     }
   }
-
   useEffect(() => {
     load();
     refresh();
 
     const unsubNewMsg = socket.on("new_message", () => {
-      load(query);
+      load();
       refresh();
     });
 
     const unsubRead = socket.on("message_read", () => {
-      load(query);
+      load();
       refresh();
     });
 
     // 🆕 Групповые события
     const unsubGroupCreated = socket.on("group_created", () => {
-      load(query);
+      load();
       refresh();
     });
     const unsubGroupAdded = socket.on("group_member_added", () => {
-      load(query);
+      load();
     });
     const unsubGroupRemoved = socket.on("group_member_removed", () => {
-      load(query);
+      load();
     });
     const unsubChatDeleted = socket.on("chat_deleted", () => {
-      load(query);
+      load();
       refresh();
     });
 
@@ -253,10 +262,12 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
   }, []);
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      setSearchLoading(true);
-      load(query).finally(() => setSearchLoading(false));
-    }, 300);
+    if (!query.trim()) {
+      setSearchLoading(false);
+      return;
+    }
+    setSearchLoading(true);
+    const timeout = setTimeout(() => setSearchLoading(false), 150);
     return () => clearTimeout(timeout);
   }, [query]);
 
@@ -341,7 +352,7 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
         {loading && <ChatListSkeleton />}
         {/* 🔎 Заголовок результатов поиска */}
         {!loading && q && sortedChats.length > 0 && (
-          <div className="px-4 md:px-6 py-2.5 border-b border-white/10 bg-[#8b5cf6]/5 flex items-center gap-3 sticky top-[125px] md:top-[132px] z-[5] backdrop-blur-md">
+          <div className="px-4 md:px-6 py-2.5 border-b border-white/10 bg-[#8b5cf6]/5 flex items-center gap-3 backdrop-blur-md">
             <Search size={14} className="text-[#8b5cf6] shrink-0" />
             <div className="flex items-center gap-2 text-xs flex-wrap">
               <span className="text-white/80">
@@ -377,7 +388,6 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
           const glow = !isGroup && otherUser ? getGlowColor(otherUser) : null;
 
           // 🔎 ПОИСК: определяем тип совпадения для группировки
-          const q = query.trim().toLowerCase();
           const chatName = (isGroup ? chat.name : otherUser?.display_name || "").toLowerCase();
           const chatUsername = (!isGroup ? otherUser?.username || "" : "").toLowerCase();
           const lastText = (chat.last_message?.text || "").toLowerCase();
