@@ -49,6 +49,8 @@ export default function TechnicalPage() {
   const [editUsername, setEditUsername] = useState("");
   const [editDisplayName, setEditDisplayName] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [resetting2FA, setResetting2FA] = useState(false);
+  const [showReset2FAConfirm, setShowReset2FAConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ text: string; type: "ok" | "err" } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState("");
@@ -226,6 +228,42 @@ async function loadLogs() {
       setSaving(false);
     }
   }
+
+
+async function resetUser2FA() {
+  if (!selectedUser) return;
+  setResetting2FA(true);
+  setSaveMsg(null);
+  const token = getToken();
+  if (!token) return;
+
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${selectedUser.id}/reset-2fa`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      setSaveMsg({ text: data?.detail ?? "Ошибка сброса 2FA", type: "err" });
+    } else {
+      setSaveMsg({
+        text: `2FA для @${selectedUser.username} успешно сброшена!`,
+        type: "ok",
+      });
+      setTimeout(() => setSaveMsg(null), 3000);
+      setShowReset2FAConfirm(false);
+      load(); // обновляем список пользователей
+    }
+  } catch {
+    setSaveMsg({ text: "Ошибка сети", type: "err" });
+  } finally {
+    setResetting2FA(false);
+  }
+}
+
 
   async function deleteUser() {
     if (!selectedUser) return;
@@ -637,10 +675,102 @@ async function loadLogs() {
                         <label className="block text-sm font-semibold text-white/70 mb-1">Отображаемое имя</label>
                         <input value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} className="w-full border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]" />
                       </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-white/70 mb-1">Новый пароль <span className="text-white/40">(пусто = не менять)</span></label>
-                        <input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="w-full border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]" />
-                      </div>
+<div>
+  <label className="block text-sm font-semibold text-white/70 mb-1">
+    Новый пароль <span className="text-white/40">(пусто = не менять)</span>
+  </label>
+  <input
+    type="text"
+    value={newPassword}
+    onChange={(e) => setNewPassword(e.target.value)}
+    className="w-full border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]"
+  />
+</div>
+
+{/* 🆕 БЛОК 2FA */}
+<div className="border border-amber-500/30 rounded-lg bg-amber-500/5 p-3">
+  <div className="flex items-center justify-between gap-3 mb-2">
+    <div className="flex items-center gap-2">
+      <ShieldCheck
+        size={16}
+        className={selectedUser.two_fa_enabled ? "text-emerald-400" : "text-white/40"}
+      />
+      <span className="text-sm font-bold text-white">2FA</span>
+    </div>
+    <span
+      className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+        selectedUser.two_fa_enabled
+          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+          : "bg-white/5 text-white/40 border border-white/10"
+      }`}
+    >
+      {selectedUser.two_fa_enabled ? "Включена" : "Выключена"}
+    </span>
+  </div>
+
+  {selectedUser.two_fa_enabled ? (
+    !showReset2FAConfirm ? (
+      <button
+        onClick={() => setShowReset2FAConfirm(true)}
+        disabled={resetting2FA}
+        className="w-full flex items-center justify-center gap-2 border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 font-bold rounded-lg py-2 text-sm transition-all disabled:opacity-40"
+      >
+        <RefreshCw size={14} /> Сбросить 2FA
+      </button>
+    ) : (
+      <div className="space-y-2">
+        <p className="text-xs text-amber-300/90 leading-snug">
+          ⚠️ Пользователю придётся заново настроить 2FA. Он сможет войти по паролю.
+          {selectedUser.id === me?.id && (
+            <span className="block mt-1 font-bold text-amber-200">
+              Вы сбрасываете 2FA сами себе.
+            </span>
+          )}
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={resetUser2FA}
+            disabled={resetting2FA}
+            className="flex-1 bg-red-500 text-white font-bold rounded-lg py-2 text-sm hover:bg-red-600 disabled:opacity-40"
+          >
+            {resetting2FA ? "Сброс..." : "Подтвердить"}
+          </button>
+          <button
+            onClick={() => setShowReset2FAConfirm(false)}
+            disabled={resetting2FA}
+            className="flex-1 border border-white/20 text-white/70 font-bold rounded-lg py-2 text-sm hover:bg-white/10 disabled:opacity-40"
+          >
+            Отмена
+          </button>
+        </div>
+      </div>
+    )
+  ) : (
+    <p className="text-xs text-white/40">
+      2FA не настроена. Пользователь входит только по паролю.
+    </p>
+  )}
+</div>
+
+{saveMsg && (
+  <div
+    className={`p-3 rounded-lg border text-sm font-semibold ${
+      saveMsg.type === "ok"
+        ? "bg-green-500/10 border-green-500/30 text-green-400"
+        : "bg-red-500/10 border-red-500/30 text-red-400"
+    }`}
+  >
+    {saveMsg.text}
+  </div>
+)}
+
+<button
+  onClick={saveUser}
+  disabled={saving}
+  className="w-full flex items-center justify-center gap-2 bg-[#8b5cf6] text-white font-bold rounded-lg py-2.5 hover:bg-[#7c3aed] disabled:opacity-40"
+>
+  <Save size={16} /> {saving ? "Сохранение..." : "Сохранить"}
+</button>
 
                       {saveMsg && (
                         <div className={`p-3 rounded-lg border text-sm font-semibold ${saveMsg.type === "ok" ? "bg-green-500/10 border-green-500/30 text-green-400" : "bg-red-500/10 border-red-500/30 text-red-400"}`}>

@@ -335,51 +335,57 @@ async function activate2FA() {
         </header>
 
         {/* ===== Мобильные чипы ===== */}
-        <div className="lg:hidden flex gap-2 overflow-x-auto pb-2 mb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {nav.map((n) => (
-            <button
-              key={n.id}
-              onClick={() => setView(n.id)}
-              className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
-                view === n.id
-                  ? "bg-[#7B3FF2] text-white"
-                  : "bg-[#1E1E23] border border-white/10 text-[#B9B8BD] hover:text-white"
-              }`}
-            >
-              {n.label}
-            </button>
-          ))}
-        </div>
+<div className="lg:hidden flex gap-2 overflow-x-auto pb-2 mb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+  {nav.map((n) => (
+    <button
+      key={n.id}
+      onClick={() => setView(n.id)}
+      className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+        view === n.id
+          ? "bg-[#8b5cf6]/15 text-[#a78bfa] border border-[#8b5cf6]/30"
+          : "bg-[#1E1E23] border border-white/10 text-white/40 hover:text-white/60 hover:bg-white/[0.03]"
+      }`}
+    >
+      {n.label}
+    </button>
+  ))}
+</div>
 
         <div className="lg:grid lg:grid-cols-[240px_1fr] lg:gap-6 items-start">
           {/* ===== Сайдбар (ПК) ===== */}
-          <aside className="hidden lg:flex flex-col gap-1 bg-[#1E1E23] border border-white/10 rounded-xl p-3 sticky top-6">
-            {nav.map((n) => {
-              const Icon = n.icon;
-              const active = view === n.id;
-              return (
-                <button
-                  key={n.id}
-                  onClick={() => setView(n.id)}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                    active ? "bg-[#7B3FF2] text-white" : "text-[#B9B8BD] hover:bg-white/5 hover:text-white"
-                  }`}
-                >
-                  <Icon size={16} />
-                  {n.label}
-                </button>
-              );
-            })}
-            <div className="my-2 h-px bg-white/10" />
-            <button
-              onClick={logoutAll}
-              disabled={loggingOutAll}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[#E74C3C] hover:bg-[#E74C3C]/10 transition-colors disabled:opacity-40"
-            >
-              <LogOut size={16} />
-              {loggingOutAll ? "Завершаем..." : "Выход"}
-            </button>
-          </aside>
+
+<aside className="hidden lg:flex flex-col gap-1 bg-[#1E1E23] border border-white/10 rounded-xl p-3 sticky top-6">
+  {nav.map((n) => {
+    const Icon = n.icon;
+    const active = view === n.id;
+    return (
+      <button
+        key={n.id}
+        onClick={() => setView(n.id)}
+        className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+          active 
+            ? "bg-[#8b5cf6]/15 text-[#a78bfa]" 
+            : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
+        }`}
+      >
+        <Icon 
+          size={16} 
+          className={active ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} 
+        />
+        {n.label}
+      </button>
+    );
+  })}
+  <div className="my-2 h-px bg-white/10" />
+  <button
+    onClick={logoutAll}
+    disabled={loggingOutAll}
+    className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-[#E74C3C] hover:bg-[#E74C3C]/10 transition-colors disabled:opacity-40"
+  >
+    <LogOut size={16} />
+    {loggingOutAll ? "Завершаем..." : "Выход"}
+  </button>
+</aside>
 
           {/* ===== Контент ===== */}
           <section className="bg-[#1E1E23] border border-white/10 rounded-xl p-5 sm:p-6">

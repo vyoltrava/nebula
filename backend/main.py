@@ -619,6 +619,7 @@ def user_out(user: User, session: Session = None) -> dict:
                         "color": role.color,
                         "level": role.level,
                         "permissions": json.loads(role.permissions),
+                        "two_fa_enabled": bool(user.totp_enabled),
                     }
                 except Exception:
                     role_data = None
@@ -3840,6 +3841,43 @@ def admin_edit_user_technical(
     }
 
 
+
+@app.post("/api/admin/users/{user_id}/reset-2fa")
+def admin_reset_2fa(
+    user_id: int,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Сброс 2FA пользователю. Founder может сбросить себе."""
+    target = session.get(User, user_id)
+    if not target:
+        raise HTTPException(404, "User not found")
+    
+    # 🆕 Сброс СЕБЕ — всегда разрешаем
+    is_self = target.id == staff.id
+    
+    if not is_self:
+        # 🛡️ Единый иммунитет для чужих аккаунтов
+        check_sanction_rights(staff, target, session, "сбрасывать 2FA этому пользователю")
+    
+    # Проверяем что 2FA вообще включена
+    if not target.totp_enabled:
+        raise HTTPException(400, "У пользователя 2FA не включена")
+    
+    # Очищаем все данные 2FA
+    target.totp_enabled = False
+    target.totp_secret = None
+    target.totp_backup_codes = None
+    session.add(target)
+    
+    log_action(
+        session, staff.id, "reset_2fa",
+        target_type="user", target_id=target.id,
+        details={"username": target.username, "self_reset": is_self},
+    )
+    session.commit()
+    
+    return {"ok": True, "username": target.username}
 
 
 @app.post("/api/admin/users/{user_id}/avatar/set")
