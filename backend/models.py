@@ -23,9 +23,17 @@ class User(SQLModel, table=True):
     live_text_broadcast: bool = True   # 🆕 транслировать ли мой набор текста
     last_seen: Optional[datetime] = None
     token_version: int = Field(default=0)   # для "выйти со всех устройств"
-    totp_secret: Optional[str] = None       # задел под будущую 2FA
+    # 2FA
+    totp_secret: Optional[str] = Field(default=None)
     totp_enabled: bool = Field(default=False)
+    totp_backup_codes: Optional[str] = Field(default=None)  # JSON массив хешей
+    
+    # Email
+    email: Optional[str] = Field(default=None)
+    email_verified: bool = Field(default=False)
+    
     cover_url: Optional[str] = None 
+
 
 
 # ============================================================

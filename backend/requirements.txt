@@ -15,3 +15,5 @@ cryptography>=42.0.0
 httpx
 beautifulsoup4
 imageio-ffmpeg
+pyotp==2.9.0
+qrcode[pil]==7.4.2
