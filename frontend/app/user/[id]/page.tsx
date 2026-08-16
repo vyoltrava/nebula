@@ -365,8 +365,8 @@ async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
       alt="Cover" 
     />
     {isOwnProfile && (
-      <div className="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
-        <button
+<div className="absolute top-3 right-3 flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 z-20">
+          <button
           onClick={() => coverInputRef.current?.click()}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/70 backdrop-blur-sm text-white text-xs font-bold hover:bg-black/90 transition-all"
         >
@@ -389,11 +389,11 @@ async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
       className="relative w-full h-12 md:h-16 bg-white/[0.02] hover:bg-white/[0.06] transition-colors cursor-pointer flex flex-col items-center justify-center group"
       onClick={() => coverInputRef.current?.click()}
     >
-      <span className="flex items-center gap-1.5 text-white/25 group-hover:text-white/60 text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity">
+      <span className="flex items-center gap-1.5 text-white/25 group-hover:text-white/60 text-xs font-bold opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
         <ImageIcon size={14} />
         Добавить обложку
       </span>
-      <p className="text-[9px] text-white/20 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <p className="text-[9px] text-white/20 mt-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
         {UPLOAD_RULES.banner.hint}
       </p>
     </div>
@@ -411,13 +411,12 @@ async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
   </div>
 )}
 
-          {/* КОНТЕНТ ПРОФИЛЯ */}
-          <div className="px-4 md:px-6 pb-6">
-            <div className="flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6">
-              
+<div className="px-4 md:px-6 pb-6">
+  <div className={`flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6 ${profile.cover_url ? "" : "mt-6"}`}>
+    
 {/* АВАТАРКА */}
-<div className={`flex flex-col items-center md:items-start ${profile.cover_url ? "mt-[-3.5rem] md:mt-[-5rem]" : "mt-6"} z-10`}>
-  <div className="relative group shrink-0 w-32 h-32 rounded-full ring-4 ring-[#171717]">
+<div className={`group flex flex-col items-center md:items-start ${profile.cover_url ? "mt-[-3.5rem] md:mt-[-5rem]" : ""} z-10`}>
+  <div className="relative shrink-0 w-32 h-32 rounded-full ring-4 ring-[#171717]">
     <Avatar 
       src={profile.avatar_url} 
       name={profile.display_name} 
@@ -430,8 +429,8 @@ async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
       <button
         onClick={openFilePicker}
         disabled={uploading}
-        className="absolute bottom-1 right-1 p-2 rounded-full bg-[#8b5cf6] text-white shadow-lg opacity-0 group-hover:opacity-100 transition-all hover:scale-110 cursor-pointer z-10"
-        title="Сменить аватарку"
+className="absolute bottom-1 right-1 p-2 rounded-full bg-[#8b5cf6] text-white shadow-lg opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all hover:scale-110 cursor-pointer z-10"
+        title={`Сменить аватарку · ${UPLOAD_RULES.avatar.hint}`}
       >
         {uploading ? (
           <span className="block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -460,16 +459,16 @@ async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
     </div>
   )}
   
-  {/* Подсказка лимитов */}
+  {/* Подсказка лимитов — видна ТОЛЬКО при наведении на аватарку */}
   {isOwnProfile && !avatarError && (
-    <p className="mt-1.5 text-[9px] text-white/25 text-center md:text-left">
+    <p className="mt-1.5 text-[9px] text-white/25 text-center md:text-left opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none select-none">
       {UPLOAD_RULES.avatar.hint}
     </p>
   )}
 </div>
 
-              {/* ИНФА */}
-              <div className={`flex-1 min-w-0 w-full text-center md:text-left relative ${profile.cover_url ? "" : "mt-6"}`}>
+                  {/* ИНФА */}
+                  <div className="flex-1 min-w-0 w-full text-center md:text-left relative">
                 
                 {/* Верхняя часть: Имя + Бейджи + Кнопки (Десктоп) */}
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-y-1 gap-x-4">
