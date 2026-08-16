@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FlipHorizontal, Minimize2, RotateCcw, Square, X } from "lucide-react";
+import { getToken } from "@/lib/auth"; // ← добавь импорт токена
 
 interface Props {
   mode?: "expanded" | "minimized";
@@ -231,12 +232,23 @@ export function VideoNoteRecorder({
       fd.append("mirror", mirror ? "1" : "0");
       fd.append("size", "640");
 
-      const res = await fetch(PROCESS_ENDPOINT, { method: "POST", body: fd });
+      const token = getToken(); // ← БЕРЁМ ТОКЕН
+
+      const res = await fetch(PROCESS_ENDPOINT, {
+        method: "POST",
+        body: fd,
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined, // ← ПРОКИДЫВАЕМ
+      });
+
+      if (res.status === 401) {
+        throw new Error("Требуется авторизация. Войдите в аккаунт.");
+      }
       if (!res.ok) {
         let msg = "Не удалось обработать видео";
         try {
           const d = await res.json();
-          if (d?.error) msg = d.error;
+          if (d?.detail) msg = d.detail;
+          else if (d?.error) msg = d.error;
         } catch {}
         throw new Error(msg);
       }
@@ -496,7 +508,7 @@ export function VideoNoteRecorder({
     );
   }
 
-  // ==================== EXPANDED — КАК В ТГ ====================
+  // ==================== EXPANDED ====================
   return (
     <div className="fixed inset-0 z-[300] flex flex-col bg-black">
       {/* Верхняя панель */}
@@ -544,16 +556,14 @@ export function VideoNoteRecorder({
           <div className="pointer-events-none absolute -bottom-[2px] -left-[2px] h-5 w-5 border-b-[2.5px] border-l-[2.5px] border-white" />
           <div className="pointer-events-none absolute -bottom-[2px] -right-[2px] h-5 w-5 border-b-[2.5px] border-r-[2.5px] border-white" />
 
-          {/* Подпись */}
           <div className="pointer-events-none absolute -bottom-7 left-1/2 -translate-x-1/2 text-[10px] font-bold tracking-[0.2em] text-white/50 uppercase">
             Квадрат 1:1
           </div>
         </div>
       </div>
 
-      {/* Нижняя панель с кнопками */}
+      {/* Нижняя панель */}
       <div className="z-20 flex items-center justify-center gap-10 pb-10 pt-4">
-        {/* Переключение камеры */}
         {canSwitchCamera && (
           <button
             onClick={switchCamera}
@@ -564,7 +574,6 @@ export function VideoNoteRecorder({
           </button>
         )}
 
-        {/* Кнопка записи / стоп */}
         <button
           onClick={recording ? stopRecording : startRecording}
           disabled={!ready && !recording}
@@ -581,7 +590,6 @@ export function VideoNoteRecorder({
           )}
         </button>
 
-        {/* Зеркало */}
         <button
           onClick={toggleMirror}
           disabled={recording}
@@ -591,7 +599,6 @@ export function VideoNoteRecorder({
         </button>
       </div>
 
-      {/* Прогресс-линия снизу экрана */}
       {recording && (
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
           <div className="h-full bg-red-500 transition-all duration-200" style={{ width: `${progress}%` }} />
