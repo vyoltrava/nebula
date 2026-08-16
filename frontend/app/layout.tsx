@@ -84,7 +84,7 @@ export default function RootLayout({
         {/* 🌐 WebSocket вынесен наружу AuthGuard — он сам проверяет токен */}
         <WebSocketProvider>
           {/* 🛡️ AuthGuard оборачивает только защищённые компоненты */}
-          <AuthGuard>
+          {/*<AuthGuard>*/}
             <UnreadCountsProvider>
               <PermissionGate /> 
               {children}
@@ -92,7 +92,7 @@ export default function RootLayout({
             
             {/* 🚫 Оверлей блокировки (бан) */}
             <BanOverlay />
-          </AuthGuard>
+          {/*</AuthGuard>*/}
         </WebSocketProvider>
         </GlobalPlayerProvider>
         </ThemeProvider>
