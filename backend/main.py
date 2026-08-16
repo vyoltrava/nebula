@@ -43,6 +43,7 @@ import sql_profiler
 import time
 import asyncio
 from fastapi import Response
+from imageio_ffmpeg import get_ffmpeg_exe
 
 
 ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
@@ -2589,7 +2590,7 @@ async def process_video_note(
             vf += ",hflip"
         
         cmd = [
-            "ffmpeg", "-y", "-i", input_path,
+            get_ffmpeg_exe(), "-y", "-i", input_path,
             "-vf", vf,
             "-c:v", "libx264", "-preset", "fast", "-crf", "23",
             "-movflags", "+faststart",

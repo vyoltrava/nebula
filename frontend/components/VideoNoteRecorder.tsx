@@ -515,7 +515,7 @@ export function VideoNoteRecorder({
           <button
             type="button"
             onClick={toggleMirror}
-            className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-black"
+            className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-black ring-2 ring-white/40"
           >
             <video
               ref={videoRef}
@@ -582,20 +582,34 @@ export function VideoNoteRecorder({
     );
   }
 
-  // ========== EXPANDED MODE (полноэкранный) ==========
+  // ========== EXPANDED MODE ==========
   return (
     <div className="fixed inset-0 z-[300] flex flex-col bg-black">
-      <div className="relative flex-1 overflow-hidden">
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          playsInline
-          className="h-full w-full object-cover"
-          style={{ transform: mirrored ? "scaleX(-1)" : undefined }}
-        />
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden">
+        {/* Квадратный гайд с видео */}
+        <div className="relative aspect-square h-auto max-h-full w-auto max-w-full">
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            playsInline
+            className="h-full w-full object-cover"
+            style={{ transform: mirrored ? "scaleX(-1)" : undefined }}
+          />
+          {/* Затемнение вне квадрата */}
+          <div className="pointer-events-none absolute -top-[100vh] left-0 right-0 h-[100vh] bg-black/70" />
+          <div className="pointer-events-none absolute -bottom-[100vh] left-0 right-0 h-[100vh] bg-black/70" />
+          <div className="pointer-events-none absolute top-0 bottom-0 -left-[100vw] w-[100vw] bg-black/70" />
+          <div className="pointer-events-none absolute top-0 bottom-0 -right-[100vw] w-[100vw] bg-black/70" />
+          {/* Рамка */}
+          <div className="pointer-events-none absolute inset-0 border-[2.5px] border-white" />
+          {/* Подпись */}
+          <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-bold tracking-widest text-white/90">
+            1:1 · КВАДРАТ
+          </div>
+        </div>
 
-        {/* REC-индикатор */}
+        {/* REC */}
         {recording && (
           <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full bg-black/40 px-3 py-1.5 backdrop-blur-md">
             <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
@@ -623,25 +637,19 @@ export function VideoNoteRecorder({
           </button>
         </div>
 
-        {/* Нижняя панель управления */}
+        {/* Нижняя панель */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-6 pb-10 pt-16">
-          {/* Таймер + прогресс */}
           <div className="mx-auto mb-6 max-w-md">
             <div className="mb-2 flex items-center justify-between">
               <span className="font-mono text-lg font-semibold text-white">{time}</span>
               <span className="text-sm text-white/40">/ {maxTime}</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full bg-red-500 transition-[width] duration-200"
-                style={{ width: `${progress}%` }}
-              />
+              <div className="h-full rounded-full bg-red-500 transition-[width] duration-200" style={{ width: `${progress}%` }} />
             </div>
           </div>
 
-          {/* Кнопки */}
           <div className="flex items-center justify-center gap-8">
-            {/* Переключение камеры */}
             {canSwitchCamera && !recording && (
               <button
                 type="button"
@@ -653,7 +661,6 @@ export function VideoNoteRecorder({
               </button>
             )}
 
-            {/* Зеркало */}
             <button
               type="button"
               onClick={toggleMirror}
@@ -663,7 +670,6 @@ export function VideoNoteRecorder({
               <FlipHorizontal size={22} />
             </button>
 
-            {/* Запись / Стоп */}
             {!recording ? (
               <button
                 type="button"
