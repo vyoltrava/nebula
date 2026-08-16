@@ -5794,21 +5794,29 @@ def unlink_email(
 @app.post("/api/password-reset/request")
 @limiter.limit("3/minute")
 def request_password_reset(
+    request: Request,  # ← ДОБАВЬ ЭТУ СТРОКУ
     email: str = Form(...),
     session: Session = Depends(get_session),
 ):
-    """Запрашивает сброс пароля. Всегда возвращает ok (чтобы не палить email'ы)"""
+    """Запрашивает сброс пароля. Всегда возвращает ok (защита от перебора email)"""
     email = email.strip().lower()
-    user = session.exec(select(User).where(User.email == email)).first()
+    user = session.exec(select(User).where(User.email == email, User.email_verified == True)).first()
     
-    # Всегда говорим "ok" — чтобы атакующий не мог узнать, существует ли email
     if user:
-        # TODO: отправить письмо с токеном сброса
-        # Пока просто логируем
-        log_action(session, user.id, "password_reset_requested")
+        code = generate_code()
+        user.password_reset_code = code
+        user.password_reset_expires = datetime.now(timezone.utc) + timedelta(minutes=15)
+        session.add(user)
         session.commit()
+        
+        import threading
+        threading.Thread(
+            target=send_password_reset_email,
+            args=(user.email, code, user.display_name),
+            daemon=True
+        ).start()
     
-    return {"ok": True, "message": "Если email существует, письмо отправлено"}
+    return {"ok": True, "message": "Если email существует и подтверждён, код отправлен"}
 
 
 
