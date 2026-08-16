@@ -1,20 +1,32 @@
 // components/VideoNoteRecorder.tsx
 "use client";
 import { useRef, useState, useEffect } from "react";
-import { Square, X, Mic, MicOff } from "lucide-react";
+import { Square, X, Mic, MicOff, Minimize2 } from "lucide-react";
 
 interface Props {
+  mode?: "expanded" | "minimized";
   onRecorded: (file: File) => void;
   onCancel: () => void;
+  onMinimize?: () => void;
+  onExpand?: () => void;
+  onDenied?: () => void;
   maxDuration?: number;
 }
 
-export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Props) {
+export function VideoNoteRecorder({
+  mode = "expanded",
+  onRecorded,
+  onCancel,
+  onMinimize,
+  onExpand,
+  onDenied,
+  maxDuration = 60,
+}: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -25,6 +37,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
     return () => {
       cleanupResources();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function startCamera() {
@@ -39,7 +52,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
       }
       setIsCameraReady(true);
     } catch {
-      alert("Нет доступа к камере");
+      onDenied?.();
       onCancel();
     }
   }
@@ -127,11 +140,80 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   };
 
   const progress = maxDuration > 0 ? Math.min((seconds / maxDuration) * 100, 100) : 0;
-  const perimeter = 2 * (97 + 97); // для rect 97x97
+  const perimeter = 2 * (97 + 97);
 
+  // minimized mode — простая заглушка, если вдруг понадобится
+  if (mode === "minimized") {
+    return (
+      <div className="fixed bottom-4 left-3 right-3 z-[300] md:left-auto md:right-5 md:w-[420px]">
+        <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#18181b]/95 p-2.5 shadow-2xl backdrop-blur-xl">
+          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-black ring-2 ring-white/30">
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              className="h-full w-full object-cover"
+            />
+            {isRecording && <span className="absolute left-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500" />}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-sm font-semibold text-white">{formatTime(seconds)}</span>
+              <span className="text-xs text-white/30">/ {formatTime(maxDuration)}</span>
+            </div>
+            <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full bg-red-500 transition-all duration-200" style={{ width: `${progress}%` }} />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1">
+            {onExpand && (
+              <button onClick={onExpand} className="rounded-lg p-2 text-white/60 hover:bg-white/10 hover:text-white">
+                <Minimize2 size={16} />
+              </button>
+            )}
+            {!isRecording ? (
+              <button
+                onClick={startRecording}
+                disabled={!isCameraReady}
+                className="rounded-xl bg-violet-500 px-3 py-2 text-xs font-semibold text-white active:scale-95 disabled:opacity-40"
+              >
+                Запись
+              </button>
+            ) : (
+              <button
+                onClick={stopRecording}
+                className="flex items-center gap-1.5 rounded-xl bg-red-500 px-3 py-2 text-xs font-semibold text-white active:scale-95"
+              >
+                <Square size={10} fill="currentColor" />
+                Стоп
+              </button>
+            )}
+            <button onClick={() => { cleanupResources(); onCancel(); }} className="rounded-lg p-2 text-white/40 hover:bg-red-500/10 hover:text-red-400">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ==================== EXPANDED ====================
   return (
     <div className="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center">
       <div className="relative flex flex-col items-center">
+        {/* Кнопка свернуть */}
+        {onMinimize && (
+          <button
+            onClick={onMinimize}
+            className="absolute -top-12 right-0 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md transition hover:bg-white/20"
+          >
+            <Minimize2 size={20} />
+          </button>
+        )}
+
         <div className="relative w-[340px] h-[340px] sm:w-[440px] sm:h-[440px] rounded-2xl overflow-hidden bg-black shadow-2xl ring-1 ring-white/10">
           <video
             ref={videoRef}
@@ -141,12 +223,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
             className="w-full h-full object-cover"
           />
 
-          {/* 🔲 Тонкая дорожка по краю */}
-          <svg
-            className="absolute inset-0 w-full h-full pointer-events-none"
-            viewBox="0 0 100 100"
-          >
-            {/* Фон - тонкая серая линия */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100">
             <rect
               x="1.5"
               y="1.5"
@@ -157,7 +234,6 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
               stroke="rgba(255,255,255,0.12)"
               strokeWidth="1.5"
             />
-            {/* Прогресс - красная линия */}
             <rect
               x="1.5"
               y="1.5"
