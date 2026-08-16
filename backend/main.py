@@ -60,6 +60,10 @@ _ROLE_CACHE_TTL = 600         # 10 минут
 _popular_tags_cache = {}
 _POPULAR_TAGS_TTL = 300  # 5 минут
 
+_follow_cache = {}  # (follower_id, followee_id) -> (timestamp, bool)
+_FOLLOW_CACHE_TTL = 60  # 1 минута
+
+
 
 # ============================================================
 # 🌐 ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
@@ -165,6 +169,10 @@ def invalidate_ip_block_cache(ip: Optional[str] = None):
         _ip_block_cache.clear()
     else:
         _ip_block_cache.pop(ip, None)
+
+def invalidate_follow_cache(follower_id: int, followee_id: int):
+    """Сбрасывает кеш подписки"""
+    _follow_cache.pop((follower_id, followee_id), None)
 
 
 async def get_current_user_optional(authorization: str = Header(None), session: Session = Depends(get_session)):
@@ -1134,12 +1142,14 @@ def toggle_follow(
     if existing:
         session.delete(existing)
         session.commit()
+        invalidate_follow_cache(user.id, target.id)  # 🔥 Сбрасываем кеш
         return {"following": False}
     follow = Follow(follower_id=user.id, followee_id=target.id)
     session.add(follow)
     notif = Notification(user_id=target.id, actor_id=user.id, type="follow")
     session.add(notif)
     session.commit()
+    invalidate_follow_cache(user.id, target.id)  # 🔥 Сбрасываем кеш
     return {"following": True}
 
 
@@ -1150,10 +1160,23 @@ def is_following(
     session: Session = Depends(get_session),
 ):
     target = resolve_user(identifier, session)
+    cache_key = (user.id, target.id)
+    
+    # Проверяем кеш
+    now = time.time()
+    cached = _follow_cache.get(cache_key)
+    if cached:
+        cached_time, cached_val = cached
+        if now - cached_time < _FOLLOW_CACHE_TTL:
+            return {"following": cached_val}
+    
     existing = session.exec(
         select(Follow).where(Follow.follower_id == user.id, Follow.followee_id == target.id)
     ).first()
-    return {"following": existing is not None}
+    result = existing is not None
+    
+    _follow_cache[cache_key] = (now, result)
+    return {"following": result}
 
 
 @app.get("/api/users/{identifier}")
@@ -7789,12 +7812,33 @@ def _update_last_seen_sync(user_id: int):
             session.commit()
 
 
+def _track_view_sync(post_id: int, viewer_hash: str):
+    """Синхронная функция для обновления views (выполняется в фоне)"""
+    with Session(engine) as session:
+        post = session.get(Post, post_id)
+        if not post:
+            return
+        yesterday = datetime.now(timezone.utc) - timedelta(hours=24)
+        existing = session.exec(
+            select(PostView).where(
+                PostView.post_id == post_id,
+                PostView.viewer_hash == viewer_hash,
+                PostView.viewed_at > yesterday
+            )
+        ).first()
+        if not existing:
+            session.add(PostView(post_id=post_id, viewer_hash=viewer_hash))
+            post.views_count = (post.views_count or 0) + 1
+            session.add(post)
+            session.commit()
+
 @app.post("/api/posts/{post_id}/view")
-def track_view(request: Request, post_id: int, session: Session = Depends(get_session)):
-    post = session.get(Post, post_id)
-    if not post:
-        raise HTTPException(404, "Post not found")
-    
+async def track_view(
+    request: Request, 
+    post_id: int, 
+    background_tasks: BackgroundTasks,
+):
+    """🔥 Асинхронный view-трекинг — не блокирует ответ"""
     token = request.headers.get("Authorization", "")
     if token.startswith("Bearer "):
         try:
@@ -7805,22 +7849,9 @@ def track_view(request: Request, post_id: int, session: Session = Depends(get_se
     else:
         viewer_hash = f"ip:{get_client_ip(request)}"
     
-    yesterday = datetime.now(timezone.utc) - timedelta(hours=24)
-    existing = session.exec(
-        select(PostView).where(
-            PostView.post_id == post_id,
-            PostView.viewer_hash == viewer_hash,
-            PostView.viewed_at > yesterday
-        )
-    ).first()
-    
-    if not existing:
-        session.add(PostView(post_id=post_id, viewer_hash=viewer_hash))
-        post.views_count = (post.views_count or 0) + 1
-        session.add(post)
-        session.commit()
-    
-    return {"views": post.views_count}
+    # Запускаем в фоне — ответ возвращается мгновенно
+    background_tasks.add_task(_track_view_sync, post_id, viewer_hash)
+    return {"ok": True}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

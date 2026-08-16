@@ -12,6 +12,7 @@ import { mediaUrl } from "@/lib/media";
 import { ReportModal } from "./ReportModal";
 import { BookmarkButton } from "@/components/BookmarkButton";
 import { isLikedCached, setLikedCache } from "@/lib/postCache";
+import { getCachedFollow, setCachedFollow } from "@/lib/followCache";
 import { getCachedUser } from "@/lib/authCache";
 import { timeAgo } from "@/lib/time";
 import { AudioPlayer } from "@/components/AudioPlayer";
@@ -243,12 +244,37 @@ export function Post({
     setEditText(text);
   }, [text]);
 
-  useEffect(() => {
+// 🔥 Оптимизация: view отправляем только на странице поста или при реальной видимости
+useEffect(() => {
+  if (isMainPost) {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/view`, {
       method: "POST",
       headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
     });
-  }, [id]);
+    return;
+  }
+  
+  // Для ленты — IntersectionObserver (view только когда пост реально виден)
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/view`, {
+            method: "POST",
+            headers: getToken() ? { Authorization: `Bearer ${getToken()}` } : {},
+          });
+          observer.disconnect();
+        }
+      });
+    },
+    { threshold: 0.5 }
+  );
+
+  const el = document.querySelector(`[data-post-id="${id}"]`);
+  if (el) observer.observe(el);
+
+  return () => observer.disconnect();
+}, [id, isMainPost]);
 
 useEffect(() => {
   const handler = (e: Event) => {
@@ -265,6 +291,13 @@ useEffect(() => {
     const cleanUsername = username || handle?.replace("@", "");
 
     useEffect(() => {
+      // 🔥 Проверяем кеш сначала
+      const cached = getCachedFollow(author_id);
+      if (cached !== null) {
+        setFollowing(cached);
+        return;
+      }
+
       const token = getToken();
       if (!token) return;
       
@@ -273,7 +306,10 @@ useEffect(() => {
       })
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          if (data) setFollowing(data.following);
+          if (data) {
+            setFollowing(data.following);
+            setCachedFollow(author_id, data.following);
+          }
         });
     }, [author_id]);
 
@@ -351,13 +387,24 @@ async function toggleLike() {
       router.push("/login");
       return;
     }
+    
+    const next = !following;
+    setFollowing(next);
+    setCachedFollow(author_id, next);
+
     const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${author_id}/follow`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
+    
     if (res.ok) {
       const data = await res.json();
       setFollowing(data.following);
+      setCachedFollow(author_id, data.following);
+    } else {
+      // Откат
+      setFollowing(!next);
+      setCachedFollow(author_id, !next);
     }
   }
 

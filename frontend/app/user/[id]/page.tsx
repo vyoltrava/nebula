@@ -170,43 +170,48 @@ async function startChat() {
     }
   }
 
-  useEffect(() => {
-    if (!userId) return;
-    async function loadData() {
-      setLoading(true);
-      try {
-        const profileRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`);
-        if (!profileRes.ok) {
-          setLoading(false);
-          return;
-        }
-        const profileData = await profileRes.json();
-        setProfile(profileData);
-
-        if (profileData.username && /^\d+$/.test(userId)) {
-          router.replace(`/${profileData.username}`);
-        }
-
-        await loadMorePosts(true);
-
-        const token = getToken();
-        if (token) {
-          const followRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/is-following`, {
+async function loadData() {
+  setLoading(true);
+  try {
+    const token = getToken();
+    
+    // 🔥 Параллельные запросы вместо последовательных
+    const [profileRes, followRes] = await Promise.all([
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`),
+      token 
+        ? fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/is-following`, {
             headers: { Authorization: `Bearer ${token}` },
-          });
-          if (followRes.ok) {
-            const data = await followRes.json();
-            setFollowing(data.following);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load profile:", err);
-      } finally {
-        setLoading(false);
-      }
+          })
+        : Promise.resolve(null),
+    ]);
+
+    if (!profileRes.ok) {
+      setLoading(false);
+      return;
     }
-    loadData();
-  }, [userId]);
+    
+    const profileData = await profileRes.json();
+    setProfile(profileData);
+
+    if (profileData.username && /^\d+$/.test(userId)) {
+      router.replace(`/${profileData.username}`);
+    }
+
+    // Обработка подписки
+    if (followRes && followRes.ok) {
+      const data = await followRes.json();
+      setFollowing(data.following);
+    }
+
+    // Посты загружаем параллельно с рендером
+    loadMorePosts(true);
+    
+  } catch (err) {
+    console.error("Failed to load profile:", err);
+  } finally {
+    setLoading(false);
+  }
+}
 
   async function toggleFollow() {
     const token = getToken();
