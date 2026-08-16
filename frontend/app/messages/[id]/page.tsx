@@ -182,7 +182,7 @@ export default function ChatPage() {
   const camPerm = useDevicePermission("camera");
   const [permHelp, setPermHelp] = useState<null | "microphone" | "camera">(null);
 
-  const [videoMode, setVideoMode] = useState<'idle' | 'expanded' | 'minimized'>('idle');
+  const [showVideoRecorder, setShowVideoRecorder] = useState(false);
 
   const [menuOpenUp, setMenuOpenUp] = useState(false);
   
@@ -1299,7 +1299,7 @@ function getMessageMenuItems(msg: any): { icon: any; label: string; onClick: () 
             const ok = await camPerm.request();
             if (!ok) { setPermHelp("camera"); return; }
           }
-          setVideoMode("expanded");
+          setShowVideoRecorder(true);
         })();
       }
       setShowRecordMenu(false);
@@ -3258,15 +3258,11 @@ const ChatHeader = () => (
       )}
 
 
-{videoMode !== 'idle' && (
+{showVideoRecorder && (
   <VideoNoteRecorder
-    mode={videoMode}
-    onMinimize={() => setVideoMode('minimized')}
-    onExpand={() => setVideoMode('expanded')}
-    onDenied={() => { setVideoMode('idle'); setPermHelp("camera"); }}
-    onCancel={() => setVideoMode('idle')}
+    onCancel={() => setShowVideoRecorder(false)}
     onRecorded={async (file) => {
-      setVideoMode('idle');
+      setShowVideoRecorder(false);
       const token = getToken();
       if (!token) return;
 
@@ -3279,7 +3275,7 @@ const ChatHeader = () => (
           const form = new FormData();
           form.append("file", encryptedBlob, file.name);
           form.append("media_type", "video_note");
-          if (replyTo) form.append("reply_to_id", String(replyTo.id)); // 🆕
+          if (replyTo) form.append("reply_to_id", String(replyTo.id));
 
           const res = await fetch(
             `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/encrypted-media`,
@@ -3297,7 +3293,7 @@ const ChatHeader = () => (
           const form = new FormData();
           form.append("file", file);
           form.append("media_type", "video_note");
-          if (replyTo) form.append("reply_to_id", String(replyTo.id)); // 🆕
+          if (replyTo) form.append("reply_to_id", String(replyTo.id));
 
           const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
             method: "POST",
@@ -3317,7 +3313,6 @@ const ChatHeader = () => (
     maxDuration={60}
   />
 )}
-
 {permHelp && (
   <PermissionHelpModal device={permHelp} onClose={() => setPermHelp(null)} />
 )}
