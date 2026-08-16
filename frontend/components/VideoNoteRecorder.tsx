@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { Square, X, Minimize2, Maximize2, SwitchCamera } from "lucide-react";
 
 interface Props {
@@ -12,19 +12,6 @@ interface Props {
   maxDuration?: number;
 }
 
-// Исправляем проверку на PWA
-const IS_MOBILE =
-  typeof navigator !== "undefined" &&
-  /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-const IS_PWA = typeof window !== 'undefined' && 
-  (window.matchMedia('(display-mode: standalone)').matches ||
-   (window.navigator as any).standalone === true);
-
-const SIZE = IS_MOBILE ? 480 : 720;
-const REC_FPS = IS_MOBILE ? 24 : 30;
-const BITRATE = IS_MOBILE ? 800_000 : 2_500_000;
-
 export function VideoNoteRecorder({
   mode = 'expanded',
   onRecorded,
@@ -34,537 +21,472 @@ export function VideoNoteRecorder({
   onDenied,
   maxDuration = 60,
 }: Props) {
+  // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const videoStreamRef = useRef<MediaStream | null>(null);
-  const audioStreamRef = useRef<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const startTsRef = useRef(0);
-  const rafRef = useRef<number>(0);
-  const mimeRef = useRef<string>("video/webm");
-  const mirroredRef = useRef(true);
-  const canvasTrackRef = useRef<MediaStreamTrack | null>(null);
-
+  
+  // State
   const [isRecording, setIsRecording] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [facing, setFacing] = useState<"user" | "environment">("user");
   const [mirrored, setMirrored] = useState(true);
   const [hasFlip, setHasFlip] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { mirroredRef.current = mirrored; }, [mirrored]);
-
-  useEffect(() => {
-    startAll();
-    return () => cleanup();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Cleanup function
+  const cleanup = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    if (mediaRecorderRef.current) {
+      try {
+        if (mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.stop();
+        }
+      } catch (e) {}
+      mediaRecorderRef.current = null;
+    }
+    
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
+    chunksRef.current = [];
+    setIsRecording(false);
+    setSeconds(0);
   }, []);
 
-  useEffect(() => {
-    const v = videoRef.current;
-    const s = videoStreamRef.current;
-    if (v && s) {
-      v.srcObject = s;
-      v.play().catch((err) => console.warn("Video play error:", err));
-    }
-  }, [mode, isReady]);
-
-  async function startCamera(facingMode: "user" | "environment" = "user") {
+  // Start camera and mic
+  const startDevices = useCallback(async (facingMode: "user" | "environment" = "user") => {
     try {
-      videoStreamRef.current?.getTracks().forEach((t) => t.stop());
-      
-      // Исправляем типизацию constraints
-      const videoConstraints: MediaTrackConstraints = {
-        facingMode: facingMode,
-        width: { ideal: SIZE },
-        height: { ideal: SIZE },
-        frameRate: { ideal: REC_FPS },
-      };
-
-      // На мобильных устройствах и в PWA может потребоваться дополнительная настройка
-      if (IS_MOBILE || IS_PWA) {
-        videoConstraints.width = { ideal: Math.min(SIZE, 640) };
-        videoConstraints.height = { ideal: Math.min(SIZE, 640) };
+      // Cleanup old streams
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: videoConstraints,
-        audio: false,
-      });
-      
-      videoStreamRef.current = stream;
-      
-      const v = videoRef.current;
-      if (v) {
-        v.srcObject = stream;
-        await v.play().catch(() => {});
-      }
-      
-      setError(null);
-    } catch (err) {
-      console.error("Camera error:", err);
-      setError("Не удалось получить доступ к камере");
-      throw err;
-    }
-  }
-
-  async function startMic() {
-    try {
-      audioStreamRef.current?.getTracks().forEach((t) => t.stop());
-      
-      const audioConstraints: MediaTrackConstraints = {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
+      const constraints: MediaStreamConstraints = {
+        video: {
+          facingMode: facingMode,
+          width: { ideal: 640 },
+          height: { ideal: 640 },
+          frameRate: { ideal: 30 }
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
       };
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: audioConstraints,
-        video: false,
-      });
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
       
-      audioStreamRef.current = stream;
-      setError(null);
-    } catch (err) {
-      console.error("Mic error:", err);
-      setError("Не удалось получить доступ к микрофону");
-      throw err;
-    }
-  }
-
-  async function startAll() {
-    try {
-      await startMic();
-      await startCamera("user");
-      const devs = await navigator.mediaDevices.enumerateDevices();
-      setHasFlip(devs.filter((d) => d.kind === "videoinput").length > 1);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play().catch(() => {});
+      }
+      
+      // Check if multiple cameras available
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(d => d.kind === 'videoinput');
+      setHasFlip(videoDevices.length > 1);
+      
       setIsReady(true);
-      runLoop();
-    } catch (e: any) {
-      if (e?.message === "camera_denied" || e?.message === "mic_denied") {
-        onDenied ? onDenied() : alert("Нет доступа к камере/микрофону");
+    } catch (error) {
+      console.error('Error starting devices:', error);
+      if (onDenied) {
+        onDenied();
+      } else {
+        alert('Нет доступа к камере или микрофону');
       }
       onCancel();
     }
-  }
+  }, [onDenied, onCancel]);
 
-  function draw() {
-    const v = videoRef.current;
-    const c = canvasRef.current;
-    if (!v || !c || v.readyState < 2 || v.videoWidth === 0) return;
-
-    const ctx = c.getContext("2d", { alpha: false });
-    if (!ctx) return;
-
-    const s = c.width;
-    const vw = v.videoWidth;
-    const vh = v.videoHeight;
-    const side = Math.min(vw, vh);
-    const sx = (vw - side) >> 1;
-    const sy = (vh - side) >> 1;
-
-    if (mirroredRef.current) {
-      ctx.setTransform(-1, 0, 0, 1, s, 0);
-    } else {
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-    }
-
-    ctx.drawImage(v, sx, sy, side, side, 0, 0, s, s);
-
-    if (canvasTrackRef.current && (canvasTrackRef.current as any).requestFrame) {
-      (canvasTrackRef.current as any).requestFrame();
-    }
-  }
-
-  function runLoop() {
-    const v = videoRef.current;
-    if (!v) return;
-
-    cancelAnimationFrame(rafRef.current);
-
-    const tick = () => {
-      draw();
-      if ("requestVideoFrameCallback" in v) {
-        (v as any).requestVideoFrameCallback(tick);
-      } else {
-        if (IS_MOBILE) {
-          rafRef.current = requestAnimationFrame(() => {
-            rafRef.current = requestAnimationFrame(tick);
-          });
-        } else {
-          rafRef.current = requestAnimationFrame(tick);
-        }
-      }
-    };
-
-    if ("requestVideoFrameCallback" in v) {
-      (v as any).requestVideoFrameCallback(tick);
-    } else {
-      rafRef.current = requestAnimationFrame(tick);
-    }
-  }
-
-  async function toggleFacing() {
-    const next = facing === "user" ? "environment" : "user";
-    try {
-      await startCamera(next);
-      setFacing(next);
-      setMirrored(next === "user");
-    } catch (err) {
-      console.error("Toggle camera error:", err);
-    }
-  }
-
-  async function startRecording() {
-    const c = canvasRef.current;
-    const a = audioStreamRef.current;
-    if (!c || !a) {
-      setError("Камера или микрофон не готовы");
+  // Start recording
+  const startRecording = useCallback(() => {
+    if (!streamRef.current) {
+      alert('Камера не готова');
       return;
     }
 
     try {
+      // Reset chunks
       chunksRef.current = [];
 
-      const cStream = c.captureStream(REC_FPS);
-      const videoTracks = cStream.getVideoTracks();
-      
+      // Get video and audio tracks
+      const videoTracks = streamRef.current.getVideoTracks();
+      const audioTracks = streamRef.current.getAudioTracks();
+
       if (videoTracks.length === 0) {
-        throw new Error("Не удалось создать видеопоток с canvas");
-      }
-      
-      canvasTrackRef.current = videoTracks[0] || null;
-
-      const audioTracks = a.getAudioTracks();
-      if (audioTracks.length === 0) {
-        throw new Error("Нет аудио треков");
+        alert('Нет видеотрека');
+        return;
       }
 
-      const combined = new MediaStream([
+      // Create new stream with both tracks
+      const recordingStream = new MediaStream([
         ...videoTracks,
-        ...audioTracks,
+        ...audioTracks
       ]);
 
-      const codecs = [
-        "video/webm;codecs=vp9,opus",
-        "video/webm;codecs=vp8,opus",
-        "video/webm;codecs=h264,opus",
-        "video/webm",
-        "video/mp4;codecs=h264,aac",
-        "video/mp4",
+      // Find supported mime type
+      const mimeTypes = [
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm;codecs=h264,opus',
+        'video/webm'
       ];
       
-      const mime = codecs.find((m) => MediaRecorder.isTypeSupported(m)) || "";
-      if (!mime) {
-        throw new Error("Браузер не поддерживает запись видео");
+      let mimeType = '';
+      for (const type of mimeTypes) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          mimeType = type;
+          break;
+        }
       }
-      
-      mimeRef.current = mime;
 
+      // Create MediaRecorder
       const options: MediaRecorderOptions = {
-        mimeType: mime,
-        videoBitsPerSecond: BITRATE,
-        audioBitsPerSecond: 128000,
+        mimeType: mimeType || undefined,
+        videoBitsPerSecond: 2500000,
+        audioBitsPerSecond: 128000
       };
 
-      const rec = new MediaRecorder(combined, options);
-      mediaRecorderRef.current = rec;
+      const recorder = new MediaRecorder(recordingStream, options);
+      mediaRecorderRef.current = recorder;
 
-      rec.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
+      // Handle data
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          chunksRef.current.push(event.data);
         }
       };
 
-      rec.onstop = () => {
+      // Handle stop
+      recorder.onstop = () => {
         if (chunksRef.current.length === 0) {
-          setError("Запись не удалась - нет данных");
+          alert('Запись не удалась');
           return;
         }
 
         try {
-          const blob = new Blob(chunksRef.current, { type: mimeRef.current });
+          const blob = new Blob(chunksRef.current, { 
+            type: mimeType || 'video/webm' 
+          });
+          
           if (blob.size === 0) {
-            setError("Запись не удалась - файл пуст");
+            alert('Файл пуст');
             return;
           }
 
-          const ext = mimeRef.current.includes("mp4") ? ".mp4" : 
-                     mimeRef.current.includes("webm") ? ".webm" : ".mp4";
-          
-          const file = new File([blob], `note-${Date.now()}${ext}`, {
-            type: mimeRef.current,
+          const ext = mimeType.includes('mp4') ? '.mp4' : '.webm';
+          const file = new File([blob], `video-${Date.now()}${ext}`, {
+            type: mimeType || 'video/webm'
           });
-
+          
           cleanup();
           onRecorded(file);
-        } catch (err) {
-          console.error("File creation error:", err);
-          setError("Ошибка при создании файла");
+        } catch (error) {
+          console.error('Error creating file:', error);
+          alert('Ошибка создания файла');
         }
       };
 
-      rec.start(1000);
+      // Start recording
+      recorder.start(1000);
       setIsRecording(true);
       setSeconds(0);
-      startTsRef.current = Date.now();
-
+      
+      // Timer
+      const startTime = Date.now();
       timerRef.current = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTsRef.current) / 1000);
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
         setSeconds(elapsed);
+        
         if (elapsed >= maxDuration) {
           stopRecording();
         }
       }, 1000);
-
-      setError(null);
-    } catch (err) {
-      console.error("Recording error:", err);
-      setError(err instanceof Error ? err.message : "Ошибка при старте записи");
-      alert("Ошибка записи: " + (err instanceof Error ? err.message : "Неизвестная ошибка"));
+      
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      alert('Ошибка начала записи');
+      cleanup();
     }
-  }
+  }, [cleanup, maxDuration, onRecorded]);
 
-  function stopRecording() {
-    const rec = mediaRecorderRef.current;
-    if (rec && rec.state === "recording") {
-      try {
-        rec.stop();
-      } catch (err) {
-        console.error("Stop recording error:", err);
-      }
+  // Stop recording
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
     }
+    
     setIsRecording(false);
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-  }
+  }, []);
 
-  function cleanup() {
-    cancelAnimationFrame(rafRef.current);
-    
-    const rec = mediaRecorderRef.current;
-    if (rec) {
-      try {
-        if (rec.state === "recording") {
-          rec.onstop = null as any;
-          rec.stop();
-        }
-      } catch {}
-      mediaRecorderRef.current = null;
-    }
-    
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    
-    canvasTrackRef.current = null;
-    
-    videoStreamRef.current?.getTracks().forEach((t) => t.stop());
-    videoStreamRef.current = null;
-    
-    audioStreamRef.current?.getTracks().forEach((t) => t.stop());
-    audioStreamRef.current = null;
-    
-    setIsRecording(false);
-    setSeconds(0);
-    chunksRef.current = [];
-  }
+  // Toggle camera
+  const toggleCamera = useCallback(async () => {
+    const newFacing = facing === 'user' ? 'environment' : 'user';
+    setFacing(newFacing);
+    setMirrored(newFacing === 'user');
+    await startDevices(newFacing);
+  }, [facing, startDevices]);
 
-  const fmt = (s: number) =>
-    `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
-  const progress = maxDuration > 0 ? Math.min((seconds / maxDuration) * 100, 100) : 0;
-  const perim = 2 * (94 + 94);
+  // Init
+  useEffect(() => {
+    startDevices('user');
+    return cleanup;
+  }, [startDevices, cleanup]);
 
-  if (error) {
+  // Format time
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Progress
+  const progress = maxDuration > 0 ? (seconds / maxDuration) * 100 : 0;
+  const perimeter = 2 * (94 + 94);
+
+  // Error state
+  if (!isReady) {
     return (
       <div className="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center">
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 max-w-sm text-center">
-          <p className="text-red-400 text-sm">{error}</p>
-          <button 
-            onClick={() => { setError(null); startAll(); }}
-            className="mt-4 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm"
-          >
-            Попробовать снова
-          </button>
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-white/20 border-t-[#8b5cf6] rounded-full animate-spin mx-auto" />
+          <p className="text-white/60 mt-4 text-sm">Загрузка камеры...</p>
         </div>
       </div>
     );
   }
 
+  // Minimized mode
   if (mode === 'minimized') {
     return (
-      <div className="fixed bottom-20 left-3 right-3 md:left-auto md:right-6 md:w-[480px] z-[60] bg-[#1f1f23]/95 backdrop-blur-md border border-white/15 rounded-2xl shadow-2xl shadow-black/60 p-3 animate-in slide-in-from-bottom-4 duration-300">
+      <div className="fixed bottom-20 left-3 right-3 md:left-auto md:right-6 md:w-[480px] z-[60] bg-[#1f1f23]/95 backdrop-blur-md border border-white/15 rounded-2xl shadow-2xl shadow-black/60 p-3">
         <div className="flex items-center gap-3">
-          <div
-            className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-black ring-1 ring-white/10 cursor-pointer active:scale-95 transition-transform"
-            onClick={() => setMirrored((m) => !m)}
-            title="Зеркало"
-          >
+          {/* Video preview */}
+          <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-black flex-shrink-0 ring-1 ring-white/10">
             <video
               ref={videoRef}
               autoPlay
               playsInline
               muted
               className="w-full h-full object-cover"
-              style={{ transform: mirrored ? "scaleX(-1)" : "none" }}
+              style={{ transform: mirrored ? 'scaleX(-1)' : 'none' }}
             />
-            {isRecording && <div className="absolute top-1 left-1 w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
-            {mirrored && (
-              <div className="absolute bottom-0.5 right-0.5 text-[8px] text-white/70 bg-black/60 px-1 rounded">🪞</div>
+            {isRecording && (
+              <div className="absolute top-1 left-1 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
             )}
           </div>
+
+          {/* Timer */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-baseline gap-1.5 mb-1">
-              <span className="text-sm font-bold text-red-400 tabular-nums">{fmt(seconds)}</span>
-              <span className="text-[10px] text-white/40 tabular-nums">/ {fmt(maxDuration)}</span>
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className="text-sm font-bold text-red-400 tabular-nums">
+                {formatTime(seconds)}
+              </span>
+              <span className="text-[10px] text-white/40 tabular-nums">
+                / {formatTime(maxDuration)}
+              </span>
             </div>
             <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-              <div className="h-full bg-red-500 transition-all duration-300 ease-linear" style={{ width: `${progress}%` }} />
+              <div 
+                className="h-full bg-red-500 transition-all duration-300" 
+                style={{ width: `${progress}%` }} 
+              />
             </div>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
+
+          {/* Controls */}
+          <div className="flex items-center gap-1 flex-shrink-0">
             {hasFlip && (
-              <button onClick={toggleFacing} className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 active:scale-95 transition-all" title="Камера">
+              <button
+                onClick={toggleCamera}
+                className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+              >
                 <SwitchCamera size={15} />
               </button>
             )}
+            
             {onExpand && (
-              <button onClick={onExpand} className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 active:scale-95 transition-all" title="Развернуть">
+              <button
+                onClick={onExpand}
+                className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+              >
                 <Maximize2 size={15} />
               </button>
             )}
+
             {isRecording ? (
-              <button onClick={stopRecording} className="px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 active:scale-95 transition-all flex items-center gap-1">
-                <Square size={10} fill="currentColor" />Стоп
+              <button
+                onClick={stopRecording}
+                className="px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition-colors flex items-center gap-1"
+              >
+                <Square size={10} fill="currentColor" />
+                Стоп
               </button>
-            ) : isReady ? (
-              <button onClick={startRecording} className="px-3 py-1.5 rounded-lg bg-[#8b5cf6] text-white text-xs font-bold hover:bg-[#7c3aed] active:scale-95 transition-all flex items-center gap-1">
-                <div className="w-2 h-2 rounded-full bg-white" />Запись
+            ) : (
+              <button
+                onClick={startRecording}
+                className="px-3 py-1.5 rounded-lg bg-[#8b5cf6] text-white text-xs font-bold hover:bg-[#7c3aed] transition-colors flex items-center gap-1"
+              >
+                <div className="w-2 h-2 rounded-full bg-white" />
+                Запись
               </button>
-            ) : null}
-            <button onClick={() => { cleanup(); onCancel(); }} className="p-2 rounded-lg text-white/50 hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all" title="Отменить">
+            )}
+
+            <button
+              onClick={() => {
+                cleanup();
+                onCancel();
+              }}
+              className="p-2 rounded-lg text-white/50 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            >
               <X size={16} />
             </button>
           </div>
         </div>
-        <canvas ref={canvasRef} width={SIZE} height={SIZE} className="hidden" />
       </div>
     );
   }
 
+  // Expanded mode
   return (
     <div className="fixed inset-0 z-[300] bg-black/95 flex items-center justify-center">
       <div className="relative flex flex-col items-center">
-        <div
-          className="relative w-[340px] h-[340px] sm:w-[440px] sm:h-[440px] rounded-2xl overflow-hidden bg-black shadow-2xl ring-1 ring-white/10 cursor-pointer active:scale-[0.99] transition-transform"
-          onClick={() => setMirrored((m) => !m)}
-          title="Тап — зеркало"
-        >
+        {/* Video preview */}
+        <div className="relative w-[340px] h-[340px] sm:w-[440px] sm:h-[440px] rounded-2xl overflow-hidden bg-black shadow-2xl ring-1 ring-white/10">
           <video
             ref={videoRef}
             autoPlay
             playsInline
             muted
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{ transform: mirrored ? "scaleX(-1)" : "none" }}
-          />
-          <canvas
-            ref={canvasRef}
-            width={SIZE}
-            height={SIZE}
-            className="absolute inset-0 w-full h-full opacity-0 pointer-events-none"
+            className="w-full h-full object-cover"
+            style={{ transform: mirrored ? 'scaleX(-1)' : 'none' }}
           />
 
+          {/* Progress ring */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100">
-            <rect x="1.5" y="1.5" width="97" height="97" rx="10" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" />
-            <rect x="1.5" y="1.5" width="97" height="97" rx="10" fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round" strokeDasharray={perim} strokeDashoffset={perim * (1 - progress / 100)} className="transition-all duration-300 ease-linear" />
+            <rect 
+              x="1.5" y="1.5" width="97" height="97" rx="10" 
+              fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" 
+            />
+            {isRecording && (
+              <rect 
+                x="1.5" y="1.5" width="97" height="97" rx="10" 
+                fill="none" stroke="#ef4444" strokeWidth="1.5" strokeLinecap="round"
+                strokeDasharray={perimeter} 
+                strokeDashoffset={perimeter * (1 - progress / 100)}
+                className="transition-all duration-300" 
+              />
+            )}
           </svg>
 
-          <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/70 backdrop-blur-sm rounded-full px-2.5 py-1 ring-1 ring-white/10 pointer-events-none">
+          {/* Status badge */}
+          <div className="absolute top-3 right-3 bg-black/70 backdrop-blur-sm rounded-full px-2.5 py-1 ring-1 ring-white/10">
             <span className="text-[11px] text-white/90 font-bold">
-              {mirrored ? "🪞 зеркало" : "без зеркала"}
+              {mirrored ? '🪞 зеркало' : 'без зеркала'}
             </span>
           </div>
 
+          {/* Timer */}
           {isRecording && (
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/70 backdrop-blur-sm rounded-full px-4 py-1.5 ring-1 ring-white/10 pointer-events-none">
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm rounded-full px-4 py-1.5 ring-1 ring-white/10 flex items-center gap-2">
               <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-white text-sm font-mono font-bold tabular-nums">{fmt(seconds)}</span>
-              <span className="text-white/40 text-xs font-mono">/ {fmt(maxDuration)}</span>
+              <span className="text-white text-sm font-mono font-bold tabular-nums">
+                {formatTime(seconds)}
+              </span>
+              <span className="text-white/40 text-xs font-mono">
+                / {formatTime(maxDuration)}
+              </span>
             </div>
           )}
 
-          {!isRecording && isReady && (
+          {/* Hint */}
+          {!isRecording && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <div className="text-center">
-                <p className="text-white/40 text-sm font-medium">Нажмите ● для записи</p>
-                <p className="text-white/20 text-xs mt-1">
-                  Тап — зеркало · {facing === "user" ? "фронт" : "тыл"}
+                <p className="text-white/40 text-sm font-medium">
+                  Нажмите ● для записи
                 </p>
-                {IS_PWA && (
-                  <p className="text-white/10 text-[10px] mt-2">PWA режим</p>
-                )}
+                <p className="text-white/20 text-xs mt-1">
+                  {facing === 'user' ? 'фронтальная' : 'тыловая'} камера
+                </p>
               </div>
             </div>
           )}
         </div>
 
+        {/* Controls */}
         <div className="mt-6 flex items-center justify-center gap-6 sm:gap-8">
-          <button onClick={() => { cleanup(); onCancel(); }} className="w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 transition-colors active:scale-95 flex items-center justify-center text-white/80" title="Отменить">
+          <button
+            onClick={() => {
+              cleanup();
+              onCancel();
+            }}
+            className="w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center text-white/80"
+          >
             <X size={24} />
           </button>
 
           <button
-            onClick={toggleFacing}
+            onClick={toggleCamera}
             disabled={!hasFlip}
-            className={`w-14 h-14 rounded-full transition-all active:scale-95 flex items-center justify-center ${
-              hasFlip ? "bg-white/10 hover:bg-white/20 text-white/80" : "bg-white/5 text-white/20 cursor-not-allowed"
+            className={`w-14 h-14 rounded-full transition-colors flex items-center justify-center ${
+              hasFlip 
+                ? 'bg-white/10 hover:bg-white/20 text-white/80' 
+                : 'bg-white/5 text-white/20 cursor-not-allowed'
             }`}
-            title={hasFlip ? "Камера" : "Одна камера"}
           >
             <SwitchCamera size={22} />
           </button>
 
-          {!isRecording ? (
+          {isRecording ? (
             <button
-              onClick={() => {
-                if (!isReady) {
-                  startCamera(facing).then(() => startRecording());
-                } else {
-                  startRecording();
-                }
-              }}
-              disabled={!isReady}
-              className="w-20 h-20 rounded-full bg-[#8b5cf6] hover:bg-[#7c3aed] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center shadow-lg shadow-[#8b5cf6]/30 ring-4 ring-[#8b5cf6]/20"
+              onClick={stopRecording}
+              className="w-20 h-20 rounded-full bg-red-500 hover:bg-red-600 transition-colors flex items-center justify-center shadow-lg shadow-red-500/30 ring-4 ring-red-500/20"
+            >
+              <Square size={28} className="text-white" fill="white" />
+            </button>
+          ) : (
+            <button
+              onClick={startRecording}
+              className="w-20 h-20 rounded-full bg-[#8b5cf6] hover:bg-[#7c3aed] transition-colors flex items-center justify-center shadow-lg shadow-[#8b5cf6]/30 ring-4 ring-[#8b5cf6]/20"
             >
               <div className="w-9 h-9 rounded-full border-[3px] border-white flex items-center justify-center">
                 <div className="w-5 h-5 rounded-sm bg-white" />
               </div>
             </button>
-          ) : (
-            <button onClick={stopRecording} className="w-20 h-20 rounded-full bg-red-500 hover:bg-red-600 active:scale-95 transition-all flex items-center justify-center shadow-lg shadow-red-500/30 ring-4 ring-red-500/20">
-              <Square size={28} className="text-white" fill="white" />
-            </button>
           )}
 
-          <button onClick={onMinimize} className="w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 transition-colors active:scale-95 flex items-center justify-center text-white/80" title="Свернуть">
+          <button
+            onClick={onMinimize}
+            className="w-14 h-14 rounded-full bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center text-white/80"
+          >
             <Minimize2 size={22} />
           </button>
         </div>
 
+        {/* Footer info */}
         <div className="mt-4 text-center">
           <p className="text-white/30 text-xs font-medium">
-            {isRecording
-              ? `⏺ ${fmt(seconds)} · ${mirrored ? "🪞" : ""} ${facing === "user" ? "фронт" : "тыл"}`
-              : isReady
-              ? "↓ Свернуть · 🔄 Камера · ● Записать · ✕ Отменить"
-              : "⏳ Загрузка камеры..."}
+            {isRecording 
+              ? `⏺ ${formatTime(seconds)} · ${mirrored ? '🪞' : ''} ${facing === 'user' ? 'фронт' : 'тыл'}`
+              : '↓ Свернуть · 🔄 Камера · ● Записать · ✕ Отменить'
+            }
           </p>
         </div>
       </div>
