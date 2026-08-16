@@ -47,6 +47,18 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
+    // 🔄 ФИКС ЧЁРНОГО ЭКРАНА: при сворачивании/разворачивании/выходе из предпросмотра
+  // <video> пересоздаётся, а стрим оставался на уничтоженном элементе.
+  // Эффект повторно вешает стрим на живой элемент.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (v && streamRef.current && v.srcObject !== streamRef.current) {
+      v.srcObject = streamRef.current;
+      v.play().catch(() => {});
+    }
+  }, [isMinimized, hasRecording]);
+
   async function startCamera(mode: "user" | "environment") {
     try {
       if (streamRef.current) {
