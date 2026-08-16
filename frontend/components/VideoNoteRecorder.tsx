@@ -2,9 +2,17 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { 
-  Square, X, Mic, MicOff, Minimize2, Maximize2, 
-  RefreshCw, FlipHorizontal, Send 
+import {
+  Square,
+  X,
+  Mic,
+  MicOff,
+  Minimize2,
+  Maximize2,
+  RefreshCw,
+  FlipHorizontal,
+  Send,
+  Trash2,
 } from "lucide-react";
 
 interface Props {
@@ -19,40 +27,34 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Состояния
+
   const [isRecording, setIsRecording] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  const [hasRecording, setHasRecording] = useState(false); // Записанное видео готово к предпросмотру
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+
   const [isMinimized, setIsMinimized] = useState(false);
-  
-  // Камера
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
   const [isMirrored, setIsMirrored] = useState(true);
   const [isSwitching, setIsSwitching] = useState(false);
 
-  // Инициализация
   useEffect(() => {
-    startCamera();
+    startCamera(facingMode);
     return () => cleanupResources();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function startCamera(mode = facingMode) {
+  async function startCamera(mode: "user" | "environment") {
     try {
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current.getTracks().forEach((t) => t.stop());
       }
-      
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: mode, 
-          width: { ideal: 720 }, 
-          height: { ideal: 720 } 
-        },
+        video: { facingMode: mode, width: { ideal: 720 }, height: { ideal: 720 } },
         audio: true,
       });
-      
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
       setIsCameraReady(true);
@@ -64,55 +66,55 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   }
 
   async function switchCamera() {
-    if (isRecording || isSwitching) return;
+    if (isRecording || isSwitching || hasRecording) return;
     setIsSwitching(true);
-    const next = facingMode === "user" ? "environment" : "user";
-    setFacingMode(next);
-    setIsMirrored(next === "user"); // Задняя камера обычно не зеркалится
-    await startCamera(next);
+    const nextMode = facingMode === "user" ? "environment" : "user";
+    setFacingMode(nextMode);
+    setIsMirrored(nextMode === "user");
+    await startCamera(nextMode);
     setIsSwitching(false);
   }
 
   function toggleMirror() {
-    setIsMirrored(prev => !prev);
+    setIsMirrored((prev) => !prev);
   }
 
   function toggleMute() {
-    if (!streamRef.current) return;
-    const tracks = streamRef.current.getAudioTracks();
-    tracks.forEach(t => t.enabled = isMuted);
-    setIsMuted(!isMuted);
+    if (streamRef.current) {
+      streamRef.current.getAudioTracks().forEach((t) => (t.enabled = isMuted));
+      setIsMuted(!isMuted);
+    }
   }
 
   function startRecording() {
     if (!streamRef.current) return;
     chunksRef.current = [];
-    
     const recorder = new MediaRecorder(streamRef.current, {
       mimeType: "video/webm;codecs=vp8,opus",
     });
-    
     mediaRecorderRef.current = recorder;
-    
+
     recorder.ondataavailable = (e) => {
       if (e.data.size > 0) chunksRef.current.push(e.data);
     };
-    
+
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: "video/webm" });
-      const file = new File([blob], `video-${Date.now()}.webm`, { type: "video/webm" });
-      cleanupResources();
-      onRecorded(file);
+      // НЕ отправляем сразу — показываем предпросмотр
+      setRecordedBlob(blob);
+      setHasRecording(true);
+      setIsRecording(false);
+      if (timerRef.current) clearInterval(timerRef.current);
     };
-    
+
     recorder.start();
     setIsRecording(true);
     setSeconds(0);
-    
     timerRef.current = setInterval(() => {
-      setSeconds(s => {
+      setSeconds((s) => {
         if (s + 1 >= maxDuration) {
-          stopRecording(); // Авто-стоп и отправка
+          // Авто-стоп при достижении лимита → сразу отправляем (как в TG)
+          stopAndSend();
           return maxDuration;
         }
         return s + 1;
@@ -124,8 +126,30 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.stop();
     }
+  }
+
+  function stopAndSend() {
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
     setIsRecording(false);
     if (timerRef.current) clearInterval(timerRef.current);
+  }
+
+  function confirmSend() {
+    if (!recordedBlob) return;
+    const file = new File([recordedBlob], `video-note-${Date.now()}.webm`, { type: "video/webm" });
+    cleanupResources();
+    setRecordedBlob(null);
+    setHasRecording(false);
+    onRecorded(file);
+  }
+
+  function retake() {
+    setRecordedBlob(null);
+    setHasRecording(false);
+    setSeconds(0);
+    chunksRef.current = [];
   }
 
   function cleanupResources() {
@@ -135,7 +159,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
     mediaRecorderRef.current = null;
     if (timerRef.current) clearInterval(timerRef.current);
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
     setIsRecording(false);
@@ -150,159 +174,244 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
 
   const progress = Math.min((seconds / maxDuration) * 100, 100);
 
-  // Стили
-  const btnClass = "h-12 w-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-all active:scale-95 disabled:opacity-50";
-  const primaryBtnClass = "h-16 w-16 flex items-center justify-center rounded-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white shadow-lg shadow-purple-500/30 transition-all active:scale-95 ring-4 ring-purple-500/20";
+  const btnBase = "flex items-center justify-center rounded-full transition-all active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed";
 
   return (
-    <div className={`fixed z-[300] transition-all duration-300 ease-in-out
-      ${isMinimized 
-        ? "bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md pointer-events-auto" 
-        : "inset-0 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
-      }
-    `}>
-      
-      {/* Основной контейнер */}
-      <div className={`
-        relative overflow-hidden bg-[#0a0a0a] border border-white/10 shadow-2xl transition-all duration-300
-        ${isMinimized 
-          ? "rounded-2xl h-20 flex items-center px-4 gap-4 w-full" 
-          : "rounded-[32px] w-full max-w-[400px] aspect-square flex flex-col"
-        }
-      `}>
-        
-        {/* Видеоплеер */}
-        <div className={`relative bg-black overflow-hidden shrink-0 transition-all duration-300
-          ${isMinimized ? "h-14 w-14 rounded-xl" : "w-full h-full absolute inset-0"}
-        `}>
-          <video
-            ref={videoRef}
-            autoPlay playsInline muted
-            className="h-full w-full object-cover"
-            style={{ transform: isMirrored ? "scaleX(-1)" : "none" }}
-          />
-          
-          {/* Индикатор записи (точка) */}
-          {isRecording && (
-            <div className={`absolute z-10 flex items-center gap-1.5 bg-black/60 backdrop-blur px-2 py-1 rounded-full border border-white/10
-              ${isMinimized ? "top-1 right-1 scale-75 origin-top-right" : "top-4 left-1/2 -translate-x-1/2"}
-            `}>
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-xs font-mono font-bold text-white tabular-nums">{formatTime(seconds)}</span>
-            </div>
+    <div
+      className={`fixed z-[300] transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+        isMinimized
+          ? "bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md pointer-events-auto"
+          : "inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center p-4"
+      }`}
+    >
+      <div
+        className={`relative overflow-hidden transition-all duration-500 bg-[#0a0a0a] border border-white/10 shadow-2xl shadow-purple-900/30 ${
+          isMinimized
+            ? "rounded-3xl h-20 flex items-center px-3 gap-3 w-full"
+            : // ✅ ЖЁСТКИЙ КВАДРАТ на мобиле, на десктопе чуть крупнее но тоже квадрат
+              "rounded-[32px] w-full max-w-[min(92vw,92vh,480px)] aspect-square"
+        }`}
+      >
+        {/* ============ ВИДЕО (всегда заполняет весь квадрат) ============ */}
+        <div className={`relative overflow-hidden transition-all duration-500 ${
+          isMinimized ? "w-16 h-16 rounded-2xl shrink-0" : "absolute inset-0"
+        }`}>
+          {hasRecording && recordedBlob ? (
+            // Предпросмотр записанного видео
+            <video
+              src={URL.createObjectURL(recordedBlob)}
+              controls
+              autoPlay
+              loop
+              playsInline
+              className="w-full h-full object-cover"
+              style={{ transform: isMirrored ? "scaleX(-1)" : "none" }}
+            />
+          ) : (
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+              style={{ transform: isMirrored ? "scaleX(-1)" : "none" }}
+            />
           )}
 
-          {/* Прогресс бар (тонкая линия снизу) */}
-          {isRecording && (
-            <div className="absolute bottom-0 left-0 h-1 bg-white/10 w-full">
-              <div 
-                className="h-full bg-[#8b5cf6] transition-all duration-1000 ease-linear" 
-                style={{ width: `${progress}%` }} 
-              />
+          {/* ========== ОВЕРЛЕЙ С ИНДИКАТОРАМИ (только в полном режиме) ========== */}
+          {!isMinimized && isRecording && (
+            <>
+              {/* Верхний индикатор записи */}
+              <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/60 to-transparent pointer-events-none">
+                <div className="flex items-center justify-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_12px_rgba(239,68,68,0.8)]" />
+                  <span className="text-sm font-mono font-bold text-white tabular-nums">
+                    {formatTime(seconds)}
+                  </span>
+                  <span className="text-sm font-mono text-white/50">/ {formatTime(maxDuration)}</span>
+                </div>
+              </div>
+
+              {/* Круговой прогресс по краю видео */}
+              <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100">
+                <rect
+                  x="1" y="1" width="98" height="98"
+                  rx="7"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.08)"
+                  strokeWidth="0.5"
+                />
+                <rect
+                  x="1" y="1" width="98" height="98"
+                  rx="7"
+                  fill="none"
+                  stroke="#8b5cf6"
+                  strokeWidth="0.8"
+                  strokeLinecap="round"
+                  strokeDasharray={2 * (98 + 98)}
+                  strokeDashoffset={2 * (98 + 98) * (1 - progress / 100)}
+                  className="transition-all duration-1000 ease-linear"
+                  style={{ filter: "drop-shadow(0 0 4px #8b5cf6)" }}
+                />
+              </svg>
+            </>
+          )}
+
+          {/* ========== НИЖНИЕ КНОПКИ УПРАВЛЕНИЯ (поверх видео) ========== */}
+          {!isMinimized && (
+            <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none">
+              <div className="flex items-center justify-between pointer-events-auto">
+                {/* ЛЕВО: Отмена или Зеркало */}
+                <div className="flex items-center gap-2">
+                  {hasRecording ? (
+                    <button
+                      onClick={() => { retake(); }}
+                      className={`${btnBase} w-12 h-12 bg-black/40 backdrop-blur-md border border-white/20 text-white/90 hover:bg-red-500/30 hover:border-red-400/50`}
+                      title="Перезаписать"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={toggleMirror}
+                        disabled={isRecording || hasRecording}
+                        className={`${btnBase} w-11 h-11 bg-black/40 backdrop-blur-md border border-white/10 text-white/80 hover:bg-white/10`}
+                        title="Зеркало"
+                      >
+                        <FlipHorizontal size={18} />
+                      </button>
+                      <button
+                        onClick={switchCamera}
+                        disabled={isRecording || isSwitching || hasRecording}
+                        className={`${btnBase} w-11 h-11 bg-black/40 backdrop-blur-md border border-white/10 text-white/80 hover:bg-white/10`}
+                        title="Сменить камеру"
+                      >
+                        <RefreshCw size={18} className={isSwitching ? "animate-spin" : ""} />
+                      </button>
+                      <button
+                        onClick={toggleMute}
+                        disabled={hasRecording}
+                        className={`${btnBase} w-11 h-11 bg-black/40 backdrop-blur-md border border-white/10 text-white/80 hover:bg-white/10`}
+                        title="Микрофон"
+                      >
+                        {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {/* ЦЕНТР: Главная кнопка */}
+                <div className="flex items-center justify-center">
+                  {hasRecording ? (
+                    // После записи — кнопка ОТПРАВИТЬ
+                    <button
+                      onClick={confirmSend}
+                      className={`${btnBase} w-16 h-16 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white shadow-[0_0_30px_rgba(139,92,246,0.6)] border-2 border-purple-300/30`}
+                    >
+                      <Send size={24} />
+                    </button>
+                  ) : isRecording ? (
+                    // Стоп
+                    <button
+                      onClick={stopRecording}
+                      className={`${btnBase} w-20 h-20 relative group`}
+                    >
+                      <div className="absolute inset-0 rounded-full border-[3px] border-red-400 animate-pulse" />
+                      <div className="w-full h-full rounded-full bg-red-500 hover:bg-red-600 shadow-[0_0_20px_rgba(239,68,68,0.6)] flex items-center justify-center">
+                        <Square size={24} fill="currentColor" />
+                      </div>
+                    </button>
+                  ) : (
+                    // Запись
+                    <button
+                      onClick={startRecording}
+                      disabled={!isCameraReady}
+                      className={`${btnBase} w-20 h-20 relative group`}
+                    >
+                      <div className="absolute inset-0 rounded-full border-[3px] border-white/60 group-hover:border-white transition-colors" />
+                      <div className="w-14 h-14 rounded-full bg-white group-hover:scale-95 transition-transform" />
+                    </button>
+                  )}
+                </div>
+
+                {/* ПРАВО: Закрыть */}
+                <div className="flex items-center gap-2">
+                  {!hasRecording && (
+                    <button
+                      onClick={() => setIsMinimized(true)}
+                      className={`${btnBase} w-11 h-11 bg-black/40 backdrop-blur-md border border-white/10 text-white/80 hover:bg-white/10`}
+                      title="Свернуть"
+                    >
+                      <Minimize2 size={18} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { cleanupResources(); onCancel(); }}
+                    className={`${btnBase} w-11 h-11 bg-black/40 backdrop-blur-md border border-red-500/30 text-red-300 hover:bg-red-500/20`}
+                    title="Отмена"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Панель управления */}
-        <div className={`flex-1 flex items-center justify-between transition-all duration-300
-          ${isMinimized ? "pl-2" : "relative z-10 mt-auto p-6 bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-20"}
-        `}>
-          
-          {/* Левая часть: Отмена / Свернуть */}
-          <div className="flex items-center gap-3">
-             {isMinimized ? (
-               <button onClick={() => setIsMinimized(false)} className={btnClass} title="Развернуть">
-                 <Maximize2 size={20} />
-               </button>
-             ) : (
-               <button 
-                 onClick={() => { cleanupResources(); onCancel(); }} 
-                 className={`${btnClass} bg-red-500/20 hover:bg-red-500/30 text-red-200`}
-                 title="Отмена"
-               >
-                 <X size={24} />
-               </button>
-             )}
-          </div>
+        {/* ============ СВЁРНУТЫЙ РЕЖИМ (панель справа от видео) ============ */}
+        {isMinimized && (
+          <div className="flex-1 flex items-center justify-between gap-2 min-w-0">
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-bold text-white truncate">
+                {isRecording ? "🔴 Запись..." : hasRecording ? "✓ Готово" : "⏸ Пауза"}
+              </span>
+              <span className="text-[10px] text-white/50 uppercase tracking-wider font-mono tabular-nums">
+                {isRecording ? formatTime(seconds) : hasRecording ? "Отправить?" : "Готов"}
+              </span>
+            </div>
 
-          {/* Центр: Кнопка записи (только в полном режиме) или инфо (в мини) */}
-          {!isMinimized && (
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-              {!isRecording ? (
-                <button 
-                  onClick={startRecording}
-                  disabled={!isCameraReady}
-                  className={primaryBtnClass}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {hasRecording ? (
+                <>
+                  <button
+                    onClick={retake}
+                    className={`${btnBase} w-9 h-9 bg-white/10 text-white/70 hover:bg-red-500/30 hover:text-red-300`}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                  <button
+                    onClick={confirmSend}
+                    className={`${btnBase} w-9 h-9 bg-[#8b5cf6] text-white shadow-lg shadow-purple-500/40`}
+                  >
+                    <Send size={14} />
+                  </button>
+                </>
+              ) : isRecording ? (
+                <button
+                  onClick={stopRecording}
+                  className={`${btnBase} w-9 h-9 bg-red-500 text-white shadow-lg shadow-red-500/40`}
                 >
-                  <div className="w-8 h-8 rounded-sm bg-white" />
+                  <Square size={12} fill="currentColor" />
                 </button>
               ) : (
-                <button 
-                  onClick={stopRecording}
-                  className={`${primaryBtnClass} bg-red-500 hover:bg-red-600 shadow-red-500/30 ring-red-500/20`}
+                <button
+                  onClick={startRecording}
+                  disabled={!isCameraReady}
+                  className={`${btnBase} w-9 h-9 bg-[#8b5cf6] text-white`}
                 >
-                  <Square size={24} fill="currentColor" />
+                  <div className="w-3.5 h-3.5 rounded-full bg-white" />
                 </button>
               )}
+              <button
+                onClick={() => setIsMinimized(false)}
+                className={`${btnBase} w-9 h-9 bg-white/10 text-white/70 hover:bg-white/20 hover:text-white`}
+              >
+                <Maximize2 size={14} />
+              </button>
             </div>
-          )}
-
-          {/* Правая часть: Настройки камеры / Стоп (в мини) */}
-          <div className="flex items-center gap-3">
-            {isMinimized ? (
-              // В свернутом режиме только стоп и настройки
-              <>
-                 <div className="flex flex-col">
-                    <span className="text-xs font-bold text-white">
-                      {isRecording ? "Запись..." : "Пауза"}
-                    </span>
-                    <span className="text-[10px] text-white/50">
-                       {isRecording ? formatTime(seconds) : "Нажми для записи"}
-                    </span>
-                 </div>
-                 
-                 {!isRecording ? (
-                    <button onClick={startRecording} className="w-10 h-10 rounded-full bg-[#8b5cf6] flex items-center justify-center text-white">
-                       <div className="w-4 h-4 bg-white rounded-sm" />
-                    </button>
-                 ) : (
-                    <button onClick={stopRecording} className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center text-white">
-                       <Square size={14} fill="currentColor" />
-                    </button>
-                 )}
-                 
-                 <button onClick={() => setIsMinimized(false)} className="p-2 text-white/50 hover:text-white">
-                    <Maximize2 size={18} />
-                 </button>
-              </>
-            ) : (
-              // В полном режиме: доп кнопки
-              <>
-                <button onClick={toggleMirror} className={btnClass} title="Зеркало">
-                  <FlipHorizontal size={20} />
-                </button>
-                
-                <button 
-                  onClick={switchCamera} 
-                  disabled={isRecording || isSwitching}
-                  className={btnClass} 
-                  title="Сменить камеру"
-                >
-                  <RefreshCw size={20} className={isSwitching ? "animate-spin" : ""} />
-                </button>
-
-                <button onClick={toggleMute} className={btnClass} title="Микрофон">
-                  {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
-                </button>
-                
-                {/* Кнопка свернуть */}
-                <button onClick={() => setIsMinimized(true)} className={btnClass} title="Свернуть">
-                   <Minimize2 size={20} />
-                </button>
-              </>
-            )}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
