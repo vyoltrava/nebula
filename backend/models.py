@@ -222,7 +222,9 @@ class UserKey(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id", unique=True)
     public_key: str  # base64 X25519 public key
     fingerprint: str  # SHA256[:16] для верификации
+    is_pending: bool = Field(default=False) 
     created_at: datetime = Field(default_factory=utcnow)
+
 
 
 class ChatSessionKey(SQLModel, table=True):
