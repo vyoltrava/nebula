@@ -215,11 +215,16 @@ export function Post({
       return cached?.permissions || [];
     });
 
-    const [liked, setLiked] = useState<boolean>(liked_by_me ?? false);
+    const [liked, setLiked] = useState<boolean>(() => {
+      // Сервер может не слать liked_by_me для профиля — берём из кэша
+      return liked_by_me ?? isLikedCached(id) ?? false;
+    });
     const [count, setCount] = useState(likes_count);
-  useEffect(() => {
-    setCount(likes_count ?? 0);
-    }, [likes_count]);
+    useEffect(() => {
+      if (liked_by_me !== undefined) {
+        setLiked(liked_by_me);
+      }
+    }, [liked_by_me]);
     const [rCount, setRCount] = useState(replies_count);
     const [replying, setReplying] = useState(false);
     const [replyText, setReplyText] = useState("");
