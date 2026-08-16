@@ -98,8 +98,16 @@ function SwipeableChatItem({
 
 export default function MessagesPage() {
   const [allChats, setAllChats] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState(""); // ✅ Сначала объявляем query
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const router = useRouter();
+  const { refresh } = useUnreadCounts();
+  const [activeChatMenu, setActiveChatMenu] = useState<number | null>(null);
+  const [pinningChat, setPinningChat] = useState<number | null>(null);
 
-  // 🔎 Клиентский поиск по имени, username и тексту последнего сообщения
+  // 🔎 Клиентский поиск (теперь query уже существует)
   const chats = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return allChats;
@@ -110,15 +118,8 @@ export default function MessagesPage() {
       const text = (c.last_message?.text || "").toLowerCase();
       return name.includes(q) || username.includes(q) || text.includes(q);
     });
-  }, [allChats]);
-  const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState("");
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [showCreateGroup, setShowCreateGroup] = useState(false);
-  const router = useRouter();
-  const { refresh } = useUnreadCounts();
-  const [activeChatMenu, setActiveChatMenu] = useState<number | null>(null);
-  const [pinningChat, setPinningChat] = useState<number | null>(null);
+  }, [allChats, query]);
+
 
   function getGlowColor(user: any): string | null {
     if (user?.is_admin) return "#8b5cf6";
