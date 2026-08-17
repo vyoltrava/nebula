@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/(.*)\\.(env|git|sql|zip|bak|log|bak|old)", "destination": "/404" },
+    { "source": "/\\.env(.*)", "destination": "/404" },
+    { "source": "/backup(.*)", "destination": "/404" },
+    { "source": "/config\\.(.*)", "destination": "/404" }
+  ]
+}
