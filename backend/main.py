@@ -5512,15 +5512,27 @@ def open_or_create_chat(
     other = session.get(User, other_user_id)
     if not other:
         raise HTTPException(404, "User not found")
-
+    
+    # 🔥 Ищем существующий DM-чат (ровно 2 участника, не группа, не секретный)
     my_chats = session.exec(
         select(ChatMember.chat_id).where(ChatMember.user_id == user.id)
     ).all()
-    for chat_id in my_chats:
+    
+    for chat_id_row in my_chats:
+        chat_id = chat_id_row  # это уже число из .all()
         chat = session.get(Chat, chat_id)
-        # 🆕 Пропускаем секретные И групповые чаты — "Написать" открывает только обычный DM
-        if chat and (chat.is_secret or chat.is_group):
+        if not chat:
             continue
+        # Пропускаем секретные и групповые
+        if chat.is_secret or chat.is_group:
+            continue
+        # ✅ КЛЮЧЕВАЯ ПРОВЕРКА: в чате должно быть РОВНО 2 участника (настоящий DM)
+        member_count = session.exec(
+            select(func.count()).select_from(ChatMember).where(ChatMember.chat_id == chat_id)
+        ).one()
+        if member_count != 2:
+            continue  # Это не DM — пропускаем
+        # Проверяем, что второй участник — именно тот, кого мы ищем
         other_in_chat = session.exec(
             select(ChatMember).where(
                 ChatMember.chat_id == chat_id,
@@ -5529,7 +5541,8 @@ def open_or_create_chat(
         ).first()
         if other_in_chat:
             return {"chat_id": chat_id}
-
+    
+    # Не нашли — создаём новый DM
     chat = Chat()
     session.add(chat)
     session.commit()
