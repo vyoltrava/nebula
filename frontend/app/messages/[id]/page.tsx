@@ -1932,42 +1932,48 @@ const ChatHeader = () => (
   {/* Пикер реакций из паков */}
 {showReactionPicker && (
   <>
-    <div className="fixed inset-0 z-40" onClick={() => setShowReactionPicker(false)} />
-    {/* 🆕 Адаптивное позиционирование: на мобилке снизу, на десктопе справа */}
-    <div className="fixed md:absolute right-0 bottom-0 md:top-full md:bottom-auto mt-0 md:mt-2 w-full md:w-80 max-h-[70vh] bg-[#1f1f23] md:border border-white/15 rounded-t-2xl md:rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-bottom md:fade-in md:zoom-in-95 duration-200">
-     {/* Шапка */}
-        <div className="p-3 border-b border-white/10 flex items-center justify-between shrink-0">
-          <p className="text-xs font-bold text-white/80">Быстрая реакция (двойной тап)</p>
-          <button onClick={() => setShowReactionPicker(false)} className="text-white/40 hover:text-white p-1">
-            <X size={14} />
+    {/* Затемнение фона только на мобилке */}
+    <div 
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden" 
+      onClick={() => setShowReactionPicker(false)} 
+    />
+    
+    {/* Окно: на мобилке по центру, на десктопе dropdown */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-0 md:static md:inset-auto pointer-events-none">
+      <div 
+        className="bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl w-full max-w-sm max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 pointer-events-auto md:absolute md:right-0 md:top-full md:mt-2 md:w-80 md:max-h-[70vh] md:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Шапка */}
+        <div className="p-4 border-b border-white/10 flex items-center justify-between shrink-0">
+          <p className="text-sm font-bold text-white">Быстрая реакция (двойной тап)</p>
+          <button onClick={() => setShowReactionPicker(false)} className="text-white/40 hover:text-white p-1 md:hidden">
+            <X size={18} />
           </button>
         </div>
         
         {/* Список реакций по пакам */}
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="flex-1 overflow-y-auto p-3">
           {stickerPacks.length === 0 ? (
             <p className="text-center text-white/40 text-xs py-6">Нет доступных паков</p>
           ) : (
             stickerPacks.map((pack, packIdx) => {
               const userLevel = currentUser?.level ?? 0;
               const isLocked = (pack.min_level || 0) > userLevel;
-              
               return (
-                <div key={pack.id} className="mb-3">
+                <div key={pack.id} className="mb-4">
                   {/* Заголовок пака */}
-                  <div className="flex items-center gap-1.5 px-1 mb-1.5">
+                  <div className="flex items-center gap-1.5 px-1 mb-2">
                     {isLocked && <Lock size={10} className="text-yellow-400" />}
                     <span className={`text-[10px] font-bold uppercase tracking-wider ${isLocked ? 'text-white/30' : 'text-white/60'}`}>
                       {pack.name}
                       {isLocked && <span className="ml-1 text-yellow-400/70 normal-case">· ур. {pack.min_level}</span>}
                     </span>
                   </div>
-                  
                   {/* Реакции пака */}
-                  <div className="grid grid-cols-6 gap-1">
+                  <div className="grid grid-cols-6 gap-1.5">
                     {pack.stickers?.map((s: any) => {
                       const isSelected = quickReaction?.content === s.content && quickReaction?.type === s.type;
-                      
                       return (
                         <button
                           key={s.id}
@@ -1981,10 +1987,10 @@ const ChatHeader = () => (
                             });
                           }}
                           className={`aspect-square flex items-center justify-center rounded-lg transition-all relative ${
-                            isLocked 
-                              ? 'opacity-30 grayscale cursor-not-allowed' 
-                              : isSelected 
-                                ? 'bg-[#8b5cf6]/30 ring-1 ring-[#8b5cf6] scale-110' 
+                            isLocked
+                              ? 'opacity-30 grayscale cursor-not-allowed'
+                              : isSelected
+                                ? 'bg-[#8b5cf6]/30 ring-1 ring-[#8b5cf6] scale-110'
                                 : 'hover:bg-white/10 active:scale-90'
                           }`}
                           title={isLocked ? `Доступно с ${pack.min_level} уровня` : undefined}
@@ -1994,14 +2000,12 @@ const ChatHeader = () => (
                           ) : (
                             <img src={s.content} alt="" className="w-7 h-7 object-contain" />
                           )}
-                          
                           {/* Замок поверх заблокированных */}
                           {isLocked && (
                             <div className="absolute inset-0 flex items-center justify-center">
                               <Lock size={12} className="text-yellow-400 drop-shadow-md" />
                             </div>
                           )}
-                          
                           {/* Галочка выбранной */}
                           {isSelected && !isLocked && (
                             <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#8b5cf6] flex items-center justify-center">
@@ -2018,8 +2022,9 @@ const ChatHeader = () => (
           )}
         </div>
       </div>
-    </>
-  )}
+    </div>
+  </>
+)}
 </div>
 
           <button
@@ -3266,45 +3271,44 @@ const ChatHeader = () => (
           </div>
         )}
 
-
-{/* 🆕 Меню реакций по long press */}
+{/* 🆕 СОЧНОЕ МЕНЮ ПО LONG PRESS */}
 {longPressMenu && (
   <>
-    <div 
-      className="fixed inset-0 z-[250] bg-black/40 backdrop-blur-sm" 
+    {/* Плотное размытие фона */}
+    <div
+      className="fixed inset-0 z-[250] bg-black/60 backdrop-blur-[4px] animate-in fade-in duration-200"
       onClick={() => setLongPressMenu(null)}
     />
-    <div 
-      className="fixed z-[251] bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl p-2 flex items-center gap-1 animate-in fade-in zoom-in-95 duration-200"
+    {/* Само меню с glassmorphism */}
+    <div
+      className="fixed z-[251] bg-[#1c1c1e]/90 backdrop-blur-xl border border-white/10 rounded-[28px] shadow-2xl p-2.5 flex items-center gap-1.5 animate-in zoom-in-95 fade-in duration-200 ease-out"
       style={{
-        left: Math.min(longPressMenu.x - 120, window.innerWidth - 260),
-        top: Math.max(longPressMenu.y - 60, 10)
+        left: Math.max(12, Math.min(longPressMenu.x - 140, window.innerWidth - 290)),
+        top: Math.max(12, longPressMenu.y - 85)
       }}
     >
-      {/* Быстрые реакции */}
-      {['❤️', '👍', '🔥', '😂', '😮'].map((emoji) => (
+      {['❤️', '👍', '🔥', '😂', '😮'].map((emoji, i) => (
         <button
           key={emoji}
           onClick={() => {
             toggleReaction(longPressMenu.msgId, undefined, emoji);
             setLongPressMenu(null);
           }}
-          className="text-2xl hover:scale-125 transition-transform p-1.5 active:scale-90"
+          className="text-3xl p-2.5 rounded-full hover:bg-white/10 active:scale-125 active:-translate-y-2 transition-all duration-150 ease-out"
+          style={{ animationDelay: `${i * 30}ms` }}
         >
           {emoji}
         </button>
       ))}
-      
-      {/* Кнопка "Все реакции" */}
-      <div className="w-px h-8 bg-white/10 mx-1" />
+      <div className="w-px h-10 bg-white/10 mx-1" />
       <button
         onClick={() => {
           setReactionPickerFor(longPressMenu.msgId);
           setLongPressMenu(null);
         }}
-        className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-[#8b5cf6]/20 hover:text-[#8b5cf6] transition-colors"
+        className="w-12 h-12 flex items-center justify-center rounded-full bg-white/5 hover:bg-[#8b5cf6]/20 hover:text-[#8b5cf6] active:scale-90 transition-all text-white/70"
       >
-        <SmilePlus size={18} />
+        <SmilePlus size={22} />
       </button>
     </div>
   </>
