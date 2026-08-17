@@ -1696,7 +1696,7 @@ useWebSocket("message_read", (data: any) => {
 
 const ChatHeader = () => (
   <div
-    className="border-b border-white/10 backdrop-blur-md sticky top-0 z-10 bg-[#171717]/80"
+    className="border-b border-white/10 backdrop-blur-md sticky top-0 z-30 bg-[#171717]/80"
   >
     {/* Основной блок */}
     <div className="p-3 sm:p-4 md:p-4">
