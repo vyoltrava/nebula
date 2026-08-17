@@ -1,3 +1,4 @@
+// app/admin/page.tsx
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -6,7 +7,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { getToken } from "@/lib/auth";
 import {
   Users, BarChart3, Bug, Globe, Activity, Flag,
-  MessageSquare, SmilePlus, Palette, Headphones, Shield, Crown,
+  MessageSquare, SmilePlus, Palette, Headphones, Shield, Crown, Wrench,
 } from "lucide-react";
 
 import { UsersSection } from "@/components/admin/section/UsersSection";
@@ -19,9 +20,10 @@ import { ChatsSection } from "@/components/admin/section/ChatsSection";
 import { StickersSection } from "@/components/admin/section/StickersSection";
 import { ThemesSection } from "@/components/admin/section/ThemesSection";
 import { SupportSection } from "@/components/admin/section/SupportSection";
+import { TechUsersSection } from "@/components/admin/section/TechUsersSection"; // 🆕 ИМПОРТ
 
 type TabId =
-  | "users" | "stats" | "bugs" | "ip" | "logs"
+  | "users" | "tech_users" | "stats" | "bugs" | "ip" | "logs"
   | "reports" | "chats" | "support" | "stickers" | "themes";
 
 interface TabDef {
@@ -29,20 +31,21 @@ interface TabDef {
   label: string;
   icon: any;
   color: string;
-  permission: string | null; // null → только is_admin
+  permission: string | null;
 }
 
 const TABS: TabDef[] = [
-  { id: "users",    label: "Пользователи", icon: Users,         color: "#8b5cf6", permission: "manage_users" },
-  { id: "reports",  label: "Жалобы",       icon: Flag,          color: "#ef4444", permission: "manage_reports" },
-  { id: "support",  label: "Поддержка",    icon: Headphones,    color: "#22c55e", permission: "manage_support" },
-  { id: "chats",    label: "Чаты",         icon: MessageSquare, color: "#06b6d4", permission: "manage_groups" },
-  { id: "stats",    label: "Статистика",   icon: BarChart3,     color: "#8b5cf6", permission: "tech_access" },
-  { id: "bugs",     label: "Баг-трекер",   icon: Bug,           color: "#f59e0b", permission: "tech_access" },
-  { id: "ip",       label: "IP блоки",     icon: Globe,         color: "#ef4444", permission: "ban_users" },
-  { id: "logs",     label: "Логи",         icon: Activity,      color: "#3b82f6", permission: "tech_access" },
-  { id: "stickers", label: "Стикеры",      icon: SmilePlus,     color: "#f59e0b", permission: "manage_stickers" },
-  { id: "themes",   label: "Темы",         icon: Palette,       color: "#a855f7", permission: null },
+  { id: "users",     label: "Пользователи", icon: Users,         color: "#8b5cf6", permission: "manage_users" },
+  { id: "tech_users",label: "Управление",   icon: Wrench,        color: "#0E7490", permission: "tech_access" }, // 🆕 НОВАЯ ВКЛАДКА
+  { id: "reports",   label: "Жалобы",       icon: Flag,          color: "#ef4444", permission: "manage_reports" },
+  { id: "support",   label: "Поддержка",    icon: Headphones,    color: "#22c55e", permission: "manage_support" },
+  { id: "chats",     label: "Чаты",         icon: MessageSquare, color: "#06b6d4", permission: "manage_groups" },
+  { id: "stats",     label: "Статистика",   icon: BarChart3,     color: "#8b5cf6", permission: "tech_access" },
+  { id: "bugs",      label: "Баг-трекер",   icon: Bug,           color: "#f59e0b", permission: "tech_access" },
+  { id: "ip",        label: "IP блоки",     icon: Globe,         color: "#ef4444", permission: "ban_users" },
+  { id: "logs",      label: "Логи",         icon: Activity,      color: "#3b82f6", permission: "tech_access" },
+  { id: "stickers",  label: "Стикеры",      icon: SmilePlus,     color: "#f59e0b", permission: "manage_stickers" },
+  { id: "themes",    label: "Темы",         icon: Palette,       color: "#a855f7", permission: null },
 ];
 
 export default function AdminPage() {
@@ -118,8 +121,8 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Вкладки */}
-          <div className="flex gap-2 mt-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* 🆕 ИСПРАВЛЕННЫЙ СКРОЛЛ ВКЛАДОК */}
+          <div className="flex gap-2 mt-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
             {visibleTabs.map((t) => {
               const Icon = t.icon;
               const active = activeTab === t.id;
@@ -143,16 +146,17 @@ export default function AdminPage() {
 
         {/* Контент */}
         <div className="p-4 sm:p-6">
-          {activeTab === "users"    && <UsersSection me={me} />}
-          {activeTab === "reports"  && <ReportsSection me={me} />}
-          {activeTab === "support"  && <SupportSection me={me} />}
-          {activeTab === "chats"    && <ChatsSection me={me} />}
-          {activeTab === "stats"    && <StatsSection me={me} />}
-          {activeTab === "bugs"     && <BugsSection me={me} />}
-          {activeTab === "ip"       && <IpSection me={me} />}
-          {activeTab === "logs"     && <LogsSection me={me} />}
-          {activeTab === "stickers" && <StickersSection me={me} />}
-          {activeTab === "themes"   && <ThemesSection me={me} />}
+          {activeTab === "users"     && <UsersSection me={me} />}
+          {activeTab === "tech_users"&& <TechUsersSection me={me} />} {/* 🆕 РЕНДЕР */}
+          {activeTab === "reports"   && <ReportsSection me={me} />}
+          {activeTab === "support"   && <SupportSection me={me} />}
+          {activeTab === "chats"     && <ChatsSection me={me} />}
+          {activeTab === "stats"     && <StatsSection me={me} />}
+          {activeTab === "bugs"      && <BugsSection me={me} />}
+          {activeTab === "ip"        && <IpSection me={me} />}
+          {activeTab === "logs"      && <LogsSection me={me} />}
+          {activeTab === "stickers"  && <StickersSection me={me} />}
+          {activeTab === "themes"    && <ThemesSection me={me} />}
         </div>
       </main>
     </div>
