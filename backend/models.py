@@ -372,9 +372,11 @@ class SupportMessage(SQLModel, table=True):
     ticket_id: int = Field(foreign_key="supportticket.id")
     sender_id: int = Field(foreign_key="user.id")
     text: str
+    media_url: Optional[str] = None  # 🆕 URL изображения
+    media_type: Optional[str] = None  # 🆕 тип медиа (image)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    
+
 class SupportTicket(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)

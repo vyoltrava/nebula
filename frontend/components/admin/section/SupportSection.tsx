@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
 import { useWebSocket } from "@/src/hooks/useWebSocket";
-import { Headphones, Send, RefreshCw, ArrowLeft } from "lucide-react";
+import { Headphones, Send, RefreshCw, ArrowLeft, Image as ImageIcon, X, Loader2 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
@@ -13,31 +13,51 @@ export function SupportSection({ me }: { me: any }) {
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadTickets() {
     const token = getToken();
-    const res = await fetch(`${API}/api/support/tickets`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) setTickets(await res.json());
+    try {
+      const res = await fetch(`${API}/api/support/tickets`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTickets(data);
+      }
+    } catch (error) {
+      console.error("Failed to load tickets:", error);
+    }
   }
 
   async function loadMessages(ticketId: number) {
     const token = getToken();
-    const res = await fetch(`${API}/api/support/tickets/${ticketId}/messages`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) setMessages(await res.json());
+    try {
+      const res = await fetch(`${API}/api/support/tickets/${ticketId}/messages`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(data);
+      }
+    } catch (error) {
+      console.error("Failed to load messages:", error);
+    }
   }
 
-  useEffect(() => { loadTickets(); }, []);
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => {
+    loadTickets();
+  }, []);
 
-  // Живые сообщения в заявках
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
   useWebSocket("support_new_message", (data: any) => {
     if (!activeTicket || data.ticket_id !== activeTicket.id) {
-      // Обновляем список тикетов (новый ответ где-то)
       loadTickets();
       return;
     }
@@ -46,47 +66,129 @@ export function SupportSection({ me }: { me: any }) {
     );
   });
 
-useWebSocket("support_ticket_closed", (data: any) => {
-  if (activeTicket && data.ticket_id === activeTicket.id) {
-    setActiveTicket({ ...activeTicket, status: "closed" });
-    setMessages((prev) => [...prev, {
-      id: Date.now(), sender_id: 0, sender_name: "Система",
-      sender_is_staff: false, text: "🔒 Заявка закрыта.",
-      created_at: new Date().toISOString(),
-    }]);
-  }
-  loadTickets();
-});
+  useWebSocket("support_ticket_closed", (data: any) => {
+    if (activeTicket && data.ticket_id === activeTicket.id) {
+      setActiveTicket({ ...activeTicket, status: "closed" });
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          sender_id: 0,
+          sender_name: "Система",
+          sender_is_staff: false,
+          text: "🔒 Заявка закрыта.",
+          created_at: new Date().toISOString(),
+        },
+      ]);
+    }
+    loadTickets();
+  });
 
-  useWebSocket("support_new_ticket", () => { loadTickets(); });
+  useWebSocket("support_new_ticket", () => {
+    loadTickets();
+  });
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        alert("Файл слишком большой (максимум 10 МБ)");
+        return;
+      }
+      setFile(selectedFile);
+      const reader = new FileReader();
+      reader.onloadend = () => setPreview(reader.result as string);
+      reader.readAsDataURL(selectedFile);
+    }
+  };
+
+  const removeFile = () => {
+    setFile(null);
+    setPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   async function sendMessage() {
-    if (!input.trim() || !activeTicket || sending) return;
+    if ((!input.trim() && !file) || !activeTicket || sending) return;
+    
+    // 🚀 Optimistic update
+    const tempId = Date.now();
+    const tempMessage = {
+      id: tempId,
+      sender_id: me.id,
+      sender_name: me.display_name,
+      sender_is_staff: true,
+      text: input.trim(),
+      media_url: preview,
+      media_type: file ? "image" : null,
+      created_at: new Date().toISOString(),
+      pending: true,
+    };
+    
+    setMessages((prev) => [...prev, tempMessage]);
+    const currentInput = input;
+    const currentFile = file;
+    const currentPreview = preview;
+    
+    setInput("");
+    removeFile();
     setSending(true);
+
     const token = getToken();
     const form = new FormData();
     form.append("ticket_id", String(activeTicket.id));
-    form.append("text", input.trim());
+    form.append("text", currentInput);
+    if (currentFile) form.append("file", currentFile);
+
     try {
       const res = await fetch(`${API}/api/support/messages`, {
-        method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form,
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
       });
+
       if (res.ok) {
         const data = await res.json();
-        setMessages((prev) => [...prev, data.message]);
-        setInput("");
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? data.message : m))
+        );
         loadTickets();
+      } else {
+        setMessages((prev) => prev.filter((m) => m.id !== tempId));
+        setInput(currentInput);
+        if (currentFile) {
+          setFile(currentFile);
+          setPreview(currentPreview);
+        }
       }
-    } finally { setSending(false); }
+    } catch (error) {
+      console.error("Failed to send message:", error);
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setInput(currentInput);
+      if (currentFile) {
+        setFile(currentFile);
+        setPreview(currentPreview);
+      }
+    } finally {
+      setSending(false);
+    }
   }
 
   async function closeTicket(ticketId: number) {
     if (!confirm("Закрыть тикет?")) return;
     const token = getToken();
-    const res = await fetch(`${API}/api/support/tickets/${ticketId}/close`, {
-      method: "POST", headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) { setActiveTicket(null); loadTickets(); }
+    try {
+      const res = await fetch(`${API}/api/support/tickets/${ticketId}/close`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setActiveTicket(null);
+        loadTickets();
+      }
+    } catch (error) {
+      console.error("Failed to close ticket:", error);
+    }
   }
 
   const openTickets = tickets.filter((t) => t.status === "open");
@@ -110,26 +212,49 @@ useWebSocket("support_ticket_closed", (data: any) => {
         <div className="flex-1 overflow-y-auto">
           {openTickets.length > 0 && <p className="px-3 py-2 text-[10px] font-bold text-white/40 uppercase">Открытые</p>}
           {openTickets.map((t) => (
-            <button key={t.id} onClick={() => { setActiveTicket(t); loadMessages(t.id); }}
-              className={`w-full flex items-center gap-3 p-3 border-b border-white/5 hover:bg-white/5 text-left ${activeTicket?.id === t.id ? "bg-green-500/10" : ""}`}>
+            <button
+              key={t.id}
+              onClick={() => {
+                setActiveTicket(t);
+                loadMessages(t.id);
+              }}
+              className={`w-full flex items-center gap-3 p-3 border-b border-white/5 hover:bg-white/5 text-left ${
+                activeTicket?.id === t.id ? "bg-green-500/10" : ""
+              }`}
+            >
               <Avatar src={t.user?.avatar_url} name={t.user?.display_name} id={t.user?.id} size={36} />
               <div className="min-w-0 flex-1">
                 <p className="font-bold text-white text-sm truncate">{t.user?.display_name || "Unknown"}</p>
-                <p className="text-[11px] text-white/40 truncate">{t.last_message?.text?.slice(0, 40) || "Нет сообщений"}</p>
+                <p className="text-[11px] text-white/40 truncate">
+                  {t.last_message?.text?.slice(0, 40) || "Нет сообщений"}
+                </p>
               </div>
               <span className="text-[10px] text-white/30 shrink-0">
-                {new Date(t.updated_at || t.created_at).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
+                {new Date(t.updated_at || t.created_at).toLocaleDateString("ru-RU", {
+                  day: "numeric",
+                  month: "short",
+                })}
               </span>
             </button>
           ))}
           {closedTickets.length > 0 && <p className="px-3 py-2 text-[10px] font-bold text-white/40 uppercase">Закрытые</p>}
           {closedTickets.map((t) => (
-            <button key={t.id} onClick={() => { setActiveTicket(t); loadMessages(t.id); }}
-              className={`w-full flex items-center gap-3 p-3 border-b border-white/5 hover:bg-white/5 text-left opacity-60 ${activeTicket?.id === t.id ? "bg-green-500/10 opacity-100" : ""}`}>
+            <button
+              key={t.id}
+              onClick={() => {
+                setActiveTicket(t);
+                loadMessages(t.id);
+              }}
+              className={`w-full flex items-center gap-3 p-3 border-b border-white/5 hover:bg-white/5 text-left opacity-60 ${
+                activeTicket?.id === t.id ? "bg-green-500/10 opacity-100" : ""
+              }`}
+            >
               <Avatar src={t.user?.avatar_url} name={t.user?.display_name} id={t.user?.id} size={36} />
               <div className="min-w-0 flex-1">
                 <p className="font-bold text-white text-sm truncate">{t.user?.display_name || "Unknown"}</p>
-                <p className="text-[11px] text-white/40 truncate">{t.last_message?.text?.slice(0, 40) || "Нет сообщений"}</p>
+                <p className="text-[11px] text-white/40 truncate">
+                  {t.last_message?.text?.slice(0, 40) || "Нет сообщений"}
+                </p>
               </div>
             </button>
           ))}
@@ -148,7 +273,10 @@ useWebSocket("support_ticket_closed", (data: any) => {
         ) : (
           <>
             <div className="p-3 border-b border-white/10 flex items-center gap-3">
-              <button onClick={() => setActiveTicket(null)} className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 md:hidden">
+              <button
+                onClick={() => setActiveTicket(null)}
+                className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 md:hidden"
+              >
                 <ArrowLeft size={18} />
               </button>
               <Avatar src={activeTicket.user?.avatar_url} name={activeTicket.user?.display_name} id={activeTicket.user?.id} size={32} />
@@ -157,8 +285,10 @@ useWebSocket("support_ticket_closed", (data: any) => {
                 <p className="text-[10px] text-white/40">@{activeTicket.user?.username}</p>
               </div>
               {activeTicket.status === "open" && (
-                <button onClick={() => closeTicket(activeTicket.id)}
-                  className="px-3 py-1.5 rounded-lg border border-red-400/30 text-red-400 text-xs font-bold hover:bg-red-500/10">
+                <button
+                  onClick={() => closeTicket(activeTicket.id)}
+                  className="px-3 py-1.5 rounded-lg border border-red-400/30 text-red-400 text-xs font-bold hover:bg-red-500/10"
+                >
                   Закрыть
                 </button>
               )}
@@ -169,9 +299,21 @@ useWebSocket("support_ticket_closed", (data: any) => {
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {messages.map((m) => (
                 <div key={m.id} className={`flex ${m.sender_is_staff ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${m.sender_is_staff ? "bg-[#8b5cf6] text-white rounded-br-md" : "bg-white/10 text-white rounded-bl-md"}`}>
+                  <div
+                    className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${
+                      m.sender_is_staff ? "bg-[#8b5cf6] text-white rounded-br-md" : "bg-white/10 text-white rounded-bl-md"
+                    } ${m.pending ? "opacity-60" : ""}`}
+                  >
                     {!m.sender_is_staff && <p className="text-[10px] text-white/50 mb-1">{m.sender_name || "Пользователь"}</p>}
-                    <p className="text-sm whitespace-pre-wrap break-words">{m.text}</p>
+                    {m.text && <p className="text-sm whitespace-pre-wrap break-words">{m.text}</p>}
+                    {m.media_url && (
+                      <img
+                        src={m.media_url}
+                        alt="Attachment"
+                        className="mt-2 rounded-lg max-w-full cursor-pointer hover:opacity-90"
+                        onClick={() => window.open(m.media_url, "_blank")}
+                      />
+                    )}
                     <p className={`text-[10px] mt-1 ${m.sender_is_staff ? "text-white/60" : "text-white/40"}`}>
                       {new Date(m.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
                     </p>
@@ -181,19 +323,57 @@ useWebSocket("support_ticket_closed", (data: any) => {
               <div ref={bottomRef} />
             </div>
             {activeTicket.status === "open" && (
-              <div className="p-3 border-t border-white/10 flex gap-2">
-                <input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                  placeholder="Написать ответ..."
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-white/15 bg-white/5 text-white text-sm placeholder-white/30 focus:outline-none focus:border-green-400"
-                  disabled={sending}
-                />
-                <button onClick={sendMessage} disabled={!input.trim() || sending}
-                  className="px-4 py-2.5 rounded-xl bg-green-500 text-white hover:bg-green-600 disabled:opacity-40 flex items-center gap-2">
-                  <Send size={16} />
-                </button>
+              <div className="p-3 border-t border-white/10 space-y-2">
+                {preview && (
+                  <div className="relative inline-block">
+                    <img src={preview} alt="Preview" className="w-20 h-20 object-cover rounded-lg" />
+                    <button
+                      onClick={removeFile}
+                      className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white hover:bg-red-600"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+                
+                <div className="flex gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-3 py-2.5 rounded-xl border border-white/15 bg-white/5 text-white hover:bg-white/10"
+                    disabled={sending}
+                  >
+                    <ImageIcon size={16} />
+                  </button>
+                  
+                  <input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                      }
+                    }}
+                    placeholder="Написать ответ..."
+                    className="flex-1 px-4 py-2.5 rounded-xl border border-white/15 bg-white/5 text-white text-sm placeholder-white/30 focus:outline-none focus:border-green-400"
+                    disabled={sending}
+                  />
+                  
+                  <button
+                    onClick={sendMessage}
+                    disabled={(!input.trim() && !file) || sending}
+                    className="px-4 py-2.5 rounded-xl bg-green-500 text-white hover:bg-green-600 disabled:opacity-40 flex items-center gap-2"
+                  >
+                    {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                  </button>
+                </div>
               </div>
             )}
           </>

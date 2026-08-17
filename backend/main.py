@@ -4615,7 +4615,9 @@ def startup():
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_postview_post ON postview(post_id);'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_postview_viewer ON postview(viewer_hash);'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_notification_user ON notification(user_id, read);'))
-
+            # 🆕 ПОДДЕРЖКА: медиафайлы в сообщениях
+            conn.execute(text('ALTER TABLE supportmessage ADD COLUMN IF NOT EXISTS media_url VARCHAR;'))
+            conn.execute(text('ALTER TABLE supportmessage ADD COLUMN IF NOT EXISTS media_type VARCHAR;'))
             # ===== 🎨 ТЕМЫ =====
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS theme (
@@ -8686,6 +8688,168 @@ def support_start(
     return {"ticket_id": ticket.id, "already_existed": False}
 
 
+@app.post("/api/support/start")
+async def support_start(
+    request: Request,
+    text: str = Form(""),
+    file: Optional[UploadFile] = File(None),  # 🆕 загрузка файла
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Создать заявку (или вернуть существующую открытую)"""
+    existing = session.exec(
+        select(SupportTicket).where(
+            SupportTicket.user_id == user.id,
+            SupportTicket.status == "open",
+        )
+    ).first()
+    if existing:
+        return {"ticket_id": existing.id, "already_existed": True}
+    
+    ticket = SupportTicket(user_id=user.id, status="open")
+    session.add(ticket)
+    session.commit()
+    session.refresh(ticket)
+    
+    # 🆕 Обработка загруженного файла
+    media_url = None
+    media_type = None
+    if file and file.filename:
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
+            content = await file.read()
+            if len(content) <= 10 * 1024 * 1024:  # 10 МБ лимит
+                try:
+                    result = await run_in_threadpool(
+                        lambda: cloudinary.uploader.upload(
+                            content,
+                            folder="support",
+                            resource_type="image",
+                            transformation=[{"width": 1200, "crop": "limit"}],
+                        )
+                    )
+                    media_url = result.get("secure_url")
+                    media_type = "image"
+                except Exception as e:
+                    print(f"Failed to upload support image: {e}")
+    
+    # Первое сообщение
+    first_text = text.strip() or ("📎 Изображение" if media_url else "👋 Привет! Мне нужна помощь.")
+    session.add(SupportMessage(
+        ticket_id=ticket.id,
+        sender_id=user.id,
+        text=first_text,
+        media_url=media_url,
+        media_type=media_type,
+    ))
+    ticket.updated_at = datetime.now(timezone.utc)
+    session.add(ticket)
+    session.commit()
+    
+    # WS-уведомление саппортерам
+    staff_ids = [
+        u.id for u in session.exec(select(User)).all()
+        if u.is_admin or has_permission(u, "manage_support", session)
+    ]
+    if staff_ids:
+        asyncio.create_task(manager.broadcast_to_users(
+            staff_ids,
+            "support_new_ticket",
+            {"ticket_id": ticket.id, "user_name": user.display_name},
+        ))
+    return {"ticket_id": ticket.id, "already_existed": False}
+
+
+@app.post("/api/support/messages")
+async def support_send_message(
+    request: Request,
+    ticket_id: int = Form(...),
+    text: str = Form(""),
+    file: Optional[UploadFile] = File(None),  # 🆕 загрузка файла
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Отправить сообщение в заявку — пользователь или саппортер"""
+    ticket = session.get(SupportTicket, ticket_id)
+    if not ticket:
+        raise HTTPException(404, "Заявка не найдена")
+    if ticket.status != "open":
+        raise HTTPException(400, "Заявка закрыта")
+    
+    is_author = ticket.user_id == user.id
+    is_staff = user.is_admin or has_permission(user, "manage_support", session)
+    if not is_author and not is_staff:
+        raise HTTPException(403, "Нет доступа")
+    
+    # 🆕 Обработка загруженного файла
+    media_url = None
+    media_type = None
+    if file and file.filename:
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
+            content = await file.read()
+            if len(content) <= 10 * 1024 * 1024:  # 10 МБ лимит
+                try:
+                    result = await run_in_threadpool(
+                        lambda: cloudinary.uploader.upload(
+                            content,
+                            folder="support",
+                            resource_type="image",
+                            transformation=[{"width": 1200, "crop": "limit"}],
+                        )
+                    )
+                    media_url = result.get("secure_url")
+                    media_type = "image"
+                except Exception as e:
+                    print(f"Failed to upload support image: {e}")
+    
+    # Проверка что есть хоть какой-то контент
+    if not text.strip() and not media_url:
+        raise HTTPException(400, "Сообщение не может быть пустым")
+    
+    msg = SupportMessage(
+        ticket_id=ticket.id,
+        sender_id=user.id,
+        text=text.strip() if text else "",
+        media_url=media_url,
+        media_type=media_type,
+    )
+    session.add(msg)
+    ticket.updated_at = datetime.now(timezone.utc)
+    session.add(ticket)
+    session.commit()
+    session.refresh(msg)
+    
+    # Кому рассылать WS
+    recipients = []
+    if is_author:
+        recipients = [
+            u.id for u in session.exec(select(User)).all()
+            if u.is_admin or has_permission(u, "manage_support", session)
+        ]
+    else:
+        recipients = [ticket.user_id]
+    
+    message_data = {
+        "id": msg.id,
+        "sender_id": msg.sender_id,
+        "sender_name": user.display_name,
+        "sender_is_staff": is_staff,
+        "text": msg.text,
+        "media_url": msg.media_url,
+        "media_type": msg.media_type,
+        "created_at": msg.created_at.isoformat(),
+    }
+    
+    if recipients:
+        await manager.broadcast_to_users(recipients, "support_new_message", {
+            "ticket_id": ticket.id,
+            "message": message_data,
+        })
+    
+    return {"ok": True, "message": message_data}
+
+
 @app.get("/api/support/my-ticket")
 def support_my_ticket(
     user: User = Depends(get_current_user),
@@ -8700,18 +8864,20 @@ def support_my_ticket(
     ).first()
     if not ticket:
         return {"has_ticket": False}
-
+    
     messages = session.exec(
         select(SupportMessage)
         .where(SupportMessage.ticket_id == ticket.id)
         .order_by(SupportMessage.created_at.asc())
     ).all()
+    
     sender_ids = list({m.sender_id for m in messages})
     senders = {
         u.id: u for u in session.exec(
             select(User).where(User.id.in_(sender_ids))
         ).all()
     }
+    
     return {
         "has_ticket": True,
         "ticket_id": ticket.id,
@@ -8726,122 +8892,13 @@ def support_my_ticket(
                     or has_permission(senders[m.sender_id], "manage_support", session)
                 ) if m.sender_id in senders else False,
                 "text": m.text,
+                "media_url": m.media_url,  # 🆕
+                "media_type": m.media_type,  # 🆕
                 "created_at": m.created_at.isoformat(),
             }
             for m in messages
         ],
     }
-
-
-@app.post("/api/support/messages")
-async def support_send_message(
-    ticket_id: int = Form(...),
-    text: str = Form(...),
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Отправить сообщение в заявку — пользователь или саппортер"""
-    ticket = session.get(SupportTicket, ticket_id)
-    if not ticket:
-        raise HTTPException(404, "Заявка не найдена")
-    if ticket.status != "open":
-        raise HTTPException(400, "Заявка закрыта")
-
-    is_author = ticket.user_id == user.id
-    is_staff = user.is_admin or has_permission(user, "manage_support", session)
-    if not is_author and not is_staff:
-        raise HTTPException(403, "Нет доступа")
-    if not text.strip():
-        raise HTTPException(400, "Пустое сообщение")
-
-    msg = SupportMessage(
-        ticket_id=ticket.id,
-        sender_id=user.id,
-        text=text.strip(),
-    )
-    session.add(msg)
-    ticket.updated_at = datetime.now(timezone.utc)
-    session.add(ticket)
-    session.commit()
-    session.refresh(msg)
-
-    # Кому рассылать WS
-    recipients = []
-    if is_author:
-        # Автор пишет → шлём всем саппортерам
-        recipients = [
-            u.id for u in session.exec(select(User)).all()
-            if u.is_admin or has_permission(u, "manage_support", session)
-        ]
-    else:
-        # Саппортер пишет → шлём только автору
-        recipients = [ticket.user_id]
-
-    if recipients:
-        await manager.broadcast_to_users(recipients, "support_new_message", {
-            "ticket_id": ticket.id,
-            "message": {
-                "id": msg.id,
-                "sender_id": msg.sender_id,
-                "sender_name": user.display_name,
-                "sender_is_staff": is_staff,
-                "text": msg.text,
-                "created_at": msg.created_at.isoformat(),
-            },
-        })
-    return {"ok": True, "message_id": msg.id}
-
-
-@app.get("/api/support/tickets")
-def support_list_tickets(
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Список заявок для админки"""
-    if not user.is_admin and not has_permission(user, "manage_support", session):
-        raise HTTPException(403, "Нет права: manage_support")
-
-    tickets = session.exec(
-        select(SupportTicket).order_by(SupportTicket.updated_at.desc())
-    ).all()
-    if not tickets:
-        return []
-
-    ticket_ids = [t.id for t in tickets]
-    user_ids = list({t.user_id for t in tickets})
-    users = {
-        u.id: u for u in session.exec(
-            select(User).where(User.id.in_(user_ids))
-        ).all()
-    }
-    # Последние сообщения для превью
-    from sqlalchemy import text as sql_text
-    last_msgs = session.exec(
-        select(SupportMessage)
-        .where(SupportMessage.ticket_id.in_(ticket_ids))
-        .order_by(SupportMessage.created_at.desc())
-    ).all()
-    last_by_ticket = {}
-    for m in last_msgs:
-        if m.ticket_id not in last_by_ticket:
-            last_by_ticket[m.ticket_id] = m
-
-    result = []
-    for t in tickets:
-        u = users.get(t.user_id)
-        last = last_by_ticket.get(t.id)
-        result.append({
-            "id": t.id,
-            "user": user_out(u, session) if u else None,
-            "status": t.status,
-            "created_at": t.created_at.isoformat(),
-            "updated_at": t.updated_at.isoformat() if t.updated_at else t.created_at.isoformat(),
-            "last_message": {
-                "text": last.text[:60] if last else None,
-                "created_at": last.created_at.isoformat() if last else None,
-            } if last else None,
-        })
-    return result
 
 
 @app.get("/api/support/tickets/{ticket_id}/messages")
@@ -8852,22 +8909,28 @@ def support_ticket_messages(
 ):
     """Сообщения тикета — для админки"""
     if not user.is_admin and not has_permission(user, "manage_support", session):
-        raise HTTPException(403, "Нет права: manage_support")
+        # Проверяем, автор ли это тикета
+        ticket = session.get(SupportTicket, ticket_id)
+        if not ticket or ticket.user_id != user.id:
+            raise HTTPException(403, "Нет права: manage_support")
+    
     ticket = session.get(SupportTicket, ticket_id)
     if not ticket:
         raise HTTPException(404, "Заявка не найдена")
-
+    
     messages = session.exec(
         select(SupportMessage)
         .where(SupportMessage.ticket_id == ticket.id)
         .order_by(SupportMessage.created_at.asc())
     ).all()
+    
     sender_ids = list({m.sender_id for m in messages})
     senders = {
         u.id: u for u in session.exec(
             select(User).where(User.id.in_(sender_ids))
         ).all()
     }
+    
     return [
         {
             "id": m.id,
@@ -8878,12 +8941,12 @@ def support_ticket_messages(
                 or has_permission(senders[m.sender_id], "manage_support", session)
             ) if m.sender_id in senders else False,
             "text": m.text,
+            "media_url": m.media_url,  # 🆕
+            "media_type": m.media_type,  # 🆕
             "created_at": m.created_at.isoformat(),
         }
         for m in messages
     ]
-
-
 @app.post("/api/support/tickets/{ticket_id}/close")
 def support_close_ticket(
     ticket_id: int,
