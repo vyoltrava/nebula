@@ -4429,14 +4429,10 @@ async def delete_chat(
 @app.on_event("startup")
 def startup():
     init_db()
-    
 
-
-
-    # Автоматическое добавление недостающих колонок и таблиц
+    # ===== ОСНОВНОЙ БЛОК МИГРАЦИЙ =====
     with engine.connect() as conn:
         try:
-
             # ===== 🎧 ПОДДЕРЖКА =====
             conn.execute(text("""
             CREATE TABLE IF NOT EXISTS supportticket (
@@ -4444,33 +4440,25 @@ def startup():
                 user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
                 chat_id INTEGER NOT NULL REFERENCES chat(id) ON DELETE CASCADE,
                 status VARCHAR(20) DEFAULT 'open',
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ DEFAULT NOW()
+                created_at TIMESTAMPTZ DEFAULT NOW()
             );
             CREATE INDEX IF NOT EXISTS idx_supportticket_user ON supportticket(user_id);
             CREATE INDEX IF NOT EXISTS idx_supportticket_status ON supportticket(status);
             """))
 
-
-
             # ===== 🔐 2FA И EMAIL =====
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS totp_secret VARCHAR;'))
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN DEFAULT FALSE;'))
-            conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS totp_backup_codes TEXT;'))  # JSON массив хешей
+            conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS totp_backup_codes TEXT;'))
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS email VARCHAR(255);'))
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;'))
             conn.execute(text('CREATE UNIQUE INDEX IF NOT EXISTS idx_user_email ON "user"(email) WHERE email IS NOT NULL;'))
-
-
 
             # 🆕 E2EE: is_pending для ключей
             conn.execute(text('ALTER TABLE userkey ADD COLUMN IF NOT EXISTS is_pending BOOLEAN DEFAULT TRUE;'))
             conn.execute(text("UPDATE userkey SET is_pending = FALSE WHERE public_key NOT LIKE 'pending_%';"))
 
-
-            # ===== 😂 СТИКЕРЫ И РЕАКЦИИ (БЕЗОПАСНЫЕ МИГРАЦИИ) =====
-            
-            # 1. Создаём sticker_pack
+            # ===== 😂 СТИКЕРЫ И РЕАКЦИИ =====
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS sticker_pack (
                     id SERIAL PRIMARY KEY,
@@ -4481,8 +4469,6 @@ def startup():
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 );
             """))
-
-            # 2. Создаём sticker (актуальная структура с pack_id)
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS sticker (
                     id SERIAL PRIMARY KEY,
@@ -4494,8 +4480,6 @@ def startup():
                 );
             """))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_sticker_pack ON sticker(pack_id, "order");'))
-
-            # 3. Создаём message_reaction
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS message_reaction (
                     id SERIAL PRIMARY KEY,
@@ -4506,20 +4490,11 @@ def startup():
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 );
             """))
-            # Страховка: добавляем sticker_id, если таблица существовала без него
             conn.execute(text('ALTER TABLE message_reaction ADD COLUMN IF NOT EXISTS sticker_id INTEGER;'))
             conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_reaction_unique ON message_reaction(message_id, user_id, COALESCE(sticker_id, 0), COALESCE(emoji, ''));"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_reaction_message ON message_reaction(message_id);"))
 
-            conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS lastreadpost (
-                user_id INTEGER PRIMARY KEY REFERENCES "user"(id) ON DELETE CASCADE,
-                post_id INTEGER NOT NULL REFERENCES post(id) ON DELETE CASCADE,
-                saved_at TIMESTAMPTZ DEFAULT NOW()
-            );
-            """))
-
-            # ===== 📖 ПОСЛЕДНИЙ ЧИТАЕМЫЙ ПОСТ (один на пользователя) =====
+            # ===== 📖 ПОСЛЕДНИЙ ЧИТАЕМЫЙ ПОСТ =====
             conn.execute(text('DROP TABLE IF EXISTS readprogress;'))
             conn.execute(text("""
             CREATE TABLE IF NOT EXISTS lastreadpost (
@@ -4529,8 +4504,6 @@ def startup():
             );
             """))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_lastreadpost_user ON lastreadpost(user_id);'))
-
-
 
             # ===== ЧАТЫ И СООБЩЕНИЯ =====
             conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS pinned_by INTEGER REFERENCES \"user\"(id);"))
@@ -4543,11 +4516,9 @@ def startup():
             conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS is_secret BOOLEAN DEFAULT FALSE;"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chat_is_group ON chat(is_group);"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chat_owner ON chat(owner_id);"))
-
             conn.execute(text("ALTER TABLE chatmember ADD COLUMN IF NOT EXISTS role VARCHAR DEFAULT 'member';"))
             conn.execute(text("ALTER TABLE chatmember ADD COLUMN IF NOT EXISTS joined_at TIMESTAMPTZ DEFAULT NOW();"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chatmember_user ON chatmember(user_id);"))
-
             conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS forwarded_from_id INTEGER REFERENCES message(id) ON DELETE SET NULL;"))
             conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS reply_to_id INTEGER REFERENCES message(id) ON DELETE SET NULL;"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_message_reply ON message(reply_to_id);"))
@@ -4562,14 +4533,12 @@ def startup():
             # ===== ПОЛЬЗОВАТЕЛИ =====
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS cover_url VARCHAR;'))
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS token_version INTEGER DEFAULT 0;'))
-            conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS totp_secret VARCHAR;'))
-            conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN DEFAULT FALSE;'))
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS bio VARCHAR(500);'))
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ;'))
-            # 🆕 ЖИВЫЕ СООБЩЕНИЯ: настройки приватности
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS live_text_enabled BOOLEAN DEFAULT TRUE;'))
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS live_text_broadcast BOOLEAN DEFAULT TRUE;'))
-            # ===== ⚠️ ПРЕДУПРЕЖДЕНИЯ (warn_users) =====
+
+            # ===== ⚠️ ПРЕДУПРЕЖДЕНИЯ =====
             conn.execute(text("""
             CREATE TABLE IF NOT EXISTS warning (
                 id SERIAL PRIMARY KEY,
@@ -4581,25 +4550,26 @@ def startup():
                 expires_at TIMESTAMPTZ
             );
             """))
-            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_warning_user ON warning(user_id, active);'))      
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_warning_user ON warning(user_id, active);'))
 
             # ===== ПОСТЫ И РОЛИ =====
             conn.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS views_count INTEGER DEFAULT 0;'))
             conn.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS media_type VARCHAR;'))
             conn.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS repost_of_id INTEGER REFERENCES post(id) ON DELETE SET NULL;'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_post_repost ON post(repost_of_id);'))
-            # ===== 🔊 ЭХО-СИСТЕМА =====
             conn.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS echo_parent_id INTEGER REFERENCES post(id) ON DELETE SET NULL;'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_post_echo_parent ON post(echo_parent_id);'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_post_author ON post(author_id);'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_post_reply ON post(reply_to_id);'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_post_created ON post(created_at DESC);'))
+            conn.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS edited BOOLEAN DEFAULT FALSE;'))
+            conn.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;'))
 
             conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0;'))
             conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS description VARCHAR;'))
             conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS is_staff BOOLEAN DEFAULT FALSE;'))
 
-            # ===== 🗂️ КАТЕГОРИИ РОЛЕЙ (ГРУППЫ/ОТДЕЛЫ) =====
+            # ===== 🗂️ КАТЕГОРИИ РОЛЕЙ =====
             conn.execute(text("""
             CREATE TABLE IF NOT EXISTS rolecategory (
                 id SERIAL PRIMARY KEY,
@@ -4622,15 +4592,13 @@ def startup():
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );'''))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_push_user ON pushsubscription(user_id);'))
-
             conn.execute(text('CREATE TABLE IF NOT EXISTS siterules (id SERIAL PRIMARY KEY, content TEXT NOT NULL DEFAULT \'{}\', updated_by INTEGER REFERENCES "user"(id), updated_at TIMESTAMPTZ DEFAULT NOW());'))
             conn.execute(text('CREATE TABLE IF NOT EXISTS bookmark (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES "user"(id), post_id INTEGER REFERENCES post(id) ON DELETE CASCADE, created_at TIMESTAMPTZ, UNIQUE(user_id, post_id));'))
             conn.execute(text('CREATE TABLE IF NOT EXISTS updateread (user_id INTEGER REFERENCES "user"(id), update_id INTEGER REFERENCES "update"(id), read_at TIMESTAMPTZ DEFAULT NOW(), PRIMARY KEY (user_id, update_id));'))
-            
             conn.execute(text('CREATE TABLE IF NOT EXISTS iplog (id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES "user"(id), ip_address VARCHAR NOT NULL, user_agent VARCHAR, action VARCHAR, created_at TIMESTAMPTZ);'))
             conn.execute(text('CREATE TABLE IF NOT EXISTS ipblock (id SERIAL PRIMARY KEY, ip_address VARCHAR UNIQUE NOT NULL, reason VARCHAR, blocked_by INTEGER REFERENCES "user"(id), created_at TIMESTAMPTZ, expires_at TIMESTAMPTZ);'))
             conn.execute(text('CREATE TABLE IF NOT EXISTS actionlog (id SERIAL PRIMARY KEY, actor_id INTEGER REFERENCES "user"(id), action VARCHAR NOT NULL, target_type VARCHAR, target_id INTEGER, details VARCHAR, ip_address VARCHAR, created_at TIMESTAMPTZ);'))
-            
+
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_iplog_user ON iplog(user_id, created_at DESC);'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_ipblock_ip ON ipblock(ip_address);'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_actionlog_created ON actionlog(created_at DESC);'))
@@ -4641,7 +4609,7 @@ def startup():
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_postview_viewer ON postview(viewer_hash);'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_notification_user ON notification(user_id, read);'))
 
-            # ===== 🎨 ТЕМЫ (АНИМИРОВАННЫЕ ФОНЫ) =====
+            # ===== 🎨 ТЕМЫ =====
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS theme (
                     id SERIAL PRIMARY KEY,
@@ -4659,7 +4627,6 @@ def startup():
                 );
             """))
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_theme_active ON theme(is_active, min_level);"))
-
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS system_setting (
                     key VARCHAR(50) PRIMARY KEY,
@@ -4672,7 +4639,7 @@ def startup():
                 ON CONFLICT (key) DO NOTHING;
             """))
 
-            # ===== КАСКАДНОЕ УДАЛЕНИЕ ДЛЯ POST =====
+            # ===== КАСКАДНОЕ УДАЛЕНИЕ =====
             conn.execute(text('ALTER TABLE "like" DROP CONSTRAINT IF EXISTS like_post_id_fkey;'))
             conn.execute(text('ALTER TABLE "like" ADD CONSTRAINT like_post_id_fkey FOREIGN KEY (post_id) REFERENCES post(id) ON DELETE CASCADE;'))
             conn.execute(text('ALTER TABLE notification DROP CONSTRAINT IF EXISTS notification_post_id_fkey;'))
@@ -4688,69 +4655,47 @@ def startup():
             conn.execute(text('ALTER TABLE updateread DROP CONSTRAINT IF EXISTS updateread_update_id_fkey;'))
             conn.execute(text('ALTER TABLE updateread ADD CONSTRAINT updateread_update_id_fkey FOREIGN KEY (update_id) REFERENCES update(id) ON DELETE CASCADE;'))
 
-            # ===== 🗂️ КАТЕГОРИИ РОЛЕЙ + ВАРНЫ =====
-            conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS rolecategory (
-                id SERIAL PRIMARY KEY,
-                name VARCHAR(60) NOT NULL,
-                color VARCHAR(20) DEFAULT '#8b5cf6',
-                "order" INTEGER DEFAULT 0,
-                created_at TIMESTAMPTZ DEFAULT NOW()
-            );
-            """))
-            conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS category_id INTEGER REFERENCES rolecategory(id) ON DELETE SET NULL;'))
-            conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS warning (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-                issuer_id INTEGER NOT NULL REFERENCES "user"(id),
-                reason VARCHAR(500) NOT NULL,
-                active BOOLEAN DEFAULT TRUE,
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                expires_at TIMESTAMPTZ
-            );
-            """))
-            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_warning_user ON warning(user_id, active);'))
-            conn.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS edited BOOLEAN DEFAULT FALSE;'))
-            conn.execute(text('ALTER TABLE post ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;'))
-
-            # ===== 🚀 КРИТИЧЕСКИ ВАЖНЫЕ ИНДЕКСЫ ДЛЯ ПРОИЗВОДИТЕЛЬНОСТИ =====
-            # 1. Лента подписок (get_following_posts)
+            # ===== 🚀 ИНДЕКСЫ ДЛЯ ПРОИЗВОДИТЕЛЬНОСТИ =====
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_post_author_created ON post(author_id, created_at DESC);'))
-
-            # 2. Сообщения в чате (get_messages_v2)
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_message_chat_id_desc ON message(chat_id, id DESC);'))
-
-            # 3. Популярные теги
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_posttag_tag ON posttag(tag_id);'))
-
-            # 4. Уведомления пользователя
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_notification_user_created ON notification(user_id, created_at DESC);'))
-
-            # 5. Быстрый поиск по username (case-insensitive)
             conn.execute(text('CREATE UNIQUE INDEX IF NOT EXISTS idx_user_username_lower ON "user" (LOWER(username));'))
-
-            # 6. Поиск по display_name
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_user_display_name_lower ON "user" (LOWER(display_name));'))
-
-            # 7. Закладки пользователя (list_bookmarks)
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_bookmark_user_created ON bookmark(user_id, created_at DESC);'))
-
-            # 8. Лайки пользователя (get_liked_posts)
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_like_user_created ON "like"(user_id, created_at DESC);'))
-
-            # 9. Подписки пользователя (get_following)
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_follow_follower_followee ON follow(follower_id, followee_id);'))
 
-            # Финальный коммит всех миграций
+            # Финальный коммит
             conn.commit()
             print("✅ Все миграции, таблицы и индексы успешно применены")
-            
+
         except Exception as e:
-            conn.rollback() # Откатываем транзакцию при ошибке
+            conn.rollback()
             print(f"⚠️ STARTUP MIGRATION ERROR: {e}")
 
-    # Отдельный безопасный блок для сброса sequence и lowercased usernames
+    # ===== 🔧 ОТДЕЛЬНЫЙ БЛОК: добавление updated_at к supportticket =====
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("""
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns 
+                    WHERE table_name='supportticket' AND column_name='updated_at'
+                ) THEN
+                    ALTER TABLE supportticket ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW();
+                    UPDATE supportticket SET updated_at = created_at WHERE updated_at IS NULL;
+                END IF;
+            END $$;
+            """))
+            conn.commit()
+            print("✅ supportticket.updated_at checked/added")
+        except Exception as e:
+            print(f"⚠️ ALTER TABLE supportticket warning: {e}")
+            conn.rollback()
+
+    # ===== 🔄 СБРОС SEQUENCE И LOWERCASE USERNAMES =====
     with engine.connect() as conn:
         try:
             conn.execute(text('UPDATE "user" SET username = LOWER(username) WHERE username != LOWER(username);'))
@@ -4761,7 +4706,6 @@ def startup():
             print("✅ User ID sequence reset & usernames lowercased")
         except Exception as e:
             print(f"⚠️ STARTUP SEQUENCE ERROR: {e}")
-
 
 
 
