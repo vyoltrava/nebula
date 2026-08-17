@@ -915,17 +915,17 @@ const continueConfig = lastReadPost
         </button>
 
         {hasAdminAccess && !isDock && (
-          <Link href="component/admin"
+          <Link href="adminnew"
             className={`flex ${containerClass} font-medium transition-all border-b border-white/5 group ${
-              pathname?.startsWith("/admin") ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
+              pathname?.startsWith("/adminnew") ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
             }`}>
-            <ShieldAlert size={18} className={`${iconClass} ${pathname?.startsWith("/admin") ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"}`} />
+            <ShieldAlert size={18} className={`${iconClass} ${pathname?.startsWith("/adminnew") ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"}`} />
             <span className={textClass}>Админ панель</span>
           </Link>
         )}
 
         {hasAdminAccess && isDock && (
-           <Link href="/admin" className={`flex ${containerClass} font-medium transition-all border-b border-white/5 group text-white/40 hover:bg-white/[0.03] hover:text-white/60`}>
+           <Link href="/adminnew" className={`flex ${containerClass} font-medium transition-all border-b border-white/5 group text-white/40 hover:bg-white/[0.03] hover:text-white/60`}>
               <ShieldAlert size={18} className={iconClass} />
            </Link>
         )}
