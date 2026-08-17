@@ -8543,6 +8543,7 @@ def list_support_chats(
 @app.post("/api/support/start")
 @limiter.limit("3/minute")
 async def start_support_chat(
+    request: Request, 
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
