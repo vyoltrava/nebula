@@ -1,9 +1,9 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { getToken } from "@/lib/auth";
 import { useWebSocket } from "@/src/hooks/useWebSocket";
 import { Sidebar } from "@/components/Sidebar";
-import { Headphones, Send, Plus, Image as ImageIcon, X, RefreshCw, ChevronLeft, MessageSquare, Clock, ShieldCheck } from "lucide-react";
+import { Headphones, Send, Plus, Image as ImageIcon, X, ChevronLeft, MessageSquare, Clock, ShieldCheck } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
@@ -37,62 +37,129 @@ export default function SupportPage() {
   const [creating, setCreating] = useState(false);
   const [newText, setNewText] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [myId, setMyId] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const activeIdRef = useRef<number | null>(null);
+
+  // Держим ref в синке со state для WebSocket callback
+  useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
+
+  // Получаем свой ID при монтировании
+  useEffect(() => {
+    (async () => {
+      const token = getToken();
+      if (!token) return;
+      try {
+        const res = await fetch(`${API}/api/me`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) {
+          const me = await res.json();
+          setMyId(me.id);
+        }
+      } catch {}
+    })();
+  }, []);
 
   // === ЗАГРУЗКА СПИСКА ЗАЯВОК ===
-  async function loadTickets() {
+  const loadTickets = useCallback(async () => {
     const token = getToken();
     if (!token) return;
     try {
       const res = await fetch(`${API}/api/support/my-tickets`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) setTickets(await res.json());
-    } catch (e) { console.error("loadTickets error:", e); }
-  }
+      if (res.ok) {
+        const data = await res.json();
+        setTickets(Array.isArray(data) ? data : []);
+      }
+    } catch {}
+  }, []);
 
   // === ЗАГРУЗКА СООБЩЕНИЙ ===
-  async function loadMessages(ticketId: number) {
+  const loadMessages = useCallback(async (ticketId: number) => {
     const token = getToken();
     if (!token) return;
     try {
       const res = await fetch(`${API}/api/support/tickets/${ticketId}/messages`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) setMessages(await res.json());
-    } catch (e) { console.error("loadMessages error:", e); }
-  }
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(Array.isArray(data) ? data : []);
+      } else {
+        setMessages([]);
+      }
+    } catch {
+      setMessages([]);
+    }
+  }, []);
 
-  useEffect(() => { loadTickets(); }, []);
+  useEffect(() => { loadTickets(); }, [loadTickets]);
   useEffect(() => {
-    if (activeId) loadMessages(activeId);
-  }, [activeId]);
+    if (activeId) {
+      setMessages([]); // очищаем при переключении
+      loadMessages(activeId);
+    }
+  }, [activeId, loadMessages]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // === WEBSOCKET ===
+  // === WEBSOCKET — МГНОВЕННЫЕ ОБНОВЛЕНИЯ ===
   useWebSocket("support_new_message", (data: any) => {
-    if (data.ticket_id === activeId) {
-      setMessages(prev => prev.some(m => m.id === data.message.id) ? prev : [...prev, data.message]);
+    const currentActiveId = activeIdRef.current;
+    
+    // Обновляем список заявок (превью последнего сообщения)
+    setTickets(prev => prev.map(t => {
+      if (t.id === data.ticket_id) {
+        return {
+          ...t,
+          updated_at: data.message.created_at,
+          last_message: {
+            text: data.message.text || (data.message.media_url ? "📷 Фото" : ""),
+            is_mine: data.message.sender_id === myId,
+            created_at: data.message.created_at,
+          },
+        };
+      }
+      return t;
+    }));
+
+    // Если это активная заявка — добавляем сообщение в чат
+    if (data.ticket_id === currentActiveId) {
+      setMessages(prev => {
+        // Не дублируем (optimistic update мог уже добавить)
+        if (prev.some(m => m.id === data.message.id)) return prev;
+        // Убираем temp сообщение с таким же текстом если есть
+        const filtered = prev.filter(m => m.id > 0 || (m.text !== data.message.text));
+        return [...filtered, data.message];
+      });
     }
-    loadTickets(); // обновляем превью в списке
   });
 
   useWebSocket("support_ticket_closed", (data: any) => {
-    if (data.ticket_id === activeId) {
+    const currentActiveId = activeIdRef.current;
+
+    // Обновляем статус в списке
+    setTickets(prev => prev.map(t =>
+      t.id === data.ticket_id ? { ...t, status: "closed" } : t
+    ));
+
+    // Системное сообщение в чате
+    if (data.ticket_id === currentActiveId) {
       setMessages(prev => [...prev, {
-        id: Date.now(), sender_id: 0, sender_name: "Система",
-        sender_is_staff: false, text: "🔒 Заявка закрыта.",
-        media_url: null, media_type: null,
+        id: Date.now(),
+        sender_id: 0,
+        sender_name: "Система",
+        sender_is_staff: false,
+        text: "🔒 Заявка закрыта.",
+        media_url: null,
+        media_type: null,
         created_at: new Date().toISOString(),
       }]);
     }
-    loadTickets();
   });
-
-  useWebSocket("support_new_ticket", () => { loadTickets(); });
 
   // === СОЗДАНИЕ НОВОЙ ЗАЯВКИ ===
   async function createTicket() {
@@ -119,8 +186,9 @@ export default function SupportPage() {
         await loadTickets();
         await loadMessages(data.ticket_id);
       }
-    } catch (e) { console.error("createTicket error:", e); }
-    finally { setCreating(false); }
+    } catch {} finally {
+      setCreating(false);
+    }
   }
 
   // === ОТПРАВКА СООБЩЕНИЯ (OPTIMISTIC) ===
@@ -128,14 +196,18 @@ export default function SupportPage() {
     if ((!input.trim() && !file) || !activeId || sending) return;
     setSending(true);
 
-    // Optimistic update
-    const tempId = Date.now();
+    const tempId = -Date.now(); // отрицательный ID для temp
     const tempMsg: Message = {
-      id: tempId, sender_id: -1, sender_name: "Вы",
-      sender_is_staff: false, text: input.trim() || null,
-      media_url: previewUrl, media_type: file ? "image" : null,
+      id: tempId,
+      sender_id: myId || -1,
+      sender_name: "Вы",
+      sender_is_staff: false,
+      text: input.trim() || null,
+      media_url: previewUrl,
+      media_type: file ? "image" : null,
       created_at: new Date().toISOString(),
     };
+    
     setMessages(prev => [...prev, tempMsg]);
     const savedInput = input;
     const savedFile = file;
@@ -155,24 +227,42 @@ export default function SupportPage() {
         headers: { Authorization: `Bearer ${token}` },
         body: form,
       });
+      
       if (res.ok) {
         const data = await res.json();
-        // Заменяем временное на реальное
+        // Заменяем temp на реальное сообщение
         setMessages(prev => prev.map(m => m.id === tempId ? data.message : m));
-        loadTickets();
+        // Обновляем список заявок
+        setTickets(prev => prev.map(t => {
+          if (t.id === activeId) {
+            return {
+              ...t,
+              updated_at: data.message.created_at,
+              last_message: {
+                text: data.message.text || (data.message.media_url ? "📷 Фото" : ""),
+                is_mine: true,
+                created_at: data.message.created_at,
+              },
+            };
+          }
+          return t;
+        }));
       } else {
-        // Откат при ошибке
+        // Откат
         setMessages(prev => prev.filter(m => m.id !== tempId));
         setInput(savedInput);
         setFile(savedFile);
         if (savedFile) setPreviewUrl(URL.createObjectURL(savedFile));
       }
     } catch {
+      // Откат
       setMessages(prev => prev.filter(m => m.id !== tempId));
       setInput(savedInput);
       setFile(savedFile);
       if (savedFile) setPreviewUrl(URL.createObjectURL(savedFile));
-    } finally { setSending(false); }
+    } finally {
+      setSending(false);
+    }
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -190,7 +280,6 @@ export default function SupportPage() {
       <Sidebar />
       <div className="w-px shrink-0 bg-white/10 my-3" />
 
-      {/* ОСНОВНОЙ КОНТЕНТ */}
       <main className="flex-1 flex overflow-hidden">
         
         {/* ЛЕВАЯ КОЛОНКА: СПИСОК ЗАЯВОК */}
@@ -207,7 +296,6 @@ export default function SupportPage() {
             </button>
           </div>
 
-          {/* Форма создания новой заявки */}
           {showCreate && (
             <div className="p-3 border-b border-white/10 bg-[#8b5cf6]/5 space-y-2">
               <textarea value={newText} onChange={e => setNewText(e.target.value)}
@@ -216,7 +304,12 @@ export default function SupportPage() {
               <div className="flex gap-2">
                 <button onClick={createTicket} disabled={creating || (!newText.trim() && !file)}
                   className="flex-1 py-2 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-xl text-sm font-medium disabled:opacity-40 flex items-center justify-center gap-2">
-                  {creating ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
+                  {creating ? (
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                  ) : <Send size={14} />}
                   Создать
                 </button>
                 <button onClick={() => { setShowCreate(false); setNewText(""); setFile(null); setPreviewUrl(null); }}
@@ -227,7 +320,6 @@ export default function SupportPage() {
             </div>
           )}
 
-          {/* Список */}
           <div className="flex-1 overflow-y-auto">
             {tickets.length === 0 && !showCreate && (
               <div className="text-center py-12 px-4">
@@ -259,7 +351,7 @@ export default function SupportPage() {
           </div>
         </div>
 
-        {/* ПРАВАЯ КОЛОНКА: ЧАТ ВЫБРАННОЙ ЗАЯВКИ */}
+        {/* ПРАВАЯ КОЛОНКА: ЧАТ */}
         <div className={`flex-1 flex flex-col bg-[#18181b] ${activeId ? "flex" : "hidden md:flex"}`}>
           {!activeId ? (
             <div className="flex-1 flex items-center justify-center">
@@ -271,7 +363,6 @@ export default function SupportPage() {
             </div>
           ) : (
             <>
-              {/* Шапка чата */}
               <div className="p-3 border-b border-white/10 flex items-center gap-3 bg-white/[0.02]">
                 <button onClick={() => setActiveId(null)}
                   className="md:hidden p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10">
@@ -283,15 +374,11 @@ export default function SupportPage() {
                     {activeTicket?.status === "open" ? "● Открыта" : "○ Закрыта"}
                   </p>
                 </div>
-                <button onClick={loadMessages} className="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/10">
-                  <RefreshCw size={16} />
-                </button>
               </div>
 
-              {/* Сообщения */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {messages.map(m => {
-                  const isMine = m.sender_id !== 0 && !m.sender_is_staff;
+                  const isMine = m.sender_id === myId || m.sender_id === -1;
                   const isSystem = m.sender_id === 0;
                   if (isSystem) {
                     return (
@@ -320,7 +407,6 @@ export default function SupportPage() {
                 <div ref={bottomRef} />
               </div>
 
-              {/* Ввод (только для открытых) */}
               {activeTicket?.status === "open" ? (
                 <div className="p-3 border-t border-white/10 space-y-2 bg-white/[0.02]">
                   {previewUrl && (
