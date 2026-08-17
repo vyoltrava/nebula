@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
@@ -31,11 +31,45 @@ export function UsersSection({ me }: { me: any }) {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) setUsers(await res.json());
+    
     const rolesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/roles`);
     if (rolesRes.ok) setRoles(await rolesRes.json());
   }
 
   useEffect(() => { load(); }, []);
+
+  // 🆕 Группировка ролей по отделам (командам)
+  const groupedRoles = useMemo(() => {
+    const groups: Record<string, any> = {};
+
+    roles.forEach((r) => {
+      // Поддержка обоих вариантов ответа API: вложенный объект или плоские поля
+      const cat = r.category || { 
+        id: r.category_id, 
+        name: r.category_name, 
+        color: r.category_color, 
+        order: r.category_order 
+      };
+      
+      const catId = cat?.id ? String(cat.id) : 'no_cat';
+      const catName = cat?.name || 'Без категории';
+      const catColor = cat?.color || '#8b5cf6';
+      const catOrder = cat?.order ?? 999;
+
+      if (!groups[catId]) {
+        groups[catId] = { id: catId, name: catName, color: catColor, order: catOrder, roles: [] };
+      }
+      groups[catId].roles.push(r);
+    });
+
+    // Сортировка: сначала "Без категории", потом по order, потом по имени
+    return Object.values(groups).sort((a, b) => {
+      if (a.id === 'no_cat') return -1;
+      if (b.id === 'no_cat') return 1;
+      if (a.order !== b.order) return a.order - b.order;
+      return a.name.localeCompare(b.name);
+    });
+  }, [roles]);
 
   const filteredUsers = users.filter((u) => {
     if (searchQuery) {
@@ -249,25 +283,50 @@ export function UsersSection({ me }: { me: any }) {
                       <UserCheck size={12} className="inline mr-1" />{u.is_moderator ? "Снять" : "В разработчики"}
                     </button>
                   )}
+                  
+                  {/* 🆕 Выпадающий список ролей с группировкой по отделам */}
                   {can("manage_roles") && !u.is_admin && canSanction && (
                     <div className="relative">
                       <Listbox value={u.role?.id ?? null} onChange={(roleId: number | null) => assignRole(u.id, roleId)}>
-                        <Listbox.Button className="px-3 py-1.5 rounded-lg border border-white/20 bg-white/5 text-blue-400 text-xs font-bold cursor-pointer max-w-[120px] truncate">
+                        <Listbox.Button className="px-3 py-1.5 rounded-lg border border-white/20 bg-white/5 text-blue-400 text-xs font-bold cursor-pointer max-w-[140px] truncate">
                           {u.role?.name || "Без роли"}
                         </Listbox.Button>
-                        <Listbox.Options className="absolute right-0 z-50 mt-1 w-48 rounded-lg bg-gray-900 border border-white/10 shadow-xl">
+                        
+                        <Listbox.Options className="absolute right-0 z-50 mt-1 w-56 max-h-72 overflow-y-auto rounded-lg bg-gray-900 border border-white/10 shadow-xl">
+                          {/* 1. Блок без команды */}
                           <Listbox.Option value={null} className={({ active }) => `cursor-pointer px-3 py-2 text-xs text-white ${active ? "bg-[#8b5cf6]" : "hover:bg-white/10"}`}>
                             Без роли
                           </Listbox.Option>
-                          {roles.filter((r) => (r.level ?? 1) < myLevel || me?.is_admin).map((r) => (
-                            <Listbox.Option key={r.id} value={r.id} className={({ active }) => `cursor-pointer px-3 py-2 text-xs text-white ${active ? "bg-[#8b5cf6]" : "hover:bg-white/10"}`}>
-                              {r.name} (Lvl {r.level ?? 1})
-                            </Listbox.Option>
+
+                          {/* 2. Блоки по командам */}
+                          {groupedRoles.map((group: any) => (
+                            <div key={group.id}>
+                              {/* Заголовок отдела (прилипает при скролле) */}
+                              <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-white/40 bg-white/5 border-y border-white/10 flex items-center gap-2 sticky top-0 backdrop-blur-sm">
+                                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: group.color }}></span>
+                                {group.name}
+                              </div>
+
+                              {/* Роли внутри отдела */}
+                              {group.roles
+                                .filter((r: any) => (r.level ?? 1) < myLevel || me?.is_admin)
+                                .map((r: any) => (
+                                  <Listbox.Option
+                                    key={r.id}
+                                    value={r.id}
+                                    className={({ active }) => `cursor-pointer px-3 py-2 text-xs text-white flex items-center justify-between ${active ? "bg-[#8b5cf6]" : "hover:bg-white/10"}`}
+                                  >
+                                    <span className="truncate">{r.name}</span>
+                                    <span className="text-[10px] text-white/40 ml-2 shrink-0">Lvl {r.level ?? 1}</span>
+                                  </Listbox.Option>
+                                ))}
+                            </div>
                           ))}
                         </Listbox.Options>
                       </Listbox>
                     </div>
                   )}
+
                   <Link href={`/user/${u.id}`} className="px-3 py-1.5 rounded-lg border border-white/20 text-white/60 text-xs font-bold hover:bg-white/10">
                     <ExternalLink size={12} />
                   </Link>
