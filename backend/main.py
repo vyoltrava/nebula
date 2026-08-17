@@ -8684,7 +8684,7 @@ def start_support_ticket(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Создаёт тикет поддержки с групповым чатом"""
+    """Создаёт тикет поддержки — групповой чат со всеми саппортерами"""
     
     # 1. Проверяем есть ли уже открытый тикет
     existing_ticket = session.exec(
@@ -8697,7 +8697,7 @@ def start_support_ticket(
     if existing_ticket:
         return {"chat_id": existing_ticket.chat_id, "already_existed": True}
     
-    # 2. Находим всех саппортеров
+    # 2. Находим всех саппортеров (is_admin ИЛИ есть право manage_support)
     all_users = session.exec(select(User)).all()
     support_staff_ids = []
     
@@ -8707,41 +8707,51 @@ def start_support_ticket(
         elif has_permission(u, "manage_support", session):
             support_staff_ids.append(u.id)
     
-    print(f"🎧 Found {len(support_staff_ids)} support staff members")
+    print(f"🎧 Found {len(support_staff_ids)} support staff")
     
-    # 3. Создаём ГРУППОВОЙ чат
+    # 3. Создаём ГРУППОВОЙ чат (не DM!)
     chat = Chat(
-        is_group=True,  # ← ВАЖНО: групповой чат!
+        is_group=True,
         is_secret=False,
-        name=f"Поддержка: {user.display_name}"
+        name=f"🎧 Поддержка: {user.display_name}",
     )
     session.add(chat)
     session.commit()
     session.refresh(chat)
     
-    print(f"✅ Created support chat #{chat.id}")
-    
     # 4. Добавляем пользователя
     session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="member"))
     
-    # 5. Добавляем всех саппортеров
+    # 5. Добавляем всех саппортеров (кроме самого юзера если он тоже саппортер)
     for staff_id in support_staff_ids:
-        if staff_id != user.id:  # Не добавляем самого юзера дважды
+        if staff_id != user.id:
             session.add(ChatMember(chat_id=chat.id, user_id=staff_id, role="admin"))
     
-    # 6. Создаём запись о тикете
-    ticket = SupportTicket(user_id=user.id, chat_id=chat.id, status="open")
+    # 6. Создаём запись тикета
+    ticket = SupportTicket(
+        user_id=user.id,
+        chat_id=chat.id,
+        status="open"
+    )
     session.add(ticket)
     
     # 7. Системное приветствие
     sys_msg = Message(
         chat_id=chat.id,
         sender_id=user.id,
-        text=f"👋 Привет! Я создал этот тикет. Жду помощи от команды поддержки.",
+        text="👋 Привет! Я создал обращение в поддержку. Команда ответит в ближайшее время.",
     )
     session.add(sys_msg)
     
     session.commit()
+    
+    # 8. Уведомляем саппортеров через WebSocket
+    if support_staff_ids:
+        asyncio.create_task(manager.broadcast_to_users(
+            [sid for sid in support_staff_ids if sid != user.id],
+            "new_support_ticket",
+            {"chat_id": chat.id, "user_name": user.display_name}
+        ))
     
     return {"chat_id": chat.id, "already_existed": False}
 
