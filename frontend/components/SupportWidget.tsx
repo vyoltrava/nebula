@@ -12,7 +12,6 @@ export function SupportWidget() {
   const [existingChatId, setExistingChatId] = useState<number | null>(null);
 
   useEffect(() => {
-    // Проверяем, есть ли уже активный тикет
     const checkTicket = async () => {
       const token = getToken();
       if (!token) { setChecking(false); return; }
@@ -60,12 +59,10 @@ export function SupportWidget() {
     }
   };
 
-  // Если не авторизован, не показываем виджет
   if (!getToken()) return null;
 
   return (
     <>
-      {/* Плавающая кнопка */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-full shadow-lg shadow-purple-500/30 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
@@ -73,7 +70,6 @@ export function SupportWidget() {
         {isOpen ? <X size={24} /> : <Headphones size={24} />}
       </button>
 
-      {/* Попап */}
       {isOpen && (
         <div className="fixed bottom-24 right-6 z-40 w-80 bg-[#18181b] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
           <div className="p-4 border-b border-white/10 bg-white/5">

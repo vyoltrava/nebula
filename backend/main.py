@@ -4437,16 +4437,19 @@ def startup():
     with engine.connect() as conn:
         try:
 
+            # ===== 🎧 ПОДДЕРЖКА =====
             conn.execute(text("""
             CREATE TABLE IF NOT EXISTS supportticket (
                 id SERIAL PRIMARY KEY,
                 user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
                 chat_id INTEGER NOT NULL REFERENCES chat(id) ON DELETE CASCADE,
                 status VARCHAR(20) DEFAULT 'open',
-                created_at TIMESTAMPTZ DEFAULT NOW()
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
             );
+            CREATE INDEX IF NOT EXISTS idx_supportticket_user ON supportticket(user_id);
+            CREATE INDEX IF NOT EXISTS idx_supportticket_status ON supportticket(status);
             """))
-            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_supportticket_user ON supportticket(user_id);'))
 
 
 
@@ -8673,17 +8676,17 @@ def get_my_support_chat(
 
 
 # ============================================================
-# 🎧 СИСТЕМА ТИКЕТОВ ПОДДЕРЖКИ
+# 🎧 ПОДДЕРЖКА (ТИКЕТЫ)
 # ============================================================
 
 @app.post("/api/support/start")
-async def start_support_ticket(
+def start_support_ticket(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Создаёт тикет (или возвращает существующий). Создаёт общий чат с саппортерами."""
+    """Создаёт тикет поддержки с групповым чатом"""
     
-    # 1. Проверяем, есть ли уже открытый тикет
+    # 1. Проверяем есть ли уже открытый тикет
     existing_ticket = session.exec(
         select(SupportTicket).where(
             SupportTicket.user_id == user.id,
@@ -8693,61 +8696,62 @@ async def start_support_ticket(
     
     if existing_ticket:
         return {"chat_id": existing_ticket.chat_id, "already_existed": True}
-
-    # 2. Находим всех саппортеров (у кого есть право manage_support или админы)
+    
+    # 2. Находим всех саппортеров
     all_users = session.exec(select(User)).all()
     support_staff_ids = []
     
     for u in all_users:
-        if u.is_admin or has_permission(u, "manage_support", session):
+        if u.is_admin:
             support_staff_ids.append(u.id)
-            
-    # Если вдруг нет ни одного саппортера (страховка), добавляем самого юзера, чтобы чат не был пустым
-    if not support_staff_ids:
-        support_staff_ids.append(user.id)
-
-    # 3. Создаём чат
-    chat = Chat(is_group=True, name=f"Поддержка: {user.display_name}")
+        elif has_permission(u, "manage_support", session):
+            support_staff_ids.append(u.id)
+    
+    print(f"🎧 Found {len(support_staff_ids)} support staff members")
+    
+    # 3. Создаём ГРУППОВОЙ чат
+    chat = Chat(
+        is_group=True,  # ← ВАЖНО: групповой чат!
+        is_secret=False,
+        name=f"Поддержка: {user.display_name}"
+    )
     session.add(chat)
     session.commit()
     session.refresh(chat)
-
-    # 4. Добавляем в чат самого юзера
+    
+    print(f"✅ Created support chat #{chat.id}")
+    
+    # 4. Добавляем пользователя
     session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="member"))
     
-    # 5. Добавляем в чат всех саппортеров
+    # 5. Добавляем всех саппортеров
     for staff_id in support_staff_ids:
-        if staff_id != user.id: # Чтобы не добавить дважды, если юзер сам саппортер
-            session.add(ChatMember(chat_id=chat.id, user_id=staff_id, role="admin" if staff_id != user.id else "member"))
-
+        if staff_id != user.id:  # Не добавляем самого юзера дважды
+            session.add(ChatMember(chat_id=chat.id, user_id=staff_id, role="admin"))
+    
     # 6. Создаём запись о тикете
     ticket = SupportTicket(user_id=user.id, chat_id=chat.id, status="open")
     session.add(ticket)
     
-    # 7. Системное сообщение в чат
+    # 7. Системное приветствие
     sys_msg = Message(
         chat_id=chat.id,
         sender_id=user.id,
-        text=f"👋 Привет! Я создал этот тикет. Жду помощи от команды поддержки."
+        text=f"👋 Привет! Я создал этот тикет. Жду помощи от команды поддержки.",
     )
     session.add(sys_msg)
     
     session.commit()
     
-    # Уведомляем саппортеров через WebSocket
-    await manager.broadcast_to_users(support_staff_ids, "new_support_ticket", {
-        "chat_id": chat.id,
-        "user_name": user.display_name
-    })
-
     return {"chat_id": chat.id, "already_existed": False}
+
 
 @app.get("/api/support/my-ticket")
 def get_my_support_ticket(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Проверяет, есть ли у юзера активный тикет"""
+    """Проверяет есть ли у юзера активный тикет"""
     ticket = session.exec(
         select(SupportTicket).where(
             SupportTicket.user_id == user.id,
@@ -8759,25 +8763,30 @@ def get_my_support_ticket(
         return {"has_ticket": True, "chat_id": ticket.chat_id}
     return {"has_ticket": False}
 
+
 @app.get("/api/admin/support/tickets")
 def list_support_tickets(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
     """Список всех тикетов для админки"""
-    if not has_permission(staff, "manage_support", session):
+    if not has_permission(staff, "manage_support", session) and not staff.is_admin:
         raise HTTPException(403, "Нет права: manage_support")
-        
+    
     tickets = session.exec(
-        select(SupportTicket).order_by(SupportTicket.created_at.desc())
+        select(SupportTicket).order_by(SupportTicket.updated_at.desc())
     ).all()
     
     result = []
     for t in tickets:
         u = session.get(User, t.user_id)
-        # Берём последнее сообщение
+        
+        # Последнее сообщение
         last_msg = session.exec(
-            select(Message).where(Message.chat_id == t.chat_id).order_by(Message.created_at.desc()).limit(1)
+            select(Message)
+            .where(Message.chat_id == t.chat_id)
+            .order_by(Message.created_at.desc())
+            .limit(1)
         ).first()
         
         result.append({
@@ -8786,11 +8795,15 @@ def list_support_tickets(
             "chat_id": t.chat_id,
             "status": t.status,
             "created_at": t.created_at.isoformat(),
-            "last_message_text": (last_msg.text[:50] + "...") if last_msg and last_msg.text else (last_msg.media_type if last_msg else None),
-            "last_message_time": last_msg.created_at.isoformat() if last_msg else None
+            "updated_at": t.updated_at.isoformat(),
+            "last_message": {
+                "text": last_msg.text[:60] if last_msg and last_msg.text else None,
+                "created_at": last_msg.created_at.isoformat() if last_msg else None,
+            } if last_msg else None,
         })
-        
+    
     return result
+
 
 @app.patch("/api/admin/support/tickets/{ticket_id}/close")
 def close_support_ticket(
@@ -8798,29 +8811,25 @@ def close_support_ticket(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    """Закрывает тикет (удаляет саппортеров из чата, оставляет юзера)"""
-    if not has_permission(staff, "manage_support", session):
+    """Закрывает тикет"""
+    if not has_permission(staff, "manage_support", session) and not staff.is_admin:
         raise HTTPException(403, "Нет права: manage_support")
-        
+    
     ticket = session.get(SupportTicket, ticket_id)
     if not ticket:
         raise HTTPException(404, "Тикет не найден")
-        
-    ticket.status = "closed"
     
-    # Удаляем всех саппортеров из чата, оставляем только юзера
-    members = session.exec(select(ChatMember).where(ChatMember.chat_id == ticket.chat_id)).all()
-    for m in members:
-        if m.user_id != ticket.user_id:
-            session.delete(m)
-            
-    # Пишем системное сообщение
+    ticket.status = "closed"
+    ticket.updated_at = datetime.now(timezone.utc)
+    
+    # Системное сообщение о закрытии
     sys_msg = Message(
         chat_id=ticket.chat_id,
         sender_id=staff.id,
-        text="🔒 Тикет закрыт модератором. Если потребуется помощь — создайте новый тикет."
+        text="🔒 Тикет закрыт модератором. Если потребуется помощь — создайте новый тикет.",
     )
     session.add(sys_msg)
-    
+    session.add(ticket)
     session.commit()
+    
     return {"ok": True}
