@@ -1,65 +1,113 @@
-// components/SupportWidget.tsx
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getToken } from "@/lib/auth";
-import { Headphones, MessageSquare, X } from "lucide-react";
+import { Headphones, X, MessageSquare, Loader2 } from "lucide-react";
 
 export function SupportWidget() {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [chatId, setChatId] = useState<number | null>(null);
-  const [starting, setStarting] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [existingChatId, setExistingChatId] = useState<number | null>(null);
 
-  async function startSupport() {
-    if (starting) return;
-    setStarting(true);
+  useEffect(() => {
+    // Проверяем, есть ли уже активный тикет
+    const checkTicket = async () => {
+      const token = getToken();
+      if (!token) { setChecking(false); return; }
+      
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/support/my-ticket`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.has_ticket) {
+            setExistingChatId(data.chat_id);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setChecking(false);
+      }
+    };
+    checkTicket();
+  }, []);
+
+  const handleStartSupport = async () => {
     const token = getToken();
+    if (!token) { router.push("/login"); return; }
+    
+    setLoading(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/support/start`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}` }
       });
+      
       if (res.ok) {
         const data = await res.json();
-        setChatId(data.chat_id);
         router.push(`/messages/${data.chat_id}`);
+      } else {
+        alert("Ошибка создания тикета");
       }
-    } catch {}
-    setStarting(false);
-    setOpen(false);
-  }
+    } catch (e) {
+      alert("Ошибка сети");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Если не авторизован, не показываем виджет
+  if (!getToken()) return null;
 
   return (
     <>
-      {/* Кнопка */}
+      {/* Плавающая кнопка */}
       <button
-        onClick={() => setOpen(!open)}
-        className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-[#8b5cf6] text-white shadow-lg hover:bg-[#7c3aed] transition-all z-50 flex items-center justify-center"
+        onClick={() => setIsOpen(!isOpen)}
+        className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-full shadow-lg shadow-purple-500/30 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
       >
-        <Headphones size={20} />
+        {isOpen ? <X size={24} /> : <Headphones size={24} />}
       </button>
 
       {/* Попап */}
-      {open && (
-        <div className="fixed bottom-20 right-6 w-72 bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl z-50 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="font-bold text-white text-sm">Поддержка</p>
-            <button onClick={() => setOpen(false)} className="text-white/40 hover:text-white">
-              <X size={16} />
-            </button>
+      {isOpen && (
+        <div className="fixed bottom-24 right-6 z-40 w-80 bg-[#18181b] border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <div className="p-4 border-b border-white/10 bg-white/5">
+            <h3 className="font-bold text-white flex items-center gap-2">
+              <Headphones size={18} className="text-[#8b5cf6]" />
+              Поддержка
+            </h3>
+            <p className="text-xs text-white/50 mt-1">Мы обычно отвечаем в течение часа</p>
           </div>
-          <p className="text-xs text-white/50 mb-4">
-            Есть вопрос или проблема? Напишите нам — мы ответим.
-          </p>
-          <button
-            onClick={startSupport}
-            disabled={starting}
-            className="w-full py-2.5 rounded-xl bg-[#8b5cf6] text-white text-sm font-bold hover:bg-[#7c3aed] disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            <MessageSquare size={14} />
-            {starting ? "Открываем..." : "Написать в поддержку"}
-          </button>
+          
+          <div className="p-4">
+            {checking ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="animate-spin text-white/50" size={24} />
+              </div>
+            ) : existingChatId ? (
+              <button
+                onClick={() => router.push(`/messages/${existingChatId}`)}
+                className="w-full py-3 bg-[#8b5cf6]/20 hover:bg-[#8b5cf6]/30 text-[#a78bfa] border border-[#8b5cf6]/30 rounded-xl font-medium transition-colors flex items-center justify-center gap-2"
+              >
+                <MessageSquare size={18} />
+                Продолжить диалог
+              </button>
+            ) : (
+              <button
+                onClick={handleStartSupport}
+                disabled={loading}
+                className="w-full py-3 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {loading ? <Loader2 size={18} className="animate-spin" /> : <MessageSquare size={18} />}
+                Написать в поддержку
+              </button>
+            )}
+          </div>
         </div>
       )}
     </>

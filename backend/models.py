@@ -363,3 +363,12 @@ class LastReadPost(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id", primary_key=True)
     post_id: int = Field(foreign_key="post.id")
     saved_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class SupportTicket(SQLModel, table=True):
+    """Тикет поддержки (связывает юзера с общим чатом саппорта)"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    chat_id: int = Field(foreign_key="chat.id")
+    status: str = Field(default="open") # open, closed
+    created_at: datetime = Field(default_factory=utcnow)
