@@ -367,11 +367,9 @@ class LastReadPost(SQLModel, table=True):
     saved_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-class SupportTicket(SQLModel, table=True):
-    """Тикет поддержки - связывает пользователя с групповым чатом"""
+class SupportMessage(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id", index=True)
-    chat_id: int = Field(foreign_key="chat.id")
-    status: str = Field(default="open", index=True)  # open, closed
-    created_at: datetime = Field(default_factory=utcnow)
-    updated_at: datetime = Field(default_factory=utcnow)
+    ticket_id: int = Field(foreign_key="supportticket.id")
+    sender_id: int = Field(foreign_key="user.id")
+    text: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

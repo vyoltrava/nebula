@@ -39,7 +39,7 @@ from models import (
     User, Post, Like, Follow, Notification, Tag, PostTag, Role,
     Chat, ChatMember, Message, Report, UserKey, ChatSessionKey,
     IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead, PushSubscription, StickerPack, Sticker, MessageReaction, Theme, SystemSetting,
-RoleCategory, Warning, LastReadPost, SupportTicket
+RoleCategory, Warning, LastReadPost, SupportMessage
 )
 import logging
 from fastapi.responses import JSONResponse
@@ -4047,13 +4047,6 @@ def list_chats_v2(
         return []
     chat_ids = list(memberships)
 
-        # 🆕 СКРЫВАЕМ ТИКЕТЫ ПОДДЕРЖКИ ОТ САППОРТЕРОВ
-    is_support_staff = user.is_admin or has_permission(user, "manage_support", session)
-    if is_support_staff:
-        ticket_chat_ids = set(session.exec(
-            select(SupportTicket.chat_id)
-        ).all())
-        chat_ids = [cid for cid in chat_ids if cid not in ticket_chat_ids]
 
     if not chat_ids:
         return []
@@ -4448,17 +4441,15 @@ def startup():
     # ===== ОСНОВНОЙ БЛОК МИГРАЦИЙ =====
     with engine.connect() as conn:
         try:
-            # ===== 🎧 ПОДДЕРЖКА =====
             conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS supportticket (
+            CREATE TABLE IF NOT EXISTS support_message (
                 id SERIAL PRIMARY KEY,
-                user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-                chat_id INTEGER NOT NULL REFERENCES chat(id) ON DELETE CASCADE,
-                status VARCHAR(20) DEFAULT 'open',
+                ticket_id INTEGER NOT NULL REFERENCES supportticket(id) ON DELETE CASCADE,
+                sender_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+                text TEXT NOT NULL,
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
-            CREATE INDEX IF NOT EXISTS idx_supportticket_user ON supportticket(user_id);
-            CREATE INDEX IF NOT EXISTS idx_supportticket_status ON supportticket(status);
+            CREATE INDEX IF NOT EXISTS idx_support_message_ticket ON support_message(ticket_id, created_at);
             """))
 
             # ===== 🔐 2FA И EMAIL =====
@@ -8454,81 +8445,7 @@ def get_online_count(user: User = Depends(get_current_user)):
 
 
 
-@app.get("/api/support/chats")
-def list_support_chats(
-    staff: User = Depends(require_staff),
-    session: Session = Depends(get_session),
-):
-    """Все чаты поддержки (для панели)"""
-    if not has_permission(staff, "manage_support", session):
-        raise HTTPException(403, "Нет права: manage_support")
 
-    # Находим системного юзера "Поддержка"
-    support_user = session.exec(
-        select(User).where(User.is_system == True)
-    ).first()
-    if not support_user:
-        return []
-
-    # Все чаты где есть системный юзер
-    chats = session.exec(
-        select(ChatMember.chat_id)
-        .where(ChatMember.user_id == support_user.id)
-    ).all()
-
-    if not chats:
-        return []
-
-    result = []
-    for chat_id in chats:
-        chat = session.get(Chat, chat_id)
-        if not chat:
-            continue
-        # Находим второго участника (пользователя)
-        members = session.exec(
-            select(ChatMember).where(
-                ChatMember.chat_id == chat_id,
-                ChatMember.user_id != support_user.id,
-            )
-        ).all()
-        if not members:
-            continue
-        user = session.get(User, members[0].user_id)
-        if not user:
-            continue
-
-        # Последнее сообщение
-        last_msg = session.exec(
-            select(Message)
-            .where(Message.chat_id == chat_id)
-            .order_by(Message.created_at.desc())
-            .limit(1)
-        ).first()
-
-        # Непрочитанные от пользователя
-        unread = session.exec(
-            select(func.count(Message.id)).where(
-                Message.chat_id == chat_id,
-                Message.sender_id == user.id,
-                Message.read == False,
-            )
-        ).one()
-
-        result.append({
-            "chat_id": chat_id,
-            "user": user_out(user, session),
-            "last_message": {
-                "text": (last_msg.text or "📎")[:60] if last_msg else None,
-                "sender_id": last_msg.sender_id if last_msg else None,
-                "created_at": last_msg.created_at.isoformat() if last_msg else None,
-            } if last_msg else None,
-            "unread_count": unread,
-            "created_at": chat.created_at.isoformat(),
-        })
-
-    # Сортируем: непрочитанные сверху
-    result.sort(key=lambda x: (-x["unread_count"], x.get("last_message", {}).get("created_at", "") if x.get("last_message") else ""), reverse=True)
-    return result
 
 
 
@@ -8717,173 +8634,297 @@ def close_ticket_user_or_staff(
     session.commit()
     return {"ok": True}
 
-
 # ============================================================
-# 🎧 ПОДДЕРЖКА (ТИКЕТЫ)
+# 🎧 ПОДДЕРЖКА — ПОЛНОСТЬЮ ОТДЕЛЬНО ОТ ЧАТОВ
 # ============================================================
 
 @app.post("/api/support/start")
-def start_support_ticket(
+def support_start(
+    text: str = Form(""),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Создаёт тикет поддержки — групповой чат со всеми саппортерами"""
-    
-    # 1. Проверяем есть ли уже открытый тикет
-    existing_ticket = session.exec(
+    """Создать заявку (или вернуть существующую открытую)"""
+    existing = session.exec(
         select(SupportTicket).where(
             SupportTicket.user_id == user.id,
-            SupportTicket.status == "open"
+            SupportTicket.status == "open",
         )
     ).first()
-    
-    if existing_ticket:
-        return {"chat_id": existing_ticket.chat_id, "already_existed": True}
-    
-    # 2. Находим всех саппортеров (is_admin ИЛИ есть право manage_support)
-    all_users = session.exec(select(User)).all()
-    support_staff_ids = []
-    
-    for u in all_users:
-        if u.is_admin:
-            support_staff_ids.append(u.id)
-        elif has_permission(u, "manage_support", session):
-            support_staff_ids.append(u.id)
-    
-    print(f"🎧 Found {len(support_staff_ids)} support staff")
-    
-    # 3. Создаём ГРУППОВОЙ чат (не DM!)
-    chat = Chat(
-        is_group=True,
-        is_secret=False,
-        name=f"🎧 Поддержка: {user.display_name}",
-    )
-    session.add(chat)
-    session.commit()
-    session.refresh(chat)
-    
-    # 4. Добавляем пользователя
-    session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="member"))
-    
-    # 5. Добавляем всех саппортеров (кроме самого юзера если он тоже саппортер)
-    for staff_id in support_staff_ids:
-        if staff_id != user.id:
-            session.add(ChatMember(chat_id=chat.id, user_id=staff_id, role="admin"))
-    
-    # 6. Создаём запись тикета
-    ticket = SupportTicket(
-        user_id=user.id,
-        chat_id=chat.id,
-        status="open"
-    )
+    if existing:
+        return {"ticket_id": existing.id, "already_existed": True}
+
+    ticket = SupportTicket(user_id=user.id, status="open")
     session.add(ticket)
-    ticket.updated_at = datetime.now(timezone.utc)
-    
-    # 7. Системное приветствие
-    sys_msg = Message(
-        chat_id=chat.id,
-        sender_id=user.id,
-        text="👋 Привет! Я создал обращение в поддержку. Команда ответит в ближайшее время.",
-    )
-    session.add(sys_msg)
-    
     session.commit()
-    
-    # 8. Уведомляем саппортеров через WebSocket
-    if support_staff_ids:
+    session.refresh(ticket)
+
+    # Первое сообщение
+    first_text = text.strip() or "👋 Привет! Мне нужна помощь."
+    session.add(SupportMessage(
+        ticket_id=ticket.id,
+        sender_id=user.id,
+        text=first_text,
+    ))
+
+    ticket.updated_at = datetime.now(timezone.utc)
+    session.add(ticket)
+    session.commit()
+
+    # WS-уведомление саппортерам
+    staff_ids = [
+        u.id for u in session.exec(select(User)).all()
+        if u.is_admin or has_permission(u, "manage_support", session)
+    ]
+    if staff_ids:
         asyncio.create_task(manager.broadcast_to_users(
-            [sid for sid in support_staff_ids if sid != user.id],
-            "new_support_ticket",
-            {"chat_id": chat.id, "user_name": user.display_name}
+            staff_ids,
+            "support_new_ticket",
+            {"ticket_id": ticket.id, "user_name": user.display_name},
         ))
-    
-    return {"chat_id": chat.id, "already_existed": False}
+    return {"ticket_id": ticket.id, "already_existed": False}
 
 
 @app.get("/api/support/my-ticket")
-def get_my_support_ticket(
+def support_my_ticket(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Проверяет есть ли у юзера активный тикет"""
+    """Есть ли у меня открытая заявка + её сообщения"""
     ticket = session.exec(
         select(SupportTicket).where(
             SupportTicket.user_id == user.id,
-            SupportTicket.status == "open"
+            SupportTicket.status == "open",
         )
     ).first()
-    
-    if ticket:
-        return {"has_ticket": True, "chat_id": ticket.chat_id}
-    return {"has_ticket": False}
+    if not ticket:
+        return {"has_ticket": False}
+
+    messages = session.exec(
+        select(SupportMessage)
+        .where(SupportMessage.ticket_id == ticket.id)
+        .order_by(SupportMessage.created_at.asc())
+    ).all()
+    sender_ids = list({m.sender_id for m in messages})
+    senders = {
+        u.id: u for u in session.exec(
+            select(User).where(User.id.in_(sender_ids))
+        ).all()
+    }
+    return {
+        "has_ticket": True,
+        "ticket_id": ticket.id,
+        "status": ticket.status,
+        "messages": [
+            {
+                "id": m.id,
+                "sender_id": m.sender_id,
+                "sender_name": senders[m.sender_id].display_name if m.sender_id in senders else "—",
+                "sender_is_staff": (
+                    senders[m.sender_id].is_admin
+                    or has_permission(senders[m.sender_id], "manage_support", session)
+                ) if m.sender_id in senders else False,
+                "text": m.text,
+                "created_at": m.created_at.isoformat(),
+            }
+            for m in messages
+        ],
+    }
 
 
-@app.get("/api/admin/support/tickets")
-def list_support_tickets(
-    staff: User = Depends(require_staff),
+@app.post("/api/support/messages")
+async def support_send_message(
+    ticket_id: int = Form(...),
+    text: str = Form(...),
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Список всех тикетов для админки"""
-    if not has_permission(staff, "manage_support", session) and not staff.is_admin:
+    """Отправить сообщение в заявку — пользователь или саппортер"""
+    ticket = session.get(SupportTicket, ticket_id)
+    if not ticket:
+        raise HTTPException(404, "Заявка не найдена")
+    if ticket.status != "open":
+        raise HTTPException(400, "Заявка закрыта")
+
+    is_author = ticket.user_id == user.id
+    is_staff = user.is_admin or has_permission(user, "manage_support", session)
+    if not is_author and not is_staff:
+        raise HTTPException(403, "Нет доступа")
+    if not text.strip():
+        raise HTTPException(400, "Пустое сообщение")
+
+    msg = SupportMessage(
+        ticket_id=ticket.id,
+        sender_id=user.id,
+        text=text.strip(),
+    )
+    session.add(msg)
+    ticket.updated_at = datetime.now(timezone.utc)
+    session.add(ticket)
+    session.commit()
+    session.refresh(msg)
+
+    # Кому рассылать WS
+    recipients = []
+    if is_author:
+        # Автор пишет → шлём всем саппортерам
+        recipients = [
+            u.id for u in session.exec(select(User)).all()
+            if u.is_admin or has_permission(u, "manage_support", session)
+        ]
+    else:
+        # Саппортер пишет → шлём только автору
+        recipients = [ticket.user_id]
+
+    if recipients:
+        await manager.broadcast_to_users(recipients, "support_new_message", {
+            "ticket_id": ticket.id,
+            "message": {
+                "id": msg.id,
+                "sender_id": msg.sender_id,
+                "sender_name": user.display_name,
+                "sender_is_staff": is_staff,
+                "text": msg.text,
+                "created_at": msg.created_at.isoformat(),
+            },
+        })
+    return {"ok": True, "message_id": msg.id}
+
+
+@app.get("/api/support/tickets")
+def support_list_tickets(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Список заявок для админки"""
+    if not user.is_admin and not has_permission(user, "manage_support", session):
         raise HTTPException(403, "Нет права: manage_support")
-    
+
     tickets = session.exec(
         select(SupportTicket).order_by(SupportTicket.updated_at.desc())
     ).all()
-    
+    if not tickets:
+        return []
+
+    ticket_ids = [t.id for t in tickets]
+    user_ids = list({t.user_id for t in tickets})
+    users = {
+        u.id: u for u in session.exec(
+            select(User).where(User.id.in_(user_ids))
+        ).all()
+    }
+    # Последние сообщения для превью
+    from sqlalchemy import text as sql_text
+    last_msgs = session.exec(
+        select(SupportMessage)
+        .where(SupportMessage.ticket_id.in_(ticket_ids))
+        .order_by(SupportMessage.created_at.desc())
+    ).all()
+    last_by_ticket = {}
+    for m in last_msgs:
+        if m.ticket_id not in last_by_ticket:
+            last_by_ticket[m.ticket_id] = m
+
     result = []
     for t in tickets:
-        u = session.get(User, t.user_id)
-        
-        # Последнее сообщение
-        last_msg = session.exec(
-            select(Message)
-            .where(Message.chat_id == t.chat_id)
-            .order_by(Message.created_at.desc())
-            .limit(1)
-        ).first()
-        
+        u = users.get(t.user_id)
+        last = last_by_ticket.get(t.id)
         result.append({
             "id": t.id,
             "user": user_out(u, session) if u else None,
-            "chat_id": t.chat_id,
             "status": t.status,
             "created_at": t.created_at.isoformat(),
-            "updated_at": t.updated_at.isoformat(),
+            "updated_at": t.updated_at.isoformat() if t.updated_at else t.created_at.isoformat(),
             "last_message": {
-                "text": last_msg.text[:60] if last_msg and last_msg.text else None,
-                "created_at": last_msg.created_at.isoformat() if last_msg else None,
-            } if last_msg else None,
+                "text": last.text[:60] if last else None,
+                "created_at": last.created_at.isoformat() if last else None,
+            } if last else None,
         })
-    
     return result
 
 
-@app.patch("/api/admin/support/tickets/{ticket_id}/close")
-def close_support_ticket(
+@app.get("/api/support/tickets/{ticket_id}/messages")
+def support_ticket_messages(
     ticket_id: int,
-    staff: User = Depends(require_staff),
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Закрывает тикет"""
-    if not has_permission(staff, "manage_support", session) and not staff.is_admin:
+    """Сообщения тикета — для админки"""
+    if not user.is_admin and not has_permission(user, "manage_support", session):
         raise HTTPException(403, "Нет права: manage_support")
-    
     ticket = session.get(SupportTicket, ticket_id)
     if not ticket:
-        raise HTTPException(404, "Тикет не найден")
-    
+        raise HTTPException(404, "Заявка не найдена")
+
+    messages = session.exec(
+        select(SupportMessage)
+        .where(SupportMessage.ticket_id == ticket.id)
+        .order_by(SupportMessage.created_at.asc())
+    ).all()
+    sender_ids = list({m.sender_id for m in messages})
+    senders = {
+        u.id: u for u in session.exec(
+            select(User).where(User.id.in_(sender_ids))
+        ).all()
+    }
+    return [
+        {
+            "id": m.id,
+            "sender_id": m.sender_id,
+            "sender_name": senders[m.sender_id].display_name if m.sender_id in senders else "—",
+            "sender_is_staff": (
+                senders[m.sender_id].is_admin
+                or has_permission(senders[m.sender_id], "manage_support", session)
+            ) if m.sender_id in senders else False,
+            "text": m.text,
+            "created_at": m.created_at.isoformat(),
+        }
+        for m in messages
+    ]
+
+
+@app.post("/api/support/tickets/{ticket_id}/close")
+def support_close_ticket(
+    ticket_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Закрыть заявку — автор или саппортер"""
+    ticket = session.get(SupportTicket, ticket_id)
+    if not ticket:
+        raise HTTPException(404, "Заявка не найдена")
+    is_author = ticket.user_id == user.id
+    is_staff = user.is_admin or has_permission(user, "manage_support", session)
+    if not is_author and not is_staff:
+        raise HTTPException(403, "Нет доступа")
+
     ticket.status = "closed"
     ticket.updated_at = datetime.now(timezone.utc)
-    
-    # Системное сообщение о закрытии
-    sys_msg = Message(
-        chat_id=ticket.chat_id,
-        sender_id=staff.id,
-        text="🔒 Тикет закрыт модератором. Если потребуется помощь — создайте новый тикет.",
-    )
-    session.add(sys_msg)
     session.add(ticket)
+    session.add(SupportMessage(
+        ticket_id=ticket.id,
+        sender_id=user.id,
+        text="🔒 Заявка закрыта.",
+    ))
     session.commit()
-    
+
+    # WS уведомление второй стороне
+    target_id = ticket.user_id if is_staff else None
+    if target_id:
+        asyncio.create_task(manager.broadcast_to_users(
+            [target_id],
+            "support_ticket_closed",
+            {"ticket_id": ticket.id},
+        ))
+    elif is_author:
+        staff_ids = [
+            u.id for u in session.exec(select(User)).all()
+            if u.is_admin or has_permission(u, "manage_support", session)
+        ]
+        if staff_ids:
+            asyncio.create_task(manager.broadcast_to_users(
+                staff_ids,
+                "support_ticket_closed",
+                {"ticket_id": ticket.id},
+            ))
     return {"ok": True}

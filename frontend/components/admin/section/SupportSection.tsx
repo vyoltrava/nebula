@@ -1,9 +1,11 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
-import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
+import { useWebSocket } from "@/src/hooks/useWebSocket";
 import { Headphones, Send, RefreshCw, ArrowLeft } from "lucide-react";
+
+const API = process.env.NEXT_PUBLIC_API_URL;
 
 export function SupportSection({ me }: { me: any }) {
   const [tickets, setTickets] = useState<any[]>([]);
@@ -15,7 +17,7 @@ export function SupportSection({ me }: { me: any }) {
 
   async function loadTickets() {
     const token = getToken();
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/support/tickets`, {
+    const res = await fetch(`${API}/api/support/tickets`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) setTickets(await res.json());
@@ -23,7 +25,7 @@ export function SupportSection({ me }: { me: any }) {
 
   async function loadMessages(ticketId: number) {
     const token = getToken();
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/support/tickets/${ticketId}/messages`, {
+    const res = await fetch(`${API}/api/support/tickets/${ticketId}/messages`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) setMessages(await res.json());
@@ -32,24 +34,56 @@ export function SupportSection({ me }: { me: any }) {
   useEffect(() => { loadTickets(); }, []);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
+  // Живые сообщения в заявках
+  useWebSocket("support_new_message", (data: any) => {
+    if (!activeTicket || data.ticket_id !== activeTicket.id) {
+      // Обновляем список тикетов (новый ответ где-то)
+      loadTickets();
+      return;
+    }
+    setMessages((prev) =>
+      prev.some((m) => m.id === data.message.id) ? prev : [...prev, data.message]
+    );
+  });
+
+useWebSocket("support_ticket_closed", (data: any) => {
+  if (activeTicket && data.ticket_id === activeTicket.id) {
+    setActiveTicket({ ...activeTicket, status: "closed" });
+    setMessages((prev) => [...prev, {
+      id: Date.now(), sender_id: 0, sender_name: "Система",
+      sender_is_staff: false, text: "🔒 Заявка закрыта.",
+      created_at: new Date().toISOString(),
+    }]);
+  }
+  loadTickets();
+});
+
+  useWebSocket("support_new_ticket", () => { loadTickets(); });
+
   async function sendMessage() {
     if (!input.trim() || !activeTicket || sending) return;
     setSending(true);
     const token = getToken();
     const form = new FormData();
+    form.append("ticket_id", String(activeTicket.id));
     form.append("text", input.trim());
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/support/tickets/${activeTicket.id}/messages`, {
+      const res = await fetch(`${API}/api/support/messages`, {
         method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form,
       });
-      if (res.ok) { setInput(""); loadMessages(activeTicket.id); loadTickets(); }
+      if (res.ok) {
+        const data = await res.json();
+        setMessages((prev) => [...prev, data.message]);
+        setInput("");
+        loadTickets();
+      }
     } finally { setSending(false); }
   }
 
   async function closeTicket(ticketId: number) {
     if (!confirm("Закрыть тикет?")) return;
     const token = getToken();
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/support/tickets/${ticketId}/close`, {
+    const res = await fetch(`${API}/api/support/tickets/${ticketId}/close`, {
       method: "POST", headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) { setActiveTicket(null); loadTickets(); }
@@ -60,12 +94,11 @@ export function SupportSection({ me }: { me: any }) {
 
   return (
     <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-200px)]">
-      {/* Список тикетов */}
       <div className={`w-full md:w-96 border border-white/10 rounded-xl bg-white/5 flex flex-col ${activeTicket ? "hidden md:flex" : "flex"}`}>
         <div className="p-3 border-b border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Headphones size={18} className="text-green-400" />
-            <h3 className="font-bold text-white">Тикеты</h3>
+            <h3 className="font-bold text-white">Заявки</h3>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-green-400 font-bold">{openTickets.length} открытых</span>
@@ -100,17 +133,16 @@ export function SupportSection({ me }: { me: any }) {
               </div>
             </button>
           ))}
-          {tickets.length === 0 && <p className="text-center text-white/40 text-sm py-8">Тикетов пока нет</p>}
+          {tickets.length === 0 && <p className="text-center text-white/40 text-sm py-8">Заявок пока нет</p>}
         </div>
       </div>
 
-      {/* Переписка */}
       <div className={`flex-1 border border-white/10 rounded-xl bg-white/5 flex flex-col ${activeTicket ? "flex" : "hidden md:flex"}`}>
         {!activeTicket ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <Headphones size={48} className="text-white/10 mx-auto mb-3" />
-              <p className="text-white/30 text-sm">Выбери тикет для просмотра</p>
+              <p className="text-white/30 text-sm">Выбери заявку для просмотра</p>
             </div>
           </div>
         ) : (
@@ -127,28 +159,25 @@ export function SupportSection({ me }: { me: any }) {
               {activeTicket.status === "open" && (
                 <button onClick={() => closeTicket(activeTicket.id)}
                   className="px-3 py-1.5 rounded-lg border border-red-400/30 text-red-400 text-xs font-bold hover:bg-red-500/10">
-                  Закрыть тикет
+                  Закрыть
                 </button>
               )}
               {activeTicket.status !== "open" && (
-                <span className="px-2 py-1 rounded-lg bg-white/10 text-white/50 text-[10px] font-bold uppercase">Закрыт</span>
+                <span className="px-2 py-1 rounded-lg bg-white/10 text-white/50 text-[10px] font-bold uppercase">Закрыта</span>
               )}
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {messages.map((m) => {
-                const isStaff = m.sender?.is_admin || m.sender?.is_moderator || (m.sender?.permissions || []).includes("manage_support");
-                return (
-                  <div key={m.id} className={`flex ${isStaff ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${isStaff ? "bg-[#8b5cf6] text-white rounded-br-md" : "bg-white/10 text-white rounded-bl-md"}`}>
-                      {!isStaff && <p className="text-[10px] text-white/50 mb-1">{m.sender?.display_name || "Пользователь"}</p>}
-                      <p className="text-sm whitespace-pre-wrap break-words">{m.text}</p>
-                      <p className={`text-[10px] mt-1 ${isStaff ? "text-white/60" : "text-white/40"}`}>
-                        {new Date(m.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
-                      </p>
-                    </div>
+              {messages.map((m) => (
+                <div key={m.id} className={`flex ${m.sender_is_staff ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${m.sender_is_staff ? "bg-[#8b5cf6] text-white rounded-br-md" : "bg-white/10 text-white rounded-bl-md"}`}>
+                    {!m.sender_is_staff && <p className="text-[10px] text-white/50 mb-1">{m.sender_name || "Пользователь"}</p>}
+                    <p className="text-sm whitespace-pre-wrap break-words">{m.text}</p>
+                    <p className={`text-[10px] mt-1 ${m.sender_is_staff ? "text-white/60" : "text-white/40"}`}>
+                      {new Date(m.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
+                    </p>
                   </div>
-                );
-              })}
+                </div>
+              ))}
               <div ref={bottomRef} />
             </div>
             {activeTicket.status === "open" && (

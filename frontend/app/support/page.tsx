@@ -1,31 +1,9 @@
-// app/support/page.tsx
 "use client";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
+import { SupportWidget } from "@/components/SupportWidget";
 import { Headphones, MessageSquare, Clock, Shield } from "lucide-react";
-import { getToken } from "@/lib/auth";
 
 export default function SupportPage() {
-  const router = useRouter();
-
-  async function startSupport() {
-    const token = getToken();
-    if (!token) { router.push("/login"); return; }
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/support/start`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        router.push(`/messages/${data.chat_id}`);
-      }
-    } catch (e) {
-      alert("Ошибка соединения");
-    }
-  }
-
   return (
     <div className="h-screen flex overflow-hidden bg-[#18181b]">
       <Sidebar />
@@ -44,41 +22,32 @@ export default function SupportPage() {
                 <h3 className="font-bold text-white">Как это работает?</h3>
               </div>
               <p className="text-sm text-white/60">
-                Нажми кнопку ниже — создастся личный чат с командой поддержки. 
-                Мы отвечаем в течение 24 часов.
+                Нажми кнопку в правом нижнем углу — создастся заявка.
+                Вся переписка ведётся там же, в виджете.
               </p>
             </div>
-
             <div className="border border-white/10 rounded-xl p-5 bg-white/5">
               <div className="flex items-center gap-2 mb-2">
                 <Clock size={18} className="text-yellow-400" />
                 <h3 className="font-bold text-white">Время ответа</h3>
               </div>
-              <p className="text-sm text-white/60">
-                Обычно отвечаем за 1–3 часа в рабочее время (10:00–22:00 МСК).
-              </p>
+              <p className="text-sm text-white/60">Обычно 1–3 часа в рабочее время.</p>
             </div>
-
             <div className="border border-white/10 rounded-xl p-5 bg-white/5">
               <div className="flex items-center gap-2 mb-2">
                 <Shield size={18} className="text-green-400" />
                 <h3 className="font-bold text-white">Конфиденциальность</h3>
               </div>
-              <p className="text-sm text-white/60">
-                Твоё обращение видит только команда поддержки.
-              </p>
+              <p className="text-sm text-white/60">Твоё обращение видит только команда поддержки.</p>
             </div>
           </div>
 
-          <button
-            onClick={startSupport}
-            className="w-full py-4 rounded-xl bg-[#8b5cf6] text-white font-black text-lg hover:bg-[#7c3aed] transition-all active:scale-[0.98] flex items-center justify-center gap-3"
-          >
-            <MessageSquare size={20} />
-            Написать в поддержку
-          </button>
+          <div className="text-center text-white/50 text-sm">
+            💡 Нажми на фиолетовую кнопку справа внизу, чтобы начать
+          </div>
         </div>
       </main>
+      <SupportWidget />
     </div>
   );
 }
