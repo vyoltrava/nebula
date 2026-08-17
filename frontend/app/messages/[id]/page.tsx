@@ -118,6 +118,10 @@ export default function ChatPage() {
   const [replyTo, setReplyTo] = useState<any | null>(null); // 🆕 сообщение на которое отвечаем
   const [stickerPacks, setStickerPacks] = useState<any[]>([]);
   const [reactionPickerFor, setReactionPickerFor] = useState<number | null>(null);
+  // 🆕 Long press для открытия реакций
+  const [longPressMenu, setLongPressMenu] = useState<{msgId: number, x: number, y: number} | null>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressRef = useRef(false);
   const [activePackTab, setActivePackTab] = useState<number>(0);
   const [stickerPanelTab, setStickerPanelTab] = useState<"emoji" | "stickers">("emoji");
   const [stickerPanelPack, setStickerPanelPack] = useState<number>(0);
@@ -156,9 +160,11 @@ export default function ChatPage() {
   const [forwardingMessage, setForwardingMessage] = useState<any | null>(null);
   const [forwardChats, setForwardChats] = useState<any[]>([]);
   const [showForwardModal, setShowForwardModal] = useState(false);
-    // 🆕 Быстрая реакция по двойному тапу (с сохранением в localStorage)
-  // 🆕 Быстрая реакция по двойному тапу
-  const [quickReaction, setQuickReaction] = useState<{type: 'emoji' | 'sticker', content: string, stickerId?: number} | null>(null);
+
+  const [quickReaction, setQuickReaction] = useState<{type: 'emoji' | 'sticker', content: string, stickerId?: number} | null>({
+    type: 'emoji',
+    content: '❤️'
+  });
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [popReaction, setPopReaction] = useState<{content: string, type: 'emoji' | 'sticker', stickerId?: number, x: number, y: number, id: number, visible: boolean} | null>(null);
 
@@ -227,8 +233,8 @@ export default function ChatPage() {
   
   // 🆕 Состояния для кнопки отправки/записи
   const [showRecordMenu, setShowRecordMenu] = useState(false);
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isLongPressRef = useRef(false);
+  const sendLongPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isSendLongPressRef = useRef(false);
   const suppressClickRef = useRef(false);
   const [selectedMenuItem, setSelectedMenuItem] = useState<'voice' | 'video' | null>(null);
   const menuItemRefs = useRef<{ voice: HTMLButtonElement | null; video: HTMLButtonElement | null }>({ voice: null, video: null });
@@ -1333,30 +1339,28 @@ async function sendEncryptedMedia(file: File, mediaType: string) {
 
   const handleSendPointerDown = (e: React.PointerEvent) => {
     if (text.trim() || files.length > 0) return;
-    isLongPressRef.current = false;
-    longPressTimerRef.current = setTimeout(() => {
-      isLongPressRef.current = true;
+    isSendLongPressRef.current = false;
+    sendLongPressTimerRef.current = setTimeout(() => {
+      isSendLongPressRef.current = true;
       setShowRecordMenu(true);
     }, 400);
   };
 
-  // Отпустили ДО появления меню → обычный клик (отправка). Сбрасываем таймер.
-  const handleSendButtonPointerUp = () => {
-    if (!showRecordMenu && longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  };
+const handleSendButtonPointerUp = () => {
+  if (!showRecordMenu && sendLongPressTimerRef.current) {
+    clearTimeout(sendLongPressTimerRef.current);
+    sendLongPressTimerRef.current = null;
+  }
+};
 
-  const handleSendClick = () => {
-    // После зажатия/закрытия меню клик не должен отправлять сообщение
-    if (isLongPressRef.current || suppressClickRef.current) {
-      isLongPressRef.current = false;
-      suppressClickRef.current = false;
-      return;
-    }
-    sendMessage();
-  };
+const handleSendClick = () => {
+  if (isSendLongPressRef.current || suppressClickRef.current) {
+    isSendLongPressRef.current = false;
+    suppressClickRef.current = false;
+    return;
+  }
+  sendMessage();
+};
 
   // 🖥️📱 Пока меню записи открыто — следим за движением и отпусканием ГЛОБАЛЬНО.
   // На ПК onPointerLeave раньше закрывал меню при попытке дотянуться до пунктов.
@@ -1390,9 +1394,9 @@ async function sendEncryptedMedia(file: File, mediaType: string) {
       }
       setShowRecordMenu(false);
       setSelectedMenuItem(null);
-      suppressClickRef.current = true;
-      setTimeout(() => { suppressClickRef.current = false; }, 350);
-      isLongPressRef.current = false;
+    suppressClickRef.current = true;
+    setTimeout(() => { suppressClickRef.current = false; }, 350);
+    isSendLongPressRef.current = false;
     };
 
     const onMouseMove = (e: MouseEvent) => track(e.clientY);
@@ -1926,11 +1930,12 @@ const ChatHeader = () => (
   </button>
   
   {/* Пикер реакций из паков */}
-  {showReactionPicker && (
-    <>
-      <div className="fixed inset-0 z-40" onClick={() => setShowReactionPicker(false)} />
-      <div className="absolute right-0 top-full mt-2 w-80 max-h-[70vh] bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        {/* Шапка */}
+{showReactionPicker && (
+  <>
+    <div className="fixed inset-0 z-40" onClick={() => setShowReactionPicker(false)} />
+    {/* 🆕 Адаптивное позиционирование: на мобилке снизу, на десктопе справа */}
+    <div className="fixed md:absolute right-0 bottom-0 md:top-full md:bottom-auto mt-0 md:mt-2 w-full md:w-80 max-h-[70vh] bg-[#1f1f23] md:border border-white/15 rounded-t-2xl md:rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-bottom md:fade-in md:zoom-in-95 duration-200">
+     {/* Шапка */}
         <div className="p-3 border-b border-white/10 flex items-center justify-between shrink-0">
           <p className="text-xs font-bold text-white/80">Быстрая реакция (двойной тап)</p>
           <button onClick={() => setShowReactionPicker(false)} className="text-white/40 hover:text-white p-1">
@@ -2167,7 +2172,7 @@ const ChatHeader = () => (
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
       <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
-      <main className="flex-1 flex flex-col border-x border-white/10">
+<main className="flex-1 flex flex-col border-x border-white/10 overflow-hidden">
         {isSelectMode ? (
           <div className="p-3 sm:p-3 md:p-4 border-b border-white/10 bg-[#171717]/95 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -2250,11 +2255,12 @@ const ChatHeader = () => (
   </div>
 )}
 
-            <div 
-              ref={scrollContainerRef}
-              onScroll={handleScroll}
-              className="flex-1 overflow-y-auto p-3 sm:p-3 md:p-4 space-y-2.5 sm:space-y-3"
-            >
+              <div
+                ref={scrollContainerRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto p-3 sm:p-3 md:p-4 space-y-1 overscroll-contain touch-pan-y"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+              >
               {currentUser &&
                 preparedMessages.map((msg, index) => {
                   // 🆕 Рендер разделителя даты
@@ -2301,15 +2307,11 @@ const ChatHeader = () => (
                         onDoubleClick={(e) => {
                           if (!isSelectMode && !isSecret && quickReaction) {
                             e.preventDefault();
-                            
-                            // Отправляем реакцию правильно: эмодзи или стикер
                             if (quickReaction.type === 'emoji') {
                               toggleReaction(msg.id, undefined, quickReaction.content);
                             } else {
                               toggleReaction(msg.id, quickReaction.stickerId);
                             }
-                            
-                            // Анимация вылета
                             setPopReaction({
                               content: quickReaction.content,
                               type: quickReaction.type,
@@ -2319,11 +2321,9 @@ const ChatHeader = () => (
                               id: Date.now(),
                               visible: true
                             });
-                            
                             setTimeout(() => {
                               setPopReaction(prev => prev ? { ...prev, visible: false } : null);
                             }, 50);
-                            
                             setTimeout(() => {
                               setPopReaction(null);
                             }, 800);
@@ -2338,6 +2338,31 @@ const ChatHeader = () => (
                             x: e.clientX,
                             y: e.clientY,
                           });
+                        }}
+                        // 🆕 Long press для открытия меню реакций
+                        onPointerDown={(e) => {
+                          if (isSelectMode || isSecret) return;
+                          longPressTimerRef.current = setTimeout(() => {
+                            isLongPressRef.current = true;
+                            setLongPressMenu({
+                              msgId: msg.id,
+                              x: e.clientX,
+                              y: e.clientY
+                            });
+                            if (navigator.vibrate) navigator.vibrate(50);
+                          }, 500);
+                        }}
+                        onPointerUp={() => {
+                          if (longPressTimerRef.current) {
+                            clearTimeout(longPressTimerRef.current);
+                            longPressTimerRef.current = null;
+                          }
+                        }}
+                        onPointerLeave={() => {
+                          if (longPressTimerRef.current) {
+                            clearTimeout(longPressTimerRef.current);
+                            longPressTimerRef.current = null;
+                          }
                         }}
                       >
                       {isSelectMode && (
@@ -3242,7 +3267,48 @@ const ChatHeader = () => (
         )}
 
 
-
+{/* 🆕 Меню реакций по long press */}
+{longPressMenu && (
+  <>
+    <div 
+      className="fixed inset-0 z-[250] bg-black/40 backdrop-blur-sm" 
+      onClick={() => setLongPressMenu(null)}
+    />
+    <div 
+      className="fixed z-[251] bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl p-2 flex items-center gap-1 animate-in fade-in zoom-in-95 duration-200"
+      style={{
+        left: Math.min(longPressMenu.x - 120, window.innerWidth - 260),
+        top: Math.max(longPressMenu.y - 60, 10)
+      }}
+    >
+      {/* Быстрые реакции */}
+      {['❤️', '👍', '🔥', '😂', '😮'].map((emoji) => (
+        <button
+          key={emoji}
+          onClick={() => {
+            toggleReaction(longPressMenu.msgId, undefined, emoji);
+            setLongPressMenu(null);
+          }}
+          className="text-2xl hover:scale-125 transition-transform p-1.5 active:scale-90"
+        >
+          {emoji}
+        </button>
+      ))}
+      
+      {/* Кнопка "Все реакции" */}
+      <div className="w-px h-8 bg-white/10 mx-1" />
+      <button
+        onClick={() => {
+          setReactionPickerFor(longPressMenu.msgId);
+          setLongPressMenu(null);
+        }}
+        className="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-[#8b5cf6]/20 hover:text-[#8b5cf6] transition-colors"
+      >
+        <SmilePlus size={18} />
+      </button>
+    </div>
+  </>
+)}
 
       </main>
 
