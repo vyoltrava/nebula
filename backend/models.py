@@ -371,9 +371,9 @@ class SupportMessage(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     ticket_id: int = Field(foreign_key="supportticket.id")
     sender_id: int = Field(foreign_key="user.id")
-    text: str
-    media_url: Optional[str] = None  # 🆕 URL изображения
-    media_type: Optional[str] = None  # 🆕 тип медиа (image)
+    text: Optional[str] = None  # ← ИЗМЕНИ: было str, стало Optional[str] = None
+    media_url: Optional[str] = None
+    media_type: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 

@@ -4618,6 +4618,8 @@ def startup():
             # 🆕 ПОДДЕРЖКА: медиафайлы в сообщениях
             conn.execute(text('ALTER TABLE supportmessage ADD COLUMN IF NOT EXISTS media_url VARCHAR;'))
             conn.execute(text('ALTER TABLE supportmessage ADD COLUMN IF NOT EXISTS media_type VARCHAR;'))
+                        # ===== 🎧 ПОДДЕРЖКА: разрешаем NULL в text =====
+            conn.execute(text('ALTER TABLE supportmessage ALTER COLUMN text DROP NOT NULL;'))
             # ===== 🎨 ТЕМЫ =====
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS theme (
