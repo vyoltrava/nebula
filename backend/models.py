@@ -3,6 +3,7 @@ from sqlmodel import SQLModel, Field
 from sqlalchemy import UniqueConstraint
 from datetime import datetime, timezone
 
+
 def utcnow():
     return datetime.now(timezone.utc)
 
@@ -342,7 +343,7 @@ class Sticker(SQLModel, table=True):
     type: str = Field(max_length=10)  # "emoji" или "image"
     content: str = Field(max_length=500)  # эмодзи или URL картинки
     order: int = Field(default=0)
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class MessageReaction(SQLModel, table=True):
