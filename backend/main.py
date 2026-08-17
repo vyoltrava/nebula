@@ -63,7 +63,7 @@ ALLOWED_VIDEO_EXT = {".mp4", ".webm", ".mov", ".mkv"}
 _ip_block_cache = {}          # ip -> (timestamp, IPBlock|None)
 _IP_BLOCK_CACHE_TTL = 300    # 5 минут
 
-_role_cache = {}              # role_id -> (timestamp, Role|None)
+_role_cache = {}  # role_id -> (timestamp, {"level": int, "name": str, "permissions": list, ...} | None)
 _ROLE_CACHE_TTL = 600         # 10 минут
 
 _popular_tags_cache = {}
@@ -147,21 +147,35 @@ def is_ip_blocked(session: Session, ip: str) -> Optional[IPBlock]:
     return block
 
 
-def get_role_cached(session: Session, role_id: int) -> Optional[Role]:
-    """Получает роль из кэша или из базы (ускоряет user_out, permissions, level)"""
+def get_role_cached(session: Session, role_id: int) -> dict | None:
+    """Получает данные роли из кэша или из базы"""
     if role_id is None:
         return None
 
     now = time.time()
     cached = _role_cache.get(role_id)
     if cached:
-        cached_time, cached_role = cached
+        cached_time, cached_data = cached
         if now - cached_time < _ROLE_CACHE_TTL:
-            return cached_role
+            return cached_data
 
+    # Запрос в базу
     role = session.get(Role, role_id)
-    _role_cache[role_id] = (now, role)
-    return role
+    if not role:
+        _role_cache[role_id] = (now, None)
+        return None
+
+    # ✅ Сохраняем ТОЛЬКО нужные данные, а не объект Role
+    role_data = {
+        "id": role.id,
+        "name": role.name,
+        "color": role.color,
+        "level": role.level or 1,
+        "is_staff": role.is_staff,
+        "permissions": json.loads(role.permissions) if role.permissions else [],
+    }
+    _role_cache[role_id] = (now, role_data)
+    return role_data
 
 
 def invalidate_role_cache(role_id: Optional[int] = None):
@@ -503,15 +517,11 @@ def get_user_permissions(user: User, session: Session) -> list:
         permissions.extend(MODERATOR_PERMISSIONS)
 
     if user.role_id:
-        role = get_role_cached(session, user.role_id)  # ← БЫЛО session.get
-        if role:
-            try:
-                role_perms = json.loads(role.permissions)
-                for p in role_perms:
-                    if p not in permissions:
-                        permissions.append(p)
-            except Exception:
-                pass
+        role_data = get_role_cached(session, user.role_id)
+        if role_data:
+            for p in role_data.get("permissions", []):
+                if p not in permissions:
+                    permissions.append(p)
 
     return permissions
 
@@ -534,11 +544,10 @@ def get_user_level(user: User, session: Session) -> int:
     if user.is_moderator:
         return 9
     if user.role_id:
-        role = get_role_cached(session, user.role_id)  # ← БЫЛО session.get
-        if role and role.level:
-            return role.level
+        role_data = get_role_cached(session, user.role_id)
+        if role_data and role_data.get("level"):
+            return role_data["level"]
     return 1
-
 
 def can_moderate(actor: User, target: User, session: Session) -> bool:
     """Может ли actor применять санкции к target"""
@@ -604,26 +613,16 @@ def check_sanction_rights(actor: User, target: User, session: Session, action: s
 
 
 def user_out(user: User, session: Session = None) -> dict:
-    """Сериализует пользователя в dict (использует кэш ролей)"""
+    """Сериализует пользователя в dict"""
     role_data = None
     permissions = []
 
     if session:
         permissions = get_user_permissions(user, session)
         if user.role_id:
-            role = get_role_cached(session, user.role_id)  # ← БЫЛО session.get
-            if role:
-                try:
-                    role_data = {
-                        "id": role.id,
-                        "name": role.name,
-                        "color": role.color,
-                        "level": role.level,
-                        "permissions": json.loads(role.permissions),
-                        "two_fa_enabled": bool(user.totp_enabled),
-                    }
-                except Exception:
-                    role_data = None
+            role_data = get_role_cached(session, user.role_id)  # ✅ теперь возвращает словарь
+            if role_data:
+                # role_data уже словарь, ничего не парсим
 
     return {
         "id": user.id,
@@ -634,14 +633,14 @@ def user_out(user: User, session: Session = None) -> dict:
         "is_moderator": user.is_moderator,
         "is_banned": user.is_banned,
         "is_system": user.is_system,
-        "role": role_data,
+        "role": role_data,  # ✅ теперь это словарь, а не объект
         "permissions": permissions,
         "level": get_user_level(user, session) if session else 1,
         "bio": user.bio,
         "last_seen": user.last_seen.isoformat() if user.last_seen else None,
         "cover_url": user.cover_url,
-        "two_fa_enabled": user.totp_enabled,  # 🆕
-        "email_linked": bool(user.email),      # 🆕
+        "two_fa_enabled": user.totp_enabled,
+        "email_linked": bool(user.email),
     }
 
 
