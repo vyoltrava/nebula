@@ -29,6 +29,7 @@ const PERMISSION_META: Record<string, { icon: string; category: "content" | "use
   manage_users:         { icon: "⚙️", category: "system" },
   manage_reports:       { icon: "🚩", category: "system" },
   tech_access:          { icon: "🔧", category: "system" },
+  support_access:       { icon: "🎧", category: "chats" }, // 🆕 Право на чат поддержки
 };
 
 const CATEGORY_LABELS: Record<string, string> = {

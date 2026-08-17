@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus,
   AtSign, X, Shield, ShieldCheck, MessageSquare, Palette,
-  Bug, Orbit, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft, ChevronRight, History, BookOpen
+  Bug, Orbit, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft, ChevronRight, History, BookOpen, Headphones
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
@@ -43,111 +43,12 @@ const FEED_TOOLTIP_KEY = "trelod_feed_tooltip";
 // ════════════════════════════════════════════════════════════════
 //  Админский dropdown (desktop classic)
 // ════════════════════════════════════════════════════════════════
-function AdminDropdown({ user, pathname, isOpen, onToggle, onClose }: { 
-  user: any; 
-  pathname: string;
-  isOpen: boolean;
-  onToggle: () => void;
-  onClose: () => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    if (isOpen) {
-      document.addEventListener("mousedown", onClick);
-      return () => document.removeEventListener("mousedown", onClick);
-    }
-  }, [isOpen, onClose]);
-
-  const items = [
-    { href: "/admin", icon: ShieldAlert, label: user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель", show: true },
-    { href: "/admin/roles", icon: Palette, label: "Роли", show: !!user?.is_admin },
-    { href: "/admin/technical", icon: Wrench, label: "Техпанель", show: !!user?.permissions?.includes("tech_access") },
-  ].filter((i) => i.show);
-
-  const active = items.some((i) => pathname === i.href);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={onToggle}
-        className={`w-full flex items-center gap-3 px-4 py-3 font-medium transition-all border-b border-white/5 group ${
-          active || isOpen ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
-        }`}
-      >
-        {user?.is_admin ? (
-          <ShieldAlert size={18} className={active || isOpen ? "text-[#8b5cf6]" : "text-[#f59e0b]"} />
-        ) : user?.is_moderator ? (
-          <ShieldCheck size={18} className={active || isOpen ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} />
-        ) : (
-          <ShieldAlert size={18} className="text-[#f59e0b]" />
-        )}
-        <span>{user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель"}</span>
-        <ChevronRight
-          size={14}
-          className={`ml-auto transition-transform duration-200 ${isOpen ? "rotate-90" : "rotate-0"}`}
-        />
-      </button>
-
-      {isOpen && (
-        <div 
-          className="absolute left-0 top-full mt-1 w-full bg-[#1f1f23] border border-white/10 rounded-xl shadow-2xl z-[9999] overflow-hidden"
-          style={{ minWidth: '200px', boxShadow: '0 20px 60px rgba(0,0,0,0.8)' }}
-        >
-          {items.map(({ href, icon: Icon, label }) => (
-            <Link
-              key={href}
-              href={href}
-              onClick={() => { onClose(); }}
-              className={`flex items-center gap-2 px-3 py-2.5 text-sm transition-colors ${
-                pathname === href ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/70 hover:bg-white/10"
-              }`}
-            >
-              <Icon size={15} />
-              <span>{label}</span>
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ════════════════════════════════════════════════════════════════
 //  Мобильный админ-лист (bottom sheet)
 // ════════════════════════════════════════════════════════════════
-function MobileAdminSheet({ user, onClose }: { user: any; onClose: () => void }) {
-  const router = useRouter();
-  const items = [
-    { href: "/admin", icon: ShieldAlert, label: user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель", show: true },
-    { href: "/admin/roles", icon: Palette, label: "Роли", show: !!user?.is_admin },
-    { href: "/admin/technical", icon: Wrench, label: "Техпанель", show: !!user?.permissions?.includes("tech_access") },
-  ].filter((i) => i.show);
 
-  return (
-    <>
-      <div className="fixed inset-0 bg-black/60 z-[240]" onClick={onClose} />
-      <div className="fixed bottom-0 left-0 right-0 z-[241] bg-[#1f1f23] border-t border-white/10 rounded-t-2xl p-4 pb-8 shadow-2xl max-w-md mx-auto">
-        <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-4" />
-        {items.map(({ href, icon: Icon, label }) => (
-          <button
-            key={href}
-            onClick={() => { onClose(); router.push(href); }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/80 hover:bg-white/5 transition-colors"
-          >
-            <Icon size={18} className="text-[#8b5cf6]" />
-            <span className="font-medium">{label}</span>
-          </button>
-        ))}
-      </div>
-    </>
-  );
-}
 
 function MobileSearch({ onClose }: { onClose: () => void }) {
   const [q, setQ] = useState("");
@@ -359,8 +260,6 @@ export function Sidebar() {
   const [notifs, setNotifs]           = useState<any[]>([]);
   const [showBugModal, setShowBugModal] = useState(false);
   const [showSearch, setShowSearch]     = useState(false);
-  const [showAdminMenu, setShowAdminMenu] = useState(false);
-  const [showAdminDropdown, setShowAdminDropdown] = useState(false);
   // ════════════════════════════════════════════════════════════════
 // 🧠 ПАМЯТЬ ЛЕНТЫ (Logic) — ОБЪЯВЛЯЕМ РАНЬШЕ, ЧЕМ ИСПОЛЬЗУЕМ
 // ════════════════════════════════════════════════════════════════
@@ -532,6 +431,7 @@ const continueConfig = lastReadPost
       { href: "/settings", icon: Settings, label: "Настройки" },
       { href: "/rules", icon: Shield, label: "Правила" },
       { href: "#bug", icon: Bug, label: "Баг-трекер" },
+      { href: "/support", icon: Headphones, label: "Поддержка" }, // 🆕
     ];
     if (!isMobile) {
       outerItems.push({ href: "#layout", icon: Palette, label: "Интерфейс" });
@@ -539,7 +439,7 @@ const continueConfig = lastReadPost
   
   if (user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) {
     outerItems.push({
-      href: "#admin",
+      href: "/admin", // 🆕 Прямая ссылка вместо триггера модалки
       icon: user?.is_admin ? ShieldAlert : user?.is_moderator ? ShieldCheck : Shield,
       label: user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель",
     });
@@ -683,8 +583,6 @@ const continueConfig = lastReadPost
           setShowBugModal(true);
         } else if (item.href === "#search") {
           setShowSearch(true);
-        } else if (item.href === "#admin") {
-          setShowAdminMenu(true);
         } else if (item.href === "#layout") {
           setShowLayoutPicker(true);
         } else {
@@ -1017,13 +915,13 @@ const continueConfig = lastReadPost
         </button>
 
         {hasAdminAccess && !isDock && (
-          <AdminDropdown 
-            user={user} 
-            pathname={pathname}
-            isOpen={showAdminDropdown}
-            onToggle={() => setShowAdminDropdown(!showAdminDropdown)}
-            onClose={() => setShowAdminDropdown(false)}
-          />
+          <Link href="component/admin"
+            className={`flex ${containerClass} font-medium transition-all border-b border-white/5 group ${
+              pathname?.startsWith("/admin") ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
+            }`}>
+            <ShieldAlert size={18} className={`${iconClass} ${pathname?.startsWith("/admin") ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"}`} />
+            <span className={textClass}>Админ панель</span>
+          </Link>
         )}
 
         {hasAdminAccess && isDock && (
@@ -1051,6 +949,10 @@ const continueConfig = lastReadPost
       className="p-2.5 rounded-xl text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all" title="Сообщить о проблеме">
       <Bug size={18} />
     </button>
+    <button onClick={() => router.push("/support")} // 🆕 Замените "/support" на открытие модалки, если нужно
+      className="p-2.5 rounded-xl text-cyan-400/80 hover:text-cyan-400 hover:bg-cyan-500/10 transition-all" title="Чат поддержки">
+      <Headphones size={18} />
+    </button>
     <button onClick={() => setShowLayoutPicker(true)}
       className="p-2.5 rounded-xl text-[#8b5cf6]/80 hover:text-[#8b5cf6] hover:bg-[#8b5cf6]/10 transition-all" title="Настроить интерфейс">
       <Palette size={18} />
@@ -1071,6 +973,10 @@ const continueConfig = lastReadPost
     <button onClick={() => setShowBugModal(true)}
       className="p-2 rounded-lg text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all shrink-0" title="Баг-трекер">
       <Bug size={20} className="shrink-0" />
+    </button>
+    <button onClick={() => router.push("/support")}
+      className="p-2 rounded-lg text-cyan-400/80 hover:text-cyan-400 hover:bg-cyan-500/10 transition-all shrink-0" title="Поддержка">
+      <Headphones size={20} className="shrink-0" />
     </button>
     <button onClick={() => setShowLayoutPicker(true)}
       className="p-2 rounded-lg text-[#8b5cf6]/80 hover:text-[#8b5cf6] hover:bg-[#8b5cf6]/10 transition-all shrink-0" title="Интерфейс">
@@ -1463,7 +1369,6 @@ const continueConfig = lastReadPost
 
       {showBugModal && <BugReportModal onClose={() => setShowBugModal(false)} />}
       {showSearch && <MobileSearch onClose={() => setShowSearch(false)} />}
-      {showAdminMenu && <MobileAdminSheet user={user} onClose={() => setShowAdminMenu(false)} />}
       {showLayoutPicker && <LayoutPicker current={layout} onClose={() => setShowLayoutPicker(false)} />}
     </>
   );

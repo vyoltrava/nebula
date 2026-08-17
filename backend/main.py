@@ -465,6 +465,7 @@ ALL_PERMISSIONS = [
     "manage_groups",          # 🆕 Администрирование любых групп
     "manage_announcements",   # 🆕 Публикация объявлений
     "warn_users",             # 🆕 Выдача предупреждений
+    "manage_support",   # 🆕 Чат поддержки
 ]
 
 MODERATOR_PERMISSIONS = ALL_PERMISSIONS.copy()
@@ -2683,6 +2684,7 @@ def list_permissions():
         # === Чаты и группы ===
         {"id": "pin_messages", "label": "Закреплять сообщения везде", "category": "chats"},
         {"id": "manage_groups", "label": "Администрировать любые группы", "category": "chats"},
+        {"id": "manage_support", "label": "Чат поддержки", "category": "chats"},
         
         # === Система ===
         {"id": "manage_roles", "label": "Управлять ролями", "category": "system"},
@@ -8458,3 +8460,181 @@ async def websocket_endpoint(websocket: WebSocket):
 def get_online_count(user: User = Depends(get_current_user)):
     """Сколько пользователей сейчас онлайн"""
     return {"count": manager.total_connections}
+
+
+
+@app.get("/api/support/chats")
+def list_support_chats(
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Все чаты поддержки (для панели)"""
+    if not has_permission(staff, "manage_support", session):
+        raise HTTPException(403, "Нет права: manage_support")
+
+    # Находим системного юзера "Поддержка"
+    support_user = session.exec(
+        select(User).where(User.is_system == True)
+    ).first()
+    if not support_user:
+        return []
+
+    # Все чаты где есть системный юзер
+    chats = session.exec(
+        select(ChatMember.chat_id)
+        .where(ChatMember.user_id == support_user.id)
+    ).all()
+
+    if not chats:
+        return []
+
+    result = []
+    for chat_id in chats:
+        chat = session.get(Chat, chat_id)
+        if not chat:
+            continue
+        # Находим второго участника (пользователя)
+        members = session.exec(
+            select(ChatMember).where(
+                ChatMember.chat_id == chat_id,
+                ChatMember.user_id != support_user.id,
+            )
+        ).all()
+        if not members:
+            continue
+        user = session.get(User, members[0].user_id)
+        if not user:
+            continue
+
+        # Последнее сообщение
+        last_msg = session.exec(
+            select(Message)
+            .where(Message.chat_id == chat_id)
+            .order_by(Message.created_at.desc())
+            .limit(1)
+        ).first()
+
+        # Непрочитанные от пользователя
+        unread = session.exec(
+            select(func.count(Message.id)).where(
+                Message.chat_id == chat_id,
+                Message.sender_id == user.id,
+                Message.read == False,
+            )
+        ).one()
+
+        result.append({
+            "chat_id": chat_id,
+            "user": user_out(user, session),
+            "last_message": {
+                "text": (last_msg.text or "📎")[:60] if last_msg else None,
+                "sender_id": last_msg.sender_id if last_msg else None,
+                "created_at": last_msg.created_at.isoformat() if last_msg else None,
+            } if last_msg else None,
+            "unread_count": unread,
+            "created_at": chat.created_at.isoformat(),
+        })
+
+    # Сортируем: непрочитанные сверху
+    result.sort(key=lambda x: (-x["unread_count"], x.get("last_message", {}).get("created_at", "") if x.get("last_message") else ""), reverse=True)
+    return result
+
+
+@app.post("/api/support/start")
+@limiter.limit("3/minute")
+async def start_support_chat(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Пользователь начинает чат поддержки"""
+    # Находим или создаём системного юзера
+    support_user = session.exec(
+        select(User).where(User.is_system == True)
+    ).first()
+
+    if not support_user:
+        support_user = User(
+            username="support",
+            display_name="Поддержка",
+            password_hash=hash_password(uuid.uuid4().hex),
+            is_system=True,
+            avatar_url=None,
+        )
+        session.add(support_user)
+        session.commit()
+        session.refresh(support_user)
+
+    # Проверяем, есть ли уже чат
+    my_chats = session.exec(
+        select(ChatMember.chat_id).where(ChatMember.user_id == user.id)
+    ).all()
+
+    for chat_id in my_chats:
+        other = session.exec(
+            select(ChatMember).where(
+                ChatMember.chat_id == chat_id,
+                ChatMember.user_id == support_user.id,
+            )
+        ).first()
+        if other:
+            return {"chat_id": chat_id, "already_existed": True}
+
+    # Создаём новый чат
+    chat = Chat()
+    session.add(chat)
+    session.commit()
+    session.refresh(chat)
+
+    session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="member"))
+    session.add(ChatMember(chat_id=chat.id, user_id=support_user.id, role="member"))
+    session.commit()
+
+    # Уведомляем всех у кого есть manage_support
+    staff_with_support = session.exec(
+        select(User).where(User.is_banned == False)
+    ).all()
+    notify_ids = []
+    for u in staff_with_support:
+        if has_permission(u, "manage_support", session):
+            notify_ids.append(u.id)
+            session.add(Notification(
+                user_id=u.id, actor_id=user.id, type="support_request",
+            ))
+    session.commit()
+
+    if notify_ids:
+        await manager.broadcast_to_users(notify_ids, "new_support_chat", {
+            "chat_id": chat.id,
+            "user_name": user.display_name,
+        })
+
+    return {"chat_id": chat.id, "already_existed": False}
+
+
+@app.get("/api/support/my-chat")
+def get_my_support_chat(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Получить свой чат поддержки (для виджета)"""
+    support_user = session.exec(
+        select(User).where(User.is_system == True)
+    ).first()
+    if not support_user:
+        return {"has_chat": False}
+
+    my_chats = session.exec(
+        select(ChatMember.chat_id).where(ChatMember.user_id == user.id)
+    ).all()
+
+    for chat_id in my_chats:
+        other = session.exec(
+            select(ChatMember).where(
+                ChatMember.chat_id == chat_id,
+                ChatMember.user_id == support_user.id,
+            )
+        ).first()
+        if other:
+            return {"has_chat": True, "chat_id": chat_id}
+
+    return {"has_chat": False}
