@@ -3109,23 +3109,27 @@ const ChatHeader = () => (
         </div>
       )}
 
-      {showGroupMembers && isGroup && (
-        <GroupMembersModal
-          chatId={Number(chatId)}
-          myRole={chatInfo?.my_role || null}
-          onClose={() => setShowGroupMembers(false)}
-          onChanged={() => loadChatInfo()}
-        />
-      )}
+{showGroupMembers && isGroup && (
+  <div className="fixed inset-0 z-[9999]">
+    <GroupMembersModal
+      chatId={Number(chatId)}
+      myRole={chatInfo?.my_role || null}
+      onClose={() => setShowGroupMembers(false)}
+      onChanged={() => loadChatInfo()}
+    />
+  </div>
+)}
 
-      {showGroupSettings && (
-        <GroupSettingsModal
-          chatId={Number(chatId)}
-          chat={chatInfo}
-          onClose={() => setShowGroupSettings(false)}
-          onUpdate={() => { loadChatInfo(); loadPinned(); }}
-        />
-      )}
+{showGroupSettings && (
+  <div className="fixed inset-0 z-[9999]">
+    <GroupSettingsModal
+      chatId={Number(chatId)}
+      chat={chatInfo}
+      onClose={() => setShowGroupSettings(false)}
+      onUpdate={() => { loadChatInfo(); loadPinned(); }}
+    />
+  </div>
+)}
 
 
 {showVideoRecorder && (
