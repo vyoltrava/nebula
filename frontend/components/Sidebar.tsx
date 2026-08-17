@@ -439,7 +439,7 @@ const continueConfig = lastReadPost
   
   if (user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) {
     outerItems.push({
-      href: "/admin", // 🆕 Прямая ссылка вместо триггера модалки
+      href: "/adminnew", // 🆕 Прямая ссылка вместо триггера модалки
       icon: user?.is_admin ? ShieldAlert : user?.is_moderator ? ShieldCheck : Shield,
       label: user?.is_admin ? "Админка" : user?.is_moderator ? "Модерация" : "Админ панель",
     });
@@ -915,7 +915,7 @@ const continueConfig = lastReadPost
         </button>
 
         {hasAdminAccess && !isDock && (
-          <Link href="adminnew"
+          <Link href="/adminnew"
             className={`flex ${containerClass} font-medium transition-all border-b border-white/5 group ${
               pathname?.startsWith("/adminnew") ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
             }`}>

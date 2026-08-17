@@ -2859,76 +2859,82 @@ const ChatHeader = () => (
         {isSelectMode && <div className="h-2" />}
 
         {/* 🆕 ПИКЕР РЕАКЦИЙ С ПАКАМИ */}
-        {reactionPickerFor !== null && (
-          <>
-            <div className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm" onClick={() => setReactionPickerFor(null)} />
-            <div className="fixed inset-0 z-[261] flex items-center justify-center p-4 pointer-events-none">
-              <div className="w-full max-w-sm bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl p-3 pointer-events-auto">
-                <div className="flex items-center justify-between mb-2 px-1">
-                  <p className="text-xs font-bold text-white/60">Выбрать реакцию</p>
-                  <button onClick={() => setReactionPickerFor(null)} className="text-white/40 hover:text-white p-1">
-                    <X size={14} />
-                  </button>
-                </div>
+ {reactionPickerFor !== null && (
+  <>
+    <div className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm" onClick={() => setReactionPickerFor(null)} />
+    <div className="fixed inset-0 z-[261] flex items-center justify-center p-4 pointer-events-none">
+      <div className="w-full max-w-sm max-h-[80vh] bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
+        {/* Шапка — всегда видна */}
+        <div className="shrink-0 p-3 pb-2 border-b border-white/10">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <p className="text-xs font-bold text-white/60">Выбрать реакцию</p>
+            <button onClick={() => setReactionPickerFor(null)} className="text-white/40 hover:text-white p-1">
+              <X size={14} />
+            </button>
+          </div>
 
-                {/* Вкладки паков */}
-                <div className="flex gap-1 mb-3 overflow-x-auto scrollbar-hide pb-1">
-                  {stickerPacks.map((pack, i) => (
-                    <button
-                      key={pack.id}
-                      onClick={() => setActivePackTab(i)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap shrink-0 transition-all ${
-                        activePackTab === i
-                          ? "bg-[#8b5cf6] text-white"
-                          : "bg-white/5 text-white/50 hover:bg-white/10"
-                      }`}
-                    >
-                      {pack.locked && <Lock size={10} className="text-yellow-400" />}
-                      {pack.name}
-                    </button>
-                  ))}
-                </div>
+          {/* Вкладки паков */}
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide pb-1">
+            {stickerPacks.map((pack, i) => (
+              <button
+                key={pack.id}
+                onClick={() => setActivePackTab(i)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap shrink-0 transition-all ${
+                  activePackTab === i
+                    ? "bg-[#8b5cf6] text-white"
+                    : "bg-white/5 text-white/50 hover:bg-white/10"
+                }`}
+              >
+                {pack.locked && <Lock size={10} className="text-yellow-400" />}
+                {pack.name}
+              </button>
+            ))}
+          </div>
+        </div>
 
-                {/* Содержимое пака */}
-                {stickerPacks[activePackTab] && (
-                  stickerPacks[activePackTab].locked ? (
-                    <div className="flex flex-col items-center gap-2 py-6 text-center">
-                      <div className="w-12 h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
-                        <Lock size={18} className="text-yellow-400" />
-                      </div>
-                      <p className="text-sm font-bold text-white">Пак заблокирован</p>
-                      <p className="text-[11px] text-white/40 max-w-[220px]">
-                        Доступен с уровня {stickerPacks[activePackTab].min_level}. 
-                        Повысь уровень, чтобы использовать эти реакции.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-6 gap-1.5">
-                      {stickerPacks[activePackTab].stickers.map((s: any) => (
-                        <button
-                          key={s.id}
-                          onClick={() => {
-                            if (s.type === "emoji") {
-                              toggleReaction(reactionPickerFor!, undefined, s.content);
-                            } else {
-                              toggleReaction(reactionPickerFor!, s.id);
-                            }
-                          }}
-                          className="aspect-square flex items-center justify-center rounded-xl hover:bg-white/10 active:scale-90 transition-all"
-                        >
-                          {s.type === "emoji" ? (
-                            <span className="text-2xl">{s.content}</span>
-                          ) : (
-                            <img src={s.content} alt="" className="w-10 h-10 object-contain" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )
-                )}
+        {/* Контент — скроллится */}
+        <div className="flex-1 overflow-y-auto p-3 min-h-0">
+          {stickerPacks[activePackTab] && (
+            stickerPacks[activePackTab].locked ? (
+              <div className="flex flex-col items-center gap-2 py-8 text-center">
+                <div className="w-12 h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
+                  <Lock size={18} className="text-yellow-400" />
+                </div>
+                <p className="text-sm font-bold text-white">Пак заблокирован</p>
+                <p className="text-[11px] text-white/40 max-w-[220px]">
+                  Доступен с уровня {stickerPacks[activePackTab].min_level}. 
+                  Повысь уровень, чтобы использовать эти реакции.
+                </p>
               </div>
-            </div>
-          </>
+            ) : (
+              <div className="grid grid-cols-6 gap-1.5">
+                {stickerPacks[activePackTab].stickers.map((s: any) => (
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      if (s.type === "emoji") {
+                        toggleReaction(reactionPickerFor!, undefined, s.content);
+                      } else {
+                        toggleReaction(reactionPickerFor!, s.id);
+                      }
+                    }}
+                    className="aspect-square flex items-center justify-center rounded-xl hover:bg-white/10 active:scale-90 transition-all"
+                  >
+                    {s.type === "emoji" ? (
+                      <span className="text-2xl">{s.content}</span>
+                    ) : (
+                      <img src={s.content} alt="" className="w-10 h-10 object-contain" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )
+          )}
+        </div>
+      </div>
+    </div>
+  </>
+
         )}
 
         {/* 🆕 Контекстное меню по ПКМ */}
