@@ -56,19 +56,16 @@ export default function TechnicalPage() {
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
 
-  // IP блоки
   const [ipBlocks, setIpBlocks] = useState<any[]>([]);
   const [newBlockIp, setNewBlockIp] = useState("");
   const [newBlockReason, setNewBlockReason] = useState("");
   const [newBlockHours, setNewBlockHours] = useState<number | "">("");
   const [blockIpTarget, setBlockIpTarget] = useState<string | null>(null);
 
-  // Логи
   const [logs, setLogs] = useState<any[]>([]);
   const [logsFilter, setLogsFilter] = useState<string | null>(null);
   const [logsLoading, setLogsLoading] = useState(false);
 
-  // Баги
   const [bugs, setBugs] = useState<any[]>([]);
   const [bugsLoading, setBugsLoading] = useState(false);
   const [bugStatusFilter, setBugStatusFilter] = useState<string | null>(null);
@@ -146,33 +143,30 @@ export default function TechnicalPage() {
     if (res.ok) setIpBlocks(await res.json());
   }
 
-async function loadLogs() {
-  const token = getToken();
-  if (!token) return;
-  setLogsLoading(true);
-  try {
-    const url = logsFilter
-      ? `${process.env.NEXT_PUBLIC_API_URL}/api/admin/logs?limit=100&action=${logsFilter}`
-      : `${process.env.NEXT_PUBLIC_API_URL}/api/admin/logs?limit=100`;
-    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-    if (res.ok) {
-      const data = await res.json();
-      console.log("✅ Logs loaded:", data);
-      setLogs(Array.isArray(data) ? data : []);
-    } else {
-      const errText = await res.text();
-      console.error("❌ Logs load failed:", res.status, errText);
-      alert(`Ошибка загрузки логов: ${res.status}`);
+  async function loadLogs() {
+    const token = getToken();
+    if (!token) return;
+    setLogsLoading(true);
+    try {
+      const url = logsFilter
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/admin/logs?limit=100&action=${logsFilter}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/admin/logs?limit=100`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setLogs(Array.isArray(data) ? data : []);
+      } else {
+        console.error("Logs load failed:", res.status);
+        setLogs([]);
+      }
+    } catch (err) {
+      console.error("Logs network error:", err);
       setLogs([]);
+    } finally {
+      setLogsLoading(false);
     }
-  } catch (err) {
-    console.error("❌ Logs network error:", err);
-    alert("Ошибка сети при загрузке логов");
-    setLogs([]);
-  } finally {
-    setLogsLoading(false);
   }
-}
+
   async function loadIpHistory(userId: number) {
     const token = getToken();
     if (!token) return;
@@ -194,6 +188,9 @@ async function loadLogs() {
     setEditDisplayName(user.display_name);
     setNewPassword("");
     setSaveMsg(null);
+    setDeleteConfirm("");
+    setShowReset2FAConfirm(false);
+    console.log("2FA status for user:", user.username, "enabled:", user.two_fa_enabled);
   }
 
   async function saveUser() {
@@ -229,41 +226,39 @@ async function loadLogs() {
     }
   }
 
+  async function resetUser2FA() {
+    if (!selectedUser) return;
+    setResetting2FA(true);
+    setSaveMsg(null);
+    const token = getToken();
+    if (!token) return;
 
-async function resetUser2FA() {
-  if (!selectedUser) return;
-  setResetting2FA(true);
-  setSaveMsg(null);
-  const token = getToken();
-  if (!token) return;
-
-  try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${selectedUser.id}/reset-2fa`,
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${selectedUser.id}/reset-2fa`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        setSaveMsg({ text: data?.detail ?? "Ошибка сброса 2FA", type: "err" });
+      } else {
+        setSaveMsg({
+          text: `2FA для @${selectedUser.username} успешно сброшена!`,
+          type: "ok",
+        });
+        setTimeout(() => setSaveMsg(null), 3000);
+        setShowReset2FAConfirm(false);
+        load();
       }
-    );
-    if (!res.ok) {
-      const data = await res.json().catch(() => null);
-      setSaveMsg({ text: data?.detail ?? "Ошибка сброса 2FA", type: "err" });
-    } else {
-      setSaveMsg({
-        text: `2FA для @${selectedUser.username} успешно сброшена!`,
-        type: "ok",
-      });
-      setTimeout(() => setSaveMsg(null), 3000);
-      setShowReset2FAConfirm(false);
-      load(); // обновляем список пользователей
+    } catch {
+      setSaveMsg({ text: "Ошибка сети", type: "err" });
+    } finally {
+      setResetting2FA(false);
     }
-  } catch {
-    setSaveMsg({ text: "Ошибка сети", type: "err" });
-  } finally {
-    setResetting2FA(false);
   }
-}
-
 
   async function deleteUser() {
     if (!selectedUser) return;
@@ -355,8 +350,8 @@ async function resetUser2FA() {
     form.append("ip_address", ip);
     form.append("reason", reason);
     if (typeof hours === "number" && hours > 0) {
-    form.append("hours", String(hours));
-  }
+      form.append("hours", String(hours));
+    }
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/ip-blocks`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
@@ -421,16 +416,16 @@ async function resetUser2FA() {
       <Sidebar />
       <div className="w-px shrink-0 bg-white/10 my-3" />
       <main className="flex-1 overflow-y-auto border-x border-white/10">
-        <div className="p-6 border-b border-white/10 sticky top-0 bg-[#171717]/95 backdrop-blur-md z-10">
+        <div className="p-4 sm:p-6 border-b border-white/10 sticky top-0 bg-[#171717]/95 backdrop-blur-md z-10">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <Settings size={24} className="text-[#8b5cf6]" />
-              <h1 className="text-2xl font-black text-white">Техническая панель</h1>
+              <h1 className="text-xl sm:text-2xl font-black text-white">Техническая панель</h1>
             </div>
             <Link href="/admin" className="text-sm text-white/60 hover:text-white transition-colors">← Назад в админку</Link>
           </div>
 
-          <div className="flex gap-2 mt-4 flex-wrap">
+          <div className="flex gap-2 mt-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {([
               ["stats", BarChart3, "Статистика", "#8b5cf6"],
               ["users", Users, "Пользователи", "#8b5cf6"],
@@ -443,7 +438,7 @@ async function resetUser2FA() {
                 <button
                   key={key}
                   onClick={() => setActiveTab(key as any)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-medium transition-all relative ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-medium transition-all relative whitespace-nowrap shrink-0 ${
                     activeTab === key
                       ? `bg-[${color}] border-[${color}] text-white`
                       : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
@@ -462,9 +457,8 @@ async function resetUser2FA() {
           </div>
         </div>
 
-        {/* ==================== СТАТИСТИКА ==================== */}
         {activeTab === "stats" && stats && (
-          <div className="p-6 space-y-6">
+          <div className="p-4 sm:p-6 space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 ["Пользователей", stats.total_users, Users],
@@ -477,12 +471,12 @@ async function resetUser2FA() {
                     <Icon size={18} className="text-[#8b5cf6]" />
                   </div>
                   <p className="text-white/50 text-sm">{label}</p>
-                  <p className="text-3xl font-black text-white mt-1">{val}</p>
+                  <p className="text-2xl sm:text-3xl font-black text-white mt-1">{val}</p>
                 </div>
               ))}
             </div>
 
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="border border-white/10 rounded-xl p-5 bg-white/5">
                 <div className="flex items-center gap-2 mb-4">
                   <Crown size={18} className="text-[#8b5cf6]" />
@@ -563,10 +557,9 @@ async function resetUser2FA() {
           </div>
         )}
 
-        {/* ==================== ПОЛЬЗОВАТЕЛИ ==================== */}
         {activeTab === "users" && (
-          <div className="p-6 grid md:grid-cols-3 gap-6">
-            <div className="md:col-span-1 border border-white/10 rounded-xl bg-white/5 overflow-hidden flex flex-col max-h-[75vh]">
+          <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 border border-white/10 rounded-xl bg-white/5 overflow-hidden flex flex-col max-h-[75vh]">
               <div className="p-3 border-b border-white/10">
                 <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2 border border-white/10">
                   <Search size={16} className="text-white/40" />
@@ -599,7 +592,7 @@ async function resetUser2FA() {
               </div>
             </div>
 
-            <div className="md:col-span-2">
+            <div className="lg:col-span-2">
               {!selectedUser ? (
                 <div className="border border-white/10 rounded-xl bg-white/5 p-12 text-center">
                   <Users size={48} className="mx-auto text-white/20 mb-4" />
@@ -607,9 +600,8 @@ async function resetUser2FA() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Основная карточка */}
-                  <div className="border border-white/10 rounded-xl bg-white/5 p-6">
-                    <div className="flex items-start gap-6 mb-6">
+                  <div className="border border-white/10 rounded-xl bg-white/5 p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row items-start gap-6 mb-6">
                       <div className="text-center">
                         <Avatar src={selectedUser.avatar_url} name={selectedUser.display_name} id={selectedUser.id} size={96} />
                         <label className="mt-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white/70 text-xs font-semibold hover:bg-white/10 cursor-pointer">
@@ -618,9 +610,9 @@ async function resetUser2FA() {
                         </label>
                       </div>
 
-                      <div className="flex-1">
+                      <div className="flex-1 w-full">
                         <div className="flex items-center gap-2 flex-wrap mb-3">
-                          <h2 className={`text-xl font-black ${glowStyle(selectedUser) ? "" : "text-white"}`} style={glowStyle(selectedUser)}>{selectedUser.display_name}</h2>
+                          <h2 className={`text-lg sm:text-xl font-black ${glowStyle(selectedUser) ? "" : "text-white"}`} style={glowStyle(selectedUser)}>{selectedUser.display_name}</h2>
                           {selectedUser.is_admin && <span className="px-1.5 py-0.5 rounded bg-white text-black text-[8px] font-black uppercase">Founder</span>}
                           {selectedUser.is_moderator && !selectedUser.is_admin && <span className="px-2 py-0.5 rounded bg-blue-500 text-white text-[10px] font-black uppercase">Developer</span>}
                           {selectedUser.role && !selectedUser.is_admin && !selectedUser.is_moderator && <span className="px-2 py-0.5 rounded text-white text-[10px] font-black uppercase" style={{ backgroundColor: selectedUser.role.color }}>{selectedUser.role.name}</span>}
@@ -628,7 +620,7 @@ async function resetUser2FA() {
                         </div>
                         <p className="text-white/50 text-sm mb-3">@{selectedUser.username} · ID #{selectedUser.id}</p>
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                           <div className="border border-white/10 rounded-lg p-3 bg-white/5">
                             <p className="text-white/40 text-xs">Постов</p>
                             <p className="text-white font-bold text-lg">{selectedUser.posts_count ?? "—"}</p>
@@ -647,8 +639,8 @@ async function resetUser2FA() {
                           </div>
                         </div>
 
-                        <div className="flex gap-2 mt-4">
-                          <Link href={`/user/${selectedUser.id}`} className="px-4 py-2 rounded-lg border border-[#8b5cf6] text-[#8b5cf6] hover:bg-[#8b5cf6]/10 text-sm font-bold">
+                        <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                          <Link href={`/user/${selectedUser.id}`} className="px-4 py-2 rounded-lg border border-[#8b5cf6] text-[#8b5cf6] hover:bg-[#8b5cf6]/10 text-sm font-bold text-center">
                             Открыть профиль →
                           </Link>
                           {selectedUser.last_ip && (
@@ -657,7 +649,7 @@ async function resetUser2FA() {
                                 setBlockIpTarget(selectedUser.last_ip);
                                 setActiveTab("ip");
                               }}
-                              className="px-4 py-2 rounded-lg border border-red-400/40 text-red-400 hover:bg-red-500/10 text-sm font-bold flex items-center gap-1"
+                              className="px-4 py-2 rounded-lg border border-red-400/40 text-red-400 hover:bg-red-500/10 text-sm font-bold flex items-center justify-center gap-1"
                             >
                               <Lock size={14} /> Заблокировать IP
                             </button>
@@ -675,117 +667,105 @@ async function resetUser2FA() {
                         <label className="block text-sm font-semibold text-white/70 mb-1">Отображаемое имя</label>
                         <input value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} className="w-full border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]" />
                       </div>
-<div>
-  <label className="block text-sm font-semibold text-white/70 mb-1">
-    Новый пароль <span className="text-white/40">(пусто = не менять)</span>
-  </label>
-  <input
-    type="text"
-    value={newPassword}
-    onChange={(e) => setNewPassword(e.target.value)}
-    className="w-full border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]"
-  />
-</div>
+                      <div>
+                        <label className="block text-sm font-semibold text-white/70 mb-1">
+                          Новый пароль <span className="text-white/40">(пусто = не менять)</span>
+                        </label>
+                        <input
+                          type="password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          className="w-full border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]"
+                        />
+                      </div>
 
-{/* 🆕 БЛОК 2FA */}
-<div className="border border-amber-500/30 rounded-lg bg-amber-500/5 p-3">
-  <div className="flex items-center justify-between gap-3 mb-2">
-    <div className="flex items-center gap-2">
-      <ShieldCheck
-        size={16}
-        className={selectedUser.two_fa_enabled ? "text-emerald-400" : "text-white/40"}
-      />
-      <span className="text-sm font-bold text-white">2FA</span>
-    </div>
-    <span
-      className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-        selectedUser.two_fa_enabled
-          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-          : "bg-white/5 text-white/40 border border-white/10"
-      }`}
-    >
-      {selectedUser.two_fa_enabled ? "Включена" : "Выключена"}
-    </span>
-  </div>
+                      <div className="border border-amber-500/30 rounded-lg bg-amber-500/5 p-3">
+                        <div className="flex items-center justify-between gap-3 mb-2">
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck
+                              size={16}
+                              className={selectedUser.two_fa_enabled ? "text-emerald-400" : "text-white/40"}
+                            />
+                            <span className="text-sm font-bold text-white">2FA</span>
+                          </div>
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                              selectedUser.two_fa_enabled
+                                ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                : "bg-white/5 text-white/40 border border-white/10"
+                            }`}
+                          >
+                            {selectedUser.two_fa_enabled ? "Включена" : "Выключена"}
+                          </span>
+                        </div>
 
-  {selectedUser.two_fa_enabled ? (
-    !showReset2FAConfirm ? (
-      <button
-        onClick={() => setShowReset2FAConfirm(true)}
-        disabled={resetting2FA}
-        className="w-full flex items-center justify-center gap-2 border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 font-bold rounded-lg py-2 text-sm transition-all disabled:opacity-40"
-      >
-        <RefreshCw size={14} /> Сбросить 2FA
-      </button>
-    ) : (
-      <div className="space-y-2">
-        <p className="text-xs text-amber-300/90 leading-snug">
-          ⚠️ Пользователю придётся заново настроить 2FA. Он сможет войти по паролю.
-          {selectedUser.id === me?.id && (
-            <span className="block mt-1 font-bold text-amber-200">
-              Вы сбрасываете 2FA сами себе.
-            </span>
-          )}
-        </p>
-        <div className="flex gap-2">
-          <button
-            onClick={resetUser2FA}
-            disabled={resetting2FA}
-            className="flex-1 bg-red-500 text-white font-bold rounded-lg py-2 text-sm hover:bg-red-600 disabled:opacity-40"
-          >
-            {resetting2FA ? "Сброс..." : "Подтвердить"}
-          </button>
-          <button
-            onClick={() => setShowReset2FAConfirm(false)}
-            disabled={resetting2FA}
-            className="flex-1 border border-white/20 text-white/70 font-bold rounded-lg py-2 text-sm hover:bg-white/10 disabled:opacity-40"
-          >
-            Отмена
-          </button>
-        </div>
-      </div>
-    )
-  ) : (
-    <p className="text-xs text-white/40">
-      2FA не настроена. Пользователь входит только по паролю.
-    </p>
-  )}
-</div>
-
-{saveMsg && (
-  <div
-    className={`p-3 rounded-lg border text-sm font-semibold ${
-      saveMsg.type === "ok"
-        ? "bg-green-500/10 border-green-500/30 text-green-400"
-        : "bg-red-500/10 border-red-500/30 text-red-400"
-    }`}
-  >
-    {saveMsg.text}
-  </div>
-)}
-
-<button
-  onClick={saveUser}
-  disabled={saving}
-  className="w-full flex items-center justify-center gap-2 bg-[#8b5cf6] text-white font-bold rounded-lg py-2.5 hover:bg-[#7c3aed] disabled:opacity-40"
->
-  <Save size={16} /> {saving ? "Сохранение..." : "Сохранить"}
-</button>
+                        {selectedUser.two_fa_enabled ? (
+                          !showReset2FAConfirm ? (
+                            <button
+                              onClick={() => setShowReset2FAConfirm(true)}
+                              disabled={resetting2FA}
+                              className="w-full flex items-center justify-center gap-2 border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 font-bold rounded-lg py-2 text-sm transition-all disabled:opacity-40"
+                            >
+                              <RefreshCw size={14} /> Сбросить 2FA
+                            </button>
+                          ) : (
+                            <div className="space-y-2">
+                              <p className="text-xs text-amber-300/90 leading-snug">
+                                ⚠️ Пользователю придётся заново настроить 2FA. Он сможет войти по паролю.
+                                {selectedUser.id === me?.id && (
+                                  <span className="block mt-1 font-bold text-amber-200">
+                                    Вы сбрасываете 2FA сами себе.
+                                  </span>
+                                )}
+                              </p>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={resetUser2FA}
+                                  disabled={resetting2FA}
+                                  className="flex-1 bg-red-500 text-white font-bold rounded-lg py-2 text-sm hover:bg-red-600 disabled:opacity-40"
+                                >
+                                  {resetting2FA ? "Сброс..." : "Подтвердить"}
+                                </button>
+                                <button
+                                  onClick={() => setShowReset2FAConfirm(false)}
+                                  disabled={resetting2FA}
+                                  className="flex-1 border border-white/20 text-white/70 font-bold rounded-lg py-2 text-sm hover:bg-white/10 disabled:opacity-40"
+                                >
+                                  Отмена
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        ) : (
+                          <p className="text-xs text-white/40">
+                            2FA не настроена. Пользователь входит только по паролю.
+                          </p>
+                        )}
+                      </div>
 
                       {saveMsg && (
-                        <div className={`p-3 rounded-lg border text-sm font-semibold ${saveMsg.type === "ok" ? "bg-green-500/10 border-green-500/30 text-green-400" : "bg-red-500/10 border-red-500/30 text-red-400"}`}>
+                        <div
+                          className={`p-3 rounded-lg border text-sm font-semibold ${
+                            saveMsg.type === "ok"
+                              ? "bg-green-500/10 border-green-500/30 text-green-400"
+                              : "bg-red-500/10 border-red-500/30 text-red-400"
+                          }`}
+                        >
                           {saveMsg.text}
                         </div>
                       )}
 
-                      <button onClick={saveUser} disabled={saving} className="w-full flex items-center justify-center gap-2 bg-[#8b5cf6] text-white font-bold rounded-lg py-2.5 hover:bg-[#7c3aed] disabled:opacity-40">
+                      <button
+                        onClick={saveUser}
+                        disabled={saving}
+                        className="w-full flex items-center justify-center gap-2 bg-[#8b5cf6] text-white font-bold rounded-lg py-2.5 hover:bg-[#7c3aed] disabled:opacity-40"
+                      >
                         <Save size={16} /> {saving ? "Сохранение..." : "Сохранить"}
                       </button>
                     </div>
                   </div>
 
-                  {/* История IP */}
-                  <div className="border border-white/10 rounded-xl bg-white/5 p-5">
+                  <div className="border border-white/10 rounded-xl bg-white/5 p-4 sm:p-5">
                     <div className="flex items-center gap-2 mb-4">
                       <History size={18} className="text-[#8b5cf6]" />
                       <h3 className="font-bold text-white">История IP-адресов</h3>
@@ -815,30 +795,28 @@ async function resetUser2FA() {
                       </div>
                     )}
                   </div>
-            {me.permissions?.includes("delete_users") && (
-              <div className="border border-red-400/30 rounded-xl bg-red-500/5 p-5">
-                      {/* Опасная зона */}
-                      <div className="border border-red-400/30 rounded-xl bg-red-500/5 p-5">
-                        <div className="flex items-center gap-2 mb-3">
-                          <AlertTriangle size={18} className="text-red-400" />
-                          <h3 className="font-bold text-red-400">Опасная зона</h3>
-                        </div>
-                        <p className="text-sm text-white/60 mb-3">Удаление необратимо.</p>
-                        <input
-                          value={deleteConfirm}
-                          onChange={(e) => setDeleteConfirm(e.target.value.replace(/^@/, ""))} // Автоматически убираем @
-                          placeholder={`Введите ${selectedUser.username}`} // Убрали @ из подсказки
-                          className="w-full border border-red-400/30 rounded-lg px-3 py-2 bg-red-500/5 text-white focus:outline-none focus:border-red-400 mb-3"
-                        />
-                        <button
-                          onClick={deleteUser}
-                          disabled={deleting || deleteConfirm !== selectedUser.username}
-                          className="w-full flex items-center justify-center gap-2 bg-red-500 text-white font-bold rounded-lg py-2.5 hover:bg-red-600 disabled:opacity-40"
-                        >
-                          <Trash2 size={16} /> {deleting ? "Удаление..." : "Удалить аккаунт"}
-                        </button>
+
+                  {me.permissions?.includes("delete_users") && (
+                    <div className="border border-red-400/30 rounded-xl bg-red-500/5 p-4 sm:p-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <AlertTriangle size={18} className="text-red-400" />
+                        <h3 className="font-bold text-red-400">Опасная зона</h3>
                       </div>
-                  </div>
+                      <p className="text-sm text-white/60 mb-3">Удаление необратимо.</p>
+                      <input
+                        value={deleteConfirm}
+                        onChange={(e) => setDeleteConfirm(e.target.value.replace(/^@/, ""))}
+                        placeholder={`Введите ${selectedUser.username}`}
+                        className="w-full border border-red-400/30 rounded-lg px-3 py-2 bg-red-500/5 text-white focus:outline-none focus:border-red-400 mb-3"
+                      />
+                      <button
+                        onClick={deleteUser}
+                        disabled={deleting || deleteConfirm !== selectedUser.username}
+                        className="w-full flex items-center justify-center gap-2 bg-red-500 text-white font-bold rounded-lg py-2.5 hover:bg-red-600 disabled:opacity-40"
+                      >
+                        <Trash2 size={16} /> {deleting ? "Удаление..." : "Удалить аккаунт"}
+                      </button>
+                    </div>
                   )}
                 </div>
               )}
@@ -846,49 +824,46 @@ async function resetUser2FA() {
           </div>
         )}
 
-        {/* ==================== IP БЛОКИ ==================== */}
         {activeTab === "ip" && (
-          <div className="p-6 space-y-6">
-            {/* Форма добавления */}
-            <div className="border border-red-400/30 rounded-xl bg-red-500/5 p-5">
-              <div className="flex items-center gap-2 mb-4">
+          <div className="p-4 sm:p-6 space-y-6">
+            <div className="border border-red-400/30 rounded-xl bg-red-500/5 p-4 sm:p-5">
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
                 <Lock size={18} className="text-red-400" />
                 <h3 className="font-bold text-white">Заблокировать IP</h3>
                 {blockIpTarget && (
                   <span className="ml-2 text-xs text-red-400 font-mono">← из истории: {blockIpTarget}</span>
                 )}
               </div>
-              <div className="grid md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                 <input
                   value={blockIpTarget || newBlockIp}
                   onChange={(e) => { setNewBlockIp(e.target.value); setBlockIpTarget(null); }}
                   placeholder="IP адрес (напр. 192.168.1.1)"
-                  className="md:col-span-1 border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white font-mono focus:outline-none focus:border-red-400"
+                  className="border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white font-mono focus:outline-none focus:border-red-400"
                 />
                 <input
                   value={newBlockReason}
                   onChange={(e) => setNewBlockReason(e.target.value)}
                   placeholder="Причина (опционально)"
-                  className="md:col-span-1 border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-red-400"
+                  className="border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-red-400"
                 />
                 <input
                   type="number"
                   value={newBlockHours}
                   onChange={(e) => setNewBlockHours(e.target.value ? Number(e.target.value) : "")}
                   placeholder="Часов (пусто = навсегда)"
-                  className="md:col-span-1 border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-red-400"
+                  className="border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-red-400"
                 />
                 <button
                   onClick={() => createIpBlock(blockIpTarget || newBlockIp, newBlockReason, newBlockHours)}
                   disabled={!(blockIpTarget || newBlockIp)}
-                  className="md:col-span-1 bg-red-500 text-white font-bold rounded-lg py-2 hover:bg-red-600 disabled:opacity-40"
+                  className="bg-red-500 text-white font-bold rounded-lg py-2 hover:bg-red-600 disabled:opacity-40"
                 >
                   Заблокировать
                 </button>
               </div>
             </div>
 
-            {/* Список */}
             <div className="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
               <div className="p-4 border-b border-white/10 flex items-center justify-between">
                 <h3 className="font-bold text-white">Заблокированные IP ({ipBlocks.length})</h3>
@@ -933,9 +908,8 @@ async function resetUser2FA() {
           </div>
         )}
 
-        {/* ==================== ЛОГИ ==================== */}
         {activeTab === "logs" && (
-          <div className="p-6 space-y-4">
+          <div className="p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div className="flex gap-2 flex-wrap">
                 {[null, "login", "register", "ban_user", "delete_user", "block_ip", "delete_post"].map((act) => (
@@ -1006,9 +980,8 @@ async function resetUser2FA() {
           </div>
         )}
 
-        {/* ==================== БАГ-ТРЕКЕР ==================== */}
         {activeTab === "bugs" && (
-          <div className="p-6 space-y-6">
+          <div className="p-4 sm:p-6 space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {Object.entries(BUG_STATUS_CONFIG).map(([key, config]) => {
                 const count = bugCounts[key as keyof typeof bugCounts];
@@ -1021,7 +994,7 @@ async function resetUser2FA() {
                   >
                     <div className="flex items-center justify-between mb-2">
                       <StatusIcon size={18} className={config.color} />
-                      <span className={`text-2xl font-black ${config.color}`}>{count}</span>
+                      <span className={`text-xl sm:text-2xl font-black ${config.color}`}>{count}</span>
                     </div>
                     <p className="text-sm font-bold text-white/80">{config.label}</p>
                   </button>
@@ -1069,15 +1042,14 @@ async function resetUser2FA() {
           </div>
         )}
 
-        {/* Модалка бага */}
         {selectedBug && (
           <>
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]" onClick={() => setSelectedBug(null)} />
             <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-              <div className="w-full max-w-2xl border border-white/20 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
+              <div className="w-full max-w-2xl border border-white/20 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-4 sm:p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
                 <div className="flex items-start justify-between mb-4 gap-3">
                   <div className="flex-1 min-w-0">
-                    <h2 className="text-xl font-black text-white">{selectedBug.title}</h2>
+                    <h2 className="text-lg sm:text-xl font-black text-white">{selectedBug.title}</h2>
                     <p className="text-sm text-white/50 mt-1">
                       ID #{selectedBug.id} · От:{" "}
                       {selectedBug.reporter ? (
