@@ -1,6 +1,6 @@
 "use client";
 import { useWebSocket } from "@/src/hooks/useWebSocket";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Sidebar } from "@/components/Sidebar";
@@ -156,6 +156,47 @@ export default function ChatPage() {
   const [forwardingMessage, setForwardingMessage] = useState<any | null>(null);
   const [forwardChats, setForwardChats] = useState<any[]>([]);
   const [showForwardModal, setShowForwardModal] = useState(false);
+    // 🆕 Быстрая реакция по двойному тапу (с сохранением в localStorage)
+  // 🆕 Быстрая реакция по двойному тапу
+  const [quickReaction, setQuickReaction] = useState<{type: 'emoji' | 'sticker', content: string, stickerId?: number} | null>(null);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [popReaction, setPopReaction] = useState<{content: string, type: 'emoji' | 'sticker', stickerId?: number, x: number, y: number, id: number, visible: boolean} | null>(null);
+
+  // 🆕 Собираем все реакции из паков (с учётом доступа)
+  const allAvailableReactions = useMemo(() => {
+    const result: {type: 'emoji' | 'sticker', content: string, stickerId?: number, packName: string, locked: boolean, minLevel?: number}[] = [];
+    stickerPacks.forEach(pack => {
+      const userLevel = currentUser?.level ?? 0;
+      const locked = (pack.min_level || 0) > userLevel;
+      pack.stickers?.forEach((s: any) => {
+        result.push({
+          type: s.type,
+          content: s.content,
+          stickerId: s.type === 'sticker' ? s.id : undefined,
+          packName: pack.name,
+          locked,
+          minLevel: pack.min_level
+        });
+      });
+    });
+    return result;
+  }, [stickerPacks, currentUser]);
+
+  // Загружаем сохранённую реакцию
+  useEffect(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('quick_reaction') : null;
+    if (saved) {
+      try {
+        setQuickReaction(JSON.parse(saved));
+      } catch {}
+    }
+  }, []);
+
+  const saveQuickReaction = (reaction: {type: 'emoji' | 'sticker', content: string, stickerId?: number}) => {
+    setQuickReaction(reaction);
+    localStorage.setItem('quick_reaction', JSON.stringify(reaction));
+    setShowReactionPicker(false);
+  };
   // 🆕 ЖИВЫЕ СООБЩЕНИЯ: собеседники видят текст по мере набора
   const [liveTexts, setLiveTexts] = useState<Record<number, { text: string; name: string; ts: number; leaving?: boolean }>>({});
   const liveTextsRef = useRef(liveTexts);
@@ -205,7 +246,27 @@ export default function ChatPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const sendingRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const hasScrolledToUnreadRef = useRef(false); //
+  const hasScrolledToUnreadRef = useRef(false);
+  
+  // 🆕 Фича: Скролл и кнопка "Вниз"
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+
+  const handleScroll = () => {
+    if (!scrollContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 200;
+    setShowScrollBtn(!isNearBottom);
+    setIsAutoScrollEnabled(isNearBottom);
+  };
+
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    scrollContainerRef.current?.scrollTo({
+      top: scrollContainerRef.current.scrollHeight,
+      behavior
+    });
+  };
 
   const isGroup = !!chatInfo?.is_group;
 
@@ -573,8 +634,28 @@ async function sendVoiceMessage(audioFile: File) {
 
 function renderMessageText(text: string) {
   if (!text) return null;
-  const parts = text.split(/(https?:\/\/[^\s<>"]+)/g);
+  // 🆕 Добавлена поддержка спойлеров ||текст|| и ссылок
+  const parts = text.split(/(https?:\/\/[^\s<>"]+|\|\|.*?\|\|)/g);
+  
   return parts.map((part, i) => {
+    // Обработка спойлера
+    if (part.startsWith('||') && part.endsWith('||')) {
+      const spoilerText = part.slice(2, -2);
+      return (
+        <span 
+          key={i} 
+          className="bg-white/20 text-transparent blur-sm hover:blur-none cursor-pointer rounded px-0.5 transition-all duration-300 select-none"
+          onClick={(e) => {
+            e.stopPropagation();
+            (e.currentTarget as HTMLElement).classList.remove('blur-sm', 'text-transparent');
+            (e.currentTarget as HTMLElement).classList.add('text-white');
+          }}
+        >
+          {spoilerText}
+        </span>
+      );
+    }
+    // Обработка ссылок (твоя старая логика)
     if (/^https?:\/\//.test(part)) {
       const clean = part.replace(/[.,;:!?)]+$/, "");
       const tail = part.slice(clean.length);
@@ -595,7 +676,6 @@ function renderMessageText(text: string) {
     return <span key={i}>{part}</span>;
   });
 }
-
 function extractFirstUrl(text: string): string | null {
   const m = text.match(/https?:\/\/[^\s<>"]+/);
   return m ? m[0].replace(/[.,;:!?)]+$/, "") : null;
@@ -1430,40 +1510,33 @@ useEffect(() => {
   useEffect(() => {
     if (!messages.length) return;
 
-    // 🆕 Первый скролл при открытии чата — умный
     if (!hasScrolledToUnreadRef.current) {
       hasScrolledToUnreadRef.current = true;
-
-      // Ищем первое непрочитанное чужое сообщение
-      const firstUnread = messages.find(
-        (m) => !m.read && m.sender_id !== currentUser?.id
-      );
+      const firstUnread = messages.find((m) => !m.read && m.sender_id !== currentUser?.id);
 
       if (firstUnread) {
-        // Скроллим к первому непрочитанному
         setTimeout(() => {
           const el = document.getElementById(`msg-${firstUnread.id}`);
           if (el) {
             el.scrollIntoView({ behavior: "smooth", block: "center" });
-            // Подсветим фиолетовым кольцом на 2 секунды
             el.classList.add("ring-2", "ring-[#8b5cf6]", "rounded-lg");
-            setTimeout(() => {
-              el.classList.remove("ring-2", "ring-[#8b5cf6]", "rounded-lg");
-            }, 2000);
+            setTimeout(() => el.classList.remove("ring-2", "ring-[#8b5cf6]", "rounded-lg"), 2000);
           }
-        }, 150); // небольшая задержка чтобы DOM успел отрендериться
+        }, 150);
       } else {
-        // Нет непрочитанных — скроллим в самый низ
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-        }, 100);
+        setTimeout(() => scrollToBottom(), 100);
       }
       return;
     }
 
-    // При новых сообщениях (WebSocket) — всегда в конец
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, currentUser]);
+    // 🆕 При новых сообщениях скроллим вниз ТОЛЬКО если пользователь и так был внизу
+    if (isAutoScrollEnabled) {
+      scrollToBottom();
+    } else {
+      // Если пользователь читает историю, просто показываем кнопку "Вниз"
+      setShowScrollBtn(true);
+    }
+  }, [messages, currentUser, isAutoScrollEnabled]);
 
     // 🆕 живой текст — доскроллить только если пользователь уже внизу
   useEffect(() => {
@@ -1685,14 +1758,46 @@ useWebSocket("message_read", (data: any) => {
     setText((prev) => prev + emoji);
   }
 
-  const filteredMessages = messages.filter((msg) => {
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    const displayText = decryptDisplayText(msg).toLowerCase();
-    return displayText.includes(q);
-  });
+const filteredMessages = messages.filter((msg) => {
+  if (!searchQuery.trim()) return true;
+  const q = searchQuery.toLowerCase();
+  const displayText = decryptDisplayText(msg).toLowerCase();
+  return displayText.includes(q);
+});
 
-  const partnerGlow = getGlowColor(chatPartner);
+// 🆕 Разделители дат и группировка
+const preparedMessages = useMemo(() => {
+  const result: any[] = [];
+  let lastDate = '';
+  let lastSenderId: number | null = null;
+  let lastTime = 0;
+
+  filteredMessages.forEach((msg) => {
+    const d = new Date(msg.created_at);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    let dateLabel = '';
+    if (d.toDateString() === today.toDateString()) dateLabel = 'Сегодня';
+    else if (d.toDateString() === yesterday.toDateString()) dateLabel = 'Вчера';
+    else dateLabel = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+
+    if (dateLabel !== lastDate) {
+      result.push({ type: 'date', id: `date-${msg.id}`, text: dateLabel });
+      lastDate = dateLabel;
+      lastSenderId = null;
+    }
+
+    const msgTime = d.getTime();
+    const isGrouped = lastSenderId === msg.sender_id && (msgTime - lastTime < 5 * 60 * 1000);
+    result.push({ ...msg, isGrouped });
+    lastSenderId = msg.sender_id;
+    lastTime = msgTime;
+  });
+  return result;
+}, [filteredMessages]);
+
+const partnerGlow = getGlowColor(chatPartner);
 
 const ChatHeader = () => (
   <div
@@ -1802,7 +1907,115 @@ const ChatHeader = () => (
             <Search size={19} className="sm:w-5 sm:h-5" />
           </button>
           
-
+{/* 🆕 Кнопка настройки быстрой реакции (двойной тап) */}
+<div className="relative">
+  <button
+    onClick={() => setShowReactionPicker(!showReactionPicker)}
+    className="p-2 sm:p-1.5 rounded-lg transition-colors active:scale-95 hover:bg-white/5 flex items-center justify-center min-w-[36px] min-h-[36px]"
+    title="Настроить реакцию по двойному тапу"
+  >
+{quickReaction ? (
+  quickReaction.type === 'emoji' ? (
+    <span className="text-xl leading-none">{quickReaction.content}</span>
+  ) : (
+    <img src={quickReaction.content} alt="" className="w-6 h-6 object-contain" />
+  )
+) : (
+  <SmilePlus size={18} className="text-white/40" />
+)}
+  </button>
+  
+  {/* Пикер реакций из паков */}
+  {showReactionPicker && (
+    <>
+      <div className="fixed inset-0 z-40" onClick={() => setShowReactionPicker(false)} />
+      <div className="absolute right-0 top-full mt-2 w-80 max-h-[70vh] bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        {/* Шапка */}
+        <div className="p-3 border-b border-white/10 flex items-center justify-between shrink-0">
+          <p className="text-xs font-bold text-white/80">Быстрая реакция (двойной тап)</p>
+          <button onClick={() => setShowReactionPicker(false)} className="text-white/40 hover:text-white p-1">
+            <X size={14} />
+          </button>
+        </div>
+        
+        {/* Список реакций по пакам */}
+        <div className="flex-1 overflow-y-auto p-2">
+          {stickerPacks.length === 0 ? (
+            <p className="text-center text-white/40 text-xs py-6">Нет доступных паков</p>
+          ) : (
+            stickerPacks.map((pack, packIdx) => {
+              const userLevel = currentUser?.level ?? 0;
+              const isLocked = (pack.min_level || 0) > userLevel;
+              
+              return (
+                <div key={pack.id} className="mb-3">
+                  {/* Заголовок пака */}
+                  <div className="flex items-center gap-1.5 px-1 mb-1.5">
+                    {isLocked && <Lock size={10} className="text-yellow-400" />}
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isLocked ? 'text-white/30' : 'text-white/60'}`}>
+                      {pack.name}
+                      {isLocked && <span className="ml-1 text-yellow-400/70 normal-case">· ур. {pack.min_level}</span>}
+                    </span>
+                  </div>
+                  
+                  {/* Реакции пака */}
+                  <div className="grid grid-cols-6 gap-1">
+                    {pack.stickers?.map((s: any) => {
+                      const isSelected = quickReaction?.content === s.content && quickReaction?.type === s.type;
+                      
+                      return (
+                        <button
+                          key={s.id}
+                          disabled={isLocked}
+                          onClick={() => {
+                            if (isLocked) return;
+                            saveQuickReaction({
+                              type: s.type,
+                              content: s.content,
+                              stickerId: s.type === 'sticker' ? s.id : undefined
+                            });
+                          }}
+                          className={`aspect-square flex items-center justify-center rounded-lg transition-all relative ${
+                            isLocked 
+                              ? 'opacity-30 grayscale cursor-not-allowed' 
+                              : isSelected 
+                                ? 'bg-[#8b5cf6]/30 ring-1 ring-[#8b5cf6] scale-110' 
+                                : 'hover:bg-white/10 active:scale-90'
+                          }`}
+                          title={isLocked ? `Доступно с ${pack.min_level} уровня` : undefined}
+                        >
+                          {s.type === 'emoji' ? (
+                            <span className="text-xl">{s.content}</span>
+                          ) : (
+                            <img src={s.content} alt="" className="w-7 h-7 object-contain" />
+                          )}
+                          
+                          {/* Замок поверх заблокированных */}
+                          {isLocked && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Lock size={12} className="text-yellow-400 drop-shadow-md" />
+                            </div>
+                          )}
+                          
+                          {/* Галочка выбранной */}
+                          {isSelected && !isLocked && (
+                            <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#8b5cf6] flex items-center justify-center">
+                              <Check size={10} className="text-white" />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </>
+  )}
+</div>
 
           <button
             onClick={() => { setMediaTab("image"); loadMedia(); setShowMediaGallery(true); }}
@@ -2037,9 +2250,24 @@ const ChatHeader = () => (
   </div>
 )}
 
-            <div className="flex-1 overflow-y-auto p-3 sm:p-3 md:p-4 space-y-2.5 sm:space-y-3">
+            <div 
+              ref={scrollContainerRef}
+              onScroll={handleScroll}
+              className="flex-1 overflow-y-auto p-3 sm:p-3 md:p-4 space-y-2.5 sm:space-y-3"
+            >
               {currentUser &&
-                filteredMessages.map((msg) => {
+                preparedMessages.map((msg, index) => {
+                  // 🆕 Рендер разделителя даты
+                  if (msg.type === 'date') {
+                    return (
+                      <div key={msg.id} className="flex items-center justify-center my-4">
+                        <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-bold text-white/50 backdrop-blur-sm">
+                          {msg.text}
+                        </span>
+                      </div>
+                    );
+                  }
+
                   const isMine = msg.sender_id === currentUser.id;
                   const isEditing = editingMessageId === msg.id;
                   const displayText = decryptDisplayText(msg);
@@ -2070,9 +2298,35 @@ const ChatHeader = () => (
                         onClick={() => {
                           if (isSelectMode) toggleMessageSelection(msg.id);
                         }}
-                        onDoubleClick={() => {
-                          if (!isSelectMode && !isSecret) {
-                            startReply(msg);
+                        onDoubleClick={(e) => {
+                          if (!isSelectMode && !isSecret && quickReaction) {
+                            e.preventDefault();
+                            
+                            // Отправляем реакцию правильно: эмодзи или стикер
+                            if (quickReaction.type === 'emoji') {
+                              toggleReaction(msg.id, undefined, quickReaction.content);
+                            } else {
+                              toggleReaction(msg.id, quickReaction.stickerId);
+                            }
+                            
+                            // Анимация вылета
+                            setPopReaction({
+                              content: quickReaction.content,
+                              type: quickReaction.type,
+                              stickerId: quickReaction.stickerId,
+                              x: e.clientX,
+                              y: e.clientY,
+                              id: Date.now(),
+                              visible: true
+                            });
+                            
+                            setTimeout(() => {
+                              setPopReaction(prev => prev ? { ...prev, visible: false } : null);
+                            }, 50);
+                            
+                            setTimeout(() => {
+                              setPopReaction(null);
+                            }, 800);
                           }
                         }}
                         onContextMenu={(e) => {
@@ -2098,8 +2352,8 @@ const ChatHeader = () => (
                         </div>
                       )}
 
-                      {!isMine && !isSelectMode && (isGroup || chatPartner) && (
-                        <Link href={`/user/${msg.sender_id}`} className="shrink-0">
+                {!isMine && !isSelectMode && !msg.isGrouped && (isGroup || chatPartner) && (
+                  <Link href={`/user/${msg.sender_id}`} className="shrink-0">
                           <div
                             style={
                               senderGlow
@@ -2548,6 +2802,15 @@ const ChatHeader = () => (
               <div ref={messagesEndRef} />
             </div>
 
+            {/* 🆕 КНОПКА "ПРОКРУТИТЬ ВНИЗ" */}
+            {showScrollBtn && (
+              <button
+                onClick={() => scrollToBottom()}
+                className="absolute bottom-28 right-6 w-10 h-10 rounded-full bg-[#1f1f23] border border-white/15 shadow-2xl flex items-center justify-center text-white/80 hover:text-[#8b5cf6] hover:border-[#8b5cf6] transition-all active:scale-90 z-20 animate-in fade-in zoom-in-50 duration-200"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </button>
+            )}
             {files.length > 0 && (
               <div className="px-3 sm:px-3 py-2.5 border-t border-white/10 bg-white/5">
                 <div className="flex items-center justify-between mb-2">
@@ -2957,6 +3220,30 @@ const ChatHeader = () => (
             onClose={() => setContextMenu(null)}
           />
         )}
+        {/* 🆕 Анимация вылетающей реакции при двойном тапе */}
+        {popReaction && (
+          <div
+            className={`fixed pointer-events-none z-[300] drop-shadow-lg transition-all duration-700 ease-out ${
+              popReaction.visible 
+                ? 'opacity-100 scale-100 translate-y-0' 
+                : 'opacity-0 scale-150 -translate-y-12'
+            }`}
+            style={{ 
+              left: popReaction.x - 24, 
+              top: popReaction.y - 24 
+            }}
+          >
+            {popReaction.type === 'emoji' ? (
+              <span className="text-5xl">{popReaction.content}</span>
+            ) : (
+              <img src={popReaction.content} alt="" className="w-12 h-12 object-contain" />
+            )}
+          </div>
+        )}
+
+
+
+
       </main>
 
 
