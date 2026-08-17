@@ -8448,7 +8448,86 @@ def get_online_count(user: User = Depends(get_current_user)):
 
 
 
+# ============================================================
+# 🎧 АДМИНКА: СПИСОК ЗАЯВОК + ЗАКРЫТИЕ
+# ============================================================
+@app.get("/api/support/tickets")
+def support_list_tickets(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Список всех заявок для админки"""
+    if not user.is_admin and not has_permission(user, "manage_support", session):
+        raise HTTPException(403, "Нет права: manage_support")
 
+    tickets = session.exec(
+        select(SupportTicket).order_by(SupportTicket.updated_at.desc())
+    ).all()
+    if not tickets:
+        return []
+
+    ticket_ids = [t.id for t in tickets]
+    user_ids = list({t.user_id for t in tickets})
+    users = {u.id: u for u in session.exec(select(User).where(User.id.in_(user_ids))).all()}
+
+    last_msgs = session.exec(
+        select(SupportMessage)
+        .where(SupportMessage.ticket_id.in_(ticket_ids))
+        .order_by(SupportMessage.created_at.desc())
+    ).all()
+    last_by_ticket = {}
+    for m in last_msgs:
+        if m.ticket_id not in last_by_ticket:
+            last_by_ticket[m.ticket_id] = m
+
+    result = []
+    for t in tickets:
+        u = users.get(t.user_id)
+        last = last_by_ticket.get(t.id)
+        result.append({
+            "id": t.id,
+            "user": user_out(u, session) if u else None,
+            "status": t.status,
+            "created_at": t.created_at.isoformat(),
+            "updated_at": t.updated_at.isoformat() if t.updated_at else t.created_at.isoformat(),
+            "last_message": {
+                "text": (last.text or "📷 Фото")[:60] if last else None,
+                "created_at": last.created_at.isoformat() if last else None,
+            } if last else None,
+        })
+    return result
+
+
+@app.post("/api/support/tickets/{ticket_id}/close")
+async def support_close_ticket(
+    ticket_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Закрыть заявку — автор или саппортер"""
+    ticket = session.get(SupportTicket, ticket_id)
+    if not ticket:
+        raise HTTPException(404, "Заявка не найдена")
+
+    is_author = ticket.user_id == user.id
+    is_staff = user.is_admin or has_permission(user, "manage_support", session)
+    if not is_author and not is_staff:
+        raise HTTPException(403, "Нет доступа")
+
+    ticket.status = "closed"
+    ticket.updated_at = datetime.now(timezone.utc)
+    session.add(ticket)
+    session.add(SupportMessage(ticket_id=ticket.id, sender_id=user.id, text="🔒 Заявка закрыта."))
+    session.commit()
+
+    if is_staff:
+        await manager.broadcast_to_users([ticket.user_id], "support_ticket_closed", {"ticket_id": ticket.id})
+    else:
+        staff_ids = [u.id for u in session.exec(select(User)).all()
+                     if u.is_admin or has_permission(u, "manage_support", session)]
+        if staff_ids:
+            await manager.broadcast_to_users(staff_ids, "support_ticket_closed", {"ticket_id": ticket.id})
+    return {"ok": True}
 
 
 
