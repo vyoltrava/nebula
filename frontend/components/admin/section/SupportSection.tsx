@@ -91,10 +91,17 @@ export function SupportSection({ me }: { me: any }) {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
+      // ✅ ДОБАВЛЕНО: проверка что это вообще картинка
+      if (!selectedFile.type.startsWith("image/")) {
+        alert("Можно загружать только изображения (JPG, PNG, GIF, WEBP)");
+        return;
+      }
+      
       if (selectedFile.size > 10 * 1024 * 1024) {
         alert("Файл слишком большой (максимум 10 МБ)");
         return;
       }
+      
       setFile(selectedFile);
       const reader = new FileReader();
       reader.onloadend = () => setPreview(reader.result as string);
@@ -137,7 +144,7 @@ export function SupportSection({ me }: { me: any }) {
     const token = getToken();
     const form = new FormData();
     form.append("ticket_id", String(activeTicket.id));
-    form.append("text", currentInput);
+    form.append("text", currentInput); // всегда отправляем, даже если пустой
     if (currentFile) form.append("file", currentFile);
 
     try {
@@ -154,6 +161,12 @@ export function SupportSection({ me }: { me: any }) {
         );
         loadTickets();
       } else {
+        // ✅ ПОКАЗЫВАЕМ РЕАЛЬНУЮ ОШИБКУ ОТ БЭКЕНДА
+        const errData = await res.json().catch(() => ({}));
+        console.error("[SupportSection] Server Error:", errData);
+        alert(errData.detail || "Не удалось отправить сообщение");
+        
+        // Откат (rollback)
         setMessages((prev) => prev.filter((m) => m.id !== tempId));
         setInput(currentInput);
         if (currentFile) {
@@ -162,7 +175,10 @@ export function SupportSection({ me }: { me: any }) {
         }
       }
     } catch (error) {
-      console.error("Failed to send message:", error);
+      console.error("[SupportSection] Network Error:", error);
+      alert("Ошибка сети. Проверьте интернет-соединение.");
+      
+      // Откат (rollback)
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       setInput(currentInput);
       if (currentFile) {

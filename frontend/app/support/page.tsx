@@ -191,7 +191,7 @@ export default function SupportPage() {
     }
   }
 
-  // === ОТПРАВКА СООБЩЕНИЯ (OPTIMISTIC) ===
+   // === ОТПРАВКА СООБЩЕНИЯ (OPTIMISTIC) ===
   async function sendMessage() {
     if ((!input.trim() && !file) || !activeId || sending) return;
     setSending(true);
@@ -218,7 +218,10 @@ export default function SupportPage() {
     const token = getToken();
     const form = new FormData();
     form.append("ticket_id", String(activeId));
-    if (savedInput.trim()) form.append("text", savedInput.trim());
+    
+    // ✅ ИСПРАВЛЕНИЕ 1: ВСЕГДА отправляем text, даже если он пустой (FastAPI требует наличие поля)
+    form.append("text", savedInput.trim() || ""); 
+    
     if (savedFile) form.append("file", savedFile);
 
     try {
@@ -248,14 +251,22 @@ export default function SupportPage() {
           return t;
         }));
       } else {
-        // Откат
+        // ✅ ИСПРАВЛЕНИЕ 2: Читаем и показываем реальную ошибку от бэкенда
+        const errData = await res.json().catch(() => ({}));
+        console.error("Server Error Detail:", errData);
+        alert(errData.detail || "Не удалось отправить сообщение (Ошибка сервера)");
+        
+        // Откат (rollback)
         setMessages(prev => prev.filter(m => m.id !== tempId));
         setInput(savedInput);
         setFile(savedFile);
         if (savedFile) setPreviewUrl(URL.createObjectURL(savedFile));
       }
-    } catch {
-      // Откат
+    } catch (error) {
+      console.error("Network Error:", error);
+      alert("Ошибка сети. Проверьте интернет-соединение.");
+      
+      // Откат (rollback)
       setMessages(prev => prev.filter(m => m.id !== tempId));
       setInput(savedInput);
       setFile(savedFile);

@@ -8538,10 +8538,10 @@ async def support_close_ticket(
 # ============================================================
 
 @app.post("/api/support/start")
-def support_start(
-    background_tasks: BackgroundTasks,  # ← ИСПРАВЛЕНИЕ EVENT LOOP
+async def support_start(  # <-- СТАЛО async def
+    background_tasks: BackgroundTasks,
     text: str = Form(""),
-    file: Optional[UploadFile] = File(None),  # ← НОВОЕ: фото
+    file: Optional[UploadFile] = File(None),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
@@ -8551,34 +8551,56 @@ def support_start(
     session.commit()
     session.refresh(ticket)
 
-    # Загрузка фото если есть
+    # 🚀 ИСПРАВЛЕННЫЙ БЛОК ЗАГРУЗКИ ФОТО
     media_url = None
     media_type = None
+    
     if file and file.filename:
-        ext = os.path.splitext(file.filename)[1].lower()
-        if ext in ALLOWED_IMAGE_EXT:
-            content = file.file.read()
-            try:
-                result = cloudinary.uploader.upload(content, folder="support", resource_type="image")
-                media_url = result.get("secure_url")
-                media_type = "image"
-            except Exception as e:
-                print(f"[Support] Upload failed: {e}")
+        ext = os.path.splitext(file.filename or "")[1].lower()
+        content_type = (file.content_type or "").lower()
+
+        # Если расширения нет, но браузер говорит, что это картинка - верим
+        if not ext and content_type.startswith("image/"):
+            ext = ".jpg" 
+
+        # 🛡️ ЯВНАЯ ПРОВЕРКА: Если это вообще не картинка - прерываем с понятной ошибкой
+        if ext not in ALLOWED_IMAGE_EXT and not content_type.startswith("image/"):
+            raise HTTPException(400, f"Неподдерживаемый формат ({ext or 'unknown'}). Разрешены только изображения.")
+
+        # Читаем файл (используем await, так как функция теперь async)
+        content = await file.read()
+
+        try:
+            # 🚀 format="jpg" заставляет Cloudinary конвертировать HEIC/WebP в обычный JPG
+            result = await run_in_threadpool(
+                lambda: cloudinary.uploader.upload(
+                    content, 
+                    folder="support", 
+                    resource_type="image",
+                    format="jpg" 
+                )
+            )
+            media_url = result.get("secure_url")
+            media_type = "image"
+        except Exception as e:
+            print(f"[Support] Upload failed: {e}")
+            raise HTTPException(400, f"Ошибка загрузки фото: {str(e)}")
 
     first_text = text.strip() or ("📷 Фото без описания" if media_url else "👋 Привет! Мне нужна помощь.")
+    
     msg = SupportMessage(
         ticket_id=ticket.id,
         sender_id=user.id,
         text=first_text,
-        media_url=media_url,      # ← НОВОЕ
-        media_type=media_type,    # ← НОВОЕ
+        media_url=media_url,
+        media_type=media_type,
     )
     session.add(msg)
     ticket.updated_at = datetime.now(timezone.utc)
     session.add(ticket)
     session.commit()
 
-    # ✅ БЕЗОПАСНАЯ рассылка через BackgroundTasks (не ломает sync def)
+    # ✅ БЕЗОПАСНАЯ рассылка через BackgroundTasks
     staff_ids = [
         u.id for u in session.exec(select(User)).all()
         if u.is_admin or has_permission(u, "manage_support", session)
@@ -8618,21 +8640,41 @@ async def support_send_message(
     # Загрузка фото
     media_url = None
     media_type = None
-    if file and file.filename:
-        ext = os.path.splitext(file.filename)[1].lower()
-        if ext in ALLOWED_IMAGE_EXT:
-            content = await file.read()
-            try:
-                result = await run_in_threadpool(
-                    lambda: cloudinary.uploader.upload(content, folder="support", resource_type="image")
-                )
-                media_url = result.get("secure_url")
-                media_type = "image"
-            except Exception as e:
-                raise HTTPException(400, f"Ошибка загрузки фото: {e}")
+    
+    if file:
+        # 1. Пытаемся получить расширение из имени файла
+        ext = os.path.splitext(file.filename or "")[1].lower()
+        
+        # 2. Если имени нет, проверяем MIME-тип (content_type)
+        if not ext and file.content_type:
+            if "jpeg" in file.content_type or "jpg" in file.content_type: ext = ".jpg"
+            elif "png" in file.content_type: ext = ".png"
+            elif "gif" in file.content_type: ext = ".gif"
+            elif "webp" in file.content_type: ext = ".webp"
+            elif "heic" in file.content_type: ext = ".heic" # Cloudinary умеет конвертировать HEIC!
 
-    if not text.strip() and not media_url:
-        raise HTTPException(400, "Пустое сообщение")
+        # 🛡️ ЯВНАЯ ПРОВЕРКА: Если формат не поддерживается, сразу прерываем с понятной ошибкой
+        if ext not in ALLOWED_IMAGE_EXT and not (file.content_type and file.content_type.startswith("image/")):
+            raise HTTPException(
+                400, 
+                f"Неподдерживаемый формат файла ({ext or 'unknown'}). Разрешены: JPG, PNG, GIF, WEBP"
+            )
+            
+        content = await file.read()
+        try:
+            # Cloudinary сам сконвертирует HEIC/WEBP в JPG, если указать resource_type="image"
+            result = await run_in_threadpool(
+                lambda: cloudinary.uploader.upload(
+                    content, 
+                    folder="support", 
+                    resource_type="image",
+                    format="jpg" # 🚀 Принудительно конвертируем всё в JPG на стороне Cloudinary
+                )
+            )
+            media_url = result.get("secure_url")
+            media_type = "image"
+        except Exception as e:
+            raise HTTPException(400, f"Ошибка загрузки фото: {str(e)}")
 
     msg = SupportMessage(
         ticket_id=ticket.id,
