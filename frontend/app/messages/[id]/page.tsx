@@ -182,6 +182,7 @@ export default function ChatPage() {
   const [showVideoRecorder, setShowVideoRecorder] = useState(false);
 
   const [menuOpenUp, setMenuOpenUp] = useState(false);
+  const menuOpenTimeRef = useRef(0);
   
   // 🆕 Состояния для кнопки отправки/записи
   const [showRecordMenu, setShowRecordMenu] = useState(false);
@@ -1823,7 +1824,10 @@ const ChatHeader = () => (
 
           <div className="relative">
             <button
-              onClick={() => setShowChatMenu((prev) => !prev)}
+              onClick={() => {
+                if (!showChatMenu) menuOpenTimeRef.current = Date.now();
+                setShowChatMenu((prev) => !prev);
+              }}
               className="p-2.5 sm:p-2 text-white/60 hover:text-white transition-colors active:scale-95"
               title="Ещё"
             >
@@ -1831,7 +1835,7 @@ const ChatHeader = () => (
             </button>
             {showChatMenu && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowChatMenu(false)} />
+<div className="fixed inset-0 z-40" onClick={() => { if (Date.now() - menuOpenTimeRef.current < 400) return; setShowChatMenu(false); }} />
                 <div className="absolute right-0 top-full mt-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px] sm:min-w-[180px] z-50">
                   {isGroup && (
                     <button
@@ -2372,10 +2376,11 @@ const ChatHeader = () => (
                               <div className="relative">
                                 <button
                                   onClick={(e) => {
+                                    e.stopPropagation();
                                     const next = activeMessageMenu === msg.id ? null : msg.id;
                                     if (next) {
+                                      menuOpenTimeRef.current = Date.now();
                                       const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                      // Если внизу мало места — открываем вверх
                                       setMenuOpenUp(r.bottom + 250 > window.innerHeight);
                                     }
                                     setActiveMessageMenu(next);
@@ -2388,7 +2393,10 @@ const ChatHeader = () => (
                                   <>
                                     <div
                                       className="fixed inset-0 z-40"
-                                      onClick={() => setActiveMessageMenu(null)}
+                                      onClick={() => {
+                                        if (Date.now() - menuOpenTimeRef.current < 400) return; // защита от синтетического клика после тапа
+                                        setActiveMessageMenu(null);
+                                      }}
                                     />
                                     <div
                                       className={`absolute ${
@@ -2649,7 +2657,10 @@ const ChatHeader = () => (
         <div className="flex gap-1 shrink-0">
           <div className="relative">
             <button
-              onClick={() => setShowStickers(!showStickers)}
+              onClick={() => {
+                if (!showStickers) menuOpenTimeRef.current = Date.now();
+                setShowStickers(!showStickers);
+              }}
               className={`p-2.5 sm:p-2 rounded-xl transition-colors min-w-[40px] sm:min-w-[36px] md:min-w-[40px] min-h-[40px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center active:scale-95 ${
                 showStickers
                   ? "text-[#8b5cf6] bg-[#8b5cf6]/10"
@@ -2660,7 +2671,7 @@ const ChatHeader = () => (
             </button>
             {showStickers && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowStickers(false)} />
+                <div className="fixed inset-0 z-40" onClick={() => { if (Date.now() - menuOpenTimeRef.current < 400) return; setShowStickers(false); }} />
                 <div className="absolute bottom-full left-0 mb-2 w-72 sm:w-72 md:w-80 bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl z-50">
                   {/* Шапка с вкладками */}
                   <div className="p-2 border-b border-white/10 flex items-center gap-1">
