@@ -1,16 +1,12 @@
-from dependencies import get_current_user, user_out
 # app_split/routers/notifications.py
-# Сгенерировано автоматически. Проверь импорты!
-
-from fastapi import APIRouter, Depends, HTTPException, Request, Form, File, UploadFile, Header, Query
-from sqlmodel import Session, select, delete, func
-from typing import Optional, List
-from datetime import datetime, timezone
-import json, os
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlmodel import Session, select, func
+from pydantic import BaseModel
+from typing import Optional
 
 from database import get_session
-from models import *
-from dependencies import *
+from models import User, Message, ChatMember, Notification, Update, UpdateRead, PushSubscription
+from dependencies import get_current_user, user_out
 
 router = APIRouter()
 
