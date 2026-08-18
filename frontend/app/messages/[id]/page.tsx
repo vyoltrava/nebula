@@ -686,6 +686,7 @@ function renderMessageText(text: string) {
         </span>
         );
         }
+
         // 🆕 Упоминания
         // 🆕 Упоминания (Контрастный стиль)
         if (part.startsWith('@')) {
@@ -792,31 +793,35 @@ function extractFirstUrl(text: string): string | null {
   return decryptText(msg.ciphertext);
 }
 
-  async function loadChatInfo() {
-    const token = getToken();
-    if (!token) return;
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.status === 403) {
-        router.push("/messages");
-        return;
-      }
-      if (res.ok) {
-        const data = await res.json();
-        setChatInfo(data);
-        setIsSecret(data.is_secret && !data.is_group);
-        if (data.is_group) {
-          setChatPartner(null);
-        } else {
-          setChatPartner(data.other);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load chat info", err);
+async function loadChatInfo() {
+  const token = getToken();
+  if (!token) return;
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 403) {
+      router.push("/messages");
+      return;
     }
+    if (res.ok) {
+      const data = await res.json();
+      console.log("📦 Chat info loaded:", data); // 🆕 ДОБАВЬ ЭТО
+      setChatInfo(data);
+      setIsSecret(data.is_secret && !data.is_group);
+      if (data.is_group) {
+        setChatPartner(null);
+      } else {
+        setChatPartner(data.other);
+        console.log("👤 Chat partner:", data.other); // 🆕 ДОБАВЬ ЭТО
+      }
+    } else {
+      console.error("❌ Failed to load chat info:", res.status);
+    }
+  } catch (err) {
+    console.error("Failed to load chat info", err);
   }
+}
 
   async function loadMessages() {
     setLoadingMessages(true);
@@ -1978,10 +1983,12 @@ const ChatHeader = () => (
             </div>
           </Link>
         ) : (
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-white text-[15px] sm:text-base">Загрузка...</p>
-          </div>
-        )}
+  <div className="flex-1 min-w-0">
+    <p className="font-bold text-white text-[15px] sm:text-base">
+      {chatInfo ? "Загрузка..." : "Чат не найден"}
+    </p>
+  </div>
+)}
 
         <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
           <button
