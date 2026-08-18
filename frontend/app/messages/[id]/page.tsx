@@ -112,6 +112,7 @@ export default function ChatPage() {
   const { refresh } = useUnreadCounts();
 
   const [messages, setMessages] = useState<any[]>([]);
+  const [isSavedChat, setIsSavedChat] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -806,30 +807,21 @@ async function loadChatInfo() {
     }
     if (res.ok) {
       const data = await res.json();
-      console.log("📦 Chat info loaded:", data); // 🆕 ДОБАВЬ ЭТО
       setChatInfo(data);
       setIsSecret(data.is_secret && !data.is_group);
       if (data.is_group) {
         setChatPartner(null);
+        setIsSavedChat(false);
       } else {
-        setChatPartner(data.other);
-        console.log("👤 Chat partner:", data.other); // 🆕 ДОБАВЬ ЭТО
+        // 🆕 Проверяем чат с самим собой
+        if (data.other && currentUser && data.other.id === currentUser.id) {
+          setIsSavedChat(true);
+          setChatPartner(null);
+        } else {
+          setIsSavedChat(false);
+          setChatPartner(data.other);
+        }
       }
-      if (res.ok) {
-    const data = await res.json();
-    console.log("📦 Chat info loaded:", data); // 🆕 для отладки
-    setChatInfo(data);
-    setIsSecret(data.is_secret && !data.is_group);
-    if (data.is_group) {
-        setChatPartner(null);
-    } else {
-        // 🆕 Для чата с самим собой other будет самим собой
-        setChatPartner(data.other);
-        console.log(" Chat partner:", data.other); // 🆕 для отладки
-    }
-}
-    } else {
-      console.error("❌ Failed to load chat info:", res.status);
     }
   } catch (err) {
     console.error("Failed to load chat info", err);
@@ -1513,7 +1505,7 @@ const handleSendClick = () => {
 
   useEffect(() => {
     hasScrolledToUnreadRef.current = false; // 🆕 сбрасываем при смене чата
-
+ 
     const token = getToken();
     if (!token) {
       router.push("/login");
@@ -1534,10 +1526,15 @@ const handleSendClick = () => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/live-text-settings`, {
       headers: { Authorization: `Bearer ${token}` },
       signal,
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) setLiveSettings(d); })
-      .catch(() => {});
+  })
+  .then((r) => r.json())
+  .then((me) => {
+    setCurrentUser(me);
+    // 🆕 Сбрасываем при загрузке юзера
+    setIsSavedChat(false);
+    setChatPartner(null);
+  })
+  .catch(() => {});
 
     loadChatInfo();
     loadMessages();
@@ -1904,6 +1901,7 @@ const preparedMessages = useMemo(() => {
 
 const partnerGlow = getGlowColor(chatPartner);
 
+
 const ChatHeader = () => (
   <div className="border-b border-white/10 backdrop-blur-md sticky top-0 z-30 bg-[#171717]/80">
     {/* Основной блок */}
@@ -1940,12 +1938,27 @@ const ChatHeader = () => (
               </p>
               <p className="text-[11px] sm:text-xs text-white/50 mt-0.5">
                 {partnerTyping && typingUserName
-                  ? <span className="text-[#8b5cf6]"> {typingUserName} печатает...</span>
+                  ? <span className="text-[#8b5cf6]">✎ {typingUserName} печатает...</span>
                   : `${chatInfo.members_count} участник${chatInfo.members_count === 1 ? "" : (chatInfo.members_count < 5 ? "а" : "ов")} · подробнее`
                 }
               </p>
             </div>
           </button>
+        ) : isSavedChat ? (
+          // 🆕 ЧАТ С САМИМ СОБОЙ (ИЗБРАННОЕ) — стиль как в списке чатов
+          <div className="flex items-center gap-3 sm:gap-3 flex-1 min-w-0">
+            <div className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
+              <Bookmark size={22} className="text-yellow-400" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold truncate text-[15px] sm:text-base md:text-lg text-yellow-400 leading-tight">
+                Избранное
+              </p>
+              <p className="text-[11px] sm:text-xs text-white/50 mt-0.5">
+                Личные заметки и ссылки
+              </p>
+            </div>
+          </div>
         ) : chatPartner ? (
           <Link href={`/user/${chatPartner.id}`} className="flex items-center gap-3 sm:gap-3 group flex-1 min-w-0 active:opacity-70 transition-opacity">
             <div
@@ -1993,21 +2006,6 @@ const ChatHeader = () => (
               </p>
             </div>
           </Link>
-        ) : chatInfo?.is_saved ? (
-          // 🆕 ЧАТ С САМИМ СОБОЙ (ИЗБРАННОЕ)
-          <div className="flex items-center gap-3 sm:gap-3 group flex-1 min-w-0">
-            <div className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
-              <Bookmark size={22} className="text-yellow-400" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="font-bold truncate text-[15px] sm:text-base md:text-lg text-yellow-400 leading-tight">
-                Избранное
-              </p>
-              <p className="text-[11px] sm:text-xs text-white/50 mt-0.5">
-                Личные заметки и ссылки
-              </p>
-            </div>
-          </div>
         ) : (
           <div className="flex-1 min-w-0">
             <p className="font-bold text-white text-[15px] sm:text-base">
