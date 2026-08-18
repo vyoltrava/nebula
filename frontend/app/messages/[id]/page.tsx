@@ -3126,7 +3126,7 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
     }`}>
         {/* Чисто символьная подсказка без фона и хуйни */}
         <div className="px-3 py-1 text-[11px] text-white/40 border-b border-white/5 select-none pointer-events-none">
-            Markdown: **жирный** *курсив* `код` ||спойлер|| [ссылка](url)
+           
         </div>
         
         <textarea
@@ -3139,47 +3139,33 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
                     sendMessage();
                 }
             }}
-            // 🛡️ ПКМ на ПК -> умное меню (не уезжает за экран)
-            onContextMenu={(e) => {
-                if (isSecret) return;
-                e.preventDefault();
-                const ta = e.currentTarget;
-                setSelectionStart(ta.selectionStart);
-                setSelectionEnd(ta.selectionEnd);
-                
-                // Расчёт безопасной позиции
-                const MENU_W = 240, MENU_H = 44, PAD = 12;
-                let x = e.clientX, y = e.clientY;
-                if (x + MENU_W > window.innerWidth - PAD) x = window.innerWidth - MENU_W - PAD;
-                if (y + MENU_H > window.innerHeight - PAD) y = window.innerHeight - MENU_H - PAD;
-                if (x < PAD) x = PAD;
-                if (y < PAD) y = PAD;
-                setMenuPosition({ x, y });
-                
-                setShowMarkdownMenu(true);
-            }}
-            // 🛡️ Долгое нажатие на телефоне -> умное меню
-            onPointerDown={(e) => {
-                if (isSecret) return;
-                const taLongPressTimer = setTimeout(() => {
-                    const ta = e.currentTarget as HTMLTextAreaElement;
-                    setSelectionStart(ta.selectionStart);
-                    setSelectionEnd(ta.selectionEnd);
-                    
-                    // Расчёт безопасной позиции
-                    const MENU_W = 240, MENU_H = 44, PAD = 12;
-                    let x = e.clientX, y = e.clientY;
-                    if (x + MENU_W > window.innerWidth - PAD) x = window.innerWidth - MENU_W - PAD;
-                    if (y + MENU_H > window.innerHeight - PAD) y = window.innerHeight - MENU_H - PAD;
-                    if (x < PAD) x = PAD;
-                    if (y < PAD) y = PAD;
-                    setMenuPosition({ x, y });
-                    
-                    setShowMarkdownMenu(true);
-                    if (navigator.vibrate) navigator.vibrate(30);
-                }, 500);
-                (e.currentTarget as any)._mdTimer = taLongPressTimer;
-            }}
+              // 🛡️ ПКМ на ПК -> умное меню (НЕ УЛЕТАЕТ ЗА ЭКРАН)
+// 🛡️ ПКМ на ПК -> просто передаем реальные координаты, компонент сам всё рассчитает
+onContextMenu={(e) => {
+  if (isSecret) return;
+  e.preventDefault();
+  const ta = e.currentTarget;
+  setSelectionStart(ta.selectionStart);
+  setSelectionEnd(ta.selectionEnd);
+  
+  setMenuPosition({ x: e.clientX, y: e.clientY });
+  setShowMarkdownMenu(true);
+}}
+
+// 🛡️ Долгое нажатие на телефоне -> просто передаем реальные координаты
+onPointerDown={(e) => {
+  if (isSecret) return;
+  const taLongPressTimer = setTimeout(() => {
+    const ta = e.currentTarget as HTMLTextAreaElement;
+    setSelectionStart(ta.selectionStart);
+    setSelectionEnd(ta.selectionEnd);
+    
+    setMenuPosition({ x: e.clientX, y: e.clientY });
+    setShowMarkdownMenu(true);
+    if (navigator.vibrate) navigator.vibrate(30);
+  }, 500);
+  (e.currentTarget as any)._mdTimer = taLongPressTimer;
+}}
             onPointerUp={(e) => {
                 const ta = e.currentTarget as any;
                 if (ta._mdTimer) { clearTimeout(ta._mdTimer); ta._mdTimer = null; }

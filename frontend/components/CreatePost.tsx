@@ -270,67 +270,51 @@ export function CreatePost() {
       <div className="flex gap-3">
         <Avatar src={user?.avatar_url} name={user?.display_name || "?"} id={user?.id} />
         <div className="flex-1">
-        {/* Чисто символьная подсказка без фона и хуйни */}
-        <div className="px-1 py-1 text-[11px] text-white/40 select-none pointer-events-none mb-1">
-          Markdown: **жирный** *курсив* `код` ||спойлер|| [ссылка](url)
-        </div>
 
         <div className="rounded-xl border border-white/15 bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] focus-within:bg-white/10 transition-all">
-          <textarea
-            ref={textareaRef}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Что нового?"
-            rows={3}
-            className="w-full resize-none bg-transparent text-white placeholder-white/40 p-3 focus:outline-none"
-            // 🛡️ ПКМ на ПК -> умное меню (не уезжает за экран)
-            onContextMenu={(e) => {
-              e.preventDefault();
-              const ta = e.currentTarget;
-              setSelectionStart(ta.selectionStart);
-              setSelectionEnd(ta.selectionEnd);
-              
-              // Расчёт безопасной позиции
-              const MENU_W = 240, MENU_H = 44, PAD = 12;
-              let x = e.clientX, y = e.clientY;
-              if (x + MENU_W > window.innerWidth - PAD) x = window.innerWidth - MENU_W - PAD;
-              if (y + MENU_H > window.innerHeight - PAD) y = window.innerHeight - MENU_H - PAD;
-              if (x < PAD) x = PAD;
-              if (y < PAD) y = PAD;
-              setMenuPosition({ x, y });
-              
-              setShowMarkdownMenu(true);
-            }}
-            // 🛡️ Долгое нажатие на телефоне -> умное меню
-            onPointerDown={(e) => {
-              const taLongPressTimer = setTimeout(() => {
-                const ta = e.currentTarget as HTMLTextAreaElement;
-                setSelectionStart(ta.selectionStart);
-                setSelectionEnd(ta.selectionEnd);
-                
-                // Расчёт безопасной позиции
-                const MENU_W = 240, MENU_H = 44, PAD = 12;
-                let x = e.clientX, y = e.clientY;
-                if (x + MENU_W > window.innerWidth - PAD) x = window.innerWidth - MENU_W - PAD;
-                if (y + MENU_H > window.innerHeight - PAD) y = window.innerHeight - MENU_H - PAD;
-                if (x < PAD) x = PAD;
-                if (y < PAD) y = PAD;
-                setMenuPosition({ x, y });
-                
-                setShowMarkdownMenu(true);
-                if (navigator.vibrate) navigator.vibrate(30);
-              }, 500);
-              (e.currentTarget as any)._mdTimer = taLongPressTimer;
-            }}
-            onPointerUp={(e) => {
-              const ta = e.currentTarget as any;
-              if (ta._mdTimer) { clearTimeout(ta._mdTimer); ta._mdTimer = null; }
-            }}
-            onPointerLeave={(e) => {
-              const ta = e.currentTarget as any;
-              if (ta._mdTimer) { clearTimeout(ta._mdTimer); ta._mdTimer = null; }
-            }}
-          />
+
+<textarea
+  ref={textareaRef}
+  value={text}
+  onChange={(e) => setText(e.target.value)}
+  placeholder="Что нового?"
+  rows={3}
+  className="w-full resize-none bg-transparent text-white placeholder-white/40 p-3 focus:outline-none"
+  
+  // 🛡️ ПКМ на ПК -> просто передаем координаты (без проверок isSecret)
+  onContextMenu={(e) => {
+    e.preventDefault();
+    const ta = e.currentTarget;
+    setSelectionStart(ta.selectionStart);
+    setSelectionEnd(ta.selectionEnd);
+    setMenuPosition({ x: e.clientX, y: e.clientY });
+    setShowMarkdownMenu(true);
+  }}
+  
+  // 🛡️ Долгое нажатие на телефоне -> просто передаем координаты
+  onPointerDown={(e) => {
+    const taLongPressTimer = setTimeout(() => {
+      const ta = e.currentTarget as HTMLTextAreaElement;
+      setSelectionStart(ta.selectionStart);
+      setSelectionEnd(ta.selectionEnd);
+      setMenuPosition({ x: e.clientX, y: e.clientY });
+      setShowMarkdownMenu(true);
+      if (navigator.vibrate) navigator.vibrate(30);
+    }, 500);
+    (e.currentTarget as any)._mdTimer = taLongPressTimer;
+  }}
+  
+  onPointerUp={(e) => {
+    const ta = e.currentTarget as any;
+    if (ta._mdTimer) { clearTimeout(ta._mdTimer); ta._mdTimer = null; }
+  }}
+  
+  onPointerLeave={(e) => {
+    const ta = e.currentTarget as any;
+    if (ta._mdTimer) { clearTimeout(ta._mdTimer); ta._mdTimer = null; }
+  }}
+/>
+
         </div>
 
         {/* 🆕 САМО КОНТЕКСТНОЕ МЕНЮ ФОРМАТИРОВАНИЯ */}

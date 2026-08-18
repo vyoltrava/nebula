@@ -20,14 +20,40 @@ export function MarkdownContextMenu({ x, y, onClose, onAction }: MarkdownContext
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    // Также закрываем при скролле, чтобы меню не "улетало" от текста
+    window.addEventListener("scroll", onClose, true);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", onClose, true);
+    };
   }, [onClose]);
 
-  // Позиционирование: не выходим за пределы экрана
-  const menuWidth = 200;
-  const menuHeight = 240;
-  const adjustedX = Math.min(x, window.innerWidth - menuWidth - 10);
-  const adjustedY = Math.min(y, window.innerHeight - menuHeight - 10);
+  // 🛡️ ЖЕЛЕЗОБЕТОННЫЙ РАСЧЁТ ПОЗИЦИИ
+  // Берём размеры с запасом, чтобы точно не вылезло
+  const MENU_W = 240;
+  const MENU_H = 320; // С большим запасом на все отступы и кнопки
+  const PAD = 16;
+
+  let finalX = x;
+  let finalY = y;
+
+  // 1. Не даем уйти за правый край
+  if (finalX + MENU_W > window.innerWidth - PAD) {
+    finalX = window.innerWidth - MENU_W - PAD;
+  }
+  // 2. Не даем уйти за левый край
+  if (finalX < PAD) {
+    finalX = PAD;
+  }
+
+  // 3. ГЛАВНОЕ: Если снизу не влезает, показываем меню НАД точкой клика, а не под ней
+  if (finalY + MENU_H > window.innerHeight - PAD) {
+    finalY = y - MENU_H;
+  }
+  // 4. Если и сверху не влезает (очень маленький экран), прижимаем к верху
+  if (finalY < PAD) {
+    finalY = PAD;
+  }
 
   const buttons = [
     { icon: Bold, label: "Жирный", action: "bold" as const, shortcut: "Ctrl+B" },
@@ -45,8 +71,8 @@ export function MarkdownContextMenu({ x, y, onClose, onAction }: MarkdownContext
       {/* Меню */}
       <div
         ref={menuRef}
-        className="fixed z-[301] bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] animate-in fade-in zoom-in-95 duration-150"
-        style={{ left: adjustedX, top: adjustedY }}
+        className="fixed z-[301] bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[200px] animate-in fade-in zoom-in-95 duration-150"
+        style={{ left: finalX, top: finalY }}
       >
         {/* Заголовок */}
         <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between">
