@@ -40,6 +40,7 @@ from routers.themes import router as themes_router
 from routers.updates import router as updates_router
 from routers.users import router as users_router
 from routers import prism
+from routers import auth_router
 
 # 4. Создаём приложение
 app = FastAPI(title="Nebula API")
@@ -113,7 +114,8 @@ app.include_router(support_router)
 app.include_router(themes_router)
 app.include_router(updates_router)
 app.include_router(users_router)
-app.include_router(prism.router)  # ← ТОЛЬКО ОДИН РАЗ!
+app.include_router(prism.router)  
+# ← ТОЛЬКО ОДИН РАЗ!
 
 # 9. Функция обновления last_seen (для WebSocket)
 def _update_last_seen_sync(user_id: int):
