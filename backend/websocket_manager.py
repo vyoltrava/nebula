@@ -133,6 +133,9 @@ class ConnectionManager:
 
         user_ids = await run_in_threadpool(get_chat_member_ids)
 
+        print(f"🚀 [WS BACKEND] Пытаюсь отправить '{event}' в чат {chat_id}. Участники: {user_ids}")
+
+
         await self.broadcast_to_users(user_ids, event, data)
 
     async def broadcast_to_followers(
