@@ -1429,3 +1429,29 @@ def get_reply_preview(session: Session, reply_to_id: int):
         "text": preview_text[:120],
         "media_type": original.media_type,
     }
+
+
+def _track_view_sync(post_id: int, viewer_hash: str):
+    """Синхронная функция для обновления views (выполняется в фоне)"""
+    from sqlmodel import Session, select
+    from datetime import datetime, timezone, timedelta
+    from models import PostView, Post
+    from database import engine
+    
+    with Session(engine) as session:
+        post = session.get(Post, post_id)
+        if not post:
+            return
+        yesterday = datetime.now(timezone.utc) - timedelta(hours=24)
+        existing = session.exec(
+            select(PostView).where(
+                PostView.post_id == post_id,
+                PostView.viewer_hash == viewer_hash,
+                PostView.viewed_at > yesterday
+            )
+        ).first()
+        if not existing:
+            session.add(PostView(post_id=post_id, viewer_hash=viewer_hash))
+            post.views_count = (post.views_count or 0) + 1
+            session.add(post)
+            session.commit()
