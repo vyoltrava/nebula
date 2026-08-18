@@ -119,7 +119,10 @@ export default function ChatPage() {
   const [stickerPacks, setStickerPacks] = useState<any[]>([]);
   const [reactionPickerFor, setReactionPickerFor] = useState<number | null>(null);
   // 🆕 Long press для открытия реакций
-  const [longPressMenu, setLongPressMenu] = useState<{msgId: number, x: number, y: number} | null>(null);
+  const [longPressMenu, setLongPressMenu] = useState<{
+    msgId: number, x: number, y: number,
+    msgTop?: number, msgBottom?: number, msgLeft?: number, msgRight?: number
+} | null>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isLongPressRef = useRef(false);
   const [activePackTab, setActivePackTab] = useState<number>(0);
@@ -2253,16 +2256,22 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
                         // 🆕 Long press для открытия меню реакций
                         onPointerDown={(e) => {
                             if (isSelectMode || isSecret) return;
-                            e.preventDefault(); // ⬅️ Блокируем системное меню телефона
                             longPressTimerRef.current = setTimeout(() => {
-                            isLongPressRef.current = true;
-                            setLongPressMenu({
-                              msgId: msg.id,
-                              x: e.clientX,
-                              y: e.clientY
-                            });
-                            if (navigator.vibrate) navigator.vibrate(50);
-                          }, 500);
+                                isLongPressRef.current = true;
+                                // 🎯 Получаем позицию самого сообщения
+                                const msgEl = document.getElementById(`msg-${msg.id}`);
+                                const rect = msgEl?.getBoundingClientRect();
+                                setLongPressMenu({
+                                    msgId: msg.id,
+                                    x: e.clientX,
+                                    y: e.clientY,
+                                    msgTop: rect?.top,
+                                    msgBottom: rect?.bottom,
+                                    msgLeft: rect?.left,
+                                    msgRight: rect?.right,
+                                });
+                                if (navigator.vibrate) navigator.vibrate(50);
+                            }, 500);
                         }}
                         onPointerUp={() => {
                           if (longPressTimerRef.current) {
@@ -3180,137 +3189,74 @@ style={{
         )}
 
 {/* 🆕 СОЧНОЕ МЕНЮ ПО LONG PRESS */}
-{longPressMenu && (
-  <>
-    {/* Плотное размытие фона */}
-    <div
-      className="fixed inset-0 z-[250] bg-black/60 backdrop-blur-[4px] animate-in fade-in duration-200"
-      onClick={() => setLongPressMenu(null)}
-    />
-    {/* Само меню с glassmorphism */}
-<div 
-className="fixed z-[251] bg-[#1c1c1e]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-2 flex items-center gap-1 animate-in zoom-in-95 fade-in duration-200"
-    >
-      {['❤️', '👍', '🔥', '😂', '😮'].map((emoji, i) => (
-        <button
-          key={emoji}
-          onClick={() => {
-            toggleReaction(longPressMenu.msgId, undefined, emoji);
-            setLongPressMenu(null);
-          }}
-          className="text-2xl p-2 rounded-full hover:bg-white/10 active:scale-110 transition-all duration-150"
-          style={{ animationDelay: `${i * 30}ms` }}
-        >
-          {emoji}
-        </button>
-      ))}
-      <div className="w-px h-10 bg-white/10 mx-1" />
-      <button
-        onClick={() => {
-          setReactionPickerFor(longPressMenu.msgId);
-          setLongPressMenu(null);
-        }}
-        className="w-12 h-12 flex items-center justify-center rounded-full bg-white/5 hover:bg-[#8b5cf6]/20 hover:text-[#8b5cf6] active:scale-90 transition-all text-white/70"
-      >
-        <SmilePlus size={22} />
-      </button>
-    </div>
-  </>
-)}
-
-
-
-{showReactionPicker && (
-<>
-  {/* Затемнение фона */}
-  <div 
-    className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" 
-    onClick={() => setShowReactionPicker(false)} 
-  />
-  
-  {/* Окно по центру экрана */}
-  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-    <div 
-      className="w-full max-w-sm max-h-[80vh] bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 pointer-events-auto"
-      onClick={(e) => e.stopPropagation()}
-    >
-      {/* Шапка */}
-      <div className="p-4 border-b border-white/10 flex items-center justify-between shrink-0">
-        <p className="text-sm font-bold text-white">Быстрая реакция (двойной тап)</p>
-        <button onClick={() => setShowReactionPicker(false)} className="text-white/40 hover:text-white p-1">
-          <X size={18} />
-        </button>
-      </div>
-      
-      {/* Список реакций по пакам */}
-      <div className="flex-1 overflow-y-auto p-3">
-        {stickerPacks.length === 0 ? (
-          <p className="text-center text-white/40 text-xs py-6">Нет доступных паков</p>
-        ) : (
-          stickerPacks.map((pack) => {
-            const userLevel = currentUser?.level ?? 0;
-            const isLocked = (pack.min_level || 0) > userLevel;
-            return (
-              <div key={pack.id} className="mb-4">
-                <div className="flex items-center gap-1.5 px-1 mb-2">
-                  {isLocked && <Lock size={10} className="text-yellow-400" />}
-                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLocked ? 'text-white/30' : 'text-white/60'}`}>
-                    {pack.name}
-                    {isLocked && <span className="ml-1 text-yellow-400/70 normal-case">· ур. {pack.min_level}</span>}
-                  </span>
-                </div>
-                <div className="grid grid-cols-6 gap-1.5">
-                  {pack.stickers?.map((s: any) => {
-                    const isSelected = quickReaction?.content === s.content && quickReaction?.type === s.type;
-                    return (
-                      <button
-                        key={s.id}
-                        disabled={isLocked}
+{longPressMenu && (() => {
+    // 📐 Вычисляем позицию меню относительно сообщения
+    const MENU_WIDTH = 280;
+    const MENU_HEIGHT = 56;
+    const GAP = 8;
+    const msgWidth = (longPressMenu.msgRight ?? 0) - (longPressMenu.msgLeft ?? 0);
+    const msgCenterX = (longPressMenu.msgLeft ?? 0) + msgWidth / 2;
+    
+    // Центрируем меню по горизонтали относительно сообщения
+    const rawLeft = msgCenterX - MENU_WIDTH / 2;
+    const left = Math.max(12, Math.min(rawLeft, window.innerWidth - MENU_WIDTH - 12));
+    
+    // Если сообщение в верхней половине экрана — меню снизу, иначе сверху
+    const isTopHalf = (longPressMenu.msgBottom ?? 0) < window.innerHeight / 2;
+    const rawTop = isTopHalf 
+        ? (longPressMenu.msgBottom ?? 0) + GAP 
+        : (longPressMenu.msgTop ?? 0) - MENU_HEIGHT - GAP;
+    const top = Math.max(12, rawTop);
+    
+    return (
+        <>
+            {/* Фон */}
+            <div
+                className="fixed inset-0 z-[250] bg-black/40 backdrop-blur-[2px]"
+                onClick={() => setLongPressMenu(null)}
+            />
+            {/* Меню реакций */}
+            <div
+                className="fixed z-[251] bg-[#1c1c1e]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-2 flex items-center gap-1"
+                style={{
+                    left,
+                    top,
+                    width: 'fit-content',
+                    maxWidth: '90vw',
+                    animation: 'popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                }}
+            >
+                {['❤️', '', '🔥', '😂', '😮'].map((emoji, i) => (
+                    <button
+                        key={emoji}
                         onClick={() => {
-                          if (isLocked) return;
-                          saveQuickReaction({
-                            type: s.type,
-                            content: s.content,
-                            stickerId: s.type === 'sticker' ? s.id : undefined
-                          });
+                            toggleReaction(longPressMenu.msgId, undefined, emoji);
+                            setLongPressMenu(null);
                         }}
-                        className={`aspect-square flex items-center justify-center rounded-lg transition-all relative ${
-                          isLocked
-                            ? 'opacity-30 grayscale cursor-not-allowed'
-                            : isSelected
-                              ? 'bg-[#8b5cf6]/30 ring-1 ring-[#8b5cf6] scale-110'
-                              : 'hover:bg-white/10 active:scale-90'
-                        }`}
-                        title={isLocked ? `Доступно с ${pack.min_level} уровня` : undefined}
-                      >
-                        {s.type === 'emoji' ? (
-                          <span className="text-xl">{s.content}</span>
-                        ) : (
-                          <img src={s.content} alt="" className="w-7 h-7 object-contain" />
-                        )}
-                        {isLocked && (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <Lock size={12} className="text-yellow-400 drop-shadow-md" />
-                          </div>
-                        )}
-                        {isSelected && !isLocked && (
-                          <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#8b5cf6] flex items-center justify-center">
-                            <Check size={10} className="text-white" />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
-  </div>
-</>
-)}
+                        className="text-2xl p-2 rounded-full hover:bg-white/10 active:scale-110 transition-all"
+                        style={{
+                            animation: `popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards`,
+                            animationDelay: `${i * 30}ms`
+                        }}
+                    >
+                        {emoji}
+                    </button>
+                ))}
+                <div className="w-px h-8 bg-white/10 mx-0.5" />
+                <button
+                    onClick={() => {
+                        setReactionPickerFor(longPressMenu.msgId);
+                        setLongPressMenu(null);
+                    }}
+                    className="w-9 h-9 flex items-center justify-center rounded-full bg-white/5 hover:bg-[#8b5cf6]/20 hover:text-[#8b5cf6] active:scale-90 transition-all text-white/70"
+                    style={{ animation: 'popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards', animationDelay: '180ms' }}
+                >
+                    <SmilePlus size={16} />
+                </button>
+            </div>
+        </>
+    );
+})()}
 
       </main>
 
