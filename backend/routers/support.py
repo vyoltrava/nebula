@@ -1,3 +1,4 @@
+from dependencies import ALLOWED_IMAGE_EXT, get_current_user, has_permission, limiter, require_staff, user_out
 # app_split/routers/support.py
 # Сгенерировано автоматически. Проверь импорты!
 

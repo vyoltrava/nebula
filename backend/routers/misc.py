@@ -1,3 +1,4 @@
+from dependencies import get_author_role, get_current_user, get_user_level, has_permission, require_admin, require_staff
 # app_split/routers/misc.py
 # Сгенерировано автоматически. Проверь импорты!
 

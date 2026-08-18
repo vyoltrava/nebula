@@ -1,3 +1,4 @@
+from dependencies import get_user_level, has_permission, invalidate_role_cache, max_level_for, require_staff
 # app_split/routers/permissions.py
 # Сгенерировано автоматически. Проверь импорты!
 

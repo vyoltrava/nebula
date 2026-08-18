@@ -1,3 +1,4 @@
+from dependencies import get_author_role, get_optional_user, limiter, user_out
 # app_split/routers/search.py
 # Сгенерировано автоматически. Проверь импорты!
 

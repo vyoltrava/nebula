@@ -1,3 +1,4 @@
+from dependencies import cascade_delete_post, check_sanction_rights, get_client_ip, get_current_user, has_permission, limiter, log_action, require_staff, user_out
 # app_split/routers/reports.py
 # Сгенерировано автоматически. Проверь импорты!
 

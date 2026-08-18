@@ -1,3 +1,4 @@
+from dependencies import cascade_delete_post, check_hierarchy_or_403, check_sanction_rights, extract_cloudinary_public_id, get_client_ip, get_current_user, has_permission, hash_password, log_action, protect_system_account, require_admin, require_staff, user_out
 # app_split/routers/admin.py
 # Сгенерировано автоматически. Проверь импорты!
 

@@ -1,3 +1,4 @@
+from dependencies import get_current_user, get_optional_user, limiter, require_announcer, user_out
 # app_split/routers/updates.py
 # Сгенерировано автоматически. Проверь импорты!
 

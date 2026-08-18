@@ -1,3 +1,4 @@
+from dependencies import LoginIn, RegisterIn, check_password, create_token, ensure_user_has_keys, get_client_ip, get_current_user, hash_password, limiter, log_action, user_out
 # app_split/routers/auth.py
 # Сгенерировано автоматически. Проверь импорты!
 

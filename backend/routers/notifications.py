@@ -1,3 +1,4 @@
+from dependencies import get_current_user, user_out
 # app_split/routers/notifications.py
 # Сгенерировано автоматически. Проверь импорты!
 
