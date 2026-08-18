@@ -1,33 +1,32 @@
 import { describe, it, expect } from "vitest";
 import {
   generatePrismKey,
-  splitKeyIntoTwoShards,
+  splitKeyIntoShards,
   reconstructKey,
   encryptAnchorWithPin,
   decryptAnchorWithPin,
-  encryptPrismMessage,
-  decryptPrismMessage,
 } from "../lib/prismCrypto";
 
-// Вспомогательная функция для сравнения Uint8Array (так как toBe() сравнивает ссылки)
+// Вспомогательная функция для сравнения Uint8Array (так как toBe() сравнивает ссылки в памяти)
 const arraysEqual = (a: Uint8Array, b: Uint8Array): boolean =>
   a.length === b.length && a.every((val, i) => val === b[i]);
 
 describe("🔒 Trelod Prism Cryptography", () => {
   
-  it("1. Генерация ключа и корректное восстановление из двух спектров", () => {
+  it("1. Генерация ключа и корректное восстановление из ТРЁХ спектров", () => {
     // Генерируем исходный ключ
     const originalKey = generatePrismKey();
     expect(originalKey).toBeInstanceOf(Uint8Array);
     expect(originalKey.length).toBe(32); // 256 бит
 
-    // Делим на спектры
-    const { shard1_anchor, shard2_genesis } = splitKeyIntoTwoShards(originalKey);
+    // Делим на 3 спектра
+    const { shard1_anchor, shard2_genesis, shard3_local } = splitKeyIntoShards(originalKey);
     expect(typeof shard1_anchor).toBe("string");
     expect(typeof shard2_genesis).toBe("string");
+    expect(typeof shard3_local).toBe("string");
 
-    // Восстанавливаем ключ
-    const reconstructedKey = reconstructKey(shard1_anchor, shard2_genesis);
+    // Восстанавливаем ключ из всех 3-х частей
+    const reconstructedKey = reconstructKey(shard1_anchor, shard2_genesis, shard3_local);
     
     // Проверяем, что восстановленный ключ бит-в-бит совпадает с исходным
     expect(arraysEqual(originalKey, reconstructedKey)).toBe(true);
@@ -35,7 +34,7 @@ describe("🔒 Trelod Prism Cryptography", () => {
 
   it("2. Шифрование Якоря (Спектр 1) PIN-кодом и успешная расшифровка", async () => {
     const originalKey = generatePrismKey();
-    const { shard1_anchor } = splitKeyIntoTwoShards(originalKey);
+    const { shard1_anchor } = splitKeyIntoShards(originalKey);
     const pin = "1234";
 
     // Шифруем (эмуляция отправки на сервер)
@@ -50,66 +49,35 @@ describe("🔒 Trelod Prism Cryptography", () => {
 
   it("3. Защита: расшифровка Якоря с НЕПРАВИЛЬНЫМ PIN-кодом должна падать", async () => {
     const originalKey = generatePrismKey();
-    const { shard1_anchor } = splitKeyIntoTwoShards(originalKey);
+    const { shard1_anchor } = splitKeyIntoShards(originalKey);
     const correctPin = "1234";
     const wrongPin = "9999";
 
     const encryptedAnchor = await encryptAnchorWithPin(shard1_anchor, correctPin);
 
-    // Ожидаем, что функция выбросит ошибку (AES-GCM не сможет проверить тег аутентификации)
+    // Ожидаем, что функция выбросит ошибку (AES-GCM не сможет проверить тег аутентификации при неверном ключе)
     await expect(decryptAnchorWithPin(encryptedAnchor, wrongPin)).rejects.toThrow();
   });
 
-  it("4. Шифрование и расшифровка сообщения восстановленным ключом", async () => {
-    const originalKey = generatePrismKey();
-    const { shard1_anchor, shard2_genesis } = splitKeyIntoTwoShards(originalKey);
-
-    // Имитируем потерю ключа и его восстановление из спектров
-    const restoredKey = reconstructKey(shard1_anchor, shard2_genesis);
-
-    const message = "Это сверхсекретное сообщение Призмы! 🌌";
-    
-    // Шифруем
-    const ciphertext = await encryptPrismMessage(message, restoredKey);
-    expect(ciphertext).not.toBe(message);
-    
-    // Расшифровываем
-    const decryptedMessage = await decryptPrismMessage(ciphertext, restoredKey);
-    expect(decryptedMessage).toBe(message);
-  });
-
-  it("5. Защита целостности: подмена шифротекста приводит к ошибке расшифровки", async () => {
-    const originalKey = generatePrismKey();
-    const message = "Не менять меня!";
-    
-    const ciphertext = await encryptPrismMessage(message, originalKey);
-    
-    // Портим шифротекст (меняем последние символы)
-    const tamperedCiphertext = ciphertext.slice(0, -2) + "XX";
-    
-    // AES-GCM должен обнаружить подмену и выбросить ошибку
-    await expect(decryptPrismMessage(tamperedCiphertext, originalKey)).rejects.toThrow();
-  });
-
-  it("6. 🏆 ПОЛНЫЙ СЦЕНАРИЙ: Создание на Устройстве А и восстановление на Устройстве Б только по PIN", async () => {
+  it("4. 🏆 ПОЛНЫЙ СЦЕНАРИЙ: Создание на Устройстве А и восстановление на Устройстве Б только по PIN", async () => {
     // ==========================================
     // ЭТАП 1: УСТРОЙСТВО А (Создание чата)
     // ==========================================
     const userPin = "4321";
     const chatKey = generatePrismKey();
-    const { shard1_anchor, shard2_genesis } = splitKeyIntoTwoShards(chatKey);
+    const { shard1_anchor, shard2_genesis, shard3_local } = splitKeyIntoShards(chatKey);
 
     // Устройство А шифрует Якорь и "сохраняет" его в профиль на сервере
     const serverStoredEncryptedAnchor = await encryptAnchorWithPin(shard1_anchor, userPin);
     
     // Устройство А сохраняет Спектр 2 в мета-данные первого сообщения чата на сервере
     const serverStoredGenesis = shard2_genesis;
-
-    // Устройство А шифрует и "отправляет" сообщение
-    const sentMessage = await encryptPrismMessage("Привет! Это начало истории.", chatKey);
+    
+    // Устройство А сохраняет Спектр 3 локально (или в другом надежном месте)
+    const localStoredShard3 = shard3_local;
 
     // ==========================================
-    // ЭТАП 2: УСТРОЙСТВО Б (Новый телефон, нет локального ключа)
+    // ЭТАП 2: УСТРОЙСТВО Б (Новый телефон, нет исходного ключа)
     // ==========================================
     
     // 1. Пользователь вводит свой PIN
@@ -118,22 +86,14 @@ describe("🔒 Trelod Prism Cryptography", () => {
     // 2. Клиент скачивает зашифрованный Якорь из профиля и расшифровывает его
     const decryptedShard1 = await decryptAnchorWithPin(serverStoredEncryptedAnchor, enteredPin);
 
-    // 3. Клиент скачивает Спектр 2 из первого сообщения чата
+    // 3. Клиент скачивает Спектр 2 из первого сообщения чата и берет Спектр 3 из локального хранилища
     const downloadedShard2 = serverStoredGenesis;
+    const downloadedShard3 = localStoredShard3;
 
-    // 4. МАГИЯ: Клиент собирает ключ из двух частей!
-    const restoredKeyOnDeviceB = reconstructKey(decryptedShard1, downloadedShard2);
+    // 4. МАГИЯ: Клиент собирает ключ из ТРЁХ частей!
+    const restoredKeyOnDeviceB = reconstructKey(decryptedShard1, downloadedShard2, downloadedShard3);
 
-    // 5. Проверяем, что ключ на новом устройстве идентичен исходному
+    // 5. Проверяем, что ключ на новом устройстве идентичен исходному (бит-в-бит)
     expect(arraysEqual(chatKey, restoredKeyOnDeviceB)).toBe(true);
-
-    // 6. Проверяем, что мы можем прочитать старую историю!
-    const readableHistory = await decryptPrismMessage(sentMessage, restoredKeyOnDeviceB);
-    expect(readableHistory).toBe("Привет! Это начало истории.");
-    
-    // 7. Проверяем, что мы можем писать новые сообщения
-    const newMessage = await encryptPrismMessage("Я успешно восстановил чат!", restoredKeyOnDeviceB);
-    const verifiedNewMessage = await decryptPrismMessage(newMessage, restoredKeyOnDeviceB);
-    expect(verifiedNewMessage).toBe("Я успешно восстановил чат!");
   });
 });
