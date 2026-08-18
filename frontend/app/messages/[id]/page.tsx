@@ -3139,32 +3139,33 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
         </div>
     )}
 
-    {/* Сам инпут */}
-    <div className={`w-full border rounded-xl overflow-hidden resize-none disabled:opacity-50 disabled:cursor-not-allowed ${
-        isSecret
-        ? "border-emerald-500/40 focus-within:border-emerald-500"
-        : "border-white/15 focus-within:border-[#8b5cf6]"
-    }`}>
-        <textarea
-            ref={textareaRef}
-            value={text}
-            onChange={handleTextChange}
-            onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            }}
-            disabled={isSecret && secretState !== "ready"}
-            placeholder={
-                isSecret
-                ? (secretState === "ready" ? "Зашифрованное сообщение..." : "Ожидание шифрования...")
-                : isGroup ? "Сообщение группе..." : "Сообщение..."
-            }
-            rows={1}
-            className="w-full bg-white/5 text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-28 sm:max-h-24 md:max-h-32 leading-snug px-3.5 sm:px-3 md:px-4 py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        />
-    </div>
+{/* Сам инпут */}
+<div className={`w-full border rounded-xl overflow-hidden resize-none disabled:opacity-50 disabled:cursor-not-allowed ${
+  isSecret
+    ? "border-emerald-500/40 focus-within:border-emerald-500"
+    : "border-white/15 focus-within:border-[#8b5cf6]"
+}`}>
+  <textarea
+    ref={textareaRef}
+    value={text}
+    onChange={handleTextChange}
+    onKeyDown={(e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    }}
+    disabled={isSecret && secretState !== "ready"}
+    placeholder={
+      isSecret
+        ? (secretState === "ready" ? "Зашифрованное сообщение..." : "Ожидание шифрования...")
+        : isGroup ? "Сообщение группе..." : "Сообщение..."
+    }
+    rows={1}
+    // ✅ ИСПРАВЛЕНО: добавлены p-0, leading-normal и box-border для устранения черных отступов
+    className="w-full bg-white/5 text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-28 sm:max-h-24 md:max-h-32 leading-normal box-border p-0 px-3.5 sm:px-3 md:px-4 py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+  />
+</div>
 
 </div>
         <div className="relative shrink-0">
