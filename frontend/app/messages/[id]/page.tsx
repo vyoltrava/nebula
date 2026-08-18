@@ -26,10 +26,9 @@ import { isPushSubscribed } from "@/lib/push";
 import { pinMessage, unpinMessage, getPinnedMessages } from "@/lib/api";
 import type { PinnedMessage } from "@/lib/types";
 import { EncryptedMediaPlayer } from "@/components/EncryptedMediaPlayer";
-import { MarkdownToolbar } from "@/components/MarkdownToolbar";
-import { useDraft } from "@/src/hooks/useDraft";
-import { MarkdownRenderer } from "@/components/MarkdownRenderer"; // Добавь в импорты
-
+import { MarkdownContextMenu } from "@/components/MarkdownContextMenu";
+import { MarkdownRenderer } from "@/components/MarkdownRenderer";
+import { useDraft } from "@/src/hooks/useDraft";;
 
 
 
@@ -127,7 +126,7 @@ export default function ChatPage() {
     msgId: number, x: number, y: number,
     msgTop?: number, msgBottom?: number, msgLeft?: number, msgRight?: number
 } | null>(null);
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
   const isLongPressRef = useRef(false);
   const [activePackTab, setActivePackTab] = useState<number>(0);
   const [stickerPanelTab, setStickerPanelTab] = useState<"emoji" | "stickers">("emoji");
@@ -145,6 +144,13 @@ export default function ChatPage() {
   y: number;
 } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // 🆕 Состояния для Markdown меню
+  const [showMarkdownMenu, setShowMarkdownMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [selectionStart, setSelectionStart] = useState(0);
+  const [selectionEnd, setSelectionEnd] = useState(0);
+  const [previewMode, setPreviewMode] = useState(false);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [chatMembers, setChatMembers] = useState<any[]>([]);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionSuggestions, setMentionSuggestions] = useState<any[]>([]);
@@ -178,6 +184,8 @@ export default function ChatPage() {
   });
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [popReaction, setPopReaction] = useState<{content: string, type: 'emoji' | 'sticker', stickerId?: number, x: number, y: number, id: number, visible: boolean} | null>(null);
+
+
 
   // 🆕 Собираем все реакции из паков (с учётом доступа)
   const allAvailableReactions = useMemo(() => {
@@ -864,6 +872,39 @@ const selectMention = (user: any) => {
         }
     }, 0);
 };
+
+function applyMarkdown(action: "bold" | "italic" | "code" | "link" | "spoiler") {
+  const textarea = textareaRef.current;
+  if (!textarea) return;
+
+  const start = selectionStart || textarea.selectionStart;
+  const end = selectionEnd || textarea.selectionEnd;
+  const selectedText = text.substring(start, end);
+
+  let before = "";
+  let after = "";
+  let placeholder = "текст";
+
+  switch (action) {
+    case "bold": before = "**"; after = "**"; placeholder = "жирный"; break;
+    case "italic": before = "*"; after = "*"; placeholder = "курсив"; break;
+    case "code": before = "`"; after = "`"; placeholder = "код"; break;
+    case "link": before = "["; after = "](https://)"; placeholder = "текст ссылки"; break;
+    case "spoiler": before = "||"; after = "||"; placeholder = "спойлер"; break;
+  }
+
+  const insertion = selectedText ? `${before}${selectedText}${after}` : `${before}${placeholder}${after}`;
+  const newText = text.substring(0, start) + insertion + text.substring(end);
+  
+  setText(newText);
+
+  setTimeout(() => {
+    textarea.focus();
+    const newCursorPos = selectedText ? start + insertion.length : start + before.length + placeholder.length;
+    textarea.setSelectionRange(newCursorPos, newCursorPos);
+  }, 0);
+}
+
 
 
   async function sendMessage() {
@@ -3057,7 +3098,7 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
           </button>
         </div>
 
-{/* 🆕 ОБЁРТКА ДЛЯ АВТОДОПОЛНЕНИЯ УПОМИНАНИЙ */}
+{/* 🆕 ОБЁРТКА ДЛЯ АВТОДОПОЛНЕНИЯ И ВВОДА С ПРЕДПРОСМОТРОМ */}
 <div className="relative flex-1">
     {/* Выпадашка упоминаний */}
     {mentionSuggestions.length > 0 && mentionQuery !== null && (
@@ -3079,32 +3120,110 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
         </div>
     )}
     
-<div className={`w-full border rounded-xl overflow-hidden resize-none disabled:opacity-50 disabled:cursor-not-allowed ${
-  isSecret
-    ? "border-emerald-500/40 focus-within:border-emerald-500"
-    : "border-white/15 focus-within:border-[#8b5cf6]"
-}`}>
-  <textarea
-    ref={textareaRef}
-    value={text}
-    onChange={handleTextChange}
-    onKeyDown={(e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-      }
-    }}
-    disabled={isSecret && secretState !== "ready"}
-    placeholder={
-      isSecret
-        ? (secretState === "ready" ? "Зашифрованное сообщение..." : "Ожидание шифрования...")
-        : isGroup ? "Сообщение группе... (Markdown: **B**, *I*, `code`, ||спойлер||)" : "Сообщение... (Markdown: **B**, *I*, `code`, ||спойлер||)"
-    }
-    rows={1}
-    className="w-full bg-white/5 text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-28 sm:max-h-24 md:max-h-32 leading-snug px-3.5 sm:px-3 md:px-4 py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-  />
-  {!isSecret && <MarkdownToolbar textareaRef={textareaRef} />}
-</div>
+    {/* 🆕 Переключатель Написать / Предпросмотр */}
+    <div className="flex items-center gap-2 mb-1.5 px-1">
+        <button
+            onClick={() => setPreviewMode(false)}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                !previewMode ? "bg-[#8b5cf6] text-white" : "text-white/50 hover:bg-white/10"
+            }`}
+        >
+            ✏️ Написать
+        </button>
+        <button
+            onClick={() => setPreviewMode(true)}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                previewMode ? "bg-[#8b5cf6] text-white" : "text-white/50 hover:bg-white/10"
+            }`}
+        >
+            👁 Предпросмотр
+        </button>
+        {!previewMode && (
+            <span className="text-[10px] text-white/30 ml-auto">
+                Выдели текст → ПКМ или удержание
+            </span>
+        )}
+    </div>
+
+    {previewMode ? (
+        /* 🆕 РЕЖИМ ПРЕДПРОСМОТРА */
+        <div className="w-full min-h-[44px] max-h-32 overflow-y-auto border border-white/15 rounded-xl p-3 bg-white/5 text-white">
+            {text.trim() ? (
+                <MarkdownRenderer text={text} isMessage={true} />
+            ) : (
+                <p className="text-white/30 text-sm italic">Начните писать, чтобы увидеть предпросмотр...</p>
+            )}
+        </div>
+    ) : (
+        /* 🆕 РЕЖИМ ВВОДА С КОНТЕКСТНЫМ МЕНЮ (вместо тулбара) */
+        <div className={`w-full border rounded-xl overflow-hidden resize-none disabled:opacity-50 disabled:cursor-not-allowed ${
+            isSecret
+                ? "border-emerald-500/40 focus-within:border-emerald-500"
+                : "border-white/15 focus-within:border-[#8b5cf6]"
+        }`}>
+            <textarea
+                ref={textareaRef}
+                value={text}
+                onChange={handleTextChange}
+                onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                }}
+                // 🆕 ПКМ на ПК -> открыть меню форматирования
+                onContextMenu={(e) => {
+                    if (isSecret) return;
+                    e.preventDefault();
+                    const ta = e.currentTarget;
+                    setSelectionStart(ta.selectionStart);
+                    setSelectionEnd(ta.selectionEnd);
+                    setMenuPosition({ x: e.clientX, y: e.clientY });
+                    setShowMarkdownMenu(true);
+                }}
+                // 🆕 Долгое нажатие на телефоне -> открыть меню форматирования
+                onPointerDown={(e) => {
+                    if (isSecret) return;
+                    const taLongPressTimer = setTimeout(() => {
+                        const ta = e.currentTarget as HTMLTextAreaElement;
+                        setSelectionStart(ta.selectionStart);
+                        setSelectionEnd(ta.selectionEnd);
+                        setMenuPosition({ x: e.clientX, y: e.clientY });
+                        setShowMarkdownMenu(true);
+                        if (navigator.vibrate) navigator.vibrate(30);
+                    }, 500);
+                    (e.currentTarget as any)._mdTimer = taLongPressTimer;
+                }}
+                onPointerUp={(e) => {
+                    const ta = e.currentTarget as any;
+                    if (ta._mdTimer) { clearTimeout(ta._mdTimer); ta._mdTimer = null; }
+                }}
+                onPointerLeave={(e) => {
+                    const ta = e.currentTarget as any;
+                    if (ta._mdTimer) { clearTimeout(ta._mdTimer); ta._mdTimer = null; }
+                }}
+                disabled={isSecret && secretState !== "ready"}
+                placeholder={
+                    isSecret
+                        ? (secretState === "ready" ? "Зашифрованное сообщение..." : "Ожидание шифрования...")
+                        : isGroup ? "Сообщение группе..." : "Сообщение..."
+                }
+                rows={1}
+                className="w-full bg-white/5 text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-28 sm:max-h-24 md:max-h-32 leading-snug px-3.5 sm:px-3 md:px-4 py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            {/* 🗑️ MarkdownToolbar отсюда удален */}
+        </div>
+    )}
+
+    {/* 🆕 САМО КОНТЕКСТНОЕ МЕНЮ ФОРМАТИРОВАНИЯ */}
+    {showMarkdownMenu && (
+        <MarkdownContextMenu
+            x={menuPosition.x}
+            y={menuPosition.y}
+            onClose={() => setShowMarkdownMenu(false)}
+            onAction={applyMarkdown}
+        />
+    )}
 </div>
         <div className="relative shrink-0">
           <button

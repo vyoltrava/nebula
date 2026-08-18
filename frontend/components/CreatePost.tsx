@@ -8,7 +8,8 @@ import { triggerFeedRefresh } from "@/lib/events";
 import { STICKERS } from "@/lib/stickers";
 import { Avatar } from "@/components/Avatar";
 import { AudioPlayer } from "@/components/AudioPlayer";
-import { MarkdownToolbar } from "@/components/MarkdownToolbar";
+import { MarkdownContextMenu } from "@/components/MarkdownContextMenu";
+import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { useDraft } from "@/src/hooks/useDraft";
 
 const MAX_RECORD_SECONDS = 180; // 3 минуты максимум
@@ -31,6 +32,14 @@ export function CreatePost() {
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
+
+  // 🆕 Состояния для Markdown меню и предпросмотра
+  const [showMarkdownMenu, setShowMarkdownMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [selectionStart, setSelectionStart] = useState(0);
+  const [selectionEnd, setSelectionEnd] = useState(0);
+  const [previewMode, setPreviewMode] = useState(false);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // 🎙️ Состояния записи
   const [recording, setRecording] = useState(false);
@@ -167,6 +176,40 @@ export function CreatePost() {
     setShowStickers(false);
   }
 
+
+  function applyMarkdown(action: "bold" | "italic" | "code" | "link" | "spoiler") {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = selectionStart || textarea.selectionStart;
+    const end = selectionEnd || textarea.selectionEnd;
+    const selectedText = text.substring(start, end);
+
+    let before = "";
+    let after = "";
+    let placeholder = "текст";
+
+    switch (action) {
+      case "bold": before = "**"; after = "**"; placeholder = "жирный"; break;
+      case "italic": before = "*"; after = "*"; placeholder = "курсив"; break;
+      case "code": before = "`"; after = "`"; placeholder = "код"; break;
+      case "link": before = "["; after = "](https://)"; placeholder = "текст ссылки"; break;
+      case "spoiler": before = "||"; after = "||"; placeholder = "спойлер"; break;
+    }
+
+    const insertion = selectedText ? `${before}${selectedText}${after}` : `${before}${placeholder}${after}`;
+    const newText = text.substring(0, start) + insertion + text.substring(end);
+    
+    setText(newText);
+
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorPos = selectedText ? start + insertion.length : start + before.length + placeholder.length;
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  }
+
+
   async function submit() {
     setError("");
     const token = getToken();
@@ -228,17 +271,83 @@ export function CreatePost() {
       <div className="flex gap-3">
         <Avatar src={user?.avatar_url} name={user?.display_name || "?"} id={user?.id} />
         <div className="flex-1">
-        <div className="rounded-xl border border-white/15 bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] focus-within:bg-white/10 transition-all">
-          <textarea
-            ref={textareaRef}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Что нового? Поддерживается Markdown: **жирный**, *курсив*, `код`, ||спойлер||"
-            rows={3}
-            className="w-full resize-none bg-transparent text-white placeholder-white/40 p-3 focus:outline-none"
-          />
-          <MarkdownToolbar textareaRef={textareaRef} />
+        {/* Переключатель Написать / Предпросмотр */}
+        <div className="flex items-center gap-2 mb-2">
+          <button
+            onClick={() => setPreviewMode(false)}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+              !previewMode ? "bg-[#8b5cf6] text-white" : "text-white/50 hover:bg-white/10"
+            }`}
+          >
+            ✏️ Написать
+          </button>
+          <button
+            onClick={() => setPreviewMode(true)}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+              previewMode ? "bg-[#8b5cf6] text-white" : "text-white/50 hover:bg-white/10"
+            }`}
+          >
+            👁 Предпросмотр
+          </button>
+          <div className="ml-auto text-[10px] text-white/30">
+            Выдели текст → ПКМ или удержание
+          </div>
         </div>
+
+        {previewMode ? (
+          <div className="rounded-xl border border-white/15 bg-white/5 p-3 min-h-[120px] max-h-96 overflow-y-auto">
+            {text.trim() ? (
+              <MarkdownRenderer text={text} />
+            ) : (
+              <p className="text-white/30 text-sm italic">Начните писать, чтобы увидеть предпросмотр...</p>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-white/15 bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] focus-within:bg-white/10 transition-all">
+            <textarea
+              ref={textareaRef}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Что нового? (выдели текст → ПКМ/удержание для форматирования)"
+              rows={3}
+              className="w-full resize-none bg-transparent text-white placeholder-white/40 p-3 focus:outline-none"
+              onContextMenu={(e) => {
+                e.preventDefault();
+                const ta = e.currentTarget;
+                setSelectionStart(ta.selectionStart);
+                setSelectionEnd(ta.selectionEnd);
+                setMenuPosition({ x: e.clientX, y: e.clientY });
+                setShowMarkdownMenu(true);
+              }}
+              onPointerDown={(e) => {
+                longPressTimerRef.current = setTimeout(() => {
+                  const ta = e.currentTarget as HTMLTextAreaElement;
+                  setSelectionStart(ta.selectionStart);
+                  setSelectionEnd(ta.selectionEnd);
+                  setMenuPosition({ x: e.clientX, y: e.clientY });
+                  setShowMarkdownMenu(true);
+                  if (navigator.vibrate) navigator.vibrate(30);
+                }, 500);
+              }}
+              onPointerUp={() => {
+                if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); longPressTimerRef.current = null; }
+              }}
+              onPointerLeave={() => {
+                if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); longPressTimerRef.current = null; }
+              }}
+            />
+          </div>
+        )}
+
+        {/* Само контекстное меню */}
+        {showMarkdownMenu && (
+          <MarkdownContextMenu
+            x={menuPosition.x}
+            y={menuPosition.y}
+            onClose={() => setShowMarkdownMenu(false)}
+            onAction={applyMarkdown}
+          />
+        )}
 
           {/* Предпросмотр медиа / аудио */}
           {preview && file && (
