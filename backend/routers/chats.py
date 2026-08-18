@@ -1,20 +1,28 @@
-from dependencies import ALGORITHM, SECRET, build_reactions_map, check_sanction_rights, ensure_user_has_keys, extract_cloudinary_public_id, extract_mentions, get_client_ip, get_current_user, get_user_level, has_permission, limiter, log_action, reaction_limit_for, user_out
-# app_split/routers/chats.py
-# Сгенерировано автоматически. Проверь импорты!
-
-from fastapi import APIRouter, Depends, HTTPException, Request, Form, File, UploadFile, Header, Query
-from sqlmodel import Session, select, delete, func
-from typing import Optional, List
+# routers/chats.py
+import json
+import os
+import uuid
+import asyncio
 from datetime import datetime, timezone
-import json, os
+from typing import Optional, List
 
-from database import get_session
-from models import *
-from dependencies import *
-from dependencies import _update_last_seen_sync
+from fastapi import APIRouter, Depends, HTTPException, Request, Form, File, UploadFile, Header, Query, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
+from sqlmodel import Session, select, delete, func, update
+from starlette.concurrency import run_in_threadpool
+import cloudinary
+
+from database import get_session, engine
+from models import *  # User, Chat, Message, ChatMember, Notification, MessageReaction, ChatSessionKey, Sticker, StickerPack
+from dependencies import (
+    ALGORITHM, SECRET, build_reactions_map, check_sanction_rights,
+    ensure_user_has_keys, extract_cloudinary_public_id, extract_mentions,
+    get_client_ip, get_current_user, get_user_level, has_permission,
+    limiter, log_action, reaction_limit_for, user_out, _update_last_seen_sync,
+    get_reply_preview, UPLOAD_FOLDER, manager
+)
 
 router = APIRouter()
-
 
 def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
     """Возвращает данные чата, готовые для отправки на фронт"""
@@ -1425,18 +1433,21 @@ def delete_message(
         )
     ).first()
     if not member:
-        raise HTTPException(403, "Not a member of this chat")
+        raise HTTPException(403, "Не участник чата")
     
     msg = session.get(Message, message_id)
-    if not msg:
-        raise HTTPException(404, "Message not found")
-    if msg.chat_id != chat_id:
-        raise HTTPException(403, "Message not in this chat")
+    if not msg or msg.chat_id != chat_id:
+        raise HTTPException(404, "Сообщение не найдено")
+    
+    # Проверка прав на удаление
+    is_owner = msg.sender_id == user.id
     can_mod = has_permission(user, "manage_groups", session)
-    if msg.sender_id != user.id:
-        can_mod = has_permission(user, "manage_groups", session)
-        if not user.is_admin and not can_mod:
-            raise HTTPException(403, "Можно удалять только свои сообщения")
+    
+    if not is_owner and not user.is_admin and not can_mod:
+        raise HTTPException(403, "Можно удалять только свои сообщения")
+    
+    # Если удаляем чужое, проверяем иерархию
+    if not is_owner:
         sender = session.get(User, msg.sender_id)
         if sender:
             check_sanction_rights(user, sender, session, "удалять сообщения этого пользователя")
