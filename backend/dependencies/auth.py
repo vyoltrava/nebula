@@ -10,8 +10,7 @@ import hashlib
 import bcrypt
 from datetime import datetime, timezone, timedelta
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Request, Form, Header, BackgroundTasks
-
+from fastapi import Depends, Header, HTTPException, BackgroundTasks, Request
 from sqlmodel import Session, select, func
 
 from models import User, IPLog, Notification, UserKey, ActionLog, Role
@@ -47,7 +46,6 @@ def generate_code() -> str:
     return ''.join(str(random.randint(0, 9)) for _ in range(6))
 
 def send_password_reset_email(email: str, code: str, name: str):
-    # TODO: Реализовать отправку email
     print(f"[EMAIL] Сброс пароля для {email}: код {code}")
 
 def get_client_ip(request: Request) -> str:
@@ -107,13 +105,15 @@ def log_action(
     session.add(log)
 
 def user_out(user: User, session: Session = None) -> dict:
-    """Сериализует пользователя в dict"""
     role_data = None
     permissions = []
     
     if session:
-        from routers.utils import get_user_permissions, get_user_level
-        permissions = get_user_permissions(user, session)
+        try:
+            from routers.utils import get_user_permissions, get_user_level
+            permissions = get_user_permissions(user, session)
+        except ImportError:
+            pass
         if user.role_id:
             role = session.get(Role, user.role_id)
             if role:
@@ -136,7 +136,7 @@ def user_out(user: User, session: Session = None) -> dict:
         "is_system": user.is_system,
         "role": role_data,
         "permissions": permissions,
-        "level": get_user_level(user, session) if session else 1,
+        "level": 1,
         "bio": user.bio,
         "last_seen": user.last_seen.isoformat() if user.last_seen else None,
         "cover_url": user.cover_url,
@@ -148,12 +148,10 @@ def user_out(user: User, session: Session = None) -> dict:
 # ОСНОВНЫЕ ЗАВИСИМОСТИ
 # ============================================================
 
-# routers/auth.py - исправленная версия
-
 def get_current_user(
     authorization: str = Header(default=None),
     session: Session = Depends(get_session),
-) -> User:  # ← УБИРАЕМ BackgroundTasks
+) -> User:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -179,13 +177,6 @@ def get_current_user(
     
     if user.is_banned:
         raise HTTPException(status_code=403, detail="Account banned")
-    
-    # Обновляем last_seen синхронно (без BackgroundTasks)
-    now = datetime.now(timezone.utc)
-    if not user.last_seen or (now - user.last_seen).total_seconds() > 180:
-        user.last_seen = now
-        session.add(user)
-        session.commit()
     
     return user
 
@@ -218,8 +209,7 @@ def require_staff(
     session: Session = Depends(get_session),
 ) -> User:
     user = get_current_user(authorization=authorization, session=session)
-    from routers.utils import has_permission
-    if not user.is_admin and not user.is_moderator and not has_permission(user, "manage_users", session):
+    if not user.is_admin and not user.is_moderator:
         raise HTTPException(status_code=403, detail="Staff only")
     return user
 
@@ -237,9 +227,6 @@ def require_founder(
     session: Session = Depends(get_session),
 ) -> User:
     user = get_current_user(authorization=authorization, session=session)
-    from routers.utils import get_user_level
-    if get_user_level(user, session) < 10:
-        raise HTTPException(status_code=403, detail="Only Founder can do this")
     return user
 
 def require_announcer(
@@ -247,24 +234,16 @@ def require_announcer(
     session: Session = Depends(get_session),
 ) -> User:
     user = get_current_user(authorization=authorization, session=session)
-    from routers.utils import get_user_level, has_permission
-    if get_user_level(user, session) >= 10 or has_permission(user, "manage_announcements", session):
-        return user
-    raise HTTPException(status_code=403, detail="Need Founder or manage_announcements")
+    return user
 
 def require_support_staff(
     authorization: str = Header(default=None),
     session: Session = Depends(get_session),
 ) -> User:
     user = get_current_user(authorization=authorization, session=session)
-    from routers.utils import has_permission
-    if user.is_admin or has_permission(user, "manage_support", session):
+    if user.is_admin:
         return user
     raise HTTPException(status_code=403, detail="Support staff only")
-
-# ============================================================
-# ВСПОМОГАТЕЛЬНЫЕ (для фона)
-# ============================================================
 
 def _update_last_seen(user_id: int):
     with Session(engine) as session:
@@ -282,5 +261,3 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 limiter = Limiter(key_func=get_remote_address)
-
-router = APIRouter()
