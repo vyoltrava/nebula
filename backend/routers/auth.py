@@ -148,11 +148,12 @@ def user_out(user: User, session: Session = None) -> dict:
 # ОСНОВНЫЕ ЗАВИСИМОСТИ
 # ============================================================
 
+# routers/auth.py - исправленная версия
+
 def get_current_user(
     authorization: str = Header(default=None),
     session: Session = Depends(get_session),
-    background_tasks: Optional[BackgroundTasks] = None,
-) -> User:
+) -> User:  # ← УБИРАЕМ BackgroundTasks
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
     
@@ -179,10 +180,12 @@ def get_current_user(
     if user.is_banned:
         raise HTTPException(status_code=403, detail="Account banned")
     
-    if background_tasks:
-        now = datetime.now(timezone.utc)
-        if not user.last_seen or (now - user.last_seen).total_seconds() > 180:
-            background_tasks.add_task(_update_last_seen, user.id)
+    # Обновляем last_seen синхронно (без BackgroundTasks)
+    now = datetime.now(timezone.utc)
+    if not user.last_seen or (now - user.last_seen).total_seconds() > 180:
+        user.last_seen = now
+        session.add(user)
+        session.commit()
     
     return user
 
