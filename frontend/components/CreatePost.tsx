@@ -8,11 +8,13 @@ import { triggerFeedRefresh } from "@/lib/events";
 import { STICKERS } from "@/lib/stickers";
 import { Avatar } from "@/components/Avatar";
 import { AudioPlayer } from "@/components/AudioPlayer";
+import { MarkdownToolbar } from "@/components/MarkdownToolbar";
+import { useDraft } from "@/src/hooks/useDraft";
 
 const MAX_RECORD_SECONDS = 180; // 3 минуты максимум
 
 export function CreatePost() {
-  const [text, setText] = useState("");
+  const [text, setText, clearDraft] = useDraft("draft_create_post", "");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [logged, setLogged] = useState(false);
@@ -27,6 +29,7 @@ export function CreatePost() {
   const [showStickers, setShowStickers] = useState(false);
   const [error, setError] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
 
   // 🎙️ Состояния записи
@@ -201,6 +204,7 @@ export function CreatePost() {
     }
 
     setText("");
+    clearDraft();
     onFile(null);
     if (fileRef.current) fileRef.current.value = "";
     triggerFeedRefresh();
@@ -224,13 +228,17 @@ export function CreatePost() {
       <div className="flex gap-3">
         <Avatar src={user?.avatar_url} name={user?.display_name || "?"} id={user?.id} />
         <div className="flex-1">
+        <div className="rounded-xl border border-white/15 bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] focus-within:bg-white/10 transition-all">
           <textarea
+            ref={textareaRef}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Что нового?"
+            placeholder="Что нового? Поддерживается Markdown: **жирный**, *курсив*, `код`, ||спойлер||"
             rows={3}
-            className="w-full resize-none rounded-xl border border-white/15 bg-white/5 text-white placeholder-white/40 p-3 focus:outline-none focus:border-[#8b5cf6] focus:bg-white/10 transition-all"
+            className="w-full resize-none bg-transparent text-white placeholder-white/40 p-3 focus:outline-none"
           />
+          <MarkdownToolbar textareaRef={textareaRef} />
+        </div>
 
           {/* Предпросмотр медиа / аудио */}
           {preview && file && (

@@ -297,3 +297,11 @@ body {
   background: linear-gradient(100deg, transparent 25%, rgba(139, 92, 246, 0.16) 50%, transparent 75%);
   animation: skeleton-shimmer 1.3s ease-in-out infinite;
 }
+
+
+
+/* Markdown базовые стили */
+.markdown-body hr { border-color: rgba(255,255,255,0.1); margin: 1rem 0; }
+.markdown-body table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+.markdown-body th, .markdown-body td { border: 1px solid rgba(255,255,255,0.2); padding: 0.5rem; text-align: left; }
+.markdown-body th { background: rgba(255,255,255,0.05); font-weight: bold; }

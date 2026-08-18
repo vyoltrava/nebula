@@ -18,66 +18,8 @@ import { timeAgo } from "@/lib/time";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import LinkPreview from "@/components/LinkPreview";
 import { EchoModal } from "@/components/EchoModal"; // Импортируем модалку
+import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 
-function renderText(text: string) {
-  if (!text) return null;
-  const parts = text.split(/(https?:\/\/[^\s<>"]+|#[\wа-яёА-ЯЁ]+|@[\wа-яёА-ЯЁ]+|:[\w]+:)/g);
-  return parts.map((part, i) => {
-  if (part.startsWith("http://") || part.startsWith("https://")) {
-    const clean = part.replace(/[.,;:!?)]+$/, "");
-    const tail = part.slice(clean.length);
-    return (
-      <span key={i}>
-        <a
-          href={clean}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="font-semibold text-sky-300 hover:text-sky-200 underline underline-offset-2 break-all"
-        >
-          {clean}
-        </a>
-        {tail}
-      </span>
-    );
-  }
-  if (part.startsWith("#")) {
-      return (
-        <Link
-          key={i}
-          href={`/tag/${part.slice(1).toLowerCase()}`}
-          className="font-bold text-[#8b5cf6] hover:text-[#8b5cf6] underline underline-offset-2"
-        >
-          {part}
-        </Link>
-      );
-    }
-    if (part.startsWith("@")) {
-      const username = part.slice(1);
-      return (
-        <Link
-          key={i}
-          href={`/${username}`}
-          className="font-bold text-pink-400 hover:text-pink-300 underline underline-offset-2"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {part}
-        </Link>
-      );
-    }
-    if (part.startsWith(":") && part.endsWith(":")) {
-      const sticker = STICKERS.find((s) => s.code === part);
-      if (sticker) {
-        return (
-          <span key={i} className="inline-block text-3xl align-middle mx-0.5" title={sticker.label}>
-            {sticker.emoji}
-          </span>
-        );
-      }
-    }
-    return <span key={i}>{part}</span>;
-  });
-}
 
 function extractFirstUrl(text: string): string | null {
   const m = text.match(/https?:\/\/[^\s<>"]+/);
@@ -661,7 +603,7 @@ async function toggleLike() {
           
           {is_quote && (
               <>
-                <p className="mt-1 text-white/90 whitespace-pre-wrap break-words">{renderText(displayText)}</p>
+                <div className="mt-1"><MarkdownRenderer text={displayText} /></div>
                 {extractFirstUrl(displayText) && <LinkPreview url={extractFirstUrl(displayText)!} />}
               </>
             )}
@@ -677,7 +619,7 @@ async function toggleLike() {
                 </Link>
                 <span className="text-sm text-white/40">{repost_of.handle}</span>
               </div>
-              <p className="text-white/90 text-sm whitespace-pre-wrap break-words">{renderText(repost_of.text)}</p>
+              <div className="text-sm"><MarkdownRenderer text={repost_of.text} /></div>
               {repost_of.media_url && (
                 <SmartMedia 
                   src={mediaUrl(repost_of.media_url)} 
@@ -694,7 +636,7 @@ async function toggleLike() {
             <>
                 {!is_quote && (
                   <>
-                    <p className="mt-1 text-white/90 whitespace-pre-wrap break-words">{renderText(displayText)}</p>
+                    <div className="mt-1"><MarkdownRenderer text={displayText} /></div>
                     {extractFirstUrl(displayText) && <LinkPreview url={extractFirstUrl(displayText)!} />}
                   </>
                 )}
@@ -1043,7 +985,7 @@ function ReplyItem({
             <span className="font-normal text-white/40 text-xs">{reply.handle}</span>
           </div>
           
-          <p className="text-white/85 whitespace-pre-wrap break-words mt-0.5">{renderText(reply.text)}</p>
+          <div className="text-white/85 mt-0.5"><MarkdownRenderer text={reply.text} isMessage={true} /></div>
           
           <div className="flex items-center gap-3 mt-1.5 flex-wrap">
               <button

@@ -26,6 +26,9 @@ import { isPushSubscribed } from "@/lib/push";
 import { pinMessage, unpinMessage, getPinnedMessages } from "@/lib/api";
 import type { PinnedMessage } from "@/lib/types";
 import { EncryptedMediaPlayer } from "@/components/EncryptedMediaPlayer";
+import { MarkdownToolbar } from "@/components/MarkdownToolbar";
+import { useDraft } from "@/src/hooks/useDraft";
+import { MarkdownRenderer } from "@/components/MarkdownRenderer"; // Добавь в импорты
 
 
 
@@ -114,7 +117,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<any[]>([]);
   const [isSavedChat, setIsSavedChat] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(true);
-  const [text, setText] = useState("");
+  const [text, setText, clearDraft] = useDraft(`draft_chat_${chatId}`, "");
   const [files, setFiles] = useState<File[]>([]);
   const [replyTo, setReplyTo] = useState<any | null>(null); // 🆕 сообщение на которое отвечаем
   const [stickerPacks, setStickerPacks] = useState<any[]>([]);
@@ -646,68 +649,7 @@ async function sendVoiceMessage(audioFile: File) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
-function renderMessageText(text: string) {
-  if (!text) return null;
-  // 🆕 Добавлена поддержка спойлеров ||текст|| и ссылок
-  const parts = text.split(/(https?:\/\/[^\s<>"]+|\|\|.*?\|\||@\w+)/g);
-  
-  return parts.map((part, i) => {
-    // Обработка спойлера
-    if (part.startsWith('||') && part.endsWith('||')) {
-      const spoilerText = part.slice(2, -2);
-      return (
-        <span 
-          key={i} 
-          className="bg-white/20 text-transparent blur-sm hover:blur-none cursor-pointer rounded px-0.5 transition-all duration-300 select-none"
-          onClick={(e) => {
-            e.stopPropagation();
-            (e.currentTarget as HTMLElement).classList.remove('blur-sm', 'text-transparent');
-            (e.currentTarget as HTMLElement).classList.add('text-white');
-          }}
-        >
-          {spoilerText}
-        </span>
-      );
-    }
-    // Обработка ссылок (твоя старая логика)
-    if (/^https?:\/\//.test(part)) {
-      const clean = part.replace(/[.,;:!?)]+$/, "");
-      const tail = part.slice(clean.length);
-      return (
-        <span key={i}>
-          <a
-            href={clean}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-semibold text-sky-300 underline underline-offset-2 break-all"
-          >
-            {clean}
-          </a>
-          {tail}
-        </span>
-        );
-        }
 
-        // 🆕 Упоминания
-        // 🆕 Упоминания (Контрастный стиль)
-        if (part.startsWith('@')) {
-            const username = part.slice(1);
-            return (
-                <Link
-                    key={i}
-                    href={`/search?q=${username}`}
-                    className="text-black font-bold bg-white/30 hover:bg-white/40 rounded px-1.5 py-0.5 transition-all cursor-pointer underline decoration-black/30 underline-offset-2"
-                    onClick={(e) => e.stopPropagation()}
-                    title={`Перейти к профилю @${username}`}
-                >
-                    {part}
-                </Link>
-            );
-        }
-        return <span key={i}>{part}</span>;
-    });
-
-}
 function extractFirstUrl(text: string): string | null {
   const m = text.match(/https?:\/\/[^\s<>"]+/);
   return m ? m[0].replace(/[.,;:!?)]+$/, "") : null;
@@ -1102,6 +1044,7 @@ for (const msg of messagesToSend) {
       }
 
       setText("");
+      clearDraft();
       setFiles([]);
       setReplyTo(null);
       sendLiveText(""); // 🆕 гасим живой текст у собеседников
@@ -2625,9 +2568,7 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
 <>
   {displayText && (
     <>
-      <p className="whitespace-pre-wrap break-words text-[15px] sm:text-sm md:text-base leading-snug">
-        {renderMessageText(displayText)}
-      </p>
+      <MarkdownRenderer text={displayText} isMessage={true} />
       {!isSecret && extractFirstUrl(displayText) && (
         <LinkPreview url={extractFirstUrl(displayText)!} />
       )}
@@ -3138,29 +3079,32 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
         </div>
     )}
     
-    <textarea
-        ref={textareaRef}
-        value={text}
-        onChange={handleTextChange}
-        onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        }}
-        disabled={isSecret && secretState !== "ready"}
-        placeholder={
-            isSecret
-            ? (secretState === "ready" ? "Зашифрованное сообщение..." : "Ожидание шифрования...")
-            : isGroup ? "Сообщение группе..." : "Сообщение..."
-        }
-        rows={1}
-        className={`w-full border rounded-xl px-3.5 sm:px-3 md:px-4 py-2.5 sm:py-2 bg-white/5 text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-28 sm:max-h-24 md:max-h-32 leading-snug disabled:opacity-50 disabled:cursor-not-allowed ${
-            isSecret
-            ? "border-emerald-500/40 focus:border-emerald-500"
-            : "border-white/15 focus:border-[#8b5cf6]"
-        }`}
-    />
+<div className={`w-full border rounded-xl overflow-hidden resize-none disabled:opacity-50 disabled:cursor-not-allowed ${
+  isSecret
+    ? "border-emerald-500/40 focus-within:border-emerald-500"
+    : "border-white/15 focus-within:border-[#8b5cf6]"
+}`}>
+  <textarea
+    ref={textareaRef}
+    value={text}
+    onChange={handleTextChange}
+    onKeyDown={(e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    }}
+    disabled={isSecret && secretState !== "ready"}
+    placeholder={
+      isSecret
+        ? (secretState === "ready" ? "Зашифрованное сообщение..." : "Ожидание шифрования...")
+        : isGroup ? "Сообщение группе... (Markdown: **B**, *I*, `code`, ||спойлер||)" : "Сообщение... (Markdown: **B**, *I*, `code`, ||спойлер||)"
+    }
+    rows={1}
+    className="w-full bg-white/5 text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-28 sm:max-h-24 md:max-h-32 leading-snug px-3.5 sm:px-3 md:px-4 py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+  />
+  {!isSecret && <MarkdownToolbar textareaRef={textareaRef} />}
+</div>
 </div>
         <div className="relative shrink-0">
           <button
