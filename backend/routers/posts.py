@@ -546,6 +546,10 @@ async def delete_post(
         if author:
             check_sanction_rights(user, author, session, "удалять посты этого пользователя")
     await cascade_delete_post(post_id, session)
+
+    _popular_tags_cache.pop("tags", None) 
+
+
     log_action(
         session, user.id, "delete_post",
         target_type="post", target_id=post_id,
@@ -575,6 +579,8 @@ async def cancel_repost(
     # Каскадно удаляем сам репост
     cascade_delete_post(post.id, session)
     await manager.broadcast_all("post_deleted", {"post_id": post.id})
+
+    _popular_tags_cache.pop("tags", None)
     return {"ok": True}
 
 
@@ -993,10 +999,11 @@ def popular_tags(session: Session = Depends(get_session)):
         if now - cached_time < _POPULAR_TAGS_TTL:
             return cached_data
 
-    # JOIN вместо N+1
+    # ✅ JOIN с Post — считаем только теги ЖИВЫХ постов
     rows = session.exec(
         select(Tag.name, func.count(PostTag.post_id).label("cnt"))
         .join(PostTag, Tag.id == PostTag.tag_id)
+        .join(Post, PostTag.post_id == Post.id)  # 👈 ДОБАВЛЕНО: игнорит удаленные посты
         .group_by(Tag.id, Tag.name)
         .order_by(func.count(PostTag.post_id).desc())
         .limit(10)
@@ -1006,7 +1013,6 @@ def popular_tags(session: Session = Depends(get_session)):
 
     _popular_tags_cache["tags"] = (now, result)
     return result
-
 
 @router.get("/api/tags/{tag_name}/posts")
 def tag_posts(tag_name: str, session: Session = Depends(get_session)):

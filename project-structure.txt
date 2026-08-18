@@ -7,6 +7,7 @@
 │   ├── cloudinary_config.py
 │   ├── database.py
 │   ├── dependencies.py
+│   ├── fix_missing_deps.py
 │   ├── link_preview.py
 │   ├── main.py
 │   ├── main_old_backup.py

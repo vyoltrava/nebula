@@ -440,6 +440,8 @@ async def cascade_delete_post(post_id: int, session: Session):
     root_post = session.get(Post, post_id)
     if root_post:
         session.delete(root_post)
+        # ✅ Удаление связей тегов
+    session.exec(delete(PostTag).where(PostTag.post_id == post_id))
     
     session.commit()
     return len(ids_to_clean)
