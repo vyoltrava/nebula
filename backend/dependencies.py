@@ -23,6 +23,10 @@ from models import (
 from database import engine, get_session
 from fastapi.concurrency import run_in_threadpool
 import cloudinary.uploader
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
 
 # ============================================================
 # 🔑 СЕКРЕТЫ И КОНСТАНТЫ
