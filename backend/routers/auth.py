@@ -117,10 +117,15 @@ def login(request: Request, data: LoginIn, session: Session = Depends(get_sessio
 
 @router.post("/api/login/2fa")
 @limiter.limit("5/minute")
-def login_2fa(request: Request, data: Verify2FALoginIn, session: Session = Depends(get_session)):
+def login_2fa(
+    request: Request,
+    temp_token: str = Form(...),
+    code: str = Form(...),
+    session: Session = Depends(get_session),
+):
     """Второй этап логина — проверка 2FA кода по временному токену"""
     try:
-        payload = jwt.decode(data.temp_token, SECRET, algorithms=[ALGORITHM])
+        payload = jwt.decode(temp_token, SECRET, algorithms=[ALGORITHM])
         if payload.get("purpose") != "2fa_pending":
             raise HTTPException(400, "Неверный тип токена")
         
@@ -129,14 +134,14 @@ def login_2fa(request: Request, data: Verify2FALoginIn, session: Session = Depen
             raise HTTPException(400, "2FA не включена")
         
         totp = pyotp.TOTP(user.totp_secret)
-        is_valid_totp = totp.verify(data.code, valid_window=1)
+        is_valid_totp = totp.verify(code, valid_window=1)
         is_valid_backup = False
         
         # Проверка резервного кода, если TOTP не подошёл
         if not is_valid_totp and user.totp_backup_codes:
             backup_codes = json.loads(user.totp_backup_codes)
             for i, hashed in enumerate(backup_codes):
-                if check_password(data.code.upper(), hashed):
+                if check_password(code.upper(), hashed):
                     backup_codes.pop(i) # Удаляем использованный код
                     user.totp_backup_codes = json.dumps(backup_codes)
                     is_valid_backup = True
@@ -164,7 +169,6 @@ def login_2fa(request: Request, data: Verify2FALoginIn, session: Session = Depen
         raise HTTPException(401, "Время на ввод кода истекло. Войдите заново.")
     except jwt.InvalidTokenError:
         raise HTTPException(401, "Неверный или просроченный токен")
-
 
 @router.post("/api/2fa/setup")
 def setup_2fa(
