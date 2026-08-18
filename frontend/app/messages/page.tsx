@@ -332,16 +332,34 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
   const textMatches = sortedChats.length - nameMatches;
 
 
-// Поиск пользователей для Призмы
 const searchUsersForPrism = async (q: string) => {
   if (!q.trim()) { setPrismSearchResults([]); return; }
   const token = getToken();
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/search?q=${encodeURIComponent(q)}`, {
+    // ⚠️ ВАЖНО: Проверь в Network (F12), какой эндпоинт у тебя реально работает.
+    // Чаще всего это /api/users?search=... или /api/search/users?q=...
+    const url = `${process.env.NEXT_PUBLIC_API_URL}/api/users/search?q=${encodeURIComponent(q)}`;
+    
+    const res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (res.ok) setPrismSearchResults(await res.json());
-  } catch (e) { console.error(e); }
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`❌ Ошибка поиска (Status ${res.status}):`, errText);
+      setPrismSearchResults([]);
+      return;
+    }
+
+    const data = await res.json();
+    console.log("✅ Найденные пользователи для Призмы:", data); // <-- СМОТРИ СЮДА В КОНСОЛИ
+    
+    // Если бэкенд возвращает { users: [...] } или что-то подобное, поправь на data.users
+    setPrismSearchResults(Array.isArray(data) ? data : (data.users || []));
+  } catch (e) { 
+    console.error("💥 Сетевая ошибка при поиске пользователей:", e); 
+    setPrismSearchResults([]);
+  }
 };
 
 // Создание чата Призма
