@@ -15,9 +15,9 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const router = useRouter();
 
-  // 🆕 2FA STATE
+  // 🔥 ИСПРАВЛЕНО: храним temp_token, а не user_id
   const [requires2FA, setRequires2FA] = useState(false);
-  const [pendingUserId, setPendingUserId] = useState<number | null>(null);
+  const [tempToken, setTempToken] = useState<string | null>(null);
   const [twoFACode, setTwoFACode] = useState("");
   const [loading2FA, setLoading2FA] = useState(false);
 
@@ -54,10 +54,10 @@ export default function LoginPage() {
 
       const data = await res.json();
 
-      // 🆕 Если требуется 2FA — показываем форму кода
+      // 🔥 ИСПРАВЛЕНО: сохраняем temp_token, который прислал бэкенд
       if (data.requires_2fa) {
         setRequires2FA(true);
-        setPendingUserId(data.user_id);
+        setTempToken(data.temp_token); 
         return;
       }
 
@@ -70,7 +70,7 @@ export default function LoginPage() {
     }
   }
 
-  // 🆕 Обработчик отправки 2FA кода
+  // 🔥 ИСПРАВЛЕНО: отправляем temp_token, а не user_id
   async function submit2FA(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -78,12 +78,12 @@ export default function LoginPage() {
 
     try {
       const form = new FormData();
-      form.append("user_id", String(pendingUserId));
+      form.append("temp_token", tempToken!); // <-- Вот здесь была главная ошибка
       form.append("code", twoFACode);
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/login/2fa`, {
         method: "POST",
-        body: form,
+        body: form, // Отправляем как FormData, бэкенд это умеет
       });
 
       if (!res.ok) {
@@ -103,10 +103,10 @@ export default function LoginPage() {
     }
   }
 
-  // 🆕 Сброс к обычной форме логина
+  // 🔥 ИСПРАВЛЕНО: очищаем tempToken
   function cancel2FA() {
     setRequires2FA(false);
-    setPendingUserId(null);
+    setTempToken(null);
     setTwoFACode("");
     setError("");
   }
@@ -118,7 +118,6 @@ export default function LoginPage() {
           trelod
         </h1>
 
-        {/* 🆕 ФОРМА 2FA */}
         {requires2FA ? (
           <form onSubmit={submit2FA} className="flex flex-col gap-3">
             <div className="flex items-center justify-center gap-2 mb-2">
@@ -167,7 +166,6 @@ export default function LoginPage() {
             </button>
           </form>
         ) : (
-          /* 🆕 ОБЫЧНАЯ ФОРМА ЛОГИНА/РЕГИСТРАЦИИ */
           <>
             <div className="flex border border-white/15 rounded-full overflow-hidden mb-6 bg-white/5">
               <button
