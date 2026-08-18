@@ -37,6 +37,7 @@ from routers.support import router as support_router
 from routers.themes import router as themes_router
 from routers.updates import router as updates_router
 from routers.users import router as users_router
+from routers.prism import router as prism_router
 
 # 3. Инициализация приложения
 app = FastAPI(title="Nebula API")
@@ -111,6 +112,7 @@ app.include_router(support_router)
 app.include_router(themes_router)
 app.include_router(updates_router)
 app.include_router(users_router)
+app.include_router(prism_router) 
 
 
 # 9. STARTUP: Инициализация и МИГРАЦИИ (перенесено из старого main.py)
@@ -122,6 +124,13 @@ def startup():
     # Основной блок миграций
     with engine.connect() as conn:
         try:
+
+            # 🆕 ДОБАВИТЬ В БЛОК МИГРАЦИЙ В startup():
+            conn.execute(text('ALTER TABLE chat ADD COLUMN IF NOT EXISTS is_prism BOOLEAN DEFAULT FALSE;'))
+            conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS prism_anchor VARCHAR;'))
+            conn.execute(text('CREATE INDEX IF NOT EXISTS idx_chat_is_prism ON chat(is_prism);'))
+
+
             conn.execute(text('ALTER TABLE notification ADD COLUMN IF NOT EXISTS message_id INTEGER REFERENCES message(id) ON DELETE SET NULL;'))
             conn.execute(text("""CREATE TABLE IF NOT EXISTS support_message (id SERIAL PRIMARY KEY, ticket_id INTEGER NOT NULL REFERENCES supportticket(id) ON DELETE CASCADE, sender_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE, text TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW());"""))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_support_message_ticket ON support_message(ticket_id, created_at);'))

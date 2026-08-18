@@ -36,6 +36,8 @@ class User(SQLModel, table=True):
     
     cover_url: Optional[str] = None 
 
+    prism_anchor: Optional[str] = Field(default=None) 
+
 
 
 # ============================================================
@@ -124,11 +126,14 @@ class Chat(SQLModel, table=True):
     # 🆕 Групповые поля
     is_group: bool = Field(default=False)
     is_saved: bool = Field(default=False) # 🆕 Флаг избранного
+    is_prism: bool = Field(default=False)
     name: Optional[str] = Field(default=None, max_length=80)
     avatar_url: Optional[str] = None
     owner_id: Optional[int] = Field(default=None, foreign_key="user.id")
     pinned_by: Optional[int] = Field(default=None, foreign_key="user.id")
     pinned_at: Optional[datetime] = None
+
+
 
 
 class ChatMember(SQLModel, table=True):
