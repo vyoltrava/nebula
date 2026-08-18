@@ -1929,7 +1929,7 @@ const ChatHeader = () => (
 )}
   </button>
   
-  {/* Пикер реакций из паков */}
+{/* Пикер реакций из паков */}
 {showReactionPicker && (
   <>
     {/* Затемнение фона только на мобилке */}
@@ -1941,7 +1941,7 @@ const ChatHeader = () => (
     {/* Окно: на мобилке по центру, на десктопе dropdown */}
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-0 md:static md:inset-auto pointer-events-none">
       <div 
-        className="bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl w-full max-w-sm max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 pointer-events-auto md:absolute md:right-0 md:top-full md:mt-2 md:w-80 md:max-h-[70vh] md:rounded-2xl"
+        className="bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl w-full max-w-sm max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 pointer-events-auto md:absolute md:right-0 md:top-full md:mt-2 md:w-96 md:max-h-[70vh] md:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Шапка */}
