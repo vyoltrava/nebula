@@ -687,14 +687,16 @@ function renderMessageText(text: string) {
         );
         }
         // 🆕 Упоминания
+        // 🆕 Упоминания (Контрастный стиль)
         if (part.startsWith('@')) {
             const username = part.slice(1);
             return (
-                <Link 
-                    key={i} 
+                <Link
+                    key={i}
                     href={`/search?q=${username}`}
-                    className="text-[#8b5cf6] font-semibold hover:underline cursor-pointer"
+                    className="text-black font-bold bg-white/30 hover:bg-white/40 rounded px-1.5 py-0.5 transition-all cursor-pointer underline decoration-black/30 underline-offset-2"
                     onClick={(e) => e.stopPropagation()}
+                    title={`Перейти к профилю @${username}`}
                 >
                     {part}
                 </Link>
