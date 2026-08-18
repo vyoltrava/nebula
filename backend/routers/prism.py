@@ -91,3 +91,5 @@ async def update_prism_anchor(
     session.add(user)
     session.commit()
     return {"ok": True}
+
+router = APIRouter()
