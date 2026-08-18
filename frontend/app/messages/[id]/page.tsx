@@ -40,7 +40,7 @@ import {
   FileText, Film, Edit2, Trash2, MoreVertical,
   Lock, Search, ShieldCheck, AlertTriangle,
   Check, CheckCheck, CheckSquare, Mic, Square, Users, Settings,
-  Pin, PinOff, Video, Copy, SmilePlus,  Reply, Bookmark
+  Pin, PinOff, Video, Copy, SmilePlus,  Reply, Bookmark, Type
 } from "lucide-react";
 // ✅ НОВЫЕ ИМПОРТЫ:
 import {
@@ -3080,6 +3080,25 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
             )}
           </div>
 
+          {/* 🆕 КНОПКА ФОРМАТИРОВАНИЯ (Работает и на ПК, и на мобилках) */}
+<button
+  onClick={(e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    // Открываем меню чуть выше кнопки, по её центру
+    setMenuPosition({ x: rect.left + rect.width / 2, y: rect.top });
+    setShowMarkdownMenu(true);
+  }}
+  className={`p-2.5 sm:p-2 rounded-xl transition-colors min-w-[40px] sm:min-w-[36px] md:min-w-[40px] min-h-[40px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center active:scale-95 ${
+    showMarkdownMenu
+      ? "text-[#8b5cf6] bg-[#8b5cf6]/10"
+      : "text-white/60 hover:text-[#8b5cf6] hover:bg-white/5"
+  }`}
+  title="Форматирование текста"
+>
+  <Type size={19} className="sm:w-[18px] sm:h-[18px]" />
+</button>
+
+
           <button
             onClick={() => fileRef.current?.click()}
             className={`p-2.5 sm:p-2 rounded-xl transition-colors relative min-w-[40px] sm:min-w-[36px] md:min-w-[40px] min-h-[40px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center active:scale-95 ${
@@ -3096,9 +3115,11 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
             )}
           </button>
         </div>
+
+{/* 🆕 ОБЁРТКА ДЛЯ ВВОДА (БЕЗ ДУРАЦКОГО ПРЕДПРОСМОТРА) */}
 {/* 🆕 ОБЁРТКА ДЛЯ ВВОДА (БЕЗ ДУРАЦКОГО ПРЕДПРОСМОТРА) */}
 <div className="relative flex-1">
-    {/* Выпадашка упоминаний (оставляем как есть) */}
+    {/* Выпадашка упоминаний */}
     {mentionSuggestions.length > 0 && mentionQuery !== null && (
         <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
             {mentionSuggestions.map(u => (
@@ -3118,17 +3139,12 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
         </div>
     )}
 
-    {/* Сам инпут с чистой символьной подсказкой */}
+    {/* Сам инпут */}
     <div className={`w-full border rounded-xl overflow-hidden resize-none disabled:opacity-50 disabled:cursor-not-allowed ${
         isSecret
         ? "border-emerald-500/40 focus-within:border-emerald-500"
         : "border-white/15 focus-within:border-[#8b5cf6]"
     }`}>
-        {/* Чисто символьная подсказка без фона и хуйни */}
-        <div className="px-3 py-1 text-[11px] text-white/40 border-b border-white/5 select-none pointer-events-none">
-           
-        </div>
-        
         <textarea
             ref={textareaRef}
             value={text}
@@ -3138,41 +3154,6 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
                     e.preventDefault();
                     sendMessage();
                 }
-            }}
-              // 🛡️ ПКМ на ПК -> умное меню (НЕ УЛЕТАЕТ ЗА ЭКРАН)
-// 🛡️ ПКМ на ПК -> просто передаем реальные координаты, компонент сам всё рассчитает
-onContextMenu={(e) => {
-  if (isSecret) return;
-  e.preventDefault();
-  const ta = e.currentTarget;
-  setSelectionStart(ta.selectionStart);
-  setSelectionEnd(ta.selectionEnd);
-  
-  setMenuPosition({ x: e.clientX, y: e.clientY });
-  setShowMarkdownMenu(true);
-}}
-
-// 🛡️ Долгое нажатие на телефоне -> просто передаем реальные координаты
-onPointerDown={(e) => {
-  if (isSecret) return;
-  const taLongPressTimer = setTimeout(() => {
-    const ta = e.currentTarget as HTMLTextAreaElement;
-    setSelectionStart(ta.selectionStart);
-    setSelectionEnd(ta.selectionEnd);
-    
-    setMenuPosition({ x: e.clientX, y: e.clientY });
-    setShowMarkdownMenu(true);
-    if (navigator.vibrate) navigator.vibrate(30);
-  }, 500);
-  (e.currentTarget as any)._mdTimer = taLongPressTimer;
-}}
-            onPointerUp={(e) => {
-                const ta = e.currentTarget as any;
-                if (ta._mdTimer) { clearTimeout(ta._mdTimer); ta._mdTimer = null; }
-            }}
-            onPointerLeave={(e) => {
-                const ta = e.currentTarget as any;
-                if (ta._mdTimer) { clearTimeout(ta._mdTimer); ta._mdTimer = null; }
             }}
             disabled={isSecret && secretState !== "ready"}
             placeholder={
@@ -3184,8 +3165,6 @@ onPointerDown={(e) => {
             className="w-full bg-white/5 text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-28 sm:max-h-24 md:max-h-32 leading-snug px-3.5 sm:px-3 md:px-4 py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
         />
     </div>
-
-    {/* 🆕 САМО КОНТЕКСТНОЕ МЕНЮ ФОРМАТИРОВАНИЯ */}
 
 </div>
         <div className="relative shrink-0">

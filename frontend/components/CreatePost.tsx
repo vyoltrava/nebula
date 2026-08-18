@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Image as ImageIcon, Smile, Clapperboard, X, Mic, Square, Trash2 } from "lucide-react";
+import { Image as ImageIcon, Smile, Clapperboard, X, Mic, Square, Trash2, Type } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
 import { STICKERS } from "@/lib/stickers";
@@ -259,10 +259,10 @@ export function CreatePost() {
               placeholder="Что нового?"
               rows={3}
               className="w-full resize-none bg-transparent text-white placeholder-white/40 p-3 focus:outline-none"
-              // ✅ ЕДИНЫЙ НАДЁЖНЫЙ СПОСОБ: работает и на ПК (ПКМ), и на телефоне (долгое нажатие)
               onContextMenu={(e) => {
-                e.preventDefault(); // Блокируем стандартное меню браузера
-                const ta = e.currentTarget;
+                // На мобильных устройствах игнорируем, там главную роль играет кнопка Type
+                if (window.matchMedia("(pointer: coarse)").matches) return; 
+                e.preventDefault(); 
                 setMenuPosition({ x: e.clientX, y: e.clientY });
                 setShowMarkdownMenu(true);
               }}
@@ -351,6 +351,21 @@ export function CreatePost() {
                     <Mic size={20} />
                   </button>
                 )}
+                    {/* 🆕 КНОПКА ФОРМАТИРОВАНИЯ (Решение проблемы с мобилками) */}
+    <button 
+      type="button"
+      onMouseDown={(e) => e.preventDefault()} // ❗️ ВАЖНО: не дает textarea потерять фокус и курсор
+      className={`transition-colors ${showMarkdownMenu ? "text-[#8b5cf6]" : "text-white/60 hover:text-[#8b5cf6]"}`} 
+      onClick={(e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        // Открываем меню чуть выше кнопки
+        setMenuPosition({ x: rect.left + rect.width / 2, y: rect.top - 10 }); 
+        setShowMarkdownMenu(true);
+      }}
+      title="Форматирование"
+    >
+      <Type size={20} />
+    </button>
                 <button className={`transition-colors ${showStickers ? "text-[#8b5cf6]" : "text-white/60 hover:text-[#8b5cf6]"}`} onClick={() => setShowStickers(!showStickers)}>
                   <Smile size={20} />
                 </button>
