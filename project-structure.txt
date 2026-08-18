@@ -4,13 +4,17 @@
 ├── .gitignore
 ├── backend
 │   ├── cleanup.py
+│   ├── cleanup_mass_bot.py
 │   ├── cloudinary_config.py
 │   ├── database.py
 │   ├── dependencies.py
 │   ├── fix_missing_deps.py
+│   ├── generate_load.py
 │   ├── link_preview.py
+│   ├── load_test_stats.json
 │   ├── main.py
 │   ├── main_old_backup.py
+│   ├── mass_bot.py
 │   ├── models.py
 │   ├── performance.py
 │   ├── push_service.py
@@ -47,6 +51,7 @@
 │   │       ├── __init__.cpython-314.pyc
 │   │       └── __init__.py
 │   ├── sql_profiler.py
+│   ├── stress_test.py
 │   ├── test_report.json
 │   ├── uploads
 │   ├── websocket_manager.py
