@@ -3186,14 +3186,7 @@ onPointerDown={(e) => {
     </div>
 
     {/* 🆕 САМО КОНТЕКСТНОЕ МЕНЮ ФОРМАТИРОВАНИЯ */}
-    {showMarkdownMenu && (
-        <MarkdownContextMenu
-            x={menuPosition.x}
-            y={menuPosition.y}
-            onClose={() => setShowMarkdownMenu(false)}
-            onAction={applyMarkdown}
-        />
-    )}
+
 </div>
         <div className="relative shrink-0">
           <button
@@ -3439,6 +3432,21 @@ style={{
         </>
     );
 })()}
+
+
+        {showMarkdownMenu && (
+          <div className="fixed inset-0 z-[9999] pointer-events-none">
+            <div className="pointer-events-auto">
+              <MarkdownContextMenu
+                x={menuPosition.x}
+                y={menuPosition.y}
+                onClose={() => setShowMarkdownMenu(false)}
+                onAction={applyMarkdown}
+              />
+            </div>
+          </div>
+        )}
+
 
       </main>
 
