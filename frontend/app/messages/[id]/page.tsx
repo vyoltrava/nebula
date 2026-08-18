@@ -38,7 +38,7 @@ import {
   FileText, Film, Edit2, Trash2, MoreVertical,
   Lock, Search, ShieldCheck, AlertTriangle,
   Check, CheckCheck, CheckSquare, Mic, Square, Users, Settings,
-  Pin, PinOff, Video, Copy, SmilePlus,  Reply,
+  Pin, PinOff, Video, Copy, SmilePlus,  Reply, Bookmark
 } from "lucide-react";
 // ✅ НОВЫЕ ИМПОРТЫ:
 import {
@@ -815,6 +815,19 @@ async function loadChatInfo() {
         setChatPartner(data.other);
         console.log("👤 Chat partner:", data.other); // 🆕 ДОБАВЬ ЭТО
       }
+      if (res.ok) {
+    const data = await res.json();
+    console.log("📦 Chat info loaded:", data); // 🆕 для отладки
+    setChatInfo(data);
+    setIsSecret(data.is_secret && !data.is_group);
+    if (data.is_group) {
+        setChatPartner(null);
+    } else {
+        // 🆕 Для чата с самим собой other будет самим собой
+        setChatPartner(data.other);
+        console.log(" Chat partner:", data.other); // 🆕 для отладки
+    }
+}
     } else {
       console.error("❌ Failed to load chat info:", res.status);
     }
@@ -1892,9 +1905,7 @@ const preparedMessages = useMemo(() => {
 const partnerGlow = getGlowColor(chatPartner);
 
 const ChatHeader = () => (
-  <div
-    className="border-b border-white/10 backdrop-blur-md sticky top-0 z-30 bg-[#171717]/80"
-  >
+  <div className="border-b border-white/10 backdrop-blur-md sticky top-0 z-30 bg-[#171717]/80">
     {/* Основной блок */}
     <div className="p-3 sm:p-4 md:p-4">
       <div className="flex items-center gap-2 sm:gap-3 md:gap-3">
@@ -1929,7 +1940,7 @@ const ChatHeader = () => (
               </p>
               <p className="text-[11px] sm:text-xs text-white/50 mt-0.5">
                 {partnerTyping && typingUserName
-                  ? <span className="text-[#8b5cf6]">✎ {typingUserName} печатает...</span>
+                  ? <span className="text-[#8b5cf6]"> {typingUserName} печатает...</span>
                   : `${chatInfo.members_count} участник${chatInfo.members_count === 1 ? "" : (chatInfo.members_count < 5 ? "а" : "ов")} · подробнее`
                 }
               </p>
@@ -1982,14 +1993,30 @@ const ChatHeader = () => (
               </p>
             </div>
           </Link>
+        ) : chatInfo?.is_saved ? (
+          // 🆕 ЧАТ С САМИМ СОБОЙ (ИЗБРАННОЕ)
+          <div className="flex items-center gap-3 sm:gap-3 group flex-1 min-w-0">
+            <div className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
+              <Bookmark size={22} className="text-yellow-400" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold truncate text-[15px] sm:text-base md:text-lg text-yellow-400 leading-tight">
+                Избранное
+              </p>
+              <p className="text-[11px] sm:text-xs text-white/50 mt-0.5">
+                Личные заметки и ссылки
+              </p>
+            </div>
+          </div>
         ) : (
-  <div className="flex-1 min-w-0">
-    <p className="font-bold text-white text-[15px] sm:text-base">
-      {chatInfo ? "Загрузка..." : "Чат не найден"}
-    </p>
-  </div>
-)}
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-white text-[15px] sm:text-base">
+              {chatInfo ? "Загрузка..." : "Чат не найден"}
+            </p>
+          </div>
+        )}
 
+        {/* Кнопки справа */}
         <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
           <button
             onClick={() => setShowSearch(!showSearch)}
@@ -2000,27 +2027,24 @@ const ChatHeader = () => (
           >
             <Search size={19} className="sm:w-5 sm:h-5" />
           </button>
-          
-{/* 🆕 Кнопка настройки быстрой реакции (двойной тап) */}
-<div className="relative">
-  <button
-    onClick={() => setShowReactionPicker(!showReactionPicker)}
-    className="p-2 sm:p-1.5 rounded-lg transition-colors active:scale-95 hover:bg-white/5 flex items-center justify-center min-w-[36px] min-h-[36px]"
-    title="Настроить реакцию по двойному тапу"
-  >
-{quickReaction ? (
-  quickReaction.type === 'emoji' ? (
-    <span className="text-xl leading-none">{quickReaction.content}</span>
-  ) : (
-    <img src={quickReaction.content} alt="" className="w-6 h-6 object-contain" />
-  )
-) : (
-  <SmilePlus size={18} className="text-white/40" />
-)}
-  </button>
-  
 
-</div>
+          <div className="relative">
+            <button
+              onClick={() => setShowReactionPicker(!showReactionPicker)}
+              className="p-2 sm:p-1.5 rounded-lg transition-colors active:scale-95 hover:bg-white/5 flex items-center justify-center min-w-[36px] min-h-[36px]"
+              title="Настроить реакцию по двойному тапу"
+            >
+              {quickReaction ? (
+                quickReaction.type === 'emoji' ? (
+                  <span className="text-xl leading-none">{quickReaction.content}</span>
+                ) : (
+                  <img src={quickReaction.content} alt="" className="w-6 h-6 object-contain" />
+                )
+              ) : (
+                <SmilePlus size={18} className="text-white/40" />
+              )}
+            </button>
+          </div>
 
           <button
             onClick={() => { setMediaTab("image"); loadMedia(); setShowMediaGallery(true); }}
@@ -2053,7 +2077,7 @@ const ChatHeader = () => (
             </button>
             {showChatMenu && (
               <>
-<div className="fixed inset-0 z-40" onClick={() => { if (Date.now() - menuOpenTimeRef.current < 400) return; setShowChatMenu(false); }} />
+                <div className="fixed inset-0 z-40" onClick={() => { if (Date.now() - menuOpenTimeRef.current < 400) return; setShowChatMenu(false); }} />
                 <div className="absolute right-0 top-full mt-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px] sm:min-w-[180px] z-50">
                   {isGroup && (
                     <button
@@ -2085,53 +2109,51 @@ const ChatHeader = () => (
     {pinnedMessages.length > 0 && (
       <div className="border-t border-white/5" />
     )}
-
- {pinnedMessages.length > 0 && (
-  <div className="px-3 sm:px-4 md:px-4 py-2 border-t border-white/5">
-    <button
-      onClick={() => setShowPinnedList(!showPinnedList)}
-      className="flex items-center gap-2 text-xs sm:text-xs text-white/60 hover:text-white/80 font-medium transition-colors w-full"
-    >
-      <Pin size={12} className="text-[#8b5cf6] shrink-0" />
-      <span className="font-semibold">
-        {pinnedMessages.length} закреплённ{pinnedMessages.length === 1 ? "ое" : "ых"}
-      </span>
-      <span className="text-white/30 ml-auto">{showPinnedList ? '▲' : '▼'}</span>
-    </button>
-    
-    {showPinnedList && (
-      <div className="mt-2 space-y-1 max-h-32 sm:max-h-40 overflow-y-auto">
-        {pinnedMessages.map((msg) => (
-          <div 
-            key={msg.id} 
-            onClick={() => {
-              const el = document.getElementById(`msg-${msg.id}`);
-              if (el) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                el.classList.add('ring-2', 'ring-[#8b5cf6]', 'rounded-lg', 'transition-all');
-                setTimeout(() => {
-                  el.classList.remove('ring-2', 'ring-[#8b5cf6]', 'rounded-lg', 'transition-all');
-                }, 2000);
-                setShowPinnedList(false);
-              } else {
-                alert('Сообщение не найдено. Возможно, оно было удалено или загружено не полностью.');
-              }
-            }}
-            className="flex items-start gap-2 text-[11px] sm:text-xs text-white/60 hover:bg-white/5 rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer active:scale-[0.98]"
-          >
-            <Pin size={10} className="text-[#8b5cf6] shrink-0 mt-0.5" />
-            <div className="min-w-0 flex-1">
-              <span className="text-white/80 font-medium">{msg.sender_name}:</span>{' '}
-              <span className="text-white/50">
-                {msg.text || (msg.media_type === 'image' ? '📷 Фото' : msg.media_type === 'audio' ? '🎙️ Голосовое' : msg.media_type === 'video' ? '🎬 Видео' : '📎 Вложение')}
-              </span>
-            </div>
+    {pinnedMessages.length > 0 && (
+      <div className="px-3 sm:px-4 md:px-4 py-2 border-t border-white/5">
+        <button
+          onClick={() => setShowPinnedList(!showPinnedList)}
+          className="flex items-center gap-2 text-xs sm:text-xs text-white/60 hover:text-white/80 font-medium transition-colors w-full"
+        >
+          <Pin size={12} className="text-[#8b5cf6] shrink-0" />
+          <span className="font-semibold">
+            {pinnedMessages.length} закреплённ{pinnedMessages.length === 1 ? "ое" : "ых"}
+          </span>
+          <span className="text-white/30 ml-auto">{showPinnedList ? '▲' : '▼'}</span>
+        </button>
+        {showPinnedList && (
+          <div className="mt-2 space-y-1 max-h-32 sm:max-h-40 overflow-y-auto">
+            {pinnedMessages.map((msg) => (
+              <div
+                key={msg.id}
+                onClick={() => {
+                  const el = document.getElementById(`msg-${msg.id}`);
+                  if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    el.classList.add('ring-2', 'ring-[#8b5cf6]', 'rounded-lg', 'transition-all');
+                    setTimeout(() => {
+                      el.classList.remove('ring-2', 'ring-[#8b5cf6]', 'rounded-lg', 'transition-all');
+                    }, 2000);
+                    setShowPinnedList(false);
+                  } else {
+                    alert('Сообщение не найдено. Возможно, оно было удалено или загружено не полностью.');
+                  }
+                }}
+                className="flex items-start gap-2 text-[11px] sm:text-xs text-white/60 hover:bg-white/5 rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer active:scale-[0.98]"
+              >
+                <Pin size={10} className="text-[#8b5cf6] shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-white/80 font-medium">{msg.sender_name}:</span>{' '}
+                  <span className="text-white/50">
+                    {msg.text || (msg.media_type === 'image' ? '📷 Фото' : msg.media_type === 'audio' ? '🎙️ Голосовое' : msg.media_type === 'video' ? '🎬 Видео' : ' Вложение')}
+                  </span>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
     )}
-  </div>
-)}
 
     {showSearch && (
       <div className="px-3 sm:px-4 md:px-4 py-2.5 border-t border-white/5">
@@ -2160,11 +2182,6 @@ const ChatHeader = () => (
         )}
       </div>
     )}
-
-
-
-
-
   </div>
 );
 

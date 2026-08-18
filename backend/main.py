@@ -4023,6 +4023,22 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
     else:
         # DM — как раньше
         other_member = next((m for m in members if m.user_id != user_id), None)
+        
+        # 🆕 ЧАТ С САМИМ СОБОЙ (избранное)
+        if not other_member:
+            other = users_map.get(user_id)  # Берём самого себя
+            return {
+                "id": chat.id,
+                "is_group": False,
+                "is_secret": chat.is_secret,
+                "is_saved": True,  # 🆕 Флаг для фронта
+                "other": user_out(other, session) if other else None,
+                "last_message": last_message_data,
+                "unread_count": unread,
+                "pinned": chat.pinned_by == user_id,
+                "pinned_at": chat.pinned_at.isoformat() if chat.pinned_at else None,
+            }
+        
         other = users_map.get(other_member.user_id) if other_member else None
         return {
             "id": chat.id,
@@ -4031,8 +4047,8 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "other": user_out(other, session) if other else None,
             "last_message": last_message_data,
             "unread_count": unread,
-            "pinned": chat.pinned_by == user_id,  # 🆕
-            "pinned_at": chat.pinned_at.isoformat() if chat.pinned_at else None,  # 🆕
+            "pinned": chat.pinned_by == user_id,
+            "pinned_at": chat.pinned_at.isoformat() if chat.pinned_at else None,
         }
 
 @app.get("/api/chats")
