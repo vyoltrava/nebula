@@ -332,13 +332,21 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
   const textMatches = sortedChats.length - nameMatches;
 
 
+// Поиск пользователей для Призмы
 const searchUsersForPrism = async (q: string) => {
-  if (!q.trim()) { setPrismSearchResults([]); return; }
+  if (!q.trim()) { 
+    setPrismSearchResults([]); 
+    return; 
+  }
+  
   const token = getToken();
+  if (!token) return;
+
   try {
-    // ⚠️ ВАЖНО: Проверь в Network (F12), какой эндпоинт у тебя реально работает.
-    // Чаще всего это /api/users?search=... или /api/search/users?q=...
-    const url = `${process.env.NEXT_PUBLIC_API_URL}/api/users/search?q=${encodeURIComponent(q)}`;
+    // ✅ ИСПРАВЛЕНО: стучимся в реальный эндпоинт из routers/users.py (@router.get("/api/users"))
+    const url = `${process.env.NEXT_PUBLIC_API_URL}/api/users?q=${encodeURIComponent(q)}&limit=10`;
+    
+    console.log("🔍 Запрос поиска на URL:", url);
     
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
@@ -352,15 +360,21 @@ const searchUsersForPrism = async (q: string) => {
     }
 
     const data = await res.json();
-    console.log("✅ Найденные пользователи для Призмы:", data); // <-- СМОТРИ СЮДА В КОНСОЛИ
+    console.log("✅ Сырой ответ от сервера:", data);
+
+    // ✅ ИСПРАВЛЕНО: бэкенд возвращает { users: [...], posts: [...] }
+    // Мы забираем именно массив users. Если его нет — пустой массив.
+    const usersArray = Array.isArray(data) ? data : (data.users || []);
     
-    // Если бэкенд возвращает { users: [...] } или что-то подобное, поправь на data.users
-    setPrismSearchResults(Array.isArray(data) ? data : (data.users || []));
+    console.log("✅ Извлеченные пользователи для модалки:", usersArray);
+    setPrismSearchResults(usersArray);
+    
   } catch (e) { 
     console.error("💥 Сетевая ошибка при поиске пользователей:", e); 
     setPrismSearchResults([]);
   }
 };
+
 
 // Создание чата Призма
 const initiatePrism = async (targetUserId: number, targetUserName: string) => {
