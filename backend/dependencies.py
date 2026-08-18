@@ -1455,3 +1455,22 @@ def _track_view_sync(post_id: int, viewer_hash: str):
             post.views_count = (post.views_count or 0) + 1
             session.add(post)
             session.commit()
+
+
+# ==========================================
+# ДОПОЛНИТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ AUTH (добавлено автоматически)
+# ==========================================
+import random
+import logging
+
+def generate_code() -> str:
+    """Генерирует 6-значный код для сброса пароля или 2FA"""
+    return f"{random.randint(100000, 999999)}"
+
+def send_password_reset_email(email: str, code: str, display_name: str):
+    """
+    Заглушка для отправки email. 
+    TODO: Подключить реальный SMTP (SendGrid, Resend, Mailgun и т.д.)
+    """
+    logging.info(f"📧 [MOCK EMAIL] Код сброса пароля для {email} ({display_name}): {code}")
+    # Здесь позже можно добавить реальную логику отправки
