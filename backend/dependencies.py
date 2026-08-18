@@ -1401,3 +1401,31 @@ def ensure_user_has_keys(user_id: int, session: Session):
 # ============================================================
 # 🎧 ПОДДЕРЖКА: МНОЖЕСТВЕННЫЕ ЗАЯВКИ + ФОТО
 # ============================================================
+
+
+def get_reply_preview(session: Session, reply_to_id: int):
+    """Возвращает краткое превью сообщения, на которое отвечают"""
+    if not reply_to_id:
+        return None
+    original = session.get(Message, reply_to_id)
+    if not original:
+        return None
+    sender = session.get(User, original.sender_id)
+    # Обрезаем текст для превью
+    preview_text = original.text or ""
+    if original.media_type and not original.text:
+        media_labels = {
+            "image": "📷 Фото",
+            "video": "🎬 Видео",
+            "audio": "🎙️ Голосовое",
+            "video_note": " Видеокружок",
+            "gif": "🎞️ GIF",
+        }
+        preview_text = media_labels.get(original.media_type, " Вложение")
+    return {
+        "id": original.id,
+        "sender_name": sender.display_name if sender else "Unknown",
+        "sender_id": original.sender_id,
+        "text": preview_text[:120],
+        "media_type": original.media_type,
+    }
