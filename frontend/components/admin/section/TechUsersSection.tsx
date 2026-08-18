@@ -154,15 +154,18 @@ export function TechUsersSection({ me }: { me: any }) {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
+      
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setSaveMsg({ text: data?.detail ?? "Ошибка удаления", type: "err" });
+        setSaveMsg({ text: data?.detail ?? "Ошибка анонимизации", type: "err" });
       } else {
-        const data = await res.json();
-        alert(`Аккаунт @${data.deleted_username} удалён. Постов: ${data.deleted_posts}`);
+        // 🆕 Бэкенд теперь возвращает просто ok при мягком удалении
+        setSaveMsg({ text: "Аккаунт успешно анонимизирован и заблокирован", type: "ok" });
+        setTimeout(() => setSaveMsg(null), 3000);
+        
         setSelectedUser(null);
         setDeleteConfirm("");
-        loadUsers();
+        loadUsers(); // Перезагружаем список, чтобы увидеть обновлённые данные (is_banned: true)
       }
     } catch {
       setSaveMsg({ text: "Ошибка сети", type: "err" });
@@ -390,22 +393,28 @@ export function TechUsersSection({ me }: { me: any }) {
                 </div>
               )}
             </div>
-
             {me.permissions?.includes("delete_users") && (
               <div className="border border-red-400/30 rounded-xl bg-red-500/5 p-4 sm:p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <AlertTriangle size={18} className="text-red-400" />
-                  <h3 className="font-bold text-red-400">Опасная зона</h3>
+                  <h3 className="font-bold text-red-400">Анонимизация аккаунта</h3>
                 </div>
-                <p className="text-sm text-white/60 mb-3">Удаление необратимо.</p>
+                <p className="text-sm text-white/60 mb-3">
+                  Аккаунт будет переименован в "Удаленный аккаунт", аватарка и данные будут стёрты, а вход заблокирован. 
+                  История чатов и постов <span className="text-white font-semibold">сохранится</span>.
+                </p>
                 <input
                   value={deleteConfirm}
                   onChange={(e) => setDeleteConfirm(e.target.value.replace(/^@/, ""))}
-                  placeholder={`Введите ${selectedUser.username}`}
-                  className="w-full border border-red-400/30 rounded-lg px-3 py-2 bg-red-500/5 text-white focus:outline-none focus:border-red-400 mb-3"
+                  placeholder={`Введите ${selectedUser.username} для подтверждения`}
+                  className="w-full border border-red-400/30 rounded-lg px-3 py-2 bg-red-500/5 text-white focus:outline-none focus:border-red-400 mb-3 placeholder-red-400/40"
                 />
-                <button onClick={deleteUser} disabled={deleting || deleteConfirm !== selectedUser.username} className="w-full flex items-center justify-center gap-2 bg-red-500 text-white font-bold rounded-lg py-2.5 hover:bg-red-600 disabled:opacity-40">
-                  <Trash2 size={16} /> {deleting ? "Удаление..." : "Удалить аккаунт"}
+                <button 
+                  onClick={deleteUser} 
+                  disabled={deleting || deleteConfirm !== selectedUser.username} 
+                  className="w-full flex items-center justify-center gap-2 bg-red-500 text-white font-bold rounded-lg py-2.5 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Trash2 size={16} /> {deleting ? "Обработка..." : "Анонимизировать аккаунт"}
                 </button>
               </div>
             )}

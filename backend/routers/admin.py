@@ -1002,6 +1002,7 @@ def admin_delete_user(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
+    """Мягкое удаление — анонимизация в стиле Telegram/VK"""
     if not staff.is_admin:
         if not has_permission(staff, "tech_access", session) or not has_permission(staff, "delete_users", session):
             raise HTTPException(403, "No permission: delete_users")
@@ -1011,188 +1012,39 @@ def admin_delete_user(
         raise HTTPException(404, "User not found")
     
     if target.id == staff.id:
-        raise HTTPException(400, "Cannot delete your own account")
+        raise HTTPException(400, "Cannot delete your own account via admin panel")
+    
+    # 🛡️ Иммунитет системных аккаунтов
     check_sanction_rights(staff, target, session, "удалять этот аккаунт")
 
-    # Массовые удаления
-    # 1. ActionLog
-    for log in session.exec(select(ActionLog).where(ActionLog.actor_id == user_id)).all():
-        session.delete(log)
-
-    # 2. IPLog
-    for ip_log in session.exec(select(IPLog).where(IPLog.user_id == user_id)).all():
-        session.delete(ip_log)
-
-    # 3. Bookmarks
-    for bookmark in session.exec(select(Bookmark).where(Bookmark.user_id == user_id)).all():
-        session.delete(bookmark)
-
-    # 3.1. 🆕 LastReadPost (запись о последнем читаемом посте)
-    for lr in session.exec(select(LastReadPost).where(LastReadPost.user_id == user_id)).all():
-        session.delete(lr)
-
-    # 4. UserKey
-    for key in session.exec(select(UserKey).where(UserKey.user_id == user_id)).all():
-        session.delete(key)
-
-    # 5. BugReport
-    for bug in session.exec(select(BugReport).where(BugReport.reporter_id == user_id)).all():
-        session.delete(bug)
-
-    # 6. Посты с зависимостями
-    posts = session.exec(select(Post).where(Post.author_id == user_id)).all()
-    post_ids = [p.id for p in posts]
+    # === МЯГКОЕ УДАЛЕНИЕ: анонимизируем вместо физического ===
+    target.username = f"deleted_{target.id}"
+    target.display_name = "Удаленный аккаунт"
+    target.avatar_url = None
+    target.cover_url = None
+    target.bio = ""
+    target.is_banned = True
+    target.token_version = (target.token_version or 0) + 1  # выкидываем из всех сессий
     
-    if post_ids:
-        # Массовое удаление лайков
-        for like in session.exec(select(Like).where(Like.post_id.in_(post_ids))).all():
-            session.delete(like)
-        
-        # Массовое удаление тегов
-        for pt in session.exec(select(PostTag).where(PostTag.post_id.in_(post_ids))).all():
-            session.delete(pt)
-        
-        # Массовое удаление уведомлений
-        for notif in session.exec(select(Notification).where(Notification.post_id.in_(post_ids))).all():
-            session.delete(notif)
-            
-        # 🆕 ДОБАВИТЬ ЭТО: Массовое удаление просмотров
-        for pv in session.exec(select(PostView).where(PostView.post_id.in_(post_ids))).all():
-            session.delete(pv)
-            
-        
-        # Удаляем медиа и сами посты
-        for post in posts:
-            if post.media_url and "cloudinary.com" in post.media_url:
-                try:
-                    public_id = extract_cloudinary_public_id(post.media_url)
-                    if public_id:
-                        cloudinary.uploader.destroy(public_id, resource_type="auto")
-                except Exception:
-                    pass
-            elif post.media_url:
-                file_path = os.path.join("uploads", post.media_url.split("/")[-1])
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-            session.delete(post)
-
-    # 7. Лайки пользователя
-    for like in session.exec(select(Like).where(Like.user_id == user_id)).all():
-        session.delete(like)
-
-    # 8. Подписки
-    for follow in session.exec(
-        select(Follow).where((Follow.follower_id == user_id) | (Follow.followee_id == user_id))
-    ).all():
-        session.delete(follow)
-
-    # 9. Уведомления
-    for notif in session.exec(
-        select(Notification).where((Notification.user_id == user_id) | (Notification.actor_id == user_id))
-    ).all():
-        session.delete(notif)
-
-    # 10. Чаты — 🆕 ИСПРАВЛЕНО для групповых чатов
-    memberships = session.exec(
-        select(ChatMember).where(ChatMember.user_id == user_id)
-    ).all()
-    for membership in memberships:
-        chat_id = membership.chat_id
-        chat = session.get(Chat, chat_id)
-        if not chat:
-            continue
-
-        # Считаем сколько участников в чате
-        member_count = session.exec(
-            select(func.count()).select_from(ChatMember).where(ChatMember.chat_id == chat_id)
-        ).one()
-
-        if chat.is_group and member_count > 1:
-            # 🆕 ГРУППА: удаляем ТОЛЬКО membership пользователя, чат остаётся
-            # Передаём владение если удаляется owner
-            if membership.role == "owner":
-                others = session.exec(
-                    select(ChatMember).where(
-                        ChatMember.chat_id == chat_id,
-                        ChatMember.user_id != user_id
-                    )
-                ).all()
-                if others:
-                    new_owner = next((m for m in others if m.role == "admin"), others[0])
-                    new_owner.role = "owner"
-                    chat.owner_id = new_owner.user_id
-                    session.add(chat)
-                    session.add(new_owner)
-
-            # Удаляем сообщения ТОЛЬКО этого пользователя в группе
-            for msg in session.exec(
-                select(Message).where(Message.chat_id == chat_id, Message.sender_id == user_id)
-            ).all():
-                session.delete(msg)
-
-            # Удаляем session keys ТОЛЬКО этого пользователя
-            for sk in session.exec(
-                select(ChatSessionKey).where(ChatSessionKey.chat_id == chat_id, ChatSessionKey.user_id == user_id)
-            ).all():
-                session.delete(sk)
-
-            # Удаляем сам membership
-            session.delete(membership)
-        else:
-            # DM или группа из 1 человека → удаляем весь чат
-            for msg in session.exec(select(Message).where(Message.chat_id == chat_id)).all():
-                session.delete(msg)
-            for sk in session.exec(select(ChatSessionKey).where(ChatSessionKey.chat_id == chat_id)).all():
-                session.delete(sk)
-            for other_member in session.exec(
-                select(ChatMember).where(ChatMember.chat_id == chat_id)
-            ).all():
-                session.delete(other_member)
-            session.delete(chat)
-
-    # 11. Жалобы
-    for report in session.exec(select(Report).where(Report.reporter_id == user_id)).all():
-        session.delete(report)
+    # Очищаем 2FA чтобы не висела
+    target.totp_enabled = False
+    target.totp_secret = None
+    target.totp_backup_codes = None
     
-    for report in session.exec(
-        select(Report).where(Report.target_type == "user", Report.target_id == user_id)
-    ).all():
-        session.delete(report)
-
-    # 12. Снимаем роль
-    target.role_id = None
     session.add(target)
-
-    # 13. Удаляем аватарку и обложку
-    if target.avatar_url and "cloudinary.com" in target.avatar_url:
-        try:
-            public_id = extract_cloudinary_public_id(target.avatar_url)
-            if public_id:
-                cloudinary.uploader.destroy(public_id)
-        except Exception:
-            pass
-            
-    # 🆕 ДОБАВЛЕНО: Удаляем обложку профиля
-    if target.cover_url and "cloudinary.com" in target.cover_url:
-        try:
-            public_id = extract_cloudinary_public_id(target.cover_url)
-            if public_id:
-                cloudinary.uploader.destroy(public_id)
-        except Exception:
-            pass
-            
-    session.delete(target)
     
-    log_action(session, staff.id, "delete_user",
+    log_action(
+        session, staff.id, "user_soft_deleted",
         target_type="user", target_id=target.id,
-        details={"username": target.username, "deleted_posts": len(posts)})
+        details={"username": target.username},
+    )
     session.commit()
     
     return {
         "ok": True,
-        "deleted_username": target.username,
-        "deleted_posts": len(posts),
+        "message": "Аккаунт анонимизирован и заблокирован",
     }
+    
 
 
 @router.get("/api/admin/users/{user_id}/ip-history")
