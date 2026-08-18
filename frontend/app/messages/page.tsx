@@ -375,7 +375,6 @@ const searchUsersForPrism = async (q: string) => {
   }
 };
 
-
 // Создание чата Призма
 const initiatePrism = async (targetUserId: number, targetUserName: string) => {
   if (!confirm(`Создать защищенный канал 'Призма' с @${targetUserName}?`)) return;
