@@ -100,6 +100,7 @@ class Notification(SQLModel, table=True):
     actor_id: int = Field(foreign_key="user.id")
     type: str
     post_id: Optional[int] = Field(default=None, foreign_key="post.id")
+    message_id: Optional[int] = Field(default=None, foreign_key="message.id")
     read: bool = Field(default=False, index=True)
     created_at: datetime = Field(default_factory=utcnow)
 

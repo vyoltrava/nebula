@@ -4442,6 +4442,9 @@ def startup():
     # ===== ОСНОВНОЙ БЛОК МИГРАЦИЙ =====
     with engine.connect() as conn:
         try:
+
+
+            conn.execute(text('ALTER TABLE notification ADD COLUMN IF NOT EXISTS message_id INTEGER REFERENCES message(id) ON DELETE SET NULL;'))
             conn.execute(text("""
             CREATE TABLE IF NOT EXISTS support_message (
                 id SERIAL PRIMARY KEY,
@@ -6378,6 +6381,43 @@ async def send_message_v2(
     session.commit()
     session.refresh(msg)
 
+    # 🆕 === СИСТЕМА УПОМИНАНИЙ В ЧАТАХ ===
+    if text.strip():
+        mentions = extract_mentions(text)
+        if mentions:
+            # Находим всех упомянутых пользователей
+            mentioned_users = session.exec(
+                select(User).where(func.lower(User.username).in_(mentions))
+            ).all()
+            
+            # Получаем ID всех участников чата
+            chat_member_ids = set(session.exec(
+                select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
+            ).all())
+            
+            for mu in mentioned_users:
+                # Уведомляем только если это не сам автор и он есть в чате
+                if mu.id != user.id and mu.id in chat_member_ids:
+                    session.add(Notification(
+                        user_id=mu.id,
+                        actor_id=user.id,
+                        type="mention",
+                        message_id=msg.id
+                    ))
+                    # 🚀 Пушаем уведомление в реальном времени через WS
+                    await manager.broadcast_to_users([mu.id], "new_notification", {
+                        "type": "mention",
+                        "actor_id": user.id,
+                        "actor_name": user.display_name,
+                        "message_id": msg.id,
+                        "chat_id": chat_id,
+                        "text_preview": text[:100]
+                    })
+            session.commit()
+
+
+
+
     # 🆕 Добавляем флаг is_encrypted_media в WS рассылку
     is_enc = bool(is_encrypted_media == "true" or (chat.is_secret and media_url and not media_url.startswith("http")))
     
@@ -7254,6 +7294,66 @@ def get_chat_info(
     if not chat:
         raise HTTPException(404, "Чат не найден")
     return serialize_chat_for_user(chat, user.id, session)
+
+
+
+@app.post("/api/chats/saved")
+def get_or_create_saved_messages(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Получает или создает чат 'Избранное' (чат с самим собой)"""
+    # 1. Ищем чаты пользователя
+    my_chats = session.exec(
+        select(ChatMember.chat_id).where(ChatMember.user_id == user.id)
+    ).all()
+
+    saved_chat_id = None
+    for chat_id_row in my_chats:
+        chat = session.get(Chat, chat_id_row)
+        if not chat or chat.is_group or chat.is_secret:
+            continue
+        
+        # Если в чате только 1 участник (это мы) — это Избранное
+        member_count = session.exec(
+            select(func.count()).select_from(ChatMember).where(ChatMember.chat_id == chat.id)
+        ).one()
+        
+        if member_count == 1:
+            saved_chat_id = chat.id
+            break
+
+    # 2. Если не нашли, создаем новый
+    if not saved_chat_id:
+        chat = Chat(is_group=False, is_secret=False)
+        session.add(chat)
+        session.commit()
+        session.refresh(chat)
+        
+        session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="member"))
+        session.commit()
+        saved_chat_id = chat.id
+
+    # 3. Получаем последнее сообщение для превью
+    last_msg = session.exec(
+        select(Message).where(Message.chat_id == saved_chat_id).order_by(Message.created_at.desc()).limit(1)
+    ).first()
+
+    # 4. Возвращаем данные в формате, совместимом с фронтендом
+    return {
+        "id": saved_chat_id,
+        "is_group": False,
+        "is_secret": False,
+        "is_saved": True,  # 🆕 Специальный флаг для фронта
+        "other": user_out(user, session),  # Показываем себя как "собеседника"
+        "last_message": {
+            "text": last_msg.text if last_msg else None,
+            "created_at": last_msg.created_at.isoformat() if last_msg else None,
+        } if last_msg else None,
+        "unread_count": 0,
+        "pinned": False,
+    }
+
 
 
 @app.get("/api/notifications")

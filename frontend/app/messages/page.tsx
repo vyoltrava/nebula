@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
 import { CreateGroupModal } from "@/components/CreateGroupModal";
-import { MessageSquare, Search, Lock, Users } from "lucide-react";
+import { MessageSquare, Search, Lock, Users, Bookmark } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { socket } from "@/lib/websocket";
@@ -154,6 +154,25 @@ async function deleteChat(chatId: number, chatName: string) {
     }
   } catch {
     alert("Ошибка сети");
+  }
+}
+
+
+// 🆕 Открытие или создание чата "Избранное"
+async function openSavedMessages() {
+  const token = getToken();
+  if (!token) return;
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/saved`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      router.push(`/messages/${data.id}`);
+    }
+  } catch (err) {
+    console.error("Failed to open saved messages", err);
   }
 }
 
@@ -318,6 +337,16 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
             <div className="flex items-center gap-3">
               <MessageSquare size={24} className="text-[#8b5cf6]" />
               <h1 className="text-xl md:text-2xl font-black text-white">Сообщения</h1>
+
+{/* 🆕 Кнопка Избранное */}
+<button
+  onClick={openSavedMessages}
+  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-yellow-500/10 text-yellow-400 text-xs font-bold hover:bg-yellow-500/20 transition-colors border border-yellow-500/30"
+>
+  <Bookmark size={14} />
+  <span className="hidden sm:inline">Избранное</span>
+</button>
+
               {/* 🆕 Кнопка создания группы */}
               <button
                 onClick={() => setShowCreateGroup(true)}
@@ -384,8 +413,10 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
 
         {!loading && sortedChats.map((chat) => {
           // 🛡️ Защита: для групп chat.other может быть undefined
+          const isSaved = !!chat.is_saved;
           const isGroup = !!chat.is_group;
           const otherUser = chat.other;
+          const displayName = isSaved ? "Избранное" : (isGroup ? chat.name : otherUser?.display_name || "");
           const glow = !isGroup && otherUser ? getGlowColor(otherUser) : null;
 
           // 🔎 ПОИСК: определяем тип совпадения для группировки
@@ -417,91 +448,67 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
                   chat.unread_count > 0 ? "bg-purple-500/5" : ""
                 }`}
               >
-              <div className="shrink-0 relative">
-                {isGroup ? (
-                  chat.avatar_url ? (
-                    /* 1. Если у группы есть своя аватарка — показываем её */
-                    <Avatar
-                      src={chat.avatar_url}
-                      name={chat.name || "Группа"}
-                      id={chat.id}
-                      size={48}
-                    />
-                  ) : (
-                    /* 2. Если аватарки нет — показываем стопку участников */
-                    <div className="w-12 h-12 relative flex items-center justify-center bg-white/5 rounded-full">
-                      {(chat.members || []).slice(0, 3).map((m: any, i: number) => (
-                        <div
-                          key={m.user.id}
-                          className="absolute"
-                          style={{
-                            top: i === 0 ? 0 : i === 1 ? 24 : 0,
-                            left: i === 0 ? 0 : i === 1 ? 24 : 24,
-                            zIndex: 3 - i,
-                          }}
-                        >
-                          <Avatar
-                            src={m.user.avatar_url}
-                            name={m.user.display_name}
-                            id={m.user.id}
-                            size={28}
-                          />
-                        </div>
-                      ))}
-                      {/* 3. Страховка: если участников нет, показываем иконку */}
-                      {!(chat.members || []).length && <Users size={24} className="text-white/40" />}
-                      
-                      {/* Индикатор группы */}
-                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#8b5cf6] border-2 border-[#171717] flex items-center justify-center">
-                        <Users size={10} className="text-white" />
-                      </div>
-                    </div>
-                  )
-                ) : (
-                  /* Обычный DM */
-                  <div style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}>
-                    <Avatar
-                      src={otherUser?.avatar_url}
-                      name={otherUser?.display_name}
-                      id={otherUser?.id}
-                      size={48}
-                    />
-                    {chat.is_secret && (
-                      <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-[#171717] flex items-center justify-center">
-                        <Lock size={10} className="text-white" />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+<div className="shrink-0 relative">
+  {isSaved ? (
+    /* 🆕 Иконка для Избранного */
+    <div className="w-12 h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
+      <Bookmark size={24} className="text-yellow-400" />
+    </div>
+  ) : isGroup ? (
+    chat.avatar_url ? (
+      <Avatar src={chat.avatar_url} name={chat.name || "Группа"} id={chat.id} size={48} />
+    ) : (
+      <div className="w-12 h-12 relative flex items-center justify-center bg-white/5 rounded-full">
+        {(chat.members || []).slice(0, 3).map((m: any, i: number) => (
+          <div
+            key={m.user.id}
+            className="absolute"
+            style={{ top: i === 0 ? 0 : i === 1 ? 24 : 0, left: i === 0 ? 0 : i === 1 ? 24 : 24, zIndex: 3 - i }}
+          >
+            <Avatar src={m.user.avatar_url} name={m.user.display_name} id={m.user.id} size={28} />
+          </div>
+        ))}
+        {!(chat.members || []).length && <Users size={24} className="text-white/40" />}
+        <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#8b5cf6] border-2 border-[#171717] flex items-center justify-center">
+          <Users size={10} className="text-white" />
+        </div>
+      </div>
+    )
+  ) : (
+    /* Обычный DM */
+    <div style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}>
+      <Avatar src={otherUser?.avatar_url} name={otherUser?.display_name} id={otherUser?.id} size={48} />
+      {chat.is_secret && (
+        <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-[#171717] flex items-center justify-center">
+          <Lock size={10} className="text-white" />
+        </div>
+      )}
+    </div>
+  )}
+</div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    {/* 🆕 ИКОНКА ЗАКРЕПЛЕНИЯ */}
-                    {chat.pinned && (
-                      <Pin size={12} className="text-[#8b5cf6] shrink-0" />
-                    )}
-                    {isGroup ? (
-                      <p className="font-bold truncate text-white">
-                        {query.trim() ? highlight(chat.name, query.trim()) : chat.name}
-                      </p>
-                    ) : (
-                      <>
-                        <p
-                          className={`font-bold truncate ${glowStyle(otherUser) ? "" : "text-white"}`}
-                          style={glowStyle(otherUser)}
-                        >
-                          {query.trim() ? highlight(otherUser?.display_name, query.trim()) : otherUser?.display_name}
-                        </p>
-                        {chat.is_secret && (
-                          <span className="text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0">
-                            SECRET
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
+<div className="flex items-center gap-1.5 min-w-0">
+  {chat.pinned && <Pin size={12} className="text-[#8b5cf6] shrink-0" />}
+  
+  {isSaved ? (
+    <p className="font-bold truncate text-yellow-400">Избранное</p>
+  ) : isGroup ? (
+    <p className="font-bold truncate text-white">
+      {query.trim() ? highlight(chat.name, query.trim()) : chat.name}
+    </p>
+  ) : (
+    <>
+      <p className={`font-bold truncate ${glowStyle(otherUser) ? "" : "text-white"}`} style={glowStyle(otherUser)}>
+        {query.trim() ? highlight(otherUser?.display_name, query.trim()) : otherUser?.display_name}
+      </p>
+      {chat.is_secret && (
+        <span className="text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0">SECRET</span>
+      )}
+    </>
+  )}
+</div>
                   {chat.last_message && (
                     <span className="text-xs text-white/40 shrink-0">
                       {new Date(chat.last_message.created_at).toLocaleTimeString("ru-RU", {

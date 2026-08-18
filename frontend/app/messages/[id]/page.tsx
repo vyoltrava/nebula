@@ -140,6 +140,10 @@ export default function ChatPage() {
   x: number;
   y: number;
 } | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [chatMembers, setChatMembers] = useState<any[]>([]);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionSuggestions, setMentionSuggestions] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [chatPartner, setChatPartner] = useState<any>(null);
   const [chatInfo, setChatInfo] = useState<any>(null);
@@ -644,7 +648,7 @@ async function sendVoiceMessage(audioFile: File) {
 function renderMessageText(text: string) {
   if (!text) return null;
   // 🆕 Добавлена поддержка спойлеров ||текст|| и ссылок
-  const parts = text.split(/(https?:\/\/[^\s<>"]+|\|\|.*?\|\|)/g);
+  const parts = text.split(/(https?:\/\/[^\s<>"]+|\|\|.*?\|\||@\w+)/g);
   
   return parts.map((part, i) => {
     // Обработка спойлера
@@ -680,10 +684,25 @@ function renderMessageText(text: string) {
           </a>
           {tail}
         </span>
-      );
-    }
-    return <span key={i}>{part}</span>;
-  });
+        );
+        }
+        // 🆕 Упоминания
+        if (part.startsWith('@')) {
+            const username = part.slice(1);
+            return (
+                <Link 
+                    key={i} 
+                    href={`/search?q=${username}`}
+                    className="text-[#8b5cf6] font-semibold hover:underline cursor-pointer"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    {part}
+                </Link>
+            );
+        }
+        return <span key={i}>{part}</span>;
+    });
+
 }
 function extractFirstUrl(text: string): string | null {
   const m = text.match(/https?:\/\/[^\s<>"]+/);
@@ -832,6 +851,58 @@ function extractFirstUrl(text: string): string | null {
       console.error("Failed to load pinned messages:", e);
     }
   }
+
+// 🆕 === АВТОДОПОЛНЕНИЕ УПОМИНАНИЙ ===
+const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    sendLiveText(val);
+
+    const cursorPos = e.target.selectionStart;
+    const textBeforeCursor = val.slice(0, cursorPos);
+    const match = textBeforeCursor.match(/@(\w*)$/);
+    
+    if (match) {
+        const query = match[1].toLowerCase();
+        setMentionQuery(query);
+        const filtered = chatMembers
+            .map(m => m.user)
+            .filter(u => 
+                u.username.toLowerCase().includes(query) || 
+                (u.display_name && u.display_name.toLowerCase().includes(query))
+            )
+            .slice(0, 5);
+        setMentionSuggestions(filtered);
+    } else {
+        setMentionQuery(null);
+        setMentionSuggestions([]);
+    }
+};
+
+const selectMention = (user: any) => {
+    if (!textareaRef.current || mentionQuery === null) return;
+    const val = textareaRef.current.value;
+    const cursorPos = textareaRef.current.selectionStart;
+    const textBeforeCursor = val.slice(0, cursorPos);
+    const textAfterCursor = val.slice(cursorPos);
+    
+    const lastAtIdx = textBeforeCursor.lastIndexOf('@');
+    const newTextBefore = textBeforeCursor.slice(0, lastAtIdx) + `@${user.username} `;
+    
+    const newVal = newTextBefore + textAfterCursor;
+    setText(newVal);
+    sendLiveText(newVal);
+    setMentionQuery(null);
+    setMentionSuggestions([]);
+    
+    setTimeout(() => {
+        if (textareaRef.current) {
+            textareaRef.current.focus();
+            const newCursorPos = newTextBefore.length;
+            textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        }
+    }, 0);
+};
+
 
   async function sendMessage() {
     if (sendingRef.current) return;
@@ -1452,6 +1523,13 @@ const handleSendClick = () => {
     loadMessages();
     loadPinned();
     loadStickerPacks(); // 🆕
+
+    // 🆕 Загружаем участников для автодополнения упоминаний
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/members`, {
+        headers: { Authorization: `Bearer ${getToken()}` }
+    }).then(r => r.json()).then(data => {
+        if (Array.isArray(data)) setChatMembers(data);
+    }).catch(() => {});
 
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/read`, {
       method: "POST",
@@ -2990,29 +3068,52 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
           </button>
         </div>
 
-<textarea
-  value={text}
-  onChange={(e) => sendLiveText(e.target.value)}
-  onKeyDown={(e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  }}
-  disabled={isSecret && secretState !== "ready"}
-  placeholder={
-    isSecret
-      ? (secretState === "ready" ? "Зашифрованное сообщение..." : "Ожидание шифрования...")
-      : isGroup ? "Сообщение группе..." : "Сообщение..."
-  }
-  rows={1}
-  className={`flex-1 border rounded-xl px-3.5 sm:px-3 md:px-4 py-2.5 sm:py-2 bg-white/5 text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-28 sm:max-h-24 md:max-h-32 leading-snug disabled:opacity-50 disabled:cursor-not-allowed ${
-    isSecret
-      ? "border-emerald-500/40 focus:border-emerald-500"
-      : "border-white/15 focus:border-[#8b5cf6]"
-  }`}
-/>
-
+{/* 🆕 ОБЁРТКА ДЛЯ АВТОДОПОЛНЕНИЯ УПОМИНАНИЙ */}
+<div className="relative flex-1">
+    {/* Выпадашка упоминаний */}
+    {mentionSuggestions.length > 0 && mentionQuery !== null && (
+        <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+            {mentionSuggestions.map(u => (
+                <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => selectMention(u)}
+                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/10 text-left transition-colors"
+                >
+                    <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={28} />
+                    <div className="min-w-0 flex-1">
+                        <p className="text-sm text-white font-medium truncate">{u.display_name}</p>
+                        <p className="text-xs text-white/40 truncate">@{u.username}</p>
+                    </div>
+                </button>
+            ))}
+        </div>
+    )}
+    
+    <textarea
+        ref={textareaRef}
+        value={text}
+        onChange={handleTextChange}
+        onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }}
+        disabled={isSecret && secretState !== "ready"}
+        placeholder={
+            isSecret
+            ? (secretState === "ready" ? "Зашифрованное сообщение..." : "Ожидание шифрования...")
+            : isGroup ? "Сообщение группе..." : "Сообщение..."
+        }
+        rows={1}
+        className={`w-full border rounded-xl px-3.5 sm:px-3 md:px-4 py-2.5 sm:py-2 bg-white/5 text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-28 sm:max-h-24 md:max-h-32 leading-snug disabled:opacity-50 disabled:cursor-not-allowed ${
+            isSecret
+            ? "border-emerald-500/40 focus:border-emerald-500"
+            : "border-white/15 focus:border-[#8b5cf6]"
+        }`}
+    />
+</div>
         <div className="relative shrink-0">
           <button
             onPointerDown={handleSendPointerDown}
