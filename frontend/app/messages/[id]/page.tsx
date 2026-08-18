@@ -149,7 +149,6 @@ export default function ChatPage() {
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [selectionStart, setSelectionStart] = useState(0);
   const [selectionEnd, setSelectionEnd] = useState(0);
-  const [previewMode, setPreviewMode] = useState(false);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [chatMembers, setChatMembers] = useState<any[]>([]);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
@@ -3097,10 +3096,9 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
             )}
           </button>
         </div>
-
-{/* 🆕 ОБЁРТКА ДЛЯ АВТОДОПОЛНЕНИЯ И ВВОДА С ПРЕДПРОСМОТРОМ */}
+{/* 🆕 ОБЁРТКА ДЛЯ ВВОДА (БЕЗ ДУРАЦКОГО ПРЕДПРОСМОТРА) */}
 <div className="relative flex-1">
-    {/* Выпадашка упоминаний */}
+    {/* Выпадашка упоминаний (оставляем как есть) */}
     {mentionSuggestions.length > 0 && mentionQuery !== null && (
         <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
             {mentionSuggestions.map(u => (
@@ -3119,101 +3117,87 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
             ))}
         </div>
     )}
-    
-    {/* 🆕 Переключатель Написать / Предпросмотр */}
-    <div className="flex items-center gap-2 mb-1.5 px-1">
-        <button
-            onClick={() => setPreviewMode(false)}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                !previewMode ? "bg-[#8b5cf6] text-white" : "text-white/50 hover:bg-white/10"
-            }`}
-        >
-            ✏️ Написать
-        </button>
-        <button
-            onClick={() => setPreviewMode(true)}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
-                previewMode ? "bg-[#8b5cf6] text-white" : "text-white/50 hover:bg-white/10"
-            }`}
-        >
-            👁 Предпросмотр
-        </button>
-        {!previewMode && (
-            <span className="text-[10px] text-white/30 ml-auto">
-                Выдели текст → ПКМ или удержание
-            </span>
-        )}
-    </div>
 
-    {previewMode ? (
-        /* 🆕 РЕЖИМ ПРЕДПРОСМОТРА */
-        <div className="w-full min-h-[44px] max-h-32 overflow-y-auto border border-white/15 rounded-xl p-3 bg-white/5 text-white">
-            {text.trim() ? (
-                <MarkdownRenderer text={text} isMessage={true} />
-            ) : (
-                <p className="text-white/30 text-sm italic">Начните писать, чтобы увидеть предпросмотр...</p>
-            )}
+    {/* Сам инпут с чистой символьной подсказкой */}
+    <div className={`w-full border rounded-xl overflow-hidden resize-none disabled:opacity-50 disabled:cursor-not-allowed ${
+        isSecret
+        ? "border-emerald-500/40 focus-within:border-emerald-500"
+        : "border-white/15 focus-within:border-[#8b5cf6]"
+    }`}>
+        {/* Чисто символьная подсказка без фона и хуйни */}
+        <div className="px-3 py-1 text-[11px] text-white/40 border-b border-white/5 select-none pointer-events-none">
+            Markdown: **жирный** *курсив* `код` ||спойлер|| [ссылка](url)
         </div>
-    ) : (
-        /* 🆕 РЕЖИМ ВВОДА С КОНТЕКСТНЫМ МЕНЮ (вместо тулбара) */
-        <div className={`w-full border rounded-xl overflow-hidden resize-none disabled:opacity-50 disabled:cursor-not-allowed ${
-            isSecret
-                ? "border-emerald-500/40 focus-within:border-emerald-500"
-                : "border-white/15 focus-within:border-[#8b5cf6]"
-        }`}>
-            <textarea
-                ref={textareaRef}
-                value={text}
-                onChange={handleTextChange}
-                onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        sendMessage();
-                    }
-                }}
-                // 🆕 ПКМ на ПК -> открыть меню форматирования
-                onContextMenu={(e) => {
-                    if (isSecret) return;
+        
+        <textarea
+            ref={textareaRef}
+            value={text}
+            onChange={handleTextChange}
+            onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    const ta = e.currentTarget;
+                    sendMessage();
+                }
+            }}
+            // 🛡️ ПКМ на ПК -> умное меню (не уезжает за экран)
+            onContextMenu={(e) => {
+                if (isSecret) return;
+                e.preventDefault();
+                const ta = e.currentTarget;
+                setSelectionStart(ta.selectionStart);
+                setSelectionEnd(ta.selectionEnd);
+                
+                // Расчёт безопасной позиции
+                const MENU_W = 240, MENU_H = 44, PAD = 12;
+                let x = e.clientX, y = e.clientY;
+                if (x + MENU_W > window.innerWidth - PAD) x = window.innerWidth - MENU_W - PAD;
+                if (y + MENU_H > window.innerHeight - PAD) y = window.innerHeight - MENU_H - PAD;
+                if (x < PAD) x = PAD;
+                if (y < PAD) y = PAD;
+                setMenuPosition({ x, y });
+                
+                setShowMarkdownMenu(true);
+            }}
+            // 🛡️ Долгое нажатие на телефоне -> умное меню
+            onPointerDown={(e) => {
+                if (isSecret) return;
+                const taLongPressTimer = setTimeout(() => {
+                    const ta = e.currentTarget as HTMLTextAreaElement;
                     setSelectionStart(ta.selectionStart);
                     setSelectionEnd(ta.selectionEnd);
-                    setMenuPosition({ x: e.clientX, y: e.clientY });
+                    
+                    // Расчёт безопасной позиции
+                    const MENU_W = 240, MENU_H = 44, PAD = 12;
+                    let x = e.clientX, y = e.clientY;
+                    if (x + MENU_W > window.innerWidth - PAD) x = window.innerWidth - MENU_W - PAD;
+                    if (y + MENU_H > window.innerHeight - PAD) y = window.innerHeight - MENU_H - PAD;
+                    if (x < PAD) x = PAD;
+                    if (y < PAD) y = PAD;
+                    setMenuPosition({ x, y });
+                    
                     setShowMarkdownMenu(true);
-                }}
-                // 🆕 Долгое нажатие на телефоне -> открыть меню форматирования
-                onPointerDown={(e) => {
-                    if (isSecret) return;
-                    const taLongPressTimer = setTimeout(() => {
-                        const ta = e.currentTarget as HTMLTextAreaElement;
-                        setSelectionStart(ta.selectionStart);
-                        setSelectionEnd(ta.selectionEnd);
-                        setMenuPosition({ x: e.clientX, y: e.clientY });
-                        setShowMarkdownMenu(true);
-                        if (navigator.vibrate) navigator.vibrate(30);
-                    }, 500);
-                    (e.currentTarget as any)._mdTimer = taLongPressTimer;
-                }}
-                onPointerUp={(e) => {
-                    const ta = e.currentTarget as any;
-                    if (ta._mdTimer) { clearTimeout(ta._mdTimer); ta._mdTimer = null; }
-                }}
-                onPointerLeave={(e) => {
-                    const ta = e.currentTarget as any;
-                    if (ta._mdTimer) { clearTimeout(ta._mdTimer); ta._mdTimer = null; }
-                }}
-                disabled={isSecret && secretState !== "ready"}
-                placeholder={
-                    isSecret
-                        ? (secretState === "ready" ? "Зашифрованное сообщение..." : "Ожидание шифрования...")
-                        : isGroup ? "Сообщение группе..." : "Сообщение..."
-                }
-                rows={1}
-                className="w-full bg-white/5 text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-28 sm:max-h-24 md:max-h-32 leading-snug px-3.5 sm:px-3 md:px-4 py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-            {/* 🗑️ MarkdownToolbar отсюда удален */}
-        </div>
-    )}
+                    if (navigator.vibrate) navigator.vibrate(30);
+                }, 500);
+                (e.currentTarget as any)._mdTimer = taLongPressTimer;
+            }}
+            onPointerUp={(e) => {
+                const ta = e.currentTarget as any;
+                if (ta._mdTimer) { clearTimeout(ta._mdTimer); ta._mdTimer = null; }
+            }}
+            onPointerLeave={(e) => {
+                const ta = e.currentTarget as any;
+                if (ta._mdTimer) { clearTimeout(ta._mdTimer); ta._mdTimer = null; }
+            }}
+            disabled={isSecret && secretState !== "ready"}
+            placeholder={
+                isSecret
+                ? (secretState === "ready" ? "Зашифрованное сообщение..." : "Ожидание шифрования...")
+                : isGroup ? "Сообщение группе..." : "Сообщение..."
+            }
+            rows={1}
+            className="w-full bg-white/5 text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-28 sm:max-h-24 md:max-h-32 leading-snug px-3.5 sm:px-3 md:px-4 py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        />
+    </div>
 
     {/* 🆕 САМО КОНТЕКСТНОЕ МЕНЮ ФОРМАТИРОВАНИЯ */}
     {showMarkdownMenu && (
