@@ -419,7 +419,8 @@ const initiatePrism = async (targetUserId: number, targetUserName: string) => {
       setShowPrismModal(false);
       setPrismSearchQuery("");
       setPrismSearchResults([]);
-      router.push(`/messages/${data.chat_id}`); // Переход в новый чат
+      // 🎯 ГЛАВНОЕ: редирект на СТРАНИЦУ PRISM, а не на /messages/[id]
+      router.push(`/prism/${data.chat_id}`);
     } else {
       const err = await res.json();
       alert(err.detail || "Ошибка создания канала");
@@ -431,8 +432,6 @@ const initiatePrism = async (targetUserId: number, targetUserName: string) => {
     setIsCreatingPrism(false);
   }
 };
-
-
 
 
   return (
