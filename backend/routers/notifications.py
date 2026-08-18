@@ -67,7 +67,8 @@ def get_vapid_public_key():
 
 @router.post("/api/push/subscribe")
 def push_subscribe(
-    data: user: User = Depends(get_current_user),
+    data: PushSubscribeIn,  # <-- ИСПРАВЛЕНО
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
     existing = session.exec(
