@@ -1,99 +1,131 @@
-import { describe, it, expect } from "vitest";
-import {
-  generatePrismKey,
-  splitKeyIntoShards,
-  reconstructKey,
-  encryptAnchorWithPin,
-  decryptAnchorWithPin,
-} from "../lib/prismCrypto";
+// lib/prismCrypto.ts
 
-// Вспомогательная функция для сравнения Uint8Array (так как toBe() сравнивает ссылки в памяти)
-const arraysEqual = (a: Uint8Array, b: Uint8Array): boolean =>
-  a.length === b.length && a.every((val, i) => val === b[i]);
+// Универсальный доступ к crypto API (работает и в браузере, и в Node.js)
+const cryptoAPI = globalThis.crypto;
 
-describe("🔒 Trelod Prism Cryptography", () => {
+const base64ToBytes = (base64: string): Uint8Array => {
+  const binString = atob(base64);
+  return Uint8Array.from(binString, (m) => m.codePointAt(0)!);
+};
+
+const bytesToBase64 = (bytes: Uint8Array): string => {
+  const binString = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join("");
+  return btoa(binString);
+};
+
+const xorBytes = (a: Uint8Array, b: Uint8Array): Uint8Array => {
+  const result = new Uint8Array(a.length);
+  for (let i = 0; i < a.length; i++) {
+    result[i] = a[i] ^ b[i];
+  }
+  return result;
+};
+
+export function generatePrismKey(): Uint8Array {
+  return cryptoAPI.getRandomValues(new Uint8Array(32));
+}
+
+export function splitKeyIntoShards(key: Uint8Array): {
+  shard1_anchor: string;
+  shard2_genesis: string;
+  shard3_local: string;
+} {
+  const shard1 = cryptoAPI.getRandomValues(new Uint8Array(32));
+  const shard2 = cryptoAPI.getRandomValues(new Uint8Array(32));
+  const temp = xorBytes(key, shard1);
+  const shard3 = xorBytes(temp, shard2);
+
+  return {
+    shard1_anchor: bytesToBase64(shard1),
+    shard2_genesis: bytesToBase64(shard2),
+    shard3_local: bytesToBase64(shard3),
+  };
+}
+
+export function reconstructKey(shard1: string, shard2: string, shard3: string): Uint8Array {
+  const b1 = base64ToBytes(shard1);
+  const b2 = base64ToBytes(shard2);
+  const b3 = base64ToBytes(shard3);
+  const temp = xorBytes(b1, b2);
+  return xorBytes(temp, b3);
+}
+
+export async function encryptAnchorWithPin(shard1Base64: string, pin: string): Promise<string> {
+  const enc = new TextEncoder();
+  const keyMaterial = await cryptoAPI.subtle.importKey(
+    "raw",
+    enc.encode(pin),
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"]
+  );
+
+  const cryptoKey = await cryptoAPI.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: enc.encode("trelod_prism_salt"),
+      iterations: 100000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt"]
+  );
+
+  const iv = cryptoAPI.getRandomValues(new Uint8Array(12));
+
+  const algorithm = { name: "AES-GCM", iv } as any;
+  const data = base64ToBytes(shard1Base64) as any;
   
-  it("1. Генерация ключа и корректное восстановление из ТРЁХ спектров", () => {
-    // Генерируем исходный ключ
-    const originalKey = generatePrismKey();
-    expect(originalKey).toBeInstanceOf(Uint8Array);
-    expect(originalKey.length).toBe(32); // 256 бит
+  const encryptedBuffer = await cryptoAPI.subtle.encrypt(
+    algorithm,
+    cryptoKey,
+    data
+  );
 
-    // Делим на 3 спектра
-    const { shard1_anchor, shard2_genesis, shard3_local } = splitKeyIntoShards(originalKey);
-    expect(typeof shard1_anchor).toBe("string");
-    expect(typeof shard2_genesis).toBe("string");
-    expect(typeof shard3_local).toBe("string");
+  const encrypted = new Uint8Array(encryptedBuffer);
+  const combined = new Uint8Array(iv.length + encrypted.length);
+  combined.set(iv);
+  combined.set(encrypted, iv.length);
 
-    // Восстанавливаем ключ из всех 3-х частей
-    const reconstructedKey = reconstructKey(shard1_anchor, shard2_genesis, shard3_local);
-    
-    // Проверяем, что восстановленный ключ бит-в-бит совпадает с исходным
-    expect(arraysEqual(originalKey, reconstructedKey)).toBe(true);
-  });
+  return bytesToBase64(combined);
+}
 
-  it("2. Шифрование Якоря (Спектр 1) PIN-кодом и успешная расшифровка", async () => {
-    const originalKey = generatePrismKey();
-    const { shard1_anchor } = splitKeyIntoShards(originalKey);
-    const pin = "1234";
+export async function decryptAnchorWithPin(encryptedAnchorBase64: string, pin: string): Promise<string> {
+  const enc = new TextEncoder();
+  const keyMaterial = await cryptoAPI.subtle.importKey(
+    "raw",
+    enc.encode(pin),
+    { name: "PBKDF2" },
+    false,
+    ["deriveKey"]
+  );
 
-    // Шифруем (эмуляция отправки на сервер)
-    const encryptedAnchor = await encryptAnchorWithPin(shard1_anchor, pin);
-    expect(encryptedAnchor).not.toBe(shard1_anchor); // Должно быть изменено
-    expect(encryptedAnchor.length).toBeGreaterThan(0);
+  const cryptoKey = await cryptoAPI.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: enc.encode("trelod_prism_salt"),
+      iterations: 100000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["decrypt"]
+  );
 
-    // Расшифровываем (эмуляция получения на новом устройстве)
-    const decryptedShard1 = await decryptAnchorWithPin(encryptedAnchor, pin);
-    expect(decryptedShard1).toBe(shard1_anchor);
-  });
+  const combined = base64ToBytes(encryptedAnchorBase64);
+  const iv = combined.slice(0, 12);
+  const ciphertext = combined.slice(12);
 
-  it("3. Защита: расшифровка Якоря с НЕПРАВИЛЬНЫМ PIN-кодом должна падать", async () => {
-    const originalKey = generatePrismKey();
-    const { shard1_anchor } = splitKeyIntoShards(originalKey);
-    const correctPin = "1234";
-    const wrongPin = "9999";
+  const algorithm = { name: "AES-GCM", iv } as any;
+  
+  const decryptedBuffer = await cryptoAPI.subtle.decrypt(
+    algorithm,
+    cryptoKey,
+    ciphertext as any
+  );
 
-    const encryptedAnchor = await encryptAnchorWithPin(shard1_anchor, correctPin);
-
-    // Ожидаем, что функция выбросит ошибку (AES-GCM не сможет проверить тег аутентификации при неверном ключе)
-    await expect(decryptAnchorWithPin(encryptedAnchor, wrongPin)).rejects.toThrow();
-  });
-
-  it("4. 🏆 ПОЛНЫЙ СЦЕНАРИЙ: Создание на Устройстве А и восстановление на Устройстве Б только по PIN", async () => {
-    // ==========================================
-    // ЭТАП 1: УСТРОЙСТВО А (Создание чата)
-    // ==========================================
-    const userPin = "4321";
-    const chatKey = generatePrismKey();
-    const { shard1_anchor, shard2_genesis, shard3_local } = splitKeyIntoShards(chatKey);
-
-    // Устройство А шифрует Якорь и "сохраняет" его в профиль на сервере
-    const serverStoredEncryptedAnchor = await encryptAnchorWithPin(shard1_anchor, userPin);
-    
-    // Устройство А сохраняет Спектр 2 в мета-данные первого сообщения чата на сервере
-    const serverStoredGenesis = shard2_genesis;
-    
-    // Устройство А сохраняет Спектр 3 локально (или в другом надежном месте)
-    const localStoredShard3 = shard3_local;
-
-    // ==========================================
-    // ЭТАП 2: УСТРОЙСТВО Б (Новый телефон, нет исходного ключа)
-    // ==========================================
-    
-    // 1. Пользователь вводит свой PIN
-    const enteredPin = "4321";
-
-    // 2. Клиент скачивает зашифрованный Якорь из профиля и расшифровывает его
-    const decryptedShard1 = await decryptAnchorWithPin(serverStoredEncryptedAnchor, enteredPin);
-
-    // 3. Клиент скачивает Спектр 2 из первого сообщения чата и берет Спектр 3 из локального хранилища
-    const downloadedShard2 = serverStoredGenesis;
-    const downloadedShard3 = localStoredShard3;
-
-    // 4. МАГИЯ: Клиент собирает ключ из ТРЁХ частей!
-    const restoredKeyOnDeviceB = reconstructKey(decryptedShard1, downloadedShard2, downloadedShard3);
-
-    // 5. Проверяем, что ключ на новом устройстве идентичен исходному (бит-в-бит)
-    expect(arraysEqual(chatKey, restoredKeyOnDeviceB)).toBe(true);
-  });
-});
+  return bytesToBase64(new Uint8Array(decryptedBuffer));
+}

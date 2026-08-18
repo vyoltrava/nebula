@@ -8,7 +8,7 @@ class NebulaSocket {
   private pingInterval: ReturnType<typeof setInterval> | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
-  private shouldReconnect = true; // 🔥 Флаг для остановки реконнекта при критических ошибках
+  private shouldReconnect = true;
 
   constructor() {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -16,12 +16,10 @@ class NebulaSocket {
   }
 
   connect(token: string) {
-    // 🛡️ Защита от двойного подключения
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
       return;
     }
 
-    // 🔥 Сбрасываем флаг при каждой попытке подключения
     this.shouldReconnect = true;
 
     try {
@@ -34,8 +32,11 @@ class NebulaSocket {
       };
 
       this.ws.onmessage = (event) => {
+        console.log("📥 [WS FRONTEND] RAW сообщение от сервера:", event.data);
+        
         try {
           const msg = JSON.parse(event.data);
+          console.log("📥 [WS FRONTEND] Распарсенное событие:", msg.event, msg.data);
           this.emit(msg.event, msg.data);
         } catch (e) {
           console.error("WS parse error:", e);
@@ -51,14 +52,12 @@ class NebulaSocket {
         
         this.stopPing();
 
-        // 🔥 НЕ переподключаемся при критических ошибках аутентификации
         if (event.code === 4001 || event.code === 4003 || event.code === 1008) {
           console.error("⚡ WS auth failed, stopping reconnect");
           this.shouldReconnect = false;
           return;
         }
 
-        // 🔥 Не переподключаемся, если соединение было закрыто чисто (logout)
         if (event.wasClean && event.code === 1000) {
           console.log("⚡ WS closed cleanly");
           return;
@@ -71,7 +70,6 @@ class NebulaSocket {
 
       this.ws.onerror = (err) => {
         console.error("⚡ WS error:", err);
-        // 🔥 Браузер сам вызовет onclose после onerror, но мы логируем для дебага
       };
     } catch (e) {
       console.error("⚡ WS connect failed:", e);
@@ -86,7 +84,7 @@ class NebulaSocket {
       if (this.ws?.readyState === WebSocket.OPEN) {
         this.ws.send("ping");
       }
-    }, 20000); // 🔥 20 секунд (безопаснее для Render)
+    }, 20000);
   }
 
   private stopPing() {
@@ -112,17 +110,16 @@ class NebulaSocket {
   }
 
   disconnect() {
-    this.shouldReconnect = false; // 🔥 Останавливаем реконнект
+    this.shouldReconnect = false;
     if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);
     this.stopPing();
     if (this.ws) {
       this.ws.close(1000, "Client disconnect");
       this.ws = null;
     }
-    this.reconnectAttempts = 0; // 🔥 Сбрасываем счетчик
+    this.reconnectAttempts = 0;
   }
 
-  // Подписка на события
   on(event: string, handler: EventHandler): () => void {
     if (!this.handlers.has(event)) {
       this.handlers.set(event, new Set());
