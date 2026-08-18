@@ -2992,9 +2992,9 @@ const ChatHeader = () => (
                     </button>
                   </div>
 
-                  {stickerPanelTab === "emoji" ? (
-                    <div className="p-2 grid grid-cols-6 gap-1 max-h-64 overflow-y-auto">
-                      {STICKERS.map((s) => (
+              {stickerPanelTab === "emoji" ? (
+                <div className="p-2 grid grid-cols-4 sm:grid-cols-6 gap-1.5 sm:gap-1 max-h-56 sm:max-h-64 overflow-y-auto">
+                  {STICKERS.map((s) => (
                         <button
                           key={s.code}
                           onClick={() => {
