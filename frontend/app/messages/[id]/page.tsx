@@ -3563,6 +3563,82 @@ style={{
 )}
 
 
+{/* 🆕 МОДАЛКА НАСТРОЙКИ БЫСТРОЙ РЕАКЦИИ (ДВОЙНОЙ ТАП) */}
+{showReactionPicker && (
+    <>
+        {/* Затемненный фон */}
+        <div
+            className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowReactionPicker(false)}
+        />
+        {/* Само окно */}
+        <div className="fixed inset-0 z-[261] flex items-center justify-center p-4 pointer-events-none">
+            <div className="w-full max-w-md max-h-[80vh] bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
+                
+                {/* Шапка */}
+                <div className="shrink-0 p-4 pb-3 border-b border-white/10 flex items-center justify-between">
+                    <h3 className="text-base font-bold text-white">Быстрая реакция</h3>
+                    <button
+                        onClick={() => setShowReactionPicker(false)}
+                        className="text-white/40 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
+
+                {/* Контент */}
+                <div className="flex-1 overflow-y-auto p-4 min-h-0">
+                    <p className="text-xs text-white/50 mb-4">
+                        Выберите эмодзи или стикер, который будет отправляться по двойному тапу (или удержанию) на сообщение.
+                    </p>
+                    
+                    {/* Сетка реакций */}
+                    <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
+                        {allAvailableReactions.map((r, idx) => {
+                            // Проверяем, выбрана ли эта реакция сейчас
+                            const isActive = quickReaction?.type === r.type && 
+                                             quickReaction?.content === r.content && 
+                                             quickReaction?.stickerId === r.stickerId;
+
+                            return (
+                                <button
+                                    key={`${r.type}-${r.content}-${r.stickerId || idx}`}
+                                    disabled={r.locked}
+                                    onClick={() => {
+                                        saveQuickReaction({
+                                            type: r.type,
+                                            content: r.content,
+                                            stickerId: r.stickerId
+                                        });
+                                    }}
+                                    className={`aspect-square flex items-center justify-center rounded-xl transition-all relative
+                                        ${r.locked 
+                                            ? 'bg-white/5 opacity-40 cursor-not-allowed' 
+                                            : 'bg-white/5 hover:bg-[#8b5cf6]/20 hover:scale-110 active:scale-90 cursor-pointer'
+                                        }
+                                        ${isActive ? 'ring-2 ring-[#8b5cf6] bg-[#8b5cf6]/20' : ''}
+                                    `}
+                                    title={r.locked ? `Доступно с уровня ${r.minLevel}` : r.packName}
+                                >
+                                    {r.type === 'emoji' ? (
+                                        <span className="text-2xl">{r.content}</span>
+                                    ) : (
+                                        <img src={r.content} alt="" className="w-8 h-8 object-contain" />
+                                    )}
+                                    {r.locked && (
+                                        <Lock size={12} className="absolute bottom-1 right-1 text-yellow-400" />
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </>
+)}
+
+
 
     </div>
   );
