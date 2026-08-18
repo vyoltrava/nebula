@@ -15,25 +15,30 @@ from fastapi import Depends, Header, HTTPException, BackgroundTasks, Request
 from sqlmodel import Session, select, func
 from sqlalchemy import text, update, delete
 from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+# 1. ИМПОРТЫ КОНФИГУРАЦИИ И МОДЕЛЕЙ
+from cloudinary_config import UPLOAD_FOLDER
+from database import engine, get_session
 from models import (
     User, Role, IPBlock, ActionLog, Post, Like, Follow, Notification, 
     PostTag, Bookmark, PostView, LastReadPost, Message, MessageReaction,
-    Sticker, StickerPack, Theme, UserKey
+    Sticker, StickerPack, Theme, UserKey, Chat, ChatMember, ChatSessionKey,
+    Tag, Update, UpdateRead, PushSubscription, SiteRules, Warning, 
+    SystemSetting, RoleCategory, SupportTicket, SupportMessage, BugReport, Report
 )
-from database import engine, get_session
-from fastapi.concurrency import run_in_threadpool
-import cloudinary.uploader
-from slowapi import Limiter
-from slowapi.util import get_remote_address
-from cloudinary_config import UPLOAD_FOLDER
-
-limiter = Limiter(key_func=get_remote_address)
+from websocket_manager import manager  # <-- Экспортируем manager отсюда
 
 # ============================================================
 # 🔑 СЕКРЕТЫ И КОНСТАНТЫ
 # ============================================================
 SECRET = os.getenv("SECRET_KEY", "nebula-super-secret-key-2026-minimum-32-chars")
 ALGORITHM = "HS256"
+
+ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+ALLOWED_AUDIO_EXT = {".mp3", ".wav", ".ogg", ".m4a", ".aac"}
+ALLOWED_VIDEO_EXT = {".mp4", ".webm", ".mov", ".mkv"}
 
 ALL_PERMISSIONS = [
     "delete_posts", "ban_users", "remove_avatars", "assign_moderator",
@@ -57,6 +62,34 @@ _POPULAR_TAGS_TTL = 300
 
 _follow_cache = {}
 _FOLLOW_CACHE_TTL = 60
+
+limiter = Limiter(key_func=get_remote_address)
+
+# ============================================================
+# 📋 PYDANTIC МОДЕЛИ (чтобы роутеры могли их импортировать)
+# ============================================================
+class RegisterIn(BaseModel):
+    username: str
+    display_name: str
+    password: str
+    @classmethod
+    def validate_username(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not re.match(r"^[a-z0-9_]{3,30}$", v): raise ValueError("Username: 3-30 символов, только латиница, цифры и _")
+        return v
+
+class LoginIn(BaseModel): username: str; password: str
+class PostIn(BaseModel): text: str
+class UpdateUserIn(BaseModel): display_name: str; bio: Optional[str] = None
+class ChangePasswordIn(BaseModel): old_password: str; new_password: str
+class MarkReadingIn(BaseModel): post_id: int
+
+class PostOut(BaseModel):
+    id: int; author_id: int; author: str; handle: str; author_avatar: Optional[str] = None
+    author_is_admin: bool = False; author_is_moderator: bool = False; author_is_banned: bool = False
+    author_role: Optional[dict] = None; text: str; media_url: Optional[str] = None
+    likes_count: int = 0; liked_by_me: bool = False; replies_count: int = 0
+    created_at: datetime; bookmarked_by_me: bool = False; author_level: int = 1; author_bio: Optional[str] = None
 
 # ============================================================
 # 🔐 АВТОРИЗАЦИЯ
@@ -332,12 +365,16 @@ async def cascade_delete_post(post_id: int, session: Session):
         if post.media_url and "cloudinary.com" in post.media_url:
             try:
                 public_id = extract_cloudinary_public_id(post.media_url)
-                if public_id: await run_in_threadpool(cloudinary.uploader.destroy, public_id, resource_type="auto")
+                if public_id: 
+                    from fastapi.concurrency import run_in_threadpool
+                    await run_in_threadpool(lambda: __import__('cloudinary.uploader').uploader.destroy(public_id, resource_type="auto"))
             except: pass
         elif post.media_url:
             file_path = os.path.join("uploads", post.media_url.split("/")[-1])
             if os.path.exists(file_path):
-                try: await run_in_threadpool(os.remove, file_path)
+                try: 
+                    from fastapi.concurrency import run_in_threadpool
+                    await run_in_threadpool(lambda: __import__('os').remove(file_path))
                 except: pass
                 
     root_post = session.get(Post, post_id)
@@ -345,6 +382,18 @@ async def cascade_delete_post(post_id: int, session: Session):
     session.exec(delete(PostTag).where(PostTag.post_id == post_id))
     session.commit()
     return len(ids_to_clean)
+
+def cascade_delete_chat(chat_id: int, session: Session):
+    message_ids = session.exec(select(Message.id).where(Message.chat_id == chat_id)).all()
+    if message_ids:
+        session.exec(delete(MessageReaction).where(MessageReaction.message_id.in_(message_ids)))
+        session.exec(update(Message).where(Message.reply_to_id.in_(message_ids)).values(reply_to_id=None))
+        session.exec(update(Message).where(Message.forwarded_from_id.in_(message_ids)).values(forwarded_from_id=None))
+        session.exec(delete(Message).where(Message.chat_id == chat_id))
+    session.exec(delete(ChatSessionKey).where(ChatSessionKey.chat_id == chat_id))
+    session.exec(delete(ChatMember).where(ChatMember.chat_id == chat_id))
+    session.exec(delete(Chat).where(Chat.id == chat_id))
+    session.commit()
 
 # ============================================================
 # 😂 РЕАКЦИИ И ТЕМЫ
@@ -373,29 +422,3 @@ def build_reactions_map(session: Session, message_ids: list, current_user_id: in
 
 def theme_to_dict(t: Theme) -> dict:
     return {"id": t.id, "name": t.name, "type": t.type, "colors": json.loads(t.colors) if isinstance(t.colors, str) else t.colors, "speed": t.speed, "intensity": t.intensity, "blur": t.blur, "is_default": t.is_default, "min_level": t.min_level, "is_active": t.is_active, "created_at": t.created_at.isoformat() if t.created_at else None}
-
-# ============================================================
-# 📋 PYDANTIC МОДЕЛИ
-# ============================================================
-class RegisterIn(BaseModel):
-    username: str
-    display_name: str
-    password: str
-    @classmethod
-    def validate_username(cls, v: str) -> str:
-        v = v.strip().lower()
-        if not re.match(r"^[a-z0-9_]{3,30}$", v): raise ValueError("Username: 3-30 символов, только латиница, цифры и _")
-        return v
-
-class LoginIn(BaseModel): username: str; password: str
-class PostIn(BaseModel): text: str
-class UpdateUserIn(BaseModel): display_name: str; bio: Optional[str] = None
-class ChangePasswordIn(BaseModel): old_password: str; new_password: str
-class MarkReadingIn(BaseModel): post_id: int
-
-class PostOut(BaseModel):
-    id: int; author_id: int; author: str; handle: str; author_avatar: Optional[str] = None
-    author_is_admin: bool = False; author_is_moderator: bool = False; author_is_banned: bool = False
-    author_role: Optional[dict] = None; text: str; media_url: Optional[str] = None
-    likes_count: int = 0; liked_by_me: bool = False; replies_count: int = 0
-    created_at: datetime; bookmarked_by_me: bool = False; author_level: int = 1; author_bio: Optional[str] = None

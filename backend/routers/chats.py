@@ -5,7 +5,7 @@ import uuid
 import asyncio
 from datetime import datetime, timezone
 from typing import Optional, List
-
+from websocket_manager import manager
 from fastapi import APIRouter, Depends, HTTPException, Request, Form, File, UploadFile, Header, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from sqlmodel import Session, select, delete, func, update
@@ -19,7 +19,7 @@ from dependencies import (
     ensure_user_has_keys, extract_cloudinary_public_id, extract_mentions,
     get_client_ip, get_current_user, get_user_level, has_permission,
     limiter, log_action, reaction_limit_for, user_out, _update_last_seen_sync,
-    get_reply_preview, UPLOAD_FOLDER, manager
+    get_reply_preview, UPLOAD_FOLDER, 
 )
 
 router = APIRouter()
