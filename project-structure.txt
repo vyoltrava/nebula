@@ -3,17 +3,62 @@
 ├── .gitattributes
 ├── .gitignore
 ├── backend
-│   ├── Aptfile
+│   ├── cleanup.py
 │   ├── cloudinary_config.py
 │   ├── database.py
+│   ├── dependencies.py
 │   ├── link_preview.py
 │   ├── main.py
+│   ├── main_old_backup.py
 │   ├── models.py
 │   ├── performance.py
 │   ├── push_service.py
 │   ├── requirements.txt
+│   ├── routers
+│   │   ├── admin.py
+│   │   ├── auth.py
+│   │   ├── chats.py
+│   │   ├── misc.py
+│   │   ├── notifications.py
+│   │   ├── permissions.py
+│   │   ├── posts.py
+│   │   ├── reports.py
+│   │   ├── search.py
+│   │   ├── support.py
+│   │   ├── themes.py
+│   │   ├── updates.py
+│   │   ├── users.py
+│   │   ├── __init__.py
+│   │   └── __pycache__
+│   │       ├── admin.cpython-314.pyc
+│   │       ├── auth.cpython-314.pyc
+│   │       ├── chats.cpython-314.pyc
+│   │       ├── misc.cpython-314.pyc
+│   │       ├── notifications.cpython-314.pyc
+│   │       ├── permissions.cpython-314.pyc
+│   │       ├── posts.cpython-314.pyc
+│   │       ├── reports.cpython-314.pyc
+│   │       ├── search.cpython-314.pyc
+│   │       ├── support.cpython-314.pyc
+│   │       ├── themes.cpython-314.pyc
+│   │       ├── updates.cpython-314.pyc
+│   │       ├── users.cpython-314.pyc
+│   │       ├── __init__.cpython-314.pyc
+│   │       └── __init__.py
 │   ├── sql_profiler.py
-│   └── websocket_manager.py
+│   ├── test_report.json
+│   ├── uploads
+│   ├── websocket_manager.py
+│   └── __pycache__
+│       ├── cloudinary_config.cpython-314.pyc
+│       ├── database.cpython-314.pyc
+│       ├── dependencies.cpython-314.pyc
+│       ├── link_preview.cpython-314.pyc
+│       ├── main.cpython-314.pyc
+│       ├── models.cpython-314.pyc
+│       ├── performance.cpython-314.pyc
+│       ├── sql_profiler.cpython-314.pyc
+│       └── websocket_manager.cpython-314.pyc
 ├── export-files.ps1
 ├── frontend
 │   ├── .gitignore
@@ -72,6 +117,7 @@
 │   │   └── user
 │   │       └── [id]
 │   │           └── page.tsx
+│   ├── auto-scan.js
 │   ├── CLAUDE.md
 │   ├── components
 │   │   ├── admin
@@ -185,10 +231,11 @@
 │   │       ├── useLastReadPost.ts
 │   │       └── useWebSocket.ts
 │   ├── tsconfig.json
-│   └── yarn.lock
+│   ├── yarn.lock
+│   └── __tests__
+│       └── crypto.test.ts
 ├── get-structure.js
 ├── package.json
 ├── perf-scan.mjs
-├── project-files.txt
 ├── project-structure.txt
-└── structure.txt
+└── vercel.json

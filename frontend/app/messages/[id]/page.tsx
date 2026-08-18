@@ -1531,18 +1531,16 @@ const handleSendClick = () => {
       .then(setCurrentUser)
       .catch(() => {});
         // 🆕 настройки живых сообщений
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/live-text-settings`, {
-      headers: { Authorization: `Bearer ${token}` },
-      signal,
-  })
-  .then((r) => r.json())
-  .then((me) => {
-    setCurrentUser(me);
-    // 🆕 Сбрасываем при загрузке юзера
-    setIsSavedChat(false);
-    setChatPartner(null);
-  })
-  .catch(() => {});
+fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/live-text-settings`, {
+  headers: { Authorization: `Bearer ${token}` },
+  signal,
+})
+.then((r) => r.json())
+.then((settings) => {
+  // Обновляем только настройки, не трогая основной объект currentUser
+  setLiveSettings(settings); 
+})
+.catch(() => {});
 
     loadChatInfo();
     loadMessages();
@@ -1941,7 +1939,7 @@ const ChatHeader = () => (
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-bold truncate text-[15px] sm:text-base md:text-lg text-white group-hover:text-[#8b5cf6] transition-colors leading-tight">
+              <p className="font-bold truncate break-words text-[15px] sm:text-base md:text-lg text-white group-hover:text-[#8b5cf6] transition-colors leading-tight">
                 {chatInfo.name}
               </p>
               <p className="text-[11px] sm:text-xs text-white/50 mt-0.5">
@@ -2022,92 +2020,110 @@ const ChatHeader = () => (
           </div>
         )}
 
-        {/* Кнопки справа */}
-        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+{/* Кнопки справа */}
+<div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+  {/* Скрыты на мобильных, видны на планшетах и ПК (sm и выше) */}
+  <button
+    onClick={() => setShowReactionPicker(!showReactionPicker)}
+    className="hidden sm:flex p-2 sm:p-1.5 rounded-lg transition-colors active:scale-95 hover:bg-white/5 items-center justify-center min-w-[36px] min-h-[36px]"
+    title="Настроить реакцию"
+  >
+    {quickReaction ? (
+      quickReaction.type === 'emoji' ? (
+        <span className="text-xl leading-none">{quickReaction.content}</span>
+      ) : (
+        <img src={quickReaction.content} alt="" className="w-6 h-6 object-contain" />
+      )
+    ) : (
+      <SmilePlus size={18} className="text-white/40" />
+    )}
+  </button>
+
+  <button
+    onClick={() => { setMediaTab("image"); loadMedia(); setShowMediaGallery(true); }}
+    className="hidden sm:flex p-2.5 sm:p-2 text-white/60 hover:text-[#8b5cf6] transition-colors active:scale-95"
+    title="Медиа"
+  >
+    <ImageIcon size={19} className="sm:w-5 sm:h-5" />
+  </button>
+
+  {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && (
+    <button
+      onClick={() => setShowGroupSettings(true)}
+      className="hidden sm:flex p-2.5 sm:p-2 text-white/60 hover:text-white transition-colors active:scale-95"
+      title="Настройки группы"
+    >
+      <Settings size={19} className="sm:w-5 sm:h-5" />
+    </button>
+  )}
+
+  {/* Меню "Ещё" (видимо всегда, на мобильных забирает все функции) */}
+  <div className="relative">
+    <button
+      onClick={() => {
+        if (!showChatMenu) menuOpenTimeRef.current = Date.now();
+        setShowChatMenu((prev) => !prev);
+      }}
+      className="p-2.5 sm:p-2 text-white/60 hover:text-white transition-colors active:scale-95"
+      title="Ещё"
+    >
+      <MoreVertical size={19} className="sm:w-5 sm:h-5" />
+    </button>
+    
+    {showChatMenu && (
+      <>
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => { if (Date.now() - menuOpenTimeRef.current < 400) return; setShowChatMenu(false); }} 
+        />
+        <div className="absolute right-0 top-full mt-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] sm:min-w-[180px] z-50">
+          
+          {/* 📱 МОБИЛЬНЫЕ КНОПКИ (скрыты на ПК) */}
           <button
-            onClick={() => setShowSearch(!showSearch)}
-            className={`p-2.5 sm:p-2 rounded-lg transition-colors active:scale-95 ${
-              showSearch ? "text-[#8b5cf6] bg-[#8b5cf6]/10" : "text-white/60 hover:text-[#8b5cf6]"
-            }`}
-            title="Поиск"
+            onClick={() => { setShowReactionPicker(true); setShowChatMenu(false); }}
+            className="sm:hidden w-full px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
           >
-            <Search size={19} className="sm:w-5 sm:h-5" />
+            <SmilePlus size={15} /> Быстрая реакция
           </button>
-
-          <div className="relative">
-            <button
-              onClick={() => setShowReactionPicker(!showReactionPicker)}
-              className="p-2 sm:p-1.5 rounded-lg transition-colors active:scale-95 hover:bg-white/5 flex items-center justify-center min-w-[36px] min-h-[36px]"
-              title="Настроить реакцию по двойному тапу"
-            >
-              {quickReaction ? (
-                quickReaction.type === 'emoji' ? (
-                  <span className="text-xl leading-none">{quickReaction.content}</span>
-                ) : (
-                  <img src={quickReaction.content} alt="" className="w-6 h-6 object-contain" />
-                )
-              ) : (
-                <SmilePlus size={18} className="text-white/40" />
-              )}
-            </button>
-          </div>
-
           <button
-            onClick={() => { setMediaTab("image"); loadMedia(); setShowMediaGallery(true); }}
-            className="p-2.5 sm:p-2 text-white/60 hover:text-[#8b5cf6] transition-colors active:scale-95"
-            title="Медиа"
+            onClick={() => { setMediaTab("image"); loadMedia(); setShowMediaGallery(true); setShowChatMenu(false); }}
+            className="sm:hidden w-full px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
           >
-            <ImageIcon size={19} className="sm:w-5 sm:h-5" />
+            <ImageIcon size={15} /> Медиа файлы
           </button>
-
           {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && (
             <button
-              onClick={() => setShowGroupSettings(true)}
-              className="p-2.5 sm:p-2 text-white/60 hover:text-white transition-colors active:scale-95"
-              title="Настройки группы"
+              onClick={() => { setShowGroupSettings(true); setShowChatMenu(false); }}
+              className="sm:hidden w-full px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
             >
-              <Settings size={19} className="sm:w-5 sm:h-5" />
+              <Settings size={15} /> Настройки группы
             </button>
           )}
+          
+          {/* Разделитель только для мобильных */}
+          <div className="sm:hidden h-px bg-white/10 my-1" />
 
-          <div className="relative">
+          {/* 🖥️ ОБЩИЕ КНОПКИ МЕНЮ */}
+          {isGroup && (
             <button
-              onClick={() => {
-                if (!showChatMenu) menuOpenTimeRef.current = Date.now();
-                setShowChatMenu((prev) => !prev);
-              }}
-              className="p-2.5 sm:p-2 text-white/60 hover:text-white transition-colors active:scale-95"
-              title="Ещё"
+              onClick={() => { setShowGroupMembers(true); setShowChatMenu(false); }}
+              className="w-full px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
             >
-              <MoreVertical size={19} className="sm:w-5 sm:h-5" />
+              <Users size={15} /> Участники
             </button>
-            {showChatMenu && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => { if (Date.now() - menuOpenTimeRef.current < 400) return; setShowChatMenu(false); }} />
-                <div className="absolute right-0 top-full mt-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px] sm:min-w-[180px] z-50">
-                  {isGroup && (
-                    <button
-                      onClick={() => { setShowGroupMembers(true); setShowChatMenu(false); }}
-                      className="w-full px-3 sm:px-3 py-3 sm:py-2.5 text-left text-sm sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
-                    >
-                      <Users size={15} />
-                      Участники
-                    </button>
-                  )}
-                  <button
-                    onClick={() => { deleteChat(); setShowChatMenu(false); }}
-                    className="w-full px-3 sm:px-3 py-3 sm:py-2.5 text-left text-sm sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
-                  >
-                    <Trash2 size={15} />
-                    {isGroup
-                      ? (chatInfo?.my_role === "owner" ? "Удалить группу" : "Покинуть группу")
-                      : "Удалить чат"}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+          )}
+          <button
+            onClick={() => { deleteChat(); setShowChatMenu(false); }}
+            className="w-full px-3 py-2.5 text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
+          >
+            <Trash2 size={15} />
+            {isGroup ? (chatInfo?.my_role === "owner" ? "Удалить группу" : "Покинуть группу") : "Удалить чат"}
+          </button>
         </div>
+      </>
+    )}
+  </div>
+</div>
       </div>
     </div>
 
