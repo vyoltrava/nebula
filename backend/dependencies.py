@@ -25,6 +25,7 @@ from fastapi.concurrency import run_in_threadpool
 import cloudinary.uploader
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+from cloudinary_config import UPLOAD_FOLDER
 
 limiter = Limiter(key_func=get_remote_address)
 
