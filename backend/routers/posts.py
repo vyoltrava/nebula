@@ -9,8 +9,8 @@ import json, os
 
 from database import get_session
 from models import *
-from app_split.dependencies import *
-from app_split.dependencies import _popular_tags_cache, _POPULAR_TAGS_TTL
+from dependencies import *
+from dependencies import _popular_tags_cache, _POPULAR_TAGS_TTL
 
 router = APIRouter()
 

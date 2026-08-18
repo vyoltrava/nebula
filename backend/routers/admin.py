@@ -9,7 +9,7 @@ import json, os
 
 from database import get_session
 from models import *
-from app_split.dependencies import *
+from dependencies import *
 
 router = APIRouter()
 

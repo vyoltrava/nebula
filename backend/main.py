@@ -16,7 +16,7 @@ from models import *  # Нужно для миграций, чтобы SQLAlchem
 from performance import PerfMiddleware  # Если этот файл есть в проекте
 
 # Импорт глобальных переменных и мидлварей из dependencies
-from app_split.dependencies import (
+from dependencies import (
     limiter, 
     get_client_ip, 
     is_ip_blocked, 
@@ -24,19 +24,19 @@ from app_split.dependencies import (
 )
 
 # 2. Импорт всех роутеров
-from app_split.routers.admin import router as admin_router
-from app_split.routers.auth import router as auth_router
-from app_split.routers.chats import router as chats_router
-from app_split.routers.misc import router as misc_router
-from app_split.routers.notifications import router as notifications_router
-from app_split.routers.permissions import router as permissions_router
-from app_split.routers.posts import router as posts_router
-from app_split.routers.reports import router as reports_router
-from app_split.routers.search import router as search_router
-from app_split.routers.support import router as support_router
-from app_split.routers.themes import router as themes_router
-from app_split.routers.updates import router as updates_router
-from app_split.routers.users import router as users_router
+from routers.admin import router as admin_router
+from routers.auth import router as auth_router
+from routers.chats import router as chats_router
+from routers.misc import router as misc_router
+from routers.notifications import router as notifications_router
+from routers.permissions import router as permissions_router
+from routers.posts import router as posts_router
+from routers.reports import router as reports_router
+from routers.search import router as search_router
+from routers.support import router as support_router
+from routers.themes import router as themes_router
+from routers.updates import router as updates_router
+from routers.users import router as users_router
 
 # 3. Инициализация приложения
 app = FastAPI(title="Nebula API")
