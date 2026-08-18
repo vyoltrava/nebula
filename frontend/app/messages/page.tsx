@@ -556,7 +556,13 @@ const initiatePrism = async (targetUserId: number, targetUserName: string) => {
               isPinned={!!chat.pinned}
               onClick={() => {
                 refresh();
-                router.push(`/messages/${chat.id}`);
+                // 🆕 ПРОВЕРКА: если это Призма, ведем в /prism/, иначе в /messages/
+                // (Убедись, что твой бэкенд в serialize_chat_for_user возвращает поле is_prism)
+                if (chat.is_prism) {
+                  router.push(`/prism/${chat.id}`);
+                } else {
+                  router.push(`/messages/${chat.id}`);
+                }
               }}
               onSwipeRight={() => {
                 setActiveChatMenu(activeChatMenu === chat.id ? null : chat.id);
