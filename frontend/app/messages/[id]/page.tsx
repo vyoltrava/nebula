@@ -1929,97 +1929,7 @@ const ChatHeader = () => (
 )}
   </button>
   
-{showReactionPicker && (
-<>
-  {/* Затемнение фона */}
-  <div 
-    className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" 
-    onClick={() => setShowReactionPicker(false)} 
-  />
-  
-  {/* Окно по центру экрана */}
-  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-    <div 
-      className="w-full max-w-sm max-h-[80vh] bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 pointer-events-auto"
-      onClick={(e) => e.stopPropagation()}
-    >
-      {/* Шапка */}
-      <div className="p-4 border-b border-white/10 flex items-center justify-between shrink-0">
-        <p className="text-sm font-bold text-white">Быстрая реакция (двойной тап)</p>
-        <button onClick={() => setShowReactionPicker(false)} className="text-white/40 hover:text-white p-1">
-          <X size={18} />
-        </button>
-      </div>
-      
-      {/* Список реакций по пакам */}
-      <div className="flex-1 overflow-y-auto p-3">
-        {stickerPacks.length === 0 ? (
-          <p className="text-center text-white/40 text-xs py-6">Нет доступных паков</p>
-        ) : (
-          stickerPacks.map((pack) => {
-            const userLevel = currentUser?.level ?? 0;
-            const isLocked = (pack.min_level || 0) > userLevel;
-            return (
-              <div key={pack.id} className="mb-4">
-                <div className="flex items-center gap-1.5 px-1 mb-2">
-                  {isLocked && <Lock size={10} className="text-yellow-400" />}
-                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLocked ? 'text-white/30' : 'text-white/60'}`}>
-                    {pack.name}
-                    {isLocked && <span className="ml-1 text-yellow-400/70 normal-case">· ур. {pack.min_level}</span>}
-                  </span>
-                </div>
-                <div className="grid grid-cols-6 gap-1.5">
-                  {pack.stickers?.map((s: any) => {
-                    const isSelected = quickReaction?.content === s.content && quickReaction?.type === s.type;
-                    return (
-                      <button
-                        key={s.id}
-                        disabled={isLocked}
-                        onClick={() => {
-                          if (isLocked) return;
-                          saveQuickReaction({
-                            type: s.type,
-                            content: s.content,
-                            stickerId: s.type === 'sticker' ? s.id : undefined
-                          });
-                        }}
-                        className={`aspect-square flex items-center justify-center rounded-lg transition-all relative ${
-                          isLocked
-                            ? 'opacity-30 grayscale cursor-not-allowed'
-                            : isSelected
-                              ? 'bg-[#8b5cf6]/30 ring-1 ring-[#8b5cf6] scale-110'
-                              : 'hover:bg-white/10 active:scale-90'
-                        }`}
-                        title={isLocked ? `Доступно с ${pack.min_level} уровня` : undefined}
-                      >
-                        {s.type === 'emoji' ? (
-                          <span className="text-xl">{s.content}</span>
-                        ) : (
-                          <img src={s.content} alt="" className="w-7 h-7 object-contain" />
-                        )}
-                        {isLocked && (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <Lock size={12} className="text-yellow-400 drop-shadow-md" />
-                          </div>
-                        )}
-                        {isSelected && !isLocked && (
-                          <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#8b5cf6] flex items-center justify-center">
-                            <Check size={10} className="text-white" />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
-  </div>
-</>
-)}
+
 </div>
 
           <button
@@ -2170,6 +2080,7 @@ const ChatHeader = () => (
 
   return (
     <div className="h-screen flex overflow-hidden">
+      <style>{`@keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }`}</style>
       <Sidebar />
       <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
 <main className="flex-1 flex flex-col border-x border-white/10 overflow-hidden">
@@ -2258,7 +2169,7 @@ const ChatHeader = () => (
               <div
                 ref={scrollContainerRef}
                 onScroll={handleScroll}
-                className="flex-1 overflow-y-auto p-3 sm:p-3 md:p-4 space-y-1 overscroll-contain touch-pan-y"
+className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 overscroll-contain touch-pan-y"
                 style={{ WebkitOverflowScrolling: 'touch' }}
               >
               {currentUser &&
@@ -2341,8 +2252,9 @@ const ChatHeader = () => (
                         }}
                         // 🆕 Long press для открытия меню реакций
                         onPointerDown={(e) => {
-                          if (isSelectMode || isSecret) return;
-                          longPressTimerRef.current = setTimeout(() => {
+                            if (isSelectMode || isSecret) return;
+                            e.preventDefault(); // ⬅️ Блокируем системное меню телефона
+                            longPressTimerRef.current = setTimeout(() => {
                             isLongPressRef.current = true;
                             setLongPressMenu({
                               msgId: msg.id,
@@ -3275,12 +3187,7 @@ const ChatHeader = () => (
       onClick={() => setLongPressMenu(null)}
     />
     {/* Само меню с glassmorphism */}
-    <div
-      className="fixed z-[251] bg-[#1c1c1e]/90 backdrop-blur-xl border border-white/10 rounded-[28px] shadow-2xl p-2.5 flex items-center gap-1.5 animate-in zoom-in-95 fade-in duration-200 ease-out"
-      style={{
-        left: Math.max(12, Math.min(longPressMenu.x - 140, window.innerWidth - 290)),
-        top: Math.max(12, longPressMenu.y - 85)
-      }}
+<div className="fixed z-[251] bg-[#1c1c1e]/90 backdrop-blur-xl border border-white/10 rounded-[28px] shadow-2xl p-2.5 flex items-center gap-1.5" style={{ animation: 'popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards' }}
     >
       {['❤️', '👍', '🔥', '😂', '😮'].map((emoji, i) => (
         <button
@@ -3307,6 +3214,100 @@ const ChatHeader = () => (
       </button>
     </div>
   </>
+)}
+
+
+
+{showReactionPicker && (
+<>
+  {/* Затемнение фона */}
+  <div 
+    className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" 
+    onClick={() => setShowReactionPicker(false)} 
+  />
+  
+  {/* Окно по центру экрана */}
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+    <div 
+      className="w-full max-w-sm max-h-[80vh] bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 pointer-events-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Шапка */}
+      <div className="p-4 border-b border-white/10 flex items-center justify-between shrink-0">
+        <p className="text-sm font-bold text-white">Быстрая реакция (двойной тап)</p>
+        <button onClick={() => setShowReactionPicker(false)} className="text-white/40 hover:text-white p-1">
+          <X size={18} />
+        </button>
+      </div>
+      
+      {/* Список реакций по пакам */}
+      <div className="flex-1 overflow-y-auto p-3">
+        {stickerPacks.length === 0 ? (
+          <p className="text-center text-white/40 text-xs py-6">Нет доступных паков</p>
+        ) : (
+          stickerPacks.map((pack) => {
+            const userLevel = currentUser?.level ?? 0;
+            const isLocked = (pack.min_level || 0) > userLevel;
+            return (
+              <div key={pack.id} className="mb-4">
+                <div className="flex items-center gap-1.5 px-1 mb-2">
+                  {isLocked && <Lock size={10} className="text-yellow-400" />}
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLocked ? 'text-white/30' : 'text-white/60'}`}>
+                    {pack.name}
+                    {isLocked && <span className="ml-1 text-yellow-400/70 normal-case">· ур. {pack.min_level}</span>}
+                  </span>
+                </div>
+                <div className="grid grid-cols-6 gap-1.5">
+                  {pack.stickers?.map((s: any) => {
+                    const isSelected = quickReaction?.content === s.content && quickReaction?.type === s.type;
+                    return (
+                      <button
+                        key={s.id}
+                        disabled={isLocked}
+                        onClick={() => {
+                          if (isLocked) return;
+                          saveQuickReaction({
+                            type: s.type,
+                            content: s.content,
+                            stickerId: s.type === 'sticker' ? s.id : undefined
+                          });
+                        }}
+                        className={`aspect-square flex items-center justify-center rounded-lg transition-all relative ${
+                          isLocked
+                            ? 'opacity-30 grayscale cursor-not-allowed'
+                            : isSelected
+                              ? 'bg-[#8b5cf6]/30 ring-1 ring-[#8b5cf6] scale-110'
+                              : 'hover:bg-white/10 active:scale-90'
+                        }`}
+                        title={isLocked ? `Доступно с ${pack.min_level} уровня` : undefined}
+                      >
+                        {s.type === 'emoji' ? (
+                          <span className="text-xl">{s.content}</span>
+                        ) : (
+                          <img src={s.content} alt="" className="w-7 h-7 object-contain" />
+                        )}
+                        {isLocked && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Lock size={12} className="text-yellow-400 drop-shadow-md" />
+                          </div>
+                        )}
+                        {isSelected && !isLocked && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#8b5cf6] flex items-center justify-center">
+                            <Check size={10} className="text-white" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  </div>
+</>
 )}
 
       </main>
