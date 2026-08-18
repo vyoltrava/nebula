@@ -10,6 +10,13 @@ from dependencies import get_current_user, user_out
 
 router = APIRouter()
 
+# 🔥 Локальное определение модели, чтобы избежать ForwardRef ошибок Pydantic
+class PushSubscribeIn(BaseModel):
+    endpoint: str
+    p256dh: str
+    auth: str
+
+
 @router.get("/api/counts")
 def get_all_counts(
     user: User = Depends(get_current_user),
@@ -60,8 +67,7 @@ def get_vapid_public_key():
 
 @router.post("/api/push/subscribe")
 def push_subscribe(
-    data: PushSubscribeIn,
-    user: User = Depends(get_current_user),
+    data: user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
     existing = session.exec(
