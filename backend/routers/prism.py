@@ -1,18 +1,17 @@
 # routers/prism.py
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session
+from fastapi import APIRouter, Depends, HTTPException, Form
+from sqlmodel import Session, select
+from pydantic import BaseModel
+import json
+
 from database import get_session
-from models import User, Chat
-from dependencies import get_current_user # <-- Берем отсюда!
+from models import User, Chat, ChatMember, Message, Notification
+from dependencies import get_current_user, manager
 
-router = APIRouter(prefix="/api/prism", tags=["Prism Chat"])
-
-# Вставь это в конец routers/chats.py
+router = APIRouter(tags=["Prism Chat"])
 
 class CreatePrismChatIn(BaseModel):
     other_user_id: int
-    # Фронтенд сам сгенерирует ключ и пришлет уже зашифрованный "Спектр 2" (Генезис)
-    # и "Спектр 1" (Якорь) для сохранения в профиль пользователя
     shard1_encrypted: str  
     shard2_genesis: str    
 
@@ -34,7 +33,7 @@ async def create_prism_chat(
     my_chats = session.exec(select(ChatMember.chat_id).where(ChatMember.user_id == user.id)).all()
     for cid in my_chats:
         chat = session.get(Chat, cid)
-        if chat and chat.is_prism:
+        if chat and getattr(chat, 'is_prism', False):
             other_in = session.exec(select(ChatMember).where(
                 ChatMember.chat_id == cid, ChatMember.user_id == data.other_user_id
             )).first()
@@ -55,11 +54,10 @@ async def create_prism_chat(
     session.add(user)
     
     # 4. Создаем ПЕРВОЕ системное сообщение, которое хранит "Спектр 2" (Генезис)
-    # Это сообщение невидимо для пользователя, но критически важно для восстановления ключа
     genesis_msg = Message(
         chat_id=chat.id,
-        sender_id=user.id, # Технически отправитель - инициатор
-        text=f"__PRISM_GENESIS__:{data.shard2_genesis}", # Специальный маркер
+        sender_id=user.id,
+        text=f"__PRISM_GENESIS__:{data.shard2_genesis}",
         media_type="system",
     )
     session.add(genesis_msg)
@@ -67,7 +65,9 @@ async def create_prism_chat(
 
     # 5. Уведомление
     session.add(Notification(
-        user_id=data.other_user_id, actor_id=user.id, type="prism_chat_created",
+        user_id=data.other_user_id, 
+        actor_id=user.id, 
+        type="prism_chat_created",
         details=json.dumps({"chat_id": chat.id}),
     ))
     session.commit()
