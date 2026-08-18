@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getToken } from "@/lib/auth";
-import { useWebSocket } from "@/src/hooks/useWebSocket";
+import { useWebSocket } from "@/src/hooks/useWebSocket"; // <-- КРИТИЧЕСКИ ВАЖНО
 import { Send, Terminal, ShieldCheck, Zap, ArrowLeft, LogOut } from "lucide-react";
 
 export default function PrismChatPage() {
@@ -20,7 +20,7 @@ export default function PrismChatPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const sendingRef = useRef(false);
 
-  // 1. Загрузка данных и сообщений
+  // 1. Загрузка данных
   useEffect(() => {
     const token = getToken();
     if (!token) return router.push("/login");
@@ -49,7 +49,7 @@ export default function PrismChatPage() {
     });
   }, [chatId, router]);
 
-  // 2. Реальная отправка сообщения на бэкенд
+  // 2. Отправка сообщения на бэкенд
   const sendMessage = async () => {
     if (sendingRef.current || !text.trim()) return;
     const token = getToken();
@@ -96,14 +96,17 @@ export default function PrismChatPage() {
     }
   };
 
-  // 4. Веб-сокет для получения новых сообщений в реальном времени
+  // 4. 🚀 WEBSOCKET: Живое обновление сообщений
   useWebSocket("new_message", (data: any) => {
+    console.log("📡 [PRISM] Получено сообщение по WS:", data); // <-- СМОТРИ В КОНСОЛЬ (F12)
     if (String(data.chat_id) !== String(chatId)) return;
+    
     setMessages(prev => {
-      if (prev.some(m => m.id === data.id)) return prev;
+      if (prev.some(m => m.id === data.id)) return prev; // Защита от дубликатов
       return [...prev, { ...data, is_temp: false }];
     });
-    // Автоскролл вниз
+    
+    // Автоскролл вниз при новом сообщении
     setTimeout(() => {
       scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
     }, 100);
@@ -115,7 +118,7 @@ export default function PrismChatPage() {
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#1a1a24_1px,transparent_1px),linear-gradient(to_bottom,#1a1a24_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-30 pointer-events-none" />
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#08080C]/50 to-[#08080C] pointer-events-none" />
 
-      {/* 🧬 HEADER: Статус-панель с кнопками навигации */}
+      {/* HEADER: Статус-панель с кнопками навигации */}
       <header className="relative z-10 border-b border-cyan-500/20 bg-[#0a0a0f]/90 backdrop-blur-md px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button onClick={() => router.push("/messages")} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white">
@@ -139,7 +142,7 @@ export default function PrismChatPage() {
         </button>
       </header>
 
-      {/* 🌌 MESSAGE STREAM: Нейро-поток */}
+      {/* MESSAGE STREAM: Нейро-поток */}
       <main ref={scrollRef} className="relative z-10 flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-6 scroll-smooth">
         {messages.map((msg) => {
           const isMine = msg.sender_id === currentUser?.id;
@@ -174,7 +177,7 @@ export default function PrismChatPage() {
         </div>
       </main>
 
-      {/* ⌨️ INPUT CONSOLE */}
+      {/* INPUT CONSOLE */}
       <footer className="relative z-10 p-4 md:p-6 bg-gradient-to-t from-[#08080C] via-[#08080C] to-transparent">
         <div className="max-w-4xl mx-auto flex items-center gap-3 bg-[#0f0f16] border border-cyan-500/20 rounded-lg px-4 py-3 shadow-[0_0_30px_rgba(34,211,238,0.05)] focus-within:border-cyan-500/50 transition-colors">
           <span className="text-cyan-400 font-bold text-lg select-none">{'>'}</span>
