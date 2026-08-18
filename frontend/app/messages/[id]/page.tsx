@@ -2982,7 +2982,7 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
               </>
             )}
           </div>
-          
+
 
           {/* 🆕 ПОЛЕ ВВОДА КАК В TELEGRAM (БЕЗ ФОНА И РАМОК) */}
           <div className="relative flex-1 flex items-end">
@@ -3021,8 +3021,10 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
               onPointerUp={handleSendButtonPointerUp}
               onClick={handleSendClick}
               disabled={isSecret && secretState !== "ready"}
-              className={`p-2.5 sm:p-2.5 md:p-3 rounded-full disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none touch-none ${
-                isSecret ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
+              className={`p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none touch-none ${
+                isSecret
+                  ? "border border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700"
+                  : "border border-[#8b5cf6] bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
               }`}
             >
               <Send size={19} className="sm:w-[18px] sm:h-[18px]" />
