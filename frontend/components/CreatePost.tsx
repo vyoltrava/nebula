@@ -9,10 +9,9 @@ import { STICKERS } from "@/lib/stickers";
 import { Avatar } from "@/components/Avatar";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { MarkdownContextMenu } from "@/components/MarkdownContextMenu";
-import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { useDraft } from "@/src/hooks/useDraft";
 
-const MAX_RECORD_SECONDS = 180; // 3 минуты максимум
+const MAX_RECORD_SECONDS = 180;
 
 export function CreatePost() {
   const [text, setText, clearDraft] = useDraft("draft_create_post", "");
@@ -29,18 +28,14 @@ export function CreatePost() {
   } | null>(null);
   const [showStickers, setShowStickers] = useState(false);
   const [error, setError] = useState("");
+  
   const fileRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
 
-  // 🆕 Состояния для Markdown меню и предпросмотра
   const [showMarkdownMenu, setShowMarkdownMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
-  const [selectionStart, setSelectionStart] = useState(0);
-  const [selectionEnd, setSelectionEnd] = useState(0);
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 🎙️ Состояния записи
   const [recording, setRecording] = useState(false);
   const [recordTime, setRecordTime] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -61,7 +56,6 @@ export function CreatePost() {
     }
   }, []);
 
-  // Уборка при размонтировании
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -85,14 +79,12 @@ export function CreatePost() {
     return `${m}:${s.toString().padStart(2, "0")}`;
   }
 
-  // 🎙️ НАЧАТЬ ЗАПИСЬ
   async function startRecording() {
     setError("");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
-      // Выбираем формат, который поддерживает браузер
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
         : MediaRecorder.isTypeSupported("audio/mp4")
@@ -108,19 +100,17 @@ export function CreatePost() {
       };
 
       recorder.onstop = () => {
-        // Если запись отменили — не создаём файл
         if (!cancelledRef.current && chunksRef.current.length > 0) {
           const blob = new Blob(chunksRef.current, { type: mimeType || "audio/webm" });
           const ext = mimeType.includes("mp4") ? "m4a" : "webm";
           const audioFile = new File([blob], `voice-${Date.now()}.${ext}`, { type: blob.type });
           onFile(audioFile);
         }
-        // Останавливаем микрофон
         stream.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
       };
 
-      recorder.start(100); // собираем данные каждые 100мс
+      recorder.start(100);
       mediaRecorderRef.current = recorder;
       setRecording(true);
       setRecordTime(0);
@@ -128,7 +118,7 @@ export function CreatePost() {
       timerRef.current = setInterval(() => {
         setRecordTime((t) => {
           if (t + 1 >= MAX_RECORD_SECONDS) {
-            stopRecording(); // авто-стоп по лимиту
+            stopRecording();
             return t;
           }
           return t + 1;
@@ -136,11 +126,10 @@ export function CreatePost() {
       }, 1000);
     } catch (err) {
       console.error("Mic error:", err);
-      setError("🎤 Нет доступа к микрофону. Разрешите доступ в браузере.");
+      setError("🎤 Нет доступа к микрофону. Разрешите доступ в настройках браузера.");
     }
   }
 
-  // 🎙️ ОСТАНОВИТЬ И ПРИКРЕПИТЬ
   function stopRecording() {
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -152,7 +141,6 @@ export function CreatePost() {
     setRecording(false);
   }
 
-  // 🎙️ ОТМЕНИТЬ ЗАПИСЬ
   function cancelRecording() {
     cancelledRef.current = true;
     if (timerRef.current) {
@@ -175,19 +163,16 @@ export function CreatePost() {
     setShowStickers(false);
   }
 
-
+  // ✅ ИСПРАВЛЕНО: Берём выделение напрямую из textarea в момент клика, чтобы не зависеть от стейта
   function applyMarkdown(action: "bold" | "italic" | "code" | "link" | "spoiler") {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    const start = selectionStart || textarea.selectionStart;
-    const end = selectionEnd || textarea.selectionEnd;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
     const selectedText = text.substring(start, end);
 
-    let before = "";
-    let after = "";
-    let placeholder = "текст";
-
+    let before = "", after = "", placeholder = "текст";
     switch (action) {
       case "bold": before = "**"; after = "**"; placeholder = "жирный"; break;
       case "italic": before = "*"; after = "*"; placeholder = "курсив"; break;
@@ -207,7 +192,6 @@ export function CreatePost() {
       textarea.setSelectionRange(newCursorPos, newCursorPos);
     }, 0);
   }
-
 
   async function submit() {
     setError("");
@@ -255,10 +239,7 @@ export function CreatePost() {
   if (!logged) {
     return (
       <div className="p-4 border-b border-white/10">
-        <Link
-          href="/login"
-          className="block text-center border border-white/20 rounded-xl py-3 font-bold text-white/80 hover:bg-white/10 hover:text-white transition-all"
-        >
+        <Link href="/login" className="block text-center border border-white/20 rounded-xl py-3 font-bold text-white/80 hover:bg-white/10 hover:text-white transition-all">
           Войди, чтобы постить
         </Link>
       </div>
@@ -270,80 +251,38 @@ export function CreatePost() {
       <div className="flex gap-3">
         <Avatar src={user?.avatar_url} name={user?.display_name || "?"} id={user?.id} />
         <div className="flex-1">
+          <div className="rounded-xl border border-white/15 bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] focus-within:bg-white/10 transition-all">
+            <textarea
+              ref={textareaRef}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Что нового?"
+              rows={3}
+              className="w-full resize-none bg-transparent text-white placeholder-white/40 p-3 focus:outline-none"
+              // ✅ ЕДИНЫЙ НАДЁЖНЫЙ СПОСОБ: работает и на ПК (ПКМ), и на телефоне (долгое нажатие)
+              onContextMenu={(e) => {
+                e.preventDefault(); // Блокируем стандартное меню браузера
+                const ta = e.currentTarget;
+                setMenuPosition({ x: e.clientX, y: e.clientY });
+                setShowMarkdownMenu(true);
+              }}
+            />
+          </div>
 
-        <div className="rounded-xl border border-white/15 bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] focus-within:bg-white/10 transition-all">
+          {/* ✅ УБРАН ДУБЛИКАТ. Теперь меню рендерится только один раз */}
+          {showMarkdownMenu && (
+            <MarkdownContextMenu
+              x={menuPosition.x}
+              y={menuPosition.y}
+              onClose={() => setShowMarkdownMenu(false)}
+              onAction={applyMarkdown}
+            />
+          )}
 
-<textarea
-  ref={textareaRef}
-  value={text}
-  onChange={(e) => setText(e.target.value)}
-  placeholder="Что нового?"
-  rows={3}
-  className="w-full resize-none bg-transparent text-white placeholder-white/40 p-3 focus:outline-none"
-  
-  // 🛡️ ПКМ на ПК -> просто передаем координаты (без проверок isSecret)
-  onContextMenu={(e) => {
-    e.preventDefault();
-    const ta = e.currentTarget;
-    setSelectionStart(ta.selectionStart);
-    setSelectionEnd(ta.selectionEnd);
-    setMenuPosition({ x: e.clientX, y: e.clientY });
-    setShowMarkdownMenu(true);
-  }}
-  
-  // 🛡️ Долгое нажатие на телефоне -> просто передаем координаты
-  onPointerDown={(e) => {
-    const taLongPressTimer = setTimeout(() => {
-      const ta = e.currentTarget as HTMLTextAreaElement;
-      setSelectionStart(ta.selectionStart);
-      setSelectionEnd(ta.selectionEnd);
-      setMenuPosition({ x: e.clientX, y: e.clientY });
-      setShowMarkdownMenu(true);
-      if (navigator.vibrate) navigator.vibrate(30);
-    }, 500);
-    (e.currentTarget as any)._mdTimer = taLongPressTimer;
-  }}
-  
-  onPointerUp={(e) => {
-    const ta = e.currentTarget as any;
-    if (ta._mdTimer) { clearTimeout(ta._mdTimer); ta._mdTimer = null; }
-  }}
-  
-  onPointerLeave={(e) => {
-    const ta = e.currentTarget as any;
-    if (ta._mdTimer) { clearTimeout(ta._mdTimer); ta._mdTimer = null; }
-  }}
-/>
-
-        </div>
-
-        {/* 🆕 САМО КОНТЕКСТНОЕ МЕНЮ ФОРМАТИРОВАНИЯ */}
-        {showMarkdownMenu && (
-          <MarkdownContextMenu
-            x={menuPosition.x}
-            y={menuPosition.y}
-            onClose={() => setShowMarkdownMenu(false)}
-            onAction={applyMarkdown}
-          />
-        )}
-
-        {/* Само контекстное меню */}
-        {showMarkdownMenu && (
-          <MarkdownContextMenu
-            x={menuPosition.x}
-            y={menuPosition.y}
-            onClose={() => setShowMarkdownMenu(false)}
-            onAction={applyMarkdown}
-          />
-        )}
-
-          {/* Предпросмотр медиа / аудио */}
           {preview && file && (
             <div className="relative mt-2 max-w-full">
               {file.type.startsWith("audio/") ? (
-                <div className="pr-8">
-                  <AudioPlayer src={preview} />
-                </div>
+                <div className="pr-8"><AudioPlayer src={preview} /></div>
               ) : file.type.startsWith("video/") ? (
                 <video src={preview} controls className="max-h-48 rounded-xl border border-white/20" />
               ) : (
@@ -375,7 +314,6 @@ export function CreatePost() {
             </div>
           )}
 
-          {/* 🎙️ ПАНЕЛЬ ЗАПИСИ (появляется вместо тулбара во время записи) */}
           {recording ? (
             <div className="flex items-center justify-between mt-3 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
               <div className="flex items-center gap-3">
@@ -391,17 +329,10 @@ export function CreatePost() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={cancelRecording}
-                  className="p-2 rounded-lg text-white/60 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                  title="Отменить запись"
-                >
+                <button onClick={cancelRecording} className="p-2 rounded-lg text-white/60 hover:text-red-400 hover:bg-red-500/10 transition-all" title="Отменить">
                   <Trash2 size={20} />
                 </button>
-                <button
-                  onClick={stopRecording}
-                  className="flex items-center gap-2 bg-red-500 text-white rounded-lg px-4 py-2 font-semibold hover:bg-red-600 transition-all"
-                >
+                <button onClick={stopRecording} className="flex items-center gap-2 bg-red-500 text-white rounded-lg px-4 py-2 font-semibold hover:bg-red-600 transition-all">
                   <Square size={16} fill="currentColor" /> Стоп
                 </button>
               </div>
@@ -409,36 +340,18 @@ export function CreatePost() {
           ) : (
             <div className="flex items-center justify-between mt-2">
               <div className="flex gap-3 relative">
-                <button
-                  className="text-white/60 hover:text-[#8b5cf6] transition-colors"
-                  onClick={() => fileRef.current?.click()}
-                  title="Фото / GIF"
-                >
+                <button className="text-white/60 hover:text-[#8b5cf6] transition-colors" onClick={() => fileRef.current?.click()} title="Фото / GIF">
                   <ImageIcon size={20} />
                 </button>
-                <button
-                  className="text-white/60 hover:text-[#8b5cf6] transition-colors"
-                  onClick={() => fileRef.current?.click()}
-                  title="Видео"
-                >
+                <button className="text-white/60 hover:text-[#8b5cf6] transition-colors" onClick={() => fileRef.current?.click()} title="Видео">
                   <Clapperboard size={20} />
                 </button>
-
-                {/* 🎙️ Кнопка записи голоса (уровень 2+) */}
                 {canUploadAudio && (
-                  <button
-                    className="text-white/60 hover:text-emerald-400 transition-colors"
-                    onClick={startRecording}
-                    title="Записать голосовое сообщение"
-                  >
+                  <button className="text-white/60 hover:text-emerald-400 transition-colors" onClick={startRecording} title="Записать голосовое">
                     <Mic size={20} />
                   </button>
                 )}
-
-                <button
-                  className={`transition-colors ${showStickers ? "text-[#8b5cf6]" : "text-white/60 hover:text-[#8b5cf6]"}`}
-                  onClick={() => setShowStickers(!showStickers)}
-                >
+                <button className={`transition-colors ${showStickers ? "text-[#8b5cf6]" : "text-white/60 hover:text-[#8b5cf6]"}`} onClick={() => setShowStickers(!showStickers)}>
                   <Smile size={20} />
                 </button>
 
@@ -446,17 +359,10 @@ export function CreatePost() {
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowStickers(false)} />
                     <div className="absolute top-full left-0 mt-2 p-3 border border-white/20 rounded-xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl z-50 w-64 max-h-72 overflow-y-auto">
-                      <p className="text-xs font-bold text-white/60 mb-2 uppercase tracking-wider sticky top-0 bg-[#1f1f23]/95 pb-1">
-                        Стикеры
-                      </p>
+                      <p className="text-xs font-bold text-white/60 mb-2 uppercase tracking-wider sticky top-0 bg-[#1f1f23]/95 pb-1">Стикеры</p>
                       <div className="grid grid-cols-5 gap-1">
                         {STICKERS.map((s) => (
-                          <button
-                            key={s.code}
-                            onClick={() => insertSticker(s.code)}
-                            className="text-2xl hover:bg-white/10 rounded-lg p-1.5 transition-colors"
-                            title={s.label}
-                          >
+                          <button key={s.code} onClick={() => insertSticker(s.code)} className="text-2xl hover:bg-white/10 rounded-lg p-1.5 transition-colors" title={s.label}>
                             {s.emoji}
                           </button>
                         ))}
@@ -477,7 +383,6 @@ export function CreatePost() {
         </div>
       </div>
 
-      {/* Анимация волн записи */}
       <style jsx>{`
         .voice-bar {
           height: 8px;

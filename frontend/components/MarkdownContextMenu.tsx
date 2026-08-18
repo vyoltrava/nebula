@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bold, Italic, Code, Link2, Eye, X } from "lucide-react";
 
 interface MarkdownContextMenuProps {
@@ -11,8 +11,9 @@ interface MarkdownContextMenuProps {
 
 export function MarkdownContextMenu({ x, y, onClose, onAction }: MarkdownContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [calculatedPos, setCalculatedPos] = useState({ x: 0, y: 0 });
 
-  // Закрытие при клике вне меню
+  // Закрытие при клике вне меню или скролле
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -20,7 +21,6 @@ export function MarkdownContextMenu({ x, y, onClose, onAction }: MarkdownContext
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    // Также закрываем при скролле, чтобы меню не "улетало" от текста
     window.addEventListener("scroll", onClose, true);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
@@ -28,32 +28,38 @@ export function MarkdownContextMenu({ x, y, onClose, onAction }: MarkdownContext
     };
   }, [onClose]);
 
-  // 🛡️ ЖЕЛЕЗОБЕТОННЫЙ РАСЧЁТ ПОЗИЦИИ
-  // Берём размеры с запасом, чтобы точно не вылезло
-  const MENU_W = 240;
-  const MENU_H = 320; // С большим запасом на все отступы и кнопки
-  const PAD = 16;
+  // 🛡️ ЖЕЛЕЗОБЕТОННЫЙ РАСЧЁТ ПОЗИЦИИ (Динамический)
+  useEffect(() => {
+    if (menuRef.current) {
+      const rect = menuRef.current.getBoundingClientRect();
+      const menuW = rect.width || 240;
+      const menuH = rect.height || 280;
+      const PAD = 16;
 
-  let finalX = x;
-  let finalY = y;
+      let finalX = x;
+      let finalY = y + 10; // По умолчанию показываем ЧУТЬ НИЖЕ курсора
 
-  // 1. Не даем уйти за правый край
-  if (finalX + MENU_W > window.innerWidth - PAD) {
-    finalX = window.innerWidth - MENU_W - PAD;
-  }
-  // 2. Не даем уйти за левый край
-  if (finalX < PAD) {
-    finalX = PAD;
-  }
+      // 1. Если не влезает снизу -> показываем НАД курсором
+      if (finalY + menuH > window.innerHeight - PAD) {
+        finalY = y - menuH;
+      }
 
-  // 3. ГЛАВНОЕ: Если снизу не влезает, показываем меню НАД точкой клика, а не под ней
-  if (finalY + MENU_H > window.innerHeight - PAD) {
-    finalY = y - MENU_H;
-  }
-  // 4. Если и сверху не влезает (очень маленький экран), прижимаем к верху
-  if (finalY < PAD) {
-    finalY = PAD;
-  }
+      // 2. Если после этого оно улетело выше экрана (значит курсор был слишком высоко) -> прижимаем к верху
+      if (finalY < PAD) {
+        finalY = PAD;
+      }
+
+      // 3. Горизонтальные ограничения
+      if (finalX + menuW > window.innerWidth - PAD) {
+        finalX = window.innerWidth - menuW - PAD;
+      }
+      if (finalX < PAD) {
+        finalX = PAD;
+      }
+
+      setCalculatedPos({ x: finalX, y: finalY });
+    }
+  }, [x, y]);
 
   const buttons = [
     { icon: Bold, label: "Жирный", action: "bold" as const, shortcut: "Ctrl+B" },
@@ -65,16 +71,14 @@ export function MarkdownContextMenu({ x, y, onClose, onAction }: MarkdownContext
 
   return (
     <>
-      {/* Затемнённый фон */}
       <div className="fixed inset-0 z-[300] bg-black/20 backdrop-blur-[1px]" onClick={onClose} />
       
-      {/* Меню */}
       <div
         ref={menuRef}
+        // Используем calculatedPos вместо сырых x/y
         className="fixed z-[301] bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[200px] animate-in fade-in zoom-in-95 duration-150"
-        style={{ left: finalX, top: finalY }}
+        style={{ left: calculatedPos.x, top: calculatedPos.y }}
       >
-        {/* Заголовок */}
         <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between">
           <span className="text-xs font-bold text-white/60 uppercase tracking-wider">Форматирование</span>
           <button onClick={onClose} className="text-white/40 hover:text-white p-0.5">
@@ -82,7 +86,6 @@ export function MarkdownContextMenu({ x, y, onClose, onAction }: MarkdownContext
           </button>
         </div>
 
-        {/* Кнопки */}
         <div className="py-1">
           {buttons.map((btn, i) => (
             <button
@@ -104,7 +107,6 @@ export function MarkdownContextMenu({ x, y, onClose, onAction }: MarkdownContext
           ))}
         </div>
 
-        {/* Подсказка */}
         <div className="px-3 py-2 border-t border-white/10 bg-white/[0.02]">
           <p className="text-[10px] text-white/40 text-center">
             Выдели текст, затем выбери формат
