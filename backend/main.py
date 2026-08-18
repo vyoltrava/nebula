@@ -7314,60 +7314,31 @@ def get_chat_info(
 
 
 @app.post("/api/chats/saved")
-def get_or_create_saved_messages(
+def get_or_create_saved_chat(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Получает или создает чат 'Избранное' (чат с самим собой)"""
-    # 1. Ищем чаты пользователя
-    my_chats = session.exec(
-        select(ChatMember.chat_id).where(ChatMember.user_id == user.id)
-    ).all()
-
-    saved_chat_id = None
-    for chat_id_row in my_chats:
-        chat = session.get(Chat, chat_id_row)
-        if not chat or chat.is_group or chat.is_secret:
-            continue
-        
-        # Если в чате только 1 участник (это мы) — это Избранное
-        member_count = session.exec(
-            select(func.count()).select_from(ChatMember).where(ChatMember.chat_id == chat.id)
-        ).one()
-        
-        if member_count == 1:
-            saved_chat_id = chat.id
-            break
-
-    # 2. Если не нашли, создаем новый
-    if not saved_chat_id:
-        chat = Chat(is_group=False, is_secret=False)
+    # Ищем существующий чат избранного
+    chat = session.exec(
+        select(Chat).where(Chat.is_saved == True, Chat.owner_id == user.id)
+    ).first()
+    
+    if not chat:
+        # Создаем новый
+        chat = Chat(is_saved=True, owner_id=user.id)
         session.add(chat)
         session.commit()
         session.refresh(chat)
         
-        session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="member"))
+        # Добавляем себя как участника (для авторизации и read-status)
+        member = ChatMember(chat_id=chat.id, user_id=user.id, role="owner")
+        session.add(member)
         session.commit()
-        saved_chat_id = chat.id
-
-    # 3. Получаем последнее сообщение для превью
-    last_msg = session.exec(
-        select(Message).where(Message.chat_id == saved_chat_id).order_by(Message.created_at.desc()).limit(1)
-    ).first()
-
-    # 4. Возвращаем данные в формате, совместимом с фронтендом
+        
     return {
-        "id": saved_chat_id,
-        "is_group": False,
-        "is_secret": False,
-        "is_saved": True,  # 🆕 Специальный флаг для фронта
-        "other": user_out(user, session),  # Показываем себя как "собеседника"
-        "last_message": {
-            "text": last_msg.text if last_msg else None,
-            "created_at": last_msg.created_at.isoformat() if last_msg else None,
-        } if last_msg else None,
-        "unread_count": 0,
-        "pinned": False,
+        "id": chat.id,
+        "is_saved": True,
+        "name": "Избранное"
     }
 
 

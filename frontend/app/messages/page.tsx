@@ -413,11 +413,12 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
 
         {!loading && sortedChats.map((chat) => {
           // 🛡️ Защита: для групп chat.other может быть undefined
-          const isSaved = !!chat.is_saved;
+          const isSaved = !!chat.is_saved; // Теперь бэкенд присылает это поле
           const isGroup = !!chat.is_group;
           const otherUser = chat.other;
+
           const displayName = isSaved ? "Избранное" : (isGroup ? chat.name : otherUser?.display_name || "");
-          const glow = !isGroup && otherUser ? getGlowColor(otherUser) : null;
+          const glow = !isGroup && !isSaved && otherUser ? getGlowColor(otherUser) : null;
 
           // 🔎 ПОИСК: определяем тип совпадения для группировки
           const chatName = (isGroup ? chat.name : otherUser?.display_name || "").toLowerCase();
@@ -426,7 +427,6 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
           const nameMatch = q && (chatName.includes(q) || chatUsername.includes(q));
           const textMatch = q && !nameMatch && lastText.includes(q);
           const matchType = nameMatch ? "name" : textMatch ? "text" : null;
-
           return (
             <SwipeableChatItem
               key={chat.id}
@@ -518,29 +518,28 @@ async function togglePinChat(chatId: number, currentlyPinned: boolean) {
                     </span>
                   )}
                 </div>
-                {chat.last_message ? (
-                  <div className="mt-0.5">
-                    <p className={`text-sm truncate ${
-                      chat.unread_count > 0 ? "text-white" : "text-white/50"
-                    }`}>
-                      {query.trim() && textMatch
-                        ? highlight(snippet(chat.last_message.text, query.trim()), query.trim())
-                        : query.trim()
-                        ? highlight(chat.last_message.text, query.trim())
-                        : chat.last_message.text
-                      }
-                    </p>
-                    {textMatch && (
-                      <span className="inline-flex items-center gap-1 mt-0.5 text-[9px] font-bold uppercase tracking-widest text-[#a78bfa]">
-                        <Search size={9} /> в сообщении
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-white/40 mt-0.5">
-                    {isGroup ? `${chat.members_count} участников` : "Начните переписку"}
-                  </p>
-                )}
+{chat.last_message ? (
+  <div className="mt-0.5">
+    <p className={`text-sm truncate ${
+      chat.unread_count > 0 ? "text-white" : "text-white/50"
+    }`}>
+      {/* 🆕 Если это избранное, не пишем свое имя перед текстом */}
+      {isSaved ? (
+        chat.last_message.text
+      ) : query.trim() && textMatch ? (
+        highlight(snippet(chat.last_message.text, query.trim()), query.trim())
+      ) : query.trim() ? (
+        highlight(chat.last_message.text, query.trim())
+      ) : (
+        chat.last_message.text
+      )}
+    </p>
+  </div>
+) : (
+  <p className="text-sm text-white/40 mt-0.5">
+    {isGroup ? `${chat.members_count} участников` : "Начните переписку"}
+  </p>
+)}
               </div>
 
               {/* КНОПКА МЕНЮ ЧАТА */}

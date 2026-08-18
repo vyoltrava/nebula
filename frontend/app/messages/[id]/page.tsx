@@ -794,6 +794,12 @@ function extractFirstUrl(text: string): string | null {
   return decryptText(msg.ciphertext);
 }
 
+// 🛡️ Глобальная проверка: мое ли это сообщение (с защитой для Избранного)
+function isMessageMine(msg: any): boolean {
+  if (isSavedChat) return true; // В Избранном все сообщения мои
+  return msg.sender_id === currentUser?.id;
+}
+
 async function loadChatInfo() {
   const token = getToken();
   if (!token) return;
@@ -809,18 +815,20 @@ async function loadChatInfo() {
       const data = await res.json();
       setChatInfo(data);
       setIsSecret(data.is_secret && !data.is_group);
-      if (data.is_group) {
+
+
+
+      // 🛡️ Нормализованная проверка Избранного
+      if (data.is_saved) {
+        setIsSavedChat(true);
+        setChatPartner(null);
+        setIsSecret(false);
+      } else if (data.is_group) {
         setChatPartner(null);
         setIsSavedChat(false);
       } else {
-        // 🆕 Проверяем чат с самим собой
-        if (data.other && currentUser && data.other.id === currentUser.id) {
-          setIsSavedChat(true);
-          setChatPartner(null);
-        } else {
-          setIsSavedChat(false);
-          setChatPartner(data.other);
-        }
+        setIsSavedChat(false);
+        setChatPartner(data.other);
       }
     }
   } catch (err) {
@@ -1267,7 +1275,7 @@ for (const msg of messagesToSend) {
   }
 
 function getMessageMenuItems(msg: any): { icon: any; label: string; onClick: () => void; danger?: boolean }[] {
-  const isMine = msg.sender_id === currentUser?.id;
+  const isMine = isSavedChat ? true : (msg.sender_id === currentUser?.id);
   const items: { icon: any; label: string; onClick: () => void; danger?: boolean }[] = [];
 
   // Ответить (всегда доступно)
@@ -2290,7 +2298,7 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
                     );
                   }
 
-                  const isMine = msg.sender_id === currentUser.id;
+                  const isMine = isMessageMine(msg);
                   const isEditing = editingMessageId === msg.id;
                   const displayText = decryptDisplayText(msg);
                   const isSelected = selectedMessages.has(msg.id);

@@ -123,6 +123,7 @@ class Chat(SQLModel, table=True):
     is_secret: bool = Field(default=False)
     # 🆕 Групповые поля
     is_group: bool = Field(default=False)
+    is_saved: bool = Field(default=False) # 🆕 Флаг избранного
     name: Optional[str] = Field(default=None, max_length=80)
     avatar_url: Optional[str] = None
     owner_id: Optional[int] = Field(default=None, foreign_key="user.id")
