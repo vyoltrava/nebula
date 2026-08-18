@@ -455,80 +455,7 @@ const initiatePrism = async (targetUserId: number, targetUserName: string) => {
   <span className="hidden sm:inline">PRISM LINK</span>
 </button>   
 
-{/* 🆕 МОДАЛКА СОЗДАНИЯ ПРИЗМЫ */}
-{showPrismModal && (
-  <>
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300]" onClick={() => setShowPrismModal(false)} />
-    <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none">
-      <div className="w-full max-w-md bg-[#171717] border border-cyan-500/30 rounded-2xl shadow-[0_0_40px_rgba(34,211,238,0.1)] flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
-        
-        {/* Шапка */}
-        <div className="p-4 border-b border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-              <ShieldCheck size={18} className="text-cyan-400" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-white tracking-wide">INITIATE PRISM</h3>
-              <p className="text-[10px] text-cyan-400/70 uppercase tracking-widest">Бесшовное E2E шифрование</p>
-            </div>
-          </div>
-          <button onClick={() => setShowPrismModal(false)} className="text-white/40 hover:text-white p-1">
-            <X size={18} />
-          </button>
-        </div>
 
-        {/* Контент */}
-        <div className="p-4 space-y-4">
-          <p className="text-xs text-white/60 leading-relaxed">
-            Выберите пользователя. Ключ шифрования будет разделен на 3 спектра. 
-            Для восстановления истории на новом устройстве потребуется только ваш PIN-код.
-          </p>
-          
-          {/* Поиск */}
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-            <input
-              value={prismSearchQuery}
-              onChange={(e) => { setPrismSearchQuery(e.target.value); searchUsersForPrism(e.target.value); }}
-              placeholder="Поиск по @username или имени..."
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-cyan-500/50 text-sm"
-              autoFocus
-            />
-          </div>
-
-          {/* Результаты */}
-          <div className="max-h-60 overflow-y-auto space-y-1">
-            {prismSearchResults.map((u: any) => (
-              <button
-                key={u.id}
-                onClick={() => initiatePrism(u.id, u.username)}
-                disabled={isCreatingPrism}
-                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/30 transition-all text-left disabled:opacity-50"
-              >
-                <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={36} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-white truncate">{u.display_name}</p>
-                  <p className="text-xs text-white/40 truncate">@{u.username}</p>
-                </div>
-                <Lock size={14} className="text-cyan-400/50" />
-              </button>
-            ))}
-            {prismSearchQuery && prismSearchResults.length === 0 && !isCreatingPrism && (
-              <p className="text-center text-xs text-white/30 py-4">Пользователи не найдены</p>
-            )}
-            {isCreatingPrism && (
-              <div className="flex items-center justify-center gap-2 py-4 text-cyan-400 text-xs">
-                <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-                Генерация спектров и шифрование...
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  </>
-)} 
 
           {/* Поиск */}
           <div className="relative">
@@ -802,6 +729,85 @@ const initiatePrism = async (targetUserId: number, targetUserName: string) => {
           }}
         />
       )}
+
+
+{/* 🆕 МОДАЛКА СОЗДАНИЯ ПРИЗМЫ */}
+{showPrismModal && (
+  <>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300]" onClick={() => setShowPrismModal(false)} />
+    <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none">
+      <div className="w-full max-w-md bg-[#171717] border border-cyan-500/30 rounded-2xl shadow-[0_0_40px_rgba(34,211,238,0.1)] flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
+        
+        {/* Шапка */}
+        <div className="p-4 border-b border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+              <ShieldCheck size={18} className="text-cyan-400" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white tracking-wide">INITIATE PRISM</h3>
+              <p className="text-[10px] text-cyan-400/70 uppercase tracking-widest">Бесшовное E2E шифрование</p>
+            </div>
+          </div>
+          <button onClick={() => setShowPrismModal(false)} className="text-white/40 hover:text-white p-1">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Контент */}
+        <div className="p-4 space-y-4">
+          <p className="text-xs text-white/60 leading-relaxed">
+            Выберите пользователя. Ключ шифрования будет разделен на 3 спектра. 
+            Для восстановления истории на новом устройстве потребуется только ваш PIN-код.
+          </p>
+          
+          {/* Поиск */}
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+            <input
+              value={prismSearchQuery}
+              onChange={(e) => { setPrismSearchQuery(e.target.value); searchUsersForPrism(e.target.value); }}
+              placeholder="Поиск по @username или имени..."
+              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-cyan-500/50 text-sm"
+              autoFocus
+            />
+          </div>
+
+          {/* Результаты */}
+          <div className="max-h-60 overflow-y-auto space-y-1">
+            {prismSearchResults.map((u: any) => (
+              <button
+                key={u.id}
+                onClick={() => initiatePrism(u.id, u.username)}
+                disabled={isCreatingPrism}
+                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/30 transition-all text-left disabled:opacity-50"
+              >
+                <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={36} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-white truncate">{u.display_name}</p>
+                  <p className="text-xs text-white/40 truncate">@{u.username}</p>
+                </div>
+                <Lock size={14} className="text-cyan-400/50" />
+              </button>
+            ))}
+            {prismSearchQuery && prismSearchResults.length === 0 && !isCreatingPrism && (
+              <p className="text-center text-xs text-white/30 py-4">Пользователи не найдены</p>
+            )}
+            {isCreatingPrism && (
+              <div className="flex items-center justify-center gap-2 py-4 text-cyan-400 text-xs">
+                <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                Генерация спектров и шифрование...
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  </>
+)} 
+
+
+
     </div>
   );
 }
