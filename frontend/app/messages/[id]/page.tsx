@@ -40,7 +40,7 @@ import {
   FileText, Film, Edit2, Trash2, MoreVertical,
   Lock, Search, ShieldCheck, AlertTriangle,
   Check, CheckCheck, CheckSquare, Mic, Square, Users, Settings,
-  Pin, PinOff, Video, Copy, SmilePlus,  Reply, Bookmark, Type
+  Pin, PinOff, Video, Copy, SmilePlus,  Reply, Bookmark, Type, Plus
 } from "lucide-react";
 // ✅ НОВЫЕ ИМПОРТЫ:
 import {
@@ -183,7 +183,7 @@ export default function ChatPage() {
   });
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [popReaction, setPopReaction] = useState<{content: string, type: 'emoji' | 'sticker', stickerId?: number, x: number, y: number, id: number, visible: boolean} | null>(null);
-
+  const [showInputActions, setShowInputActions] = useState(false);
 
 
   // 🆕 Собираем все реакции из паков (с учётом доступа)
@@ -2918,31 +2918,20 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
             <span
               key={i}
               className="eq-bar w-[3px] rounded-full bg-red-400/70"
-              style={{
-                animationDelay: `${(i % 7) * 0.09}s`,
-                animationDuration: `${0.8 + (i % 5) * 0.12}s`,
-              }}
+              style={{ animationDelay: `${(i % 7) * 0.09}s`, animationDuration: `${0.8 + (i % 5) * 0.12}s` }}
             />
           ))}
         </div>
-        <button
-          onClick={stopRecording}
-          className="shrink-0 px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 active:scale-95 transition-all flex items-center gap-1.5"
-        >
-          <Square size={11} fill="currentColor" />
-          Стоп
+        <button onClick={stopRecording} className="shrink-0 px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 active:scale-95 transition-all flex items-center gap-1.5">
+          <Square size={11} fill="currentColor" /> Стоп
         </button>
-        <button
-          onClick={cancelRecording}
-          className="shrink-0 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all"
-          title="Отменить запись"
-        >
+        <button onClick={cancelRecording} className="shrink-0 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all" title="Отменить запись">
           <X size={16} />
         </button>
       </div>
     ) : (
       <div className="flex flex-col gap-0">
-        {/* 🆕 Панель ответа (цитирование) */}
+        {/* Панель ответа */}
         {replyTo && (
           <div className="flex items-center gap-2.5 px-3 py-2 mb-1.5 bg-[#8b5cf6]/10 border border-[#8b5cf6]/30 rounded-xl">
             <Send size={14} className="rotate-180 text-[#8b5cf6] shrink-0" />
@@ -2952,278 +2941,118 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
                 {decryptDisplayText(replyTo) || (replyTo.media_type === 'audio' ? '🎙️ Голосовое' : replyTo.media_type === 'video' ? '🎬 Видео' : replyTo.media_type === 'image' ? '📷 Фото' : '📎 Вложение')}
               </p>
             </div>
-            <button
-              onClick={cancelReply}
-              className="p-1 text-white/40 hover:text-white rounded-full hover:bg-white/10 transition-colors shrink-0"
-            >
+            <button onClick={cancelReply} className="p-1 text-white/40 hover:text-white rounded-full hover:bg-white/10 transition-colors shrink-0">
               <X size={14} />
             </button>
           </div>
         )}
-      <div className="flex items-end gap-2 sm:gap-2">
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*,image/gif,video/*"
-          multiple
-          className="hidden"
-          onChange={(e) => onFiles(e.target.files)}
-        />
 
-        <div className="flex gap-1 shrink-0">
-          <div className="relative">
+        <div className="flex items-end gap-2 sm:gap-2 w-full">
+          <input ref={fileRef} type="file" accept="image/*,image/gif,video/*" multiple className="hidden" onChange={(e) => onFiles(e.target.files)} />
+
+          {/* 🆕 КНОПКА "+" С ВЫПАДАЮЩИМ МЕНЮ */}
+          <div className="relative shrink-0 flex items-end pb-1">
             <button
-              onClick={() => {
-                if (!showStickers) menuOpenTimeRef.current = Date.now();
-                setShowStickers(!showStickers);
-              }}
-              className={`p-2.5 sm:p-2 rounded-xl transition-colors min-w-[40px] sm:min-w-[36px] md:min-w-[40px] min-h-[40px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center active:scale-95 ${
-                showStickers
-                  ? "text-[#8b5cf6] bg-[#8b5cf6]/10"
-                  : "text-white/60 hover:text-[#8b5cf6] hover:bg-white/5"
-              }`}
+              onClick={() => setShowInputActions(!showInputActions)}
+              className={`p-2.5 sm:p-2 rounded-full transition-all active:scale-95 ${showInputActions ? "text-[#8b5cf6] bg-[#8b5cf6]/10" : "text-white/60 hover:text-[#8b5cf6] hover:bg-white/5"}`}
+              title="Действия"
             >
-              <Smile size={19} className="sm:w-[18px] sm:h-[18px]" />
+              <Plus size={22} className="sm:w-5 sm:h-5" />
             </button>
-            {showStickers && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => { if (Date.now() - menuOpenTimeRef.current < 400) return; setShowStickers(false); }} />
-                <div className="absolute bottom-full left-0 mb-2 w-72 sm:w-72 md:w-80 bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl z-50">
-                  {/* Шапка с вкладками */}
-                  <div className="p-2 border-b border-white/10 flex items-center gap-1">
-                    <button
-                      onClick={() => setStickerPanelTab("emoji")}
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        stickerPanelTab === "emoji" ? "bg-[#8b5cf6] text-white" : "text-white/50 hover:bg-white/10"
-                      }`}
-                    >
-                      😊 Эмодзи
-                    </button>
-                    <button
-                      onClick={() => setStickerPanelTab("stickers")}
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                        stickerPanelTab === "stickers" ? "bg-[#8b5cf6] text-white" : "text-white/50 hover:bg-white/10"
-                      }`}
-                    >
-                      🎨 Стикеры
-                    </button>
-                    <button
-                      onClick={() => setShowStickers(false)}
-                      className="text-white/60 hover:text-white p-1"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
 
-              {stickerPanelTab === "emoji" ? (
-                <div className="p-2 grid grid-cols-4 sm:grid-cols-6 gap-1.5 sm:gap-1 max-h-56 sm:max-h-64 overflow-y-auto">
-                  {STICKERS.map((s) => (
-                        <button
-                          key={s.code}
-                          onClick={() => {
-                            insertSticker(s.emoji);
-                            setShowStickers(false);
-                          }}
-                          className="aspect-square flex items-center justify-center text-2xl hover:bg-white/10 rounded-lg active:scale-90 transition-transform"
-                        >
-                          {s.emoji}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col max-h-72">
-                      {/* Паки */}
-                      <div className="flex gap-1 p-2 pb-1 overflow-x-auto scrollbar-hide">
-                        {stickerPacks.map((pack, i) => (
-                          <button
-                            key={pack.id}
-                            onClick={() => setStickerPanelPack(i)}
-                            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold whitespace-nowrap shrink-0 ${
-                              stickerPanelPack === i ? "bg-[#8b5cf6] text-white" : "bg-white/5 text-white/50"
-                            }`}
-                          >
-                            {pack.locked && <Lock size={9} className="text-yellow-400" />}
-                            {pack.name}
-                          </button>
-                        ))}
-                      </div>
-                      {/* Стикеры пака */}
-                      <div className="p-2 grid grid-cols-4 gap-1.5 overflow-y-auto">
-                        {stickerPacks[stickerPanelPack] && !stickerPacks[stickerPanelPack].locked ? (
-                          stickerPacks[stickerPanelPack].stickers.map((s: any) => (
-                            <button
-                              key={s.id}
-                              onClick={() => sendStickerMessage(s.id)}
-                              className="aspect-square flex items-center justify-center rounded-xl hover:bg-white/10 active:scale-90 transition-all"
-                              title="Отправить стикер"
-                            >
-                              {s.type === "emoji" ? (
-                                <span className="text-3xl">{s.content}</span>
-                              ) : (
-                                <img src={s.content} alt="" className="w-full h-full object-contain" />
-                              )}
-                            </button>
-                          ))
-                        ) : (
-                          <div className="col-span-4 flex flex-col items-center gap-2 py-6 text-center">
-                            <Lock size={20} className="text-yellow-400" />
-                            <p className="text-[11px] text-white/40">
-                              Пак доступен с уровня {stickerPacks[stickerPanelPack]?.min_level}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
+            {showInputActions && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowInputActions(false)} />
+                <div className="absolute bottom-full left-0 mb-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[220px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                  <button onClick={() => { fileRef.current?.click(); setShowInputActions(false); }} className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/10 flex items-center gap-3 transition-colors">
+                    <Paperclip size={18} className="text-white/60" /> <span>Прикрепить файл</span>
+                  </button>
+                  <button onClick={() => { /* Логика открытия стикеров, если нужно, или просто закрываем это меню */ setShowInputActions(false); }} className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/10 flex items-center gap-3 transition-colors border-t border-white/5">
+                    <Smile size={18} className="text-white/60" /> <span>Смайлы и стикеры</span>
+                  </button>
+                  <button onClick={() => {
+                    const rect = textareaRef.current?.getBoundingClientRect();
+                    if (rect) setMenuPosition({ x: rect.left + rect.width / 2, y: rect.top });
+                    setShowMarkdownMenu(true);
+                    setShowInputActions(false);
+                  }} className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/10 flex items-center gap-3 transition-colors border-t border-white/5">
+                    <Type size={18} className="text-white/60" /> <span>Форматирование текста</span>
+                  </button>
                 </div>
               </>
             )}
           </div>
 
-          {/* 🆕 КНОПКА ФОРМАТИРОВАНИЯ (Работает и на ПК, и на мобилках) */}
-<button
-  onClick={(e) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    // Открываем меню чуть выше кнопки, по её центру
-    setMenuPosition({ x: rect.left + rect.width / 2, y: rect.top });
-    setShowMarkdownMenu(true);
-  }}
-  className={`p-2.5 sm:p-2 rounded-xl transition-colors min-w-[40px] sm:min-w-[36px] md:min-w-[40px] min-h-[40px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center active:scale-95 ${
-    showMarkdownMenu
-      ? "text-[#8b5cf6] bg-[#8b5cf6]/10"
-      : "text-white/60 hover:text-[#8b5cf6] hover:bg-white/5"
-  }`}
-  title="Форматирование текста"
->
-  <Type size={19} className="sm:w-[18px] sm:h-[18px]" />
-</button>
-
-
-          <button
-            onClick={() => fileRef.current?.click()}
-            className={`p-2.5 sm:p-2 rounded-xl transition-colors relative min-w-[40px] sm:min-w-[36px] md:min-w-[40px] min-h-[40px] sm:min-h-[36px] md:min-h-[40px] flex items-center justify-center active:scale-95 ${
-              files.length > 0
-                ? "text-[#8b5cf6] bg-[#8b5cf6]/10"
-                : "text-white/60 hover:text-[#8b5cf6] hover:bg-white/5"
-            }`}
-          >
-            <Paperclip size={19} className="sm:w-[18px] sm:h-[18px]" />
-            {files.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-[#8b5cf6] text-white text-[9px] sm:text-[10px] font-bold w-4 h-4 sm:w-4 sm:h-4 rounded-full flex items-center justify-center">
-                {files.length}
-              </span>
-            )}
-          </button>
-        </div>
-
-{/* 🆕 ОБЁРТКА ДЛЯ ВВОДА (БЕЗ ДУРАЦКОГО ПРЕДПРОСМОТРА) */}
-{/* 🆕 ОБЁРТКА ДЛЯ ВВОДА (БЕЗ ДУРАЦКОГО ПРЕДПРОСМОТРА) */}
-<div className="relative flex-1">
-    {/* Выпадашка упоминаний */}
-    {mentionSuggestions.length > 0 && mentionQuery !== null && (
-        <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
-            {mentionSuggestions.map(u => (
-                <button
-                    key={u.id}
-                    type="button"
-                    onClick={() => selectMention(u)}
-                    className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/10 text-left transition-colors"
-                >
+          {/* 🆕 ПОЛЕ ВВОДА КАК В TELEGRAM (БЕЗ ФОНА И РАМОК) */}
+          <div className="relative flex-1 flex items-end">
+            {/* Выпадашка упоминаний */}
+            {mentionSuggestions.length > 0 && mentionQuery !== null && (
+              <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+                {mentionSuggestions.map((u) => (
+                  <button key={u.id} type="button" onClick={() => selectMention(u)} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/10 text-left transition-colors">
                     <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={28} />
                     <div className="min-w-0 flex-1">
-                        <p className="text-sm text-white font-medium truncate">{u.display_name}</p>
-                        <p className="text-xs text-white/40 truncate">@{u.username}</p>
+                      <p className="text-sm text-white font-medium truncate">{u.display_name}</p>
+                      <p className="text-xs text-white/40 truncate">@{u.username}</p>
                     </div>
-                </button>
-            ))}
-        </div>
-    )}
+                  </button>
+                ))}
+              </div>
+            )}
 
-{/* Сам инпут */}
-<div className={`w-full border rounded-xl overflow-hidden resize-none disabled:opacity-50 disabled:cursor-not-allowed ${
-  isSecret
-    ? "border-emerald-500/40 focus-within:border-emerald-500"
-    : "border-white/15 focus-within:border-[#8b5cf6]"
-}`}>
-  <textarea
-    ref={textareaRef}
-    value={text}
-    onChange={handleTextChange}
-    onKeyDown={(e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-      }
-    }}
-    disabled={isSecret && secretState !== "ready"}
-    placeholder={
-      isSecret
-        ? (secretState === "ready" ? "Зашифрованное сообщение..." : "Ожидание шифрования...")
-        : isGroup ? "Сообщение группе..." : "Сообщение..."
-    }
-    rows={1}
-    // ✅ ИСПРАВЛЕНО: добавлены p-0, leading-normal и box-border для устранения черных отступов
-    className="w-full bg-white/5 text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-28 sm:max-h-24 md:max-h-32 leading-normal box-border p-0 px-3.5 sm:px-3 md:px-4 py-2.5 sm:py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-  />
-</div>
+            {/* Сам textarea: УБРАНЫ bg-white/5 и border. Теперь он полностью прозрачный */}
+            <textarea
+              ref={textareaRef}
+              value={text}
+              onChange={handleTextChange}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+              disabled={isSecret && secretState !== "ready"}
+              placeholder={isSecret ? (secretState === "ready" ? "Зашифрованное сообщение..." : "Ожидание шифрования...") : isGroup ? "Сообщение группе..." : "Сообщение..."}
+              rows={1}
+              className="w-full bg-transparent text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-32 sm:max-h-28 md:max-h-36 leading-snug px-1 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+          </div>
 
-</div>
-        <div className="relative shrink-0">
-          <button
-            onPointerDown={handleSendPointerDown}
-            onPointerUp={handleSendButtonPointerUp}
-            onClick={handleSendClick}
-            disabled={isSecret && secretState !== "ready"}
-            className={`p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none touch-none ${
-              isSecret
-                ? "border border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700"
-                : "border border-[#8b5cf6] bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
-            }`}
-          >
-            <Send size={19} className="sm:w-[18px] sm:h-[18px]" />
-          </button>
-
-        {showRecordMenu && (
-          <div className="absolute bottom-full right-0 mb-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none">
+          {/* Кнопка отправки */}
+          <div className="relative shrink-0 flex items-end pb-1">
             <button
-                ref={(el) => { menuItemRefs.current.voice = el; }}
-                className={`w-full px-4 py-3 flex items-center gap-3 text-left text-sm transition-colors ${
-                  selectedMenuItem === 'voice' ? 'bg-white/20' : ''
-                } text-white`}
-              >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                  selectedMenuItem === 'voice' ? 'bg-red-500/30 text-red-300' : 'bg-red-500/20 text-red-400'
-                }`}>
-                  <Mic size={18} />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-medium">Голосовое</span>
-                  <span className="text-[10px] text-white/40">Аудиосообщение</span>
-                </div>
-              </button>
-              
-              <div className="h-px bg-white/10" />
-              
-              <button
-                ref={(el) => { menuItemRefs.current.video = el; }}
-                className={`w-full px-4 py-3 flex items-center gap-3 text-left text-sm transition-colors ${
-                  selectedMenuItem === 'video' ? 'bg-white/20' : ''
-                } text-white`}
-              >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                  selectedMenuItem === 'video' ? 'bg-blue-500/30 text-blue-300' : 'bg-blue-500/20 text-blue-400'
-                }`}>
-                  <Video size={18} />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-medium">Видео</span>
-                  <span className="text-[10px] text-white/40">Видео-квадрат</span>
-                </div>
-              </button>
-            </div>
-          )}
+              onPointerDown={handleSendPointerDown}
+              onPointerUp={handleSendButtonPointerUp}
+              onClick={handleSendClick}
+              disabled={isSecret && secretState !== "ready"}
+              className={`p-2.5 sm:p-2.5 md:p-3 rounded-full disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none touch-none ${
+                isSecret ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
+              }`}
+            >
+              <Send size={19} className="sm:w-[18px] sm:h-[18px]" />
+            </button>
+            
+            {/* Меню записи (остается как было) */}
+            {showRecordMenu && (
+              <div className="absolute bottom-full right-0 mb-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none">
+                <button ref={(el) => { menuItemRefs.current.voice = el; }} className={`w-full px-4 py-3 flex items-center gap-3 text-left text-sm transition-colors ${selectedMenuItem === 'voice' ? 'bg-white/20' : ''} text-white`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${selectedMenuItem === 'voice' ? 'bg-red-500/30 text-red-300' : 'bg-red-500/20 text-red-400'}`}>
+                    <Mic size={18} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium">Голосовое</span>
+                    <span className="text-[10px] text-white/40">Аудиосообщение</span>
+                  </div>
+                </button>
+                <div className="h-px bg-white/10" />
+                <button ref={(el) => { menuItemRefs.current.video = el; }} className={`w-full px-4 py-3 flex items-center gap-3 text-left text-sm transition-colors ${selectedMenuItem === 'video' ? 'bg-white/20' : ''} text-white`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${selectedMenuItem === 'video' ? 'bg-blue-500/30 text-blue-300' : 'bg-blue-500/20 text-blue-400'}`}>
+                    <Video size={18} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium">Видео</span>
+                    <span className="text-[10px] text-white/40">Видео-квадрат</span>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
       </div>
     )}
   </div>
