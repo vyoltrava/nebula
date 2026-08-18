@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 import json, os
 
 from database import get_session
-from models import PostView,  *
+from models import *
 from dependencies import *
 from dependencies import _popular_tags_cache, _POPULAR_TAGS_TTL
 
