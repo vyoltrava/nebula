@@ -1,398 +1,280 @@
-# routers/auth.py
-import re
-import json
-import io
-import base64
-import uuid
+# dependencies/auth.py
+"""
+Зависимости для аутентификации и прав доступа
+"""
+
+import os
 import jwt
+import json
+import hashlib
+import bcrypt
 from datetime import datetime, timezone, timedelta
-from fastapi import APIRouter, Depends, HTTPException, Request, Form
-from sqlmodel import Session, select
-from pydantic import BaseModel
-import pyotp
-import qrcode
+from typing import Optional
+from fastapi import Depends, Header, HTTPException, BackgroundTasks, Request
+from sqlmodel import Session, select, func
 
-from database import get_session
-from models import User, IPLog, Notification, UserKey
-from dependencies import (
-    LoginIn, RegisterIn, check_password, create_token,
-    ensure_user_has_keys, get_client_ip, get_current_user,
-    hash_password, limiter, log_action, user_out,
-    SECRET, ALGORITHM, generate_code, send_password_reset_email
-)
+from models import User, IPLog, Notification, UserKey, ActionLog, Role
+from database import get_session, engine
 
-router = APIRouter()
+# ============================================================
+# КОНСТАНТЫ
+# ============================================================
 
-# Модель для второго этапа 2FA
-class Verify2FALoginIn(BaseModel):
-    temp_token: str
-    code: str
+SECRET = os.getenv("SECRET_KEY", "nebula-super-secret-key-2026-minimum-32-chars")
+ALGORITHM = "HS256"
 
+# ============================================================
+# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+# ============================================================
 
-@router.post("/api/register")
-@limiter.limit("5/minute")
-def register(request: Request, data: RegisterIn, session: Session = Depends(get_session)):
-    username = data.username.strip().lower()
-    if not re.match(r"^[a-z0-9_]{3,30}$", username):
-        raise HTTPException(400, "Username: 3-30 символов, только латиница, цифры и _")
-    
-    existing = session.exec(select(User).where(func.lower(User.username) == username)).first()
-    if existing:
-        raise HTTPException(400, "Username already taken")
-    
-    user = User(
-        username=username,
-        display_name=data.display_name,
-        password_hash=hash_password(data.password),
-    )
-    session.add(user)
-    session.commit()
-    session.refresh(user)
-    
-    ensure_user_has_keys(user.id, session)
-    
-    ip = get_client_ip(request)
-    session.add(IPLog(
-        user_id=user.id, 
-        ip_address=ip, 
-        user_agent=request.headers.get("user-agent"), 
-        action="register"
-    ))
-    session.commit()
-    
-    return {"token": create_token(user.id, user.token_version), "user": user_out(user, session)}
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
+def check_password(password: str, hashed: str) -> bool:
+    return bcrypt.checkpw(password.encode(), hashed.encode())
 
-@router.post("/api/login")
-@limiter.limit("5/minute")
-def login(request: Request, data: LoginIn, session: Session = Depends(get_session)):
-    user = session.exec(select(User).where(User.username == data.username)).first()
-    if not user or not check_password(data.password, user.password_hash):
-        raise HTTPException(401, "Wrong username or password")
-    
-    if getattr(user, "is_banned", False):
-        raise HTTPException(403, "Account banned")
-    
-    ensure_user_has_keys(user.id, session)
-    
-    ip = get_client_ip(request)
-    ua = request.headers.get("user-agent")
-    
-    # 🛡️ ПРОВЕРКА 2FA
-    if getattr(user, "totp_enabled", False):
-        # Генерируем временный токен сроком на 5 минут ТОЛЬКО для прохождения 2FA
-        temp_token = jwt.encode(
-            {
-                "sub": str(user.id),
-                "purpose": "2fa_pending",
-                "exp": datetime.now(timezone.utc) + timedelta(minutes=5)
-            },
-            SECRET,
-            algorithm=ALGORITHM
-        )
-        return {
-            "requires_2fa": True,
-            "temp_token": temp_token,
-            "username": user.username
-        }
-    
-    # Обычный логин без 2FA
-    last_log = session.exec(
-        select(IPLog).where(IPLog.user_id == user.id).order_by(IPLog.created_at.desc()).limit(1)
+def create_token(user_id: int, token_version: int = 0) -> str:
+    payload = {
+        "sub": str(user_id),
+        "ver": token_version,
+        "exp": datetime.now(timezone.utc) + timedelta(days=7),
+    }
+    return jwt.encode(payload, SECRET, algorithm=ALGORITHM)
+
+def generate_code() -> str:
+    import random
+    return ''.join(str(random.randint(0, 9)) for _ in range(6))
+
+def send_password_reset_email(email: str, code: str, name: str):
+    # TODO: Реализовать отправку email
+    print(f"[EMAIL] Сброс пароля для {email}: код {code}")
+
+def get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip
+    return request.client.host if request.client else "unknown"
+
+def ensure_user_has_keys(user_id: int, session: Session):
+    existing = session.exec(
+        select(UserKey).where(UserKey.user_id == user_id)
     ).first()
-    
-    if last_log and (last_log.ip_address != ip or last_log.user_agent != ua):
-        session.add(Notification(user_id=user.id, actor_id=user.id, type="login_alert"))
-        
-    session.add(IPLog(user_id=user.id, ip_address=ip, user_agent=ua, action="login"))
-    log_action(session, user.id, "login", ip_address=ip)
-    session.commit()
-    
-    return {
-        "requires_2fa": False,
-        "token": create_token(user.id, user.token_version), 
-        "user": user_out(user, session)
-    }
-
-
-@router.post("/api/login/2fa")
-@limiter.limit("5/minute")
-def login_2fa(
-    request: Request,
-    temp_token: str = Form(...),
-    code: str = Form(...),
-    session: Session = Depends(get_session),
-):
-    """Второй этап логина — проверка 2FA кода по временному токену"""
-    try:
-        payload = jwt.decode(temp_token, SECRET, algorithms=[ALGORITHM])
-        if payload.get("purpose") != "2fa_pending":
-            raise HTTPException(400, "Неверный тип токена")
-        
-        user = session.get(User, int(payload["sub"]))
-        if not user or not getattr(user, "totp_enabled", False):
-            raise HTTPException(400, "2FA не включена")
-        
-        totp = pyotp.TOTP(user.totp_secret)
-        is_valid_totp = totp.verify(code, valid_window=1)
-        is_valid_backup = False
-        
-        # Проверка резервного кода, если TOTP не подошёл
-        if not is_valid_totp and user.totp_backup_codes:
-            backup_codes = json.loads(user.totp_backup_codes)
-            for i, hashed in enumerate(backup_codes):
-                if check_password(code.upper(), hashed):
-                    backup_codes.pop(i) # Удаляем использованный код
-                    user.totp_backup_codes = json.dumps(backup_codes)
-                    is_valid_backup = True
-                    break
-        
-        if not (is_valid_totp or is_valid_backup):
-            raise HTTPException(401, "Неверный код 2FA")
-        
-        # Успех — выдаём настоящий токен
-        ensure_user_has_keys(user.id, session)
-        
-        ip = get_client_ip(request)
-        ua = request.headers.get("user-agent")
-        session.add(IPLog(user_id=user.id, ip_address=ip, user_agent=ua, action="login_2fa"))
-        log_action(session, user.id, "login_2fa", ip_address=ip)
-        session.commit()
-        
-        return {
-            "requires_2fa": False,
-            "token": create_token(user.id, user.token_version), 
-            "user": user_out(user, session)
-        }
-        
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(401, "Время на ввод кода истекло. Войдите заново.")
-    except jwt.InvalidTokenError:
-        raise HTTPException(401, "Неверный или просроченный токен")
-
-@router.post("/api/2fa/setup")
-def setup_2fa(
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    if getattr(user, "totp_enabled", False):
-        raise HTTPException(400, "2FA уже включена")
-    
-    secret = pyotp.random_base32()
-    user.totp_secret = secret
-    session.add(user)
-    session.commit()
-    
-    totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(name=user.username, issuer_name="Nebula")
-    
-    img = qrcode.make(totp_uri)
-    buffer = io.BytesIO()
-    img.save(buffer, format="PNG")
-    qr_base64 = base64.b64encode(buffer.getvalue()).decode()
-    
-    backup_codes = [uuid.uuid4().hex[:8].upper() for _ in range(10)]
-    
-    return {
-        "secret": secret,
-        "qr_code": f"data:image/png;base64,{qr_base64}",
-        "backup_codes": backup_codes,
-        "uri": totp_uri,
-    }
-
-
-@router.post("/api/2fa/activate")
-def activate_2fa(
-    code: str = Form(...),
-    backup_codes: str = Form(...),
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    if getattr(user, "totp_enabled", False):
-        raise HTTPException(400, "2FA уже включена")
-    if not user.totp_secret:
-        raise HTTPException(400, "Сначала вызовите /api/2fa/setup")
-    
-    totp = pyotp.TOTP(user.totp_secret)
-    if not totp.verify(code, valid_window=1):
-        raise HTTPException(400, "Неверный код. Проверьте и попробуйте снова.")
-    
-    try:
-        codes_list = json.loads(backup_codes)
-        if not isinstance(codes_list, list) or len(codes_list) != 10:
-            raise ValueError
-    except:
-        raise HTTPException(400, "Неверный формат резервных кодов")
-    
-    hashed_codes = [hash_password(c) for c in codes_list]
-    user.totp_enabled = True
-    user.totp_backup_codes = json.dumps(hashed_codes)
-    session.add(user)
-    session.commit()
-    
-    log_action(session, user.id, "2fa_enabled")
-    return {"ok": True, "message": "2FA успешно активирована"}
-
-
-@router.post("/api/2fa/disable")
-def disable_2fa(
-    code: str = Form(...),
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    if not getattr(user, "totp_enabled", False):
-        raise HTTPException(400, "2FA не включена")
-    
-    totp = pyotp.TOTP(user.totp_secret)
-    if totp.verify(code, valid_window=1):
-        pass # Это валидный TOTP код
-    else:
-        backup_codes = json.loads(user.totp_backup_codes) if user.totp_backup_codes else []
-        found = False
-        for i, hashed in enumerate(backup_codes):
-            if check_password(code.upper(), hashed):
-                backup_codes.pop(i)
-                user.totp_backup_codes = json.dumps(backup_codes)
-                found = True
-                break
-        if not found:
-            raise HTTPException(400, "Неверный код")
-    
-    user.totp_enabled = False
-    user.totp_secret = None
-    user.totp_backup_codes = None
-    session.add(user)
-    session.commit()
-    
-    log_action(session, user.id, "2fa_disabled")
-    return {"ok": True, "message": "2FA отключена"}
-
-
-@router.get("/api/2fa/status")
-def get_2fa_status(
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    backup_codes_left = 0
-    if user.totp_backup_codes:
-        try:
-            backup_codes_left = len(json.loads(user.totp_backup_codes))
-        except:
-            pass
-    
-    return {
-        "enabled": getattr(user, "totp_enabled", False),
-        "backup_codes_left": backup_codes_left,
-        "email_linked": bool(getattr(user, "email", None)),
-        "email_verified": getattr(user, "email_verified", False),
-        "email": getattr(user, "email", None),
-    }
-
-
-@router.post("/api/2fa/backup-codes/regenerate")
-def regenerate_backup_codes(
-    code: str = Form(...),
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    if not getattr(user, "totp_enabled", False):
-        raise HTTPException(400, "2FA не включена")
-    
-    totp = pyotp.TOTP(user.totp_secret)
-    if not totp.verify(code, valid_window=1):
-        raise HTTPException(400, "Неверный код")
-    
-    backup_codes = [uuid.uuid4().hex[:8].upper() for _ in range(10)]
-    hashed_codes = [hash_password(c) for c in backup_codes]
-    
-    user.totp_backup_codes = json.dumps(hashed_codes)
-    session.add(user)
-    session.commit()
-    
-    return {"ok": True, "backup_codes": backup_codes}
-
-
-@router.post("/api/me/email")
-def link_email(
-    email: str = Form(...),
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    email = email.strip().lower()
-    if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
-        raise HTTPException(400, "Неверный формат email")
-    
-    existing = session.exec(select(User).where(User.email == email, User.id != user.id)).first()
     if existing:
-        raise HTTPException(400, "Этот email уже привязан к другому аккаунту")
-    
-    user.email = email
-    user.email_verified = False
-    session.add(user)
-    session.commit()
-    
-    log_action(session, user.id, "email_linked", details={"email": email})
-    return {"ok": True, "email": email}
-
-
-@router.delete("/api/me/email")
-def unlink_email(
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    user.email = None
-    user.email_verified = False
-    session.add(user)
-    session.commit()
-    return {"ok": True}
-
-
-@router.post("/api/password-reset/request")
-@limiter.limit("3/minute")
-def request_password_reset(
-    request: Request,
-    email: str = Form(...),
-    session: Session = Depends(get_session),
-):
-    email = email.strip().lower()
-    user = session.exec(select(User).where(User.email == email, User.email_verified == True)).first()
-    
-    if user:
-        code = generate_code()
-        user.password_reset_code = code
-        user.password_reset_expires = datetime.now(timezone.utc) + timedelta(minutes=15)
-        session.add(user)
-        session.commit()
-        
-        import threading
-        threading.Thread(
-            target=send_password_reset_email,
-            args=(user.email, code, user.display_name),
-            daemon=True
-        ).start()
-    
-    # Всегда возвращаем ok для защиты от перебора email
-    return {"ok": True, "message": "Если email существует и подтверждён, код отправлен"}
-
-
-@router.post("/api/keys/register")
-def register_public_key(
-    public_key: str = Form(...),
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    import hashlib
-    fingerprint = hashlib.sha256(public_key.encode()).hexdigest()[:16]
-
-    existing = session.exec(select(UserKey).where(UserKey.user_id == user.id)).first()
-    if existing:
-        existing.public_key = public_key
-        existing.fingerprint = fingerprint
-        existing.is_pending = False
-        session.add(existing)
-        session.commit()
-        return {"ok": True, "fingerprint": fingerprint, "already_existed": True}
-
-    key = UserKey(user_id=user.id, public_key=public_key, fingerprint=fingerprint, is_pending=False)
+        return
+    placeholder_key = f"pending_{user_id}_{os.urandom(8).hex()}"
+    fingerprint = hashlib.sha256(placeholder_key.encode()).hexdigest()[:16]
+    key = UserKey(
+        user_id=user_id,
+        public_key=placeholder_key,
+        fingerprint=fingerprint,
+        is_pending=True,
+    )
     session.add(key)
     session.commit()
-    return {"ok": True, "fingerprint": fingerprint, "already_existed": False}
+
+def is_ip_blocked(session: Session, ip: str):
+    from models import IPBlock
+    block = session.exec(
+        select(IPBlock).where(IPBlock.ip_address == ip)
+    ).first()
+    if block and block.expires_at and block.expires_at < datetime.now(timezone.utc):
+        session.delete(block)
+        session.commit()
+        return None
+    return block
+
+def log_action(
+    session: Session,
+    actor_id: Optional[int],
+    action: str,
+    target_type: Optional[str] = None,
+    target_id: Optional[int] = None,
+    details: Optional[dict] = None,
+    ip_address: Optional[str] = None,
+):
+    log = ActionLog(
+        actor_id=actor_id,
+        action=action,
+        target_type=target_type,
+        target_id=target_id,
+        details=json.dumps(details, default=str) if details else None,
+        ip_address=ip_address,
+    )
+    session.add(log)
+
+def user_out(user: User, session: Session = None) -> dict:
+    """Сериализует пользователя в dict"""
+    role_data = None
+    permissions = []
+    
+    if session:
+        from routers.utils import get_user_permissions, get_user_level
+        permissions = get_user_permissions(user, session)
+        if user.role_id:
+            role = session.get(Role, user.role_id)
+            if role:
+                role_data = {
+                    "id": role.id,
+                    "name": role.name,
+                    "color": role.color,
+                    "level": role.level,
+                    "permissions": json.loads(role.permissions) if role.permissions else [],
+                }
+    
+    return {
+        "id": user.id,
+        "username": user.username,
+        "display_name": user.display_name,
+        "avatar_url": user.avatar_url,
+        "is_admin": user.is_admin,
+        "is_moderator": user.is_moderator,
+        "is_banned": user.is_banned,
+        "is_system": user.is_system,
+        "role": role_data,
+        "permissions": permissions,
+        "level": get_user_level(user, session) if session else 1,
+        "bio": user.bio,
+        "last_seen": user.last_seen.isoformat() if user.last_seen else None,
+        "cover_url": user.cover_url,
+        "two_fa_enabled": bool(getattr(user, "totp_enabled", False)),
+        "email_linked": bool(getattr(user, "email", None)),
+    }
+
+# ============================================================
+# ОСНОВНЫЕ ЗАВИСИМОСТИ
+# ============================================================
+
+def get_current_user(
+    authorization: str = Header(default=None),
+    session: Session = Depends(get_session),
+    background_tasks: Optional[BackgroundTasks] = None,
+) -> User:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = authorization.split(" ", 1)[1]
+    
+    try:
+        payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid token payload")
+    
+    user = session.get(User, int(user_id))
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    
+    if payload.get("ver", 0) != user.token_version:
+        raise HTTPException(status_code=401, detail="Session revoked")
+    
+    if user.is_banned:
+        raise HTTPException(status_code=403, detail="Account banned")
+    
+    if background_tasks:
+        now = datetime.now(timezone.utc)
+        if not user.last_seen or (now - user.last_seen).total_seconds() > 180:
+            background_tasks.add_task(_update_last_seen, user.id)
+    
+    return user
+
+def get_optional_user(
+    authorization: str = Header(default=None),
+    session: Session = Depends(get_session),
+) -> Optional[User]:
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    
+    token = authorization.split(" ", 1)[1]
+    
+    try:
+        payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
+    except Exception:
+        return None
+    
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+    
+    user = session.get(User, int(user_id))
+    if not user or user.is_banned:
+        return None
+    
+    return user
+
+def require_staff(
+    authorization: str = Header(default=None),
+    session: Session = Depends(get_session),
+) -> User:
+    user = get_current_user(authorization=authorization, session=session)
+    from routers.utils import has_permission
+    if not user.is_admin and not user.is_moderator and not has_permission(user, "manage_users", session):
+        raise HTTPException(status_code=403, detail="Staff only")
+    return user
+
+def require_admin(
+    authorization: str = Header(default=None),
+    session: Session = Depends(get_session),
+) -> User:
+    user = get_current_user(authorization=authorization, session=session)
+    if not user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin only")
+    return user
+
+def require_founder(
+    authorization: str = Header(default=None),
+    session: Session = Depends(get_session),
+) -> User:
+    user = get_current_user(authorization=authorization, session=session)
+    from routers.utils import get_user_level
+    if get_user_level(user, session) < 10:
+        raise HTTPException(status_code=403, detail="Only Founder can do this")
+    return user
+
+def require_announcer(
+    authorization: str = Header(default=None),
+    session: Session = Depends(get_session),
+) -> User:
+    user = get_current_user(authorization=authorization, session=session)
+    from routers.utils import get_user_level, has_permission
+    if get_user_level(user, session) >= 10 or has_permission(user, "manage_announcements", session):
+        return user
+    raise HTTPException(status_code=403, detail="Need Founder or manage_announcements")
+
+def require_support_staff(
+    authorization: str = Header(default=None),
+    session: Session = Depends(get_session),
+) -> User:
+    user = get_current_user(authorization=authorization, session=session)
+    from routers.utils import has_permission
+    if user.is_admin or has_permission(user, "manage_support", session):
+        return user
+    raise HTTPException(status_code=403, detail="Support staff only")
+
+# ============================================================
+# ВСПОМОГАТЕЛЬНЫЕ (для фона)
+# ============================================================
+
+def _update_last_seen(user_id: int):
+    with Session(engine) as session:
+        user = session.get(User, user_id)
+        if user:
+            user.last_seen = datetime.now(timezone.utc)
+            session.add(user)
+            session.commit()
+
+# ============================================================
+# RATE LIMITER
+# ============================================================
+
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)

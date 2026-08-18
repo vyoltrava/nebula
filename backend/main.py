@@ -19,13 +19,13 @@ from models import User
 from performance import PerfMiddleware
 from websocket_manager import manager
 
-# 2. Импорт из dependencies
-from dependencies import (
-    SECRET, ALGORITHM, get_current_user, limiter, 
-    get_client_ip, is_ip_blocked, _update_last_seen_sync
+# 2. Импорт ВСЕГО из routers (там есть __init__.py со всеми экспортами)
+from routers import (
+    SECRET, ALGORITHM, get_current_user, limiter,
+    get_client_ip, is_ip_blocked
 )
 
-# 3. Импорт всех роутеров
+# 3. Импорт роутеров
 from routers.admin import router as admin_router
 from routers.auth import router as auth_router
 from routers.chats import router as chats_router
@@ -39,9 +39,9 @@ from routers.support import router as support_router
 from routers.themes import router as themes_router
 from routers.updates import router as updates_router
 from routers.users import router as users_router
-from routers.prism import router as prism_router
+from routers import prism
 
-# 4. Инициализация приложения (СТРОГО ОДИН РАЗ)
+# 4. Создаём приложение
 app = FastAPI(title="Nebula API")
 
 # 5. CORS
@@ -51,6 +51,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
+        "http://localhost:3001",
         FRONTEND_URL,
     ],
     allow_credentials=True,
@@ -59,9 +60,14 @@ app.add_middleware(
     expose_headers=["X-Process-Time-Ms", "X-Request-Id"],
 )
 
-# 6. Middleware и обработчики ошибок
+# 6. Rate limiter и middleware
 app.state.limiter = limiter
 app.add_middleware(PerfMiddleware)
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
 
 @app.middleware("http")
 async def ip_block_middleware(request: Request, call_next):
@@ -71,10 +77,11 @@ async def ip_block_middleware(request: Request, call_next):
     with Session(engine) as session:
         block = is_ip_blocked(session, ip)
         if block:
-            return JSONResponse(status_code=403, content={"detail": f"Ваш IP заблокирован. Причина: {block.reason or 'не указана'}"})
+            return JSONResponse(
+                status_code=403,
+                content={"detail": f"Ваш IP заблокирован. Причина: {block.reason or 'не указана'}"}
+            )
     return await call_next(request)
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -83,7 +90,10 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
-    return JSONResponse(status_code=429, content={"detail": "Слишком много запросов. Подождите немного."})
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Слишком много запросов. Подождите немного."},
+    )
 
 # 7. Статические файлы
 os.makedirs("uploads", exist_ok=True)
@@ -103,63 +113,119 @@ app.include_router(support_router)
 app.include_router(themes_router)
 app.include_router(updates_router)
 app.include_router(users_router)
-app.include_router(prism_router)
+app.include_router(prism.router)  # ← ТОЛЬКО ОДИН РАЗ!
 
-# 9. STARTUP: Инициализация и МИГРАЦИИ
+# 9. Функция обновления last_seen (для WebSocket)
+def _update_last_seen_sync(user_id: int):
+    """Синхронная функция для обновления last_seen"""
+    with Session(engine) as session:
+        user = session.get(User, user_id)
+        if user:
+            user.last_seen = datetime.now(timezone.utc)
+            session.add(user)
+            session.commit()
+
+# 10. STARTUP: Миграции
 @app.on_event("startup")
 def startup():
-    print("🚀 Инициализация базы данных и применение миграций...")
+    print("🚀 Инициализация базы данных...")
     init_db()
+    
+    # Твой огромный блок миграций из старого main.py
     with engine.connect() as conn:
         try:
-            # Здесь оставь свой огромный блок conn.execute(text('...')) из старого main.py
-            # Я сократил его для примера, но ты должен вставить ВЕСЬ блок миграций сюда.
+            # Здесь весь твой блок с ALTER TABLE и CREATE TABLE
+            # Я сократил для примера, но ты должен вставить ВСЁ
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ;'))
             conn.commit()
             print("✅ Миграции успешно применены")
         except Exception as e:
             conn.rollback()
             print(f"⚠️ STARTUP MIGRATION ERROR: {e}")
-    print("🎉 Сервер полностью готов к работе!")
+    
+    print("🎉 Сервер полностью готов!")
 
-# 10. WebSocket
+# 11. ⭐ ГЛАВНОЕ: WEBSOCKET (исправленный)
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    # Принимаем соединение
     await websocket.accept()
+    
+    # Получаем токен
     token = websocket.query_params.get("token")
     user_id = None
+    
     if token:
         try:
             payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
             user_id = int(payload["sub"])
-        except Exception:
+        except jwt.ExpiredSignatureError:
+            await websocket.close(code=4001, reason="Token expired")
+            return
+        except jwt.InvalidTokenError:
             await websocket.close(code=4001, reason="Invalid token")
+            return
+        except Exception as e:
+            print(f"❌ WS auth error: {e}")
+            await websocket.close(code=4001, reason="Auth error")
             return
     
     if not user_id:
         await websocket.close(code=4001, reason="Not authenticated")
         return
     
-    with Session(engine) as session:
-        user = session.get(User, user_id)
-        if not user or user.is_banned:
-            await websocket.close(code=4003, reason="Banned or not found")
-            return
+    # Проверяем пользователя в БД
+    try:
+        with Session(engine) as session:
+            user = session.get(User, user_id)
+            if not user:
+                await websocket.close(code=4003, reason="User not found")
+                return
+            if user.is_banned:
+                await websocket.close(code=4003, reason="Banned")
+                return
+    except Exception as e:
+        print(f"❌ WS DB error: {e}")
+        await websocket.close(code=4003, reason="Database error")
+        return
     
-    await manager.connect(websocket, user_id)
-    await run_in_threadpool(_update_last_seen_sync, user_id)
+    # Подключаем к менеджеру
+    try:
+        await manager.connect(websocket, user_id)
+        print(f"✅ WS connected: user {user_id}")
+    except Exception as e:
+        print(f"❌ WS connect error: {e}")
+        await websocket.close(code=4000, reason="Connection error")
+        return
     
+    # Обновляем last_seen в фоне
+    try:
+        await run_in_threadpool(_update_last_seen_sync, user_id)
+    except Exception as e:
+        print(f"⚠️ WS last_seen error: {e}")
+    
+    # Основной цикл
     try:
         while True:
             data = await websocket.receive_text()
             if data == "ping":
                 await websocket.send_text(json.dumps({"event": "pong"}))
+            else:
+                # Обработка других сообщений (если нужно)
+                pass
     except WebSocketDisconnect:
+        print(f"⚠️ WS disconnected: user {user_id}")
         await manager.disconnect(websocket, user_id)
     except Exception as e:
         print(f"❌ WS error for user {user_id}: {e}")
         await manager.disconnect(websocket, user_id)
 
+# 12. Online count
 @app.get("/api/online-count")
 def get_online_count(user: User = Depends(get_current_user)):
     return {"count": manager.total_connections}
+
+# 13. Health check
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "service": "nebula-api"}

@@ -1,4 +1,34 @@
-# Автогенерация
+# routers/__init__.py
+"""
+Инициализация пакета роутеров
+"""
+
+# Экспортируем всё, что нужно для main.py
+from .auth import (
+    SECRET,
+    ALGORITHM,
+    get_current_user,
+    get_optional_user,
+    require_staff,
+    require_admin,
+    require_founder,
+    require_announcer,
+    require_support_staff,
+    get_client_ip,
+    is_ip_blocked,
+    create_token,
+    limiter,
+    _update_last_seen,
+    hash_password,
+    check_password,
+    ensure_user_has_keys,
+    log_action,
+    user_out,
+    generate_code,
+    send_password_reset_email,
+)
+
+# Роутеры
 from .admin import router as admin_router
 from .auth import router as auth_router
 from .chats import router as chats_router

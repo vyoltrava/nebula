@@ -3,11 +3,16 @@
 ├── .gitattributes
 ├── .gitignore
 ├── backend
+│   ├── add_prism_to_main.py
 │   ├── cleanup.py
 │   ├── cleanup_mass_bot.py
 │   ├── cloudinary_config.py
 │   ├── database.py
 │   ├── dependencies.py
+│   ├── diagnose_result.json
+│   ├── diagnose_router.py
+│   ├── diagnose_ws.py
+│   ├── fix_main.py
 │   ├── fix_missing_deps.py
 │   ├── generate_load.py
 │   ├── link_preview.py
@@ -27,29 +32,15 @@
 │   │   ├── notifications.py
 │   │   ├── permissions.py
 │   │   ├── posts.py
+│   │   ├── prism.py
 │   │   ├── reports.py
 │   │   ├── search.py
 │   │   ├── support.py
 │   │   ├── themes.py
 │   │   ├── updates.py
 │   │   ├── users.py
-│   │   ├── __init__.py
-│   │   └── __pycache__
-│   │       ├── admin.cpython-314.pyc
-│   │       ├── auth.cpython-314.pyc
-│   │       ├── chats.cpython-314.pyc
-│   │       ├── misc.cpython-314.pyc
-│   │       ├── notifications.cpython-314.pyc
-│   │       ├── permissions.cpython-314.pyc
-│   │       ├── posts.cpython-314.pyc
-│   │       ├── reports.cpython-314.pyc
-│   │       ├── search.cpython-314.pyc
-│   │       ├── support.cpython-314.pyc
-│   │       ├── themes.cpython-314.pyc
-│   │       ├── updates.cpython-314.pyc
-│   │       ├── users.cpython-314.pyc
-│   │       ├── __init__.cpython-314.pyc
-│   │       └── __init__.py
+│   │   └── __init__.py
+│   ├── scan_missing.py
 │   ├── sql_profiler.py
 │   ├── stress_test.py
 │   ├── test_report.json
@@ -65,6 +56,7 @@
 │       ├── performance.cpython-314.pyc
 │       ├── sql_profiler.cpython-314.pyc
 │       └── websocket_manager.cpython-314.pyc
+├── check_websocket.py
 ├── export-files.ps1
 ├── frontend
 │   ├── .gitignore
@@ -103,6 +95,9 @@
 │   │   │   └── page.tsx
 │   │   ├── page.tsx
 │   │   ├── post
+│   │   │   └── [id]
+│   │   │       └── page.tsx
+│   │   ├── prism
 │   │   │   └── [id]
 │   │   │       └── page.tsx
 │   │   ├── rules
@@ -161,6 +156,9 @@
 │   │   ├── LinkPreview.tsx
 │   │   ├── LiveTextSettings.tsx
 │   │   ├── LogoutAllButton.tsx
+│   │   ├── MarkdownContextMenu.tsx
+│   │   ├── MarkdownRenderer.tsx
+│   │   ├── MarkdownToolbar.tsx
 │   │   ├── MessageContextMenu.tsx
 │   │   ├── NotificationPermissionPrompt.tsx
 │   │   ├── PermissionGate.tsx
@@ -202,6 +200,7 @@
 │   │   ├── online.ts
 │   │   ├── perf.ts
 │   │   ├── postCache.ts
+│   │   ├── prismCrypto.ts
 │   │   ├── push.ts
 │   │   ├── stickers.tsx
 │   │   ├── themes.ts
@@ -234,14 +233,17 @@
 │   ├── README.md
 │   ├── src
 │   │   └── hooks
+│   │       ├── useDraft.ts
 │   │       ├── useLastReadPost.ts
 │   │       └── useWebSocket.ts
 │   ├── tsconfig.json
 │   ├── yarn.lock
 │   └── __tests__
-│       └── crypto.test.ts
+│       ├── crypto.test.ts
+│       └── prismCrypto.test.ts
 ├── get-structure.js
 ├── package.json
 ├── perf-scan.mjs
 ├── project-structure.txt
-└── vercel.json
+├── vercel.json
+└── websocket_diagnostic_report.txt

@@ -1,0 +1,39 @@
+{
+  "missing": {},
+  "extra": {
+    "POST /api/chats/prism": {
+      "method": "POST",
+      "path": "/api/chats/prism",
+      "function_name": "create_prism_chat",
+      "is_async": true,
+      "file": "routers\\prism.py",
+      "full_text": "@router.post(\"/api/chats/prism\")\nasync def create_prism_chat(\n    data: CreatePrismChatIn,\n    user: User = Depends(get_current_user),\n    session: Session = Depends(get_session),\n):"
+    },
+    "PATCH /api/users/me/prism-anchor": {
+      "method": "PATCH",
+      "path": "/api/users/me/prism-anchor",
+      "function_name": "update_prism_anchor",
+      "is_async": true,
+      "file": "routers\\prism.py",
+      "full_text": "@router.patch(\"/api/users/me/prism-anchor\")\nasync def update_prism_anchor(\n    shard1_encrypted: str = Form(...),\n    user: User = Depends(get_current_user),\n    session: Session = Depends(get_session),\n):"
+    }
+  },
+  "common": 179,
+  "router_files": [
+    "routers\\admin.py",
+    "routers\\auth.py",
+    "routers\\chats.py",
+    "routers\\misc.py",
+    "routers\\notifications.py",
+    "routers\\permissions.py",
+    "routers\\posts.py",
+    "routers\\prism.py",
+    "routers\\reports.py",
+    "routers\\search.py",
+    "routers\\support.py",
+    "routers\\themes.py",
+    "routers\\updates.py",
+    "routers\\users.py"
+  ],
+  "old_main": "main_old_backup.py"
+}
