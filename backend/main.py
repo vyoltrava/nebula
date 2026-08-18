@@ -299,6 +299,17 @@ def startup():
 
 
 
+def _update_last_seen_sync(user_id: int):
+    """Синхронная функция для обновления last_seen (выполняется в threadpool)"""
+    with Session(engine) as session:
+        user = session.get(User, user_id)
+        if user:
+            user.last_seen = datetime.now(timezone.utc)
+            session.add(user)
+            session.commit()
+
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     # 1. Принимаем соединение ПЕРЕД любыми действиями
