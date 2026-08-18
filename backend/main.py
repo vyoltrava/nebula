@@ -1,9 +1,9 @@
+# backend/main.py
 import os
 import logging
 import json
 import jwt
 from datetime import datetime, timezone
-
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -15,11 +15,11 @@ from sqlmodel import Session
 
 # 1. Локальные импорты
 from database import init_db, engine, get_session
-from models import User  # и другие модели, если нужны для миграций
+from models import User
 from performance import PerfMiddleware
 from websocket_manager import manager
 
-# 2. Импорт из dependencies (ВСЕ функции прав и утилиты должны быть ТАМ)
+# 2. Импорт из dependencies
 from dependencies import (
     SECRET, ALGORITHM, get_current_user, limiter, 
     get_client_ip, is_ip_blocked, _update_last_seen_sync
@@ -41,7 +41,7 @@ from routers.updates import router as updates_router
 from routers.users import router as users_router
 from routers.prism import router as prism_router
 
-# 4. Инициализация приложения (СТРОГО ОДИН РАЗ!)
+# 4. Инициализация приложения (СТРОГО ОДИН РАЗ)
 app = FastAPI(title="Nebula API")
 
 # 5. CORS
@@ -64,14 +64,10 @@ async def ip_block_middleware(request: Request, call_next):
     ip = get_client_ip(request)
     if ip in ("127.0.0.1", "testclient") or request.url.path == "/health":
         return await call_next(request)
-    
     with Session(engine) as session:
         block = is_ip_blocked(session, ip)
         if block:
-            return JSONResponse(
-                status_code=403,
-                content={"detail": f"Ваш IP заблокирован. Причина: {block.reason or 'не указана'}"}
-            )
+            return JSONResponse(status_code=403, content={"detail": f"Ваш IP заблокирован. Причина: {block.reason or 'не указана'}"})
     return await call_next(request)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -89,7 +85,7 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
 os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# 8. Подключение роутеров (СТРОГО ПОСЛЕ создания app)
+# 8. Подключение роутеров
 app.include_router(admin_router)
 app.include_router(auth_router)
 app.include_router(chats_router)
@@ -105,15 +101,15 @@ app.include_router(updates_router)
 app.include_router(users_router)
 app.include_router(prism_router)
 
-# 9. STARTUP: Инициализация и МИГРАЦИИ (СТРОГО ОДИН РАЗ!)
+# 9. STARTUP: Инициализация и МИГРАЦИИ
 @app.on_event("startup")
 def startup():
     print("🚀 Инициализация базы данных и применение миграций...")
     init_db()
-    
     with engine.connect() as conn:
         try:
-            # Пример миграции (оставь свои)
+            # Здесь оставь свой огромный блок conn.execute(text('...')) из старого main.py
+            # Я сократил его для примера, но ты должен вставить ВЕСЬ блок миграций сюда.
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS last_seen TIMESTAMPTZ;'))
             conn.commit()
             print("✅ Миграции успешно применены")
@@ -122,13 +118,12 @@ def startup():
             print(f"⚠️ STARTUP MIGRATION ERROR: {e}")
     print("🎉 Сервер полностью готов к работе!")
 
-# 10. WebSocket (использует _update_last_seen_sync из dependencies)
+# 10. WebSocket
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     token = websocket.query_params.get("token")
     user_id = None
-    
     if token:
         try:
             payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
