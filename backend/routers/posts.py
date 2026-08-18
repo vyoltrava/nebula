@@ -1,5 +1,4 @@
-from dependencies import _track_view_sync,  ALGORITHM, ALLOWED_AUDIO_EXT, ALLOWED_IMAGE_EXT, ALLOWED_VIDEO_EXT, PostOut, SECRET, cascade_delete_post, check_sanction_rights, extract_mentions, extract_tags, get_author_role, get_client_ip, get_current_user, get_optional_user, get_user_level, has_permission, limiter, log_action
-# app_split/routers/posts.py
+from dependencies import _track_view_sync, ALGORITHM, ALLOWED_AUDIO_EXT, ALLOWED_IMAGE_EXT, ALLOWED_VIDEO_EXT, PostOut, SECRET, cascade_delete_post, check_sanction_rights, extract_mentions, extract_tags, get_author_role, get_client_ip, get_current_user, get_optional_user, get_user_level, has_permission, limiter, log_action, manager # <--- ДОБАВИТЬ СЮДА# app_split/routers/posts.py
 # Сгенерировано автоматически. Проверь импорты!
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Form, File, UploadFile, Header, Query

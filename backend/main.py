@@ -10,6 +10,16 @@ from starlette.responses import JSONResponse
 from sqlalchemy import text
 from sqlmodel import Session
 
+
+import json
+import jwt
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Depends
+from fastapi.concurrency import run_in_threadpool
+from websocket_manager import manager
+from dependencies import SECRET, ALGORITHM, get_current_user
+from models import User
+
+
 # 1. Локальные импорты (база, модели, зависимости)
 from database import init_db, engine, get_session
 from models import *  # Нужно для миграций, чтобы SQLAlchemy видел все таблицы
@@ -286,3 +296,57 @@ def startup():
             print(f"⚠️ STARTUP SEQUENCE ERROR: {e}")
             
     print("🎉 Сервер полностью готов к работе!")
+
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    # 1. Принимаем соединение ПЕРЕД любыми действиями
+    await websocket.accept()
+    
+    # 2. Достаём токен из query-параметров
+    token = websocket.query_params.get("token")
+    
+    # 3. Аутентификация через JWT
+    user_id = None
+    if token:
+        try:
+            payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
+            user_id = int(payload["sub"])
+        except Exception:
+            await websocket.close(code=4001, reason="Invalid token")
+            return
+    
+    if not user_id:
+        await websocket.close(code=4001, reason="Not authenticated")
+        return
+    
+    # 4. Проверяем пользователя в БД
+    with Session(engine) as session:
+        user = session.get(User, user_id)
+        if not user or user.is_banned:
+            await websocket.close(code=4003, reason="Banned or not found")
+            return
+    
+    # 5. Подключаем к менеджеру
+    await manager.connect(websocket, user_id)
+    
+    # 6. ✅ ОБНОВЛЯЕМ last_seen БЕЗ блокировки event loop
+    await run_in_threadpool(_update_last_seen_sync, user_id)
+    
+    try:
+        # 7. Держим соединение открытым
+        while True:
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text(json.dumps({"event": "pong"}))
+    except WebSocketDisconnect:
+        await manager.disconnect(websocket, user_id)
+    except Exception as e:
+        print(f"❌ WS error for user {user_id}: {e}")
+        await manager.disconnect(websocket, user_id)
+
+@app.get("/api/online-count")
+def get_online_count(user: User = Depends(get_current_user)):
+    """Сколько пользователей сейчас онлайн"""
+    return {"count": manager.total_connections}
