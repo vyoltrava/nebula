@@ -1929,101 +1929,96 @@ const ChatHeader = () => (
 )}
   </button>
   
-{/* Пикер реакций из паков */}
 {showReactionPicker && (
-  <>
-    {/* Затемнение фона только на мобилке */}
+<>
+  {/* Затемнение фона */}
+  <div 
+    className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" 
+    onClick={() => setShowReactionPicker(false)} 
+  />
+  
+  {/* Окно по центру экрана */}
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
     <div 
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden" 
-      onClick={() => setShowReactionPicker(false)} 
-    />
-    
-    {/* Окно: на мобилке по центру, на десктопе dropdown */}
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-0 md:static md:inset-auto pointer-events-none">
-      <div 
-        className="bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl w-full max-w-sm max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 pointer-events-auto md:absolute md:right-0 md:top-full md:mt-2 md:w-96 md:max-h-[70vh] md:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Шапка */}
-        <div className="p-4 border-b border-white/10 flex items-center justify-between shrink-0">
-          <p className="text-sm font-bold text-white">Быстрая реакция (двойной тап)</p>
-          <button onClick={() => setShowReactionPicker(false)} className="text-white/40 hover:text-white p-1 md:hidden">
-            <X size={18} />
-          </button>
-        </div>
-        
-        {/* Список реакций по пакам */}
-        <div className="flex-1 overflow-y-auto p-3">
-          {stickerPacks.length === 0 ? (
-            <p className="text-center text-white/40 text-xs py-6">Нет доступных паков</p>
-          ) : (
-            stickerPacks.map((pack, packIdx) => {
-              const userLevel = currentUser?.level ?? 0;
-              const isLocked = (pack.min_level || 0) > userLevel;
-              return (
-                <div key={pack.id} className="mb-4">
-                  {/* Заголовок пака */}
-                  <div className="flex items-center gap-1.5 px-1 mb-2">
-                    {isLocked && <Lock size={10} className="text-yellow-400" />}
-                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isLocked ? 'text-white/30' : 'text-white/60'}`}>
-                      {pack.name}
-                      {isLocked && <span className="ml-1 text-yellow-400/70 normal-case">· ур. {pack.min_level}</span>}
-                    </span>
-                  </div>
-                  {/* Реакции пака */}
-                  <div className="grid grid-cols-6 gap-1.5">
-                    {pack.stickers?.map((s: any) => {
-                      const isSelected = quickReaction?.content === s.content && quickReaction?.type === s.type;
-                      return (
-                        <button
-                          key={s.id}
-                          disabled={isLocked}
-                          onClick={() => {
-                            if (isLocked) return;
-                            saveQuickReaction({
-                              type: s.type,
-                              content: s.content,
-                              stickerId: s.type === 'sticker' ? s.id : undefined
-                            });
-                          }}
-                          className={`aspect-square flex items-center justify-center rounded-lg transition-all relative ${
-                            isLocked
-                              ? 'opacity-30 grayscale cursor-not-allowed'
-                              : isSelected
-                                ? 'bg-[#8b5cf6]/30 ring-1 ring-[#8b5cf6] scale-110'
-                                : 'hover:bg-white/10 active:scale-90'
-                          }`}
-                          title={isLocked ? `Доступно с ${pack.min_level} уровня` : undefined}
-                        >
-                          {s.type === 'emoji' ? (
-                            <span className="text-xl">{s.content}</span>
-                          ) : (
-                            <img src={s.content} alt="" className="w-7 h-7 object-contain" />
-                          )}
-                          {/* Замок поверх заблокированных */}
-                          {isLocked && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <Lock size={12} className="text-yellow-400 drop-shadow-md" />
-                            </div>
-                          )}
-                          {/* Галочка выбранной */}
-                          {isSelected && !isLocked && (
-                            <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#8b5cf6] flex items-center justify-center">
-                              <Check size={10} className="text-white" />
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+      className="w-full max-w-sm max-h-[80vh] bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 pointer-events-auto"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Шапка */}
+      <div className="p-4 border-b border-white/10 flex items-center justify-between shrink-0">
+        <p className="text-sm font-bold text-white">Быстрая реакция (двойной тап)</p>
+        <button onClick={() => setShowReactionPicker(false)} className="text-white/40 hover:text-white p-1">
+          <X size={18} />
+        </button>
+      </div>
+      
+      {/* Список реакций по пакам */}
+      <div className="flex-1 overflow-y-auto p-3">
+        {stickerPacks.length === 0 ? (
+          <p className="text-center text-white/40 text-xs py-6">Нет доступных паков</p>
+        ) : (
+          stickerPacks.map((pack) => {
+            const userLevel = currentUser?.level ?? 0;
+            const isLocked = (pack.min_level || 0) > userLevel;
+            return (
+              <div key={pack.id} className="mb-4">
+                <div className="flex items-center gap-1.5 px-1 mb-2">
+                  {isLocked && <Lock size={10} className="text-yellow-400" />}
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isLocked ? 'text-white/30' : 'text-white/60'}`}>
+                    {pack.name}
+                    {isLocked && <span className="ml-1 text-yellow-400/70 normal-case">· ур. {pack.min_level}</span>}
+                  </span>
                 </div>
-              );
-            })
-          )}
-        </div>
+                <div className="grid grid-cols-6 gap-1.5">
+                  {pack.stickers?.map((s: any) => {
+                    const isSelected = quickReaction?.content === s.content && quickReaction?.type === s.type;
+                    return (
+                      <button
+                        key={s.id}
+                        disabled={isLocked}
+                        onClick={() => {
+                          if (isLocked) return;
+                          saveQuickReaction({
+                            type: s.type,
+                            content: s.content,
+                            stickerId: s.type === 'sticker' ? s.id : undefined
+                          });
+                        }}
+                        className={`aspect-square flex items-center justify-center rounded-lg transition-all relative ${
+                          isLocked
+                            ? 'opacity-30 grayscale cursor-not-allowed'
+                            : isSelected
+                              ? 'bg-[#8b5cf6]/30 ring-1 ring-[#8b5cf6] scale-110'
+                              : 'hover:bg-white/10 active:scale-90'
+                        }`}
+                        title={isLocked ? `Доступно с ${pack.min_level} уровня` : undefined}
+                      >
+                        {s.type === 'emoji' ? (
+                          <span className="text-xl">{s.content}</span>
+                        ) : (
+                          <img src={s.content} alt="" className="w-7 h-7 object-contain" />
+                        )}
+                        {isLocked && (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Lock size={12} className="text-yellow-400 drop-shadow-md" />
+                          </div>
+                        )}
+                        {isSelected && !isLocked && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#8b5cf6] flex items-center justify-center">
+                            <Check size={10} className="text-white" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
-  </>
+  </div>
+</>
 )}
 </div>
 
