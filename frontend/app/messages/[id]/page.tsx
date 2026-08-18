@@ -3165,10 +3165,11 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
                 ? 'opacity-100 scale-100 translate-y-0' 
                 : 'opacity-0 scale-150 -translate-y-12'
             }`}
-            style={{ 
-              left: popReaction.x - 24, 
-              top: popReaction.y - 24 
-            }}
+style={{
+  left: '50%',
+  top: '20%',
+  transform: 'translate(-50%, -50%)'
+}}
           >
             {popReaction.type === 'emoji' ? (
               <span className="text-5xl">{popReaction.content}</span>
@@ -3187,7 +3188,8 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
       onClick={() => setLongPressMenu(null)}
     />
     {/* Само меню с glassmorphism */}
-<div className="fixed z-[251] bg-[#1c1c1e]/90 backdrop-blur-xl border border-white/10 rounded-[28px] shadow-2xl p-2.5 flex items-center gap-1.5" style={{ animation: 'popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards' }}
+<div 
+className="fixed z-[251] bg-[#1c1c1e]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-2 flex items-center gap-1 animate-in zoom-in-95 fade-in duration-200"
     >
       {['❤️', '👍', '🔥', '😂', '😮'].map((emoji, i) => (
         <button
@@ -3196,7 +3198,7 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
             toggleReaction(longPressMenu.msgId, undefined, emoji);
             setLongPressMenu(null);
           }}
-          className="text-3xl p-2.5 rounded-full hover:bg-white/10 active:scale-125 active:-translate-y-2 transition-all duration-150 ease-out"
+          className="text-2xl p-2 rounded-full hover:bg-white/10 active:scale-110 transition-all duration-150"
           style={{ animationDelay: `${i * 30}ms` }}
         >
           {emoji}
