@@ -44,7 +44,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()", // Запрещает доступ к камере, микрофону и геолокации
+            value: "camera=self, microphone=self, geolocation=()", // камера и микрофон разрешены на своём домене
           },
           // ⚠️ Content-Security-Policy (CSP) часто ломает внешние скрипты/шрифты/картинки.
           // Раскомментируйте и настройте его под себя, если используете внешние ресурсы (аналитика, шрифты Google и т.д.)
