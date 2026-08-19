@@ -790,38 +790,6 @@ def register(request: Request, data: RegisterIn, session: Session = Depends(get_
     return {"token": create_token(user.id, user.token_version), "user": user_out(user, session)}
 
 
-@app.post("/api/login")
-@limiter.limit("5/minute")
-def login(request: Request, data: LoginIn, session: Session = Depends(get_session)):
-    user = session.exec(select(User).where(User.username == data.username)).first()
-    if not user or not check_password(data.password, user.password_hash):
-        raise HTTPException(401, "Wrong username or password")
-    if user.is_banned:
-        raise HTTPException(403, "Account banned")
-        # 🆕 АВТОГЕНЕРАЦИЯ КЛЮЧЕЙ
-    ensure_user_has_keys(user.id, session)
-        # Логируем IP входа
-    ip = get_client_ip(request)
-    ua = request.headers.get("user-agent")
-
-    last_log = session.exec(
-        select(IPLog)
-        .where(IPLog.user_id == user.id)
-        .order_by(IPLog.created_at.desc())
-        .limit(1)
-    ).first()
-
-    # Вход с нового IP или устройства — предупреждаем пользователя
-    if last_log and (last_log.ip_address != ip or last_log.user_agent != ua):
-        session.add(Notification(
-            user_id=user.id,
-            actor_id=user.id,
-            type="login_alert",
-        ))
-    session.add(IPLog(user_id=user.id, ip_address=ip, user_agent=request.headers.get("user-agent"), action="login"))
-    log_action(session, user.id, "login", ip_address=ip)
-    session.commit()
-    return {"token": create_token(user.id, user.token_version), "user": user_out(user, session)}
 
 @app.post("/api/me/logout-all")
 def logout_all(
