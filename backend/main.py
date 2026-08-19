@@ -8938,17 +8938,23 @@ async def create_prism_chat(
             if other_in:
                 return {"chat_id": cid, "already_existed": True}
 
+    # 2. Создаем чат
     chat = Chat(is_prism=True, avatar_url=data.avatar_url)
     session.add(chat)
     
+    # 🆕 КРИТИЧЕСКИ ВАЖНО: сохраняем чат, чтобы получить его ID из базы данных
+    session.commit()
+    session.refresh(chat)
+    
+    # 3. Теперь chat.id известен, добавляем участников
     session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="member"))
     session.add(ChatMember(chat_id=chat.id, user_id=data.other_user_id, role="member"))
     
-    # 3. Сохраняем "Спектр 1" (Якорь) в профиль текущего пользователя
+    # 4. Сохраняем "Спектр 1" (Якорь) в профиль текущего пользователя
     user.prism_anchor = data.shard1_encrypted
     session.add(user)
     
-    # 4. Создаем ПЕРВОЕ системное сообщение, которое хранит "Спектр 2" (Генезис)
+    # 5. Создаем ПЕРВОЕ системное сообщение, которое хранит "Спектр 2" (Генезис)
     genesis_msg = Message(
         chat_id=chat.id,
         sender_id=user.id,
@@ -8956,8 +8962,9 @@ async def create_prism_chat(
         media_type="system",
     )
     session.add(genesis_msg)
-    
-    # 5. Уведомление
+    session.commit()
+
+    # 6. Уведомление
     session.add(Notification(
         user_id=data.other_user_id, 
         actor_id=user.id, 
@@ -8966,7 +8973,7 @@ async def create_prism_chat(
     ))
     session.commit()
 
-    # 6. WebSocket уведомление
+    # 7. WebSocket уведомление
     await manager.broadcast_to_users([data.other_user_id], "prism_chat_created", {
         "chat_id": chat.id,
         "from_user": user.display_name,
