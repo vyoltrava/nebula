@@ -1607,12 +1607,12 @@ useEffect(() => {
 
       if (firstUnread) {
         setTimeout(() => {
-          const el = document.getElementById(`msg-${firstUnread.id}`);
-          if (el) {
-            el.scrollIntoView({ behavior: "smooth", block: "center" });
-            el.classList.add("ring-2", "ring-[#8b5cf6]", "rounded-lg");
-            setTimeout(() => el.classList.remove("ring-2", "ring-[#8b5cf6]", "rounded-lg"), 2000);
-          }
+            const el = document.getElementById(`msg-${firstUnread.id}`);
+            if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+                el.classList.add("msg-soft-glow");
+                setTimeout(() => el.classList.remove("msg-soft-glow"), 3500); // Длительность анимации
+            }
         }, 150);
       } else {
         setTimeout(() => scrollToBottom(), 100);
@@ -2131,16 +2131,16 @@ const ChatHeader = () => (
             {pinnedMessages.map((msg) => (
               <div
                 key={msg.id}
-                onClick={() => {
-                  const el = document.getElementById(`msg-${msg.id}`);
-                  if (el) {
+            onClick={() => {
+                const el = document.getElementById(`msg-${msg.id}`);
+                if (el) {
                     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    el.classList.add('ring-2', 'ring-[#8b5cf6]', 'rounded-lg', 'transition-all');
+                    el.classList.add('msg-soft-glow');
                     setTimeout(() => {
-                      el.classList.remove('ring-2', 'ring-[#8b5cf6]', 'rounded-lg', 'transition-all');
-                    }, 2000);
+                        el.classList.remove('msg-soft-glow');
+                    }, 3500);
                     setShowPinnedList(false);
-                  } else {
+                } else { 
                     alert('Сообщение не найдено. Возможно, оно было удалено или загружено не полностью.');
                   }
                 }}
@@ -2192,7 +2192,20 @@ const ChatHeader = () => (
 
   return (
     <div className="h-screen flex overflow-hidden">
-      <style>{`@keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }`}</style>
+      <style>{`
+  @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  
+  /* 🆕 Мягкое и прозрачное фиолетовое свечение */
+  @keyframes softGlowAura {
+    0% { box-shadow: 0 0 0px 0px rgba(139, 92, 246, 0); }
+    40% { box-shadow: 0 0 40px 15px rgba(139, 92, 246, 0.12); } /* Очень прозрачное и мягкое свечение */
+    100% { box-shadow: 0 0 0px 0px rgba(139, 92, 246, 0); }
+  }
+  .msg-soft-glow {
+    animation: softGlowAura 3.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+    border-radius: 24px; /* Скругляем саму ауру, чтобы она красиво огибала пузырь */
+  }
+`}</style>
       <Sidebar />
       <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
 <main className="flex-1 flex flex-col border-x border-white/10 overflow-hidden">
@@ -2553,16 +2566,16 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
 {/* 🆕 ЦИТАТА (ответ на сообщение) */}
 {msg.reply_preview && (
   <button
-    onClick={(e) => {
-      e.stopPropagation();
-      const el = document.getElementById(`msg-${msg.reply_preview.id}`);
-      if (el) {
+onClick={(e) => {
+    e.stopPropagation();
+    const el = document.getElementById(`msg-${msg.reply_preview.id}`);
+    if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.classList.add('ring-2', 'ring-[#8b5cf6]', 'rounded-lg');
+        el.classList.add('msg-soft-glow');
         setTimeout(() => {
-          el.classList.remove('ring-2', 'ring-[#8b5cf6]', 'rounded-lg');
-        }, 2000);
-      }
+            el.classList.remove('msg-soft-glow');
+        }, 3500);
+    }
     }}
     className={`w-full text-left mb-2 p-2 rounded-lg border-l-2 transition-colors cursor-pointer ${
       isMine
