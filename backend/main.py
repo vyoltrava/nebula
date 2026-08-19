@@ -8,10 +8,13 @@ from typing import Optional, List
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import delete
 from fastapi import BackgroundTasks 
+from email.message import EmailMessage
 
-
-
+import structlog
+import smtplib
+import secrets
 import jwt
+import redis
 import bcrypt
 import os
 import uuid
@@ -50,6 +53,15 @@ import time
 import asyncio
 from fastapi import Response
 from imageio_ffmpeg import get_ffmpeg_exe
+
+import sentry_sdk
+
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN"), # Добавь SENTRY_DSN в .env
+    traces_sample_rate=0.1,      # 10% транзакций для трейсинга
+    environment=os.getenv("ENV", "development"),
+)
+
 
 
 ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
@@ -228,13 +240,38 @@ app.add_middleware(
     expose_headers=["X-Process-Time-Ms", "X-Request-Id"],
 )
 
-limiter = Limiter(key_func=get_remote_address)
+
+# 🛡️ Redis для защиты от брутфорса и хранения лимитов
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+
+# Передаем Redis в slowapi, чтобы лимиты не стирались при рестарте
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=REDIS_URL,
+    strategy="moving-window"
+)
 app.state.limiter = limiter
 
-logging.basicConfig(
-    level=logging.DEBUG,  # 🆕 Было INFO
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+
+
+# Настраиваем structlog
+structlog.configure(
+    processors=[
+        structlog.contextvars.merge_contextvars,
+        structlog.processors.add_log_level,
+        structlog.processors.StackInfoRenderer(),
+        structlog.dev.set_exc_info,
+        structlog.processors.TimeStamper(fmt="iso"),
+        # В продакшене пишем JSON, в	dev — красиво в консоль
+        structlog.dev.ConsoleRenderer() if os.getenv("ENV") != "production" else structlog.processors.JSONRenderer()
+    ],
+    wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
+    context_class=dict,
+    logger_factory=structlog.PrintLoggerFactory(),
+    cache_logger_on_first_use=False
 )
+log = structlog.get_logger()
 
 # 🆕 Логируем все необработанные исключения
 @app.exception_handler(Exception)
@@ -5543,22 +5580,37 @@ def regenerate_backup_codes(
 @app.post("/api/login")
 @limiter.limit("5/minute")
 def login(request: Request, data: LoginIn, session: Session = Depends(get_session)):
+    # 🛡️ 1. ЗАЩИТА ОТ БРУТФОРСА ПО USERNAME
+    fail_key = f"failed_login:{data.username.lower()}"
+    fail_count = redis_client.get(fail_key)
+    
+    if fail_count and int(fail_count) >= 5:
+        ttl = redis_client.ttl(fail_key)
+        raise HTTPException(429, f"Слишком много попыток для этого аккаунта. Подождите {ttl // 60} мин.")
+
+    # 2. ПРОВЕРКА ПОЛЬЗОВАТЕЛЯ
     user = session.exec(select(User).where(User.username == data.username)).first()
+    
     if not user or not check_password(data.password, user.password_hash):
+        # 🔥 Увеличиваем счетчик неудачных попыток в Redis
+        pipe = redis_client.pipeline()
+        pipe.incr(fail_key)
+        pipe.expire(fail_key, 900)  # Блок на 15 минут (900 секунд)
+        pipe.execute()
         raise HTTPException(401, "Wrong username or password")
+    
     if user.is_banned:
         raise HTTPException(403, "Account banned")
-    
-    # 🆕 Если 2FA включена — не отдаём токен, просим код
+
+    # 🆕 3. ЕСЛИ 2FA ВКЛЮЧЕНА — не отдаём токен, просим код
     if user.totp_enabled:
         return {
             "requires_2fa": True,
             "user_id": user.id,
             "username": user.username,
-            # НЕ отдаём токен! Пользователь должен ввести код
         }
     
-    # Обычный логин без 2FA
+    # 4. ОБЫЧНЫЙ ЛОГИН БЕЗ 2FA
     ensure_user_has_keys(user.id, session)
     
     ip = get_client_ip(request)
@@ -5571,6 +5623,7 @@ def login(request: Request, data: LoginIn, session: Session = Depends(get_sessio
     session.add(IPLog(user_id=user.id, ip_address=ip, user_agent=ua, action="login"))
     log_action(session, user.id, "login", ip_address=ip)
     session.commit()
+    
     return {"token": create_token(user.id, user.token_version), "user": user_out(user, session)}
 
 
@@ -5617,83 +5670,6 @@ def login_2fa(
     session.commit()
     
     return {"token": create_token(user.id, user.token_version), "user": user_out(user, session)}
-
-
-# ---------- EMAIL: ПРИВЯЗКА ----------
-
-@app.post("/api/me/email")
-def link_email(
-    email: str = Form(...),
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Привязывает email к аккаунту (без верификации пока, просто сохранение)"""
-    email = email.strip().lower()
-    
-    # Валидация формата
-    if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
-        raise HTTPException(400, "Неверный формат email")
-    
-    # Проверка уникальности
-    existing = session.exec(
-        select(User).where(User.email == email, User.id != user.id)
-    ).first()
-    if existing:
-        raise HTTPException(400, "Этот email уже привязан к другому аккаунту")
-    
-    user.email = email
-    user.email_verified = False  # Пока без верификации
-    session.add(user)
-    session.commit()
-    
-    log_action(session, user.id, "email_linked", details={"email": email})
-    session.commit()
-    
-    return {"ok": True, "email": email}
-
-
-@app.delete("/api/me/email")
-def unlink_email(
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Отвязывает email"""
-    user.email = None
-    user.email_verified = False
-    session.add(user)
-    session.commit()
-    return {"ok": True}
-
-
-# ---------- ВОССТАНОВЛЕНИЕ ПАРОЛЯ ЧЕРЕЗ EMAIL ----------
-# (Задел на будущее — пока просто структура, без SMTP)
-
-@app.post("/api/password-reset/request")
-@limiter.limit("3/minute")
-def request_password_reset(
-    request: Request,  # ← ДОБАВЬ ЭТУ СТРОКУ
-    email: str = Form(...),
-    session: Session = Depends(get_session),
-):
-    """Запрашивает сброс пароля. Всегда возвращает ok (защита от перебора email)"""
-    email = email.strip().lower()
-    user = session.exec(select(User).where(User.email == email, User.email_verified == True)).first()
-    
-    if user:
-        code = generate_code()
-        user.password_reset_code = code
-        user.password_reset_expires = datetime.now(timezone.utc) + timedelta(minutes=15)
-        session.add(user)
-        session.commit()
-        
-        import threading
-        threading.Thread(
-            target=send_password_reset_email,
-            args=(user.email, code, user.display_name),
-            daemon=True
-        ).start()
-    
-    return {"ok": True, "message": "Если email существует и подтверждён, код отправлен"}
 
 
 
