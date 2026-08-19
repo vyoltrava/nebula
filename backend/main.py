@@ -9011,8 +9011,7 @@ async def upload_prism_avatar(
                 folder=UPLOAD_FOLDER,
                 resource_type="image",
                 format="png",
-                flags="lossless",  # Запрещает потерю данных при сжатии
-                quality="100"
+                quality="auto:low"
             )
         )
         return {"avatar_url": result.get("secure_url")}

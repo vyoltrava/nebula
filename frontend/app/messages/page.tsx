@@ -44,6 +44,7 @@ function SwipeableChatItem({
   const showRightIcon = direction === "right" && offset > 25;
   const showLeftIcon = direction === "left" && offset < -25;
   const iconOpacity = Math.min(Math.abs(offset) / 60, 1);
+  const [prismProgress, setPrismProgress] = useState("");
 
   return (
     <div
@@ -400,13 +401,32 @@ const initiatePrism = async (targetUserId: number, targetUserName: string) => {
     const encryptedShard1 = await encryptAnchorWithPin(shard1_anchor, pin);
     
     // 3. 🆕 СОЗДАЕМ АВТАРКУ СО СКРЫТЫМ СПЕКТРОМ 3
-    // Берем дефолтную иконку или позволяем пользователю выбрать файл. 
-    // Для примера создадим простой PNG-холст программно, или используем fetch дефолтной картинки.
-    const defaultAvatarUrl = "/default-prism-avatar.png"; // Положи такую картинку в public/
-    const response = await fetch(defaultAvatarUrl);
-    const blob = await response.blob();
-    const imageFile = new File([blob], "base.png", { type: "image/png" });
-    
+
+
+    // СТАЛО (быстро):
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;  // 👈 УМЕНЬШИЛИ с 200 до 64
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      const gradient = ctx.createLinearGradient(0, 0, 64, 64);
+      gradient.addColorStop(0, '#0891b2');
+      gradient.addColorStop(1, '#9333ea');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 64, 64);
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.font = '24px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🛡️', 32, 32);
+    }
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((b) => {
+        if (b) resolve(b);
+        else reject(new Error("Не удалось создать изображение"));
+      }, 'image/png', 0.8);
+    });
+    const imageFile = new File([blob], "prism-base.png", { type: "image/png" });
     const avatarWithHiddenShard = await embedDataInImage(imageFile, shard3_local);
 
     // 4. 🆕 ЗАГРУЖАЕМ ЭТУ АВТАРКУ НА СЕРВЕР (Cloudinary)

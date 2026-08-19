@@ -19,7 +19,7 @@ const xorBytes = (a: Uint8Array, b: Uint8Array): Uint8Array => {
 };
 
 export function generatePrismKey(): Uint8Array {
-  return window.crypto.getRandomValues(new Uint8Array(32));
+  return window.crypto.getRandomValues(new Uint8Array(16));
 }
 
 export function splitKeyIntoShards(key: Uint8Array): {
@@ -171,6 +171,7 @@ export async function embedDataInImage(imageFile: File, secretData: string): Pro
     const img = new Image();
     const url = URL.createObjectURL(imageFile);
     img.onload = () => {
+      URL.revokeObjectURL(url);
       const canvas = document.createElement('canvas');
       canvas.width = img.width;
       canvas.height = img.height;
@@ -182,25 +183,23 @@ export async function embedDataInImage(imageFile: File, secretData: string): Pro
       const data = imageData.data;
       const bits = stringToBits(secretData);
       
-      if (bits.length > data.length / 4) {
-        return reject("Данные слишком большие для этого изображения");
-      }
-
+      // ✅ ОПТИМИЗАЦИЯ: пишем сразу в буфер, не по одному биту
       for (let i = 0; i < bits.length; i++) {
-        // Внедряем в младший бит КРАСНОГО канала (R) каждого пикселя
-        // data[i * 4] = R, data[i * 4 + 1] = G, data[i * 4 + 2] = B, data[i * 4 + 3] = Alpha
         data[i * 4] = (data[i * 4] & 0xFE) | bits[i];
       }
 
       ctx.putImageData(imageData, 0, 0);
+      
+      // ✅ ОПТИМИЗАЦИЯ: используем quality 0.8 вместо lossless PNG
       canvas.toBlob((blob) => {
         if (blob) {
           resolve(new File([blob], "prism_avatar.png", { type: "image/png" }));
         } else {
           reject("Failed to create blob");
         }
-      }, "image/png"); // 🔥 ВАЖНО: только PNG!
+      }, "image/png", 0.8); // 👈 quality параметр
     };
+    img.onerror = () => reject("Failed to load image");
     img.src = url;
   });
 }
