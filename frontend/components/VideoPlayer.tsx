@@ -48,14 +48,10 @@ export function VideoPlayer({ src, className = "" }: VideoPlayerProps) {
   }, []);
 
   const showFeedback = (type: FeedbackType) => {
-    if (feedbackTimeoutRef.current) {
-      clearTimeout(feedbackTimeoutRef.current);
-    }
+    if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
     feedbackIdRef.current += 1;
     setFeedback({ type, id: feedbackIdRef.current });
-    feedbackTimeoutRef.current = setTimeout(() => {
-      setFeedback(null);
-    }, 600);
+    feedbackTimeoutRef.current = setTimeout(() => setFeedback(null), 600);
   };
 
   const handleVideoClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -100,87 +96,58 @@ export function VideoPlayer({ src, className = "" }: VideoPlayerProps) {
 
   const renderFeedbackIcon = () => {
     if (!feedback) return null;
-
     let Icon = Play;
     let label = "";
     let positionClass = "left-1/2 -translate-x-1/2";
 
     switch (feedback.type) {
-      case "play":
-        Icon = Play;
-        break;
-      case "pause":
-        Icon = Pause;
-        break;
-      case "-5":
-        Icon = Rewind;
-        label = "5";
-        positionClass = "left-[15%] -translate-x-1/2";
-        break;
-      case "+5":
-        Icon = FastForward;
-        label = "5";
-        positionClass = "right-[15%] translate-x-1/2";
-        break;
+      case "play": Icon = Play; break;
+      case "pause": Icon = Pause; break;
+      case "-5": Icon = Rewind; label = "5"; positionClass = "left-[15%] -translate-x-1/2"; break;
+      case "+5": Icon = FastForward; label = "5"; positionClass = "right-[15%] translate-x-1/2"; break;
     }
 
     return (
-      <div
-        key={feedback.id}
-        className={`absolute top-1/2 ${positionClass} -translate-y-1/2 pointer-events-none z-10 animate-[ping_0.6s_ease-out_forwards]`}
-      >
+      <div key={feedback.id} className={`absolute top-1/2 ${positionClass} -translate-y-1/2 pointer-events-none z-10 animate-[ping_0.6s_ease-out_forwards]`}>
         <div className="w-12 h-12 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center">
           <Icon size={24} className="text-white" fill="currentColor" />
-          {label && (
-            <span className="absolute bottom-0.5 text-[10px] font-bold text-white">
-              {label}
-            </span>
-          )}
+          {label && <span className="absolute bottom-0.5 text-[10px] font-bold text-white">{label}</span>}
         </div>
       </div>
     );
   };
 
   return (
-    <div
-      className={`relative rounded-xl overflow-hidden bg-black select-none ${!loaded && !failed ? "aspect-video" : ""} ${className}`}
-      onClick={handleVideoClick}
-    >
+    <div className={`relative rounded-xl overflow-hidden bg-black select-none transition-all duration-300 ${!loaded && !failed ? "aspect-video" : ""} ${className}`}>
       <video
         ref={videoRef}
         src={mediaUrl(src)}
-        className={`w-full h-auto max-h-64 sm:max-h-80 md:max-h-96 cursor-pointer transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
+        // 🔥 ГЛАВНОЕ ИЗМЕНЕНИЕ ЗДЕСЬ:
+        className={`w-full cursor-pointer transition-all duration-300 ease-in-out ${
+          isPlaying 
+            ? "h-auto max-h-none" // При проигрывании: полная ширина, высота по пропорциям, без ограничений
+            : "h-auto max-h-64 sm:max-h-80 md:max-h-96" // В паузе: ограничено по высоте
+        } ${loaded ? "opacity-100" : "opacity-0"}`}
         playsInline
         muted={muted}
         onLoadedData={() => setLoaded(true)}
         onError={() => setFailed(true)}
       />
 
-      {/* Прогресс-бар снизу как в Telegram */}
       <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
-        <div
-          className="h-full bg-[#8b5cf6] transition-all duration-200"
-          style={{ width: `${progress}%` }}
-        />
+        <div className="h-full bg-[#8b5cf6] transition-all duration-200" style={{ width: `${progress}%` }} />
       </div>
 
-      {/* Время */}
       <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/60 text-white/80 text-[10px] font-mono">
         {isPlaying ? formatTime(duration - currentTime) : formatTime(duration)}
       </div>
 
-      {/* Кнопка звука */}
-      <button
-        onClick={toggleMute}
-        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white/80 hover:bg-black/80 transition-colors"
-      >
+      <button onClick={toggleMute} className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white/80 hover:bg-black/80 transition-colors">
         {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
       </button>
 
-      {/* ❗ ТОЛЬКО ВСПЛЫВАЮЩИЙ ФИДБЕК - БЕЗ БОЛЬШОЙ КНОПКИ PLAY */}
       {renderFeedbackIcon()}
 
-      {/* 🦴 Скелет, пока видео грузится */}
       {!loaded && !failed && (
         <div className="absolute inset-0 bg-[#0d0d10]">
           <div className="absolute inset-0 skeleton-shimmer" />
@@ -193,7 +160,6 @@ export function VideoPlayer({ src, className = "" }: VideoPlayerProps) {
         </div>
       )}
 
-      {/* ❌ Видео не загрузилось */}
       {failed && (
         <div className="absolute inset-0 bg-[#0d0d10] flex flex-col items-center justify-center gap-1.5 text-white/30">
           <Film size={20} />

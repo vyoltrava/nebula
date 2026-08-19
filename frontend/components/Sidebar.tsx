@@ -411,13 +411,7 @@ const continueConfig = lastReadPost
     { href: "/", icon: Home, label: "Главная" },
   ];
 
-    if (lastReadPost) {
-    innerItems.push({
-      href: `/post/${lastReadPost.post_id}`,
-      icon: BookOpen,
-      label: "Продолжить чтение",
-    });
-  }
+  
   if (user) innerItems.push({ href: "/messages", icon: MessageSquare, label: "Сообщения", count: counts.chats });
   if (user) innerItems.push({ href: "/notifications", icon: Bell, label: "Уведомления", count: counts.notifications });
   innerItems.push({ href: "/bookmarks", icon: Bookmark, label: "Закладки" });
