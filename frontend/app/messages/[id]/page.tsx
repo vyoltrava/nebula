@@ -2300,7 +2300,6 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
               >
 
 
-// ... внутри return:
 {currentUser && preparedMessages.map((msg) => {
   if (msg.type === 'date') {
     return (
