@@ -11,6 +11,7 @@ import { VideoNoteRecorder } from "@/components/VideoNoteRecorder";
 import { VideoNotePlayer } from "@/components/VideoNotePlayer";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { MessageContextMenu } from "@/components/MessageContextMenu";
+import { MessageBubble } from "@/components/MessageBubble";
 import LinkPreview  from "@/components/LinkPreview";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
@@ -2297,552 +2298,61 @@ const ChatHeader = () => (
 className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 overscroll-contain touch-pan-y"
                 style={{ WebkitOverflowScrolling: 'touch' }}
               >
-              {currentUser &&
-                preparedMessages.map((msg, index) => {
-                  // 🆕 Рендер разделителя даты
-                  if (msg.type === 'date') {
-                    return (
-                      <div key={msg.id} className="flex items-center justify-center my-4">
-                        <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-bold text-white/50 backdrop-blur-sm">
-                          {msg.text}
-                        </span>
-                      </div>
-                    );
-                  }
-
-                  const isMine = isMessageMine(msg);
-                  const isEditing = editingMessageId === msg.id;
-                  const displayText = decryptDisplayText(msg);
-                  const isSelected = selectedMessages.has(msg.id);
-                  const senderGlow = getGlowColor(msg);
-                  const isPinned = !!msg.pinned;
-
-                  const bubbleRadius = isMine
-                    ? "rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl rounded-br-[4px]"
-                    : "rounded-tl-2xl rounded-tr-2xl rounded-br-2xl rounded-bl-[4px]";
-
-                  const isVideoNote = !!msg.media_url && msg.media_type === "video_note";
-                  const isAudio = !!msg.media_url && msg.media_type === "audio"; // 🆕
-                  const isEncryptedMedia = !!msg.is_encrypted_media || msg.ciphertext === "[encrypted_media]";
-                  const isForwarded = !!msg.forwarded_from_id;
-                  return (
-                    <SwipeableMessage
-                      key={msg.id}
-                      msgId={msg.id}
-                      onSwipeRight={() => startReply(msg)}
-                      raised={activeMessageMenu === msg.id}
-                    >
-                      <div
-                        id={`msg-${msg.id}`}
-                        className={`flex gap-2 sm:gap-2 ${
-                          isMine ? "justify-end" : "justify-start"
-                        } ${isSelectMode ? "cursor-pointer select-none" : ""}`}
-                        onClick={() => {
-                          if (isSelectMode) toggleMessageSelection(msg.id);
-                        }}
-                        onDoubleClick={(e) => {
-                          if (!isSelectMode && !isSecret && quickReaction) {
-                            e.preventDefault();
-                            if (quickReaction.type === 'emoji') {
-                              toggleReaction(msg.id, undefined, quickReaction.content);
-                            } else {
-                              toggleReaction(msg.id, quickReaction.stickerId);
-                            }
-                            setPopReaction({
-                              content: quickReaction.content,
-                              type: quickReaction.type,
-                              stickerId: quickReaction.stickerId,
-                              x: e.clientX,
-                              y: e.clientY,
-                              id: Date.now(),
-                              visible: true
-                            });
-                            setTimeout(() => {
-                              setPopReaction(prev => prev ? { ...prev, visible: false } : null);
-                            }, 50);
-                            setTimeout(() => {
-                              setPopReaction(null);
-                            }, 800);
-                          }
-                        }}
-                        onContextMenu={(e) => {
-                          if (isSelectMode || isSecret) return;
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setContextMenu({
-                            msg,
-                            x: e.clientX,
-                            y: e.clientY,
-                          });
-                        }}
-                        // 🆕 Long press для открытия меню реакций
-                        onPointerDown={(e) => {
-                            if (isSelectMode || isSecret) return;
-                            longPressTimerRef.current = setTimeout(() => {
-                                isLongPressRef.current = true;
-                                // 🎯 Получаем позицию самого сообщения
-                                const msgEl = document.getElementById(`msg-${msg.id}`);
-                                const rect = msgEl?.getBoundingClientRect();
-                                setLongPressMenu({
-                                    msgId: msg.id,
-                                    x: e.clientX,
-                                    y: e.clientY,
-                                    msgTop: rect?.top,
-                                    msgBottom: rect?.bottom,
-                                    msgLeft: rect?.left,
-                                    msgRight: rect?.right,
-                                });
-                                if (navigator.vibrate) navigator.vibrate(50);
-                            }, 500);
-                        }}
-                        onPointerUp={() => {
-                          if (longPressTimerRef.current) {
-                            clearTimeout(longPressTimerRef.current);
-                            longPressTimerRef.current = null;
-                          }
-                        }}
-                        onPointerLeave={() => {
-                          if (longPressTimerRef.current) {
-                            clearTimeout(longPressTimerRef.current);
-                            longPressTimerRef.current = null;
-                          }
-                        }}
-                      >
-                      {isSelectMode && (
-                        <div
-                          className={`shrink-0 w-5 h-5 sm:w-5 sm:h-5 rounded-md border-2 flex items-center justify-center mt-2 transition-colors ${
-                            isSelected
-                              ? "bg-[#8b5cf6] border-[#8b5cf6]"
-                              : "border-white/30"
-                          }`}
-                        >
-                          {isSelected && <Check size={12} className="text-white" />}
-                        </div>
-                      )}
-
-                {!isMine && !isSelectMode && !msg.isGrouped && (isGroup || chatPartner) && (
-                  <Link href={`/user/${msg.sender_id}`} className="shrink-0">
-                          <div
-                            style={
-                              senderGlow
-                                ? { filter: `drop-shadow(0 0 6px ${senderGlow})` }
-                                : undefined
-                            }
-                          >
-                            <Avatar
-                              src={msg.sender_avatar}
-                              name={msg.sender_name}
-                              id={msg.sender_id}
-                              size={32}
-                            />
-                          </div>
-                        </Link>
-                      )}
-
-                      {!isMine && isSelectMode && (isGroup || chatPartner) && (
-                        <div
-                          className="shrink-0"
-                          style={
-                            senderGlow
-                              ? { filter: `drop-shadow(0 0 6px ${senderGlow})` }
-                              : undefined
-                          }
-                        >
-                          <Avatar
-                            src={msg.sender_avatar}
-                            name={msg.sender_name}
-                            id={msg.sender_id}
-                            size={32}
-                          />
-                        </div>
-                      )}
-
-                      <div
-                        className={`max-w-[85%] sm:max-w-[75%] md:max-w-[70%] flex flex-col ${
-                          isMine ? "items-end" : "items-start"
-                        }`}
-                      >
-                        {isGroup && !isMine && (
-                          <p
-                            className="text-[11px] sm:text-xs font-bold mb-1 px-1"
-                            style={senderGlow ? { color: senderGlow } : { color: "#a78bfa" }}
-                          >
-                            {msg.sender_name}
-                          </p>
-                        )}
-
-<div
-  className={`${bubbleRadius} transition-all ${
-    isSelected
-      ? "ring-2 ring-[#8b5cf6] ring-offset-2 ring-offset-[#171717] "
-      : ""
-} ${
-  isVideoNote || isAudio
-    ? "p-0 bg-transparent border-0 rounded-2xl overflow-hidden"
-    : `px-3 sm:px-3.5 md:px-4 py-2 sm:py-2 ${
-          isForwarded
-            ? isMine
-              ? "bg-cyan-600 text-white border-l-4 border-cyan-400"
-              : "bg-cyan-950/40 text-white border-l-4 border-cyan-400"
-            : isMine
-              ? isSecret
-                ? "bg-emerald-600 text-white"
-                : "bg-[#8b5cf6] text-white"
-              : "bg-white/10 text-white border border-white/15"
-        }`
-  }`}
->
-{msg.media_url && isEncryptedMedia ? (
-  msg.media_url === "temp_encrypted_media" ? (
-    // Временное шифрованное медиа — показываем лоадер
-    <div className="w-56 h-56 rounded-2xl bg-white/5 animate-pulse flex items-center justify-center">
-      <Lock size={20} className="text-white/30" />
-    </div>
-  ) : (
-    <EncryptedMediaPlayer
-      mediaUrl={msg.media_url}
-      mediaType={msg.media_type}
-      chatId={Number(chatId)}
-    />
-  )
-) : (
-  <>
-    {msg.media_url && (msg.media_type === "image" || msg.media_type === "gif") && (
-      <img
-        src={mediaUrl(msg.media_url)}
-        alt=""
-        className={getMediaClasses(msg.media_type)}
-        onClick={(e) => {
-          if (!isSelectMode) {
-            e.stopPropagation();
-            setSelectedMedia(msg);
-          }
-        }}
-      />
-    )}
-    {msg.media_url && msg.media_type === "video" && (
-      <VideoPlayer
-        src={msg.media_url}
-        className={getMediaClasses("video")}
-      />
-    )}
-
-    {msg.media_url && msg.media_type === "sticker" && (
-      <img
-        src={mediaUrl(msg.media_url)}
-        alt="Стикер"
-        className="w-40 h-40 sm:w-48 sm:h-48 object-contain my-1"
-      />
-    )}
 
 
-    {msg.media_url && msg.media_type === "audio" && (
-      <div className="mb-1.5 sm:mb-2">
-        <AudioPlayer
-          src={mediaUrl(msg.media_url)}
-          trackId={msg.id}
-          title={`${msg.sender_name} · ${formatChatTime(msg.created_at)}`}
-        />
+// ... внутри return:
+{currentUser && preparedMessages.map((msg) => {
+  if (msg.type === 'date') {
+    return (
+      <div key={msg.id} className="flex items-center justify-center my-4">
+        <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-bold text-white/50 backdrop-blur-sm">
+          {msg.text}
+        </span>
       </div>
-    )}
-    {msg.media_url && msg.media_type === "video_note" && (
-      <VideoNotePlayer
-        src={mediaUrl(msg.media_url)}
-        trackId={msg.id}
-        title={`${msg.sender_name} · ${formatChatTime(msg.created_at)}`}
-      />
-    )}
-  </>
-)}
+    );
+  }
 
-{/* 🆕 ПОМЕТКА О ПЕРЕСЫЛКЕ */}
-{msg.forwarded_sender_name && (
-  <p className="text-[11px] sm:text-xs text-cyan-200 mb-1.5 flex items-center gap-1.5 font-medium">
-    <Send size={11} className="rotate-45 shrink-0 text-cyan-400" />
-    Переслано от <span className="font-bold text-white">{msg.forwarded_sender_name}</span>
-  </p>
-)}
+  const isMine = isMessageMine(msg);
+  const displayText = decryptDisplayText(msg);
+  const isSelected = selectedMessages.has(msg.id);
+  const senderGlow = getGlowColor(msg);
 
-{/* 🆕 ЦИТАТА (ответ на сообщение) */}
-{msg.reply_preview && (
-  <button
-onClick={(e) => {
-    e.stopPropagation();
-    const el = document.getElementById(`msg-${msg.reply_preview.id}`);
-    if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        el.classList.add('msg-soft-glow');
-        setTimeout(() => {
-            el.classList.remove('msg-soft-glow');
-        }, 3500);
-    }
-    }}
-    className={`w-full text-left mb-2 p-2 rounded-lg border-l-2 transition-colors cursor-pointer ${
-      isMine
-        ? "bg-white/15 border-white/60 hover:bg-white/20"
-        : "bg-white/5 border-[#8b5cf6] hover:bg-white/10"
-    }`}
-  >
-    <p className={`text-[11px] font-bold mb-0.5 ${isMine ? "text-white/90" : "text-[#8b5cf6]"}`}>
-      {msg.reply_preview.sender_name}
-    </p>
-    <p className={`text-[11px] truncate ${isMine ? "text-white/70" : "text-white/50"}`}>
-      {msg.reply_preview.text || "📎 Вложение"}
-    </p>
-  </button>
-)}
-
-  {isEditing ? (
-                            <div className="flex gap-2 items-start">
-                              <textarea
-                                value={editText}
-                                onChange={(e) => setEditText(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" && !e.shiftKey) {
-                                    e.preventDefault();
-                                    submitEdit();
-                                  }
-                                  if (e.key === "Escape") cancelEdit();
-                                }}
-                                className="flex-1 bg-white/10 border border-white/20 rounded-lg px-2.5 sm:px-3 py-1.5 text-sm sm:text-sm text-white focus:outline-none focus:border-[#8b5cf6] resize-none"
-                                rows={2}
-                                autoFocus
-                              />
-                              <div className="flex flex-col gap-1">
-                                <button onClick={submitEdit} className="text-green-400 text-xs font-bold">
-                                  ✓
-                                </button>
-                                <button onClick={cancelEdit} className="text-red-400 text-xs font-bold">
-                                  ✕
-                                </button>
-                              </div>
-                            </div>
-  ) : (
-<>
-  {displayText && (
-    <>
-      <MarkdownRenderer text={displayText} isMessage={true} />
-      {!isSecret && extractFirstUrl(displayText) && (
-        <LinkPreview url={extractFirstUrl(displayText)!} />
-      )}
-    </>
-  )}
-</>  )}
-</div>
-
-                        {!isEditing && !isSelectMode && msg.reactions?.length > 0 && (
-                          <div className={`flex flex-wrap gap-1 mt-1.5 ${isMine ? "justify-end" : "justify-start"}`}>
-                            {msg.reactions.map((r: any) => (
-                              <button
-                                key={r.type === "sticker" ? `s_${r.sticker_id}` : `e_${r.emoji}`}
-                                onClick={() => {
-                                  if (r.type === "sticker") toggleReaction(msg.id, r.sticker_id);
-                                  else toggleReaction(msg.id, undefined, r.emoji);
-                                }}
-                                className={`flex items-center gap-1 px-2 py-1 rounded-full text-[13px] border transition-all active:scale-90 ${
-                                  r.me
-                                    ? "bg-[#8b5cf6]/25 border-[#8b5cf6] shadow-[0_0_8px_rgba(139,92,246,0.3)]"
-                                    : "bg-white/5 border-white/15 hover:bg-white/10"
-                                }`}
-                              >
-                                {r.type === "sticker" ? (
-                                  <img src={r.content} alt="" className="w-5 h-5 object-contain" />
-                                ) : (
-                                  <span>{r.emoji}</span>
-                                )}
-                                <span className={`text-[11px] font-bold ${r.me ? "text-[#a78bfa]" : "text-white/60"}`}>
-                                  {r.count}
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-
-                        {!isEditing && !isSelectMode && (
-                          <div
-                            className={`flex items-center gap-1.5 sm:gap-2 mt-1 px-1 ${
-                              isMine ? "flex-row-reverse" : "flex-row"
-                            }`}
-                          >
-                            <p
-                              className={`text-[10px] sm:text-[11px] flex items-center gap-1 ${
-                                isMine ? "text-white/60" : "text-white/40"
-                              }`}
-                            >
-                              {isPinned && <Pin size={10} className="text-[#8b5cf6]" />}
-                              {formatChatTime(msg.created_at)}
-                              {isMine &&
-                                (msg.read ? (
-                                  <CheckCheck size={12} className="text-sky-300" />
-                                ) : (
-                                  <Check size={12} className="text-white/50" />
-                                ))}
-                            </p>
-
-                                                        {/* 🆕 Кнопка реакции */}
-                            <button
-                              onClick={() => {
-                                setReactionPickerFor(reactionPickerFor === msg.id ? null : msg.id);
-                                setActivePackTab(0);
-                              }}
-                              className="p-1 text-white/40 hover:text-[#8b5cf6] active:scale-90 transition-transform"
-                              title="Реакция"
-                            >
-                              <SmilePlus size={14} />
-                            </button>
-
-                            {/* Меню сообщений */}
-                            {!isSecret && (
-                              <div className="relative">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const next = activeMessageMenu === msg.id ? null : msg.id;
-                                    if (next) {
-                                      menuOpenTimeRef.current = Date.now();
-                                      const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                      setMenuOpenUp(r.bottom + 250 > window.innerHeight);
-                                    }
-                                    setActiveMessageMenu(next);
-                                  }}
-                                  className="p-1 text-white/40 hover:text-white active:scale-90 transition-transform"
-                                >
-                                  <MoreVertical size={13} />
-                                </button>
-                                {activeMessageMenu === msg.id && (
-                                  <>
-                                    <div
-                                      className="fixed inset-0 z-40"
-                                      onClick={() => {
-                                        if (Date.now() - menuOpenTimeRef.current < 400) return; // защита от синтетического клика после тапа
-                                        setActiveMessageMenu(null);
-                                      }}
-                                    />
-                                    <div
-                                      className={`absolute ${
-                                        isMine ? "right-0" : "left-0"
-                                      } ${menuOpenUp ? "bottom-full mb-1" : "top-full mt-1"} bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[150px] sm:min-w-[160px] z-50`}
-                                    >
-                                      <button
-                                        onClick={() => {
-                                          setIsSelectMode(true);
-                                          toggleMessageSelection(msg.id);
-                                          setActiveMessageMenu(null);
-                                        }}
-                                        className="w-full px-3 sm:px-3 py-2.5 sm:py-2 text-left text-sm sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
-                                      >
-                                        <CheckSquare size={14} /> Выбрать
-                                      </button>
-
-{msg.text && !isSecret && (
-  <button
-    onClick={() => {
-      navigator.clipboard.writeText(decryptDisplayText(msg));
-      setActiveMessageMenu(null);
-    }}
-    className="w-full px-3 sm:px-3 py-2.5 sm:py-2 text-left text-sm sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
-  >
-    <Copy size={14} /> Копировать
-  </button>
-)} 
-
-{/* 🆕 Кнопка Ответить */}
-<button
-  onClick={() => startReply(msg)}
-  className="w-full px-3 sm:px-3 py-2.5 sm:py-2 text-left text-sm sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
->
-  <Send size={14} className="rotate-180" /> Ответить
-</button>
-
-{!isSecret && (
-  <button
-    onClick={async () => {
-      setForwardingMessage(msg);
-      setActiveMessageMenu(null);
-      await loadForwardChats();  // 🆕 загружаем список чатов
-      setShowForwardModal(true); // 🆕 открываем модалку
-    }}
-    className="w-full px-3 sm:px-3 py-2.5 sm:py-2 text-left text-sm sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
-  >
-    <Send size={14} /> Переслать
-  </button>
-)}
-
-
-
-
-                                      {isMine && msg.text && (
-                                        <button
-                                          onClick={() => startEdit(msg)}
-                                          className="w-full px-3 sm:px-3 py-2.5 sm:py-2 text-left text-sm sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
-                                        >
-                                          <Edit2 size={14} /> Редактировать
-                                        </button>
-                                      )}
-
-                                      {isMine && (
-                                        <button
-                                          onClick={() => {
-                                            deleteMessage(msg.id);
-                                            setActiveMessageMenu(null);
-                                          }}
-                                          className="w-full px-3 sm:px-3 py-2.5 sm:py-2 text-left text-sm sm:text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
-                                        >
-                                          <Trash2 size={14} /> Удалить
-                                        </button>
-                                      )}
-
-
-
-                                      {!msg.pinned && (
-                                        <button
-                                          onClick={async () => {
-                                            try {
-                                              await pinMessage(Number(chatId), msg.id);
-                                              await loadPinned();
-                                              await loadMessages();
-                                            } catch (e: any) {
-                                              alert(e?.message || 'Не удалось закрепить сообщение');
-                                            }
-                                            setActiveMessageMenu(null);
-                                          }}
-                                          className="w-full px-3 sm:px-3 py-2.5 sm:py-2 text-left text-sm sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
-                                        >
-                                          <Pin size={14} /> Закрепить
-                                        </button>
-                                      )}
-
-                                      {msg.pinned && (
-                                        <button
-                                          onClick={async () => {
-                                            try {
-                                              await unpinMessage(Number(chatId), msg.id);
-                                              await loadPinned();
-                                              await loadMessages();
-                                            } catch (e: any) {
-                                              alert(e?.message || 'Не удалось открепить сообщение');
-                                            }
-                                            setActiveMessageMenu(null);
-                                          }}
-                                          className="w-full px-3 sm:px-3 py-2.5 sm:py-2 text-left text-sm sm:text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
-                                        >
-                                          <PinOff size={14} /> Открепить
-                                        </button>
-                                      )}
-
-                                      
-                                    </div>
-                                  </>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    </SwipeableMessage>
-                  );
-                })}
+  return (
+    <MessageBubble
+      key={msg.id}
+      msg={msg}
+      isMine={isMine}
+      isGroup={isGroup}
+      isSecret={isSecret}
+      isSelectMode={isSelectMode}
+      isSelected={isSelected}
+      isEditing={editingMessageId === msg.id}
+      editText={editText}
+      displayText={displayText}
+      senderGlow={senderGlow}
+      isPinned={!!msg.pinned}
+      chatId={chatId}
+      getMediaClasses={getMediaClasses}
+      extractFirstUrl={extractFirstUrl}
+      onEditChange={setEditText}
+      onSubmitEdit={submitEdit}
+      onCancelEdit={cancelEdit}
+      onSelect={() => toggleMessageSelection(msg.id)}
+      onReply={() => startReply(msg)}
+      onContextMenu={(e) => { if (!isSelectMode && !isSecret) { e.preventDefault(); setContextMenu({ msg, x: e.clientX, y: e.clientY }); } }}
+      onPointerDown={(e) => { /* твоя логика long press */ }}
+      onPointerUp={() => { if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); } }}
+      onPointerLeave={() => { if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); } }}
+      onDoubleClick={(e) => { /* твоя логика двойного тапа */ }}
+      onReactionClick={() => { setReactionPickerFor(reactionPickerFor === msg.id ? null : msg.id); }}
+      onMenuClick={(e) => { /* твоя логика открытия меню */ }}
+      activeMessageMenu={activeMessageMenu === msg.id}
+      menuOpenUp={menuOpenUp}
+      onSwipeRight={() => startReply(msg)}
+       onToggleReaction={toggleReaction} 
+    />
+  );
+})}
               {/* 🆕 ЖИВЫЕ ПУЗЫРИ — плавное появление / рост / исчезновение */}
               {!isSecret &&
                 Object.entries(liveTexts).map(([uid, lt]) => (
