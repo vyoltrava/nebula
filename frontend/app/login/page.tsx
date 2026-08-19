@@ -15,9 +15,9 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const router = useRouter();
 
-  // 🔥 ИСПРАВЛЕНО: храним temp_token, а не user_id
+  // 🔥 ИСПРАВЛЕНО: храним user_id, а не temp_token
   const [requires2FA, setRequires2FA] = useState(false);
-  const [tempToken, setTempToken] = useState<string | null>(null);
+  const [tempUserId, setTempUserId] = useState<number | null>(null);
   const [twoFACode, setTwoFACode] = useState("");
   const [loading2FA, setLoading2FA] = useState(false);
 
@@ -43,9 +43,8 @@ export default function LoginPage() {
       });
 
       if (!res.ok) {
-        if (res.status === 429) {
-          setError("Слишком много попыток. Подождите 1 минуту.");
-        } else {
+        if (res.status === 429) setError("Слишком много попыток. Подождите 1 минуту.");
+        else {
           const data = await res.json().catch(() => null);
           setError(data?.detail ?? "Ошибка");
         }
@@ -54,14 +53,13 @@ export default function LoginPage() {
 
       const data = await res.json();
 
-      // 🔥 ИСПРАВЛЕНО: сохраняем temp_token, который прислал бэкенд
+      // 🔥 ИСПРАВЛЕНО: сохраняем user_id, который прислал бэкенд
       if (data.requires_2fa) {
         setRequires2FA(true);
-        setTempToken(data.temp_token); 
+        setTempUserId(data.user_id); 
         return;
       }
 
-      // Обычный логин без 2FA
       setToken(data.token);
       sessionStorage.setItem("justLoggedIn", "1");
       router.push("/");
@@ -70,7 +68,6 @@ export default function LoginPage() {
     }
   }
 
-  // 🔥 ИСПРАВЛЕНО: отправляем temp_token, а не user_id
   async function submit2FA(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -78,12 +75,13 @@ export default function LoginPage() {
 
     try {
       const form = new FormData();
-      form.append("temp_token", tempToken!); // <-- Вот здесь была главная ошибка
+      // 🔥 ИСПРАВЛЕНО: отправляем user_id, как того требует бэкенд
+      form.append("user_id", String(tempUserId!)); 
       form.append("code", twoFACode);
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/login/2fa`, {
         method: "POST",
-        body: form, // Отправляем как FormData, бэкенд это умеет
+        body: form,
       });
 
       if (!res.ok) {
@@ -103,13 +101,13 @@ export default function LoginPage() {
     }
   }
 
-  // 🔥 ИСПРАВЛЕНО: очищаем tempToken
   function cancel2FA() {
     setRequires2FA(false);
-    setTempToken(null);
+    setTempUserId(null); // Очищаем ID
     setTwoFACode("");
     setError("");
   }
+
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
