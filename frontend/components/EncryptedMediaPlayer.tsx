@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { loadSessionKey } from "@/lib/crypto";
+import { loadSessionKey } from "@/lib/secureSessionKeys";
 import { decryptMediaBlob } from "@/lib/mediaCrypto";
 import { VideoNotePlayer } from "./VideoNotePlayer";
 import { AudioPlayer } from "./AudioPlayer";
