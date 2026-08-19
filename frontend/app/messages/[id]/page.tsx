@@ -193,7 +193,7 @@ export default function ChatPage() {
   const [showInputActions, setShowInputActions] = useState(false);
 
 
-  // 🆕 Собираем все реакции из паков (с учётом доступа)
+  // 🆕 Собираем все реакции строго из загруженных stickerPacks
   const allAvailableReactions = useMemo(() => {
     const result: {type: 'emoji' | 'sticker', content: string, stickerId?: number, packName: string, locked: boolean, minLevel?: number}[] = [];
     stickerPacks.forEach(pack => {
@@ -203,7 +203,7 @@ export default function ChatPage() {
         result.push({
           type: s.type,
           content: s.content,
-          stickerId: s.type === 'sticker' ? s.id : undefined,
+          stickerId: s.type === 'sticker' ? Number(s.id) : undefined,
           packName: pack.name,
           locked,
           minLevel: pack.min_level
@@ -2323,7 +2323,7 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
   const senderGlow = getGlowColor(msg);
 
   return (
-    <MessageBubble
+     <MessageBubble
       key={msg.id}
       msg={msg}
       isMine={isMine}
@@ -2348,13 +2348,38 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
       onPointerDown={(e) => { /* твоя логика long press */ }}
       onPointerUp={() => { if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); } }}
       onPointerLeave={() => { if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); } }}
-      onDoubleClick={(e) => { /* твоя логика двойного тапа */ }}
+      
+      // ✅ ИСПРАВЛЕНО: Логика двойного тапа для реакции
+      onDoubleClick={(e) => {
+        if (isSecret) return; // Опционально: запретить реакции в секретных чатах
+        const reactionToSend = quickReaction || { type: 'emoji', content: '❤️' };
+        
+        // Отправляем реакцию на сервер
+        toggleReaction(msg.id, reactionToSend.stickerId, reactionToSend.content);
+        
+        // Запускаем анимацию вылетающей реакции
+        setPopReaction({
+          content: reactionToSend.content,
+          type: reactionToSend.type,
+          stickerId: reactionToSend.stickerId,
+          x: e.clientX,
+          y: e.clientY,
+          id: msg.id,
+          visible: true
+        });
+        
+        // Скрываем анимацию через 700мс
+        setTimeout(() => {
+          setPopReaction(prev => prev ? { ...prev, visible: false } : null);
+        }, 700);
+      }}
+      
       onReactionClick={() => { setReactionPickerFor(reactionPickerFor === msg.id ? null : msg.id); }}
       onMenuClick={(e) => { /* твоя логика открытия меню */ }}
       activeMessageMenu={activeMessageMenu === msg.id}
       menuOpenUp={menuOpenUp}
       onSwipeRight={() => startReply(msg)}
-       onToggleReaction={toggleReaction} 
+      onToggleReaction={toggleReaction} 
     />
   );
 })}
@@ -2495,7 +2520,13 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
                   <button onClick={() => { fileRef.current?.click(); setShowInputActions(false); }} className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/10 flex items-center gap-3 transition-colors">
                     <Paperclip size={18} className="text-white/60" /> <span>Прикрепить файл</span>
                   </button>
-                  <button onClick={() => { /* Логика открытия стикеров, если нужно, или просто закрываем это меню */ setShowInputActions(false); }} className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/10 flex items-center gap-3 transition-colors border-t border-white/5">
+                  <button 
+                    onClick={() => { 
+                      setShowStickers(true); 
+                      setShowInputActions(false); 
+                    }} 
+                    className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/10 flex items-center gap-3 transition-colors border-t border-white/5"
+                  >
                     <Smile size={18} className="text-white/60" /> <span>Смайлы и стикеры</span>
                   </button>
                   <button onClick={() => {
@@ -2731,6 +2762,7 @@ style={{
                 onClick={() => setLongPressMenu(null)}
             />
             {/* Меню реакций */}
+            {/* Меню реакций */}
             <div
                 className="fixed z-[251] bg-[#1c1c1e]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-2 flex items-center gap-1"
                 style={{
@@ -2741,23 +2773,30 @@ style={{
                     animation: 'popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
                 }}
             >
-                {['❤️', '', '🔥', '😂', '😮'].map((emoji, i) => (
+                {/* ✅ БЕРЕМ ПЕРВЫЕ 4 РЕАКЦИИ ИЗ ВАШИХ ПАКОВ + КНОПКУ "ВСЕ" */}
+                {allAvailableReactions.slice(0, 4).map((r, i) => (
                     <button
-                        key={emoji}
+                        key={`${r.type}-${r.stickerId || r.content}`}
+                        disabled={r.locked}
                         onClick={() => {
-                            toggleReaction(longPressMenu.msgId, undefined, emoji);
-                            setLongPressMenu(null);
+                            if (!r.locked) {
+                                toggleReaction(longPressMenu.msgId, r.stickerId, r.content);
+                                setLongPressMenu(null);
+                            }
                         }}
-                        className="text-2xl p-2 rounded-full hover:bg-white/10 active:scale-110 transition-all"
+                        className={`text-2xl p-2 rounded-full transition-all ${r.locked ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white/10 active:scale-110'}`}
                         style={{
                             animation: `popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards`,
                             animationDelay: `${i * 30}ms`
                         }}
+                        title={r.locked ? `Нужен ${r.minLevel} уровень` : r.packName}
                     >
-                        {emoji}
+                        {r.type === "emoji" ? r.content : <img src={r.content} alt="" className="w-7 h-7 object-contain" />}
                     </button>
                 ))}
+                
                 <div className="w-px h-8 bg-white/10 mx-0.5" />
+                
                 <button
                     onClick={() => {
                         setReactionPickerFor(longPressMenu.msgId);
@@ -2765,6 +2804,7 @@ style={{
                     }}
                     className="w-9 h-9 flex items-center justify-center rounded-full bg-white/5 hover:bg-[#8b5cf6]/20 hover:text-[#8b5cf6] active:scale-90 transition-all text-white/70"
                     style={{ animation: 'popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards', animationDelay: '180ms' }}
+                    title="Все реакции"
                 >
                     <SmilePlus size={16} />
                 </button>
@@ -3167,6 +3207,75 @@ style={{
         </div>
     </>
 )}
+
+        {/* 🆕 ПАНЕЛЬ ОТПРАВКИ СТИКЕРОВ (БЫЛА ОТСУТСТВУЕТ В JSX) */}
+        {showStickers && (
+          <>
+            <div 
+              className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm" 
+              onClick={() => setShowStickers(false)} 
+            />
+            <div className="fixed inset-x-0 bottom-0 z-[261] md:inset-auto md:bottom-4 md:right-4 md:w-80 bg-[#1f1f23] border border-white/15 rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col max-h-[70vh] md:max-h-[500px] animate-in slide-in-from-bottom-10 duration-200">
+              <div className="shrink-0 p-3 border-b border-white/10 flex items-center justify-between">
+                <p className="text-sm font-bold text-white">Стикеры</p>
+                <button onClick={() => setShowStickers(false)} className="text-white/40 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors">
+                  <X size={16} />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-3 min-h-0">
+                {stickerPacks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-2">
+                      <Smile size={20} className="text-white/30" />
+                    </div>
+                    <p className="text-sm text-white/60">Загрузка стикеров...</p>
+                  </div>
+                ) : (
+                  stickerPacks.map((pack) => {
+                    const userLevel = currentUser?.level ?? 0;
+                    const isLocked = (pack.min_level || 0) > userLevel;
+                    
+                    return (
+                      <div key={pack.id} className="mb-4 last:mb-0">
+                        <div className="flex items-center gap-2 mb-2 px-1">
+                          <span className="text-xs font-bold text-white/60">{pack.name}</span>
+                          {isLocked && <Lock size={12} className="text-yellow-400" />}
+                        </div>
+                        
+                        {isLocked ? (
+                          <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
+                            <Lock size={20} className="text-yellow-400 mx-auto mb-1" />
+                            <p className="text-xs text-white/40">Доступно с {pack.min_level} уровня</p>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-5 gap-2">
+                            {pack.stickers?.map((s: any) => (
+                              <button
+                                key={s.id}
+                                onClick={() => {
+                                  sendStickerMessage(Number(s.id));
+                                  setShowStickers(false);
+                                }}
+                                className="aspect-square flex items-center justify-center rounded-xl hover:bg-white/10 active:scale-90 transition-all"
+                              >
+                                {s.type === "emoji" ? (
+                                  <span className="text-2xl">{s.content}</span>
+                                ) : (
+                                  <img src={s.content} alt="" className="w-10 h-10 object-contain" />
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </>
+        )}
 
 
 
