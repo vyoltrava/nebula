@@ -128,3 +128,116 @@ export async function decryptAnchorWithPin(encryptedAnchorBase64: string, pin: s
 
   return bytesToBase64(new Uint8Array(decryptedBuffer));
 }
+
+function stringToBits(str: string): number[] {
+  const bits: number[] = [];
+  for (let i = 0; i < str.length; i++) {
+    const charCode = str.charCodeAt(i);
+    for (let j = 7; j >= 0; j--) {
+      bits.push((charCode >> j) & 1);
+    }
+  }
+  // Маркер конца данных (16 единиц и 1 ноль, маловероятно в обычном тексте)
+  for (let i = 0; i < 15; i++) bits.push(1);
+  bits.push(0);
+  return bits;
+}
+
+/**
+ * Извлекает строку из массива битов
+ */
+function bitsToString(bits: number[]): string {
+  let str = "";
+  for (let i = 0; i < bits.length; i += 8) {
+    const byte = bits.slice(i, i + 8);
+    if (byte.length < 8) break;
+    
+    // Проверка на маркер конца
+    if (byte.every(b => b === 1) && bits[i + 8] === 0) {
+      break;
+    }
+    
+    const charCode = byte.reduce((acc, bit) => (acc << 1) | bit, 0);
+    str += String.fromCharCode(charCode);
+  }
+  return str;
+}
+
+/**
+ * 🆕 Внедряет строку (Shard 3) в PNG-изображение через LSB
+ */
+export async function embedDataInImage(imageFile: File, secretData: string): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(imageFile);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject("Canvas context not found");
+      
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const bits = stringToBits(secretData);
+      
+      if (bits.length > data.length / 4) {
+        return reject("Данные слишком большие для этого изображения");
+      }
+
+      for (let i = 0; i < bits.length; i++) {
+        // Внедряем в младший бит КРАСНОГО канала (R) каждого пикселя
+        // data[i * 4] = R, data[i * 4 + 1] = G, data[i * 4 + 2] = B, data[i * 4 + 3] = Alpha
+        data[i * 4] = (data[i * 4] & 0xFE) | bits[i];
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(new File([blob], "prism_avatar.png", { type: "image/png" }));
+        } else {
+          reject("Failed to create blob");
+        }
+      }, "image/png"); // 🔥 ВАЖНО: только PNG!
+    };
+    img.src = url;
+  });
+}
+
+/**
+ * 🆕 Извлекает скрытую строку (Shard 3) из PNG-изображения
+ */
+export async function extractDataFromImage(imageUrl: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous"; // Важно для загрузки с Cloudinary
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return reject("Canvas context not found");
+      
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+      const bits: number[] = [];
+      
+      for (let i = 0; i < data.length / 4; i++) {
+        bits.push(data[i * 4] & 1);
+        
+        // Проверяем маркер конца каждые 16 бит
+        if (bits.length >= 16) {
+          const last16 = bits.slice(-16);
+          if (last16[15] === 0 && last16.slice(0, 15).every(b => b === 1)) {
+            resolve(bitsToString(bits.slice(0, -16)));
+            return;
+          }
+        }
+      }
+      reject("Скрытые данные не найдены или изображение было сжато");
+    };
+    img.src = imageUrl;
+  });
+}

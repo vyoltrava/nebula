@@ -12,7 +12,8 @@ import { ChatListSkeleton } from "@/components/Skeletons";
 import { Pin, PinOff, MoreVertical, Trash2 } from "lucide-react";
 import { pinChat, unpinChat } from "@/lib/api";
 import { useSwipe } from "@/lib/useSwipe";
-import { generatePrismKey, splitKeyIntoShards, encryptAnchorWithPin } from "@/lib/prismCrypto";
+import { generatePrismKey, splitKeyIntoShards, encryptAnchorWithPin,
+  embedDataInImage,  } from "@/lib/prismCrypto";
 
 // Компонент карточки чата со свайпом
 function SwipeableChatItem({
@@ -375,13 +376,14 @@ const searchUsersForPrism = async (q: string) => {
   }
 };
 
-// Создание чата Призма
+// В MessagesPage.tsx
+
 const initiatePrism = async (targetUserId: number, targetUserName: string) => {
   if (!confirm(`Создать защищенный канал 'Призма' с @${targetUserName}?`)) return;
   
   setIsCreatingPrism(true);
   const token = getToken();
-  const pin = prompt("Придумайте 4-значный PIN-код для защиты этого канала (запомните его!):");
+  const pin = prompt("Придумайте 4-значный PIN-код для защиты этого канала:");
   
   if (!pin || pin.length < 4) {
     alert("PIN-код обязателен и должен быть не менее 4 символов");
@@ -394,13 +396,33 @@ const initiatePrism = async (targetUserId: number, targetUserName: string) => {
     const key = generatePrismKey();
     const { shard1_anchor, shard2_genesis, shard3_local } = splitKeyIntoShards(key);
     
-    // 2. Шифруем Спектр 1 (Якорь) PIN-кодом пользователя
+    // 2. Шифруем Спектр 1 (Якорь) своим PIN-кодом
     const encryptedShard1 = await encryptAnchorWithPin(shard1_anchor, pin);
     
-    // 3. Сохраняем Спектр 3 локально для мгновенного доступа
-    localStorage.setItem(`trelod_prism_local_${targetUserId}`, shard3_local);
+    // 3. 🆕 СОЗДАЕМ АВТАРКУ СО СКРЫТЫМ СПЕКТРОМ 3
+    // Берем дефолтную иконку или позволяем пользователю выбрать файл. 
+    // Для примера создадим простой PNG-холст программно, или используем fetch дефолтной картинки.
+    const defaultAvatarUrl = "/default-prism-avatar.png"; // Положи такую картинку в public/
+    const response = await fetch(defaultAvatarUrl);
+    const blob = await response.blob();
+    const imageFile = new File([blob], "base.png", { type: "image/png" });
     
-    // 4. Отправляем на сервер
+    const avatarWithHiddenShard = await embedDataInImage(imageFile, shard3_local);
+
+    // 4. 🆕 ЗАГРУЖАЕМ ЭТУ АВТАРКУ НА СЕРВЕР (Cloudinary)
+    const formData = new FormData();
+    formData.append("file", avatarWithHiddenShard);
+    
+    const uploadRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/prism-avatar`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${token}` },
+      body: formData,
+    });
+    
+    if (!uploadRes.ok) throw new Error("Ошибка загрузки аватарки");
+    const { avatar_url } = await uploadRes.json();
+
+    // 5. Отправляем на сервер создание чата (БЕЗ shard3, он уже в картинке!)
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/prism`, {
       method: "POST",
       headers: { 
@@ -411,15 +433,13 @@ const initiatePrism = async (targetUserId: number, targetUserName: string) => {
         other_user_id: targetUserId,
         shard1_encrypted: encryptedShard1,
         shard2_genesis: shard2_genesis,
+        avatar_url: avatar_url, // 🆕 Передаем URL картинки со скрытым ключом
       }),
     });
 
     if (res.ok) {
       const data = await res.json();
       setShowPrismModal(false);
-      setPrismSearchQuery("");
-      setPrismSearchResults([]);
-      // 🎯 ГЛАВНОЕ: редирект на СТРАНИЦУ PRISM, а не на /messages/[id]
       router.push(`/prism/${data.chat_id}`);
     } else {
       const err = await res.json();
@@ -632,6 +652,17 @@ const initiatePrism = async (targetUserId: number, targetUserName: string) => {
       <p className={`font-bold truncate ${glowStyle(otherUser) ? "" : "text-white"}`} style={glowStyle(otherUser)}>
         {query.trim() ? highlight(otherUser?.display_name, query.trim()) : otherUser?.display_name}
       </p>
+  {/* 🆕 ДОБАВИТЬ ЭТОТ БЛОК */}
+  {chat.is_prism && (
+    <span className="text-cyan-400 text-[9px] font-black uppercase tracking-widest shrink-0 flex items-center gap-1">
+      <ShieldCheck size={8} /> PRISM
+    </span>
+  )}
+  {chat.is_secret && !chat.is_prism && (
+    <span className="text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0">SECRET</span>
+  )}
+
+
       {chat.is_secret && (
         <span className="text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0">SECRET</span>
       )}

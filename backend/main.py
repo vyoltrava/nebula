@@ -4006,6 +4006,7 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "id": chat.id,
             "is_group": True,
             "is_secret": False,  # группы без E2EE
+            "is_prism": chat.is_prism, 
             "name": chat.name or "Без названия",
             "avatar_url": chat.avatar_url,
             "owner_id": chat.owner_id,
@@ -4044,6 +4045,7 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "id": chat.id,
             "is_group": False,
             "is_secret": chat.is_secret,
+            "is_prism": chat.is_prism, 
             "other": user_out(other, session) if other else None,
             "last_message": last_message_data,
             "unread_count": unread,
@@ -4114,6 +4116,7 @@ class CreatePrismChatIn(BaseModel):
     other_user_id: int
     shard1_encrypted: str  
     shard2_genesis: str    
+    avatar_url: str   
 
 
 @app.post("/api/chats/group")
@@ -8935,11 +8938,8 @@ async def create_prism_chat(
             if other_in:
                 return {"chat_id": cid, "already_existed": True}
 
-    # 2. Создаем чат
-    chat = Chat(is_prism=True)
+    chat = Chat(is_prism=True, avatar_url=data.avatar_url)
     session.add(chat)
-    session.commit()
-    session.refresh(chat)
     
     session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="member"))
     session.add(ChatMember(chat_id=chat.id, user_id=data.other_user_id, role="member"))
@@ -8986,3 +8986,35 @@ async def update_prism_anchor(
     session.add(user)
     session.commit()
     return {"ok": True}
+
+
+@app.post("/api/chats/prism-avatar")
+@limiter.limit("5/minute")
+async def upload_prism_avatar(
+    request: Request,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+):
+    """Загрузка аватарки для Призмы (строго PNG, без сжатия, чтобы сохранить стеганографию)"""
+    if not file.filename or not file.filename.lower().endswith('.png'):
+        raise HTTPException(400, "Для Призмы требуется формат PNG (без сжатия)")
+    
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(400, "Файл слишком большой (макс 5 МБ)")
+
+    try:
+        # 🔥 КРИТИЧЕСКИ ВАЖНО: flags='lossless' и format='png' запрещают Cloudinary сжимать изображение
+        result = await run_in_threadpool(
+            lambda: cloudinary.uploader.upload(
+                content,
+                folder=UPLOAD_FOLDER,
+                resource_type="image",
+                format="png",
+                flags="lossless",  # Запрещает потерю данных при сжатии
+                quality="100"
+            )
+        )
+        return {"avatar_url": result.get("secure_url")}
+    except Exception as e:
+        raise HTTPException(400, f"Ошибка загрузки: {str(e)}")

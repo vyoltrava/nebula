@@ -4,6 +4,8 @@ import { useParams, useRouter } from "next/navigation";
 import { getToken } from "@/lib/auth";
 import { useWebSocket } from "@/src/hooks/useWebSocket"; // <-- КРИТИЧЕСКИ ВАЖНО
 import { Send, Terminal, ShieldCheck, Zap, ArrowLeft, LogOut } from "lucide-react";
+import { extractDataFromImage, reconstructKey, decryptAnchorWithPin } from "@/lib/prismCrypto";
+
 
 export default function PrismChatPage() {
   const params = useParams();
@@ -48,6 +50,55 @@ export default function PrismChatPage() {
       headers: { Authorization: `Bearer ${token}` }
     });
   }, [chatId, router]);
+
+
+
+useEffect(() => {
+  const reconstructPrismKey = async () => {
+    if (!chatInfo?.is_prism || !chatInfo?.avatar_url) return;
+
+    try {
+      setSyncStatus("syncing");
+      
+      // 1. Извлекаем Shard 3 из аватарки чата
+      const shard3_local = await extractDataFromImage(chatInfo.avatar_url);
+      
+      // 2. Находим Shard 2 в первом системном сообщении
+      const genesisMsg = messages.find((m: any) => m.text?.startsWith("__PRISM_GENESIS__:"));
+      if (!genesisMsg) throw new Error("Genesis message not found");
+      const shard2_genesis = genesisMsg.text.replace("__PRISM_GENESIS__:", "");
+      
+      // 3. Запрашиваем PIN у пользователя для расшифровки Shard 1
+      // (В реальном приложении лучше кэшировать расшифрованный ключ в sessionStorage, 
+      // чтобы не спрашивать PIN при каждом обновлении страницы)
+      const pin = prompt("Введите PIN-код для расшифровки канала Призма:");
+      if (!pin) throw new Error("PIN отменен");
+      
+      // 4. Расшифровываем Shard 1 (Якорь) с сервера
+      // (Тебе понадобится эндпоинт GET /api/me/prism-anchor или передача его в chatInfo)
+      // Допустим, мы добавили prism_anchor в serialize_chat_for_user для is_prism чатов:
+      const shard1_decrypted = await decryptAnchorWithPin(chatInfo.prism_anchor, pin);
+      
+      // 5. Собираем Мастер-ключ
+      const masterKey = reconstructKey(shard1_decrypted, shard2_genesis, shard3_local);
+      
+      console.log("✅ Ключ Призмы успешно восстановлен!", masterKey);
+      setSyncStatus("active");
+      
+      // Теперь ты можешь использовать masterKey для шифрования/дешифрования сообщений в этом чате!
+      
+    } catch (err: any) {
+      console.error("❌ Ошибка реконструкции ключа:", err);
+      alert("Не удалось расшифровать канал. Проверьте PIN-код или целостность аватарки.");
+      router.push("/messages");
+    }
+  };
+
+  if (chatInfo?.is_prism && messages.length > 0) {
+    reconstructPrismKey();
+  }
+}, [chatInfo, messages, router]);
+
 
   // 2. Отправка сообщения на бэкенд
   const sendMessage = async () => {
@@ -111,6 +162,10 @@ export default function PrismChatPage() {
       scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
     }, 100);
   });
+
+
+
+
 
   return (
     <div className="h-screen w-full flex flex-col bg-[#08080C] text-white font-mono overflow-hidden relative">
