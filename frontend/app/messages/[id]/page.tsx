@@ -16,7 +16,6 @@ import LinkPreview  from "@/components/LinkPreview";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { initCryptoOnLogin } from "@/lib/cryptoInit";
-import { STICKERS } from "@/lib/stickers";
 import { formatChatTime } from "@/lib/time";
 import { useDevicePermission } from "@/lib/useDevicePermission";
 import { useSwipe } from "@/lib/useSwipe";
@@ -192,10 +191,62 @@ export default function ChatPage() {
   const [popReaction, setPopReaction] = useState<{content: string, type: 'emoji' | 'sticker', stickerId?: number, x: number, y: number, id: number, visible: boolean} | null>(null);
   const [showInputActions, setShowInputActions] = useState(false);
 
+// Добавьте эту функцию перед return компонента ChatPage
+const handleContextMenu = (e: React.MouseEvent, msg: any) => {
+  if (isSelectMode || isSecret) return;
+  e.preventDefault();
+  
+  // Размеры окна и примерные размеры меню
+  const windowWidth = window.innerWidth;
+  const windowHeight = window.innerHeight;
+  const menuWidth = 220;
+  const menuHeight = 300; // С запасом на количество пунктов
+  
+  // Вычисляем координаты, чтобы меню не вылезало за правый/нижний край экрана
+  let x = e.clientX;
+  let y = e.clientY;
+  
+  if (x + menuWidth > windowWidth) {
+    x = windowWidth - menuWidth - 10;
+  }
+  if (y + menuHeight > windowHeight) {
+    y = windowHeight - menuHeight - 10;
+  }
+  
+  setContextMenu({ msg, x, y });
+};
 
-  // 🆕 Собираем все реакции строго из загруженных stickerPacks
+
+  // ✅ НОВАЯ ФУНКЦИЯ: Вставка текста (эмодзи) в позицию курсора
+  const insertTextAtCursor = (textToInsert: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setText((prev) => prev + textToInsert);
+      return;
+    }
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newText = text.substring(0, start) + textToInsert + text.substring(end);
+    
+    setText(newText);
+    sendLiveText(newText); // Обновляем "печатает..."
+    
+    // Возвращаем фокус и ставим курсор после вставленного символа
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + textToInsert.length, start + textToInsert.length);
+    }, 0);
+  };
+
+
+
   const allAvailableReactions = useMemo(() => {
     const result: {type: 'emoji' | 'sticker', content: string, stickerId?: number, packName: string, locked: boolean, minLevel?: number}[] = [];
+    
+    // Если паков нет, возвращаем пустой массив (никаких "стандартных" наборов!)
+    if (!stickerPacks || stickerPacks.length === 0) return result;
+
     stickerPacks.forEach(pack => {
       const userLevel = currentUser?.level ?? 0;
       const locked = (pack.min_level || 0) > userLevel;
@@ -1173,8 +1224,14 @@ for (const msg of messagesToSend) {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sticker-packs`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) setStickerPacks(await res.json());
-    } catch {}
+      if (res.ok) {
+        const data = await res.json();
+        console.log("✅ ЗАГРУЖЕНЫ СТИКЕР-ПАКИ:", data); // ← ПРОВЕРЬТЕ ЭТО В КОНСОЛИ БРАУЗЕРА
+        setStickerPacks(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error("Failed to load sticker packs:", err);
+    }
   }
 
   async function toggleReaction(msgId: number, stickerId?: number, emoji?: string) {
@@ -2344,7 +2401,7 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
       onCancelEdit={cancelEdit}
       onSelect={() => toggleMessageSelection(msg.id)}
       onReply={() => startReply(msg)}
-      onContextMenu={(e) => { if (!isSelectMode && !isSecret) { e.preventDefault(); setContextMenu({ msg, x: e.clientX, y: e.clientY }); } }}
+      onContextMenu={(e) => handleContextMenu(e, msg)} 
       onPointerDown={(e) => { /* твоя логика long press */ }}
       onPointerUp={() => { if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); } }}
       onPointerLeave={() => { if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); } }}
@@ -2772,41 +2829,43 @@ style={{
                     maxWidth: '90vw',
                     animation: 'popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
                 }}
-            >
-                {/* ✅ БЕРЕМ ПЕРВЫЕ 4 РЕАКЦИИ ИЗ ВАШИХ ПАКОВ + КНОПКУ "ВСЕ" */}
-                {allAvailableReactions.slice(0, 4).map((r, i) => (
+>
+                {allAvailableReactions.length > 0 ? (
+                  allAvailableReactions.slice(0, 4).map((r, i) => (
                     <button
-                        key={`${r.type}-${r.stickerId || r.content}`}
-                        disabled={r.locked}
-                        onClick={() => {
-                            if (!r.locked) {
-                                toggleReaction(longPressMenu.msgId, r.stickerId, r.content);
-                                setLongPressMenu(null);
-                            }
-                        }}
-                        className={`text-2xl p-2 rounded-full transition-all ${r.locked ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white/10 active:scale-110'}`}
-                        style={{
-                            animation: `popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards`,
-                            animationDelay: `${i * 30}ms`
-                        }}
-                        title={r.locked ? `Нужен ${r.minLevel} уровень` : r.packName}
+                      key={`${r.type}-${r.stickerId || r.content}`}
+                      disabled={r.locked}
+                      onClick={() => {
+                        if (!r.locked) {
+                          toggleReaction(longPressMenu.msgId, r.stickerId, r.content);
+                          setLongPressMenu(null);
+                        }
+                      }}
+                      className={`text-2xl p-2 rounded-full transition-all ${r.locked ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white/10 active:scale-110'}`}
+                      style={{ animation: `popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards`, animationDelay: `${i * 30}ms` }}
+                      title={r.locked ? `Нужен ${r.minLevel} уровень` : r.packName}
                     >
-                        {r.type === "emoji" ? r.content : <img src={r.content} alt="" className="w-7 h-7 object-contain" />}
+                      {r.type === "emoji" ? r.content : <img src={r.content} alt="" className="w-7 h-7 object-contain" />}
                     </button>
-                ))}
+                  ))
+                ) : (
+                  <div className="px-3 py-2 text-xs text-white/50 whitespace-nowrap">
+                    {stickerPacks.length === 0 ? "Загрузка паков..." : "Нет доступных реакций"}
+                  </div>
+                )}
                 
                 <div className="w-px h-8 bg-white/10 mx-0.5" />
                 
                 <button
-                    onClick={() => {
-                        setReactionPickerFor(longPressMenu.msgId);
-                        setLongPressMenu(null);
-                    }}
-                    className="w-9 h-9 flex items-center justify-center rounded-full bg-white/5 hover:bg-[#8b5cf6]/20 hover:text-[#8b5cf6] active:scale-90 transition-all text-white/70"
-                    style={{ animation: 'popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards', animationDelay: '180ms' }}
-                    title="Все реакции"
+                  onClick={() => {
+                    setReactionPickerFor(longPressMenu.msgId);
+                    setLongPressMenu(null);
+                  }}
+                  className="w-9 h-9 flex items-center justify-center rounded-full bg-white/5 hover:bg-[#8b5cf6]/20 hover:text-[#8b5cf6] active:scale-90 transition-all text-white/70"
+                  style={{ animation: 'popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards', animationDelay: '180ms' }}
+                  title="Все реакции"
                 >
-                    <SmilePlus size={16} />
+                  <SmilePlus size={16} />
                 </button>
             </div>
         </>
@@ -3254,10 +3313,17 @@ style={{
                               <button
                                 key={s.id}
                                 onClick={() => {
-                                  sendStickerMessage(Number(s.id));
-                                  setShowStickers(false);
+                                  // ✅ ИСПРАВЛЕНО: Эмодзи вставляем в текст, стикеры отправляем
+                                  if (s.type === "emoji") {
+                                    insertTextAtCursor(s.content);
+                                    // Панель НЕ закрываем, чтобы можно было добавить несколько смайлов
+                                  } else {
+                                    sendStickerMessage(Number(s.id));
+                                    setShowStickers(false); // Панель закрываем после отправки стикера
+                                  }
                                 }}
                                 className="aspect-square flex items-center justify-center rounded-xl hover:bg-white/10 active:scale-90 transition-all"
+                                title={s.type === "emoji" ? "Вставить в текст" : "Отправить стикер"}
                               >
                                 {s.type === "emoji" ? (
                                   <span className="text-2xl">{s.content}</span>
