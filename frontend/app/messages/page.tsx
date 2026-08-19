@@ -839,39 +839,63 @@ const initiatePrism = async (targetUserId: number, targetUserName: string) => {
       <div className="w-full max-w-md bg-[#171717] border border-cyan-500/30 rounded-2xl shadow-[0_0_40px_rgba(34,211,238,0.1)] flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
         
         {/* Шапка */}
-        <div className="p-4 border-b border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-              <ShieldCheck size={18} className="text-cyan-400" />
+        <div className="p-4 md:p-6 border-b border-white/10 sticky top-0 bg-[#171717]/95 backdrop-blur-md z-10">
+          <div className="flex items-center gap-4">
+            
+            {/* Левая часть: Иконка и Текст */}
+            <div className="flex items-center gap-3 shrink-0">
+              <MessageSquare size={24} className="text-[#8b5cf6]" />
+              <h1 className="text-xl md:text-2xl font-black text-white">Сообщения</h1>
             </div>
-            <div>
-              <h3 className="text-base font-bold text-white tracking-wide">INITIATE PRISM</h3>
-              <p className="text-[10px] text-cyan-400/70 uppercase tracking-widest">Бесшовное E2E шифрование</p>
-            </div>
-          </div>
-          <button onClick={() => setShowPrismModal(false)} className="text-white/40 hover:text-white p-1">
-            <X size={18} />
-          </button>
-        </div>
 
-        {/* Контент */}
-        <div className="p-4 space-y-4">
-          <p className="text-xs text-white/60 leading-relaxed">
-            Выберите пользователя. Ключ шифрования будет разделен на 3 спектра. 
-            Для восстановления истории на новом устройстве потребуется только ваш PIN-код.
-          </p>
-          
-          {/* Поиск */}
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-            <input
-              value={prismSearchQuery}
-              onChange={(e) => { setPrismSearchQuery(e.target.value); searchUsersForPrism(e.target.value); }}
-              placeholder="Поиск по @username или имени..."
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-cyan-500/50 text-sm"
-              autoFocus
-            />
+            {/* 🔎 ПОИСК (теперь строго между текстом и плюсом) */}
+            <div className="relative flex-1 max-w-md">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Поиск..."
+                className="w-full pl-9 pr-4 py-2 bg-transparent border-none outline-none text-white placeholder-white/40 text-sm focus:ring-0"
+              />
+              {searchLoading && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
+              )}
+            </div>
+
+            {/* Кнопка "+" и выпадающее меню (z-[100] и z-[200] чтобы не перекрывалось списком) */}
+            <div className="relative z-[100]">
+              <button
+                onClick={() => setShowCreateMenu(!showCreateMenu)}
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#8b5cf6]/10 text-[#8b5cf6] hover:bg-[#8b5cf6]/20 transition-colors border border-[#8b5cf6]/30 shrink-0"
+              >
+                <Plus size={24} />
+              </button>
+
+              {showCreateMenu && (
+                <div className="absolute right-0 top-12 w-56 bg-[#1f1f23] border border-white/10 rounded-xl shadow-2xl z-[200] overflow-visible animate-in fade-in slide-in-from-top-2 duration-200">
+                  <button
+                    onClick={() => { setShowCreateMenu(false); openSavedMessages(); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
+                  >
+                    <Bookmark size={16} className="text-yellow-400" /> Избранное
+                  </button>
+                  <button
+                    onClick={() => { setShowCreateMenu(false); setShowCreateGroup(true); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors border-t border-white/5"
+                  >
+                    <Users size={16} className="text-[#8b5cf6]" /> Создать группу
+                  </button>
+                  <button
+                    onClick={() => { setShowCreateMenu(false); setShowPrismModal(true); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors border-t border-white/5"
+                  >
+                    <ShieldCheck size={16} className="text-cyan-400" /> PRISM Link
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
+        
 
           {/* Результаты */}
           <div className="max-h-60 overflow-y-auto space-y-1">
