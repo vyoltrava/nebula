@@ -2,10 +2,9 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getToken } from "@/lib/auth";
-import { useWebSocket } from "@/src/hooks/useWebSocket"; // <-- КРИТИЧЕСКИ ВАЖНО
-import { Send, Terminal, ShieldCheck, Zap, ArrowLeft, LogOut } from "lucide-react";
+import { useWebSocket } from "@/src/hooks/useWebSocket";
+import { Send, ArrowLeft, LogOut, Sparkles, Activity } from "lucide-react";
 import { extractDataFromImage, reconstructKey, decryptAnchorWithPin } from "@/lib/prismCrypto";
-
 
 export default function PrismChatPage() {
   const params = useParams();
@@ -16,91 +15,90 @@ export default function PrismChatPage() {
   const [text, setText] = useState("");
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [chatInfo, setChatInfo] = useState<any>(null);
-  const [syncStatus, setSyncStatus] = useState<"syncing" | "active">("syncing");
+  const [syncStatus, setSyncStatus] = useState<"syncing" | "active" | "decrypting">("syncing");
+  const [particles, setParticles] = useState<Array<{id: number, x: number, delay: number}>>([]);
   
-  const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sendingRef = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // 1. Загрузка данных
+  // Генерация частиц фона
+  useEffect(() => {
+    const newParticles = Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      delay: Math.random() * 5,
+    }));
+    setParticles(newParticles);
+  }, []);
+
+  // Загрузка данных
   useEffect(() => {
     const token = getToken();
     if (!token) return router.push("/login");
     
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }).then(r => r.json()).then(setCurrentUser);
+    Promise.all([
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(r => r.json()).then(setCurrentUser),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(r => r.json()).then(data => {
+        setChatInfo(data);
+        setSyncStatus("decrypting");
+      }),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(r => r.json()).then(data => {
+        setMessages(Array.isArray(data) ? data : (data.messages ?? []));
+      })
+    ]);
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }).then(r => r.json()).then(data => {
-      setChatInfo(data);
-      setSyncStatus("active");
-    });
-
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }).then(r => r.json()).then(data => {
-      setMessages(Array.isArray(data) ? data : (data.messages ?? []));
-    });
-
-    // Помечаем как прочитанное
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/read`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` }
     });
   }, [chatId, router]);
 
+  // Расшифровка ключа
+  useEffect(() => {
+    const reconstructPrismKey = async () => {
+      if (!chatInfo?.is_prism || messages.length === 0) return;
 
+      try {
+        const shard3_local = await extractDataFromImage(chatInfo.avatar_url);
+        const genesisMsg = messages.find((m: any) => m.text?.startsWith("__PRISM_GENESIS__:"));
+        if (!genesisMsg) throw new Error("Genesis not found");
+        const shard2_genesis = genesisMsg.text.replace("__PRISM_GENESIS__:", "");
+        
+        const pin = prompt(" PRISM AUTH: Введите ключ доступа (PIN):");
+        if (!pin) throw new Error("Auth cancelled");
+        
+        const shard1_decrypted = await decryptAnchorWithPin(chatInfo.prism_anchor, pin);
+        const masterKey = reconstructKey(shard1_decrypted, shard2_genesis, shard3_local);
+        
+        console.log(" PRISM KEY RECONSTRUCTED:", masterKey);
+        setSyncStatus("active");
+      } catch (err) {
+        console.error("❌ DECRYPTION FAILED:", err);
+        router.push("/messages");
+      }
+    };
 
-useEffect(() => {
-  const reconstructPrismKey = async () => {
-    if (!chatInfo?.is_prism || !chatInfo?.avatar_url) return;
-
-    try {
-      setSyncStatus("syncing");
-      
-      // 1. Извлекаем Shard 3 из аватарки чата
-      const shard3_local = await extractDataFromImage(chatInfo.avatar_url);
-      
-      // 2. Находим Shard 2 в первом системном сообщении
-      const genesisMsg = messages.find((m: any) => m.text?.startsWith("__PRISM_GENESIS__:"));
-      if (!genesisMsg) throw new Error("Genesis message not found");
-      const shard2_genesis = genesisMsg.text.replace("__PRISM_GENESIS__:", "");
-      
-      // 3. Запрашиваем PIN у пользователя для расшифровки Shard 1
-      // (В реальном приложении лучше кэшировать расшифрованный ключ в sessionStorage, 
-      // чтобы не спрашивать PIN при каждом обновлении страницы)
-      const pin = prompt("Введите PIN-код для расшифровки канала Призма:");
-      if (!pin) throw new Error("PIN отменен");
-      
-      // 4. Расшифровываем Shard 1 (Якорь) с сервера
-      // (Тебе понадобится эндпоинт GET /api/me/prism-anchor или передача его в chatInfo)
-      // Допустим, мы добавили prism_anchor в serialize_chat_for_user для is_prism чатов:
-      const shard1_decrypted = await decryptAnchorWithPin(chatInfo.prism_anchor, pin);
-      
-      // 5. Собираем Мастер-ключ
-      const masterKey = reconstructKey(shard1_decrypted, shard2_genesis, shard3_local);
-      
-      console.log("✅ Ключ Призмы успешно восстановлен!", masterKey);
-      setSyncStatus("active");
-      
-      // Теперь ты можешь использовать masterKey для шифрования/дешифрования сообщений в этом чате!
-      
-    } catch (err: any) {
-      console.error("❌ Ошибка реконструкции ключа:", err);
-      alert("Не удалось расшифровать канал. Проверьте PIN-код или целостность аватарки.");
-      router.push("/messages");
+    if (chatInfo?.is_prism && messages.length > 0 && syncStatus === "decrypting") {
+      reconstructPrismKey();
     }
-  };
+  }, [chatInfo, messages, syncStatus, router]);
 
-  if (chatInfo?.is_prism && messages.length > 0) {
-    reconstructPrismKey();
-  }
-}, [chatInfo, messages, router]);
+  // WebSocket
+  useWebSocket("new_message", (data: any) => {
+    if (String(data.chat_id) !== String(chatId)) return;
+    setMessages(prev => {
+      if (prev.some(m => m.id === data.id)) return prev;
+      return [...prev, { ...data }];
+    });
+  });
 
-
-  // 2. Отправка сообщения на бэкенд
   const sendMessage = async () => {
     if (sendingRef.current || !text.trim()) return;
     const token = getToken();
@@ -108,22 +106,17 @@ useEffect(() => {
     
     sendingRef.current = true;
     const tempText = text.trim();
-    setText(""); // Очищаем поле сразу для UX
+    setText("");
 
     try {
       const form = new FormData();
       form.append("text", tempText);
       
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: form,
       });
-
-      if (!res.ok) {
-        alert("Не удалось отправить сообщение");
-        setText(tempText); // Возвращаем текст при ошибке
-      }
     } catch (err) {
       console.error(err);
       setText(tempText);
@@ -132,9 +125,8 @@ useEffect(() => {
     }
   };
 
-  // 3. Выход / Удаление чата
   const leaveChat = async () => {
-    if (!confirm("Покинуть канал Призмы? История будет удалена.")) return;
+    if (!confirm("⚠️ TERMINATE PRISM LINK?")) return;
     const token = getToken();
     try {
       await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}`, {
@@ -143,121 +135,216 @@ useEffect(() => {
       });
       router.push("/messages");
     } catch (e) {
-      alert("Ошибка при выходе");
+      alert("Connection error");
     }
   };
 
-  // 4. 🚀 WEBSOCKET: Живое обновление сообщений
-  useWebSocket("new_message", (data: any) => {
-    console.log("📡 [PRISM] Получено сообщение по WS:", data); // <-- СМОТРИ В КОНСОЛЬ (F12)
-    if (String(data.chat_id) !== String(chatId)) return;
-    
-    setMessages(prev => {
-      if (prev.some(m => m.id === data.id)) return prev; // Защита от дубликатов
-      return [...prev, { ...data, is_temp: false }];
-    });
-    
-    // Автоскролл вниз при новом сообщении
-    setTimeout(() => {
-      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-    }, 100);
-  });
-
-
-
-
+  // Группировка сообщений по времени
+  const getTimeGroup = (date: string) => {
+    const d = new Date(date);
+    const now = new Date();
+    const diff = now.getTime() - d.getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "NOW";
+    if (mins < 60) return `${mins}m`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h`;
+    return `${Math.floor(hrs / 24)}d`;
+  };
 
   return (
-    <div className="h-screen w-full flex flex-col bg-[#08080C] text-white font-mono overflow-hidden relative">
-      {/* Фоновая сетка */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#1a1a24_1px,transparent_1px),linear-gradient(to_bottom,#1a1a24_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-30 pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#08080C]/50 to-[#08080C] pointer-events-none" />
+    <div ref={containerRef} className="h-screen w-full bg-[#020204] text-white overflow-hidden relative font-mono">
+      {/* Квантовые частицы фона */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {particles.map((p) => (
+          <div
+            key={p.id}
+            className="absolute w-px h-px bg-cyan-400/30 rounded-full animate-pulse"
+            style={{
+              left: `${p.x}%`,
+              top: `${(p.id * 2) % 100}%`,
+              animationDelay: `${p.delay}s`,
+              boxShadow: "0 0 10px rgba(34,211,238,0.5)",
+            }}
+          />
+        ))}
+      </div>
 
-      {/* HEADER: Статус-панель с кнопками навигации */}
-      <header className="relative z-10 border-b border-cyan-500/20 bg-[#0a0a0f]/90 backdrop-blur-md px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.push("/messages")} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white">
-            <ArrowLeft size={20} />
+      {/* Горизонтальные энергетические линии */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+        {[...Array(5)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute h-px bg-gradient-to-r from-transparent via-purple-500 to-transparent animate-pulse"
+            style={{
+              top: `${20 + i * 15}%`,
+              animationDelay: `${i * 0.5}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* HEADER — минималистичный */}
+      <header className="relative z-20 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-[#020204] to-transparent">
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => router.push("/messages")}
+            className="group flex items-center gap-2 text-cyan-400/60 hover:text-cyan-400 transition-all"
+          >
+            <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" />
+            <span className="text-xs tracking-[0.3em]">BACK</span>
           </button>
-          <div className={`w-2 h-2 rounded-full ${syncStatus === 'active' ? 'bg-cyan-400 shadow-[0_0_10px_#22d3ee]' : 'bg-yellow-400 animate-pulse'}`} />
-          <div>
-            <h1 className="text-xs tracking-[0.2em] text-cyan-400 font-bold">PRISM_LINK // {chatId.slice(0,6).toUpperCase()}</h1>
-            <p className="text-[10px] text-white/40 mt-0.5">
-              {syncStatus === 'active' ? `NODE_SYNC: ACTIVE · TARGET: ${chatInfo?.is_group ? chatInfo.name : chatInfo?.other?.display_name || 'UNKNOWN'}` : 'RECONSTRUCTING...'}
-            </p>
+          
+          <div className="flex items-center gap-3">
+            <div className={`w-2 h-2 rounded-full ${syncStatus === 'active' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} 
+                 style={{ boxShadow: syncStatus === 'active' ? '0 0 20px rgba(52,211,153,0.8)' : 'none' }} />
+            <span className="text-[10px] text-white/40 tracking-[0.4em]">
+              {syncStatus === 'active' ? 'ENCRYPTED' : 'SYNCING'}
+            </span>
           </div>
         </div>
-        
+
         <button 
           onClick={leaveChat}
-          className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-white/40 hover:text-red-400"
-          title="Покинуть канал"
+          className="flex items-center gap-2 text-red-400/40 hover:text-red-400 hover:bg-red-500/10 px-3 py-1.5 rounded transition-all"
         >
-          <LogOut size={18} />
+          <LogOut size={14} />
+          <span className="text-[10px] tracking-[0.3em]">TERMINATE</span>
         </button>
       </header>
 
-      {/* MESSAGE STREAM: Нейро-поток */}
-      <main ref={scrollRef} className="relative z-10 flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-6 scroll-smooth">
-        {messages.map((msg) => {
-          const isMine = msg.sender_id === currentUser?.id;
-          return (
-            <div key={msg.id} className={`relative flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-              {/* Световой спектр вместо пузыря */}
-              <div className={`absolute top-0 bottom-0 w-[2px] ${
-                isMine 
-                  ? 'right-0 bg-gradient-to-b from-purple-500 via-purple-400 to-transparent shadow-[0_0_15px_rgba(168,85,247,0.5)]' 
-                  : 'left-0 bg-gradient-to-b from-cyan-500 via-cyan-400 to-transparent shadow-[0_0_15px_rgba(34,211,238,0.5)]'
-              }`} />
-              
-              <div className={`max-w-[85%] md:max-w-[70%] px-5 py-3 ${isMine ? 'pr-6' : 'pl-6'}`}>
-                <div className="flex items-center gap-2 mb-1.5 opacity-50 text-[10px] uppercase tracking-wider">
-                  <span className={isMine ? "text-purple-400" : "text-cyan-400"}>
-                    {isMine ? 'SELF_NODE' : `NODE_${msg.sender_id}`}
-                  </span>
-                  <span>·</span>
-                  <span>{new Date(msg.created_at).toLocaleTimeString("ru-RU", {hour: "2-digit", minute:"2-digit"})}</span>
+      {/* ПОТОК СООБЩЕНИЙ — вертикальная временная шкала */}
+      <main ref={scrollRef} className="relative z-10 h-[calc(100vh-140px)] overflow-y-auto px-4 md:px-12 py-8">
+        <div className="max-w-3xl mx-auto">
+          {/* Центральная линия времени */}
+          <div className="absolute left-1/2 transform -translate-x-1/2 w-px h-full bg-gradient-to-b from-cyan-500/0 via-cyan-500/30 to-cyan-500/0" />
+
+          {messages.map((msg, idx) => {
+            const isMine = msg.sender_id === currentUser?.id;
+            const timeGroup = getTimeGroup(msg.created_at);
+            const showTime = idx === 0 || getTimeGroup(messages[idx - 1]?.created_at) !== timeGroup;
+
+            return (
+              <div key={msg.id} className="relative mb-8">
+                {/* Индикатор времени */}
+                {showTime && (
+                  <div className="flex items-center justify-center mb-6">
+                    <div className="px-4 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm">
+                      <span className="text-[10px] text-cyan-400/60 tracking-[0.3em]">{timeGroup}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Сообщение */}
+                <div className={`flex items-center gap-6 ${isMine ? 'flex-row-reverse' : ''}`}>
+                  {/* Точка на линии времени */}
+                  <div className={`absolute left-1/2 transform -translate-x-1/2 w-3 h-3 rounded-full border-2 transition-all duration-500 ${
+                    isMine 
+                      ? 'bg-purple-500 border-purple-400 -translate-x-[calc(50%-3px)]' 
+                      : 'bg-cyan-500 border-cyan-400 -translate-x-[calc(50%+3px)]'
+                  }`} style={{ boxShadow: isMine ? '0 0 20px rgba(168,85,247,0.6)' : '0 0 20px rgba(34,211,238,0.6)' }} />
+
+                  {/* Контент */}
+                  <div className={`w-[calc(50%-30px)] ${isMine ? 'ml-auto' : ''}`}>
+                    <div className={`group relative p-5 rounded-2xl backdrop-blur-md transition-all duration-500 hover:scale-[1.02] ${
+                      isMine 
+                        ? 'bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20' 
+                        : 'bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 border border-cyan-500/20'
+                    }`}>
+                      {/* Свечение при наведении */}
+                      <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none ${
+                        isMine ? 'shadow-[0_0_40px_rgba(168,85,247,0.3)]' : 'shadow-[0_0_40px_rgba(34,211,238,0.3)]'
+                      }`} />
+
+                      {/* Мета-информация */}
+                      <div className="flex items-center gap-2 mb-3 text-[10px] text-white/30 tracking-[0.2em]">
+                        <Activity size={10} />
+                        <span>{isMine ? 'OUTGOING' : 'INCOMING'}</span>
+                        <span className="mx-2">·</span>
+                        <span>{new Date(msg.created_at).toLocaleTimeString("ru-RU", {hour: "2-digit", minute:"2-digit"})}</span>
+                      </div>
+
+                      {/* Текст сообщения */}
+                      <p className="text-sm leading-relaxed text-white/90 whitespace-pre-wrap break-words">
+                        {msg.text}
+                      </p>
+
+                      {/* Декоративный уголок */}
+                      <div className={`absolute top-0 w-8 h-8 border-t border-l rounded-tl-2xl opacity-30 ${
+                        isMine ? 'right-0 border-purple-400' : 'left-0 border-cyan-400'
+                      }`} />
+                    </div>
+                  </div>
+
+                  {/* Пустое пространство для баланса */}
+                  <div className="w-[calc(50%-30px)]" />
                 </div>
-                <p className="text-[15px] leading-relaxed text-white/90 break-words whitespace-pre-wrap">
-                  {msg.text}
-                </p>
               </div>
-            </div>
-          );
-        })}
-        
-        <div className="flex items-center gap-2 text-cyan-400/50 text-[10px] mt-8">
-          <Terminal size={12} />
-          <span>AWAITING_INPUT_STREAM...</span>
+            );
+          })}
+
+          {/* Индикатор ожидания */}
+          <div className="flex items-center justify-center gap-3 mt-12 text-cyan-400/30">
+            <Sparkles size={14} className="animate-pulse" />
+            <span className="text-[10px] tracking-[0.4em]">AWAITING TRANSMISSION</span>
+            <Sparkles size={14} className="animate-pulse" />
+          </div>
         </div>
       </main>
 
-      {/* INPUT CONSOLE */}
-      <footer className="relative z-10 p-4 md:p-6 bg-gradient-to-t from-[#08080C] via-[#08080C] to-transparent">
-        <div className="max-w-4xl mx-auto flex items-center gap-3 bg-[#0f0f16] border border-cyan-500/20 rounded-lg px-4 py-3 shadow-[0_0_30px_rgba(34,211,238,0.05)] focus-within:border-cyan-500/50 transition-colors">
-          <span className="text-cyan-400 font-bold text-lg select-none">{'>'}</span>
-          <input
-            ref={inputRef}
-            type="text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder="ENTER_TRANSMISSION..."
-            className="flex-1 bg-transparent border-none outline-none text-white placeholder-white/20 font-mono text-sm tracking-wide"
-            autoFocus
-          />
-          <button 
-            onClick={sendMessage}
-            disabled={!text.trim()}
-            className="p-2 rounded-md bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:shadow-[0_0_15px_rgba(34,211,238,0.3)] active:scale-95"
-          >
-            <Zap size={18} />
-          </button>
+      {/* INPUT — голографическая панель */}
+      <footer className="relative z-20 px-6 pb-6">
+        <div className="max-w-3xl mx-auto">
+          <div className="relative group">
+            {/* Свечение фона */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-cyan-500/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            
+            <div className="relative flex items-center gap-4 p-2 bg-[#0a0a0f]/80 backdrop-blur-xl border border-white/10 rounded-2xl">
+              {/* Индикатор шифрования */}
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10">
+                <div className={`w-1.5 h-1.5 rounded-full ${syncStatus === 'active' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                <span className="text-[9px] text-white/40 tracking-[0.2em]">E2EE</span>
+              </div>
+
+              {/* Поле ввода */}
+              <input
+                type="text"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                placeholder="Введите сообщение..."
+                className="flex-1 bg-transparent border-none outline-none text-sm text-white placeholder-white/20 px-3"
+              />
+
+              {/* Кнопка отправки */}
+              <button 
+                onClick={sendMessage}
+                disabled={!text.trim() || syncStatus !== 'active'}
+                className="group relative flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-110 active:scale-95"
+              >
+                <Send size={18} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                <div className="absolute inset-0 rounded-xl bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+              </button>
+            </div>
+          </div>
+
+          {/* Подпись */}
+          <p className="text-center mt-3 text-[9px] text-white/20 tracking-[0.4em]">
+            PRISM PROTOCOL v2.0 · QUANTUM ENCRYPTED
+          </p>
         </div>
-        <p className="text-center text-[9px] text-white/20 mt-3 tracking-[0.2em]">
-          TRANSMISSION SECURED BY TRELOD PRISM PROTOCOL
-        </p>
       </footer>
+
+      {/* CSS анимации */}
+      <style jsx>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+        .animate-float {
+          animation: float 6s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 }
