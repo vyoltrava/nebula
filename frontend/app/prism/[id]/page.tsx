@@ -1,9 +1,9 @@
 "use client";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getToken } from "@/lib/auth";
 import { useWebSocket } from "@/src/hooks/useWebSocket";
-import { ArrowLeft, Send, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, Send, ShieldCheck, Star } from "lucide-react";
 import { extractDataFromImage, reconstructKey, decryptAnchorWithPin } from "@/lib/prismCrypto";
 
 export default function PrismChatPage() {
@@ -16,12 +16,35 @@ export default function PrismChatPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [chatInfo, setChatInfo] = useState<any>(null);
   const [syncStatus, setSyncStatus] = useState<"connecting" | "decrypting" | "entangled">("connecting");
+  const [stars, setStars] = useState<Array<{x: number, y: number, size: number, opacity: number}>>([]);
+  const [rotation, setRotation] = useState(0);
   
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const [scrollY, setScrollY] = useState(0);
 
-  // 1. Загрузка данных
+  // Генерация звёзд
+  useEffect(() => {
+    const newStars = Array.from({ length: 150 }, () => ({
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 2 + 0.5,
+      opacity: Math.random() * 0.8 + 0.2,
+    }));
+    setStars(newStars);
+  }, []);
+
+  // Анимация вращения
+  useEffect(() => {
+    let frame: number;
+    const animate = () => {
+      setRotation(r => (r + 0.05) % 360);
+      frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
+  // Загрузка данных
   useEffect(() => {
     const token = getToken();
     if (!token) return router.push("/login");
@@ -43,17 +66,11 @@ export default function PrismChatPage() {
       }).then(r => r.json()).then(data => {
         const msgs = Array.isArray(data) ? data : (data.messages ?? []);
         setMessages(msgs);
-        // Небольшая задержка, чтобы DOM отрисовался перед скроллом вниз
-        setTimeout(() => {
-          if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-          }
-        }, 100);
       })
     ]);
   }, [chatId, router]);
 
-  // 2. Расшифровка ключа с кэшированием
+  // Расшифровка
   useEffect(() => {
     const reconstructPrismKey = async () => {
       if (!chatInfo?.is_prism || messages.length === 0) {
@@ -61,30 +78,29 @@ export default function PrismChatPage() {
         return;
       }
 
-      const cachedKeyBase64 = sessionStorage.getItem(`prism_key_${chatId}`);
-      if (cachedKeyBase64) {
+      const cachedKey = sessionStorage.getItem(`prism_key_${chatId}`);
+      if (cachedKey) {
         setSyncStatus("entangled");
         return;
       }
 
       try {
         setSyncStatus("decrypting");
-        const shard3_local = await extractDataFromImage(chatInfo.avatar_url);
-        
+        const shard3 = await extractDataFromImage(chatInfo.avatar_url);
         const genesisMsg = messages.find((m: any) => m.text?.startsWith("__PRISM_GENESIS__:"));
         if (!genesisMsg) throw new Error("Genesis not found");
-        const shard2_genesis = genesisMsg.text.replace("__PRISM_GENESIS__:", "");
+        const shard2 = genesisMsg.text.replace("__PRISM_GENESIS__:", "");
         
-        const pin = prompt("🔐 QUANTUM AUTH: Введите ключ доступа (PIN):");
-        if (!pin) throw new Error("PIN отменен");
+        const pin = prompt("🔐 Введите PIN-код канала:");
+        if (!pin) throw new Error("Cancelled");
         
-        const shard1_decrypted = await decryptAnchorWithPin(chatInfo.prism_anchor, pin);
-        const masterKey = reconstructKey(shard1_decrypted, shard2_genesis, shard3_local);
+        const shard1 = await decryptAnchorWithPin(chatInfo.prism_anchor, pin);
+        const masterKey = reconstructKey(shard1, shard2, shard3);
         
         sessionStorage.setItem(`prism_key_${chatId}`, btoa(String.fromCharCode(...masterKey)));
         setSyncStatus("entangled");
       } catch (err) {
-        console.error("❌ DECRYPTION FAILED:", err);
+        console.error(err);
         router.push("/messages");
       }
     };
@@ -94,28 +110,14 @@ export default function PrismChatPage() {
     }
   }, [chatInfo, messages, syncStatus, chatId, router]);
 
-  // 3. WebSocket
+  // WebSocket
   useWebSocket("new_message", (data: any) => {
     if (String(data.chat_id) !== String(chatId)) return;
     setMessages(prev => {
       if (prev.some(m => m.id === data.id)) return prev;
-      const newMsgs = [...prev, { ...data }];
-      // Автоскролл к новому сообщению
-      setTimeout(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-        }
-      }, 50);
-      return newMsgs;
+      return [...prev, { ...data }];
     });
   });
-
-  // 4. Математика 4D-скролла
-  const handleScroll = useCallback(() => {
-    if (scrollRef.current) {
-      setScrollY(scrollRef.current.scrollTop);
-    }
-  }, []);
 
   const sendMessage = async () => {
     if (!text.trim()) return;
@@ -132,135 +134,155 @@ export default function PrismChatPage() {
     });
     
     setText("");
-    // Возвращаем фокус на поле ввода
-    setTimeout(() => inputRef.current?.focus(), 50);
+    inputRef.current?.focus();
+  };
+
+  // Расчёт позиции сообщения в спирали
+  const getSpiralPosition = (index: number, total: number) => {
+    const angle = (index / total) * Math.PI * 4; // 2 полных оборота
+    const radius = 80 + (index / total) * 300; // от 80px до 380px
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    return { x, y, angle: (angle * 180) / Math.PI };
   };
 
   return (
-    <div className="h-screen w-full bg-[#050508] text-white overflow-hidden relative font-sans">
-      {/* Фоновая сетка 4D-пространства */}
-      <div className="absolute inset-0 pointer-events-none opacity-20" 
-           style={{ 
-             backgroundImage: `linear-gradient(rgba(34, 211, 238, 0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 211, 238, 0.1) 1px, transparent 1px)`,
-             backgroundSize: '40px 40px',
-             transform: `translateY(${scrollY * 0.1}px)` // Параллакс фона
-           }} 
-      />
+    <div 
+      ref={containerRef}
+      className="h-screen w-full bg-black text-white overflow-hidden relative"
+    >
+      {/* Звёздное небо */}
+      <div className="absolute inset-0">
+        {stars.map((star, i) => (
+          <div
+            key={i}
+            className="absolute rounded-full bg-white"
+            style={{
+              left: `${star.x}%`,
+              top: `${star.y}%`,
+              width: `${star.size}px`,
+              height: `${star.size}px`,
+              opacity: star.opacity,
+              animation: `twinkle ${2 + Math.random() * 3}s ease-in-out infinite`,
+              animationDelay: `${Math.random() * 2}s`,
+            }}
+          />
+        ))}
+      </div>
 
-      {/* HEADER */}
-      <header className="absolute top-0 left-0 right-0 z-50 p-4 flex items-center justify-between bg-gradient-to-b from-[#050508] to-transparent">
-        <button onClick={() => router.push("/messages")} className="p-2 hover:bg-white/10 rounded-full transition-colors">
-          <ArrowLeft size={20} className="text-white/70" />
+      {/* Туманность */}
+      <div className="absolute inset-0 opacity-30">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-600/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-600/20 rounded-full blur-3xl" />
+      </div>
+
+      {/* Header */}
+      <header className="absolute top-0 left-0 right-0 z-50 p-4 flex items-center justify-between">
+        <button 
+          onClick={() => router.push("/messages")}
+          className="p-2 hover:bg-white/10 rounded-full transition-colors"
+        >
+          <ArrowLeft size={20} />
         </button>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
-          <div className={`w-2 h-2 rounded-full ${syncStatus === 'entangled' ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-          <span className="text-[10px] text-white/50 tracking-widest uppercase">
-            {syncStatus === 'entangled' ? 'Entangled' : 'Syncing'}
+        
+        <div className={`px-3 py-1.5 rounded-full border backdrop-blur-md ${
+          syncStatus === 'entangled' 
+            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' 
+            : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+        }`}>
+          <span className="text-xs tracking-wider">
+            {syncStatus === 'entangled' ? '🌌 ENTANGLED' : ' DECRYPTING...'}
           </span>
         </div>
       </header>
 
-      {/* 4D MESSAGE STREAM */}
-      <div 
-        ref={scrollRef}
-        onScroll={handleScroll}
-        className="h-full w-full overflow-y-auto overflow-x-hidden px-4 md:px-0"
-        style={{ perspective: "1000px" }}
-      >
-        <div className="max-w-2xl mx-auto py-[50vh] space-y-12"> {/* Большие отступы сверху и снизу для эффекта туннеля */}
+      {/* Спираль сообщений */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div 
+          className="relative"
+          style={{ 
+            transform: `rotate(${rotation}deg)`,
+            transition: 'transform 0.1s linear'
+          }}
+        >
           {messages.map((msg, index) => {
+            const { x, y, angle } = getSpiralPosition(index, messages.length);
             const isMine = msg.sender_id === currentUser?.id;
             
-            // Вычисляем позицию сообщения относительно центра экрана
-            // 50vh - это примерный центр контейнера
-            const messageCenterY = (index * 120) + 60; // Примерная высота блока + margin
-            const distance = Math.abs(scrollY + (window.innerHeight / 2) - messageCenterY);
-            
-            // 4D Математика: чем дальше от центра, тем меньше масштаб, больше размытие и ниже прозрачность
-            const maxDistance = 600; // Дистанция, на которой сообщение исчезает
-            const progress = Math.min(distance / maxDistance, 1);
-            
-            const scale = 1 - (progress * 0.4); // Уменьшается до 60%
-            const blur = progress * 8; // Размытие до 8px
-            const opacity = 1 - (progress * 0.8); // Прозрачность до 20%
-            const rotateX = (scrollY - messageCenterY) * 0.02; // Легкий наклон для 3D-эффекта
-
             return (
               <div
                 key={msg.id}
-                className={`relative flex w-full transition-all duration-300 ease-out ${isMine ? 'justify-end' : 'justify-start'}`}
+                className="absolute"
                 style={{
-                  transform: `translateZ(${-distance * 0.5}px) scale(${scale}) rotateX(${rotateX}deg)`,
-                  filter: `blur(${blur}px)`,
-                  opacity: opacity,
-                  zIndex: Math.floor(100 - distance),
+                  left: `${x}px`,
+                  top: `${y}px`,
+                  transform: `rotate(${-angle - rotation}deg)`,
                 }}
               >
-                <div className={`max-w-[85%] md:max-w-[70%] p-5 rounded-2xl backdrop-blur-xl border transition-colors ${
+                <div className={`px-4 py-3 rounded-2xl backdrop-blur-md border max-w-xs ${
                   isMine 
-                    ? 'bg-purple-500/10 border-purple-500/30 rounded-br-none' 
-                    : 'bg-cyan-500/10 border-cyan-500/30 rounded-bl-none'
+                    ? 'bg-purple-600/30 border-purple-400/50' 
+                    : 'bg-cyan-600/30 border-cyan-400/50'
                 }`}>
-                  {/* Мета-данные (время) */}
-                  <div className="flex items-center gap-2 mb-2 text-[10px] text-white/40 uppercase tracking-wider">
-                    <span>{isMine ? 'Outgoing' : 'Incoming'}</span>
-                    <span>•</span>
-                    <span>{new Date(msg.created_at).toLocaleTimeString("ru-RU", {hour: "2-digit", minute:"2-digit"})}</span>
-                  </div>
-                  
-                  {/* Текст сообщения */}
-                  <p className="text-base md:text-lg leading-relaxed text-white/90 whitespace-pre-wrap break-words">
+                  <p className="text-sm text-white/90 break-words">
                     {msg.text}
+                  </p>
+                  <p className="text-[10px] text-white/40 mt-1">
+                    {new Date(msg.created_at).toLocaleTimeString("ru-RU", {
+                      hour: "2-digit",
+                      minute: "2-digit"
+                    })}
                   </p>
                 </div>
               </div>
             );
           })}
+
+          {/* Центральное ядро */}
+          <div className="absolute -translate-x-1/2 -translate-y-1/2 left-1/2 top-1/2">
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-cyan-400 to-purple-600 shadow-[0_0_60px_rgba(139,92,246,0.6)] flex items-center justify-center">
+              <ShieldCheck size={32} className="text-white" />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* INPUT CONSOLE (W-Dimension: появляется и адаптируется) */}
-      <div className="absolute bottom-0 left-0 right-0 z-50 p-4 md:p-6 bg-gradient-to-t from-[#050508] via-[#050508] to-transparent">
+      {/* Поле ввода */}
+      <div className="absolute bottom-0 left-0 right-0 p-4 z-50">
         <div className="max-w-2xl mx-auto">
-          <div className="relative group">
-            {/* Свечение при фокусе */}
-            <div className="absolute -inset-0.5 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl opacity-0 group-focus-within:opacity-50 blur transition-opacity duration-500" />
-            
-            <div className="relative flex items-end gap-3 p-2 bg-[#0a0a0f]/90 backdrop-blur-xl border border-white/10 rounded-2xl">
-              <textarea
-                ref={inputRef}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                  }
-                }}
-                placeholder="Введите сообщение..."
-                className="flex-1 bg-transparent border-none outline-none text-white placeholder-white/30 resize-none py-3 px-3 max-h-32 min-h-[48px]"
-                rows={1}
-                style={{ height: 'auto', minHeight: '48px' }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = 'auto';
-                  target.style.height = Math.min(target.scrollHeight, 128) + 'px';
-                }}
-              />
-              <button 
-                onClick={sendMessage}
-                disabled={!text.trim()}
-                className="mb-1 p-3 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 text-white disabled:opacity-30 disabled:cursor-not-allowed hover:scale-105 active:scale-95 transition-all shadow-lg shadow-purple-500/20"
-              >
-                <Send size={18} />
-              </button>
-            </div>
+          <div className="flex items-end gap-2 bg-black/60 backdrop-blur-md border border-white/20 rounded-2xl p-3">
+            <textarea
+              ref={inputRef}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+              placeholder="Отправить сообщение в космос..."
+              className="flex-1 bg-transparent border-none outline-none text-white placeholder-white/40 resize-none"
+              rows={1}
+              style={{ minHeight: '40px' }}
+            />
+            <button 
+              onClick={sendMessage}
+              disabled={!text.trim()}
+              className="p-2 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 disabled:opacity-30 hover:scale-110 transition-transform"
+            >
+              <Send size={18} />
+            </button>
           </div>
-          <p className="text-center mt-3 text-[9px] text-white/20 tracking-[0.3em] flex items-center justify-center gap-2">
-            <ShieldCheck size={10} /> PRISM PROTOCOL v2.0
-          </p>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes twinkle {
+          0%, 100% { opacity: 0.2; }
+          50% { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }
