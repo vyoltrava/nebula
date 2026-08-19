@@ -245,7 +245,73 @@ const insertTextAtCursor = (textToInsert: string) => {
   }, 10);
 };
 
+// ✅ НОВАЯ ФУНКЦИЯ: Открытие меню по клику на "три точки"
+const openMessageMenu = (e: React.MouseEvent | React.PointerEvent, msg: any) => {
+  e.stopPropagation();
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  
+  const windowWidth = window.innerWidth;
+  const windowHeight = window.innerHeight;
+  const menuWidth = 220;
+  const menuHeight = 300;
+  
+  // Позиционируем меню справа от кнопки
+  let x = rect.right + 4;
+  let y = rect.top;
+  
+  // Если вылезает за правый край — открываем слева от кнопки
+  if (x + menuWidth > windowWidth) {
+    x = rect.left - menuWidth - 4;
+  }
+  // Если вылезает за нижний край — сдвигаем вверх
+  if (y + menuHeight > windowHeight) {
+    y = windowHeight - menuHeight - 10;
+  }
+  
+  x = Math.max(10, x);
+  y = Math.max(10, y);
+  
+  setContextMenu({ msg, x, y });
+};
+// ✅ НОВАЯ ФУНКЦИЯ: Long press для открытия меню
+const handlePointerDown = (e: React.PointerEvent, msg: any) => {
+  if (isSelectMode || isSecret) return;
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  
+  longPressTimerRef.current = setTimeout(() => {
+    isLongPressRef.current = true;
+    
+    // Открываем меню с координатами элемента
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    const menuWidth = 220;
+    const menuHeight = 300;
+    
+    let x = rect.right + 4;
+    let y = rect.top;
+    
+    if (x + menuWidth > windowWidth) x = rect.left - menuWidth - 4;
+    if (y + menuHeight > windowHeight) y = windowHeight - menuHeight - 10;
+    x = Math.max(10, x);
+    y = Math.max(10, y);
+    
+    setContextMenu({ msg, x, y });
+  }, 500); // 500мс для long press
+};
 
+const handlePointerUp = () => {
+  if (longPressTimerRef.current) {
+    clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = null;
+  }
+};
+
+const handlePointerLeave = () => {
+  if (longPressTimerRef.current) {
+    clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = null;
+  }
+};
 
  const allAvailableReactions = useMemo(() => {
   const result: {type: 'emoji' | 'sticker', content: string, stickerId?: number, packName: string, locked: boolean, minLevel?: number}[] = [];
@@ -2080,21 +2146,24 @@ const ChatHeader = () => (
 {/* Кнопки справа */}
 <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
   {/* Скрыты на мобильных, видны на планшетах и ПК (sm и выше) */}
-  <button
-    onClick={() => setShowReactionPicker(!showReactionPicker)}
-    className="hidden sm:flex p-2 sm:p-1.5 rounded-lg transition-colors active:scale-95 hover:bg-white/5 items-center justify-center min-w-[36px] min-h-[36px]"
-    title="Настроить реакцию"
-  >
-    {quickReaction ? (
-      quickReaction.type === 'emoji' ? (
-        <span className="text-xl leading-none">{quickReaction.content}</span>
-      ) : (
-        <img src={quickReaction.content} alt="" className="w-6 h-6 object-contain" />
-      )
+<button
+  onClick={() => { 
+    setActivePackTab(0); // ✅ Сбрасываем на первый пак
+    setShowReactionPicker(true); 
+  }}
+  className="hidden sm:flex p-2 sm:p-1.5 rounded-lg transition-colors active:scale-95 hover:bg-white/5 items-center justify-center min-w-[36px] min-h-[36px]"
+  title="Настроить реакцию"
+>
+  {quickReaction ? (
+    quickReaction.type === 'emoji' ? (
+      <span className="text-xl leading-none">{quickReaction.content}</span>
     ) : (
-      <SmilePlus size={18} className="text-white/40" />
-    )}
-  </button>
+      <img src={quickReaction.content} alt="" className="w-6 h-6 object-contain" />
+    )
+  ) : (
+    <SmilePlus size={18} className="text-white/40" />
+  )}
+</button>
 
   <button
     onClick={() => { setMediaTab("image"); loadMedia(); setShowMediaGallery(true); }}
@@ -2136,12 +2205,16 @@ const ChatHeader = () => (
         <div className="absolute right-0 top-full mt-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] sm:min-w-[180px] z-50">
           
           {/* 📱 МОБИЛЬНЫЕ КНОПКИ (скрыты на ПК) */}
-          <button
-            onClick={() => { setShowReactionPicker(true); setShowChatMenu(false); }}
-            className="sm:hidden w-full px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
-          >
-            <SmilePlus size={15} /> Быстрая реакция
-          </button>
+<button
+  onClick={() => { 
+    setActivePackTab(0); // ✅ Сбрасываем на первый пак
+    setShowReactionPicker(true); 
+    setShowChatMenu(false); 
+  }}
+  className="sm:hidden w-full px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
+>
+  <SmilePlus size={15} /> Быстрая реакция
+</button>
           <button
             onClick={() => { setMediaTab("image"); loadMedia(); setShowMediaGallery(true); setShowChatMenu(false); }}
             className="sm:hidden w-full px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
@@ -2390,64 +2463,64 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
   const senderGlow = getGlowColor(msg);
 
   return (
-     <MessageBubble
-      key={msg.id}
-      msg={msg}
-      isMine={isMine}
-      isGroup={isGroup}
-      isSecret={isSecret}
-      isSelectMode={isSelectMode}
-      isSelected={isSelected}
-      isEditing={editingMessageId === msg.id}
-      editText={editText}
-      displayText={displayText}
-      senderGlow={senderGlow}
-      isPinned={!!msg.pinned}
-      chatId={chatId}
-      getMediaClasses={getMediaClasses}
-      extractFirstUrl={extractFirstUrl}
-      onEditChange={setEditText}
-      onSubmitEdit={submitEdit}
-      onCancelEdit={cancelEdit}
-      onSelect={() => toggleMessageSelection(msg.id)}
-      onReply={() => startReply(msg)}
-      onContextMenu={(e) => handleContextMenu(e, msg)} 
-      onPointerDown={(e) => { /* твоя логика long press */ }}
-      onPointerUp={() => { if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); } }}
-      onPointerLeave={() => { if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); } }}
-      
-      // ✅ ИСПРАВЛЕНО: Логика двойного тапа для реакции
-      onDoubleClick={(e) => {
-        if (isSecret) return; // Опционально: запретить реакции в секретных чатах
-        const reactionToSend = quickReaction || { type: 'emoji', content: '❤️' };
-        
-        // Отправляем реакцию на сервер
-        toggleReaction(msg.id, reactionToSend.stickerId, reactionToSend.content);
-        
-        // Запускаем анимацию вылетающей реакции
-        setPopReaction({
-          content: reactionToSend.content,
-          type: reactionToSend.type,
-          stickerId: reactionToSend.stickerId,
-          x: e.clientX,
-          y: e.clientY,
-          id: msg.id,
-          visible: true
-        });
-        
-        // Скрываем анимацию через 700мс
-        setTimeout(() => {
-          setPopReaction(prev => prev ? { ...prev, visible: false } : null);
-        }, 700);
-      }}
-      
-      onReactionClick={() => { setReactionPickerFor(reactionPickerFor === msg.id ? null : msg.id); }}
-      onMenuClick={(e) => { /* твоя логика открытия меню */ }}
-      activeMessageMenu={activeMessageMenu === msg.id}
-      menuOpenUp={menuOpenUp}
-      onSwipeRight={() => startReply(msg)}
-      onToggleReaction={toggleReaction} 
-    />
+ <MessageBubble
+  key={msg.id}
+  msg={msg}
+  isMine={isMine}
+  isGroup={isGroup}
+  isSecret={isSecret}
+  isSelectMode={isSelectMode}
+  isSelected={isSelected}
+  isEditing={editingMessageId === msg.id}
+  editText={editText}
+  displayText={displayText}
+  senderGlow={senderGlow}
+  isPinned={!!msg.pinned}
+  chatId={chatId}
+  getMediaClasses={getMediaClasses}
+  extractFirstUrl={extractFirstUrl}
+  onEditChange={setEditText}
+  onSubmitEdit={submitEdit}
+  onCancelEdit={cancelEdit}
+  onSelect={() => toggleMessageSelection(msg.id)}
+  onReply={() => startReply(msg)}
+  onContextMenu={(e) => handleContextMenu(e, msg)}
+  
+  // ✅ ИСПРАВЛЕНО: Long press для открытия меню
+  onPointerDown={(e) => handlePointerDown(e, msg)}
+  onPointerUp={handlePointerUp}
+  onPointerLeave={handlePointerLeave}
+  
+  // ✅ ИСПРАВЛЕНО: Логика двойного тапа для реакции
+  onDoubleClick={(e) => {
+    if (isSecret) return;
+    const reactionToSend = quickReaction || { type: 'emoji', content: '❤️' };
+    toggleReaction(msg.id, reactionToSend.stickerId, reactionToSend.content);
+    setPopReaction({
+      content: reactionToSend.content,
+      type: reactionToSend.type,
+      stickerId: reactionToSend.stickerId,
+      x: e.clientX,
+      y: e.clientY,
+      id: msg.id,
+      visible: true
+    });
+    setTimeout(() => {
+      setPopReaction(prev => prev ? { ...prev, visible: false } : null);
+    }, 700);
+  }}
+  
+  onReactionClick={() => { setReactionPickerFor(reactionPickerFor === msg.id ? null : msg.id); }}
+  
+  // ✅ ИСПРАВЛЕНО: Открытие меню по клику на "три точки"
+  onMenuClick={(e) => openMessageMenu(e, msg)}
+  
+  activeMessageMenu={activeMessageMenu === msg.id}
+  menuOpenUp={menuOpenUp}
+  onSwipeRight={() => startReply(msg)}
+  onToggleReaction={toggleReaction}
+/>
+    
   );
 })}
               {/* 🆕 ЖИВЫЕ ПУЗЫРИ — плавное появление / рост / исчезновение */}
@@ -3201,80 +3274,104 @@ style={{
   </>
 )}
 
-
-{/* 🆕 МОДАЛКА НАСТРОЙКИ БЫСТРОЙ РЕАКЦИИ (ДВОЙНОЙ ТАП) */}
+{/* 🆕 МОДАЛКА БЫСТРОЙ РЕАКЦИИ — С ВКЛАДКАМИ ПАКОВ (как в меню реакции) */}
 {showReactionPicker && (
-    <>
-        {/* Затемненный фон */}
-        <div
-            className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm"
-            onClick={() => setShowReactionPicker(false)}
-        />
-        {/* Само окно */}
-        <div className="fixed inset-0 z-[261] flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full max-w-md max-h-[80vh] bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
-                
-                {/* Шапка */}
-                <div className="shrink-0 p-4 pb-3 border-b border-white/10 flex items-center justify-between">
-                    <h3 className="text-base font-bold text-white">Быстрая реакция</h3>
-                    <button
-                        onClick={() => setShowReactionPicker(false)}
-                        className="text-white/40 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
-                    >
-                        <X size={18} />
-                    </button>
-                </div>
-
-                {/* Контент */}
-                <div className="flex-1 overflow-y-auto p-4 min-h-0">
-                    <p className="text-xs text-white/50 mb-4">
-                        Выберите эмодзи или стикер, который будет отправляться по двойному тапу (или удержанию) на сообщение.
-                    </p>
-                    
-                    {/* Сетка реакций */}
-                    <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
-                        {allAvailableReactions.map((r, idx) => {
-                            // Проверяем, выбрана ли эта реакция сейчас
-                            const isActive = quickReaction?.type === r.type && 
-                                             quickReaction?.content === r.content && 
-                                             quickReaction?.stickerId === r.stickerId;
-
-                            return (
-                                <button
-                                    key={`${r.type}-${r.content}-${r.stickerId || idx}`}
-                                    disabled={r.locked}
-                                    onClick={() => {
-                                        saveQuickReaction({
-                                            type: r.type,
-                                            content: r.content,
-                                            stickerId: r.stickerId
-                                        });
-                                    }}
-                                    className={`aspect-square flex items-center justify-center rounded-xl transition-all relative
-                                        ${r.locked 
-                                            ? 'bg-white/5 opacity-40 cursor-not-allowed' 
-                                            : 'bg-white/5 hover:bg-[#8b5cf6]/20 hover:scale-110 active:scale-90 cursor-pointer'
-                                        }
-                                        ${isActive ? 'ring-2 ring-[#8b5cf6] bg-[#8b5cf6]/20' : ''}
-                                    `}
-                                    title={r.locked ? `Доступно с уровня ${r.minLevel}` : r.packName}
-                                >
-                                    {r.type === 'emoji' ? (
-                                        <span className="text-2xl">{r.content}</span>
-                                    ) : (
-                                        <img src={r.content} alt="" className="w-8 h-8 object-contain" />
-                                    )}
-                                    {r.locked && (
-                                        <Lock size={12} className="absolute bottom-1 right-1 text-yellow-400" />
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-            </div>
+  <>
+    <div
+      className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm"
+      onClick={() => setShowReactionPicker(false)}
+    />
+    <div className="fixed inset-0 z-[261] flex items-center justify-center p-4 pointer-events-none">
+      <div className="w-full max-w-sm max-h-[80vh] bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
+        {/* Шапка */}
+        <div className="shrink-0 p-3 pb-2 border-b border-white/10">
+          <div className="flex items-center justify-between mb-2 px-1">
+            <p className="text-xs font-bold text-white/60">Быстрая реакция (двойной тап)</p>
+            <button
+              onClick={() => setShowReactionPicker(false)}
+              className="text-white/40 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </div>
+          
+          {/* ✅ Вкладки паков — ТО ЖЕ, ЧТО В МЕНЮ РЕАКЦИИ НА СООБЩЕНИИ */}
+          <div className="flex gap-1 overflow-x-auto scrollbar-hide pb-1">
+            {stickerPacks.map((pack, i) => (
+              <button
+                key={pack.id}
+                onClick={() => setActivePackTab(i)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap shrink-0 transition-all ${
+                  activePackTab === i
+                    ? "bg-[#8b5cf6] text-white"
+                    : "bg-white/5 text-white/50 hover:bg-white/10"
+                }`}
+              >
+                {pack.locked && <Lock size={10} className="text-yellow-400" />}
+                {pack.name}
+              </button>
+            ))}
+          </div>
         </div>
-    </>
+        
+        {/* Контент — скроллится */}
+        <div className="flex-1 overflow-y-auto p-3 min-h-0">
+          {stickerPacks[activePackTab] ? (
+            stickerPacks[activePackTab].locked ? (
+              <div className="flex flex-col items-center gap-2 py-8 text-center">
+                <div className="w-12 h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
+                  <Lock size={18} className="text-yellow-400" />
+                </div>
+                <p className="text-sm font-bold text-white">Пак заблокирован</p>
+                <p className="text-[11px] text-white/40 max-w-[220px]">
+                  Доступен с уровня {stickerPacks[activePackTab].min_level}.
+                  Повысь уровень, чтобы использовать эти реакции.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-6 gap-1.5">
+                {stickerPacks[activePackTab].stickers.map((s: any) => {
+                  // ✅ Проверяем, выбрана ли эта реакция сейчас
+                  const isActive = quickReaction?.type === s.type && 
+                                   quickReaction?.content === s.content && 
+                                   quickReaction?.stickerId === (s.type === 'sticker' ? Number(s.id) : undefined);
+                  
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => {
+                        saveQuickReaction({
+                          type: s.type,
+                          content: s.content,
+                          stickerId: s.type === 'sticker' ? Number(s.id) : undefined
+                        });
+                      }}
+                      className={`aspect-square flex items-center justify-center rounded-xl transition-all ${
+                        isActive
+                          ? 'ring-2 ring-[#8b5cf6] bg-[#8b5cf6]/20'
+                          : 'hover:bg-white/10 active:scale-90'
+                      }`}
+                      title={s.type === 'emoji' ? 'Эмодзи' : 'Стикер'}
+                    >
+                      {s.type === "emoji" ? (
+                        <span className="text-2xl">{s.content}</span>
+                      ) : (
+                        <img src={s.content} alt="" className="w-10 h-10 object-contain" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )
+          ) : (
+            <div className="py-8 text-center text-white/50">
+              {stickerPacks.length === 0 ? "Загрузка паков..." : "Нет доступных паков"}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </>
 )}
 
         {/* 🆕 ПАНЕЛЬ ОТПРАВКИ СТИКЕРОВ (БЫЛА ОТСУТСТВУЕТ В JSX) */}
