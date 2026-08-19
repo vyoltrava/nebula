@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getToken } from "@/lib/auth";
 import { useWebSocket } from "@/src/hooks/useWebSocket";
-import { ArrowLeft, Send, ShieldCheck, Lock, Sparkles } from "lucide-react";
+import { ArrowLeft, Send, ShieldCheck, Lock, Sparkles, Zap } from "lucide-react";
 import { extractDataFromImage, reconstructKey, decryptAnchorWithPin } from "@/lib/prismCrypto";
 
 export default function PrismChatPage() {
@@ -13,34 +13,39 @@ export default function PrismChatPage() {
   
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState("");
+  const [isInputOpen, setIsInputOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [chatInfo, setChatInfo] = useState<any>(null);
   const [syncStatus, setSyncStatus] = useState<"connecting" | "decrypting" | "entangled">("connecting");
-  const [stars, setStars] = useState<Array<{x: number, y: number, size: number, opacity: number, delay: number}>>([]);
-  const [newMsgIds, setNewMsgIds] = useState<Set<string>>(new Set());
+  const [lightParticles, setLightParticles] = useState<Array<{id: number, x: number, y: number, size: number, color: string, delay: number}>>([]);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Генерация звёзд (меньше, более рассеянные)
+  // Генерация световых частиц
   useEffect(() => {
-    const newStars = Array.from({ length: 80 }, () => ({
+    const colors = ['#06b6d4', '#8b5cf6', '#ec4899', '#22d3ee', '#a855f7'];
+    const particles = Array.from({ length: 50 }, (_, i) => ({
+      id: i,
       x: Math.random() * 100,
       y: Math.random() * 100,
-      size: Math.random() * 1.5 + 0.3,
-      opacity: Math.random() * 0.6 + 0.2,
+      size: Math.random() * 3 + 1,
+      color: colors[Math.floor(Math.random() * colors.length)],
       delay: Math.random() * 5,
     }));
-    setStars(newStars);
+    setLightParticles(particles);
   }, []);
 
-  // Автопрокрутка вниз
+  useEffect(() => {
+    if (isInputOpen) {
+      setTimeout(() => inputRef.current?.focus(), 100);
+    }
+  }, [isInputOpen]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Загрузка данных
   useEffect(() => {
     const token = getToken();
     if (!token) return router.push("/login");
@@ -66,7 +71,6 @@ export default function PrismChatPage() {
     ]);
   }, [chatId, router]);
 
-  // Расшифровка
   useEffect(() => {
     const reconstructPrismKey = async () => {
       if (!chatInfo?.is_prism || messages.length === 0) {
@@ -87,7 +91,7 @@ export default function PrismChatPage() {
         if (!genesisMsg) throw new Error("Genesis not found");
         const shard2 = genesisMsg.text.replace("__PRISM_GENESIS__:", "");
         
-        const pin = prompt("🔐 Введите PIN-код канала:");
+        const pin = prompt("🔐 PIN-код канала:");
         if (!pin) throw new Error("Cancelled");
         
         const shard1 = await decryptAnchorWithPin(chatInfo.prism_anchor, pin);
@@ -106,22 +110,12 @@ export default function PrismChatPage() {
     }
   }, [chatInfo, messages, syncStatus, chatId, router]);
 
-  // WebSocket
   useWebSocket("new_message", (data: any) => {
     if (String(data.chat_id) !== String(chatId)) return;
     setMessages(prev => {
       if (prev.some(m => m.id === data.id)) return prev;
       return [...prev, { ...data }];
     });
-    // Пометить новое сообщение для анимации
-    setNewMsgIds(prev => new Set(prev).add(String(data.id)));
-    setTimeout(() => {
-      setNewMsgIds(prev => {
-        const next = new Set(prev);
-        next.delete(String(data.id));
-        return next;
-      });
-    }, 2000);
   });
 
   const sendMessage = async () => {
@@ -139,300 +133,261 @@ export default function PrismChatPage() {
     });
     
     setText("");
-    inputRef.current?.focus();
+    setIsInputOpen(false);
   };
 
   const otherUser = chatInfo?.other;
   const isEntangled = syncStatus === "entangled";
 
   return (
-    <div className="h-screen w-full bg-[#05050a] text-white overflow-hidden relative flex flex-col">
-      {/* Звёздное небо */}
-      <div className="absolute inset-0 pointer-events-none">
-        {stars.map((star, i) => (
+    <div className="h-screen w-full bg-black text-white overflow-hidden relative flex flex-col">
+      {/* Призматический фон с лучами */}
+      <div className="absolute inset-0 overflow-hidden">
+        {/* Центральные лучи света */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] opacity-30">
+          {[...Array(8)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute top-1/2 left-1/2 w-px h-[600px] origin-top animate-pulse"
+              style={{
+                background: `linear-gradient(to bottom, ${['#06b6d4', '#8b5cf6', '#ec4899'][i % 3]}, transparent)`,
+                transform: `translate(-50%, -100%) rotate(${i * 45}deg)`,
+                animationDelay: `${i * 0.2}s`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Градиентные кольца */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] border border-cyan-500/10 rounded-full animate-ping" style={{ animationDuration: '4s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] border border-purple-500/10 rounded-full animate-ping" style={{ animationDuration: '3s', animationDelay: '0.5s' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[200px] h-[200px] border border-pink-500/10 rounded-full animate-ping" style={{ animationDuration: '2s', animationDelay: '1s' }} />
+
+        {/* Летающие частицы света */}
+        {lightParticles.map((p) => (
           <div
-            key={i}
-            className="absolute rounded-full bg-white"
+            key={p.id}
+            className="absolute rounded-full animate-float"
             style={{
-              left: `${star.x}%`,
-              top: `${star.y}%`,
-              width: `${star.size}px`,
-              height: `${star.size}px`,
-              opacity: star.opacity,
-              animation: `twinkle ${3 + Math.random() * 4}s ease-in-out infinite`,
-              animationDelay: `${star.delay}s`,
+              left: `${p.x}%`,
+              top: `${p.y}%`,
+              width: `${p.size}px`,
+              height: `${p.size}px`,
+              background: p.color,
+              boxShadow: `0 0 ${p.size * 2}px ${p.color}`,
+              animation: `float ${6 + Math.random() * 4}s ease-in-out infinite`,
+              animationDelay: `${p.delay}s`,
             }}
           />
         ))}
       </div>
 
-      {/* Туманность — очень лёгкая, по краям */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[120px]" />
-        <div className="absolute -bottom-40 -right-40 w-[600px] h-[600px] bg-cyan-600/10 rounded-full blur-[120px]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-indigo-500/5 rounded-full blur-[100px]" />
-      </div>
-
-      {/* Сетка/матрица на фоне */}
-      <div 
-        className="absolute inset-0 pointer-events-none opacity-[0.03]"
-        style={{
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)`,
-          backgroundSize: '60px 60px',
-        }}
-      />
-
       {/* Header */}
-      <header className="relative z-30 border-b border-white/5 bg-black/40 backdrop-blur-xl">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <button 
-            onClick={() => router.push("/messages")}
-            className="p-2 hover:bg-white/10 rounded-xl transition-colors shrink-0"
-            aria-label="Назад"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          
-          <div className="flex items-center gap-3 flex-1 min-w-0 justify-center">
-            {/* Аватар собеседника */}
-            {otherUser && (
-              <div className="relative shrink-0">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 p-[2px]">
-                  <div className="w-full h-full rounded-full bg-[#0a0a14] flex items-center justify-center overflow-hidden">
-                    {otherUser.avatar_url ? (
-                      <img src={otherUser.avatar_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-xs font-bold">{otherUser.display_name?.[0] || '?'}</span>
-                    )}
-                  </div>
-                </div>
-                {isEntangled && (
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#0a0a14] animate-pulse" />
-                )}
-              </div>
-            )}
-
-            <div className="min-w-0 text-left">
-              <div className="flex items-center gap-2">
-                <p className="font-semibold text-sm truncate">
-                  {otherUser?.display_name || "Prism Channel"}
-                </p>
-                <Lock size={12} className="text-cyan-400 shrink-0" />
-              </div>
-              <p className="text-[11px] text-white/50 truncate flex items-center gap-1.5">
-                <ShieldCheck size={10} className="text-cyan-400" />
-                {isEntangled ? "Квантовый канал защищён" : "Установка связи..."}
-              </p>
+      <header className="relative z-30 p-4 flex items-center justify-between backdrop-blur-md bg-black/20">
+        <button 
+          onClick={() => router.push("/messages")}
+          className="p-2 hover:bg-white/10 rounded-full transition-all"
+        >
+          <ArrowLeft size={20} />
+        </button>
+        
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-purple-600 p-[1px]">
+            <div className="w-full h-full rounded-full bg-black flex items-center justify-center">
+              {otherUser?.avatar_url ? (
+                <img src={otherUser.avatar_url} alt="" className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <span className="text-xs font-bold">{otherUser?.display_name?.[0] || '?'}</span>
+              )}
             </div>
           </div>
-          
-          {/* Статус */}
-          <div className={`shrink-0 px-3 py-1.5 rounded-full border flex items-center gap-1.5 transition-all ${
-            isEntangled 
-              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' 
-              : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-          }`}>
-            <div className={`w-1.5 h-1.5 rounded-full ${isEntangled ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-pulse'}`} />
-            <span className="text-[10px] font-semibold tracking-wider uppercase">
-              {isEntangled ? 'Entangled' : 'Syncing'}
-            </span>
+          <div>
+            <p className="text-sm font-semibold">{otherUser?.display_name || "Prism"}</p>
+            <p className="text-[10px] text-cyan-400 flex items-center gap-1">
+              <ShieldCheck size={8} />
+              {isEntangled ? 'Защищено' : 'Шифрование...'}
+            </p>
           </div>
         </div>
 
-        {/* Квантовая линия-разделитель */}
-        <div className="h-px w-full bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent" />
+        <div className="w-8" />
       </header>
 
-      {/* Область сообщений */}
-      <div 
-        ref={scrollContainerRef}
-        className="relative z-20 flex-1 overflow-y-auto"
-      >
-        <div className="max-w-3xl mx-auto px-4 py-6 space-y-1">
+      {/* Сообщения как кристаллы/призмы */}
+      <div className="relative z-20 flex-1 overflow-y-auto px-4 py-8 space-y-6">
+        {messages.filter(m => !m.text?.startsWith("__PRISM_GENESIS__:")).map((msg, index) => {
+          const isMine = msg.sender_id === currentUser?.id;
+          const time = new Date(msg.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
           
-          {/* Начальный блок "Entanglement established" */}
-          {messages.length > 0 && isEntangled && (
-            <div className="flex justify-center my-6">
-              <div className="px-4 py-2 rounded-full bg-white/5 border border-cyan-500/20 backdrop-blur-md flex items-center gap-2">
-                <Sparkles size={12} className="text-cyan-400" />
-                <span className="text-[11px] text-cyan-200/80 tracking-wide">
-                  Квантовая запутанность установлена
-                </span>
-                <Sparkles size={12} className="text-purple-400" />
+          return (
+            <div
+              key={msg.id}
+              className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
+              style={{
+                animation: `crystalAppear 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) ${index * 0.05}s both`,
+              }}
+            >
+              <div className={`
+                relative max-w-[80%] px-5 py-3 
+                backdrop-blur-xl border 
+                transform transition-all hover:scale-105
+                ${isMine 
+                  ? 'bg-gradient-to-br from-purple-600/40 to-cyan-600/20 border-purple-400/40 rounded-2xl rounded-tr-sm' 
+                  : 'bg-gradient-to-br from-cyan-600/30 to-purple-600/10 border-cyan-400/40 rounded-2xl rounded-tl-sm'
+                }
+              `}>
+                {/* Эффект преломления света */}
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/10 to-transparent pointer-events-none" />
+                
+                {/* Блик */}
+                <div className={`absolute top-0 ${isMine ? 'right-2' : 'left-2'} w-12 h-px bg-gradient-to-r from-transparent via-white/60 to-transparent`} />
+
+                <p className="relative text-sm leading-relaxed text-white/95">
+                  {msg.text}
+                </p>
+                
+                <p className="relative text-[10px] mt-2 text-white/40 flex items-center gap-1">
+                  {time}
+                  {isMine && <span className="text-cyan-400">◆</span>}
+                </p>
+
+                {/* Угловые акценты */}
+                <div className={`absolute -top-px ${isMine ? '-right-px' : '-left-px'} w-3 h-3 border-t border-${isMine ? 'purple' : 'cyan'}-400/60 ${isMine ? 'border-r' : 'border-l'}`} />
               </div>
             </div>
-          )}
+          );
+        })}
+        
+        <div ref={messagesEndRef} />
 
-          {/* Сообщения */}
-          {messages.filter(m => !m.text?.startsWith("__PRISM_GENESIS__:")).map((msg, index) => {
-            const isMine = msg.sender_id === currentUser?.id;
-            const isNew = newMsgIds.has(String(msg.id));
-            
-            // Проверка: предыдущее сообщение от того же отправителя?
-            const filteredMsgs = messages.filter(m => !m.text?.startsWith("__PRISM_GENESIS__:"));
-            const prevMsg = index > 0 ? filteredMsgs[index - 1] : null;
-            const isFirstInGroup = !prevMsg || prevMsg.sender_id !== msg.sender_id;
-
-            return (
-              <div
-                key={msg.id}
-                className={`flex ${isMine ? 'justify-end' : 'justify-start'} ${isFirstInGroup ? 'mt-4' : 'mt-0.5'}`}
-              >
-                {/* Аватар собеседника (только в начале группы) */}
-                {!isMine && (
-                  <div className="shrink-0 w-8">
-                    {isFirstInGroup && (
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-cyan-500/30 to-cyan-500/10 border border-cyan-500/30 flex items-center justify-center overflow-hidden">
-                        {otherUser?.avatar_url ? (
-                          <img src={otherUser.avatar_url} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-[10px] font-bold text-cyan-300">
-                            {otherUser?.display_name?.[0] || '?'}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Сообщение */}
-                <div className={`max-w-[75%] md:max-w-[65%] ${isMine ? 'items-end' : 'items-start'} flex flex-col ${isMine ? 'mr-1' : 'ml-2'}`}>
-                  {isFirstInGroup && !isMine && (
-                    <p className="text-[11px] text-cyan-300/70 mb-1 ml-1 font-medium">
-                      {otherUser?.display_name}
-                    </p>
-                  )}
-                  
-                  <div
-                    className={`
-                      relative px-4 py-2.5 backdrop-blur-md border transition-all duration-300
-                      ${isMine 
-                        ? 'bg-gradient-to-br from-purple-600/30 to-purple-800/20 border-purple-400/30 rounded-2xl rounded-tr-md' 
-                        : 'bg-gradient-to-br from-cyan-600/20 to-cyan-900/10 border-cyan-400/25 rounded-2xl rounded-tl-md'
-                      }
-                      ${isNew ? 'ring-2 ring-cyan-400/50 shadow-[0_0_20px_rgba(34,211,238,0.3)]' : ''}
-                    `}
-                    style={{
-                      animation: isNew ? 'msgAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)' : undefined,
-                    }}
-                  >
-                    {/* Декоративный угловой акцент */}
-                    <div className={`absolute top-0 ${isMine ? 'right-0' : 'left-0'} w-16 h-px ${
-                      isMine 
-                        ? 'bg-gradient-to-l from-purple-400/60 to-transparent' 
-                        : 'bg-gradient-to-r from-cyan-400/60 to-transparent'
-                    }`} />
-
-                    <p className="text-[14px] leading-relaxed text-white/95 break-words whitespace-pre-wrap">
-                      {msg.text}
-                    </p>
-                    
-                    <p className={`text-[10px] mt-1 ${isMine ? 'text-purple-200/50 text-right' : 'text-cyan-200/50'}`}>
-                      {new Date(msg.created_at).toLocaleTimeString("ru-RU", {
-                        hour: "2-digit",
-                        minute: "2-digit"
-                      })}
-                    </p>
+        {messages.filter(m => !m.text?.startsWith("__PRISM_GENESIS__:")).length === 0 && isEntangled && (
+          <div className="flex flex-col items-center justify-center h-64 text-center">
+            <div className="relative w-32 h-32 mb-6">
+              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500 to-purple-600 blur-3xl opacity-40 animate-pulse" />
+              <div className="relative w-full h-full flex items-center justify-center">
+                <div className="w-20 h-20 border-2 border-cyan-400/30 rounded-full flex items-center justify-center animate-spin" style={{ animationDuration: '10s' }}>
+                  <div className="w-16 h-16 border-2 border-purple-400/30 rounded-full flex items-center justify-center animate-spin" style={{ animationDuration: '8s', animationDirection: 'reverse' }}>
+                    <Zap size={24} className="text-cyan-300" />
                   </div>
                 </div>
-
-                {/* Пустой spacer для своих сообщений */}
-                {isMine && <div className="shrink-0 w-8" />}
-              </div>
-            );
-          })}
-          
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Пустое состояние */}
-        {messages.filter(m => !m.text?.startsWith("__PRISM_GENESIS__:")).length === 0 && isEntangled && (
-          <div className="flex flex-col items-center justify-center h-full text-center px-8">
-            <div className="relative w-24 h-24 mb-6">
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-500 to-purple-600 blur-2xl opacity-40 animate-pulse" />
-              <div className="relative w-full h-full rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-600/20 border border-white/10 flex items-center justify-center">
-                <ShieldCheck size={36} className="text-cyan-300" />
               </div>
             </div>
-            <h2 className="text-xl font-semibold mb-2 bg-gradient-to-r from-cyan-300 to-purple-300 bg-clip-text text-transparent">
-              Канал активен
+            <h2 className="text-lg font-semibold mb-2 bg-gradient-to-r from-cyan-300 via-purple-300 to-pink-300 bg-clip-text text-transparent">
+              Канал активирован
             </h2>
-            <p className="text-sm text-white/50 max-w-sm">
-              Сообщения здесь защищены сквозным шифрованием с разделением ключа на три спектра. Отправьте первое сообщение.
+            <p className="text-xs text-white/40 max-w-xs">
+              Нажмите на кристалл внизу чтобы отправить сообщение
             </p>
           </div>
         )}
       </div>
 
-      {/* Поле ввода */}
-      <div className="relative z-30 border-t border-white/5 bg-black/60 backdrop-blur-xl">
-        <div className="max-w-3xl mx-auto p-3 md:p-4">
-          {/* Индикатор безопасности */}
-          <div className="flex items-center gap-1.5 mb-2 px-1">
-            <Lock size={10} className="text-cyan-400/70" />
-            <span className="text-[10px] text-white/40 tracking-wide">
-              End-to-end encrypted · Prism Protocol
-            </span>
-          </div>
-
-          <div className="flex items-end gap-2 bg-white/[0.04] backdrop-blur-md border border-white/10 rounded-2xl p-2 focus-within:border-cyan-500/40 transition-colors">
-            <textarea
-              ref={inputRef}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-              placeholder="Напишите сообщение..."
-              className="flex-1 bg-transparent border-none outline-none text-white placeholder-white/30 resize-none text-sm px-2 py-1.5"
-              rows={1}
-              style={{ minHeight: '40px', maxHeight: '120px' }}
+      {/* Плавающий кристалл-инпут */}
+      <div className="relative z-40 pb-8">
+        <div className="flex justify-center">
+          {!isInputOpen ? (
+            <button
+              onClick={() => setIsInputOpen(true)}
               disabled={!isEntangled}
-            />
-            <button 
-              onClick={sendMessage}
-              disabled={!text.trim() || !isEntangled}
-              className="shrink-0 p-2.5 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 disabled:opacity-30 disabled:cursor-not-allowed hover:shadow-[0_0_20px_rgba(34,211,238,0.4)] active:scale-95 transition-all"
-              aria-label="Отправить"
+              className="group relative w-16 h-16 disabled:opacity-30"
             >
-              <Send size={18} className="text-white" />
+              {/* Пульсирующие кольца */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-cyan-500 to-purple-600 animate-ping opacity-20" />
+              <div className="absolute inset-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-600 animate-ping opacity-20" style={{ animationDelay: '0.5s' }} />
+              
+              {/* Сам кристалл */}
+              <div className="relative w-full h-full rounded-full bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 p-[2px] shadow-[0_0_40px_rgba(139,92,246,0.6)] group-hover:shadow-[0_0_60px_rgba(139,92,246,0.8)] transition-all group-hover:scale-110">
+                <div className="w-full h-full rounded-full bg-black/40 backdrop-blur-xl flex items-center justify-center">
+                  <Send size={24} className="text-white transform -rotate-12 group-hover:rotate-0 transition-transform" />
+                </div>
+              </div>
+
+              {/* Световые лучи вокруг */}
+              <div className="absolute inset-0 rounded-full animate-spin" style={{ animationDuration: '8s' }}>
+                {[...Array(6)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute top-0 left-1/2 w-px h-full origin-bottom"
+                    style={{
+                      background: 'linear-gradient(to bottom, rgba(139,92,246,0.4), transparent)',
+                      transform: `translateX(-50%) rotate(${i * 60}deg)`,
+                    }}
+                  />
+                ))}
+              </div>
             </button>
-          </div>
+          ) : (
+            <div 
+              className="relative w-full max-w-md mx-4 animate-inputSlide"
+              style={{
+                animation: 'inputSlide 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              }}
+            >
+              {/* Свечение вокруг инпута */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 rounded-2xl blur opacity-40" />
+              
+              <div className="relative flex items-end gap-2 bg-black/80 backdrop-blur-2xl border border-white/20 rounded-2xl p-3">
+                <textarea
+                  ref={inputRef}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                    if (e.key === 'Escape') {
+                      setIsInputOpen(false);
+                      setText("");
+                    }
+                  }}
+                  placeholder="Введите сообщение..."
+                  className="flex-1 bg-transparent border-none outline-none text-white placeholder-white/30 resize-none text-sm"
+                  rows={1}
+                  style={{ minHeight: '40px', maxHeight: '120px' }}
+                />
+                <button 
+                  onClick={sendMessage}
+                  disabled={!text.trim()}
+                  className="shrink-0 p-2 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 disabled:opacity-30 hover:scale-110 transition-transform shadow-lg"
+                >
+                  <Send size={18} className="text-white" />
+                </button>
+              </div>
+
+              {/* Подсказка */}
+              <p className="text-center text-[10px] text-white/30 mt-2">
+                Enter — отправить • Esc — закрыть
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
       <style jsx>{`
-        @keyframes twinkle {
-          0%, 100% { opacity: 0.15; }
-          50% { opacity: 0.9; }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-20px); }
         }
-        @keyframes msgAppear {
+        @keyframes crystalAppear {
           0% { 
             opacity: 0; 
-            transform: translateY(8px) scale(0.95);
+            transform: translateY(20px) scale(0.9) rotateX(-15deg);
           }
           100% { 
             opacity: 1; 
-            transform: translateY(0) scale(1);
+            transform: translateY(0) scale(1) rotateX(0deg);
           }
         }
-        
-        /* Тонкий скроллбар */
-        div::-webkit-scrollbar {
-          width: 6px;
-        }
-        div::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        div::-webkit-scrollbar-thumb {
-          background: rgba(139, 92, 246, 0.3);
-          border-radius: 3px;
-        }
-        div::-webkit-scrollbar-thumb:hover {
-          background: rgba(139, 92, 246, 0.5);
+        @keyframes inputSlide {
+          0% {
+            opacity: 0;
+            transform: scale(0.8) translateY(20px);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
         }
       `}</style>
     </div>
