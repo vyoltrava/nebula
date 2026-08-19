@@ -101,6 +101,7 @@ export default function MessagesPage() {
   const { refresh } = useUnreadCounts();
   const [activeChatMenu, setActiveChatMenu] = useState<number | null>(null);
   const [pinningChat, setPinningChat] = useState<number | null>(null);
+  const [chatMenuPosition, setChatMenuPosition] = useState<{ x: number; y: number } | null>(null);
 
   const chats = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -208,6 +209,7 @@ export default function MessagesPage() {
     } finally {
       setPinningChat(null);
       setActiveChatMenu(null);
+      setChatMenuPosition(null);
     }
   }
 
@@ -401,70 +403,79 @@ export default function MessagesPage() {
     }
   };
 
+  const handleOpenChatMenu = (e: React.MouseEvent, chatId: number) => {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setChatMenuPosition({
+      x: rect.right - 240,
+      y: rect.bottom + 8,
+    });
+    setActiveChatMenu(activeChatMenu === chatId ? null : chatId);
+  };
+
   return (
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
       <div className="w-px shrink-0 bg-white/10 my-3" />
-      <main className="flex-1 overflow-y-auto border-x border-white/10">
+      <main className="flex-1 overflow-y-auto border-x border-white/10 relative">
         
-{/* ШАПКА */}
-<div className="p-4 md:p-6 border-b border-white/10 sticky top-0 bg-[#171717]/95 backdrop-blur-md z-10">
-  <div className="flex items-center gap-4">
-    
-    {/* Левая часть: Иконка и Текст */}
-    <div className="flex items-center gap-3 shrink-0">
-      <MessageSquare size={24} className="text-[#8b5cf6]" />
-      <h1 className="text-xl md:text-2xl font-black text-white">Сообщения</h1>
-    </div>
+        {/* ШАПКА */}
+        <div className="p-4 md:p-6 border-b border-white/10 sticky top-0 bg-[#171717]/95 backdrop-blur-md z-10">
+          <div className="flex items-center gap-4">
+            
+            {/* Левая часть: Только иконка */}
+            <div className="flex items-center gap-3 shrink-0">
+              <MessageSquare size={24} className="text-[#8b5cf6]" />
+            </div>
 
-    {/* Средняя часть: Невидимый поиск */}
-    <div className="relative flex-1 max-w-md">
-      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Поиск..."
-        className="w-full pl-9 pr-4 py-2 bg-transparent border-none outline-none text-white placeholder-white/40 text-sm focus:ring-0"
-      />
-      {searchLoading && (
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
-      )}
-    </div>
+            {/* Средняя часть: Поиск */}
+            <div className="relative flex-1 max-w-md">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Поиск..."
+                className="w-full pl-9 pr-4 py-2 bg-transparent border-none outline-none text-white placeholder-white/40 text-sm focus:ring-0"
+              />
+              {searchLoading && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
+              )}
+            </div>
 
-    {/* Правая часть: Кнопка "+" (прижата к краю через ml-auto) */}
-    <div className="relative ml-auto shrink-0">
-      <button
-        onClick={() => setShowCreateMenu(!showCreateMenu)}
-        className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#8b5cf6]/10 text-[#8b5cf6] hover:bg-[#8b5cf6]/20 transition-colors border border-[#8b5cf6]/30"
-      >
-        <Plus size={24} />
-      </button>
+            {/* Правая часть: Кнопка "+" */}
+            <div className="relative ml-auto shrink-0">
+              <button
+                onClick={() => setShowCreateMenu(!showCreateMenu)}
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#8b5cf6]/10 text-[#8b5cf6] hover:bg-[#8b5cf6]/20 transition-colors border border-[#8b5cf6]/30"
+              >
+                <Plus size={24} />
+              </button>
 
-      {showCreateMenu && (
-        <div className="absolute right-0 top-12 w-56 bg-[#1f1f23] border border-white/10 rounded-xl shadow-2xl z-[9999] overflow-visible animate-in fade-in slide-in-from-top-2 duration-200">
-          <button
-            onClick={() => { setShowCreateMenu(false); openSavedMessages(); }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
-          >
-            <Bookmark size={16} className="text-yellow-400" /> Избранное
-          </button>
-          <button
-            onClick={() => { setShowCreateMenu(false); setShowCreateGroup(true); }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors border-t border-white/5"
-          >
-            <Users size={16} className="text-[#8b5cf6]" /> Создать группу
-          </button>
-          <button
-            onClick={() => { setShowCreateMenu(false); setShowPrismModal(true); }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors border-t border-white/5"
-          >
-            <ShieldCheck size={16} className="text-cyan-400" /> PRISM Link
-          </button>
+              {showCreateMenu && (
+                <div className="absolute right-0 top-12 w-56 bg-[#1f1f23] border border-white/10 rounded-xl shadow-2xl z-[9999] overflow-visible animate-in fade-in slide-in-from-top-2 duration-200">
+                  <button
+                    onClick={() => { setShowCreateMenu(false); openSavedMessages(); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
+                  >
+                    <Bookmark size={16} className="text-yellow-400" /> Избранное
+                  </button>
+                  <button
+                    onClick={() => { setShowCreateMenu(false); setShowCreateGroup(true); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors border-t border-white/5"
+                  >
+                    <Users size={16} className="text-[#8b5cf6]" /> Создать группу
+                  </button>
+                  <button
+                    onClick={() => { setShowCreateMenu(false); setShowPrismModal(true); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors border-t border-white/5"
+                  >
+                    <ShieldCheck size={16} className="text-cyan-400" /> PRISM Link
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      )}
-    </div>
-  </div>
-</div>
 
         {loading && <ChatListSkeleton />}
         
@@ -515,7 +526,7 @@ export default function MessagesPage() {
                   router.push(`/messages/${chat.id}`);
                 }
               }}
-              onSwipeRight={() => setActiveChatMenu(activeChatMenu === chat.id ? null : chat.id)}
+              onSwipeRight={(e) => handleOpenChatMenu(e, chat.id)}
               onSwipeLeft={() => {
                 const name = isGroup ? chat.name : otherUser?.display_name || "чат";
                 deleteChat(chat.id, name);
@@ -632,10 +643,7 @@ export default function MessagesPage() {
 
                 <div className="shrink-0">
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveChatMenu(activeChatMenu === chat.id ? null : chat.id);
-                    }}
+                    onClick={(e) => handleOpenChatMenu(e, chat.id)}
                     className="p-1.5 text-white/40 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
                   >
                     {pinningChat === chat.id ? (
@@ -657,128 +665,179 @@ export default function MessagesPage() {
             </SwipeableChatItem>
           );
         })}
-      </main>
 
-      {/* BOTTOM-SHEET МЕНЮ ЧАТА */}
-      {activeChatMenu !== null && (() => {
-        const menuChat = chats.find((c) => c.id === activeChatMenu);
-        if (!menuChat) return null;
-        return (
-          <>
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250]" onClick={() => setActiveChatMenu(null)} />
-            <div className="fixed bottom-0 left-0 right-0 z-[251] bg-[#1f1f23] border-t border-white/15 rounded-t-2xl shadow-2xl p-3 pb-8 animate-in slide-in-from-bottom-4 duration-200 md:left-auto md:right-6 md:bottom-6 md:w-80 md:rounded-2xl md:border md:pb-3">
-              <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-3 md:hidden" />
-              <p className="text-xs text-white/40 mb-2 px-1 truncate">
-                {menuChat.is_group ? menuChat.name : menuChat.other?.display_name}
-              </p>
-              <button
-                onClick={() => togglePinChat(menuChat.id, !!menuChat.pinned)}
-                className="w-full px-3 py-3 rounded-xl text-left text-sm text-white hover:bg-white/10 flex items-center gap-2.5 transition-colors"
-              >
-                {menuChat.pinned ? <PinOff size={16} className="text-yellow-400" /> : <Pin size={16} className="text-[#8b5cf6]" />}
-                {menuChat.pinned ? "Открепить" : "Закрепить"}
-              </button>
-              <button
-                onClick={() => { setActiveChatMenu(null); refresh(); router.push(`/messages/${menuChat.id}`); }}
-                className="w-full px-3 py-3 rounded-xl text-left text-sm text-white hover:bg-white/10 flex items-center gap-2.5 transition-colors"
-              >
-                <MessageSquare size={16} className="text-white/60" /> Открыть чат
-              </button>
-              <div className="h-px bg-white/10 my-1" />
-              <button
-                onClick={() => {
-                  const name = menuChat.is_group ? menuChat.name : menuChat.other?.display_name || "чат";
-                  setActiveChatMenu(null);
-                  deleteChat(menuChat.id, name);
-                }}
-                className="w-full px-3 py-3 rounded-xl text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
-              >
-                <Trash2 size={16} className="text-red-400" /> Удалить чат
-              </button>
-            </div>
-          </>
-        );
-      })()}
-
-      {showCreateGroup && (
-        <CreateGroupModal
-          onClose={() => setShowCreateGroup(false)}
-          onCreated={(chatId) => {
-            setShowCreateGroup(false);
-            router.push(`/messages/${chatId}`);
-          }}
-        />
-      )}
-
-      {/* МОДАЛКА СОЗДАНИЯ ПРИЗМЫ */}
-      {showPrismModal && (
-        <>
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300]" onClick={() => setShowPrismModal(false)} />
-          <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full max-w-md bg-[#171717] border border-cyan-500/30 rounded-2xl shadow-[0_0_40px_rgba(34,211,238,0.1)] flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
-              <div className="p-4 border-b border-white/10 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                    <ShieldCheck size={18} className="text-cyan-400" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-white tracking-wide">INITIATE PRISM</h3>
-                    <p className="text-[10px] text-cyan-400/70 uppercase tracking-widest">Бесшовное E2E шифрование</p>
-                  </div>
+        {/* BOTTOM-SHEET / POPOVER МЕНЮ ЧАТА - ВНУТРИ MAIN */}
+        {activeChatMenu !== null && chatMenuPosition && (() => {
+          const menuChat = chats.find((c) => c.id === activeChatMenu);
+          if (!menuChat) return null;
+          
+          // Для мобильных устройств показываем bottom-sheet
+          const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+          
+          if (isMobile) {
+            return (
+              <>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200]" onClick={() => { setActiveChatMenu(null); setChatMenuPosition(null); }} />
+                <div className="fixed bottom-0 left-0 right-0 z-[201] bg-[#1f1f23] border-t border-white/15 rounded-t-2xl shadow-2xl p-3 pb-8 animate-in slide-in-from-bottom-4 duration-200">
+                  <div className="w-10 h-1 rounded-full bg-white/20 mx-auto mb-3" />
+                  <p className="text-xs text-white/40 mb-2 px-1 truncate">
+                    {menuChat.is_group ? menuChat.name : menuChat.other?.display_name}
+                  </p>
+                  <button
+                    onClick={() => togglePinChat(menuChat.id, !!menuChat.pinned)}
+                    className="w-full px-3 py-3 rounded-xl text-left text-sm text-white hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+                  >
+                    {menuChat.pinned ? <PinOff size={16} className="text-yellow-400" /> : <Pin size={16} className="text-[#8b5cf6]" />}
+                    {menuChat.pinned ? "Открепить" : "Закрепить"}
+                  </button>
+                  <button
+                    onClick={() => { setActiveChatMenu(null); setChatMenuPosition(null); refresh(); router.push(`/messages/${menuChat.id}`); }}
+                    className="w-full px-3 py-3 rounded-xl text-left text-sm text-white hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+                  >
+                    <MessageSquare size={16} className="text-white/60" /> Открыть чат
+                  </button>
+                  <div className="h-px bg-white/10 my-1" />
+                  <button
+                    onClick={() => {
+                      const name = menuChat.is_group ? menuChat.name : menuChat.other?.display_name || "чат";
+                      setActiveChatMenu(null);
+                      setChatMenuPosition(null);
+                      deleteChat(menuChat.id, name);
+                    }}
+                    className="w-full px-3 py-3 rounded-xl text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
+                  >
+                    <Trash2 size={16} className="text-red-400" /> Удалить чат
+                  </button>
                 </div>
-                <button onClick={() => setShowPrismModal(false)} className="text-white/40 hover:text-white p-1">
-                  <X size={18} />
+              </>
+            );
+          }
+          
+          // Для десктопа - поповер рядом с кнопкой
+          return (
+            <>
+              <div className="fixed inset-0 z-[200]" onClick={() => { setActiveChatMenu(null); setChatMenuPosition(null); }} />
+              <div 
+                className="fixed z-[201] bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl p-2 w-56 animate-in fade-in zoom-in-95 duration-150"
+                style={{
+                  top: chatMenuPosition.y,
+                  left: Math.min(chatMenuPosition.x, window.innerWidth - 240),
+                  maxWidth: 'calc(100vw - 20px)',
+                }}
+              >
+                <p className="text-xs text-white/40 mb-1 px-2 truncate">
+                  {menuChat.is_group ? menuChat.name : menuChat.other?.display_name}
+                </p>
+                <button
+                  onClick={() => togglePinChat(menuChat.id, !!menuChat.pinned)}
+                  className="w-full px-3 py-2.5 rounded-lg text-left text-sm text-white hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+                >
+                  {menuChat.pinned ? <PinOff size={15} className="text-yellow-400" /> : <Pin size={15} className="text-[#8b5cf6]" />}
+                  {menuChat.pinned ? "Открепить" : "Закрепить"}
+                </button>
+                <button
+                  onClick={() => { setActiveChatMenu(null); setChatMenuPosition(null); refresh(); router.push(`/messages/${menuChat.id}`); }}
+                  className="w-full px-3 py-2.5 rounded-lg text-left text-sm text-white hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+                >
+                  <MessageSquare size={15} className="text-white/60" /> Открыть чат
+                </button>
+                <div className="h-px bg-white/10 my-1" />
+                <button
+                  onClick={() => {
+                    const name = menuChat.is_group ? menuChat.name : menuChat.other?.display_name || "чат";
+                    setActiveChatMenu(null);
+                    setChatMenuPosition(null);
+                    deleteChat(menuChat.id, name);
+                  }}
+                  className="w-full px-3 py-2.5 rounded-lg text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
+                >
+                  <Trash2 size={15} className="text-red-400" /> Удалить чат
                 </button>
               </div>
+            </>
+          );
+        })()}
 
-              <div className="p-4 space-y-4">
-                <p className="text-xs text-white/60 leading-relaxed">
-                  Выберите пользователя. Ключ шифрования будет разделен на 3 спектра. 
-                  Для восстановления истории на новом устройстве потребуется только ваш PIN-код.
-                </p>
-                
-                <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-                  <input
-                    value={prismSearchQuery}
-                    onChange={(e) => { setPrismSearchQuery(e.target.value); searchUsersForPrism(e.target.value); }}
-                    placeholder="Поиск по @username или имени..."
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-cyan-500/50 text-sm"
-                    autoFocus
-                  />
+        {showCreateGroup && (
+          <CreateGroupModal
+            onClose={() => setShowCreateGroup(false)}
+            onCreated={(chatId) => {
+              setShowCreateGroup(false);
+              router.push(`/messages/${chatId}`);
+            }}
+          />
+        )}
+
+        {/* МОДАЛКА СОЗДАНИЯ ПРИЗМЫ - ВНУТРИ MAIN */}
+        {showPrismModal && (
+          <>
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300]" onClick={() => setShowPrismModal(false)} />
+            <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none">
+              <div className="w-full max-w-md bg-[#171717] border border-cyan-500/30 rounded-2xl shadow-[0_0_40px_rgba(34,211,238,0.1)] flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
+                <div className="p-4 border-b border-white/10 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
+                      <ShieldCheck size={18} className="text-cyan-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white tracking-wide">INITIATE PRISM</h3>
+                      <p className="text-[10px] text-cyan-400/70 uppercase tracking-widest">Бесшовное E2E шифрование</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowPrismModal(false)} className="text-white/40 hover:text-white p-1">
+                    <X size={18} />
+                  </button>
                 </div>
 
-                <div className="max-h-60 overflow-y-auto space-y-1">
-                  {prismSearchResults.map((u: any) => (
-                    <button
-                      key={u.id}
-                      onClick={() => initiatePrism(u.id, u.username)}
-                      disabled={isCreatingPrism}
-                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/30 transition-all text-left disabled:opacity-50"
-                    >
-                      <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={36} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-white truncate">{u.display_name}</p>
-                        <p className="text-xs text-white/40 truncate">@{u.username}</p>
+                <div className="p-4 space-y-4">
+                  <p className="text-xs text-white/60 leading-relaxed">
+                    Выберите пользователя. Ключ шифрования будет разделен на 3 спектра. 
+                    Для восстановления истории на новом устройстве потребуется только ваш PIN-код.
+                  </p>
+                  
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+                    <input
+                      value={prismSearchQuery}
+                      onChange={(e) => { setPrismSearchQuery(e.target.value); searchUsersForPrism(e.target.value); }}
+                      placeholder="Поиск по @username или имени..."
+                      className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-cyan-500/50 text-sm"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="max-h-60 overflow-y-auto space-y-1">
+                    {prismSearchResults.map((u: any) => (
+                      <button
+                        key={u.id}
+                        onClick={() => initiatePrism(u.id, u.username)}
+                        disabled={isCreatingPrism}
+                        className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/30 transition-all text-left disabled:opacity-50"
+                      >
+                        <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={36} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-white truncate">{u.display_name}</p>
+                          <p className="text-xs text-white/40 truncate">@{u.username}</p>
+                        </div>
+                        <Lock size={14} className="text-cyan-400/50" />
+                      </button>
+                    ))}
+                    {prismSearchQuery && prismSearchResults.length === 0 && !isCreatingPrism && (
+                      <p className="text-center text-xs text-white/30 py-4">Пользователи не найдены</p>
+                    )}
+                    {isCreatingPrism && (
+                      <div className="flex items-center justify-center gap-2 py-4 text-cyan-400 text-xs">
+                        <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                        Генерация спектров и шифрование...
                       </div>
-                      <Lock size={14} className="text-cyan-400/50" />
-                    </button>
-                  ))}
-                  {prismSearchQuery && prismSearchResults.length === 0 && !isCreatingPrism && (
-                    <p className="text-center text-xs text-white/30 py-4">Пользователи не найдены</p>
-                  )}
-                  {isCreatingPrism && (
-                    <div className="flex items-center justify-center gap-2 py-4 text-cyan-400 text-xs">
-                      <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-                      Генерация спектров и шифрование...
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </main>
     </div>
   );
 }
