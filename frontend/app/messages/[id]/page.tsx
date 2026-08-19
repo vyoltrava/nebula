@@ -191,78 +191,88 @@ export default function ChatPage() {
   const [popReaction, setPopReaction] = useState<{content: string, type: 'emoji' | 'sticker', stickerId?: number, x: number, y: number, id: number, visible: boolean} | null>(null);
   const [showInputActions, setShowInputActions] = useState(false);
 
-// Добавьте эту функцию перед return компонента ChatPage
 const handleContextMenu = (e: React.MouseEvent, msg: any) => {
-  if (isSelectMode || isSecret) return;
+  if (isSelectMode) return; // Убрал isSecret, чтобы меню открывалось везде
   e.preventDefault();
   
-  // Размеры окна и примерные размеры меню
   const windowWidth = window.innerWidth;
   const windowHeight = window.innerHeight;
-  const menuWidth = 220;
-  const menuHeight = 300; // С запасом на количество пунктов
+  const menuWidth = 240;
+  const menuHeight = 320; // С запасом на количество пунктов
   
-  // Вычисляем координаты, чтобы меню не вылезало за правый/нижний край экрана
   let x = e.clientX;
   let y = e.clientY;
   
+  // Если меню вылезает за правый край, сдвигаем влево
   if (x + menuWidth > windowWidth) {
     x = windowWidth - menuWidth - 10;
   }
+  // Если меню вылезает за нижний край, сдвигаем вверх
   if (y + menuHeight > windowHeight) {
     y = windowHeight - menuHeight - 10;
   }
   
+  // Гарантируем, что координаты не отрицательные
+  x = Math.max(10, x);
+  y = Math.max(10, y);
+  
+  console.log("🖱️ Правый клик: открываем меню для msg.id =", msg.id, "координаты:", { x, y });
   setContextMenu({ msg, x, y });
 };
 
+const insertTextAtCursor = (textToInsert: string) => {
+  const textarea = textareaRef.current;
+  if (!textarea) {
+    setText((prev) => prev + textToInsert);
+    return;
+  }
+  
+  const start = textarea.selectionStart ?? 0;
+  const end = textarea.selectionEnd ?? 0;
+  
+  // ✅ КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: берем актуальное значение из DOM, а не из замыкания
+  const currentText = textarea.value;
+  const newText = currentText.substring(0, start) + textToInsert + currentText.substring(end);
+  
+  setText(newText);
+  sendLiveText(newText);
+  
+  // Возвращаем фокус и ставим курсор после вставленного символа
+  setTimeout(() => {
+    textarea.focus();
+    const newCursorPos = start + textToInsert.length;
+    textarea.setSelectionRange(newCursorPos, newCursorPos);
+  }, 10);
+};
 
-  // ✅ НОВАЯ ФУНКЦИЯ: Вставка текста (эмодзи) в позицию курсора
-  const insertTextAtCursor = (textToInsert: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) {
-      setText((prev) => prev + textToInsert);
-      return;
-    }
-    
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const newText = text.substring(0, start) + textToInsert + text.substring(end);
-    
-    setText(newText);
-    sendLiveText(newText); // Обновляем "печатает..."
-    
-    // Возвращаем фокус и ставим курсор после вставленного символа
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + textToInsert.length, start + textToInsert.length);
-    }, 0);
-  };
 
 
-
-  const allAvailableReactions = useMemo(() => {
-    const result: {type: 'emoji' | 'sticker', content: string, stickerId?: number, packName: string, locked: boolean, minLevel?: number}[] = [];
-    
-    // Если паков нет, возвращаем пустой массив (никаких "стандартных" наборов!)
-    if (!stickerPacks || stickerPacks.length === 0) return result;
-
-    stickerPacks.forEach(pack => {
-      const userLevel = currentUser?.level ?? 0;
-      const locked = (pack.min_level || 0) > userLevel;
-      pack.stickers?.forEach((s: any) => {
-        result.push({
-          type: s.type,
-          content: s.content,
-          stickerId: s.type === 'sticker' ? Number(s.id) : undefined,
-          packName: pack.name,
-          locked,
-          minLevel: pack.min_level
-        });
+ const allAvailableReactions = useMemo(() => {
+  const result: {type: 'emoji' | 'sticker', content: string, stickerId?: number, packName: string, locked: boolean, minLevel?: number}[] = [];
+  
+  if (!stickerPacks || stickerPacks.length === 0) {
+    console.log("⚠️ stickerPacks пуст, реакции не сгенерированы");
+    return result;
+  }
+  
+  stickerPacks.forEach(pack => {
+    const userLevel = currentUser?.level ?? 0;
+    const locked = (pack.min_level || 0) > userLevel;
+    pack.stickers?.forEach((s: any) => {
+      result.push({
+        type: s.type,
+        content: s.content,
+        stickerId: s.type === 'sticker' ? Number(s.id) : undefined,
+        packName: pack.name,
+        locked,
+        minLevel: pack.min_level
       });
     });
-    return result;
-  }, [stickerPacks, currentUser]);
+  });
+  
+  console.log("✅ Итоговые доступные реакции для меню (всего):", result.length, "Первые 5:", result.slice(0, 5));
+  return result;
+}, [stickerPacks, currentUser]);
 
   // Загружаем сохранённую реакцию
   useEffect(() => {
@@ -1217,22 +1227,22 @@ for (const msg of messagesToSend) {
     setActiveMessageMenu(null);
   }
 
-  async function loadStickerPacks() {
-    const token = getToken();
-    if (!token) return;
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sticker-packs`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        console.log("✅ ЗАГРУЖЕНЫ СТИКЕР-ПАКИ:", data); // ← ПРОВЕРЬТЕ ЭТО В КОНСОЛИ БРАУЗЕРА
-        setStickerPacks(Array.isArray(data) ? data : []);
-      }
-    } catch (err) {
-      console.error("Failed to load sticker packs:", err);
+async function loadStickerPacks() {
+  const token = getToken();
+  if (!token) return;
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sticker-packs`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      console.log("📦 ЗАГРУЖЕНЫ СТИКЕР-ПАКИ С СЕРВЕРА:", data);
+      setStickerPacks(Array.isArray(data) ? data : []);
     }
+  } catch (err) {
+    console.error("Failed to load sticker packs:", err);
   }
+}
 
   async function toggleReaction(msgId: number, stickerId?: number, emoji?: string) {
     const token = getToken();
@@ -3309,29 +3319,32 @@ style={{
                           </div>
                         ) : (
                           <div className="grid grid-cols-5 gap-2">
-                            {pack.stickers?.map((s: any) => (
-                              <button
-                                key={s.id}
-                                onClick={() => {
-                                  // ✅ ИСПРАВЛЕНО: Эмодзи вставляем в текст, стикеры отправляем
-                                  if (s.type === "emoji") {
-                                    insertTextAtCursor(s.content);
-                                    // Панель НЕ закрываем, чтобы можно было добавить несколько смайлов
-                                  } else {
-                                    sendStickerMessage(Number(s.id));
-                                    setShowStickers(false); // Панель закрываем после отправки стикера
-                                  }
-                                }}
-                                className="aspect-square flex items-center justify-center rounded-xl hover:bg-white/10 active:scale-90 transition-all"
-                                title={s.type === "emoji" ? "Вставить в текст" : "Отправить стикер"}
-                              >
-                                {s.type === "emoji" ? (
-                                  <span className="text-2xl">{s.content}</span>
-                                ) : (
-                                  <img src={s.content} alt="" className="w-10 h-10 object-contain" />
-                                )}
-                              </button>
-                            ))}
+{pack.stickers?.map((s: any) => (
+  <button
+    key={s.id}
+    onClick={(e) => {
+      e.stopPropagation(); // Предотвращаем случайное всплытие клика
+      console.log("🎯 Клик по элементу в панели стикеров:", s);
+      
+      // ✅ ИСПРАВЛЕНО: Эмодзи вставляем в текст, стикеры отправляем
+      if (s.type === "emoji") {
+        insertTextAtCursor(s.content);
+        // Панель НЕ закрываем, чтобы можно было добавить несколько смайлов
+      } else {
+        sendStickerMessage(Number(s.id));
+        setShowStickers(false); // Панель закрываем после отправки стикера
+      }
+    }}
+    className="aspect-square flex items-center justify-center rounded-xl hover:bg-white/10 active:scale-90 transition-all"
+    title={s.type === "emoji" ? "Вставить в текст" : "Отправить стикер"}
+  >
+    {s.type === "emoji" ? (
+      <span className="text-2xl">{s.content}</span>
+    ) : (
+      <img src={s.content} alt="" className="w-10 h-10 object-contain" />
+    )}
+  </button>
+))}
                           </div>
                         )}
                       </div>
