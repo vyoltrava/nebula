@@ -14,7 +14,6 @@ import { pinChat, unpinChat } from "@/lib/api";
 import { useSwipe } from "@/lib/useSwipe";
 import { generatePrismKey, splitKeyIntoShards, encryptAnchorWithPin, embedDataInImage } from "@/lib/prismCrypto";
 
-// Компонент карточки чата со свайпом
 function SwipeableChatItem({
   children,
   onSwipeRight,
@@ -409,17 +408,16 @@ export default function MessagesPage() {
       <div className="w-px shrink-0 bg-white/10 my-3" />
       <main className="flex-1 overflow-y-auto border-x border-white/10">
         
-        {/* ШАПКА */}
+        {/* ШАПКА - только иконка и поиск */}
         <div className="p-4 md:p-6 border-b border-white/10 sticky top-0 bg-[#171717]/95 backdrop-blur-md z-10">
           <div className="flex items-center gap-4">
             
-            {/* Левая часть: Иконка и Текст */}
+            {/* Иконка */}
             <div className="flex items-center gap-3 shrink-0">
               <MessageSquare size={24} className="text-[#8b5cf6]" />
-              <h1 className="text-xl md:text-2xl font-black text-white">Сообщения</h1>
             </div>
 
-            {/* Средняя часть: Невидимый поиск */}
+            {/* Поиск */}
             <div className="relative flex-1 max-w-md">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
               <input
@@ -430,39 +428,6 @@ export default function MessagesPage() {
               />
               {searchLoading && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
-              )}
-            </div>
-
-            {/* Правая часть: Кнопка "+" */}
-            <div className="relative ml-auto shrink-0">
-              <button
-                onClick={() => setShowCreateMenu(!showCreateMenu)}
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#8b5cf6]/10 text-[#8b5cf6] hover:bg-[#8b5cf6]/20 transition-colors border border-[#8b5cf6]/30"
-              >
-                <Plus size={24} />
-              </button>
-
-              {showCreateMenu && (
-                <div className="absolute right-0 top-12 w-56 bg-[#1f1f23] border border-white/10 rounded-xl shadow-2xl z-[9999] overflow-visible animate-in fade-in slide-in-from-top-2 duration-200">
-                  <button
-                    onClick={() => { setShowCreateMenu(false); openSavedMessages(); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
-                  >
-                    <Bookmark size={16} className="text-yellow-400" /> Избранное
-                  </button>
-                  <button
-                    onClick={() => { setShowCreateMenu(false); setShowCreateGroup(true); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors border-t border-white/5"
-                  >
-                    <Users size={16} className="text-[#8b5cf6]" /> Создать группу
-                  </button>
-                  <button
-                    onClick={() => { setShowCreateMenu(false); setShowPrismModal(true); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors border-t border-white/5"
-                  >
-                    <ShieldCheck size={16} className="text-cyan-400" /> PRISM Link
-                  </button>
-                </div>
               )}
             </div>
           </div>
@@ -523,7 +488,6 @@ export default function MessagesPage() {
                   setMenuPosition(null);
                 } else {
                   setActiveChatMenu(chat.id);
-                  // Позиция будет установлена при клике на троеточие, но для свайпа можно оставить сброс
                 }
               }}
               onSwipeLeft={() => {
@@ -619,7 +583,26 @@ export default function MessagesPage() {
                     )}
                   </div>
                   
-                  {/* Текст последнего сообщения убран по запросу */}
+                  {/* ТЕКСТ ПОСЛЕДНЕГО СООБЩЕНИЯ */}
+                  {chat.last_message ? (
+                    <div className="mt-0.5">
+                      <p className={`text-sm truncate ${chat.unread_count > 0 ? "text-white" : "text-white/50"}`}>
+                        {isSaved ? (
+                          chat.last_message.text
+                        ) : query.trim() && textMatch ? (
+                          highlight(snippet(chat.last_message.text, query.trim()), query.trim())
+                        ) : query.trim() ? (
+                          highlight(chat.last_message.text, query.trim())
+                        ) : (
+                          chat.last_message.text
+                        )}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-white/40 mt-0.5">
+                      {isGroup ? `${chat.members_count} участников` : "Начните переписку"}
+                    </p>
+                  )}
                 </div>
 
                 <div className="shrink-0 flex items-center gap-2">
@@ -661,7 +644,40 @@ export default function MessagesPage() {
         })}
       </main>
 
-      {/* МЕНЮ ЧАТА (Адаптивное: по центру на мобильных, около троеточия на десктопе) */}
+      {/* КНОПКА "+" - вынесена за пределы main, fixed */}
+      <div className="fixed top-4 right-4 md:top-6 md:right-6 z-[100]">
+        <button
+          onClick={() => setShowCreateMenu(!showCreateMenu)}
+          className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#8b5cf6]/10 text-[#8b5cf6] hover:bg-[#8b5cf6]/20 transition-colors border border-[#8b5cf6]/30"
+        >
+          <Plus size={24} />
+        </button>
+
+        {showCreateMenu && (
+          <div className="absolute right-0 top-12 w-56 bg-[#1f1f23] border border-white/10 rounded-xl shadow-2xl z-[9999] overflow-visible animate-in fade-in slide-in-from-top-2 duration-200">
+            <button
+              onClick={() => { setShowCreateMenu(false); openSavedMessages(); }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
+            >
+              <Bookmark size={16} className="text-yellow-400" /> Избранное
+            </button>
+            <button
+              onClick={() => { setShowCreateMenu(false); setShowCreateGroup(true); }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors border-t border-white/5"
+            >
+              <Users size={16} className="text-[#8b5cf6]" /> Создать группу
+            </button>
+            <button
+              onClick={() => { setShowCreateMenu(false); setShowPrismModal(true); }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors border-t border-white/5"
+            >
+              <ShieldCheck size={16} className="text-cyan-400" /> PRISM Link
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* МЕНЮ ЧАТА */}
       {activeChatMenu !== null && (() => {
         const menuChat = chats.find((c) => c.id === activeChatMenu);
         if (!menuChat) return null;
@@ -675,9 +691,9 @@ export default function MessagesPage() {
               className={`
                 fixed z-[9999] bg-[#1f1f23] border border-white/15 shadow-2xl p-3 
                 animate-in zoom-in-95 duration-200
-                /* Мобильные: строго по центру экрана */
+                /* Мобильные: по центру */
                 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 rounded-2xl
-                /* Десктоп: около троеточия (переопределяется через style) */
+                /* Десктоп: около троеточия */
                 md:top-auto md:left-auto md:-translate-x-0 md:-translate-y-0 md:w-56 md:rounded-xl
               `}
               style={menuPosition ? { top: menuPosition.top, right: menuPosition.right } : undefined}
@@ -730,7 +746,7 @@ export default function MessagesPage() {
         />
       )}
 
-      {/* МОДАЛКА СОЗДАНИЯ ПРИЗМЫ (Z-INDEX увеличен для открытия поверх всего) */}
+      {/* МОДАЛКА ПРИЗМЫ */}
       {showPrismModal && (
         <>
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[2000]" onClick={() => setShowPrismModal(false)} />
