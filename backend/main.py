@@ -242,15 +242,46 @@ app.add_middleware(
 
 
 # 🛡️ Redis для защиты от брутфорса и хранения лимитов
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
-redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+REDIS_URL = os.getenv("REDIS_URL", "").strip()
 
-# Передаем Redis в slowapi, чтобы лимиты не стирались при рестарте
-limiter = Limiter(
-    key_func=get_remote_address,
-    storage_uri=REDIS_URL,
-    strategy="moving-window"
-)
+# === ЗАГЛУШКА REDIS ===
+class FakeRedis:
+    def get(self, *args, **kwargs): return None
+    def set(self, *args, **kwargs): return True
+    def delete(self, *args, **kwargs): return 1
+    def exists(self, *args, **kwargs): return 0
+    def expire(self, *args, **kwargs): return True
+    def ttl(self, *args, **kwargs): return 0
+    def incr(self, *args, **kwargs): return 1
+    def pipeline(self): return FakePipeline()
+    def ping(self): return True
+    def __getattr__(self, name): return lambda *a, **kw: None
+
+class FakePipeline:
+    def incr(self, *a, **kw): return self
+    def expire(self, *a, **kw): return self
+    def execute(self): return []
+
+# Если REDIS_URL пустой или "FAKE" — используем заглушку
+if not REDIS_URL or REDIS_URL.upper() == "FAKE" or "localhost" in REDIS_URL:
+    print("⚠️ Redis отключен, используем заглушку")
+    redis_client = FakeRedis()
+    # Для slowapi тоже используем память вместо Redis
+    limiter = Limiter(
+        key_func=get_remote_address,
+        storage_uri="memory://",  # ← заглушка для slowapi
+        strategy="moving-window"
+    )
+else:
+    import redis
+    if REDIS_URL.startswith("redis://") and "render.com" in REDIS_URL:
+        REDIS_URL = REDIS_URL.replace("redis://", "rediss://", 1)
+    redis_client = redis.from_url(REDIS_URL, decode_responses=True, ssl_cert_reqs=None)
+    limiter = Limiter(
+        key_func=get_remote_address,
+        storage_uri=REDIS_URL,
+        strategy="moving-window"
+    )
 app.state.limiter = limiter
 
 
