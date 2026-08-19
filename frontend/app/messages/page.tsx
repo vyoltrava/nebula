@@ -592,11 +592,19 @@ const initiatePrism = async (targetUserId: number, targetUserName: string) => {
                 deleteChat(chat.id, name);
               }}
             >
-              <div
-                className={`flex items-center gap-3 p-3 md:p-4 border-b border-white/10 hover:bg-white/5 transition-colors cursor-pointer ${
-                  chat.unread_count > 0 ? "bg-purple-500/5" : ""
-                }`}
-              >
+<div
+  className={`flex items-center gap-3 p-3 md:p-4 border-b transition-all duration-200 cursor-pointer ${
+    chat.is_prism
+      ? "bg-cyan-950/20 border-l-4 border-l-cyan-500 border-b-cyan-500/20 hover:bg-cyan-900/30"
+      : chat.is_secret
+      ? "bg-emerald-950/20 border-l-4 border-l-emerald-500 border-b-emerald-500/20 hover:bg-emerald-900/30"
+      : "border-b-white/10 border-l-4 border-l-transparent hover:bg-white/5"
+  } ${
+    chat.unread_count > 0 
+      ? (chat.is_prism ? "bg-cyan-900/40" : chat.is_secret ? "bg-emerald-900/40" : "bg-purple-500/10") 
+      : ""
+  }`}
+>
 <div className="shrink-0 relative">
   {isSaved ? (
     /* 🆕 Иконка для Избранного */
@@ -627,11 +635,20 @@ const initiatePrism = async (targetUserId: number, targetUserName: string) => {
     /* Обычный DM */
     <div style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}>
       <Avatar src={otherUser?.avatar_url} name={otherUser?.display_name} id={otherUser?.id} size={48} />
-      {chat.is_secret && (
-        <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-[#171717] flex items-center justify-center">
-          <Lock size={10} className="text-white" />
-        </div>
-      )}
+{/* 🆕 ЯРКАЯ ИКОНКА ДЛЯ ПРИЗМЫ (Приоритет выше) */}
+{chat.is_prism && (
+  <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-cyan-500 border-2 border-[#171717] flex items-center justify-center shadow-[0_0_12px_rgba(34,211,238,0.8)] z-10">
+    <ShieldCheck size={12} className="text-white" />
+  </div>
+)}
+
+{/* 🆕 ЯРКАЯ ИКОНКА ДЛЯ СЕКРЕТНОГО ЧАТА (Только если это НЕ Призма) */}
+{chat.is_secret && !chat.is_prism && (
+  <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-[#171717] flex items-center justify-center shadow-[0_0_12px_rgba(16,185,129,0.8)] z-10">
+    <Lock size={12} className="text-white" />
+  </div>
+)}
+      
     </div>
   )}
 </div>
@@ -652,19 +669,18 @@ const initiatePrism = async (targetUserId: number, targetUserName: string) => {
       <p className={`font-bold truncate ${glowStyle(otherUser) ? "" : "text-white"}`} style={glowStyle(otherUser)}>
         {query.trim() ? highlight(otherUser?.display_name, query.trim()) : otherUser?.display_name}
       </p>
-  {/* 🆕 ДОБАВИТЬ ЭТОТ БЛОК */}
-  {chat.is_prism && (
-    <span className="text-cyan-400 text-[9px] font-black uppercase tracking-widest shrink-0 flex items-center gap-1">
-      <ShieldCheck size={8} /> PRISM
-    </span>
-  )}
-  {chat.is_secret && !chat.is_prism && (
-    <span className="text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0">SECRET</span>
-  )}
-
-
-      {chat.is_secret && (
-        <span className="text-emerald-400 text-[9px] font-black uppercase tracking-widest shrink-0">SECRET</span>
+      
+      {/* 🆕 ЯРКИЕ И РАЗДЕЛЬНЫЕ БЕЙДЖИ */}
+      {chat.is_prism && (
+        <span className="ml-1 px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/40 text-cyan-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-[0_0_8px_rgba(34,211,238,0.2)]">
+          <ShieldCheck size={10} /> PRISM
+        </span>
+      )}
+      
+      {chat.is_secret && !chat.is_prism && (
+        <span className="ml-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-[0_0_8px_rgba(16,185,129,0.2)]">
+          <Lock size={10} /> SECRET
+        </span>
       )}
     </>
   )}
