@@ -407,64 +407,64 @@ export default function MessagesPage() {
       <div className="w-px shrink-0 bg-white/10 my-3" />
       <main className="flex-1 overflow-y-auto border-x border-white/10">
         
-        {/* ШАПКА */}
-        <div className="p-4 md:p-6 border-b border-white/10 sticky top-0 bg-[#171717]/95 backdrop-blur-md z-10">
-          <div className="flex items-center gap-4">
-            
-            {/* Левая часть: Иконка и Текст */}
-            <div className="flex items-center gap-3 shrink-0">
-              <MessageSquare size={24} className="text-[#8b5cf6]" />
-              <h1 className="text-xl md:text-2xl font-black text-white">Сообщения</h1>
-            </div>
+{/* ШАПКА */}
+<div className="p-4 md:p-6 border-b border-white/10 sticky top-0 bg-[#171717]/95 backdrop-blur-md z-10">
+  <div className="flex items-center gap-4">
+    
+    {/* Левая часть: Иконка и Текст */}
+    <div className="flex items-center gap-3 shrink-0">
+      <MessageSquare size={24} className="text-[#8b5cf6]" />
+      <h1 className="text-xl md:text-2xl font-black text-white">Сообщения</h1>
+    </div>
 
-            {/* Средняя часть: Невидимый поиск */}
-            <div className="relative flex-1 max-w-md">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Поиск..."
-                className="w-full pl-9 pr-4 py-2 bg-transparent border-none outline-none text-white placeholder-white/40 text-sm focus:ring-0"
-              />
-              {searchLoading && (
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
-              )}
-            </div>
+    {/* Средняя часть: Невидимый поиск */}
+    <div className="relative flex-1 max-w-md">
+      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Поиск..."
+        className="w-full pl-9 pr-4 py-2 bg-transparent border-none outline-none text-white placeholder-white/40 text-sm focus:ring-0"
+      />
+      {searchLoading && (
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
+      )}
+    </div>
 
-            {/* Правая часть: Кнопка "+" и меню */}
-            <div className="relative shrink-0">
-              <button
-                onClick={() => setShowCreateMenu(!showCreateMenu)}
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#8b5cf6]/10 text-[#8b5cf6] hover:bg-[#8b5cf6]/20 transition-colors border border-[#8b5cf6]/30"
-              >
-                <Plus size={24} />
-              </button>
+    {/* Правая часть: Кнопка "+" (прижата к краю через ml-auto) */}
+    <div className="relative ml-auto shrink-0">
+      <button
+        onClick={() => setShowCreateMenu(!showCreateMenu)}
+        className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#8b5cf6]/10 text-[#8b5cf6] hover:bg-[#8b5cf6]/20 transition-colors border border-[#8b5cf6]/30"
+      >
+        <Plus size={24} />
+      </button>
 
-              {showCreateMenu && (
-                <div className="absolute right-0 top-12 w-56 bg-[#1f1f23] border border-white/10 rounded-xl shadow-2xl z-[200] overflow-visible animate-in fade-in slide-in-from-top-2 duration-200">
-                  <button
-                    onClick={() => { setShowCreateMenu(false); openSavedMessages(); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
-                  >
-                    <Bookmark size={16} className="text-yellow-400" /> Избранное
-                  </button>
-                  <button
-                    onClick={() => { setShowCreateMenu(false); setShowCreateGroup(true); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors border-t border-white/5"
-                  >
-                    <Users size={16} className="text-[#8b5cf6]" /> Создать группу
-                  </button>
-                  <button
-                    onClick={() => { setShowCreateMenu(false); setShowPrismModal(true); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors border-t border-white/5"
-                  >
-                    <ShieldCheck size={16} className="text-cyan-400" /> PRISM Link
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
+      {showCreateMenu && (
+        <div className="absolute right-0 top-12 w-56 bg-[#1f1f23] border border-white/10 rounded-xl shadow-2xl z-[9999] overflow-visible animate-in fade-in slide-in-from-top-2 duration-200">
+          <button
+            onClick={() => { setShowCreateMenu(false); openSavedMessages(); }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
+          >
+            <Bookmark size={16} className="text-yellow-400" /> Избранное
+          </button>
+          <button
+            onClick={() => { setShowCreateMenu(false); setShowCreateGroup(true); }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors border-t border-white/5"
+          >
+            <Users size={16} className="text-[#8b5cf6]" /> Создать группу
+          </button>
+          <button
+            onClick={() => { setShowCreateMenu(false); setShowPrismModal(true); }}
+            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors border-t border-white/5"
+          >
+            <ShieldCheck size={16} className="text-cyan-400" /> PRISM Link
+          </button>
         </div>
+      )}
+    </div>
+  </div>
+</div>
 
         {loading && <ChatListSkeleton />}
         
