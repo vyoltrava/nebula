@@ -1,5 +1,7 @@
 import { socket } from "@/lib/websocket"; // 🆕
 import { clearCachedUser } from "./authCache";
+import { clearAllSessionKeys } from "@/lib/secureSessionKeys";
+
 
 export function getToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -15,4 +17,5 @@ export function clearToken() {
   localStorage.removeItem("token");
   clearCachedUser();
   socket.disconnect(); // 🆕 отключаем WS при выходе
+  clearAllSessionKeys();
 }

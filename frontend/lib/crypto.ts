@@ -176,30 +176,7 @@ export function decryptSessionKey(encryptedPayload: string): Uint8Array {
   return cipher.decrypt(ciphertext);
 }
 
-export function storeSessionKey(chatId: number, sessionKey: Uint8Array) {
-  if (typeof window === "undefined") return;
-  const value = bytesToBase64(sessionKey);
-  localStorage.setItem(`${SESSION_KEYS_PREFIX}${chatId}`, value);
-  
-  const old = sessionStorage.getItem(`${SESSION_KEYS_PREFIX}${chatId}`);
-  if (old) sessionStorage.removeItem(`${SESSION_KEYS_PREFIX}${chatId}`);
-}
 
-export function loadSessionKey(chatId: number): Uint8Array | null {
-  if (typeof window === "undefined") return null;
-  
-  let b64 = localStorage.getItem(`${SESSION_KEYS_PREFIX}${chatId}`);
-  
-  if (!b64) {
-    b64 = sessionStorage.getItem(`${SESSION_KEYS_PREFIX}${chatId}`);
-    if (b64) {
-      localStorage.setItem(`${SESSION_KEYS_PREFIX}${chatId}`, b64);
-      sessionStorage.removeItem(`${SESSION_KEYS_PREFIX}${chatId}`);
-    }
-  }
-  
-  return b64 ? base64ToBytes(b64) : null;
-}
 
 export function clearSessionKey(chatId: number) {
   if (typeof window === "undefined") return;

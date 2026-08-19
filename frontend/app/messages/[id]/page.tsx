@@ -47,8 +47,14 @@ import {
 import {
   getKeyPair, encryptMessage, decryptMessage,
   generateSessionKey, encryptSessionKeyForUser, decryptSessionKey,
-  storeSessionKey, loadSessionKey,
 } from "@/lib/crypto";
+
+// 🛡️ НОВОЕ БЕЗОПАСНОЕ ХРАНИЛИЩЕ
+import { 
+  storeSessionKey, 
+  loadSessionKey, 
+  clearSessionKey 
+} from "@/lib/secureSessionKeys";
 
 
 
@@ -1736,8 +1742,8 @@ if (data.sender_id === currentUser?.id) {
 
 useWebSocket("chat_deleted", (data: any) => {
   if (String(data.chat_id) === String(chatId)) {
-    // Очищаем локальный ключ
-    localStorage.removeItem(`nebula_session_key_${chatId}`);
+    // 🛡️ Очищаем ключ из оперативной памяти
+    clearSessionKey(Number(chatId));
     alert("Этот чат был удалён");
     router.push("/messages");
   }
