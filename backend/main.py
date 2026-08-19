@@ -8998,23 +8998,23 @@ async def upload_prism_avatar(
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
 ):
-    """Загрузка аватарки для Призмы (строго PNG, без сжатия, чтобы сохранить стеганографию)"""
     if not file.filename or not file.filename.lower().endswith('.png'):
         raise HTTPException(400, "Для Призмы требуется формат PNG (без сжатия)")
     
     content = await file.read()
     if len(content) > 5 * 1024 * 1024:
         raise HTTPException(400, "Файл слишком большой (макс 5 МБ)")
-
+    
     try:
-        # 🔥 КРИТИЧЕСКИ ВАЖНО: flags='lossless' и format='png' запрещают Cloudinary сжимать изображение
+        # 🔥 ИСПРАВЛЕНО: quality="100" и flags="lossless" ГАРАНТИРУЮТ сохранение каждого бита
         result = await run_in_threadpool(
             lambda: cloudinary.uploader.upload(
                 content,
                 folder=UPLOAD_FOLDER,
                 resource_type="image",
                 format="png",
-                quality="auto:low"
+                quality="100",
+                flags="lossless"
             )
         )
         return {"avatar_url": result.get("secure_url")}

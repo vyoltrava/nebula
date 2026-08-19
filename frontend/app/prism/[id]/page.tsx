@@ -99,9 +99,10 @@ export default function PrismChatPage() {
         
         sessionStorage.setItem(`prism_key_${chatId}`, btoa(String.fromCharCode(...masterKey)));
         setSyncStatus("entangled");
-      } catch (err) {
-        console.error(err);
-        router.push("/messages");
+      } catch (err: any) {
+        console.error("❌ ОШИБКА РАСШИФРОВКИ ПРИЗМЫ:", err);
+        alert(`Не удалось расшифровать канал.\n\nПричина: ${err.message || 'Неизвестная ошибка'}\n\nПроверь, что бэкенд НЕ сжимает PNG (должен быть lossless).`);
+        // router.push("/messages"); // <-- ЗАКОММЕНТИРОВАНО: теперь тебя не выкинет, и ты увидишь ошибку
       }
     };
 
