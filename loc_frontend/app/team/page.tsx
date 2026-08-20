@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
 import { Users, ArrowLeft, Crown, ShieldCheck, Shield, Star, Wrench, Gavel } from "lucide-react";
+import { useI18n } from "@/lib/i18n/LanguageProvider";
 
 type Member = {
   id: number;
@@ -19,14 +20,14 @@ type Member = {
 };
 
 const DEPARTMENT_CONFIG = [
-  { key: "founder", label: "Founder", levels: [10], icon: Crown },
-  { key: "developer", label: "Developer", levels: [9], icon: ShieldCheck },
-  { key: "special", label: "Специальный отдел", levels: [8], icon: Star },
-  { key: "head_admin", label: "Глава администрации", levels: [7], icon: Shield },
-  { key: "dept_heads", label: "Главы отделов", levels: [6], icon: Wrench },
-  { key: "deputies", label: "Заместители главы отдела", levels: [5], icon: Gavel },
-  { key: "staff", label: "Действующие сотрудники", levels: [4], icon: Users },
-  { key: "junior", label: "Младший состав отделов", levels: [3, 2, 1], icon: Users },
+  { key: "founder", labelKey: "team.founder", levels: [10], icon: Crown },
+  { key: "developer", labelKey: "team.developer", levels: [9], icon: ShieldCheck },
+  { key: "special", labelKey: "team.special", levels: [8], icon: Star },
+  { key: "head_admin", labelKey: "team.headAdmin", levels: [7], icon: Shield },
+  { key: "dept_heads", labelKey: "team.deptHeads", levels: [6], icon: Wrench },
+  { key: "deputies", labelKey: "team.deputies", levels: [5], icon: Gavel },
+  { key: "staff", labelKey: "team.staff", levels: [4], icon: Users },
+  { key: "junior", labelKey: "team.junior", levels: [3, 2, 1], icon: Users },
 ];
 
 function getGlowColor(m: Member): string | null {
@@ -38,6 +39,7 @@ function getGlowColor(m: Member): string | null {
 
 export default function TeamPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -82,10 +84,8 @@ export default function TeamPage() {
             <div className="flex items-center gap-3">
               <Users size={28} className="text-[#8b5cf6]" />
               <div>
-                <h1 className="text-3xl font-black text-white">Команда проекта</h1>
-                <p className="text-sm text-white/50 mt-1">
-                  Администрация и разработчики trelod
-                </p>
+                <h1 className="text-3xl font-black text-white">{t("team.title")}</h1>
+                <p className="text-sm text-white/50 mt-1">{t("team.subtitle")}</p>
               </div>
             </div>
           </div>
@@ -97,7 +97,7 @@ export default function TeamPage() {
             <div className="flex items-center justify-center py-12">
               <div className="flex flex-col items-center gap-3">
                 <div className="w-10 h-10 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
-                <p className="text-white/60">Загрузка команды...</p>
+                <p className="text-white/60">{t("team.loading")}</p>
               </div>
             </div>
           )}
@@ -105,7 +105,7 @@ export default function TeamPage() {
           {!loading && groupedDepartments.length === 0 && (
             <div className="text-center py-16">
               <Users size={56} className="text-white/20 mx-auto mb-4" />
-              <p className="text-white/60 text-lg">Команда пока не сформирована</p>
+              <p className="text-white/60 text-lg">{t("team.empty")}</p>
             </div>
           )}
 
@@ -119,15 +119,10 @@ export default function TeamPage() {
                     <Icon size={20} />
                   </div>
                   <h2 className="font-black text-lg uppercase tracking-widest text-[#8b5cf6] flex-1">
-                    {g.label}
+                    {t(g.labelKey as any)}
                   </h2>
                   <span className="text-sm text-white/50 font-semibold">
-                    {g.members.length}{" "}
-                    {g.members.length === 1
-                      ? "человек"
-                      : g.members.length < 5
-                        ? "человека"
-                        : "человек"}
+                    {t(g.members.length === 1 ? "team.people1" : g.members.length < 5 ? "team.peopleFew" : "team.peopleMany", { n: g.members.length })}
                   </span>
                 </div>
 
