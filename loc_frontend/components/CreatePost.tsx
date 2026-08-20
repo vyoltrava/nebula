@@ -160,8 +160,8 @@ export function CreatePost() {
     setRecordTime(0);
   }
 
-  function insertSticker(code: string) {
-    setText((prev) => prev + " " + code + " ");
+  function insertSticker(emojiChar: string) {
+    setText((prev) => prev + " " + emojiChar + " ");
     setShowStickers(false);
   }
 
@@ -371,22 +371,26 @@ export function CreatePost() {
                 <button className={`transition-colors ${showStickers ? "text-[#8b5cf6]" : "text-white/60 hover:text-[#8b5cf6]"}`} onClick={() => setShowStickers(!showStickers)}>
                   <Smile size={20} />
                 </button>
-
-                {showStickers && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setShowStickers(false)} />
-                    <div className="absolute top-full left-0 mt-2 p-3 border border-white/20 rounded-xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl z-50 w-64 max-h-72 overflow-y-auto">
-                      <p className="text-xs font-bold text-white/60 mb-2 uppercase tracking-wider sticky top-0 bg-[#1f1f23]/95 pb-1">Стикеры</p>
-                      <div className="grid grid-cols-5 gap-1">
-                        {STICKERS.map((s) => (
-                          <button key={s.code} onClick={() => insertSticker(s.code)} className="text-2xl hover:bg-white/10 rounded-lg p-1.5 transition-colors" title={s.label}>
-                            {s.emoji}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
+{showStickers && (
+  <>
+    <div className="fixed inset-0 z-40" onClick={() => setShowStickers(false)} />
+    <div className="absolute top-full left-0 mt-2 p-3 border border-white/20 rounded-xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl z-50 w-64 max-h-72 overflow-y-auto">
+      <p className="text-xs font-bold text-white/60 mb-2 uppercase tracking-wider sticky top-0 bg-[#1f1f23]/95 pb-1">Стикеры</p>
+      <div className="grid grid-cols-5 gap-1">
+        {STICKERS.map((s) => (
+          <button 
+            key={s.code} 
+            onClick={() => insertSticker(s.emoji)} // 👈 ЗДЕСЬ БЫЛО s.code, СТАЛО s.emoji
+            className="text-2xl hover:bg-white/10 rounded-lg p-1.5 transition-colors" 
+            title={s.label}
+          >
+            {s.emoji}
+          </button>
+        ))}
+      </div>
+    </div>
+  </>
+)}
               </div>
               <button
                 onClick={submit}
