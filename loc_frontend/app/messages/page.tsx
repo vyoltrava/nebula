@@ -368,13 +368,17 @@ const initiatePrism = async (targetUserId: number, targetUserName: string) => {
       
       // 🔥 ПРОВЕРКА ПЕРЕД СОХРАНЕНИЕМ
       try {
-        await prismStorage.saveShard(data.chat_id, shard3_local);
-        
+
         // 🔥 ПРОВЕРКА: читаем обратно чтобы убедиться что сохранилось
         const saved = await prismStorage.getShard(data.chat_id);
+      await prismStorage.saveShard(data.chat_id, shard3_local);
+
+        
         if (!saved) {
           console.error("❌ shard3 НЕ СОХРАНИЛСЯ в IndexedDB!");
         } else {
+          console.log("🔑 ПЕРЕД СОХРАНЕНИЕМ shard3_local:", shard3_local);
+await prismStorage.saveShard(data.chat_id, shard3_local);
           console.log("✅ shard3 сохранён:", saved.substring(0, 20) + "...");
         }
       } catch (dbError) {
