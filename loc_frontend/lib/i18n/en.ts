@@ -535,6 +535,7 @@ export const en: Dictionary = {
     titleLabel: "Title",
     typeLabel: "Type",
     descLabel: "Description",
+    critPh: "What exactly is not working? What were you doing? On which device and browser?...",
   },
   bookmarks: {
     empty: "No bookmarks yet",

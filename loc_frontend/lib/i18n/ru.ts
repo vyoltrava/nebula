@@ -533,6 +533,7 @@ export const ru: Dictionary = {
     titleLabel: "Заголовок",
     typeLabel: "Тип обращения",
     descLabel: "Описание",
+    critPh: "Что именно не работает? Что вы делали? На каком устройстве и браузере?...",
   },
   bookmarks: {
     empty: "Пока нет закладок",
@@ -682,6 +683,10 @@ export const ru: Dictionary = {
     ios: "iOS (Safari): кнопка «аА» → «Настройки сайта» → включи доступ",
     gotIt: "Понятно",
   },
+
+
+
+
 };
 
 

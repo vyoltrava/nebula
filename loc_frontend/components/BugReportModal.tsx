@@ -1,16 +1,51 @@
 "use client";
+
 import { useState } from "react";
 import { X, Bug, Send, Lightbulb, AlertTriangle } from "lucide-react";
 import { getToken } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n/LanguageProvider";
 
 const PRIORITY_OPTIONS = [
-  { value: "low", label: "Идея", icon: Lightbulb, color: "text-green-400", borderColor: "border-green-400", bg: "bg-green-500/10" },
-  { value: "medium", label: "Баг", icon: Bug, color: "text-yellow-400", borderColor: "border-yellow-400", bg: "bg-yellow-500/10" },
-  { value: "high", label: "Важно", icon: AlertTriangle, color: "text-orange-400", borderColor: "border-orange-400", bg: "bg-orange-500/10" },
-  { value: "critical", label: "Критично", icon: AlertTriangle, color: "text-red-400", borderColor: "border-red-400", bg: "bg-red-500/10" },
+  { 
+    value: "low", 
+    labelKey: "bugs.idea" as const, 
+    hintKey: "bugs.ideaHint" as const, 
+    icon: Lightbulb, 
+    color: "text-green-400", 
+    borderColor: "border-green-400", 
+    bg: "bg-green-500/10" 
+  },
+  { 
+    value: "medium", 
+    labelKey: "bugs.bug" as const, 
+    hintKey: "bugs.bugHint" as const, 
+    icon: Bug, 
+    color: "text-yellow-400", 
+    borderColor: "border-yellow-400", 
+    bg: "bg-yellow-500/10" 
+  },
+  { 
+    value: "high", 
+    labelKey: "bugs.important" as const, 
+    hintKey: "bugs.highHint" as const, 
+    icon: AlertTriangle, 
+    color: "text-orange-400", 
+    borderColor: "border-orange-400", 
+    bg: "bg-orange-500/10" 
+  },
+  { 
+    value: "critical", 
+    labelKey: "bugs.critical" as const, 
+    hintKey: "bugs.critHint" as const, 
+    icon: AlertTriangle, 
+    color: "text-red-400", 
+    borderColor: "border-red-400", 
+    bg: "bg-red-500/10" 
+  },
 ];
 
 export function BugReportModal({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState("medium");
@@ -23,18 +58,18 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
     setError("");
     
     if (title.trim().length < 5) {
-      setError("Заголовок должен быть не менее 5 символов");
+      setError(t("bugs.titleMin"));
       return;
     }
     if (description.trim().length < 20) {
-      setError("Описание должно быть не менее 20 символов");
+      setError(t("bugs.descMin"));
       return;
     }
 
     setLoading(true);
     const token = getToken();
     if (!token) {
-      setError("Необходимо войти в аккаунт");
+      setError(t("bugs.needLogin"));
       setLoading(false);
       return;
     }
@@ -56,10 +91,10 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
         setTimeout(onClose, 2000);
       } else {
         const data = await res.json().catch(() => null);
-        setError(data?.detail || "Ошибка отправки");
+        setError(data?.detail || t("bugs.sendError"));
       }
     } catch (err) {
-      setError("Ошибка соединения");
+      setError(t("bugs.connError"));
     } finally {
       setLoading(false);
     }
@@ -82,16 +117,17 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
               </div>
               <div className="min-w-0">
                 <h2 className="text-lg sm:text-xl font-black text-white truncate">
-                  Обратная связь
+                  {t("bugs.feedback")}
                 </h2>
                 <p className="text-xs text-white/50 hidden sm:block">
-                  Баг, идея или предложение
+                  {t("bugs.feedbackHint")}
                 </p>
               </div>
             </div>
             <button
               onClick={onClose}
               className="text-white/60 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10 shrink-0"
+              aria-label={t("common.close")}
             >
               <X size={20} />
             </button>
@@ -102,9 +138,9 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
               <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
                 <Send size={32} className="text-green-400" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">Отправлено!</h3>
+              <h3 className="text-xl font-bold text-white mb-2">{t("bugs.sent")}</h3>
               <p className="text-white/60 text-sm">
-                Спасибо! Мы рассмотрим ваше сообщение в ближайшее время.
+                {t("bugs.thanks")}
               </p>
             </div>
           ) : (
@@ -112,21 +148,20 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
               {/* Описание назначения */}
               <div className="p-3 rounded-lg bg-white/5 border border-white/10">
                 <p className="text-xs text-white/70 leading-relaxed">
-                  <span className="font-bold text-white">Что можно отправить:</span>{" "}
-                  ошибки в работе платформы, идеи для новых функций, предложения по улучшению 
-                  интерфейса или жалобы на поведение пользователей.
+                  <span className="font-bold text-white">{t("bugs.canSend")}</span>{" "}
+                  {t("bugs.canSendBody")}
                 </p>
               </div>
 
               {/* Заголовок */}
               <div>
                 <label className="block text-sm font-bold text-white/80 mb-2">
-                  Заголовок
+                  {t("bugs.titleLabel")}
                 </label>
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Например: Кнопка «Читать» на своём посте"
+                  placeholder={t("bugs.titlePh")}
                   maxLength={200}
                   className="w-full border border-white/15 rounded-lg px-3 py-2.5 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-orange-400 transition-all text-sm"
                 />
@@ -136,9 +171,8 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
               {/* Приоритет — АДАПТИВНАЯ СЕТКА */}
               <div>
                 <label className="block text-sm font-bold text-white/80 mb-2">
-                  Тип обращения
+                  {t("bugs.typeLabel")}
                 </label>
-                {/* На мобильных: 2×2, на десктопе: 4×1 */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {PRIORITY_OPTIONS.map((opt) => {
                     const Icon = opt.icon;
@@ -159,7 +193,7 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
                         `}
                       >
                         <Icon size={14} className="shrink-0" />
-                        <span className="whitespace-nowrap">{opt.label}</span>
+                        <span className="whitespace-nowrap">{t(opt.labelKey)}</span>
                       </button>
                     );
                   })}
@@ -168,12 +202,7 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
                 {selectedPriority && (
                   <p className="text-xs text-white/50 mt-2 flex items-center gap-1.5">
                     <selectedPriority.icon size={12} className={selectedPriority.color} />
-                    <span>
-                      {priority === "low" && "Предложение по улучшению или новая идея"}
-                      {priority === "medium" && "Обычный баг, не блокирующий работу"}
-                      {priority === "high" && "Заметная проблема, влияет на удобство"}
-                      {priority === "critical" && "Платформа не работает или данные теряются"}
-                    </span>
+                    <span>{t(selectedPriority.hintKey)}</span>
                   </p>
                 )}
               </div>
@@ -181,17 +210,17 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
               {/* Описание */}
               <div>
                 <label className="block text-sm font-bold text-white/80 mb-2">
-                  Описание
+                  {t("bugs.descLabel")}
                 </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={
                     priority === "low"
-                      ? "Опишите вашу идею: что вы хотите видеть, как это должно работать, и зачем это нужно..."
+                      ? t("bugs.ideaPh")
                       : priority === "critical"
-                      ? "Что именно не работает? Что вы делали? На каком устройстве и браузере?..."
-                      : "Опишите подробно: что произошло, что вы делали, и что ожидали увидеть..."
+                      ? t("bugs.critPh")
+                      : t("bugs.otherPh")
                   }
                   rows={5}
                   maxLength={2000}
@@ -214,14 +243,14 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
                   className="flex-1 flex items-center justify-center gap-2 border border-orange-400 bg-orange-500 text-white font-bold rounded-lg py-2.5 transition-all hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 >
                   <Send size={16} />
-                  {loading ? "Отправка..." : "Отправить"}
+                  {loading ? t("common.sending") : t("common.send")}
                 </button>
                 <button
                   type="button"
                   onClick={onClose}
                   className="flex-1 border border-white/20 rounded-lg py-2.5 font-bold text-white/80 hover:bg-white/10 transition-all text-sm"
                 >
-                  Отмена
+                  {t("common.cancel")}
                 </button>
               </div>
             </form>

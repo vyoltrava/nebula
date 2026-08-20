@@ -534,6 +534,7 @@ export const uk = {
     titleLabel: "Заголовок",
     typeLabel: "Тип",
     descLabel: "Опис",
+    critPh: "Що саме не працює? Що ви робили? На якому пристрої та браузері?...", 
   },
   bookmarks: {
     empty: "Поки що немає закладок",
@@ -684,5 +685,9 @@ export const uk = {
     ios: "iOS (Safari): «aA» → Налаштування сайту → увімкнути доступ",
     gotIt: "Зрозуміло",
   },
+
+
+
+
 };
 export type Dictionary = typeof uk;
