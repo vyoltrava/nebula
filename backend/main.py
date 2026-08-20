@@ -891,6 +891,7 @@ def update_profile(
 
 
 @app.post("/api/me/password")
+@limiter.limit("5/minute")
 def change_password(
     data: ChangePasswordIn,
     user: User = Depends(get_current_user),
@@ -5515,6 +5516,7 @@ def open_or_create_chat(
 # ---------- 2FA: НАСТРОЙКА ----------
 
 @app.post("/api/2fa/setup")
+@limiter.limit("3/minute") # 👈 ДОБАВЬ ЭТО
 def setup_2fa(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
@@ -5555,6 +5557,7 @@ def setup_2fa(
 
 
 @app.post("/api/2fa/activate")
+@limiter.limit("5/minute") # 👈 ДОБАВЬ ЭТО
 def activate_2fa(
     code: str = Form(...),
     backup_codes: str = Form(...),  # JSON массив кодов

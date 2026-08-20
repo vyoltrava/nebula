@@ -12,6 +12,7 @@
 │   ├── push_service.py
 │   ├── requirements.txt
 │   ├── scan_missing.py
+│   ├── seed_network.py
 │   ├── sql_profiler.py
 │   ├── stress_test.py
 │   ├── test_report.json
@@ -29,6 +30,7 @@
 │       └── websocket_manager.cpython-314.pyc
 ├── check_websocket.py
 ├── export-files.ps1
+├── find-bugs.js
 ├── frontend
 │   ├── .gitignore
 │   ├── AGENTS.md
@@ -130,6 +132,7 @@
 │   │   ├── MarkdownContextMenu.tsx
 │   │   ├── MarkdownRenderer.tsx
 │   │   ├── MarkdownToolbar.tsx
+│   │   ├── MessageBubble.tsx
 │   │   ├── MessageContextMenu.tsx
 │   │   ├── NotificationPermissionPrompt.tsx
 │   │   ├── PermissionGate.tsx
@@ -146,6 +149,7 @@
 │   │   ├── SmartImage.tsx
 │   │   ├── SplashScreen.tsx
 │   │   ├── SupportWidget.tsx
+│   │   ├── SwipeableMessage.tsx
 │   │   ├── SystemName.tsx
 │   │   ├── TeamDrawer.tsx
 │   │   ├── ThemeProvider.tsx
@@ -173,6 +177,7 @@
 │   │   ├── postCache.ts
 │   │   ├── prismCrypto.ts
 │   │   ├── push.ts
+│   │   ├── secureSessionKeys.ts
 │   │   ├── stickers.tsx
 │   │   ├── themes.ts
 │   │   ├── time.ts
@@ -203,22 +208,217 @@
 │   │   └── window.svg
 │   ├── README.md
 │   ├── scripts
-│   │   ├── audit-ui.js
-│   │   ├── extract_ui_components.py
-│   │   ├── generate-style-guide.js
-│   │   └── ui_components_catalog.html
+│   │   └── project-audit.js
 │   ├── src
 │   │   └── hooks
 │   │       ├── useDraft.ts
 │   │       ├── useLastReadPost.ts
 │   │       └── useWebSocket.ts
-│   ├── style-guide.html
 │   ├── tsconfig.json
 │   ├── yarn.lock
 │   └── __tests__
 │       ├── crypto.test.ts
 │       └── prismCrypto.test.ts
 ├── get-structure.js
+├── loc_frontend
+│   ├── .env.example
+│   ├── .env.local
+│   ├── .gitignore
+│   ├── AGENTS.md
+│   ├── app
+│   │   ├── admin
+│   │   │   ├── chats
+│   │   │   │   └── page.tsx
+│   │   │   ├── page.tsx
+│   │   │   ├── reports
+│   │   │   │   └── page.tsx
+│   │   │   ├── roles
+│   │   │   │   └── page.tsx
+│   │   │   ├── stickers
+│   │   │   │   └── page.tsx
+│   │   │   ├── tech
+│   │   │   │   └── page.tsx
+│   │   │   ├── technical
+│   │   │   │   └── page.tsx
+│   │   │   └── themes
+│   │   │       └── page.tsx
+│   │   ├── adminnew
+│   │   │   └── page.tsx
+│   │   ├── bookmarks
+│   │   │   └── page.tsx
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   ├── login
+│   │   │   └── page.tsx
+│   │   ├── manifest.json
+│   │   ├── messages
+│   │   │   ├── page.tsx
+│   │   │   └── [id]
+│   │   │       └── page.tsx
+│   │   ├── notifications
+│   │   │   └── page.tsx
+│   │   ├── page.tsx
+│   │   ├── post
+│   │   │   └── [id]
+│   │   │       └── page.tsx
+│   │   ├── prism
+│   │   │   └── [id]
+│   │   │       └── page.tsx
+│   │   ├── rules
+│   │   │   └── page.tsx
+│   │   ├── search
+│   │   │   └── page.tsx
+│   │   ├── settings
+│   │   │   └── page.tsx
+│   │   ├── support
+│   │   │   └── page.tsx
+│   │   ├── tag
+│   │   │   └── [name]
+│   │   │       └── page.tsx
+│   │   ├── team
+│   │   │   └── page.tsx
+│   │   ├── updates
+│   │   │   └── page.tsx
+│   │   └── user
+│   │       └── [id]
+│   │           └── page.tsx
+│   ├── auto-scan.js
+│   ├── check-localization.js
+│   ├── CLAUDE.md
+│   ├── components
+│   │   ├── admin
+│   │   │   └── section
+│   │   │       ├── BugsSection.tsx
+│   │   │       ├── ChatsSection.tsx
+│   │   │       ├── IpSection.tsx
+│   │   │       ├── LogsSection.tsx
+│   │   │       ├── ReportsSection.tsx
+│   │   │       ├── StatsSection.tsx
+│   │   │       ├── StickersSection.tsx
+│   │   │       ├── SupportSection.tsx
+│   │   │       ├── TechUsersSection.tsx
+│   │   │       ├── ThemesSection.tsx
+│   │   │       └── UsersSection.tsx
+│   │   ├── AnimatedBackground.tsx
+│   │   ├── AudioPlayer.tsx
+│   │   ├── AuthGuard.tsx
+│   │   ├── Avatar.tsx
+│   │   ├── AvatarCropper.tsx
+│   │   ├── AvatarUploader.tsx
+│   │   ├── BanOverlay.tsx
+│   │   ├── BookmarkButton.tsx
+│   │   ├── BugReportModal.tsx
+│   │   ├── CreateGroupModal.tsx
+│   │   ├── CreatePost.tsx
+│   │   ├── DevicePermissionsSection.tsx
+│   │   ├── EchoModal.tsx
+│   │   ├── EncryptedMediaPlayer.tsx
+│   │   ├── FeedTabs.tsx
+│   │   ├── GlobalPlayer.tsx
+│   │   ├── GroupMembersModal.tsx
+│   │   ├── GroupSettingsModal.tsx
+│   │   ├── InstallPrompt.tsx
+│   │   ├── LanguageSwitcher.tsx
+│   │   ├── LinkPreview.tsx
+│   │   ├── LiveTextSettings.tsx
+│   │   ├── LogoutAllButton.tsx
+│   │   ├── MarkdownContextMenu.tsx
+│   │   ├── MarkdownRenderer.tsx
+│   │   ├── MarkdownToolbar.tsx
+│   │   ├── MessageBubble.tsx
+│   │   ├── MessageContextMenu.tsx
+│   │   ├── NotificationPermissionPrompt.tsx
+│   │   ├── PermissionGate.tsx
+│   │   ├── PermissionHelpModal.tsx
+│   │   ├── Post.tsx
+│   │   ├── PushDebug.tsx
+│   │   ├── PushSettings.tsx
+│   │   ├── PWARegister.tsx
+│   │   ├── ReportModal.tsx
+│   │   ├── RightPanel.tsx
+│   │   ├── RulesModal.tsx
+│   │   ├── Sidebar.tsx
+│   │   ├── Skeletons.tsx
+│   │   ├── SmartImage.tsx
+│   │   ├── SplashScreen.tsx
+│   │   ├── SupportWidget.tsx
+│   │   ├── SwipeableMessage.tsx
+│   │   ├── SystemName.tsx
+│   │   ├── TeamDrawer.tsx
+│   │   ├── ThemeProvider.tsx
+│   │   ├── VideoNotePlayer.tsx
+│   │   ├── VideoNoteRecorder.tsx
+│   │   ├── VideoPlayer.tsx
+│   │   └── WebSocketProvider.tsx
+│   ├── eslint.config.mjs
+│   ├── lib
+│   │   ├── api.ts
+│   │   ├── auth.ts
+│   │   ├── authCache.ts
+│   │   ├── ban.ts
+│   │   ├── crypto.ts
+│   │   ├── cryptoInit.ts
+│   │   ├── events.ts
+│   │   ├── feedPosition.ts
+│   │   ├── followCache.ts
+│   │   ├── i18n
+│   │   │   ├── en.ts
+│   │   │   ├── index.ts
+│   │   │   ├── LanguageProvider.tsx
+│   │   │   ├── ru.ts
+│   │   │   └── uk.ts
+│   │   ├── links.tsx
+│   │   ├── media.ts
+│   │   ├── mediaCrypto.ts
+│   │   ├── notifications.ts
+│   │   ├── online.ts
+│   │   ├── perf.ts
+│   │   ├── postCache.ts
+│   │   ├── prismCrypto.ts
+│   │   ├── push.ts
+│   │   ├── secureSessionKeys.ts
+│   │   ├── stickers.tsx
+│   │   ├── themes.ts
+│   │   ├── time.ts
+│   │   ├── types.ts
+│   │   ├── UnreadCountsContext.tsx
+│   │   ├── uploadRules.ts
+│   │   ├── useDevicePermission.ts
+│   │   ├── useSwipe.ts
+│   │   └── websocket.ts
+│   ├── next-env.d.ts
+│   ├── next.config.ts
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── patch-chat-i18n.js
+│   ├── postcss.config.mjs
+│   ├── public
+│   │   ├── apple-touch-icon.png
+│   │   ├── default-avatar.svg
+│   │   ├── favicon.ico
+│   │   ├── file.svg
+│   │   ├── globe.svg
+│   │   ├── loaderio-8a41857f9f76965f9e62bcd156d0cac3.txt
+│   │   ├── logo-animation.svg
+│   │   ├── logo-icon.svg
+│   │   ├── next.svg
+│   │   ├── role-icon.svg
+│   │   ├── sw.js
+│   │   ├── vercel.svg
+│   │   └── window.svg
+│   ├── README.md
+│   ├── scripts
+│   │   └── project-audit.js
+│   ├── src
+│   │   └── hooks
+│   │       ├── useDraft.ts
+│   │       ├── useLastReadPost.ts
+│   │       └── useWebSocket.ts
+│   ├── tsconfig.json
+│   ├── yarn.lock
+│   └── __tests__
+│       ├── crypto.test.ts
+│       └── prismCrypto.test.ts
 ├── package.json
 ├── perf-scan.mjs
 ├── project-structure.txt

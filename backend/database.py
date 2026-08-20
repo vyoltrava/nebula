@@ -31,5 +31,12 @@ def init_db():
     SQLModel.metadata.create_all(engine)
 
 def get_session():
-    with Session(engine) as session:
-        yield session
+      session = Session(engine)
+      try:
+          yield session
+          session.commit()
+      except Exception:
+          session.rollback()
+          raise
+      finally:
+          session.close()
