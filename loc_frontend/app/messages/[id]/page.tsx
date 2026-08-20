@@ -2977,7 +2977,7 @@ style={{
   }}
   className={`text-2xl p-2 rounded-full transition-all ${r.locked ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white/10 active:scale-110'}`}
   style={{ animation: `popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards`, animationDelay: `${i * 30}ms` }}
-  title={r.locked ? t("messages.needLevel", { n: r.minLevel }) : r.packName}
+  title={r.locked ? t("messages.needLevel", { n: r.minLevel ?? 0 }) : r.packName}
 >
   {r.type === "emoji" ? r.content : <img src={r.content} alt="" className="w-7 h-7 object-contain" />}
 </button>
