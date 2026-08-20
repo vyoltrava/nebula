@@ -109,7 +109,7 @@ export default function HomePage() {
                 : "text-white/50 hover:text-white/80"
             }`}
           >
-            Для вас
+            {t("feed.all")}
           </button>
           <button
             onClick={() => setActiveTab("following")}
@@ -119,7 +119,7 @@ export default function HomePage() {
                 : "text-white/50 hover:text-white/80"
             }`}
           >
-            Читаемые
+            {t("feed.following")}
           </button>
         </div>
 
