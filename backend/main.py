@@ -872,7 +872,10 @@ def logout_all(
 
 @app.get("/api/me")
 def me(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    return user_out(user, session)
+    result = user_out(user, session)
+    # Добавляем prism_anchor только для текущего пользователя
+    result["prism_anchor"] = user.prism_anchor
+    return result
 
 
 @app.patch("/api/me")
