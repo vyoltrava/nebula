@@ -8821,13 +8821,19 @@ def support_ticket_messages(
         }
         for m in messages
     ]
-
 @app.post("/api/chats/prism")
 async def create_prism_chat(
     data: CreatePrismChatIn,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
+    """Создание чата типа 'Призма'"""
+    print(f" Получены данные для Prism чата:")
+    print(f"  other_user_id: {data.other_user_id}")
+    print(f"  shard1_encrypted: {'OK' if data.shard1_encrypted else 'MISSING'}")
+    print(f"  shard2_genesis: {'OK' if data.shard2_genesis else 'MISSING'}")
+    print(f"  avatar_url: {'OK' if data.avatar_url else 'MISSING'}")
+
     """Создание чата типа 'Призма'"""
     if data.other_user_id == user.id:
         raise HTTPException(400, "Нельзя создать чат с собой")

@@ -335,19 +335,26 @@ const initiatePrism = async (targetUserId: number, targetUserName: string) => {
     const key = generatePrismKey();
     const { shard1_anchor, shard2_genesis, shard3_local } = splitKeyIntoShards(key);
     
-    // 🔥 ПРОВЕРКА: shard3_local должен быть строкой!
-    if (!shard3_local || typeof shard3_local !== 'string') {
-      throw new Error("shard3_local не сгенерирован корректно");
-    }
-    
-    console.log("🔑 Generated shards:", {
-      shard1_anchor: shard1_anchor.substring(0, 20) + "...",
-      shard2_genesis: shard2_genesis.substring(0, 20) + "...",
-      shard3_local: shard3_local.substring(0, 20) + "..."
+    // 🔥 ПРОВЕРКИ: все ли спектры сгенерировались
+    console.log("🔑 Генерация спектров:", {
+      shard1_anchor: shard1_anchor ? "OK" : "MISSING",
+      shard2_genesis: shard2_genesis ? "OK" : "MISSING",
+      shard3_local: shard3_local ? "OK" : "MISSING",
     });
+    
+    if (!shard1_anchor || !shard2_genesis || !shard3_local) {
+      throw new Error("Ошибка генерации ключей шифрования");
+    }
     
     const encryptedShard1 = await encryptAnchorWithPin(shard1_anchor, pin);
     const avatarSvg = generatePrismAvatar(shard1_anchor, shard2_genesis, shard3_local);
+
+    console.log("📤 Отправка на сервер...", {
+      other_user_id: targetUserId,
+      shard1_encrypted: encryptedShard1 ? "OK" : "MISSING",
+      shard2_genesis: shard2_genesis ? "OK" : "MISSING",
+      avatar_url: avatarSvg ? "OK" : "MISSING",
+    });
 
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/prism`, {
       method: "POST",
@@ -358,7 +365,7 @@ const initiatePrism = async (targetUserId: number, targetUserName: string) => {
       body: JSON.stringify({
         other_user_id: targetUserId,
         shard1_encrypted: encryptedShard1,
-        shard2_genesis: shard2_genesis,
+        shard2_genesis: shard2_genesis,  // 🔥 ПРОВЕРЬ ЧТО ЭТО ПЕРЕДАЁТСЯ
         avatar_url: avatarSvg,
       }),
     });
@@ -366,37 +373,25 @@ const initiatePrism = async (targetUserId: number, targetUserName: string) => {
     if (res.ok) {
       const data = await res.json();
       
-      // 🔥 ПРОВЕРКА ПЕРЕД СОХРАНЕНИЕМ
-      try {
-
-        // 🔥 ПРОВЕРКА: читаем обратно чтобы убедиться что сохранилось
-        const saved = await prismStorage.getShard(data.chat_id);
+      console.log("💾 Сохранение shard3 в IndexedDB...", {
+        chatId: data.chat_id,
+        shard3: shard3_local ? "OK" : "MISSING"
+      });
+      
       await prismStorage.saveShard(data.chat_id, shard3_local);
-
-        
-        if (!saved) {
-          console.error("❌ shard3 НЕ СОХРАНИЛСЯ в IndexedDB!");
-        } else {
-          console.log("🔑 ПЕРЕД СОХРАНЕНИЕМ shard3_local:", shard3_local);
-await prismStorage.saveShard(data.chat_id, shard3_local);
-          console.log("✅ shard3 сохранён:", saved.substring(0, 20) + "...");
-        }
-      } catch (dbError) {
-        console.error("❌ Ошибка сохранения shard3:", dbError);
-        alert("⚠️ Ошибка сохранения ключа шифрования. Попробуйте ещё раз.");
-      }
-
+      
       setShowPrismModal(false);
       setPrismSearchQuery("");
       setPrismSearchResults([]);
       router.push(`/prism/${data.chat_id}`);
     } else {
       const err = await res.json();
+      console.error("❌ Ошибка сервера:", err);
       alert(err.detail || "Ошибка создания канала");
     }
   } catch (e) {
-    console.error(e);
-    alert("Ошибка сети или шифрования: " + (e as Error).message);
+    console.error("❌ ОШИБКА СОЗДАНИЯ ПРИЗМЫ:", e);
+    alert("Ошибка: " + (e as Error).message);
   } finally {
     setIsCreatingPrism(false);
   }
