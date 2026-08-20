@@ -71,16 +71,10 @@ export async function encryptAnchorWithPin(shard1Base64: string, pin: string): P
   );
 
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
-
   const algorithm = { name: "AES-GCM", iv } as any;
   const data = base64ToBytes(shard1Base64) as any;
   
-  const encryptedBuffer = await window.crypto.subtle.encrypt(
-    algorithm,
-    cryptoKey,
-    data
-  );
-
+  const encryptedBuffer = await window.crypto.subtle.encrypt(algorithm, cryptoKey, data);
   const encrypted = new Uint8Array(encryptedBuffer);
   const combined = new Uint8Array(iv.length + encrypted.length);
   combined.set(iv);
@@ -117,18 +111,12 @@ export async function decryptAnchorWithPin(encryptedAnchorBase64: string, pin: s
   const ciphertext = combined.slice(12);
 
   const algorithm = { name: "AES-GCM", iv } as any;
-  
-  const decryptedBuffer = await window.crypto.subtle.decrypt(
-    algorithm,
-    cryptoKey,
-    ciphertext as any
-  );
-
+  const decryptedBuffer = await window.crypto.subtle.decrypt(algorithm, cryptoKey, ciphertext as any);
   return bytesToBase64(new Uint8Array(decryptedBuffer));
 }
 
 /**
- * ✅ ИСПРАВЛЕНО: Надежный маркер конца данных: 8 единиц, затем 8 нулей (11111111 00000000)
+ * ✅ ИСПРАВЛЕНО: Надежный маркер конца данных (8 единиц, затем 8 нулей)
  */
 function stringToBits(str: string): number[] {
   const bits: number[] = [];
@@ -138,7 +126,7 @@ function stringToBits(str: string): number[] {
       bits.push((charCode >> j) & 1);
     }
   }
-  // Маркер конца: 8 единиц, затем 8 нулей
+  // Маркер конца: 11111111 00000000
   for (let i = 0; i < 8; i++) bits.push(1);
   for (let i = 0; i < 8; i++) bits.push(0);
   return bits;
@@ -160,10 +148,7 @@ function bitsToString(bits: number[]): string {
 }
 
 /**
- * 🆕 Внедряет строку (Shard 3) в PNG-изображение через LSB
- */
-/**
- * 🆕 Внедряет строку (Shard 3) в PNG-изображение через LSB
+ *  Внедряет строку (Shard 3) в PNG через LSB
  */
 export async function embedDataInImage(imageFile: File, secretData: string): Promise<File> {
   return new Promise((resolve, reject) => {
@@ -175,11 +160,11 @@ export async function embedDataInImage(imageFile: File, secretData: string): Pro
       canvas.width = img.width;
       canvas.height = img.height;
       
-      // 🔥 КРИТИЧЕСКИ ВАЖНО: willReadFrequently отключает оптимизацию браузера
+      //  willReadFrequently отключает GPU-оптимизацию браузера
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (!ctx) return reject("Canvas context not found");
       
-      // 🔥 УБИВАЕМ ПРОЗРАЧНОСТЬ: заливаем фон белым, иначе premultiply alpha сожрёт LSB
+      //  УБИВАЕМ ПРОЗРАЧНОСТЬ: заливаем белым фоном, иначе premultiply alpha сожрёт LSB
       ctx.fillStyle = "#FFFFFF";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
@@ -188,7 +173,6 @@ export async function embedDataInImage(imageFile: File, secretData: string): Pro
       const data = imageData.data;
       const bits = stringToBits(secretData);
       
-      // Проверяем, влезут ли данные
       if (bits.length > data.length / 4) {
         return reject("Изображение слишком маленькое для этих данных");
       }
@@ -213,7 +197,7 @@ export async function embedDataInImage(imageFile: File, secretData: string): Pro
 }
 
 /**
- * 🆕 Извлекает скрытую строку (Shard 3) из PNG-изображения
+ *  Извлекает скрытую строку (Shard 3) из PNG
  */
 export async function extractDataFromImage(imageUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -224,11 +208,11 @@ export async function extractDataFromImage(imageUrl: string): Promise<string> {
       canvas.width = img.width;
       canvas.height = img.height;
       
-      // 🔥 КРИТИЧЕСКИ ВАЖНО: willReadFrequently
+      // 🔥 willReadFrequently обязателен для точного чтения пикселей
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (!ctx) return reject("Canvas context not found");
       
-      // 🔥 УБИВАЕМ ПРОЗРАЧНОСТЬ при чтении (должно совпадать с записью)
+      // 🔥 Должен совпадать с записью
       ctx.fillStyle = "#FFFFFF";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
@@ -240,6 +224,7 @@ export async function extractDataFromImage(imageUrl: string): Promise<string> {
       for (let i = 0; i < data.length / 4; i++) {
         bits.push(data[i * 4] & 1);
         
+        // Проверяем маркер конца (8 единиц, 8 нулей)
         if (bits.length >= 16) {
           const last16 = bits.slice(-16);
           if (last16.slice(0, 8).every(b => b === 1) && last16.slice(8).every(b => b === 0)) {
