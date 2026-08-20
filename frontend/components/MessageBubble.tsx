@@ -145,20 +145,13 @@ export const MessageBubble = memo(function MessageBubble({
             )}
 
             {/* Текст и ссылки */}
-            {isEditing ? (
-              <div className="flex gap-2 items-start">
-                <textarea value={editText} onChange={(e) => onEditChange(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSubmitEdit(); } if (e.key === "Escape") onCancelEdit(); }} className="flex-1 bg-white/10 border border-white/20 rounded-lg px-2.5 py-1.5 text-sm text-white focus:outline-none focus:border-[#8b5cf6] resize-none" rows={2} autoFocus />
-              </div>
-            ) : (
-              <>
-                {displayText && (
-                  <>
-                    <MarkdownRenderer text={displayText} isMessage={true} />
-                    {!isSecret && extractFirstUrl(displayText) && <LinkPreview url={extractFirstUrl(displayText)!} />}
-                  </>
-                )}
-              </>
-            )}
+{/* Текст и ссылки */}
+{displayText && (
+  <>
+    <MarkdownRenderer text={displayText} isMessage={true} />
+    {!isSecret && extractFirstUrl(displayText) && <LinkPreview url={extractFirstUrl(displayText)!} />}
+  </>
+)}
           </div>
 
           {/* 🆕 РЕАКЦИИ - ВОССТАНОВЛЕНО */}

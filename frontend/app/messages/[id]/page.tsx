@@ -245,7 +245,6 @@ const insertTextAtCursor = (textToInsert: string) => {
   }, 10);
 };
 
-// ✅ НОВАЯ ФУНКЦИЯ: Открытие меню по клику на "три точки"
 const openMessageMenu = (e: React.MouseEvent | React.PointerEvent, msg: any) => {
   e.stopPropagation();
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -255,48 +254,45 @@ const openMessageMenu = (e: React.MouseEvent | React.PointerEvent, msg: any) => 
   const menuWidth = 220;
   const menuHeight = 300;
   
-  // Позиционируем меню справа от кнопки
-  let x = rect.right + 4;
-  let y = rect.top;
+  // ✅ Позиционируем ПОД кнопкой, выровненное по правому краю кнопки
+  let x = rect.right - menuWidth;
+  let y = rect.bottom + 4;
   
-  // Если вылезает за правый край — открываем слева от кнопки
-  if (x + menuWidth > windowWidth) {
-    x = rect.left - menuWidth - 4;
-  }
-  // Если вылезает за нижний край — сдвигаем вверх
+  // Если вылезает за левый край
+  if (x < 10) x = 10;
+  // Если вылезает за правый край
+  if (x + menuWidth > windowWidth) x = windowWidth - menuWidth - 10;
+  // Если вылезает за нижний край — открываем ВЫШЕ кнопки
   if (y + menuHeight > windowHeight) {
-    y = windowHeight - menuHeight - 10;
+    y = rect.top - menuHeight - 4;
   }
   
-  x = Math.max(10, x);
   y = Math.max(10, y);
   
   setContextMenu({ msg, x, y });
 };
-// ✅ НОВАЯ ФУНКЦИЯ: Long press для открытия меню
 const handlePointerDown = (e: React.PointerEvent, msg: any) => {
   if (isSelectMode || isSecret) return;
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
   
   longPressTimerRef.current = setTimeout(() => {
     isLongPressRef.current = true;
     
-    // Открываем меню с координатами элемента
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
     const menuWidth = 220;
     const menuHeight = 300;
     
-    let x = rect.right + 4;
-    let y = rect.top;
+    // ✅ Позиционируем ПОД пальцем/курсором
+    let x = e.clientX - menuWidth / 2; // центрируем по горизонтали
+    let y = e.clientY + 20; // чуть ниже пальца
     
-    if (x + menuWidth > windowWidth) x = rect.left - menuWidth - 4;
-    if (y + menuHeight > windowHeight) y = windowHeight - menuHeight - 10;
-    x = Math.max(10, x);
+    if (x < 10) x = 10;
+    if (x + menuWidth > windowWidth) x = windowWidth - menuWidth - 10;
+    if (y + menuHeight > windowHeight) y = e.clientY - menuHeight - 20;
     y = Math.max(10, y);
     
-    setContextMenu({ msg, x, y });
-  }, 500); // 500мс для long press
+    setContextMenu({ msg, x, y }); // ✅ Открываем полное меню, а не longPressMenu
+  }, 500);
 };
 
 const handlePointerUp = () => {
@@ -1040,13 +1036,19 @@ function applyMarkdown(action: "bold" | "italic" | "code" | "link" | "spoiler") 
 
 
 
-  async function sendMessage() {
-    if (sendingRef.current) return;
-    const token = getToken();
-    if (!token) return;
-    if (!text.trim() && files.length === 0) return;
+async function sendMessage() {
+  if (sendingRef.current) return;
+  const token = getToken();
+  if (!token) return;
+  if (!text.trim() && files.length === 0) return;
 
-    sendingRef.current = true;
+  // ✅ НОВОЕ: Если мы в режиме редактирования — отправляем правку, а не новое сообщение
+  if (editingMessageId) {
+    await submitEdit();
+    return;
+  }
+
+  sendingRef.current = true;
     try {
       const messagesToSend: { text: string; file: File | null }[] = [];
       if (files.length > 0) {
@@ -1251,42 +1253,58 @@ for (const msg of messagesToSend) {
     }
   }
 
-  async function submitEdit() {
-    if (!editingMessageId || !editText.trim()) return;
-    if (isSecret) {
-      alert("Редактирование пока недоступно для секретных чатов");
-      cancelEdit();
-      return;
-    }
-    const token = getToken();
-    if (!token) return;
-    try {
-      const form = new FormData();
-      form.append("text", editText);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/${editingMessageId}`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-      if (res.ok) {
-        setEditingMessageId(null);
-        setEditText("");
-        loadMessages();
-      }
-    } catch (err) {
-      alert("Ошибка сети");
-    }
+async function submitEdit() {
+  if (!editingMessageId || !text.trim()) return;
+  if (isSecret) {
+    alert("Редактирование пока недоступно для секретных чатов");
+    cancelEdit();
+    return;
   }
+  const token = getToken();
+  if (!token) return;
+  try {
+    const form = new FormData();
+    form.append("text", text.trim());
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/${editingMessageId}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (res.ok) {
+      cancelEdit(); // ✅ Очищаем инпут и сбрасываем editingMessageId
+      loadMessages();
+    }
+  } catch (err) {
+    alert("Ошибка сети");
+  }
+}
 
-  function startEdit(msg: any) {
-    if (isSecret) {
-      alert("Редактирование недоступно в секретных чатах");
-      return;
-    }
-    setEditingMessageId(msg.id);
-    setEditText(msg.text || "");
-    setActiveMessageMenu(null);
+function startEdit(msg: any) {
+  if (isSecret) {
+    alert("Редактирование недоступно в секретных чатах");
+    return;
   }
+  setEditingMessageId(msg.id);
+  setText(msg.text || ""); // ✅ Переносим текст в инпут
+  
+  // Фокусируем textarea и ставим курсор в конец
+  setTimeout(() => {
+    textareaRef.current?.focus();
+    if (textareaRef.current) {
+      const len = msg.text?.length || 0;
+      textareaRef.current.setSelectionRange(len, len);
+    }
+  }, 50);
+  
+  setActiveMessageMenu(null);
+  setContextMenu(null); // Закрываем меню, если оно открыто
+}
+
+function cancelEdit() {
+  setEditingMessageId(null);
+  setText(""); // Очищаем инпут
+  textareaRef.current?.blur();
+}
 
   function startReply(msg: any) {
     setReplyTo(msg);
@@ -1499,10 +1517,6 @@ function getMessageMenuItems(msg: any): { icon: any; label: string; onClick: () 
   }
 
 
-  function cancelEdit() {
-    setEditingMessageId(null);
-    setEditText("");
-  }
 
   async function loadMedia() {
     const token = getToken();
@@ -2624,6 +2638,26 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
       </div>
     ) : (
       <div className="flex flex-col gap-0">
+
+{/* ✅ НОВОЕ: Плашка редактирования сообщения */}
+{editingMessageId && (
+  <div className="flex items-center gap-2.5 px-3 py-2 mb-1.5 bg-[#8b5cf6]/10 border border-[#8b5cf6]/30 rounded-xl">
+    <Edit2 size={14} className="text-[#8b5cf6] shrink-0" />
+    <div className="flex-1 min-w-0 border-l-2 border-[#8b5cf6] pl-2.5">
+      <p className="text-[11px] font-bold text-[#8b5cf6]">Редактирование</p>
+      <p className="text-[11px] text-white/50 truncate">{text}</p>
+    </div>
+    <button 
+      onClick={cancelEdit} 
+      className="p-1 text-white/40 hover:text-white rounded-full hover:bg-white/10 transition-colors shrink-0"
+    >
+      <X size={14} />
+    </button>
+  </div>
+)}
+
+
+
         {/* Панель ответа */}
         {replyTo && (
           <div className="flex items-center gap-2.5 px-3 py-2 mb-1.5 bg-[#8b5cf6]/10 border border-[#8b5cf6]/30 rounded-xl">
