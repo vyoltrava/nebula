@@ -226,8 +226,10 @@ export default function LoginPage() {
                 {mode === "login" ? t("login.submitLogin") : t("login.submitRegister")}
               </button>
             </form>
-            <div className="mt-6">
-              <LanguageSwitcher />
+            
+            {/* Гармоничный футер с переключателем языка */}
+            <div className="mt-6 pt-4 border-t border-white/10 flex justify-center">
+              <LanguageSwitcher variant="compact" />
             </div>
           </>
         )}
