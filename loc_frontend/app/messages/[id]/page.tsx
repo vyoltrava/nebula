@@ -1077,6 +1077,13 @@ async function sendMessage() {
         setMessages((prev) => [...prev, tempMsg]);
       }
 
+      setText("");
+      clearDraft();
+      setFiles([]);
+      setReplyTo(null);
+      sendLiveText(""); // 🆕 гасим живой текст у собеседников
+
+
 for (const msg of messagesToSend) {
   // 🆕 ШИФРОВАННОЕ МЕДИА для секретных чатов
   if (isSecret && msg.file) {
@@ -1221,11 +1228,7 @@ for (const msg of messagesToSend) {
         }
       }
 
-      setText("");
-      clearDraft();
-      setFiles([]);
-      setReplyTo(null);
-      sendLiveText(""); // 🆕 гасим живой текст у собеседников
+
 
       if (!isSecret && tempText) {
         setMessages((prev) => prev.filter((m) => m.id !== tempId));
