@@ -146,17 +146,16 @@ export function Post({
   isMainPost?: boolean;
   externalReplies?: any[];
 }) {
-    const [currentUser] = useState(() => {
-      const cached = getCachedUser();
-      return cached 
-        ? { id: cached.id, is_admin: cached.is_admin, is_moderator: cached.is_moderator } 
-        : null;
-    });
+    const currentUserRaw = getCachedUser();
+    const currentUser = currentUserRaw
+      ? { 
+          id: currentUserRaw.id, 
+          is_admin: currentUserRaw.is_admin, 
+          is_moderator: currentUserRaw.is_moderator 
+        }
+      : null;
 
-    const [myPermissions] = useState<string[]>(() => {
-      const cached = getCachedUser();
-      return cached?.permissions || [];
-    });
+    const myPermissions = currentUserRaw?.permissions || [];
 
     const [liked, setLiked] = useState<boolean>(() => {
       if (liked_by_me === true) return true;
@@ -519,8 +518,8 @@ async function toggleLike() {
   }
 
 
-  const canDelete = currentUser?.id === author_id || myPermissions.includes("delete_posts");
-  const canEdit = currentUser?.id === author_id || myPermissions.includes("edit_posts");
+const canDelete = currentUser && String(currentUser.id) === String(author_id) || myPermissions.includes("delete_posts");
+const canEdit = currentUser && String(currentUser.id) === String(author_id) || myPermissions.includes("edit_posts");
 
   return (
     <article 
