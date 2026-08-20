@@ -3,8 +3,10 @@ import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/Sidebar";
 import { Shield, Edit2, Save, X, Crown, Code2, Users, Plus, Trash2, ArrowUp, ArrowDown, Star } from "lucide-react";
 import { getToken } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n/LanguageProvider";
 
 export default function RulesPage() {
+  const { t } = useI18n();
   const [rules, setRules] = useState<any>(null);
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState<any>(null);
@@ -56,13 +58,13 @@ export default function RulesPage() {
       if (res.ok) {
         setRules(editData);
         setEditing(false);
-        alert("✅ Правила сохранены!");
+        alert(t("rules.saved"));
       } else {
         const errorBody = await res.text();
-        alert(`❌ Ошибка ${res.status}: ${errorBody}`);
+        alert(t("rules.saveError", { status: res.status, body: errorBody }));
       }
     } catch (e) {
-      alert("⚠️ Ошибка: " + (e as Error).message);
+      alert(t("rules.saveFailed", { detail: (e as Error).message }));
     } finally {
       setSaving(false);
     }
@@ -81,12 +83,12 @@ export default function RulesPage() {
 
   // Группировка ролей по уровням
   const roleGroups = [
-    { title: "Специальный отдел", subtitle: "Высшее руководство платформы", levels: [8], icon: Crown },
-    { title: "Глава администрации", subtitle: "Руководитель административного состава", levels: [7], icon: Shield },
-    { title: "Главы отделов", subtitle: "Руководители специализированных отделов", levels: [6], icon: Star },
-    { title: "Заместители главы отдела", subtitle: "Правая рука руководителей отделов", levels: [5], icon: Shield },
-    { title: "Действующие сотрудники", subtitle: "Основной рабочий состав отделов", levels: [4], icon: Users },
-    { title: "Младший состав отделов", subtitle: "Стажёры и начинающие сотрудники", levels: [3, 2, 1], icon: Users },
+    { title: "Специальный отдел", subtitle: t("rules.specialSub"), levels: [8], icon: Crown },
+    { title: "Глава администрации", subtitle: t("rules.headAdminSub"), levels: [7], icon: Shield },
+    { title: "Главы отделов", subtitle: t("rules.deptHeadsSub"), levels: [6], icon: Star },
+    { title: "Заместители главы отдела", subtitle: t("rules.deputiesSub"), levels: [5], icon: Shield },
+    { title: "Действующие сотрудники", subtitle: t("rules.staffSub"), levels: [4], icon: Users },
+    { title: "Младший состав отделов", subtitle: t("rules.juniorSub"), levels: [3, 2, 1], icon: Users },
   ];
 
   const getRolesByLevels = (levels: number[]) => {
@@ -96,20 +98,19 @@ export default function RulesPage() {
   const specialRoles = [
     {
       id: "founder",
-      name: "Founder",
+      name: t("rules.founders"), // Используем ключ из твоего словаря
       color: "#ffffff",
       textColor: "#000000",
-      description: "Основатель и главный администратор проекта. Обладает высшей властью на платформе, принимает финальные решения по любым вопросам, развитию проекта и составу команды."
+      description: t("rules.founderDesc")
     },
     {
       id: "developer",
-      name: "Developer",
+      name: "Developer", // Или добавь rules.developer в словарь
       color: "#3b82f6",
       textColor: "#ffffff",
-      description: "Ведущий разработчик платформы. Отвечает за техническую часть, внедрение новых функций, архитектуру и поддержку стабильной работы проекта."
+      description: t("rules.developerDesc")
     }
   ];
-
   // Редактор: добавление секции
   function addSection() {
     setEditData({
@@ -193,7 +194,7 @@ export default function RulesPage() {
             <div className="flex items-center gap-3">
               <Shield size={24} className="text-[#8b5cf6]" />
               <h1 className="text-2xl font-black text-white">
-                {rules?.title || "Правила"}
+                {rules?.title || t("rules.title")}
               </h1>
             </div>
             {isAdmin && (
@@ -202,7 +203,7 @@ export default function RulesPage() {
                 className="flex items-center gap-2 px-4 py-2 rounded-lg border border-white/20 text-white/80 hover:bg-white/10 transition-all"
               >
                 {editing ? <X size={18} /> : <Edit2 size={18} />}
-                {editing ? "Отмена" : "Редактировать"}
+                {editing ? t("common.cancel") : t("common.edit")}
               </button>
             )}
           </div>
@@ -213,7 +214,7 @@ export default function RulesPage() {
           )}
         </div>
 
-        {!rules && <p className="p-8 text-center text-white/50">Загрузка правил...</p>}
+        {!rules && <p className="p-8 text-center text-white/50">{t("rules.loading")}</p>}
 
         {/* РЕДАКТОР */}
         {editing && editData && (
@@ -407,9 +408,9 @@ export default function RulesPage() {
                       <thead>
                         <tr className="border-b border-white/20">
                           <th className="text-left p-3 text-white/60 font-bold">№</th>
-                          <th className="text-left p-3 text-white/60 font-bold">Мера наказания</th>
-                          <th className="text-left p-3 text-white/60 font-bold">Описание</th>
-                          <th className="text-left p-3 text-white/60 font-bold">Типичные нарушения</th>
+                          <th className="text-left p-3 text-white/60 font-bold">{t("rules.measure")}</th>
+                          <th className="text-left p-3 text-white/60 font-bold">{t("rules.description")}</th>
+                          <th className="text-left p-3 text-white/60 font-bold">{t("rules.violations")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -434,10 +435,10 @@ export default function RulesPage() {
             <div className="border border-[#8b5cf6]/30 rounded-xl p-5 bg-[#8b5cf6]/5">
               <div className="flex items-center gap-2 mb-4">
                 <Code2 size={20} className="text-[#8b5cf6]" />
-                <h2 className="text-xl font-black text-white">Основатели и Разработка</h2>
+                <h2 className="text-xl font-black text-white">{t("rules.founders")}</h2>
               </div>
               <p className="text-white/60 text-sm mb-5">
-                Люди, которые создали платформу и отвечают за её техническое развитие.
+                {t("rules.foundersHint")}
               </p>
               <div className="space-y-3">
                 {specialRoles.map((role) => (
@@ -471,10 +472,10 @@ export default function RulesPage() {
               <div className="border border-white/15 rounded-xl p-5 bg-white/5">
                 <div className="flex items-center gap-2 mb-4">
                   <Users size={20} className="text-[#8b5cf6]" />
-                  <h2 className="text-xl font-black text-white">Администрация и Модерация</h2>
+                  <h2 className="text-xl font-black text-white">{t("rules.admin")}</h2>
                 </div>
                 <p className="text-white/60 text-sm mb-5">
-                  Команда, которая следит за порядком, помогает пользователям и поддерживает атмосферу сообщества.
+                  {t("rules.adminHint")}
                 </p>
 
                 <div className="space-y-6">
@@ -509,7 +510,7 @@ export default function RulesPage() {
                                   <span className="text-white/30 text-xs">LVL {role.level}</span>
                                 </div>
                                 <p className="text-white/70 text-sm leading-relaxed">
-                                  {role.description || "Описание отсутствует"}
+                                  {role.description || t("rules.noDesc")}
                                 </p>
                               </div>
                             </div>

@@ -44,6 +44,7 @@ export const ru = {
     offline: "не в сети",
     wasMinAgo: "был(а) {n} мин. назад",
     wasHourAgo: "был(а) {n} ч. назад",
+    edit: "Редактировать",
   },
   lang: {
     label: "Язык",

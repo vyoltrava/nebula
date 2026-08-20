@@ -46,6 +46,8 @@ export const en: Dictionary = {
     offline: "offline",
     wasMinAgo: "last seen {n} min ago",
     wasHourAgo: "last seen {n} h ago",
+    edit: "Edit",
+  
   },
   lang: {
     label: "Language",
