@@ -10,22 +10,19 @@ const labels: Record<Locale, "lang.uk" | "lang.ru" | "lang.en"> = {
   en: "lang.en",
 };
 
-const flags: Record<Locale, string> = {
-  uk: "🇺🇦",
-  ru: "🇷🇺",
-  en: "🇬🇧",
-};
-
 export function LanguageSwitcher() {
   const { locale, setLocale, locales, t } = useI18n();
 
   return (
     <div className="space-y-2">
-      <label className="block text-xs font-medium text-[#B9B8BD] flex items-center gap-1.5">
-        <Globe size={12} />
+      {/* Заголовок в стиле настроек */}
+      <label className="flex items-center gap-2 text-xs font-medium text-[#B9B8BD] uppercase tracking-wider">
+        <Globe size={14} className="text-[#7B3FF2]" />
         {t("lang.label")}
       </label>
-      <div className="inline-flex border border-white/15 rounded-lg overflow-hidden bg-[#1C1C1F] p-1">
+      
+      {/* Контейнер переключателя */}
+      <div className="inline-flex bg-[#1C1C1F] border border-white/10 rounded-xl p-1 shadow-sm">
         {locales.map((code) => {
           const isActive = locale === code;
           return (
@@ -33,14 +30,17 @@ export function LanguageSwitcher() {
               key={code}
               type="button"
               onClick={() => setLocale(code)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-all ${
-                isActive 
-                  ? "bg-[#8b5cf6] text-white shadow-lg shadow-[#8b5cf6]/20" 
-                  : "text-white/60 hover:text-white hover:bg-white/5"
-              }`}
+              className={`
+                relative flex items-center justify-center 
+                px-4 py-2 text-sm font-semibold rounded-lg 
+                transition-all duration-200 ease-out
+                ${isActive 
+                  ? "bg-[#7B3FF2] text-white shadow-lg shadow-[#7B3FF2]/25 ring-1 ring-[#7B3FF2]/50" 
+                  : "text-white/40 hover:text-white/70 hover:bg-white/5"
+                }
+              `}
             >
-              <span className="text-base leading-none">{flags[code]}</span>
-              <span>{t(labels[code])}</span>
+              {t(labels[code])}
             </button>
           );
         })}
