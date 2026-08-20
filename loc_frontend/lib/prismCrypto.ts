@@ -150,48 +150,77 @@ function bitsToString(bits: number[]): string {
 /**
  *  Внедряет строку (Shard 3) в PNG через LSB
  */
+/**
+ * Внедряет строку (Shard 3) в PNG через LSB с автоматическим уменьшением размера
+ */
 export async function embedDataInImage(imageFile: File, secretData: string): Promise<File> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(imageFile);
+    
     img.onload = () => {
       URL.revokeObjectURL(url);
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
       
-      //  willReadFrequently отключает GPU-оптимизацию браузера
+      const canvas = document.createElement('canvas');
+      
+      // 🔥 КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Ограничиваем максимальный размер Canvas
+      // Для аватара и стеганографии 512px более чем достаточно (даст > 1 000 000 бит места)
+      const MAX_DIM = 512; 
+      let width = img.width;
+      let height = img.height;
+
+      if (width > MAX_DIM || height > MAX_DIM) {
+        const ratio = Math.min(MAX_DIM / width, MAX_DIM / height);
+        width = Math.floor(width * ratio);
+        height = Math.floor(height * ratio);
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (!ctx) return reject("Canvas context not found");
       
-      //  УБИВАЕМ ПРОЗРАЧНОСТЬ: заливаем белым фоном, иначе premultiply alpha сожрёт LSB
+      // УБИВАЕМ ПРОЗРАЧНОСТЬ: заливаем белым фоном
       ctx.fillStyle = "#FFFFFF";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      // Рисуем уже уменьшенное изображение
+      ctx.drawImage(img, 0, 0, width, height);
+      
+      const imageData = ctx.getImageData(0, 0, width, height);
       const data = imageData.data;
       const bits = stringToBits(secretData);
       
       if (bits.length > data.length / 4) {
-        return reject("Изображение слишком маленькое для этих данных");
+        return reject(`Изображение слишком маленькое. Нужно бит: ${bits.length}, доступно: ${data.length / 4}`);
       }
 
+      // Внедряем биты в красный канал (R)
       for (let i = 0; i < bits.length; i++) {
         data[i * 4] = (data[i * 4] & 0xFE) | bits[i];
       }
 
       ctx.putImageData(imageData, 0, 0);
       
-      canvas.toBlob((blob) => {
-        if (blob) {
-          resolve(new File([blob], "prism_avatar.png", { type: "image/png" }));
-        } else {
-          reject("Failed to create blob");
-        }
-      }, "image/png"); 
+      // 🔥 Безопасное создание Blob с обработкой ошибок
+      try {
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(new File([blob], "prism_avatar.png", { type: "image/png" }));
+          } else {
+            reject("Браузер вернул null при создании Blob. Возможно, превышен лимит памяти Canvas.");
+          }
+        }, "image/png", 1.0); // 1.0 - максимальное качество для PNG
+      } catch (err) {
+        reject(`Ошибка сжатия Canvas: ${err}`);
+      }
     };
-    img.onerror = () => reject("Failed to load image");
+    
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject("Failed to load image");
+    };
     img.src = url;
   });
 }
