@@ -162,6 +162,9 @@ function bitsToString(bits: number[]): string {
 /**
  * 🆕 Внедряет строку (Shard 3) в PNG-изображение через LSB
  */
+/**
+ * 🆕 Внедряет строку (Shard 3) в PNG-изображение через LSB
+ */
 export async function embedDataInImage(imageFile: File, secretData: string): Promise<File> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -171,15 +174,25 @@ export async function embedDataInImage(imageFile: File, secretData: string): Pro
       const canvas = document.createElement('canvas');
       canvas.width = img.width;
       canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
+      
+      // 🔥 КРИТИЧЕСКИ ВАЖНО: willReadFrequently отключает оптимизацию браузера
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (!ctx) return reject("Canvas context not found");
+      
+      // 🔥 УБИВАЕМ ПРОЗРАЧНОСТЬ: заливаем фон белым, иначе premultiply alpha сожрёт LSB
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       
       ctx.drawImage(img, 0, 0);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
       const bits = stringToBits(secretData);
       
-      // ✅ ОПТИМИЗАЦИЯ: пишем сразу в буфер, не по одному биту
+      // Проверяем, влезут ли данные
+      if (bits.length > data.length / 4) {
+        return reject("Изображение слишком маленькое для этих данных");
+      }
+
       for (let i = 0; i < bits.length; i++) {
         data[i * 4] = (data[i * 4] & 0xFE) | bits[i];
       }
@@ -188,7 +201,6 @@ export async function embedDataInImage(imageFile: File, secretData: string): Pro
       
       canvas.toBlob((blob) => {
         if (blob) {
-          // ✅ КРИТИЧЕСКИ ВАЖНО: явное имя с .png и правильный MIME-type для бэкенда
           resolve(new File([blob], "prism_avatar.png", { type: "image/png" }));
         } else {
           reject("Failed to create blob");
@@ -206,13 +218,19 @@ export async function embedDataInImage(imageFile: File, secretData: string): Pro
 export async function extractDataFromImage(imageUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "Anonymous"; // Важно для загрузки с Cloudinary
+    img.crossOrigin = "Anonymous";
     img.onload = () => {
       const canvas = document.createElement('canvas');
       canvas.width = img.width;
       canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
+      
+      // 🔥 КРИТИЧЕСКИ ВАЖНО: willReadFrequently
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
       if (!ctx) return reject("Canvas context not found");
+      
+      // 🔥 УБИВАЕМ ПРОЗРАЧНОСТЬ при чтении (должно совпадать с записью)
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       
       ctx.drawImage(img, 0, 0);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -222,11 +240,9 @@ export async function extractDataFromImage(imageUrl: string): Promise<string> {
       for (let i = 0; i < data.length / 4; i++) {
         bits.push(data[i * 4] & 1);
         
-        // ✅ ИСПРАВЛЕНО: Проверяем маркер конца (8 единиц, 8 нулей)
         if (bits.length >= 16) {
           const last16 = bits.slice(-16);
           if (last16.slice(0, 8).every(b => b === 1) && last16.slice(8).every(b => b === 0)) {
-            // Передаем биты БЕЗ маркера в функцию преобразования
             resolve(bitsToString(bits.slice(0, -16)));
             return;
           }
