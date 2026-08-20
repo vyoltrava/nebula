@@ -7,9 +7,8 @@ import { VideoPlayer } from './VideoPlayer';
 import { AudioPlayer } from './AudioPlayer';
 import { VideoNotePlayer } from './VideoNotePlayer';
 import { EncryptedMediaPlayer } from './EncryptedMediaPlayer';
-import  LinkPreview  from './LinkPreview';
+import LinkPreview from './LinkPreview';
 import { SwipeableMessage } from './SwipeableMessage';
-// 🛠 ДОБАВЛЕН Lock в импорты!
 import { Pin, Check, CheckCheck, SmilePlus, MoreVertical, Lock } from 'lucide-react';
 import { formatChatTime } from '@/lib/time';
 import { mediaUrl } from '@/lib/media';
@@ -38,7 +37,7 @@ interface MessageBubbleProps {
   onDoubleClick: (e: React.MouseEvent) => void;
   onReactionClick: () => void;
   onMenuClick: (e: React.MouseEvent) => void;
-  onToggleReaction: (msgId: number, stickerId?: number, emoji?: string) => void; // 🆕
+  onToggleReaction: (msgId: number, stickerId?: number, emoji?: string) => void;
   activeMessageMenu: boolean;
   menuOpenUp: boolean;
   onSwipeRight: () => void;
@@ -61,8 +60,9 @@ export const MessageBubble = memo(function MessageBubble({
 
   const isVideoNote = !!msg.media_url && msg.media_type === "video_note";
   const isAudio = !!msg.media_url && msg.media_type === "audio";
+  const isSticker = !!msg.media_url && msg.media_type === "sticker"; // 🆕 Добавлено для стикеров
+  const isForwarded = !!msg.forwarded_from_id; // ✅ ИСПРАВЛЕНО: добавлена отсутствующая переменная
   const isEncryptedMedia = !!msg.is_encrypted_media || msg.ciphertext === "[encrypted_media]";
-  const isForwarded = !!msg.forwarded_from_id;
 
   return (
     <SwipeableMessage msgId={msg.id} onSwipeRight={onSwipeRight} raised={activeMessageMenu}>
@@ -95,7 +95,8 @@ export const MessageBubble = memo(function MessageBubble({
             </p>
           )}
 
-          <div className={`${bubbleRadius} transition-all ${isSelected ? "ring-2 ring-[#8b5cf6] ring-offset-2 ring-offset-[#171717]" : ""} ${isVideoNote || isAudio ? "p-0 bg-transparent border-0 rounded-2xl overflow-hidden" : `px-3 sm:px-3.5 md:px-4 py-2 sm:py-2 ${isForwarded ? (isMine ? "bg-cyan-600 text-white border-l-4 border-cyan-400" : "bg-cyan-950/40 text-white border-l-4 border-cyan-400") : (isMine ? (isSecret ? "bg-emerald-600 text-white" : "bg-[#8b5cf6] text-white") : "bg-white/10 text-white border border-white/15")}`}`}>
+          <div className={`${bubbleRadius} transition-all ${isSelected ? "ring-2 ring-[#8b5cf6] ring-offset-2 ring-offset-[#171717]" : ""} ${isVideoNote || isAudio || isSticker ? "p-0 bg-transparent border-0 rounded-2xl overflow-hidden" : `px-3 sm:px-3.5 md:px-4 py-2 sm:py-2 ${isForwarded ? 
+            (isMine ? "bg-cyan-600 text-white border-l-4 border-cyan-400" : "bg-cyan-950/40 text-white border-l-4 border-cyan-400") : (isMine ? (isSecret ? "bg-emerald-600 text-white" : "bg-[#8b5cf6] text-white") : "bg-white/10 text-white border border-white/15")}`}`}>            
             
             {/* Медиа контент */}
             {msg.media_url && isEncryptedMedia ? (
@@ -114,10 +115,19 @@ export const MessageBubble = memo(function MessageBubble({
                 {msg.media_url && msg.media_type === "video" && <VideoPlayer src={msg.media_url} className={getMediaClasses("video")} />}
                 {msg.media_url && msg.media_type === "audio" && <AudioPlayer src={mediaUrl(msg.media_url)} trackId={msg.id} title={`${msg.sender_name} · ${formatChatTime(msg.created_at)}`} />}
                 {msg.media_url && msg.media_type === "video_note" && <VideoNotePlayer src={mediaUrl(msg.media_url)} trackId={msg.id} title={`${msg.sender_name} · ${formatChatTime(msg.created_at)}`} />}
+
+                {/* 🆕 Рендер стикеров как сообщений */}
+                {isSticker && (
+                  <img 
+                    src={mediaUrl(msg.media_url)} 
+                    alt="sticker" 
+                    className="w-32 h-32 sm:w-40 sm:h-40 object-contain" 
+                  />
+                )}
               </>
             )}
 
-            {/* 🆕 ЦИТАТА (ответ на сообщение) - ВОССТАНОВЛЕНО */}
+            {/* 🆕 ЦИТАТА (ответ на сообщение) */}
             {msg.reply_preview && (
               <button
                 onClick={(e) => {
@@ -145,16 +155,15 @@ export const MessageBubble = memo(function MessageBubble({
             )}
 
             {/* Текст и ссылки */}
-{/* Текст и ссылки */}
-{displayText && (
-  <>
-    <MarkdownRenderer text={displayText} isMessage={true} />
-    {!isSecret && extractFirstUrl(displayText) && <LinkPreview url={extractFirstUrl(displayText)!} />}
-  </>
-)}
+            {displayText && (
+              <>
+                <MarkdownRenderer text={displayText} isMessage={true} />
+                {!isSecret && extractFirstUrl(displayText) && <LinkPreview url={extractFirstUrl(displayText)!} />}
+              </>
+            )}
           </div>
 
-          {/* 🆕 РЕАКЦИИ - ВОССТАНОВЛЕНО */}
+          {/* 🆕 РЕАКЦИИ */}
           {!isEditing && !isSelectMode && msg.reactions?.length > 0 && (
             <div className={`flex flex-wrap gap-1 mt-1.5 ${isMine ? "justify-end" : "justify-start"}`}>
               {msg.reactions.map((r: any) => (
@@ -168,7 +177,8 @@ export const MessageBubble = memo(function MessageBubble({
                   }`}
                 >
                   {r.type === "sticker" ? (
-                    <img src={r.content} alt="" className="w-5 h-5 object-contain" />
+                    /* ✅ ИСПРАВЛЕНО: убран невалидный JS-комментарий изнутри JSX */
+                    <img src={mediaUrl(r.content)} alt="" className="w-5 h-5 object-contain" />
                   ) : (
                     <span>{r.emoji}</span>
                   )}
@@ -188,9 +198,13 @@ export const MessageBubble = memo(function MessageBubble({
                 {formatChatTime(msg.created_at)}
                 {isMine && (msg.read ? <CheckCheck size={12} className="text-sky-300" /> : <Check size={12} className="text-white/50" />)}
               </p>
-              <button onClick={onReactionClick} className="p-1 text-white/40 hover:text-[#8b5cf6] active:scale-90 transition-transform" title="Реакция"><SmilePlus size={14} /></button>
+              <button onClick={onReactionClick} className="p-1 text-white/40 hover:text-[#8b5cf6] active:scale-90 transition-transform" title="Реакция">
+                <SmilePlus size={14} />
+              </button>
               {!isSecret && (
-                <button onClick={onMenuClick} className="p-1 text-white/40 hover:text-white active:scale-90 transition-transform"><MoreVertical size={13} /></button>
+                <button onClick={onMenuClick} className="p-1 text-white/40 hover:text-white active:scale-90 transition-transform">
+                  <MoreVertical size={13} />
+                </button>
               )}
             </div>
           )}

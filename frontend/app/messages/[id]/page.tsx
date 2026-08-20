@@ -1328,30 +1328,34 @@ async function loadStickerPacks() {
   }
 }
 
-  async function toggleReaction(msgId: number, stickerId?: number, emoji?: string) {
-    const token = getToken();
-    if (!token) return;
-    const form = new FormData();
-    if (stickerId) form.append("sticker_id", String(stickerId));
-    if (emoji) form.append("emoji", emoji);
-    
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/${msgId}/reactions`,
-        { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(prev => prev.map(m => m.id === msgId ? { ...m, reactions: data.reactions } : m));
-        setReactionPickerFor(null);
-      } else {
-        const err = await res.json().catch(() => null);
-        alert(err?.detail || "Не удалось поставить реакцию");
-      }
-    } catch {
-      alert("Ошибка сети");
+async function toggleReaction(msgId: number, stickerId?: number | string, emoji?: string) {
+  const token = getToken();
+  if (!token) return;
+  const form = new FormData();
+  
+  // 🆕 Гарантируем, что sticker_id передается как число (строка "123" -> число 123)
+  if (stickerId) form.append("sticker_id", String(Number(stickerId)));
+  if (emoji) form.append("emoji", String(emoji));
+  
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/${msgId}/reactions`,
+      { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, reactions: data.reactions } : m));
+      setReactionPickerFor(null);
+    } else {
+      const err = await res.json().catch(() => null);
+      console.error("❌ Ошибка реакции:", err); // 🆕 Чтобы видеть причину в консоли
+      alert(err?.detail || "Не удалось поставить реакцию");
     }
+  } catch (e) {
+    console.error("❌ Ошибка сети при реакции:", e);
+    alert("Ошибка сети");
   }
+}
 
   // 🆕 Отправка живого текста: пустой — сразу, остальное с троттлингом 300мс
   function sendLiveText(v: string) {
@@ -2849,17 +2853,17 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
             ) : (
               <div className="grid grid-cols-6 gap-1.5">
                 {stickerPacks[activePackTab].stickers.map((s: any) => (
-                  <button
-                    key={s.id}
-                    onClick={() => {
-                      if (s.type === "emoji") {
-                        toggleReaction(reactionPickerFor!, undefined, s.content);
-                      } else {
-                        toggleReaction(reactionPickerFor!, s.id);
-                      }
-                    }}
-                    className="aspect-square flex items-center justify-center rounded-xl hover:bg-white/10 active:scale-90 transition-all"
-                  >
+                    <button
+                      key={s.id}
+                      onClick={() => {
+                        if (s.type === "emoji") {
+                          toggleReaction(reactionPickerFor!, undefined, s.content);
+                        } else {
+                          toggleReaction(reactionPickerFor!, Number(s.id)); // 🆕 Явное преобразование в число
+                        }
+                      }}
+                      className="aspect-square flex items-center justify-center rounded-xl hover:bg-white/10 active:scale-90 transition-all"
+                    >
                     {s.type === "emoji" ? (
                       <span className="text-2xl">{s.content}</span>
                     ) : (

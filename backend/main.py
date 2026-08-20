@@ -6160,6 +6160,7 @@ def get_reply_preview(session: Session, reply_to_id: int) -> dict | None:
             "audio": "🎙️ Голосовое",
             "video_note": "📹 Видеокружок",
             "gif": "🎞️ GIF",
+            "sticker": "😀 Стикер", 
         }
         preview_text = media_labels.get(original.media_type, "📎 Вложение")
     return {
