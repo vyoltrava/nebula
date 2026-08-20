@@ -1,7 +1,9 @@
 // lib/prismCrypto.ts
 
 const base64ToBytes = (base64: string): Uint8Array => {
-  const binString = atob(base64);
+  // 🔥 Очищаем строку от пробелов и переносов перед декодированием
+  const cleanBase64 = base64.trim();
+  const binString = atob(cleanBase64);
   return Uint8Array.from(binString, (m) => m.codePointAt(0)!);
 };
 
@@ -40,11 +42,20 @@ export function splitKeyIntoShards(key: Uint8Array): {
 }
 
 export function reconstructKey(shard1: string, shard2: string, shard3: string): Uint8Array {
-  const b1 = base64ToBytes(shard1);
-  const b2 = base64ToBytes(shard2);
-  const b3 = base64ToBytes(shard3);
-  const temp = xorBytes(b1, b2);
-  return xorBytes(temp, b3);
+  try {
+    // 🔥 trim() спасает от скрытых \n и пробелов
+    const b1 = base64ToBytes(shard1.trim());
+    const b2 = base64ToBytes(shard2.trim());
+    const b3 = base64ToBytes(shard3.trim());
+    const temp = xorBytes(b1, b2);
+    return xorBytes(temp, b3);
+  } catch (e) {
+    console.error("❌ Ошибка base64 в reconstructKey!");
+    console.error("shard1:", shard1);
+    console.error("shard2:", shard2);
+    console.error("shard3:", shard3);
+    throw new Error("Повреждённый ключ шифрования. Один из спектров содержит недопустимые символы.");
+  }
 }
 
 export async function encryptAnchorWithPin(shard1Base64: string, pin: string): Promise<string> {

@@ -1,6 +1,10 @@
 const DB_NAME = 'TrelodPrismDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'shards';
+const isValidBase64 = (str: string) => {
+  if (!str || str === "undefined" || str === "null" || str === "[object Object]") return false;
+  return /^[A-Za-z0-9+/=]+$/.test(str) && str.length % 4 === 0;
+};
 
 class PrismStorage {
   private db: IDBDatabase | null = null;
@@ -20,31 +24,37 @@ class PrismStorage {
     });
   }
 
+
   async saveShard(chatId: number, shard3: string): Promise<void> {
-    console.log(`💾 [PrismStorage] Сохраняем shard3 для чата ${chatId}`);
+    // 🔥 Очищаем строку перед проверкой и сохранением
+    const cleanShard = (shard3 || "").trim();
+    console.log(`💾 [PrismStorage] Сохраняем shard3 для чата ${chatId}. Длина: ${cleanShard.length}`);
     
-    // 1. Пробуем IndexedDB
+    if (!isValidBase64(cleanShard)) {
+      console.error(`❌ [PrismStorage] Попытка сохранить невалидный shard3!`, cleanShard);
+      throw new Error("Невозможно сохранить: shard3 не является валидной Base64 строкой");
+    }
+
     try {
       const db = await this.getDB();
       const tx = db.transaction(STORE_NAME, 'readwrite');
-      tx.objectStore(STORE_NAME).put({ chatId, shard3, createdAt: Date.now() });
+      tx.objectStore(STORE_NAME).put({ chatId, shard3: cleanShard, createdAt: Date.now() });
       await new Promise((resolve, reject) => {
         tx.oncomplete = () => resolve(true);
         tx.onerror = () => reject(tx.error);
       });
-      console.log(`✅ [PrismStorage] Успешно сохранено в IndexedDB`);
     } catch (e) {
-      console.warn(`⚠️ [PrismStorage] Ошибка IndexedDB, используем fallback:`, e);
+      console.warn(`⚠️ [PrismStorage] Ошибка IndexedDB:`, e);
     }
 
-    // 2. ВСЕГДА сохраняем в localStorage как страховку
     try {
-      localStorage.setItem(`prism_shard3_${chatId}`, shard3);
-      console.log(`✅ [PrismStorage] Успешно сохранено в localStorage`);
+      localStorage.setItem(`prism_shard3_${chatId}`, cleanShard);
     } catch (e) {
-      console.error(`❌ [PrismStorage] Критическая ошибка сохранения:`, e);
+      console.error(`❌ [PrismStorage] Ошибка localStorage:`, e);
     }
   }
+
+
 
   async getShard(chatId: number): Promise<string | null> {
     console.log(`🔍 [PrismStorage] Ищем shard3 для чата ${chatId}`);
