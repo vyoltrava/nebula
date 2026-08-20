@@ -614,7 +614,7 @@ export const en: Dictionary = {
     measureShort: "Penalty",
     description: "Description",
     violations: "Typical violations",
-    founders: "Founders and development",
+    founders: "Founders",
     foundersHint: "The people who built the platform and keep it running.",
     admin: "Administration and moderation",
     adminHint: "The team that keeps order, helps users and supports the community.",
@@ -628,6 +628,14 @@ export const en: Dictionary = {
     juniorSub: "Interns and junior staff",
     founderDesc: "Founder and lead administrator. Has the highest authority on the platform and makes final decisions.",
     developerDesc: "Lead developer. Owns the technical side, new features, architecture and stability.",
+
+    groupSpecial: "Special Department",
+    groupHeadAdmin: "Head of Administration",
+    groupDeptHeads: "Department Heads",
+    groupDeputies: "Department Deputy Heads",
+    groupStaff: "Active Staff",
+    groupJunior: "Junior Staff & Interns",
+    
   },
   prism: {
     pin: "Channel PIN:",

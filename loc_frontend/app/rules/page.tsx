@@ -83,12 +83,12 @@ export default function RulesPage() {
 
   // Группировка ролей по уровням
   const roleGroups = [
-    { title: "Специальный отдел", subtitle: t("rules.specialSub"), levels: [8], icon: Crown },
-    { title: "Глава администрации", subtitle: t("rules.headAdminSub"), levels: [7], icon: Shield },
-    { title: "Главы отделов", subtitle: t("rules.deptHeadsSub"), levels: [6], icon: Star },
-    { title: "Заместители главы отдела", subtitle: t("rules.deputiesSub"), levels: [5], icon: Shield },
-    { title: "Действующие сотрудники", subtitle: t("rules.staffSub"), levels: [4], icon: Users },
-    { title: "Младший состав отделов", subtitle: t("rules.juniorSub"), levels: [3, 2, 1], icon: Users },
+    { title: t("rules.groupSpecial"), subtitle: t("rules.specialSub"), levels: [8], icon: Crown },
+    { title: t("rules.groupHeadAdmin"), subtitle: t("rules.headAdminSub"), levels: [7], icon: Shield },
+    { title: t("rules.groupDeptHeads"), subtitle: t("rules.deptHeadsSub"), levels: [6], icon: Star },
+    { title: t("rules.groupDeputies"), subtitle: t("rules.deputiesSub"), levels: [5], icon: Shield },
+    { title: t("rules.groupStaff"), subtitle: t("rules.staffSub"), levels: [4], icon: Users },
+    { title: t("rules.groupJunior"), subtitle: t("rules.juniorSub"), levels: [3, 2, 1], icon: Users },
   ];
 
   const getRolesByLevels = (levels: number[]) => {

@@ -7473,19 +7473,19 @@ def get_rules(session: Session = Depends(get_session)):
         else:
             # Дефолтные правила
             rules_data = {
-                "title": "Правила сообщества trelod",
-                "subtitle": "trelod — пространство для свободного и уважительного общения.",
+                "title": "trelod Community Rules",
+                "subtitle": "trelod is a space for free and respectful communication.",
                 "sections": [
-                    {"id": "safety", "heading": "1. Безопасность", "items": ["Запрещены угрозы, насилие, ненависть.", "Запрещён терроризм, экстремизм.", "Запрещена пропаганда наркотиков."]},
-                    {"id": "respect", "heading": "2. Уважение", "items": ["Запрещены оскорбления, буллинг.", "Запрещён доксинг.", "Запрещена имперсонация."]},
-                    {"id": "content", "heading": "3. Контент", "items": ["Запрещён спам, накрутка.", "Запрещён порно-контент.", "Запрещено мошенничество."]},
-                    {"id": "punishments", "heading": "4. Меры наказания", "table": [{"num": "1", "measure": "Предупреждение", "description": "Фиксируется на 30 дней.", "violations": "Мелкий спам."}, {"num": "2", "measure": "Блокировка", "description": "От 1 до 30 дней.", "violations": "Повторные нарушения."}], "note": "Администрация применяет меры по своему усмотрению."}
+                    {"id": "safety", "heading": "1. Safety", "items": ["Threats, violence, and hatred are prohibited.", "Terrorism and extremism are prohibited.", "Drug propaganda is prohibited."]},
+                    {"id": "respect", "heading": "2. Respect", "items": ["Insults and bullying are prohibited.", "Doxing is prohibited.", "Impersonation is prohibited."]},
+                    {"id": "content", "heading": "3. Content", "items": ["Spam and manipulation are prohibited.", "Pornographic content is prohibited.", "Fraud is prohibited."]},
+                    {"id": "punishments", "heading": "4. Penalties", "table": [{"num": "1", "measure": "Warning", "description": "Recorded for 30 days.", "violations": "Minor spam."}, {"num": "2", "measure": "Ban", "description": "From 1 to 30 days.", "violations": "Repeated violations."}], "note": "The administration applies measures at its discretion."}
                 ],
-                "footer": "Используя trelod, вы соглашаетесь с правилами."
+                "footer": "By using trelod, you agree to these rules."
             }
     except Exception as e:
         print(f"⚠️ Failed to load rules: {e}")
-        rules_data = {"title": "Правила", "sections": [], "footer": ""}
+        rules_data = {"title": "Rules", "sections": [], "footer": ""}
 
     # 2. 🆕 Загружаем роли администрации (только is_staff=True)
     try:
