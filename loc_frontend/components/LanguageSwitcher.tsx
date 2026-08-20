@@ -4,12 +4,14 @@ import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { Globe } from "lucide-react";
 import type { Locale } from "@/lib/i18n";
 
-const labels: Record<Locale, "lang.ru" | "lang.en"> = {
+const labels: Record<Locale, "lang.uk" | "lang.ru" | "lang.en"> = {
+  uk: "lang.uk",
   ru: "lang.ru",
   en: "lang.en",
 };
 
 const flags: Record<Locale, string> = {
+  uk: "🇺🇦",
   ru: "🇷🇺",
   en: "🇬🇧",
 };
