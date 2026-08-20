@@ -2509,24 +2509,30 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
   onPointerUp={handlePointerUp}
   onPointerLeave={handlePointerLeave}
   
-  // ✅ ИСПРАВЛЕНО: Логика двойного тапа для реакции
-  onDoubleClick={(e) => {
-    if (isSecret) return;
-    const reactionToSend = quickReaction || { type: 'emoji', content: '❤️' };
-    toggleReaction(msg.id, reactionToSend.stickerId, reactionToSend.content);
-    setPopReaction({
-      content: reactionToSend.content,
-      type: reactionToSend.type,
-      stickerId: reactionToSend.stickerId,
-      x: e.clientX,
-      y: e.clientY,
-      id: msg.id,
-      visible: true
-    });
-    setTimeout(() => {
-      setPopReaction(prev => prev ? { ...prev, visible: false } : null);
-    }, 700);
-  }}
+onDoubleClick={(e) => {
+  if (isSecret) return;
+  const reactionToSend = quickReaction || { type: 'emoji', content: '❤️' };
+  
+  // ✅ ЯВНОЕ РАЗДЕЛЕНИЕ: стикер или эмодзи
+  if (reactionToSend.type === 'sticker') {
+    toggleReaction(msg.id, reactionToSend.stickerId, undefined);
+  } else {
+    toggleReaction(msg.id, undefined, reactionToSend.content);
+  }
+
+  setPopReaction({
+    content: reactionToSend.content,
+    type: reactionToSend.type,
+    stickerId: reactionToSend.stickerId,
+    x: e.clientX,
+    y: e.clientY,
+    id: msg.id,
+    visible: true
+  });
+  setTimeout(() => {
+    setPopReaction(prev => prev ? { ...prev, visible: false } : null);
+  }, 700);
+}}
   
   onReactionClick={() => { setReactionPickerFor(reactionPickerFor === msg.id ? null : msg.id); }}
   
@@ -2853,17 +2859,18 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
             ) : (
               <div className="grid grid-cols-6 gap-1.5">
                 {stickerPacks[activePackTab].stickers.map((s: any) => (
-                    <button
-                      key={s.id}
-                      onClick={() => {
-                        if (s.type === "emoji") {
-                          toggleReaction(reactionPickerFor!, undefined, s.content);
-                        } else {
-                          toggleReaction(reactionPickerFor!, Number(s.id)); // 🆕 Явное преобразование в число
-                        }
-                      }}
-                      className="aspect-square flex items-center justify-center rounded-xl hover:bg-white/10 active:scale-90 transition-all"
-                    >
+<button
+  key={s.id}
+  onClick={() => {
+    // ✅ ЯВНОЕ РАЗДЕЛЕНИЕ
+    if (s.type === "emoji") {
+      toggleReaction(reactionPickerFor!, undefined, s.content);
+    } else {
+      toggleReaction(reactionPickerFor!, Number(s.id), undefined);
+    }
+  }}
+  className="aspect-square flex items-center justify-center rounded-xl hover:bg-white/10 active:scale-90 transition-all"
+>
                     {s.type === "emoji" ? (
                       <span className="text-2xl">{s.content}</span>
                     ) : (
@@ -2953,21 +2960,26 @@ style={{
 >
                 {allAvailableReactions.length > 0 ? (
                   allAvailableReactions.slice(0, 4).map((r, i) => (
-                    <button
-                      key={`${r.type}-${r.stickerId || r.content}`}
-                      disabled={r.locked}
-                      onClick={() => {
-                        if (!r.locked) {
-                          toggleReaction(longPressMenu.msgId, r.stickerId, r.content);
-                          setLongPressMenu(null);
-                        }
-                      }}
-                      className={`text-2xl p-2 rounded-full transition-all ${r.locked ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white/10 active:scale-110'}`}
-                      style={{ animation: `popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards`, animationDelay: `${i * 30}ms` }}
-                      title={r.locked ? `Нужен ${r.minLevel} уровень` : r.packName}
-                    >
-                      {r.type === "emoji" ? r.content : <img src={r.content} alt="" className="w-7 h-7 object-contain" />}
-                    </button>
+<button
+  key={`${r.type}-${r.stickerId || r.content}`}
+  disabled={r.locked}
+  onClick={() => {
+    if (!r.locked) {
+      // ✅ ЯВНОЕ РАЗДЕЛЕНИЕ
+      if (r.type === 'sticker') {
+        toggleReaction(longPressMenu.msgId, r.stickerId, undefined);
+      } else {
+        toggleReaction(longPressMenu.msgId, undefined, r.content);
+      }
+      setLongPressMenu(null);
+    }
+  }}
+  className={`text-2xl p-2 rounded-full transition-all ${r.locked ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white/10 active:scale-110'}`}
+  style={{ animation: `popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards`, animationDelay: `${i * 30}ms` }}
+  title={r.locked ? `Нужен ${r.minLevel} уровень` : r.packName}
+>
+  {r.type === "emoji" ? r.content : <img src={r.content} alt="" className="w-7 h-7 object-contain" />}
+</button>
                   ))
                 ) : (
                   <div className="px-3 py-2 text-xs text-white/50 whitespace-nowrap">
