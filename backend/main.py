@@ -8907,10 +8907,10 @@ async def upload_prism_avatar(
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
 ):
-    # 🔍 ОТЛАДКА: смотрим, что реально прилетает на сервер
+    # 🔍 Отладка: смотрим, что реально прилетает на сервер
     print(f"🔍 Prism Upload: filename='{file.filename}', content_type='{file.content_type}', size={file.size}")
     
-    # Более мягкая проверка: если имени нет, но это image/png, мы это примем
+    # Мягкая проверка: если имени нет, но это image/png, мы это примем
     filename = file.filename or "prism_avatar.png"
     is_png = filename.lower().endswith('.png') or (file.content_type and "png" in file.content_type.lower())
     
@@ -8924,19 +8924,19 @@ async def upload_prism_avatar(
         raise HTTPException(400, "Файл слишком большой (макс 5 МБ)")
         
     try:
+        # ✅ ИСПРАВЛЕНО: убран flags="lossless", так как PNG + quality 100 уже гарантируют побитовую точность
         result = await run_in_threadpool(
             lambda: cloudinary.uploader.upload(
                 content,
                 folder=UPLOAD_FOLDER,
                 resource_type="image",
                 format="png",
-                quality="100",
-                flags="lossless"  # Гарантирует побитовое сохранение для стеганографии
+                quality="100"
             )
         )
         print(f"✅ Prism Upload Success: {result.get('secure_url')}")
         return {"avatar_url": result.get("secure_url")}
     except Exception as e:
-        # 🔍 ОТЛАДКА: если Cloudinary упадёт, мы увидим реальную причину в логах Render
+        # 🔍 Отладка: если Cloudinary упадёт, мы увидим реальную причину в логах Render
         print(f"❌ Cloudinary Prism Upload Error: {e}")
         raise HTTPException(400, f"Ошибка загрузки на сервер: {str(e)}")
