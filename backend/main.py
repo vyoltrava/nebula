@@ -8900,7 +8900,6 @@ async def update_prism_anchor(
     session.commit()
     return {"ok": True}
 
-
 @app.post("/api/chats/prism-avatar")
 @limiter.limit("5/minute")
 async def upload_prism_avatar(
@@ -8908,15 +8907,23 @@ async def upload_prism_avatar(
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
 ):
-    if not file.filename or not file.filename.lower().endswith('.png'):
-        raise HTTPException(400, "Для Призмы требуется формат PNG (без сжатия)")
+    # 🔍 ОТЛАДКА: смотрим, что реально прилетает на сервер
+    print(f"🔍 Prism Upload: filename='{file.filename}', content_type='{file.content_type}', size={file.size}")
     
+    # Более мягкая проверка: если имени нет, но это image/png, мы это примем
+    filename = file.filename or "prism_avatar.png"
+    is_png = filename.lower().endswith('.png') or (file.content_type and "png" in file.content_type.lower())
+    
+    if not is_png:
+        raise HTTPException(400, f"Для Призмы требуется формат PNG. Получено: {filename} ({file.content_type})")
+        
     content = await file.read()
+    print(f"📦 Prism Avatar Size: {len(content)} bytes")
+    
     if len(content) > 5 * 1024 * 1024:
         raise HTTPException(400, "Файл слишком большой (макс 5 МБ)")
-    
+        
     try:
-        # 🔥 ИСПРАВЛЕНО: quality="100" и flags="lossless" ГАРАНТИРУЮТ сохранение каждого бита
         result = await run_in_threadpool(
             lambda: cloudinary.uploader.upload(
                 content,
@@ -8924,9 +8931,12 @@ async def upload_prism_avatar(
                 resource_type="image",
                 format="png",
                 quality="100",
-                flags="lossless"
+                flags="lossless"  # Гарантирует побитовое сохранение для стеганографии
             )
         )
+        print(f"✅ Prism Upload Success: {result.get('secure_url')}")
         return {"avatar_url": result.get("secure_url")}
     except Exception as e:
-        raise HTTPException(400, f"Ошибка загрузки: {str(e)}")
+        # 🔍 ОТЛАДКА: если Cloudinary упадёт, мы увидим реальную причину в логах Render
+        print(f"❌ Cloudinary Prism Upload Error: {e}")
+        raise HTTPException(400, f"Ошибка загрузки на сервер: {str(e)}")

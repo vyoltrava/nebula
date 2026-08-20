@@ -72,7 +72,6 @@ export async function encryptAnchorWithPin(shard1Base64: string, pin: string): P
 
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
 
-  // ✅ ГАРАНТИРОВАННО РАБОТАЕТ: явное приведение типов
   const algorithm = { name: "AES-GCM", iv } as any;
   const data = base64ToBytes(shard1Base64) as any;
   
@@ -117,7 +116,6 @@ export async function decryptAnchorWithPin(encryptedAnchorBase64: string, pin: s
   const iv = combined.slice(0, 12);
   const ciphertext = combined.slice(12);
 
-  // ✅ ГАРАНТИРОВАННО РАБОТАЕТ: явное приведение типов
   const algorithm = { name: "AES-GCM", iv } as any;
   
   const decryptedBuffer = await window.crypto.subtle.decrypt(
@@ -129,6 +127,9 @@ export async function decryptAnchorWithPin(encryptedAnchorBase64: string, pin: s
   return bytesToBase64(new Uint8Array(decryptedBuffer));
 }
 
+/**
+ * ✅ ИСПРАВЛЕНО: Надежный маркер конца данных: 8 единиц, затем 8 нулей (11111111 00000000)
+ */
 function stringToBits(str: string): number[] {
   const bits: number[] = [];
   for (let i = 0; i < str.length; i++) {
@@ -137,9 +138,9 @@ function stringToBits(str: string): number[] {
       bits.push((charCode >> j) & 1);
     }
   }
-  // Маркер конца данных (16 единиц и 1 ноль, маловероятно в обычном тексте)
-  for (let i = 0; i < 15; i++) bits.push(1);
-  bits.push(0);
+  // Маркер конца: 8 единиц, затем 8 нулей
+  for (let i = 0; i < 8; i++) bits.push(1);
+  for (let i = 0; i < 8; i++) bits.push(0);
   return bits;
 }
 
@@ -151,11 +152,6 @@ function bitsToString(bits: number[]): string {
   for (let i = 0; i < bits.length; i += 8) {
     const byte = bits.slice(i, i + 8);
     if (byte.length < 8) break;
-    
-    // Проверка на маркер конца
-    if (byte.every(b => b === 1) && bits[i + 8] === 0) {
-      break;
-    }
     
     const charCode = byte.reduce((acc, bit) => (acc << 1) | bit, 0);
     str += String.fromCharCode(charCode);
@@ -190,14 +186,14 @@ export async function embedDataInImage(imageFile: File, secretData: string): Pro
 
       ctx.putImageData(imageData, 0, 0);
       
-      // ✅ ОПТИМИЗАЦИЯ: используем quality 0.8 вместо lossless PNG
-canvas.toBlob((blob) => {
-  if (blob) {
-    resolve(new File([blob], "prism_avatar.png", { type: "image/png" }));
-  } else {
-    reject("Failed to create blob");
-  }
-}, "image/png"); 
+      canvas.toBlob((blob) => {
+        if (blob) {
+          // ✅ КРИТИЧЕСКИ ВАЖНО: явное имя с .png и правильный MIME-type для бэкенда
+          resolve(new File([blob], "prism_avatar.png", { type: "image/png" }));
+        } else {
+          reject("Failed to create blob");
+        }
+      }, "image/png"); 
     };
     img.onerror = () => reject("Failed to load image");
     img.src = url;
@@ -226,17 +222,19 @@ export async function extractDataFromImage(imageUrl: string): Promise<string> {
       for (let i = 0; i < data.length / 4; i++) {
         bits.push(data[i * 4] & 1);
         
-        // Проверяем маркер конца каждые 16 бит
+        // ✅ ИСПРАВЛЕНО: Проверяем маркер конца (8 единиц, 8 нулей)
         if (bits.length >= 16) {
           const last16 = bits.slice(-16);
-          if (last16[15] === 0 && last16.slice(0, 15).every(b => b === 1)) {
+          if (last16.slice(0, 8).every(b => b === 1) && last16.slice(8).every(b => b === 0)) {
+            // Передаем биты БЕЗ маркера в функцию преобразования
             resolve(bitsToString(bits.slice(0, -16)));
             return;
           }
         }
       }
-      reject("Скрытые данные не найдены или изображение было сжато");
+      reject("Скрытые данные не найдены или изображение было сжато/повреждено");
     };
+    img.onerror = () => reject("Failed to load image");
     img.src = imageUrl;
   });
 }
