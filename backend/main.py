@@ -4586,7 +4586,9 @@ def startup():
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS prism_anchor VARCHAR;'))
             conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS is_prism BOOLEAN DEFAULT FALSE;"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chat_is_prism ON chat(is_prism);"))
+            conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS shard2_genesis VARCHAR DEFAULT '';"))
 
+            conn.execute(text('ALTER TABLE notification ADD COLUMN IF NOT EXISTS message_id INTEGER REFERENCES message(id) ON DELETE SET NULL;'))
             conn.execute(text('ALTER TABLE notification ADD COLUMN IF NOT EXISTS message_id INTEGER REFERENCES message(id) ON DELETE SET NULL;'))
             conn.execute(text("""
             CREATE TABLE IF NOT EXISTS support_message (
@@ -8834,7 +8836,7 @@ async def create_prism_chat(
     if not other:
         raise HTTPException(404, "Пользователь не найден")
 
-    # 1. Проверяем, нет ли уже активной Призмы с этим юзером
+    # Проверяем существующий чат
     my_chats = session.exec(select(ChatMember.chat_id).where(ChatMember.user_id == user.id)).all()
     for cid in my_chats:
         chat = session.get(Chat, cid)
@@ -8845,23 +8847,25 @@ async def create_prism_chat(
             if other_in:
                 return {"chat_id": cid, "already_existed": True}
 
-    # 2. Создаем чат
-    chat = Chat(is_prism=True, avatar_url=data.avatar_url)
+    # Создаем чат
+    chat = Chat(
+        is_prism=True,
+        avatar_url=data.avatar_url,  # SVG-строка
+        shard2_genesis=data.shard2_genesis  # Храним shard2 в БД
+    )
     session.add(chat)
-    
-    # 🔥 КРИТИЧЕСКИ ВАЖНО: получаем ID чата из базы данных ДО создания участников
     session.commit()
     session.refresh(chat)
     
-    # 3. Теперь chat.id известен, добавляем участников
+    # Добавляем участников
     session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="member"))
     session.add(ChatMember(chat_id=chat.id, user_id=data.other_user_id, role="member"))
     
-    # 4. Сохраняем "Спектр 1" (Якорь) в профиль текущего пользователя
+    # Сохраняем зашифрованный shard1 в профиль
     user.prism_anchor = data.shard1_encrypted
     session.add(user)
     
-    # 5. Создаем ПЕРВОЕ системное сообщение, которое хранит "Спектр 2" (Генезис)
+    # Системное сообщение
     genesis_msg = Message(
         chat_id=chat.id,
         sender_id=user.id,
@@ -8870,7 +8874,7 @@ async def create_prism_chat(
     )
     session.add(genesis_msg)
     
-    # 6. Уведомление
+    # Уведомление
     session.add(Notification(
         user_id=data.other_user_id,
         actor_id=user.id,
@@ -8879,52 +8883,9 @@ async def create_prism_chat(
     ))
     session.commit()
 
-    # 7. WebSocket уведомление
     await manager.broadcast_to_users([data.other_user_id], "prism_chat_created", {
         "chat_id": chat.id,
         "from_user": user.display_name,
     })
 
     return {"chat_id": chat.id, "already_existed": False}
-
-
-@app.patch("/api/users/me/prism-anchor")
-async def update_prism_anchor(
-    shard1_encrypted: str = Form(...),
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Обновление Якоря пользователя (например, при смене PIN-кода)"""
-    user.prism_anchor = shard1_encrypted
-    session.add(user)
-    session.commit()
-    return {"ok": True}
-
-
-@app.post("/api/chats/prism-avatar")
-@limiter.limit("5/minute")
-async def upload_prism_avatar(
-    request: Request,
-    file: UploadFile = File(...),
-    user: User = Depends(get_current_user),
-):
-    filename = file.filename or "prism_avatar.png"
-    is_png = filename.lower().endswith('.png')
-    
-    if not is_png:
-        raise HTTPException(400, "Требуется PNG")
-        
-    content = await file.read()
-    if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(400, "Файл слишком большой")
-    
-    # Сохраняем локально БЕЗ обработки
-    file_id = str(uuid.uuid4())
-    local_filename = f"prism_{file_id}.png"
-    filepath = os.path.join("uploads", local_filename)
-    
-    with open(filepath, "wb") as f:
-        f.write(content)  # 👈 Побитовая запись
-    
-    media_url = f"/uploads/{local_filename}"
-    return {"avatar_url": media_url}

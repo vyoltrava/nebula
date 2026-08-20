@@ -126,9 +126,13 @@ class Chat(SQLModel, table=True):
     # 🆕 Групповые поля
     is_group: bool = Field(default=False)
     is_saved: bool = Field(default=False) # 🆕 Флаг избранного
-    is_prism: bool = Field(default=False)
+
+    is_prism: bool = False
+    avatar_url: str = ""  # Теперь хранит SVG-строку
+    shard2_genesis: str = ""  # Добавляем поле для shard2
+
     name: Optional[str] = Field(default=None, max_length=80)
-    avatar_url: Optional[str] = None
+ 
     owner_id: Optional[int] = Field(default=None, foreign_key="user.id")
     pinned_by: Optional[int] = Field(default=None, foreign_key="user.id")
     pinned_at: Optional[datetime] = None

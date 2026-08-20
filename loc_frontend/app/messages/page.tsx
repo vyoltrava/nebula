@@ -12,8 +12,9 @@ import { ChatListSkeleton } from "@/components/Skeletons";
 import { Pin, PinOff, MoreVertical, Trash2 } from "lucide-react";
 import { pinChat, unpinChat } from "@/lib/api";
 import { useSwipe } from "@/lib/useSwipe";
-import { generatePrismKey, splitKeyIntoShards, encryptAnchorWithPin, embedDataInImage } from "@/lib/prismCrypto";
-import { useI18n } from "@/lib/i18n/LanguageProvider";
+import { generatePrismKey, splitKeyIntoShards, encryptAnchorWithPin } from "@/lib/prismCrypto";
+import { generatePrismAvatar } from "@/lib/prismAvatar";
+import { prismStorage } from "@/lib/prismStorage";import { useI18n } from "@/lib/i18n/LanguageProvider";
 
 function SwipeableChatItem({
   children,
@@ -331,47 +332,17 @@ export default function MessagesPage() {
     }
 
     try {
+      // 1. Генерация ключей
       const key = generatePrismKey();
       const { shard1_anchor, shard2_genesis, shard3_local } = splitKeyIntoShards(key);
+      
+      // 2. Шифрование якоря PIN-кодом
       const encryptedShard1 = await encryptAnchorWithPin(shard1_anchor, pin);
       
-      const canvas = document.createElement('canvas');
-      canvas.width = 64;
-      canvas.height = 64;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        const gradient = ctx.createLinearGradient(0, 0, 64, 64);
-        gradient.addColorStop(0, '#0891b2');
-        gradient.addColorStop(1, '#9333ea');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, 64, 64);
-        ctx.fillStyle = 'rgba(255,255,255,0.3)';
-        ctx.font = '24px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('🛡️', 32, 32);
-      }
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((b) => {
-          if (b) resolve(b);
-          else reject(new Error("Не удалось создать изображение"));
-        }, 'image/png', 0.8);
-      });
-      const imageFile = new File([blob], "prism-base.png", { type: "image/png" });
-      const avatarWithHiddenShard = await embedDataInImage(imageFile, shard3_local);
+      // 3. Генерация SVG-аватара (это просто текстовая строка!)
+      const avatarSvg = generatePrismAvatar(shard1_anchor, shard2_genesis, shard3_local);
 
-      const formData = new FormData();
-      formData.append("file", avatarWithHiddenShard);
-      
-      const uploadRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/prism-avatar`, {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${token}` },
-        body: formData,
-      });
-      
-      if (!uploadRes.ok) throw new Error("Ошибка загрузки аватарки");
-      const { avatar_url } = await uploadRes.json();
-
+      // 4. Отправка на бэкенд ОДНИМ запросом (без загрузки файлов!)
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/prism`, {
         method: "POST",
         headers: { 
@@ -382,16 +353,20 @@ export default function MessagesPage() {
           other_user_id: targetUserId,
           shard1_encrypted: encryptedShard1,
           shard2_genesis: shard2_genesis,
-          avatar_url: avatar_url,
+          avatar_url: avatarSvg, // <-- Передаем SVG как обычную строку
         }),
       });
 
       if (res.ok) {
         const data = await res.json();
+        
+        // 5. 🔥 КЛЮЧЕВОЙ МОМЕНТ: сохраняем shard3 локально в IndexedDB
+        await prismStorage.saveShard(data.chat_id, shard3_local);
+
         setShowPrismModal(false);
         setPrismSearchQuery("");
         setPrismSearchResults([]);
-        router.push(`/prism/${data.chat_id}`);
+        router.push(`/prism/${data.chat_id}`); // Или /messages/${data.chat_id}, как у тебя в роутинге
       } else {
         const err = await res.json();
         alert(err.detail || "Ошибка создания канала");
