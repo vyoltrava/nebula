@@ -3378,27 +3378,79 @@ def admin_list_packs(
 
 
 @app.post("/api/admin/sticker-packs")
-def admin_create_pack(
+async def admin_create_pack(
     name: str = Form(...),
     min_level: int = Form(1),
+    is_active: bool = Form(True),
+    emojis: str = Form("[]"),          # 🆕 JSON-массив эмодзи
+    files: List[UploadFile] = File([]), # 🆕 Картинки (можно из папки)
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
     if not has_permission(user, "manage_stickers", session):
         raise HTTPException(403, "Нет права: manage_stickers")
-    pack = StickerPack(name=name.strip(), min_level=min_level)
+    
+    pack = StickerPack(
+        name=name.strip(),
+        min_level=min_level,
+        is_active=is_active,
+        # 🛡️ КРИТИЧЕСКИ ВАЖНО: emojis больше не NOT NULL, но для страховки пишем пустой список
+    )
     session.add(pack)
     session.commit()
     session.refresh(pack)
-    return {"ok": True, "id": pack.id}
+    
+    added = []
+    max_order = 0
+    
+    # 1. Эмодзи
+    try:
+        emoji_list = json.loads(emojis) if isinstance(emojis, str) else emojis
+        if not isinstance(emoji_list, list):
+            emoji_list = []
+    except Exception:
+        emoji_list = []
+    
+    for e in emoji_list:
+        if not e:
+            continue
+        max_order += 1
+        s = Sticker(pack_id=pack.id, type="emoji", content=str(e), order=max_order)
+        session.add(s)
+        session.commit()
+        session.refresh(s)
+        added.append({"id": s.id, "type": "emoji", "content": e})
+    
+    # 2. Картинки
+    import cloudinary.uploader
+    for file in files:
+        if not file.content_type or not file.content_type.startswith("image/"):
+            continue
+        contents = await file.read()
+        if len(contents) > 5 * 1024 * 1024:  # 5MB на стикер
+            continue
+        try:
+            result = cloudinary.uploader.upload(contents, folder="stickers", resource_type="image")
+            url = result["secure_url"]
+            max_order += 1
+            s = Sticker(pack_id=pack.id, type="image", content=url, order=max_order)
+            session.add(s)
+            session.commit()
+            session.refresh(s)
+            added.append({"id": s.id, "type": "image", "content": url})
+        except Exception as e:
+            print(f"[Stickers] Failed to upload image: {e}")
+    
+    return {"ok": True, "id": pack.id, "added": added}
 
 
 @app.put("/api/admin/sticker-packs/{pack_id}")
-def admin_update_pack(
+async def admin_update_pack(
     pack_id: int,
     name: str = Form(...),
     min_level: int = Form(1),
     is_active: bool = Form(True),
+    files: List[UploadFile] = File([]),  # 🆕 можно докинуть картинки при редактировании
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
@@ -3407,12 +3459,36 @@ def admin_update_pack(
     pack = session.get(StickerPack, pack_id)
     if not pack:
         raise HTTPException(404, "Пак не найден")
+    
     pack.name = name.strip()
     pack.min_level = min_level
     pack.is_active = is_active
     session.add(pack)
+    
+    added = []
+    if files:
+        max_order = session.exec(
+            select(func.max(Sticker.order)).where(Sticker.pack_id == pack_id)
+        ).one() or 0
+        import cloudinary.uploader
+        for file in files:
+            if not file.content_type or not file.content_type.startswith("image/"):
+                continue
+            contents = await file.read()
+            try:
+                result = cloudinary.uploader.upload(contents, folder="stickers", resource_type="image")
+                url = result["secure_url"]
+                max_order += 1
+                s = Sticker(pack_id=pack_id, type="image", content=url, order=max_order)
+                session.add(s)
+                session.commit()
+                session.refresh(s)
+                added.append({"id": s.id, "type": "image", "content": url})
+            except Exception as e:
+                print(f"[Stickers] Failed to upload: {e}")
+    
     session.commit()
-    return {"ok": True}
+    return {"ok": True, "added": added}
 
 
 @app.delete("/api/admin/sticker-packs/{pack_id}")
@@ -4503,7 +4579,8 @@ def startup():
     # ===== ОСНОВНОЙ БЛОК МИГРАЦИЙ =====
     with engine.connect() as conn:
         try:
-
+                # Добавь в блок миграций при старте приложения:
+            conn.execute(text("ALTER TABLE stickerpack DROP COLUMN IF EXISTS emojis;"))            
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS prism_anchor VARCHAR;'))
             conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS is_prism BOOLEAN DEFAULT FALSE;"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chat_is_prism ON chat(is_prism);"))

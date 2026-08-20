@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import { getToken } from "@/lib/auth";
 import { STICKERS } from "@/lib/stickers";
-import { SmilePlus, Plus, Edit3, Trash2, X, Globe, Lock, Loader2 } from "lucide-react";
+import { SmilePlus, Plus, Edit3, Trash2, X, Globe, Lock, Loader2, FolderOpen, Upload, Image as ImageIcon } from "lucide-react";
 
 const CATEGORIES = [
   { key: "emotions", label: "Эмоции", range: [0, 25] },
@@ -24,10 +24,17 @@ export function StickersSection({ me }: { me: any }) {
   const [uploadingPackId, setUploadingPackId] = useState<number | null>(null);
   const [emojiInputs, setEmojiInputs] = useState<Record<number, string>>({});
   const fileRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  const folderRefs = useRef<Record<number, HTMLInputElement | null>>({}); // 🆕 для папки
   const [selectedEmojis, setSelectedEmojis] = useState<string[]>([]);
   const [emojiSearch, setEmojiSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("emotions");
   const [savingPack, setSavingPack] = useState(false);
+  
+  // 🆕 Файлы для предпросмотра в модалке
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [pendingFileUrls, setPendingFileUrls] = useState<string[]>([]);
+  const modalFileRef = useRef<HTMLInputElement | null>(null);
+  const modalFolderRef = useRef<HTMLInputElement | null>(null);
 
   async function loadPacks() {
     const token = getToken();
@@ -39,33 +46,74 @@ export function StickersSection({ me }: { me: any }) {
 
   useEffect(() => { loadPacks(); }, []);
 
+  // 🆕 Очистка URL.createObjectURL при размонтировании/закрытии
+  useEffect(() => {
+    return () => {
+      pendingFileUrls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [pendingFileUrls]);
+
+  // 🆕 Обработка выбранных файлов (и из папки, и отдельных)
+  function handleFilesSelected(files: FileList | null) {
+    if (!files) return;
+    const imageFiles = Array.from(files).filter(f => f.type.startsWith("image/"));
+    setPendingFiles(prev => [...prev, ...imageFiles].slice(0, 200)); // макс 200 стикеров
+    
+    // Генерируем предпросмотр
+    const urls = imageFiles.map(f => URL.createObjectURL(f));
+    setPendingFileUrls(prev => [...prev, ...urls]);
+  }
+
+  function removePendingFile(index: number) {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+    URL.revokeObjectURL(pendingFileUrls[index]);
+    setPendingFileUrls(prev => prev.filter((_, i) => i !== index));
+  }
+
   async function savePack() {
     if (!editingPack) return;
     if (!editingPack.name?.trim()) return alert("Введи название пака");
+    
     const token = getToken();
     const form = new FormData();
     form.append("name", editingPack.name);
     form.append("min_level", String(editingPack.min_level));
-    if (editingPack.id) form.append("is_active", String(editingPack.is_active));
+    form.append("is_active", String(editingPack.is_active ?? true));
+    form.append("emojis", JSON.stringify(selectedEmojis)); // 🆕 сразу эмодзи
+    
+    // 🆕 прикрепляем все выбранные файлы
+    pendingFiles.forEach(file => {
+      form.append("files", file);
+    });
+    
     const url = editingPack.id
       ? `${process.env.NEXT_PUBLIC_API_URL}/api/admin/sticker-packs/${editingPack.id}`
       : `${process.env.NEXT_PUBLIC_API_URL}/api/admin/sticker-packs`;
+    
     setSavingPack(true);
     try {
-      const res = await fetch(url, { method: editingPack.id ? "PUT" : "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+      const res = await fetch(url, {
+        method: editingPack.id ? "PUT" : "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
       if (res.ok) {
-        const data = await res.json();
-        const packId = editingPack.id || data.id;
-        if (selectedEmojis.length > 0 && packId) {
-          const emojiForm = new FormData();
-          emojiForm.append("emojis", JSON.stringify(selectedEmojis));
-          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/sticker-packs/${packId}/stickers`, {
-            method: "POST", headers: { Authorization: `Bearer ${token}` }, body: emojiForm,
-          });
-        }
-        setShowEditor(false); setEditingPack(null); setSelectedEmojis([]); loadPacks();
-      } else { const err = await res.json().catch(() => null); alert(err?.detail || "Ошибка"); }
-    } finally { setSavingPack(false); }
+        setShowEditor(false);
+        setEditingPack(null);
+        setSelectedEmojis([]);
+        setPendingFiles([]);
+        pendingFileUrls.forEach(u => URL.revokeObjectURL(u));
+        setPendingFileUrls([]);
+        loadPacks();
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.detail || "Ошибка сохранения");
+      }
+    } catch (e) {
+      alert("Ошибка сети: " + (e as Error).message);
+    } finally {
+      setSavingPack(false);
+    }
   }
 
   async function deletePack(id: number) {
@@ -89,12 +137,16 @@ export function StickersSection({ me }: { me: any }) {
     loadPacks();
   }
 
+  // 🆕 Загрузка в уже существующий пак (можно из папки)
   async function uploadImages(packId: number, files: FileList | null) {
     if (!files || files.length === 0) return;
+    const imageFiles = Array.from(files).filter(f => f.type.startsWith("image/"));
+    if (imageFiles.length === 0) return alert("Выбранные файлы не являются изображениями");
+    
     const token = getToken();
     setUploadingPackId(packId);
     const form = new FormData();
-    Array.from(files).forEach((f) => form.append("files", f));
+    imageFiles.forEach(f => form.append("files", f));
     form.append("emojis", "[]");
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/sticker-packs/${packId}/stickers`, {
@@ -105,6 +157,7 @@ export function StickersSection({ me }: { me: any }) {
     } finally {
       setUploadingPackId(null);
       if (fileRefs.current[packId]) fileRefs.current[packId]!.value = "";
+      if (folderRefs.current[packId]) folderRefs.current[packId]!.value = "";
     }
   }
 
@@ -140,7 +193,13 @@ export function StickersSection({ me }: { me: any }) {
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
       <div className="flex justify-end">
-        <button onClick={() => { setEditingPack({ id: null, name: "", min_level: 1, is_active: true }); setSelectedEmojis([]); setShowEditor(true); }}
+        <button onClick={() => {
+          setEditingPack({ id: null, name: "", min_level: 1, is_active: true });
+          setSelectedEmojis([]);
+          setPendingFiles([]);
+          setPendingFileUrls([]);
+          setShowEditor(true);
+        }}
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-500 text-black text-sm font-bold hover:bg-yellow-400">
           <Plus size={16} /> Новый пак
         </button>
@@ -155,18 +214,24 @@ export function StickersSection({ me }: { me: any }) {
                 {pack.min_level <= 1 ? <Globe size={10} /> : <Lock size={10} />}
                 {pack.min_level <= 1 ? "Все" : `Lvl ${pack.min_level}+`}
               </span>
-              <span className="text-[10px] text-white/30">{pack.stickers.length} стикеров</span>
+              <span className="text-[10px] text-white/30">{pack.stickers?.length || 0} стикеров</span>
             </div>
             <div className="flex gap-1.5">
               <button onClick={() => toggleActive(pack)} className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${pack.is_active ? "border-green-400/30 text-green-400" : "border-white/15 text-white/40"}`}>
                 {pack.is_active ? "Активен" : "Выключен"}
               </button>
-              <button onClick={() => { setEditingPack({ ...pack }); setSelectedEmojis([]); setShowEditor(true); }} className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10"><Edit3 size={14} /></button>
+              <button onClick={() => {
+                setEditingPack({ ...pack });
+                setSelectedEmojis([]);
+                setPendingFiles([]);
+                setPendingFileUrls([]);
+                setShowEditor(true);
+              }} className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10"><Edit3 size={14} /></button>
               <button onClick={() => deletePack(pack.id)} className="p-1.5 rounded-lg text-red-400/60 hover:text-red-400 hover:bg-red-500/10"><Trash2 size={14} /></button>
             </div>
           </div>
           <div className="flex flex-wrap gap-2 mb-3">
-            {pack.stickers.map((s: any) => (
+            {pack.stickers?.map((s: any) => (
               <div key={s.id} className="relative group">
                 <div className="w-14 h-14 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl">
                   {s.type === "emoji" ? <span className="text-2xl">{s.content}</span> : <img src={s.content} alt="" className="w-full h-full object-contain p-1" />}
@@ -174,13 +239,20 @@ export function StickersSection({ me }: { me: any }) {
                 <button onClick={() => deleteSticker(s.id)} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">×</button>
               </div>
             ))}
-            {pack.stickers.length === 0 && <p className="text-[11px] text-white/30">Пак пуст — добавь стикеры ниже ↓</p>}
+            {(!pack.stickers || pack.stickers.length === 0) && <p className="text-[11px] text-white/30">Пак пуст — добавь стикеры ниже ↓</p>}
           </div>
           <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-white/10">
             <input ref={(el) => { fileRefs.current[pack.id] = el; }} type="file" accept="image/*" multiple className="hidden" onChange={(e) => uploadImages(pack.id, e.target.files)} />
+            {/* 🆕 СКРЫТЫЙ INPUT ДЛЯ ВЫБОРА ПАПКИ */}
+            <input ref={(el) => { folderRefs.current[pack.id] = el; }} type="file" accept="image/*" multiple {...({ webkitdirectory: "", directory: "" } as any)} className="hidden" onChange={(e) => uploadImages(pack.id, e.target.files)} />
+            
             <button onClick={() => fileRefs.current[pack.id]?.click()} disabled={uploadingPackId === pack.id}
               className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/15 text-white/70 text-xs font-bold hover:bg-white/10 disabled:opacity-50">
-              {uploadingPackId === pack.id ? <Loader2 size={14} className="animate-spin" /> : "📤"} Загрузить картинки
+              {uploadingPackId === pack.id ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Файлы
+            </button>
+            <button onClick={() => folderRefs.current[pack.id]?.click()} disabled={uploadingPackId === pack.id}
+              className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-bold hover:bg-purple-500/30 disabled:opacity-50">
+              <FolderOpen size={14} /> Папку целиком
             </button>
             <div className="flex-1 flex gap-2">
               <input value={emojiInputs[pack.id] || ""} onChange={(e) => setEmojiInputs((prev) => ({ ...prev, [pack.id]: e.target.value }))}
@@ -221,9 +293,62 @@ export function StickersSection({ me }: { me: any }) {
                     </select>
                   </div>
                 </div>
+
+                {/* 🆕 БЛОК ЗАГРУЗКИ КАРТИНОК С ПРЕДПРОСМОТРОМ */}
                 <div className="border border-white/10 rounded-xl p-3 bg-white/[0.02]">
                   <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-bold text-white/60">Выбрать эмодзи из библиотеки ({selectedEmojis.length} выбрано)</label>
+                    <label className="text-xs font-bold text-white/60 flex items-center gap-1.5">
+                      <ImageIcon size={14} />
+                      Картинки стикеров ({pendingFiles.length} выбрано)
+                    </label>
+                    {pendingFiles.length > 0 && (
+                      <button onClick={() => {
+                        pendingFileUrls.forEach(u => URL.revokeObjectURL(u));
+                        setPendingFiles([]);
+                        setPendingFileUrls([]);
+                      }} className="text-[10px] text-red-400 hover:text-red-300">Очистить</button>
+                    )}
+                  </div>
+                  
+                  {/* Скрытые инпуты */}
+                  <input ref={modalFileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFilesSelected(e.target.files)} />
+                  <input ref={modalFolderRef} type="file" accept="image/*" multiple {...({ webkitdirectory: "", directory: "" } as any)} className="hidden" onChange={(e) => handleFilesSelected(e.target.files)} />
+                  
+                  {/* Кнопки выбора */}
+                  <div className="flex gap-2 mb-3">
+                    <button onClick={() => modalFileRef.current?.click()}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white/5 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/10 transition-colors">
+                      <Upload size={14} /> Выбрать файлы
+                    </button>
+                    <button onClick={() => modalFolderRef.current?.click()}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-bold hover:bg-purple-500/30 transition-colors">
+                      <FolderOpen size={14} /> Выбрать папку
+                    </button>
+                  </div>
+                  
+                  {/* Предпросмотр */}
+                  {pendingFileUrls.length > 0 && (
+                    <div className="grid grid-cols-6 sm:grid-cols-8 gap-1.5 max-h-40 overflow-y-auto p-1 bg-black/20 rounded-lg">
+                      {pendingFileUrls.map((url, i) => (
+                        <div key={i} className="relative group aspect-square">
+                          <img src={url} alt="" className="w-full h-full object-contain bg-white/5 rounded-lg p-1" />
+                          <button onClick={() => removePendingFile(i)}
+                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                          <p className="absolute bottom-0 left-0 right-0 text-[8px] text-white/60 bg-black/60 px-1 truncate">{pendingFiles[i]?.name}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {pendingFiles.length === 0 && (
+                    <p className="text-center text-white/30 text-xs py-4">Можно оставить пустым и добавить стикеры позже</p>
+                  )}
+                </div>
+
+                {/* Библиотека эмодзи */}
+                <div className="border border-white/10 rounded-xl p-3 bg-white/[0.02]">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-bold text-white/60">Выбрать эмодзи ({selectedEmojis.length} выбрано)</label>
                     {selectedEmojis.length > 0 && <button onClick={() => setSelectedEmojis([])} className="text-[10px] text-red-400 hover:text-red-300">Сбросить</button>}
                   </div>
                   {selectedEmojis.length > 0 && (
@@ -266,7 +391,7 @@ export function StickersSection({ me }: { me: any }) {
                   className="flex-1 py-2.5 rounded-lg border border-white/15 text-white/80 font-bold hover:bg-white/5 disabled:opacity-50">Отмена</button>
                 <button onClick={savePack} disabled={savingPack || !editingPack.name?.trim()}
                   className="flex-1 py-2.5 rounded-lg bg-yellow-500 text-black font-bold hover:bg-yellow-400 disabled:opacity-50">
-                  {savingPack ? "Сохранение..." : "Сохранить"}
+                  {savingPack ? <Loader2 size={16} className="animate-spin mx-auto" /> : (editingPack.id ? "Сохранить" : "Создать пак")}
                 </button>
               </div>
             </div>
