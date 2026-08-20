@@ -233,25 +233,27 @@ export default function SupportPage() {
         body: form,
       });
       
-      if (res.ok) {
-        const data = await res.json();
-        // Заменяем temp на реальное сообщение
-        setMessages(prev => prev.map(m => m.id === tempId ? data.message : m));
-        // Обновляем список заявок
-        setTickets(prev => prev.map(t => {
-          if (t.id === activeId) {
-            return {
-              ...t,
-              updated_at: data.message.created_at,
-              last_message: {
-                text: data.message.text || (data.message.media_url ? t("support.photo") : ""),
-                is_mine: true,
-                created_at: data.message.created_at,
-              },
-            };
-          }
-          return t;
-        }));
+        if (res.ok) {
+          const data = await res.json();
+          // Заменяем temp на реальное сообщение
+          setMessages(prev => prev.map(m => m.id === tempId ? data.message : m));
+          
+          // Обновляем список заявок (Заменили t на ticket внутри map)
+          setTickets(prev => prev.map(ticket => {
+            if (ticket.id === activeId) {
+              return {
+                ...ticket,
+                updated_at: data.message.created_at,
+                last_message: {
+                  text: data.message.text || (data.message.media_url ? t("support.photo") : ""),
+                  is_mine: true,
+                  created_at: data.message.created_at,
+                },
+              };
+            }
+            return ticket;
+          }));
+        
       } else {
         // ✅ ИСПРАВЛЕНИЕ 2: Читаем и показываем реальную ошибку от бэкенда
         const errData = await res.json().catch(() => ({}));
