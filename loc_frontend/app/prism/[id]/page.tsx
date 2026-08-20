@@ -150,11 +150,11 @@ export default function PrismChatPage() {
 
   // 2. Процесс расшифровки (Слияние осколков)
   useEffect(() => {
+
     const reconstructPrismKey = async () => {
       if (syncStatus !== "decrypting" || !chatInfo || !currentUser) return;
 
       try {
-        // 🔥 ЗАБИРАЕМ ИЗ INDEXEDDB, а не из картинки!
         const shard3 = await prismStorage.getShard(Number(chatId));
         if (!shard3) {
           throw new Error("Локальный ключ (Спектр 3) не найден. Чат был создан на другом устройстве.");
@@ -162,20 +162,27 @@ export default function PrismChatPage() {
 
         const genesisMsg = messages.find((m: any) => m.text?.startsWith("__PRISM_GENESIS__:"));
         if (!genesisMsg) throw new Error("Сообщение Генезиса повреждено или отсутствует.");
-        const shard2 = genesisMsg.text.replace("__PRISM_GENESIS__:", "");
         
-        // Небольшая задержка для красоты анимации
-        await new Promise(r => setTimeout(r, 1500));
+        // 🔥 АГРЕССИВНАЯ ОЧИСТКА shard2
+        const shard2 = genesisMsg.text.replace("__PRISM_GENESIS__:", "").replace(/\s+/g, "");
+
+        await new Promise(r => setTimeout(r, 1500)); // Задержка для анимации
         
         const pin = prompt("🔐 Введите 4-значный PIN-код канала:");
         if (!pin || pin.length < 4) throw new Error("Неверный формат PIN-кода");
         
-        const shard1 = await decryptAnchorWithPin(currentUser.prism_anchor, pin);
-        const masterKey = reconstructKey(shard1, shard2, shard3);
+        // 🔥 АГРЕССИВНАЯ ОЧИСТКА shard1 из профиля пользователя
+        const rawShard1 = currentUser.prism_anchor;
+        if (!rawShard1) throw new Error("Якорь (shard1) не найден в профиле пользователя.");
         
-        // Сохраняем в сессию текущей вкладки
+        const shard1 = await decryptAnchorWithPin(rawShard1.replace(/\s+/g, ""), pin);
+        
+        // 🔥 АГРЕССИВНАЯ ОЧИСТКА shard3
+        const cleanShard3 = shard3.replace(/\s+/g, "");
+
+        const masterKey = reconstructKey(shard1, shard2, cleanShard3);
+        
         sessionStorage.setItem(`prism_key_${chatId}`, btoa(String.fromCharCode(...masterKey)));
-        
         setSyncStatus("entangled");
       } catch (err: any) {
         console.error("❌ ОШИБКА РАСШИФРОВКИ:", err);
