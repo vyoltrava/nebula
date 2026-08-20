@@ -1,4 +1,4 @@
-import type { Dictionary } from "./ru";
+import type { Dictionary } from "./uk";
 
 export const en: Dictionary = {
   common: {
@@ -53,6 +53,7 @@ export const en: Dictionary = {
     label: "Language",
     ru: "Русский",
     en: "English",
+    uk: "Українська", // 👈 Добавить эту строку
   },
   login: {
     tabLogin: "Log in",

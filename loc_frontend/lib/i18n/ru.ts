@@ -1,4 +1,5 @@
-export const ru = {
+import type { Dictionary } from "./uk";
+export const ru: Dictionary = {
   common: {
     loading: "Загрузка...",
     error: "Ошибка",
@@ -50,6 +51,7 @@ export const ru = {
     label: "Язык",
     ru: "Русский",
     en: "English",
+    uk: "Українська", // 👈 Добавить эту строку
   },
   login: {
     tabLogin: "Вход",
@@ -682,4 +684,4 @@ export const ru = {
   },
 };
 
-export type Dictionary = typeof ru;
+

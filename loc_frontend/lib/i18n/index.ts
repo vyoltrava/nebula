@@ -1,19 +1,19 @@
-import { ru, type Dictionary } from "./ru";
+import { uk, type Dictionary } from "./uk";  // 👈 uk первым
+import { ru } from "./ru";
 import { en } from "./en";
 
-export type Locale = "ru" | "en";
+export type Locale = "uk" | "ru" | "en";  // 👈 uk первым
 export type { Dictionary };
 
-export const LOCALES: Locale[] = ["ru", "en"];
-export const DEFAULT_LOCALE: Locale = "ru";
+export const LOCALES: Locale[] = ["uk", "ru", "en"];  // 👈 uk первым
+export const DEFAULT_LOCALE: Locale = "uk";  // 👈 uk по умолчанию
 export const LOCALE_STORAGE_KEY = "nebula-locale";
 
-export const dictionaries: Record<Locale, Dictionary> = { ru, en };
+export const dictionaries: Record<Locale, Dictionary> = { uk, ru, en };  // 👈 uk первым
 
 export function isLocale(value: string | null | undefined): value is Locale {
-  return value === "ru" || value === "en";
+  return value === "uk" || value === "ru" || value === "en";  // 👈 uk первым
 }
-
 type NestedKeyOf<T> = T extends object
   ? {
       [K in keyof T & string]: T[K] extends object ? `${K}.${NestedKeyOf<T[K]>}` : K;
