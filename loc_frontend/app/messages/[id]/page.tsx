@@ -11,6 +11,7 @@ import { VideoNoteRecorder } from "@/components/VideoNoteRecorder";
 import { VideoNotePlayer } from "@/components/VideoNotePlayer";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { MessageContextMenu } from "@/components/MessageContextMenu";
+import CallButton from '@/components/CallButton';
 import { MessageBubble } from "@/components/MessageBubble";
 import LinkPreview  from "@/components/LinkPreview";
 import { getToken } from "@/lib/auth";
@@ -30,6 +31,7 @@ import { MarkdownContextMenu } from "@/components/MarkdownContextMenu";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { useDraft } from "@/src/hooks/useDraft";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
+import { useCall } from "@/lib/CallContext";
 
 
 
@@ -120,6 +122,8 @@ export default function ChatPage() {
   const chatId = params?.id as string;
   const router = useRouter();
   const { refresh } = useUnreadCounts();
+  const { initiateCall } = useCall(); 
+
 
   const [messages, setMessages] = useState<any[]>([]);
   const [isSavedChat, setIsSavedChat] = useState(false);
@@ -2166,58 +2170,82 @@ const ChatHeader = () => (
           </div>
         )}
 
-{/* Кнопки справа */}
-<div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
-  {/* Скрыты на мобильных, видны на планшетах и ПК (sm и выше) */}
-<button
-  onClick={() => { 
-    setActivePackTab(0); // ✅ Сбрасываем на первый пак
-    setShowReactionPicker(true); 
-  }}
-  className="hidden sm:flex p-2 sm:p-1.5 rounded-lg transition-colors active:scale-95 hover:bg-white/5 items-center justify-center min-w-[36px] min-h-[36px]"
-  title={t("messages.setReaction")}
->
-  {quickReaction ? (
-    quickReaction.type === 'emoji' ? (
-      <span className="text-xl leading-none">{quickReaction.content}</span>
-    ) : (
-      <img src={quickReaction.content} alt="" className="w-6 h-6 object-contain" />
-    )
-  ) : (
-    <SmilePlus size={18} className="text-white/40" />
-  )}
-</button>
+                {/* Кнопки справа */}
+                <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+                  
+                  {/* 🔥 ЗВОНКИ: Кнопки аудио и видео (показываем только если это не группа и не избранное) */}
+{!isGroup && !isSavedChat && chatPartner && (
+  <>
+    <CallButton
+      userId={chatPartner.id}
+      userName={chatPartner.display_name}
+      userAvatar={chatPartner.avatar_url || ''}
+      callType="audio"
+      size="sm"
+      onCall={(uid, type) => initiateCall(uid, type, chatPartner.display_name, chatPartner.avatar_url || '')}
+    />
+    <CallButton
+      userId={chatPartner.id}
+      userName={chatPartner.display_name}
+      userAvatar={chatPartner.avatar_url || ''}
+      callType="video"
+      size="sm"
+      onCall={(uid, type) => initiateCall(uid, type, chatPartner.display_name, chatPartner.avatar_url || '')}
+    />
+  </>
+)}
 
-  <button
-    onClick={() => { setMediaTab("image"); loadMedia(); setShowMediaGallery(true); }}
-    className="hidden sm:flex p-2.5 sm:p-2 text-white/60 hover:text-[#8b5cf6] transition-colors active:scale-95"
-    title={t("messages.media")}
-  >
-    <ImageIcon size={19} className="sm:w-5 sm:h-5" />
-  </button>
+                  {/* Скрыты на мобильных, видны на планшетах и ПК (sm и выше) */}
+                  <button
+                    onClick={() => {
+                      setActivePackTab(0);
+                      setShowReactionPicker(true);
+                    }}
+                    className="hidden sm:flex p-2 sm:p-1.5 rounded-lg transition-colors active:scale-95 hover:bg-white/5 items-center justify-center min-w-[36px] min-h-[36px]"
+                    title={t("messages.setReaction")}
+                  >
+                    {quickReaction ? (
+                      quickReaction.type === 'emoji' ? (
+                        <span className="text-xl leading-none">{quickReaction.content}</span>
+                      ) : (
+                        <img src={quickReaction.content} alt="" className="w-6 h-6 object-contain" />
+                      )
+                    ) : (
+                      <SmilePlus size={18} className="text-white/40" />
+                    )}
+                  </button>
+                  
+                  <button
+                    onClick={() => { setMediaTab("image"); loadMedia(); setShowMediaGallery(true); }}
+                    className="hidden sm:flex p-2.5 sm:p-2 text-white/60 hover:text-[#8b5cf6] transition-colors active:scale-95"
+                    title={t("messages.media")}
+                  >
+                    <ImageIcon size={19} className="sm:w-5 sm:h-5" />
+                  </button>
+                  
+                  {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && (
+                    <button
+                      onClick={() => setShowGroupSettings(true)}
+                      className="hidden sm:flex p-2.5 sm:p-2 text-white/60 hover:text-white transition-colors active:scale-95"
+                      title={t("messages.groupSettings")}
+                    >
+                      <Settings size={19} className="sm:w-5 sm:h-5" />
+                    </button>
+                  )}
 
-  {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && (
-    <button
-      onClick={() => setShowGroupSettings(true)}
-      className="hidden sm:flex p-2.5 sm:p-2 text-white/60 hover:text-white transition-colors active:scale-95"
-      title={t("messages.groupSettings")}
-    >
-      <Settings size={19} className="sm:w-5 sm:h-5" />
-    </button>
-  )}
+                  {/* Меню "Ещё" */}
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        if (!showChatMenu) menuOpenTimeRef.current = Date.now();
+                        setShowChatMenu((prev) => !prev);
+                      }}
+                      className="p-2.5 sm:p-2 text-white/60 hover:text-white transition-colors active:scale-95"
+                      title={t("common.more")}
+                    >
+                      <MoreVertical size={19} className="sm:w-5 sm:h-5" />
+                    </button>
 
-  {/* Меню "Ещё" (видимо всегда, на мобильных забирает все функции) */}
-  <div className="relative">
-    <button
-      onClick={() => {
-        if (!showChatMenu) menuOpenTimeRef.current = Date.now();
-        setShowChatMenu((prev) => !prev);
-      }}
-      className="p-2.5 sm:p-2 text-white/60 hover:text-white transition-colors active:scale-95"
-      title={t("common.more")}
-    >
-      <MoreVertical size={19} className="sm:w-5 sm:h-5" />
-    </button>
     
     {showChatMenu && (
       <>

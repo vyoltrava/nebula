@@ -120,6 +120,16 @@ class NebulaSocket {
     this.reconnectAttempts = 0;
   }
 
+  send(data: any) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(data));
+    } else {
+      console.warn("⚡ WS не подключен, не могу отправить данные:", data);
+    }
+  }
+
+
+
   on(event: string, handler: EventHandler): () => void {
     if (!this.handlers.has(event)) {
       this.handlers.set(event, new Set());

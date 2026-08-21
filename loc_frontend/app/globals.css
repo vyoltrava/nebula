@@ -305,3 +305,25 @@ body {
 .markdown-body table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
 .markdown-body th, .markdown-body td { border: 1px solid rgba(255,255,255,0.2); padding: 0.5rem; text-align: left; }
 .markdown-body th { background: rgba(255,255,255,0.05); font-weight: bold; }
+
+
+
+/* Call animations */
+@keyframes call-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.8; }
+}
+
+.call-ringing {
+  animation: call-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes call-connecting {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+
+.call-connecting {
+  animation: call-connecting 1s ease-in-out infinite;
+}

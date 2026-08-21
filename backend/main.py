@@ -8418,6 +8418,17 @@ async def websocket_endpoint(websocket: WebSocket):
         await websocket.close(code=4001, reason="Not authenticated")
         return
     
+    while True:
+        data = await websocket.receive_json()
+
+        # Обработка сигналов звонков
+        if data.get("type", "").startswith("call_"):
+            await CallSignaling.handle_call_message(
+                websocket, data, current_user_id
+            )
+            continue
+
+
     # 4. Проверяем пользователя в БД
     with Session(engine) as session:
         user = session.get(User, user_id)
