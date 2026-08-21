@@ -36,7 +36,7 @@ class User(SQLModel, table=True):
     
     cover_url: Optional[str] = None 
 
-    prism_anchor: Optional[str] = Field(default=None) 
+    
 
 
 
@@ -126,18 +126,12 @@ class Chat(SQLModel, table=True):
     # 🆕 Групповые поля
     is_group: bool = Field(default=False)
     is_saved: bool = Field(default=False) # 🆕 Флаг избранного
-    is_prism: bool = Field(default=False)
+
     name: Optional[str] = Field(default=None, max_length=80)
     avatar_url: Optional[str] = None
     owner_id: Optional[int] = Field(default=None, foreign_key="user.id")
     pinned_by: Optional[int] = Field(default=None, foreign_key="user.id")
     pinned_at: Optional[datetime] = None
-        # Prism Puzzle: зашифрованные части ключа
-    prism_key_a_encrypted: Optional[str] = None  # K_a, зашифрованный публичным ключом А
-    prism_key_b_encrypted: Optional[str] = None  # K_b, зашифрованный публичным ключом Б
-    prism_key_a_for_b: Optional[str] = None  # K_a, зашифрованный публичным ключом Б (чтобы Б мог получить K_a)
-    prism_key_b_for_a: Optional[str] = None  # K_b, зашифрованный публичным ключом А (чтобы А мог получить K_b)
-
 
 
 
