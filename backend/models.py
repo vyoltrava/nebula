@@ -142,8 +142,7 @@ class ChatMember(SQLModel, table=True):
     # 🆕 Роль в чате: "owner" | "admin" | "member"
     role: str = Field(default="member")
     joined_at: datetime = Field(default_factory=utcnow)
-        # 🆕 ID объекта, выбранного как визуальный ключ для входа в этот чат
-    prism_object_id: Optional[str] = Field(default=None) 
+
     __table_args__ = (UniqueConstraint("chat_id", "user_id"),)
 
 class Message(SQLModel, table=True):
