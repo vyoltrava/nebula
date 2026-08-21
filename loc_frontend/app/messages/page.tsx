@@ -16,6 +16,12 @@ import { generatePrismKey, splitKeyIntoShards, encryptAnchorWithPin } from "@/li
 import { generatePrismAvatar } from "@/lib/prismAvatar";
 import { prismStorage } from "@/lib/prismStorage";import { useI18n } from "@/lib/i18n/LanguageProvider";
 
+
+
+const [creationLandscape, setCreationLandscape] = useState<{ chat_id: number; svg: string; objects: any[] } | null>(null);
+const [selectedCreationObject, setSelectedCreationObject] = useState<string | null>(null);
+
+
 function SwipeableChatItem({
   children,
   onSwipeRight,
@@ -317,82 +323,73 @@ export default function MessagesPage() {
       setPrismSearchResults([]);
     }
   };
-
 const initiatePrism = async (targetUserId: number, targetUserName: string) => {
-  if (!confirm(`Создать защищенный канал 'Призма' с @${targetUserName}?`)) return;
-  
-  setIsCreatingPrism(true);
   const token = getToken();
-  const pin = prompt("Придумайте 4-значный PIN-код для защиты этого канала:");
-  
-  if (!pin || pin.length < 4) {
-    alert("PIN-код обязателен и должен быть не менее 4 символов");
-    setIsCreatingPrism(false);
-    return;
-  }
+  if (!token) return;
 
   try {
-    const key = generatePrismKey();
-    const { shard1_anchor, shard2_genesis, shard3_local } = splitKeyIntoShards(key);
+    setIsCreatingPrism(true);
     
-    // 🔥 ПРОВЕРКИ: все ли спектры сгенерировались
-    console.log("🔑 Генерация спектров:", {
-      shard1_anchor: shard1_anchor ? "OK" : "MISSING",
-      shard2_genesis: shard2_genesis ? "OK" : "MISSING",
-      shard3_local: shard3_local ? "OK" : "MISSING",
-    });
-    
-    if (!shard1_anchor || !shard2_genesis || !shard3_local) {
-      throw new Error("Ошибка генерации ключей шифрования");
-    }
-    
-    const encryptedShard1 = await encryptAnchorWithPin(shard1_anchor, pin);
-    const avatarSvg = generatePrismAvatar(shard1_anchor, shard2_genesis, shard3_local);
-
-    console.log("📤 Отправка на сервер...", {
-      other_user_id: targetUserId,
-      shard1_encrypted: encryptedShard1 ? "OK" : "MISSING",
-      shard2_genesis: shard2_genesis ? "OK" : "MISSING",
-      avatar_url: avatarSvg ? "OK" : "MISSING",
-    });
-
+    // 1. Создаем чат на бэкенде, он вернет нам landscape
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/prism`, {
       method: "POST",
       headers: { 
         "Authorization": `Bearer ${token}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        other_user_id: targetUserId,
-        shard1_encrypted: encryptedShard1,
-        shard2_genesis: shard2_genesis,  // 🔥 ПРОВЕРЬ ЧТО ЭТО ПЕРЕДАЁТСЯ
-        avatar_url: avatarSvg,
-      }),
+      body: JSON.stringify({ other_user_id: targetUserId }),
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      
-      console.log("💾 Сохранение shard3 в IndexedDB...", {
-        chatId: data.chat_id,
-        shard3: shard3_local ? "OK" : "MISSING"
-      });
-      
-      await prismStorage.saveShard(data.chat_id, shard3_local);
-      
-      setShowPrismModal(false);
-      setPrismSearchQuery("");
-      setPrismSearchResults([]);
-      router.push(`/prism/${data.chat_id}`);
-    } else {
+    if (!res.ok) {
       const err = await res.json();
-      console.error("❌ Ошибка сервера:", err);
-      alert(err.detail || "Ошибка создания канала");
+      throw new Error(err.detail || "Ошибка создания канала");
     }
+
+    const data = await res.json();
+    
+    // 2. Показываем ландшафт для выбора ключа
+    setCreationLandscape({
+      chat_id: data.chat_id,
+      svg: data.svg,
+      objects: data.objects
+    });
+    setIsCreatingPrism(false); // Снимаем лоадер, так как теперь ждем действия пользователя
+    
   } catch (e) {
     console.error("❌ ОШИБКА СОЗДАНИЯ ПРИЗМЫ:", e);
     alert("Ошибка: " + (e as Error).message);
-  } finally {
+    setIsCreatingPrism(false);
+    setShowPrismModal(false);
+  }
+};
+
+// Новая функция для сохранения выбранного ключа
+const confirmPrismKey = async () => {
+  if (!selectedCreationObject || !creationLandscape) return;
+  
+  setIsCreatingPrism(true);
+  const token = getToken();
+  const formData = new FormData();
+  formData.append("object_id", selectedCreationObject);
+
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${creationLandscape.chat_id}/prism-key`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${token}` },
+      body: formData,
+    });
+
+    if (!res.ok) throw new Error("Не удалось сохранить ключ");
+
+    // Успех! Очищаем и переходим в чат
+    setShowPrismModal(false);
+    setCreationLandscape(null);
+    setSelectedCreationObject(null);
+    setPrismSearchQuery("");
+    setPrismSearchResults([]);
+    router.push(`/prism/${creationLandscape.chat_id}`);
+  } catch (e) {
+    alert("Ошибка при установке ключа. Попробуйте снова.");
     setIsCreatingPrism(false);
   }
 };
@@ -742,70 +739,117 @@ const initiatePrism = async (targetUserId: number, targetUserName: string) => {
       )}
 
       {/* МОДАЛКА ПРИЗМЫ */}
+      {/* МОДАЛКА ПРИЗМЫ */}
       {showPrismModal && (
         <>
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[2000]" onClick={() => setShowPrismModal(false)} />
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[2000]" onClick={() => { setShowPrismModal(false); setCreationLandscape(null); setSelectedCreationObject(null); }} />
           <div className="fixed inset-0 z-[2001] flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full max-w-md bg-[#171717] border border-cyan-500/30 rounded-2xl shadow-[0_0_40px_rgba(34,211,238,0.1)] flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
+            <div className="w-full max-w-2xl bg-[#171717] border border-cyan-500/30 rounded-2xl shadow-[0_0_40px_rgba(34,211,238,0.1)] flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
+              
+              {/* Шапка модалки */}
               <div className="p-4 border-b border-white/10 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
                     <ShieldCheck size={18} className="text-cyan-400" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white tracking-wide">INITIATE PRISM</h3>
-                    <p className="text-[10px] text-cyan-400/70 uppercase tracking-widest">Бесшовное E2E шифрование</p>
+                    <h3 className="text-base font-bold text-white tracking-wide">
+                      {creationLandscape ? "ВЫБЕРИТЕ КЛЮЧ" : "INITIATE PRISM"}
+                    </h3>
+                    <p className="text-[10px] text-cyan-400/70 uppercase tracking-widest">
+                      {creationLandscape ? "Запомните этот объект для входа" : "Бесшовное E2E шифрование"}
+                    </p>
                   </div>
                 </div>
-                <button onClick={() => setShowPrismModal(false)} className="text-white/40 hover:text-white p-1">
+                <button onClick={() => { setShowPrismModal(false); setCreationLandscape(null); setSelectedCreationObject(null); }} className="text-white/40 hover:text-white p-1">
                   <X size={18} />
                 </button>
               </div>
 
-              <div className="p-4 space-y-4">
-                <p className="text-xs text-white/60 leading-relaxed">
-                  Выберите пользователя. Ключ шифрования будет разделен на 3 спектра. 
-                  Для восстановления истории на новом устройстве потребуется только ваш PIN-код.
-                </p>
-                
-                <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-                  <input
-                    value={prismSearchQuery}
-                    onChange={(e) => { setPrismSearchQuery(e.target.value); searchUsersForPrism(e.target.value); }}
-                    placeholder={t("messages.searchUser")}
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-cyan-500/50 text-sm"
-                    autoFocus
-                  />
-                </div>
-
-                <div className="max-h-60 overflow-y-auto space-y-1">
-                  {prismSearchResults.map((u: any) => (
-                    <button
-                      key={u.id}
-                      onClick={() => initiatePrism(u.id, u.username)}
-                      disabled={isCreatingPrism}
-                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/30 transition-all text-left disabled:opacity-50"
-                    >
-                      <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={36} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-white truncate">{u.display_name}</p>
-                        <p className="text-xs text-white/40 truncate">@{u.username}</p>
+              {/* ШАГ 1: Поиск пользователя */}
+              {!creationLandscape && (
+                <div className="p-4 space-y-4">
+                  <p className="text-xs text-white/60 leading-relaxed">
+                    Введите имя пользователя. После создания чата вам будет предложено выбрать визуальный ключ на пейзаже.
+                  </p>
+                  <div className="relative">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+                    <input
+                      value={prismSearchQuery}
+                      onChange={(e) => { setPrismSearchQuery(e.target.value); searchUsersForPrism(e.target.value); }}
+                      placeholder="Поиск пользователя..."
+                      className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-cyan-500/50 text-sm"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="max-h-60 overflow-y-auto space-y-1">
+                    {prismSearchResults.map((u: any) => (
+                      <button
+                        key={u.id}
+                        onClick={() => initiatePrism(u.id, u.username)}
+                        disabled={isCreatingPrism}
+                        className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/30 transition-all text-left disabled:opacity-50"
+                      >
+                        <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={36} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-white truncate">{u.display_name}</p>
+                          <p className="text-xs text-white/40 truncate">@{u.username}</p>
+                        </div>
+                        <Lock size={14} className="text-cyan-400/50" />
+                      </button>
+                    ))}
+                    {prismSearchQuery && prismSearchResults.length === 0 && !isCreatingPrism && (
+                      <p className="text-center text-xs text-white/30 py-4">Пользователи не найдены</p>
+                    )}
+                    {isCreatingPrism && (
+                      <div className="flex items-center justify-center gap-2 py-4 text-cyan-400 text-xs">
+                        <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                        Генерация пейзажа...
                       </div>
-                      <Lock size={14} className="text-cyan-400/50" />
-                    </button>
-                  ))}
-                  {prismSearchQuery && prismSearchResults.length === 0 && !isCreatingPrism && (
-                    <p className="text-center text-xs text-white/30 py-4">Пользователи не найдены</p>
-                  )}
-                  {isCreatingPrism && (
-                    <div className="flex items-center justify-center gap-2 py-4 text-cyan-400 text-xs">
-                      <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-                      Генерация спектров и шифрование...
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* ШАГ 2: Выбор объекта на пейзаже */}
+              {creationLandscape && (
+                <div className="p-4 space-y-4">
+                  <div className="relative bg-white/5 rounded-xl p-2 border border-cyan-500/30">
+                    <div dangerouslySetInnerHTML={{ __html: creationLandscape.svg }} className="absolute inset-0 opacity-60 pointer-events-none rounded-lg" />
+                    <svg viewBox="0 0 800 600" className="relative w-full h-auto z-10">
+                      {creationLandscape.objects.map(obj => {
+                        const isSelected = selectedCreationObject === obj.id;
+                        const commonProps = {
+                          key: obj.id,
+                          onClick: () => setSelectedCreationObject(obj.id),
+                          className: `cursor-pointer transition-all duration-300 ${isSelected ? 'drop-shadow-[0_0_10px_rgba(0,255,255,0.8)]' : 'hover:opacity-80 hover:scale-110'}`,
+                          style: { outline: isSelected ? '2px solid #00ffff' : 'none', outlineOffset: '2px' }
+                        };
+                        if (obj.type === 'star' || obj.type === 'moon') {
+                          return <circle {...commonProps} cx={obj.x} cy={obj.y} r={obj.size * (isSelected ? 1.5 : 1)} fill={isSelected ? '#00ffff' : obj.color} />;
+                        }
+                        if (obj.type === 'window') {
+                          return <rect {...commonProps} x={obj.x} y={obj.y} width={obj.size} height={obj.size * 1.5} fill={isSelected ? '#00ffff' : obj.color} />;
+                        }
+                        return null;
+                      })}
+                    </svg>
+                  </div>
+                  
+                  <button
+                    onClick={confirmPrismKey}
+                    disabled={!selectedCreationObject || isCreatingPrism}
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                  >
+                    {isCreatingPrism ? (
+                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Сохранение...</>
+                    ) : (
+                      <><ShieldCheck size={18} /> Подтвердить и войти в чат</>
+                    )}
+                  </button>
+                </div>
+              )}
+
             </div>
           </div>
         </>

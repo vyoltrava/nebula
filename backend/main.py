@@ -6281,6 +6281,9 @@ async def send_message_v2(
 
     msg = None
     try:
+        # Проверяем, это Prism чат с шифрованием?
+        is_prism_encrypted = chat.is_prism and ciphertext == "[prism_encrypted]"
+        
         msg = Message(
             chat_id=chat_id,
             sender_id=user.id,
@@ -8814,21 +8817,27 @@ def support_ticket_messages(
         for m in messages
     ]
 
+# ============================================================
+# 🔮 PRISM PUZZLE: НОВАЯ УПРОЩЕННАЯ СИСТЕМА
+# ============================================================
+
+class CreatePrismChatSimple(BaseModel):
+    other_user_id: int
+
 @app.post("/api/chats/prism")
-async def create_prism_chat(
-    data: CreatePrismChatIn,
+async def create_prism_chat_simple(
+    data: CreatePrismChatSimple,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Создание чата типа 'Призма'"""
+    """Создание чата типа 'Prism Puzzle' и возврат ландшафта для выбора ключа"""
     if data.other_user_id == user.id:
         raise HTTPException(400, "Нельзя создать чат с собой")
-    
     other = session.get(User, data.other_user_id)
     if not other:
         raise HTTPException(404, "Пользователь не найден")
-
-    # 1. Проверяем, нет ли уже активной Призмы с этим юзером
+        
+    # Проверяем существующий чат
     my_chats = session.exec(select(ChatMember.chat_id).where(ChatMember.user_id == user.id)).all()
     for cid in my_chats:
         chat = session.get(Chat, cid)
@@ -8837,90 +8846,73 @@ async def create_prism_chat(
                 ChatMember.chat_id == cid, ChatMember.user_id == data.other_user_id
             )).first()
             if other_in:
-                return {"chat_id": cid, "already_existed": True}
+                mock_master_key = cid.to_bytes(8, 'big')
+                svg, objects = generate_prism_landscape(cid, mock_master_key)
+                return {"chat_id": cid, "already_existed": True, "svg": svg, "objects": objects}
 
-    # 2. Создаем чат
-    chat = Chat(is_prism=True, avatar_url=data.avatar_url)
+    # Создаем новый чат
+    chat = Chat(is_prism=True)
     session.add(chat)
-    
-    # 🔥 КРИТИЧЕСКИ ВАЖНО: получаем ID чата из базы данных ДО создания участников
     session.commit()
     session.refresh(chat)
     
-    # 3. Теперь chat.id известен, добавляем участников
     session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="member"))
     session.add(ChatMember(chat_id=chat.id, user_id=data.other_user_id, role="member"))
-    
-    # 4. Сохраняем "Спектр 1" (Якорь) в профиль текущего пользователя
-    user.prism_anchor = data.shard1_encrypted
-    session.add(user)
-    
-    # 5. Создаем ПЕРВОЕ системное сообщение, которое хранит "Спектр 2" (Генезис)
-    genesis_msg = Message(
-        chat_id=chat.id,
-        sender_id=user.id,
-        text=f"__PRISM_GENESIS__:{data.shard2_genesis}",
-        media_type="system",
-    )
-    session.add(genesis_msg)
-    
-    # 6. Уведомление
-    session.add(Notification(
-        user_id=data.other_user_id,
-        actor_id=user.id,
-        type="prism_chat_created",
-        details=json.dumps({"chat_id": chat.id}),
-    ))
     session.commit()
-
-    # 7. WebSocket уведомление
-    await manager.broadcast_to_users([data.other_user_id], "prism_chat_created", {
-        "chat_id": chat.id,
-        "from_user": user.display_name,
-    })
-
-    return {"chat_id": chat.id, "already_existed": False}
+    
+    # Генерируем ландшафт для выбора ключа
+    mock_master_key = chat.id.to_bytes(8, 'big')
+    svg, objects = generate_prism_landscape(chat.id, mock_master_key)
+    
+    return {"chat_id": chat.id, "already_existed": False, "svg": svg, "objects": objects}
 
 
-@app.patch("/api/users/me/prism-anchor")
-async def update_prism_anchor(
-    shard1_encrypted: str = Form(...),
+@app.post("/api/chats/{chat_id}/prism-key")
+def set_prism_key(
+    chat_id: int,
+    object_id: str = Form(...),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Обновление Якоря пользователя (например, при смене PIN-кода)"""
-    user.prism_anchor = shard1_encrypted
-    session.add(user)
+    """Сохраняет выбранный визуальный объект как ключ для входа в чат"""
+    member = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+    
+    chat = session.get(Chat, chat_id)
+    if not chat or not chat.is_prism:
+        raise HTTPException(400, "Это не Prism чат")
+    
+    # Сохраняем ID объекта в поле prism_anchor модели Chat (оно уже есть в твоей models.py)
+    chat.prism_anchor = object_id 
+    session.add(chat)
     session.commit()
-    return {"ok": True}
+    
+    return {"ok": True, "message": "Ключ установлен"}
 
 
-@app.post("/api/chats/prism-avatar")
-@limiter.limit("5/minute")
-async def upload_prism_avatar(
-    request: Request,
-    file: UploadFile = File(...),
+@app.post("/api/chats/{chat_id}/prism-enter")
+def enter_prism_chat(
+    chat_id: int,
+    object_id: str = Form(...),
     user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
 ):
-    if not file.filename or not file.filename.lower().endswith('.png'):
-        raise HTTPException(400, "Для Призмы требуется формат PNG (без сжатия)")
+    """Вход в чат по выбранному визуальному объекту"""
+    member = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
     
-    content = await file.read()
-    if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(400, "Файл слишком большой (макс 5 МБ)")
+    chat = session.get(Chat, chat_id)
+    if not chat or not chat.is_prism:
+        raise HTTPException(400, "Это не Prism чат")
     
-    try:
-        # 🔥 ИСПРАВЛЕНО: quality="100" и flags="lossless" ГАРАНТИРУЮТ сохранение каждого бита
-        result = await run_in_threadpool(
-            lambda: cloudinary.uploader.upload(
-                content,
-                folder=UPLOAD_FOLDER,
-                resource_type="image",
-                format="png",
-                quality="100",
-                flags="lossless"
-            )
-        )
-        return {"avatar_url": result.get("secure_url")}
-    except Exception as e:
-        raise HTTPException(400, f"Ошибка загрузки: {str(e)}")
+    # ПРОВЕРКА: сверяем выбранный объект с сохраненным ключом чата
+    if chat.prism_anchor != object_id:
+        raise HTTPException(401, "Неверный визуальный ключ. Попробуйте другой объект.")
+    
+    return {
+        "success": True,
+        "message": "Доступ разрешен. Объект распознан.",
+        "chat_id": chat_id
+    }

@@ -132,6 +132,11 @@ class Chat(SQLModel, table=True):
     owner_id: Optional[int] = Field(default=None, foreign_key="user.id")
     pinned_by: Optional[int] = Field(default=None, foreign_key="user.id")
     pinned_at: Optional[datetime] = None
+        # Prism Puzzle: зашифрованные части ключа
+    prism_key_a_encrypted: Optional[str] = None  # K_a, зашифрованный публичным ключом А
+    prism_key_b_encrypted: Optional[str] = None  # K_b, зашифрованный публичным ключом Б
+    prism_key_a_for_b: Optional[str] = None  # K_a, зашифрованный публичным ключом Б (чтобы Б мог получить K_a)
+    prism_key_b_for_a: Optional[str] = None  # K_b, зашифрованный публичным ключом А (чтобы А мог получить K_b)
 
 
 
@@ -143,6 +148,8 @@ class ChatMember(SQLModel, table=True):
     # 🆕 Роль в чате: "owner" | "admin" | "member"
     role: str = Field(default="member")
     joined_at: datetime = Field(default_factory=utcnow)
+        # 🆕 ID объекта, выбранного как визуальный ключ для входа в этот чат
+    prism_object_id: Optional[str] = Field(default=None) 
     __table_args__ = (UniqueConstraint("chat_id", "user_id"),)
 
 class Message(SQLModel, table=True):
