@@ -18,8 +18,7 @@ import { prismStorage } from "@/lib/prismStorage";import { useI18n } from "@/lib
 
 
 
-const [creationLandscape, setCreationLandscape] = useState<{ chat_id: number; svg: string; objects: any[] } | null>(null);
-const [selectedCreationObject, setSelectedCreationObject] = useState<string | null>(null);
+
 
 
 function SwipeableChatItem({
@@ -104,6 +103,8 @@ export default function MessagesPage() {
   const [prismSearchQuery, setPrismSearchQuery] = useState("");
   const [prismSearchResults, setPrismSearchResults] = useState<any[]>([]);
   const [isCreatingPrism, setIsCreatingPrism] = useState(false);
+  const [creationLandscape, setCreationLandscape] = useState<{ chat_id: number; svg: string; objects: any[] } | null>(null);
+  const [selectedCreationObject, setSelectedCreationObject] = useState<string | null>(null);
   
   const router = useRouter();
   const { refresh } = useUnreadCounts();
