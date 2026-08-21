@@ -38,6 +38,9 @@ const initialState: CallState = {
 const METERED_USERNAME = process.env.NEXT_PUBLIC_METERED_USERNAME;
 const METERED_CREDENTIAL = process.env.NEXT_PUBLIC_METERED_CREDENTIAL;
 
+console.log('🧊 [WEBRTC CONFIG] Metered Username:', METERED_USERNAME ? 'Present' : 'Missing');
+console.log('🧊 [WEBRTC CONFIG] Metered Credential:', METERED_CREDENTIAL ? 'Present' : 'Missing');
+
 const ICE_SERVERS: RTCIceServer[] = [
   // Google STUN (бесплатно, для быстрого старта)
   { urls: 'stun:stun.l.google.com:19302' },
@@ -56,10 +59,14 @@ const ICE_SERVERS: RTCIceServer[] = [
     },
   ] : []),
 ];
+
+console.log('🧊 [WEBRTC CONFIG] Total ICE Servers:', ICE_SERVERS.length);
+ICE_SERVERS.forEach((s, i) => console.log(`   ${i+1}. ${Array.isArray(s.urls) ? s.urls.join(', ') : s.urls}`));
+
 export function useWebRTC(sendSignal: (data: any) => void) {
   const [state, setState] = useState<CallState>(initialState);
   
-  // 🔥 Рефы для доступа к актуальному состоянию из колбэков WebRTC
+  //  Рефы для доступа к актуальному состоянию из колбэков WebRTC
   const stateRef = useRef(state);
   useEffect(() => { stateRef.current = state; }, [state]);
   
@@ -68,35 +75,47 @@ export function useWebRTC(sendSignal: (data: any) => void) {
   const startTimeRef = useRef<number>(0);
 
   const cleanup = useCallback(() => {
+    console.log('🧹 [WEBRTC] Cleanup started');
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current);
       durationIntervalRef.current = null;
     }
     if (stateRef.current.localStream) {
+      console.log(' [WEBRTC] Stopping local tracks');
       stateRef.current.localStream.getTracks().forEach(track => track.stop());
     }
     if (pcRef.current) {
+      console.log(' [WEBRTC] Closing PeerConnection');
       pcRef.current.close();
       pcRef.current = null;
     }
     setState(prev => ({ ...prev, localStream: null, remoteStream: null, duration: 0 }));
+    console.log('🧹 [WEBRTC] Cleanup finished');
   }, []);
 
   const getMediaStream = async (callType: CallType): Promise<MediaStream> => {
-    return navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        channelCount: 1,
-      },
-      video: callType === 'video' ? {
-        width: { ideal: 1280 },
-        height: { ideal: 720 },
-        facingMode: 'user',
-        frameRate: { ideal: 30 },
-      } : false,
-    });
+    console.log(`🎥 [WEBRTC] Requesting media stream (${callType})...`);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1,
+        },
+        video: callType === 'video' ? {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: 'user',
+          frameRate: { ideal: 30 },
+        } : false,
+      });
+      console.log('✅ [WEBRTC] Media stream acquired successfully');
+      return stream;
+    } catch (error) {
+      console.error('❌ [WEBRTC] Failed to get media stream:', error);
+      throw error;
+    }
   };
 
   const setupPeerConnection = useCallback(async (
@@ -104,36 +123,57 @@ export function useWebRTC(sendSignal: (data: any) => void) {
     stream: MediaStream,
     isCaller: boolean
   ) => {
-    const pc = new RTCPeerConnection({
+    console.log(`🚀 [WEBRTC] Setting up PeerConnection for call ${callId} (isCaller: ${isCaller})`);
+    
+    const config: RTCConfiguration = {
       iceServers: ICE_SERVERS,
       iceCandidatePoolSize: 10,
-    });
+    };
+
+    const pc = new RTCPeerConnection(config);
     pcRef.current = pc;
 
     // Добавляем локальные треки
-    stream.getTracks().forEach(track => pc.addTrack(track, stream));
+    stream.getTracks().forEach(track => {
+      console.log(`➕ [WEBRTC] Adding track: ${track.kind} (${track.label})`);
+      pc.addTrack(track, stream);
+    });
 
     // ✅ ОДИН обработчик ICE candidates (Trickle ICE)
+    pc.onicegatheringstatechange = () => {
+      console.log(`🧊 [WEBRTC] ICE Gathering State: ${pc.iceGatheringState}`);
+    };
+
     pc.onicecandidate = (event) => {
       if (event.candidate) {
+        console.log(`🧊 [WEBRTC] ICE Candidate found: type=${event.candidate.type}, protocol=${event.candidate.protocol}, address=${event.candidate.address}`);
         sendSignal({
           type: 'call_ice_candidate',
           call_id: callId,
           candidate: event.candidate.toJSON(),
         });
+      } else {
+        console.log('✅ [WEBRTC] ICE Gathering Complete (no more candidates)');
       }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log(`💧 [WEBRTC] ICE Connection State: ${pc.iceConnectionState}`);
     };
 
     // ✅ ОДИН обработчик треков
     pc.ontrack = (event) => {
+      console.log(`📺 [WEBRTC] Remote track received: ${event.track.kind}`);
       setState(prev => ({ ...prev, remoteStream: event.streams[0] }));
     };
 
     // ✅ ОДИН обработчик состояния соединения
     pc.onconnectionstatechange = () => {
-      console.log(`🔌 Connection: ${pc.connectionState}`);
+      const newState = pc.connectionState;
+      console.log(`🔌 [WEBRTC] Connection State Changed: ${newState}`);
       
-      if (pc.connectionState === 'connected') {
+      if (newState === 'connected') {
+        console.log('🎉 [WEBRTC] CALL CONNECTED!');
         setState(prev => ({ ...prev, status: 'active' }));
         startTimeRef.current = Date.now();
         durationIntervalRef.current = setInterval(() => {
@@ -142,7 +182,8 @@ export function useWebRTC(sendSignal: (data: any) => void) {
             duration: Math.floor((Date.now() - startTimeRef.current) / 1000),
           }));
         }, 1000);
-      } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+      } else if (newState === 'disconnected' || newState === 'failed') {
+        console.error(`❌ [WEBRTC] Connection ${newState}`);
         const remoteId = stateRef.current.remoteUserId;
         if (remoteId) {
           sendSignal({
@@ -159,18 +200,30 @@ export function useWebRTC(sendSignal: (data: any) => void) {
       }
     };
 
+    pc.onsignalingstatechange = () => {
+      console.log(`📡 [WEBRTC] Signaling State: ${pc.signalingState}`);
+    };
+
     // Если мы инициатор — создаём offer
     if (isCaller) {
-      const offer = await pc.createOffer({
-        offerToReceiveAudio: true,
-        offerToReceiveVideo: true,
-      });
-      await pc.setLocalDescription(offer);
-      sendSignal({
-        type: 'call_offer',
-        call_id: callId,
-        sdp: pc.localDescription,
-      });
+      console.log('📝 [WEBRTC] Creating OFFER...');
+      try {
+        const offer = await pc.createOffer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: true,
+        });
+        await pc.setLocalDescription(offer);
+        console.log('✅ [WEBRTC] OFFER created and set as local description');
+        sendSignal({
+          type: 'call_offer',
+          call_id: callId,
+          sdp: pc.localDescription,
+        });
+      } catch (err) {
+        console.error('❌ [WEBRTC] Error creating offer:', err);
+      }
+    } else {
+      console.log('⏳ [WEBRTC] Waiting for OFFER from caller...');
     }
     // Если мы принимающий — offer придёт через handleSignal
   }, [sendSignal, cleanup]);
@@ -181,6 +234,7 @@ export function useWebRTC(sendSignal: (data: any) => void) {
     callerName: string,
     callerAvatar: string
   ) => {
+    console.log(`📞 [WEBRTC] INITIATING CALL to user ${targetUserId} (${callType})`);
     try {
       const stream = await getMediaStream(callType);
       setState(prev => ({
@@ -194,6 +248,7 @@ export function useWebRTC(sendSignal: (data: any) => void) {
         remoteUserAvatar: callerAvatar,
       }));
 
+      console.log('📤 [WEBRTC] Sending call_initiate signal');
       sendSignal({
         type: 'call_initiate',
         target_user_id: targetUserId,
@@ -202,7 +257,7 @@ export function useWebRTC(sendSignal: (data: any) => void) {
         caller_avatar: callerAvatar,
       });
     } catch (error) {
-      console.error('Ошибка доступа к медиа:', error);
+      console.error('❌ [WEBRTC] Error initiating call:', error);
       setState(prev => ({ ...prev, status: 'idle' }));
     }
   }, [sendSignal]);
@@ -214,6 +269,7 @@ export function useWebRTC(sendSignal: (data: any) => void) {
     callerName: string,
     callerAvatar: string
   ) => {
+    console.log(`✅ [WEBRTC] ACCEPTING CALL ${callId} from ${callerId}`);
     try {
       const stream = await getMediaStream(callType);
       
@@ -230,12 +286,13 @@ export function useWebRTC(sendSignal: (data: any) => void) {
         remoteUserAvatar: callerAvatar,
       }));
 
+      console.log('📤 [WEBRTC] Sending call_accept signal');
       sendSignal({ type: 'call_accept', call_id: callId, target_user_id: callerId });
       
       // 🔥 Передаём isCaller явно, а не читаем из state
       await setupPeerConnection(callId, stream, false);
     } catch (error) {
-      console.error('Ошибка принятия звонка:', error);
+      console.error('❌ [WEBRTC] Error accepting call:', error);
       sendSignal({ type: 'call_reject', call_id: callId, target_user_id: callerId });
       setState(initialState);
       cleanup();
@@ -243,12 +300,14 @@ export function useWebRTC(sendSignal: (data: any) => void) {
   }, [sendSignal, setupPeerConnection, cleanup]);
 
   const rejectCall = useCallback((callId: string, callerId: number) => {
+    console.log(`🚫 [WEBRTC] REJECTING CALL ${callId}`);
     sendSignal({ type: 'call_reject', call_id: callId, target_user_id: callerId });
     setState(initialState);
     cleanup();
   }, [sendSignal, cleanup]);
 
   const endCall = useCallback((callId: string, targetUserId: number) => {
+    console.log(`👋 [WEBRTC] ENDING CALL ${callId}`);
     sendSignal({ type: 'call_end', call_id: callId, target_user_id: targetUserId });
     setState(prev => ({ ...prev, status: 'ended' }));
     setTimeout(() => {
@@ -258,10 +317,12 @@ export function useWebRTC(sendSignal: (data: any) => void) {
   }, [sendSignal, cleanup]);
 
   const handleSignal = useCallback(async (data: any) => {
+    console.log(`📥 [WEBRTC] SIGNAL RECEIVED: ${data.type}`, data);
     const pc = pcRef.current;
 
     switch (data.type) {
       case 'call_incoming':
+        console.log(`🔔 [WEBRTC] Incoming call from ${data.caller_name}`);
         setState(prev => ({
           ...prev,
           status: 'ringing',
@@ -275,6 +336,7 @@ export function useWebRTC(sendSignal: (data: any) => void) {
         break;
 
       case 'call_initiated':
+        console.log(`✅ [WEBRTC] Call initiated confirmed, ID: ${data.call_id}`);
         setState(prev => ({
           ...prev,
           callId: data.call_id,
@@ -283,6 +345,7 @@ export function useWebRTC(sendSignal: (data: any) => void) {
         break;
 
       case 'call_accepted':
+        console.log(`✅ [WEBRTC] Call accepted by receiver`);
         setState(prev => ({ ...prev, status: 'connecting' }));
         if (stateRef.current.localStream && stateRef.current.callId) {
           await setupPeerConnection(
@@ -290,12 +353,15 @@ export function useWebRTC(sendSignal: (data: any) => void) {
             stateRef.current.localStream,
             true // мы инициатор
           );
+        } else {
+          console.warn('⚠️ [WEBRTC] Cannot setup connection: missing stream or callId');
         }
         break;
 
       case 'call_rejected':
       case 'call_busy':
       case 'call_ended':
+        console.log(`🛑 [WEBRTC] Call ended/rejected/busy`);
         setState(prev => ({ ...prev, status: 'ended' }));
         setTimeout(() => {
           setState(initialState);
@@ -304,21 +370,34 @@ export function useWebRTC(sendSignal: (data: any) => void) {
         break;
 
       case 'call_offer':
+        console.log(`📝 [WEBRTC] Received OFFER, creating ANSWER...`);
         if (pc) {
-          await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          sendSignal({
-            type: 'call_answer',
-            call_id: data.call_id,
-            sdp: pc.localDescription,
-          });
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            console.log('✅ [WEBRTC] ANSWER created and sent');
+            sendSignal({
+              type: 'call_answer',
+              call_id: data.call_id,
+              sdp: pc.localDescription,
+            });
+          } catch (err) {
+            console.error('❌ [WEBRTC] Error handling offer:', err);
+          }
+        } else {
+          console.error('❌ [WEBRTC] No PC available to handle offer');
         }
         break;
 
       case 'call_answer':
+        console.log(`📝 [WEBRTC] Received ANSWER`);
         if (pc) {
-          await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+          } catch (err) {
+            console.error('❌ [WEBRTC] Error setting remote description (answer):', err);
+          }
         }
         break;
 
@@ -326,11 +405,15 @@ export function useWebRTC(sendSignal: (data: any) => void) {
         if (pc && data.candidate) {
           try {
             await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            // console.log('✅ [WEBRTC] ICE candidate added successfully');
           } catch (e) {
-            console.warn('Failed to add ICE candidate', e);
+            console.warn('⚠️ [WEBRTC] Failed to add ICE candidate:', e);
           }
         }
         break;
+        
+      default:
+        console.warn(`❓ [WEBRTC] Unknown signal type: ${data.type}`);
     }
   }, [sendSignal, cleanup, setupPeerConnection]);
 
@@ -339,6 +422,7 @@ export function useWebRTC(sendSignal: (data: any) => void) {
     const tracks = stateRef.current.localStream.getAudioTracks();
     const newMuted = !tracks[0]?.enabled;
     tracks.forEach(t => t.enabled = !newMuted);
+    console.log(`🔇 [WEBRTC] Audio muted: ${newMuted}`);
     setState(prev => ({ ...prev, isMuted: newMuted }));
   }, []);
 
@@ -347,6 +431,7 @@ export function useWebRTC(sendSignal: (data: any) => void) {
     const tracks = stateRef.current.localStream.getVideoTracks();
     const newOff = !tracks[0]?.enabled;
     tracks.forEach(t => t.enabled = !newOff);
+    console.log(` [WEBRTC] Video off: ${newOff}`);
     setState(prev => ({ ...prev, isVideoOff: newOff }));
   }, []);
 
