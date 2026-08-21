@@ -179,6 +179,8 @@ manager = ConnectionManager()
 active_calls: Dict[str, dict] = {}  # call_id -> {caller, receiver, status, created_at}
 
 
+# Вставь это вместо старого класса CallSignaling в websocket_manager.py
+
 class CallSignaling:
     """Обработка сигналов WebRTC для звонков"""
 
@@ -186,37 +188,24 @@ class CallSignaling:
     async def handle_call_message(websocket, data: dict, current_user_id: int):
         msg_type = data.get("type")
         target_user_id = data.get("target_user_id")
+        call_id = data.get("call_id")
 
         if not target_user_id:
-            await websocket.send_json({"type": "error", "message": "target_user_id required"})
+            await manager.send_to_user(current_user_id, "call_error", {"error": "target_user_id required"})
             return
-
-        # Проверяем что целевой пользователь онлайн
-        target_ws = manager.get_user_websocket(target_user_id)
-        if not target_ws:
-            await websocket.send_json({
-                "type": "call_error",
-                "call_type": data.get("call_type", "audio"),
-                "error": "user_offline",
-                "target_user_id": target_user_id
-            })
-            return
-
-        call_id = data.get("call_id")
 
         if msg_type == "call_initiate":
             call_id = f"call_{current_user_id}_{target_user_id}_{int(time.time())}"
             active_calls[call_id] = {
                 "caller_id": current_user_id,
                 "receiver_id": target_user_id,
-                "call_type": data.get("call_type", "audio"),  # "audio" or "video"
+                "call_type": data.get("call_type", "audio"),
                 "status": "ringing",
                 "created_at": time.time()
             }
 
-            # Уведомляем принимающего
-            await target_ws.send_json({
-                "type": "call_incoming",
+            # Уведомляем принимающего (используем send_to_user, он сам сформирует {"event": "...", "data": {...}})
+            await manager.send_to_user(target_user_id, "call_incoming", {
                 "call_id": call_id,
                 "caller_id": current_user_id,
                 "caller_name": data.get("caller_name", ""),
@@ -225,8 +214,7 @@ class CallSignaling:
             })
 
             # Подтверждаем инициатору
-            await websocket.send_json({
-                "type": "call_initiated",
+            await manager.send_to_user(current_user_id, "call_initiated", {
                 "call_id": call_id,
                 "target_user_id": target_user_id
             })
@@ -234,95 +222,72 @@ class CallSignaling:
         elif msg_type == "call_accept":
             if call_id in active_calls:
                 active_calls[call_id]["status"] = "connecting"
-
-                # Говорим инициатору создать offer
-                caller_ws = manager.get_user_websocket(active_calls[call_id]["caller_id"])
-                if caller_ws:
-                    await caller_ws.send_json({
-                        "type": "call_accepted",
-                        "call_id": call_id,
-                        "receiver_id": target_user_id
-                    })
+                caller_id = active_calls[call_id]["caller_id"]
+                await manager.send_to_user(caller_id, "call_accepted", {
+                    "call_id": call_id,
+                    "receiver_id": current_user_id # current_user_id здесь - это тот, кто принял (receiver)
+                })
 
         elif msg_type == "call_reject":
             if call_id in active_calls:
                 active_calls[call_id]["status"] = "rejected"
-                caller_ws = manager.get_user_websocket(active_calls[call_id]["caller_id"])
-                if caller_ws:
-                    await caller_ws.send_json({
-                        "type": "call_rejected",
-                        "call_id": call_id,
-                        "receiver_id": target_user_id
-                    })
+                caller_id = active_calls[call_id]["caller_id"]
+                await manager.send_to_user(caller_id, "call_rejected", {
+                    "call_id": call_id,
+                    "receiver_id": current_user_id
+                })
                 del active_calls[call_id]
 
         elif msg_type == "call_offer":
-            # Пересылаем SDP offer
             if call_id in active_calls:
-                receiver_ws = manager.get_user_websocket(active_calls[call_id]["receiver_id"])
-                if receiver_ws:
-                    await receiver_ws.send_json({
-                        "type": "call_offer",
-                        "call_id": call_id,
-                        "sdp": data.get("sdp")
-                    })
+                receiver_id = active_calls[call_id]["receiver_id"]
+                await manager.send_to_user(receiver_id, "call_offer", {
+                    "call_id": call_id,
+                    "sdp": data.get("sdp")
+                })
 
         elif msg_type == "call_answer":
-            # Пересылаем SDP answer
             if call_id in active_calls:
                 active_calls[call_id]["status"] = "active"
-                caller_ws = manager.get_user_websocket(active_calls[call_id]["caller_id"])
-                if caller_ws:
-                    await caller_ws.send_json({
-                        "type": "call_answer",
-                        "call_id": call_id,
-                        "sdp": data.get("sdp")
-                    })
+                caller_id = active_calls[call_id]["caller_id"]
+                await manager.send_to_user(caller_id, "call_answer", {
+                    "call_id": call_id,
+                    "sdp": data.get("sdp")
+                })
 
         elif msg_type == "call_ice_candidate":
-            # Пересылаем ICE candidate
             if call_id in active_calls:
-                # Определяем кому переслать
+                # Определяем, кому переслать (противоположной стороне)
                 if current_user_id == active_calls[call_id]["caller_id"]:
                     target_id = active_calls[call_id]["receiver_id"]
                 else:
                     target_id = active_calls[call_id]["caller_id"]
 
-                target_ws = manager.get_user_websocket(target_id)
-                if target_ws:
-                    await target_ws.send_json({
-                        "type": "call_ice_candidate",
-                        "call_id": call_id,
-                        "candidate": data.get("candidate")
-                    })
+                await manager.send_to_user(target_id, "call_ice_candidate", {
+                    "call_id": call_id,
+                    "candidate": data.get("candidate")
+                })
 
         elif msg_type == "call_end":
             if call_id in active_calls:
-                # Уведомляем вторую сторону
                 if current_user_id == active_calls[call_id]["caller_id"]:
                     target_id = active_calls[call_id]["receiver_id"]
                 else:
                     target_id = active_calls[call_id]["caller_id"]
 
-                target_ws = manager.get_user_websocket(target_id)
-                if target_ws:
-                    await target_ws.send_json({
-                        "type": "call_ended",
-                        "call_id": call_id,
-                        "ended_by": current_user_id
-                    })
-
+                await manager.send_to_user(target_id, "call_ended", {
+                    "call_id": call_id,
+                    "ended_by": current_user_id
+                })
                 del active_calls[call_id]
 
         elif msg_type == "call_busy":
             if call_id in active_calls:
-                caller_ws = manager.get_user_websocket(active_calls[call_id]["caller_id"])
-                if caller_ws:
-                    await caller_ws.send_json({
-                        "type": "call_busy",
-                        "call_id": call_id,
-                        "receiver_id": target_user_id
-                    })
+                caller_id = active_calls[call_id]["caller_id"]
+                await manager.send_to_user(caller_id, "call_busy", {
+                    "call_id": call_id,
+                    "receiver_id": current_user_id
+                })
                 del active_calls[call_id]
 
 

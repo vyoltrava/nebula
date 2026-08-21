@@ -8396,6 +8396,8 @@ async def track_view(
     background_tasks.add_task(_track_view_sync, post_id, viewer_hash)
     return {"ok": True}
 
+import json # Убедись, что json импортирован в начале файла
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     # 1. Принимаем соединение ПЕРЕД любыми действиями
@@ -8417,19 +8419,8 @@ async def websocket_endpoint(websocket: WebSocket):
     if not user_id:
         await websocket.close(code=4001, reason="Not authenticated")
         return
-    
-    while True:
-        data = await websocket.receive_json()
 
-        # Обработка сигналов звонков
-        if data.get("type", "").startswith("call_"):
-            await CallSignaling.handle_call_message(
-                websocket, data, current_user_id
-            )
-            continue
-
-
-    # 4. Проверяем пользователя в БД
+    # 4. Проверяем пользователя в БД (ЭТО ДОЛЖНО БЫТЬ ДО БЕСКОНЕЧНОГО ЦИКЛА!)
     with Session(engine) as session:
         user = session.get(User, user_id)
         if not user or user.is_banned:
@@ -8442,12 +8433,33 @@ async def websocket_endpoint(websocket: WebSocket):
     # 6. ✅ ОБНОВЛЯЕМ last_seen БЕЗ блокировки event loop
     await run_in_threadpool(_update_last_seen_sync, user_id)
     
+    # 7. Держим соединение открытым и слушаем сообщения
     try:
-        # 7. Держим соединение открытым
         while True:
-            data = await websocket.receive_text()
-            if data == "ping":
-                await websocket.send_text(json.dumps({"event": "pong"}))
+            # Читаем как текст, чтобы поймать "ping"
+            text = await websocket.receive_text()
+            
+            # Если это пинг — отвечаем понгом
+            if text == "ping":
+                await websocket.send_text("pong")
+                continue
+            
+            # Пытаемся распарсить как JSON
+            try:
+                data = json.loads(text)
+            except json.JSONDecodeError:
+                logger.warning(f"Получено невалидное JSON сообщение по WS: {text}")
+                continue
+            
+            # 🔥 ОБРАБОТКА СИГНАЛОВ ЗВОНКОВ
+            msg_type = data.get("type") or data.get("event")
+            if msg_type and msg_type.startswith("call_"):
+                # Передаем правильный user_id (а не current_user_id)
+                await CallSignaling.handle_call_message(websocket, data, user_id)
+                continue
+            
+            # ... здесь может быть остальная твоя обработка сообщений (new_message и т.д.) ...
+            
     except WebSocketDisconnect:
         await manager.disconnect(websocket, user_id)
     except Exception as e:
