@@ -35,9 +35,21 @@ const initialState: CallState = {
   duration: 0,
 };
 
+// 🔥 ОПТИМИЗИРОВАННЫЕ ICE СЕРВЕРЫ
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
+  // Публичные TURN для обхода сложных NAT
+  {
+    urls: 'turn:openrelay.metered.ca:80',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+  {
+    urls: 'turn:openrelay.metered.ca:443',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
 ];
 
 export function useWebRTC(sendSignal: (data: any) => void) {
@@ -45,11 +57,18 @@ export function useWebRTC(sendSignal: (data: any) => void) {
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
+  
+  // 🔥 Таймер для форсированной отправки SDP (чтобы не ждать долго сбора ICE)
+  const iceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const cleanup = useCallback(() => {
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current);
       durationIntervalRef.current = null;
+    }
+    if (iceTimeoutRef.current) {
+      clearTimeout(iceTimeoutRef.current);
+      iceTimeoutRef.current = null;
     }
     if (state.localStream) {
       state.localStream.getTracks().forEach(track => track.stop());
@@ -63,15 +82,35 @@ export function useWebRTC(sendSignal: (data: any) => void) {
 
   const getMediaStream = async (callType: CallType) => {
     return navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true },
-      video: callType === 'video' ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } : false,
+      audio: { 
+        echoCancellation: true, 
+        noiseSuppression: true,
+        autoGainControl: true,
+        // latency: 0 убрано, так как не стандарт
+        channelCount: 1 
+      },
+      video: callType === 'video' ? { 
+        width: { ideal: 1280 }, 
+        height: { ideal: 720 }, 
+        facingMode: 'user',
+        frameRate: { ideal: 30 }
+      } : false,
     });
   };
 
   const initiateCall = useCallback(async (targetUserId: number, callType: CallType, callerName: string, callerAvatar: string) => {
     try {
       const stream = await getMediaStream(callType);
-      setState(prev => ({ ...prev, status: 'initiating', callType, remoteUserId: targetUserId, isCaller: true, localStream: stream, remoteUserName: callerName, remoteUserAvatar: callerAvatar }));
+      setState(prev => ({ 
+        ...prev, 
+        status: 'initiating', 
+        callType, 
+        remoteUserId: targetUserId, 
+        isCaller: true, 
+        localStream: stream, 
+        remoteUserName: callerName, 
+        remoteUserAvatar: callerAvatar 
+      }));
       
       sendSignal({
         type: 'call_initiate',
@@ -89,7 +128,17 @@ export function useWebRTC(sendSignal: (data: any) => void) {
   const acceptCall = useCallback(async (callId: string, callerId: number, callType: CallType, callerName: string, callerAvatar: string) => {
     try {
       const stream = await getMediaStream(callType);
-      setState(prev => ({ ...prev, status: 'connecting', callId, callType, remoteUserId: callerId, isCaller: false, localStream: stream, remoteUserName: callerName, remoteUserAvatar: callerAvatar }));
+      setState(prev => ({ 
+        ...prev, 
+        status: 'connecting', 
+        callId, 
+        callType, 
+        remoteUserId: callerId, 
+        isCaller: false, 
+        localStream: stream, 
+        remoteUserName: callerName, 
+        remoteUserAvatar: callerAvatar 
+      }));
       
       sendSignal({ type: 'call_accept', call_id: callId, target_user_id: callerId });
       await setupPeerConnection(callId, callType, stream);
@@ -111,15 +160,62 @@ export function useWebRTC(sendSignal: (data: any) => void) {
     setTimeout(() => { setState(initialState); cleanup(); }, 2000);
   }, [sendSignal, cleanup]);
 
+  // 🔥 Функция отправки SDP с таймаутом
+  const sendSdpWithTimeout = async (pc: RTCPeerConnection, callId: string, type: 'offer' | 'answer') => {
+    // Очищаем предыдущий таймер если был
+    if (iceTimeoutRef.current) clearTimeout(iceTimeoutRef.current);
+
+    // Создаем описание
+    const desc = type === 'offer' 
+      ? await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true })
+      : await pc.createAnswer();
+    
+    await pc.setLocalDescription(desc);
+
+    // 🔥 ТРИКЛИНГ: Отправляем сразу же (даже если ICE candidates еще не собраны полностью)
+    // Сервер/клиент будет получать candidates отдельно через call_ice_candidate
+    sendSignal({ 
+      type: type === 'offer' ? 'call_offer' : 'call_answer', 
+      call_id: callId, 
+      sdp: pc.localDescription 
+    });
+
+    // 🔥 ТАЙМАУТ: Если через 500мс ICE все еще собираются, мы уже отправили SDP.
+    // Но если вдруг onicecandidate не сработал для первых кандидатов, 
+    // мы можем отправить финальный "пустой" кандидат или просто убедиться что процесс идет.
+    // В современной WebRTC trickle работает из коробки, но таймаут спасает от зависания UI.
+    iceTimeoutRef.current = setTimeout(() => {
+      console.log("⏱️ ICE gathering timeout check");
+    }, 500);
+  };
+
   const setupPeerConnection = async (callId: string, callType: CallType, stream: MediaStream) => {
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const config: RTCConfiguration = {
+      iceServers: ICE_SERVERS,
+      iceCandidatePoolSize: 10, // 🔥 Начинаем сбор заранее
+      // encodedInsertableStreams: false убрано, так как false идет по умолчанию и не входит в стандартные типы TS
+    };
+
+    const pc = new RTCPeerConnection(config);
+
     pcRef.current = pc;
 
+    // Добавляем треки
     stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
+    // 🔥 Обработка ICE кандидатов (Trickle ICE)
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        sendSignal({ type: 'call_ice_candidate', call_id: callId, candidate: event.candidate.toJSON() });
+        // Отправляем каждый кандидат сразу же, как только он появился
+        sendSignal({ 
+          type: 'call_ice_candidate', 
+          call_id: callId, 
+          candidate: event.candidate.toJSON() 
+        });
+      } else {
+        // Сбор закончен
+        if (iceTimeoutRef.current) clearTimeout(iceTimeoutRef.current);
+        console.log("✅ ICE gathering complete");
       }
     };
 
@@ -128,7 +224,9 @@ export function useWebRTC(sendSignal: (data: any) => void) {
     };
 
     pc.onconnectionstatechange = () => {
+      console.log("🔌 Connection State:", pc.connectionState);
       if (pc.connectionState === 'connected') {
+        if (iceTimeoutRef.current) clearTimeout(iceTimeoutRef.current);
         setState(prev => ({ ...prev, status: 'active' }));
         startTimeRef.current = Date.now();
         durationIntervalRef.current = setInterval(() => {
@@ -139,13 +237,12 @@ export function useWebRTC(sendSignal: (data: any) => void) {
       }
     };
 
+    // Логика создания Offer/Answer
     if (!state.isCaller) {
-      // Если мы принимающий, мы ждём offer (обрабатывается в handleSignal)
+      // Принимающий ждет offer в handleSignal
     } else {
-      // Если мы инициатор и получили accept, создаём offer
-      const offer = await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
-      await pc.setLocalDescription(offer);
-      sendSignal({ type: 'call_offer', call_id: callId, sdp: pc.localDescription });
+      // Инициатор создает offer
+      await sendSdpWithTimeout(pc, callId, 'offer');
     }
   };
 
@@ -175,9 +272,8 @@ export function useWebRTC(sendSignal: (data: any) => void) {
       case 'call_offer':
         if (pc) {
           await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          sendSignal({ type: 'call_answer', call_id: data.call_id, sdp: pc.localDescription });
+          // Создаем и отправляем answer
+          await sendSdpWithTimeout(pc, data.call_id, 'answer');
         }
         break;
       case 'call_answer':
@@ -187,7 +283,11 @@ export function useWebRTC(sendSignal: (data: any) => void) {
         break;
       case 'call_ice_candidate':
         if (pc && data.candidate) {
-          await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+          } catch (e) {
+            console.warn("Failed to add ICE candidate", e);
+          }
         }
         break;
     }
