@@ -872,10 +872,7 @@ def logout_all(
 
 @app.get("/api/me")
 def me(user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    result = user_out(user, session)
-    # Добавляем prism_anchor только для текущего пользователя
-    result["prism_anchor"] = user.prism_anchor
-    return result
+    return user_out(user, session)
 
 
 @app.patch("/api/me")
@@ -894,9 +891,7 @@ def update_profile(
 
 
 @app.post("/api/me/password")
-@limiter.limit("5/minute")
 def change_password(
-    request: Request,
     data: ChangePasswordIn,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
@@ -4589,9 +4584,7 @@ def startup():
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS prism_anchor VARCHAR;'))
             conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS is_prism BOOLEAN DEFAULT FALSE;"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chat_is_prism ON chat(is_prism);"))
-            conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS shard2_genesis VARCHAR DEFAULT '';"))
 
-            conn.execute(text('ALTER TABLE notification ADD COLUMN IF NOT EXISTS message_id INTEGER REFERENCES message(id) ON DELETE SET NULL;'))
             conn.execute(text('ALTER TABLE notification ADD COLUMN IF NOT EXISTS message_id INTEGER REFERENCES message(id) ON DELETE SET NULL;'))
             conn.execute(text("""
             CREATE TABLE IF NOT EXISTS support_message (
@@ -5522,9 +5515,7 @@ def open_or_create_chat(
 # ---------- 2FA: НАСТРОЙКА ----------
 
 @app.post("/api/2fa/setup")
-@limiter.limit("3/minute") # 👈 ДОБАВЬ ЭТО
 def setup_2fa(
-    request: Request,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
@@ -5564,9 +5555,7 @@ def setup_2fa(
 
 
 @app.post("/api/2fa/activate")
-@limiter.limit("5/minute") # 👈 ДОБАВЬ ЭТО
 def activate_2fa(
-    request: Request,   
     code: str = Form(...),
     backup_codes: str = Form(...),  # JSON массив кодов
     user: User = Depends(get_current_user),
@@ -7484,19 +7473,19 @@ def get_rules(session: Session = Depends(get_session)):
         else:
             # Дефолтные правила
             rules_data = {
-                "title": "trelod Community Rules",
-                "subtitle": "trelod is a space for free and respectful communication.",
+                "title": "Правила сообщества trelod",
+                "subtitle": "trelod — пространство для свободного и уважительного общения.",
                 "sections": [
-                    {"id": "safety", "heading": "1. Safety", "items": ["Threats, violence, and hatred are prohibited.", "Terrorism and extremism are prohibited.", "Drug propaganda is prohibited."]},
-                    {"id": "respect", "heading": "2. Respect", "items": ["Insults and bullying are prohibited.", "Doxing is prohibited.", "Impersonation is prohibited."]},
-                    {"id": "content", "heading": "3. Content", "items": ["Spam and manipulation are prohibited.", "Pornographic content is prohibited.", "Fraud is prohibited."]},
-                    {"id": "punishments", "heading": "4. Penalties", "table": [{"num": "1", "measure": "Warning", "description": "Recorded for 30 days.", "violations": "Minor spam."}, {"num": "2", "measure": "Ban", "description": "From 1 to 30 days.", "violations": "Repeated violations."}], "note": "The administration applies measures at its discretion."}
+                    {"id": "safety", "heading": "1. Безопасность", "items": ["Запрещены угрозы, насилие, ненависть.", "Запрещён терроризм, экстремизм.", "Запрещена пропаганда наркотиков."]},
+                    {"id": "respect", "heading": "2. Уважение", "items": ["Запрещены оскорбления, буллинг.", "Запрещён доксинг.", "Запрещена имперсонация."]},
+                    {"id": "content", "heading": "3. Контент", "items": ["Запрещён спам, накрутка.", "Запрещён порно-контент.", "Запрещено мошенничество."]},
+                    {"id": "punishments", "heading": "4. Меры наказания", "table": [{"num": "1", "measure": "Предупреждение", "description": "Фиксируется на 30 дней.", "violations": "Мелкий спам."}, {"num": "2", "measure": "Блокировка", "description": "От 1 до 30 дней.", "violations": "Повторные нарушения."}], "note": "Администрация применяет меры по своему усмотрению."}
                 ],
-                "footer": "By using trelod, you agree to these rules."
+                "footer": "Используя trelod, вы соглашаетесь с правилами."
             }
     except Exception as e:
         print(f"⚠️ Failed to load rules: {e}")
-        rules_data = {"title": "Rules", "sections": [], "footer": ""}
+        rules_data = {"title": "Правила", "sections": [], "footer": ""}
 
     # 2. 🆕 Загружаем роли администрации (только is_staff=True)
     try:
@@ -8824,19 +8813,13 @@ def support_ticket_messages(
         }
         for m in messages
     ]
+
 @app.post("/api/chats/prism")
 async def create_prism_chat(
     data: CreatePrismChatIn,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Создание чата типа 'Призма'"""
-    print(f" Получены данные для Prism чата:")
-    print(f"  other_user_id: {data.other_user_id}")
-    print(f"  shard1_encrypted: {'OK' if data.shard1_encrypted else 'MISSING'}")
-    print(f"  shard2_genesis: {'OK' if data.shard2_genesis else 'MISSING'}")
-    print(f"  avatar_url: {'OK' if data.avatar_url else 'MISSING'}")
-
     """Создание чата типа 'Призма'"""
     if data.other_user_id == user.id:
         raise HTTPException(400, "Нельзя создать чат с собой")
@@ -8845,7 +8828,7 @@ async def create_prism_chat(
     if not other:
         raise HTTPException(404, "Пользователь не найден")
 
-    # Проверяем существующий чат
+    # 1. Проверяем, нет ли уже активной Призмы с этим юзером
     my_chats = session.exec(select(ChatMember.chat_id).where(ChatMember.user_id == user.id)).all()
     for cid in my_chats:
         chat = session.get(Chat, cid)
@@ -8856,25 +8839,23 @@ async def create_prism_chat(
             if other_in:
                 return {"chat_id": cid, "already_existed": True}
 
-    # Создаем чат
-    chat = Chat(
-        is_prism=True,
-        avatar_url=data.avatar_url,  # SVG-строка
-        shard2_genesis=data.shard2_genesis  # Храним shard2 в БД
-    )
+    # 2. Создаем чат
+    chat = Chat(is_prism=True, avatar_url=data.avatar_url)
     session.add(chat)
+    
+    # 🔥 КРИТИЧЕСКИ ВАЖНО: получаем ID чата из базы данных ДО создания участников
     session.commit()
     session.refresh(chat)
     
-    # Добавляем участников
+    # 3. Теперь chat.id известен, добавляем участников
     session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="member"))
     session.add(ChatMember(chat_id=chat.id, user_id=data.other_user_id, role="member"))
     
-    # Сохраняем зашифрованный shard1 в профиль
+    # 4. Сохраняем "Спектр 1" (Якорь) в профиль текущего пользователя
     user.prism_anchor = data.shard1_encrypted
     session.add(user)
     
-    # Системное сообщение
+    # 5. Создаем ПЕРВОЕ системное сообщение, которое хранит "Спектр 2" (Генезис)
     genesis_msg = Message(
         chat_id=chat.id,
         sender_id=user.id,
@@ -8883,7 +8864,7 @@ async def create_prism_chat(
     )
     session.add(genesis_msg)
     
-    # Уведомление
+    # 6. Уведомление
     session.add(Notification(
         user_id=data.other_user_id,
         actor_id=user.id,
@@ -8892,9 +8873,54 @@ async def create_prism_chat(
     ))
     session.commit()
 
+    # 7. WebSocket уведомление
     await manager.broadcast_to_users([data.other_user_id], "prism_chat_created", {
         "chat_id": chat.id,
         "from_user": user.display_name,
     })
 
     return {"chat_id": chat.id, "already_existed": False}
+
+
+@app.patch("/api/users/me/prism-anchor")
+async def update_prism_anchor(
+    shard1_encrypted: str = Form(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Обновление Якоря пользователя (например, при смене PIN-кода)"""
+    user.prism_anchor = shard1_encrypted
+    session.add(user)
+    session.commit()
+    return {"ok": True}
+
+
+@app.post("/api/chats/prism-avatar")
+@limiter.limit("5/minute")
+async def upload_prism_avatar(
+    request: Request,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+):
+    if not file.filename or not file.filename.lower().endswith('.png'):
+        raise HTTPException(400, "Для Призмы требуется формат PNG (без сжатия)")
+    
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(400, "Файл слишком большой (макс 5 МБ)")
+    
+    try:
+        # 🔥 ИСПРАВЛЕНО: quality="100" и flags="lossless" ГАРАНТИРУЮТ сохранение каждого бита
+        result = await run_in_threadpool(
+            lambda: cloudinary.uploader.upload(
+                content,
+                folder=UPLOAD_FOLDER,
+                resource_type="image",
+                format="png",
+                quality="100",
+                flags="lossless"
+            )
+        )
+        return {"avatar_url": result.get("secure_url")}
+    except Exception as e:
+        raise HTTPException(400, f"Ошибка загрузки: {str(e)}")
