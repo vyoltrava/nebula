@@ -191,7 +191,31 @@ export function useWebRTC(sendSignal: (data: any) => void) {
 
     // Добавляем треки
     stream.getTracks().forEach(track => pc.addTrack(track, stream));
+  pc.onicegatheringstatechange = () => {
+    console.log(`🧊 [${new Date().toLocaleTimeString()}] ICE gathering: ${pc.iceGatheringState}`);
+  };
 
+  pc.onicecandidate = (event) => {
+    if (event.candidate) {
+      console.log(`🧊 [${new Date().toLocaleTimeString()}] ICE candidate: type=${event.candidate.type}, addr=${event.candidate.address}`);
+      sendSignal({ type: 'call_ice_candidate', call_id: callId, candidate: event.candidate.toJSON() });
+    } else {
+      console.log(`✅ [${new Date().toLocaleTimeString()}] ICE gathering COMPLETE`);
+    }
+  };
+
+  pc.onconnectionstatechange = () => {
+    console.log(`🔌 [${new Date().toLocaleTimeString()}] Connection: ${pc.connectionState}`);
+    if (pc.connectionState === 'connected') {
+      setState(prev => ({ ...prev, status: 'active' }));
+      startTimeRef.current = Date.now();
+      durationIntervalRef.current = setInterval(() => {
+        setState(prev => ({ ...prev, duration: Math.floor((Date.now() - startTimeRef.current) / 1000) }));
+      }, 1000);
+    } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+      endCall(callId, state.remoteUserId!);
+    }
+  };
     // 🔥 Обработка ICE кандидатов (Trickle ICE)
     pc.onicecandidate = (event) => {
       if (event.candidate) {
