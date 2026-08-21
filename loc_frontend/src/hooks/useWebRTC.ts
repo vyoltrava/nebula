@@ -170,7 +170,7 @@ export function useWebRTC(sendSignal: (data: any) => void) {
     // ✅ ОДИН обработчик состояния соединения
     pc.onconnectionstatechange = () => {
       const newState = pc.connectionState;
-      console.log(`🔌 [WEBRTC] Connection State Changed: ${newState}`);
+      console.log(` [WEBRTC] Connection State Changed: ${newState}`);
       
       if (newState === 'connected') {
         console.log('🎉 [WEBRTC] CALL CONNECTED!');
@@ -182,8 +182,12 @@ export function useWebRTC(sendSignal: (data: any) => void) {
             duration: Math.floor((Date.now() - startTimeRef.current) / 1000),
           }));
         }, 1000);
-      } else if (newState === 'disconnected' || newState === 'failed') {
-        console.error(`❌ [WEBRTC] Connection ${newState}`);
+      } else if (newState === 'disconnected') {
+        // 🔥 НЕ ЗАКРЫВАЕМ СРАЗУ! Ждем восстановления (WebRTC сам пытается reconnect)
+        console.warn('⚠️ [WEBRTC] Connection disconnected, waiting for recovery...');
+        // Можно добавить таймер здесь, если через 10 сек не connected -> fail
+      } else if (newState === 'failed') {
+        console.error('❌ [WEBRTC] Connection FAILED permanently');
         const remoteId = stateRef.current.remoteUserId;
         if (remoteId) {
           sendSignal({

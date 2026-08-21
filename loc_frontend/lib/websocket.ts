@@ -99,7 +99,7 @@ class NebulaSocket {
       if (this.ws?.readyState === WebSocket.OPEN) {
         this.ws.send("ping");
       }
-    }, 20000);
+    }, 5000);
   }
 
   private stopPing() {
