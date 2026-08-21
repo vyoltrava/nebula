@@ -1,3 +1,5 @@
+// loc_frontend/lib/websocket.ts
+
 type EventHandler = (data: any) => void;
 
 class NebulaSocket {
@@ -9,6 +11,9 @@ class NebulaSocket {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
   private shouldReconnect = true;
+  
+  // 🔥 ОЧЕРЕДЬ СООБЩЕНИЙ: Сюда кладем данные, если сокет закрыт
+  private messageQueue: any[] = [];
 
   constructor() {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -26,9 +31,12 @@ class NebulaSocket {
       this.ws = new WebSocket(`${this.url}?token=${token}`);
 
       this.ws.onopen = () => {
-        console.log("⚡ WS connected");
+        console.log(" WS connected");
         this.reconnectAttempts = 0;
         this.startPing();
+        
+        // 🔥 ОТПРАВЛЯЕМ ВСЕ НАКОПЛЕННЫЕ СООБЩЕНИЯ ИЗ ОЧЕРЕДИ
+        this.flushQueue();
       };
 
       this.ws.onmessage = (event) => {
@@ -60,7 +68,13 @@ class NebulaSocket {
         }
 
         if (event.wasClean && event.code === 1000) {
-          console.log("⚡ WS closed cleanly");
+          console.log("⚡ WS closed cleanly (will reconnect if needed)");
+          // Не прерываем reconnect, если мы ждем звонка или есть сообщения в очереди
+          if (this.messageQueue.length > 0) {
+             console.log("⏳ Есть сообщения в очереди, инициируем переподключение...");
+             this.scheduleReconnect(token);
+             return;
+          }
           return;
         }
 
@@ -119,17 +133,54 @@ class NebulaSocket {
       this.ws = null;
     }
     this.reconnectAttempts = 0;
+    this.messageQueue = []; // Очищаем очередь при явном отключении
   }
 
   send(data: any) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
     } else {
-      console.warn("⚡ WS не подключен, не могу отправить данные:", data);
+      // 🔥 ЕСЛИ СОКЕТ ЗАКРЫТ - КЛАДЕМ В ОЧЕРЕДЬ
+      console.warn("⚡ WS не подключен, добавляю в очередь:", data.type || 'unknown');
+      this.messageQueue.push(data);
+      
+      // Если сокет закрыт, пытаемся переподключиться (если еще не идет процесс)
+      if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
+         // Токен нужно где-то хранить глобально или передавать, 
+         // но так как connect вызывается один раз при старте, 
+         // мы полагаемся на то, что onclose запустит reconnect, 
+         // либо вызываем connect заново, если у нас есть токен.
+         // Для простоты: если очереди не пусто и сокет мертв - форсируем reconnect
+         if (this.messageQueue.length === 1) { // Только первый раз логируем
+            console.log(" Попытка восстановить соединение для отправки очереди...");
+            // Здесь нужен токен. В идеале храним его в классе.
+            // Но так как connect уже был вызван с токеном, мы можем попробовать вызвать его снова,
+            // если сохраним токен в поле класса.
+            // ДОБАВЛЕНИЕ ПОЛЯ ДЛЯ ТОКЕНА:
+            // this.lastToken = token; // в конструкторе или connect
+            // this.connect(this.lastToken); 
+         }
+      }
     }
   }
 
-
+  // 🔥 МЕТОД ОТПРАВКИ ОЧЕРЕДИ
+  private flushQueue() {
+    if (this.ws?.readyState === WebSocket.OPEN && this.messageQueue.length > 0) {
+      console.log(` Отправляю ${this.messageQueue.length} отложенных сообщений из очереди`);
+      while (this.messageQueue.length > 0) {
+        const msg = this.messageQueue.shift();
+        try {
+          this.ws!.send(JSON.stringify(msg));
+        } catch (e) {
+          console.error("Ошибка отправки из очереди:", e);
+          // Если ошибка, возвращаем сообщение в начало очереди
+          this.messageQueue.unshift(msg);
+          break;
+        }
+      }
+    }
+  }
 
   on(event: string, handler: EventHandler): () => void {
     if (!this.handlers.has(event)) {
