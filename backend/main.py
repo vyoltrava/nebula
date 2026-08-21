@@ -30,7 +30,7 @@ import io
 import base64
 
 from link_preview import router as lp_router
-from websocket_manager import manager
+from websocket_manager import manager, CallSignaling 
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
