@@ -1,4 +1,3 @@
-// frontend/src/hooks/useWebRTC.ts
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -35,72 +34,166 @@ const initialState: CallState = {
   duration: 0,
 };
 
-// 🔥 ОПТИМИЗИРОВАННЫЕ ICE СЕРВЕРЫ
+// Получаем креды из переменных окружения Vercel
+const METERED_USERNAME = process.env.NEXT_PUBLIC_METERED_USERNAME;
+const METERED_CREDENTIAL = process.env.NEXT_PUBLIC_METERED_CREDENTIAL;
+
 const ICE_SERVERS: RTCIceServer[] = [
+  // Google STUN (бесплатно, для быстрого старта)
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
+  
+  // 🔥 Metered TURN (если переменные заданы)
+  ...(METERED_USERNAME && METERED_CREDENTIAL ? [
+    {
+      urls: [
+        'turn:relay.metered.ca:80',       // UDP
+        'turn:relay.metered.ca:443',      // TCP (важно для VPN!)
+        'turn:relay.metered.ca:443?transport=tcp',
+      ],
+      username: METERED_USERNAME,
+      credential: METERED_CREDENTIAL,
+    },
+  ] : []),
 ];
-
 export function useWebRTC(sendSignal: (data: any) => void) {
   const [state, setState] = useState<CallState>(initialState);
+  
+  // 🔥 Рефы для доступа к актуальному состоянию из колбэков WebRTC
+  const stateRef = useRef(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
+  
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
-  
-  // 🔥 Таймер для форсированной отправки SDP (чтобы не ждать долго сбора ICE)
-  const iceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const cleanup = useCallback(() => {
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current);
       durationIntervalRef.current = null;
     }
-    if (iceTimeoutRef.current) {
-      clearTimeout(iceTimeoutRef.current);
-      iceTimeoutRef.current = null;
-    }
-    if (state.localStream) {
-      state.localStream.getTracks().forEach(track => track.stop());
+    if (stateRef.current.localStream) {
+      stateRef.current.localStream.getTracks().forEach(track => track.stop());
     }
     if (pcRef.current) {
       pcRef.current.close();
       pcRef.current = null;
     }
     setState(prev => ({ ...prev, localStream: null, remoteStream: null, duration: 0 }));
-  }, [state.localStream]);
+  }, []);
 
-  const getMediaStream = async (callType: CallType) => {
+  const getMediaStream = async (callType: CallType): Promise<MediaStream> => {
     return navigator.mediaDevices.getUserMedia({
-      audio: { 
-        echoCancellation: true, 
+      audio: {
+        echoCancellation: true,
         noiseSuppression: true,
         autoGainControl: true,
-        // latency: 0 убрано, так как не стандарт
-        channelCount: 1 
+        channelCount: 1,
       },
-      video: callType === 'video' ? { 
-        width: { ideal: 1280 }, 
-        height: { ideal: 720 }, 
+      video: callType === 'video' ? {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
         facingMode: 'user',
-        frameRate: { ideal: 30 }
+        frameRate: { ideal: 30 },
       } : false,
     });
   };
 
-  const initiateCall = useCallback(async (targetUserId: number, callType: CallType, callerName: string, callerAvatar: string) => {
+  const setupPeerConnection = useCallback(async (
+    callId: string,
+    stream: MediaStream,
+    isCaller: boolean
+  ) => {
+    const pc = new RTCPeerConnection({
+      iceServers: ICE_SERVERS,
+      iceCandidatePoolSize: 10,
+    });
+    pcRef.current = pc;
+
+    // Добавляем локальные треки
+    stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+    // ✅ ОДИН обработчик ICE candidates (Trickle ICE)
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        sendSignal({
+          type: 'call_ice_candidate',
+          call_id: callId,
+          candidate: event.candidate.toJSON(),
+        });
+      }
+    };
+
+    // ✅ ОДИН обработчик треков
+    pc.ontrack = (event) => {
+      setState(prev => ({ ...prev, remoteStream: event.streams[0] }));
+    };
+
+    // ✅ ОДИН обработчик состояния соединения
+    pc.onconnectionstatechange = () => {
+      console.log(`🔌 Connection: ${pc.connectionState}`);
+      
+      if (pc.connectionState === 'connected') {
+        setState(prev => ({ ...prev, status: 'active' }));
+        startTimeRef.current = Date.now();
+        durationIntervalRef.current = setInterval(() => {
+          setState(prev => ({
+            ...prev,
+            duration: Math.floor((Date.now() - startTimeRef.current) / 1000),
+          }));
+        }, 1000);
+      } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+        const remoteId = stateRef.current.remoteUserId;
+        if (remoteId) {
+          sendSignal({
+            type: 'call_end',
+            call_id: stateRef.current.callId,
+            target_user_id: remoteId,
+          });
+        }
+        setState(prev => ({ ...prev, status: 'ended' }));
+        setTimeout(() => {
+          setState(initialState);
+          cleanup();
+        }, 2000);
+      }
+    };
+
+    // Если мы инициатор — создаём offer
+    if (isCaller) {
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true,
+      });
+      await pc.setLocalDescription(offer);
+      sendSignal({
+        type: 'call_offer',
+        call_id: callId,
+        sdp: pc.localDescription,
+      });
+    }
+    // Если мы принимающий — offer придёт через handleSignal
+  }, [sendSignal, cleanup]);
+
+  const initiateCall = useCallback(async (
+    targetUserId: number,
+    callType: CallType,
+    callerName: string,
+    callerAvatar: string
+  ) => {
     try {
       const stream = await getMediaStream(callType);
-      setState(prev => ({ 
-        ...prev, 
-        status: 'initiating', 
-        callType, 
-        remoteUserId: targetUserId, 
-        isCaller: true, 
-        localStream: stream, 
-        remoteUserName: callerName, 
-        remoteUserAvatar: callerAvatar 
+      setState(prev => ({
+        ...prev,
+        status: 'initiating',
+        callType,
+        remoteUserId: targetUserId,
+        isCaller: true,
+        localStream: stream,
+        remoteUserName: callerName,
+        remoteUserAvatar: callerAvatar,
       }));
-      
+
       sendSignal({
         type: 'call_initiate',
         target_user_id: targetUserId,
@@ -114,28 +207,40 @@ export function useWebRTC(sendSignal: (data: any) => void) {
     }
   }, [sendSignal]);
 
-  const acceptCall = useCallback(async (callId: string, callerId: number, callType: CallType, callerName: string, callerAvatar: string) => {
+  const acceptCall = useCallback(async (
+    callId: string,
+    callerId: number,
+    callType: CallType,
+    callerName: string,
+    callerAvatar: string
+  ) => {
     try {
       const stream = await getMediaStream(callType);
-      setState(prev => ({ 
-        ...prev, 
-        status: 'connecting', 
-        callId, 
-        callType, 
-        remoteUserId: callerId, 
-        isCaller: false, 
-        localStream: stream, 
-        remoteUserName: callerName, 
-        remoteUserAvatar: callerAvatar 
-      }));
       
+      // СНАЧАЛА обновляем состояние
+      setState(prev => ({
+        ...prev,
+        status: 'connecting',
+        callId,
+        callType,
+        remoteUserId: callerId,
+        isCaller: false,
+        localStream: stream,
+        remoteUserName: callerName,
+        remoteUserAvatar: callerAvatar,
+      }));
+
       sendSignal({ type: 'call_accept', call_id: callId, target_user_id: callerId });
-      await setupPeerConnection(callId, callType, stream);
+      
+      // 🔥 Передаём isCaller явно, а не читаем из state
+      await setupPeerConnection(callId, stream, false);
     } catch (error) {
       console.error('Ошибка принятия звонка:', error);
-      rejectCall(callId, callerId);
+      sendSignal({ type: 'call_reject', call_id: callId, target_user_id: callerId });
+      setState(initialState);
+      cleanup();
     }
-  }, [sendSignal]);
+  }, [sendSignal, setupPeerConnection, cleanup]);
 
   const rejectCall = useCallback((callId: string, callerId: number) => {
     sendSignal({ type: 'call_reject', call_id: callId, target_user_id: callerId });
@@ -146,181 +251,104 @@ export function useWebRTC(sendSignal: (data: any) => void) {
   const endCall = useCallback((callId: string, targetUserId: number) => {
     sendSignal({ type: 'call_end', call_id: callId, target_user_id: targetUserId });
     setState(prev => ({ ...prev, status: 'ended' }));
-    setTimeout(() => { setState(initialState); cleanup(); }, 2000);
+    setTimeout(() => {
+      setState(initialState);
+      cleanup();
+    }, 2000);
   }, [sendSignal, cleanup]);
-
-  // 🔥 Функция отправки SDP с таймаутом
-  const sendSdpWithTimeout = async (pc: RTCPeerConnection, callId: string, type: 'offer' | 'answer') => {
-    // Очищаем предыдущий таймер если был
-    if (iceTimeoutRef.current) clearTimeout(iceTimeoutRef.current);
-
-    // Создаем описание
-    const desc = type === 'offer' 
-      ? await pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true })
-      : await pc.createAnswer();
-    
-    await pc.setLocalDescription(desc);
-
-    // 🔥 ТРИКЛИНГ: Отправляем сразу же (даже если ICE candidates еще не собраны полностью)
-    // Сервер/клиент будет получать candidates отдельно через call_ice_candidate
-    sendSignal({ 
-      type: type === 'offer' ? 'call_offer' : 'call_answer', 
-      call_id: callId, 
-      sdp: pc.localDescription 
-    });
-
-    // 🔥 ТАЙМАУТ: Если через 500мс ICE все еще собираются, мы уже отправили SDP.
-    // Но если вдруг onicecandidate не сработал для первых кандидатов, 
-    // мы можем отправить финальный "пустой" кандидат или просто убедиться что процесс идет.
-    // В современной WebRTC trickle работает из коробки, но таймаут спасает от зависания UI.
-    iceTimeoutRef.current = setTimeout(() => {
-      console.log("⏱️ ICE gathering timeout check");
-    }, 500);
-  };
-
-  const setupPeerConnection = async (callId: string, callType: CallType, stream: MediaStream) => {
-    const config: RTCConfiguration = {
-      iceServers: ICE_SERVERS,
-      iceCandidatePoolSize: 10, // 🔥 Начинаем сбор заранее
-      // encodedInsertableStreams: false убрано, так как false идет по умолчанию и не входит в стандартные типы TS
-    };
-
-    const pc = new RTCPeerConnection(config);
-
-    pcRef.current = pc;
-
-    // Добавляем треки
-    stream.getTracks().forEach(track => pc.addTrack(track, stream));
-  pc.onicegatheringstatechange = () => {
-    console.log(`🧊 [${new Date().toLocaleTimeString()}] ICE gathering: ${pc.iceGatheringState}`);
-  };
-
-  pc.onicecandidate = (event) => {
-    if (event.candidate) {
-      console.log(`🧊 [${new Date().toLocaleTimeString()}] ICE candidate: type=${event.candidate.type}, addr=${event.candidate.address}`);
-      sendSignal({ type: 'call_ice_candidate', call_id: callId, candidate: event.candidate.toJSON() });
-    } else {
-      console.log(`✅ [${new Date().toLocaleTimeString()}] ICE gathering COMPLETE`);
-    }
-  };
-
-  pc.onconnectionstatechange = () => {
-    console.log(`🔌 [${new Date().toLocaleTimeString()}] Connection: ${pc.connectionState}`);
-    if (pc.connectionState === 'connected') {
-      setState(prev => ({ ...prev, status: 'active' }));
-      startTimeRef.current = Date.now();
-      durationIntervalRef.current = setInterval(() => {
-        setState(prev => ({ ...prev, duration: Math.floor((Date.now() - startTimeRef.current) / 1000) }));
-      }, 1000);
-    } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-      endCall(callId, state.remoteUserId!);
-    }
-  };
-    // 🔥 Обработка ICE кандидатов (Trickle ICE)
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        // Отправляем каждый кандидат сразу же, как только он появился
-        sendSignal({ 
-          type: 'call_ice_candidate', 
-          call_id: callId, 
-          candidate: event.candidate.toJSON() 
-        });
-      } else {
-        // Сбор закончен
-        if (iceTimeoutRef.current) clearTimeout(iceTimeoutRef.current);
-        console.log("✅ ICE gathering complete");
-      }
-    };
-
-    pc.ontrack = (event) => {
-      setState(prev => ({ ...prev, remoteStream: event.streams[0] }));
-    };
-
-    pc.onconnectionstatechange = () => {
-      console.log("🔌 Connection State:", pc.connectionState);
-      if (pc.connectionState === 'connected') {
-        if (iceTimeoutRef.current) clearTimeout(iceTimeoutRef.current);
-        setState(prev => ({ ...prev, status: 'active' }));
-        startTimeRef.current = Date.now();
-        durationIntervalRef.current = setInterval(() => {
-          setState(prev => ({ ...prev, duration: Math.floor((Date.now() - startTimeRef.current) / 1000) }));
-        }, 1000);
-      } else if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-        endCall(callId, state.remoteUserId!);
-      }
-    };
-
-    // Логика создания Offer/Answer
-    if (!state.isCaller) {
-      // Принимающий ждет offer в handleSignal
-    } else {
-      // Инициатор создает offer
-      await sendSdpWithTimeout(pc, callId, 'offer');
-    }
-  };
 
   const handleSignal = useCallback(async (data: any) => {
     const pc = pcRef.current;
-    
+
     switch (data.type) {
       case 'call_incoming':
         setState(prev => ({
-          ...prev, status: 'ringing', callId: data.call_id, callType: data.call_type,
-          remoteUserId: data.caller_id, remoteUserName: data.caller_name, remoteUserAvatar: data.caller_avatar, isCaller: false
+          ...prev,
+          status: 'ringing',
+          callId: data.call_id,
+          callType: data.call_type,
+          remoteUserId: data.caller_id,
+          remoteUserName: data.caller_name,
+          remoteUserAvatar: data.caller_avatar,
+          isCaller: false,
         }));
         break;
+
       case 'call_initiated':
-        setState(prev => ({ ...prev, callId: data.call_id, remoteUserId: data.target_user_id }));
+        setState(prev => ({
+          ...prev,
+          callId: data.call_id,
+          remoteUserId: data.target_user_id,
+        }));
         break;
+
       case 'call_accepted':
         setState(prev => ({ ...prev, status: 'connecting' }));
-        if (state.localStream) await setupPeerConnection(data.call_id, state.callType, state.localStream);
+        if (stateRef.current.localStream && stateRef.current.callId) {
+          await setupPeerConnection(
+            stateRef.current.callId,
+            stateRef.current.localStream,
+            true // мы инициатор
+          );
+        }
         break;
+
       case 'call_rejected':
       case 'call_busy':
       case 'call_ended':
         setState(prev => ({ ...prev, status: 'ended' }));
-        setTimeout(() => { setState(initialState); cleanup(); }, 2000);
+        setTimeout(() => {
+          setState(initialState);
+          cleanup();
+        }, 2000);
         break;
+
       case 'call_offer':
         if (pc) {
           await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-          // Создаем и отправляем answer
-          await sendSdpWithTimeout(pc, data.call_id, 'answer');
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          sendSignal({
+            type: 'call_answer',
+            call_id: data.call_id,
+            sdp: pc.localDescription,
+          });
         }
         break;
+
       case 'call_answer':
         if (pc) {
           await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
         }
         break;
+
       case 'call_ice_candidate':
         if (pc && data.candidate) {
           try {
             await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
           } catch (e) {
-            console.warn("Failed to add ICE candidate", e);
+            console.warn('Failed to add ICE candidate', e);
           }
         }
         break;
     }
-  }, [sendSignal, cleanup, state.localStream, state.callType, state.isCaller]);
+  }, [sendSignal, cleanup, setupPeerConnection]);
 
-  const toggleMute = () => {
-    if (!state.localStream) return;
-    const tracks = state.localStream.getAudioTracks();
+  const toggleMute = useCallback(() => {
+    if (!stateRef.current.localStream) return;
+    const tracks = stateRef.current.localStream.getAudioTracks();
     const newMuted = !tracks[0]?.enabled;
     tracks.forEach(t => t.enabled = !newMuted);
     setState(prev => ({ ...prev, isMuted: newMuted }));
-  };
+  }, []);
 
-  const toggleVideo = () => {
-    if (!state.localStream) return;
-    const tracks = state.localStream.getVideoTracks();
+  const toggleVideo = useCallback(() => {
+    if (!stateRef.current.localStream) return;
+    const tracks = stateRef.current.localStream.getVideoTracks();
     const newOff = !tracks[0]?.enabled;
     tracks.forEach(t => t.enabled = !newOff);
     setState(prev => ({ ...prev, isVideoOff: newOff }));
-  };
+  }, []);
 
   useEffect(() => {
     return () => cleanup();
