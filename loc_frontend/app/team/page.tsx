@@ -177,16 +177,36 @@ export default function TeamPage() {
                           <p className="text-sm text-white/50 truncate">@{m.username}</p>
 
                           {/* Только плашка роли — без текстовых бейджей уровней */}
-                          {m.role && (
-                            <div className="mt-2">
+                          {/* Плашки статусов и ролей */}
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {m.is_system && (
+                              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-black bg-[#00ff41] shadow-[0_0_8px_rgba(0,255,65,0.4)]">
+                                SYSTEM
+                              </span>
+                            )}
+                            
+                            {m.is_admin && (
+                              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-black bg-white shadow-[0_0_8px_rgba(255,255,255,0.4)]">
+                                FOUNDER
+                              </span>
+                            )}
+                            
+                            {m.is_moderator && !m.is_admin && (
+                              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-white bg-[#3b82f6] shadow-[0_0_8px_rgba(59,130,246,0.4)]">
+                                DEVELOPER
+                              </span>
+                            )}
+                            
+                            {/* Показываем обычную роль, если она есть */}
+                            {m.role && (
                               <span
-                                className="inline-block px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-white"
+                                className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-white"
                                 style={{ backgroundColor: m.role.color }}
                               >
                                 {m.role.name}
                               </span>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </Link>
                     );
