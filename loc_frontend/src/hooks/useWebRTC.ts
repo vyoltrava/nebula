@@ -316,116 +316,148 @@ export function useWebRTC(sendSignal: (data: any) => void) {
     }, 2000);
   }, [sendSignal, cleanup]);
 
-const handleSignal = useCallback(async (data: any) => {
-  console.log(`📥 [WEBRTC] SIGNAL RECEIVED: ${data.type}`, data);
-  const pc = pcRef.current;
+  // 🔥 Буфер для кандидатов, пришедших раньше времени
+  const iceCandidateBuffer = useRef<RTCIceCandidateInit[]>([]);
 
-  switch (data.type) {
-    case 'call_incoming':
-      console.log(`🔔 [WEBRTC] Incoming call from ${data.caller_name}`);
-      setState(prev => ({
-        ...prev,
-        status: 'ringing',
-        callId: data.call_id, // ← Устанавливаем ID сразу
-        callType: data.call_type,
-        remoteUserId: data.caller_id,
-        remoteUserName: data.caller_name,
-        remoteUserAvatar: data.caller_avatar,
-        isCaller: false,
-      }));
-      break;
+  const handleSignal = useCallback(async (data: any) => {
+    console.log(`📥 [WEBRTC] SIGNAL RECEIVED: ${data.type}`, data);
+    const pc = pcRef.current;
 
-    case 'call_initiated':
-      console.log(`✅ [WEBRTC] Call initiated confirmed, ID: ${data.call_id}`);
-      setState(prev => ({
-        ...prev,
-        callId: data.call_id, // ← Устанавливаем ID сразу
-        remoteUserId: data.target_user_id,
-      }));
-      break;
+    switch (data.type) {
+      case 'call_incoming':
+        console.log(` [WEBRTC] Incoming call from ${data.caller_name}`);
+        setState(prev => ({
+          ...prev,
+          status: 'ringing',
+          callId: data.call_id,
+          callType: data.call_type,
+          remoteUserId: data.caller_id,
+          remoteUserName: data.caller_name,
+          remoteUserAvatar: data.caller_avatar,
+          isCaller: false,
+        }));
+        break;
 
-    case 'call_accepted':
-      console.log(`✅ [WEBRTC] Call accepted by receiver`);
-      
-      // 🔥 ИСПРАВЛЕНИЕ: Используем callId из данных сигнала, если в стейте его нет
-      const currentCallId = stateRef.current.callId || data.call_id;
-      const currentStream = stateRef.current.localStream;
+      case 'call_initiated':
+        console.log(`✅ [WEBRTC] Call initiated confirmed, ID: ${data.call_id}`);
+        setState(prev => ({
+          ...prev,
+          callId: data.call_id,
+          remoteUserId: data.target_user_id,
+        }));
+        break;
 
-      if (currentStream && currentCallId) {
-        setState(prev => ({ ...prev, status: 'connecting' }));
-        console.log(`🚀 [WEBRTC] Starting PeerConnection with ID: ${currentCallId}`);
-        await setupPeerConnection(currentCallId, currentStream, true); // true = мы инициатор
-      } else {
-        console.error(`❌ [WEBRTC] Cannot setup connection: Stream=${!!currentStream}, CallId=${currentCallId}`);
-        console.warn('💡 Hint: Did the signal arrive before state updated? Trying fallback...');
+      case 'call_accepted':
+        console.log(`✅ [WEBRTC] Call accepted by receiver`);
+        const currentCallId = stateRef.current.callId || data.call_id;
+        const currentStream = stateRef.current.localStream;
+
+        if (currentStream && currentCallId) {
+          setState(prev => ({ ...prev, status: 'connecting' }));
+          console.log(`🚀 [WEBRTC] Starting PeerConnection with ID: ${currentCallId}`);
+          await setupPeerConnection(currentCallId, currentStream, true);
+        } else {
+          console.error(`❌ [WEBRTC] Cannot setup connection: Stream=${!!currentStream}, CallId=${currentCallId}`);
+          if (currentStream && data.call_id) {
+             console.log('🔄 [WEBRTC] Fallback: Using call_id from signal');
+             setState(prev => ({ ...prev, status: 'connecting', callId: data.call_id }));
+             await setupPeerConnection(data.call_id, currentStream, true);
+          }
+        }
+        break;
+
+      case 'call_rejected':
+      case 'call_busy':
+      case 'call_ended':
+        console.log(` [WEBRTC] Call ended/rejected/busy`);
+        setState(prev => ({ ...prev, status: 'ended' }));
+        setTimeout(() => {
+          setState(initialState);
+          cleanup();
+        }, 2000);
+        break;
+
+      case 'call_offer':
+        console.log(`📝 [WEBRTC] Received OFFER, creating ANSWER...`);
+        if (pc) {
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            
+            // 🔥 ПРИМЕНЯЕМ НАКОПЛЕННЫЕ КАНДИДАТЫ ПОСЛЕ УСТАНОВКИ ОПИСАНИЯ
+            if (iceCandidateBuffer.current.length > 0) {
+              console.log(`🧊 Applying ${iceCandidateBuffer.current.length} buffered ICE candidates`);
+              for (const candidate of iceCandidateBuffer.current) {
+                try {
+                  await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                } catch (e) {
+                  console.warn('Failed to apply buffered candidate', e);
+                }
+              }
+              iceCandidateBuffer.current = []; // Очищаем буфер
+            }
+
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            console.log('✅ [WEBRTC] ANSWER created and sent');
+            sendSignal({
+              type: 'call_answer',
+              call_id: data.call_id,
+              sdp: pc.localDescription,
+            });
+          } catch (err) {
+            console.error('❌ [WEBRTC] Error handling offer:', err);
+          }
+        } else {
+          console.error('❌ [WEBRTC] No PC available to handle offer');
+        }
+        break;
+
+      case 'call_answer':
+        console.log(`📝 [WEBRTC] Received ANSWER`);
+        if (pc) {
+          try {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            
+            // 🔥 ПРИМЕНЯЕМ НАКОПЛЕННЫЕ КАНДИДАТЫ ПОСЛЕ УСТАНОВКИ ОПИСАНИЯ
+            if (iceCandidateBuffer.current.length > 0) {
+              console.log(` Applying ${iceCandidateBuffer.current.length} buffered ICE candidates`);
+              for (const candidate of iceCandidateBuffer.current) {
+                try {
+                  await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                } catch (e) {
+                  console.warn('Failed to apply buffered candidate', e);
+                }
+              }
+              iceCandidateBuffer.current = []; // Очищаем буфер
+            }
+          } catch (err) {
+            console.error('❌ [WEBRTC] Error setting remote description (answer):', err);
+          }
+        }
+        break;
+
+      case 'call_ice_candidate':
+        if (pc && data.candidate) {
+          // 🔥 ПРОВЕРЯЕМ, ГОТОВО ЛИ REMOTE DESCRIPTION
+          if (!pc.remoteDescription) {
+            console.log(' [WEBRTC] Remote description not ready yet, buffering candidate');
+            iceCandidateBuffer.current.push(data.candidate);
+            return; // Выходим, не пытаемся добавить
+          }
+
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            // console.log('✅ [WEBRTC] ICE candidate added successfully');
+          } catch (e) {
+            console.warn('⚠️ [WEBRTC] Failed to add ICE candidate:', e);
+          }
+        }
+        break;
         
-        // Попытка восстановления: если стрим есть, а ID нет — ждем немного или используем ID из сигнала
-        if (currentStream && data.call_id) {
-           console.log('🔄 [WEBRTC] Fallback: Using call_id from signal');
-           setState(prev => ({ ...prev, status: 'connecting', callId: data.call_id }));
-           await setupPeerConnection(data.call_id, currentStream, true);
-        }
-      }
-      break;
-
-    case 'call_rejected':
-    case 'call_busy':
-    case 'call_ended':
-      console.log(`🛑 [WEBRTC] Call ended/rejected/busy`);
-      setState(prev => ({ ...prev, status: 'ended' }));
-      setTimeout(() => {
-        setState(initialState);
-        cleanup();
-      }, 2000);
-      break;
-
-    case 'call_offer':
-      console.log(`📝 [WEBRTC] Received OFFER, creating ANSWER...`);
-      if (pc) {
-        try {
-          await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          console.log('✅ [WEBRTC] ANSWER created and sent');
-          sendSignal({
-            type: 'call_answer',
-            call_id: data.call_id,
-            sdp: pc.localDescription,
-          });
-        } catch (err) {
-          console.error('❌ [WEBRTC] Error handling offer:', err);
-        }
-      } else {
-        console.error('❌ [WEBRTC] No PC available to handle offer');
-      }
-      break;
-
-    case 'call_answer':
-      console.log(`📝 [WEBRTC] Received ANSWER`);
-      if (pc) {
-        try {
-          await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-        } catch (err) {
-          console.error('❌ [WEBRTC] Error setting remote description (answer):', err);
-        }
-      }
-      break;
-
-    case 'call_ice_candidate':
-      if (pc && data.candidate) {
-        try {
-          await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-          // console.log('✅ [WEBRTC] ICE candidate added successfully');
-        } catch (e) {
-          console.warn('⚠️ [WEBRTC] Failed to add ICE candidate:', e);
-        }
-      }
-      break;
-      
-    default:
-      console.warn(`❓ [WEBRTC] Unknown signal type: ${data.type}`);
-  }
-}, [sendSignal, cleanup, setupPeerConnection]);
+      default:
+        console.warn(`❓ [WEBRTC] Unknown signal type: ${data.type}`);
+    }
+  }, [sendSignal, cleanup, setupPeerConnection]);
 
   const toggleMute = useCallback(() => {
     if (!stateRef.current.localStream) return;
