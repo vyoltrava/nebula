@@ -186,7 +186,7 @@ export default function PrismChatPage() {
         <div className="w-10" />
       </header>
 
-      {syncStatus === "puzzle" && landscape && (
+      {(syncStatus === "puzzle" || syncStatus === "verifying") && landscape && (
         <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-4">
           <div className="max-w-4xl w-full space-y-6">
             <div className="text-center space-y-2">
