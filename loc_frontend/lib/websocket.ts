@@ -32,6 +32,7 @@ class NebulaSocket {
       };
 
       this.ws.onmessage = (event) => {
+          if (event.data === "pong" || event.data === "ping") return;
         console.log("📥 [WS FRONTEND] RAW сообщение от сервера:", event.data);
         
         try {
