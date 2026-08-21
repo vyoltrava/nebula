@@ -4118,7 +4118,6 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "id": chat.id,
             "is_group": True,
             "is_secret": False,  # группы без E2EE
-            "is_prism": chat.is_prism, 
             "name": chat.name or "Без названия",
             "avatar_url": chat.avatar_url,
             "owner_id": chat.owner_id,
@@ -4157,7 +4156,6 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "id": chat.id,
             "is_group": False,
             "is_secret": chat.is_secret,
-            "is_prism": chat.is_prism, 
             "other": user_out(other, session) if other else None,
             "last_message": last_message_data,
             "unread_count": unread,
@@ -4581,9 +4579,7 @@ def startup():
         try:
                 # Добавь в блок миграций при старте приложения:
             conn.execute(text("ALTER TABLE stickerpack DROP COLUMN IF EXISTS emojis;"))            
-            conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS prism_anchor VARCHAR;'))
-            conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS is_prism BOOLEAN DEFAULT FALSE;"))
-            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chat_is_prism ON chat(is_prism);"))
+
 
             conn.execute(text('ALTER TABLE notification ADD COLUMN IF NOT EXISTS message_id INTEGER REFERENCES message(id) ON DELETE SET NULL;'))
             conn.execute(text("""
@@ -6281,9 +6277,7 @@ async def send_message_v2(
 
     msg = None
     try:
-        # Проверяем, это Prism чат с шифрованием?
-        is_prism_encrypted = chat.is_prism and ciphertext == "[prism_encrypted]"
-        
+
         msg = Message(
             chat_id=chat_id,
             sender_id=user.id,
