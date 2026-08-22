@@ -72,7 +72,7 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
         </div>
       )}
 
-      {/* ЗНАЧОК СВЕРХУ ПО ЦЕНТРУ. Кликабельный ТОЛЬКО если canEditBadge = true */}
+      {/* 🆕 ЗНАЧОК СВЕРХУ ПО ЦЕНТРУ СО СВЕТЯЩЕЙСЯ ПОДЛОЖКОЙ */}
       <div 
         className={`absolute -top-4 left-1/2 -translate-x-1/2 w-9 h-9 animate-bounce-slow select-none z-10 ${
           canEditBadge ? 'pointer-events-auto cursor-pointer hover:opacity-80 transition-opacity' : 'pointer-events-none'
@@ -80,10 +80,20 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
         onClick={canEditBadge ? onBadgeClick : undefined}
         title={canEditBadge ? "Нажми, чтобы сменить значок" : ""}
       >
+        {/* Светящаяся подложка под значком */}
+        <div 
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: `radial-gradient(circle, ${glowColor} 0%, ${glowColor}80 40%, transparent 70%)`,
+            filter: `blur(3px)`,
+            transform: `scale(1.3)`,
+          }}
+        />
+        {/* Сам значок */}
         <img
           src={userBadge.icon_url}
           alt={userBadge.name}
-          className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
+          className="relative w-full h-full object-contain"
           draggable={false}
         />
       </div>

@@ -1,6 +1,6 @@
 "use client";
 import { Upload , Check, Ban, X, MessageSquare, Flag, Lock, Camera, Image as ImageIcon, X as XIcon, AlertTriangle } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Sidebar } from "@/components/Sidebar";
@@ -172,6 +172,14 @@ function getGlowColor(user: any): string | null {
   }, [availableBadges, profile?.selected_badge_id]);
 
 
+  // Функция загрузки бейджей
+  const loadBadges = useCallback(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/badges`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setAvailableBadges(data))
+      .catch(() => setAvailableBadges([]));
+  }, []);
+
   useEffect(() => {
     const token = getToken();
     
@@ -186,13 +194,19 @@ function getGlowColor(user: any): string | null {
         });
     }
 
-    // 🆕 Загружаем список всех доступных значков
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/badges`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setAvailableBadges(data))
-      .catch(() => setAvailableBadges([]));
-      
-  }, []);
+    // Загружаем бейджи
+    loadBadges();
+    
+    // 🆕 Обновляем бейджи при возврате на вкладку
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadBadges();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [loadBadges]);
 
   async function startChat() {
     const token = getToken();
