@@ -4627,9 +4627,6 @@ def startup():
     with engine.connect() as conn:
         try:
 
-            conn.execute(text("ALTER TABLE badge ADD COLUMN IF NOT EXISTS enable_ring BOOLEAN DEFAULT TRUE;"))
-            conn.execute(text("ALTER TABLE badge ADD COLUMN IF NOT EXISTS enable_glow BOOLEAN DEFAULT TRUE;"))
-            conn.execute(text("ALTER TABLE badge ALTER COLUMN glow_color DROP NOT NULL;"))
 
             # 🆕 Добавляем колонку для выбранного значка и создаем таблицу значков
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS selected_badge_id INTEGER;'))
@@ -4648,6 +4645,9 @@ def startup():
             # Добавляем колонку user_id в таблицу badge и делаем glow_color опциональным
             conn.execute(text("ALTER TABLE badge ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES \"user\"(id) ON DELETE CASCADE;"))
 
+            conn.execute(text("ALTER TABLE badge ADD COLUMN IF NOT EXISTS enable_ring BOOLEAN DEFAULT TRUE;"))
+            conn.execute(text("ALTER TABLE badge ADD COLUMN IF NOT EXISTS enable_glow BOOLEAN DEFAULT TRUE;"))
+            conn.execute(text("ALTER TABLE badge ALTER COLUMN glow_color DROP NOT NULL;"))
                 # Добавь в блок миграций при старте приложения:
             conn.execute(text("ALTER TABLE stickerpack DROP COLUMN IF EXISTS emojis;"))            
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS prism_anchor VARCHAR;'))
