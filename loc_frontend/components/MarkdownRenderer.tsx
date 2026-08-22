@@ -221,7 +221,16 @@ export function MarkdownRenderer({ text, isMessage = false }: { text: string; is
           {preprocessText(text)}
         </ReactMarkdown>
       </div>
-
+      <style jsx global>{`
+        @media (pointer: coarse) {
+          .markdown-body {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+          }
+        }
+      `}</style>
       {menu && (
         <RichContextMenu
           x={menu.x}

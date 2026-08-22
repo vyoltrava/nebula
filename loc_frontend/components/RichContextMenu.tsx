@@ -8,8 +8,6 @@ import {
 } from "lucide-react";
 import type { MarkdownType } from "@/lib/richText";
 
-/* ============ ТИПЫ (конфиг пунктов — легко расширять) ============ */
-
 export type RichMenuItem = {
   id: string;
   label: string;
@@ -17,9 +15,9 @@ export type RichMenuItem = {
   shortcut?: string;
   disabled?: boolean;
   danger?: boolean;
-  separatorBefore?: boolean; // линия сверху, как в ТГ
+  separatorBefore?: boolean;
   onClick?: () => void;
-  children?: RichMenuItem[]; // сабменю (стрелочка >)
+  children?: RichMenuItem[];
 };
 
 export type RichHandlers = {
@@ -33,7 +31,6 @@ export type RichHandlers = {
   format: (t: MarkdownType) => void;
 };
 
-/** Дефолтное меню как в Telegram. Новые пункты добавляй сюда. */
 export function buildRichMenuItems(h: RichHandlers): RichMenuItem[] {
   return [
     { id: "undo", label: "Отменить", icon: Undo2, shortcut: "Ctrl+Z", onClick: h.undo },
@@ -56,14 +53,12 @@ export function buildRichMenuItems(h: RichHandlers): RichMenuItem[] {
   ];
 }
 
-/* ============ КОМПОНЕНТ МЕНЮ ============ */
-
 type Props = {
   x: number;
   y: number;
   items: RichMenuItem[];
   onClose: () => void;
-  zIndex?: number; // ← уже есть, но убедись, что в RichEditor передаётся 9998
+  zIndex?: number;
 };
 
 const MENU_W = 240;
@@ -75,49 +70,52 @@ export function RichContextMenu({ x, y, items, onClose, zIndex = 9990 }: Props) 
   const [openSub, setOpenSub] = useState<string | null>(null);
   const [subPos, setSubPos] = useState({ x: 0, y: 0 });
 
-  // кламп в экран
+  // 📱 Телефон? → меню как центрированная модалка (клавиатура не влияет)
+  const [isCoarse] = useState(() =>
+    typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(pointer: coarse)").matches
+  );
+  // Видимая область экрана с учётом клавиатуры (visualViewport)
+  const [viewport] = useState(() => {
+    if (typeof window === "undefined") return { top: 0, height: 800 };
+    const vv = (window as any).visualViewport;
+    return vv ? { top: vv.offsetTop, height: vv.height } : { top: 0, height: window.innerHeight };
+  });
+
+  // 🖥️ ПК: открываемся ВВЕРХ от точки клика
   useLayoutEffect(() => {
+    if (isCoarse) return;
     const el = mainRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
     let nx = x;
-    // ✅ ВСЕГДА открываемся ВВЕРХ от точки клика (как в Telegram)
     let ny = y - r.height - 8;
     if (nx + r.width > window.innerWidth - 8) nx = Math.max(8, window.innerWidth - r.width - 8);
     if (nx < 8) nx = 8;
-    // только если сверху НЕ влезает — открываемся вниз
     if (ny < 8) ny = Math.min(y + 8, window.innerHeight - r.height - 8);
     setPos({ x: nx, y: ny });
-  }, [x, y]);
+  }, [x, y, isCoarse]);
 
-  // закрытие: клик мимо / Escape / скролл / resize
-useEffect(() => {
-  const onDown = (e: PointerEvent) => {
-    if (rootRef.current && !rootRef.current.contains(e.target as Node)) onClose();
-  };
-  const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-  const onScroll = () => onClose();
-  // 🛡️ Подавляем нативное контекстное меню браузера, пока наше открыто
-  const onContextMenu = (e: Event) => {
-    e.preventDefault();
-    e.stopPropagation();
-    return false;
-  };
-  document.addEventListener("pointerdown", onDown);
-  document.addEventListener("keydown", onKey);
-  document.addEventListener("contextmenu", onContextMenu, true); // ← ВАЖНО: capture phase
-  window.addEventListener("resize", onClose);
-  window.addEventListener("scroll", onScroll, true);
-  return () => {
-    document.removeEventListener("pointerdown", onDown);
-    document.removeEventListener("keydown", onKey);
-    document.removeEventListener("contextmenu", onContextMenu, true);
-    window.removeEventListener("resize", onClose);
-    window.removeEventListener("scroll", onScroll, true);
-  };
-}, [onClose]);
-
-  
+  // Закрытие + глушение нативного contextmenu
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) onClose();
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onScroll = () => { if (!isCoarse) onClose(); }; // на мобилках скролл≠закрытие (клавиатура!)
+    const onCtx = (e: Event) => { e.preventDefault(); e.stopPropagation(); };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("contextmenu", onCtx, true);
+    window.addEventListener("resize", onClose);
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("contextmenu", onCtx, true);
+      window.removeEventListener("resize", onClose);
+      window.removeEventListener("scroll", onScroll, true);
+    };
+  }, [onClose, isCoarse]);
 
   const openSubmenu = (id: string, rect: DOMRect, count: number) => {
     let sx = rect.right - 6;
@@ -135,10 +133,9 @@ useEffect(() => {
       <React.Fragment key={item.id}>
         {item.separatorBefore && <div className="h-px bg-white/10 my-1" />}
         <button
-          // ❗️ не отдаём фокус/выделение редактора
           onMouseDown={(e) => e.preventDefault()}
           onTouchStart={(e) => e.stopPropagation()}
-          onMouseEnter={(e) => item.children && openSubmenu(item.id, e.currentTarget.getBoundingClientRect(), item.children.length)}
+          onMouseEnter={(e) => item.children && !isCoarse && openSubmenu(item.id, e.currentTarget.getBoundingClientRect(), item.children.length)}
           onClick={(e) => {
             e.stopPropagation();
             if (item.children) {
@@ -149,13 +146,13 @@ useEffect(() => {
             item.onClick?.();
           }}
           disabled={item.disabled}
-          className={`w-full px-3 py-2 flex items-center gap-2.5 text-[13px] rounded-lg transition-colors ${
+          className={`w-full px-3 py-2.5 flex items-center gap-2.5 text-[13px] rounded-lg transition-colors ${
             item.disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-white/10 active:bg-white/15"
           } ${item.danger ? "text-red-400" : "text-white/90"}`}
         >
           {Icon && <Icon size={15} className={item.danger ? "text-red-400" : "text-white/50"} />}
           <span className="flex-1 text-left truncate">{item.label}</span>
-          {item.shortcut && <span className="text-[11px] text-white/30">{item.shortcut}</span>}
+          {item.shortcut && !isCoarse && <span className="text-[11px] text-white/30">{item.shortcut}</span>}
           {item.children && <ChevronRight size={14} className="text-white/40" />}
         </button>
       </React.Fragment>
@@ -164,24 +161,41 @@ useEffect(() => {
 
   const subItems = items.find((i) => i.id === openSub)?.children;
 
-  return createPortal(
-    <div ref={rootRef} className="fixed inset-0 pointer-events-none" style={{ zIndex }} onContextMenu={(e) => e.preventDefault()}>
-      {/* основная панель */}
-      <div
-        ref={mainRef}
-        className="pointer-events-auto p-1.5 rounded-xl border border-white/10 bg-[#1f1f23]/95 backdrop-blur-xl shadow-2xl"
-        style={{ position: "fixed", left: pos.x, top: pos.y, width: MENU_W }}
-      >
-        {items.map(renderItem)}
-      </div>
+  const panel = (
+    <div
+      ref={mainRef}
+      className="pointer-events-auto p-1.5 rounded-xl border border-white/10 bg-[#1f1f23]/95 backdrop-blur-xl shadow-2xl"
+      style={isCoarse ? { width: MENU_W } : { position: "fixed", left: pos.x, top: pos.y, width: MENU_W }}
+    >
+      {items.map(renderItem)}
+    </div>
+  );
 
-      {/* сабменю */}
-      {openSub && subItems && (
-        <div
-          className="pointer-events-auto p-1.5 rounded-xl border border-white/10 bg-[#1f1f23]/95 backdrop-blur-xl shadow-2xl"
-          style={{ position: "fixed", left: subPos.x, top: subPos.y, width: MENU_W }}
-        >
-          {subItems.map(renderItem)}
+  const submenu = openSub && subItems && (
+    <div
+      className="pointer-events-auto p-1.5 rounded-xl border border-white/10 bg-[#1f1f23]/95 backdrop-blur-xl shadow-2xl"
+      style={{ position: "fixed", left: subPos.x, top: subPos.y, width: MENU_W }}
+    >
+      {subItems.map(renderItem)}
+    </div>
+  );
+
+  return createPortal(
+    <div ref={rootRef} onContextMenu={(e) => e.preventDefault()}>
+      {isCoarse ? (
+        /* 📱 МОБИЛКА: центрированная модалка с затемнением, как в TG */
+        <div className="fixed left-0 right-0" style={{ top: viewport.top, height: viewport.height, zIndex }}>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={onClose} />
+          <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 flex justify-center pointer-events-none">
+            {panel}
+          </div>
+          {submenu}
+        </div>
+      ) : (
+        /* 🖥️ ПК: у точки клика, вверх */
+        <div className="fixed inset-0 pointer-events-none" style={{ zIndex }}>
+          {panel}
+          {submenu}
         </div>
       )}
     </div>,

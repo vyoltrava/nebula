@@ -252,6 +252,14 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
           border-radius: 4px;
         }
         .rich-editor a { color: #8b5cf6; text-decoration: underline; }
+                @media (pointer: coarse) {
+          .rich-editor {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+          }
+        }
       `}</style>
     </>
   );
