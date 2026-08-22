@@ -9259,3 +9259,62 @@ def delete_custom_badge(
     session.add(user)
     session.commit()
     return {"ok": True}
+
+
+@app.post("/api/admin/stock-badges")
+async def admin_upload_stock_badges(
+    name: str = Form(...),
+    glow_color: str = Form("#8b5cf6"),
+    effect_type: str = Form("none"),
+    min_level: int = Form(1),
+    is_selectable: bool = Form(True),
+    files: List[UploadFile] = File(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Массовая загрузка стоковых значков"""
+    if not user.is_admin:
+        raise HTTPException(403, "Admin only")
+    
+    # Создаём пак для стоковых значков
+    pack = StickerPack(
+        name=f"Stock: {name}",
+        min_level=min_level,
+        is_active=True,
+        is_builtin=True,
+    )
+    session.add(pack)
+    session.commit()
+    session.refresh(pack)
+    
+    # Загружаем файлы
+    import cloudinary.uploader
+    uploaded_count = 0
+    
+    for file in files:
+        if not file.content_type or not file.content_type.startswith("image/"):
+            continue
+        
+        content = await file.read()
+        try:
+            result = cloudinary.uploader.upload(content, folder="badges", resource_type="image")
+            
+            # Создаём бейдж
+            badge = Badge(
+                name=f"{name} #{uploaded_count + 1}",
+                icon_url=result["secure_url"],
+                glow_color=glow_color if glow_color else None,
+                effect_type=effect_type,
+                role_id=None,  # Не привязан к роли
+                user_id=None,  # Не привязан к пользователю
+                is_selectable=is_selectable,
+                enable_ring=True,
+                enable_glow=True,
+            )
+            session.add(badge)
+            uploaded_count += 1
+        except Exception as e:
+            print(f"[Stock Badges] Failed to upload: {e}")
+    
+    session.commit()
+    return {"ok": True, "uploaded": uploaded_count}

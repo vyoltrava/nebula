@@ -49,6 +49,14 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
   const [badgeFileUrl, setBadgeFileUrl] = useState<string>("");
   const [savingBadge, setSavingBadge] = useState(false);
   const badgeFileRef = useRef<HTMLInputElement | null>(null);
+    // === СТОКОВЫЕ ЗНАЧКИ ===
+  const [showStockUploader, setShowStockUploader] = useState(false);
+  const [stockFiles, setStockFiles] = useState<File[]>([]);
+  const [stockBadgeName, setStockBadgeName] = useState("");
+  const [stockBadgeColor, setStockBadgeColor] = useState("#8b5cf6");
+  const [stockBadgeEffect, setStockBadgeEffect] = useState("none");
+  const [stockMinLevel, setStockMinLevel] = useState(1);
+  const [uploadingStock, setUploadingStock] = useState(false);
 
   async function loadData() {
     const token = getToken();
@@ -59,6 +67,45 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
     if (packsRes.ok) setPacks(await packsRes.json());
     if (badgesRes.ok) setBadges(await badgesRes.json());
   }
+
+  async function uploadStockBadges() {
+    if (!stockBadgeName.trim()) return alert("Введи название пака");
+    if (stockFiles.length === 0) return alert("Выбери файлы");
+    
+    const token = getToken();
+    const form = new FormData();
+    form.append("name", stockBadgeName);
+    form.append("glow_color", stockBadgeColor);
+    form.append("effect_type", stockBadgeEffect);
+    form.append("min_level", String(stockMinLevel));
+    form.append("is_selectable", "true");
+    
+    stockFiles.forEach(file => form.append("files", file));
+    
+    setUploadingStock(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/stock-badges`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      
+      if (res.ok) {
+        setShowStockUploader(false);
+        setStockFiles([]);
+        setStockBadgeName("");
+        loadData(); // Перезагрузить бейджи
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.detail || "Ошибка загрузки");
+      }
+    } catch (e) {
+      alert("Ошибка сети");
+    } finally {
+      setUploadingStock(false);
+    }
+  }
+
 
   useEffect(() => { loadData(); }, []);
 
@@ -335,6 +382,10 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
       {activeTab === "badges" && (
         <div className="space-y-4">
           <div className="flex justify-end">
+                        {/* 🆕 КНОПКА ЗАГРУЗКИ СТОКОВ */}
+            <button onClick={() => setShowStockUploader(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-300 text-sm font-bold hover:bg-purple-500/30">
+              <Upload size={16} /> Загрузить стоковые
+            </button>
             <button onClick={() => {
               setEditingBadge({ id: null, name: "", glow_color: null, effect_type: "none", role_id: null, user_id: null, is_selectable: false, enable_ring: true, enable_glow: true });
               setBadgeFile(null); setBadgeFileUrl("");
@@ -616,6 +667,91 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
           </div>
         </>
       )}
+
+      {/* ====================  ЗАГРУЗКА СТОКОВЫХ ЗНАЧКОВ ==================== */}
+      {showStockUploader && (
+        <>
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => !uploadingStock && setShowStockUploader(false)} />
+          <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
+            <div className="w-full max-w-md bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-black text-white text-lg">Загрузить стоковые значки</h2>
+                <button onClick={() => !uploadingStock && setShowStockUploader(false)} className="text-white/60 hover:text-white p-1"><X size={18} /></button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-white/60 mb-1.5">Название пака</label>
+                  <input value={stockBadgeName} onChange={(e) => setStockBadgeName(e.target.value)} placeholder="Например: Premium, VIP, Спонсор..." className="w-full px-3 py-2 rounded-lg border border-white/15 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-purple-400" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-white/60 mb-1.5">Цвет свечения</label>
+                    <input type="color" value={stockBadgeColor} onChange={(e) => setStockBadgeColor(e.target.value)} className="w-full h-10 rounded-lg cursor-pointer" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-white/60 mb-1.5">Эффект</label>
+                    <select value={stockBadgeEffect} onChange={(e) => setStockBadgeEffect(e.target.value)} className="w-full px-2 py-2 rounded-lg border border-white/15 bg-white/5 text-white text-xs">
+                      <option value="none">Без эффекта</option>
+                      <option value="gold">🥇 Золотое</option>
+                      <option value="pulse">💫 Пульсация</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-white/60 mb-1.5">Мин. уровень</label>
+                  <input type="number" value={stockMinLevel} onChange={(e) => setStockMinLevel(Number(e.target.value))} min="1" className="w-full px-3 py-2 rounded-lg border border-white/15 bg-white/5 text-white" />
+                </div>
+
+                <div className="border border-white/10 rounded-xl p-3 bg-white/[0.02]">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-bold text-white/60 flex items-center gap-1.5">
+                      <ImageIcon size={14} /> Файлы значков ({stockFiles.length})
+                    </label>
+                    {stockFiles.length > 0 && (
+                      <button onClick={() => setStockFiles([])} className="text-[10px] text-red-400 hover:text-red-300">Очистить</button>
+                    )}
+                  </div>
+                  
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    multiple 
+                    className="hidden" 
+                    id="stock-badge-files"
+                    onChange={(e) => setStockFiles(Array.from(e.target.files || []))} 
+                  />
+                  
+                  <label htmlFor="stock-badge-files" className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white/5 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/10 transition-colors cursor-pointer">
+                    <Upload size={14} /> Выбрать файлы
+                  </label>
+                  
+                  {stockFiles.length > 0 && (
+                    <div className="grid grid-cols-6 gap-1.5 mt-3 max-h-40 overflow-y-auto p-1 bg-black/20 rounded-lg">
+                      {stockFiles.map((file, i) => (
+                        <div key={i} className="relative group aspect-square">
+                          <img src={URL.createObjectURL(file)} alt="" className="w-full h-full object-contain bg-white/5 rounded-lg p-1" />
+                          <button onClick={() => setStockFiles(stockFiles.filter((_, j) => j !== i))} className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-5">
+                <button onClick={() => setShowStockUploader(false)} disabled={uploadingStock} className="flex-1 py-2.5 rounded-lg border border-white/15 text-white/80 font-bold hover:bg-white/5 disabled:opacity-50">Отмена</button>
+                <button onClick={uploadStockBadges} disabled={uploadingStock || !stockBadgeName.trim() || stockFiles.length === 0} className="flex-1 py-2.5 rounded-lg bg-purple-500 text-white font-bold hover:bg-purple-400 disabled:opacity-50">
+                  {uploadingStock ? <Loader2 size={16} className="animate-spin mx-auto" /> : "Загрузить"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
     </div>
   );
 }
