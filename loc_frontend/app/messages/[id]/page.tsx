@@ -1096,7 +1096,7 @@ async function sendMessage() {
     sendingRef.current = false;
   }
 }
-
+ 
   async function deleteMessage(messageId: number) {
     if (!confirm(t("messages.deleteMsgConfirm"))) return;
     const token = getToken();
