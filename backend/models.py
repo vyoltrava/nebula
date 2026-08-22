@@ -19,6 +19,7 @@ class User(SQLModel, table=True):
     is_banned: bool = False
     is_trelod: bool = Field(default=False)
     role_id: Optional[int] = Field(default=None, foreign_key="role.id")
+    selected_badge_id: Optional[int] = Field(default=None)
     created_at: datetime = Field(default_factory=utcnow)
     bio: Optional[str] = None
     live_text_enabled: bool = True     # 🆕 показывать ли живые сообщения других
@@ -390,3 +391,15 @@ class SupportTicket(SQLModel, table=True):
     status: str = Field(default="open", index=True)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: Optional[datetime] = Field(default_factory=utcnow)
+
+
+class Badge(SQLModel, table=True):
+    """Значки для аватарок"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(max_length=60)  # Например: "Manager", "VIP Gold"
+    icon_url: str  # Ссылка на картинку (Cloudinary)
+    glow_color: str = Field(default="#8b5cf6")  # Цвет свечения (по умолчанию фиолетовый)
+    effect_type: str = Field(default="none", max_length=20)  # "none", "gold", "pulse"
+    role_id: Optional[int] = Field(default=None, foreign_key="role.id")  # Если указано, выдается автоматически
+    is_selectable: bool = Field(default=False)  # Могут ли пользователи с правом выбора менять его сами
+    created_at: datetime = Field(default_factory=utcnow)

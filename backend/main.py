@@ -8994,3 +8994,74 @@ async def upload_prism_avatar(
         return {"avatar_url": result.get("secure_url")}
     except Exception as e:
         raise HTTPException(400, f"Ошибка загрузки: {str(e)}")
+
+
+# === УПРАВЛЕНИЕ ЗНАЧКАМИ (АДМИНКА) ===
+@app.get("/api/badges")
+def get_badges(session: Session = Depends(get_session)):
+    badges = session.exec(select(Badge).order_by(Badge.id)).all()
+    return [{
+        "id": b.id, "name": b.name, "icon_url": b.icon_url,
+        "glow_color": b.glow_color, "effect_type": b.effect_type,
+        "role_id": b.role_id, "is_selectable": b.is_selectable
+    } for b in badges]
+
+@app.post("/api/badges")
+async def create_badge(
+    name: str = Form(...),
+    glow_color: str = Form("#8b5cf6"),
+    effect_type: str = Form("none"),
+    role_id: Optional[int] = Form(None),
+    is_selectable: bool = Form(False),
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    if not user.is_admin: raise HTTPException(403, "Admin only")
+    
+    # Загрузка картинки (как стикер)
+    content = await file.read()
+    result = await run_in_threadpool(
+        lambda: cloudinary.uploader.upload(content, folder="badges", resource_type="image")
+    )
+    
+    badge = Badge(
+        name=name, icon_url=result["secure_url"], glow_color=glow_color,
+        effect_type=effect_type, role_id=role_id, is_selectable=is_selectable
+    )
+    session.add(badge)
+    session.commit()
+    return {"ok": True}
+
+@app.delete("/api/badges/{badge_id}")
+def delete_badge(badge_id: int, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    if not user.is_admin: raise HTTPException(403, "Admin only")
+    badge = session.get(Badge, badge_id)
+    if badge: session.delete(badge)
+    session.commit()
+    return {"ok": True}
+
+# === ВЫБОР ЗНАЧКА ПОЛЬЗОВАТЕЛЕМ (ДЛЯ СПОНСОРОВ) ===
+@app.post("/api/me/badge")
+def select_my_badge(
+    badge_id: int = Form(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    badge = session.get(Badge, badge_id)
+    if not badge: raise HTTPException(404, "Badge not found")
+    
+    # Проверка: можно ли выбрать этот значок?
+    # Либо он привязан к текущей роли пользователя, либо он is_selectable и у пользователя есть роль спонсора (например, level >= 3)
+    user_level = get_user_level(user, session)
+    can_select = (badge.role_id == user.role_id) or (badge.is_selectable and user_level >= 3) # Настрой уровень спонсора здесь
+    
+    if not can_select:
+        raise HTTPException(403, "У вас нет прав на этот значок")
+    
+    # Сохраняем выбранный значок в профиль пользователя (добавь поле selected_badge_id в модель User, если его нет, или используй JSON)
+    # Для простоты добавим поле в User: selected_badge_id: Optional[int] = Field(default=None)
+    user.selected_badge_id = badge_id # <-- Убедись, что добавил это поле в класс User в models.py
+    session.add(user)
+    session.commit()
+    return {"ok": True}

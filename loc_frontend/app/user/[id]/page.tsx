@@ -10,6 +10,7 @@ import { RoleBadge } from "@/components/RoleBadge";
 import { AvatarFrame } from "@/components/AvatarFrame";
 import { getToken } from "@/lib/auth";
 import { ReportModal } from "@/components/ReportModal";
+import { BadgeSelector } from "@/components/BadgeSelector";
 import { SystemName } from "@/components/SystemName";
 import { ensureKeyPair } from "@/lib/crypto";
 import { isOnline } from "@/lib/online";
@@ -39,7 +40,7 @@ export default function UserProfilePage() {
   const [modalLoading, setModalLoading] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(() => getCachedUser());
-
+  const [availableBadges, setAvailableBadges] = useState<any[]>([]);
   const {
     cropperImage,
     uploading,
@@ -145,14 +146,24 @@ function getGlowColor(user: any): string | null {
 
   useEffect(() => {
     const token = getToken();
-    if (!token) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data) setCurrentUser(data);
-      });
+    
+    // Загружаем текущего пользователя
+    if (token) {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data) setCurrentUser(data);
+        });
+    }
+
+    // 🆕 Загружаем список всех доступных значков
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/badges`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setAvailableBadges(data))
+      .catch(() => setAvailableBadges([]));
+      
   }, []);
 
   async function startChat() {
@@ -422,7 +433,19 @@ function getGlowColor(user: any): string | null {
     </div>
   )
 )}
-
+                {/* 🆕 ВЫБОР ЗНАЧКА (показывается только на своем профиле) */}
+                {isOwnProfile && (
+                  <BadgeSelector 
+                    currentUser={currentUser} 
+                    availableBadges={availableBadges} 
+                    onUpdate={() => {
+                      // Перезагружаем профиль, чтобы обновить selected_badge_id
+                      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`)
+                        .then(r => r.json())
+                        .then(setProfile);
+                    }} 
+                  />
+                )}
 {/* ❌ Ошибка загрузки обложки */}
 {coverError && (
   <div className="px-4 md:px-6 py-2.5 bg-red-500/10 border-b border-red-500/30 flex items-center gap-2">
@@ -443,8 +466,8 @@ function getGlowColor(user: any): string | null {
     className="relative shrink-0 w-32 h-32 rounded-full ring-4 ring-[#171717] cursor-pointer group"
     onClick={() => isOwnProfile && setShowAvatarMenu(!showAvatarMenu)}
   >
-<AvatarFrame user={profile}>
-  <Avatar 
+<AvatarFrame user={profile} availableBadges={availableBadges}>
+    <Avatar 
     src={profile.avatar_url} 
     name={profile.display_name} 
     id={profile.id} 
