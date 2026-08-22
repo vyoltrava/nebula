@@ -447,7 +447,6 @@ const continueConfig = lastReadPost
     });
   }
   if (user) {
-    outerItems.push({ href: "#switch-account", icon: Users, label: t("account.switchAccount") });
     outerItems.push({ href: "#logout", icon: LogOut, label: t("nav.logout") });
   } else {
     outerItems.push({ href: "/login", icon: Home, label: t("nav.login") });
@@ -583,11 +582,10 @@ const continueConfig = lastReadPost
     else if (doAction && hoveredIdx !== null) {
       const item = wheelItems[hoveredIdx];
         if (item) {
-          if (item.href === "#switch-account") {
+          if (item.href === "#logout") {
+            // 🆕 Открываем модалку смены аккаунта вместо мгновенного выхода
             setShowOrbitSwitcher(true);
-            return; // ВАЖНО: прерываем выполнение, чтобы не сработал logout ниже
-          } else if (item.href === "#logout") {
-            clearToken(); setUser(null); clearCachedUser(); router.push("/");
+            return;
           } else if (item.href === "#bug") {
             setShowBugModal(true);
           } else if (item.href === "#search") {
