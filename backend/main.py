@@ -9185,6 +9185,7 @@ async def update_badge(
 @app.post("/api/me/custom-badge")
 @limiter.limit("5/minute")
 async def upload_custom_badge(
+    request: Request,  # 🆕 ДОБАВЛЕНО: требуется для limiter
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
