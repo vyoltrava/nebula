@@ -2774,39 +2774,42 @@ onDoubleClick={(e) => {
       ))}
     </div>
   )}
-  <RichEditor
-    ref={editorRef}
-    value={text}
-    onChange={(v) => {
-      setText(v);
-      // упоминания — парсим markdown
-      const lastAt = v.lastIndexOf("@");
-      if (lastAt !== -1) {
-        const q = v.slice(lastAt + 1).toLowerCase();
-        if (/^[\w]*$/.test(q) && !/\s/.test(q)) {
-          setMentionQuery(q);
-          setMentionSuggestions(
-            chatMembers
-              .map(m => m.user)
-              .filter(u => u.username.toLowerCase().includes(q) || (u.display_name && u.display_name.toLowerCase().includes(q)))
-              .slice(0, 5)
-          );
-          return;
+  {/* 🎨 ОБЁРТКА С РАМКОЙ — единый стиль с CreatePost */}
+  <div className="flex-1 rounded-xl border border-white/15 bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] focus-within:bg-white/10 transition-all">
+    <RichEditor
+      ref={editorRef}
+      value={text}
+      onChange={(v) => {
+        setText(v);
+        // упоминания — парсим markdown
+        const lastAt = v.lastIndexOf("@");
+        if (lastAt !== -1) {
+          const q = v.slice(lastAt + 1).toLowerCase();
+          if (/^[\w]*$/.test(q) && !/\s/.test(q)) {
+            setMentionQuery(q);
+            setMentionSuggestions(
+              chatMembers
+                .map(m => m.user)
+                .filter(u => u.username.toLowerCase().includes(q) || (u.display_name && u.display_name.toLowerCase().includes(q)))
+                .slice(0, 5)
+            );
+            return;
+          }
         }
-      }
-      setMentionQuery(null);
-      setMentionSuggestions([]);
-      sendLiveText(v);
-    }}
-    placeholder={isSecret ? (secretState === "ready" ? t("messages.encryptedPlaceholder") : t("messages.waitingEncrypt")) : isGroup ? t("messages.groupPlaceholder") : t("messages.msgPlaceholder")}
-    className="w-full bg-transparent text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 px-1 py-3 min-h-[48px] max-h-32 overflow-y-auto disabled:opacity-50 disabled:cursor-not-allowed leading-snug"
-    onKeyDown={(e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-      }
-    }}
-  />
+        setMentionQuery(null);
+        setMentionSuggestions([]);
+        sendLiveText(v);
+      }}
+      placeholder={isSecret ? (secretState === "ready" ? t("messages.encryptedPlaceholder") : t("messages.waitingEncrypt")) : isGroup ? t("messages.groupPlaceholder") : t("messages.msgPlaceholder")}
+      className="w-full bg-transparent text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 px-3 py-2.5 min-h-[48px] max-h-32 overflow-y-auto disabled:opacity-50 disabled:cursor-not-allowed leading-snug"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      }}
+    />
+  </div>
 </div>
 
           {/* Кнопка отправки */}
