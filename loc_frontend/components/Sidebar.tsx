@@ -995,27 +995,37 @@ const continueConfig = lastReadPost
 )}
 
 
-        {/* Профиль и Выход */}
+         {/* Профиль с кнопкой выхода внутри (справа) */}
         {user ? (
           <div className={isDock ? "flex flex-col items-center gap-2 px-2" : "px-2"}>
-            <Link href={`/${user.username}`}
-              className={`flex ${isDock ? "justify-center" : "items-center gap-3 px-2 py-2"} rounded-lg hover:bg-white/5 transition-all cursor-pointer group w-full`}>
-              <div className="shrink-0" style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}>
-                <Avatar src={user.avatar_url} name={user.display_name} id={user.id} />
-              </div>
-              {!isDock && (
-                <div className="leading-tight min-w-0 flex-1">
-                  <p className={`font-semibold text-sm truncate transition-all ${glow ? "group-hover:opacity-80" : "text-white group-hover:text-[#8b5cf6]"}`}
-                    style={glow ? { color: glow, textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66` } : undefined}>
-                    {user.display_name}
-                  </p>
-                  <p className="text-sm text-white/40 truncate">@{user.username}</p>
+            {/* Ссылка на профиль + кнопка выхода внутри */}
+            <div className={`flex ${isDock ? "justify-center" : "items-center gap-3"} px-2 py-2 rounded-lg hover:bg-white/5 transition-all group w-full`}>
+              <Link href={`/${user.username}`} className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="shrink-0" style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}>
+                  <Avatar src={user.avatar_url} name={user.display_name} id={user.id} />
                 </div>
+                {!isDock && (
+                  <div className="leading-tight min-w-0 flex-1">
+                    <p className={`font-semibold text-sm truncate transition-all ${glow ? "group-hover:opacity-80" : "text-white group-hover:text-[#8b5cf6]"}`}
+                      style={glow ? { color: glow, textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66` } : undefined}>
+                      {user.display_name}
+                    </p>
+                    <p className="text-sm text-white/40 truncate">@{user.username}</p>
+                  </div>
+                )}
+              </Link>
+              
+              {/* 🆕 КНОПКА ВЫХОДА СПРАВА ВНУТРИ БЛОКА */}
+              {!isDock && (
+                <button 
+                  onClick={() => setShowOrbitSwitcher(true)}
+                  className="p-2 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0"
+                  title={t("account.accounts")}
+                >
+                  <LogOut size={18} />
+                </button>
               )}
-            </Link>
-            
-            {/* 🆕 МУЛЬТИ-АККАУНТ SWITCHER */}
-            <AccountSwitcher variant={isDock ? "dock" : "classic"} />
+            </div>
           </div>
         ) : (
           !isDock && (
@@ -1355,7 +1365,7 @@ const continueConfig = lastReadPost
       {showSearch && <MobileSearch onClose={() => setShowSearch(false)} />}
       {showLayoutPicker && <LayoutPicker current={layout} onClose={() => setShowLayoutPicker(false)} />}
       
-      {/* 🆕 МОДАЛКА СМЕНЫ АККАУНТА ДЛЯ ОРБИТЫ */}
+      {/* 🆕 МОДАЛКА СМЕНЫ АККАУНТА */}
       {showOrbitSwitcher && (
         <AccountSwitcher 
           variant="orbit" 
