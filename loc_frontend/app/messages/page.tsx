@@ -404,15 +404,16 @@ const confirmPrismKey = async () => {
         
         {/* ШАПКА - только иконка и поиск */}
         <div className="p-4 md:p-6 border-b border-white/10 sticky top-0 bg-[#171717]/95 backdrop-blur-md z-10">
-          <div className="flex items-center gap-4">
+          {/* mr-12/md:mr-14 — резервируем место под fixed-кнопку "+", чтобы поиск не заезжал на неё */}
+          <div className="flex items-center gap-3 md:gap-4 mr-12 md:mr-14">
             
             {/* Иконка */}
             <div className="flex items-center gap-3 shrink-0">
               <MessageSquare size={24} className="text-[#8b5cf6]" />
             </div>
 
-            {/* Поиск */}
-            <div className="relative flex-1 max-w-md">
+            {/* Поиск — тянется от иконки до кнопки "+" на любой ширине */}
+            <div className="relative flex-1 min-w-0">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
               <input
                 value={query}
