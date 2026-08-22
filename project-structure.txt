@@ -4,6 +4,7 @@
 ├── .gitignore
 ├── backend
 │   ├── .env
+│   ├── .env.example
 │   ├── cloudinary_config.py
 │   ├── database.py
 │   ├── link_preview.py
@@ -12,6 +13,7 @@
 │   ├── performance.py
 │   ├── push_service.py
 │   ├── requirements.txt
+│   ├── run-local.ps1
 │   ├── scan_missing.py
 │   ├── sql_profiler.py
 │   ├── stress_test.py
@@ -11607,6 +11609,7 @@
 │   ├── check-localization.js
 │   ├── CLAUDE.md
 │   ├── components
+│   │   ├── AccountSwitcher.tsx
 │   │   ├── admin
 │   │   │   └── section
 │   │   │       ├── BugsSection.tsx
@@ -11625,12 +11628,14 @@
 │   │   ├── AuthGuard.tsx
 │   │   ├── Avatar.tsx
 │   │   ├── AvatarCropper.tsx
+│   │   ├── AvatarFrame.tsx
 │   │   ├── AvatarUploader.tsx
 │   │   ├── BanOverlay.tsx
 │   │   ├── BookmarkButton.tsx
 │   │   ├── BugReportModal.tsx
 │   │   ├── CallButton.tsx
 │   │   ├── CallModal.tsx
+│   │   ├── ChatPreview.tsx
 │   │   ├── ConfirmModal.tsx
 │   │   ├── CreateGroupModal.tsx
 │   │   ├── CreatePost.tsx
@@ -11660,7 +11665,10 @@
 │   │   ├── PushSettings.tsx
 │   │   ├── PWARegister.tsx
 │   │   ├── ReportModal.tsx
+│   │   ├── RichContextMenu.tsx
+│   │   ├── RichEditor.tsx
 │   │   ├── RightPanel.tsx
+│   │   ├── RoleBadge.tsx
 │   │   ├── RulesModal.tsx
 │   │   ├── Sidebar.tsx
 │   │   ├── Skeletons.tsx
@@ -11706,6 +11714,7 @@
 │   │   ├── prismPuzzle.ts
 │   │   ├── prismStorage.ts
 │   │   ├── push.ts
+│   │   ├── richText.ts
 │   │   ├── secureSessionKeys.ts
 │   │   ├── stickers.tsx
 │   │   ├── themes.ts
@@ -11729,10 +11738,12 @@
 │   │   ├── favicon.ico
 │   │   ├── file.svg
 │   │   ├── globe.svg
+│   │   ├── hello-kitty.png
 │   │   ├── loaderio-8a41857f9f76965f9e62bcd156d0cac3.txt
 │   │   ├── logo-animation.svg
 │   │   ├── logo-icon.svg
 │   │   ├── next.svg
+│   │   ├── pochacco.png
 │   │   ├── role-icon.svg
 │   │   ├── sw.js
 │   │   ├── vercel.svg

@@ -1329,25 +1329,59 @@ async function loadStickerPacks() {
 async function toggleReaction(msgId: number, stickerId?: number | string, emoji?: string) {
   const token = getToken();
   if (!token) return;
+
+  //  Строгая проверка: если нет ни стикера, ни эмодзи — не отправляем запрос
+  if (!stickerId && !emoji) {
+    console.error("❌ toggleReaction вызван без sticker_id и emoji");
+    return;
+  }
+
   const form = new FormData();
   
-  // 🆕 Гарантируем, что sticker_id передается как число (строка "123" -> число 123)
-  if (stickerId) form.append("sticker_id", String(Number(stickerId)));
-  if (emoji) form.append("emoji", String(emoji));
+  // 🆕 Безопасная конвертация sticker_id в строку для FormData
+  // Бэкенд ждет Form(None), поэтому undefined/null просто не добавляем
+  if (stickerId !== undefined && stickerId !== null) {
+    const numId = Number(stickerId);
+    if (!isNaN(numId)) {
+      form.append("sticker_id", String(numId));
+      console.log("🎯 Отправляем реакцию стикером:", { msgId, sticker_id: numId });
+    } else {
+      console.error(" Неверный sticker_id:", stickerId);
+      return;
+    }
+  }
   
+  if (emoji) {
+    form.append("emoji", String(emoji));
+    console.log("🎯 Отправляем реакцию эмодзи:", { msgId, emoji });
+  }
+
   try {
     const res = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/${msgId}/reactions`,
-      { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form }
+      { 
+        method: "POST", 
+        headers: { Authorization: `Bearer ${token}` }, 
+        body: form 
+      }
     );
+    
     if (res.ok) {
       const data = await res.json();
       setMessages(prev => prev.map(m => m.id === msgId ? { ...m, reactions: data.reactions } : m));
       setReactionPickerFor(null);
     } else {
       const err = await res.json().catch(() => null);
-      console.error("❌ Ошибка реакции:", err); // 🆕 Чтобы видеть причину в консоли
-      alert(err?.detail || t("messages.reactionFailed"));
+      console.error("❌ Ошибка реакции (статус " + res.status + "):", err);
+      
+      // 🆕 Специфичные ошибки от FastAPI
+      if (res.status === 400) {
+        alert("Неверный формат данных. Стикеры могут не поддерживаться.");
+      } else if (res.status === 404) {
+        alert("Сообщение не найдено.");
+      } else {
+        alert(err?.detail || t("messages.reactionFailed"));
+      }
     }
   } catch (e) {
     console.error("❌ Ошибка сети при реакции:", e);
