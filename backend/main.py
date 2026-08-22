@@ -9026,10 +9026,10 @@ from models import Badge  # убедись, что Badge импортирова�
 
 @app.get("/api/badges")
 def get_badges(
-    user: User = Depends(get_current_user),
+    user: Optional[User] = Depends(get_optional_user),  # 🆕 ИЗМЕНЕНО: теперь токен не обязателен
     session: Session = Depends(get_session),
 ):
-    """Получить все значки (для админки и фронта)"""
+    """Получить все значки (доступно всем, чтобы фронт мог рендерить аватарки)"""
     badges = session.exec(select(Badge).order_by(Badge.id)).all()
     return [
         {
@@ -9041,8 +9041,9 @@ def get_badges(
             "role_id": b.role_id,
             "user_id": b.user_id,
             "is_selectable": b.is_selectable,
-            "enable_ring": b.enable_ring,
-            "enable_glow": b.enable_glow,
+            # 🆕 Безопасное получение новых полей (на случай, если миграция ещё не прошла)
+            "enable_ring": getattr(b, 'enable_ring', True),
+            "enable_glow": getattr(b, 'enable_glow', True),
         }
         for b in badges
     ]

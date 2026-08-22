@@ -13,11 +13,11 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [] }
 
   const level = user.level ?? (user.username === "trelod" ? 11 : user.is_admin ? 10 : user.is_moderator ? 9 : user.role?.level ?? 1);
 
-  // Ищем активный значок
+  // 1. Ищем активный значок: либо выбранный пользователем, либо привязанный к его роли
   const userBadge = availableBadges.find((b: any) => b.id === user.selected_badge_id) || 
                     availableBadges.find((b: any) => b.role_id === user.role?.id);
 
-  // Если значка нет — старая логика по уровням
+  // 2. Если значка нет, используем старую логику по уровням (fallback)
   if (!userBadge) {
     if (level <= 5) return <>{children}</>;
     if (level <= 7) return <Level67Effect user={user}>{children}</Level67Effect>;
@@ -28,12 +28,12 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [] }
     return <>{children}</>;
   }
 
-  // 🎯 РЕНДЕР КАСТОМНОГО ЗНАЧКА (как у Founder)
+  // 3. Рендер кастомного значка с эффектами
   const glowColor = userBadge.glow_color || user.role?.color || "#8b5cf6";
   
   return (
     <div className="relative">
-      {/* 🆕 ВРАЩАЮЩЕЕСЯ КОЛЬЦО (если включено) */}
+      {/* 🆕 ВРАЩАЮЩЕЕСЯ КОЛЬЦО (если включено в настройках значка) */}
       {userBadge.enable_ring && (
         <div
           className="absolute -inset-[5px] rounded-full animate-spin-slow"
@@ -44,10 +44,11 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [] }
         />
       )}
 
-      {/* Аватарка — без рамки, как в Level10Effect */}
+      {/* Аватарка (без черной рамки, как у Founder) */}
       <div className="relative">
         {children}
       </div>
+
       {/* 🆕 ПУЛЬСАЦИЯ СВЕЧЕНИЯ (если включено) */}
       {userBadge.enable_glow && (
         <div 
@@ -81,7 +82,7 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [] }
   );
 }
 
-// === СТАРЫЕ ЭФФЕКТЫ (Fallback) ===
+// === СТАРЫЕ ЭФФЕКТЫ (Fallback, если у пользователя нет бейджа, но есть уровень) ===
 function Level67Effect({ user, children }: { user: any; children: ReactNode }) {
   const color = user.role?.color || "#8b5cf6";
   return (
@@ -114,7 +115,7 @@ function Level10Effect({ children }: { children: ReactNode }) {
   return (
     <div className="relative">
       <div className="absolute -inset-[5px] rounded-full animate-spin-slow" style={{ background: "conic-gradient(from 0deg, #ffffff, #f3f4f6, #e5e7eb, #f3f4f6, #ffffff)", filter: "drop-shadow(0 0 20px rgba(255,255,255,0.9))" }} />
-      <div className="relative rounded-full border-[3px] border-[#171717]">{children}</div>
+      <div className="relative">{children}</div>
       <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-9 h-9 animate-bounce-slow pointer-events-none select-none z-10">
         <img src="/hello-kitty.png" alt="" className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(255,255,255,0.8)]" draggable={false} />
       </div>
