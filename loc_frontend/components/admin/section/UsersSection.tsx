@@ -25,16 +25,39 @@ export function UsersSection({ me }: { me: any }) {
     return (me.permissions || []).includes(permission);
   }
 
-  async function load() {
-    const token = getToken();
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) setUsers(await res.json());
-    
-    const rolesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/roles`);
-    if (rolesRes.ok) setRoles(await rolesRes.json());
+async function load() {
+  const token = getToken();
+  
+  // 1. Загружаем пользователей
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.ok) setUsers(await res.json());
+  
+  // 2. Загружаем ТОЛЬКО доступные для выдачи роли (с учётом отдела и уровня)
+  const rolesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/roles/assignable`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (rolesRes.ok) setRoles(await rolesRes.json());
+  
+  // 3. Загружаем категории (отделы) для названий
+  const catsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/role-categories`);
+  if (catsRes.ok) {
+    const cats = await catsRes.json();
+    // Обогащаем роли информацией о категориях
+    setRoles((prev) =>
+      prev.map((r) => {
+        const cat = cats.find((c: any) => c.id === r.category_id);
+        return {
+          ...r,
+          category_name: cat?.name || "Без категории",
+          category_color: cat?.color || "#8b5cf6",
+          category_order: cat?.order ?? 999,
+        };
+      })
+    );
   }
+}
 
   useEffect(() => { load(); }, []);
 
@@ -43,18 +66,10 @@ export function UsersSection({ me }: { me: any }) {
     const groups: Record<string, any> = {};
 
     roles.forEach((r) => {
-      // Поддержка обоих вариантов ответа API: вложенный объект или плоские поля
-      const cat = r.category || { 
-        id: r.category_id, 
-        name: r.category_name, 
-        color: r.category_color, 
-        order: r.category_order 
-      };
-      
-      const catId = cat?.id ? String(cat.id) : 'no_cat';
-      const catName = cat?.name || 'Без категории';
-      const catColor = cat?.color || '#8b5cf6';
-      const catOrder = cat?.order ?? 999;
+      const catId = r.category_id ? String(r.category_id) : 'no_cat';
+      const catName = r.category_name || 'Без категории';
+      const catColor = r.category_color || '#8b5cf6';
+      const catOrder = r.category_order ?? 999;
 
       if (!groups[catId]) {
         groups[catId] = { id: catId, name: catName, color: catColor, order: catOrder, roles: [] };
@@ -62,7 +77,6 @@ export function UsersSection({ me }: { me: any }) {
       groups[catId].roles.push(r);
     });
 
-    // Сортировка: сначала "Без категории", потом по order, потом по имени
     return Object.values(groups).sort((a, b) => {
       if (a.id === 'no_cat') return -1;
       if (b.id === 'no_cat') return 1;
@@ -70,6 +84,8 @@ export function UsersSection({ me }: { me: any }) {
       return a.name.localeCompare(b.name);
     });
   }, [roles]);
+
+
 
   const filteredUsers = users.filter((u) => {
     if (searchQuery) {
@@ -308,9 +324,7 @@ export function UsersSection({ me }: { me: any }) {
                               </div>
 
                               {/* Роли внутри отдела */}
-                              {group.roles
-                                .filter((r: any) => (r.level ?? 1) < myLevel || me?.is_admin)
-                                .map((r: any) => (
+{group.roles.map((r: any) => (
                                   <Listbox.Option
                                     key={r.id}
                                     value={r.id}

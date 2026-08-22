@@ -535,6 +535,7 @@ ALL_PERMISSIONS = [
     "manage_announcements",   # 🆕 Публикация объявлений
     "warn_users",             # 🆕 Выдача предупреждений
     "manage_support",   # 🆕 Чат поддержки
+    "assign_roles",  
 ]
 
 MODERATOR_PERMISSIONS = ALL_PERMISSIONS.copy()
@@ -2722,7 +2723,8 @@ def list_permissions():
         {"id": "ban_users", "label": "Банить пользователей", "category": "users"},
         {"id": "warn_users", "label": "Выдавать предупреждения", "category": "users"},
         {"id": "delete_users", "label": "Удалять пользователей", "category": "users"},
-        {"id": "assign_moderator", "label": "Назначать модераторов", "category": "users"},
+        {"id": "assign_moderator", "label": "Назначать разработчиков", "category": "users"},
+        {"id": "assign_roles", "label": "Назначать роли своего отдела", "category": "users"},
         
         # === Чаты и группы ===
         {"id": "pin_messages", "label": "Закреплять сообщения везде", "category": "chats"},
@@ -3018,6 +3020,31 @@ def move_role(
 
 
 
+@app.get("/api/roles/assignable")
+def list_assignable_roles(
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    can_manage = has_permission(staff, "manage_roles", session)
+    can_assign = has_permission(staff, "assign_roles", session)
+    if not can_manage and not can_assign:
+        return []
+    max_lvl = max_level_for(staff, session) if can_manage else get_user_level(staff, session) - 1
+    staff_role = session.get(Role, staff.role_id) if staff.role_id else None
+    my_cat = staff_role.category_id if staff_role else None
+    result = []
+    for r in session.exec(select(Role)).all():
+        if r.level > max_lvl: continue
+        if not can_manage:
+            if r.is_staff: continue
+            if my_cat and r.category_id and r.category_id != my_cat: continue
+        result.append({
+            "id": r.id, "name": r.name, "color": r.color, "level": r.level,
+            "category_id": r.category_id, "is_staff": r.is_staff,
+        })
+    return sorted(result, key=lambda r: (r["category_id"] or 0, -r["level"]))
+
+
 @app.post("/api/users/{user_id}/role")
 def assign_role(
     user_id: int,
@@ -3025,30 +3052,45 @@ def assign_role(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    if not has_permission(staff, "manage_roles", session):
-        raise HTTPException(403, "No permission: manage_roles")
-    
+    can_manage = has_permission(staff, "manage_roles", session)
+    can_assign = has_permission(staff, "assign_roles", session)
+    if not can_manage and not can_assign:
+        raise HTTPException(403, "Нет права: manage_roles или assign_roles")
+
     target = session.get(User, user_id)
     if not target:
         raise HTTPException(404, "User not found")
     protect_system_account(target, staff, "менять роль")
-    
-    # 🛡️ Единый иммунитет
+
     if target.id != staff.id:
         check_sanction_rights(staff, target, session, "изменять роль этого пользователя")
-    
-    # Если назначается роль — проверяем её уровень
+
+    staff_level = get_user_level(staff, session)
+
     if role_id:
         role = session.get(Role, role_id)
         if not role:
             raise HTTPException(404, "Role not found")
-        max_lvl = max_level_for(staff, session)
-        if role.level > max_lvl:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Нельзя назначить роль с уровнем {role.level} (ваш максимум: {max_lvl})"
-            )
-    
+
+        if can_manage:
+            max_lvl = max_level_for(staff, session)
+            if role.level > max_lvl:
+                raise HTTPException(403, f"Нельзя назначить роль с уровнем {role.level} (ваш максимум: {max_lvl})")
+        else:
+            # 🆕 ТОЛЬКО assign_roles — старший отдела
+            if role.is_staff:
+                raise HTTPException(403, "Staff-роли назначает только Founder/Developer")
+            if role.level >= staff_level:
+                raise HTTPException(403, f"Можно назначать только роли ниже своего уровня (ваш: {staff_level})")
+            staff_role = session.get(Role, staff.role_id) if staff.role_id else None
+            if staff_role and staff_role.category_id and role.category_id and role.category_id != staff_role.category_id:
+                raise HTTPException(403, "Можно назначать только роли своего отдела")
+    else:
+        if not can_manage and target.role_id:
+            cur = session.get(Role, target.role_id)
+            if cur and (cur.is_staff or cur.level >= staff_level):
+                raise HTTPException(403, "Недостаточно прав, чтобы снять эту роль")
+
     target.role_id = role_id
     session.add(target)
     session.commit()
