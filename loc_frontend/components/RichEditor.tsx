@@ -28,7 +28,7 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
   ref
 ) {
   const elRef = useRef<HTMLDivElement>(null);
-  const lastEmitted = useRef<string>(value);
+  const lastEmitted = useRef<string | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
 
   // long press (мобилки)
@@ -225,8 +225,8 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
       <style jsx>{`
 .rich-editor {
   -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
+  -webkit-user-select: text;
+  user-select: text;
   word-break: break-word;
   white-space: pre-wrap;
 }

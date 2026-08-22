@@ -1,6 +1,7 @@
 // loc_frontend/components/RichContextMenu.tsx
 "use client";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Undo2, Redo2, Scissors, Copy, ClipboardPaste, Trash2, CheckSquare,
   ChevronRight, Bold, Italic, Code, Link2, EyeOff, Type,
@@ -163,7 +164,7 @@ useEffect(() => {
 
   const subItems = items.find((i) => i.id === openSub)?.children;
 
-  return (
+  return createPortal(
     <div ref={rootRef} className="fixed inset-0 pointer-events-none" style={{ zIndex }} onContextMenu={(e) => e.preventDefault()}>
       {/* основная панель */}
       <div
@@ -183,6 +184,7 @@ useEffect(() => {
           {subItems.map(renderItem)}
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
