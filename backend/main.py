@@ -4679,6 +4679,16 @@ def startup():
             conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS pinned_by INTEGER REFERENCES \"user\"(id);"))
             conn.execute(text("CREATE INDEX IF NOT EXISTS idx_message_pinned ON message(chat_id, pinned, pinned_at DESC);"))
             conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS ciphertext TEXT;"))
+            # ===== КРИТИЧНО: без этого сообщения могут падать =====
+            conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS is_saved BOOLEAN DEFAULT FALSE;"))
+
+            conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS edited BOOLEAN DEFAULT FALSE;"))
+            conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;"))
+
+            # На всякий случай, если старых колонок нет
+            conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS media_url VARCHAR;"))
+            conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS media_type VARCHAR;"))
+            conn.execute(text("ALTER TABLE message ADD COLUMN IF NOT EXISTS read BOOLEAN DEFAULT FALSE;"))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_message_chat ON message(chat_id, created_at);'))
 
             # ===== ПОЛЬЗОВАТЕЛИ =====
@@ -6366,10 +6376,13 @@ async def send_message_v2(
             "ciphertext": msg.ciphertext,
             "media_url": msg.media_url,
             "media_type": msg.media_type,
-            "is_encrypted_media": is_enc,  # 🆕
+            "is_encrypted_media": is_enc,
             "created_at": msg.created_at.isoformat(),
             "pinned": False,
             "pinned_by": None,
+            "reply_to_id": msg.reply_to_id,
+            "reply_preview": get_reply_preview(session, msg.reply_to_id) if msg.reply_to_id else None,
+            "reactions": [],
         },
         session,
     )
@@ -6395,14 +6408,24 @@ async def send_message_v2(
 
     return {
         "id": msg.id,
+        "chat_id": chat_id,
         "sender_id": msg.sender_id,
+        "sender_name": user.display_name,
+        "sender_avatar": user.avatar_url,
         "text": msg.text,
         "ciphertext": msg.ciphertext,
         "media_url": msg.media_url,
         "media_type": msg.media_type,
-        "is_encrypted_media": is_enc,  # 🆕
+        "is_encrypted_media": is_enc,
         "read": msg.read,
+        "edited": msg.edited,
+        "edited_at": msg.edited_at.isoformat() if msg.edited_at else None,
         "created_at": msg.created_at.isoformat(),
+        "pinned": False,
+        "pinned_by": None,
+        "reply_to_id": msg.reply_to_id,
+        "reply_preview": get_reply_preview(session, msg.reply_to_id) if msg.reply_to_id else None,
+        "reactions": [],
     }
 
 @app.post("/api/chats/{chat_id}/typing")

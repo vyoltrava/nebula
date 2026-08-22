@@ -1163,24 +1163,61 @@ for (const msg of messagesToSend) {
           }
         }
         // Обычное сообщение
-        else {
-          const form = new FormData();
-          if (msg.text) form.append("text", msg.text);
-          if (msg.file) form.append("file", msg.file);
-          if (replyTo) form.append("reply_to_id", String(replyTo.id)); // 🆕
+                    // Обычное сообщение
+                    else {
+                        const form = new FormData();
+                        if (msg.text) form.append("text", msg.text);
+                        if (msg.file) form.append("file", msg.file);
+                        if (replyTo) form.append("reply_to_id", String(replyTo.id)); // 🆕
 
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
-            body: form,
-          });
+                        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+                            method: "POST",
+                            headers: { Authorization: `Bearer ${token}` },
+                            body: form,
+                        });
 
-          if (res.status === 403) {
-            alert(t("messages.noChatAccess"));
-            router.push("/messages");
-            return;
-          }
-        }
+                        if (res.status === 403) {
+                            alert(t("messages.noChatAccess"));
+                            router.push("/messages");
+                            return;
+                        }
+
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => null);
+                            console.error("❌ Send message failed:", res.status, err);
+                            alert(err?.detail || `Ошибка отправки (${res.status})`);
+                            setMessages((prev) => prev.filter((m) => m.id !== tempId));
+                            return;
+                        }
+
+                        const saved = await res.json().catch(() => null);
+
+                        if (saved && saved.id) {
+                            setMessages((prev) => {
+                                const temp = prev.find((m) => m.id === tempId && m.is_temp);
+
+                                const base = temp || {
+                                    sender_id: currentUser?.id,
+                                    sender_name: currentUser?.display_name,
+                                    sender_avatar: currentUser?.avatar_url,
+                                };
+
+                                const real = {
+                                    ...base,
+                                    ...saved,
+                                    is_temp: false,
+                                };
+
+                                const withoutTemp = prev.filter((m) => !(m.id === tempId && m.is_temp));
+
+                                if (withoutTemp.some((m) => m.id === real.id)) {
+                                    return withoutTemp;
+                                }
+
+                                return [...withoutTemp, real];
+                            });
+                        }
+                    }
       }
 
 
