@@ -1,5 +1,5 @@
 "use client";
-import { Shield, ShieldCheck, Ban, X, MessageSquare, Flag, Lock, Camera, Image as ImageIcon, X as XIcon, AlertTriangle } from "lucide-react";
+import { Upload , Check, Ban, X, MessageSquare, Flag, Lock, Camera, Image as ImageIcon, X as XIcon, AlertTriangle } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -10,7 +10,6 @@ import { RoleBadge } from "@/components/RoleBadge";
 import { AvatarFrame } from "@/components/AvatarFrame";
 import { getToken } from "@/lib/auth";
 import { ReportModal } from "@/components/ReportModal";
-import { BadgeSelector } from "@/components/BadgeSelector";
 import { SystemName } from "@/components/SystemName";
 import { ensureKeyPair } from "@/lib/crypto";
 import { isOnline } from "@/lib/online";
@@ -58,7 +57,14 @@ export default function UserProfilePage() {
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [showCoverMenu, setShowCoverMenu] = useState(false);
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
+  const [showBadgeModal, setShowBadgeModal] = useState(false);
 
+  // Проверяем, есть ли у пользователя право менять значок
+  const canEditBadge = availableBadges.some(b => 
+    b.role_id === currentUser?.role?.id || 
+    b.user_id === currentUser?.id ||
+    (b.is_selectable && (currentUser?.level ?? 1) >= 3)
+  ) || (currentUser?.level ?? 1) >= 3;
   // Обёртка для аватарки с валидацией
   async function handleAvatarFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -433,19 +439,7 @@ function getGlowColor(user: any): string | null {
     </div>
   )
 )}
-                {/* 🆕 ВЫБОР ЗНАЧКА (показывается только на своем профиле) */}
-                {isOwnProfile && (
-                  <BadgeSelector 
-                    currentUser={currentUser} 
-                    availableBadges={availableBadges} 
-                    onUpdate={() => {
-                      // Перезагружаем профиль, чтобы обновить selected_badge_id
-                      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`)
-                        .then(r => r.json())
-                        .then(setProfile);
-                    }} 
-                  />
-                )}
+
 {/* ❌ Ошибка загрузки обложки */}
 {coverError && (
   <div className="px-4 md:px-6 py-2.5 bg-red-500/10 border-b border-red-500/30 flex items-center gap-2">
@@ -466,8 +460,13 @@ function getGlowColor(user: any): string | null {
     className="relative shrink-0 w-32 h-32 rounded-full ring-4 ring-[#171717] cursor-pointer group"
     onClick={() => isOwnProfile && setShowAvatarMenu(!showAvatarMenu)}
   >
-<AvatarFrame user={profile} availableBadges={availableBadges}>
-    <Avatar 
+<AvatarFrame 
+  user={profile} 
+  availableBadges={availableBadges}
+  canEditBadge={isOwnProfile && canEditBadge}
+  onBadgeClick={() => setShowBadgeModal(true)}
+>
+  <Avatar 
     src={profile.avatar_url} 
     name={profile.display_name} 
     id={profile.id} 
@@ -734,7 +733,120 @@ function getGlowColor(user: any): string | null {
         {showReport && profile && (
           <ReportModal targetType="user" targetId={profile.id} onClose={() => setShowReport(false)} />
         )}
+
+        {/* 🆕 КОМПАКТНАЯ МОДАЛКА СМЕНЫ ЗНАЧКА (открывается ТОЛЬКО по клику на значок) */}
+        {showBadgeModal && (
+          <>
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => setShowBadgeModal(false)} />
+            <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none">
+              <div className="w-full max-w-sm bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl p-4 pointer-events-auto animate-in zoom-in-95 duration-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-white text-sm">Сменить значок</h3>
+                  <button onClick={() => setShowBadgeModal(false)} className="text-white/50 hover:text-white p-1"><X size={16} /></button>
+                </div>
+                
+                <div className="space-y-4">
+                  {/* Загрузка своего (для уровня 3+) */}
+                  {(currentUser?.level ?? 1) >= 3 && (
+                    <div className="border-b border-white/10 pb-3">
+                      <p className="text-xs text-white/60 mb-2">Загрузить свой:</p>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        id="custom-badge-upload"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const token = getToken();
+                          const form = new FormData();
+                          form.append("file", file);
+                          try {
+                            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/custom-badge`, {
+                              method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form
+                            });
+                            if (res.ok) {
+                              setShowBadgeModal(false);
+                              fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`).then(r => r.json()).then(setProfile);
+                            } else {
+                              const err = await res.json().catch(() => null);
+                              alert(err?.detail || "Ошибка загрузки");
+                            }
+                          } catch {
+                            alert("Ошибка сети");
+                          }
+                        }}
+                      />
+                      <div className="flex gap-2">
+                        <label htmlFor="custom-badge-upload" className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-[#8b5cf6]/20 border border-[#8b5cf6]/30 text-[#8b5cf6] text-xs font-bold hover:bg-[#8b5cf6]/30 cursor-pointer transition-colors">
+                          <Upload size={14} /> {currentUser?.custom_badge_url ? "Заменить" : "Загрузить"}
+                        </label>
+                        {currentUser?.custom_badge_url && (
+                          <button 
+                            onClick={async () => {
+                              if (!confirm("Удалить свой значок?")) return;
+                              const token = getToken();
+                              await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/custom-badge`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+                              setShowBadgeModal(false);
+                              fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`).then(r => r.json()).then(setProfile);
+                            }}
+                            className="px-3 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 transition-colors"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Выбор из доступных */}
+                  {availableBadges.filter(b => b.role_id === currentUser?.role?.id || b.user_id === currentUser?.id || (b.is_selectable && (currentUser?.level ?? 1) >= 3)).length > 0 && (
+                    <div>
+                      <p className="text-xs text-white/60 mb-2">Или выбери из списка:</p>
+                      <div className="grid grid-cols-4 gap-2">
+                        <button 
+                          onClick={async () => {
+                            const token = getToken();
+                            const form = new FormData();
+                            await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/badge`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+                            setShowBadgeModal(false);
+                            fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`).then(r => r.json()).then(setProfile);
+                          }}
+                          className={`aspect-square rounded-lg border flex items-center justify-center text-xs font-bold transition-all ${!currentUser?.selected_badge_id && !currentUser?.custom_badge_url ? "border-red-400 bg-red-500/10 text-red-400" : "border-white/10 text-white/40 hover:bg-white/5"}`}
+                        >
+                          Снять
+                        </button>
+                        {availableBadges.filter(b => b.role_id === currentUser?.role?.id || b.user_id === currentUser?.id || (b.is_selectable && (currentUser?.level ?? 1) >= 3)).map((badge) => {
+                          const isActive = currentUser?.selected_badge_id === badge.id && !currentUser?.custom_badge_url;
+                          return (
+                            <button 
+                              key={badge.id} 
+                              onClick={async () => {
+                                const token = getToken();
+                                const form = new FormData();
+                                form.append("badge_id", String(badge.id));
+                                await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/badge`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+                                setShowBadgeModal(false);
+                                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`).then(r => r.json()).then(setProfile);
+                              }}
+                              className={`aspect-square rounded-lg border flex items-center justify-center relative transition-all ${isActive ? "border-purple-400 bg-purple-500/20" : "border-white/10 hover:bg-white/5"}`}
+                              style={{ filter: isActive ? `drop-shadow(0 0 8px ${badge.glow_color || '#8b5cf6'}99)` : "none" }}
+                            >
+                              <img src={badge.icon_url} className="w-6 h-6 object-contain" alt={badge.name} />
+                              {isActive && <Check size={12} className="absolute -top-1 -right-1 bg-purple-500 text-white rounded-full p-0.5" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </main>
+
     </div>
   );
 }
