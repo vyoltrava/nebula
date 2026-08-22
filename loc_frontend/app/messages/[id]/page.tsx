@@ -576,13 +576,14 @@ function decryptText(ciphertext: string): string {
   return decryptMessage(ciphertext, secretSessionKey);
 }
 
-  async function loadForwardChats() {
-    const token = getToken();
-    if (!token) return;
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+async function loadForwardChats() {
+const token = getToken();
+if (!token) return;
+try {
+const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats`, {
+headers: { Authorization: `Bearer ${token}` },
+cache: "no-store",
+});
       if (res.ok) {
         const chats = await res.json();
         // Исключаем секретные чаты
@@ -868,12 +869,13 @@ function isMessageMine(msg: any): boolean {
   return msg.sender_id === currentUser?.id;
 }
 
-async function loadChatInfo() {
-  const token = getToken();
-  if (!token) return;
-  try {
+    async function loadChatInfo() {
+    const token = getToken();
+    if (!token) return;
+    try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}`, {
-      headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
     });
     if (res.status === 403) {
       router.push("/messages");
@@ -904,17 +906,18 @@ async function loadChatInfo() {
   }
 }
 
-  async function loadMessages() {
+    async function loadMessages() {
     setLoadingMessages(true);
     const token = getToken();
     if (!token) {
-      setLoadingMessages(false);
-      return;
+    setLoadingMessages(false);
+    return;
     }
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+    });
       if (res.status === 403) {
         router.push("/messages");
         return;
@@ -1625,17 +1628,19 @@ const handleSendClick = () => {
     const controller = new AbortController();
     const signal = controller.signal;
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-      signal,
-    })
+fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
+headers: { Authorization: `Bearer ${token}` },
+signal,
+cache: "no-store",
+})
       .then((r) => r.json())
       .then(setCurrentUser)
       .catch(() => {});
         // 🆕 настройки живых сообщений
 fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/live-text-settings`, {
-  headers: { Authorization: `Bearer ${token}` },
-  signal,
+headers: { Authorization: `Bearer ${token}` },
+signal,
+cache: "no-store",
 })
 .then((r) => r.json())
 .then((settings) => {
@@ -1650,9 +1655,10 @@ fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/live-text-settings`, {
     loadStickerPacks(); // 🆕
 
     // 🆕 Загружаем участников для автодополнения упоминаний
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/members`, {
-        headers: { Authorization: `Bearer ${getToken()}` }
-    }).then(r => r.json()).then(data => {
+fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/members`, {
+headers: { Authorization: `Bearer ${getToken()}` },
+cache: "no-store",
+}).then(r => r.json()).then(data => {
         if (Array.isArray(data)) setChatMembers(data);
     }).catch(() => {});
 
