@@ -301,9 +301,10 @@ async function load() {
                   )}
                   
                   {/* 🆕 Выпадающий список ролей с группировкой по отделам */}
-                  {can("manage_roles") && !u.is_admin && canSanction && (
-                    <div className="relative">
-                      <Listbox value={u.role?.id ?? null} onChange={(roleId: number | null) => assignRole(u.id, roleId)}>
+{/* 🆕 Выпадающий список ролей с группировкой по отделам */}
+{(can("manage_roles") || can("assign_roles")) && !u.is_admin && canSanction && (
+  <div className="relative">
+    <Listbox value={u.role?.id ?? null} onChange={(roleId: number | null) => assignRole(u.id, roleId)}>
                         <Listbox.Button className="px-3 py-1.5 rounded-lg border border-white/20 bg-white/5 text-blue-400 text-xs font-bold cursor-pointer max-w-[140px] truncate">
                           {u.role?.name || "Без роли"}
                         </Listbox.Button>
