@@ -564,7 +564,7 @@ def require_admin(
 
 def get_user_permissions(user: User, session: Session) -> list:
     """Получает разрешения пользователя (использует кэш ролей)"""
-    if user.is_admin or user.is_system:
+    if user.is_admin or user.is_trelod:
         return ALL_PERMISSIONS.copy()
 
     permissions = []
@@ -632,7 +632,7 @@ def max_level_for(actor: User, session: Session) -> int:
 def check_hierarchy_or_403(actor: User, target: User, session: Session, action: str = "этого"):
     """Проверяет иерархию и выбрасывает 403, если нельзя"""
     # Админ может управлять Системой в обход иерархии
-    if target.is_system and actor.is_admin:
+    if target.is_trelod and actor.is_admin:
         return 
         
     actor_lvl = get_user_level(actor, session)
@@ -709,7 +709,7 @@ def user_out(user: User, session: Session = None) -> dict:
         "is_admin": user.is_admin,
         "is_moderator": user.is_moderator,
         "is_banned": user.is_banned,
-        "is_system": user.is_system,
+        "is_trelod": user.is_trelod,
         "role": role_data,
         "permissions": permissions,
         "level": get_user_level(user, session) if session else 1,
@@ -3705,7 +3705,7 @@ def admin_list_chats(
         chat_users = [u for u in members_by_chat.get(c.id, []) if u]
         # 🛡️ Личные чаты (DM) с иммунитетом скрыты от всех, кроме Founder
         if not c.is_group:
-            has_immune = any(u.is_admin or u.is_moderator or u.is_system for u in chat_users)
+            has_immune = any(u.is_admin or u.is_moderator or u.is_trelod for u in chat_users)
             if has_immune and not staff.is_admin:
                 continue
         last = last_by_chat.get(c.id)
@@ -3749,7 +3749,7 @@ def admin_chat_messages(
     if not chat.is_group:
         member_rows = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id)).all()
         member_users = [session.get(User, m.user_id) for m in member_rows]
-        has_immune = any(u and (u.is_admin or u.is_moderator or u.is_system) for u in member_users)
+        has_immune = any(u and (u.is_admin or u.is_moderator or u.is_trelod) for u in member_users)
         if has_immune and not staff.is_admin:
             raise HTTPException(403, "🛡️ Личные чаты Founder/Developer недоступны для модерации")
 
@@ -7481,7 +7481,7 @@ def get_team(session: Session = Depends(get_session)):
             "avatar_url": u.avatar_url,
             "is_admin": u.is_admin,
             "is_moderator": u.is_moderator,
-            "is_system": u.is_system,
+            "is_trelod": u.is_trelod,
             "level": level,
             "role": None,
         }

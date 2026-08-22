@@ -17,7 +17,7 @@ class User(SQLModel, table=True):
     is_admin: bool = False
     is_moderator: bool = False
     is_banned: bool = False
-    is_system: bool = Field(default=False)
+    is_trelod: bool = Field(default=False)
     role_id: Optional[int] = Field(default=None, foreign_key="role.id")
     created_at: datetime = Field(default_factory=utcnow)
     bio: Optional[str] = None
