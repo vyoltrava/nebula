@@ -446,7 +446,6 @@ const continueConfig = lastReadPost
       label: user?.is_admin ? t("nav.admin") : user?.is_moderator ? t("nav.moderation") : t("nav.adminPanel"),
     });
   }
-  
   if (user) {
     outerItems.push({ href: "#switch-account", icon: Users, label: t("account.switchAccount") });
     outerItems.push({ href: "#logout", icon: LogOut, label: t("nav.logout") });
@@ -583,22 +582,22 @@ const continueConfig = lastReadPost
     // 🆕 Иначе обычная логика выбора пункта меню
     else if (doAction && hoveredIdx !== null) {
       const item = wheelItems[hoveredIdx];
-      if (item) {
-        if (item.href === "#switch-account") {
-          setShowOrbitSwitcher(true);
-          return; // Обязательно return, чтобы код не пошёл дальше и не вышел из аккаунта
-        } else if (item.href === "#logout") {
-          clearToken(); setUser(null); clearCachedUser(); router.push("/");
-        } else if (item.href === "#bug") {
-          setShowBugModal(true);
-        } else if (item.href === "#search") {
-          setShowSearch(true);
-        } else if (item.href === "#layout") {
-          setShowLayoutPicker(true);
-        } else {
-          router.push(item.href);
+        if (item) {
+          if (item.href === "#switch-account") {
+            setShowOrbitSwitcher(true);
+            return; // ВАЖНО: прерываем выполнение, чтобы не сработал logout ниже
+          } else if (item.href === "#logout") {
+            clearToken(); setUser(null); clearCachedUser(); router.push("/");
+          } else if (item.href === "#bug") {
+            setShowBugModal(true);
+          } else if (item.href === "#search") {
+            setShowSearch(true);
+          } else if (item.href === "#layout") {
+            setShowLayoutPicker(true);
+          } else {
+            router.push(item.href);
+          }
         }
-      }
     }
     setWheelReady(false);
     setClosing(true);
@@ -1356,7 +1355,7 @@ const continueConfig = lastReadPost
       {showSearch && <MobileSearch onClose={() => setShowSearch(false)} />}
       {showLayoutPicker && <LayoutPicker current={layout} onClose={() => setShowLayoutPicker(false)} />}
       
-      {/* 🆕 СМЕНА АККАУНТА */}
+      {/* 🆕 МОДАЛКА СМЕНЫ АККАУНТА ДЛЯ ОРБИТЫ */}
       {showOrbitSwitcher && (
         <AccountSwitcher 
           variant="orbit" 
