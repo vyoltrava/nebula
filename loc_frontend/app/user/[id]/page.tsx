@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { Post } from "@/components/Post";
 import { Avatar } from "@/components/Avatar";
 import { RoleBadge } from "@/components/RoleBadge";
+import { AvatarFrame } from "@/components/AvatarFrame";
 import { getToken } from "@/lib/auth";
 import { ReportModal } from "@/components/ReportModal";
 import { SystemName } from "@/components/SystemName";
@@ -441,14 +442,15 @@ async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
     className="relative shrink-0 w-32 h-32 rounded-full ring-4 ring-[#171717] cursor-pointer group"
     onClick={() => isOwnProfile && setShowAvatarMenu(!showAvatarMenu)}
   >
-    <Avatar 
-      src={profile.avatar_url} 
-      name={profile.display_name} 
-      id={profile.id} 
-      size={128}
-      online={isOnline(profile.last_seen)}
-    />
-    
+<AvatarFrame user={profile}>
+  <Avatar 
+    src={profile.avatar_url} 
+    name={profile.display_name} 
+    id={profile.id} 
+    size={128}
+    online={isOnline(profile.last_seen)}
+  />
+</AvatarFrame>
     {/* Overlay "загрузка" при uploading */}
     {uploading && (
       <div className="absolute inset-0 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">

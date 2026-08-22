@@ -1,5 +1,4 @@
 "use client";
-import { ShieldCheck, Crown, Sparkles, Star, Zap, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface RoleBadgeProps {
@@ -23,10 +22,10 @@ export function RoleBadge({ user, size = "md", showAnimation = true }: RoleBadge
     lg: "px-3 py-1 md:px-3.5 md:py-1.5 text-[10px] md:text-[11px]",
   };
 
-  const iconSize = { sm: 8, md: 9, lg: 11 };
+  const iconSize = size === "sm" ? "w-3 h-3" : "w-3.5 h-3.5 md:w-4 md:h-4";
 
   // ═══════════════════════════════════════════
-  // 🟡 FOUNDER (Level 10)
+  // 🟡 FOUNDER (Level 10) — с логотипом
   // ═══════════════════════════════════════════
   if (user.is_admin) {
     return (
@@ -38,15 +37,15 @@ export function RoleBadge({ user, size = "md", showAnimation = true }: RoleBadge
           boxShadow: "0 4px 14px 0 rgba(255,255,255,0.4), inset 0 1px 0 rgba(255,255,255,0.8)",
         }}
       >
-        {showAnimation && <div className="absolute inset-0 animate-shimmer" />}
-        <Crown size={iconSize[size]} className="relative z-10" style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))" }} />
+        {showAnimation && mounted && <div className="absolute inset-0 animate-shimmer" />}
+        <img src="/role-icon.svg" alt="" className={`relative z-10 ${iconSize}`} style={{ filter: "brightness(0)" }} />
         <span className="relative z-10">Founder</span>
       </span>
     );
   }
 
   // ═══════════════════════════════════════════
-  // 🔵 DEVELOPER (Level 9)
+  // 🔵 DEVELOPER (Level 9) — с логотипом
   // ═══════════════════════════════════════════
   if (user.is_moderator) {
     return (
@@ -57,7 +56,7 @@ export function RoleBadge({ user, size = "md", showAnimation = true }: RoleBadge
           boxShadow: "0 4px 14px 0 rgba(59,130,246,0.4)",
         }}
       >
-        <ShieldCheck size={iconSize[size]} className="relative z-10" />
+        <img src="/role-icon.svg" alt="" className={`relative z-10 ${iconSize}`} style={{ filter: "brightness(0) invert(1)" }} />
         <span className="relative z-10">Developer</span>
         <span className="badge-cursor relative z-10">_</span>
       </span>
@@ -65,7 +64,7 @@ export function RoleBadge({ user, size = "md", showAnimation = true }: RoleBadge
   }
 
   // ═══════════════════════════════════════════
-  // 🟢 SYSTEM (Level 11)
+  // 🟢 SYSTEM (Level 11) — с логотипом
   // ═══════════════════════════════════════════
   if (user.is_system) {
     return (
@@ -76,14 +75,14 @@ export function RoleBadge({ user, size = "md", showAnimation = true }: RoleBadge
           boxShadow: "0 4px 14px 0 rgba(16,185,129,0.4)",
         }}
       >
-        <Zap size={iconSize[size]} className="relative z-10" />
+        <img src="/role-icon.svg" alt="" className={`relative z-10 ${iconSize}`} style={{ filter: "brightness(0) invert(1) drop-shadow(0 0 4px #10b981)" }} />
         <span className="relative z-10">System</span>
       </span>
     );
   }
 
   // ═══════════════════════════════════════════
-  // ⭐ СПЕЦ ОТДЕЛ (Level 8) — менеджеры, дизайнеры, комьюнити
+  // ⭐ СПЕЦ ОТДЕЛ (Level 8) — с логотипом и звездами
   // ═══════════════════════════════════════════
   if (user.role && user.role.level === 8) {
     const color = user.role.color || "#f59e0b";
@@ -96,64 +95,40 @@ export function RoleBadge({ user, size = "md", showAnimation = true }: RoleBadge
           boxShadow: `0 4px 14px 0 ${color}60, inset 0 1px 0 rgba(255,255,255,0.2)`,
         }}
       >
-        {showAnimation && (
+        {showAnimation && mounted && (
           <div className="absolute inset-0 animate-gradient-shift" style={{ background: `linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)` }} />
         )}
-        <Star
-          size={iconSize[size] + 2}
-          className="relative z-10"
-          fill="currentColor"
-          style={{ filter: `drop-shadow(0 0 4px ${color}) drop-shadow(0 0 8px ${color}80)` }}
+        <img
+          src="/role-icon.svg"
+          alt=""
+          className={`relative z-10 ${size === "sm" ? "w-3.5 h-3.5" : "w-4 h-4 md:w-5 md:h-5"}`}
+          style={{ filter: "drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000)" }}
         />
         <span className="relative z-10">{user.role.name}</span>
-        {showAnimation && (
-          <>
-            <Sparkles size={iconSize[size] - 2} className="absolute top-0 right-1 opacity-60 animate-sparkle-1" />
-            <Sparkles size={iconSize[size] - 3} className="absolute bottom-0 left-1 opacity-40 animate-sparkle-2" />
-          </>
-        )}
       </span>
     );
   }
 
   // ═══════════════════════════════════════════
-  // 🟣 ОБЫЧНЫЕ РОЛИ (Levels 1-7)
+  // 🟣 ОБЫЧНЫЕ РОЛИ (Levels 1-7) — БЕЗ ИКОНОК
   // ═══════════════════════════════════════════
   if (user.role) {
     const color = user.role.color || "#8b5cf6";
-    const level = user.role.level || 1;
-    const isHigh = level >= 6;
 
     return (
       <span
-        className={`badge-role inline-flex items-center gap-1 ${sizeClasses[size]} rounded-md font-black uppercase tracking-widest shrink-0 border text-white relative overflow-hidden ${isHigh && showAnimation ? "animate-role-pulse" : ""}`}
+        className={`badge-role inline-flex items-center gap-1 ${sizeClasses[size]} rounded-md font-black uppercase tracking-widest shrink-0 border text-white relative overflow-hidden`}
         style={{
           backgroundColor: color,
           borderColor: `${color}80`,
-          boxShadow: isHigh ? `0 4px 14px 0 ${color}40, 0 0 20px ${color}30` : `0 4px 14px 0 ${color}40`,
+          boxShadow: `0 4px 14px 0 ${color}40`,
         }}
       >
-        {isHigh && showAnimation && (
-          <div className="absolute inset-0 opacity-20" style={{ background: `linear-gradient(135deg, transparent, rgba(255,255,255,0.4), transparent)` }} />
-        )}
-        {isHigh && (
-          <Shield size={iconSize[size]} className="relative z-10" style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.3))" }} />
-        )}
         <span className="relative z-10">{user.role.name}</span>
       </span>
     );
   }
 
-  // ═══════════════════════════════════════════
-  // 🔴 BANNED
-  // ═══════════════════════════════════════════
-  if (user.is_banned) {
-    return (
-      <span className={`badge-banned inline-flex items-center gap-1 ${sizeClasses[size]} rounded font-black uppercase shrink-0 border border-red-500/30 bg-red-500/20 text-red-400`}>
-        BANNED
-      </span>
-    );
-  }
-
+  // BANNED обрабатывается отдельно в UserProfilePage
   return null;
 }
