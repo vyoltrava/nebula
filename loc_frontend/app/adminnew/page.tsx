@@ -20,7 +20,7 @@ import { ChatsSection } from "@/components/admin/section/ChatsSection";
 import { StickersSection } from "@/components/admin/section/StickersSection";
 import { ThemesSection } from "@/components/admin/section/ThemesSection";
 import { SupportSection } from "@/components/admin/section/SupportSection";
-import { TechUsersSection } from "@/components/admin/section/TechUsersSection"; // 🆕 ИМПОРТ
+import { TechUsersSection } from "@/components/admin/section/TechUsersSection";
 
 type TabId =
   | "users" | "tech_users" | "stats" | "bugs" | "ip" | "logs"
@@ -36,7 +36,7 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   { id: "users",     label: "Пользователи", icon: Users,         color: "#8b5cf6", permission: "manage_users" },
-  { id: "tech_users",label: "Управление",   icon: Wrench,        color: "#0E7490", permission: "tech_access" }, // 🆕 НОВАЯ ВКЛАДКА
+  { id: "tech_users",label: "Управление",   icon: Wrench,        color: "#0E7490", permission: "tech_access" },
   { id: "reports",   label: "Жалобы",       icon: Flag,          color: "#ef4444", permission: "manage_reports" },
   { id: "support",   label: "Поддержка",    icon: Headphones,    color: "#22c55e", permission: "manage_support" },
   { id: "chats",     label: "Чаты",         icon: MessageSquare, color: "#06b6d4", permission: "manage_groups" },
@@ -51,11 +51,13 @@ const TABS: TabDef[] = [
 export default function AdminPage() {
   const router = useRouter();
   const [me, setMe] = useState<any>(null);
+  const [roles, setRoles] = useState<any[]>([]); // 🆕 1. Добавили состояние для ролей
   const [activeTab, setActiveTab] = useState<TabId | null>(null);
 
   useEffect(() => {
     const token = getToken();
     if (!token) { router.push("/login"); return; }
+    
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -66,6 +68,15 @@ export default function AdminPage() {
           return;
         }
         setMe(data);
+        
+        // 🆕 2. Загружаем список ролей для выпадающего списка в редакторе значков
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/roles`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+          .then((r) => r.json())
+          .then((rolesData) => setRoles(rolesData))
+          .catch(console.error);
+
         const visible = TABS.filter((t) => {
           if (t.permission === null) return data.is_admin;
           return data.is_admin || (data.permissions || []).includes(t.permission!);
@@ -74,7 +85,7 @@ export default function AdminPage() {
         else router.push("/");
       })
       .catch(() => router.push("/login"));
-  }, []);
+  }, [router]);
 
   if (!me || !activeTab) {
     return (
@@ -121,7 +132,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* 🆕 ИСПРАВЛЕННЫЙ СКРОЛЛ ВКЛАДОК */}
+          {/* Вкладки */}
           <div className="flex gap-2 mt-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
             {visibleTabs.map((t) => {
               const Icon = t.icon;
@@ -147,7 +158,7 @@ export default function AdminPage() {
         {/* Контент */}
         <div className="p-4 sm:p-6">
           {activeTab === "users"     && <UsersSection me={me} />}
-          {activeTab === "tech_users"&& <TechUsersSection me={me} />} {/* 🆕 РЕНДЕР */}
+          {activeTab === "tech_users"&& <TechUsersSection me={me} />}
           {activeTab === "reports"   && <ReportsSection me={me} />}
           {activeTab === "support"   && <SupportSection me={me} />}
           {activeTab === "chats"     && <ChatsSection me={me} />}
@@ -155,7 +166,10 @@ export default function AdminPage() {
           {activeTab === "bugs"      && <BugsSection me={me} />}
           {activeTab === "ip"        && <IpSection me={me} />}
           {activeTab === "logs"      && <LogsSection me={me} />}
-          {activeTab === "stickers"  && <StickersSection me={me} />}
+          
+          {/* 🆕 3. Передаем пропс roles в StickersSection */}
+          {activeTab === "stickers"  && <StickersSection me={me} roles={roles} />}
+          
           {activeTab === "themes"    && <ThemesSection me={me} />}
         </div>
       </main>
