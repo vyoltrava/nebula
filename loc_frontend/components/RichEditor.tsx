@@ -247,9 +247,14 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
           color: #c4b5fd;
         }
         .rich-editor [data-md="spoiler"] {
-          background: #3a3a3f;
           color: transparent;
-          border-radius: 4px;
+          caret-color: #fff;
+          background-color: #8f8f8f;
+          background-image:
+            repeating-conic-gradient(rgba(255,255,255,0.30) 0% 25%, transparent 0% 50%),
+            repeating-conic-gradient(rgba(0,0,0,0.40) 0% 25%, transparent 0% 50%);
+          background-size: 9px 9px, 14px 14px;
+          border-radius: 2px;
         }
         .rich-editor a { color: #8b5cf6; text-decoration: underline; }
                 @media (pointer: coarse) {

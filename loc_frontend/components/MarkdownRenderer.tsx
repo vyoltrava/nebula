@@ -165,40 +165,24 @@ export function MarkdownRenderer({ text, isMessage = false }: { text: string; is
                 </a>
               );
             },
-            span: ({ node, className, children, ...props }) => {
-              if (className === "md-spoiler") {
-                return (
-                  <span
-                    className="inline-flex items-center gap-1 bg-gradient-to-r from-purple-500/30 to-pink-500/30 hover:from-purple-500/40 hover:to-pink-500/40 border border-purple-400/50 text-white rounded-md px-2 py-0.5 cursor-pointer transition-all duration-200 select-none group"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const el = e.currentTarget as HTMLElement;
-                      el.classList.remove(
-                        'from-purple-500/30', 'to-pink-500/30',
-                        'hover:from-purple-500/40', 'hover:to-pink-500/40',
-                        'border-purple-400/50'
-                      );
-                      el.classList.add('bg-white/10', 'border-white/20');
-                      const icon = el.querySelector('.spoiler-icon');
-                      const content = el.querySelector('.spoiler-content');
-                      if (icon) icon.classList.add('hidden');
-                      if (content) {
-                        content.classList.remove('blur-sm', 'text-transparent');
-                        content.classList.add('text-white');
-                      }
-                    }}
-                  >
-                    <span className="spoiler-icon text-[10px] text-white/90 group-hover:text-white flex items-center gap-0.5 font-bold">
-                      👁 Спойлер
-                    </span>
-                    <span className="spoiler-content blur-sm text-transparent group-hover:blur-[1px] transition-all">
-                      {children}
-                    </span>
-                  </span>
-                );
-              }
-              return <span {...props}>{children}</span>;
-            },
+// Обработка спойлеров — 🆕 пиксельная мозаика как в аниме
+span: ({ node, className, children, ...props }) => {
+  if (className === "md-spoiler") {
+    return (
+      <span
+        className="spoiler-pixel"
+        title="Нажми, чтобы раскрыть"
+        onClick={(e) => {
+          e.stopPropagation();
+          e.currentTarget.classList.add("revealed");
+        }}
+      >
+        <span className="spoiler-pixel-content">{children}</span>
+      </span>
+    );
+  }
+  return <span {...props}>{children}</span>;
+},
             code: ({ node, className, children, ...props }) => {
               const isInline = !className;
               if (isInline) {
@@ -229,6 +213,34 @@ export function MarkdownRenderer({ text, isMessage = false }: { text: string; is
             user-select: none;
             touch-action: manipulation;
           }
+        }
+
+        /* 🆕 СПОЙЛЕР-МОЗАИКА: серые квадратики вместо блока */
+        .spoiler-pixel {
+          cursor: pointer;
+        }
+        .spoiler-pixel:not(.revealed) {
+          user-select: none;
+          -webkit-user-select: none;
+        }
+        .spoiler-pixel-content {
+          color: transparent;               /* текст скрыт */
+          background-color: #8f8f8f;        /* базовый серый */
+          background-image:
+            repeating-conic-gradient(rgba(255,255,255,0.30) 0% 25%, transparent 0% 50%),
+            repeating-conic-gradient(rgba(0,0,0,0.40) 0% 25%, transparent 0% 50%);
+          background-size: 9px 9px, 14px 14px;  /* разный размер клеток = "рандом" */
+          border-radius: 2px;
+          -webkit-box-decoration-break: clone;  /* мозаика продолжается на переносах */
+          box-decoration-break: clone;
+          transition: filter .15s;
+        }
+        .spoiler-pixel:not(.revealed):hover .spoiler-pixel-content {
+          filter: brightness(1.15);         /* лёгкая подсветка при наведении */
+        }
+        .spoiler-pixel.revealed .spoiler-pixel-content {
+          color: inherit;                   /* показываем текст */
+          background: none;                 /* убираем мозаику */
         }
       `}</style>
       {menu && (
