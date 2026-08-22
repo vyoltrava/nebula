@@ -9091,20 +9091,7 @@ async def create_badge(
     session.refresh(badge)
     return {"ok": True, "id": badge.id}
 
-@app.delete("/api/badges/{badge_id}")
-def delete_badge(
-    badge_id: int,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Удалить значок"""
-    if not user.is_admin:
-        raise HTTPException(403, "Admin only")
-    badge = session.get(Badge, badge_id)
-    if badge:
-        session.delete(badge)
-        session.commit()
-    return {"ok": True}
+
 @app.post("/api/me/badge")
 def select_my_badge(
     badge_id: Optional[int] = Form(None),
