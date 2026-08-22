@@ -26,11 +26,16 @@ const level = user.level ?? (user.username === "trelod" ? 11 : user.is_admin ? 1
     );
   }
 
-  // Уровень 8 (спецотдел): вращающееся кольцо с градиентом
+  // Уровень 8 (спецотдел / manager): вращающееся кольцо + эксклюзивный значок
   if (level === 8) {
     const color = user.role?.color || "#f59e0b";
+    
+    // 🎯 ПРОВЕРКА НА МЕНЕДЖЕРА ПО ID ИЗ БАЗЫ
+    const isManager = user.role?.id === 22;
+
     return (
       <div className="relative">
+        {/* Анимированная обводка */}
         <div
           className="absolute -inset-[4px] rounded-full animate-spin-slow"
           style={{
@@ -38,9 +43,27 @@ const level = user.level ?? (user.username === "trelod" ? 11 : user.is_admin ? 1
             filter: `drop-shadow(0 0 8px ${color}80)`,
           }}
         />
+        
+        {/* Аватарка */}
         <div className="relative rounded-full border-[3px] border-[#171717]">
           {children}
         </div>
+
+        {/* 🆕 ЭКСКЛЮЗИВНЫЙ ЗНАЧОК ТОЛЬКО ДЛЯ MANAGER (ID 22) */}
+        {isManager && (
+          <div 
+            className="absolute -bottom-2 -right-2 w-9 h-9 pointer-events-none select-none z-10 drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]"
+            style={{ animation: "float 3s ease-in-out infinite" }}
+          >
+            {/* Положи картинку значка в папку public/ твоего Next.js проекта */}
+            <img
+              src="/pochacco.png" 
+              alt="pochacco"
+              className="w-full h-full object-contain"
+              draggable={false}
+            />
+          </div>
+        )}
       </div>
     );
   }
