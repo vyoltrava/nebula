@@ -474,19 +474,28 @@ body {
   animation: bounce-slow 2s ease-in-out infinite;
 }
 
-@keyframes ping-slow {
-  75%, 100% { transform: scale(1.1); opacity: 0.8; }
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
-.animate-ping-slow {
-  animation: ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
 }
+
+@keyframes bounce-slow {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, -6px); }
+}
+.animate-bounce-slow {
+  animation: bounce-slow 3s ease-in-out infinite;
+}
+
+/* 🆕 ЛЕГКАЯ АНИМАЦИЯ ДЛЯ FIREFOX И ВСЕХ ОСТАЛЬНЫХ */
 @keyframes pulse-glow {
-  0%, 100% { 
-    opacity: 0.6;
-    transform: scale(1);
-  }
-  50% { 
-    opacity: 1;
-    transform: scale(1.2);
-  }
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.15); }
+}
+.badge-glow-effect {
+  animation: pulse-glow 2s ease-in-out infinite;
+  /* Убрали filter из анимации, оставили только opacity и scale */
 }

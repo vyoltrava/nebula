@@ -150,6 +150,28 @@ function getGlowColor(user: any): string | null {
     };
   }
 
+  // 🆕 АВТО-СБРОС ЗНАЧКА, ЕСЛИ ОН БЫЛ УДАЛЕН АДМИНОМ
+  useEffect(() => {
+    if (profile?.selected_badge_id) {
+      const badgeExists = availableBadges.some(b => b.id === profile.selected_badge_id);
+      if (!badgeExists) {
+        // Значок удален из базы, очищаем его у пользователя локально
+        setProfile((prev: any) => prev ? { ...prev, selected_badge_id: null, custom_badge_url: null } : null);
+        
+        // И отправляем запрос на сервер, чтобы очистить там
+        const token = getToken();
+        if (token) {
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/badge`, { 
+            method: "POST", 
+            headers: { Authorization: `Bearer ${token}` }, 
+            body: new FormData() 
+          }).catch(console.error);
+        }
+      }
+    }
+  }, [availableBadges, profile?.selected_badge_id]);
+
+
   useEffect(() => {
     const token = getToken();
     
@@ -735,6 +757,7 @@ function getGlowColor(user: any): string | null {
         )}
 
         {/* 🆕 КОМПАКТНАЯ МОДАЛКА СМЕНЫ ЗНАЧКА (открывается ТОЛЬКО по клику на значок) */}
+        {/* 🆕 ИСПРАВЛЕННАЯ МОДАЛКА СМЕНЫ ЗНАЧКА */}
         {showBadgeModal && (
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => setShowBadgeModal(false)} />
@@ -746,8 +769,8 @@ function getGlowColor(user: any): string | null {
                 </div>
                 
                 <div className="space-y-4">
-                  {/* Загрузка своего (для уровня 3+) */}
-                  {(currentUser?.level ?? 1) >= 3 && (
+                  {/* 1. БЛОК ЗАГРУЗКИ СВОЕГО (Всегда виден, если есть права) */}
+                  {canEditBadge && (
                     <div className="border-b border-white/10 pb-3">
                       <p className="text-xs text-white/60 mb-2">Загрузить свой:</p>
                       <input 
@@ -767,7 +790,9 @@ function getGlowColor(user: any): string | null {
                             });
                             if (res.ok) {
                               setShowBadgeModal(false);
-                              fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`).then(r => r.json()).then(setProfile);
+                              // 🔄 Принудительно обновляем профиль
+                              const fresh = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`).then(r => r.json());
+                              setProfile(fresh);
                             } else {
                               const err = await res.json().catch(() => null);
                               alert(err?.detail || "Ошибка загрузки");
@@ -779,16 +804,17 @@ function getGlowColor(user: any): string | null {
                       />
                       <div className="flex gap-2">
                         <label htmlFor="custom-badge-upload" className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-[#8b5cf6]/20 border border-[#8b5cf6]/30 text-[#8b5cf6] text-xs font-bold hover:bg-[#8b5cf6]/30 cursor-pointer transition-colors">
-                          <Upload size={14} /> {currentUser?.custom_badge_url ? "Заменить" : "Загрузить"}
+                          <Upload size={14} /> {profile?.custom_badge_url ? "Заменить" : "Загрузить"}
                         </label>
-                        {currentUser?.custom_badge_url && (
+                        {profile?.custom_badge_url && (
                           <button 
                             onClick={async () => {
                               if (!confirm("Удалить свой значок?")) return;
                               const token = getToken();
                               await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/custom-badge`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
                               setShowBadgeModal(false);
-                              fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`).then(r => r.json()).then(setProfile);
+                              const fresh = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`).then(r => r.json());
+                              setProfile(fresh);
                             }}
                             className="px-3 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 transition-colors"
                           >
@@ -799,25 +825,39 @@ function getGlowColor(user: any): string | null {
                     </div>
                   )}
 
-                  {/* Выбор из доступных */}
-                  {availableBadges.filter(b => b.role_id === currentUser?.role?.id || b.user_id === currentUser?.id || (b.is_selectable && (currentUser?.level ?? 1) >= 3)).length > 0 && (
-                    <div>
-                      <p className="text-xs text-white/60 mb-2">Или выбери из списка:</p>
-                      <div className="grid grid-cols-4 gap-2">
-                        <button 
-                          onClick={async () => {
-                            const token = getToken();
-                            const form = new FormData();
-                            await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/badge`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
-                            setShowBadgeModal(false);
-                            fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`).then(r => r.json()).then(setProfile);
-                          }}
-                          className={`aspect-square rounded-lg border flex items-center justify-center text-xs font-bold transition-all ${!currentUser?.selected_badge_id && !currentUser?.custom_badge_url ? "border-red-400 bg-red-500/10 text-red-400" : "border-white/10 text-white/40 hover:bg-white/5"}`}
-                        >
-                          Снять
-                        </button>
-                        {availableBadges.filter(b => b.role_id === currentUser?.role?.id || b.user_id === currentUser?.id || (b.is_selectable && (currentUser?.level ?? 1) >= 3)).map((badge) => {
-                          const isActive = currentUser?.selected_badge_id === badge.id && !currentUser?.custom_badge_url;
+                  {/* 2. БЛОК ВЫБОРА ИЗ СПИСКА */}
+                  <div>
+                    <p className="text-xs text-white/60 mb-2">Или выбери из списка:</p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {/* КНОПКА "СНЯТЬ" - ИСПРАВЛЕНА */}
+                      <button 
+                        onClick={async () => {
+                          const token = getToken();
+                          // Отправляем пустой FormData, чтобы бэкенд понял, что нужно снять
+                          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/badge`, { 
+                            method: "POST", 
+                            headers: { Authorization: `Bearer ${token}` }, 
+                            body: new FormData() 
+                          });
+                          setShowBadgeModal(false);
+                          // 🔄 Принудительно обновляем профиль, чтобы значок пропал
+                          const fresh = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`).then(r => r.json());
+                          setProfile(fresh);
+                        }}
+                        className={`aspect-square rounded-lg border flex items-center justify-center text-xs font-bold transition-all ${
+                          !profile?.selected_badge_id && !profile?.custom_badge_url 
+                            ? "border-red-400 bg-red-500/10 text-red-400" 
+                            : "border-white/10 text-white/40 hover:bg-white/5"
+                        }`}
+                      >
+                        Снять
+                      </button>
+
+                      {/* СПИСОК ДОСТУПНЫХ ЗНАЧКОВ */}
+                      {availableBadges
+                        .filter(b => b.role_id === currentUser?.role?.id || b.user_id === currentUser?.id || (b.is_selectable && (currentUser?.level ?? 1) >= 3))
+                        .map((badge) => {
+                          const isActive = profile?.selected_badge_id === badge.id && !profile?.custom_badge_url;
                           return (
                             <button 
                               key={badge.id} 
@@ -827,9 +867,13 @@ function getGlowColor(user: any): string | null {
                                 form.append("badge_id", String(badge.id));
                                 await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/badge`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
                                 setShowBadgeModal(false);
-                                fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`).then(r => r.json()).then(setProfile);
+                                // 🔄 Принудительно обновляем профиль
+                                const fresh = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`).then(r => r.json());
+                                setProfile(fresh);
                               }}
-                              className={`aspect-square rounded-lg border flex items-center justify-center relative transition-all ${isActive ? "border-purple-400 bg-purple-500/20" : "border-white/10 hover:bg-white/5"}`}
+                              className={`aspect-square rounded-lg border flex items-center justify-center relative transition-all ${
+                                isActive ? "border-purple-400 bg-purple-500/20" : "border-white/10 hover:bg-white/5"
+                              }`}
                               style={{ filter: isActive ? `drop-shadow(0 0 8px ${badge.glow_color || '#8b5cf6'}99)` : "none" }}
                             >
                               <img src={badge.icon_url} className="w-6 h-6 object-contain" alt={badge.name} />
@@ -837,9 +881,8 @@ function getGlowColor(user: any): string | null {
                             </button>
                           );
                         })}
-                      </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             </div>

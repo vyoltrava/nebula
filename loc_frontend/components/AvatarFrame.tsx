@@ -59,18 +59,13 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
       <div className="relative">
         {children}
       </div>
-
-      {/* ПУЛЬСАЦИЯ СВЕЧЕНИЯ (если включено) */}
+      {/* ПУЛЬСАЦИЯ СВЕЧЕНИЯ (исправлено для Firefox) */}
       {userBadge.enable_glow && (
-        <div 
-          className="absolute -bottom-2 -right-2 w-9 h-9 pointer-events-none select-none z-10"
-          style={{ animation: "pulse-glow 2s ease-in-out infinite" }}
-        >
+        <div className="absolute -bottom-2 -right-2 w-9 h-9 pointer-events-none select-none z-10 badge-glow-effect">
           <div 
             className="absolute inset-0 rounded-full"
             style={{
-              background: `radial-gradient(circle, ${glowColor}60 0%, transparent 70%)`,
-              filter: `blur(4px)`,
+              background: `radial-gradient(circle, ${glowColor}80 0%, transparent 70%)`,
             }}
           />
         </div>

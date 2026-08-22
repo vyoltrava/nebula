@@ -9112,7 +9112,7 @@ def select_my_badge(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Пользователь выбирает себе значок"""
+    """Пользователь выбирает себе значок или снимает его"""
     if badge_id:
         badge = session.get(Badge, badge_id)
         if not badge:
@@ -9129,7 +9129,9 @@ def select_my_badge(
         
         user.selected_badge_id = badge_id
     else:
+        # 🆕 ЕСЛИ badge_id НЕ ПЕРЕДАН (пустая FormData) — СНИМАЕМ ЗНАЧОК
         user.selected_badge_id = None
+        user.custom_badge_url = None # На всякий случай
     
     session.add(user)
     session.commit()
