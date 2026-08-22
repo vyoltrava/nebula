@@ -1793,61 +1793,68 @@ useEffect(() => {
   return () => clearInterval(interval);
 }, [secretState]);
 
-  useWebSocket("new_message", (data: any) => {
-    if (String(data.chat_id) !== String(chatId)) return;
+useWebSocket("new_message", (data: any) => {
+  if (String(data.chat_id) !== String(chatId)) return;
 
-    // 🆕 плавно гасим живой текст — пришло настоящее сообщение
-    dismissLive(data.sender_id);
-if (data.sender_id === currentUser?.id) {
-    setMessages((prev) => {
-      // Находим временное сообщение с таким же текстом и без media_url
-      const tempIndex = prev.findIndex(
-        (m) => m.is_temp && m.text === data.text && !m.media_url
-      );
-      if (tempIndex !== -1) {
-        // Заменяем временное на реальное
-        const newMessages = [...prev];
-        newMessages[tempIndex] = {
-          ...data,
-          is_temp: false,
-        };
-        return newMessages;
-      }
-      // Если временного нет - просто добавляем
-      if (!prev.some((m) => m.id === data.id)) {
-        return [...prev, { ...data, is_temp: false }];
-      }
+  // 🆕 плавно гасим живой текст — пришло настоящее сообщение
+  dismissLive(data.sender_id);
+
+  setMessages((prev) => {
+    // 1. Проверяем, есть ли уже такое сообщение в списке (защита от дублей при реконнекте)
+    if (prev.some((m) => m.id === data.id)) {
       return prev;
+    }
 
+    // 2. Ищем временное сообщение, которое мы создали при отправке
+    // Сопоставляем по: автору, тексту (если есть) и типу медиа (если есть)
+    const tempIndex = prev.findIndex((m) => {
+      if (!m.is_temp) return false;
+      if (m.sender_id !== data.sender_id) return false;
+      
+      // Если есть текст, он должен совпадать
+      if (data.text && m.text !== data.text) return false;
+      
+      // Если есть медиа, типы должны совпадать
+      if (data.media_url && m.media_url !== data.media_url) return false; 
+      // Для зашифрованных медиа URL может быть разным, проверяем тип
+      if (data.is_encrypted_media && m.is_encrypted_media) return true;
 
-
+      return true;
     });
-  } else {
-    // Чужие сообщения - просто добавляем
-    setMessages((prev) => {
-      if (prev.some((m) => m.id === data.id)) return prev;
-      return [...prev, { ...data, is_temp: false }];
-    });
+
+    if (tempIndex !== -1) {
+      // Заменяем временное сообщение на реальное, сохраняя позицию в массиве
+      const newMessages = [...prev];
+      newMessages[tempIndex] = {
+        ...data,
+        is_temp: false,
+      };
+      return newMessages;
+    }
+
+    // 3. Если временного не нашли (или это чужое сообщение), просто добавляем в конец
+    return [...prev, { ...data, is_temp: false }];
+  });
+
+  // Уведомление для чужих сообщений
+  if (data.sender_id !== currentUser?.id) {
+    localNotify(
+      `💬 ${data.sender_name}`,
+      data.ciphertext === "[encrypted_media]" ? `🔒 ${t("messages.encryptedMedia")}` : (data.text || t("messages.newMessage"))
+    );
   }
 
-  if (data.sender_id !== currentUser?.id) {
-  localNotify(
-    `💬 ${data.sender_name}`,
-    data.ciphertext === "[encrypted_media]" ? `🔒 ${t("messages.encryptedMedia")}` : (data.text || t("messages.newMessage"))
-  );
-}
-
-  // Отметка прочитанных
+  // Отметка прочитанных (только если мы внизу чата)
   const token = getToken();
-  if (token) {
+  if (token && isAutoScrollEnabled) {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/read`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(() => refresh())
-      .catch(() => {});
+    .then(() => refresh())
+    .catch(() => {});
   }
-
+  
   if (isGroup) loadChatInfo();
 });
 
