@@ -1844,8 +1844,9 @@ useWebSocket("new_message", (data: any) => {
     );
   }
 
-  
-  // Отметка прочитанных (только если мы внизу чата)
+
+  // Отметка прочита
+  // нных (только если мы внизу чата)
   const token = getToken();
   if (token && isAutoScrollEnabled) {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/read`, {
