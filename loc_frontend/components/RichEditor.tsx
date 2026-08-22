@@ -9,8 +9,8 @@ import { RichContextMenu, RichMenuItem, buildRichMenuItems } from "./RichContext
 export type RichEditorHandle = {
   focus: () => void;
   applyFormat: (t: MarkdownType) => void;
-  insertText: (t: string) => void; // вставка в позицию курсора (для упоминаний и т.п.)
-  openMenuAt: (x: number, y: number) => void; // для кнопки Type
+  insertText: (t: string) => void;
+  openMenuAt: (x: number, y: number) => void;
   getValue: () => string;
 };
 
@@ -19,8 +19,8 @@ type Props = {
   onChange: (v: string) => void;
   placeholder?: string;
   className?: string;
-  extraMenuItems?: RichMenuItem[]; // свои пункты поверх дефолтных
-  onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void; // Enter для отправки и т.п.
+  extraMenuItems?: RichMenuItem[];
+  onKeyDown?: (e: React.KeyboardEvent<HTMLDivElement>) => void;
 };
 
 export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEditor(
@@ -28,10 +28,8 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
   ref
 ) {
   const elRef = useRef<HTMLDivElement>(null);
-  const lastEmitted = useRef<string | null>(null);
+  const lastEmitted = useRef<string | null>(null); // null → черновик отрисуется при монтировании
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
-
-  // long press (мобилки)
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lpPos = useRef({ x: 0, y: 0 });
 
@@ -44,7 +42,7 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
     onChange(md);
   };
 
-  // синхронизация value -> DOM (только если value пришёл ИЗВНЕ, не после нашего же input)
+  // value -> DOM (черновики, редактирование, внешние изменения)
   useEffect(() => {
     const el = elRef.current;
     if (!el || value === lastEmitted.current) return;
@@ -53,20 +51,6 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
     if (html !== el.innerHTML) el.innerHTML = html;
   }, [value]);
 
-
-    // 🛡️ Глобально глушим нативное контекстное меню, когда наше открыто
-    useEffect(() => {
-    if (!menu) return;
-    const suppress = (e: Event) => {
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-    };
-    document.addEventListener("contextmenu", suppress, true);
-    return () => document.removeEventListener("contextmenu", suppress, true);
-    }, [menu]);
-
-  // нормализация "пусто" для placeholder
   const normalizeEmpty = () => {
     const el = elRef.current;
     if (!el) return;
@@ -80,97 +64,6 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
     emit();
   };
 
-  const handlers = {
-    undo: () => exec("undo"),
-    redo: () => exec("redo"),
-    cut: () => exec("cut"),
-    copy: () => {
-      const t = window.getSelection()?.toString() ?? "";
-      if (t) navigator.clipboard?.writeText(t).catch(() => {});
-    },
-    paste: async () => {
-      try {
-        const t = await navigator.clipboard.readText();
-        if (t) exec("insertText", t);
-      } catch {
-        exec("paste"); // fallback (может быть заблокирован браузером)
-      }
-    },
-    del: () => exec("delete"),
-    selectAll: () => exec("selectAll"),
-    format: (t: MarkdownType) => applyFormat(t),
-  };
-
-  function applyFormat(type: MarkdownType) {
-    const el = elRef.current;
-    if (!el) return;
-    el.focus();
-    expandSelectionToWord(); // нет выделения → форматируем слово под курсором
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return;
-    const range = sel.getRangeAt(0);
-
-    let node: HTMLElement;
-    switch (type) {
-      case "bold": node = document.createElement("strong"); break;
-      case "italic": node = document.createElement("em"); break;
-      case "code": node = document.createElement("code"); break;
-      case "spoiler": node = document.createElement("span"); break;
-      case "link": {
-        const url = prompt("Введите URL:", "https://");
-        if (!url) return;
-        node = document.createElement("a");
-        (node as HTMLAnchorElement).href = url;
-        node.setAttribute("target", "_blank");
-        node.setAttribute("rel", "noopener noreferrer");
-        break;
-      }
-    }
-    node.setAttribute("data-md", type);
-
-    if (range.collapsed) {
-      // вставляем плейсхолдер, выделенный форматом
-      const ph = "текст";
-      node.textContent = ph;
-      range.insertNode(node);
-      // ставим курсор внутрь
-      const r = document.createRange();
-      r.selectNodeContents(node);
-      sel.removeAllRanges();
-      sel.addRange(r);
-    } else {
-      try {
-        range.surroundContents(node);
-      } catch {
-        const frag = range.extractContents();
-        node.appendChild(frag);
-        range.insertNode(node);
-      }
-      sel.removeAllRanges();
-    }
-    emit();
-  }
-
-    function openMenuAt(x: number, y: number) {
-    elRef.current?.focus(); // ← ВОЗВРАЩАЕМ ФОКУС редактору
-    
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0 || sel.getRangeAt(0).collapsed) {
-        selectWordAtPoint(x, y); // пробуем выделить слово под кнопкой
-    }
-    setMenu({ x, y }); // ← ВСЕГДА открываем меню, даже если нет выделения
-    }
-
-  useImperativeHandle(ref, () => ({
-    focus: () => elRef.current?.focus(),
-    applyFormat,
-    insertText: (t: string) => exec("insertText", t),
-    openMenuAt,
-    getValue: () => (elRef.current ? htmlToMarkdown(elRef.current) : value),
-  }));
-
-
-  /* 🆕 создаёт DOM-узел формата */
   function makeFormatNode(type: MarkdownType): HTMLElement {
     let el: HTMLElement;
     switch (type) {
@@ -183,14 +76,14 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
     return el;
   }
 
-  /* 🆕 допечатал закрывающий символ (**, *, `, ||) — сырой текст СРАЗУ становится оформленным */
+  // 🆕 LIVE: допечатал ||x||, **x**, *x*, `x` → сразу становится оформленным узлом
   function commitPatternsAtCaret() {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return;
     const range = sel.getRangeAt(0);
     const node = range.startContainer;
     if (node.nodeType !== Node.TEXT_NODE) return;
-    if ((node.parentElement as HTMLElement)?.closest("[data-md]")) return; // уже внутри формата
+    if ((node.parentElement as HTMLElement)?.closest("[data-md]")) return;
     const text = node.textContent ?? "";
     const caret = range.startOffset;
     const before = text.slice(0, caret);
@@ -222,6 +115,86 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
     }
   }
 
+  function applyFormat(type: MarkdownType) {
+    const el = elRef.current;
+    if (!el) return;
+    el.focus();
+    expandSelectionToWord();
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+
+    let node: HTMLElement;
+    if (type === "link") {
+      const url = prompt("Введите URL:", "https://");
+      if (!url) return;
+      node = document.createElement("a");
+      (node as HTMLAnchorElement).href = url;
+      node.setAttribute("target", "_blank");
+      node.setAttribute("rel", "noopener noreferrer");
+    } else {
+      node = makeFormatNode(type);
+    }
+    node.setAttribute("data-md", type);
+
+    if (range.collapsed) {
+      node.textContent = "текст";
+      range.insertNode(node);
+      const r = document.createRange();
+      r.selectNodeContents(node);
+      sel.removeAllRanges();
+      sel.addRange(r);
+    } else {
+      try {
+        range.surroundContents(node);
+      } catch {
+        const frag = range.extractContents();
+        node.appendChild(frag);
+        range.insertNode(node);
+      }
+      sel.removeAllRanges();
+    }
+    emit();
+  }
+
+  function openMenuAt(x: number, y: number) {
+    elRef.current?.focus();
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.getRangeAt(0).collapsed) {
+      selectWordAtPoint(x, y);
+    }
+    setMenu({ x, y });
+  }
+
+  useImperativeHandle(ref, () => ({
+    focus: () => elRef.current?.focus(),
+    applyFormat,
+    insertText: (t: string) => exec("insertText", t),
+    openMenuAt,
+    getValue: () => (elRef.current ? htmlToMarkdown(elRef.current) : value),
+  }));
+
+  const handlers = {
+    undo: () => exec("undo"),
+    redo: () => exec("redo"),
+    cut: () => exec("cut"),
+    copy: () => {
+      const t = window.getSelection()?.toString() ?? "";
+      if (t) navigator.clipboard?.writeText(t).catch(() => {});
+    },
+    paste: async () => {
+      try {
+        const t = await navigator.clipboard.readText();
+        if (t) exec("insertText", t);
+      } catch {
+        exec("paste");
+      }
+    },
+    del: () => exec("delete"),
+    selectAll: () => exec("selectAll"),
+    format: (t: MarkdownType) => applyFormat(t),
+  };
+
   const clearLp = () => {
     if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
   };
@@ -236,7 +209,6 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
         className={`rich-editor ${className}`}
         onInput={() => { commitPatternsAtCaret(); normalizeEmpty(); emit(); }}
         onKeyDown={(e) => {
-          // хоткеи форматирования
           if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
             const k = e.key.toLowerCase();
             if (k === "b") { e.preventDefault(); applyFormat("bold"); return; }
@@ -245,49 +217,46 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
           }
           onKeyDown?.(e);
         }}
-        // ❗️ Полностью глушим нативное меню (ПК + телефоны)
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
           openMenuAt(e.clientX, e.clientY);
         }}
         onPointerDown={(e) => {
-        if (e.pointerType === "touch") {
-            // Предотвращаем нативный long-press iOS/Android
-            e.preventDefault();
+          if (e.pointerType === "touch") {
             lpPos.current = { x: e.clientX, y: e.clientY };
             clearLp();
             lpTimer.current = setTimeout(() => openMenuAt(lpPos.current.x, lpPos.current.y), 350);
-        }
+          }
         }}
         onPointerUp={clearLp}
         onPointerMove={clearLp}
         onPointerLeave={clearLp}
       />
 
-{menu && (
-  <RichContextMenu
-    x={menu.x}
-    y={menu.y}
-    items={[...buildRichMenuItems(handlers), ...(extraMenuItems ?? [])]}
-    onClose={() => setMenu(null)}
-    zIndex={9998} // ← ВЫШЕ z-50 меню +
-  />
-)}
+      {menu && (
+        <RichContextMenu
+          x={menu.x}
+          y={menu.y}
+          items={[...buildRichMenuItems(handlers), ...(extraMenuItems ?? [])]}
+          onClose={() => setMenu(null)}
+          zIndex={9998}
+        />
+      )}
 
-      <style jsx>{`
-.rich-editor {
-  -webkit-touch-callout: none;
-  -webkit-user-select: text;
-  user-select: text;
-  word-break: break-word;
-  white-space: pre-wrap;
-}
-/* Разрешаем выделение только внутри выделенных нами слов */
-.rich-editor ::selection {
-  background: rgba(139, 92, 246, 0.4);
-  color: white;
-}
+      {/* ❗ ВАЖНО: global — иначе стили не доходят до динамически созданных узлов */}
+      <style jsx global>{`
+        .rich-editor {
+          -webkit-touch-callout: none;
+          word-break: break-word;
+          white-space: pre-wrap;
+          caret-color: #fff;
+        }
+        .rich-editor:empty::before {
+          content: attr(data-placeholder);
+          color: rgba(255, 255, 255, 0.4);
+          pointer-events: none;
+        }
         .rich-editor:focus { outline: none; }
         .rich-editor strong { font-weight: 700; }
         .rich-editor em { font-style: italic; }
@@ -305,9 +274,9 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
           border-radius: 4px;
         }
         .rich-editor a { color: #8b5cf6; text-decoration: underline; }
-                @media (pointer: coarse) {
+        .rich-editor ::selection { background: rgba(139, 92, 246, 0.4); color: #fff; }
+        @media (pointer: coarse) {
           .rich-editor {
-            -webkit-touch-callout: none;
             -webkit-user-select: none;
             user-select: none;
             touch-action: manipulation;
