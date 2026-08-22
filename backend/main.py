@@ -4627,6 +4627,9 @@ def startup():
     with engine.connect() as conn:
         try:
 
+            conn.execute(text("ALTER TABLE badge ADD COLUMN IF NOT EXISTS enable_ring BOOLEAN DEFAULT TRUE;"))
+            conn.execute(text("ALTER TABLE badge ADD COLUMN IF NOT EXISTS enable_glow BOOLEAN DEFAULT TRUE;"))
+
             # 🆕 Добавляем колонку для выбранного значка и создаем таблицу значков
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS selected_badge_id INTEGER;'))
             conn.execute(text("""

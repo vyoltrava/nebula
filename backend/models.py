@@ -398,9 +398,14 @@ class Badge(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=60)
     icon_url: str
-    glow_color: Optional[str] = Field(default=None)  # 🆕 Теперь может быть пустым (будет браться цвет роли)
-    effect_type: str = Field(default="none", max_length=20)
+    glow_color: Optional[str] = Field(default=None)  # Цвет свечения (null = цвет роли)
+    effect_type: str = Field(default="none", max_length=20)  # none, gold, pulse
+    
+    # 🆕 Настройки эффектов
+    enable_ring: bool = Field(default=True)  # Включить вращающееся кольцо
+    enable_glow: bool = Field(default=True)  # Включить пульсацию свечения
+    
     role_id: Optional[int] = Field(default=None, foreign_key="role.id")
-    user_id: Optional[int] = Field(default=None, foreign_key="user.id")  # 🆕 Конкретный пользователь
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id")
     is_selectable: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utcnow)

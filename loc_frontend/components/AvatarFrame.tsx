@@ -5,7 +5,7 @@ interface AvatarFrameProps {
   children: ReactNode;
   user: any;
   size?: number;
-  availableBadges?: any[]; // 🆕 Список всех доступных значков
+  availableBadges?: any[];
 }
 
 export function AvatarFrame({ children, user, size = 128, availableBadges = [] }: AvatarFrameProps) {
@@ -13,11 +13,11 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [] }
 
   const level = user.level ?? (user.username === "trelod" ? 11 : user.is_admin ? 10 : user.is_moderator ? 9 : user.role?.level ?? 1);
 
-  // 🎯 1. Ищем активный значок: либо выбранный пользователем, либо привязанный к его роли
+  // Ищем активный значок
   const userBadge = availableBadges.find((b: any) => b.id === user.selected_badge_id) || 
                     availableBadges.find((b: any) => b.role_id === user.role?.id);
 
-  // 🎯 2. Если значка нет, используем старую логику по уровням (fallback)
+  // Если значка нет — старая логика по уровням
   if (!userBadge) {
     if (level <= 5) return <>{children}</>;
     if (level <= 7) return <Level67Effect user={user}>{children}</Level67Effect>;
@@ -28,29 +28,18 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [] }
     return <>{children}</>;
   }
 
-  // 🎯 3. Рендер кастомного значка с эффектами
+  // 🎯 РЕНДЕР КАСТОМНОГО ЗНАЧКА (как у Founder)
   const glowColor = userBadge.glow_color || user.role?.color || "#8b5cf6";
   
-  let glowFilter = `drop-shadow(0 0 8px ${glowColor}99) drop-shadow(0 0 16px ${glowColor}44)`;
-  let animationClass = "";
-
-  if (userBadge.effect_type === "gold") {
-    glowFilter = `drop-shadow(0 0 10px rgba(255, 215, 0, 0.9)) drop-shadow(0 0 20px rgba(255, 215, 0, 0.5))`;
-    animationClass = "animate-pulse";
-  } else if (userBadge.effect_type === "pulse") {
-    glowFilter = `drop-shadow(0 0 12px rgba(255, 255, 255, 0.9)) drop-shadow(0 0 24px rgba(255, 255, 255, 0.6))`;
-    animationClass = "animate-ping-slow";
-  }
-
   return (
     <div className="relative">
-      {/* Кольцо уровня (опционально, можно убрать, если значок самодостаточен) */}
-      {level >= 6 && !userBadge.effect_type && (
+      {/* 🆕 ВРАЩАЮЩЕЕСЯ КОЛЬЦО (если включено) */}
+      {userBadge.enable_ring && (
         <div
-          className="absolute -inset-[4px] rounded-full animate-spin-slow"
+          className="absolute -inset-[5px] rounded-full animate-spin-slow"
           style={{
             background: `conic-gradient(from 0deg, ${glowColor}, ${glowColor}80, transparent, ${glowColor}80, ${glowColor})`,
-            filter: `drop-shadow(0 0 8px ${glowColor}80)`,
+            filter: `drop-shadow(0 0 20px ${glowColor}99)`,
           }}
         />
       )}
@@ -60,18 +49,32 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [] }
         {children}
       </div>
 
-      {/* 🆕 ЗНАЧОК С ДИНАМИЧЕСКИМ СВЕЧЕНИЕМ */}
+      {/* 🆕 ПУЛЬСАЦИЯ СВЕЧЕНИЯ (если включено) */}
+      {userBadge.enable_glow && (
+        <div 
+          className="absolute -bottom-2 -right-2 w-9 h-9 pointer-events-none select-none z-10"
+          style={{ 
+            animation: "pulse-glow 2s ease-in-out infinite",
+          }}
+        >
+          <div 
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: `radial-gradient(circle, ${glowColor}60 0%, transparent 70%)`,
+              filter: `blur(4px)`,
+            }}
+          />
+        </div>
+      )}
+
+      {/* 🆕 ЗНАЧОК СВЕРХУ ПО ЦЕНТРУ (как у Founder) */}
       <div 
-        className={`absolute -bottom-2 -right-2 w-9 h-9 pointer-events-none select-none z-10 ${animationClass}`}
-        style={{ 
-          filter: glowFilter,
-          animation: userBadge.effect_type === "pulse" ? "ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite" : undefined 
-        }}
+        className="absolute -top-4 left-1/2 -translate-x-1/2 w-9 h-9 animate-bounce-slow pointer-events-none select-none z-10"
       >
         <img
           src={userBadge.icon_url}
           alt={userBadge.name}
-          className="w-full h-full object-contain"
+          className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
           draggable={false}
         />
       </div>
@@ -79,7 +82,7 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [] }
   );
 }
 
-// === СТАРЫЕ ЭФФЕКТЫ (Fallback, если у пользователя нет бейджа, но есть уровень) ===
+// === СТАРЫЕ ЭФФЕКТЫ (Fallback) ===
 function Level67Effect({ user, children }: { user: any; children: ReactNode }) {
   const color = user.role?.color || "#8b5cf6";
   return (
