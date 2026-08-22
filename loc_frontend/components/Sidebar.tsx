@@ -5,10 +5,13 @@ import Link from "next/link";
 import {
   Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus,
   AtSign, X, Shield, ShieldCheck, MessageSquare, Palette,
-  Bug, Orbit, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft, ChevronRight, History, BookOpen, Headphones
+  Bug, Orbit, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft, 
+  ChevronRight, History, BookOpen, Headphones, Users
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
+import { AccountSwitcher } from "@/components/AccountSwitcher";
+
 import { BugReportModal } from "@/components/BugReportModal";
 import { getCachedUser, setCachedUser, clearCachedUser } from "@/lib/authCache";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
@@ -392,7 +395,7 @@ const continueConfig = lastReadPost
 
   const [layout, setLayout] = useState<SidebarLayout>(() => getSidebarLayout());
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
-
+  const [showOrbitSwitcher, setShowOrbitSwitcher] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
@@ -443,8 +446,13 @@ const continueConfig = lastReadPost
       label: user?.is_admin ? t("nav.admin") : user?.is_moderator ? t("nav.moderation") : t("nav.adminPanel"),
     });
   }
-  if (user) outerItems.push({ href: "#logout", icon: LogOut, label: t("nav.logout") });
-  else outerItems.push({ href: "/login", icon: Home, label: t("nav.login") });
+  
+  if (user) {
+    outerItems.push({ href: "#switch-account", icon: Users, label: t("account.switchAccount") });
+    outerItems.push({ href: "#logout", icon: LogOut, label: t("nav.logout") });
+  } else {
+    outerItems.push({ href: "/login", icon: Home, label: t("nav.login") });
+  }
 
   const wheelItems = [...innerItems, ...outerItems];
   const itemLayerMap = new Map<number, { layer: "inner" | "outer"; localIdx: number }>();
@@ -576,7 +584,10 @@ const continueConfig = lastReadPost
     else if (doAction && hoveredIdx !== null) {
       const item = wheelItems[hoveredIdx];
       if (item) {
-        if (item.href === "#logout") {
+        if (item.href === "#switch-account") {
+          setShowOrbitSwitcher(true);
+          return; // Обязательно return, чтобы код не пошёл дальше и не вышел из аккаунта
+        } else if (item.href === "#logout") {
           clearToken(); setUser(null); clearCachedUser(); router.push("/");
         } else if (item.href === "#bug") {
           setShowBugModal(true);
@@ -987,7 +998,7 @@ const continueConfig = lastReadPost
 
         {/* Профиль и Выход */}
         {user ? (
-          <div className={isDock ? "flex flex-col items-center gap-2" : "px-2"}>
+          <div className={isDock ? "flex flex-col items-center gap-2 px-2" : "px-2"}>
             <Link href={`/${user.username}`}
               className={`flex ${isDock ? "justify-center" : "items-center gap-3 px-2 py-2"} rounded-lg hover:bg-white/5 transition-all cursor-pointer group w-full`}>
               <div className="shrink-0" style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}>
@@ -1002,35 +1013,10 @@ const continueConfig = lastReadPost
                   <p className="text-sm text-white/40 truncate">@{user.username}</p>
                 </div>
               )}
-              {/* Кнопка ВЫЙТИ внутри профиля (Classic) */}
-              {!isDock && (
-                <button 
-                  onClick={(e) => { 
-                    e.preventDefault(); 
-                    e.stopPropagation(); 
-                    clearToken(); 
-                    setUser(null); 
-                    clearCachedUser(); 
-                    router.push("/");
-                  }}
-                  className="shrink-0 p-1.5 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/20 transition-all" 
-                  title={t("nav.logout")}
-                >
-                  <LogOut size={18} />
-                </button>
-              )}
             </Link>
             
-            {/* Кнопка ВЫЙТИ отдельной иконкой (Dock) */}
-            {isDock && (
-              <button 
-                onClick={() => { clearToken(); setUser(null); clearCachedUser(); router.push("/"); }}
-                className="flex justify-center items-center w-full py-2 text-white/40 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all shrink-0"
-                title={t("nav.logout")}
-              >
-                <LogOut size={20} className="shrink-0" />
-              </button>
-            )}
+            {/* 🆕 МУЛЬТИ-АККАУНТ SWITCHER */}
+            <AccountSwitcher variant={isDock ? "dock" : "classic"} />
           </div>
         ) : (
           !isDock && (
@@ -1369,6 +1355,15 @@ const continueConfig = lastReadPost
       {showBugModal && <BugReportModal onClose={() => setShowBugModal(false)} />}
       {showSearch && <MobileSearch onClose={() => setShowSearch(false)} />}
       {showLayoutPicker && <LayoutPicker current={layout} onClose={() => setShowLayoutPicker(false)} />}
+      
+      {/* 🆕 СМЕНА АККАУНТА */}
+      {showOrbitSwitcher && (
+        <AccountSwitcher 
+          variant="orbit" 
+          isOpen={showOrbitSwitcher} 
+          onClose={() => setShowOrbitSwitcher(false)} 
+        />
+      )}
     </>
   );
 }

@@ -683,6 +683,14 @@ export const uk = {
     gotIt: "Зрозуміло",
   },
 
+  account: {
+    accounts: "Акаунти",
+    addAccount: "Додати акаунт",
+    logoutAll: "Вийти з усіх акаунтів",
+    logoutAllConfirm: "Вийти з усіх акаунтів? Усі активні сесії буде завершено.",
+    switchAccount: "Змінити акаунт",
+  },
+
 
 
 };

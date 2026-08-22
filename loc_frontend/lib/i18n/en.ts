@@ -684,4 +684,14 @@ export const en: Dictionary = {
     ios: "iOS (Safari): 'aA' button → 'Site settings' → enable access",
     gotIt: "Got it",
   },
+
+    account: {
+    accounts: "Accounts",
+    addAccount: "Add account",
+    logoutAll: "Log out of all accounts",
+    logoutAllConfirm: "Log out of all accounts? All active sessions will be terminated.",
+    switchAccount: "Switch account",
+  },
+
+
 };

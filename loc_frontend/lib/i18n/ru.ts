@@ -684,6 +684,13 @@ export const ru: Dictionary = {
     gotIt: "Понятно",
   },
 
+    account: {
+    accounts: "Аккаунты",
+    addAccount: "Добавить аккаунт",
+    logoutAll: "Выйти из всех аккаунтов",
+    logoutAllConfirm: "Выйти из всех аккаунтов? Все активные сессии будут завершены.",
+    switchAccount: "Сменить аккаунт",
+  },
 
 
 
