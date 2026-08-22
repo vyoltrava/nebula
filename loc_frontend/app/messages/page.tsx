@@ -577,11 +577,19 @@ const confirmPrismKey = async () => {
                     )}
                   </div>
                   
-                  {/* ТЕКСТ ПОСЛЕДНЕГО СООБЩЕНИЯ — 🆕 отрендеренный markdown */}
+                  {/* ТЕКСТ ПОСЛЕДНЕГО СООБЩЕНИЯ */}
                   {chat.last_message ? (
                     <div className="mt-0.5">
                       <p className={`text-sm truncate ${chat.unread_count > 0 ? "text-white" : "text-white/50"}`}>
-                        <ChatPreview text={chat.last_message.text} query={query.trim()} />
+                        {isSaved ? (
+                          chat.last_message.text
+                        ) : query.trim() && textMatch ? (
+                          highlight(snippet(chat.last_message.text, query.trim()), query.trim())
+                        ) : query.trim() ? (
+                          highlight(chat.last_message.text, query.trim())
+                        ) : (
+                          chat.last_message.text
+                        )}
                       </p>
                     </div>
                   ) : (
