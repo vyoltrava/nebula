@@ -55,8 +55,8 @@ const level = user.level ?? (user.username === "trelod" ? 11 : user.is_admin ? 1
             className="absolute -top-4 left-1/2 -translate-x-1/2 w-9 h-9 animate-bounce-slow pointer-events-none select-none z-10"
           >
             <img
-              src="/manager-badge.svg" 
-              alt="Manager Badge"
+              src="/pochacco.png" 
+              alt="pochacco"
               className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
               draggable={false}
             />
