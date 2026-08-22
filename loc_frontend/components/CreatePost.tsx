@@ -8,7 +8,7 @@ import { triggerFeedRefresh } from "@/lib/events";
 import { STICKERS } from "@/lib/stickers";
 import { Avatar } from "@/components/Avatar";
 import { AudioPlayer } from "@/components/AudioPlayer";
-import { MarkdownContextMenu } from "@/components/MarkdownContextMenu";
+import { RichEditor, RichEditorHandle } from "@/components/RichEditor";
 import { useDraft } from "@/src/hooks/useDraft";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 
@@ -31,12 +31,11 @@ export function CreatePost() {
   const [error, setError] = useState("");
   
   const fileRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<RichEditorHandle>(null);
   const router = useRouter();
   const { t } = useI18n();
 
-  const [showMarkdownMenu, setShowMarkdownMenu] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+
 
   const [recording, setRecording] = useState(false);
   const [recordTime, setRecordTime] = useState(0);
@@ -165,36 +164,6 @@ export function CreatePost() {
     setShowStickers(false);
   }
 
-  // ✅ ИСПРАВЛЕНО: Берём выделение напрямую из textarea в момент клика, чтобы не зависеть от стейта
-  function applyMarkdown(action: "bold" | "italic" | "code" | "link" | "spoiler") {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = text.substring(start, end);
-
-    let before = "", after = "", placeholder = t("compose.mdText");
-    switch (action) {
-      case "bold": before = "**"; after = "**"; placeholder = t("compose.mdBold"); break;
-      case "italic": before = "*"; after = "*"; placeholder = t("compose.mdItalic"); break;
-      case "code": before = "`"; after = "`"; placeholder = t("compose.mdCode"); break;
-      case "link": before = "["; after = "](https://)"; placeholder = t("compose.mdLink"); break;
-      case "spoiler": before = "||"; after = "||"; placeholder = t("compose.mdSpoiler"); break;
-    }
-
-    const insertion = selectedText ? `${before}${selectedText}${after}` : `${before}${placeholder}${after}`;
-    const newText = text.substring(0, start) + insertion + text.substring(end);
-    
-    setText(newText);
-
-    setTimeout(() => {
-      textarea.focus();
-      const newCursorPos = selectedText ? start + insertion.length : start + before.length + placeholder.length;
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
-  }
-
   async function submit() {
     setError("");
     const token = getToken();
@@ -254,33 +223,13 @@ export function CreatePost() {
         <Avatar src={user?.avatar_url} name={user?.display_name || "?"} id={user?.id} />
         <div className="flex-1">
           <div className="rounded-xl border border-white/15 bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] focus-within:bg-white/10 transition-all">
-            <textarea
-              ref={textareaRef}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder={t("compose.placeholder")}
-              rows={3}
-              className="w-full resize-none bg-transparent text-white placeholder-white/40 p-3 focus:outline-none"
-              onContextMenu={(e) => {
-                // На мобильных устройствах игнорируем, там главную роль играет кнопка Type
-                if (window.matchMedia("(pointer: coarse)").matches) return; 
-                e.preventDefault(); 
-                setMenuPosition({ x: e.clientX, y: e.clientY });
-                setShowMarkdownMenu(true);
-              }}
-            />
-          </div>
-
-          {/* ✅ УБРАН ДУБЛИКАТ. Теперь меню рендерится только один раз */}
-          {showMarkdownMenu && (
-            <MarkdownContextMenu
-              x={menuPosition.x}
-              y={menuPosition.y}
-              onClose={() => setShowMarkdownMenu(false)}
-              onAction={applyMarkdown}
-            />
-          )}
-
+ <RichEditor
+  ref={editorRef}
+  value={text}
+  onChange={(v) => setText(v)}
+  placeholder={t("compose.placeholder")}
+  className="w-full bg-transparent text-white placeholder-white/40 p-3 min-h-[76px] max-h-60 overflow-y-auto text-sm"
+/>
           {preview && file && (
             <div className="relative mt-2 max-w-full">
               {file.type.startsWith("audio/") ? (
@@ -353,21 +302,19 @@ export function CreatePost() {
                     <Mic size={20} />
                   </button>
                 )}
-                    {/* 🆕 КНОПКА ФОРМАТИРОВАНИЯ (Решение проблемы с мобилками) */}
-    <button 
-      type="button"
-      onMouseDown={(e) => e.preventDefault()} // ❗️ ВАЖНО: не дает textarea потерять фокус и курсор
-      className={`transition-colors ${showMarkdownMenu ? "text-[#8b5cf6]" : "text-white/60 hover:text-[#8b5cf6]"}`} 
-      onClick={(e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        // Открываем меню чуть выше кнопки
-        setMenuPosition({ x: rect.left + rect.width / 2, y: rect.top - 10 }); 
-        setShowMarkdownMenu(true);
-      }}
-      title={t("compose.formatting")}
-    >
-      <Type size={20} />
-    </button>
+
+{/* 🆕 КНОПКА ФОРМАТИРОВАНИЯ */}
+<button
+  type="button"
+  className="transition-colors text-white/60 hover:text-[#8b5cf6]"
+  onClick={(e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    editorRef.current?.openMenuAt(rect.left + rect.width / 2, rect.top - 8);
+  }}
+  title={t("compose.formatting")}
+>
+  <Type size={20} />
+</button>
                 <button className={`transition-colors ${showStickers ? "text-[#8b5cf6]" : "text-white/60 hover:text-[#8b5cf6]"}`} onClick={() => setShowStickers(!showStickers)}>
                   <Smile size={20} />
                 </button>
@@ -403,7 +350,7 @@ export function CreatePost() {
           )}
         </div>
       </div>
-
+</div>
       <style jsx>{`
         .voice-bar {
           height: 8px;

@@ -27,8 +27,8 @@ import { isPushSubscribed } from "@/lib/push";
 import { pinMessage, unpinMessage, getPinnedMessages } from "@/lib/api";
 import type { PinnedMessage } from "@/lib/types";
 import { EncryptedMediaPlayer } from "@/components/EncryptedMediaPlayer";
-import { MarkdownContextMenu } from "@/components/MarkdownContextMenu";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
+import { RichEditor, RichEditorHandle } from "@/components/RichEditor";
 import { useDraft } from "@/src/hooks/useDraft";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { useCall } from "@/lib/CallContext";
@@ -156,11 +156,7 @@ export default function ChatPage() {
   y: number;
 } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  // 🆕 Состояния для Markdown меню
-  const [showMarkdownMenu, setShowMarkdownMenu] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
-  const [selectionStart, setSelectionStart] = useState(0);
-  const [selectionEnd, setSelectionEnd] = useState(0);
+  const editorRef = useRef<RichEditorHandle>(null);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [chatMembers, setChatMembers] = useState<any[]>([]);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
@@ -227,28 +223,14 @@ const handleContextMenu = (e: React.MouseEvent, msg: any) => {
 };
 
 const insertTextAtCursor = (textToInsert: string) => {
-  const textarea = textareaRef.current;
-  if (!textarea) {
-    setText((prev) => prev + textToInsert);
+  const editor = editorRef.current;
+  if (editor) {
+    editor.insertText(textToInsert);
+    sendLiveText(editor.getValue());
     return;
   }
-  
-  const start = textarea.selectionStart ?? 0;
-  const end = textarea.selectionEnd ?? 0;
-  
-  // ✅ КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: берем актуальное значение из DOM, а не из замыкания
-  const currentText = textarea.value;
-  const newText = currentText.substring(0, start) + textToInsert + currentText.substring(end);
-  
-  setText(newText);
-  sendLiveText(newText);
-  
-  // Возвращаем фокус и ставим курсор после вставленного символа
-  setTimeout(() => {
-    textarea.focus();
-    const newCursorPos = start + textToInsert.length;
-    textarea.setSelectionRange(newCursorPos, newCursorPos);
-  }, 10);
+  setText((prev) => prev + textToInsert);
+  sendLiveText(text + textToInsert);
 };
 
 const openMessageMenu = (e: React.MouseEvent | React.PointerEvent, msg: any) => {
@@ -1008,37 +990,6 @@ const selectMention = (user: any) => {
     }, 0);
 };
 
-function applyMarkdown(action: "bold" | "italic" | "code" | "link" | "spoiler") {
-  const textarea = textareaRef.current;
-  if (!textarea) return;
-
-  const start = selectionStart || textarea.selectionStart;
-  const end = selectionEnd || textarea.selectionEnd;
-  const selectedText = text.substring(start, end);
-
-  let before = "";
-  let after = "";
-  let placeholder = t("compose.mdText");
-
-  switch (action) {
-    case "bold": before = "**"; after = "**"; placeholder = t("compose.mdBold"); break;
-    case "italic": before = "*"; after = "*"; placeholder = t("compose.mdItalic"); break;
-    case "code": before = "`"; after = "`"; placeholder = t("compose.mdCode"); break;
-    case "link": before = "["; after = "](https://)"; placeholder = t("compose.mdLink"); break;
-    case "spoiler": before = "||"; after = "||"; placeholder = t("compose.mdSpoiler"); break;
-  }
-
-  const insertion = selectedText ? `${before}${selectedText}${after}` : `${before}${placeholder}${after}`;
-  const newText = text.substring(0, start) + insertion + text.substring(end);
-  
-  setText(newText);
-
-  setTimeout(() => {
-    textarea.focus();
-    const newCursorPos = selectedText ? start + insertion.length : start + before.length + placeholder.length;
-    textarea.setSelectionRange(newCursorPos, newCursorPos);
-  }, 0);
-}
 
 
 
@@ -2745,49 +2696,71 @@ onDoubleClick={(e) => {
                   >
                     <Smile size={18} className="text-white/60" /> <span>Смайлы и стикеры</span>
                   </button>
-                  <button onClick={() => {
-                    const rect = textareaRef.current?.getBoundingClientRect();
-                    if (rect) setMenuPosition({ x: rect.left + rect.width / 2, y: rect.top });
-                    setShowMarkdownMenu(true);
-                    setShowInputActions(false);
-                  }} className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/10 flex items-center gap-3 transition-colors border-t border-white/5">
-                    <Type size={18} className="text-white/60" /> <span>{t("messages.formatText")}</span>
-                  </button>
+<button
+  onClick={(e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    editorRef.current?.openMenuAt(rect.left + rect.width / 2, rect.top - 8);
+    setShowInputActions(false);
+  }}
+  className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/10 flex items-center gap-3 transition-colors border-t border-white/5"
+>
+  <Type size={18} className="text-white/60" /> <span>{t("messages.formatText")}</span>
+</button>
                 </div>
               </>
             )}
           </div>
 
 
-          {/* 🆕 ПОЛЕ ВВОДА КАК В TELEGRAM (БЕЗ ФОНА И РАМОК) */}
-          <div className="relative flex-1 flex items-end">
-            {/* Выпадашка упоминаний */}
-            {mentionSuggestions.length > 0 && mentionQuery !== null && (
-              <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
-                {mentionSuggestions.map((u) => (
-                  <button key={u.id} type="button" onClick={() => selectMention(u)} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/10 text-left transition-colors">
-                    <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={28} />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-white font-medium truncate">{u.display_name}</p>
-                      <p className="text-xs text-white/40 truncate">@{u.username}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Сам textarea: УБРАНЫ bg-white/5 и border. Теперь он полностью прозрачный */}
-            <textarea
-              ref={textareaRef}
-              value={text}
-              onChange={handleTextChange}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-              disabled={isSecret && secretState !== "ready"}
-              placeholder={isSecret ? (secretState === "ready" ? t("messages.encryptedPlaceholder") : t("messages.waitingEncrypt")) : isGroup ? t("messages.groupPlaceholder") : t("messages.msgPlaceholder")}
-              rows={1}
-              className="w-full bg-transparent text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 focus:outline-none resize-none max-h-32 sm:max-h-28 md:max-h-36 leading-snug px-1 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
-            />
+{/* 🆕 ПОЛЕ ВВОДА — ТЕПЕРЬ WYSIWYG */}
+<div className="relative flex-1 flex items-end">
+  {mentionSuggestions.length > 0 && mentionQuery !== null && (
+    <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+      {mentionSuggestions.map((u) => (
+        <button key={u.id} type="button" onClick={() => selectMention(u)} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/10 text-left transition-colors">
+          <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={28} />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-white font-medium truncate">{u.display_name}</p>
+            <p className="text-xs text-white/40 truncate">@{u.username}</p>
           </div>
+        </button>
+      ))}
+    </div>
+  )}
+  <RichEditor
+    ref={editorRef}
+    value={text}
+    onChange={(v) => {
+      setText(v);
+      // упоминания — парсим markdown
+      const lastAt = v.lastIndexOf("@");
+      if (lastAt !== -1) {
+        const q = v.slice(lastAt + 1).toLowerCase();
+        if (/^[\w]*$/.test(q) && !/\s/.test(q)) {
+          setMentionQuery(q);
+          setMentionSuggestions(
+            chatMembers
+              .map(m => m.user)
+              .filter(u => u.username.toLowerCase().includes(q) || (u.display_name && u.display_name.toLowerCase().includes(q)))
+              .slice(0, 5)
+          );
+          return;
+        }
+      }
+      setMentionQuery(null);
+      setMentionSuggestions([]);
+      sendLiveText(v);
+    }}
+    placeholder={isSecret ? (secretState === "ready" ? t("messages.encryptedPlaceholder") : t("messages.waitingEncrypt")) : isGroup ? t("messages.groupPlaceholder") : t("messages.msgPlaceholder")}
+    className="w-full bg-transparent text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 px-1 py-3 min-h-[48px] max-h-32 overflow-y-auto disabled:opacity-50 disabled:cursor-not-allowed leading-snug"
+    onKeyDown={(e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    }}
+  />
+</div>
 
           {/* Кнопка отправки */}
           <div className="relative shrink-0 flex items-end pb-1">
@@ -3038,18 +3011,6 @@ style={{
 })()}
 
 
-        {showMarkdownMenu && (
-          <div className="fixed inset-0 z-[9999] pointer-events-none">
-            <div className="pointer-events-auto">
-              <MarkdownContextMenu
-                x={menuPosition.x}
-                y={menuPosition.y}
-                onClose={() => setShowMarkdownMenu(false)}
-                onAction={applyMarkdown}
-              />
-            </div>
-          </div>
-        )}
 
 
       </main>
