@@ -169,6 +169,59 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
     getValue: () => (elRef.current ? htmlToMarkdown(elRef.current) : value),
   }));
 
+
+  /* 🆕 создаёт DOM-узел формата */
+  function makeFormatNode(type: MarkdownType): HTMLElement {
+    let el: HTMLElement;
+    switch (type) {
+      case "bold": el = document.createElement("strong"); break;
+      case "italic": el = document.createElement("em"); break;
+      case "code": el = document.createElement("code"); break;
+      default: el = document.createElement("span"); break; // spoiler
+    }
+    el.setAttribute("data-md", type);
+    return el;
+  }
+
+  /* 🆕 допечатал закрывающий символ (**, *, `, ||) — сырой текст СРАЗУ становится оформленным */
+  function commitPatternsAtCaret() {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    const node = range.startContainer;
+    if (node.nodeType !== Node.TEXT_NODE) return;
+    if ((node.parentElement as HTMLElement)?.closest("[data-md]")) return; // уже внутри формата
+    const text = node.textContent ?? "";
+    const caret = range.startOffset;
+    const before = text.slice(0, caret);
+    const patterns: { re: RegExp; type: MarkdownType }[] = [
+      { re: /\|\|([^|\n]+)\|\|$/, type: "spoiler" },
+      { re: /\*\*([^*\n]+)\*\*$/, type: "bold" },
+      { re: /\*([^*\n]+)\*$/, type: "italic" },
+      { re: /`([^`\n]+)`$/, type: "code" },
+    ];
+    for (const p of patterns) {
+      const m = before.match(p.re);
+      if (!m) continue;
+      const inner = m[1];
+      const s = caret - (inner.length + 2);
+      if (s < 0) continue;
+      const r = document.createRange();
+      r.setStart(node, s);
+      r.setEnd(node, caret);
+      const el = makeFormatNode(p.type);
+      el.textContent = inner;
+      r.deleteContents();
+      r.insertNode(el);
+      const nr = document.createRange();
+      nr.setStartAfter(el);
+      nr.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(nr);
+      return;
+    }
+  }
+
   const clearLp = () => {
     if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
   };
@@ -181,7 +234,7 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
         suppressContentEditableWarning
         data-placeholder={placeholder}
         className={`rich-editor ${className}`}
-        onInput={() => { normalizeEmpty(); emit(); }}
+        onInput={() => { commitPatternsAtCaret(); normalizeEmpty(); emit(); }}
         onKeyDown={(e) => {
           // хоткеи форматирования
           if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
@@ -247,14 +300,9 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
           color: #c4b5fd;
         }
         .rich-editor [data-md="spoiler"] {
-          color: transparent;
-          caret-color: #fff;
-          background-color: #8f8f8f;
-          background-image:
-            repeating-conic-gradient(rgba(255,255,255,0.30) 0% 25%, transparent 0% 50%),
-            repeating-conic-gradient(rgba(0,0,0,0.40) 0% 25%, transparent 0% 50%);
-          background-size: 9px 9px, 14px 14px;
-          border-radius: 2px;
+          filter: blur(6px);
+          opacity: .7;
+          border-radius: 4px;
         }
         .rich-editor a { color: #8b5cf6; text-decoration: underline; }
                 @media (pointer: coarse) {

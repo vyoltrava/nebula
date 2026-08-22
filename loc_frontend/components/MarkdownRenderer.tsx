@@ -165,19 +165,19 @@ export function MarkdownRenderer({ text, isMessage = false }: { text: string; is
                 </a>
               );
             },
-// Обработка спойлеров — 🆕 пиксельная мозаика как в аниме
+// Обработка спойлеров — 🆕 размытие, клик = раскрыть
 span: ({ node, className, children, ...props }) => {
   if (className === "md-spoiler") {
     return (
       <span
-        className="spoiler-pixel"
+        className="spoiler-blur"
         title="Нажми, чтобы раскрыть"
         onClick={(e) => {
           e.stopPropagation();
           e.currentTarget.classList.add("revealed");
         }}
       >
-        <span className="spoiler-pixel-content">{children}</span>
+        {children}
       </span>
     );
   }
@@ -215,32 +215,21 @@ span: ({ node, className, children, ...props }) => {
           }
         }
 
-        /* 🆕 СПОЙЛЕР-МОЗАИКА: серые квадратики вместо блока */
-        .spoiler-pixel {
+        /* 🆕 СПОЙЛЕР-РАЗМЫТИЕ */
+        .spoiler-blur {
           cursor: pointer;
+          filter: blur(6px);
+          opacity: .7;
+          border-radius: 4px;
+          transition: filter .2s ease, opacity .2s ease;
         }
-        .spoiler-pixel:not(.revealed) {
+        .spoiler-blur:not(.revealed) {
           user-select: none;
           -webkit-user-select: none;
         }
-        .spoiler-pixel-content {
-          color: transparent;               /* текст скрыт */
-          background-color: #8f8f8f;        /* базовый серый */
-          background-image:
-            repeating-conic-gradient(rgba(255,255,255,0.30) 0% 25%, transparent 0% 50%),
-            repeating-conic-gradient(rgba(0,0,0,0.40) 0% 25%, transparent 0% 50%);
-          background-size: 9px 9px, 14px 14px;  /* разный размер клеток = "рандом" */
-          border-radius: 2px;
-          -webkit-box-decoration-break: clone;  /* мозаика продолжается на переносах */
-          box-decoration-break: clone;
-          transition: filter .15s;
-        }
-        .spoiler-pixel:not(.revealed):hover .spoiler-pixel-content {
-          filter: brightness(1.15);         /* лёгкая подсветка при наведении */
-        }
-        .spoiler-pixel.revealed .spoiler-pixel-content {
-          color: inherit;                   /* показываем текст */
-          background: none;                 /* убираем мозаику */
+        .spoiler-blur.revealed {
+          filter: none;
+          opacity: 1;
         }
       `}</style>
       {menu && (
