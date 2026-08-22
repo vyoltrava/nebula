@@ -9091,14 +9091,12 @@ async def create_badge(
     session.refresh(badge)
     return {"ok": True, "id": badge.id}
 
-
 @app.post("/api/me/badge")
 def select_my_badge(
     badge_id: Optional[int] = Form(None),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Пользователь выбирает значок или снимает его"""
     if badge_id:
         badge = session.get(Badge, badge_id)
         if not badge:
@@ -9114,9 +9112,8 @@ def select_my_badge(
             raise HTTPException(403, "У вас нет прав на этот значок")
         
         user.selected_badge_id = badge_id
-        # При выборе стокового — кастомный НЕ трогаем, он просто не рендерится
+        user.custom_badge_url = None  # 🆕 СБРАСЫВАЕМ КАСТОМНЫЙ ПРИ ВЫБОРЕ СТОКОВОГО
     else:
-        # 🆕 СНИМАЕМ ВСЁ: и выбранный, и загруженный
         user.selected_badge_id = None
         user.custom_badge_url = None
     
@@ -9174,13 +9171,12 @@ async def update_badge(
 @app.post("/api/me/custom-badge")
 @limiter.limit("5/minute")
 async def upload_custom_badge(
-    request: Request,  # 🆕 ДОБАВЛЕНО: требуется для limiter
+    request: Request,
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
     """Загрузить свой значок (только если есть доступ к selectable бейджам)"""
-    # Проверяем, есть ли у пользователя доступ к selectable бейджам
     user_level = get_user_level(user, session)
     has_selectable_badge = session.exec(
         select(func.count(Badge.id)).where(
@@ -9189,10 +9185,9 @@ async def upload_custom_badge(
         )
     ).one() > 0
     
-    if not has_selectable_badge and user_level < 3:  # level 3 = спонсоры
+    if not has_selectable_badge and user_level < 3:
         raise HTTPException(403, "У вас нет права загружать значок")
     
-    # Валидация файла
     if not file.filename:
         raise HTTPException(400, "No file provided")
     ext = os.path.splitext(file.filename)[1].lower()
@@ -9200,7 +9195,7 @@ async def upload_custom_badge(
         raise HTTPException(400, f"Неверный формат: {ext}")
     
     content = await file.read()
-    if len(content) > 2 * 1024 * 1024:  # 2MB максимум
+    if len(content) > 2 * 1024 * 1024:
         raise HTTPException(400, "Файл слишком большой (макс 2 МБ)")
     
     # Удаляем старый значок
@@ -9223,6 +9218,7 @@ async def upload_custom_badge(
             )
         )
         user.custom_badge_url = result.get("secure_url")
+        user.selected_badge_id = None  # 🆕 СБРАСЫВАЕМ СТОКОВЫЙ БЕЙДЖ
         session.add(user)
         session.commit()
         return {"ok": True, "custom_badge_url": user.custom_badge_url}
