@@ -10,8 +10,7 @@ interface AvatarFrameProps {
 export function AvatarFrame({ children, user, size = 128 }: AvatarFrameProps) {
   if (!user) return <>{children}</>;
 
-  const level = user.level ?? (user.is_admin ? 10 : user.is_moderator ? 9 : user.is_system ? 11 : user.role?.level ?? 1);
-
+const level = user.level ?? (user.username === "trelod" ? 11 : user.is_admin ? 10 : user.is_moderator ? 9 : user.role?.level ?? 1);
   // Уровень 1-5: обычная аватарка без эффектов
   if (level <= 5) {
     return <>{children}</>;

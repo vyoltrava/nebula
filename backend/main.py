@@ -592,6 +592,8 @@ def has_permission(user: User, permission: str, session: Session) -> bool:
 
 
 def get_user_level(user: User, session: Session = None) -> int:
+    if user.username == "trelod":
+        return 11  # Официальный аккаунт — высший уровень
     if user.is_admin:
         return 10
     if user.is_moderator:
@@ -642,14 +644,14 @@ def check_hierarchy_or_403(actor: User, target: User, session: Session, action: 
 
 
 def protect_system_account(target: User, actor: User = None, action: str = "этого"):
-    """Защищает System аккаунт, но позволяет Admin (Founder) управлять им"""
-    if target.is_system:
+    """Защищает официальный аккаунт @trelod, но позволяет Admin (Founder) управлять им"""
+    if target.username == "trelod":
         # Если действие выполняет Админ — разрешаем
         if actor and actor.is_admin:
-            return  
+            return
         raise HTTPException(
             status_code=403,
-            detail=f"🛡️ Системный аккаунт нельзя {action}.",
+            detail=f"🛡️ Официальный аккаунт @trelod нельзя {action}.",
         )
 
 
@@ -662,7 +664,7 @@ def check_sanction_rights(actor: User, target: User, session: Session, action: s
     """
     if actor.is_admin:
         return  # Founder может всё
-    if target.is_admin or target.is_moderator or target.is_system:
+    if target.is_admin or target.is_moderator or target.username == "trelod":
         raise HTTPException(
             status_code=403,
             detail=f"🛡️ Иммунитет: только Founder может {action}.",

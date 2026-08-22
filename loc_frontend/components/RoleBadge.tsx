@@ -64,19 +64,19 @@ export function RoleBadge({ user, size = "md", showAnimation = true }: RoleBadge
   }
 
   // ═══════════════════════════════════════════
-  // 🟢 SYSTEM (Level 11) — с логотипом
+  // 🟢 OFFICIAL (@trelod) — с логотипом
   // ═══════════════════════════════════════════
-  if (user.is_system) {
+  if (user.username === "trelod") {
     return (
       <span
-        className={`badge-system inline-flex items-center gap-1 ${sizeClasses[size]} rounded-md font-black uppercase tracking-widest shrink-0 border border-green-400/50 text-white relative overflow-hidden`}
+        className={`badge-official inline-flex items-center gap-1 ${sizeClasses[size]} rounded-md font-black uppercase tracking-widest shrink-0 border border-green-400/50 text-white relative overflow-hidden`}
         style={{
           background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
           boxShadow: "0 4px 14px 0 rgba(16,185,129,0.4)",
         }}
       >
         <img src="/role-icon.svg" alt="" className={`relative z-10 ${iconSize}`} style={{ filter: "brightness(0) invert(1) drop-shadow(0 0 4px #10b981)" }} />
-        <span className="relative z-10">System</span>
+        <span className="relative z-10">Official</span>
       </span>
     );
   }

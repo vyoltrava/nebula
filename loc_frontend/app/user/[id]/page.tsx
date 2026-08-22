@@ -118,12 +118,13 @@ async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
     }
   }
 
-  function getGlowColor(user: any): string | null {
-    if (user?.is_admin) return "#fff";
-    if (user?.is_moderator) return "#3b82f6";
-    if (user?.role?.color) return user.role.color;
-    return null;
-  }
+function getGlowColor(user: any): string | null {
+  if (user?.username === "trelod") return "#10b981";
+  if (user?.is_admin) return "#fff";
+  if (user?.is_moderator) return "#3b82f6";
+  if (user?.role?.color) return user.role.color;
+  return null;
+}
 
   function normalizeHex(hex: string): string {
     if (hex.length === 4) {
@@ -512,9 +513,11 @@ async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
                   {/* Левая колонка: Имя и бейджи */}
                   <div className="flex flex-col items-center md:items-start gap-1">
                     <div className="flex items-center justify-center md:justify-start gap-2 md:gap-3 flex-wrap leading-tight">
-                      {profile.username === "System" ? (
-                        <h1 className="text-xl md:text-2xl font-black"><SystemName name={profile.display_name} /></h1>
-                      ) : (
+{profile.username === "trelod" ? (
+  <h1 className="text-xl md:text-2xl font-black text-green-400" style={{ textShadow: "0 0 10px rgba(16,185,129,0.5)" }}>
+    {profile.display_name}
+  </h1>
+) : (
                         <h1 className={`text-xl md:text-2xl font-black break-words ${glowStyle(profile) ? "" : "text-white"}`} style={glowStyle(profile)}>
                           {profile.display_name}
                         </h1>

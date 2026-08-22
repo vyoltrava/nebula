@@ -755,12 +755,13 @@ async function sendVoiceMessage(audioFile: File) {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   }
 
-  function getGlowColor(user: any): string | null {
-    if (user?.is_admin) return "#8b5cf6";
-    if (user?.is_moderator) return "#3b82f6";
-    if (user?.role?.color) return user.role.color;
-    return null;
-  }
+function getGlowColor(user: any): string | null {
+  if (user?.username === "trelod") return "#10b981";
+  if (user?.is_admin) return "#fff";
+  if (user?.is_moderator) return "#3b82f6";
+  if (user?.role?.color) return user.role.color;
+  return null;
+}
 
   function glowStyle(user: any): React.CSSProperties | undefined {
     const c = getGlowColor(user);

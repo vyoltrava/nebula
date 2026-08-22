@@ -71,12 +71,13 @@ export default function TechnicalPage() {
   const [bugStatusFilter, setBugStatusFilter] = useState<string | null>(null);
   const [selectedBug, setSelectedBug] = useState<any>(null);
 
-  function getGlowColor(user: any): string | null {
-    if (user?.is_admin) return "#fff";
-    if (user?.is_moderator) return "#3b82f6";
-    if (user?.role?.color) return user.role.color;
-    return null;
-  }
+function getGlowColor(user: any): string | null {
+  if (user?.username === "trelod") return "#10b981";
+  if (user?.is_admin) return "#fff";
+  if (user?.is_moderator) return "#3b82f6";
+  if (user?.role?.color) return user.role.color;
+  return null;
+}
 
   function glowStyle(user: any): React.CSSProperties | undefined {
     const c = getGlowColor(user);
