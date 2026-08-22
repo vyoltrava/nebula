@@ -719,6 +719,8 @@ def user_out(user: User, session: Session = None) -> dict:
         "two_fa_enabled": user.totp_enabled,  # 🆕
         "email_linked": bool(user.email),      # 🆕
         "selected_badge_id": user.selected_badge_id,
+        "custom_badge_url": user.custom_badge_url,  # 🆕 ДОБАВЬ ЭТУ СТРОКУ
+
     }
 
 
@@ -4643,6 +4645,8 @@ def startup():
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 );
             """))
+
+            conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS custom_badge_url VARCHAR;'))
             # Добавляем колонку user_id в таблицу badge и делаем glow_color опциональным
             conn.execute(text("ALTER TABLE badge ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES \"user\"(id) ON DELETE CASCADE;"))
 
@@ -9127,6 +9131,128 @@ def select_my_badge(
     else:
         user.selected_badge_id = None
     
+    session.add(user)
+    session.commit()
+    return {"ok": True}
+
+@app.put("/api/badges/{badge_id}")
+async def update_badge(
+    badge_id: int,
+    name: str = Form(...),
+    glow_color: Optional[str] = Form(None),
+    effect_type: str = Form("none"),
+    role_id: Optional[int] = Form(None),
+    user_id: Optional[int] = Form(None),
+    is_selectable: bool = Form(False),
+    enable_ring: bool = Form(True),
+    enable_glow: bool = Form(True),
+    file: Optional[UploadFile] = File(None),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Обновить существующий значок"""
+    if not user.is_admin:
+        raise HTTPException(403, "Admin only")
+    
+    badge = session.get(Badge, badge_id)
+    if not badge:
+        raise HTTPException(404, "Badge not found")
+    
+    badge.name = name
+    badge.glow_color = glow_color if glow_color else None
+    badge.effect_type = effect_type
+    badge.role_id = role_id if role_id else None
+    badge.user_id = user_id if user_id else None
+    badge.is_selectable = is_selectable
+    badge.enable_ring = enable_ring
+    badge.enable_glow = enable_glow
+    
+    # Если загружен новый файл - обновляем иконку
+    if file and file.filename:
+        content = await file.read()
+        result = await run_in_threadpool(
+            lambda: cloudinary.uploader.upload(content, folder="badges", resource_type="image")
+        )
+        badge.icon_url = result["secure_url"]
+    
+    session.add(badge)
+    session.commit()
+    session.refresh(badge)
+    return {"ok": True, "id": badge.id}
+
+
+
+@app.post("/api/me/custom-badge")
+@limiter.limit("5/minute")
+async def upload_custom_badge(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Загрузить свой значок (только если есть доступ к selectable бейджам)"""
+    # Проверяем, есть ли у пользователя доступ к selectable бейджам
+    user_level = get_user_level(user, session)
+    has_selectable_badge = session.exec(
+        select(func.count(Badge.id)).where(
+            Badge.is_selectable == True,
+            Badge.user_id == user.id
+        )
+    ).one() > 0
+    
+    if not has_selectable_badge and user_level < 3:  # level 3 = спонсоры
+        raise HTTPException(403, "У вас нет права загружать значок")
+    
+    # Валидация файла
+    if not file.filename:
+        raise HTTPException(400, "No file provided")
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
+        raise HTTPException(400, f"Неверный формат: {ext}")
+    
+    content = await file.read()
+    if len(content) > 2 * 1024 * 1024:  # 2MB максимум
+        raise HTTPException(400, "Файл слишком большой (макс 2 МБ)")
+    
+    # Удаляем старый значок
+    if user.custom_badge_url and "cloudinary.com" in user.custom_badge_url:
+        try:
+            public_id = extract_cloudinary_public_id(user.custom_badge_url)
+            if public_id:
+                await run_in_threadpool(lambda: cloudinary.uploader.destroy(public_id))
+        except Exception:
+            pass
+    
+    # Загружаем новый
+    try:
+        result = await run_in_threadpool(
+            lambda: cloudinary.uploader.upload(
+                content,
+                folder="user_badges",
+                resource_type="image",
+                transformation=[{"width": 100, "height": 100, "crop": "fill"}],
+            )
+        )
+        user.custom_badge_url = result.get("secure_url")
+        session.add(user)
+        session.commit()
+        return {"ok": True, "custom_badge_url": user.custom_badge_url}
+    except Exception as e:
+        raise HTTPException(400, f"Ошибка загрузки: {str(e)}")
+
+@app.delete("/api/me/custom-badge")
+def delete_custom_badge(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Удалить загруженный значок"""
+    if user.custom_badge_url and "cloudinary.com" in user.custom_badge_url:
+        try:
+            public_id = extract_cloudinary_public_id(user.custom_badge_url)
+            if public_id:
+                cloudinary.uploader.destroy(public_id)
+        except Exception:
+            pass
+    user.custom_badge_url = None
     session.add(user)
     session.commit()
     return {"ok": True}

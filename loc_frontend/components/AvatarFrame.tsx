@@ -13,11 +13,21 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [] }
 
   const level = user.level ?? (user.username === "trelod" ? 11 : user.is_admin ? 10 : user.is_moderator ? 9 : user.role?.level ?? 1);
 
-  // 1. Ищем активный значок: либо выбранный пользователем, либо привязанный к его роли
-  const userBadge = availableBadges.find((b: any) => b.id === user.selected_badge_id) || 
+  //  Если есть загруженный пользователем значок - используем его
+  const customBadge = user.custom_badge_url ? {
+    id: -1,
+    icon_url: user.custom_badge_url,
+    glow_color: "#8b5cf6",
+    enable_ring: true,
+    enable_glow: true,
+  } : null;
+
+  // Ищем активный значок: кастомный > выбранный > привязанный к роли
+  const userBadge = customBadge || 
+                    availableBadges.find((b: any) => b.id === user.selected_badge_id) || 
                     availableBadges.find((b: any) => b.role_id === user.role?.id);
 
-  // 2. Если значка нет, используем старую логику по уровням (fallback)
+
   if (!userBadge) {
     if (level <= 5) return <>{children}</>;
     if (level <= 7) return <Level67Effect user={user}>{children}</Level67Effect>;

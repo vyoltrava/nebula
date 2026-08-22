@@ -20,6 +20,8 @@ class User(SQLModel, table=True):
     is_trelod: bool = Field(default=False)
     role_id: Optional[int] = Field(default=None, foreign_key="role.id")
     selected_badge_id: Optional[int] = Field(default=None)
+
+    custom_badge_url: Optional[str] = Field(default=None)  # 🆕 URL загруженного пользователем значка
     created_at: datetime = Field(default_factory=utcnow)
     bio: Optional[str] = None
     live_text_enabled: bool = True     # 🆕 показывать ли живые сообщения других

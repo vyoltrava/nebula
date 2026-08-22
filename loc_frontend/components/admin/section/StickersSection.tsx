@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import { getToken } from "@/lib/auth";
 import { STICKERS } from "@/lib/stickers";
+import { UserSearchField } from "@/components/UserSearchField";
 import { 
   SmilePlus, Plus, Edit3, Trash2, X, Globe, Lock, Loader2, 
   FolderOpen, Upload, Image as ImageIcon, Sparkles, Palette 
@@ -187,7 +188,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
     setBadgeFileUrl(URL.createObjectURL(file));
   }
 
-  async function saveBadge() {
+   async function saveBadge() {
     if (!editingBadge || !editingBadge.name?.trim()) return alert("Введи название значка");
     if (!badgeFile && !editingBadge.id) return alert("Загрузи картинку для значка");
     
@@ -205,8 +206,13 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
     
     setSavingBadge(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/badges`, {
-        method: "POST",
+      // 🆕 Если редактируем - используем PUT, если создаем - POST
+      const url = editingBadge.id
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/badges/${editingBadge.id}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/badges`;
+      
+      const res = await fetch(url, {
+        method: editingBadge.id ? "PUT" : "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: form,
       });
@@ -515,9 +521,10 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                     <button onClick={() => badgeFileRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-white/5 border border-white/15 text-white/80 text-xs font-bold hover:bg-white/10">
                       <Upload size={14} /> {badgeFile ? "Заменить" : "Выбрать файл"}
                     </button>
-                    {badgeFileUrl && (
+                    {/* Показываем текущую иконку при редактировании */}
+                    {(badgeFileUrl || editingBadge.icon_url) && (
                       <div className="w-12 h-12 rounded-lg bg-[#171717] border border-white/10 flex items-center justify-center overflow-hidden">
-                        <img src={badgeFileUrl} alt="Preview" className="w-8 h-8 object-contain" />
+                        <img src={badgeFileUrl || editingBadge.icon_url} alt="Preview" className="w-8 h-8 object-contain" />
                       </div>
                     )}
                   </div>
@@ -526,33 +533,17 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                 <div className="border-t border-white/10 pt-3 space-y-3">
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={editingBadge.enable_ring ?? true} 
-                        onChange={(e) => setEditingBadge({ ...editingBadge, enable_ring: e.target.checked })} 
-                        className="w-4 h-4 rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500" 
-                      />
+                      <input type="checkbox" checked={editingBadge.enable_ring ?? true} onChange={(e) => setEditingBadge({ ...editingBadge, enable_ring: e.target.checked })} className="w-4 h-4 rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500" />
                       <span className="text-xs text-white/70">Включить вращающееся кольцо</span>
                     </label>
-                    
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={editingBadge.enable_glow ?? true} 
-                        onChange={(e) => setEditingBadge({ ...editingBadge, enable_glow: e.target.checked })} 
-                        className="w-4 h-4 rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500" 
-                      />
+                      <input type="checkbox" checked={editingBadge.enable_glow ?? true} onChange={(e) => setEditingBadge({ ...editingBadge, enable_glow: e.target.checked })} className="w-4 h-4 rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500" />
                       <span className="text-xs text-white/70">Включить пульсацию свечения</span>
                     </label>
                   </div>
 
                   <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-white/10">
-                    <input 
-                      type="checkbox" 
-                      checked={!editingBadge.glow_color} 
-                      onChange={(e) => setEditingBadge({ ...editingBadge, glow_color: e.target.checked ? null : "#8b5cf6" })} 
-                      className="w-4 h-4 rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500" 
-                    />
+                    <input type="checkbox" checked={!editingBadge.glow_color} onChange={(e) => setEditingBadge({ ...editingBadge, glow_color: e.target.checked ? null : "#8b5cf6" })} className="w-4 h-4 rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500" />
                     <span className="text-xs text-white/70">Использовать цвет роли автоматически</span>
                   </div>
 
@@ -573,35 +564,29 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                   <div>
                     <label className="block text-xs font-bold text-white/60 mb-1.5">Способ выдачи</label>
                     <div className="flex gap-2 mb-2">
-                      <button 
-                        onClick={() => setEditingBadge({ ...editingBadge, user_id: null })}
-                        className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${!editingBadge.user_id ? "bg-purple-500/20 border-purple-500 text-purple-300" : "bg-white/5 border-white/10 text-white/50"}`}
-                      >
+                      <button onClick={() => setEditingBadge({ ...editingBadge, user_id: null })} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${!editingBadge.user_id ? "bg-purple-500/20 border-purple-500 text-purple-300" : "bg-white/5 border-white/10 text-white/50"}`}>
                         По роли
                       </button>
-                      <button 
-                        onClick={() => setEditingBadge({ ...editingBadge, role_id: null, user_id: 0 })}
-                        className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${editingBadge.user_id !== null && editingBadge.user_id !== undefined ? "bg-purple-500/20 border-purple-500 text-purple-300" : "bg-white/5 border-white/10 text-white/50"}`}
-                      >
-                        По ID пользователя
+                      <button onClick={() => setEditingBadge({ ...editingBadge, role_id: null, user_id: 0 })} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${editingBadge.user_id !== null && editingBadge.user_id !== undefined ? "bg-purple-500/20 border-purple-500 text-purple-300" : "bg-white/5 border-white/10 text-white/50"}`}>
+                        По пользователю
                       </button>
                     </div>
 
-                    {editingBadge.user_id !== null && editingBadge.user_id !== undefined ? (
-                      <input 
-                        type="number" 
-                        value={editingBadge.user_id || ""} 
-                        onChange={(e) => setEditingBadge({ ...editingBadge, user_id: Number(e.target.value) || null })} 
-                        placeholder="Введите ID пользователя" 
-                        className="w-full px-3 py-2 rounded-lg border border-white/15 bg-white/5 text-white text-xs placeholder-white/30 focus:outline-none focus:border-purple-400" 
-                      />
-                    ) : (
+                    {!editingBadge.user_id && editingBadge.user_id !== 0 && (
                       <select value={editingBadge.role_id || ""} onChange={(e) => setEditingBadge({ ...editingBadge, role_id: e.target.value ? Number(e.target.value) : null })} className="w-full px-3 py-2 rounded-lg border border-white/15 bg-white/5 text-white text-xs focus:outline-none focus:border-purple-400">
                         <option value="">Не привязывать (выдавать вручную)</option>
                         {roles.map((r: any) => (
                           <option key={r.id} value={r.id} className="bg-gray-900">{r.name} (ID: {r.id})</option>
                         ))}
                       </select>
+                    )}
+
+                    {editingBadge.user_id !== null && editingBadge.user_id !== undefined && (
+                      <UserSearchField
+                        selectedUserId={editingBadge.user_id || null}
+                        onSelect={(userId) => setEditingBadge({ ...editingBadge, user_id: userId })}
+                        onClear={() => setEditingBadge({ ...editingBadge, user_id: null })}
+                      />
                     )}
                   </div>
 
