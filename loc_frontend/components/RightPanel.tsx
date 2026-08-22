@@ -52,8 +52,8 @@ export function RightPanel() {
           if (q.trim()) router.push(`/search?q=${encodeURIComponent(q)}`);
         }}
       >
-        <label className="flex items-center gap-2 border border-white/15 rounded-full px-4 py-2 bg-white/5 focus-within:border-[#8b5cf6] transition-all">
-          <Search size={16} className="text-white/50" />
+        <label className="flex items-center gap-2 border border-white/15 rounded-xl px-4 py-2 bg-white/5 focus-within:border-[#8b5cf6] focus-within:bg-white/10 transition-all">
+        <Search size={16} className="text-white/50" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}

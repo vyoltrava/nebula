@@ -2360,13 +2360,13 @@ const ChatHeader = () => (
       <div className="px-3 sm:px-4 md:px-4 py-2.5 border-t border-white/5">
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={isSecret ? t("messages.searchDecrypted") : t("messages.searchInChat")}
-            className="w-full pl-10 pr-9 py-2 sm:py-2 rounded-lg border border-white/10 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] text-sm sm:text-sm"
-            autoFocus
-          />
+<input
+  value={searchQuery}
+  onChange={(e) => setSearchQuery(e.target.value)}
+  placeholder={isSecret ? t("messages.searchDecrypted") : t("messages.searchInChat")}
+  className="w-full pl-10 pr-9 py-2 rounded-xl border border-white/15 bg-white/5 text-white placeholder-white/40 text-sm focus:outline-none focus:border-[#8b5cf6] focus:bg-white/10 transition-all"
+  autoFocus
+/>
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}

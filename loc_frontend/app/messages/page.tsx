@@ -418,7 +418,7 @@ const confirmPrismKey = async () => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t("messages.search")}
-                className="w-full pl-9 pr-4 py-2 bg-transparent border-none outline-none text-white placeholder-white/40 text-sm focus:ring-0"
+                className="w-full pl-9 pr-4 py-2 rounded-xl border border-white/15 bg-white/5 text-white placeholder-white/40 text-sm focus:outline-none focus:border-[#8b5cf6] focus:bg-white/10 transition-all"
               />
               {searchLoading && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
