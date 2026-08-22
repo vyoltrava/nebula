@@ -2699,8 +2699,12 @@ onDoubleClick={(e) => {
 <button
   onClick={(e) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    editorRef.current?.openMenuAt(rect.left + rect.width / 2, rect.top - 8);
-    setShowInputActions(false);
+    setShowInputActions(false); // ← СНАЧАЛА закрываем меню +
+    
+    // ← ПОТОМ открываем меню форматирования с задержкой 50мс
+    setTimeout(() => {
+      editorRef.current?.openMenuAt(rect.left + rect.width / 2, rect.top - 8);
+    }, 50);
   }}
   className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/10 flex items-center gap-3 transition-colors border-t border-white/5"
 >

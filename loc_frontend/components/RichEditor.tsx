@@ -138,13 +138,15 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
     emit();
   }
 
-  function openMenuAt(x: number, y: number) {
+    function openMenuAt(x: number, y: number) {
+    elRef.current?.focus(); // ← ВОЗВРАЩАЕМ ФОКУС редактору
+    
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0 || sel.getRangeAt(0).collapsed) {
-      selectWordAtPoint(x, y); // правый клик по слову → выделяем слово
+        selectWordAtPoint(x, y); // пробуем выделить слово под кнопкой
     }
-    setMenu({ x, y });
-  }
+    setMenu({ x, y }); // ← ВСЕГДА открываем меню, даже если нет выделения
+    }
 
   useImperativeHandle(ref, () => ({
     focus: () => elRef.current?.focus(),
@@ -195,14 +197,15 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
         onPointerLeave={clearLp}
       />
 
-      {menu && (
-        <RichContextMenu
-          x={menu.x}
-          y={menu.y}
-          items={[...buildRichMenuItems(handlers), ...(extraMenuItems ?? [])]}
-          onClose={() => setMenu(null)}
-        />
-      )}
+{menu && (
+  <RichContextMenu
+    x={menu.x}
+    y={menu.y}
+    items={[...buildRichMenuItems(handlers), ...(extraMenuItems ?? [])]}
+    onClose={() => setMenu(null)}
+    zIndex={9998} // ← ВЫШЕ z-50 меню +
+  />
+)}
 
       <style jsx>{`
         .rich-editor {

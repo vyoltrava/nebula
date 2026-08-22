@@ -62,7 +62,7 @@ type Props = {
   y: number;
   items: RichMenuItem[];
   onClose: () => void;
-  zIndex?: number;
+  zIndex?: number; // ← уже есть, но убедись, что в RichEditor передаётся 9998
 };
 
 const MENU_W = 240;
