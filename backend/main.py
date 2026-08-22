@@ -4641,7 +4641,8 @@ def startup():
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 );
             """))
-
+            # Добавляем колонку user_id в таблицу badge и делаем glow_color опциональным
+            conn.execute(text("ALTER TABLE badge ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES \"user\"(id) ON DELETE CASCADE;"))
 
                 # Добавь в блок миграций при старте приложения:
             conn.execute(text("ALTER TABLE stickerpack DROP COLUMN IF EXISTS emojis;"))            
@@ -9026,25 +9027,32 @@ def get_badges(session: Session = Depends(get_session)):
 @app.post("/api/badges")
 async def create_badge(
     name: str = Form(...),
-    glow_color: str = Form("#8b5cf6"),
+    glow_color: Optional[str] = Form(None),  # 🆕 Может быть пустым
     effect_type: str = Form("none"),
     role_id: Optional[int] = Form(None),
+    user_id: Optional[int] = Form(None),     # 🆕 ID конкретного пользователя
     is_selectable: bool = Form(False),
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    if not user.is_admin: raise HTTPException(403, "Admin only")
+    if not user.is_admin: 
+        raise HTTPException(403, "Admin only")
     
-    # Загрузка картинки (как стикер)
+    # Загрузка картинки
     content = await file.read()
     result = await run_in_threadpool(
         lambda: cloudinary.uploader.upload(content, folder="badges", resource_type="image")
     )
     
     badge = Badge(
-        name=name, icon_url=result["secure_url"], glow_color=glow_color,
-        effect_type=effect_type, role_id=role_id, is_selectable=is_selectable
+        name=name, 
+        icon_url=result["secure_url"], 
+        glow_color=glow_color if glow_color else None,  # Если пусто, сохраняем NULL
+        effect_type=effect_type, 
+        role_id=role_id if role_id else None, 
+        user_id=user_id if user_id else None,           # 🆕 Сохраняем ID юзера
+        is_selectable=is_selectable
     )
     session.add(badge)
     session.commit()

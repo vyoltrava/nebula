@@ -520,14 +520,68 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                {/* 🆕 ВЫБОР: РОЛЬ ИЛИ КОНКРЕТНЫЙ ПОЛЬЗОВАТЕЛЬ */}
+                <div className="border-t border-white/10 pt-3 space-y-3">
                   <div>
-                    <label className="block text-xs font-bold text-white/60 mb-1.5">Цвет свечения</label>
-                    <div className="flex items-center gap-2">
-                      <input type="color" value={editingBadge.glow_color || "#8b5cf6"} onChange={(e) => setEditingBadge({ ...editingBadge, glow_color: e.target.value })} className="w-8 h-8 rounded cursor-pointer bg-transparent border-0" />
-                      <span className="text-xs text-white/50 font-mono">{editingBadge.glow_color}</span>
+                    <label className="block text-xs font-bold text-white/60 mb-1.5">Способ выдачи</label>
+                    <div className="flex gap-2 mb-2">
+                      <button 
+                        onClick={() => setEditingBadge({ ...editingBadge, user_id: null })}
+                        className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${!editingBadge.user_id ? "bg-purple-500/20 border-purple-500 text-purple-300" : "bg-white/5 border-white/10 text-white/50"}`}
+                      >
+                        По роли
+                      </button>
+                      <button 
+                        onClick={() => setEditingBadge({ ...editingBadge, role_id: null, user_id: 0 })}
+                        className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${editingBadge.user_id !== null && editingBadge.user_id !== undefined ? "bg-purple-500/20 border-purple-500 text-purple-300" : "bg-white/5 border-white/10 text-white/50"}`}
+                      >
+                        По ID пользователя
+                      </button>
                     </div>
+
+                    {editingBadge.user_id !== null && editingBadge.user_id !== undefined ? (
+                      <input 
+                        type="number" 
+                        value={editingBadge.user_id || ""} 
+                        onChange={(e) => setEditingBadge({ ...editingBadge, user_id: Number(e.target.value) || null })} 
+                        placeholder="Введите ID пользователя (например, 22)" 
+                        className="w-full px-3 py-2 rounded-lg border border-white/15 bg-white/5 text-white text-xs placeholder-white/30 focus:outline-none focus:border-purple-400" 
+                      />
+                    ) : (
+                      <select value={editingBadge.role_id || ""} onChange={(e) => setEditingBadge({ ...editingBadge, role_id: e.target.value ? Number(e.target.value) : null })} className="w-full px-3 py-2 rounded-lg border border-white/15 bg-white/5 text-white text-xs focus:outline-none focus:border-purple-400">
+                        <option value="">Не привязывать (выдавать вручную)</option>
+                        {roles.map((r: any) => (
+                          <option key={r.id} value={r.id} className="bg-gray-900">{r.name} (ID: {r.id})</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
+
+                  {/* 🆕 АВТО-ЦВЕТ ИЛИ РУЧНОЙ */}
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-white/10">
+                    <input 
+                      type="checkbox" 
+                      checked={!editingBadge.glow_color} 
+                      onChange={(e) => setEditingBadge({ ...editingBadge, glow_color: e.target.checked ? null : "#8b5cf6" })} 
+                      className="w-4 h-4 rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500" 
+                    />
+                    <span className="text-xs text-white/70">Использовать цвет роли пользователя автоматически</span>
+                  </div>
+
+                  {!editingBadge.glow_color && (
+                    <p className="text-[10px] text-white/40 px-2">💡 Цвет свечения будет взят из роли пользователя. Если роли нет — будет фиолетовый.</p>
+                  )}
+
+                  {editingBadge.glow_color && (
+                    <div>
+                      <label className="block text-xs font-bold text-white/60 mb-1.5">Свой цвет свечения</label>
+                      <div className="flex items-center gap-2">
+                        <input type="color" value={editingBadge.glow_color} onChange={(e) => setEditingBadge({ ...editingBadge, glow_color: e.target.value })} className="w-8 h-8 rounded cursor-pointer bg-transparent border-0" />
+                        <span className="text-xs text-white/50 font-mono">{editingBadge.glow_color}</span>
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-xs font-bold text-white/60 mb-1.5">Эффект</label>
                     <select value={editingBadge.effect_type || "none"} onChange={(e) => setEditingBadge({ ...editingBadge, effect_type: e.target.value })} className="w-full px-2 py-2 rounded-lg border border-white/15 bg-white/5 text-white text-xs focus:outline-none focus:border-purple-400">
@@ -536,21 +590,8 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                       <option value="pulse" className="bg-gray-900">💫 Пульсация (как у Founder)</option>
                     </select>
                   </div>
-                </div>
 
-                <div className="border-t border-white/10 pt-3 space-y-3">
-                  <div>
-                    <label className="block text-xs font-bold text-white/60 mb-1.5">Авто-выдача для роли (опционально)</label>
-                    <select value={editingBadge.role_id || ""} onChange={(e) => setEditingBadge({ ...editingBadge, role_id: e.target.value ? Number(e.target.value) : null })} className="w-full px-3 py-2 rounded-lg border border-white/15 bg-white/5 text-white text-xs focus:outline-none focus:border-purple-400">
-                      <option value="">Не привязывать (выдавать вручную)</option>
-                      {roles.map((r: any) => (
-                        <option key={r.id} value={r.id} className="bg-gray-900">{r.name} (ID: {r.id})</option>
-                      ))}
-                    </select>
-                    <p className="text-[10px] text-white/30 mt-1">Если выбрать роль, значок появится у всех пользователей с этой ролью автоматически.</p>
-                  </div>
-
-                  <label className="flex items-center gap-2 cursor-pointer">
+                  <label className="flex items-center gap-2 cursor-pointer pt-2 border-t border-white/10">
                     <input type="checkbox" checked={editingBadge.is_selectable || false} onChange={(e) => setEditingBadge({ ...editingBadge, is_selectable: e.target.checked })} className="w-4 h-4 rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500" />
                     <span className="text-xs text-white/70">Разрешить пользователям выбирать этот значок самостоятельно (например, для Спонсоров)</span>
                   </label>

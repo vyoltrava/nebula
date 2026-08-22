@@ -396,10 +396,11 @@ class SupportTicket(SQLModel, table=True):
 class Badge(SQLModel, table=True):
     """Значки для аватарок"""
     id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(max_length=60)  # Например: "Manager", "VIP Gold"
-    icon_url: str  # Ссылка на картинку (Cloudinary)
-    glow_color: str = Field(default="#8b5cf6")  # Цвет свечения (по умолчанию фиолетовый)
-    effect_type: str = Field(default="none", max_length=20)  # "none", "gold", "pulse"
-    role_id: Optional[int] = Field(default=None, foreign_key="role.id")  # Если указано, выдается автоматически
-    is_selectable: bool = Field(default=False)  # Могут ли пользователи с правом выбора менять его сами
+    name: str = Field(max_length=60)
+    icon_url: str
+    glow_color: Optional[str] = Field(default=None)  # 🆕 Теперь может быть пустым (будет браться цвет роли)
+    effect_type: str = Field(default="none", max_length=20)
+    role_id: Optional[int] = Field(default=None, foreign_key="role.id")
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id")  # 🆕 Конкретный пользователь
+    is_selectable: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utcnow)
