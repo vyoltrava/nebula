@@ -43,7 +43,7 @@ from models import (
     Chat, ChatMember, Message, Report, UserKey, ChatSessionKey,
     IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead,
     PushSubscription, StickerPack, Sticker, MessageReaction, Theme, SystemSetting,
-    RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage  # ← ОБА
+    RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge # ← ОБА
 )
 import logging
 from fastapi.responses import JSONResponse
@@ -4626,6 +4626,23 @@ def startup():
     # ===== ОСНОВНОЙ БЛОК МИГРАЦИЙ =====
     with engine.connect() as conn:
         try:
+
+            # 🆕 Добавляем колонку для выбранного значка и создаем таблицу значков
+            conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS selected_badge_id INTEGER;'))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS badge (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(60) NOT NULL,
+                    icon_url VARCHAR NOT NULL,
+                    glow_color VARCHAR(20) DEFAULT '#8b5cf6',
+                    effect_type VARCHAR(20) DEFAULT 'none',
+                    role_id INTEGER REFERENCES role(id) ON DELETE SET NULL,
+                    is_selectable BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                );
+            """))
+
+
                 # Добавь в блок миграций при старте приложения:
             conn.execute(text("ALTER TABLE stickerpack DROP COLUMN IF EXISTS emojis;"))            
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS prism_anchor VARCHAR;'))
