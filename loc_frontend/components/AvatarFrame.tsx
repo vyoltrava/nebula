@@ -44,11 +44,10 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [] }
         />
       )}
 
-      {/* Аватарка */}
-      <div className="relative rounded-full border-[3px] border-[#171717]">
+      {/* Аватарка — без рамки, как в Level10Effect */}
+      <div className="relative">
         {children}
       </div>
-
       {/* 🆕 ПУЛЬСАЦИЯ СВЕЧЕНИЯ (если включено) */}
       {userBadge.enable_glow && (
         <div 
