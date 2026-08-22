@@ -49,17 +49,15 @@ const level = user.level ?? (user.username === "trelod" ? 11 : user.is_admin ? 1
           {children}
         </div>
 
-        {/* 🆕 ЭКСКЛЮЗИВНЫЙ ЗНАЧОК ТОЛЬКО ДЛЯ MANAGER (ID 22) */}
+        {/* 🆕 ЭКСКЛЮЗИВНЫЙ ЗНАЧОК ТОЛЬКО ДЛЯ MANAGER (ID 22) — СВЕРХУ КАК У FOUNDER */}
         {isManager && (
           <div 
-            className="absolute -bottom-2 -right-2 w-9 h-9 pointer-events-none select-none z-10 drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]"
-            style={{ animation: "float 3s ease-in-out infinite" }}
+            className="absolute -top-4 left-1/2 -translate-x-1/2 w-9 h-9 animate-bounce-slow pointer-events-none select-none z-10"
           >
-            {/* Положи картинку значка в папку public/ твоего Next.js проекта */}
             <img
-              src="/pochacco.png" 
-              alt="pochacco"
-              className="w-full h-full object-contain"
+              src="/manager-badge.svg" 
+              alt="Manager Badge"
+              className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
               draggable={false}
             />
           </div>
