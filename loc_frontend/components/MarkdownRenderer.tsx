@@ -36,6 +36,7 @@ export function MarkdownRenderer({ text, isMessage = false }: { text: string; is
   const [menu, setMenu] = useState<{ x: number; y: number; items: RichMenuItem[] } | null>(null);
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lpPos = useRef({ x: 0, y: 0 });
+  const rootRef = useRef<HTMLDivElement>(null);
 
   const clearLp = () => {
     if (lpTimer.current) {
@@ -84,7 +85,7 @@ export function MarkdownRenderer({ text, isMessage = false }: { text: string; is
         icon: CheckSquare,
         separatorBefore: true,
         onClick: () => {
-          const root = document.querySelector(".markdown-body");
+          const root = rootRef.current;
           if (!root) return;
           const range = document.createRange();
           range.selectNodeContents(root);
@@ -109,18 +110,17 @@ export function MarkdownRenderer({ text, isMessage = false }: { text: string; is
   return (
     <>
       <div
+        ref={rootRef}
         className={`markdown-body ${baseClass}`}
         /* 🆕 ПКМ: только если клик был по тексту (не по картинке) */
         onContextMenu={(e) => {
-          if (!isMessage) return;
-          if (!isTextTarget(e.target)) return; // ← даём всплыть → откроется MessageContextMenu
+          if (!isTextTarget(e.target)) return; // клик по картинке/кнопке → пустим к меню сообщения// ← даём всплыть → откроется MessageContextMenu
           e.preventDefault();
           e.stopPropagation(); // ← блокируем всплытие, чтобы MessageContextMenu не открылось
           openWordMenu(e.clientX, e.clientY, text);
         }}
         /* 🆕 Long-press (мобилки): 500мс удержания по тексту */
         onPointerDown={(e) => {
-          if (!isMessage) return;
           if (e.pointerType !== "touch") return;
           if (!isTextTarget(e.target)) return;
           lpPos.current = { x: e.clientX, y: e.clientY };

@@ -80,30 +80,43 @@ export function RichContextMenu({ x, y, items, onClose, zIndex = 9990 }: Props) 
     if (!el) return;
     const r = el.getBoundingClientRect();
     let nx = x;
-    let ny = y;
+    // ✅ ВСЕГДА открываемся ВВЕРХ от точки клика (как в Telegram)
+    let ny = y - r.height - 8;
     if (nx + r.width > window.innerWidth - 8) nx = Math.max(8, window.innerWidth - r.width - 8);
-    if (ny + r.height > window.innerHeight - 8) ny = Math.max(8, y - r.height); // вверх
+    if (nx < 8) nx = 8;
+    // только если сверху НЕ влезает — открываемся вниз
+    if (ny < 8) ny = Math.min(y + 8, window.innerHeight - r.height - 8);
     setPos({ x: nx, y: ny });
   }, [x, y]);
 
   // закрытие: клик мимо / Escape / скролл / resize
-  useEffect(() => {
-    const onDown = (e: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) onClose();
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    const onScroll = () => onClose();
-    document.addEventListener("pointerdown", onDown);
-    document.addEventListener("keydown", onKey);
-    window.addEventListener("resize", onClose);
-    window.addEventListener("scroll", onScroll, true);
-    return () => {
-      document.removeEventListener("pointerdown", onDown);
-      document.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", onClose);
-      window.removeEventListener("scroll", onScroll, true);
-    };
-  }, [onClose]);
+useEffect(() => {
+  const onDown = (e: PointerEvent) => {
+    if (rootRef.current && !rootRef.current.contains(e.target as Node)) onClose();
+  };
+  const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+  const onScroll = () => onClose();
+  // 🛡️ Подавляем нативное контекстное меню браузера, пока наше открыто
+  const onContextMenu = (e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
+    return false;
+  };
+  document.addEventListener("pointerdown", onDown);
+  document.addEventListener("keydown", onKey);
+  document.addEventListener("contextmenu", onContextMenu, true); // ← ВАЖНО: capture phase
+  window.addEventListener("resize", onClose);
+  window.addEventListener("scroll", onScroll, true);
+  return () => {
+    document.removeEventListener("pointerdown", onDown);
+    document.removeEventListener("keydown", onKey);
+    document.removeEventListener("contextmenu", onContextMenu, true);
+    window.removeEventListener("resize", onClose);
+    window.removeEventListener("scroll", onScroll, true);
+  };
+}, [onClose]);
+
+  
 
   const openSubmenu = (id: string, rect: DOMRect, count: number) => {
     let sx = rect.right - 6;

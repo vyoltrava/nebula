@@ -53,6 +53,19 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
     if (html !== el.innerHTML) el.innerHTML = html;
   }, [value]);
 
+
+    // 🛡️ Глобально глушим нативное контекстное меню, когда наше открыто
+    useEffect(() => {
+    if (!menu) return;
+    const suppress = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    };
+    document.addEventListener("contextmenu", suppress, true);
+    return () => document.removeEventListener("contextmenu", suppress, true);
+    }, [menu]);
+
   // нормализация "пусто" для placeholder
   const normalizeEmpty = () => {
     const el = elRef.current;
@@ -186,11 +199,13 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
           openMenuAt(e.clientX, e.clientY);
         }}
         onPointerDown={(e) => {
-          if (e.pointerType === "touch") {
+        if (e.pointerType === "touch") {
+            // Предотвращаем нативный long-press iOS/Android
+            e.preventDefault();
             lpPos.current = { x: e.clientX, y: e.clientY };
             clearLp();
-            lpTimer.current = setTimeout(() => openMenuAt(lpPos.current.x, lpPos.current.y), 450);
-          }
+            lpTimer.current = setTimeout(() => openMenuAt(lpPos.current.x, lpPos.current.y), 350);
+        }
         }}
         onPointerUp={clearLp}
         onPointerMove={clearLp}
@@ -208,18 +223,18 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
 )}
 
       <style jsx>{`
-        .rich-editor {
-          -webkit-touch-callout: none; /* iOS: убираем нативный callout */
-          -webkit-user-select: text;
-          user-select: text;
-          word-break: break-word;
-          white-space: pre-wrap;
-        }
-        .rich-editor:empty::before {
-          content: attr(data-placeholder);
-          color: rgba(255, 255, 255, 0.4);
-          pointer-events: none;
-        }
+.rich-editor {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+/* Разрешаем выделение только внутри выделенных нами слов */
+.rich-editor ::selection {
+  background: rgba(139, 92, 246, 0.4);
+  color: white;
+}
         .rich-editor:focus { outline: none; }
         .rich-editor strong { font-weight: 700; }
         .rich-editor em { font-style: italic; }

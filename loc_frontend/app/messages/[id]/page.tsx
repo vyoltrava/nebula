@@ -260,9 +260,10 @@ const openMessageMenu = (e: React.MouseEvent | React.PointerEvent, msg: any) => 
   setContextMenu({ msg, x, y });
 };
 const handlePointerDown = (e: React.PointerEvent, msg: any) => {
-  if (isSelectMode || isSecret) return;
-  
-  longPressTimerRef.current = setTimeout(() => {
+if (isSelectMode || isSecret) return;
+// 🆕 long press по ТЕКСТУ сообщения → там работает меню слова (MarkdownRenderer)
+if ((e.target as HTMLElement).closest(".markdown-body")) return;
+longPressTimerRef.current = setTimeout(() => {
     isLongPressRef.current = true;
     
     const windowWidth = window.innerWidth;
