@@ -67,6 +67,7 @@ const level = user.level ?? (user.username === "trelod" ? 11 : user.is_admin ? 1
   }
 
   // Уровень 10 (Founder): белое кольцо с Hello Kitty
+  // Уровень 10 (Founder): белое кольцо + Hello Kitty
   if (level === 10) {
     return (
       <div className="relative">
@@ -80,28 +81,14 @@ const level = user.level ?? (user.username === "trelod" ? 11 : user.is_admin ? 1
         <div className="relative rounded-full border-[3px] border-[#171717]">
           {children}
         </div>
-        {/* Hello Kitty мордочка сверху */}
-        <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 flex items-center justify-center animate-bounce-slow">
-          <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-[0_2px_8px_rgba(255,255,255,0.8)]">
-            {/* Голова */}
-            <ellipse cx="50" cy="55" rx="45" ry="40" fill="white" stroke="#000" strokeWidth="2"/>
-            {/* Уши */}
-            <path d="M 20 25 L 10 5 L 30 15 Z" fill="white" stroke="#000" strokeWidth="2"/>
-            <path d="M 80 25 L 90 5 L 70 15 Z" fill="white" stroke="#000" strokeWidth="2"/>
-            {/* Бант */}
-            <ellipse cx="75" cy="20" rx="12" ry="8" fill="#ff1744" stroke="#000" strokeWidth="1.5"/>
-            <circle cx="75" cy="20" r="3" fill="#ffeb3b"/>
-            {/* Глаза */}
-            <ellipse cx="35" cy="50" rx="4" ry="5" fill="#000"/>
-            <ellipse cx="65" cy="50" rx="4" ry="5" fill="#000"/>
-            {/* Нос */}
-            <ellipse cx="50" cy="60" rx="3" ry="2.5" fill="#ffeb3b"/>
-            {/* Усы */}
-            <line x1="15" y1="58" x2="35" y2="62" stroke="#000" strokeWidth="1.5"/>
-            <line x1="15" y1="65" x2="35" y2="65" stroke="#000" strokeWidth="1.5"/>
-            <line x1="65" y1="62" x2="85" y2="58" stroke="#000" strokeWidth="1.5"/>
-            <line x1="65" y1="65" x2="85" y2="65" stroke="#000" strokeWidth="1.5"/>
-          </svg>
+        {/* Мордочка сверху */}
+        <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-9 h-9 animate-bounce-slow pointer-events-none select-none z-10">
+          <img
+            src="/hello-kitty.png"
+            alt=""
+            className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(255,255,255,0.8)]"
+            draggable={false}
+          />
         </div>
       </div>
     );
