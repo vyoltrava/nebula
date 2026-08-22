@@ -56,17 +56,36 @@ export default function LoginPage() {
 
       const data = await res.json();
 
-      // 🔥 ИСПРАВЛЕНО: сохраняем user_id, который прислал бэкенд
       if (data.requires_2fa) {
         setRequires2FA(true);
         setTempUserId(data.user_id); 
         return;
       }
 
-      setToken(data.token);
+      // 🔥 ШАГ 1: Получаем токен
+      const token = data.token;
+
+      // 🔥 ШАГ 2: Если бэкенд сразу отдал user, используем его. Иначе запрашиваем /api/me
+      let userData = data.user;
+      if (!userData) {
+        const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (meRes.ok) {
+          userData = await meRes.json();
+        } else {
+          setError("Не удалось получить данные профиля");
+          return;
+        }
+      }
+
+      // 🔥 ШАГ 3: Сохраняем и токен, и пользователя в мульти-аккаунт менеджер
+      setToken(token, userData);
       sessionStorage.setItem("justLoggedIn", "1");
       router.push("/");
-    } catch {
+      
+    } catch (err) {
+      console.error("Login error:", err);
       setError(t("login.serverError"));
     }
   }
@@ -78,7 +97,6 @@ export default function LoginPage() {
 
     try {
       const form = new FormData();
-      // 🔥 ИСПРАВЛЕНО: отправляем user_id, как того требует бэкенд
       form.append("user_id", String(tempUserId!)); 
       form.append("code", twoFACode);
 
@@ -95,11 +113,24 @@ export default function LoginPage() {
       }
 
       const data = await res.json();
-      setToken(data.token);
-      sessionStorage.setItem("justLoggedIn", "1");
-      router.push("/");
+      const token = data.token;
+
+      // 🔥 Для 2FA тоже запрашиваем /api/me, чтобы гарантированно получить актуальные данные
+      const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (meRes.ok) {
+        const userData = await meRes.json();
+        setToken(token, userData);
+        sessionStorage.setItem("justLoggedIn", "1");
+        router.push("/");
+      } else {
+        setError("Не удалось получить данные профиля после 2FA");
+      }
     } catch {
       setError(t("login.serverErrorShort"));
+    } finally {
       setLoading2FA(false);
     }
   }
