@@ -9105,14 +9105,13 @@ def delete_badge(
         session.delete(badge)
         session.commit()
     return {"ok": True}
-
 @app.post("/api/me/badge")
 def select_my_badge(
     badge_id: Optional[int] = Form(None),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Пользователь выбирает себе значок или снимает его"""
+    """Пользователь выбирает значок или снимает его"""
     if badge_id:
         badge = session.get(Badge, badge_id)
         if not badge:
@@ -9128,10 +9127,11 @@ def select_my_badge(
             raise HTTPException(403, "У вас нет прав на этот значок")
         
         user.selected_badge_id = badge_id
+        # При выборе стокового — кастомный НЕ трогаем, он просто не рендерится
     else:
-        # 🆕 ЕСЛИ badge_id НЕ ПЕРЕДАН (пустая FormData) — СНИМАЕМ ЗНАЧОК
+        # 🆕 СНИМАЕМ ВСЁ: и выбранный, и загруженный
         user.selected_badge_id = None
-        user.custom_badge_url = None # На всякий случай
+        user.custom_badge_url = None
     
     session.add(user)
     session.commit()
@@ -9318,3 +9318,34 @@ async def admin_upload_stock_badges(
     
     session.commit()
     return {"ok": True, "uploaded": uploaded_count}
+
+
+@app.delete("/api/badges/{badge_id}")
+def admin_delete_badge(
+    badge_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    if not user.is_admin:
+        raise HTTPException(403, "Admin only")
+    
+    badge = session.get(Badge, badge_id)
+    if not badge:
+        raise HTTPException(404, "Badge not found")
+    
+    # 🆕 СБРАСЫВАЕМ значок у всех пользователей, у кого он выбран
+    users_with_badge = session.exec(
+        select(User).where(User.selected_badge_id == badge_id)
+    ).all()
+    
+    for u in users_with_badge:
+        u.selected_badge_id = None
+        session.add(u)
+    
+    session.delete(badge)
+    session.commit()
+    
+    # 🆕 РАССЫЛАЕМ всем, что значок удалён
+    asyncio.create_task(manager.broadcast_all("badge_deleted", {"badge_id": badge_id}))
+    
+    return {"ok": True}

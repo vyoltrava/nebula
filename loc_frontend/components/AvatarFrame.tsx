@@ -60,9 +60,11 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
         {children}
       </div>
 
-      {/* ПУЛЬСАЦИЯ СВЕЧЕНИЯ (исправлено для Firefox - без filter в анимации) */}
+      {/* ПУЛЬСАЦИЯ СВЕЧЕНИЯ (исправлено для Firefox) */}
       {userBadge.enable_glow && (
-        <div className="absolute -bottom-2 -right-2 w-9 h-9 pointer-events-none select-none z-10 badge-glow-effect">
+        <div 
+          className="absolute -top-4 left-1/2 -translate-x-1/2 w-9 h-9 pointer-events-none select-none z-10 badge-glow-effect"
+        >
           <div 
             className="absolute inset-0 rounded-full"
             style={{

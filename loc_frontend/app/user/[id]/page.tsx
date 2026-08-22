@@ -20,6 +20,7 @@ import { AvatarCropper } from "@/components/AvatarCropper";
 import { SmartImage } from "@/components/SmartImage";
 import { validateUpload, uploadErrorText, UPLOAD_RULES } from "@/lib/uploadRules";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
+import { useWebSocket } from "@/src/hooks/useWebSocket";
 
 export default function UserProfilePage() {
   const params = useParams();
@@ -181,6 +182,7 @@ function getGlowColor(user: any): string | null {
   }, []);
 
   useEffect(() => {
+    loadBadges();
     const token = getToken();
     
     // Загружаем текущего пользователя
@@ -368,6 +370,9 @@ function getGlowColor(user: any): string | null {
     }
   }
 
+
+
+
   async function openModal(type: "followers" | "following") {
     setModalType(type);
     setModalLoading(true);
@@ -397,7 +402,15 @@ function getGlowColor(user: any): string | null {
       </div>
     );
   }
-
+  // 🆕 Обработка удаления значка через WebSocket
+  useWebSocket("badge_deleted", (data: any) => {
+    if (data.badge_id === profile?.selected_badge_id) {
+      // Значок удалён — сбрасываем его
+      setProfile((prev: any) => prev ? { ...prev, selected_badge_id: null } : null);
+      // Обновляем список доступных значков
+      loadBadges();
+    }
+  });
   const canBan = 
     currentUser?.permissions?.includes("ban_users") &&
     currentUser.id !== profile.id &&
