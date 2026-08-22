@@ -24,9 +24,10 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
     enable_glow: true,
   } : null;
 
-  // 2. Ищем активный значок: кастомный > выбранный > привязанный к роли
+  // 2. Ищем активный значок: кастомный > выбранный вручную > выданный конкретно этому юзеру > выданный по роли
   const userBadge = customBadge || 
                     availableBadges.find((b: any) => b.id === user.selected_badge_id) || 
+                    availableBadges.find((b: any) => b.user_id === user.id) || // 🆕 ДОБАВЛЕНО: проверка по ID пользователя
                     availableBadges.find((b: any) => b.role_id === user.role?.id);
 
   // 3. Если значка нет, используем старую логику по уровням (fallback)
