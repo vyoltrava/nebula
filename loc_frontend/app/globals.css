@@ -327,3 +327,90 @@ body {
 .call-connecting {
   animation: call-connecting 1s ease-in-out infinite;
 }
+
+
+/* ═══════════════════════════════════════════
+   🎭 ROLE BADGES — АНИМАЦИИ
+   ═══════════════════════════════════════════ */
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%) skewX(-15deg); }
+  100% { transform: translateX(200%) skewX(-15deg); }
+}
+
+@keyframes founderGlow {
+  0%, 100% { box-shadow: 0 4px 14px 0 rgba(255,255,255,0.4), inset 0 1px 0 rgba(255,255,255,0.8); }
+  50% { box-shadow: 0 4px 24px 4px rgba(255,255,255,0.6), inset 0 1px 0 rgba(255,255,255,0.8); }
+}
+
+@keyframes developerPulse {
+  0%, 100% { box-shadow: 0 4px 14px 0 rgba(59,130,246,0.4); }
+  50% { box-shadow: 0 4px 20px 2px rgba(59,130,246,0.6); }
+}
+
+@keyframes specialGlow {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.15); }
+}
+
+@keyframes gradientShift {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+@keyframes sparkle1 {
+  0%, 100% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 0.8; transform: scale(1.2); }
+}
+
+@keyframes sparkle2 {
+  0%, 100% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 0.6; transform: scale(1); }
+}
+
+@keyframes rolePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+.animate-shimmer {
+  animation: shimmer 3s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+}
+
+.animate-founder-glow {
+  animation: founderGlow 3s ease-in-out infinite;
+}
+
+.animate-developer-pulse {
+  animation: developerPulse 2.5s ease-in-out infinite;
+}
+
+.animate-special-glow {
+  animation: specialGlow 2s ease-in-out infinite;
+}
+
+.animate-gradient-shift {
+  animation: gradientShift 3s linear infinite;
+}
+
+.animate-sparkle-1 {
+  animation: sparkle1 2s ease-in-out infinite;
+}
+
+.animate-sparkle-2 {
+  animation: sparkle2 2s ease-in-out infinite 1s;
+}
+
+.animate-role-pulse {
+  animation: rolePulse 3s ease-in-out infinite;
+}
+
+.badge-cursor {
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
