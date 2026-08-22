@@ -1652,7 +1652,7 @@ cache: "no-store",
     loadChatInfo();
     loadMessages();
     loadPinned();
-    loadStickerPacks(); // 🆕
+    loadStickerPacks(); 
 
     // 🆕 Загружаем участников для автодополнения упоминаний
 fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/members`, {
