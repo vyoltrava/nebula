@@ -4846,17 +4846,29 @@ def startup():
             print(f"⚠️ ALTER TABLE supportticket warning: {e}")
             conn.rollback()
 
-    # ===== 🔄 СБРОС SEQUENCE И LOWERCASE USERNAMES =====
-    with engine.connect() as conn:
-        try:
-            conn.execute(text('UPDATE "user" SET username = LOWER(username) WHERE username != LOWER(username);'))
-            conn.execute(text("""
-                SELECT setval(pg_get_serial_sequence('"user"', 'id'), COALESCE((SELECT MAX(id) FROM "user"), 0) + 1, false);
+# ===== 🔄 СБРОС SEQUENCE ДЛЯ ВСЕХ ОСНОВНЫХ ТАБЛИЦ =====
+with engine.connect() as conn:
+    try:
+        # Сбрасываем lowercase для юзеров
+        conn.execute(text('UPDATE "user" SET username = LOWER(username) WHERE username != LOWER(username);'))
+        
+        # Список таблиц, где могут быть проблемы с sequence после бэкапов/миграций
+        tables_to_fix = ['"user"', 'notification', 'message', 'post', 'chat', 'chatmember', 'supportticket', 'supportmessage']
+        
+        for table in tables_to_fix:
+            conn.execute(text(f"""
+                SELECT setval(
+                    pg_get_serial_sequence({table}, 'id'), 
+                    COALESCE((SELECT MAX(id) FROM {table}), 1), 
+                    true
+                );
             """))
-            conn.commit()
-            print("✅ User ID sequence reset & usernames lowercased")
-        except Exception as e:
-            print(f"⚠️ STARTUP SEQUENCE ERROR: {e}")
+            
+        conn.commit()
+        print(f"✅ ID sequences reset for: {', '.join(tables_to_fix)} & usernames lowercased")
+    except Exception as e:
+        print(f"⚠️ STARTUP SEQUENCE ERROR: {e}")
+        conn.rollback()
 
 
 
