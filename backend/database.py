@@ -8,7 +8,7 @@ load_dotenv(_backend_dir.parent / ".env.local")
 import os
 from sqlmodel import SQLModel, create_engine, Session
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///nebula.db")
 
 connect_args = {}
 engine_kwargs: dict = {

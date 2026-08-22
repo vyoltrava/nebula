@@ -1844,6 +1844,7 @@ useWebSocket("new_message", (data: any) => {
     );
   }
 
+  
   // Отметка прочитанных (только если мы внизу чата)
   const token = getToken();
   if (token && isAutoScrollEnabled) {

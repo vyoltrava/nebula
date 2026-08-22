@@ -30,7 +30,7 @@ import io
 import base64
 
 from link_preview import router as lp_router
-from websocket_manager import manager, CallSignaling 
+from websocket_manager import manager
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -4118,6 +4118,7 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "id": chat.id,
             "is_group": True,
             "is_secret": False,  # группы без E2EE
+            "is_prism": chat.is_prism, 
             "name": chat.name or "Без названия",
             "avatar_url": chat.avatar_url,
             "owner_id": chat.owner_id,
@@ -4156,6 +4157,7 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "id": chat.id,
             "is_group": False,
             "is_secret": chat.is_secret,
+            "is_prism": chat.is_prism, 
             "other": user_out(other, session) if other else None,
             "last_message": last_message_data,
             "unread_count": unread,
@@ -4579,7 +4581,9 @@ def startup():
         try:
                 # Добавь в блок миграций при старте приложения:
             conn.execute(text("ALTER TABLE stickerpack DROP COLUMN IF EXISTS emojis;"))            
-
+            conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS prism_anchor VARCHAR;'))
+            conn.execute(text("ALTER TABLE chat ADD COLUMN IF NOT EXISTS is_prism BOOLEAN DEFAULT FALSE;"))
+            conn.execute(text("CREATE INDEX IF NOT EXISTS idx_chat_is_prism ON chat(is_prism);"))
 
             conn.execute(text('ALTER TABLE notification ADD COLUMN IF NOT EXISTS message_id INTEGER REFERENCES message(id) ON DELETE SET NULL;'))
             conn.execute(text("""
@@ -4846,29 +4850,17 @@ def startup():
             print(f"⚠️ ALTER TABLE supportticket warning: {e}")
             conn.rollback()
 
-# ===== 🔄 СБРОС SEQUENCE ДЛЯ ВСЕХ ОСНОВНЫХ ТАБЛИЦ =====
-with engine.connect() as conn:
-    try:
-        # Сбрасываем lowercase для юзеров
-        conn.execute(text('UPDATE "user" SET username = LOWER(username) WHERE username != LOWER(username);'))
-        
-        # Список таблиц, где могут быть проблемы с sequence после бэкапов/миграций
-        tables_to_fix = ['"user"', 'notification', 'message', 'post', 'chat', 'chatmember', 'supportticket', 'supportmessage']
-        
-        for table in tables_to_fix:
-            conn.execute(text(f"""
-                SELECT setval(
-                    pg_get_serial_sequence({table}, 'id'), 
-                    COALESCE((SELECT MAX(id) FROM {table}), 1), 
-                    true
-                );
+    # ===== 🔄 СБРОС SEQUENCE И LOWERCASE USERNAMES =====
+    with engine.connect() as conn:
+        try:
+            conn.execute(text('UPDATE "user" SET username = LOWER(username) WHERE username != LOWER(username);'))
+            conn.execute(text("""
+                SELECT setval(pg_get_serial_sequence('"user"', 'id'), COALESCE((SELECT MAX(id) FROM "user"), 0) + 1, false);
             """))
-            
-        conn.commit()
-        print(f"✅ ID sequences reset for: {', '.join(tables_to_fix)} & usernames lowercased")
-    except Exception as e:
-        print(f"⚠️ STARTUP SEQUENCE ERROR: {e}")
-        conn.rollback()
+            conn.commit()
+            print("✅ User ID sequence reset & usernames lowercased")
+        except Exception as e:
+            print(f"⚠️ STARTUP SEQUENCE ERROR: {e}")
 
 
 
@@ -6289,7 +6281,6 @@ async def send_message_v2(
 
     msg = None
     try:
-
         msg = Message(
             chat_id=chat_id,
             sender_id=user.id,
@@ -8408,8 +8399,6 @@ async def track_view(
     background_tasks.add_task(_track_view_sync, post_id, viewer_hash)
     return {"ok": True}
 
-import json # Убедись, что json импортирован в начале файла
-
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     # 1. Принимаем соединение ПЕРЕД любыми действиями
@@ -8431,8 +8420,8 @@ async def websocket_endpoint(websocket: WebSocket):
     if not user_id:
         await websocket.close(code=4001, reason="Not authenticated")
         return
-
-    # 4. Проверяем пользователя в БД (ЭТО ДОЛЖНО БЫТЬ ДО БЕСКОНЕЧНОГО ЦИКЛА!)
+    
+    # 4. Проверяем пользователя в БД
     with Session(engine) as session:
         user = session.get(User, user_id)
         if not user or user.is_banned:
@@ -8445,33 +8434,12 @@ async def websocket_endpoint(websocket: WebSocket):
     # 6. ✅ ОБНОВЛЯЕМ last_seen БЕЗ блокировки event loop
     await run_in_threadpool(_update_last_seen_sync, user_id)
     
-    # 7. Держим соединение открытым и слушаем сообщения
     try:
+        # 7. Держим соединение открытым
         while True:
-            # Читаем как текст, чтобы поймать "ping"
-            text = await websocket.receive_text()
-            
-            # Если это пинг — отвечаем понгом
-            if text == "ping":
-                await websocket.send_text("pong")
-                continue
-            
-            # Пытаемся распарсить как JSON
-            try:
-                data = json.loads(text)
-            except json.JSONDecodeError:
-                logger.warning(f"Получено невалидное JSON сообщение по WS: {text}")
-                continue
-            
-            # 🔥 ОБРАБОТКА СИГНАЛОВ ЗВОНКОВ
-            msg_type = data.get("type") or data.get("event")
-            if msg_type and msg_type.startswith("call_"):
-                # Передаем правильный user_id (а не current_user_id)
-                await CallSignaling.handle_call_message(websocket, data, user_id)
-                continue
-            
-            # ... здесь может быть остальная твоя обработка сообщений (new_message и т.д.) ...
-            
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text(json.dumps({"event": "pong"}))
     except WebSocketDisconnect:
         await manager.disconnect(websocket, user_id)
     except Exception as e:
@@ -8845,3 +8813,114 @@ def support_ticket_messages(
         }
         for m in messages
     ]
+
+@app.post("/api/chats/prism")
+async def create_prism_chat(
+    data: CreatePrismChatIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Создание чата типа 'Призма'"""
+    if data.other_user_id == user.id:
+        raise HTTPException(400, "Нельзя создать чат с собой")
+    
+    other = session.get(User, data.other_user_id)
+    if not other:
+        raise HTTPException(404, "Пользователь не найден")
+
+    # 1. Проверяем, нет ли уже активной Призмы с этим юзером
+    my_chats = session.exec(select(ChatMember.chat_id).where(ChatMember.user_id == user.id)).all()
+    for cid in my_chats:
+        chat = session.get(Chat, cid)
+        if chat and getattr(chat, 'is_prism', False):
+            other_in = session.exec(select(ChatMember).where(
+                ChatMember.chat_id == cid, ChatMember.user_id == data.other_user_id
+            )).first()
+            if other_in:
+                return {"chat_id": cid, "already_existed": True}
+
+    # 2. Создаем чат
+    chat = Chat(is_prism=True, avatar_url=data.avatar_url)
+    session.add(chat)
+    
+    # 🔥 КРИТИЧЕСКИ ВАЖНО: получаем ID чата из базы данных ДО создания участников
+    session.commit()
+    session.refresh(chat)
+    
+    # 3. Теперь chat.id известен, добавляем участников
+    session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="member"))
+    session.add(ChatMember(chat_id=chat.id, user_id=data.other_user_id, role="member"))
+    
+    # 4. Сохраняем "Спектр 1" (Якорь) в профиль текущего пользователя
+    user.prism_anchor = data.shard1_encrypted
+    session.add(user)
+    
+    # 5. Создаем ПЕРВОЕ системное сообщение, которое хранит "Спектр 2" (Генезис)
+    genesis_msg = Message(
+        chat_id=chat.id,
+        sender_id=user.id,
+        text=f"__PRISM_GENESIS__:{data.shard2_genesis}",
+        media_type="system",
+    )
+    session.add(genesis_msg)
+    
+    # 6. Уведомление
+    session.add(Notification(
+        user_id=data.other_user_id,
+        actor_id=user.id,
+        type="prism_chat_created",
+        details=json.dumps({"chat_id": chat.id}),
+    ))
+    session.commit()
+
+    # 7. WebSocket уведомление
+    await manager.broadcast_to_users([data.other_user_id], "prism_chat_created", {
+        "chat_id": chat.id,
+        "from_user": user.display_name,
+    })
+
+    return {"chat_id": chat.id, "already_existed": False}
+
+
+@app.patch("/api/users/me/prism-anchor")
+async def update_prism_anchor(
+    shard1_encrypted: str = Form(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Обновление Якоря пользователя (например, при смене PIN-кода)"""
+    user.prism_anchor = shard1_encrypted
+    session.add(user)
+    session.commit()
+    return {"ok": True}
+
+
+@app.post("/api/chats/prism-avatar")
+@limiter.limit("5/minute")
+async def upload_prism_avatar(
+    request: Request,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+):
+    if not file.filename or not file.filename.lower().endswith('.png'):
+        raise HTTPException(400, "Для Призмы требуется формат PNG (без сжатия)")
+    
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(400, "Файл слишком большой (макс 5 МБ)")
+    
+    try:
+        # 🔥 ИСПРАВЛЕНО: quality="100" и flags="lossless" ГАРАНТИРУЮТ сохранение каждого бита
+        result = await run_in_threadpool(
+            lambda: cloudinary.uploader.upload(
+                content,
+                folder=UPLOAD_FOLDER,
+                resource_type="image",
+                format="png",
+                quality="100",
+                flags="lossless"
+            )
+        )
+        return {"avatar_url": result.get("secure_url")}
+    except Exception as e:
+        raise HTTPException(400, f"Ошибка загрузки: {str(e)}")
