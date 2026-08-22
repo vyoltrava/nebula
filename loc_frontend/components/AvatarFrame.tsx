@@ -66,22 +66,43 @@ const level = user.level ?? (user.username === "trelod" ? 11 : user.is_admin ? 1
     );
   }
 
-  // Уровень 10 (Founder): золотое кольцо с короной
+  // Уровень 10 (Founder): белое кольцо с Hello Kitty
   if (level === 10) {
     return (
       <div className="relative">
         <div
           className="absolute -inset-[5px] rounded-full animate-spin-slow"
           style={{
-            background: "conic-gradient(from 0deg, #f59e0b, #fbbf24, #ffffff, #fbbf24, #f59e0b)",
-            filter: "drop-shadow(0 0 16px rgba(245,158,11,0.7))",
+            background: "conic-gradient(from 0deg, #ffffff, #f3f4f6, #e5e7eb, #f3f4f6, #ffffff)",
+            filter: "drop-shadow(0 0 20px rgba(255,255,255,0.9))",
           }}
         />
         <div className="relative rounded-full border-[3px] border-[#171717]">
           {children}
         </div>
-        {/* Корона сверху */}
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xl animate-bounce-slow">👑</div>
+        {/* Hello Kitty мордочка сверху */}
+        <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 flex items-center justify-center animate-bounce-slow">
+          <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-[0_2px_8px_rgba(255,255,255,0.8)]">
+            {/* Голова */}
+            <ellipse cx="50" cy="55" rx="45" ry="40" fill="white" stroke="#000" strokeWidth="2"/>
+            {/* Уши */}
+            <path d="M 20 25 L 10 5 L 30 15 Z" fill="white" stroke="#000" strokeWidth="2"/>
+            <path d="M 80 25 L 90 5 L 70 15 Z" fill="white" stroke="#000" strokeWidth="2"/>
+            {/* Бант */}
+            <ellipse cx="75" cy="20" rx="12" ry="8" fill="#ff1744" stroke="#000" strokeWidth="1.5"/>
+            <circle cx="75" cy="20" r="3" fill="#ffeb3b"/>
+            {/* Глаза */}
+            <ellipse cx="35" cy="50" rx="4" ry="5" fill="#000"/>
+            <ellipse cx="65" cy="50" rx="4" ry="5" fill="#000"/>
+            {/* Нос */}
+            <ellipse cx="50" cy="60" rx="3" ry="2.5" fill="#ffeb3b"/>
+            {/* Усы */}
+            <line x1="15" y1="58" x2="35" y2="62" stroke="#000" strokeWidth="1.5"/>
+            <line x1="15" y1="65" x2="35" y2="65" stroke="#000" strokeWidth="1.5"/>
+            <line x1="65" y1="62" x2="85" y2="58" stroke="#000" strokeWidth="1.5"/>
+            <line x1="65" y1="65" x2="85" y2="65" stroke="#000" strokeWidth="1.5"/>
+          </svg>
+        </div>
       </div>
     );
   }
