@@ -9601,29 +9601,43 @@ def toggle_pin(
 
 
 # ============================================================
-# 💡 ФОРУМ ПРЕДЛОЖЕНИЙ (КАК НА GAMBIT)
+# 💡 ФОРУМ ПРЕДЛОЖЕНИЙ: КАТЕГОРИИ (100% ЗАЩИТА ОТ 422)
 # ============================================================
 
 @app.get("/api/suggestions/categories")
-def get_suggestion_categories(session: Session = Depends(get_session)):
+def get_suggestion_categories(
+    session: Session = Depends(get_session)
+):
     """Получить все разделы"""
-    categories = session.exec(
-        select(SuggestionCategory).order_by(SuggestionCategory.order)
-    ).all()
-    return [{
-        "id": c.id,
-        "name": c.name,
-        "description": c.description,
-        "icon": c.icon,
-        "color": c.color,
-        "order": c.order,
-        "is_archived": c.is_archived,
-        "threads_count": session.exec(
-            select(func.count(SuggestionThread.id)).where(
-                SuggestionThread.category_id == c.id
-            )
-        ).one(),
-    } for c in categories]
+    try:
+        categories = session.exec(
+            select(SuggestionCategory).order_by(SuggestionCategory.order)
+        ).all()
+        
+        result = []
+        for c in categories:
+            # Безопасный подсчет тем
+            threads_count = session.exec(
+                select(func.count(SuggestionThread.id)).where(
+                    SuggestionThread.category_id == c.id
+                )
+            ).one() or 0
+            
+            result.append({
+                "id": c.id,
+                "name": c.name,
+                "description": c.description,
+                "icon": c.icon,
+                "color": c.color,
+                "order": c.order,
+                "is_archived": c.is_archived,
+                "threads_count": threads_count,
+            })
+        return result
+    except Exception as e:
+        print(f"❌ ОШИБКА В get_suggestion_categories: {e}")
+        raise HTTPException(status_code=500, detail="Ошибка сервера при загрузке категорий")
+
 
 @app.post("/api/suggestions/categories")
 def create_suggestion_category(
@@ -9631,7 +9645,7 @@ def create_suggestion_category(
     description: Optional[str] = Form(None),
     icon: str = Form("message-square"),
     color: str = Form("#8b5cf6"),
-    order: Optional[int] = Form(0),  # 🆕 Сделали Optional, чтобы избежать 422
+    # 🛡️ УБРАЛИ order из Form(). Теперь бэкенд считает его сам, что исключает 422 ошибку
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
@@ -9639,20 +9653,31 @@ def create_suggestion_category(
     if not user.is_admin:
         raise HTTPException(403, "Только администраторы")
     
-    # 🆕 Безопасное получение order (если фронт не прислал, будет 0)
-    actual_order = order if order is not None else 0
+    if not name.strip():
+        raise HTTPException(400, "Название раздела обязательно")
+
+    # 🛡️ Автоматически вычисляем порядок на бэкенде
+    max_order = session.exec(select(func.max(SuggestionCategory.order))).one()
+    next_order = (max_order or 0) + 1
     
     cat = SuggestionCategory(
         name=name.strip(),
         description=description.strip() if description else None,
         icon=icon,
         color=color,
-        order=actual_order,
+        order=next_order,
+        is_archived=False,
     )
-    session.add(cat)
-    session.commit()
-    session.refresh(cat)
-    return {"ok": True, "id": cat.id}
+    
+    try:
+        session.add(cat)
+        session.commit()
+        session.refresh(cat)
+        return {"ok": True, "id": cat.id}
+    except Exception as e:
+        session.rollback()
+        print(f"❌ ОШИБКА ПРИ СОЗДАНИИ КАТЕГОРИИ: {e}")
+        raise HTTPException(status_code=500, detail="Не удалось создать раздел")
 
 @app.get("/api/suggestions/threads/{category_id}")
 def get_category_threads(
