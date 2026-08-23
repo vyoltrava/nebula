@@ -207,6 +207,7 @@ export default function UpdatesPage() {
   return (
     <div className="min-h-screen bg-[#171717]">
       <div className="max-w-3xl mx-auto px-4 py-10">
+                   <CommunityTabs />
         {/* Кнопка возврата */}
         <Link
           href="/"
@@ -218,7 +219,7 @@ export default function UpdatesPage() {
 
         {/* Шапка */}
         <div className="text-center mb-12">
-           <CommunityTabs />
+
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#8b5cf6]/20 border border-[#8b5cf6]/40 mb-4 shadow-[0_0_30px_rgba(139,92,246,0.3)]">
             <Megaphone size={28} className="text-[#8b5cf6]" />
           </div>
