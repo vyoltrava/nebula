@@ -428,7 +428,7 @@ const continueConfig = lastReadPost
   if (isMobile) {
     innerItems.push({ href: "#search", icon: Search, label: t("nav.search") });
   }
-innerItems.push({ href: "/updates", icon: Megaphone, label: t("nav.community"), count: counts.updates });
+innerItems.push({ href: "/updates", icon: MessagesSquare, label: t("nav.community"), count: counts.updates });
   if (user) innerItems.push({ href: `/${user.username}`, icon: Home, label: t("nav.profile"), isProfile: true });
 
     const outerItems: WheelItem[] = [
@@ -462,7 +462,7 @@ innerItems.push({ href: "/updates", icon: Megaphone, label: t("nav.community"), 
   const nav = [
     { href: "/",          icon: Home,      label: t("nav.home") },
     { href: "/bookmarks", icon: Bookmark,  label: t("nav.bookmarks") },
-    { href: "/updates",    icon: Megaphone,    label: t("nav.community") },  
+    { href: "/updates",    icon: MessagesSquare,    label: t("nav.community") },  
     { href: "/rules",     icon: Shield,    label: t("nav.rules") },
     { href: "/settings",  icon: Settings,  label: t("nav.settings") },
   ];
