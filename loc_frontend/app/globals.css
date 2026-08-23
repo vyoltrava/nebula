@@ -415,9 +415,8 @@ body {
   51%, 100% { opacity: 0; }
 }
 
-
 /* ═══════════════════════════════════════════
-   AVATAR FRAMES
+   🎭 AVATAR FRAMES — ОПТИМИЗИРОВАННЫЕ АНИМАЦИИ (60 FPS)
    ═══════════════════════════════════════════ */
 
 @keyframes spin-slow {
@@ -446,55 +445,56 @@ body {
 }
 
 @keyframes bounce-slow {
-  0%, 100% { transform: translateX(-50%) translateY(0); }
-  50% { transform: translateX(-50%) translateY(-3px); }
+  0%, 100% { transform: translate(-50%, 0) translateZ(0); }
+  50% { transform: translate(-50%, -6px) translateZ(0); }
 }
+
+/* Лёгкая анимация пульсации без filter (максимальная производительность в Firefox) */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.4; transform: scale(1) translateZ(0); }
+  50% { opacity: 0.9; transform: scale(1.15) translateZ(0); }
+}
+
+/* === КЛАССЫ С АППАРАТНЫМ УСКОРЕНИЕМ (GPU) === */
 
 .animate-spin-slow {
   animation: spin-slow 8s linear infinite;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .animate-spin-reverse {
   animation: spin-reverse 6s linear infinite;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .animate-role-aura {
   animation: role-aura 2s ease-in-out infinite;
+  will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
 .animate-float-1 {
   animation: float-1 3s ease-in-out infinite;
+  will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
 .animate-float-2 {
   animation: float-2 3s ease-in-out infinite 1.5s;
+  will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
-.animate-bounce-slow {
-  animation: bounce-slow 2s ease-in-out infinite;
-}
-
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-.animate-spin-slow {
-  animation: spin-slow 8s linear infinite;
-}
-
-@keyframes bounce-slow {
-  0%, 100% { transform: translate(-50%, 0); }
-  50% { transform: translate(-50%, -6px); }
-}
 .animate-bounce-slow {
   animation: bounce-slow 3s ease-in-out infinite;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
-/* Лёгкая анимация пульсации без filter (для Firefox) */
-@keyframes pulse-glow {
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50% { opacity: 0.9; transform: scale(1.15); }
-}
 .badge-glow-effect {
   animation: pulse-glow 2s ease-in-out infinite;
+  will-change: transform, opacity;
+  transform: translateZ(0);
 }
