@@ -436,7 +436,7 @@ export default function StatPage() {
         {/* ========== ВКЛАДКА: КОМАНДА ========== */}
         {activeTab === "team" && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-black text-white uppercase">Архитектура команды</h2>
+            <h2 className="text-2xl font-black text-white uppercase"> Команда</h2>
             {teamGroups.length === 0 ? (
               <div className="text-center py-16 border border-white/10 rounded-2xl bg-white/5">
                 <Shield size={48} className="mx-auto text-white/20 mb-4" />
