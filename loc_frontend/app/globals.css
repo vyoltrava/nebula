@@ -415,86 +415,63 @@ body {
   51%, 100% { opacity: 0; }
 }
 
-/* ═══════════════════════════════════════════
-   🎭 AVATAR FRAMES — ОПТИМИЗИРОВАННЫЕ АНИМАЦИИ (60 FPS)
-   ═══════════════════════════════════════════ */
+/* 🌟 КОСМИЧЕСКАЯ АНИМАЦИЯ ЗНАЧКА (одинаковая для всех, математически плавная) */
 
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+/* Парение по орбите: синусоидальное движение по X и Y с разной частотой */
+@keyframes cosmic-float {
+  0% {
+    transform: translate(-50%, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(calc(-50% + 2px), -3px) rotate(5deg);
+  }
+  50% {
+    transform: translate(-50%, -4px) rotate(0deg);
+  }
+  75% {
+    transform: translate(calc(-50% - 2px), -2px) rotate(-5deg);
+  }
+  100% {
+    transform: translate(-50%, 0) rotate(0deg);
+  }
 }
 
-@keyframes spin-reverse {
-  from { transform: rotate(360deg); }
-  to { transform: rotate(0deg); }
+/* Пульсация свечения: плавная синусоида */
+@keyframes cosmic-glow {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
 }
 
-@keyframes role-aura {
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.05); }
+/* Вращение кольца: медленное, равномерное */
+@keyframes cosmic-ring {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-@keyframes float-1 {
-  0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.6; }
-  50% { transform: translateY(-4px) rotate(5deg); opacity: 1; }
-}
-
-@keyframes float-2 {
-  0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.4; }
-  50% { transform: translateY(4px) rotate(-5deg); opacity: 0.8; }
-}
-
-@keyframes bounce-slow {
-  0%, 100% { transform: translate(-50%, 0) translateZ(0); }
-  50% { transform: translate(-50%, -6px) translateZ(0); }
-}
-
-/* Лёгкая анимация пульсации без filter (максимальная производительность в Firefox) */
-@keyframes pulse-glow {
-  0%, 100% { opacity: 0.4; transform: scale(1) translateZ(0); }
-  50% { opacity: 0.9; transform: scale(1.15) translateZ(0); }
-}
-
-/* === КЛАССЫ С АППАРАТНЫМ УСКОРЕНИЕМ (GPU) === */
-
-.animate-spin-slow {
-  animation: spin-slow 8s linear infinite;
+.animate-cosmic-float {
+  animation: cosmic-float 4s ease-in-out infinite;
   will-change: transform;
   transform: translateZ(0);
 }
 
-.animate-spin-reverse {
-  animation: spin-reverse 6s linear infinite;
+.animate-cosmic-glow {
+  animation: cosmic-glow 3s ease-in-out infinite;
+  will-change: opacity, transform;
+  transform: translateZ(0);
+}
+
+.animate-cosmic-ring {
+  animation: cosmic-ring 12s linear infinite;
   will-change: transform;
-  transform: translateZ(0);
-}
-
-.animate-role-aura {
-  animation: role-aura 2s ease-in-out infinite;
-  will-change: transform, opacity;
-  transform: translateZ(0);
-}
-
-.animate-float-1 {
-  animation: float-1 3s ease-in-out infinite;
-  will-change: transform, opacity;
-  transform: translateZ(0);
-}
-
-.animate-float-2 {
-  animation: float-2 3s ease-in-out infinite 1.5s;
-  will-change: transform, opacity;
-  transform: translateZ(0);
-}
-
-.animate-bounce-slow {
-  animation: bounce-slow 3s ease-in-out infinite;
-  will-change: transform;
-  transform: translateZ(0);
-}
-
-.badge-glow-effect {
-  animation: pulse-glow 2s ease-in-out infinite;
-  will-change: transform, opacity;
   transform: translateZ(0);
 }
