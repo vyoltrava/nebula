@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
+import { CommunityTabs } from "@/components/CommunityTabs";
+
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -216,6 +218,7 @@ export default function UpdatesPage() {
 
         {/* Шапка */}
         <div className="text-center mb-12">
+           <CommunityTabs />
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#8b5cf6]/20 border border-[#8b5cf6]/40 mb-4 shadow-[0_0_30px_rgba(139,92,246,0.3)]">
             <Megaphone size={28} className="text-[#8b5cf6]" />
           </div>
@@ -228,14 +231,7 @@ export default function UpdatesPage() {
           </p>
 
 <div className="flex items-center justify-center gap-3 mt-6 flex-wrap">
-  {/* 🆕 НОВАЯ КНОПКА ПЕРЕХОДА К ПРЕДЛОЖЕНИЯМ */}
-  <Link
-    href="/suggestions"
-    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[#8b5cf6]/40 text-[#8b5cf6] font-semibold hover:bg-[#8b5cf6]/10 transition-all text-sm"
-  >
-    <MessageSquare size={16} />
-    Перейти к предложениям
-  </Link>
+
 
   {canWrite && (
     <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed] transition-all shadow-lg shadow-[#8b5cf6]/30">

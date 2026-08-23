@@ -105,6 +105,7 @@ export const uk = {
     supportChat: "Чат підтримки",
     layoutSettings: "Налаштувати інтерфейс",
     navMenu: "Меню навігації",
+    community: "Спільнота"
   },
   notif: {
     empty: "Сповіщень поки що немає",
@@ -757,6 +758,10 @@ suggestions: {
     rejected: "Відхилено",
     archived: "В архіві",
   },
+},
+community: {
+  tabUpdates: "Оновлення",
+  tabForum: "Форум пропозицій",
 },
 
 

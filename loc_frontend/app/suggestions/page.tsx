@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { Avatar } from "@/components/Avatar";
+import { CommunityTabs } from "@/components/CommunityTabs";
 import {
   MessageSquare, Plus, ArrowLeft, Globe, Server, Archive, CheckCircle,
   Tags, Pencil, Lock, Trash2, X, FolderPlus,
@@ -55,6 +56,7 @@ export default function SuggestionsPage() {
   return (
     <div className="min-h-screen bg-[#171717]">
       <div className="max-w-6xl mx-auto px-4 py-10">
+        <CommunityTabs />
         <Link href="/updates" className="inline-flex items-center gap-2 text-white/50 hover:text-white mb-6">
           <ArrowLeft size={16} /> {t("suggestions.backToUpdates")}
         </Link>

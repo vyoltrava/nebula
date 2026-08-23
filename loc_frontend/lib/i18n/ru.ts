@@ -105,6 +105,7 @@ export const ru: Dictionary = {
     supportChat: "Чат поддержки",
     layoutSettings: "Настроить интерфейс",
     navMenu: "Меню навигации",
+    community: "Сообщество"
   },
   notif: {
     empty: "Пока нет уведомлений",
@@ -757,6 +758,11 @@ suggestions: {
     rejected: "Отклонено",
     archived: "В архиве",
   },
+},
+
+community: {
+  tabUpdates: "Обновления",
+  tabForum: "Форум предложений",
 },
 };
 

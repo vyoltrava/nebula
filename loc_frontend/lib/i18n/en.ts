@@ -107,6 +107,7 @@ export const en: Dictionary = {
     supportChat: "Support chat",
     layoutSettings: "Customize interface",
     navMenu: "Navigation menu",
+    community: "Community"
   },
   notif: {
     empty: "No notifications yet",
@@ -759,6 +760,10 @@ suggestions: {
     rejected: "Rejected",
     archived: "Archived",
   },
+},
+community: {
+  tabUpdates: "Updates",
+  tabForum: "Suggestions forum",
 },
 
 };
