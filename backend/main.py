@@ -4902,14 +4902,7 @@ def startup():
             """))
             
             # 2. Создаем дефолтные категории (ЯВНО указываем is_archived=FALSE, чтобы избежать NotNullViolation)
-            conn.execute(text("""
-                INSERT INTO suggestion_category (name, description, icon, color, "order", is_archived, created_at)
-                VALUES 
-                    ('Сайт', 'Предложения по улучшению сайта', 'globe', '#8b5cf6', 0, FALSE, NOW()),
-                    ('Сервер', 'Предложения по серверу', 'server', '#10b981', 1, FALSE, NOW()),
-                    ('Реализовано', 'Уже внедрённые предложения', 'check-circle', '#22c55e', 99, FALSE, NOW())
-                ON CONFLICT DO NOTHING;
-            """))
+
             conn.execute(text('ALTER TABLE suggestion_thread ADD COLUMN IF NOT EXISTS prefix_id INTEGER;'))
             conn.execute(text('ALTER TABLE suggestion_thread ADD COLUMN IF NOT EXISTS is_closed BOOLEAN DEFAULT FALSE;'))   
             

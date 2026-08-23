@@ -6,20 +6,22 @@ import {
   Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus,
   AtSign, X, Shield, ShieldCheck, MessageSquare, Palette,
   Bug, Orbit, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft, 
-  ChevronRight, History, BookOpen, Headphones, Users
+  ChevronRight, History, BookOpen, Headphones, MessagesSquare
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
 import { AccountSwitcher } from "@/components/AccountSwitcher";
 
 import { BugReportModal } from "@/components/BugReportModal";
-import { getCachedUser, setCachedUser, clearCachedUser } from "@/lib/authCache";
+import { getCachedUser, setCachedUser,  } from "@/lib/authCache";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { useWebSocket } from "@/src/hooks/useWebSocket";
 import { setLikedCache } from "@/lib/postCache";
 import { useLastReadPost } from "@/src/hooks/useLastReadPost";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import type { MessageKey } from "@/lib/i18n"; 
+import { CommunityTabs } from "@/components/CommunityTabs";
+
 
 // ════════════════════════════════════════════════════════════════
 // 🎯 КОНСТАНТЫ ОРБИТЫ
@@ -426,7 +428,7 @@ const continueConfig = lastReadPost
   if (isMobile) {
     innerItems.push({ href: "#search", icon: Search, label: t("nav.search") });
   }
-  innerItems.push({ href: "/updates", icon: Megaphone, label: t("nav.updates"), count: counts.updates });
+innerItems.push({ href: "/updates", icon: Megaphone, label: t("nav.community"), count: counts.updates });
   if (user) innerItems.push({ href: `/${user.username}`, icon: Home, label: t("nav.profile"), isProfile: true });
 
     const outerItems: WheelItem[] = [
@@ -460,7 +462,8 @@ const continueConfig = lastReadPost
   const nav = [
     { href: "/",          icon: Home,      label: t("nav.home") },
     { href: "/bookmarks", icon: Bookmark,  label: t("nav.bookmarks") },
-    { href: "/updates",   icon: Megaphone, label: t("nav.updates") },
+    { href: "/updates",    icon: Megaphone,    label: t("nav.community") },  // ← было t("nav.updates")
+    { href: "/suggestions", icon: MessagesSquare, label: t("community.tabForum")},
     { href: "/rules",     icon: Shield,    label: t("nav.rules") },
     { href: "/settings",  icon: Settings,  label: t("nav.settings") },
   ];
@@ -874,8 +877,8 @@ const continueConfig = lastReadPost
       <nav className="flex flex-col flex-1">
 
         {nav.map(({ href, icon: Icon, label }) => {
-          const active = pathname === href;
-          const showUpdatesBadge = href === "/updates" && (counts.updates || 0) > 0;
+        const active = pathname === href || (href === "/updates" && pathname.startsWith("/suggestions"));
+        const showUpdatesBadge = href === "/updates" && (counts.updates || 0) > 0;
           return (
             <Link key={href} href={href}
               className={`flex ${containerClass} font-medium transition-all border-b border-white/5 last:border-none group relative ${
