@@ -44,7 +44,8 @@ from models import (
     IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead,
     PushSubscription, StickerPack, Sticker, MessageReaction, Theme, SystemSetting,
     RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge,
-    SuggestionCategory, SuggestionThread, SuggestionThreadComment, TeamStatistic, RoleHistory
+    SuggestionCategory, SuggestionThread, SuggestionThreadComment, TeamStatistic, RoleHistory,
+    Suggestion, SuggestionComment  # 🆕 ДОБАВЛЕНО: чтобы не было NameError
 )
 import logging
 from fastapi.responses import JSONResponse
@@ -9917,15 +9918,15 @@ def toggle_thread_pin(
 # ============================================================
 # 📊 СТАТИСТИКА КОМАНДЫ (ПОЛНАЯ)
 # ============================================================
-
 @app.get("/api/admin/team-statistics")
 def get_team_statistics(
     user_id: Optional[int] = None,
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    """Полная статистика команды"""
+    """Полная статистика команды (ТОЛЬКО 3+ уровень, с группировкой по категориям ролей)"""
     if user_id:
+        # Статистика конкретного пользователя (оставляем как было)
         target = session.get(User, user_id)
         if not target:
             raise HTTPException(404, "Пользователь не найден")
@@ -9956,35 +9957,68 @@ def get_team_statistics(
                 "created_at": a.created_at.isoformat(),
             } for a in actions],
             "total_actions": session.exec(
-                select(func.count(TeamStatistic.id)).where(
-                    TeamStatistic.user_id == user_id
-                )
-            ).one(),
+                select(func.count(TeamStatistic.id)).where(TeamStatistic.user_id == user_id)
+            ).one() or 0,
         }
     else:
-        staff_users = session.exec(
-            select(User).where(
-                (User.is_admin == True) | (User.is_moderator == True) | (User.role_id != None)
-            )
-        ).all()
+        # 🆕 ОБЩАЯ СТАТИСТИКА: Фильтруем ТОЛЬКО 3+ уровень и группируем по категориям
+        all_users = session.exec(select(User)).all()
         
-        result = []
-        for u in staff_users:
-            role = session.get(Role, u.role_id) if u.role_id else None
-            actions_count = session.exec(
-                select(func.count(TeamStatistic.id)).where(
-                    TeamStatistic.user_id == u.id
-                )
-            ).one() or 0
-            
-            result.append({
-                "user": user_out(u, session),
-                "role": {"name": role.name, "color": role.color, "level": role.level} if role else None,
-                "actions_count": actions_count,
-                "last_seen": u.last_seen.isoformat() if u.last_seen else None,
-            })
+        team_members = []
+        for u in all_users:
+            lvl = get_user_level(u, session)
+            if lvl >= 3:  # 🛡️ СТРОГИЙ ФИЛЬТР: только 3+ уровень
+                role = session.get(Role, u.role_id) if u.role_id else None
+                category = session.get(RoleCategory, role.category_id) if role and role.category_id else None
+                
+                actions_count = session.exec(
+                    select(func.count(TeamStatistic.id)).where(TeamStatistic.user_id == u.id)
+                ).one() or 0
+                
+                team_members.append({
+                    "user": {
+                        "id": u.id,
+                        "username": u.username,
+                        "display_name": u.display_name,
+                        "avatar_url": u.avatar_url,
+                        "created_at": u.created_at.isoformat() if u.created_at else None,  # 🛠️ ИСПРАВЛЕНИЕ ДАТЫ
+                        "last_seen": u.last_seen.isoformat() if u.last_seen else None,
+                    },
+                    "role": {
+                        "name": role.name if role else "Без роли",
+                        "color": role.color if role else "#8b5cf6",
+                        "level": lvl,
+                        "category_name": category.name if category else "Общие",
+                        "category_id": category.id if category else 0,
+                        "category_color": category.color if category else "#6b7280",
+                    },
+                    "actions_count": actions_count,
+                })
         
-        return {"members": result}
+        # Группируем по категориям ролей
+        grouped = {}
+        for m in team_members:
+            cat_id = m["role"]["category_id"]
+            if cat_id not in grouped:
+                grouped[cat_id] = {
+                    "id": cat_id,
+                    "name": m["role"]["category_name"],
+                    "color": m["role"]["category_color"],
+                    "members": []
+                }
+            grouped[cat_id]["members"].append(m)
+        
+        # Сортируем группы: сначала именованные категории, потом "Общие" (id=0)
+        sorted_groups = sorted(
+            list(grouped.values()),
+            key=lambda x: (0 if x["id"] == 0 else 1, x["name"])
+        )
+        
+        # Сортируем участников внутри групп: по уровню (убывание), затем по имени
+        for group in sorted_groups:
+            group["members"].sort(key=lambda x: (-x["role"]["level"], x["user"]["display_name"]))
+        
+        return {"groups": sorted_groups}
 
 
 @app.get("/api/admin/statistics/overview")

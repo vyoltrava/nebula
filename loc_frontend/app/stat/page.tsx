@@ -2,10 +2,11 @@
 import { useEffect, useState } from "react";
 import { getToken } from "@/lib/auth";
 import { Avatar } from "@/components/Avatar";
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation"; // <-- Только хуки отсюда
+import Link from "next/link"; 
 import {
   Users, Shield, FileText, Search, Plus, Palette, MoveRight,
-  ChevronDown, ChevronUp, X, Edit2
+  ChevronDown, ChevronUp, X, Edit2, ArrowLeft // 🆕 Добавлена стрелка
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -41,7 +42,7 @@ export default function TeamPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabMode>("users");
   const [users, setUsers] = useState<UserStats[]>([]);
-  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [teamGroups, setTeamGroups] = useState<any[]>([]); // 🆕 Теперь это массив групп
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [prefixes, setPrefixes] = useState<ThreadPrefix[]>([]);
@@ -112,7 +113,7 @@ export default function TeamPage() {
         });
         if (res.ok) {
           const data = await res.json();
-          setTeamMembers(data.members || []);
+          setTeamGroups(data.groups || []); // 🆕 Сохраняем сгруппированные данные
         }
       } else if (activeTab === "suggestions") {
         const [suggRes, catRes, prefixRes] = await Promise.all([
@@ -236,11 +237,16 @@ export default function TeamPage() {
   return (
     <div className="min-h-screen bg-[#171717]">
       <div className="max-w-7xl mx-auto px-4 py-10">
-        {/* Шапка */}
+        {/* Шапка с кнопкой Назад */}
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-black text-white">Панель команды</h1>
-            <p className="text-white/50 text-sm mt-1">Статистика и управление проектом</p>
+          <div className="flex items-center gap-4">
+            <Link href="/" className="p-2 rounded-lg bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-all">
+              <ArrowLeft size={20} />
+            </Link>
+            <div>
+              <h1 className="text-3xl font-black text-white">Панель команды</h1>
+              <p className="text-white/50 text-sm mt-1">Статистика и управление проектом</p>
+            </div>
           </div>
           <div className="flex gap-2">
             <button
@@ -343,68 +349,56 @@ export default function TeamPage() {
           </div>
         )}
 
-        {/* ========== ВКЛАДКА 2: КОМАНДА ПРОЕКТА ========== */}
+        {/* ========== ВКЛАДКА 2: КОМАНДА ПРОЕКТА (С ГРУППИРОВКОЙ) ========== */}
         {activeTab === "team" && (
-          <div className="space-y-6">
-            {teamMembers.length === 0 ? (
+          <div className="space-y-8">
+            {teamGroups.length === 0 ? (
               <div className="text-center py-16 border border-white/10 rounded-2xl bg-white/5">
                 <Shield size={48} className="mx-auto text-white/20 mb-4" />
                 <p className="text-white/50 text-lg">Команда проекта пуста</p>
               </div>
             ) : (
-              teamMembers.map((member) => (
-                <div key={member.user.id} className="bg-[#1f1f23] border border-white/10 rounded-xl overflow-hidden">
-                  <div className="p-4 border-b border-white/10 bg-gradient-to-r from-purple-500/10 to-transparent">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Avatar src={member.user.avatar_url} name={member.user.display_name} id={member.user.id} size={40} />
-                        <div>
-                          <h3 className="text-white font-bold text-lg">{member.user.display_name}</h3>
-                          <p className="text-white/50 text-sm">@{member.user.username}</p>
+              teamGroups.map((group) => (
+                <div key={group.id} className="space-y-3">
+                  {/* Заголовок группы/отдела */}
+                  <div className="flex items-center gap-3 px-2">
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: group.color }} />
+                    <h3 className="text-lg font-bold text-white">{group.name}</h3>
+                    <span className="text-xs text-white/40 bg-white/5 px-2 py-0.5 rounded-full">{group.members.length} чел.</span>
+                  </div>
+                  
+                  {/* Карточки участников группы */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {group.members.map((member: any) => (
+                      <div key={member.user.id} className="bg-[#1f1f23] border border-white/10 rounded-xl p-4 hover:border-white/20 transition-all">
+                        <div className="flex items-start gap-3 mb-3">
+                          <Avatar src={member.user.avatar_url} name={member.user.display_name} id={member.user.id} size={40} />
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-white font-bold truncate">{member.user.display_name}</h4>
+                            <p className="text-white/40 text-xs truncate">@{member.user.username}</p>
+                          </div>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between items-center">
+                            <span className="text-white/50">Роль:</span>
+                            <span className="px-2 py-0.5 rounded text-xs font-bold" style={{ background: `${member.role.color}20`, color: member.role.color }}>
+                              {member.role.name}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-white/50">Регистрация:</span>
+                            {/* 🛠️ ИСПРАВЛЕННАЯ ДАТА (безопасная) */}
+                            <span className="text-white text-xs">
+                              {member.user.created_at ? new Date(member.user.created_at).toLocaleDateString("ru-RU") : "—"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-white/50">Действий:</span>
+                            <span className="text-white font-bold">{member.actions_count}</span>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        {member.role && (
-                          <span
-                            className="px-3 py-1.5 rounded-lg text-xs font-bold"
-                            style={{ background: `${member.role.color}20`, color: member.role.color }}
-                          >
-                            {member.role.name}
-                          </span>
-                        )}
-                        <span className="text-white/40 text-sm">
-                          {member.actions_count} действий
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-4">
-                    <div className="grid grid-cols-3 gap-4 mb-4">
-                      <div className="p-3 rounded-lg bg-white/5">
-                        <p className="text-white/40 text-xs mb-1">Дата регистрации</p>
-                        <p className="text-white font-bold">
-                          {new Date(member.user.created_at).toLocaleDateString("ru-RU")}
-                        </p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-white/5">
-                        <p className="text-white/40 text-xs mb-1">Последний вход</p>
-                        <p className="text-white font-bold">
-                          {member.last_seen ? new Date(member.last_seen).toLocaleString("ru-RU") : "—"}
-                        </p>
-                      </div>
-                      <div className="p-3 rounded-lg bg-white/5">
-                        <p className="text-white/40 text-xs mb-1">Всего действий</p>
-                        <p className="text-white font-bold">{member.actions_count}</p>
-                      </div>
-                    </div>
-
-                    <div className="border-t border-white/10 pt-4">
-                      <h4 className="text-white font-bold text-sm mb-3">История активности</h4>
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
-                        <p className="text-white/40 text-sm italic">История загружается...</p>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
               ))
