@@ -453,7 +453,9 @@ class SuggestionThread(SQLModel, table=True):
     title: str = Field(max_length=200)
     content: str
     is_pinned: bool = Field(default=False)
-    status: str = Field(default="pending")  # pending, approved, implemented, rejected, archived
+    is_closed: bool = Field(default=False)          # 🆕 тема закрыта (писать нельзя)
+    prefix_id: Optional[int] = None                 # 🆕 префикс темы
+    status: str = Field(default="pending")
     views_count: int = Field(default=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)

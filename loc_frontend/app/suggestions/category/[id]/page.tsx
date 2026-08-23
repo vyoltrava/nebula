@@ -1,218 +1,182 @@
 "use client";
 import { useEffect, useState } from "react";
 import { getToken } from "@/lib/auth";
-import { Avatar } from "@/components/Avatar";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
-import {
-  MessageSquare, Plus, Pin, ArrowLeft, Clock, CheckCircle, XCircle, Archive, Zap
-} from "lucide-react";
+import { Avatar } from "@/components/Avatar";
+import { MessageSquare, Plus, Pin, ArrowLeft, Lock, Eye, Pencil, X } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-const STATUS_CONFIG: Record<string, any> = {
-  pending: { label: "На рассмотрении", color: "bg-yellow-500/20 text-yellow-400", icon: Clock },
-  approved: { label: "Одобрено", color: "bg-blue-500/20 text-blue-400", icon: CheckCircle },
-  implemented: { label: "Реализовано", color: "bg-green-500/20 text-green-400", icon: Zap },
-  rejected: { label: "Отклонено", color: "bg-red-500/20 text-red-400", icon: XCircle },
-  archived: { label: "Архив", color: "bg-gray-500/20 text-gray-400", icon: Archive },
-};
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("ru-RU", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
 
 export default function CategoryPage() {
   const { t } = useI18n();
+  const router = useRouter();
   const params = useParams();
   const categoryId = parseInt(params.id as string);
-  
+
   const [category, setCategory] = useState<any>(null);
   const [threads, setThreads] = useState<any[]>([]);
+  const [prefixes, setPrefixes] = useState<any[]>([]);
   const [me, setMe] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
   const [cursor, setCursor] = useState<number | null>(null);
   const [hasMore, setHasMore] = useState(false);
-  
-  const [newThreadTitle, setNewThreadTitle] = useState("");
-  const [newThreadContent, setNewThreadContent] = useState("");
 
-  useEffect(() => {
-    loadData();
-    loadThreads();
-  }, [categoryId]);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [prefixId, setPrefixId] = useState(0);
+
+  const canManage = !!me && (me.is_admin || (me.permissions || []).includes("manage_suggestions"));
+
+  useEffect(() => { loadData(); loadThreads(); }, [categoryId]);
 
   async function loadData() {
     const token = getToken();
-    // 🛠️ ИСПРАВЛЕНО: undefined вместо {}
-    const authHeader = token ? { Authorization: `Bearer ${token}` } : undefined;
-    
+    const h = token ? { Authorization: `Bearer ${token}` } : undefined;
     try {
-      const [meRes, catsRes] = await Promise.all([
-        fetch(`${API_URL}/api/me`, { headers: authHeader }),
-        fetch(`${API_URL}/api/suggestions/categories`, { headers: authHeader }),
+      const [meRes, catsRes, prefRes] = await Promise.all([
+        fetch(`${API_URL}/api/me`, { headers: h }),
+        fetch(`${API_URL}/api/suggestions/categories`, { headers: h }),
+        fetch(`${API_URL}/api/suggestions/prefixes`, { headers: h }),
       ]);
-      
       if (meRes.ok) setMe(await meRes.json());
       if (catsRes.ok) {
         const cats = await catsRes.json();
         setCategory(cats.find((c: any) => c.id === categoryId));
       }
-    } catch (e) {
-      console.error(e);
-    }
+      if (prefRes.ok) setPrefixes(await prefRes.json());
+    } catch (e) { console.error(e); } finally { setLoading(false); }
   }
 
   async function loadThreads(nextCursor?: number | null) {
     const token = getToken();
-    const url = nextCursor 
+    const url = nextCursor
       ? `${API_URL}/api/suggestions/threads/${categoryId}?cursor=${nextCursor}`
       : `${API_URL}/api/suggestions/threads/${categoryId}`;
-    
     try {
-      // 🛠️ ИСПРАВЛЕНО: undefined вместо {}
-      const res = await fetch(url, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
+      const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : undefined });
       if (res.ok) {
         const data = await res.json();
-        if (nextCursor) {
-          setThreads(prev => [...prev, ...data.threads]);
-        } else {
-          setThreads(data.threads);
-        }
+        if (nextCursor) setThreads(prev => [...prev, ...data.threads]);
+        else setThreads(data.threads);
         setHasMore(data.has_more);
-        if (data.next_cursor) {
-          setCursor(data.next_cursor);
-        }
+        if (data.next_cursor) setCursor(data.next_cursor);
       }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error(e); }
   }
 
   async function createThread() {
-    if (!newThreadTitle.trim() || !newThreadContent.trim()) {
-      return alert("Заполните все поля");
-    }
+    if (!title.trim() || !content.trim()) return alert(t("suggestions.fillFields"));
     const token = getToken();
     const form = new FormData();
     form.append("category_id", categoryId.toString());
-    form.append("title", newThreadTitle);
-    form.append("content", newThreadContent);
-    
+    form.append("title", title);
+    form.append("content", content);
+    if (canManage && prefixId) form.append("prefix_id", String(prefixId));
     const res = await fetch(`${API_URL}/api/suggestions/threads`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
+      method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form,
     });
-    
     if (res.ok) {
-      setShowCreateModal(false);
-      setNewThreadTitle("");
-      setNewThreadContent("");
-      loadThreads();
+      const d = await res.json();
+      setShowCreate(false); setTitle(""); setContent("");
+      router.push(`/suggestions/thread/${d.id}`);
     }
   }
 
-  if (!category) {
-    return (
-      <div className="min-h-screen bg-[#171717] flex items-center justify-center">
-        <p className="text-white/50">Раздел не найден</p>
-      </div>
-    );
-  }
-
-  const isAdmin = me?.is_admin;
+  if (loading) return <div className="p-8 text-center text-white/50">{t("common.loading")}</div>;
+  if (!category) return <div className="min-h-screen bg-[#171717] flex items-center justify-center"><p className="text-white/50">{t("suggestions.categoryNotFound")}</p></div>;
 
   return (
     <div className="min-h-screen bg-[#171717]">
       <div className="max-w-6xl mx-auto px-4 py-10">
-        <div className="mb-8">
-          <Link href="/suggestions" className="inline-flex items-center gap-2 text-white/50 hover:text-white mb-4">
-            <ArrowLeft size={16} /> Назад к разделам
-          </Link>
-          
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-3xl font-black text-white mb-2">{category.name}</h1>
-              {category.description && (
-                <p className="text-white/50 text-lg">{category.description}</p>
+        <Link href="/suggestions" className="inline-flex items-center gap-2 text-white/50 hover:text-white mb-6">
+          <ArrowLeft size={16} /> {t("suggestions.title")}
+        </Link>
+
+        <div className="flex items-start justify-between mb-6 flex-wrap gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-black text-white">{category.name}</h1>
+              {category.is_archived && (
+                <span className="px-2 py-1 rounded text-[10px] font-bold bg-gray-500/20 text-gray-400 flex items-center gap-1">
+                  <Lock size={10} /> {t("suggestions.closedCategory")}
+                </span>
               )}
-              <p className="text-white/40 text-sm mt-2">{category.threads_count} тем</p>
             </div>
-            
-            {!category.is_archived && (
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed] transition-all"
-              >
-                <Plus size={18} /> Создать тему
-              </button>
-            )}
+            {category.description && <p className="text-white/50 mt-1">{category.description}</p>}
+            <p className="text-white/40 text-sm mt-2">{category.threads_count} {t("suggestions.threads")} · {category.comments_count} {t("suggestions.messages")}</p>
           </div>
+          {!category.is_archived && (
+            <button onClick={() => setShowCreate(true)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed] transition-all">
+              <Plus size={18} /> {t("suggestions.createThread")}
+            </button>
+          )}
         </div>
 
-        <div className="space-y-3">
-          {threads.length === 0 && !loading ? (
-            <div className="text-center py-16 border border-white/10 rounded-2xl bg-white/5">
+        {category.is_archived && (
+          <div className="mb-4 px-4 py-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 text-sm">
+            {t("suggestions.categoryClosed")}
+          </div>
+        )}
+
+        <div className="border border-white/10 rounded-2xl bg-white/5 overflow-hidden">
+          {threads.length === 0 ? (
+            <div className="text-center py-16">
               <MessageSquare size={48} className="mx-auto text-white/20 mb-4" />
-              <p className="text-white/50 text-lg">Пока нет тем в этом разделе</p>
-              <p className="text-white/30 text-sm mt-1">Будьте первым — создайте тему!</p>
+              <p className="text-white/50">{t("suggestions.noThreads")}</p>
+              <p className="text-white/30 text-sm mt-1">{t("suggestions.beFirst")}</p>
             </div>
           ) : (
             <>
-              {threads.map((thread) => {
-                const statusConfig = STATUS_CONFIG[thread.status] || STATUS_CONFIG.pending;
-                const StatusIcon = statusConfig.icon;
-                
-                return (
-                  <Link
-                    key={thread.id}
-                    href={`/suggestions/thread/${thread.id}`}
-                    className="block border border-white/10 rounded-xl p-5 bg-white/5 hover:bg-white/10 transition-all group"
-                  >
-                    <div className="flex items-start gap-4">
-                      {thread.is_pinned && (
-                        <Pin size={20} className="text-yellow-400 shrink-0 mt-1" />
+              {threads.map((th, i) => (
+                <div key={th.id}
+                  className={`flex items-center gap-4 p-5 hover:bg-white/5 transition-all cursor-pointer ${i > 0 ? "border-t border-white/10" : ""}`}
+                  onClick={() => router.push(`/suggestions/thread/${th.id}`)}>
+                  <Avatar src={th.author?.avatar_url} name={th.author?.display_name} id={th.author?.id} size={40} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      {th.is_pinned && <Pin size={14} className="text-yellow-400 shrink-0" />}
+                      {th.is_closed && <Lock size={14} className="text-red-400 shrink-0" />}
+                      {th.prefix && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold shrink-0" style={{ color: th.prefix.color, background: th.prefix.bg_color }}>
+                          {th.prefix.name}
+                        </span>
                       )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <h3 className="font-bold text-white text-xl group-hover:text-[#8b5cf6] transition-colors">
-                            {thread.title}
-                          </h3>
-                          <span className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase border flex items-center gap-1.5 ${statusConfig.color}`}>
-                            <StatusIcon size={12} />
-                            {statusConfig.label}
-                          </span>
-                        </div>
-                        <p className="text-white/60 text-sm line-clamp-2 mb-3">
-                          {thread.content}
-                        </p>
-                        <div className="flex items-center gap-4 text-xs text-white/40">
-                          <div className="flex items-center gap-2">
-                            <Avatar src={thread.author?.avatar_url} name={thread.author?.display_name} id={thread.author?.id} size={20} />
-                            <span>{thread.author?.display_name}</span>
-                          </div>
-                          <span>•</span>
-                          <span>{new Date(thread.created_at).toLocaleDateString("ru-RU")}</span>
-                          <span>•</span>
-                          <span>{thread.views_count} просмотров</span>
-                          <span>•</span>
-                          <span>{thread.comments_count} комментариев</span>
-                        </div>
-                      </div>
+                      <h3 className="font-bold text-white truncate hover:text-[#8b5cf6] transition-colors">{th.title}</h3>
                     </div>
-                  </Link>
-                );
-              })}
-              
+                    <div className="flex items-center gap-2 text-xs text-white/40">
+                      <span>{th.author?.display_name}</span>
+                      <span>·</span>
+                      <span>{fmtDate(th.created_at)}</span>
+                      {th.last_comment && (
+                        <>
+                          <span>·</span>
+                          <span className="flex items-center gap-1 truncate">
+                            <Avatar src={th.last_comment.author?.avatar_url} name={th.last_comment.author?.display_name} id={th.last_comment.author?.id} size={14} />
+                            {fmtDate(th.last_comment.created_at)}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="hidden sm:flex text-center text-xs text-white/50 gap-5 shrink-0">
+                    <div><p className="font-black text-white text-base">{th.comments_count}</p>{t("suggestions.messages")}</div>
+                    <div><p className="font-black text-white text-base">{th.views_count}</p>{t("suggestions.views")}</div>
+                  </div>
+                </div>
+              ))}
               {hasMore && (
-                <button
-                  onClick={() => loadThreads(cursor)}
-                  className="w-full py-3 rounded-xl border border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white transition-all"
-                >
-                  Загрузить ещё темы...
+                <button onClick={() => loadThreads(cursor)}
+                  className="w-full py-3 border-t border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-all">
+                  {t("suggestions.loadMoreThreads")}
                 </button>
               )}
             </>
@@ -220,30 +184,27 @@ export default function CategoryPage() {
         </div>
       </div>
 
-      {showCreateModal && (
+      {showCreate && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
           <div className="w-full max-w-2xl bg-[#1f1f23] border border-white/15 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-black text-white mb-4">Новая тема</h3>
-            <input
-              value={newThreadTitle}
-              onChange={(e) => setNewThreadTitle(e.target.value)}
-              placeholder="Заголовок темы"
-              className="w-full mb-4 px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white text-lg focus:border-[#8b5cf6] outline-none"
-            />
-            <textarea
-              value={newThreadContent}
-              onChange={(e) => setNewThreadContent(e.target.value)}
-              placeholder="Подробно опишите ваше предложение..."
-              rows={8}
-              className="w-full mb-4 px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white focus:border-[#8b5cf6] outline-none resize-none"
-            />
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-black text-white">{t("suggestions.newThread")}</h3>
+              <button onClick={() => setShowCreate(false)} className="text-white/40 hover:text-white"><X size={20} /></button>
+            </div>
+            {canManage && prefixes.length > 0 && (
+              <select value={prefixId} onChange={(e) => setPrefixId(parseInt(e.target.value))}
+                className="w-full mb-3 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white outline-none">
+                <option value={0}>{t("suggestions.noPrefix")}</option>
+                {prefixes.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            )}
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("suggestions.threadTitlePh")}
+              className="w-full mb-4 px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white text-lg focus:border-[#8b5cf6] outline-none" />
+            <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder={t("suggestions.threadContentPh")} rows={8}
+              className="w-full mb-4 px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white focus:border-[#8b5cf6] outline-none resize-none" />
             <div className="flex gap-3">
-              <button onClick={createThread} className="flex-1 py-3 rounded-lg bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed] transition-all">
-                Опубликовать
-              </button>
-              <button onClick={() => setShowCreateModal(false)} className="flex-1 py-3 rounded-lg border border-white/15 text-white/80 font-bold hover:bg-white/5 transition-all">
-                Отмена
-              </button>
+              <button onClick={createThread} className="flex-1 py-3 rounded-lg bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed]">{t("suggestions.publish")}</button>
+              <button onClick={() => setShowCreate(false)} className="flex-1 py-3 rounded-lg border border-white/15 text-white/80 font-bold hover:bg-white/5">{t("common.cancel")}</button>
             </div>
           </div>
         </div>
