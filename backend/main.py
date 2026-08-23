@@ -9549,24 +9549,31 @@ def get_suggestion_details(
         } for c in comments]
     }
 
-@app.post("/api/suggestions/{suggestion_id}/comments")
-@limiter.limit("10/minute")
+@app.post("/api/suggestions/thread/{thread_id}/comments")
 def add_comment(
-    request: Request,  # 🆕 ДОБАВЛЕНО: обязательно для limiter
-    suggestion_id: int, 
+    thread_id: int,
     content: str = Form(...),
-    user: User = Depends(get_current_user), 
+    user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    if not session.get(Suggestion, suggestion_id): 
-        raise HTTPException(404, "Not found")
-    if len(content.strip()) < 2: 
-        raise HTTPException(400, "Комментарий слишком короткий")
+    thread = session.get(SuggestionThread, thread_id)
+    if not thread:
+        raise HTTPException(404, "Тема не найдена")
     
-    c = SuggestionComment(suggestion_id=suggestion_id, author_id=user.id, content=content.strip())
-    session.add(c)
+    # 🆕 ИСПРАВЛЕНО: SuggestionThreadComment
+    comment = SuggestionThreadComment(
+        thread_id=thread_id,
+        author_id=user.id,
+        content=content.strip(),
+    )
+    session.add(comment)
+    
+    thread.updated_at = datetime.now(timezone.utc)
+    session.add(thread)
     session.commit()
-    return {"ok": True}
+    session.refresh(comment)
+    
+    return {"ok": True, "id": comment.id}
 
 @app.patch("/api/suggestions/{suggestion_id}/status")
 def update_suggestion_status(
@@ -9728,25 +9735,23 @@ def get_thread_detail(
     user: Optional[User] = Depends(get_optional_user),
     session: Session = Depends(get_session),
 ):
-    """Получить тему с комментариями"""
     thread = session.get(SuggestionThread, thread_id)
     if not thread:
         raise HTTPException(404, "Тема не найдена")
     
-    # Увеличиваем счетчик просмотров
     thread.views_count += 1
     session.add(thread)
     session.commit()
     
     author = session.get(User, thread.author_id)
     
-    # Получаем комментарии
-    query = select(SuggestionComment).where(
-        SuggestionComment.thread_id == thread_id
-    ).order_by(SuggestionComment.created_at.asc())
+    # 🆕 ИСПРАВЛЕНО: SuggestionThreadComment
+    query = select(SuggestionThreadComment).where(
+        SuggestionThreadComment.thread_id == thread_id
+    ).order_by(SuggestionThreadComment.created_at.asc())
     
     if cursor:
-        query = query.where(SuggestionComment.id > cursor)
+        query = query.where(SuggestionThreadComment.id > cursor)
     
     comments = session.exec(query.limit(limit)).all()
     
@@ -9778,32 +9783,7 @@ def get_thread_detail(
         "next_cursor": comments[-1].id if comments else None,
     }
 
-@app.post("/api/suggestions/thread/{thread_id}/comments")
-def add_comment(
-    thread_id: int,
-    content: str = Form(...),
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Добавить комментарий"""
-    thread = session.get(SuggestionThread, thread_id)
-    if not thread:
-        raise HTTPException(404, "Тема не найдена")
-    
-    comment = SuggestionComment(
-        thread_id=thread_id,
-        author_id=user.id,
-        content=content.strip(),
-    )
-    session.add(comment)
-    
-    # Обновляем updated_at у темы
-    thread.updated_at = datetime.now(timezone.utc)
-    session.add(thread)
-    
-    session.commit()
-    session.refresh(comment)
-    return {"ok": True, "id": comment.id}
+
 
 @app.patch("/api/suggestions/thread/{thread_id}/status")
 def update_thread_status(

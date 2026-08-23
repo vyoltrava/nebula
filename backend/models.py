@@ -422,13 +422,7 @@ class Suggestion(SQLModel, table=True):
     is_pinned: bool = Field(default=False)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class SuggestionComment(SQLModel, table=True):
-    __tablename__ = "suggestion_comment"
-    id: Optional[int] = Field(default=None, primary_key=True)
-    suggestion_id: int = Field(foreign_key="suggestion.id", ondelete="CASCADE")
-    author_id: int = Field(foreign_key="user.id")
-    content: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 
 class SuggestionCategory(SQLModel, table=True):
     """Разделы форума (Сайт, Сервер, Архив и т.д.)"""
