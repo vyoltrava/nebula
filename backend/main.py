@@ -9631,7 +9631,7 @@ def toggle_pin(
 
 @app.get("/api/suggestions/categories")
 def get_suggestion_categories(session: Session = Depends(get_session)):
-    """Получить все разделы"""
+    """Получить все разделы (с жесткой типизацией для предотвращения 422)"""
     try:
         categories = session.exec(
             select(SuggestionCategory).order_by(SuggestionCategory.order)
@@ -9639,26 +9639,29 @@ def get_suggestion_categories(session: Session = Depends(get_session)):
         
         result = []
         for c in categories:
-            threads_count = session.exec(
+            # Безопасный подсчет тем (всегда возвращает число)
+            count = session.exec(
                 select(func.count(SuggestionThread.id)).where(
                     SuggestionThread.category_id == c.id
                 )
             ).one() or 0
             
             result.append({
-                "id": c.id,
-                "name": c.name,
-                "description": c.description,
-                "icon": c.icon,
-                "color": c.color,
-                "order": c.order,
-                "is_archived": c.is_archived,
-                "threads_count": threads_count,
+                "id": int(c.id),
+                "name": str(c.name),
+                "description": str(c.description) if c.description else "", # ❗ Было None, стало ""
+                "icon": str(c.icon),
+                "color": str(c.color),
+                "order": int(c.order),
+                "is_archived": bool(c.is_archived),
+                "threads_count": int(count),
             })
         return result
     except Exception as e:
-        print(f"❌ ОШИБКА В get_suggestion_categories: {e}")
-        raise HTTPException(status_code=500, detail="Ошибка сервера при загрузке категорий")
+        import traceback
+        print(f"❌ CRITICAL ERROR in /api/suggestions/categories: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
 
 
 @app.post("/api/suggestions/categories")
