@@ -6,7 +6,7 @@ import {
   Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus,
   AtSign, X, Shield, ShieldCheck, MessageSquare, Palette,
   Bug, Orbit, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft, 
-  ChevronRight, History, BookOpen, Headphones, MessagesSquare
+  ChevronRight, History, BookOpen, Headphones, Satellite
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken, clearToken } from "@/lib/auth";
@@ -428,7 +428,7 @@ const continueConfig = lastReadPost
   if (isMobile) {
     innerItems.push({ href: "#search", icon: Search, label: t("nav.search") });
   }
-innerItems.push({ href: "/updates", icon: MessagesSquare, label: t("nav.community"), count: counts.updates });
+innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), count: counts.updates });
   if (user) innerItems.push({ href: `/${user.username}`, icon: Home, label: t("nav.profile"), isProfile: true });
 
     const outerItems: WheelItem[] = [
@@ -462,7 +462,7 @@ innerItems.push({ href: "/updates", icon: MessagesSquare, label: t("nav.communit
   const nav = [
     { href: "/",          icon: Home,      label: t("nav.home") },
     { href: "/bookmarks", icon: Bookmark,  label: t("nav.bookmarks") },
-    { href: "/updates",    icon: MessagesSquare,    label: t("nav.community") },  
+    { href: "/updates",    icon: Satellite,    label: t("nav.community") },  
     { href: "/rules",     icon: Shield,    label: t("nav.rules") },
     { href: "/settings",  icon: Settings,  label: t("nav.settings") },
   ];

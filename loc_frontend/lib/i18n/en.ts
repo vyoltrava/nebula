@@ -764,6 +764,7 @@ suggestions: {
 community: {
   tabUpdates: "Updates",
   tabForum: "Suggestions forum",
+  tabForumShort: "Forum",
 },
 
 };

@@ -762,6 +762,7 @@ suggestions: {
 community: {
   tabUpdates: "Оновлення",
   tabForum: "Форум пропозицій",
+  tabForumShort: "Форум",
 },
 
 
