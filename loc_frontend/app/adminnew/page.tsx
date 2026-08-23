@@ -1,4 +1,3 @@
-// app/admin/page.tsx
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -21,12 +20,11 @@ import { StickersSection } from "@/components/admin/section/StickersSection";
 import { ThemesSection } from "@/components/admin/section/ThemesSection";
 import { SupportSection } from "@/components/admin/section/SupportSection";
 import { TechUsersSection } from "@/components/admin/section/TechUsersSection";
-import { TeamDashboard } from "@/components/TeamDashboard";
 
+// 🛠️ ИСПРАВЛЕНО: убран "team" из типов, так как это теперь отдельная страница
 type TabId =
   | "users" | "tech_users" | "stats" | "bugs" | "ip" | "logs"
-  | "reports" | "chats" | "support" | "stickers" | "themes"
-  | "team";
+  | "reports" | "chats" | "support" | "stickers" | "themes";
 
 interface TabDef {
   id: TabId;
@@ -36,6 +34,7 @@ interface TabDef {
   permission: string | null;
 }
 
+// 🛠️ ИСПРАВЛЕНО: убрана вкладка "team" из массива
 const TABS: TabDef[] = [
   { id: "users",     label: "Пользователи", icon: Users,         color: "#8b5cf6", permission: "manage_users" },
   { id: "tech_users",label: "Управление",   icon: Wrench,        color: "#0E7490", permission: "tech_access" },
@@ -48,14 +47,12 @@ const TABS: TabDef[] = [
   { id: "logs",      label: "Логи",         icon: Activity,      color: "#3b82f6", permission: "tech_access" },
   { id: "stickers",  label: "Стикеры",      icon: SmilePlus,     color: "#f59e0b", permission: "manage_stickers" },
   { id: "themes",    label: "Темы",         icon: Palette,       color: "#a855f7", permission: null },
-  { id: "team",      label: "Команда",      icon: Shield,        color: "#ec4899", permission: "manage_team_stats" },
-
 ];
 
 export default function AdminPage() {
   const router = useRouter();
   const [me, setMe] = useState<any>(null);
-  const [roles, setRoles] = useState<any[]>([]); // 🆕 1. Добавили состояние для ролей
+  const [roles, setRoles] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<TabId | null>(null);
 
   useEffect(() => {
@@ -73,7 +70,6 @@ export default function AdminPage() {
         }
         setMe(data);
         
-        // 🆕 2. Загружаем список ролей для выпадающего списка в редакторе значков
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/roles`, {
           headers: { Authorization: `Bearer ${token}` },
         })
@@ -121,7 +117,8 @@ export default function AdminPage() {
                 Lvl {me.level ?? 1}
               </span>
             </div>
-            {/* 🆕 ИЗМЕНЕНО: Вертикальный стек кнопок справа */}
+            
+            {/* 🛠️ ИСПРАВЛЕНО: Вертикальный стек кнопок справа. Кнопка "Команда" теперь ведет на /team */}
             <div className="flex flex-col items-end gap-2 shrink-0">
               {canRoles && (
                 <Link
@@ -132,18 +129,13 @@ export default function AdminPage() {
                 </Link>
               )}
               
-              {/* 🆕 КНОПКА КОМАНДЫ (под кнопкой Роли, такого же размера) */}
               {(me.is_admin || (me.permissions || []).includes("manage_team_stats")) && (
-                <button
-                  onClick={() => setActiveTab("team")}
-                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold transition-all w-full ${
-                    activeTab === "team"
-                      ? "border-pink-500 bg-pink-500 text-white"
-                      : "border-pink-500/50 bg-pink-500/10 text-pink-300 hover:bg-pink-500/20"
-                  }`}
+                <Link
+                  href="/stat"
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-pink-500/50 bg-pink-500/10 text-pink-300 text-sm font-bold hover:bg-pink-500/20 transition-all w-full"
                 >
                   <Shield size={16} /> Команда
-                </button>
+                </Link>
               )}
 
               <Link href="/" className="text-sm text-white/60 hover:text-white transition-colors text-right w-full pt-1">
@@ -186,12 +178,10 @@ export default function AdminPage() {
           {activeTab === "bugs"      && <BugsSection me={me} />}
           {activeTab === "ip"        && <IpSection me={me} />}
           {activeTab === "logs"      && <LogsSection me={me} />}
-          
-          {/* 🆕 3. Передаем пропс roles в StickersSection */}
           {activeTab === "stickers"  && <StickersSection me={me} roles={roles} />}
-          
           {activeTab === "themes"    && <ThemesSection me={me} />}
-          {activeTab === "team"      && <TeamDashboard me={me} />}
+          
+          {/* 🛠️ ИСПРАВЛЕНО: убран рендер TeamDashboard внутри админки */}
         </div>
       </main>
     </div>

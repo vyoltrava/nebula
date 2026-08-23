@@ -44,8 +44,7 @@ from models import (
     IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead,
     PushSubscription, StickerPack, Sticker, MessageReaction, Theme, SystemSetting,
     RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge,
-    SuggestionCategory, SuggestionThread, SuggestionComment, TeamStatistic, RoleHistory,
-    Suggestion  # 🆕 ДОБАВЬ ЭТУ СТРОКУ
+    SuggestionCategory, SuggestionThread, SuggestionThreadComment, TeamStatistic, RoleHistory # <-- ПРОВЕРЬ ЭТО
 )
 import logging
 from fastapi.responses import JSONResponse
@@ -4901,11 +4900,11 @@ def startup():
             
             # 2. Создаем дефолтные категории (ЯВНО указываем is_archived=FALSE, чтобы избежать NotNullViolation)
             conn.execute(text("""
-                INSERT INTO suggestion_category (name, description, icon, color, "order", is_archived)
+                INSERT INTO suggestion_category (name, description, icon, color, "order", is_archived, created_at)
                 VALUES 
-                    ('Сайт', 'Предложения по улучшению сайта', 'globe', '#8b5cf6', 0, FALSE),
-                    ('Сервер', 'Предложения по серверу', 'server', '#10b981', 1, FALSE),
-                    ('Реализовано', 'Уже внедрённые предложения', 'check-circle', '#22c55e', 99, FALSE)
+                    ('Сайт', 'Предложения по улучшению сайта', 'globe', '#8b5cf6', 0, FALSE, NOW()),
+                    ('Сервер', 'Предложения по серверу', 'server', '#10b981', 1, FALSE, NOW()),
+                    ('Реализовано', 'Уже внедрённые предложения', 'check-circle', '#22c55e', 99, FALSE, NOW())
                 ON CONFLICT DO NOTHING;
             """))
             
@@ -9625,15 +9624,12 @@ def toggle_pin(
     session.add(s); session.commit()
     return {"ok": True}
 
-
 # ============================================================
-# 💡 ФОРУМ ПРЕДЛОЖЕНИЙ: КАТЕГОРИИ (100% ЗАЩИТА ОТ 422)
+# 💡 ФОРУМ ПРЕДЛОЖЕНИЙ: КАТЕГОРИИ И ТЕМЫ
 # ============================================================
 
 @app.get("/api/suggestions/categories")
-def get_suggestion_categories(
-    session: Session = Depends(get_session)
-):
+def get_suggestion_categories(session: Session = Depends(get_session)):
     """Получить все разделы"""
     try:
         categories = session.exec(
@@ -9642,7 +9638,6 @@ def get_suggestion_categories(
         
         result = []
         for c in categories:
-            # Безопасный подсчет тем
             threads_count = session.exec(
                 select(func.count(SuggestionThread.id)).where(
                     SuggestionThread.category_id == c.id
@@ -9671,7 +9666,6 @@ def create_suggestion_category(
     description: Optional[str] = Form(None),
     icon: str = Form("message-square"),
     color: str = Form("#8b5cf6"),
-    # 🛡️ УБРАЛИ order из Form(). Теперь бэкенд считает его сам, что исключает 422 ошибку
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
@@ -9682,7 +9676,6 @@ def create_suggestion_category(
     if not name.strip():
         raise HTTPException(400, "Название раздела обязательно")
 
-    # 🛡️ Автоматически вычисляем порядок на бэкенде
     max_order = session.exec(select(func.max(SuggestionCategory.order))).one()
     next_order = (max_order or 0) + 1
     
@@ -9704,6 +9697,7 @@ def create_suggestion_category(
         session.rollback()
         print(f"❌ ОШИБКА ПРИ СОЗДАНИИ КАТЕГОРИИ: {e}")
         raise HTTPException(status_code=500, detail="Не удалось создать раздел")
+
 
 @app.get("/api/suggestions/threads/{category_id}")
 def get_category_threads(
@@ -9730,10 +9724,10 @@ def get_category_threads(
     for t in threads:
         author = session.get(User, t.author_id)
         comments_count = session.exec(
-            select(func.count(SuggestionComment.id)).where(
-                SuggestionComment.thread_id == t.id
+            select(func.count(SuggestionThreadComment.id)).where( # 🆕 ИСПРАВЛЕНО
+                SuggestionThreadComment.thread_id == t.id
             )
-        ).one()
+        ).one() or 0
         
         result.append({
             "id": t.id,
@@ -9754,6 +9748,7 @@ def get_category_threads(
         "has_more": len(threads) == limit,
         "next_cursor": threads[-1].id if threads else None,
     }
+
 
 @app.post("/api/suggestions/threads")
 def create_suggestion_thread(
@@ -9782,6 +9777,7 @@ def create_suggestion_thread(
     session.refresh(thread)
     return {"ok": True, "id": thread.id}
 
+
 @app.get("/api/suggestions/thread/{thread_id}")
 def get_thread_detail(
     thread_id: int,
@@ -9790,6 +9786,7 @@ def get_thread_detail(
     user: Optional[User] = Depends(get_optional_user),
     session: Session = Depends(get_session),
 ):
+    """Получить тему с комментариями"""
     thread = session.get(SuggestionThread, thread_id)
     if not thread:
         raise HTTPException(404, "Тема не найдена")
@@ -9800,7 +9797,7 @@ def get_thread_detail(
     
     author = session.get(User, thread.author_id)
     
-    # 🆕 ИСПРАВЛЕНО: SuggestionThreadComment
+    # 🆕 ИСПРАВЛЕНО: используем SuggestionThreadComment
     query = select(SuggestionThreadComment).where(
         SuggestionThreadComment.thread_id == thread_id
     ).order_by(SuggestionThreadComment.created_at.asc())
@@ -9839,6 +9836,37 @@ def get_thread_detail(
     }
 
 
+# 🆕 ДОБАВЛЕНО: Эндпоинт добавления комментария (его не хватало!)
+@app.post("/api/suggestions/thread/{thread_id}/comments")
+def add_thread_comment(
+    thread_id: int,
+    content: str = Form(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Добавить комментарий к теме"""
+    thread = session.get(SuggestionThread, thread_id)
+    if not thread:
+        raise HTTPException(404, "Тема не найдена")
+    
+    if len(content.strip()) < 2:
+        raise HTTPException(400, "Комментарий слишком короткий")
+    
+    comment = SuggestionThreadComment(
+        thread_id=thread_id,
+        author_id=user.id,
+        content=content.strip(),
+    )
+    session.add(comment)
+    
+    # Обновляем updated_at у темы, чтобы она поднялась в списке
+    thread.updated_at = datetime.now(timezone.utc)
+    session.add(thread)
+    
+    session.commit()
+    session.refresh(comment)
+    return {"ok": True, "id": comment.id}
+
 
 @app.patch("/api/suggestions/thread/{thread_id}/status")
 def update_thread_status(
@@ -9864,6 +9892,7 @@ def update_thread_status(
     session.commit()
     return {"ok": True}
 
+
 @app.patch("/api/suggestions/thread/{thread_id}/pin")
 def toggle_thread_pin(
     thread_id: int,
@@ -9884,6 +9913,7 @@ def toggle_thread_pin(
     session.commit()
     return {"ok": True}
 
+
 # ============================================================
 # 📊 СТАТИСТИКА КОМАНДЫ (ПОЛНАЯ)
 # ============================================================
@@ -9896,18 +9926,15 @@ def get_team_statistics(
 ):
     """Полная статистика команды"""
     if user_id:
-        # Статистика конкретного пользователя
         target = session.get(User, user_id)
         if not target:
             raise HTTPException(404, "Пользователь не найден")
         
-        # История ролей
         role_history = session.exec(
             select(RoleHistory).where(RoleHistory.user_id == user_id)
             .order_by(RoleHistory.changed_at.desc())
         ).all()
         
-        # Действия
         actions = session.exec(
             select(TeamStatistic).where(TeamStatistic.user_id == user_id)
             .order_by(TeamStatistic.created_at.desc()).limit(50)
@@ -9935,7 +9962,6 @@ def get_team_statistics(
             ).one(),
         }
     else:
-        # Общая статистика
         staff_users = session.exec(
             select(User).where(
                 (User.is_admin == True) | (User.is_moderator == True) | (User.role_id != None)
@@ -9949,7 +9975,7 @@ def get_team_statistics(
                 select(func.count(TeamStatistic.id)).where(
                     TeamStatistic.user_id == u.id
                 )
-            ).one()
+            ).one() or 0
             
             result.append({
                 "user": user_out(u, session),
@@ -9960,65 +9986,109 @@ def get_team_statistics(
         
         return {"members": result}
 
+
 @app.get("/api/admin/statistics/overview")
 def get_statistics_overview(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
     """Общая статистика платформы для менеджеров"""
-    # Регистрации за период
     now = datetime.now(timezone.utc)
+    
     registrations_24h = session.exec(
-        select(func.count(User.id)).where(
-            User.created_at >= now - timedelta(hours=24)
-        )
+        select(func.count(User.id)).where(User.created_at >= now - timedelta(hours=24))
     ).one()
-    
     registrations_7d = session.exec(
-        select(func.count(User.id)).where(
-            User.created_at >= now - timedelta(days=7)
-        )
+        select(func.count(User.id)).where(User.created_at >= now - timedelta(days=7))
     ).one()
-    
     registrations_30d = session.exec(
-        select(func.count(User.id)).where(
-            User.created_at >= now - timedelta(days=30)
-        )
+        select(func.count(User.id)).where(User.created_at >= now - timedelta(days=30))
     ).one()
     
-    # Активность
     posts_24h = session.exec(
-        select(func.count(Post.id)).where(
-            Post.created_at >= now - timedelta(hours=24)
-        )
+        select(func.count(Post.id)).where(Post.created_at >= now - timedelta(hours=24))
     ).one()
     
-    # Действия модерации
     mod_actions_24h = session.exec(
-        select(func.count(ActionLog.id)).where(
-            ActionLog.created_at >= now - timedelta(hours=24)
-        )
+        select(func.count(ActionLog.id)).where(ActionLog.created_at >= now - timedelta(hours=24))
     ).one()
-    
-    # Онлайн
-    online_count = manager.total_connections
     
     return {
-        "registrations": {
-            "24h": registrations_24h,
-            "7d": registrations_7d,
-            "30d": registrations_30d,
-        },
-        "activity": {
-            "posts_24h": posts_24h,
-            "mod_actions_24h": mod_actions_24h,
-        },
-        "online": {
-            "count": online_count,
-        },
+        "registrations": {"24h": registrations_24h, "7d": registrations_7d, "30d": registrations_30d},
+        "activity": {"posts_24h": posts_24h, "mod_actions_24h": mod_actions_24h},
+        "online": {"count": manager.total_connections},
         "totals": {
             "users": session.exec(select(func.count(User.id))).one(),
             "posts": session.exec(select(func.count(Post.id))).one(),
             "chats": session.exec(select(func.count(Chat.id))).one(),
         },
     }
+
+
+# ============================================================
+# 📊 ПАНЕЛЬ КОМАНДЫ: УПРАВЛЕНИЕ ПРЕДЛОЖЕНИЯМИ
+# ============================================================
+
+@app.get("/api/admin/suggestion-prefixes")
+def get_suggestion_prefixes(
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Получить все префиксы для тем"""
+    setting = session.get(SystemSetting, "suggestion_prefixes")
+    if not setting or not setting.value:
+        return []
+    return json.loads(setting.value)
+
+
+@app.post("/api/admin/suggestion-prefixes")
+def create_suggestion_prefix(
+    name: str = Form(...),
+    color: str = Form("#ffffff"),
+    bg_color: str = Form("#ef4444"),
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Создать префикс для темы"""
+    if not staff.is_admin:
+        raise HTTPException(403, "Только администраторы")
+
+    setting = session.get(SystemSetting, "suggestion_prefixes")
+    prefixes = json.loads(setting.value) if setting and setting.value else []
+
+    prefixes.append({
+        "id": len(prefixes) + 1,
+        "name": name,
+        "color": color,
+        "bg_color": bg_color
+    })
+
+    if not setting:
+        setting = SystemSetting(key="suggestion_prefixes", value=json.dumps(prefixes))
+        session.add(setting)
+    else:
+        setting.value = json.dumps(prefixes)
+
+    session.commit()
+    return {"ok": True}
+
+
+@app.patch("/api/admin/suggestions/{thread_id}/move")
+def move_suggestion_thread(
+    thread_id: int,
+    category_id: int = Form(...),
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Перенести тему в другую категорию"""
+    if not staff.is_admin:
+        raise HTTPException(403, "Только администраторы")
+
+    thread = session.get(SuggestionThread, thread_id)
+    if not thread:
+        raise HTTPException(404, "Тема не найдена")
+
+    thread.category_id = category_id
+    session.add(thread)
+    session.commit()
+    return {"ok": True}

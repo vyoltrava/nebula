@@ -81,14 +81,7 @@ export default function SuggestionsPage() {
             <h1 className="text-3xl font-black text-white">{t("suggestions.title")}</h1>
             <p className="text-white/50 text-sm mt-1">{t("suggestions.subtitle")}</p>
           </div>
-          {isAdmin && (
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-500 text-white font-bold hover:bg-purple-400"
-            >
-              <Plus size={16} /> Создать раздел
-            </button>
-          )}
+
         </div>
 
         <div className="grid grid-cols-1 gap-4">
