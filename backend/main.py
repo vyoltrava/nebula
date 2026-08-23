@@ -44,8 +44,8 @@ from models import (
     IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead,
     PushSubscription, StickerPack, Sticker, MessageReaction, Theme, SystemSetting,
     RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge,
-    SuggestionCategory, SuggestionThread, SuggestionThreadComment, TeamStatistic, RoleHistory,
-    Suggestion, SuggestionComment  # 🆕 ДОБАВЛЕНО: чтобы не было NameError
+    SuggestionCategory, SuggestionThread, SuggestionThreadComment, TeamStatistic, RoleHistory, Suggestion, SuggestionComment 
+    
 )
 import logging
 from fastapi.responses import JSONResponse

@@ -412,6 +412,26 @@ class Badge(SQLModel, table=True):
     is_selectable: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utcnow)
 
+class Suggestion(SQLModel, table=True):
+    """Старые предложения (для обратной совместимости)"""
+    __tablename__ = "suggestion"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    author_id: int = Field(foreign_key="user.id", ondelete="CASCADE")
+    title: str = Field(max_length=200)
+    content: str
+    status: str = Field(default="pending")  # pending, approved, implemented, rejected, archived
+    is_pinned: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class SuggestionComment(SQLModel, table=True):
+    """Комментарии к старым предложениям"""
+    __tablename__ = "suggestion_comment"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    suggestion_id: int = Field(foreign_key="suggestion.id", ondelete="CASCADE")
+    author_id: int = Field(foreign_key="user.id", ondelete="CASCADE")
+    content: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 class SuggestionCategory(SQLModel, table=True):
     """Разделы форума (Сайт, Сервер, Архив и т.д.)"""
     __tablename__ = "suggestion_category"
@@ -424,9 +444,8 @@ class SuggestionCategory(SQLModel, table=True):
     is_archived: bool = Field(default=False)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-
 class SuggestionThread(SQLModel, table=True):
-    """Темы внутри разделов"""
+    """Темы внутри разделов форума"""
     __tablename__ = "suggestion_thread"
     id: Optional[int] = Field(default=None, primary_key=True)
     category_id: int = Field(foreign_key="suggestion_category.id", ondelete="CASCADE")
@@ -439,9 +458,8 @@ class SuggestionThread(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)
 
-
 class SuggestionThreadComment(SQLModel, table=True):
-    """Комментарии к темам форума (переименовано, чтобы не конфликтовать со старым SuggestionComment)"""
+    """Комментарии к темам форума"""
     __tablename__ = "suggestion_thread_comment"
     id: Optional[int] = Field(default=None, primary_key=True)
     thread_id: int = Field(foreign_key="suggestion_thread.id", ondelete="CASCADE")
@@ -449,18 +467,16 @@ class SuggestionThreadComment(SQLModel, table=True):
     content: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-
 class TeamStatistic(SQLModel, table=True):
     """Статистика действий команды"""
     __tablename__ = "team_statistic"
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", ondelete="CASCADE")
-    action_type: str  # ban, warn, delete_post, etc.
+    action_type: str
     target_type: Optional[str] = None
     target_id: Optional[int] = None
     details: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
 
 class RoleHistory(SQLModel, table=True):
     """История смены ролей"""
