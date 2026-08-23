@@ -43,7 +43,8 @@ from models import (
     Chat, ChatMember, Message, Report, UserKey, ChatSessionKey,
     IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead,
     PushSubscription, StickerPack, Sticker, MessageReaction, Theme, SystemSetting,
-    RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge # ← ОБА
+    RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge,
+    Suggestion, SuggestionComment
 )
 import logging
 from fastapi.responses import JSONResponse
