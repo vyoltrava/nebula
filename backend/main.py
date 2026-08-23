@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sqlmodel import Session, select, func, col
-from sqlalchemy import text, update, delete
+from sqlalchemy import text, update, delete, case  # 🆕 ДОБАВЛЕНО: case
 from typing import Optional, List
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import delete
