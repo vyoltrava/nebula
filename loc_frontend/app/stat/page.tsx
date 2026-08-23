@@ -1,260 +1,215 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getToken } from "@/lib/auth";
 import { Avatar } from "@/components/Avatar";
 import { useRouter } from "next/navigation";
-import Link from "next/link"; 
+import Link from "next/link";
 import {
-  Users, Shield, FileText, Search, Plus, Palette, MoveRight,
-  ArrowLeft, X, Settings, BarChart3, Clock, CheckCircle, AlertCircle
+  Users, Shield, Search, ArrowLeft, X, BarChart3, Clock, Settings,
+  ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
+  Ban, ExternalLink, MoreHorizontal, Activity,
 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const PAGE_SIZE = 10;
 
-type TabMode = "users" | "team" | "suggestions";
-type SortField = "username" | "level" | "created_at" | "last_seen" | "posts_count" | "actions_count";
-type SortOrder = "asc" | "desc";
+type TabMode = "users" | "team";
+type SortField = "username" | "level" | "created_at" | "last_seen" | "posts_count" | "messages_count" | "likes_given" | "likes_received" | "visits_count" | "kpi";
 
-interface UserStats {
-  id: number;
-  username: string;
-  display_name: string;
-  avatar_url: string | null;
-  role: any;
-  level: number;
-  created_at: string;
-  last_seen: string | null;
-  posts_count: number;
-  actions_count: number;
-  is_admin: boolean;
-  is_moderator: boolean;
+function fmtDate(iso?: string | null) { return iso ? new Date(iso).toLocaleDateString("ru-RU") : "—"; }
+function fmtLastSeen(iso?: string | null) {
+  if (!iso) return "—";
+  const d = new Date(iso), now = new Date();
+  const time = d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  if (d.toDateString() === now.toDateString()) return `Сегодня ${time}`;
+  if (d.toDateString() === new Date(now.getTime() - 86400000).toDateString()) return `Вчера ${time}`;
+  return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "2-digit" }) + " " + time;
 }
 
-interface ThreadPrefix {
-  id: number;
-  name: string;
-  color: string;
-  bg_color: string;
+function MiniBars({ data, color = "#8b5cf6", height = 36 }: { data: number[]; color?: string; height?: number }) {
+  const max = Math.max(...data, 1);
+  return (
+    <div className="flex items-end gap-[3px] w-full" style={{ height }}>
+      {data.map((v, i) => (
+        <div key={i} className="flex-1 rounded-sm" style={{ height: `${Math.max(6, (v / max) * 100)}%`, background: color, opacity: 0.35 + 0.65 * (v / max) }} />
+      ))}
+    </div>
+  );
 }
 
-interface TeamMember {
-  user: any;
-  role: any;
-  actions_count: number;
-  last_seen: string | null;
+function KpiRing({ value }: { value: number }) {
+  const r = 14, c = 2 * Math.PI * r;
+  const color = value >= 70 ? "#22c55e" : value >= 40 ? "#8b5cf6" : "#f59e0b";
+  return (
+    <div className="relative w-9 h-9 shrink-0">
+      <svg width={36} height={36} viewBox="0 0 36 36">
+        <circle cx={18} cy={18} r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth={4} />
+        <circle cx={18} cy={18} r={r} fill="none" stroke={color} strokeWidth={4}
+          strokeDasharray={`${(value / 100) * c} ${c}`} strokeLinecap="round" transform="rotate(-90 18 18)" />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white">{value}</span>
+    </div>
+  );
 }
 
-interface TeamGroup {
-  id: number;
-  name: string;
-  color: string;
-  description?: string;
-  members: TeamMember[];
+function pageList(total: number, current: number): number[] {
+  const span = 5;
+  let start = Math.max(1, current - 2);
+  const end = Math.min(total, start + span - 1);
+  start = Math.max(1, end - span + 1);
+  const arr: number[] = [];
+  for (let p = start; p <= end; p++) arr.push(p);
+  return arr;
 }
+
+const ALL_COLUMNS = [
+  { id: "posts_count", label: "Посты" },
+  { id: "messages_count", label: "Сообщения" },
+  { id: "likes_given", label: "Лайки поставлено" },
+  { id: "likes_received", label: "Лайки получено" },
+  { id: "visits_count", label: "Визиты" },
+  { id: "kpi", label: "KPI" },
+  { id: "group", label: "Группа" },
+];
 
 export default function StatPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabMode>("users");
-  const [users, setUsers] = useState<UserStats[]>([]);
-  const [teamGroups, setTeamGroups] = useState<TeamGroup[]>([]);
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [prefixes, setPrefixes] = useState<ThreadPrefix[]>([]);
-  const [loading, setLoading] = useState(true);
   const [me, setMe] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  // users tab
+  const [users, setUsers] = useState<any[]>([]);
+  const [overview, setOverview] = useState<any>(null);
+  const [roles, setRoles] = useState<any[]>([]);
+  const [cats, setCats] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [activityFilter, setActivityFilter] = useState("all");
+  const [sortField, setSortField] = useState<SortField>("created_at");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [page, setPage] = useState(1);
+  const [visibleCols, setVisibleCols] = useState<Record<string, boolean>>(Object.fromEntries(ALL_COLUMNS.map(c => [c.id, true])));
+  const [showColsMenu, setShowColsMenu] = useState(false);
+  const [menuUserId, setMenuUserId] = useState<number | null>(null);
+
+  // team tab
+  const [teamGroups, setTeamGroups] = useState<any[]>([]);
   const [selectedMember, setSelectedMember] = useState<any>(null);
   const [memberStats, setMemberStats] = useState<any>(null);
 
-  const [showTeamOnly, setShowTeamOnly] = useState(false);
-  const [sortField, setSortField] = useState<SortField>("created_at");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
-
-  const [showPrefixModal, setShowPrefixModal] = useState(false);
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [selectedThread, setSelectedThread] = useState<any>(null);
-  const [newPrefix, setNewPrefix] = useState({ name: "", color: "#ffffff", bg_color: "#ef4444" });
-  const [newCategory, setNewCategory] = useState({ name: "", description: "", color: "#8b5cf6" });
-
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  useEffect(() => {
-    if (me) loadData();
-  }, [activeTab, me]);
+  useEffect(() => { checkAuth(); }, []);
+  useEffect(() => { if (me) loadData(); }, [activeTab, me]);
+  useEffect(() => { setPage(1); }, [searchQuery, roleFilter, activityFilter]);
 
   async function checkAuth() {
     const token = getToken();
-    if (!token) {
-      router.push("/login");
-      return;
-    }
+    if (!token) return router.push("/login");
     try {
-      const res = await fetch(`${API_URL}/api/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await fetch(`${API_URL}/api/me`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.ok) {
         const data = await res.json();
         setMe(data);
-        const hasAccess = data.is_admin || data.is_moderator || data.permissions?.includes("manage_team_stats");
-        if (!hasAccess) {
-          router.push("/");
-        }
+        if (!(data.is_admin || data.is_moderator || data.permissions?.includes("manage_team_stats"))) router.push("/");
       }
-    } catch (e) {
-      router.push("/login");
-    }
+    } catch { router.push("/login"); }
   }
 
   async function loadData() {
     const token = getToken();
     if (!token) return;
     setLoading(true);
-
     try {
       if (activeTab === "users") {
-        const res = await fetch(`${API_URL}/api/admin/users`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) setUsers(await res.json());
-      } else if (activeTab === "team") {
-        const res = await fetch(`${API_URL}/api/admin/team-statistics`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setTeamGroups(data.groups || []);
-        }
-      } else if (activeTab === "suggestions") {
-        const [suggRes, catRes, prefixRes] = await Promise.all([
-          fetch(`${API_URL}/api/suggestions`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`${API_URL}/api/suggestions/categories`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`${API_URL}/api/admin/suggestion-prefixes`, { headers: { Authorization: `Bearer ${token}` } })
+        const [ovRes, usRes, rRes, cRes] = await Promise.all([
+          fetch(`${API_URL}/api/admin/stats/overview`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_URL}/api/admin/stats/users`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_URL}/api/roles`),
+          fetch(`${API_URL}/api/role-categories`),
         ]);
-        if (suggRes.ok) setSuggestions(await suggRes.json());
-        if (catRes.ok) setCategories(await catRes.json());
-        if (prefixRes.ok) setPrefixes(await prefixRes.json());
+        if (ovRes.ok) setOverview(await ovRes.json());
+        if (usRes.ok) setUsers(await usRes.json());
+        if (rRes.ok) setRoles(await rRes.json());
+        if (cRes.ok) setCats(await cRes.json());
+      } else {
+        const res = await fetch(`${API_URL}/api/admin/team-statistics`, { headers: { Authorization: `Bearer ${token}` } });
+        if (res.ok) setTeamGroups((await res.json()).groups || []);
       }
-    } catch (e) {
-      console.error("Failed to load data", e);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error(e); } finally { setLoading(false); }
   }
 
-  async function loadMemberStats(memberId: number) {
+  async function loadMemberStats(id: number) {
     const token = getToken();
-    try {
-      const res = await fetch(`${API_URL}/api/admin/team-statistics?user_id=${memberId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setMemberStats(data);
-      }
-    } catch (e) {
-      console.error("Failed to load member stats", e);
-    }
+    const res = await fetch(`${API_URL}/api/admin/team-statistics?user_id=${id}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) setMemberStats(await res.json());
+  }
+
+  async function toggleBan(u: any) {
+    if (!confirm(u.is_banned ? `Разбанить @${u.username}?` : `Забанить @${u.username}?`)) return;
+    const token = getToken();
+    const res = await fetch(`${API_URL}/api/admin/users/${u.id}/ban`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) loadData();
   }
 
   function handleSort(field: SortField) {
-    if (sortField === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortOrder("desc");
-    }
+    if (sortField === field) setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortOrder("desc"); }
   }
 
-  function getSortedUsers() {
-    let filtered = [...users];
-    if (showTeamOnly) {
-      filtered = filtered.filter(u => u.level >= 3 || u.is_admin || u.is_moderator);
-    }
+  const filtered = useMemo(() => {
+    let list = [...users];
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(u =>
-        u.username.toLowerCase().includes(q) || u.display_name.toLowerCase().includes(q)
-      );
+      list = list.filter(u => u.username.toLowerCase().includes(q) || u.display_name.toLowerCase().includes(q));
     }
-    filtered.sort((a, b) => {
-      let aVal: any = a[sortField];
-      let bVal: any = b[sortField];
-      if (sortField === "created_at" || sortField === "last_seen") {
-        aVal = aVal ? new Date(aVal).getTime() : 0;
-        bVal = bVal ? new Date(bVal).getTime() : 0;
-      }
-      if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
-      if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+    if (roleFilter === "admin") list = list.filter(u => u.is_admin);
+    else if (roleFilter === "moderator") list = list.filter(u => u.is_moderator);
+    else if (roleFilter === "staff") list = list.filter(u => u.role);
+    else if (roleFilter === "norole") list = list.filter(u => !u.role && !u.is_admin && !u.is_moderator);
+    if (activityFilter !== "all") {
+      const now = Date.now();
+      const ls = (u: any) => u.last_seen ? new Date(u.last_seen).getTime() : 0;
+      if (activityFilter === "online") list = list.filter(u => now - ls(u) < 15 * 60000);
+      else if (activityFilter === "today") list = list.filter(u => new Date(ls(u)).toDateString() === new Date().toDateString());
+      else if (activityFilter === "week") list = list.filter(u => now - ls(u) < 7 * 86400000);
+      else if (roleFilter !== "dormant" && activityFilter === "dormant") list = list.filter(u => now - ls(u) > 30 * 86400000);
+    }
+    list.sort((a, b) => {
+      let av: any = a[sortField], bv: any = b[sortField];
+      if (sortField === "created_at" || sortField === "last_seen") { av = av ? new Date(av).getTime() : 0; bv = bv ? new Date(bv).getTime() : 0; }
+      if (sortField === "username") { av = (av || "").toLowerCase(); bv = (bv || "").toLowerCase(); }
+      if (av < bv) return sortOrder === "asc" ? -1 : 1;
+      if (av > bv) return sortOrder === "asc" ? 1 : -1;
       return 0;
     });
-    return filtered;
-  }
+    return list;
+  }, [users, searchQuery, roleFilter, activityFilter, sortField, sortOrder]);
 
-  async function createPrefix() {
-    const token = getToken();
-    const form = new FormData();
-    form.append("name", newPrefix.name);
-    form.append("color", newPrefix.color);
-    form.append("bg_color", newPrefix.bg_color);
-    const res = await fetch(`${API_URL}/api/admin/suggestion-prefixes`, {
-      method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form
-    });
-    if (res.ok) {
-      setShowPrefixModal(false);
-      setNewPrefix({ name: "", color: "#ffffff", bg_color: "#ef4444" });
-      loadData();
-    }
-  }
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const avgKpi = users.length ? Math.round(users.reduce((s, u) => s + (u.kpi || 0), 0) / users.length) : 0;
+  const canBan = !!me && (me.is_admin || me.permissions?.includes("ban_users"));
 
-  async function createCategory() {
-    const token = getToken();
-    const form = new FormData();
-    form.append("name", newCategory.name);
-    form.append("description", newCategory.description);
-    form.append("color", newCategory.color);
-    const res = await fetch(`${API_URL}/api/suggestions/categories`, {
-      method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form
-    });
-    if (res.ok) {
-      setShowCategoryModal(false);
-      setNewCategory({ name: "", description: "", color: "#8b5cf6" });
-      loadData();
-    }
-  }
+  const catByRoleId = (roleId?: number) => {
+    const r = roles.find(x => x.id === roleId);
+    return r?.category_id ? cats.find(c => c.id === r.category_id) : null;
+  };
 
-  async function moveThread(threadId: number, categoryId: number) {
-    const token = getToken();
-    const form = new FormData();
-    form.append("category_id", categoryId.toString());
-    await fetch(`${API_URL}/api/admin/suggestions/${threadId}/move`, {
-      method: "PATCH", headers: { Authorization: `Bearer ${token}` }, body: form
-    });
-    setSelectedThread(null);
-    loadData();
-  }
-
-  function openMemberDetails(member: any) {
-    setSelectedMember(member);
-    loadMemberStats(member.user.id);
-  }
-
-  if (loading) return (
-    <div className="min-h-screen bg-[#171717] flex items-center justify-center">
-      <p className="text-white/50 animate-pulse">Загрузка...</p>
-    </div>
+  const th = (field: SortField, label: string) => (
+    <th className="text-left p-3 text-white/50 font-bold text-xs uppercase cursor-pointer hover:text-white select-none whitespace-nowrap" onClick={() => handleSort(field)}>
+      {label} {sortField === field && (sortOrder === "asc" ? "↑" : "↓")}
+    </th>
   );
+
+  if (loading) return <div className="min-h-screen bg-[#171717] flex items-center justify-center"><p className="text-white/50 animate-pulse">Загрузка...</p></div>;
 
   return (
     <div className="min-h-screen bg-[#171717]">
       <div className="max-w-7xl mx-auto px-4 py-10">
-        {/* Шапка с кнопкой Назад */}
-        <div className="flex items-center justify-between mb-8">
+        {/* Шапка */}
+        <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div className="flex items-center gap-4">
-            <Link href="/" className="p-2 rounded-lg bg-white/5 text-white/60 hover:text-white hover:bg-white/10 transition-all">
-              <ArrowLeft size={20} />
-            </Link>
+            <Link href="/" className="p-2 rounded-lg bg-white/5 text-white/60 hover:text-white hover:bg-white/10"><ArrowLeft size={20} /></Link>
             <div>
               <h1 className="text-3xl font-black text-white">Панель команды</h1>
               <p className="text-white/50 text-sm mt-1">Статистика и управление проектом</p>
@@ -267,70 +222,221 @@ export default function StatPage() {
             <button onClick={() => setActiveTab("team")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === "team" ? "bg-purple-500 text-white" : "bg-white/5 text-white/60 hover:bg-white/10"}`}>
               <Shield size={16} /> Команда
             </button>
-            <button onClick={() => setActiveTab("suggestions")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === "suggestions" ? "bg-purple-500 text-white" : "bg-white/5 text-white/60 hover:bg-white/10"}`}>
-              <FileText size={16} /> Предложения
-            </button>
           </div>
         </div>
 
-        {/* ========== ВКЛАДКА 1: ПОЛЬЗОВАТЕЛИ ========== */}
-        {activeTab === "users" && (
-          <div className="space-y-4">
-            <div className="flex gap-3 items-center p-4 bg-white/5 rounded-xl border border-white/10">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={18} />
-                <input type="text" placeholder="Поиск пользователей..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2 rounded-lg bg-[#171717] border border-white/10 text-white focus:border-purple-500 outline-none" />
-              </div>
-              <label className="flex items-center gap-2 text-sm text-white/70 cursor-pointer">
-                <input type="checkbox" checked={showTeamOnly} onChange={(e) => setShowTeamOnly(e.target.checked)} className="rounded border-white/30 bg-white/5" />
-                Только команда (3+ lvl)
-              </label>
-            </div>
-            <div className="bg-[#1f1f23] border border-white/10 rounded-xl overflow-hidden">
-              <div className="grid grid-cols-12 gap-4 p-4 border-b border-white/10 bg-white/5 text-xs font-bold text-white/60 uppercase">
-                <div className="col-span-4 cursor-pointer hover:text-white" onClick={() => handleSort("username")}>Пользователь {sortField === "username" && (sortOrder === "asc" ? "↑" : "↓")}</div>
-                <div className="col-span-2 cursor-pointer hover:text-white" onClick={() => handleSort("level")}>Уровень {sortField === "level" && (sortOrder === "asc" ? "↑" : "↓")}</div>
-                <div className="col-span-2 cursor-pointer hover:text-white" onClick={() => handleSort("posts_count")}>Посты {sortField === "posts_count" && (sortOrder === "asc" ? "↑" : "↓")}</div>
-                <div className="col-span-2 cursor-pointer hover:text-white" onClick={() => handleSort("actions_count")}>Действия {sortField === "actions_count" && (sortOrder === "asc" ? "↑" : "↓")}</div>
-                <div className="col-span-2 cursor-pointer hover:text-white" onClick={() => handleSort("last_seen")}>Вход {sortField === "last_seen" && (sortOrder === "asc" ? "↑" : "↓")}</div>
-              </div>
-              <div className="divide-y divide-white/5">
-                {getSortedUsers().map((user) => (
-                  <div key={user.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-white/5 transition-colors">
-                    <div className="col-span-4 flex items-center gap-3">
-                      <Avatar src={user.avatar_url} name={user.display_name} id={user.id} size={32} />
-                      <div>
-                        <p className="text-white font-bold text-sm">{user.display_name}</p>
-                        <p className="text-white/40 text-xs">@{user.username}</p>
-                      </div>
-                    </div>
-                    <div className="col-span-2"><span className="px-2 py-1 rounded bg-purple-500/20 text-purple-400 text-xs font-bold">Lvl {user.level}</span></div>
-                    <div className="col-span-2 text-white/70 text-sm">{user.posts_count}</div>
-                    <div className="col-span-2 text-white/70 text-sm">{user.actions_count}</div>
-                    <div className="col-span-2 text-white/40 text-xs">{user.last_seen ? new Date(user.last_seen).toLocaleString("ru-RU") : "—"}</div>
+        {/* ========== ВКЛАДКА: ПОЛЬЗОВАТЕЛИ ========== */}
+        {activeTab === "users" && overview && (
+          <div className="space-y-6">
+            {/* ОБЗОР */}
+            <div>
+              <h2 className="text-xs font-black uppercase text-white/50 mb-3">Общие показатели</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+                <div className="bg-[#1f1f23] border border-white/10 rounded-xl p-4">
+                  <p className="text-white/50 text-xs mb-1">Всего пользователей</p>
+                  <p className="text-2xl font-black text-white mb-3">{overview.total_users}</p>
+                  <MiniBars data={overview.reg_series.map((r: any) => r.count)} />
+                </div>
+                <div className="bg-[#1f1f23] border border-white/10 rounded-xl p-4">
+                  <p className="text-white/50 text-xs mb-1 flex items-center gap-1"><Activity size={12} /> Активные (MAU/DAU)</p>
+                  <div className="flex gap-4 mb-3">
+                    <div><p className="text-xl font-black text-white">{overview.mau}</p><p className="text-[10px] text-white/40">месяц</p></div>
+                    <div><p className="text-xl font-black text-green-400">{overview.dau}</p><p className="text-[10px] text-white/40">день</p></div>
                   </div>
-                ))}
+                  <MiniBars data={overview.post_series.map((r: any) => r.count)} color="#22c55e" />
+                </div>
+                <div className="bg-[#1f1f23] border border-white/10 rounded-xl p-4">
+                  <p className="text-white/50 text-xs mb-1">Регистрации сегодня</p>
+                  <p className="text-2xl font-black text-white">{overview.reg_today}</p>
+                  <p className={`text-xs mt-2 font-bold ${overview.reg_today - overview.reg_yesterday >= 0 ? "text-green-400" : "text-red-400"}`}>
+                    {overview.reg_today - overview.reg_yesterday >= 0 ? "↑ +" : "↓ "}{overview.reg_today - overview.reg_yesterday} к вчера
+                  </p>
+                  <p className="text-[10px] text-white/40 mt-1">Онлайн сейчас: {overview.online}</p>
+                </div>
+                <div className="bg-[#1f1f23] border border-white/10 rounded-xl p-4">
+                  <p className="text-white/50 text-xs mb-1">Загальний KPI</p>
+                  <p className="text-2xl font-black text-white mb-3">{avgKpi}</p>
+                  <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                    <div className="h-full rounded-full bg-purple-500" style={{ width: `${avgKpi}%` }} />
+                  </div>
+                  <p className="text-[10px] text-white/40 mt-2">Средняя оценка активности</p>
+                </div>
+                <div className="bg-[#1f1f23] border border-white/10 rounded-xl p-4">
+                  <p className="text-white/50 text-xs mb-3">Использование фич</p>
+                  <div className="flex items-end gap-3 h-14">
+                    {[
+                      { v: overview.total_posts, l: "Посты", c: "#8b5cf6" },
+                      { v: overview.total_messages, l: "Сообщ.", c: "#22c55e" },
+                      { v: overview.total_likes, l: "Лайки", c: "#f59e0b" },
+                    ].map((f) => {
+                      const max = Math.max(overview.total_posts, overview.total_messages, overview.total_likes, 1);
+                      return (
+                        <div key={f.l} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+                          <div className="w-full rounded-t" style={{ height: `${Math.max(6, (f.v / max) * 100)}%`, background: f.c }} />
+                          <span className="text-[9px] text-white/40">{f.l}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
+
+            {/* ФИЛЬТРЫ */}
+            <div className="flex gap-3 items-center p-4 bg-white/5 rounded-xl border border-white/10 flex-wrap relative">
+              <div className="flex-1 min-w-[200px] relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" size={18} />
+                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Поиск пользователей..."
+                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-[#171717] border border-white/10 text-white focus:border-purple-500 outline-none" />
+              </div>
+              <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
+                className="px-3 py-2 rounded-lg bg-[#171717] border border-white/10 text-white text-sm outline-none">
+                <option value="all">Все роли</option>
+                <option value="admin">Founder</option>
+                <option value="moderator">Модераторы</option>
+                <option value="staff">С ролью</option>
+                <option value="norole">Без роли</option>
+              </select>
+              <select value={activityFilter} onChange={(e) => setActivityFilter(e.target.value)}
+                className="px-3 py-2 rounded-lg bg-[#171717] border border-white/10 text-white text-sm outline-none">
+                <option value="all">Любая активность</option>
+                <option value="online">Онлайн сейчас</option>
+                <option value="today">Были сегодня</option>
+                <option value="week">Активны за 7 дней</option>
+                <option value="dormant">Спят 30+ дней</option>
+              </select>
+              <div className="relative">
+                <button onClick={() => setShowColsMenu(!showColsMenu)} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#171717] border border-white/10 text-white/70 text-sm hover:text-white">
+                  Колонки <ChevronDown size={14} />
+                </button>
+                {showColsMenu && (
+                  <div className="absolute right-0 top-11 z-50 w-48 bg-[#1f1f23] border border-white/15 rounded-xl p-2 space-y-1">
+                    {ALL_COLUMNS.map((c) => (
+                      <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/5 text-sm text-white/80 cursor-pointer">
+                        <input type="checkbox" checked={visibleCols[c.id]} className="accent-purple-500"
+                          onChange={() => setVisibleCols({ ...visibleCols, [c.id]: !visibleCols[c.id] })} />
+                        {c.label}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ТАБЛИЦА */}
+            <div className="bg-[#1f1f23] border border-white/10 rounded-xl overflow-x-auto">
+              <table className="w-full text-sm border-collapse min-w-[900px]">
+                <thead>
+                  <tr className="border-b border-white/10 bg-white/5">
+                    <th className="text-left p-3 text-white/50 font-bold text-xs uppercase">#</th>
+                    {th("username", "Аватар + имя")}
+                    {th("level", "Роль")}
+                    {th("created_at", "Регистрация")}
+                    {th("last_seen", "Активность")}
+                    {visibleCols.posts_count && th("posts_count", "Посты")}
+                    {visibleCols.messages_count && th("messages_count", "Сообщения")}
+                    {visibleCols.likes_given && th("likes_given", "Лайки пост.")}
+                    {visibleCols.likes_received && th("likes_received", "Лайки получ.")}
+                    {visibleCols.visits_count && th("visits_count", "Визиты")}
+                    {visibleCols.kpi && th("kpi", "KPI")}
+                    {visibleCols.group && <th className="text-left p-3 text-white/50 font-bold text-xs uppercase">Группа</th>}
+                    <th className="text-right p-3 text-white/50 font-bold text-xs uppercase">Действия</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {paged.map((u, i) => {
+                    const cat = catByRoleId(u.role?.id);
+                    const roleName = u.is_admin ? "Founder" : u.is_moderator ? "Модератор" : u.role?.name || "Пользователь";
+                    const roleColor = u.is_admin ? "#ffffff" : u.is_moderator ? "#3b82f6" : u.role?.color || "#6b7280";
+                    return (
+                      <tr key={u.id} className="hover:bg-white/5 transition-colors">
+                        <td className="p-3 text-white/40">{(page - 1) * PAGE_SIZE + i + 1}</td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={32} />
+                            <div>
+                              <p className="text-white font-bold">{u.display_name}</p>
+                              <p className="text-white/40 text-xs">@{u.username}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-3">
+                          <span className="px-2 py-1 rounded-md text-[10px] font-black uppercase border"
+                            style={{ background: `${roleColor}15`, color: roleColor, borderColor: `${roleColor}40` }}>
+                            {roleName}
+                          </span>
+                        </td>
+                        <td className="p-3 text-white/60 whitespace-nowrap">{fmtDate(u.created_at)}</td>
+                        <td className="p-3 text-white/60 whitespace-nowrap">{fmtLastSeen(u.last_seen)}</td>
+                        {visibleCols.posts_count && <td className="p-3 text-white/80 font-bold">{u.posts_count}</td>}
+                        {visibleCols.messages_count && <td className="p-3 text-white/70">{u.messages_count}</td>}
+                        {visibleCols.likes_given && <td className="p-3 text-white/70">{u.likes_given}</td>}
+                        {visibleCols.likes_received && <td className="p-3 text-white/70">{u.likes_received}</td>}
+                        {visibleCols.visits_count && <td className="p-3 text-white/70">{u.visits_count}</td>}
+                        {visibleCols.kpi && <td className="p-3"><KpiRing value={u.kpi || 0} /></td>}
+                        {visibleCols.group && (
+                          <td className="p-3">
+                            {cat ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ background: `${cat.color}20`, color: cat.color }}>{cat.name}</span>
+                            ) : <span className="text-white/30">—</span>}
+                          </td>
+                        )}
+                        <td className="p-3 text-right relative">
+                          <button onClick={() => setMenuUserId(menuUserId === u.id ? null : u.id)}
+                            className="p-1.5 rounded-lg text-white/50 hover:text-white hover:bg-white/10">
+                            <MoreHorizontal size={16} />
+                          </button>
+                          {menuUserId === u.id && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => setMenuUserId(null)} />
+                              <div className="absolute right-4 top-12 z-50 w-44 bg-[#1f1f23] border border-white/15 rounded-xl p-1.5 space-y-0.5 text-left">
+                                <button onClick={() => router.push(`/profile/${u.username}`)} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/80 hover:bg-white/5">
+                                  <ExternalLink size={14} /> Профиль
+                                </button>
+                                <button onClick={() => { setMenuUserId(null); setSelectedMember({ user: u, role: u.role, level: u.level }); loadMemberStats(u.id); }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/80 hover:bg-white/5">
+                                  <BarChart3 size={14} /> Статистика
+                                </button>
+                                {canBan && (
+                                  <button onClick={() => { setMenuUserId(null); toggleBan(u); }}
+                                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${u.is_banned ? "text-green-400" : "text-red-400"} hover:bg-white/5`}>
+                                    <Ban size={14} /> {u.is_banned ? "Разбанить" : "Забанить"}
+                                  </button>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {filtered.length === 0 && <p className="text-center text-white/40 py-12">Никого не нашли</p>}
+            </div>
+
+            {/* ПАГИНАЦИЯ */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-1">
+                <button disabled={page === 1} onClick={() => setPage(1)} className="p-2 rounded-lg bg-white/5 text-white/60 disabled:opacity-30 hover:bg-white/10"><ChevronsLeft size={16} /></button>
+                <button disabled={page === 1} onClick={() => setPage(page - 1)} className="p-2 rounded-lg bg-white/5 text-white/60 disabled:opacity-30 hover:bg-white/10"><ChevronLeft size={16} /></button>
+                {pageList(totalPages, page).map(p => (
+                  <button key={p} onClick={() => setPage(p)}
+                    className={`w-9 h-9 rounded-lg text-sm font-bold ${p === page ? "bg-purple-500 text-white" : "bg-white/5 text-white/60 hover:bg-white/10"}`}>
+                    {p}
+                  </button>
+                ))}
+                <button disabled={page === totalPages} onClick={() => setPage(page + 1)} className="p-2 rounded-lg bg-white/5 text-white/60 disabled:opacity-30 hover:bg-white/10"><ChevronRight size={16} /></button>
+                <button disabled={page === totalPages} onClick={() => setPage(totalPages)} className="p-2 rounded-lg bg-white/5 text-white/60 disabled:opacity-30 hover:bg-white/10"><ChevronsRight size={16} /></button>
+              </div>
+            )}
           </div>
         )}
 
-        {/* ========== ВКЛАДКА 2: КОМАНДА (КАК НА ПРИМЕРЕ) ========== */}
+        {/* ========== ВКЛАДКА: КОМАНДА ========== */}
         {activeTab === "team" && (
           <div className="space-y-6">
-            {/* Заголовок отдела */}
-            <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-black text-white">АРХИТЕКТУРА КОМАНДЫ</h2>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Поиск по сотрудникам..."
-                  className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:border-purple-500 outline-none"
-                />
-              </div>
-            </div>
-
-            {/* Группы по отделам */}
+            <h2 className="text-2xl font-black text-white uppercase">Архитектура команды</h2>
             {teamGroups.length === 0 ? (
               <div className="text-center py-16 border border-white/10 rounded-2xl bg-white/5">
                 <Shield size={48} className="mx-auto text-white/20 mb-4" />
@@ -339,23 +445,15 @@ export default function StatPage() {
             ) : (
               teamGroups.map((group) => (
                 <div key={group.id} className="space-y-4">
-                  {/* Заголовок отдела */}
                   <div className="flex items-center gap-3 pb-2 border-b border-white/10">
                     <div className="w-1 h-6 rounded-full" style={{ backgroundColor: group.color }} />
                     <h3 className="text-lg font-bold text-white uppercase tracking-wide">{group.name}</h3>
-                    <span className="text-xs text-white/40 bg-white/5 px-2 py-0.5 rounded-full">
-                      {group.members.length} чел.
-                    </span>
+                    <span className="text-xs text-white/40 bg-white/5 px-2 py-0.5 rounded-full">{group.members.length} чел.</span>
                   </div>
-                  
-                  {/* Сетка карточек участников */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {group.members.map((member: any) => (
-                      <div 
-                        key={member.user.id} 
-                        onClick={() => openMemberDetails(member)}
-                        className="bg-[#1f1f23] border border-white/10 rounded-xl p-4 hover:border-purple-500/50 transition-all cursor-pointer group"
-                      >
+                      <div key={member.user.id} onClick={() => { setSelectedMember(member); loadMemberStats(member.user.id); }}
+                        className="bg-[#1f1f23] border border-white/10 rounded-xl p-4 hover:border-purple-500/50 transition-all cursor-pointer group">
                         <div className="flex items-start gap-3 mb-3">
                           <Avatar src={member.user.avatar_url} name={member.user.display_name} id={member.user.id} size={48} />
                           <div className="flex-1 min-w-0">
@@ -363,49 +461,28 @@ export default function StatPage() {
                             <p className="text-white/40 text-xs truncate">@{member.user.username}</p>
                           </div>
                         </div>
-                        
-                        {/* Роль */}
                         {member.role && (
                           <div className="mb-3">
-                            <span 
-                              className="inline-block px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border"
-                              style={{ 
-                                background: `${member.role.color}15`, 
-                                color: member.role.color,
-                                borderColor: `${member.role.color}40`
-                              }}
-                            >
+                            <span className="inline-block px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border"
+                              style={{ background: `${member.role.color}15`, color: member.role.color, borderColor: `${member.role.color}40` }}>
                               {member.role.name}
                             </span>
                           </div>
                         )}
-
-                        {/* Статус и метрики */}
                         <div className="space-y-2 text-xs">
-                          <div className="flex items-center justify-between">
-                            <span className="text-white/50">Статус:</span>
-                            <span className="flex items-center gap-1.5">
-                              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                              <span className="text-green-400">Онлайн</span>
-                            </span>
-                          </div>
                           <div className="flex items-center justify-between">
                             <span className="text-white/50">Действий:</span>
                             <span className="text-white font-bold">{member.actions_count || 0}</span>
                           </div>
                           <div className="flex items-center justify-between">
                             <span className="text-white/50">Был(а):</span>
-                            <span className="text-white/60">
-                              {member.user.last_seen ? new Date(member.user.last_seen).toLocaleTimeString("ru-RU", {hour: '2-digit', minute:'2-digit'}) : "Давно"}
-                            </span>
+                            <span className="text-white/60">{fmtLastSeen(member.user.last_seen)}</span>
                           </div>
                         </div>
-
-                        {/* Кнопка деталей */}
                         <div className="mt-3 pt-3 border-t border-white/10">
-                          <button className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg bg-white/5 text-white/60 text-xs font-bold group-hover:bg-purple-500/20 group-hover:text-purple-300 transition-all">
+                          <div className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg bg-white/5 text-white/60 text-xs font-bold group-hover:bg-purple-500/20 group-hover:text-purple-300 transition-all">
                             <BarChart3 size={14} /> Детальная статистика
-                          </button>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -415,64 +492,12 @@ export default function StatPage() {
             )}
           </div>
         )}
-
-        {/* ========== ВКЛАДКА 3: ПРЕДЛОЖЕНИЯ ========== */}
-        {activeTab === "suggestions" && (
-          <div className="space-y-4">
-            <div className="flex gap-3">
-              <button onClick={() => setShowCategoryModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-500 text-white text-sm font-bold hover:bg-purple-400">
-                <Plus size={16} /> Новая категория
-              </button>
-              <button onClick={() => setShowPrefixModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 text-white text-sm font-bold hover:bg-blue-400">
-                <Palette size={16} /> Префикс темы
-              </button>
-            </div>
-            <div className="space-y-3">
-              {suggestions.length === 0 ? (
-                <div className="text-center py-16 border border-white/10 rounded-2xl bg-white/5">
-                  <FileText size={48} className="mx-auto text-white/20 mb-4" />
-                  <p className="text-white/50 text-lg">Пока нет предложений</p>
-                </div>
-              ) : (
-                suggestions.map((thread) => {
-                  const prefix = prefixes.find(p => p.name.toLowerCase() === thread.status.toLowerCase());
-                  return (
-                    <div key={thread.id} className="bg-[#1f1f23] border border-white/10 rounded-xl p-5">
-                      <div className="flex items-start gap-4">
-                        {prefix && (
-                          <div className="px-3 py-1.5 rounded-lg text-xs font-bold shrink-0" style={{ background: prefix.bg_color, color: prefix.color }}>
-                            {prefix.name}
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <h3 className="text-white font-bold text-lg mb-2">{thread.title}</h3>
-                          <p className="text-white/60 text-sm mb-3">{thread.content}</p>
-                          <div className="flex items-center gap-4 text-xs text-white/40">
-                            <span>{thread.category?.name}</span>
-                            <span>•</span>
-                            <span>{new Date(thread.created_at).toLocaleDateString("ru-RU")}</span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => setSelectedThread(thread)} className="p-2 rounded-lg bg-white/5 text-white/60 hover:text-white hover:bg-white/10" title="Перенести">
-                            <MoveRight size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Модалка детальной статистики сотрудника */}
+      {/* Модалка детальной статистики */}
       {selectedMember && memberStats && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[400] flex items-center justify-center p-4">
           <div className="w-full max-w-5xl bg-[#1f1f23] border border-white/15 rounded-2xl max-h-[90vh] overflow-y-auto">
-            {/* Шапка модалки */}
             <div className="sticky top-0 bg-[#1f1f23] border-b border-white/10 p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Avatar src={selectedMember.user.avatar_url} name={selectedMember.user.display_name} id={selectedMember.user.id} size={40} />
@@ -481,14 +506,11 @@ export default function StatPage() {
                   <p className="text-sm text-white/50">{selectedMember.role?.name || "Без роли"}</p>
                 </div>
               </div>
-              <button onClick={() => {setSelectedMember(null); setMemberStats(null);}} className="p-2 rounded-lg bg-white/5 text-white/60 hover:text-white hover:bg-white/10">
+              <button onClick={() => { setSelectedMember(null); setMemberStats(null); }} className="p-2 rounded-lg bg-white/5 text-white/60 hover:text-white hover:bg-white/10">
                 <X size={20} />
               </button>
             </div>
-
-            {/* Контент модалки */}
             <div className="p-6 space-y-6">
-              {/* KPI метрики */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                   <p className="text-white/40 text-xs mb-1">Всего действий</p>
@@ -496,130 +518,50 @@ export default function StatPage() {
                 </div>
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                   <p className="text-white/40 text-xs mb-1">Уровень</p>
-                  <p className="text-2xl font-black text-purple-400">Lvl {selectedMember.role?.level || 1}</p>
+                  <p className="text-2xl font-black text-purple-400">Lvl {selectedMember.role?.level || selectedMember.level || 1}</p>
                 </div>
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                   <p className="text-white/40 text-xs mb-1">Последний вход</p>
-                  <p className="text-lg font-bold text-white">
-                    {selectedMember.user.last_seen ? new Date(selectedMember.user.last_seen).toLocaleDateString("ru-RU") : "—"}
-                  </p>
+                  <p className="text-lg font-bold text-white">{fmtLastSeen(selectedMember.user.last_seen)}</p>
                 </div>
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <p className="text-white/40 text-xs mb-1">Статус</p>
-                  <p className="text-lg font-bold text-green-400 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500" /> Активен
-                  </p>
+                  <p className="text-white/40 text-xs mb-1">KPI</p>
+                  <div className="flex items-center gap-3"><KpiRing value={selectedMember.kpi || memberStats.total_actions ? Math.min(100, selectedMember.kpi || 50) : 0} /><span className="text-white/60 text-sm">/ 100</span></div>
                 </div>
               </div>
-
-              {/* История действий */}
               <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                <h4 className="text-white font-bold mb-4 flex items-center gap-2">
-                  <Clock size={18} /> История действий
-                </h4>
-                {memberStats.actions && memberStats.actions.length > 0 ? (
+                <h4 className="text-white font-bold mb-4 flex items-center gap-2"><Clock size={18} /> История действий</h4>
+                {memberStats.actions?.length > 0 ? (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {memberStats.actions.map((action: any, idx: number) => (
                       <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-[#171717] border border-white/5">
                         <div>
                           <p className="text-white text-sm font-bold">{action.action_type}</p>
-                          <p className="text-white/40 text-xs">
-                            {action.target_type && action.target_id ? `${action.target_type} #${action.target_id}` : ""}
-                          </p>
+                          <p className="text-white/40 text-xs">{action.target_type && action.target_id ? `${action.target_type} #${action.target_id}` : ""}</p>
                         </div>
-                        <p className="text-white/40 text-xs">
-                          {new Date(action.created_at).toLocaleString("ru-RU")}
-                        </p>
+                        <p className="text-white/40 text-xs">{new Date(action.created_at).toLocaleString("ru-RU")}</p>
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-white/40 text-sm text-center py-8">Нет записей</p>
-                )}
+                ) : <p className="text-white/40 text-sm text-center py-8">Нет записей</p>}
               </div>
-
-              {/* История смены ролей */}
-              {memberStats.role_history && memberStats.role_history.length > 0 && (
+              {memberStats.role_history?.length > 0 && (
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                  <h4 className="text-white font-bold mb-4 flex items-center gap-2">
-                    <Settings size={18} /> История ролей
-                  </h4>
+                  <h4 className="text-white font-bold mb-4 flex items-center gap-2"><Settings size={18} /> История ролей</h4>
                   <div className="space-y-2">
                     {memberStats.role_history.map((role: any, idx: number) => (
                       <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-[#171717] border border-white/5">
                         <div className="flex items-center gap-3">
-                          {role.old_role && (
-                            <span className="text-white/40 text-sm">{role.old_role}</span>
-                          )}
+                          <span className="text-white/40 text-sm">{role.old_role || "—"}</span>
                           <ArrowRight size={16} className="text-white/40" />
-                          {role.new_role && (
-                            <span className="text-purple-400 text-sm font-bold">{role.new_role}</span>
-                          )}
+                          <span className="text-purple-400 text-sm font-bold">{role.new_role || "—"}</span>
                         </div>
-                        <p className="text-white/40 text-xs">
-                          {new Date(role.changed_at).toLocaleDateString("ru-RU")}
-                        </p>
+                        <p className="text-white/40 text-xs">{fmtDate(role.changed_at)}</p>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Остальные модалки (префиксы, категории, перенос тем) */}
-      {showPrefixModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#1f1f23] border border-white/15 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-black text-white">Новый префикс</h3>
-              <button onClick={() => setShowPrefixModal(false)}><X size={20} className="text-white/50 hover:text-white" /></button>
-            </div>
-            <input value={newPrefix.name} onChange={(e) => setNewPrefix({ ...newPrefix, name: e.target.value })} placeholder="Название префикса" className="w-full mb-3 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-purple-500 outline-none" />
-            <div className="mb-3"><label className="block text-xs text-white/60 mb-2">Цвет текста</label><input type="color" value={newPrefix.color} onChange={(e) => setNewPrefix({ ...newPrefix, color: e.target.value })} className="w-full h-10 rounded-lg cursor-pointer" /></div>
-            <div className="mb-4"><label className="block text-xs text-white/60 mb-2">Цвет фона</label><input type="color" value={newPrefix.bg_color} onChange={(e) => setNewPrefix({ ...newPrefix, bg_color: e.target.value })} className="w-full h-10 rounded-lg cursor-pointer" /></div>
-            <div className="flex gap-2">
-              <button onClick={createPrefix} className="flex-1 py-2.5 rounded-lg bg-purple-500 text-white font-bold">Создать</button>
-              <button onClick={() => setShowPrefixModal(false)} className="flex-1 py-2.5 rounded-lg border border-white/15 text-white/80 font-bold">Отмена</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showCategoryModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#1f1f23] border border-white/15 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-black text-white">Новая категория</h3>
-              <button onClick={() => setShowCategoryModal(false)}><X size={20} className="text-white/50 hover:text-white" /></button>
-            </div>
-            <input value={newCategory.name} onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })} placeholder="Название категории" className="w-full mb-3 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-purple-500 outline-none" />
-            <textarea value={newCategory.description} onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })} placeholder="Описание" rows={3} className="w-full mb-3 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white focus:border-purple-500 outline-none resize-none" />
-            <div className="mb-4"><label className="block text-xs text-white/60 mb-2">Цвет</label><input type="color" value={newCategory.color} onChange={(e) => setNewCategory({ ...newCategory, color: e.target.value })} className="w-full h-10 rounded-lg cursor-pointer" /></div>
-            <div className="flex gap-2">
-              <button onClick={createCategory} className="flex-1 py-2.5 rounded-lg bg-purple-500 text-white font-bold">Создать</button>
-              <button onClick={() => setShowCategoryModal(false)} className="flex-1 py-2.5 rounded-lg border border-white/15 text-white/80 font-bold">Отмена</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {selectedThread && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#1f1f23] border border-white/15 rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-black text-white">Перенос темы</h3>
-              <button onClick={() => setSelectedThread(null)}><X size={20} className="text-white/50 hover:text-white" /></button>
-            </div>
-            <p className="text-white/60 text-sm mb-4">{selectedThread.title}</p>
-            <div className="space-y-2">
-              {categories.map((cat) => (
-                <button key={cat.id} onClick={() => moveThread(selectedThread.id, cat.id)} className="w-full p-3 rounded-lg bg-white/5 text-white hover:bg-white/10 text-left">
-                  {cat.name}
-                </button>
-              ))}
             </div>
           </div>
         </div>
@@ -631,7 +573,7 @@ export default function StatPage() {
 function ArrowRight({ size, className }: { size: number; className?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}>
-      <path d="M5 12h14M12 5l7 7-7 7"/>
+      <path d="M5 12h14M12 5l7 7-7 7" />
     </svg>
   );
 }

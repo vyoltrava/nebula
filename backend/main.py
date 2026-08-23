@@ -10074,3 +10074,94 @@ def admin_delete_thread(
     session.commit()
     return {"ok": True}
 
+# ============================================================
+# 📊 СТАТ-ПАНЕЛЬ: ОБЗОР + ПАРАМЕТРИЧЕСКИЙ СПИСОК ЮЗЕРОВ
+# ============================================================
+
+def _require_stats_access(staff: User, session: Session):
+    """Доступ: manage_team_stats ИЛИ manage_users (Founder автоматически)"""
+    if not (has_permission(staff, "manage_team_stats", session) or has_permission(staff, "manage_users", session)):
+        raise HTTPException(403, "Нет права: manage_team_stats")
+
+def _compute_kpi(posts: int, messages: int, likes_given: int, likes_received: int, visits: int) -> int:
+    """Оценка активности 0–100"""
+    raw = posts * 2 + messages * 0.6 + (likes_given + likes_received) * 0.4 + visits * 0.3
+    return min(100, int(round(raw ** 0.6)))
+
+@app.get("/api/admin/stats/overview")
+def stats_overview(staff: User = Depends(require_staff), session: Session = Depends(get_session)):
+    """Карточки обзора: totals, MAU/DAU, регистрации, серии за 14 дней"""
+    _require_stats_access(staff, session)
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    yesterday_start = today_start - timedelta(days=1)
+    since = today_start - timedelta(days=13)
+
+    def day_series(col, since_dt):
+        rows = session.exec(
+            select(func.date_trunc("day", col), func.count())
+            .where(col >= since_dt)
+            .group_by(func.date_trunc("day", col))
+        ).all()
+        by_day = {d.date(): c for d, c in rows if d}
+        return [
+            {"day": (since_dt + timedelta(days=i)).date().strftime("%d.%m"),
+             "count": by_day.get((since_dt + timedelta(days=i)).date(), 0)}
+            for i in range(14)
+        ]
+
+    return {
+        "total_users": session.exec(select(func.count()).select_from(User)).one(),
+        "total_posts": session.exec(select(func.count()).select_from(Post)).one(),
+        "total_messages": session.exec(select(func.count()).select_from(Message)).one(),
+        "total_likes": session.exec(select(func.count()).select_from(Like)).one(),
+        "dau": session.exec(select(func.count()).select_from(User).where(User.last_seen >= now - timedelta(days=1))).one(),
+        "mau": session.exec(select(func.count()).select_from(User).where(User.last_seen >= now - timedelta(days=30))).one(),
+        "reg_today": session.exec(select(func.count()).select_from(User).where(User.created_at >= today_start)).one(),
+        "reg_yesterday": session.exec(select(func.count()).select_from(User).where(User.created_at >= yesterday_start, User.created_at < today_start)).one(),
+        "reg_series": day_series(User.created_at, since),
+        "post_series": day_series(Post.created_at, since),
+        "online": manager.total_connections,
+    }
+
+@app.get("/api/admin/stats/users")
+def stats_users_list(staff: User = Depends(require_staff), session: Session = Depends(get_session)):
+    """Все юзеры с метриками: посты, сообщения, лайки, визиты, KPI"""
+    _require_stats_access(staff, session)
+    users = session.exec(select(User).order_by(User.created_at.desc())).all()
+    if not users:
+        return []
+    ids = [u.id for u in users]
+    posts_counts = dict(session.exec(select(Post.author_id, func.count(Post.id)).where(Post.author_id.in_(ids)).group_by(Post.author_id)).all())
+    msgs_counts = dict(session.exec(select(Message.sender_id, func.count(Message.id)).where(Message.sender_id.in_(ids)).group_by(Message.sender_id)).all())
+    likes_given = dict(session.exec(select(Like.user_id, func.count(Like.id)).where(Like.user_id.in_(ids)).group_by(Like.user_id)).all())
+    likes_received = dict(session.exec(
+        select(Post.author_id, func.count(Like.id))
+        .join(Like, Like.post_id == Post.id)
+        .where(Post.author_id.in_(ids))
+        .group_by(Post.author_id)
+    ).all())
+    visits = dict(session.exec(
+        select(IPLog.user_id, func.count(IPLog.id))
+        .where(IPLog.user_id.in_(ids), IPLog.action.in_(["login", "login_2fa"]))
+        .group_by(IPLog.user_id)
+    ).all())
+
+    result = []
+    for u in users:
+        p = posts_counts.get(u.id, 0)
+        m = msgs_counts.get(u.id, 0)
+        lg = likes_given.get(u.id, 0)
+        lr = likes_received.get(u.id, 0)
+        v = visits.get(u.id, 0)
+        result.append({
+            **user_out(u, session),
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+            "posts_count": p,
+            "messages_count": m,
+            "likes_given": lg,
+            "likes_received": lr,
+            "visits_count": v,
+            "kpi": _compute_kpi(p, m, lg, lr, v),
+        })
+    return result
