@@ -44,7 +44,8 @@ from models import (
     IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead,
     PushSubscription, StickerPack, Sticker, MessageReaction, Theme, SystemSetting,
     RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge,
-    SuggestionCategory, SuggestionThread, SuggestionComment, TeamStatistic, RoleHistory
+    SuggestionCategory, SuggestionThread, SuggestionComment, TeamStatistic, RoleHistory,
+    Suggestion  # 🆕 ДОБАВЬ ЭТУ СТРОКУ
 )
 import logging
 from fastapi.responses import JSONResponse
@@ -9630,7 +9631,7 @@ def create_suggestion_category(
     description: Optional[str] = Form(None),
     icon: str = Form("message-square"),
     color: str = Form("#8b5cf6"),
-    order: int = Form(0),
+    order: Optional[int] = Form(0),  # 🆕 Сделали Optional, чтобы избежать 422
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
@@ -9638,12 +9639,15 @@ def create_suggestion_category(
     if not user.is_admin:
         raise HTTPException(403, "Только администраторы")
     
+    # 🆕 Безопасное получение order (если фронт не прислал, будет 0)
+    actual_order = order if order is not None else 0
+    
     cat = SuggestionCategory(
         name=name.strip(),
         description=description.strip() if description else None,
         icon=icon,
         color=color,
-        order=order,
+        order=actual_order,
     )
     session.add(cat)
     session.commit()
