@@ -9450,7 +9450,7 @@ def admin_delete_badge(
     return {"ok": True}
 
 # ============================================================
-# 📊 ПАНЕЛЬ КОМАНДЫ: СТАТИСТИКА + ПРЕДЛОЖЕНИЯ
+# 📊 СТАТИСТИКА КОМАНДЫ
 # ============================================================
 
 @app.get("/api/admin/team-dashboard/stats")
@@ -9458,210 +9458,119 @@ def get_team_dashboard_stats(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    """Полная статистика для менеджеров и шефа"""
-    # 1. Общие метрики
-    total_users = session.exec(select(func.count()).select_from(User)).one()
-    total_posts = session.exec(select(func.count()).select_from(Post)).one()
-    
-    # 2. Регистрации за последние 7 и 30 дней
+    """Полная статистика для менеджеров"""
     now = datetime.now(timezone.utc)
-    users_7d = session.exec(select(func.count()).select_from(User).where(User.created_at >= now - timedelta(days=7))).one()
-    users_30d = session.exec(select(func.count()).select_from(User).where(User.created_at >= now - timedelta(days=30))).one()
-    
-    # 3. Активность команды (действия за 30 дней)
-    staff_actions = dict(session.exec(
-        select(ActionLog.actor_id, func.count(ActionLog.id))
-        .where(ActionLog.created_at >= now - timedelta(days=30))
-        .group_by(ActionLog.actor_id)
-    ).all())
-    
-    # 4. Статистика предложений
-    suggestions_stats = dict(session.exec(
-        select(Suggestion.status, func.count(Suggestion.id))
-        .group_by(Suggestion.status)
-    ).all())
     
     return {
-        "total_users": total_users,
-        "total_posts": total_posts,
-        "registrations_7d": users_7d,
-        "registrations_30d": users_30d,
-        "staff_actions": staff_actions,
-        "suggestions": {
-            "pending": suggestions_stats.get("pending", 0),
-            "approved": suggestions_stats.get("approved", 0),
-            "implemented": suggestions_stats.get("implemented", 0),
-            "rejected": suggestions_stats.get("rejected", 0),
-            "archived": suggestions_stats.get("archived", 0),
+        "total_users": session.exec(select(func.count()).select_from(User)).one(),
+        "total_posts": session.exec(select(func.count()).select_from(Post)).one(),
+        "registrations_7d": session.exec(select(func.count()).select_from(User).where(User.created_at >= now - timedelta(days=7))).one(),
+        "registrations_30d": session.exec(select(func.count()).select_from(User).where(User.created_at >= now - timedelta(days=30))).one(),
+        "online_count": manager.total_connections,
+    }
+
+
+@app.get("/api/admin/team-statistics")
+def get_team_statistics(
+    user_id: Optional[int] = None,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Статистика команды с группировкой по отделам"""
+    if user_id:
+        # Детальная статистика пользователя
+        target = session.get(User, user_id)
+        if not target:
+            raise HTTPException(404, "Пользователь не найден")
+        
+        role_history = session.exec(select(RoleHistory).where(RoleHistory.user_id == user_id).order_by(RoleHistory.changed_at.desc())).all()
+        actions = session.exec(select(TeamStatistic).where(TeamStatistic.user_id == user_id).order_by(TeamStatistic.created_at.desc()).limit(50)).all()
+        
+        return {
+            "user": user_out(target, session),
+            "role_history": [{"old_role": session.get(Role, h.old_role_id).name if h.old_role_id else None, "new_role": session.get(Role, h.new_role_id).name if h.new_role_id else None, "changed_at": h.changed_at.isoformat()} for h in role_history],
+            "actions": [{"action_type": a.action_type, "target_type": a.target_type, "target_id": a.target_id, "created_at": a.created_at.isoformat()} for a in actions],
+            "total_actions": session.exec(select(func.count(TeamStatistic.id)).where(TeamStatistic.user_id == user_id)).one() or 0,
         }
-    }
-# ============================================================
-# 💡 ПРЕДЛОЖЕНИЯ (МИНИ-ФОРУМ)
-# ============================================================
-STATUS_BADGES = {"pending", "approved", "implemented", "rejected", "archived"}
+    else:
+        # Общая статистика команды (3+ уровень)
+        all_users = session.exec(select(User)).all()
+        team_members = []
+        
+        for u in all_users:
+            lvl = get_user_level(u, session)
+            if lvl >= 3:
+                role = session.get(Role, u.role_id) if u.role_id else None
+                category = session.get(RoleCategory, role.category_id) if role and role.category_id else None
+                actions_count = session.exec(select(func.count(TeamStatistic.id)).where(TeamStatistic.user_id == u.id)).one() or 0
+                
+                team_members.append({
+                    "user": {"id": u.id, "username": u.username, "display_name": u.display_name, "avatar_url": u.avatar_url, "created_at": u.created_at.isoformat() if u.created_at else None, "last_seen": u.last_seen.isoformat() if u.last_seen else None},
+                    "role": {"name": role.name if role else "Без роли", "color": role.color if role else "#8b5cf6", "level": lvl, "category_name": category.name if category else "Общие", "category_id": category.id if category else 0, "category_color": category.color if category else "#6b7280"},
+                    "actions_count": actions_count,
+                })
+        
+        # Группировка по категориям
+        grouped = {}
+        for m in team_members:
+            cat_id = m["role"]["category_id"]
+            if cat_id not in grouped:
+                grouped[cat_id] = {"id": cat_id, "name": m["role"]["category_name"], "color": m["role"]["category_color"], "members": []}
+            grouped[cat_id]["members"].append(m)
+        
+        sorted_groups = sorted(list(grouped.values()), key=lambda x: (0 if x["id"] == 0 else 1, x["name"]))
+        for group in sorted_groups:
+            group["members"].sort(key=lambda x: (-x["role"]["level"], x["user"]["display_name"]))
+        
+        return {"groups": sorted_groups}
 
-@app.get("/api/suggestions")
-def get_suggestions(
-    status: Optional[str] = None,
-    user: Optional[User] = Depends(get_optional_user),
+
+@app.get("/api/admin/statistics/overview")
+def get_statistics_overview(
+    staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    query = select(Suggestion)
-    if status:
-        query = query.where(Suggestion.status == status)
-    else:
-        # Обычные юзеры не видят архив по умолчанию
-        if not (user and (user.is_admin or user.is_moderator)):
-            query = query.where(Suggestion.status != "archived")
-            
-    # Сортировка: Закрепленные -> По статусу (implemented > approved > pending > rejected) -> По дате
-    query = query.order_by(
-        Suggestion.is_pinned.desc(),
-        case(
-            (Suggestion.status == "implemented", 1),
-            (Suggestion.status == "approved", 2),
-            (Suggestion.status == "pending", 3),
-            (Suggestion.status == "rejected", 4),
-            else_=5
-        ),
-        Suggestion.created_at.desc()
-    ).limit(100)
-    
-    suggestions = session.exec(query).all()
-    author_ids = list({s.author_id for s in suggestions})
-    authors = {u.id: u for u in session.exec(select(User).where(User.id.in_(author_ids))).all()}
-    
-    return [{
-        "id": s.id, "title": s.title, "content": s.content, "status": s.status, 
-        "is_pinned": s.is_pinned, "created_at": s.created_at.isoformat(),
-        "author": user_out(authors.get(s.author_id), session) if authors.get(s.author_id) else None
-    } for s in suggestions]
-
-@app.post("/api/suggestions")
-@limiter.limit("3/minute")
-def create_suggestion(
-    request: Request, title: str = Form(...), content: str = Form(...),
-    user: User = Depends(get_current_user), session: Session = Depends(get_session),
-):
-    if len(title.strip()) < 5 or len(content.strip()) < 20:
-        raise HTTPException(400, "Заголовок мин. 5 символов, описание мин. 20")
-    s = Suggestion(author_id=user.id, title=title.strip(), content=content.strip(), status="pending")
-    session.add(s); session.commit(); session.refresh(s)
-    return {"ok": True, "id": s.id}
-
-@app.get("/api/suggestions/{suggestion_id}")
-def get_suggestion_details(
-    suggestion_id: int, session: Session = Depends(get_session),
-):
-    s = session.get(Suggestion, suggestion_id)
-    if not s: raise HTTPException(404, "Not found")
-    
-    author = session.get(User, s.author_id)
-    comments = session.exec(
-        select(SuggestionComment).where(SuggestionComment.suggestion_id == suggestion_id).order_by(SuggestionComment.created_at.asc())
-    ).all()
-    
-    comment_author_ids = list({c.author_id for c in comments})
-    comment_authors = {u.id: u for u in session.exec(select(User).where(User.id.in_(comment_author_ids))).all()}
+    """Общая статистика платформы"""
+    now = datetime.now(timezone.utc)
     
     return {
-        "suggestion": {
-            "id": s.id, "title": s.title, "content": s.content, "status": s.status, "is_pinned": s.is_pinned,
-            "created_at": s.created_at.isoformat(),
-            "author": user_out(author, session) if author else None
+        "registrations": {
+            "24h": session.exec(select(func.count(User.id)).where(User.created_at >= now - timedelta(hours=24))).one(),
+            "7d": session.exec(select(func.count(User.id)).where(User.created_at >= now - timedelta(days=7))).one(),
+            "30d": session.exec(select(func.count(User.id)).where(User.created_at >= now - timedelta(days=30))).one(),
         },
-        "comments": [{
-            "id": c.id, "content": c.content, "created_at": c.created_at.isoformat(),
-            "author": user_out(comment_authors.get(c.author_id), session) if comment_authors.get(c.author_id) else None
-        } for c in comments]
+        "activity": {
+            "posts_24h": session.exec(select(func.count(Post.id)).where(Post.created_at >= now - timedelta(hours=24))).one(),
+            "mod_actions_24h": session.exec(select(func.count(ActionLog.id)).where(ActionLog.created_at >= now - timedelta(hours=24))).one(),
+        },
+        "online": {"count": manager.total_connections},
+        "totals": {
+            "users": session.exec(select(func.count(User.id))).one(),
+            "posts": session.exec(select(func.count(Post.id))).one(),
+            "chats": session.exec(select(func.count(Chat.id))).one(),
+        },
     }
 
-@app.post("/api/suggestions/thread/{thread_id}/comments")
-def add_comment(
-    thread_id: int,
-    content: str = Form(...),
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    thread = session.get(SuggestionThread, thread_id)
-    if not thread:
-        raise HTTPException(404, "Тема не найдена")
-    
-    # 🆕 ИСПРАВЛЕНО: SuggestionThreadComment
-    comment = SuggestionThreadComment(
-        thread_id=thread_id,
-        author_id=user.id,
-        content=content.strip(),
-    )
-    session.add(comment)
-    
-    thread.updated_at = datetime.now(timezone.utc)
-    session.add(thread)
-    session.commit()
-    session.refresh(comment)
-    
-    return {"ok": True, "id": comment.id}
-
-@app.patch("/api/suggestions/{suggestion_id}/status")
-def update_suggestion_status(
-    suggestion_id: int, status: str = Form(...),
-    staff: User = Depends(require_staff), session: Session = Depends(get_session),
-):
-    if status not in STATUS_BADGES: raise HTTPException(400, "Invalid status")
-    s = session.get(Suggestion, suggestion_id)
-    if not s: raise HTTPException(404, "Not found")
-    s.status = status
-    session.add(s); session.commit()
-    return {"ok": True}
-
-@app.patch("/api/suggestions/{suggestion_id}/pin")
-def toggle_pin(
-    suggestion_id: int, is_pinned: bool = Form(...),
-    staff: User = Depends(require_staff), session: Session = Depends(get_session),
-):
-    s = session.get(Suggestion, suggestion_id)
-    if not s: raise HTTPException(404, "Not found")
-    s.is_pinned = is_pinned
-    session.add(s); session.commit()
-    return {"ok": True}
 
 # ============================================================
-# 💡 ФОРУМ ПРЕДЛОЖЕНИЙ: КАТЕГОРИИ И ТЕМЫ
+# 💡 ФОРУМ ПРЕДЛОЖЕНИЙ: КАТЕГОРИИ И ТЕМЫ (НОВАЯ СИСТЕМА)
 # ============================================================
 
 @app.get("/api/suggestions/categories")
 def get_suggestion_categories(session: Session = Depends(get_session)):
-    """Получить все разделы (с жесткой типизацией для предотвращения 422)"""
-    try:
-        categories = session.exec(
-            select(SuggestionCategory).order_by(SuggestionCategory.order)
-        ).all()
-        
-        result = []
-        for c in categories:
-            # Безопасный подсчет тем (всегда возвращает число)
-            count = session.exec(
-                select(func.count(SuggestionThread.id)).where(
-                    SuggestionThread.category_id == c.id
-                )
-            ).one() or 0
-            
-            result.append({
-                "id": int(c.id),
-                "name": str(c.name),
-                "description": str(c.description) if c.description else "", # ❗ Было None, стало ""
-                "icon": str(c.icon),
-                "color": str(c.color),
-                "order": int(c.order),
-                "is_archived": bool(c.is_archived),
-                "threads_count": int(count),
-            })
-        return result
-    except Exception as e:
-        import traceback
-        print(f"❌ CRITICAL ERROR in /api/suggestions/categories: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Server error: {str(e)}")
+    """Получить все категории"""
+    categories = session.exec(select(SuggestionCategory).order_by(SuggestionCategory.order)).all()
+    
+    return [{
+        "id": c.id,
+        "name": c.name,
+        "description": c.description or "",
+        "icon": c.icon,
+        "color": c.color,
+        "order": c.order,
+        "is_archived": c.is_archived,
+        "threads_count": session.exec(select(func.count(SuggestionThread.id)).where(SuggestionThread.category_id == c.id)).one() or 0,
+    } for c in categories]
 
 
 @app.post("/api/suggestions/categories")
@@ -9673,34 +9582,29 @@ def create_suggestion_category(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Создать раздел (только админ)"""
+    """Создать категорию (только админ)"""
     if not user.is_admin:
         raise HTTPException(403, "Только администраторы")
     
     if not name.strip():
-        raise HTTPException(400, "Название раздела обязательно")
-
-    max_order = session.exec(select(func.max(SuggestionCategory.order))).one()
-    next_order = (max_order or 0) + 1
+        raise HTTPException(400, "Название обязательно")
+    
+    max_order = session.exec(select(func.max(SuggestionCategory.order))).one() or 0
     
     cat = SuggestionCategory(
         name=name.strip(),
         description=description.strip() if description else None,
         icon=icon,
         color=color,
-        order=next_order,
+        order=max_order + 1,
         is_archived=False,
     )
     
-    try:
-        session.add(cat)
-        session.commit()
-        session.refresh(cat)
-        return {"ok": True, "id": cat.id}
-    except Exception as e:
-        session.rollback()
-        print(f"❌ ОШИБКА ПРИ СОЗДАНИИ КАТЕГОРИИ: {e}")
-        raise HTTPException(status_code=500, detail="Не удалось создать раздел")
+    session.add(cat)
+    session.commit()
+    session.refresh(cat)
+    
+    return {"ok": True, "id": cat.id}
 
 
 @app.get("/api/suggestions/threads/{category_id}")
@@ -9711,29 +9615,16 @@ def get_category_threads(
     user: Optional[User] = Depends(get_optional_user),
     session: Session = Depends(get_session),
 ):
-    """Получить темы раздела"""
-    query = select(SuggestionThread).where(
-        SuggestionThread.category_id == category_id
-    ).order_by(
-        SuggestionThread.is_pinned.desc(),
-        SuggestionThread.created_at.desc()
-    )
+    """Получить темы категории"""
+    query = select(SuggestionThread).where(SuggestionThread.category_id == category_id).order_by(SuggestionThread.is_pinned.desc(), SuggestionThread.created_at.desc())
     
     if cursor:
         query = query.where(SuggestionThread.id < cursor)
     
     threads = session.exec(query.limit(limit)).all()
     
-    result = []
-    for t in threads:
-        author = session.get(User, t.author_id)
-        comments_count = session.exec(
-            select(func.count(SuggestionThreadComment.id)).where( # 🆕 ИСПРАВЛЕНО
-                SuggestionThreadComment.thread_id == t.id
-            )
-        ).one() or 0
-        
-        result.append({
+    return {
+        "threads": [{
             "id": t.id,
             "category_id": t.category_id,
             "title": t.title,
@@ -9741,14 +9632,11 @@ def get_category_threads(
             "is_pinned": t.is_pinned,
             "status": t.status,
             "views_count": t.views_count,
-            "comments_count": comments_count,
+            "comments_count": session.exec(select(func.count(SuggestionThreadComment.id)).where(SuggestionThreadComment.thread_id == t.id)).one() or 0,
             "created_at": t.created_at.isoformat(),
             "updated_at": t.updated_at.isoformat() if t.updated_at else None,
-            "author": user_out(author, session) if author else None,
-        })
-    
-    return {
-        "threads": result,
+            "author": user_out(session.get(User, t.author_id), session),
+        } for t in threads],
         "has_more": len(threads) == limit,
         "next_cursor": threads[-1].id if threads else None,
     }
@@ -9765,20 +9653,15 @@ def create_suggestion_thread(
     """Создать тему"""
     cat = session.get(SuggestionCategory, category_id)
     if not cat:
-        raise HTTPException(404, "Раздел не найден")
-    
+        raise HTTPException(404, "Категория не найдена")
     if cat.is_archived:
-        raise HTTPException(403, "Раздел только для чтения")
+        raise HTTPException(403, "Категория закрыта")
     
-    thread = SuggestionThread(
-        category_id=category_id,
-        author_id=user.id,
-        title=title.strip(),
-        content=content.strip(),
-    )
+    thread = SuggestionThread(category_id=category_id, author_id=user.id, title=title.strip(), content=content.strip())
     session.add(thread)
     session.commit()
     session.refresh(thread)
+    
     return {"ok": True, "id": thread.id}
 
 
@@ -9799,27 +9682,11 @@ def get_thread_detail(
     session.add(thread)
     session.commit()
     
-    author = session.get(User, thread.author_id)
-    
-    # 🆕 ИСПРАВЛЕНО: используем SuggestionThreadComment
-    query = select(SuggestionThreadComment).where(
-        SuggestionThreadComment.thread_id == thread_id
-    ).order_by(SuggestionThreadComment.created_at.asc())
-    
+    query = select(SuggestionThreadComment).where(SuggestionThreadComment.thread_id == thread_id).order_by(SuggestionThreadComment.created_at.asc())
     if cursor:
         query = query.where(SuggestionThreadComment.id > cursor)
     
     comments = session.exec(query.limit(limit)).all()
-    
-    comments_data = []
-    for c in comments:
-        comment_author = session.get(User, c.author_id)
-        comments_data.append({
-            "id": c.id,
-            "content": c.content,
-            "created_at": c.created_at.isoformat(),
-            "author": user_out(comment_author, session) if comment_author else None,
-        })
     
     return {
         "thread": {
@@ -9832,15 +9699,19 @@ def get_thread_detail(
             "views_count": thread.views_count,
             "created_at": thread.created_at.isoformat(),
             "updated_at": thread.updated_at.isoformat() if thread.updated_at else None,
-            "author": user_out(author, session) if author else None,
+            "author": user_out(session.get(User, thread.author_id), session),
         },
-        "comments": comments_data,
+        "comments": [{
+            "id": c.id,
+            "content": c.content,
+            "created_at": c.created_at.isoformat(),
+            "author": user_out(session.get(User, c.author_id), session),
+        } for c in comments],
         "has_more": len(comments) == limit,
         "next_cursor": comments[-1].id if comments else None,
     }
 
 
-# 🆕 ДОБАВЛЕНО: Эндпоинт добавления комментария (его не хватало!)
 @app.post("/api/suggestions/thread/{thread_id}/comments")
 def add_thread_comment(
     thread_id: int,
@@ -9848,27 +9719,21 @@ def add_thread_comment(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Добавить комментарий к теме"""
+    """Добавить комментарий"""
     thread = session.get(SuggestionThread, thread_id)
     if not thread:
         raise HTTPException(404, "Тема не найдена")
-    
     if len(content.strip()) < 2:
         raise HTTPException(400, "Комментарий слишком короткий")
     
-    comment = SuggestionThreadComment(
-        thread_id=thread_id,
-        author_id=user.id,
-        content=content.strip(),
-    )
+    comment = SuggestionThreadComment(thread_id=thread_id, author_id=user.id, content=content.strip())
     session.add(comment)
     
-    # Обновляем updated_at у темы, чтобы она поднялась в списке
     thread.updated_at = datetime.now(timezone.utc)
     session.add(thread)
-    
     session.commit()
     session.refresh(comment)
+    
     return {"ok": True, "id": comment.id}
 
 
@@ -9879,9 +9744,9 @@ def update_thread_status(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Изменить статус темы (ТОЛЬКО АДМИНЫ)"""
+    """Изменить статус темы (только админ)"""
     if not user.is_admin:
-        raise HTTPException(403, "Только администраторы могут менять статус")
+        raise HTTPException(403, "Только администраторы")
     
     valid_statuses = ["pending", "approved", "implemented", "rejected", "archived"]
     if status not in valid_statuses:
@@ -9894,6 +9759,7 @@ def update_thread_status(
     thread.status = status
     session.add(thread)
     session.commit()
+    
     return {"ok": True}
 
 
@@ -9904,7 +9770,7 @@ def toggle_thread_pin(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Закрепить/открепить тему (ТОЛЬКО АДМИНЫ)"""
+    """Закрепить тему (только админ)"""
     if not user.is_admin:
         raise HTTPException(403, "Только администраторы")
     
@@ -9915,163 +9781,38 @@ def toggle_thread_pin(
     thread.is_pinned = is_pinned
     session.add(thread)
     session.commit()
+    
     return {"ok": True}
 
 
-# ============================================================
-# 📊 СТАТИСТИКА КОМАНДЫ (ПОЛНАЯ)
-# ============================================================
-@app.get("/api/admin/team-statistics")
-def get_team_statistics(
-    user_id: Optional[int] = None,
+@app.patch("/api/admin/suggestions/{thread_id}/move")
+def move_suggestion_thread(
+    thread_id: int,
+    category_id: int = Form(...),
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    """Полная статистика команды (ТОЛЬКО 3+ уровень, с группировкой по категориям ролей)"""
-    if user_id:
-        # Статистика конкретного пользователя (оставляем как было)
-        target = session.get(User, user_id)
-        if not target:
-            raise HTTPException(404, "Пользователь не найден")
-        
-        role_history = session.exec(
-            select(RoleHistory).where(RoleHistory.user_id == user_id)
-            .order_by(RoleHistory.changed_at.desc())
-        ).all()
-        
-        actions = session.exec(
-            select(TeamStatistic).where(TeamStatistic.user_id == user_id)
-            .order_by(TeamStatistic.created_at.desc()).limit(50)
-        ).all()
-        
-        return {
-            "user": user_out(target, session),
-            "role_history": [{
-                "old_role": session.get(Role, h.old_role_id).name if h.old_role_id else None,
-                "new_role": session.get(Role, h.new_role_id).name if h.new_role_id else None,
-                "changed_by": user_out(session.get(User, h.changed_by), session),
-                "changed_at": h.changed_at.isoformat(),
-            } for h in role_history],
-            "actions": [{
-                "action_type": a.action_type,
-                "target_type": a.target_type,
-                "target_id": a.target_id,
-                "details": json.loads(a.details) if a.details else None,
-                "created_at": a.created_at.isoformat(),
-            } for a in actions],
-            "total_actions": session.exec(
-                select(func.count(TeamStatistic.id)).where(TeamStatistic.user_id == user_id)
-            ).one() or 0,
-        }
-    else:
-        # 🆕 ОБЩАЯ СТАТИСТИКА: Фильтруем ТОЛЬКО 3+ уровень и группируем по категориям
-        all_users = session.exec(select(User)).all()
-        
-        team_members = []
-        for u in all_users:
-            lvl = get_user_level(u, session)
-            if lvl >= 3:  # 🛡️ СТРОГИЙ ФИЛЬТР: только 3+ уровень
-                role = session.get(Role, u.role_id) if u.role_id else None
-                category = session.get(RoleCategory, role.category_id) if role and role.category_id else None
-                
-                actions_count = session.exec(
-                    select(func.count(TeamStatistic.id)).where(TeamStatistic.user_id == u.id)
-                ).one() or 0
-                
-                team_members.append({
-                    "user": {
-                        "id": u.id,
-                        "username": u.username,
-                        "display_name": u.display_name,
-                        "avatar_url": u.avatar_url,
-                        "created_at": u.created_at.isoformat() if u.created_at else None,  # 🛠️ ИСПРАВЛЕНИЕ ДАТЫ
-                        "last_seen": u.last_seen.isoformat() if u.last_seen else None,
-                    },
-                    "role": {
-                        "name": role.name if role else "Без роли",
-                        "color": role.color if role else "#8b5cf6",
-                        "level": lvl,
-                        "category_name": category.name if category else "Общие",
-                        "category_id": category.id if category else 0,
-                        "category_color": category.color if category else "#6b7280",
-                    },
-                    "actions_count": actions_count,
-                })
-        
-        # Группируем по категориям ролей
-        grouped = {}
-        for m in team_members:
-            cat_id = m["role"]["category_id"]
-            if cat_id not in grouped:
-                grouped[cat_id] = {
-                    "id": cat_id,
-                    "name": m["role"]["category_name"],
-                    "color": m["role"]["category_color"],
-                    "members": []
-                }
-            grouped[cat_id]["members"].append(m)
-        
-        # Сортируем группы: сначала именованные категории, потом "Общие" (id=0)
-        sorted_groups = sorted(
-            list(grouped.values()),
-            key=lambda x: (0 if x["id"] == 0 else 1, x["name"])
-        )
-        
-        # Сортируем участников внутри групп: по уровню (убывание), затем по имени
-        for group in sorted_groups:
-            group["members"].sort(key=lambda x: (-x["role"]["level"], x["user"]["display_name"]))
-        
-        return {"groups": sorted_groups}
-
-
-@app.get("/api/admin/statistics/overview")
-def get_statistics_overview(
-    staff: User = Depends(require_staff),
-    session: Session = Depends(get_session),
-):
-    """Общая статистика платформы для менеджеров"""
-    now = datetime.now(timezone.utc)
+    """Перенести тему в другую категорию"""
+    if not staff.is_admin:
+        raise HTTPException(403, "Только администраторы")
     
-    registrations_24h = session.exec(
-        select(func.count(User.id)).where(User.created_at >= now - timedelta(hours=24))
-    ).one()
-    registrations_7d = session.exec(
-        select(func.count(User.id)).where(User.created_at >= now - timedelta(days=7))
-    ).one()
-    registrations_30d = session.exec(
-        select(func.count(User.id)).where(User.created_at >= now - timedelta(days=30))
-    ).one()
+    thread = session.get(SuggestionThread, thread_id)
+    if not thread:
+        raise HTTPException(404, "Тема не найдена")
     
-    posts_24h = session.exec(
-        select(func.count(Post.id)).where(Post.created_at >= now - timedelta(hours=24))
-    ).one()
+    thread.category_id = category_id
+    session.add(thread)
+    session.commit()
     
-    mod_actions_24h = session.exec(
-        select(func.count(ActionLog.id)).where(ActionLog.created_at >= now - timedelta(hours=24))
-    ).one()
-    
-    return {
-        "registrations": {"24h": registrations_24h, "7d": registrations_7d, "30d": registrations_30d},
-        "activity": {"posts_24h": posts_24h, "mod_actions_24h": mod_actions_24h},
-        "online": {"count": manager.total_connections},
-        "totals": {
-            "users": session.exec(select(func.count(User.id))).one(),
-            "posts": session.exec(select(func.count(Post.id))).one(),
-            "chats": session.exec(select(func.count(Chat.id))).one(),
-        },
-    }
+    return {"ok": True}
 
-
-# ============================================================
-# 📊 ПАНЕЛЬ КОМАНДЫ: УПРАВЛЕНИЕ ПРЕДЛОЖЕНИЯМИ
-# ============================================================
 
 @app.get("/api/admin/suggestion-prefixes")
 def get_suggestion_prefixes(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    """Получить все префиксы для тем"""
+    """Получить префиксы тем"""
     setting = session.get(SystemSetting, "suggestion_prefixes")
     if not setting or not setting.value:
         return []
@@ -10086,46 +9827,176 @@ def create_suggestion_prefix(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    """Создать префикс для темы"""
+    """Создать префикс"""
     if not staff.is_admin:
         raise HTTPException(403, "Только администраторы")
-
+    
     setting = session.get(SystemSetting, "suggestion_prefixes")
     prefixes = json.loads(setting.value) if setting and setting.value else []
-
-    prefixes.append({
-        "id": len(prefixes) + 1,
-        "name": name,
-        "color": color,
-        "bg_color": bg_color
-    })
-
+    
+    prefixes.append({"id": len(prefixes) + 1, "name": name, "color": color, "bg_color": bg_color})
+    
     if not setting:
         setting = SystemSetting(key="suggestion_prefixes", value=json.dumps(prefixes))
         session.add(setting)
     else:
         setting.value = json.dumps(prefixes)
-
+    
     session.commit()
     return {"ok": True}
 
 
-@app.patch("/api/admin/suggestions/{thread_id}/move")
-def move_suggestion_thread(
-    thread_id: int,
-    category_id: int = Form(...),
+# ============================================================
+# 💡 СТАРЫЕ ПРЕДЛОЖЕНИЯ (МИНИ-ФОРУМ)
+# ============================================================
+
+STATUS_BADGES = {"pending", "approved", "implemented", "rejected", "archived"}
+
+
+@app.get("/api/suggestions")
+def get_suggestions(
+    status: Optional[str] = None,
+    user: Optional[User] = Depends(get_optional_user),
+    session: Session = Depends(get_session),
+):
+    """Получить старые предложения"""
+    query = select(Suggestion)
+    
+    if status:
+        query = query.where(Suggestion.status == status)
+    elif not (user and (user.is_admin or user.is_moderator)):
+        query = query.where(Suggestion.status != "archived")
+    
+    query = query.order_by(Suggestion.is_pinned.desc(), Suggestion.created_at.desc()).limit(100)
+    
+    suggestions = session.exec(query).all()
+    author_ids = list({s.author_id for s in suggestions})
+    authors = {u.id: u for u in session.exec(select(User).where(User.id.in_(author_ids))).all()}
+    
+    return [{
+        "id": s.id,
+        "title": s.title,
+        "content": s.content,
+        "status": s.status,
+        "is_pinned": s.is_pinned,
+        "created_at": s.created_at.isoformat(),
+        "author": user_out(authors.get(s.author_id), session) if authors.get(s.author_id) else None,
+    } for s in suggestions]
+
+
+@app.post("/api/suggestions")
+@limiter.limit("3/minute")
+def create_suggestion(
+    request: Request,
+    title: str = Form(...),
+    content: str = Form(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Создать старое предложение"""
+    if len(title.strip()) < 5 or len(content.strip()) < 20:
+        raise HTTPException(400, "Заголовок мин. 5 символов, описание мин. 20")
+    
+    s = Suggestion(author_id=user.id, title=title.strip(), content=content.strip(), status="pending")
+    session.add(s)
+    session.commit()
+    session.refresh(s)
+    
+    return {"ok": True, "id": s.id}
+
+
+@app.get("/api/suggestions/{suggestion_id}")
+def get_suggestion_details(
+    suggestion_id: int,
+    session: Session = Depends(get_session),
+):
+    """Получить старое предложение"""
+    s = session.get(Suggestion, suggestion_id)
+    if not s:
+        raise HTTPException(404, "Not found")
+    
+    author = session.get(User, s.author_id)
+    comments = session.exec(select(SuggestionComment).where(SuggestionComment.suggestion_id == suggestion_id).order_by(SuggestionComment.created_at.asc())).all()
+    comment_author_ids = list({c.author_id for c in comments})
+    comment_authors = {u.id: u for u in session.exec(select(User).where(User.id.in_(comment_author_ids))).all()}
+    
+    return {
+        "suggestion": {
+            "id": s.id,
+            "title": s.title,
+            "content": s.content,
+            "status": s.status,
+            "is_pinned": s.is_pinned,
+            "created_at": s.created_at.isoformat(),
+            "author": user_out(author, session) if author else None,
+        },
+        "comments": [{
+            "id": c.id,
+            "content": c.content,
+            "created_at": c.created_at.isoformat(),
+            "author": user_out(comment_authors.get(c.author_id), session) if comment_authors.get(c.author_id) else None,
+        } for c in comments],
+    }
+
+
+@app.post("/api/suggestions/{suggestion_id}/comments")
+@limiter.limit("10/minute")
+def add_suggestion_comment(
+    request: Request,
+    suggestion_id: int,
+    content: str = Form(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Добавить комментарий к старому предложению"""
+    if not session.get(Suggestion, suggestion_id):
+        raise HTTPException(404, "Not found")
+    if len(content.strip()) < 2:
+        raise HTTPException(400, "Комментарий слишком короткий")
+    
+    c = SuggestionComment(suggestion_id=suggestion_id, author_id=user.id, content=content.strip())
+    session.add(c)
+    session.commit()
+    
+    return {"ok": True}
+
+
+@app.patch("/api/suggestions/{suggestion_id}/status")
+def update_suggestion_status(
+    suggestion_id: int,
+    status: str = Form(...),
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    """Перенести тему в другую категорию"""
-    if not staff.is_admin:
-        raise HTTPException(403, "Только администраторы")
-
-    thread = session.get(SuggestionThread, thread_id)
-    if not thread:
-        raise HTTPException(404, "Тема не найдена")
-
-    thread.category_id = category_id
-    session.add(thread)
+    """Изменить статус старого предложения"""
+    if status not in STATUS_BADGES:
+        raise HTTPException(400, "Invalid status")
+    
+    s = session.get(Suggestion, suggestion_id)
+    if not s:
+        raise HTTPException(404, "Not found")
+    
+    s.status = status
+    session.add(s)
     session.commit()
+    
+    return {"ok": True}
+
+
+@app.patch("/api/suggestions/{suggestion_id}/pin")
+def toggle_suggestion_pin(
+    suggestion_id: int,
+    is_pinned: bool = Form(...),
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Закрепить старое предложение"""
+    s = session.get(Suggestion, suggestion_id)
+    if not s:
+        raise HTTPException(404, "Not found")
+    
+    s.is_pinned = is_pinned
+    session.add(s)
+    session.commit()
+    
     return {"ok": True}
