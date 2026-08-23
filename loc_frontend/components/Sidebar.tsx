@@ -462,8 +462,7 @@ innerItems.push({ href: "/updates", icon: Megaphone, label: t("nav.community"), 
   const nav = [
     { href: "/",          icon: Home,      label: t("nav.home") },
     { href: "/bookmarks", icon: Bookmark,  label: t("nav.bookmarks") },
-    { href: "/updates",    icon: Megaphone,    label: t("nav.community") },  // ← было t("nav.updates")
-    { href: "/suggestions", icon: MessagesSquare, label: t("community.tabForum")},
+    { href: "/updates",    icon: Megaphone,    label: t("nav.community") },  
     { href: "/rules",     icon: Shield,    label: t("nav.rules") },
     { href: "/settings",  icon: Settings,  label: t("nav.settings") },
   ];

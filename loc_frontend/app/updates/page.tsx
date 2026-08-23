@@ -208,14 +208,7 @@ export default function UpdatesPage() {
     <div className="min-h-screen bg-[#171717]">
       <div className="max-w-3xl mx-auto px-4 py-10">
                    <CommunityTabs />
-        {/* Кнопка возврата */}
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-xl border border-white/10 bg-white/5 text-white/70 hover:text-white hover:bg-[#8b5cf6]/10 hover:border-[#8b5cf6]/40 transition-all group"
-        >
-          <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" />
-          <span className="font-semibold text-sm">{t("updates.backHome")}</span>
-        </Link>
+
 
         {/* Шапка */}
         <div className="text-center mb-12">
