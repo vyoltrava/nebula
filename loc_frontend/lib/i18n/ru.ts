@@ -716,6 +716,17 @@ teams: {
   tabStats: "Статистика",
   tabSuggestions: "Предложения",
   tabArchive: "Архив",
+  teamStats: "Статистика команды",
+  actionsCount: "Действий выполнено",
+  lastSeen: "Последний визит",
+  createCategory: "Создать раздел",
+  threads: "тем",
+  newThread: "Новая тема",
+  threadTitle: "Заголовок темы",
+  threadContent: "Описание темы",
+  views: "просмотров",
+  comments: "комментариев",
+  writeComment: "Написать комментарий...",
   stats: {
     totalUsers: "Всего пользователей",
     registrations7d: "Регистраций (7 дней)",
@@ -740,7 +751,6 @@ teams: {
     modalPlaceholderDesc: "Подробно расскажите об идее, почему это важно..."
   }
 }
-
 };
 
 

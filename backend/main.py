@@ -44,7 +44,7 @@ from models import (
     IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead,
     PushSubscription, StickerPack, Sticker, MessageReaction, Theme, SystemSetting,
     RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge,
-    Suggestion, SuggestionComment
+    SuggestionCategory, SuggestionThread, SuggestionComment, TeamStatistic, RoleHistory
 )
 import logging
 from fastapi.responses import JSONResponse
@@ -4819,6 +4819,72 @@ def startup():
                 created_at TIMESTAMPTZ DEFAULT NOW()
             );
             """))
+
+            # ============================================================
+            # 🆕 НОВЫЕ ТАБЛИЦЫ: ФОРУМ ПРЕДЛОЖЕНИЙ И СТАТИСТИКА КОМАНДЫ
+            # ============================================================
+            conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS suggestion_category (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(60) NOT NULL,
+                description VARCHAR(200),
+                icon VARCHAR(30) DEFAULT 'message-square',
+                color VARCHAR(20) DEFAULT '#8b5cf6',
+                "order" INTEGER DEFAULT 0,
+                is_archived BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS suggestion_thread (
+                id SERIAL PRIMARY KEY,
+                category_id INTEGER REFERENCES suggestion_category(id) ON DELETE CASCADE,
+                author_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
+                title VARCHAR(200) NOT NULL,
+                content TEXT NOT NULL,
+                is_pinned BOOLEAN DEFAULT FALSE,
+                status VARCHAR(20) DEFAULT 'pending',
+                views_count INTEGER DEFAULT 0,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ
+            );
+            CREATE TABLE IF NOT EXISTS suggestion_comment (
+                id SERIAL PRIMARY KEY,
+                thread_id INTEGER REFERENCES suggestion_thread(id) ON DELETE CASCADE,
+                author_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
+                content TEXT NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS team_statistic (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
+                action_type VARCHAR(50) NOT NULL,
+                target_type VARCHAR(50),
+                target_id INTEGER,
+                details TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS role_history (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
+                old_role_id INTEGER REFERENCES role(id) ON DELETE SET NULL,
+                new_role_id INTEGER REFERENCES role(id) ON DELETE SET NULL,
+                changed_by INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
+                changed_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_suggestion_thread_category ON suggestion_thread(category_id, is_pinned DESC, created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_suggestion_thread_status ON suggestion_thread(status);
+            CREATE INDEX IF NOT EXISTS idx_team_statistic_user ON team_statistic(user_id, created_at DESC);
+            """))
+
+            # Создаём дефолтные разделы, если их нет
+            conn.execute(text("""
+            INSERT INTO suggestion_category (name, description, icon, color, "order")
+            VALUES 
+                ('Сайт', 'Предложения по улучшению сайта', 'globe', '#8b5cf6', 0),
+                ('Сервер', 'Предложения по серверу', 'server', '#10b981', 1),
+                ('Реализовано', 'Уже внедрённые предложения', 'check-circle', '#22c55e', 99)
+            ON CONFLICT DO NOTHING;
+            """))
+
             conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS category_id INTEGER REFERENCES rolecategory(id) ON DELETE SET NULL;'))
 
             # ===== ДОПОЛНИТЕЛЬНЫЕ ТАБЛИЦЫ =====
@@ -9524,3 +9590,400 @@ def toggle_pin(
     s.is_pinned = is_pinned
     session.add(s); session.commit()
     return {"ok": True}
+
+
+# ============================================================
+# 💡 ФОРУМ ПРЕДЛОЖЕНИЙ (КАК НА GAMBIT)
+# ============================================================
+
+@app.get("/api/suggestions/categories")
+def get_suggestion_categories(session: Session = Depends(get_session)):
+    """Получить все разделы"""
+    categories = session.exec(
+        select(SuggestionCategory).order_by(SuggestionCategory.order)
+    ).all()
+    return [{
+        "id": c.id,
+        "name": c.name,
+        "description": c.description,
+        "icon": c.icon,
+        "color": c.color,
+        "order": c.order,
+        "is_archived": c.is_archived,
+        "threads_count": session.exec(
+            select(func.count(SuggestionThread.id)).where(
+                SuggestionThread.category_id == c.id
+            )
+        ).one(),
+    } for c in categories]
+
+@app.post("/api/suggestions/categories")
+def create_suggestion_category(
+    name: str = Form(...),
+    description: Optional[str] = Form(None),
+    icon: str = Form("message-square"),
+    color: str = Form("#8b5cf6"),
+    order: int = Form(0),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Создать раздел (только админ)"""
+    if not user.is_admin:
+        raise HTTPException(403, "Только администраторы")
+    
+    cat = SuggestionCategory(
+        name=name.strip(),
+        description=description.strip() if description else None,
+        icon=icon,
+        color=color,
+        order=order,
+    )
+    session.add(cat)
+    session.commit()
+    session.refresh(cat)
+    return {"ok": True, "id": cat.id}
+
+@app.get("/api/suggestions/threads/{category_id}")
+def get_category_threads(
+    category_id: int,
+    cursor: Optional[int] = None,
+    limit: int = 20,
+    user: Optional[User] = Depends(get_optional_user),
+    session: Session = Depends(get_session),
+):
+    """Получить темы раздела"""
+    query = select(SuggestionThread).where(
+        SuggestionThread.category_id == category_id
+    ).order_by(
+        SuggestionThread.is_pinned.desc(),
+        SuggestionThread.created_at.desc()
+    )
+    
+    if cursor:
+        query = query.where(SuggestionThread.id < cursor)
+    
+    threads = session.exec(query.limit(limit)).all()
+    
+    result = []
+    for t in threads:
+        author = session.get(User, t.author_id)
+        comments_count = session.exec(
+            select(func.count(SuggestionComment.id)).where(
+                SuggestionComment.thread_id == t.id
+            )
+        ).one()
+        
+        result.append({
+            "id": t.id,
+            "category_id": t.category_id,
+            "title": t.title,
+            "content": t.content,
+            "is_pinned": t.is_pinned,
+            "status": t.status,
+            "views_count": t.views_count,
+            "comments_count": comments_count,
+            "created_at": t.created_at.isoformat(),
+            "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+            "author": user_out(author, session) if author else None,
+        })
+    
+    return {
+        "threads": result,
+        "has_more": len(threads) == limit,
+        "next_cursor": threads[-1].id if threads else None,
+    }
+
+@app.post("/api/suggestions/threads")
+def create_suggestion_thread(
+    category_id: int = Form(...),
+    title: str = Form(...),
+    content: str = Form(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Создать тему"""
+    cat = session.get(SuggestionCategory, category_id)
+    if not cat:
+        raise HTTPException(404, "Раздел не найден")
+    
+    if cat.is_archived:
+        raise HTTPException(403, "Раздел только для чтения")
+    
+    thread = SuggestionThread(
+        category_id=category_id,
+        author_id=user.id,
+        title=title.strip(),
+        content=content.strip(),
+    )
+    session.add(thread)
+    session.commit()
+    session.refresh(thread)
+    return {"ok": True, "id": thread.id}
+
+@app.get("/api/suggestions/thread/{thread_id}")
+def get_thread_detail(
+    thread_id: int,
+    cursor: Optional[int] = None,
+    limit: int = 50,
+    user: Optional[User] = Depends(get_optional_user),
+    session: Session = Depends(get_session),
+):
+    """Получить тему с комментариями"""
+    thread = session.get(SuggestionThread, thread_id)
+    if not thread:
+        raise HTTPException(404, "Тема не найдена")
+    
+    # Увеличиваем счетчик просмотров
+    thread.views_count += 1
+    session.add(thread)
+    session.commit()
+    
+    author = session.get(User, thread.author_id)
+    
+    # Получаем комментарии
+    query = select(SuggestionComment).where(
+        SuggestionComment.thread_id == thread_id
+    ).order_by(SuggestionComment.created_at.asc())
+    
+    if cursor:
+        query = query.where(SuggestionComment.id > cursor)
+    
+    comments = session.exec(query.limit(limit)).all()
+    
+    comments_data = []
+    for c in comments:
+        comment_author = session.get(User, c.author_id)
+        comments_data.append({
+            "id": c.id,
+            "content": c.content,
+            "created_at": c.created_at.isoformat(),
+            "author": user_out(comment_author, session) if comment_author else None,
+        })
+    
+    return {
+        "thread": {
+            "id": thread.id,
+            "category_id": thread.category_id,
+            "title": thread.title,
+            "content": thread.content,
+            "is_pinned": thread.is_pinned,
+            "status": thread.status,
+            "views_count": thread.views_count,
+            "created_at": thread.created_at.isoformat(),
+            "updated_at": thread.updated_at.isoformat() if thread.updated_at else None,
+            "author": user_out(author, session) if author else None,
+        },
+        "comments": comments_data,
+        "has_more": len(comments) == limit,
+        "next_cursor": comments[-1].id if comments else None,
+    }
+
+@app.post("/api/suggestions/thread/{thread_id}/comments")
+def add_comment(
+    thread_id: int,
+    content: str = Form(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Добавить комментарий"""
+    thread = session.get(SuggestionThread, thread_id)
+    if not thread:
+        raise HTTPException(404, "Тема не найдена")
+    
+    comment = SuggestionComment(
+        thread_id=thread_id,
+        author_id=user.id,
+        content=content.strip(),
+    )
+    session.add(comment)
+    
+    # Обновляем updated_at у темы
+    thread.updated_at = datetime.now(timezone.utc)
+    session.add(thread)
+    
+    session.commit()
+    session.refresh(comment)
+    return {"ok": True, "id": comment.id}
+
+@app.patch("/api/suggestions/thread/{thread_id}/status")
+def update_thread_status(
+    thread_id: int,
+    status: str = Form(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Изменить статус темы (ТОЛЬКО АДМИНЫ)"""
+    if not user.is_admin:
+        raise HTTPException(403, "Только администраторы могут менять статус")
+    
+    valid_statuses = ["pending", "approved", "implemented", "rejected", "archived"]
+    if status not in valid_statuses:
+        raise HTTPException(400, "Неверный статус")
+    
+    thread = session.get(SuggestionThread, thread_id)
+    if not thread:
+        raise HTTPException(404, "Тема не найдена")
+    
+    thread.status = status
+    session.add(thread)
+    session.commit()
+    return {"ok": True}
+
+@app.patch("/api/suggestions/thread/{thread_id}/pin")
+def toggle_thread_pin(
+    thread_id: int,
+    is_pinned: bool = Form(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Закрепить/открепить тему (ТОЛЬКО АДМИНЫ)"""
+    if not user.is_admin:
+        raise HTTPException(403, "Только администраторы")
+    
+    thread = session.get(SuggestionThread, thread_id)
+    if not thread:
+        raise HTTPException(404, "Тема не найдена")
+    
+    thread.is_pinned = is_pinned
+    session.add(thread)
+    session.commit()
+    return {"ok": True}
+
+# ============================================================
+# 📊 СТАТИСТИКА КОМАНДЫ (ПОЛНАЯ)
+# ============================================================
+
+@app.get("/api/admin/team-statistics")
+def get_team_statistics(
+    user_id: Optional[int] = None,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Полная статистика команды"""
+    if user_id:
+        # Статистика конкретного пользователя
+        target = session.get(User, user_id)
+        if not target:
+            raise HTTPException(404, "Пользователь не найден")
+        
+        # История ролей
+        role_history = session.exec(
+            select(RoleHistory).where(RoleHistory.user_id == user_id)
+            .order_by(RoleHistory.changed_at.desc())
+        ).all()
+        
+        # Действия
+        actions = session.exec(
+            select(TeamStatistic).where(TeamStatistic.user_id == user_id)
+            .order_by(TeamStatistic.created_at.desc()).limit(50)
+        ).all()
+        
+        return {
+            "user": user_out(target, session),
+            "role_history": [{
+                "old_role": session.get(Role, h.old_role_id).name if h.old_role_id else None,
+                "new_role": session.get(Role, h.new_role_id).name if h.new_role_id else None,
+                "changed_by": user_out(session.get(User, h.changed_by), session),
+                "changed_at": h.changed_at.isoformat(),
+            } for h in role_history],
+            "actions": [{
+                "action_type": a.action_type,
+                "target_type": a.target_type,
+                "target_id": a.target_id,
+                "details": json.loads(a.details) if a.details else None,
+                "created_at": a.created_at.isoformat(),
+            } for a in actions],
+            "total_actions": session.exec(
+                select(func.count(TeamStatistic.id)).where(
+                    TeamStatistic.user_id == user_id
+                )
+            ).one(),
+        }
+    else:
+        # Общая статистика
+        staff_users = session.exec(
+            select(User).where(
+                (User.is_admin == True) | (User.is_moderator == True) | (User.role_id != None)
+            )
+        ).all()
+        
+        result = []
+        for u in staff_users:
+            role = session.get(Role, u.role_id) if u.role_id else None
+            actions_count = session.exec(
+                select(func.count(TeamStatistic.id)).where(
+                    TeamStatistic.user_id == u.id
+                )
+            ).one()
+            
+            result.append({
+                "user": user_out(u, session),
+                "role": {"name": role.name, "color": role.color, "level": role.level} if role else None,
+                "actions_count": actions_count,
+                "last_seen": u.last_seen.isoformat() if u.last_seen else None,
+            })
+        
+        return {"members": result}
+
+@app.get("/api/admin/statistics/overview")
+def get_statistics_overview(
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Общая статистика платформы для менеджеров"""
+    # Регистрации за период
+    now = datetime.now(timezone.utc)
+    registrations_24h = session.exec(
+        select(func.count(User.id)).where(
+            User.created_at >= now - timedelta(hours=24)
+        )
+    ).one()
+    
+    registrations_7d = session.exec(
+        select(func.count(User.id)).where(
+            User.created_at >= now - timedelta(days=7)
+        )
+    ).one()
+    
+    registrations_30d = session.exec(
+        select(func.count(User.id)).where(
+            User.created_at >= now - timedelta(days=30)
+        )
+    ).one()
+    
+    # Активность
+    posts_24h = session.exec(
+        select(func.count(Post.id)).where(
+            Post.created_at >= now - timedelta(hours=24)
+        )
+    ).one()
+    
+    # Действия модерации
+    mod_actions_24h = session.exec(
+        select(func.count(ActionLog.id)).where(
+            ActionLog.created_at >= now - timedelta(hours=24)
+        )
+    ).one()
+    
+    # Онлайн
+    online_count = manager.total_connections
+    
+    return {
+        "registrations": {
+            "24h": registrations_24h,
+            "7d": registrations_7d,
+            "30d": registrations_30d,
+        },
+        "activity": {
+            "posts_24h": posts_24h,
+            "mod_actions_24h": mod_actions_24h,
+        },
+        "online": {
+            "count": online_count,
+        },
+        "totals": {
+            "users": session.exec(select(func.count(User.id))).one(),
+            "posts": session.exec(select(func.count(Post.id))).one(),
+            "chats": session.exec(select(func.count(Chat.id))).one(),
+        },
+    }
