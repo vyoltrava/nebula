@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import { getToken } from "@/lib/auth";
 import { Avatar } from "@/components/Avatar";
-import { useRouter, Link } from "next/navigation";
+import { useRouter } from "next/navigation";
+import Link from "next/link"; 
 import {
   Users, Shield, FileText, Search, Plus, Palette, MoveRight,
   ArrowLeft, X, Settings, BarChart3, Clock, CheckCircle, AlertCircle
