@@ -536,6 +536,7 @@ ALL_PERMISSIONS = [
     "warn_users",             # 🆕 Выдача предупреждений
     "manage_support",   # 🆕 Чат поддержки
     "assign_roles",  
+    "manage_team_stats",
 ]
 
 MODERATOR_PERMISSIONS = ALL_PERMISSIONS.copy()
@@ -2739,6 +2740,8 @@ def list_permissions():
         {"id": "manage_users", "label": "Доступ к панели управления", "category": "system"},
         {"id": "manage_reports", "label": "Управление жалобами", "category": "system"},
         {"id": "tech_access", "label": "Технический доступ", "category": "system"},
+        {"id": "manage_team_stats", "label": "Статистика команды и предложения", "category": "system"}, # 🆕 ДОБАВЛЕНО
+
     ]
 
 
@@ -4904,7 +4907,26 @@ def startup():
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_bookmark_user_created ON bookmark(user_id, created_at DESC);'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_like_user_created ON "like"(user_id, created_at DESC);'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_follow_follower_followee ON follow(follower_id, followee_id);'))
-
+            conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS suggestion (
+                id SERIAL PRIMARY KEY,
+                author_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
+                title VARCHAR(200) NOT NULL,
+                content TEXT NOT NULL,
+                status VARCHAR(20) DEFAULT 'pending',
+                is_pinned BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS suggestion_comment (
+                id SERIAL PRIMARY KEY,
+                suggestion_id INTEGER REFERENCES suggestion(id) ON DELETE CASCADE,
+                author_id INTEGER REFERENCES "user"(id) ON DELETE CASCADE,
+                content TEXT NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_suggestion_status ON suggestion(status);
+            CREATE INDEX IF NOT EXISTS idx_suggestion_pinned ON suggestion(is_pinned DESC);
+            """))
             # Финальный коммит
             conn.commit()
             print("✅ Все миграции, таблицы и индексы успешно применены")
@@ -9331,4 +9353,166 @@ def admin_delete_badge(
     # 🆕 РАССЫЛАЕМ всем, что значок удалён
     asyncio.create_task(manager.broadcast_all("badge_deleted", {"badge_id": badge_id}))
     
+    return {"ok": True}
+
+# ============================================================
+# 📊 ПАНЕЛЬ КОМАНДЫ: СТАТИСТИКА + ПРЕДЛОЖЕНИЯ
+# ============================================================
+
+@app.get("/api/admin/team-dashboard/stats")
+def get_team_dashboard_stats(
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Полная статистика для менеджеров и шефа"""
+    # 1. Общие метрики
+    total_users = session.exec(select(func.count()).select_from(User)).one()
+    total_posts = session.exec(select(func.count()).select_from(Post)).one()
+    
+    # 2. Регистрации за последние 7 и 30 дней
+    now = datetime.now(timezone.utc)
+    users_7d = session.exec(select(func.count()).select_from(User).where(User.created_at >= now - timedelta(days=7))).one()
+    users_30d = session.exec(select(func.count()).select_from(User).where(User.created_at >= now - timedelta(days=30))).one()
+    
+    # 3. Активность команды (действия за 30 дней)
+    staff_actions = dict(session.exec(
+        select(ActionLog.actor_id, func.count(ActionLog.id))
+        .where(ActionLog.created_at >= now - timedelta(days=30))
+        .group_by(ActionLog.actor_id)
+    ).all())
+    
+    # 4. Статистика предложений
+    suggestions_stats = dict(session.exec(
+        select(Suggestion.status, func.count(Suggestion.id))
+        .group_by(Suggestion.status)
+    ).all())
+    
+    return {
+        "total_users": total_users,
+        "total_posts": total_posts,
+        "registrations_7d": users_7d,
+        "registrations_30d": users_30d,
+        "staff_actions": staff_actions,
+        "suggestions": {
+            "pending": suggestions_stats.get("pending", 0),
+            "approved": suggestions_stats.get("approved", 0),
+            "implemented": suggestions_stats.get("implemented", 0),
+            "rejected": suggestions_stats.get("rejected", 0),
+            "archived": suggestions_stats.get("archived", 0),
+        }
+    }
+# ============================================================
+# 💡 ПРЕДЛОЖЕНИЯ (МИНИ-ФОРУМ)
+# ============================================================
+STATUS_BADGES = {"pending", "approved", "implemented", "rejected", "archived"}
+
+@app.get("/api/suggestions")
+def get_suggestions(
+    status: Optional[str] = None,
+    user: Optional[User] = Depends(get_optional_user),
+    session: Session = Depends(get_session),
+):
+    query = select(Suggestion)
+    if status:
+        query = query.where(Suggestion.status == status)
+    else:
+        # Обычные юзеры не видят архив по умолчанию
+        if not (user and (user.is_admin or user.is_moderator)):
+            query = query.where(Suggestion.status != "archived")
+            
+    # Сортировка: Закрепленные -> По статусу (implemented > approved > pending > rejected) -> По дате
+    query = query.order_by(
+        Suggestion.is_pinned.desc(),
+        case(
+            (Suggestion.status == "implemented", 1),
+            (Suggestion.status == "approved", 2),
+            (Suggestion.status == "pending", 3),
+            (Suggestion.status == "rejected", 4),
+            else_=5
+        ),
+        Suggestion.created_at.desc()
+    ).limit(100)
+    
+    suggestions = session.exec(query).all()
+    author_ids = list({s.author_id for s in suggestions})
+    authors = {u.id: u for u in session.exec(select(User).where(User.id.in_(author_ids))).all()}
+    
+    return [{
+        "id": s.id, "title": s.title, "content": s.content, "status": s.status, 
+        "is_pinned": s.is_pinned, "created_at": s.created_at.isoformat(),
+        "author": user_out(authors.get(s.author_id), session) if authors.get(s.author_id) else None
+    } for s in suggestions]
+
+@app.post("/api/suggestions")
+@limiter.limit("3/minute")
+def create_suggestion(
+    request: Request, title: str = Form(...), content: str = Form(...),
+    user: User = Depends(get_current_user), session: Session = Depends(get_session),
+):
+    if len(title.strip()) < 5 or len(content.strip()) < 20:
+        raise HTTPException(400, "Заголовок мин. 5 символов, описание мин. 20")
+    s = Suggestion(author_id=user.id, title=title.strip(), content=content.strip(), status="pending")
+    session.add(s); session.commit(); session.refresh(s)
+    return {"ok": True, "id": s.id}
+
+@app.get("/api/suggestions/{suggestion_id}")
+def get_suggestion_details(
+    suggestion_id: int, session: Session = Depends(get_session),
+):
+    s = session.get(Suggestion, suggestion_id)
+    if not s: raise HTTPException(404, "Not found")
+    
+    author = session.get(User, s.author_id)
+    comments = session.exec(
+        select(SuggestionComment).where(SuggestionComment.suggestion_id == suggestion_id).order_by(SuggestionComment.created_at.asc())
+    ).all()
+    
+    comment_author_ids = list({c.author_id for c in comments})
+    comment_authors = {u.id: u for u in session.exec(select(User).where(User.id.in_(comment_author_ids))).all()}
+    
+    return {
+        "suggestion": {
+            "id": s.id, "title": s.title, "content": s.content, "status": s.status, "is_pinned": s.is_pinned,
+            "created_at": s.created_at.isoformat(),
+            "author": user_out(author, session) if author else None
+        },
+        "comments": [{
+            "id": c.id, "content": c.content, "created_at": c.created_at.isoformat(),
+            "author": user_out(comment_authors.get(c.author_id), session) if comment_authors.get(c.author_id) else None
+        } for c in comments]
+    }
+
+@app.post("/api/suggestions/{suggestion_id}/comments")
+@limiter.limit("10/minute")
+def add_comment(
+    suggestion_id: int, content: str = Form(...),
+    user: User = Depends(get_current_user), session: Session = Depends(get_session),
+):
+    if not session.get(Suggestion, suggestion_id): raise HTTPException(404, "Not found")
+    if len(content.strip()) < 2: raise HTTPException(400, "Комментарий слишком короткий")
+    c = SuggestionComment(suggestion_id=suggestion_id, author_id=user.id, content=content.strip())
+    session.add(c); session.commit()
+    return {"ok": True}
+
+@app.patch("/api/suggestions/{suggestion_id}/status")
+def update_suggestion_status(
+    suggestion_id: int, status: str = Form(...),
+    staff: User = Depends(require_staff), session: Session = Depends(get_session),
+):
+    if status not in STATUS_BADGES: raise HTTPException(400, "Invalid status")
+    s = session.get(Suggestion, suggestion_id)
+    if not s: raise HTTPException(404, "Not found")
+    s.status = status
+    session.add(s); session.commit()
+    return {"ok": True}
+
+@app.patch("/api/suggestions/{suggestion_id}/pin")
+def toggle_pin(
+    suggestion_id: int, is_pinned: bool = Form(...),
+    staff: User = Depends(require_staff), session: Session = Depends(get_session),
+):
+    s = session.get(Suggestion, suggestion_id)
+    if not s: raise HTTPException(404, "Not found")
+    s.is_pinned = is_pinned
+    session.add(s); session.commit()
     return {"ok": True}

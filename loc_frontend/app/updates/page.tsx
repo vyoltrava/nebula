@@ -5,7 +5,7 @@ import { Avatar } from "@/components/Avatar";
 import Link from "next/link";
 import {
   Megaphone, Flame, Sparkles, Wrench, X, Plus, Trash2, Clock, ArrowLeft,
-  CheckCheck, ChevronDown,
+  CheckCheck, ChevronDown, MessageSquare
 } from "lucide-react";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
@@ -227,15 +227,21 @@ export default function UpdatesPage() {
             {t("updates.count", { n: updates.length })}
           </p>
 
-          <div className="flex items-center justify-center gap-3 mt-6">
-            {canWrite && (
-              <button
-                onClick={() => setShowForm(true)}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed] transition-all shadow-lg shadow-[#8b5cf6]/30"
-              >
-                <Plus size={18} /> {t("updates.write")}
-              </button>
-            )}
+<div className="flex items-center justify-center gap-3 mt-6 flex-wrap">
+  {/* 🆕 НОВАЯ КНОПКА ПЕРЕХОДА К ПРЕДЛОЖЕНИЯМ */}
+  <Link
+    href="/suggestions"
+    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[#8b5cf6]/40 text-[#8b5cf6] font-semibold hover:bg-[#8b5cf6]/10 transition-all text-sm"
+  >
+    <MessageSquare size={16} />
+    Перейти к предложениям
+  </Link>
+
+  {canWrite && (
+    <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed] transition-all shadow-lg shadow-[#8b5cf6]/30">
+      <Plus size={18} /> {t("updates.write")}
+    </button>
+  )}
             {unreadCount > 0 && (
               <button
                 onClick={markAllRead}

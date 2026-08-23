@@ -411,3 +411,21 @@ class Badge(SQLModel, table=True):
     user_id: Optional[int] = Field(default=None, foreign_key="user.id")
     is_selectable: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utcnow)
+
+class Suggestion(SQLModel, table=True):
+    __tablename__ = "suggestion"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    author_id: int = Field(foreign_key="user.id")
+    title: str = Field(max_length=200)
+    content: str
+    status: str = Field(default="pending")  # pending, approved, implemented, rejected, archived
+    is_pinned: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class SuggestionComment(SQLModel, table=True):
+    __tablename__ = "suggestion_comment"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    suggestion_id: int = Field(foreign_key="suggestion.id", ondelete="CASCADE")
+    author_id: int = Field(foreign_key="user.id")
+    content: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

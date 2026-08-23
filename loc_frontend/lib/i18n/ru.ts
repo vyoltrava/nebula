@@ -691,8 +691,55 @@ export const ru: Dictionary = {
     logoutAllConfirm: "Выйти из всех аккаунтов? Все активные сессии будут завершены.",
     switchAccount: "Сменить аккаунт",
   },
-
-
+suggestions: {
+  backToUpdates: "Назад к обновлениям",
+  title: "Предложения",
+  subtitle: "Создавайте темы, обсуждайте и следите за статусом внедрения",
+  createTopic: "Создать тему",
+  empty: "Пока нет предложений. Будьте первым!",
+  newTitle: "Новое предложение",
+  titlePlaceholder: "Краткий заголовок...",
+  contentPlaceholder: "Подробно опишите вашу идею...",
+  publish: "Опубликовать",
+  sending: "Отправка...",
+  commentPlaceholder: "Написать комментарий...",
+  status: {
+    pending: "На рассмотрении",
+    approved: "Одобрено",
+    implemented: "Внедрено",
+    rejected: "Отклонено",
+    archived: "В архиве"
+  }
+},
+teams: {
+  title: "Панель команды",
+  tabStats: "Статистика",
+  tabSuggestions: "Предложения",
+  tabArchive: "Архив",
+  stats: {
+    totalUsers: "Всего пользователей",
+    registrations7d: "Регистраций (7 дней)",
+    totalPosts: "Всего постов",
+    teamActions30d: "Действий команды (30 дней)",
+    suggestionsStatus: "Статус предложений"
+  },
+  suggestions: {
+    archiveDesc: "Архивные и закрытые темы",
+    activeDesc: "Активные предложения сообщества",
+    empty: "В этой категории пока нет предложений",
+    pin: "Закрепить",
+    unpin: "Открепить",
+    approve: "Одобрить",
+    reject: "Отклонить",
+    implement: "Отметить как внедрённое",
+    archive: "В архив",
+    modalTitle: "Новое предложение",
+    modalLabelTitle: "Заголовок",
+    modalPlaceholderTitle: "Краткая суть предложения...",
+    modalLabelDesc: "Описание",
+    modalPlaceholderDesc: "Подробно расскажите об идее, почему это важно..."
+  }
+}
 
 };
 

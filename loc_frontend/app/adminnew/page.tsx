@@ -21,10 +21,12 @@ import { StickersSection } from "@/components/admin/section/StickersSection";
 import { ThemesSection } from "@/components/admin/section/ThemesSection";
 import { SupportSection } from "@/components/admin/section/SupportSection";
 import { TechUsersSection } from "@/components/admin/section/TechUsersSection";
+import { TeamDashboard } from "@/components/TeamDashboard";
 
 type TabId =
   | "users" | "tech_users" | "stats" | "bugs" | "ip" | "logs"
-  | "reports" | "chats" | "support" | "stickers" | "themes";
+  | "reports" | "chats" | "support" | "stickers" | "themes"
+  | "team";
 
 interface TabDef {
   id: TabId;
@@ -46,6 +48,8 @@ const TABS: TabDef[] = [
   { id: "logs",      label: "Логи",         icon: Activity,      color: "#3b82f6", permission: "tech_access" },
   { id: "stickers",  label: "Стикеры",      icon: SmilePlus,     color: "#f59e0b", permission: "manage_stickers" },
   { id: "themes",    label: "Темы",         icon: Palette,       color: "#a855f7", permission: null },
+  { id: "team",      label: "Команда",      icon: Shield,        color: "#ec4899", permission: "manage_team_stats" },
+
 ];
 
 export default function AdminPage() {
@@ -117,16 +121,32 @@ export default function AdminPage() {
                 Lvl {me.level ?? 1}
               </span>
             </div>
-            <div className="flex items-center gap-2">
+            {/* 🆕 ИЗМЕНЕНО: Вертикальный стек кнопок справа */}
+            <div className="flex flex-col items-end gap-2 shrink-0">
               {canRoles && (
                 <Link
                   href="/admin/roles"
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#8b5cf6] bg-[#8b5cf6] text-white text-sm font-bold hover:bg-[#7c3aed] transition-all"
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-[#8b5cf6] bg-[#8b5cf6] text-white text-sm font-bold hover:bg-[#7c3aed] transition-all w-full"
                 >
                   <Crown size={16} /> Роли
                 </Link>
               )}
-              <Link href="/" className="text-sm text-white/60 hover:text-white transition-colors">
+              
+              {/* 🆕 КНОПКА КОМАНДЫ (под кнопкой Роли, такого же размера) */}
+              {(me.is_admin || (me.permissions || []).includes("manage_team_stats")) && (
+                <button
+                  onClick={() => setActiveTab("team")}
+                  className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold transition-all w-full ${
+                    activeTab === "team"
+                      ? "border-pink-500 bg-pink-500 text-white"
+                      : "border-pink-500/50 bg-pink-500/10 text-pink-300 hover:bg-pink-500/20"
+                  }`}
+                >
+                  <Shield size={16} /> Команда
+                </button>
+              )}
+
+              <Link href="/" className="text-sm text-white/60 hover:text-white transition-colors text-right w-full pt-1">
                 ← Главная
               </Link>
             </div>
@@ -171,6 +191,7 @@ export default function AdminPage() {
           {activeTab === "stickers"  && <StickersSection me={me} roles={roles} />}
           
           {activeTab === "themes"    && <ThemesSection me={me} />}
+          {activeTab === "team"      && <TeamDashboard me={me} />}
         </div>
       </main>
     </div>

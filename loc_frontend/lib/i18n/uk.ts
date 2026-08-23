@@ -691,6 +691,55 @@ export const uk = {
     switchAccount: "Змінити акаунт",
   },
 
+suggestions: {
+  backToUpdates: "Назад до оновлень",
+  title: "Пропозиції",
+  subtitle: "Створюйте теми, обговорюйте та слідкуйте за статусом впровадження",
+  createTopic: "Створити тему",
+  empty: "Поки що немає пропозицій. Будьте першим!",
+  newTitle: "Нова пропозиція",
+  titlePlaceholder: "Короткий заголовок…",
+  contentPlaceholder: "Докладно опишіть вашу ідею…",
+  publish: "Опублікувати",
+  sending: "Надсилання…",
+  commentPlaceholder: "Написати коментар…",
+  status: {
+    pending: "На розгляді",
+    approved: "Схвалено",
+    implemented: "Впроваджено",
+    rejected: "Відхилено",
+    archived: "В архіві"
+  }
+},
+teams: {
+  title: "Панель команди",
+  tabStats: "Статистика",
+  tabSuggestions: "Пропозиції",
+  tabArchive: "Архів",
+  stats: {
+    totalUsers: "Усього користувачів",
+    registrations7d: "Реєстрацій (7 днів)",
+    totalPosts: "Усього постів",
+    teamActions30d: "Дій команди (30 днів)",
+    suggestionsStatus: "Статус пропозицій"
+  },
+  suggestions: {
+    archiveDesc: "Архівні та закриті теми",
+    activeDesc: "Активні пропозиції спільноти",
+    empty: "У цій категорії поки немає пропозицій",
+    pin: "Закріпити",
+    unpin: "Відкріпити",
+    approve: "Схвалити",
+    reject: "Відхилити",
+    implement: "Позначити як впроваджене",
+    archive: "В архів",
+    modalTitle: "Нова пропозиція",
+    modalLabelTitle: "Заголовок",
+    modalPlaceholderTitle: "Коротка суть пропозиції…",
+    modalLabelDesc: "Опис",
+    modalPlaceholderDesc: "Докладно розкажіть про ідею, чому це важливо…"
+  }
+}
 
 
 };

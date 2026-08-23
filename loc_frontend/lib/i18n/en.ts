@@ -693,5 +693,54 @@ export const en: Dictionary = {
     switchAccount: "Switch account",
   },
 
+suggestions: {
+  backToUpdates: "Back to updates",
+  title: "Feature Suggestions",
+  subtitle: "Propose ideas, discuss, and track implementation status",
+  createTopic: "New suggestion",
+  empty: "No suggestions yet. Be the first!",
+  newTitle: "New suggestion",
+  titlePlaceholder: "Short headline...",
+  contentPlaceholder: "Describe your idea in detail...",
+  publish: "Publish",
+  sending: "Sending...",
+  commentPlaceholder: "Write a comment...",
+  status: {
+    pending: "Under review",
+    approved: "Approved",
+    implemented: "Implemented",
+    rejected: "Declined",
+    archived: "Archived"
+  }
+},
+teams: {
+  title: "Team Dashboard",
+  tabStats: "Statistics",
+  tabSuggestions: "Suggestions",
+  tabArchive: "Archive",
+  stats: {
+    totalUsers: "Total users",
+    registrations7d: "Registrations (7 days)",
+    totalPosts: "Total posts",
+    teamActions30d: "Team actions (30 days)",
+    suggestionsStatus: "Suggestion status"
+  },
+  suggestions: {
+    archiveDesc: "Archived and closed topics",
+    activeDesc: "Active community suggestions",
+    empty: "No suggestions in this category yet",
+    pin: "Pin",
+    unpin: "Unpin",
+    approve: "Approve",
+    reject: "Decline",
+    implement: "Mark as implemented",
+    archive: "Archive",
+    modalTitle: "New suggestion",
+    modalLabelTitle: "Title",
+    modalPlaceholderTitle: "Brief summary of your suggestion...",
+    modalLabelDesc: "Description",
+    modalPlaceholderDesc: "Tell us more about your idea, why it matters..."
+  }
+}
 
 };
