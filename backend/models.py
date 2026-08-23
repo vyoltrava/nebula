@@ -412,18 +412,6 @@ class Badge(SQLModel, table=True):
     is_selectable: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utcnow)
 
-class Suggestion(SQLModel, table=True):
-    __tablename__ = "suggestion"
-    id: Optional[int] = Field(default=None, primary_key=True)
-    author_id: int = Field(foreign_key="user.id")
-    title: str = Field(max_length=200)
-    content: str
-    status: str = Field(default="pending")  # pending, approved, implemented, rejected, archived
-    is_pinned: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-
-
 class SuggestionCategory(SQLModel, table=True):
     """Разделы форума (Сайт, Сервер, Архив и т.д.)"""
     __tablename__ = "suggestion_category"
@@ -436,12 +424,13 @@ class SuggestionCategory(SQLModel, table=True):
     is_archived: bool = Field(default=False)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+
 class SuggestionThread(SQLModel, table=True):
     """Темы внутри разделов"""
     __tablename__ = "suggestion_thread"
     id: Optional[int] = Field(default=None, primary_key=True)
     category_id: int = Field(foreign_key="suggestion_category.id", ondelete="CASCADE")
-    author_id: int = Field(foreign_key="user.id")
+    author_id: int = Field(foreign_key="user.id", ondelete="CASCADE")
     title: str = Field(max_length=200)
     content: str
     is_pinned: bool = Field(default=False)
@@ -450,32 +439,35 @@ class SuggestionThread(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: Optional[datetime] = Field(default=None)
 
-class SuggestionComment(SQLModel, table=True):
-    """Комментарии к темам"""
-    __tablename__ = "suggestion_comment"
+
+class SuggestionThreadComment(SQLModel, table=True):
+    """Комментарии к темам форума (переименовано, чтобы не конфликтовать со старым SuggestionComment)"""
+    __tablename__ = "suggestion_thread_comment"
     id: Optional[int] = Field(default=None, primary_key=True)
     thread_id: int = Field(foreign_key="suggestion_thread.id", ondelete="CASCADE")
-    author_id: int = Field(foreign_key="user.id")
+    author_id: int = Field(foreign_key="user.id", ondelete="CASCADE")
     content: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 
 class TeamStatistic(SQLModel, table=True):
     """Статистика действий команды"""
     __tablename__ = "team_statistic"
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id")
+    user_id: int = Field(foreign_key="user.id", ondelete="CASCADE")
     action_type: str  # ban, warn, delete_post, etc.
     target_type: Optional[str] = None
     target_id: Optional[int] = None
     details: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+
 class RoleHistory(SQLModel, table=True):
     """История смены ролей"""
     __tablename__ = "role_history"
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id")
-    old_role_id: Optional[int] = Field(default=None, foreign_key="role.id")
-    new_role_id: Optional[int] = Field(default=None, foreign_key="role.id")
-    changed_by: int = Field(foreign_key="user.id")
+    user_id: int = Field(foreign_key="user.id", ondelete="CASCADE")
+    old_role_id: Optional[int] = Field(default=None, foreign_key="role.id", ondelete="SET NULL")
+    new_role_id: Optional[int] = Field(default=None, foreign_key="role.id", ondelete="SET NULL")
+    changed_by: int = Field(foreign_key="user.id", ondelete="CASCADE")
     changed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
