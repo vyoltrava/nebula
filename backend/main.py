@@ -4876,15 +4876,19 @@ def startup():
             CREATE INDEX IF NOT EXISTS idx_team_statistic_user ON team_statistic(user_id, created_at DESC);
             """))
 
-            # Создаём дефолтные разделы, если их нет
-            conn.execute(text("""
-            INSERT INTO suggestion_category (name, description, icon, color, "order")
-            VALUES 
-                ('Сайт', 'Предложения по улучшению сайта', 'globe', '#8b5cf6', 0),
-                ('Сервер', 'Предложения по серверу', 'server', '#10b981', 1),
-                ('Реализовано', 'Уже внедрённые предложения', 'check-circle', '#22c55e', 99)
-            ON CONFLICT DO NOTHING;
-            """))
+                        # Создаём дефолтные разделы, если их нет
+            # Создаём дефолтные разделы, если их нет (явно указываем is_archived=FALSE)
+            try:
+                conn.execute(text("""
+                    INSERT INTO suggestion_category (name, description, icon, color, "order", is_archived)
+                    VALUES 
+                        ('Сайт', 'Предложения по улучшению сайта', 'globe', '#8b5cf6', 0, FALSE),
+                        ('Сервер', 'Предложения по серверу', 'server', '#10b981', 1, FALSE),
+                        ('Реализовано', 'Уже внедрённые предложения', 'check-circle', '#22c55e', 99, FALSE)
+                    ON CONFLICT DO NOTHING;
+                """))
+            except Exception:
+                pass  # Игнорируем, если разделы уже существуют или нет unique-констрейнта
 
             conn.execute(text('ALTER TABLE role ADD COLUMN IF NOT EXISTS category_id INTEGER REFERENCES rolecategory(id) ON DELETE SET NULL;'))
 
