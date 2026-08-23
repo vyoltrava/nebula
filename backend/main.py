@@ -9485,13 +9485,20 @@ def get_suggestion_details(
 @app.post("/api/suggestions/{suggestion_id}/comments")
 @limiter.limit("10/minute")
 def add_comment(
-    suggestion_id: int, content: str = Form(...),
-    user: User = Depends(get_current_user), session: Session = Depends(get_session),
+    request: Request,  # 🆕 ДОБАВЛЕНО: обязательно для limiter
+    suggestion_id: int, 
+    content: str = Form(...),
+    user: User = Depends(get_current_user), 
+    session: Session = Depends(get_session),
 ):
-    if not session.get(Suggestion, suggestion_id): raise HTTPException(404, "Not found")
-    if len(content.strip()) < 2: raise HTTPException(400, "Комментарий слишком короткий")
+    if not session.get(Suggestion, suggestion_id): 
+        raise HTTPException(404, "Not found")
+    if len(content.strip()) < 2: 
+        raise HTTPException(400, "Комментарий слишком короткий")
+    
     c = SuggestionComment(suggestion_id=suggestion_id, author_id=user.id, content=content.strip())
-    session.add(c); session.commit()
+    session.add(c)
+    session.commit()
     return {"ok": True}
 
 @app.patch("/api/suggestions/{suggestion_id}/status")
