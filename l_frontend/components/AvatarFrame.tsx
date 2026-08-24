@@ -10,7 +10,6 @@ interface AvatarFrameProps {
   onBadgeClick?: () => void;
 }
 
-// === ВСПОМОГАТЕЛЬНЫЙ КОМПОНЕНТ: ВОЛНА ПО КОНТУРУ (SVG) ===
 function PerimeterWave({ color, speed = "normal", children, extraDecorations }: { 
   color: string; 
   speed?: "normal" | "slow";
@@ -18,8 +17,7 @@ function PerimeterWave({ color, speed = "normal", children, extraDecorations }: 
   extraDecorations?: ReactNode; 
 }) {
   return (
-    <div className="relative inline-block">
-      {/* SVG-волна строго по контуру скругленного квадрата */}
+    <div className="relative">
       <svg 
         className="absolute -inset-[4px] w-[calc(100%+32px)] h-[calc(100%+32px)] pointer-events-none z-0 overflow-visible"
         xmlns="http://www.w3.org/2000/svg"
@@ -42,7 +40,6 @@ function PerimeterWave({ color, speed = "normal", children, extraDecorations }: 
         />
       </svg>
 
-      {/* Контейнер аватарки с темным фоном и скруглением */}
       <div className="relative z-10 rounded-xl overflow-hidden bg-[#171717] border-[2px] border-[#171717]">
         {children}
         {extraDecorations}
@@ -61,7 +58,7 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
     icon_url: user.custom_badge_url,
     glow_color: "#8b5cf6",
     enable_ring: true,
-    enable_glow: true,
+    enable_glow: false, // По умолчанию выключено для кастомных!
   } : null;
 
   const userBadge = customBadge || 
@@ -69,7 +66,6 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
                     availableBadges.find((b: any) => b.user_id === user.id) ||
                     availableBadges.find((b: any) => b.role_id === user.role?.id);
 
-  // Если значка нет, используем логику по уровням (fallback)
   if (!userBadge) {
     if (level <= 5) return <>{children}</>;
     if (level <= 7) return <Level67Effect user={user}>{children}</Level67Effect>;
@@ -83,25 +79,23 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
   const glowColor = userBadge.glow_color || user.role?.color || "#8b5cf6";
   
   return (
-    <div className="relative inline-block">
-      {/* Основной эффект волны */}
+    <div className="relative">
       {userBadge.enable_ring && (
         <PerimeterWave color={glowColor}>
           {children}
         </PerimeterWave>
       )}
 
-      {/* Если кольцо выключено, просто рендерим аватарку */}
       {!userBadge.enable_ring && (
         <div className="relative z-10 rounded-xl overflow-hidden bg-[#171717] border-[2px] border-[#171717]">
           {children}
         </div>
       )}
 
-      {/* 🆕 ЗНАЧОК В ЛЕВОМ ВЕРХНЕМ УГЛУ (ЖЕСТКАЯ ПОЗИЦИЯ ЧЕРЕЗ INLINE-СТИЛИ) */}
+      {/* ЗНАЧОК В ЛЕВОМ ВЕРХНЕМ УГЛУ */}
       <div 
         className="absolute z-30 select-none"
-        style={{ top: '-12px', left: '-12px' }} // На 100% игнорирует любые кэши Tailwind
+        style={{ top: '-12px', left: '-12px' }}
       >
         <div 
           className={`w-9 h-9 rounded-full bg-[#171717] border-2 border-[#171717] flex items-center justify-center shadow-lg ${
@@ -110,7 +104,7 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
           onClick={canEditBadge ? onBadgeClick : undefined}
           title={canEditBadge ? "Нажми, чтобы сменить значок" : ""}
         >
-          {/* Свечение под значком */}
+          {/* Свечение ТОЛЬКО если enable_glow === true */}
           {userBadge.enable_glow && (
             <div 
               className="absolute inset-0 rounded-full"
@@ -123,7 +117,6 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
             />
           )}
           
-          {/* Иконка значка */}
           <img
             src={userBadge.icon_url}
             alt={userBadge.name || "Badge"}
@@ -136,7 +129,6 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
   );
 }
 
-// === FALLBACK ЭФФЕКТЫ УРОВНЕЙ (ВСЕ ИСПРАВЛЕНЫ НА ЛЕВЫЙ ВЕРХНИЙ УГОЛ) ===
 function Level67Effect({ user, children }: { user: any; children: ReactNode }) {
   return <PerimeterWave color={user.role?.color || "#8b5cf6"}>{children}</PerimeterWave>;
 }
@@ -163,11 +155,11 @@ function Level9Effect({ children }: { children: ReactNode }) {
 
 function Level10Effect({ children }: { children: ReactNode }) {
   return (
-    <div className="relative"> {/* Убрал inline-block для консистентности */}
+    <div className="relative">
       <PerimeterWave color="#ffffff" speed="slow">
         {children}
       </PerimeterWave>
-      {/* Hello Kitty ТЕПЕРЬ ТОЧНО ТАК ЖЕ как у кастомных */}
+      {/* Hello Kitty — ТОЧНО ТАК ЖЕ как кастомные */}
       <div 
         className="absolute z-30 pointer-events-none select-none animate-bounce-slow"
         style={{ top: '-12px', left: '-12px' }}
@@ -182,7 +174,7 @@ function Level10Effect({ children }: { children: ReactNode }) {
 
 function Level11Effect({ children }: { children: ReactNode }) {
   return (
-    <div className="relative inline-block">
+    <div className="relative">
       <svg 
         className="absolute -inset-[4px] w-[calc(100%+32px)] h-[calc(100%+32px)] pointer-events-none z-0 overflow-visible"
         xmlns="http://www.w3.org/2000/svg"
