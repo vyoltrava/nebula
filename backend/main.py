@@ -10754,8 +10754,6 @@ def _assignment_out(assignment: CustomBadgeAssignment, session: Session = None) 
         "user_display_name": user.display_name if user else None,
         "user_username": user.username if user else None,
     }
-    }
-}
 
 
 # =================================================================

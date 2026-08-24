@@ -1,5 +1,6 @@
 "use client";
-import { CustomBadgeData } from "@/app/adminnew/badges/page";
+
+import { CustomBadgeData } from "@/types/badge"; 
 
 interface CustomBadgeListProps {
   badges: CustomBadgeData[];

@@ -577,7 +577,7 @@ class RoleHistory(SQLModel, table=True):
     old_role_id: Optional[int] = Field(default=None, foreign_key="role.id", ondelete="SET NULL")
     new_role_id: Optional[int] = Field(default=None, foreign_key="role.id", ondelete="SET NULL")
     changed_by: int = Field(foreign_key="user.id", ondelete="CASCADE")
-        changed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    changed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 # ============================================================

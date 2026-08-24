@@ -1,4 +1,5 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getToken, getUserLevel } from "@/lib/auth";
@@ -238,24 +239,32 @@ export default function BadgesAdminPage() {
                 <tbody>
                   {assignmentsLoading ? <tr><td colSpan={6} className="p-8 text-center text-gray-400">Загрузка...</td></tr>
                   : filteredAssignments.length === 0 ? <tr><td colSpan={6} className="p-8 text-center text-gray-400">Нет выданных плашек</td></tr>
-                  : filteredAssignments.map((a) => <tr key={a.id} className="border-b border-white/5">
-                      <td className="p-4"><div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-[#1a1a1a]"></div>
-                        <span className="text-sm">ID: {a.user_id}</span>
-                      </div></td>
-                      <td className="p-4">{a.badge?.name || "—"}</td>
-                      <td className="p-4 text-sm text-gray-400">{formatDate(a.granted_at)}</td>
-                      <td className="p-4 text-sm text-gray-400">{a.expires_at ? formatDate(a.expires_at) : <span className="text-green-400">Бессрочно</span>}</td>
-                      <td className="p-4"><span className={`px-2 py-1 rounded text-xs ${a.is_active ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}`}>
-                        {a.is_active ? "Активна" : "Истекла"}
-                      </span></td>
-                      <td className="p-4 text-right">
-                        <div className="flex justify-end gap-1">
-                          <button onClick={() => extendAssignment(a.id, 30)} className="px-2 py-1 text-xs bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded">+30 дней</button>
-                          <button onClick={() => revokeAssignment(a.id)} className="px-2 py-1 text-xs bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded">Отозвать</button>
-                        </div>
-                      </td>
-                    </tr>))}
+: filteredAssignments.map((a) => (
+    <tr key={a.id} className="border-b border-white/5">
+      <td className="p-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-[#1a1a1a]"></div>
+          <span className="text-sm">ID: {a.user_id}</span>
+        </div>
+      </td>
+      <td className="p-4">{a.badge?.name || "—"}</td>
+      <td className="p-4 text-sm text-gray-400">{formatDate(a.granted_at)}</td>
+      <td className="p-4 text-sm text-gray-400">
+        {a.expires_at ? formatDate(a.expires_at) : <span className="text-green-400">Бессрочно</span>}
+      </td>
+      <td className="p-4">
+        <span className={`px-2 py-1 rounded text-xs ${a.is_active ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}`}>
+          {a.is_active ? "Активна" : "Истекла"}
+        </span>
+      </td>
+      <td className="p-4 text-right">
+        <div className="flex justify-end gap-1">
+          <button onClick={() => extendAssignment(a.id, 30)} className="px-2 py-1 text-xs bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded">+30 дней</button>
+          <button onClick={() => revokeAssignment(a.id)} className="px-2 py-1 text-xs bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded">Отозвать</button>
+        </div>
+      </td>
+    </tr>
+  ))}
                 </tbody>
               </table>
             </div>

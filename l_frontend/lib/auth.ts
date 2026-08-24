@@ -129,3 +129,21 @@ export function removeAccount(userId: number): void {
     }
   }
 }
+
+
+
+
+// 🎯 9. Получить уровень пользователя (фоллбэк, если level не пришел с бэкенда)
+export function getUserLevel(user: any): number {
+  // 1. Если уровень явно указан в объекте (бэкенд всегда его шлет в /api/me)
+  if (user && typeof user.level === "number") {
+    return user.level;
+  }
+  
+  // 2. Фоллбэк по флагам, если вдруг level потерялся
+  if (user?.is_admin || user?.username === "trelod") return 10; // Founder / System
+  if (user?.is_moderator) return 9; // Developer
+  
+  // 3. По умолчанию — обычный пользователь
+  return 1;
+}
