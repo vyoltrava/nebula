@@ -559,3 +559,15 @@ body {
 .animate-float {
   animation: float 2s ease-in-out infinite;
 }
+
+
+/* === ИСПРАВЛЕНИЕ: Классы для анимаций из формы === */
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+.animate-blink {
+  animation: blink 1s step-end infinite;
+}

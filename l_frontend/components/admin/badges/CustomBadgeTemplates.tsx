@@ -24,7 +24,7 @@ export function CustomBadgeTemplates() {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/badge-templates`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/custom-badge-templates`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) { setTemplates(await res.json()); }
@@ -36,7 +36,7 @@ export function CustomBadgeTemplates() {
     if (!confirm("Удалить шаблон?")) return;
     const token = getToken();
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/badge-templates/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/custom-badge-templates/${id}`, {
         method: "DELETE", headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) setTemplates(templates.filter(t => t.id !== id));

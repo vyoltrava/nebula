@@ -237,6 +237,8 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
   // Live preview badge style
   const getPreviewStyle = () => {
     const style: React.CSSProperties = {};
+    
+    // Фон
     if (bgType === "gradient") {
       style.background = bgGradient;
     } else if (bgType === "image" && bgImagePreview) {
@@ -248,16 +250,42 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
     } else {
       style.backgroundColor = bgColor;
     }
+
+    // Обводка
     style.borderColor = borderColor;
     style.borderWidth = `${borderWidth}px`;
     style.borderStyle = borderStyle;
+
+    // Тени и свечение
+    let boxShadow = "";
     if (shadowEnabled) {
-      style.boxShadow = `${shadowOffsetX}px ${shadowOffsetY}px ${shadowBlur}px ${shadowColor}`;
+      boxShadow = `${shadowOffsetX}px ${shadowOffsetY}px ${shadowBlur}px ${shadowColor}`;
     }
+    
+    // Добавляем Inner Glow и Specular к box-shadow
+    if (innerGlowEnabled) {
+      boxShadow += boxShadow ? `, inset 0 0 15px rgba(255, 255, 255, 0.4)` : `inset 0 0 15px rgba(255, 255, 255, 0.4)`;
+    }
+    if (specularEnabled) {
+      boxShadow += boxShadow ? `, inset 0 4px 6px rgba(255, 255, 255, 0.6)` : `inset 0 4px 6px rgba(255, 255, 255, 0.6)`;
+    }
+    
+    if (boxShadow) {
+      style.boxShadow = boxShadow;
+    }
+
+    // Металлический эффект (градиентный оверлей)
+    if (metallicEnabled) {
+      style.backgroundImage = style.backgroundImage 
+        ? `${style.backgroundImage}, linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.1) 100%)`
+        : 'linear-gradient(135deg, #e2e8f0 0%, #94a3b8 50%, #cbd5e1 100%)';
+    }
+
+    // Border Glow (используем filter, так как он лучше работает с drop-shadow)
     if (borderGlow) {
-      const glowColor = borderColor;
-      style.filter = `drop-shadow(0 0 ${borderGlowIntensity}px ${glowColor})`;
+      style.filter = `drop-shadow(0 0 ${borderGlowIntensity}px ${borderColor})`;
     }
+
     return style;
   };
 

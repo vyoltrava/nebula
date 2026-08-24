@@ -10261,8 +10261,11 @@ def stats_users_list(staff: User = Depends(require_staff), session: Session = De
             "kpi": _compute_kpi(p, m, lg, lr, v),
         })
     return result
+
+
+
 # ============================================================
-# 🏷️ КАСТОМНЫЕ ПЛАШКИ (BADGES 2.0) - ЕДИНЫЙ БЛОК
+# 🏷️ КАСТОМНЫЕ ПЛАШКИ (BADGES 2.0)
 # ============================================================
 
 def _require_badge_admin(user: User, session: Session = None) -> int:
@@ -10394,13 +10397,21 @@ def create_custom_badge(
     )
     
     session.add(new_badge)
+    
+    # ✅ ИСПРАВЛЕНО: ActionLog не имеет метода .create(), создаем объект вручную
+    log_entry = ActionLog(
+        actor_id=staff.id,
+        action="badge_create",
+        target_type="CustomBadge",
+        target_id=new_badge.id,
+        details=f'Created custom badge "{new_badge.name}"',
+        ip_address=get_client_ip(None) # Если нет request, можно передать None или убрать поле
+    )
+    session.add(log_entry)
+    
     session.commit()
     session.refresh(new_badge)
-
-    ActionLog.create(
-        session, staff.id, "badge_create", "CustomBadge", new_badge.id,
-        f'Created custom badge "{new_badge.name}"'
-    )
+    
     return _badge_out(new_badge)
 
 @app.put("/api/custom-badges/{badge_id}")
@@ -10434,13 +10445,20 @@ def update_custom_badge(
             setattr(badge, field, val)
 
     session.add(badge)
+    
+    # ✅ ИСПРАВЛЕНО: Ручное создание лога
+    log_entry = ActionLog(
+        actor_id=staff.id,
+        action="badge_update",
+        target_type="CustomBadge",
+        target_id=badge.id,
+        details=f"Updated custom badge '{badge.name}'"
+    )
+    session.add(log_entry)
+    
     session.commit()
     session.refresh(badge)
 
-    ActionLog.create(
-        session, staff.id, "badge_update", "CustomBadge", badge.id,
-        f"Updated custom badge '{badge.name}'"
-    )
     return _badge_out(badge)
 
 @app.delete("/api/custom-badges/{badge_id}")
@@ -10465,12 +10483,19 @@ def delete_custom_badge(
         session.delete(a)
         
     session.delete(badge)
+    
+    # ✅ ИСПРАВЛЕНО: Ручное создание лога
+    log_entry = ActionLog(
+        actor_id=staff.id,
+        action="badge_delete",
+        target_type="CustomBadge",
+        target_id=badge_id,
+        details=f"Deleted custom badge '{badge.name}'"
+    )
+    session.add(log_entry)
+    
     session.commit()
 
-    ActionLog.create(
-        session, staff.id, "badge_delete", "CustomBadge", badge_id,
-        f"Deleted custom badge '{badge.name}'"
-    )
     return {"success": True}
 
 # --- Загрузка картинок для плашек (Base64) ---
@@ -10615,10 +10640,16 @@ def assign_custom_badge(
     session.commit()
     session.refresh(assignment)
     
-    ActionLog.create(
-        session, staff.id, "badge_assign", "CustomBadgeAssignment", assignment.id,
-        f"Granted badge '{badge.name}' to user {user_id}"
+    # ✅ ИСПРАВЛЕНО: Ручное создание лога
+    log_entry = ActionLog(
+        actor_id=staff.id,
+        action="badge_assign",
+        target_type="CustomBadgeAssignment",
+        target_id=assignment.id,
+        details=f"Granted badge '{badge.name}' to user {user_id}"
     )
+    session.add(log_entry)
+    session.commit()
     
     return {"success": True, "assignment": _assignment_out(assignment, session)}
 
@@ -10638,10 +10669,17 @@ def revoke_assignment(
     session.add(assignment)
     session.commit()
     
-    ActionLog.create(
-        session, staff.id, "badge_revoke", "CustomBadgeAssignment", assign_id,
-        f"Revoked badge assignment {assign_id}"
+    # ✅ ИСПРАВЛЕНО: Ручное создание лога
+    log_entry = ActionLog(
+        actor_id=staff.id,
+        action="badge_revoke",
+        target_type="CustomBadgeAssignment",
+        target_id=assign_id,
+        details=f"Revoked badge assignment {assign_id}"
     )
+    session.add(log_entry)
+    session.commit()
+    
     return {"success": True}
 
 @app.post("/api/custom-badge-assignments/{assign_id}/extend")
