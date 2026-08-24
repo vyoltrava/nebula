@@ -20,7 +20,7 @@ interface CustomBadgeConfig {
   border_style?: "solid" | "dashed" | "dotted";
   border_glow: boolean;
   border_glow_intensity?: number;
-  animation_flags?: string[]; // e.g., ["perimeter_wave", "pulse_glow"]
+  animation_flags?: string[]; 
   animation_speed?: "slow" | "normal" | "fast";
   shadow_enabled: boolean;
   shadow_blur?: number;
@@ -57,16 +57,6 @@ interface CustomBadgeAssignmentData {
 }
 
 // === HELPER FUNCTIONS FOR BADGE STYLES ===
-const getBorderStyle = (config: CustomBadgeConfig) => {
-  if (!config.border_width || config.border_width === 0) return {};
-  return {
-    border: `${config.border_width}px ${config.border_style || 'solid'} ${config.border_color || 'transparent'}`,
-    ...(config.border_glow && {
-      filter: `drop-shadow(0 0 ${config.border_glow_intensity || 4}px ${config.border_color || 'transparent'})`
-    })
-  };
-};
-
 const getBackgroundStyle = (config: CustomBadgeConfig) => {
   if (config.bg_type === 'solid' && config.bg_color) {
     return { backgroundColor: config.bg_color };
@@ -91,7 +81,7 @@ const getAnimationClasses = (config: CustomBadgeConfig) => {
     config.animation_flags.forEach(flag => {
       switch (flag) {
         case 'perimeter_wave':
-          classes.push(config.animation_speed === 'slow' ? 'animate-perimeter-wave-slow' : 'animate-perimeter-wave');
+          // Эта анимация теперь обрабатывается компонентом PerimeterWave, но класс можно оставить для совместимости
           break;
         case 'pulse_glow':
           classes.push('animate-pulse-glow');
@@ -108,7 +98,6 @@ const getAnimationClasses = (config: CustomBadgeConfig) => {
         case 'float':
           classes.push('animate-float');
           break;
-        // Add other animations here
       }
     });
   }
@@ -116,7 +105,7 @@ const getAnimationClasses = (config: CustomBadgeConfig) => {
 };
 
 
-// === РЕНДЕР КАСTOMНОЙ ПЛАШКИ (NEW) ===
+// === РЕНДЕР КАСТОМНОЙ ПЛАШКИ (ИСПРАВЛЕННЫЙ) ===
 function CustomBadgeRenderer({ badgeData, size }: { badgeData: CustomBadgeData; size: number }) {
   let config: CustomBadgeConfig;
   try {
@@ -126,34 +115,74 @@ function CustomBadgeRenderer({ badgeData, size }: { badgeData: CustomBadgeData; 
     return null;
   }
 
-  const badgeStyle = {
-    ...getBorderStyle(config),
-    ...getBackgroundStyle(config),
+  const bgStyle = getBackgroundStyle(config);
+  const animationClasses = getAnimationClasses(config);
+
+  // Проверяем, нужна ли анимация волн
+  const hasPerimeterWave = config.animation_flags?.includes('perimeter_wave');
+  
+  // Цвет для волны берем из border_color или дефолтный
+  const waveColor = config.border_color || "#8b5cf6";
+  const waveSpeed = config.animation_speed === 'slow' ? "slow" : "normal";
+
+  // Стили для внутренних эффектов
+  const innerEffectsStyle: React.CSSProperties = {
     ...(config.shadow_enabled && config.shadow_color && {
       boxShadow: `${config.shadow_offset_x || 0}px ${config.shadow_offset_y || 0}px ${config.shadow_blur || 10}px ${config.shadow_color}`
     }),
-    ...(config.inner_glow_enabled && config.inner_glow_intensity && {
-      // Inner glow will be more complex, might need a pseudo-element or separate div
+    ...(config.inner_glow_enabled && {
+      boxShadow: `inset 0 0 15px rgba(255, 255, 255, 0.3)` // Упрощенный inner glow
     }),
     ...(config.metallic_enabled && {
-      // Metallic effect will also be complex, likely requires specific background/filter
+      backgroundImage: `${bgStyle.backgroundImage || ''}, linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.1) 100%)`
     })
   };
 
-  const animationClasses = getAnimationClasses(config);
-
-  return (
-    <div className={`relative inline-block rounded-xl overflow-hidden`} style={{ width: size, height: size, ...badgeStyle }}>
-      {/* Background and border are handled by badgeStyle */}
+  const Content = () => (
+    <div 
+      className={`relative w-full h-full rounded-xl overflow-hidden flex items-center justify-center`}
+      style={{ ...bgStyle, ...innerEffectsStyle }}
+    >
       {config.icon_url && (
-        <img src={config.icon_url} alt={config.name} className={`absolute inset-0 object-contain w-full h-full ${animationClasses}`} />
+        <img src={config.icon_url} alt={config.name} className={`w-3/4 h-3/4 object-contain z-10 ${animationClasses}`} />
       )}
-      {config.text_content && (
-        <span className={`absolute inset-0 flex items-center justify-center text-white text-sm font-bold p-1 ${animationClasses}`}>
+      {config.text_content && !config.icon_url && (
+        <span className={`absolute inset-0 flex items-center justify-center text-white text-sm font-bold p-1 z-10 ${animationClasses}`}>
           {config.text_content}
         </span>
       )}
-      {/* Other effects like inner glow, specular, metallic will need dedicated elements/styles */}
+    </div>
+  );
+
+  // Если есть анимация волны, оборачиваем в PerimeterWave
+  if (hasPerimeterWave) {
+    return (
+      <div className="relative inline-block" style={{ width: size, height: size }}>
+        <PerimeterWave 
+          color={waveColor} 
+          speed={waveSpeed}
+          extraDecorations={null} // Можно добавить декорации если нужно
+        >
+          <Content />
+        </PerimeterWave>
+      </div>
+    );
+  }
+
+  // Иначе просто рендерим блок с обычной обводкой (если она есть и не является волной)
+  const borderStyle = config.border_width && config.border_width > 0 ? {
+    border: `${config.border_width}px ${config.border_style || 'solid'} ${config.border_color || 'transparent'}`,
+    ...(config.border_glow && {
+      filter: `drop-shadow(0 0 ${config.border_glow_intensity || 4}px ${config.border_color || 'transparent'})`
+    })
+  } : {};
+
+  return (
+    <div 
+      className={`relative inline-block rounded-xl overflow-hidden`} 
+      style={{ width: size, height: size, ...borderStyle }}
+    >
+      <Content />
     </div>
   );
 }
@@ -166,6 +195,7 @@ interface AvatarFrameProps {
   availableBadges?: any[];
   canEditBadge?: boolean;
   onBadgeClick?: () => void;
+  activeCustomBadgeAssignment?: any; // 🆕 ДОБАВЛЕНО: чтобы TypeScript не ругался
 }
 
 export function AvatarFrame({ children, user, size = 128, availableBadges = [], canEditBadge = false, onBadgeClick }: AvatarFrameProps) {

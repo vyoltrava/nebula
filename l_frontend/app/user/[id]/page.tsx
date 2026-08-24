@@ -41,6 +41,7 @@ export default function UserProfilePage() {
   const [showReport, setShowReport] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(() => getCachedUser());
   const [availableBadges, setAvailableBadges] = useState<any[]>([]);
+  const [activeCustomBadgeAssignment, setActiveCustomBadgeAssignment] = useState<any>(null); // 🆕 Активная кастомная плашка
   const {
     cropperImage,
     uploading,
@@ -306,6 +307,26 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
         router.replace(`/${profileData.username}`);
       }
 
+      // 🆕 ЗАГРУЗКА АКТИВНОЙ КАСТОМНОЙ ПЛАШКИ (после того, как узнали profileData.id)
+      if (token && profileData.id) {
+        try {
+          const assignRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/custom-badge-assignments?user_id=${profileData.id}&active_only=true`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (assignRes.ok) {
+            const assignments = await assignRes.json();
+            // Берем первую активную плашку (обычно она одна из-за логики бэкенда)
+            if (assignments && assignments.length > 0) {
+              setActiveCustomBadgeAssignment(assignments[0]);
+            } else {
+              setActiveCustomBadgeAssignment(null);
+            }
+          }
+        } catch (err) {
+          console.error("Failed to load custom badge assignment:", err);
+          setActiveCustomBadgeAssignment(null);
+        }
+      }
       // Подписка
       if (followRes && followRes.ok) {
         const data = await followRes.json();
@@ -506,6 +527,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   availableBadges={availableBadges}
   canEditBadge={isOwnProfile && canEditBadge}
   onBadgeClick={() => setShowBadgeModal(true)}
+  activeCustomBadgeAssignment={activeCustomBadgeAssignment} // 🆕 ПЕРЕДАЕМ ДАННЫЕ О ПЛАШКЕ
 >
   <Avatar 
     src={profile.avatar_url} 
