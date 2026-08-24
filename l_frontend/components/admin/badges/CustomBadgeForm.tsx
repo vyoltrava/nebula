@@ -61,6 +61,9 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
   const [iconPreview, setIconPreview] = useState(badge?.icon_url || null);
   const iconInputRef = useRef<HTMLInputElement>(null);
 
+
+  const [textColor, setTextColor] = useState(badge?.text_color || "#ffffff");
+
   // Visual fields
   const [bgType, setBgType] = useState(badge?.bg_type || "solid");
   const [bgColor, setBgColor] = useState(badge?.bg_color || "#3b82f6");
@@ -144,6 +147,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
         name,
         description: description || null,
         text_content: textContent || null,
+        text_color: textColor, // 🆕 ДОБАВЛЕНО
         bg_type: bgType,
         bg_color: bgColor,
         bg_gradient: bgType === "gradient" ? bgGradient : null,
@@ -285,6 +289,8 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
     if (borderGlow) {
       style.filter = `drop-shadow(0 0 ${borderGlowIntensity}px ${borderColor})`;
     }
+
+  style.color = textColor; // 🆕 ДОБАВЛЕНО: применяем цвет текста
 
     return style;
   };
@@ -485,6 +491,26 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                       </div>
                     </div>
                   )}
+                  {/* Добавь это внутри вкладки "visual", например, после блока bgType === "solid" */}
+<div className="pt-4 border-t border-white/10">
+  <label className="block">
+    <span className="text-sm font-medium text-gray-300 mb-1 block">Цвет текста на плашке</span>
+    <div className="flex gap-2 flex-wrap">
+      <input
+        type="color"
+        value={textColor}
+        onChange={(e) => setTextColor(e.target.value)}
+        className="h-10 w-10 rounded cursor-pointer bg-transparent border-0 p-0"
+      />
+      <input
+        type="text"
+        value={textColor}
+        onChange={(e) => setTextColor(e.target.value)}
+        className="flex-1 bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white"
+      />
+    </div>
+  </label>
+</div>
 
                   {bgType === "gradient" && (
                     <div className="space-y-4">

@@ -10281,6 +10281,7 @@ def _badge_out(badge: CustomBadge) -> dict:
         "description": badge.description,
         "icon_url": badge.icon_url,
         "text_content": badge.text_content,
+        "text_color": badge.text_color or "#ffffff", 
         "bg_type": badge.bg_type,
         "bg_color": badge.bg_color,
         "bg_gradient": badge.bg_gradient,
@@ -10366,6 +10367,7 @@ def create_custom_badge(
         description=badge_data.description,
         icon_url=badge_data.icon_url,
         text_content=badge_data.text_content,
+        text_color=badge_data.text_color or "#ffffff",  # 🆕 ДОБАВЛЕНО
         bg_type=badge_data.bg_type or "solid",
         bg_color=badge_data.bg_color,
         bg_gradient=badge_data.bg_gradient,
@@ -10426,7 +10428,7 @@ def update_custom_badge(
         raise HTTPException(404, "Плашка не найдена")
 
     update_fields = [
-        "name", "description", "icon_url", "text_content",
+        "name", "description", "icon_url", "text_content", "text_color",
         "bg_type", "bg_color", "bg_gradient", "bg_gradient_type", "bg_gradient_angle",
         "bg_image_url", "bg_image_mode",
         "border_color", "border_width", "border_style", "border_glow", "border_glow_intensity",
@@ -10587,11 +10589,14 @@ def assign_custom_badge(
     if not badge:
         raise HTTPException(404, "Плашка не найдена")
 
-    target_level = get_user_level(target, session)
-    if lvl == 9 and target_level >= 9:
-        raise HTTPException(403, "Уровень 9 не может выдавать плашки пользователям уровня 9+")
-    if lvl == 10 and target_level >= 10:
-        raise HTTPException(403, "Уровень 10 не может выдавать плашки пользователям уровня 10+")
+    if staff.id != target.id:
+            staff_level = get_user_level(staff, session)
+            target_level = get_user_level(target, session)
+            
+            if staff_level == 9 and target_level > 9:
+                raise HTTPException(403, "Уровень 9 не может выдавать плашки пользователям уровня 10+")
+            if staff_level == 10 and target_level > 10:
+                raise HTTPException(403, "Уровень 10 не может выдавать плашки пользователям уровня 11 (System)")
 
     now = datetime.now(timezone.utc)
     expiry: Optional[datetime] = None

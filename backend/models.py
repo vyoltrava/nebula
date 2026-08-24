@@ -504,7 +504,9 @@ class CustomBadge(SQLModel, table=True):
     name: str = Field(max_length=80)                    # Название плашки
     description: Optional[str] = None                  # Описание
     icon_url: Optional[str] = None                     # URL иконки/логотипа
-    text_content: Optional[str] = None                  # Кастомный текст на плашке
+    text_content: Optional[str] = None    
+    text_color: Optional[str] = Field(default="#ffffff")  # 🆕 ДОБАВЛЕНО: цвет текста внутри плашки
+
 
     # === Визуальные настройки ===
     bg_type: str = Field(default="solid")              # solid | gradient | image

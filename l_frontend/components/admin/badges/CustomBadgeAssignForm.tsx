@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getToken } from "@/lib/auth";
-import { X } from "lucide-react";
+import { X, Search, User as UserIcon } from "lucide-react";
 
 interface BadgeData {
   id: number;
@@ -19,6 +19,10 @@ interface AssignFormProps {
 export function CustomBadgeAssignForm({ badge, badges, onClose, onSuccess }: AssignFormProps) {
   const [selectedBadge, setSelectedBadge] = useState<BadgeData | null>(badge || null);
   const [userId, setUserId] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  
   const [durationType, setDurationType] = useState<"permanent" | "days" | "date">("permanent");
   const [days, setDays] = useState("30");
   const [date, setDate] = useState("");
@@ -28,6 +32,39 @@ export function CustomBadgeAssignForm({ badge, badges, onClose, onSuccess }: Ass
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // 🔍 Реальный поиск пользователей по API с задержкой 300мс
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const token = getToken();
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
+        const res = await fetch(`${apiUrl}/api/users?q=${encodeURIComponent(searchQuery)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data.users || []);
+        }
+      } catch (e) {
+        console.error("Search error:", e);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleSelectUser = (user: any) => {
+    setUserId(user.id.toString());
+    setSearchQuery(`${user.display_name} (@${user.username})`);
+    setSearchResults([]);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -35,30 +72,28 @@ export function CustomBadgeAssignForm({ badge, badges, onClose, onSuccess }: Ass
 
     try {
       if (!selectedBadge) throw new Error("Пожалуйста, выберите плашку");
-      if (!userId) throw new Error("Пожалуйста, укажите ID пользователя");
+      if (!userId) throw new Error("Пожалуйста, выберите пользователя");
 
       const token = getToken();
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
       
-      // Бэкенд ожидает FormData, а не JSON!
       const formData = new FormData();
       formData.append("user_id", userId);
       formData.append("badge_id", selectedBadge.id.toString());
       formData.append("priority", priorityOverride ? "10" : "1");
       formData.append("notify_user", sendNotification ? "true" : "false");
-      if (customMessage) formData.append("custom_message", customMessage);
       formData.append("override_priority", priorityOverride ? "true" : "false");
+      if (customMessage) formData.append("custom_message", customMessage);
 
       if (durationType === "days") {
-        // Бэкенд в едином блоке использует expires_at, вычисляем его
         const expiryDate = new Date();
         expiryDate.setDate(expiryDate.getDate() + parseInt(days));
         formData.append("expires_at", expiryDate.toISOString());
       } else if (durationType === "date" && date) {
         formData.append("expires_at", new Date(date).toISOString());
       }
-      // Если permanent, expires_at не отправляем (будет null)
 
+      // Используем правильный эндпоинт из твоего main.py
       const res = await fetch(`${apiUrl}/api/custom-badge-assignments`, {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -98,14 +133,49 @@ export function CustomBadgeAssignForm({ badge, badges, onClose, onSuccess }: Ass
       )}
 
       <div>
-        <label className="block text-sm font-medium mb-1">ID пользователя</label>
-        <input 
-          type="number" 
-          value={userId} 
-          onChange={(e) => setUserId(e.target.value)} 
-          placeholder="Например: 123"
-          className="w-full px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-sm text-white" 
-        />
+        <label className="block text-sm font-medium mb-1">Поиск пользователя</label>
+        <div className="relative">
+          <Search className="absolute left-3 top-2.5 text-gray-500" size={16} />
+          <input 
+            type="text" 
+            value={searchQuery} 
+            onChange={(e) => setSearchQuery(e.target.value)} 
+            placeholder="Введите имя, @username или ID..."
+            className="w-full pl-9 pr-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-sm text-white focus:border-blue-500 focus:outline-none" 
+          />
+          {searchLoading && <div className="absolute right-3 top-2.5 w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />}
+        </div>
+        
+        {/* Выпадающий список результатов */}
+        {searchResults.length > 0 && (
+          <div className="mt-1 space-y-1 max-h-48 overflow-y-auto bg-[#1a1a1a] border border-white/10 rounded-lg p-1">
+            {searchResults.map((u) => (
+              <button 
+                key={u.id} 
+                type="button" 
+                onClick={() => handleSelectUser(u)}
+                className="w-full flex items-center gap-3 p-2 text-left hover:bg-white/5 rounded transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
+                  {u.avatar_url ? (
+                    <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <UserIcon size={16} className="text-gray-400" />
+                  )}
+                </div>
+                <div>
+                  <div className="text-sm font-medium text-white">{u.display_name}</div>
+                  <div className="text-xs text-gray-400">@{u.username} • ID: {u.id}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+        
+        {/* Скрытое поле или отображение выбранного ID для отладки */}
+        {userId && searchResults.length === 0 && (
+          <div className="mt-1 text-xs text-gray-500">Выбран ID: {userId}</div>
+        )}
       </div>
 
       <div>
@@ -154,7 +224,7 @@ export function CustomBadgeAssignForm({ badge, badges, onClose, onSuccess }: Ass
 
       <div className="flex justify-end gap-2 pt-4 border-t border-white/10">
         {onClose && <button type="button" onClick={onClose} className="px-4 py-2 text-sm hover:bg-white/5 rounded text-gray-300">Отмена</button>}
-        <button type="submit" disabled={loading} className="px-4 py-2 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded disabled:opacity-50 flex items-center gap-2">
+        <button type="submit" disabled={loading || !userId} className="px-4 py-2 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded disabled:opacity-50 flex items-center gap-2">
           {loading ? "Выдаётся..." : "Выдать плашку"}
         </button>
       </div>
