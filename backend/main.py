@@ -4639,6 +4639,8 @@ def startup():
     # ============================================================
     with engine.connect() as conn:
         try:
+
+
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS selected_badge_id INTEGER;'))
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS custom_badge_url VARCHAR;'))
             conn.execute(text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS cover_url VARCHAR;'))
@@ -4677,6 +4679,17 @@ def startup():
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 );
             """))
+
+
+            
+                        # 🆕 ДОБАВЬ ЭТУ СТРОКУ ЗДЕСЬ:
+            conn.execute(text("ALTER TABLE custom_badge ADD COLUMN IF NOT EXISTS text_color VARCHAR DEFAULT '#ffffff';"))
+            
+            # На всякий случай, если других колонок из новой модели тоже нет:
+            conn.execute(text("ALTER TABLE custom_badge ADD COLUMN IF NOT EXISTS text_content VARCHAR;"))
+            conn.execute(text("ALTER TABLE custom_badge ADD COLUMN IF NOT EXISTS bg_gradient VARCHAR;"))
+            conn.execute(text("ALTER TABLE custom_badge ADD COLUMN IF NOT EXISTS border_glow_intensity INTEGER;"))
+            
             conn.commit()
             print("✅ Блок 1: Пользователи и бейджи обновлены")
         except Exception as e:
@@ -5024,7 +5037,6 @@ def startup():
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_theme_active ON theme(is_active, min_level);'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_support_message_ticket ON support_message(ticket_id, created_at);'))
             
-            conn.execute(text("ALTER TABLE custom_badge ADD COLUMN IF NOT EXISTS text_color VARCHAR DEFAULT '#ffffff';"))
 
 
 
