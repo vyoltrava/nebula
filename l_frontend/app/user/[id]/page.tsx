@@ -577,7 +577,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   <div className="flex flex-col items-center md:items-start gap-1">
                     <div className="flex items-center justify-center md:justify-start gap-2 md:gap-3 flex-wrap leading-tight">
 {profile.username === "trelod" ? (
-  <h1 className="text-xl md:text-2xl font-black text-green-400" style={{ textShadow: "0 0 10px rgba(16,185,129,0.5)" }}>
+  <h1 className="text-xl md:text-2xl font-black text-[#e4e4e7]" style={{ textShadow: "0 0 10px rgba(228,228,231,0.5)" }}>
     {profile.display_name}
   </h1>
 ) : (
