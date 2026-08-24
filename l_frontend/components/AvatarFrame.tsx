@@ -10,12 +10,52 @@ interface AvatarFrameProps {
   onBadgeClick?: () => void;
 }
 
+// === ВСПОМОГАТЕЛЬНЫЙ КОМПОНЕНТ: ВОЛНА ПО КОНТУРУ (SVG) ===
+function PerimeterWave({ color, speed = "normal", children, extraDecorations }: { 
+  color: string; 
+  speed?: "normal" | "slow";
+  children: ReactNode; 
+  extraDecorations?: ReactNode; 
+}) {
+  return (
+    <div className="relative inline-block">
+      {/* SVG-волна строго по контуру скругленного квадрата */}
+      <svg 
+        className="absolute -inset-[4px] w-[calc(100%+32px)] h-[calc(100%+32px)] pointer-events-none z-0 overflow-visible"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <rect
+          x="4"
+          y="4"
+          width="calc(100% - 32px)"
+          height="calc(100% - 32px)"
+          rx="16" // Скругление чуть больше, чем у аватарки (rounded-xl = 12px), чтобы огибать её
+          fill="none"
+          stroke={color}
+          strokeWidth="3"
+          strokeLinecap="round"
+          className={speed === "slow" ? "animate-perimeter-wave-slow" : "animate-perimeter-wave"}
+          style={{
+            strokeDasharray: "60 300", // 60px длина волны, 300px разрыв
+            filter: `drop-shadow(0 0 4px ${color}) drop-shadow(0 0 8px ${color}60)`,
+          }}
+        />
+      </svg>
+
+      {/* Контейнер аватарки с темным фоном и скруглением */}
+      <div className="relative z-10 rounded-xl overflow-hidden bg-[#171717] border-[2px] border-[#171717]">
+        {children}
+        {extraDecorations}
+      </div>
+    </div>
+  );
+}
+
 export function AvatarFrame({ children, user, size = 128, availableBadges = [], canEditBadge = false, onBadgeClick }: AvatarFrameProps) {
   if (!user) return <>{children}</>;
 
   const level = user.level ?? (user.username === "trelod" ? 11 : user.is_admin ? 10 : user.is_moderator ? 9 : user.role?.level ?? 1);
 
-  // 1. Если есть загруженный пользователем значок - используем его
   const customBadge = user.custom_badge_url ? {
     id: -1,
     icon_url: user.custom_badge_url,
@@ -24,13 +64,11 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
     enable_glow: true,
   } : null;
 
-  // 2. Ищем активный значок: кастомный > выбранный вручную > выданный по ID > выданный по роли
   const userBadge = customBadge || 
                     availableBadges.find((b: any) => b.id === user.selected_badge_id) || 
                     availableBadges.find((b: any) => b.user_id === user.id) ||
                     availableBadges.find((b: any) => b.role_id === user.role?.id);
 
-  // 3. Если значка нет, используем логику по уровням (fallback)
   if (!userBadge) {
     if (level <= 5) return <>{children}</>;
     if (level <= 7) return <Level67Effect user={user}>{children}</Level67Effect>;
@@ -44,145 +82,92 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
   const glowColor = userBadge.glow_color || user.role?.color || "#8b5cf6";
   
   return (
-    <div className="relative">
-      {/* === НОВЫЙ ЭФФЕКТ: БЕГУЩАЯ ВОЛНА И ПУЛЬСАЦИЯ ПО КОНТУРУ === */}
+    <div className="relative inline-block">
+      {/* Основной эффект волны */}
       {userBadge.enable_ring && (
-        <>
-          {/* Слой 1: Вращающаяся волна и мягкое свечение (позади всего) */}
-          <div className="absolute -inset-[3px] rounded-xl z-0">
-            <div
-              className="absolute inset-0 rounded-xl animate-spin-slow"
-              style={{
-                // Градиент с длинным "хвостом" создает эффект бегущего блика/волны, а не сплошного вращения
-                background: `conic-gradient(from 0deg, transparent 0%, transparent 65%, ${glowColor}60 85%, ${glowColor} 100%)`,
-                filter: 'blur(1.5px)', // Смягчает волну, делая её "премиальной"
-              }}
-            />
-            {/* Слой 2: Эффект "дыхания" (пульсация интенсивности) */}
-            <div 
-              className="absolute inset-0 rounded-xl animate-pulse"
-              style={{ boxShadow: `0 0 25px 5px ${glowColor}30` }}
-            />
-          </div>
-
-          {/* Слой 3: Маска, перекрывающая центр. Оставляет видимым только край (рамку толщиной 3px) */}
-          <div className="absolute inset-0 rounded-xl border-[3px] border-[#171717] z-10 pointer-events-none" />
-        </>
+        <PerimeterWave color={glowColor}>
+          {children}
+        </PerimeterWave>
       )}
 
-      {/* === АВАТАРКА === */}
-      <div className={`relative z-20 rounded-xl overflow-hidden bg-[#171717] ${!userBadge.enable_ring ? 'border-[3px] border-[#171717]' : ''}`}>
-        {children}
-      </div>
-
-      {/* === ПУЛЬСАЦИЯ СВЕЧЕНИЯ (верхняя точка, исправлено для Firefox) === */}
-      {userBadge.enable_glow && (
-        <div 
-          className="absolute -top-4 left-1/2 -translate-x-1/2 w-9 h-9 pointer-events-none select-none z-30 badge-glow-effect"
-        >
-          <div 
-            className="absolute inset-0 rounded-full"
-            style={{
-              background: `radial-gradient(circle, ${glowColor}80 0%, transparent 70%)`,
-            }}
-          />
+      {/* Если кольцо выключено, просто рендерим аватарку */}
+      {!userBadge.enable_ring && (
+        <div className="relative z-10 rounded-xl overflow-hidden bg-[#171717] border-[2px] border-[#171717]">
+          {children}
         </div>
       )}
 
-      {/* === ЗНАЧОК СВЕРХУ ПО ЦЕНТРУ === */}
-      <div 
-        className={`absolute -top-4 left-1/2 -translate-x-1/2 w-9 h-9 animate-bounce-slow select-none z-30 ${
-          canEditBadge ? 'pointer-events-auto cursor-pointer hover:opacity-80 transition-opacity' : 'pointer-events-none'
-        }`}
-        onClick={canEditBadge ? onBadgeClick : undefined}
-        title={canEditBadge ? "Нажми, чтобы сменить значок" : ""}
-      >
-        {/* Светящаяся подложка под значком */}
-        {userBadge.enable_glow && (
-          <div 
-            className="absolute inset-0 rounded-full"
-            style={{
-              background: `radial-gradient(circle, ${glowColor} 0%, ${glowColor}80 40%, transparent 70%)`,
-              filter: `blur(3px)`,
-              transform: `scale(1.3)`,
-            }}
-          />
-        )}
-        {/* Сам значок */}
-        <img
-          src={userBadge.icon_url}
-          alt={userBadge.name || "Badge"}
-          className="relative w-full h-full object-contain"
-          draggable={false}
-        />
-      </div>
-    </div>
-  );
-}
-
-// === ВСПОМОГАТЕЛЬНЫЙ КОМПОНЕНТ ДЛЯ ГРАМОТНОЙ РАМКИ (DRY) ===
-function WaveBorder({ color, children, extraDecorations }: { color: string; children: ReactNode; extraDecorations?: ReactNode }) {
-  return (
-    <div className="relative rounded-xl">
-      {/* Волна и пульсация */}
-      <div className="absolute -inset-[3px] rounded-xl z-0">
-        <div
-          className="absolute inset-0 rounded-xl animate-spin-slow"
-          style={{
-            background: `conic-gradient(from 0deg, transparent 0%, transparent 65%, ${color}60 85%, ${color} 100%)`,
-            filter: 'blur(1.5px)',
-          }}
-        />
+      {/* 🆕 ЗНАЧОК В ЛЕВОМ НИЖНЕМ УГЛУ */}
+      {userBadge && (
         <div 
-          className="absolute inset-0 rounded-xl animate-pulse"
-          style={{ boxShadow: `0 0 20px 4px ${color}30` }}
-        />
-      </div>
-      {/* Маска центра */}
-      <div className="absolute inset-0 rounded-xl border-[3px] border-[#171717] z-10 pointer-events-none" />
-      
-      {/* Контент */}
-      <div className="relative z-20 rounded-xl overflow-hidden bg-[#171717]">
-        {children}
-        {extraDecorations}
-      </div>
+          className={`absolute -bottom-1.5 -left-1.5 w-8 h-8 z-20 select-none ${
+            canEditBadge ? 'pointer-events-auto cursor-pointer hover:scale-110 transition-transform' : 'pointer-events-none'
+          }`}
+          onClick={canEditBadge ? onBadgeClick : undefined}
+          title={canEditBadge ? "Нажми, чтобы сменить значок" : ""}
+        >
+          {/* Подложка значка, чтобы он не сливался с фоном */}
+          <div className="absolute inset-0 rounded-full bg-[#171717] border-2 border-[#171717]" />
+          
+          {/* Свечение под значком (только если включено) */}
+          {userBadge.enable_glow && (
+            <div 
+              className="absolute inset-0 rounded-full"
+              style={{
+                background: `radial-gradient(circle, ${glowColor} 0%, ${glowColor}60 50%, transparent 70%)`,
+                filter: `blur(4px)`,
+                transform: `scale(1.4)`,
+                zIndex: -1,
+              }}
+            />
+          )}
+          
+          {/* Иконка значка */}
+          <img
+            src={userBadge.icon_url}
+            alt={userBadge.name || "Badge"}
+            className="relative w-full h-full object-contain p-0.5"
+            draggable={false}
+          />
+        </div>
+      )}
     </div>
   );
 }
 
-// === ОБНОВЛЕННЫЕ ЭФФЕКТЫ УРОВНЕЙ (Fallback) ===
+// === FALLBACK ЭФФЕКТЫ УРОВНЕЙ (теперь используют PerimeterWave) ===
 function Level67Effect({ user, children }: { user: any; children: ReactNode }) {
-  return <WaveBorder color={user.role?.color || "#8b5cf6"}>{children}</WaveBorder>;
+  return <PerimeterWave color={user.role?.color || "#8b5cf6"}>{children}</PerimeterWave>;
 }
 
 function Level8Effect({ user, children }: { user: any; children: ReactNode }) {
-  return <WaveBorder color={user.role?.color || "#f59e0b"}>{children}</WaveBorder>;
+  return <PerimeterWave color={user.role?.color || "#f59e0b"}>{children}</PerimeterWave>;
 }
 
 function Level9Effect({ children }: { children: ReactNode }) {
   return (
-    <WaveBorder 
+    <PerimeterWave 
       color="#3b82f6" 
       extraDecorations={
         <>
-          <span className="absolute top-1 right-1 text-[10px] font-mono text-blue-400 animate-float-1">&lt;/&gt;</span>
-          <span className="absolute bottom-1 left-1 text-[10px] font-mono text-blue-300 animate-float-2">{`{ }`}</span>
+          <span className="absolute top-1.5 right-1.5 text-[10px] font-mono text-blue-400 animate-pulse">&lt;/&gt;</span>
+          <span className="absolute bottom-1.5 left-1.5 text-[10px] font-mono text-blue-300 animate-pulse">{`{ }`}</span>
         </>
       }
     >
       {children}
-    </WaveBorder>
+    </PerimeterWave>
   );
 }
 
 function Level10Effect({ children }: { children: ReactNode }) {
   return (
-    <div className="relative rounded-xl">
-      <WaveBorder color="#ffffff">
+    <div className="relative inline-block">
+      <PerimeterWave color="#ffffff" speed="slow">
         {children}
-      </WaveBorder>
-      {/* Hello Kitty вынесен наружу, чтобы позиционироваться относительно всей рамки, как в оригинале */}
-      <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-9 h-9 animate-bounce-slow pointer-events-none select-none z-30">
+      </PerimeterWave>
+      {/* Hello Kitty в левом нижнем углу для консистентности */}
+      <div className="absolute -bottom-2 -left-2 w-9 h-9 pointer-events-none select-none z-20 animate-bounce-slow">
         <img src="/hello-kitty.png" alt="VIP" className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(255,255,255,0.8)]" draggable={false} />
       </div>
     </div>
@@ -191,26 +176,26 @@ function Level10Effect({ children }: { children: ReactNode }) {
 
 function Level11Effect({ children }: { children: ReactNode }) {
   return (
-    <div className="relative rounded-xl">
-      <div className="absolute -inset-[3px] rounded-xl z-0">
-        {/* Обратное вращение для уникальности 11 уровня */}
-        <div
-          className="absolute inset-0 rounded-xl animate-spin-reverse"
+    <div className="relative inline-block">
+      {/* Для 11 уровня делаем волну зеленой и чуть более сложной */}
+      <svg 
+        className="absolute -inset-[4px] w-[calc(100%+32px)] h-[calc(100%+32px)] pointer-events-none z-0 overflow-visible"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <rect
+          x="4" y="4" width="calc(100% - 32px)" height="calc(100% - 32px)" rx="16"
+          fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round"
+          className="animate-perimeter-wave-slow"
           style={{
-            background: `conic-gradient(from 0deg, transparent 0%, transparent 65%, #10b98160 85%, #10b981 100%)`,
-            filter: 'blur(1.5px)',
+            strokeDasharray: "40 150", // Более частые импульсы для 11 уровня
+            filter: `drop-shadow(0 0 6px #10b981)`,
           }}
         />
-        <div 
-          className="absolute inset-0 rounded-xl animate-pulse"
-          style={{ boxShadow: `0 0 20px 4px #10b98130` }}
-        />
-      </div>
-      <div className="absolute inset-0 rounded-xl border-[3px] border-[#171717] z-10 pointer-events-none" />
-      <div className="relative z-20 rounded-xl overflow-hidden bg-[#171717]">
+      </svg>
+      <div className="relative z-10 rounded-xl overflow-hidden bg-[#171717] border-[2px] border-[#171717]">
         {children}
-        <span className="absolute top-1 right-1 text-[8px] font-mono text-green-400 animate-float-1">01</span>
-        <span className="absolute bottom-1 left-1 text-[8px] font-mono text-green-300 animate-float-2">10</span>
+        <span className="absolute top-1.5 right-1.5 text-[9px] font-mono text-green-400 font-bold">01</span>
+        <span className="absolute bottom-1.5 left-1.5 text-[9px] font-mono text-green-300 font-bold">10</span>
       </div>
     </div>
   );

@@ -498,3 +498,22 @@ body {
   will-change: transform, opacity;
   transform: translateZ(0);
 }
+
+
+@keyframes perimeter-wave {
+  0% {
+    stroke-dashoffset: 550;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-perimeter-wave {
+  animation: perimeter-wave 3s linear infinite;
+}
+
+/* Опционально: более медленная версия для высоких уровней */
+.animate-perimeter-wave-slow {
+  animation: perimeter-wave 5s linear infinite;
+}
