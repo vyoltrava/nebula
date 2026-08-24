@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getToken } from "@/lib/auth";
 import { Avatar } from "@/components/Avatar";
+import { StatSkeleton } from "@/components/Skeletons";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -201,7 +202,7 @@ export default function StatPage() {
     </th>
   );
 
-  if (loading) return <div className="min-h-screen bg-[#171717] flex items-center justify-center"><p className="text-white/50 animate-pulse">Загрузка...</p></div>;
+  if (loading) return <StatSkeleton />;
 
   return (
     <div className="min-h-screen bg-[#171717]">

@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { X, UserPlus, Shield, Crown, UserX, Search } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
+import { UserRowSkeleton } from "@/components/Skeletons";
 import { getToken } from "@/lib/auth";
 import { Button, IconButton } from "@/components/ui/Button";
 
@@ -156,7 +157,7 @@ export function GroupMembersModal({ chatId, myRole, onClose, onChanged }: Props)
 
           <div className="flex-1 overflow-y-auto">
             {loading && (
-              <p className="p-8 text-center text-white/40">Загрузка...</p>
+              <div className="p-3 space-y-1"><UserRowSkeleton /><UserRowSkeleton /><UserRowSkeleton /></div>
             )}
             {members.map((m) => (
               <div

@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { RightPanel } from "@/components/RightPanel";
 import { Post } from "@/components/Post";
 import { Avatar } from "@/components/Avatar";
+import { SearchResultsSkeleton } from "@/components/Skeletons";
 import { Search as SearchIcon, X, Users, FileText } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
@@ -149,10 +150,7 @@ function SearchContent() {
 
         {/* Состояния загрузки */}
         {loading && (
-          <div className="p-12 text-center">
-            <div className="inline-block w-6 h-6 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin mb-3" />
-            <p className="text-white/50 text-sm">{t("search.searching", { q: query })}</p>
-          </div>
+          <SearchResultsSkeleton />
         )}
 
         {/* Результаты */}

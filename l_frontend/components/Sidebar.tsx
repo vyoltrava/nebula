@@ -9,6 +9,7 @@ import {
   ChevronRight, History, BookOpen, Headphones, Satellite
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
+import { UserRowSkeleton } from "@/components/Skeletons";
 import { getToken, clearToken } from "@/lib/auth";
 import { AccountSwitcher } from "@/components/AccountSwitcher";
 
@@ -148,7 +149,7 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        {loading && <p className="text-center text-white/40 text-sm mt-10">{t("search.searchingShort")}</p>}
+        {loading && <div className="p-3"><UserRowSkeleton /><UserRowSkeleton /><UserRowSkeleton /></div>}
         {!loading && q.trim() && users.length === 0 && posts.length === 0 && (
           <p className="text-center text-white/40 text-sm mt-10">{t("search.nothing")}</p>
         )}

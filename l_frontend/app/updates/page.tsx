@@ -10,6 +10,7 @@ import {
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { CommunityTabs } from "@/components/CommunityTabs";
+import { UpdatesSkeleton } from "@/components/Skeletons";
 
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -244,7 +245,7 @@ export default function UpdatesPage() {
           </div>
         </div>
 
-        {loading && <p className="text-center text-white/50 animate-pulse">{t("common.loading")}</p>}
+        {loading && <UpdatesSkeleton />}
 
         {!loading && updates.length === 0 && (
           <div className="text-center p-12 border border-white/10 rounded-2xl bg-white/5">

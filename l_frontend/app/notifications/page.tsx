@@ -5,6 +5,7 @@ import Link from "next/link";
 import { getToken } from "@/lib/auth";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
+import { NotificationsSkeleton } from "@/components/Skeletons";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import type { MessageKey } from "@/lib/i18n";
 
@@ -168,11 +169,7 @@ export default function NotificationsPage() {
 
         {/* Контент */}
         <div className="max-w-3xl mx-auto">
-          {loading && (
-            <div className="flex items-center justify-center py-16">
-              <div className="w-8 h-8 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
-            </div>
-          )}
+          {loading && <NotificationsSkeleton />}
 
           {!loading && notifs.length === 0 && (
             <div className="text-center py-12 sm:py-16 px-4">

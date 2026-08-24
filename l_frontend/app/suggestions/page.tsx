@@ -11,6 +11,7 @@ import {
   Tags, Pencil, Lock, Trash2, X, FolderPlus, Save,
 } from "lucide-react";
 import { Button, IconButton } from "@/components/ui/Button";
+import { SuggestionsSkeleton } from "@/components/Skeletons";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const ICONS: Record<string, any> = {
@@ -52,7 +53,7 @@ export default function SuggestionsPage() {
     } catch (e) { console.error(e); } finally { setLoading(false); }
   }
 
-  if (loading) return <div className="p-8 text-center text-white/50">{t("common.loading")}</div>;
+  if (loading) return <SuggestionsSkeleton />;
 
   return (
     <div className="min-h-screen bg-[#171717]">

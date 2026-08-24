@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { X, Users } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
+import { TeamDrawerSkeleton } from "@/components/Skeletons";
 import { IconButton } from "@/components/ui/Button";
 
 
@@ -70,9 +71,7 @@ export function TeamDrawer({ open, onClose }: { open: boolean; onClose: () => vo
 
           {/* Контент */}
           <div className="flex-1 overflow-y-auto p-5 space-y-6">
-            {loading && (
-              <p className="text-center text-white/50 py-8">Загрузка...</p>
-            )}
+            {loading && <TeamDrawerSkeleton />}
 
             {!loading && groups.length === 0 && (
               <p className="text-center text-white/50 py-8">Пока никого нет</p>

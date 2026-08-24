@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { Avatar } from "@/components/Avatar";
+import { UserSearchFieldSkeleton } from "@/components/Skeletons";
 import { getToken } from "@/lib/auth";
 import { X } from "lucide-react";
 import { IconButton } from "@/components/ui/Button";
@@ -83,9 +84,7 @@ export function UserSearchField({ selectedUserId, onSelect, onClear }: UserSearc
       />
       {query.trim() && (loading || results.length > 0) && (
         <div className="absolute top-full left-0 right-0 mt-1 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden z-50 max-h-48 overflow-y-auto">
-          {loading && (
-            <div className="px-3 py-2 text-xs text-white/40 text-center">Поиск...</div>
-          )}
+          {loading && <UserSearchFieldSkeleton />}
           {!loading && results.length === 0 && (
             <div className="px-3 py-2 text-xs text-white/40 text-center">Ничего не найдено</div>
           )}

@@ -260,3 +260,228 @@ export function AvatarSkeleton({ size = 96 }: { size?: number }) {
     </div>
   );
 }
+
+// ==========================================
+// 🦴 Скелетон карточки участника (страница /team)
+// ==========================================
+export function TeamMemberSkeleton() {
+  return (
+    <div className="flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5 animate-pulse">
+      <div className="w-14 h-14 rounded-xl bg-white/10 shrink-0" />
+      <div className="flex-1 min-w-0 space-y-2">
+        <div className="h-4 bg-white/10 rounded w-32" />
+        <div className="h-3 bg-white/5 rounded w-20" />
+        <div className="h-4 bg-white/10 rounded w-16" />
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// 🦴 Скелетон строки пользователя (поиск людей, списки юзеров)
+// ==========================================
+export function UserRowSkeleton() {
+  return (
+    <div className="flex items-center gap-3 p-2.5 animate-pulse">
+      <div className="w-11 h-11 rounded-xl bg-white/10 shrink-0" />
+      <div className="flex-1 space-y-2">
+        <div className="h-4 bg-white/10 rounded w-28" />
+        <div className="h-3 bg-white/5 rounded w-20" />
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// 🦴 Скелетон результатов поиска (страница /search)
+// ==========================================
+export function SearchResultsSkeleton() {
+  return (
+    <div>
+      <div className="p-4 border-b border-white/10">
+        <div className="h-4 bg-purple-500/20 rounded w-24 mb-3 animate-pulse" />
+        <UserRowSkeleton />
+        <UserRowSkeleton />
+        <UserRowSkeleton />
+        <UserRowSkeleton />
+      </div>
+      <PostSkeleton />
+      <PostSkeleton />
+    </div>
+  );
+}
+
+// ==========================================
+// 🦴 Скелетон списка уведомлений (страница /notifications)
+// ==========================================
+export function NotificationsSkeleton() {
+  return (
+    <div className="divide-y divide-white/5 animate-pulse">
+      {[...Array(6)].map((_, i) => (
+        <div key={i} className="flex items-start gap-3 p-4">
+          <div className="w-10 h-10 rounded-xl bg-white/10 shrink-0 mt-0.5" />
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="h-4 bg-white/10 rounded w-32" />
+              <div className="h-3 bg-white/5 rounded w-24" />
+            </div>
+            <div className="h-3 bg-white/5 rounded w-40" />
+          </div>
+          <div className="w-2 h-2 rounded-full bg-white/10 shrink-0 mt-3" />
+        </div>
+      ))}
+    </div>
+  );
+}
+// ==========================================
+// 🦴 Скелетон панели команды (страница /stat)
+// ==========================================
+export function StatSkeleton() {
+  return (
+    <div className="min-h-screen bg-[#171717] animate-pulse">
+      <div className="max-w-7xl mx-auto px-4 py-10">
+        <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-lg bg-white/10" />
+            <div>
+              <div className="h-7 bg-white/10 rounded w-48 mb-2" />
+              <div className="h-3 bg-white/5 rounded w-64" />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <div className="h-9 bg-white/10 rounded-lg w-28" />
+            <div className="h-9 bg-white/10 rounded-lg w-28" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="bg-[#1f1f23] border border-white/10 rounded-xl p-4 space-y-3">
+              <div className="h-3 bg-white/5 rounded w-24" />
+              <div className="h-7 bg-white/10 rounded w-16" />
+              <div className="h-8 bg-white/5 rounded w-full" />
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-white/5 rounded-xl border border-white/10 p-4">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 py-3 border-b border-white/5 last:border-0">
+              <div className="w-10 h-10 rounded-xl bg-white/10 shrink-0" />
+              <div className="flex-1 h-3 bg-white/10 rounded w-32" />
+              <div className="hidden sm:block h-3 bg-white/5 rounded w-24" />
+              <div className="hidden md:block h-3 bg-white/5 rounded w-16" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// 🦴 Скелетон раздела предложений (страница /suggestions)
+// ==========================================
+export function SuggestionsSkeleton() {
+  return (
+    <div className="min-h-screen bg-[#171717] animate-pulse">
+      <div className="max-w-6xl mx-auto px-4 py-10">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <div className="h-8 bg-white/10 rounded w-56 mb-2" />
+            <div className="h-3 bg-white/5 rounded w-72" />
+          </div>
+          <div className="h-9 bg-white/10 rounded-xl w-32" />
+        </div>
+        <div className="border border-white/10 rounded-2xl bg-white/5 overflow-hidden">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 p-4 border-b border-white/5 last:border-0">
+              <div className="w-11 h-11 rounded-xl bg-white/10 shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-white/10 rounded w-1/2" />
+                <div className="h-3 bg-white/5 rounded w-1/3" />
+              </div>
+              <div className="h-6 bg-white/10 rounded-full w-16" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+// ==========================================
+// 🦴 Скелетон списка команды в выдвижной панели (TeamDrawer)
+// ==========================================
+export function TeamDrawerSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      {[...Array(3)].map((_, g) => (
+        <div key={g} className="space-y-3">
+          <div className="flex items-center gap-3 pb-2 border-b border-white/5">
+            <div className="w-1 h-6 rounded-full bg-white/10" />
+            <div className="h-3 bg-white/10 rounded w-28" />
+            <div className="ml-auto h-5 bg-white/5 rounded-full w-8" />
+          </div>
+          <div className="space-y-1">
+            {[...Array(3)].map((_, m) => (
+              <div key={m} className="flex items-center gap-3 p-2.5">
+                <div className="w-10 h-10 rounded-xl bg-white/10 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3.5 bg-white/10 rounded w-28" />
+                  <div className="h-3 bg-white/5 rounded w-16" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ==========================================
+// 🦴 Скелетон мини-списка поиска пользователя (UserSearchField)
+// ==========================================
+export function UserSearchFieldSkeleton() {
+  return (
+    <div className="px-3 py-2 space-y-2 animate-pulse">
+      {[...Array(2)].map((_, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-white/10 shrink-0" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-2.5 bg-white/10 rounded w-24" />
+            <div className="h-2 bg-white/5 rounded w-16" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ==========================================
+// 🦴 Скелетон таймлайна обновлений (страница /updates)
+// ==========================================
+export function UpdatesSkeleton() {
+  return (
+    <div className="relative pl-10 animate-pulse">
+      <div className="absolute left-[13px] top-2 bottom-0 w-px bg-white/10" />
+      {[...Array(3)].map((_, i) => (
+        <div key={i} className="relative mb-8">
+          <span className="absolute -left-10 top-5 w-7 h-7 rounded-full border-2 border-white/10 bg-[#171717]" />
+          <div className="border border-white/10 rounded-2xl p-5 bg-white/5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-4 bg-white/10 rounded w-16" />
+              <div className="h-3 bg-white/5 rounded w-24" />
+            </div>
+            <div className="h-5 bg-white/10 rounded w-2/3 mb-3" />
+            <div className="space-y-2">
+              <div className="h-3 bg-white/5 rounded w-full" />
+              <div className="h-3 bg-white/5 rounded w-4/5" />
+              <div className="h-3 bg-white/5 rounded w-3/5" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

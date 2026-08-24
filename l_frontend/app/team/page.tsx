@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
+import { TeamMemberSkeleton } from "@/components/Skeletons";
 import { Users, ArrowLeft, Crown, ShieldCheck, Shield, Star, Wrench, Gavel } from "lucide-react";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 
@@ -94,11 +95,13 @@ export default function TeamPage() {
         {/* Контент */}
         <div className="p-6 space-y-8">
           {loading && (
-            <div className="flex items-center justify-center py-12">
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-10 h-10 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
-                <p className="text-white/60">{t("team.loading")}</p>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <TeamMemberSkeleton />
+              <TeamMemberSkeleton />
+              <TeamMemberSkeleton />
+              <TeamMemberSkeleton />
+              <TeamMemberSkeleton />
+              <TeamMemberSkeleton />
             </div>
           )}
 
