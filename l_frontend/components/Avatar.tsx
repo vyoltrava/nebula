@@ -14,7 +14,11 @@ export function Avatar({
   className?: string;
   online?: boolean;
 }) {
-  const dotSize = Math.max(6, Math.round(size * 0.13));
+  // Онлайн-индикатор: маленький зелёный уголок (L-линия вдоль нижней и правой грани)
+  const cornerLength = Math.max(10, Math.round(size * 0.22));
+  const lineWidth = Math.max(2, Math.round(size * 0.02));
+  const cornerInset = Math.max(1, Math.round(size * 0.02));
+  const cornerGlow = "rgba(34,197,94,0.55)";
   const imageUrl = src ? mediaUrl(src) : null;
 
   return (
@@ -55,14 +59,40 @@ export function Avatar({
 
       {online && (
         <span
-          className="absolute rounded-full bg-green-500 border-2 border-[#171717] shadow-[0_0_4px_rgba(34,197,94,0.6)]"
+          className="absolute pointer-events-none"
           style={{
-            width: dotSize,
-            height: dotSize,
-            bottom: size * 0.01,
-            right: size * 0.01,
+            width: cornerLength,
+            height: cornerLength,
+            right: cornerInset,
+            bottom: cornerInset,
+            zIndex: 5,
           }}
-        />
+        >
+          {/* Вертикальная линия — вдоль правой грани */}
+          <span
+            className="absolute rounded-full"
+            style={{
+              top: 0,
+              bottom: 0,
+              right: 0,
+              width: lineWidth,
+              background: "#22c55e",
+              boxShadow: `0 0 6px ${cornerGlow}`,
+            }}
+          />
+          {/* Горизонтальная линия — вдоль нижней грани */}
+          <span
+            className="absolute rounded-full"
+            style={{
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: lineWidth,
+              background: "#22c55e",
+              boxShadow: `0 0 6px ${cornerGlow}`,
+            }}
+          />
+        </span>
       )}
     </div>
   );
