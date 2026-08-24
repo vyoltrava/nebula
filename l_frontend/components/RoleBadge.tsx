@@ -63,24 +63,25 @@ export function RoleBadge({ user, size = "md", showAnimation = true }: RoleBadge
     );
   }
 
-  // ═══════════════════════════════════════════
-  // 🟢 OFFICIAL (@trelod) — с логотипом
-  // ═══════════════════════════════════════════
   if (user.username === "trelod") {
     return (
       <span
-        className={`badge-official inline-flex items-center gap-1 ${sizeClasses[size]} rounded-md font-black uppercase tracking-widest shrink-0 border border-green-400/50 text-white relative overflow-hidden`}
+        className={`inline-flex items-center gap-1.5 ${sizeClasses[size]} rounded-md font-bold uppercase tracking-wider shrink-0 border border-zinc-600/50 text-zinc-100 relative overflow-hidden`}
         style={{
-          background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-          boxShadow: "0 4px 14px 0 rgba(16,185,129,0.4)",
+          background: "linear-gradient(135deg, #18181b 0%, #27272a 50%, #18181b 100%)",
+          boxShadow: "0 0 15px rgba(255, 255, 255, 0.1), inset 0 1px 0 rgba(255,255,255,0.1)",
         }}
       >
-        <img src="/role-icon.svg" alt="" className={`relative z-10 ${iconSize}`} style={{ filter: "brightness(0) invert(1) drop-shadow(0 0 4px #10b981)" }} />
-        <span className="relative z-10">Official</span>
+        {/* Иконка щита с галочкой (встроенный SVG, чтобы не зависеть от внешних картинок) */}
+        <svg className={`relative z-10 ${iconSize} text-zinc-300`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+        </svg>
+        <span className="relative z-10 bg-clip-text text-transparent bg-gradient-to-b from-white to-zinc-400">
+          Official
+        </span>
       </span>
     );
   }
-
   // ═══════════════════════════════════════════
   // ⭐ СПЕЦ ОТДЕЛ (Level 8) — с логотипом и звездами
   // ═══════════════════════════════════════════
