@@ -14,11 +14,13 @@ export function Avatar({
   className?: string;
   online?: boolean;
 }) {
-  // Онлайн-индикатор: маленький зелёный уголок (L-линия вдоль нижней и правой грани)
-  const cornerLength = Math.max(10, Math.round(size * 0.22));
-  const lineWidth = Math.max(2, Math.round(size * 0.02));
-  const cornerInset = Math.max(1, Math.round(size * 0.02));
-  const cornerGlow = "rgba(34,197,94,0.55)";
+  // Онлайн-индикатор: грань по скруглённому углу аватарки (как у rounded-xl)
+  const cornerR = 12; // радиус совпадает со скруглением аватарки (rounded-xl)
+  const arm = Math.max(14, Math.round(size * 0.24)); // длина линии вдоль граней
+  const lineWidth = Math.max(2, Math.round(size * 0.022)); // чуть шире
+  const cornerBox = cornerR + arm; // размер охватывающей области у правого нижнего угла
+  const lineColor = "#16a34a"; // чуть более тёмный зелёный (green-600)
+  const cornerGlow = "rgba(22,163,74,0.45)";
   const imageUrl = src ? mediaUrl(src) : null;
 
   return (
@@ -58,41 +60,23 @@ export function Avatar({
       </div>
 
       {online && (
-        <span
-          className="absolute pointer-events-none"
-          style={{
-            width: cornerLength,
-            height: cornerLength,
-            right: cornerInset,
-            bottom: cornerInset,
-            zIndex: 5,
-          }}
+        <svg
+          className="absolute right-0 bottom-0 pointer-events-none select-none"
+          width={cornerBox}
+          height={cornerBox}
+          viewBox={`0 0 ${cornerBox} ${cornerBox}`}
+          style={{ zIndex: 5 }}
         >
-          {/* Вертикальная линия — вдоль правой грани */}
-          <span
-            className="absolute rounded-full"
-            style={{
-              top: 0,
-              bottom: 0,
-              right: 0,
-              width: lineWidth,
-              background: "#22c55e",
-              boxShadow: `0 0 6px ${cornerGlow}`,
-            }}
+          {/* Грань по скруглённому углу аватарки: штрих вдоль правой и нижней кромки */}
+          <path
+            d={`M ${cornerBox} 0 L ${cornerBox} ${arm} A ${cornerR} ${cornerR} 0 0 1 ${arm} ${cornerBox} L 0 ${cornerBox}`}
+            fill="none"
+            stroke={lineColor}
+            strokeWidth={lineWidth}
+            strokeLinecap="round"
+            style={{ filter: `drop-shadow(0 0 ${lineWidth}px ${cornerGlow})` }}
           />
-          {/* Горизонтальная линия — вдоль нижней грани */}
-          <span
-            className="absolute rounded-full"
-            style={{
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: lineWidth,
-              background: "#22c55e",
-              boxShadow: `0 0 6px ${cornerGlow}`,
-            }}
-          />
-        </span>
+        </svg>
       )}
     </div>
   );
