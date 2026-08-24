@@ -138,6 +138,8 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
     setError(null);
     try {
       const token = getToken();
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || ""; // <-- ДОБАВЛЕНО
+      
       const payload: any = {
         name,
         description: description || null,
@@ -165,10 +167,6 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
         is_active: isActive,
       };
 
-      // Note: In a real app with FormData/Multipart, we'd send files directly.
-      // Here we assume the backend handles base64 or URLs as per your previous logic.
-      // If iconPreview is base64, we keep it in payload for the separate upload step later.
-      
       const headers: any = {
         "Content-Type": "application/json",
       };
@@ -176,7 +174,8 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
 
       let result: any;
       if (isEdit) {
-        const res = await fetch(`/api/custom-badges/${badge.id}`, {
+        // <-- ИСПРАВЛЕНО: добавлен apiUrl
+        const res = await fetch(`${apiUrl}/api/custom-badges/${badge.id}`, {
           method: "PUT",
           headers,
           body: JSON.stringify(payload),
@@ -184,7 +183,8 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
         if (!res.ok) throw new Error(`Ошибка: ${res.status}`);
         result = await res.json();
       } else {
-        const res = await fetch("/api/custom-badges", {
+        // <-- ИСПРАВЛЕНО: добавлен apiUrl
+        const res = await fetch(`${apiUrl}/api/custom-badges`, {
           method: "POST",
           headers,
           body: JSON.stringify(payload),
@@ -193,11 +193,12 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
         result = await res.json();
       }
 
-      // Handle base64 icon uploads separately if needed by backend
+      // Handle base64 icon uploads separately
       if (iconPreview && iconPreview.startsWith("data:")) {
         const formData = new FormData();
         formData.append("icon_base64", iconPreview);
-        await fetch(`/api/badges/${result.id}/upload-icon`, {
+        // <-- ИСПРАВЛЕНО: добавлен apiUrl
+        await fetch(`${apiUrl}/api/badges/${result.id}/upload-icon`, {
           method: "POST",
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           body: formData,
@@ -206,7 +207,8 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
       if (bgImagePreview && bgImagePreview.startsWith("data:")) {
         const formData = new FormData();
         formData.append("bg_image_base64", bgImagePreview);
-        await fetch(`/api/badges/${result.id}/upload-bg-image`, {
+        // <-- ИСПРАВЛЕНО: добавлен apiUrl
+        await fetch(`${apiUrl}/api/badges/${result.id}/upload-bg-image`, {
           method: "POST",
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           body: formData,

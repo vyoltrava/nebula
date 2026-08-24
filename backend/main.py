@@ -9524,422 +9524,6 @@ def _can_grant_to(target: User, lvl: int, session: Session) -> int:
     return target_lvl
 
 
-@app.get("/api/custom-badges")
-def list_custom_badges(
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Список всех кастомных плашек (для админов 9+)"""
-    _require_badge_admin(user, session)
-    badges = session.exec(select(CustomBadge).order_by(CustomBadge.id.desc())).all()
-    return [get_custom_badge_out(b) for b in badges]
-
-
-@app.post("/api/custom-badges")
-async def create_custom_badge(
-    name: str = Form(...),
-    description: Optional[str] = Form(None),
-    text: Optional[str] = Form(None),
-    bg_type: str = Form("solid"),
-    bg_color: str = Form("#8b5cf6"),
-    gradient_colors: str = Form('["#8b5cf6","#6366f1"]'),
-    gradient_type: str = Form("linear"),
-    gradient_angle: int = Form(135),
-    bg_image_mode: str = Form("cover"),
-    border_color: str = Form("#ffffff"),
-    border_width: int = Form(2),
-    border_style: str = Form("solid"),
-    border_glow: int = Form(0),
-    animations: str = Form("[]"),
-    animation_speed: str = Form("normal"),
-    drop_shadow: int = Form(0),
-    inner_glow: bool = Form(False),
-    specular: bool = Form(False),
-    metallic: bool = Form(False),
-    preset: Optional[str] = Form(None),
-    icon_file: Optional[UploadFile] = File(None),
-    bg_image_file: Optional[UploadFile] = File(None),
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Создать кастомную плашку (только 9+ уровень)"""
-    _require_badge_admin(user, session)
-    if not name.strip():
-        raise HTTPException(400, "Название обязательно")
-    icon_url = await _upload_custom_badge_file(icon_file)
-    bg_image_url = await _upload_custom_badge_file(bg_image_file, folder="custom-badges-bg")
-    badge = CustomBadge(
-        name=name.strip(),
-        description=description,
-        text=text,
-        bg_type=bg_type,
-        bg_color=bg_color,
-        gradient_colors=gradient_colors or '["#8b5cf6","#6366f1"]',
-        gradient_type=gradient_type,
-        gradient_angle=gradient_angle,
-        bg_image_mode=bg_image_mode,
-        border_color=border_color,
-        border_width=max(0, min(5, border_width)),
-        border_style=border_style,
-        border_glow=max(0, min(100, border_glow)),
-        animations=animations or "[]",
-        animation_speed=animation_speed,
-        drop_shadow=max(0, min(100, drop_shadow)),
-        inner_glow=inner_glow,
-        specular=specular,
-        metallic=metallic,
-        preset=preset,
-        icon_url=icon_url,
-        bg_image_url=bg_image_url,
-        created_by=user.id,
-    )
-    session.add(badge)
-    session.commit()
-    session.refresh(badge)
-    log_action(session, user.id, "custom_badge_create", "custom_badge", badge.id, {"name": badge.name})
-    return {"ok": True, "id": badge.id}
-
-
-@app.put("/api/custom-badges/{badge_id}")
-async def update_custom_badge(
-    badge_id: int,
-    name: Optional[str] = Form(None),
-    description: Optional[str] = Form(None),
-    text: Optional[str] = Form(None),
-    bg_type: Optional[str] = Form(None),
-    bg_color: Optional[str] = Form(None),
-    gradient_colors: Optional[str] = Form(None),
-    gradient_type: Optional[str] = Form(None),
-    gradient_angle: Optional[int] = Form(None),
-    bg_image_mode: Optional[str] = Form(None),
-    border_color: Optional[str] = Form(None),
-    border_width: Optional[int] = Form(None),
-    border_style: Optional[str] = Form(None),
-    border_glow: Optional[int] = Form(None),
-    animations: Optional[str] = Form(None),
-    animation_speed: Optional[str] = Form(None),
-    drop_shadow: Optional[int] = Form(None),
-    inner_glow: Optional[bool] = Form(None),
-    specular: Optional[bool] = Form(None),
-    metallic: Optional[bool] = Form(None),
-    preset: Optional[str] = Form(None),
-    is_active: Optional[bool] = Form(None),
-    icon_file: Optional[UploadFile] = File(None),
-    bg_image_file: Optional[UploadFile] = File(None),
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Обновление кастомной плашки"""
-    _require_badge_admin(user, session)
-    badge = session.get(CustomBadge, badge_id)
-    if not badge:
-        raise HTTPException(404, "Плашка не найдена")
-    fields = {
-        "name": name, "description": description, "text": text, "bg_type": bg_type,
-        "bg_color": bg_color, "gradient_colors": gradient_colors, "gradient_type": gradient_type,
-        "gradient_angle": gradient_angle, "bg_image_mode": bg_image_mode, "border_color": border_color,
-        "border_width": border_width, "border_style": border_style, "border_glow": border_glow,
-        "animations": animations, "animation_speed": animation_speed, "drop_shadow": drop_shadow,
-        "inner_glow": inner_glow, "specular": specular, "metallic": metallic, "preset": preset,
-        "is_active": is_active,
-    }
-    for key, val in fields.items():
-        if val is not None:
-            setattr(badge, key, val)
-    if icon_file:
-        icon_url = await _upload_custom_badge_file(icon_file)
-        if icon_url:
-            badge.icon_url = icon_url
-    if bg_image_file:
-        bg_image_url = await _upload_custom_badge_file(bg_image_file, folder="custom-badges-bg")
-        if bg_image_url:
-            badge.bg_image_url = bg_image_url
-    session.add(badge)
-    session.commit()
-    log_action(session, user.id, "custom_badge_update", "custom_badge", badge.id, {"name": badge.name})
-    return {"ok": True}
-
-
-@app.delete("/api/custom-badges/{badge_id}")
-def delete_custom_badge(
-    badge_id: int,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Удаление кастомной плашки (только 11 уровень / Founder)"""
-    lvl = _require_badge_admin(user, session)
-    if lvl < 11:
-        raise HTTPException(403, "Удалять плашки может только 11 уровень")
-    badge = session.get(CustomBadge, badge_id)
-    if not badge:
-        raise HTTPException(404, "Плашка не найдена")
-    assigns = session.exec(select(CustomBadgeAssignment).where(CustomBadgeAssignment.badge_id == badge_id)).all()
-    for a in assigns:
-        session.delete(a)
-    session.delete(badge)
-    session.commit()
-    log_action(session, user.id, "custom_badge_delete", "custom_badge", badge_id, {"name": badge.name})
-    return {"ok": True}
-
-
-# ---------- ВЫДАЧА ----------
-
-@app.get("/api/custom-badge-assignments")
-def list_custom_badge_assignments(
-    session: Session = Depends(get_session),
-    user: User = Depends(get_current_user),
-):
-    """Все выдачи кастомных плашек"""
-    _require_badge_admin(user, session)
-    assigns = session.exec(
-        select(CustomBadgeAssignment).order_by(CustomBadgeAssignment.issued_at.desc())
-    ).all()
-    result = []
-    for a in assigns:
-        badge = session.get(CustomBadge, a.badge_id) if a.badge_id else None
-        target = session.get(User, a.user_id) if a.user_id else None
-        issuer = session.get(User, a.issued_by) if a.issued_by else None
-        result.append({
-            "id": a.id,
-            "badge_id": a.badge_id,
-            "user_id": a.user_id,
-            "issued_by": a.issued_by,
-            "issued_at": a.issued_at.isoformat() if a.issued_at else None,
-            "expires_at": a.expires_at.isoformat() if a.expires_at else None,
-            "priority": a.priority,
-            "notify_user": a.notify_user,
-            "custom_message": a.custom_message,
-            "revoked": a.revoked,
-            "revoked_at": a.revoked_at.isoformat() if a.revoked_at else None,
-            "badge": get_custom_badge_out(badge) if badge else None,
-            "user": user_out(target, session) if target else None,
-            "issuer": user_out(issuer, session) if issuer else None,
-        })
-    return result
-
-
-@app.post("/api/custom-badge-assignments")
-def assign_custom_badge(
-    user_id: int = Form(...),
-    badge_id: int = Form(...),
-    expires_at: Optional[str] = Form(None),
-    priority: int = Form(1),
-    notify_user: bool = Form(False),
-    custom_message: Optional[str] = Form(None),
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Выдача кастомной плашки пользователю"""
-    lvl = _require_badge_admin(user, session)
-    target = session.get(User, user_id)
-    if not target:
-        raise HTTPException(404, "Пользователь не найден")
-    badge = session.get(CustomBadge, badge_id)
-    if not badge:
-        raise HTTPException(404, "Плашка не найдена")
-    _can_grant_to(target, lvl, session)
-    assign = CustomBadgeAssignment(
-        badge_id=badge_id,
-        user_id=user_id,
-        issued_by=user.id,
-        expires_at=datetime.fromisoformat(expires_at) if expires_at else None,
-        priority=max(1, min(100, priority)),
-        notify_user=notify_user,
-        custom_message=custom_message,
-    )
-    session.add(assign)
-    if notify_user:
-        notif = Notification(
-            user_id=user_id,
-            actor_id=user.id,
-            type="custom_badge",
-            text=custom_message or f"Вы получили плашку «{badge.name}»",
-        )
-        session.add(notif)
-    session.commit()
-    session.refresh(assign)
-    log_action(session, user.id, "custom_badge_assign", "custom_badge_assignment", assign.id, {
-        "badge_id": badge_id, "user_id": user_id, "expires_at": expires_at
-    })
-    return {"ok": True, "id": assign.id}
-
-
-@app.post("/api/custom-badge-assignments/{assign_id}/revoke")
-def revoke_custom_badge(
-    assign_id: int,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Отозвать выдачу плашки досрочно"""
-    _require_badge_admin(user, session)
-    a = session.get(CustomBadgeAssignment, assign_id)
-    if not a:
-        raise HTTPException(404, "Выдача не найдена")
-    if a.revoked:
-        return {"ok": True, "already": True}
-    a.revoked = True
-    a.revoked_at = datetime.now(timezone.utc)
-    a.revoked_by = user.id
-    session.add(a)
-    session.commit()
-    log_action(session, user.id, "custom_badge_revoke", "custom_badge_assignment", a.id, {
-        "badge_id": a.badge_id, "user_id": a.user_id
-    })
-    return {"ok": True}
-
-
-@app.post("/api/custom-badge-assignments/{assign_id}/extend")
-def extend_custom_badge(
-    assign_id: int,
-    expires_at: Optional[str] = Form(None),
-    extra_days: Optional[int] = Form(None),
-    permanent: bool = Form(False),
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Продлить выдачу (+, +30, до даты, бессрочно)"""
-    _require_badge_admin(user, session)
-    a = session.get(CustomBadgeAssignment, assign_id)
-    if not a:
-        raise HTTPException(404, "Выдача не найдена")
-    if permanent:
-        a.expires_at = None
-    elif extra_days:
-        base = a.expires_at or datetime.now(timezone.utc)
-        a.expires_at = base + timedelta(days=extra_days)
-    elif expires_at:
-        a.expires_at = datetime.fromisoformat(expires_at)
-    a.revoked = False
-    a.revoked_at = None
-    a.revoked_by = None
-    session.add(a)
-    session.commit()
-    log_action(session, user.id, "custom_badge_extend", "custom_badge_assignment", a.id, {
-        "expires_at": expires_at, "extra_days": extra_days, "permanent": permanent
-    })
-    return {"ok": True}
-
-
-# ---------- ШАБЛОНЫ ----------
-
-@app.get("/api/custom-badge-templates")
-def list_custom_badge_templates(
-    session: Session = Depends(get_session),
-    user: User = Depends(get_current_user),
-):
-    """Список готовых и пользовательских шаблонов"""
-    _require_badge_admin(user, session)
-    templates = session.exec(select(CustomBadgeTemplate).order_by(CustomBadgeTemplate.id.desc())).all()
-    out = []
-    for t in templates:
-        try:
-            anims = json.loads(t.animations) if t.animations else []
-        except Exception:
-            anims = []
-        try:
-            grads = json.loads(t.gradient_colors) if t.gradient_colors else []
-        except Exception:
-            grads = []
-        out.append({
-            "id": t.id,
-            "name": t.name,
-            "preset": t.preset,
-            "icon_url": t.icon_url,
-            "text": t.text,
-            "bg_type": t.bg_type,
-            "bg_color": t.bg_color,
-            "gradient_colors": grads,
-            "gradient_type": t.gradient_type,
-            "gradient_angle": t.gradient_angle,
-            "bg_image_url": t.bg_image_url,
-            "bg_image_mode": t.bg_image_mode,
-            "border_color": t.border_color,
-            "border_width": t.border_width,
-            "border_style": t.border_style,
-            "border_glow": t.border_glow,
-            "animations": anims,
-            "animation_speed": t.animation_speed,
-            "drop_shadow": t.drop_shadow,
-            "inner_glow": t.inner_glow,
-            "specular": t.specular,
-            "metallic": t.metallic,
-            "created_by": t.created_by,
-        })
-    return out
-
-
-@app.post("/api/custom-badge-templates")
-def create_custom_badge_template(
-    name: str = Form(...),
-    preset: Optional[str] = Form(None),
-    text: Optional[str] = Form(None),
-    bg_type: str = Form("solid"),
-    bg_color: str = Form("#8b5cf6"),
-    gradient_colors: str = Form('["#8b5cf6","#6366f1"]'),
-    gradient_type: str = Form("linear"),
-    gradient_angle: int = Form(135),
-    bg_image_mode: str = Form("cover"),
-    border_color: str = Form("#ffffff"),
-    border_width: int = Form(2),
-    border_style: str = Form("solid"),
-    border_glow: int = Form(0),
-    animations: str = Form("[]"),
-    animation_speed: str = Form("normal"),
-    drop_shadow: int = Form(0),
-    inner_glow: bool = Form(False),
-    specular: bool = Form(False),
-    metallic: bool = Form(False),
-    icon_url: Optional[str] = Form(None),
-    bg_image_url: Optional[str] = Form(None),
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    _require_badge_admin(user, session)
-    if not name.strip():
-        raise HTTPException(400, "Название шаблона обязательно")
-    tpl = CustomBadgeTemplate(
-        name=name.strip(),
-        preset=preset,
-        text=text,
-        bg_type=bg_type,
-        bg_color=bg_color,
-        gradient_colors=gradient_colors or '["#8b5cf6","#6366f1"]',
-        gradient_type=gradient_type,
-        gradient_angle=gradient_angle,
-        bg_image_mode=bg_image_mode,
-        border_color=border_color,
-        border_width=max(0, min(5, border_width)),
-        border_style=border_style,
-        border_glow=max(0, min(100, border_glow)),
-        animations=animations or "[]",
-        animation_speed=animation_speed,
-        drop_shadow=max(0, min(100, drop_shadow)),
-        inner_glow=inner_glow,
-        specular=specular,
-        metallic=metallic,
-        icon_url=icon_url,
-        bg_image_url=bg_image_url,
-        created_by=user.id,
-    )
-    session.add(tpl)
-    session.commit()
-    session.refresh(tpl)
-    return {"ok": True, "id": tpl.id}
-
-
-@app.delete("/api/custom-badge-templates/{template_id}")
-def delete_custom_badge_template(
-    template_id: int,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    _require_badge_admin(user, session)
-    tpl = session.get(CustomBadgeTemplate, template_id)
-    if not tpl:
-        raise HTTPException(404, "Шаблон не найден")
-    session.delete(tpl)
-    session.commit()
-    return {"ok": True}
 
 
 # ---------- АКТИВНАЯ ПЛАШКА (для AvatarFrame) ----------
@@ -10677,20 +10261,19 @@ def stats_users_list(staff: User = Depends(require_staff), session: Session = De
             "kpi": _compute_kpi(p, m, lg, lr, v),
         })
     return result
-
 # ============================================================
-# 🎨 КАСТОМНЫЕ ПЛАШКИ (BADGES API)
+# 🏷️ КАСТОМНЫЕ ПЛАШКИ (BADGES 2.0) - ЕДИНЫЙ БЛОК
 # ============================================================
 
-def _require_badge_admin(user: User) -> None:
-    """Проверка прав на управление кастомными плашками (level >= 9)"""
-    level = getattr(user, "level", None) or 0
+def _require_badge_admin(user: User, session: Session = None) -> int:
+    """Проверка прав на управление плашками (Level >= 9)"""
+    level = get_user_level(user, session) if session else getattr(user, "level", 0) or 0
     if level < 9:
         raise HTTPException(403, "Доступ запрещен: требуется уровень 9+")
-
+    return level
 
 def _badge_out(badge: CustomBadge) -> dict:
-    """Сериализация плашки для API"""
+    """Сериализация плашки для API (соответствует полям новой модели)"""
     return {
         "id": badge.id,
         "name": badge.name,
@@ -10726,17 +10309,16 @@ def _badge_out(badge: CustomBadge) -> dict:
         "created_at": badge.created_at.isoformat() if badge.created_at else None,
     }
 
-
-
-def _assignment_out(assignment: CustomBadgeAssignment, session: Session = None) -> dict:
+def _assignment_out(assignment: CustomBadgeAssignment, session: Session) -> dict:
     """Сериализация назначения плашки"""
     badge_data = None
-    if assignment.badge_id and session:
-        badge = session.exec(select(CustomBadge).where(CustomBadge.id == assignment.badge_id)).first()
+    if assignment.badge_id:
+        badge = session.get(CustomBadge, assignment.badge_id)
         if badge:
             badge_data = _badge_out(badge)
-
-    user = session.exec(select(User).where(User.id == assignment.user_id)).first() if session else None
+    
+    user = session.get(User, assignment.user_id)
+    issuer = session.get(User, assignment.granted_by)
 
     return {
         "id": assignment.id,
@@ -10753,31 +10335,32 @@ def _assignment_out(assignment: CustomBadgeAssignment, session: Session = None) 
         "user_avatar": user.avatar_url if user else None,
         "user_display_name": user.display_name if user else None,
         "user_username": user.username if user else None,
+        "issuer_name": issuer.display_name if issuer else None,
     }
 
-
-# =================================================================
-# API endpoints для кастомных плашек
-# =================================================================
+# --- CRUD для Плашек (Работает с JSON) ---
 
 @app.get("/api/custom-badges")
-def list_badges(staff: User = Depends(require_staff), session: Session = Depends(get_session)):
+def list_custom_badges(
+    staff: User = Depends(require_staff), 
+    session: Session = Depends(get_session)
+):
     """Список всех кастомных плашек"""
-    _require_badge_admin(staff)
+    _require_badge_admin(staff, session)
     badges = session.exec(select(CustomBadge).order_by(CustomBadge.created_at.desc())).all()
     return [_badge_out(b) for b in badges]
 
-
 @app.post("/api/custom-badges")
-def create_badge(
+def create_custom_badge(
     badge_data: CustomBadge,
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    """Создание новой кастомной плашки"""
-    _require_badge_admin(staff)
+    """Создание новой кастомной плашки (принимает JSON)"""
+    _require_badge_admin(staff, session)
 
-    badge = CustomBadge(
+    # Создаем объект, копируя данные из body
+    new_badge = CustomBadge(
         name=badge_data.name,
         description=badge_data.description,
         icon_url=badge_data.icon_url,
@@ -10809,44 +10392,31 @@ def create_badge(
         is_active=badge_data.is_active,
         created_by=staff.id,
     )
-    session.add(badge)
+    
+    session.add(new_badge)
     session.commit()
-    session.refresh(badge)
+    session.refresh(new_badge)
 
     ActionLog.create(
-        session, staff.id, "badge_create", "CustomBadge", badge.id,
-        f'Created custom badge "{badge.name}"'
+        session, staff.id, "badge_create", "CustomBadge", new_badge.id,
+        f'Created custom badge "{new_badge.name}"'
     )
-    return _badge_out(badge)
-
-
-@app.get("/api/custom-badges/{badge_id}")
-def get_badge(
-    badge_id: int,
-    staff: User = Depends(require_staff),
-    session: Session = Depends(get_session),
-):
-    """Получение конкретной плашки"""
-    _require_badge_admin(staff)
-    badge = session.get(CustomBadge, badge_id)
-    if not badge:
-        raise HTTPException(404, "Плашка не найдена")
-    return _badge_out(badge)
-
+    return _badge_out(new_badge)
 
 @app.put("/api/custom-badges/{badge_id}")
-def update_badge(
+def update_custom_badge(
     badge_id: int,
     badge_data: CustomBadge,
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    """Обновление плашки"""
-    _require_badge_admin(staff)
+    """Обновление плашки (принимает JSON)"""
+    _require_badge_admin(staff, session)
     badge = session.get(CustomBadge, badge_id)
     if not badge:
         raise HTTPException(404, "Плашка не найдена")
 
+    # Список полей, которые можно обновить
     update_fields = [
         "name", "description", "icon_url", "text_content",
         "bg_type", "bg_color", "bg_gradient", "bg_gradient_type", "bg_gradient_angle",
@@ -10857,6 +10427,7 @@ def update_badge(
         "inner_glow_enabled", "inner_glow_intensity", "specular_enabled", "metallic_enabled",
         "priority", "is_active"
     ]
+    
     for field in update_fields:
         val = getattr(badge_data, field)
         if val is not None:
@@ -10872,19 +10443,27 @@ def update_badge(
     )
     return _badge_out(badge)
 
-
 @app.delete("/api/custom-badges/{badge_id}")
-def delete_badge(
+def delete_custom_badge(
     badge_id: int,
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
     """Удаление плашки"""
-    _require_badge_admin(staff)
+    lvl = _require_badge_admin(staff, session)
+    # Удаление доступно только Founder (11) или Admin (10), но не ниже
+    if lvl < 10: 
+         raise HTTPException(403, "Удалять плашки может только уровень 10+")
+
     badge = session.get(CustomBadge, badge_id)
     if not badge:
         raise HTTPException(404, "Плашка не найдена")
 
+    # Удаляем связанные назначения
+    assignments = session.exec(select(CustomBadgeAssignment).where(CustomBadgeAssignment.badge_id == badge_id)).all()
+    for a in assignments:
+        session.delete(a)
+        
     session.delete(badge)
     session.commit()
 
@@ -10893,10 +10472,8 @@ def delete_badge(
         f"Deleted custom badge '{badge.name}'"
     )
     return {"success": True}
-    return {"success": True}
 
-
-# === Upload endpoints for badge images ===
+# --- Загрузка картинок для плашек (Base64) ---
 
 @app.post("/api/badges/{badge_id}/upload-icon")
 def upload_badge_icon(
@@ -10905,21 +10482,21 @@ def upload_badge_icon(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    """Загрузка иконки плашки"""
-    _require_badge_admin(staff)
+    """Загрузка иконки плашки через base64"""
+    _require_badge_admin(staff, session)
     badge = session.get(CustomBadge, badge_id)
     if not badge:
         raise HTTPException(404, "Плашка не найдена")
 
-    import base64 as b64
-    from cloudinary_config import upload_base64_image
-
-    url = upload_base64_image(icon_base64, folder="custom_badges/icons", public_id=f"badge_icon_{badge_id}")
-    badge.icon_url = url
-    session.add(badge)
-    session.commit()
-    return {"icon_url": url}
-
+    try:
+        from cloudinary_config import upload_base64_image
+        url = upload_base64_image(icon_base64, folder="custom_badges/icons", public_id=f"badge_icon_{badge_id}")
+        badge.icon_url = url
+        session.add(badge)
+        session.commit()
+        return {"icon_url": url}
+    except Exception as e:
+        raise HTTPException(500, f"Ошибка загрузки: {str(e)}")
 
 @app.post("/api/badges/{badge_id}/upload-bg-image")
 def upload_badge_bg_image(
@@ -10928,25 +10505,25 @@ def upload_badge_bg_image(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    """Загрузка фонового изображения плашки"""
-    _require_badge_admin(staff)
+    """Загрузка фона плашки через base64"""
+    _require_badge_admin(staff, session)
     badge = session.get(CustomBadge, badge_id)
     if not badge:
         raise HTTPException(404, "Плашка не найдена")
 
-    from cloudinary_config import upload_base64_image
+    try:
+        from cloudinary_config import upload_base64_image
+        url = upload_base64_image(bg_image_base64, folder="custom_badges/bgs", public_id=f"badge_bg_{badge_id}")
+        badge.bg_image_url = url
+        session.add(badge)
+        session.commit()
+        return {"bg_image_url": url}
+    except Exception as e:
+        raise HTTPException(500, f"Ошибка загрузки: {str(e)}")
 
-    url = upload_base64_image(bg_image_base64, folder="custom_badges/bgs", public_id=f"badge_bg_{badge_id}")
-    badge.bg_image_url = url
-    session.add(badge)
-    session.commit()
-    return {"bg_image_url": url}
-    return {"bg_image_url": url}
+# --- Назначения (Assignments) ---
 
-
-# === Assignment endpoints ===
-
-@app.get("/api/badge-assignments")
+@app.get("/api/custom-badge-assignments")
 def list_assignments(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
@@ -10954,62 +10531,56 @@ def list_assignments(
     active_only: bool = True,
 ):
     """Список всех назначений плашек"""
-    _require_badge_admin(staff)
+    _require_badge_admin(staff, session)
+    
     query = select(CustomBadgeAssignment).order_by(CustomBadgeAssignment.granted_at.desc())
     if user_id:
         query = query.where(CustomBadgeAssignment.user_id == user_id)
     if active_only:
         query = query.where(CustomBadgeAssignment.is_active == True)
+        
     assignments = session.exec(query).all()
     return [_assignment_out(a, session) for a in assignments]
 
-
-@app.post("/api/badges/{badge_id}/assign")
-def assign_badge(
-    badge_id: int,
-    user_id: int,
+@app.post("/api/custom-badge-assignments")
+def assign_custom_badge(
+    user_id: int = Form(...),
+    badge_id: int = Form(...),
+    expires_at: Optional[str] = Form(None),
+    priority: int = Form(1),
+    notify_user: bool = Form(False),
+    custom_message: Optional[str] = Form(None),
+    override_priority: bool = Form(True),
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
-    duration_type: str = "permanent",
-    duration_days: Optional[int] = None,
-    expires_at: Optional[str] = None,
-    custom_message: Optional[str] = None,
-    override_priority: bool = True,
-    send_notification: bool = True,
 ):
-    """Назначение плашки пользователю"""
-    _require_badge_admin(staff)
-
+    """Выдача плашки пользователю"""
+    lvl = _require_badge_admin(staff, session)
+    
+    target = session.get(User, user_id)
+    if not target:
+        raise HTTPException(404, "Пользователь не найден")
+        
     badge = session.get(CustomBadge, badge_id)
     if not badge:
         raise HTTPException(404, "Плашка не найдена")
 
-    target = session.get(User, user_id)
-    if not target:
-        raise HTTPException(404, "Пользователь не найден")
-
-    staff_level = getattr(staff, "level", 0) or 0
-    target_level = getattr(target, "level", 0) or 0
-    if staff_level == 9 and target_level > 8:
-        raise HTTPException(403, "Уровень 9 не может выдать плашку пользователю уровня 9+")
-    if staff_level == 10 and target_level > 9:
-        raise HTTPException(403, "Уровень 10 не может выдать плашку пользователю уровня 10+")
+    # Проверка иерархии (кто кому может выдавать)
+    target_level = get_user_level(target, session)
+    if lvl == 9 and target_level >= 9:
+        raise HTTPException(403, "Уровень 9 не может выдавать плашки пользователям уровня 9+")
+    if lvl == 10 and target_level >= 10:
+        raise HTTPException(403, "Уровень 10 не может выдавать плашки пользователям уровня 10+")
 
     now = datetime.now(timezone.utc)
     expiry: Optional[datetime] = None
-
-    if duration_type == "permanent":
-        expiry = None
-    elif duration_type == "24h":
-        expiry = now + timedelta(hours=24)
-    elif duration_type == "days" and duration_days:
-        expiry = now + timedelta(days=duration_days)
-    elif duration_type == "date" and expires_at:
+    if expires_at:
         try:
             expiry = datetime.fromisoformat(expires_at).replace(tzinfo=timezone.utc)
         except ValueError:
             pass
 
+    # Деактивируем старые активные назначения этой же плашки этому юзеру
     existing = session.exec(
         select(CustomBadgeAssignment).where(
             CustomBadgeAssignment.user_id == user_id,
@@ -11032,82 +10603,68 @@ def assign_badge(
         override_priority=override_priority,
     )
     session.add(assignment)
+    
+    if notify_user:
+        session.add(Notification(
+            user_id=user_id,
+            actor_id=staff.id,
+            type="badge_granted",
+            message=custom_message or f"Вам выдана плашка «{badge.name}»",
+        ))
+
     session.commit()
     session.refresh(assignment)
-
-    if send_notification:
-        if custom_message:
-            notification = Notification(
-                user_id=user_id,
-                actor_id=staff.id,
-                type="badge_granted",
-                message=custom_message,
-            )
-        else:
-            notification = Notification(
-                user_id=user_id,
-                actor_id=staff.id,
-                type="badge_granted",
-                message=f"Вам выдана плашка «{badge.name}»",
-            )
-        session.add(notification)
-        session.commit()
-
+    
     ActionLog.create(
         session, staff.id, "badge_assign", "CustomBadgeAssignment", assignment.id,
         f"Granted badge '{badge.name}' to user {user_id}"
     )
-
+    
     return {"success": True, "assignment": _assignment_out(assignment, session)}
 
-
-
-@app.get("/admin/badges/assignments")
-def list_badge_assignments(staff: User = Depends(require_staff), session: Session = Depends(get_session)):
-    _require_badge_admin(staff)
-    assignments = session.exec(select(CustomBadgeAssignment).order_by(CustomBadgeAssignment.granted_at.desc())).all()
-    return [_assignment_out(a, session) for a in assignments]
-
-@app.post("/admin/badges/revoke")
-def revoke_badge_assignment(
-    assignment_id: int,
+@app.post("/api/custom-badge-assignments/{assign_id}/revoke")
+def revoke_assignment(
+    assign_id: int,
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session)
 ):
-    _require_badge_admin(staff)
-    assignment = session.get(CustomBadgeAssignment, assignment_id)
+    """Отозвать плашку"""
+    _require_badge_admin(staff, session)
+    assignment = session.get(CustomBadgeAssignment, assign_id)
     if not assignment:
-        raise HTTPException(404, "Assignment not found")
+        raise HTTPException(404, "Назначение не найдено")
+        
     assignment.is_active = False
     session.add(assignment)
     session.commit()
+    
     ActionLog.create(
-        session, staff.id, "badge_revoke", "CustomBadgeAssignment", assignment.id,
-        f"Revoked badge assignment {assignment.id}"
+        session, staff.id, "badge_revoke", "CustomBadgeAssignment", assign_id,
+        f"Revoked badge assignment {assign_id}"
     )
     return {"success": True}
 
-@app.post("/admin/badges/extend")
-def extend_badge_assignment(
-    assignment_id: int,
-    duration_type: str = Form(...),
+@app.post("/api/custom-badge-assignments/{assign_id}/extend")
+def extend_assignment(
+    assign_id: int,
+    duration_type: str = Form(...), # permanent, days, date
     duration_days: Optional[int] = Form(None),
     expires_at: Optional[str] = Form(None),
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session)
 ):
-    _require_badge_admin(staff)
-    assignment = session.get(CustomBadgeAssignment, assignment_id)
+    """Продлить срок действия"""
+    _require_badge_admin(staff, session)
+    assignment = session.get(CustomBadgeAssignment, assign_id)
     if not assignment:
-        raise HTTPException(404, "Assignment not found")
+        raise HTTPException(404, "Назначение не найдено")
 
     now = datetime.now(timezone.utc)
+    # Если есть текущий срок и он в будущем, берем его за базу, иначе сейчас
     base = assignment.expires_at if (assignment.expires_at and assignment.expires_at > now) else now
 
     if duration_type == "permanent":
         assignment.expires_at = None
-    elif duration_type == "24h":
-        assignment.expires_at = base + timedelta(hours=24)
     elif duration_type == "days" and duration_days:
         assignment.expires_at = base + timedelta(days=duration_days)
     elif duration_type == "date" and expires_at:
@@ -11115,30 +10672,9 @@ def extend_badge_assignment(
             assignment.expires_at = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
         except Exception:
             raise HTTPException(400, "Invalid date format")
-
+            
     assignment.is_active = True
     session.add(assignment)
     session.commit()
-    session.refresh(assignment)
-
-    ActionLog.create(
-        session, staff.id, "badge_extend", "CustomBadgeAssignment", assignment.id,
-        f"Extended badge assignment {assignment.id}"
-    )
+    
     return {"success": True, "assignment": _assignment_out(assignment, session)}
-
-@app.delete("/admin/badges/{badge_id}")
-def delete_custom_badge(
-    badge_id: int,
-    staff: User = Depends(require_staff),
-    session: Session = Depends(get_session)
-):
-    if getattr(staff, "level", 0) < 11:
-        raise HTTPException(403, "Only level 11 can delete custom badges")
-    badge = session.get(CustomBadge, badge_id)
-    if not badge:
-        raise HTTPException(404, "Badge not found")
-    session.delete(badge)
-    session.commit()
-    return {"success": True}
-

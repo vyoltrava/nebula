@@ -413,93 +413,6 @@ class Badge(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
 
 
-# ============================================================
-# 🏷️ КАСТОМНЫЕ ПЛАШКИ (BADGES 2.0)
-# ============================================================
-
-class CustomBadge(SQLModel, table=True):
-    """Кастомная плашка с расширенными визуальными настройками"""
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(max_length=80)
-    description: Optional[str] = Field(default=None, max_length=300)
-    icon_url: Optional[str] = Field(default=None)              # логотип/иконка
-    text: Optional[str] = Field(default=None, max_length=40)   # кастомный текст на плашке
-
-    # Фон
-    bg_type: str = Field(default="solid", max_length=20)      # solid | gradient | image
-    bg_color: str = Field(default="#8b5cf6")
-    gradient_colors: str = Field(default='["#8b5cf6","#6366f1"]')  # JSON-массив
-    gradient_type: str = Field(default="linear", max_length=10)    # linear | radial
-    gradient_angle: int = Field(default=135)
-    bg_image_url: Optional[str] = Field(default=None)
-    bg_image_mode: str = Field(default="cover", max_length=10) # cover | contain | tile
-
-    # Обводка
-    border_color: str = Field(default="#ffffff")
-    border_width: int = Field(default=2)        # 0-5 px
-    border_style: str = Field(default="solid", max_length=10)  # solid | dashed | dotted
-    border_glow: int = Field(default=0)         # 0-100 интенсивность свечения обводки
-
-    # Анимации (JSON-список): perimeter_wave, pulse_glow, shimmer, blink, icon_spin, float
-    animations: str = Field(default="[]")
-    animation_speed: str = Field(default="normal", max_length=10)  # slow | normal | fast
-
-    # Эффекты
-    drop_shadow: int = Field(default=0)         # 0-100
-    inner_glow: bool = Field(default=False)
-    specular: bool = Field(default=False)       # блики
-    metallic: bool = Field(default=False)       # металлический эффект
-
-    # Шаблон/пресет
-    preset: Optional[str] = Field(default=None, max_length=30)  # birthday | owner | vip | sponsor | veteran
-
-    is_active: bool = Field(default=True)
-    created_by: Optional[int] = Field(default=None, foreign_key="user.id")
-    created_at: datetime = Field(default_factory=utcnow)
-
-
-class CustomBadgeTemplate(SQLModel, table=True):
-    """Сохранённый шаблон кастомной плашки"""
-    id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(max_length=80)
-    preset: Optional[str] = Field(default=None, max_length=30)
-    icon_url: Optional[str] = Field(default=None)
-    text: Optional[str] = Field(default=None, max_length=40)
-    bg_type: str = Field(default="solid", max_length=20)
-    bg_color: str = Field(default="#8b5cf6")
-    gradient_colors: str = Field(default='["#8b5cf6","#6366f1"]')
-    gradient_type: str = Field(default="linear", max_length=10)
-    gradient_angle: int = Field(default=135)
-    bg_image_url: Optional[str] = Field(default=None)
-    bg_image_mode: str = Field(default="cover", max_length=10)
-    border_color: str = Field(default="#ffffff")
-    border_width: int = Field(default=2)
-    border_style: str = Field(default="solid", max_length=10)
-    border_glow: int = Field(default=0)
-    animations: str = Field(default="[]")
-    animation_speed: str = Field(default="normal", max_length=10)
-    drop_shadow: int = Field(default=0)
-    inner_glow: bool = Field(default=False)
-    specular: bool = Field(default=False)
-    metallic: bool = Field(default=False)
-    created_by: Optional[int] = Field(default=None, foreign_key="user.id")
-    created_at: datetime = Field(default_factory=utcnow)
-
-
-class CustomBadgeAssignment(SQLModel, table=True):
-    """Выдача кастомной плашки пользователю"""
-    id: Optional[int] = Field(default=None, primary_key=True)
-    badge_id: int = Field(foreign_key="custombadge.id", index=True)
-    user_id: int = Field(foreign_key="user.id", index=True)
-    issued_by: int = Field(foreign_key="user.id")
-    issued_at: datetime = Field(default_factory=utcnow)
-    expires_at: Optional[datetime] = Field(default=None)  # None = бессрочно
-    priority: int = Field(default=1)            # >0 = перекрывает стандартные плашки
-    notify_user: bool = Field(default=False)
-    custom_message: Optional[str] = Field(default=None, max_length=300)
-    revoked: bool = Field(default=False)
-    revoked_at: Optional[datetime] = Field(default=None)
-    revoked_by: Optional[int] = Field(default=None, foreign_key="user.id")
 
 class Suggestion(SQLModel, table=True):
     """Старые предложения (для обратной совместимости)"""
@@ -579,9 +492,8 @@ class RoleHistory(SQLModel, table=True):
     changed_by: int = Field(foreign_key="user.id", ondelete="CASCADE")
     changed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-
 # ============================================================
-# 🎨 КАСТОМНЫЕ ПЛАШКИ (BADGES)
+# 🏷️ КАСТОМНЫЕ ПЛАШКИ (BADGES 2.0)
 # ============================================================
 
 class CustomBadge(SQLModel, table=True):
@@ -597,8 +509,8 @@ class CustomBadge(SQLModel, table=True):
     # === Визуальные настройки ===
     bg_type: str = Field(default="solid")              # solid | gradient | image
     bg_color: Optional[str] = None                     # Цвет для solid
-    bg_gradient: Optional[str] = None                  # CSS-градиент
-    bg_gradient_type: Optional[str] = None             # linear | radial
+    bg_gradient: Optional[str] = None                  # CSS-градиент (например, linear-gradient(...))
+    bg_gradient_type: Optional[str] = None             # linear | radial (для справки)
     bg_gradient_angle: Optional[int] = None            # Угол градиента
     bg_image_url: Optional[str] = None                # URL фонового изображения
     bg_image_mode: Optional[str] = None               # cover | contain | tile
@@ -606,10 +518,10 @@ class CustomBadge(SQLModel, table=True):
     border_color: Optional[str] = None
     border_width: Optional[int] = None                 # 0-5px
     border_style: Optional[str] = None                 # solid | dashed | dotted
-    border_glow: bool = Field(default=False)           # Свечение обводки
-    border_glow_intensity: Optional[int] = None       # Интенсивность свечения
+    border_glow: bool = Field(default=False)           # Свечение обводки (вкл/выкл)
+    border_glow_intensity: Optional[int] = None       # Интенсивность свечения (0-100)
 
-    animation_flags: Optional[str] = None             # JSON массив анимаций
+    animation_flags: Optional[str] = None             # JSON массив анимаций (e.g. ["pulse", "float"])
     animation_speed: Optional[str] = None             # slow | normal | fast
 
     shadow_enabled: bool = Field(default=True)
