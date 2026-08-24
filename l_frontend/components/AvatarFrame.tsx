@@ -29,14 +29,14 @@ function PerimeterWave({ color, speed = "normal", children, extraDecorations }: 
           y="4"
           width="calc(100% - 32px)"
           height="calc(100% - 32px)"
-          rx="16" // Скругление чуть больше, чем у аватарки (rounded-xl = 12px), чтобы огибать её
+          rx="16"
           fill="none"
           stroke={color}
           strokeWidth="3"
           strokeLinecap="round"
           className={speed === "slow" ? "animate-perimeter-wave-slow" : "animate-perimeter-wave"}
           style={{
-            strokeDasharray: "60 300", // 60px длина волны, 300px разрыв
+            strokeDasharray: "60 300",
             filter: `drop-shadow(0 0 4px ${color}) drop-shadow(0 0 8px ${color}60)`,
           }}
         />
@@ -69,6 +69,7 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
                     availableBadges.find((b: any) => b.user_id === user.id) ||
                     availableBadges.find((b: any) => b.role_id === user.role?.id);
 
+  // Если значка нет, используем логику по уровням (fallback)
   if (!userBadge) {
     if (level <= 5) return <>{children}</>;
     if (level <= 7) return <Level67Effect user={user}>{children}</Level67Effect>;
@@ -97,48 +98,45 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
         </div>
       )}
 
-
-
-
-{/* 🆕 ЗНАЧОК В ЛЕВОМ ВЕРХНЕМ УГЛУ */}
-{userBadge && (
-  <div 
-    className={`absolute -top-1.5 -left-1.5 w-8 h-8 z-20 select-none ${
-      canEditBadge ? 'pointer-events-auto cursor-pointer hover:scale-110 transition-transform' : 'pointer-events-none'
-    }`}
-    onClick={canEditBadge ? onBadgeClick : undefined}
-    title={canEditBadge ? "Нажми, чтобы сменить значок" : ""}
-  >
-    {/* Подложка значка, чтобы он не сливался с фоном */}
-    <div className="absolute inset-0 rounded-full bg-[#171717] border-2 border-[#171717]" />
-    
-    {/* Свечение под значком (только если включено) */}
-    {userBadge.enable_glow && (
+      {/* 🆕 ЗНАЧОК В ЛЕВОМ ВЕРХНЕМ УГЛУ (ЖЕСТКАЯ ПОЗИЦИЯ ЧЕРЕЗ INLINE-СТИЛИ) */}
       <div 
-        className="absolute inset-0 rounded-full"
-        style={{
-          background: `radial-gradient(circle, ${glowColor} 0%, ${glowColor}60 50%, transparent 70%)`,
-          filter: `blur(4px)`,
-          transform: `scale(1.4)`,
-          zIndex: -1,
-        }}
-      />
-    )}
-    
-    {/* Иконка значка */}
-    <img
-      src={userBadge.icon_url}
-      alt={userBadge.name || "Badge"}
-      className="relative w-full h-full object-contain p-0.5"
-      draggable={false}
-    />
-  </div>
-)}
+        className="absolute z-30 select-none"
+        style={{ top: '-12px', left: '-12px' }} // На 100% игнорирует любые кэши Tailwind
+      >
+        <div 
+          className={`w-9 h-9 rounded-full bg-[#171717] border-2 border-[#171717] flex items-center justify-center shadow-lg ${
+            canEditBadge ? 'pointer-events-auto cursor-pointer hover:scale-110 transition-transform' : 'pointer-events-none'
+          }`}
+          onClick={canEditBadge ? onBadgeClick : undefined}
+          title={canEditBadge ? "Нажми, чтобы сменить значок" : ""}
+        >
+          {/* Свечение под значком */}
+          {userBadge.enable_glow && (
+            <div 
+              className="absolute inset-0 rounded-full"
+              style={{
+                background: `radial-gradient(circle, ${glowColor} 0%, ${glowColor}60 50%, transparent 70%)`,
+                filter: `blur(4px)`,
+                transform: `scale(1.5)`,
+                zIndex: -1,
+              }}
+            />
+          )}
+          
+          {/* Иконка значка */}
+          <img
+            src={userBadge.icon_url}
+            alt={userBadge.name || "Badge"}
+            className="w-6 h-6 object-contain"
+            draggable={false}
+          />
+        </div>
+      </div>
     </div>
   );
 }
 
-// === FALLBACK ЭФФЕКТЫ УРОВНЕЙ (теперь используют PerimeterWave) ===
+// === FALLBACK ЭФФЕКТЫ УРОВНЕЙ (ВСЕ ИСПРАВЛЕНЫ НА ЛЕВЫЙ ВЕРХНИЙ УГОЛ) ===
 function Level67Effect({ user, children }: { user: any; children: ReactNode }) {
   return <PerimeterWave color={user.role?.color || "#8b5cf6"}>{children}</PerimeterWave>;
 }
@@ -153,8 +151,8 @@ function Level9Effect({ children }: { children: ReactNode }) {
       color="#3b82f6" 
       extraDecorations={
         <>
-          <span className="absolute top-1.5 right-1.5 text-[10px] font-mono text-blue-400 animate-pulse">&lt;/&gt;</span>
-          <span className="absolute bottom-1.5 left-1.5 text-[10px] font-mono text-blue-300 animate-pulse">{`{ }`}</span>
+          <span className="absolute top-1.5 left-1.5 text-[10px] font-mono text-blue-400 animate-pulse">&lt;/&gt;</span>
+          <span className="absolute bottom-1.5 right-1.5 text-[10px] font-mono text-blue-300 animate-pulse">{`{ }`}</span>
         </>
       }
     >
@@ -169,9 +167,14 @@ function Level10Effect({ children }: { children: ReactNode }) {
       <PerimeterWave color="#ffffff" speed="slow">
         {children}
       </PerimeterWave>
-      {/* Hello Kitty в левом нижнем углу для консистентности */}
-      <div className="absolute -bottom-2 -left-2 w-9 h-9 pointer-events-none select-none z-20 animate-bounce-slow">
-        <img src="/hello-kitty.png" alt="VIP" className="w-full h-full object-contain drop-shadow-[0_2px_8px_rgba(255,255,255,0.8)]" draggable={false} />
+      {/* Hello Kitty ТЕПЕРЬ ТОЖЕ В ЛЕВОМ ВЕРХНЕМ УГЛУ */}
+      <div 
+        className="absolute z-30 pointer-events-none select-none animate-bounce-slow"
+        style={{ top: '-12px', left: '-12px' }}
+      >
+        <div className="w-9 h-9 rounded-full bg-[#171717] border-2 border-[#171717] flex items-center justify-center shadow-lg">
+          <img src="/hello-kitty.png" alt="VIP" className="w-6 h-6 object-contain drop-shadow-[0_2px_8px_rgba(255,255,255,0.8)]" draggable={false} />
+        </div>
       </div>
     </div>
   );
@@ -180,7 +183,6 @@ function Level10Effect({ children }: { children: ReactNode }) {
 function Level11Effect({ children }: { children: ReactNode }) {
   return (
     <div className="relative inline-block">
-      {/* Для 11 уровня делаем волну зеленой и чуть более сложной */}
       <svg 
         className="absolute -inset-[4px] w-[calc(100%+32px)] h-[calc(100%+32px)] pointer-events-none z-0 overflow-visible"
         xmlns="http://www.w3.org/2000/svg"
@@ -190,15 +192,15 @@ function Level11Effect({ children }: { children: ReactNode }) {
           fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round"
           className="animate-perimeter-wave-slow"
           style={{
-            strokeDasharray: "40 150", // Более частые импульсы для 11 уровня
+            strokeDasharray: "40 150",
             filter: `drop-shadow(0 0 6px #10b981)`,
           }}
         />
       </svg>
       <div className="relative z-10 rounded-xl overflow-hidden bg-[#171717] border-[2px] border-[#171717]">
         {children}
-        <span className="absolute top-1.5 right-1.5 text-[9px] font-mono text-green-400 font-bold">01</span>
-        <span className="absolute bottom-1.5 left-1.5 text-[9px] font-mono text-green-300 font-bold">10</span>
+        <span className="absolute top-1.5 left-1.5 text-[9px] font-mono text-green-400 font-bold">01</span>
+        <span className="absolute top-1.5 right-1.5 text-[9px] font-mono text-green-300 font-bold">10</span>
       </div>
     </div>
   );
