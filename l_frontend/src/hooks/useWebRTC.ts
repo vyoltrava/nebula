@@ -1,0 +1,856 @@
+'use client';
+
+import {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+} from 'react';
+
+export type CallType = 'audio' | 'video';
+
+export interface CallState {
+  status:
+    | 'idle'
+    | 'initiating'
+    | 'ringing'
+    | 'connecting'
+    | 'active'
+    | 'ended';
+
+  callId: string | null;
+  callType: CallType;
+
+  remoteUserId: number | null;
+  remoteUserName: string;
+  remoteUserAvatar: string;
+
+  isCaller: boolean;
+
+  localStream: MediaStream | null;
+  remoteStream: MediaStream | null;
+
+  isMuted: boolean;
+  isVideoOff: boolean;
+
+  duration: number;
+}
+
+export type WebRTCSignal =
+  | {
+      type: 'call_initiate';
+      target_user_id: number;
+      call_type: CallType;
+      caller_name: string;
+      caller_avatar: string;
+    }
+  | {
+      type: 'call_accept';
+      call_id: string;
+      target_user_id: number;
+    }
+  | {
+      type: 'call_reject';
+      call_id: string;
+      target_user_id: number;
+    }
+  | {
+      type: 'call_end';
+      call_id: string | null;
+      target_user_id: number;
+    }
+  | {
+      type: 'call_offer';
+      call_id: string;
+      sdp: RTCSessionDescriptionInit;
+    }
+  | {
+      type: 'call_answer';
+      call_id: string;
+      sdp: RTCSessionDescriptionInit;
+    }
+  | {
+      type: 'call_ice_candidate';
+      call_id: string;
+      candidate: RTCIceCandidateInit;
+    };
+
+const initialState: CallState = {
+  status: 'idle',
+  callId: null,
+  callType: 'audio',
+  remoteUserId: null,
+  remoteUserName: '',
+  remoteUserAvatar: '',
+  isCaller: false,
+  localStream: null,
+  remoteStream: null,
+  isMuted: false,
+  isVideoOff: false,
+  duration: 0,
+};
+
+// ============================================================================
+// TURN CONFIGURATION
+// ============================================================================
+
+const TURN_USERNAME =
+  process.env.NEXT_PUBLIC_TURN_USERNAME ??
+  process.env.NEXT_PUBLIC_METERED_USERNAME ??
+  '';
+
+const TURN_CREDENTIAL =
+  process.env.NEXT_PUBLIC_TURN_CREDENTIAL ??
+  process.env.NEXT_PUBLIC_METERED_CREDENTIAL ??
+  '';
+
+const TURN_HOST =
+  process.env.NEXT_PUBLIC_TURN_HOST ??
+  'relay.metered.ca';
+
+/**
+ * Конфигурация ICE серверов.
+ * ВАЖНО: Порядок URL имеет значение для некоторых браузеров.
+ * Ставим TCP/TLS первыми, так как они критичны для VPN.
+ */
+const ICE_SERVERS: RTCIceServer[] = [
+  {
+    urls: [
+      'stun:stun.l.google.com:19302',
+      'stun:stun1.l.google.com:19302',
+    ],
+  },
+  ...(TURN_USERNAME && TURN_CREDENTIAL
+    ? [
+        {
+          // 🔥 ПРИОРИТЕТ TCP/TLS ДЛЯ VPN
+          urls: [
+            `turns:${TURN_HOST}:443?transport=tcp`, // TLS поверх TCP (самый надежный)
+            `turn:${TURN_HOST}:443?transport=tcp`,  // TCP порт 443
+            `turn:${TURN_HOST}:80?transport=tcp`,   // TCP порт 80
+            `turn:${TURN_HOST}:3478?transport=udp`, // UDP (попробуем, если повезет)
+          ],
+          username: TURN_USERNAME,
+          credential: TURN_CREDENTIAL,
+        },
+      ]
+    : []),
+];
+
+// 🔥 ГЛОБАЛЬНЫЙ ФЛАГ: Если true, используем ТОЛЬКО TURN (Relay)
+// Это можно вынести в проп хука, если нужно переключать динамически
+const FORCE_RELAY_ONLY = false; 
+
+const getRTCConfig = (): RTCConfiguration => ({
+  iceServers: ICE_SERVERS,
+  
+  // 🔥 ИЗМЕНЕНИЕ: Если включен флаг или мы detect проблемы, ставим 'relay'
+  iceTransportPolicy: FORCE_RELAY_ONLY ? 'relay' : 'all',
+  
+  bundlePolicy: 'max-bundle',
+  rtcpMuxPolicy: 'require',
+  iceCandidatePoolSize: 8, // Увеличили пул для быстрого старта
+});
+
+const DISCONNECTED_GRACE_MS = 15_000;
+const ICE_RESTART_TIMEOUT_MS = 8_000;
+const DURATION_INTERVAL_MS = 1_000;
+
+type BufferedIceCandidate = RTCIceCandidateInit;
+
+const isBrowser =
+  typeof window !== 'undefined' &&
+  typeof RTCPeerConnection !== 'undefined';
+
+function rtcLog(message: string, ...args: unknown[]) {
+  console.log(`🧊 [WEBRTC] ${message}`, ...args);
+}
+
+function rtcWarn(message: string, ...args: unknown[]) {
+  console.warn(`⚠️ [WEBRTC] ${message}`, ...args);
+}
+
+function rtcError(message: string, ...args: unknown[]) {
+  console.error(`❌ [WEBRTC] ${message}`, ...args);
+}
+
+function getCandidateInfo(candidate: RTCIceCandidate) {
+  return {
+    type: candidate.type,
+    protocol: candidate.protocol,
+    address: candidate.address,
+    port: candidate.port,
+    tcpType: candidate.tcpType,
+  };
+}
+
+export function useWebRTC(
+  sendSignal: (data: WebRTCSignal) => void,
+) {
+  const [state, setState] = useState<CallState>(initialState);
+  const stateRef = useRef<CallState>(initialState);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const activeCallIdRef = useRef<string | null>(null);
+  const iceCandidateBufferRef = useRef<BufferedIceCandidate[]>([]);
+  const iceAddQueueRef = useRef<Promise<void>>(Promise.resolve());
+
+  const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const disconnectedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startTimeRef = useRef<number>(0);
+  const iceRestartInProgressRef = useRef(false);
+
+  const safeSendSignal = useCallback(
+    (data: WebRTCSignal) => {
+      try {
+        rtcLog(`📤 Signal: ${data.type}`);
+        sendSignal(data);
+      } catch (error) {
+        rtcError(`Signal ${data.type} failed to queue`, error);
+      }
+    },
+    [sendSignal],
+  );
+
+  const clearTimers = useCallback(() => {
+    if (durationIntervalRef.current) clearInterval(durationIntervalRef.current);
+    if (disconnectedTimerRef.current) clearTimeout(disconnectedTimerRef.current);
+    if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+    
+    durationIntervalRef.current = null;
+    disconnectedTimerRef.current = null;
+    restartTimerRef.current = null;
+  }, []);
+
+  const getMediaStream = useCallback(
+    async (callType: CallType): Promise<MediaStream> => {
+      if (!isBrowser) throw new Error('WebRTC unavailable');
+
+      rtcLog(`🎥 Requesting ${callType} media`);
+      
+      // 🔥 Запрос с явными ограничениями для стабильности
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1,
+        },
+        video: callType === 'video' ? {
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          frameRate: { ideal: 30, max: 30 },
+          facingMode: 'user',
+        } : false,
+      });
+
+      rtcLog('✅ Media stream acquired');
+      return stream;
+    },
+    [],
+  );
+
+  const flushIceCandidateBuffer = useCallback(
+    async (pc: RTCPeerConnection) => {
+      if (!pc.remoteDescription || iceCandidateBufferRef.current.length === 0) return;
+
+      const candidates = [...iceCandidateBufferRef.current];
+      iceCandidateBufferRef.current = [];
+
+      rtcLog(` Flushing ${candidates.length} buffered ICE candidates`);
+
+      for (const candidate of candidates) {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (error) {
+          rtcWarn('Failed to apply buffered ICE', error, candidate);
+        }
+      }
+    },
+    [],
+  );
+
+  const addRemoteIceCandidate = useCallback(
+    async (pc: RTCPeerConnection, candidateInit: RTCIceCandidateInit) => {
+      if (!pc.remoteDescription) {
+        rtcLog('🧊 Remote desc not ready — buffering ICE');
+        iceCandidateBufferRef.current.push(candidateInit);
+        return;
+      }
+
+      iceAddQueueRef.current = iceAddQueueRef.current
+        .catch(() => {}) 
+        .then(async () => {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
+          } catch (error) {
+            rtcWarn('Failed to add remote ICE', error, candidateInit);
+          }
+        });
+
+      await iceAddQueueRef.current;
+    },
+    [],
+  );
+
+  const restartIce = useCallback(async () => {
+    const pc = pcRef.current;
+    if (!pc || iceRestartInProgressRef.current) return;
+    if (pc.signalingState === 'closed' || pc.connectionState === 'closed') return;
+
+    const currentState = stateRef.current;
+    if (!currentState.callId || !currentState.isCaller) return;
+
+    try {
+      iceRestartInProgressRef.current = true;
+      rtcLog('🔄 Starting ICE restart (Network change recovery)');
+
+      const offer = await pc.createOffer({
+        iceRestart: true,
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true,
+      });
+
+      await pc.setLocalDescription(offer);
+      
+      if (!pc.localDescription) throw new Error('localDescription is null');
+
+      safeSendSignal({
+        type: 'call_offer',
+        call_id: currentState.callId,
+        sdp: pc.localDescription,
+      });
+
+      rtcLog('📤 ICE restart offer sent');
+    } catch (error) {
+      rtcError('ICE restart failed', error);
+    } finally {
+      iceRestartInProgressRef.current = false;
+    }
+  }, [safeSendSignal]);
+
+  const cleanup = useCallback(() => {
+    rtcLog('🧹 Cleanup');
+    clearTimers();
+    iceCandidateBufferRef.current = [];
+    iceAddQueueRef.current = Promise.resolve();
+    iceRestartInProgressRef.current = false;
+
+    const pc = pcRef.current;
+    if (pc) {
+      try {
+        pc.onicecandidate = null;
+        pc.onicecandidateerror = null;
+        pc.oniceconnectionstatechange = null;
+        pc.onicegatheringstatechange = null;
+        pc.onconnectionstatechange = null;
+        pc.onsignalingstatechange = null;
+        pc.ontrack = null;
+        pc.close();
+      } catch (e) { /* ignore */ }
+      pcRef.current = null;
+    }
+
+    activeCallIdRef.current = null;
+
+    const stream = stateRef.current.localStream;
+    if (stream) {
+      stream.getTracks().forEach((t) => {
+        try { t.stop(); } catch {}
+      });
+    }
+
+    setState((prev) => ({
+      ...prev,
+      localStream: null,
+      remoteStream: null,
+      duration: 0,
+    }));
+  }, [clearTimers]);
+
+  const setupPeerConnection = useCallback(
+    async (callId: string, stream: MediaStream, isCaller: boolean) => {
+      if (!isBrowser) throw new Error('WebRTC unavailable');
+
+      rtcLog(`🚀 Creating PeerConnection: ${callId}`, { isCaller });
+
+      if (pcRef.current) {
+        rtcWarn('Closing existing PC');
+        try { pcRef.current.close(); } catch {}
+        pcRef.current = null;
+      }
+
+      iceCandidateBufferRef.current = [];
+      iceAddQueueRef.current = Promise.resolve();
+
+      // 🔥 Получаем свежий конфиг каждый раз (на случай изменения FORCE_RELAY_ONLY)
+      const config = getRTCConfig();
+      const pc = new RTCPeerConnection(config);
+
+      pcRef.current = pc;
+      activeCallIdRef.current = callId;
+
+      stream.getTracks().forEach((track) => {
+        rtcLog(`➕ Adding ${track.kind} track`);
+        pc.addTrack(track, stream);
+      });
+
+      pc.onicecandidate = (event) => {
+        if (!event.candidate) {
+          rtcLog('✅ ICE gathering complete');
+          return;
+        }
+
+        const candidate = event.candidate;
+        const info = getCandidateInfo(candidate);
+        
+        // 🔥 Логирование типа кандидата для диагностики VPN
+        rtcLog(`🧊 ICE candidate: ${info.type}/${info.protocol}`, info);
+
+        safeSendSignal({
+          type: 'call_ice_candidate',
+          call_id: callId,
+          candidate: candidate.toJSON(),
+        });
+      };
+
+      pc.onicecandidateerror = (event) => {
+        // Частая ошибка в VPN: "Address family not supported" или таймауты
+        rtcWarn('ICE candidate error', {
+          url: event.url,
+          errorCode: event.errorCode,
+          errorText: event.errorText,
+        });
+      };
+
+      pc.onicegatheringstatechange = () => {
+        rtcLog(`🧊 ICE gathering: ${pc.iceGatheringState}`);
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        const iceState = pc.iceConnectionState;
+        rtcLog(`💧 ICE state: ${iceState}`);
+
+        if (iceState === 'checking') {
+          setState((prev) => ({ ...prev, status: 'connecting' }));
+        }
+
+        if (iceState === 'connected' || iceState === 'completed') {
+          rtcLog(' ICE Connected/Completed');
+          if (disconnectedTimerRef.current) {
+            clearTimeout(disconnectedTimerRef.current);
+            disconnectedTimerRef.current = null;
+          }
+        }
+
+        if (iceState === 'disconnected') {
+          rtcWarn('ICE disconnected — waiting for recovery...');
+          if (!disconnectedTimerRef.current) {
+            disconnectedTimerRef.current = setTimeout(async () => {
+              disconnectedTimerRef.current = null;
+              if (pcRef.current?.iceConnectionState === 'disconnected') {
+                rtcWarn('Recovery timeout — restarting ICE');
+                await restartIce();
+              }
+            }, DISCONNECTED_GRACE_MS);
+          }
+        }
+
+        if (iceState === 'failed') {
+          rtcError('ICE FAILED');
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        const connState = pc.connectionState;
+        rtcLog(` Connection state: ${connState}`);
+
+        switch (connState) {
+          case 'connecting':
+            setState((prev) => ({ ...prev, status: 'connecting' }));
+            break;
+
+          case 'connected':
+            rtcLog('🎉 WEBRTC CALL CONNECTED');
+            if (disconnectedTimerRef.current) clearTimeout(disconnectedTimerRef.current);
+            if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+            
+            setState((prev) => ({ ...prev, status: 'active' }));
+            
+            if (!durationIntervalRef.current) {
+              startTimeRef.current = Date.now();
+              durationIntervalRef.current = setInterval(() => {
+                setState((prev) => ({
+                  ...prev,
+                  duration: Math.floor((Date.now() - startTimeRef.current) / 1000),
+                }));
+              }, DURATION_INTERVAL_MS);
+            }
+            break;
+
+          case 'disconnected':
+            rtcWarn('Connection disconnected — waiting...');
+            setState((prev) => ({
+              ...prev,
+              status: prev.status === 'active' ? 'active' : 'connecting',
+            }));
+            
+            if (!disconnectedTimerRef.current) {
+              disconnectedTimerRef.current = setTimeout(async () => {
+                disconnectedTimerRef.current = null;
+                if (pcRef.current?.connectionState === 'disconnected') {
+                  rtcWarn('Recovery timeout — restarting ICE');
+                  await restartIce();
+                }
+              }, DISCONNECTED_GRACE_MS);
+            }
+            break;
+
+          case 'failed':
+            rtcError('Connection failed — attempting ICE restart');
+            if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+            
+            restartTimerRef.current = setTimeout(async () => {
+              restartTimerRef.current = null;
+              if (pcRef.current && pcRef.current.connectionState !== 'connected') {
+                await restartIce();
+                
+                // Финальная проверка через несколько секунд
+                setTimeout(() => {
+                  if (pcRef.current?.connectionState === 'failed') {
+                    rtcError('ICE restart failed. Ending call.');
+                    const current = stateRef.current;
+                    if (current.remoteUserId && current.callId) {
+                      safeSendSignal({
+                        type: 'call_end',
+                        call_id: current.callId,
+                        target_user_id: current.remoteUserId,
+                      });
+                    }
+                    setState((prev) => ({ ...prev, status: 'ended' }));
+                    setTimeout(() => {
+                      cleanup();
+                      setState(initialState);
+                    }, 1000);
+                  }
+                }, ICE_RESTART_TIMEOUT_MS);
+              }
+            }, 1000);
+            break;
+            
+          case 'closed':
+            rtcLog('PC closed');
+            break;
+        }
+      };
+
+      pc.onsignalingstatechange = () => {
+        rtcLog(`📡 Signaling: ${pc.signalingState}`);
+      };
+
+      pc.ontrack = (event) => {
+        rtcLog(`📺 Remote ${event.track.kind} track received`);
+        if (event.streams?.[0]) {
+          setState((prev) => ({ ...prev, remoteStream: event.streams[0] }));
+        } else {
+          const fallback = stateRef.current.remoteStream ?? new MediaStream();
+          fallback.addTrack(event.track);
+          setState((prev) => ({ ...prev, remoteStream: fallback }));
+        }
+      };
+
+      if (isCaller) {
+        rtcLog('📝 Creating OFFER');
+        const offer = await pc.createOffer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: true,
+        });
+        await pc.setLocalDescription(offer);
+        if (!pc.localDescription) throw new Error('localDescription null');
+        
+        safeSendSignal({
+          type: 'call_offer',
+          call_id: callId,
+          sdp: pc.localDescription,
+        });
+      }
+    },
+    [cleanup, restartIce, safeSendSignal]
+  );
+
+  const initiateCall = useCallback(
+    async (targetUserId: number, callType: CallType, callerName: string, callerAvatar: string) => {
+      rtcLog(`📞 Initiating call to ${targetUserId}`);
+      try {
+        const stream = await getMediaStream(callType);
+        setState((prev) => ({
+          ...prev,
+          status: 'initiating',
+          callType,
+          remoteUserId: targetUserId,
+          remoteUserName: callerName,
+          remoteUserAvatar: callerAvatar,
+          isCaller: true,
+          localStream: stream,
+        }));
+
+        safeSendSignal({
+          type: 'call_initiate',
+          target_user_id: targetUserId,
+          call_type: callType,
+          caller_name: callerName,
+          caller_avatar: callerAvatar,
+        });
+      } catch (error) {
+        rtcError('Failed to initiate call', error);
+        setState(initialState);
+      }
+    },
+    [getMediaStream, safeSendSignal]
+  );
+
+  const acceptCall = useCallback(
+    async (callId: string, callerId: number, callType: CallType, callerName: string, callerAvatar: string) => {
+      rtcLog(`✅ Accepting call ${callId}`);
+      try {
+        const stream = await getMediaStream(callType);
+        activeCallIdRef.current = callId;
+
+        setState((prev) => ({
+          ...prev,
+          status: 'connecting',
+          callId,
+          callType,
+          remoteUserId: callerId,
+          remoteUserName: callerName,
+          remoteUserAvatar: callerAvatar,
+          isCaller: false,
+          localStream: stream,
+        }));
+
+        safeSendSignal({
+          type: 'call_accept',
+          call_id: callId,
+          target_user_id: callerId,
+        });
+
+        await setupPeerConnection(callId, stream, false);
+      } catch (error) {
+        rtcError('Failed to accept call', error);
+        safeSendSignal({ type: 'call_reject', call_id: callId, target_user_id: callerId });
+        cleanup();
+        setState(initialState);
+      }
+    },
+    [cleanup, getMediaStream, safeSendSignal, setupPeerConnection]
+  );
+
+  const rejectCall = useCallback(
+    (callId: string, callerId: number) => {
+      rtcLog(`🚫 Rejecting call ${callId}`);
+      safeSendSignal({ type: 'call_reject', call_id: callId, target_user_id: callerId });
+      cleanup();
+      setState(initialState);
+    },
+    [cleanup, safeSendSignal]
+  );
+
+  const endCall = useCallback(
+    (callId: string, targetUserId: number) => {
+      rtcLog(`👋 Ending call ${callId}`);
+      safeSendSignal({ type: 'call_end', call_id: callId, target_user_id: targetUserId });
+      setState((prev) => ({ ...prev, status: 'ended' }));
+      setTimeout(() => {
+        cleanup();
+        setState(initialState);
+      }, 500);
+    },
+    [cleanup, safeSendSignal]
+  );
+
+  const handleSignal = useCallback(
+    async (data: any) => {
+      if (!data?.type) {
+        rtcWarn('Malformed signal', data);
+        return;
+      }
+
+      rtcLog(`📥 Signal: ${data.type}`, data);
+
+      switch (data.type) {
+        case 'call_incoming':
+          setState((prev) => ({
+            ...prev,
+            status: 'ringing',
+            callId: data.call_id,
+            callType: data.call_type,
+            remoteUserId: data.caller_id,
+            remoteUserName: data.caller_name ?? '',
+            remoteUserAvatar: data.caller_avatar ?? '',
+            isCaller: false,
+          }));
+          break;
+
+        case 'call_initiated':
+          rtcLog(`✅ Call initiated: ${data.call_id}`);
+          setState((prev) => ({
+            ...prev,
+            callId: data.call_id,
+            remoteUserId: data.target_user_id ?? prev.remoteUserId,
+          }));
+          activeCallIdRef.current = data.call_id;
+          break;
+
+        case 'call_accepted': {
+          const current = stateRef.current;
+          const callId = current.callId ?? data.call_id;
+          const stream = current.localStream;
+
+          if (!callId || !stream) {
+            rtcError('Cannot create caller PC', { callId, hasStream: !!stream });
+            return;
+          }
+
+          setState((prev) => ({ ...prev, status: 'connecting', callId }));
+          await setupPeerConnection(callId, stream, true);
+          break;
+        }
+
+        case 'call_offer': {
+          const pc = pcRef.current;
+          if (!pc) {
+            rtcError('Received OFFER but no PC');
+            return;
+          }
+          if (!data.sdp) {
+            rtcError('OFFER missing SDP');
+            return;
+          }
+
+          try {
+            rtcLog(' Setting remote OFFER');
+            await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            await flushIceCandidateBuffer(pc);
+
+            rtcLog(' Creating ANSWER');
+            const answer = await pc.createAnswer({
+              offerToReceiveAudio: true,
+              offerToReceiveVideo: true,
+            });
+            await pc.setLocalDescription(answer);
+
+            if (!pc.localDescription) throw new Error('localDescription null');
+
+            const callId = data.call_id ?? stateRef.current.callId;
+            if (!callId) throw new Error('No callId for answer');
+
+            safeSendSignal({
+              type: 'call_answer',
+              call_id: callId,
+              sdp: pc.localDescription,
+            });
+            rtcLog('📤 ANSWER sent');
+          } catch (error) {
+            rtcError('Failed to handle OFFER', error);
+          }
+          break;
+        }
+
+        case 'call_answer': {
+          const pc = pcRef.current;
+          if (!pc) {
+            rtcError('Received ANSWER but no PC');
+            return;
+          }
+          if (!data.sdp) {
+            rtcError('ANSWER missing SDP');
+            return;
+          }
+
+          try {
+            rtcLog('📝 Setting remote ANSWER');
+            await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            await flushIceCandidateBuffer(pc);
+            rtcLog('✅ ANSWER applied');
+          } catch (error) {
+            rtcError('Failed to set ANSWER', error);
+          }
+          break;
+        }
+
+        case 'call_ice_candidate': {
+          if (!data.candidate) {
+            rtcWarn('ICE signal without candidate');
+            return;
+          }
+          const pc = pcRef.current;
+          if (!pc) {
+            rtcLog('🧊 PC not ready — buffering ICE');
+            iceCandidateBufferRef.current.push(data.candidate);
+            return;
+          }
+          await addRemoteIceCandidate(pc, data.candidate);
+          break;
+        }
+
+        case 'call_rejected':
+        case 'call_busy':
+        case 'call_ended':
+          rtcLog(`📴 Remote ended: ${data.type}`);
+          setState((prev) => ({ ...prev, status: 'ended' }));
+          setTimeout(() => {
+            cleanup();
+            setState(initialState);
+          }, 500);
+          break;
+
+        default:
+          rtcWarn(`Unknown signal: ${data.type}`);
+      }
+    },
+    [addRemoteIceCandidate, cleanup, flushIceCandidateBuffer, safeSendSignal, setupPeerConnection]
+  );
+
+  const toggleMute = useCallback(() => {
+    const stream = stateRef.current.localStream;
+    if (!stream) return;
+    const tracks = stream.getAudioTracks();
+    if (tracks.length === 0) return;
+    const shouldMute = tracks.some((t) => t.enabled);
+    tracks.forEach((t) => (t.enabled = !shouldMute));
+    rtcLog(`🔇 Mic muted: ${shouldMute}`);
+    setState((prev) => ({ ...prev, isMuted: shouldMute }));
+  }, []);
+
+  const toggleVideo = useCallback(() => {
+    const stream = stateRef.current.localStream;
+    if (!stream) return;
+    const tracks = stream.getVideoTracks();
+    if (tracks.length === 0) return;
+    const shouldDisable = tracks.some((t) => t.enabled);
+    tracks.forEach((t) => (t.enabled = !shouldDisable));
+    rtcLog(`📹 Video disabled: ${shouldDisable}`);
+    setState((prev) => ({ ...prev, isVideoOff: shouldDisable }));
+  }, []);
+
+  useEffect(() => {
+    return () => cleanup();
+  }, [cleanup]);
+
+  return {
+    callState: state,
+    initiateCall,
+    acceptCall,
+    rejectCall,
+    endCall,
+    toggleMute,
+    toggleVideo,
+    handleSignal,
+    peerConnection: pcRef.current,
+  };
+}
