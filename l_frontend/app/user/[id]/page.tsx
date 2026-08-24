@@ -127,7 +127,7 @@ async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
   }
 
 function getGlowColor(user: any): string | null {
-  if (user?.username === "trelod") return "#10b981";
+if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   if (user?.is_admin) return "#fff";
   if (user?.is_moderator) return "#3b82f6";
   if (user?.role?.color) return user.role.color;
