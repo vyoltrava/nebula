@@ -5024,6 +5024,10 @@ def startup():
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_theme_active ON theme(is_active, min_level);'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_support_message_ticket ON support_message(ticket_id, created_at);'))
             
+            conn.execute(text("ALTER TABLE custom_badge ADD COLUMN IF NOT EXISTS text_color VARCHAR DEFAULT '#ffffff';"))
+
+
+
             conn.commit()
             print("✅ Блок 8: Все индексы созданы")
         except Exception as e:
