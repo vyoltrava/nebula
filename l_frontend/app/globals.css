@@ -502,7 +502,7 @@ body {
 
 @keyframes perimeter-wave {
   0% {
-    stroke-dashoffset: 550;
+    stroke-dashoffset: 360; /* Ровно длина паттерна (60+300) */
   }
   100% {
     stroke-dashoffset: 0;
@@ -513,7 +513,6 @@ body {
   animation: perimeter-wave 3s linear infinite;
 }
 
-/* Опционально: более медленная версия для высоких уровней */
 .animate-perimeter-wave-slow {
   animation: perimeter-wave 5s linear infinite;
 }

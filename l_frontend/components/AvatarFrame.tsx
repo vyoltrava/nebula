@@ -163,11 +163,11 @@ function Level9Effect({ children }: { children: ReactNode }) {
 
 function Level10Effect({ children }: { children: ReactNode }) {
   return (
-    <div className="relative inline-block">
+    <div className="relative"> {/* Убрал inline-block для консистентности */}
       <PerimeterWave color="#ffffff" speed="slow">
         {children}
       </PerimeterWave>
-      {/* Hello Kitty ТЕПЕРЬ ТОЖЕ В ЛЕВОМ ВЕРХНЕМ УГЛУ */}
+      {/* Hello Kitty ТЕПЕРЬ ТОЧНО ТАК ЖЕ как у кастомных */}
       <div 
         className="absolute z-30 pointer-events-none select-none animate-bounce-slow"
         style={{ top: '-12px', left: '-12px' }}
