@@ -1,5 +1,6 @@
 "use client";
 import { ReactNode } from "react";
+import { PerimeterWave } from "@/components/PerimeterWave";
 
 // --- Custom Badge Types ---
 interface CustomBadgeConfig {
