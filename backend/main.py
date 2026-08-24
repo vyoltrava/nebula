@@ -10262,8 +10262,6 @@ def stats_users_list(staff: User = Depends(require_staff), session: Session = De
         })
     return result
 
-
-
 # ============================================================
 # 🏷️ КАСТОМНЫЕ ПЛАШКИ (BADGES 2.0)
 # ============================================================
@@ -10355,6 +10353,7 @@ def list_custom_badges(
 
 @app.post("/api/custom-badges")
 def create_custom_badge(
+    request: Request,  # <-- ДОБАВЛЕНО: для получения IP
     badge_data: CustomBadge,
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
@@ -10362,7 +10361,6 @@ def create_custom_badge(
     """Создание новой кастомной плашки (принимает JSON)"""
     _require_badge_admin(staff, session)
 
-    # Создаем объект, копируя данные из body
     new_badge = CustomBadge(
         name=badge_data.name,
         description=badge_data.description,
@@ -10398,17 +10396,16 @@ def create_custom_badge(
     
     session.add(new_badge)
     
-    # ✅ ИСПРАВЛЕНО: ActionLog не имеет метода .create(), создаем объект вручную
+    # ✅ ИСПРАВЛЕНО: передаем реальный request в get_client_ip
     log_entry = ActionLog(
         actor_id=staff.id,
         action="badge_create",
         target_type="CustomBadge",
         target_id=new_badge.id,
         details=f'Created custom badge "{new_badge.name}"',
-        ip_address=get_client_ip(None) # Если нет request, можно передать None или убрать поле
+        ip_address=get_client_ip(request),
     )
     session.add(log_entry)
-    
     session.commit()
     session.refresh(new_badge)
     
@@ -10416,6 +10413,7 @@ def create_custom_badge(
 
 @app.put("/api/custom-badges/{badge_id}")
 def update_custom_badge(
+    request: Request,  # <-- ДОБАВЛЕНО: для получения IP
     badge_id: int,
     badge_data: CustomBadge,
     staff: User = Depends(require_staff),
@@ -10427,7 +10425,6 @@ def update_custom_badge(
     if not badge:
         raise HTTPException(404, "Плашка не найдена")
 
-    # Список полей, которые можно обновить
     update_fields = [
         "name", "description", "icon_url", "text_content",
         "bg_type", "bg_color", "bg_gradient", "bg_gradient_type", "bg_gradient_angle",
@@ -10446,16 +10443,16 @@ def update_custom_badge(
 
     session.add(badge)
     
-    # ✅ ИСПРАВЛЕНО: Ручное создание лога
+    # ✅ ИСПРАВЛЕНО: передаем реальный request в get_client_ip
     log_entry = ActionLog(
         actor_id=staff.id,
         action="badge_update",
         target_type="CustomBadge",
         target_id=badge.id,
-        details=f"Updated custom badge '{badge.name}'"
+        details=f"Updated custom badge '{badge.name}'",
+        ip_address=get_client_ip(request),
     )
     session.add(log_entry)
-    
     session.commit()
     session.refresh(badge)
 
@@ -10463,13 +10460,13 @@ def update_custom_badge(
 
 @app.delete("/api/custom-badges/{badge_id}")
 def delete_custom_badge(
+    request: Request,  # <-- ДОБАВЛЕНО: для получения IP
     badge_id: int,
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
     """Удаление плашки"""
     lvl = _require_badge_admin(staff, session)
-    # Удаление доступно только Founder (11) или Admin (10), но не ниже
     if lvl < 10: 
          raise HTTPException(403, "Удалять плашки может только уровень 10+")
 
@@ -10477,23 +10474,22 @@ def delete_custom_badge(
     if not badge:
         raise HTTPException(404, "Плашка не найдена")
 
-    # Удаляем связанные назначения
     assignments = session.exec(select(CustomBadgeAssignment).where(CustomBadgeAssignment.badge_id == badge_id)).all()
     for a in assignments:
         session.delete(a)
         
     session.delete(badge)
     
-    # ✅ ИСПРАВЛЕНО: Ручное создание лога
+    # ✅ ИСПРАВЛЕНО: передаем реальный request в get_client_ip
     log_entry = ActionLog(
         actor_id=staff.id,
         action="badge_delete",
         target_type="CustomBadge",
         target_id=badge_id,
-        details=f"Deleted custom badge '{badge.name}'"
+        details=f"Deleted custom badge '{badge.name}'",
+        ip_address=get_client_ip(request),
     )
     session.add(log_entry)
-    
     session.commit()
 
     return {"success": True}
@@ -10569,6 +10565,7 @@ def list_assignments(
 
 @app.post("/api/custom-badge-assignments")
 def assign_custom_badge(
+    request: Request,  # <-- ДОБАВЛЕНО
     user_id: int = Form(...),
     badge_id: int = Form(...),
     expires_at: Optional[str] = Form(None),
@@ -10590,7 +10587,6 @@ def assign_custom_badge(
     if not badge:
         raise HTTPException(404, "Плашка не найдена")
 
-    # Проверка иерархии (кто кому может выдавать)
     target_level = get_user_level(target, session)
     if lvl == 9 and target_level >= 9:
         raise HTTPException(403, "Уровень 9 не может выдавать плашки пользователям уровня 9+")
@@ -10605,7 +10601,6 @@ def assign_custom_badge(
         except ValueError:
             pass
 
-    # Деактивируем старые активные назначения этой же плашки этому юзеру
     existing = session.exec(
         select(CustomBadgeAssignment).where(
             CustomBadgeAssignment.user_id == user_id,
@@ -10640,13 +10635,14 @@ def assign_custom_badge(
     session.commit()
     session.refresh(assignment)
     
-    # ✅ ИСПРАВЛЕНО: Ручное создание лога
+    # ✅ ИСПРАВЛЕНО: передаем request
     log_entry = ActionLog(
         actor_id=staff.id,
         action="badge_assign",
         target_type="CustomBadgeAssignment",
         target_id=assignment.id,
-        details=f"Granted badge '{badge.name}' to user {user_id}"
+        details=f"Granted badge '{badge.name}' to user {user_id}",
+        ip_address=get_client_ip(request),
     )
     session.add(log_entry)
     session.commit()
@@ -10655,6 +10651,7 @@ def assign_custom_badge(
 
 @app.post("/api/custom-badge-assignments/{assign_id}/revoke")
 def revoke_assignment(
+    request: Request,  # <-- ДОБАВЛЕНО
     assign_id: int,
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session)
@@ -10669,13 +10666,14 @@ def revoke_assignment(
     session.add(assignment)
     session.commit()
     
-    # ✅ ИСПРАВЛЕНО: Ручное создание лога
+    # ✅ ИСПРАВЛЕНО: передаем request
     log_entry = ActionLog(
         actor_id=staff.id,
         action="badge_revoke",
         target_type="CustomBadgeAssignment",
         target_id=assign_id,
-        details=f"Revoked badge assignment {assign_id}"
+        details=f"Revoked badge assignment {assign_id}",
+        ip_address=get_client_ip(request),
     )
     session.add(log_entry)
     session.commit()
@@ -10684,8 +10682,9 @@ def revoke_assignment(
 
 @app.post("/api/custom-badge-assignments/{assign_id}/extend")
 def extend_assignment(
+    request: Request,  # <-- ДОБАВЛЕНО
     assign_id: int,
-    duration_type: str = Form(...), # permanent, days, date
+    duration_type: str = Form(...),
     duration_days: Optional[int] = Form(None),
     expires_at: Optional[str] = Form(None),
     staff: User = Depends(require_staff),
@@ -10698,7 +10697,6 @@ def extend_assignment(
         raise HTTPException(404, "Назначение не найдено")
 
     now = datetime.now(timezone.utc)
-    # Если есть текущий срок и он в будущем, берем его за базу, иначе сейчас
     base = assignment.expires_at if (assignment.expires_at and assignment.expires_at > now) else now
 
     if duration_type == "permanent":
