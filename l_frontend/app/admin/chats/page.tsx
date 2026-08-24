@@ -126,7 +126,7 @@ export default function AdminChatsPage() {
                   activeChat?.id === c.id ? "bg-cyan-500/10" : ""
                 }`}
               >
-                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shrink-0 overflow-hidden">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shrink-0 overflow-hidden">
                   {c.avatar_url ? (
                     <img src={mediaUrl(c.avatar_url)} alt="" className="w-full h-full object-cover" />
                   ) : c.is_group ? (

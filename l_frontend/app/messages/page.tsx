@@ -504,14 +504,14 @@ const confirmPrismKey = async () => {
                 
                 <div className="shrink-0 relative">
                   {isSaved ? (
-                    <div className="w-12 h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-xl bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
                       <Bookmark size={24} className="text-yellow-400" />
                     </div>
                   ) : isGroup ? (
                     chat.avatar_url ? (
                       <Avatar src={chat.avatar_url} name={chat.name || t("common.group")} id={chat.id} size={48} />
                     ) : (
-                      <div className="w-12 h-12 relative flex items-center justify-center bg-white/5 rounded-full">
+                      <div className="w-12 h-12 relative flex items-center justify-center bg-white/5 rounded-xl">
                         {(chat.members || []).slice(0, 3).map((m: any, i: number) => (
                           <div key={m.user.id} className="absolute" style={{ top: i === 0 ? 0 : i === 1 ? 24 : 0, left: i === 0 ? 0 : i === 1 ? 24 : 24, zIndex: 3 - i }}>
                             <Avatar src={m.user.avatar_url} name={m.user.display_name} id={m.user.id} size={28} />

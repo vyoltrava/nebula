@@ -23,7 +23,7 @@ export function Avatar({
       style={{ width: size, height: size }}
     >
       <div
-        className="w-full h-full rounded-full overflow-hidden bg-white/[0.08]"
+        className="w-full h-full rounded-xl overflow-hidden bg-white/[0.08]"
         style={{ width: size, height: size }}
       >
         {imageUrl ? (

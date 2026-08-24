@@ -2110,7 +2110,7 @@ const ChatHeader = () => (
             onClick={() => setShowGroupMembers(true)}
             className="flex items-center gap-3 sm:gap-3 group flex-1 min-w-0 text-left active:opacity-70 transition-opacity"
           >
-            <div className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-gradient-to-br from-purple-500 via-violet-600 to-indigo-600 flex items-center justify-center ring-2 ring-white/10">
+            <div className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden bg-gradient-to-br from-purple-500 via-violet-600 to-indigo-600 flex items-center justify-center ring-2 ring-white/10">
               {chatInfo?.avatar_url ? (
                 <img
                   src={mediaUrl(chatInfo.avatar_url)}
@@ -2136,7 +2136,7 @@ const ChatHeader = () => (
         ) : isSavedChat ? (
           // 🆕 ЧАТ С САМИМ СОБОЙ (ИЗБРАННОЕ) — стиль как в списке чатов
           <div className="flex items-center gap-3 sm:gap-3 flex-1 min-w-0">
-            <div className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
+            <div className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
               <Bookmark size={22} className="text-yellow-400" />
             </div>
             <div className="min-w-0 flex-1">
@@ -3377,11 +3377,11 @@ style={{
               onClick={() => forwardToChat(c.id)}
               className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors text-left"
             >
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shrink-0">
                 {c.is_group ? (
                   <Users size={18} className="text-white" />
                 ) : c.other?.avatar_url ? (
-                  <img src={mediaUrl(c.other.avatar_url)} alt="" className="w-full h-full rounded-full object-cover" />
+                  <img src={mediaUrl(c.other.avatar_url)} alt="" className="w-full h-full rounded-xl object-cover" />
                 ) : (
                   <span className="text-white font-bold">{(c.other?.display_name || "?")[0]}</span>
                 )}

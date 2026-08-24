@@ -75,7 +75,7 @@ export function ChatsSection({ me }: { me: any }) {
           {filtered.map((c) => (
             <button key={c.id} onClick={() => openChat(c)}
               className={`w-full flex items-center gap-3 p-3 border-b border-white/5 hover:bg-white/5 text-left ${activeChat?.id === c.id ? "bg-cyan-500/10" : ""}`}>
-              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shrink-0 overflow-hidden">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shrink-0 overflow-hidden">
                 {c.avatar_url ? <img src={mediaUrl(c.avatar_url)} alt="" className="w-full h-full object-cover" />
                   : c.is_group ? <Users size={20} className="text-white" /> : <MessageSquare size={18} className="text-white" />}
               </div>

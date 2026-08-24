@@ -80,7 +80,7 @@ export default function CallModal() {
               <img 
                 src={displayAvatar} 
                 alt={displayName} 
-                className={`w-28 h-28 rounded-full object-cover border-4 ${status === 'ringing' ? 'border-green-500 animate-pulse' : 'border-white/30'}`} 
+                className={`w-28 h-28 rounded-xl object-cover border-4 ${status === 'ringing' ? 'border-green-500 animate-pulse' : 'border-white/30'}`} 
               />
             ) : (
               <div className={`w-28 h-28 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-4xl font-bold border-4 ${status === 'ringing' ? 'border-green-500 animate-pulse' : 'border-white/30'}`}>

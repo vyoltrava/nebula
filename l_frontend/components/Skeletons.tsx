@@ -8,7 +8,7 @@ export function PostSkeleton() {
   return (
     <article className="p-4 border-b border-white/10 animate-pulse">
       <div className="flex gap-3">
-        <div className="w-12 h-12 rounded-full bg-white/10 shrink-0" />
+        <div className="w-12 h-12 rounded-xl bg-white/10 shrink-0" />
         <div className="flex-1 space-y-2">
           <div className="flex items-center gap-2">
             <div className="h-4 bg-white/10 rounded w-32" />
@@ -38,7 +38,7 @@ export function MainPostSkeleton() {
     <div className="p-4 border-b border-white/10 animate-pulse">
       <div className="flex gap-3">
         {/* Аватарка */}
-        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/10 shrink-0" />
+        <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white/10 shrink-0" />
         
         <div className="flex-1 space-y-3">
           {/* Имя и юзернейм */}
@@ -75,7 +75,7 @@ export function ProfileSkeleton() {
         <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-5">
           {/* Аватарка */}
           <div className="flex justify-center md:justify-start">
-            <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-white/10" />
+            <div className="w-20 h-20 md:w-24 md:h-24 rounded-xl bg-white/10" />
           </div>
 
           {/* Контент */}
@@ -189,7 +189,7 @@ export function ChatWindowSkeleton() {
       <div className="flex-1 p-4 space-y-4 overflow-y-auto">
         {/* Входящее сообщение */}
         <div className="flex gap-3">
-          <div className="w-8 h-8 rounded-full bg-white/10 shrink-0 mt-1" />
+          <div className="w-8 h-8 rounded-xl bg-white/10 shrink-0 mt-1" />
           <div className="space-y-2 max-w-[75%]">
             <div className="h-3 w-24 bg-white/5 rounded-md" />
             <div className="h-12 w-56 bg-white/10 rounded-2xl rounded-tl-sm" />
@@ -206,7 +206,7 @@ export function ChatWindowSkeleton() {
 
         {/* Входящее сообщение 2 */}
         <div className="flex gap-3">
-          <div className="w-8 h-8 rounded-full bg-white/10 shrink-0 mt-1" />
+          <div className="w-8 h-8 rounded-xl bg-white/10 shrink-0 mt-1" />
           <div className="space-y-2 max-w-[60%]">
             <div className="h-3 w-20 bg-white/5 rounded-md" />
             <div className="h-8 w-32 bg-white/10 rounded-2xl rounded-tl-sm" />
@@ -234,7 +234,7 @@ export function VideoNoteSkeleton() {
     <div className="absolute inset-0 overflow-hidden rounded-2xl bg-white/5 border border-white/10">
       <Shimmer />
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-        <div className="w-11 h-11 rounded-full bg-white/10 animate-pulse flex items-center justify-center">
+        <div className="w-11 h-11 rounded-xl bg-white/10 animate-pulse flex items-center justify-center">
           <Video size={18} className="text-[#a78bfa]" />
         </div>
         <span className="text-[10px] font-medium text-white/30">Загрузка видео…</span>
@@ -255,7 +255,7 @@ export function BannerSkeleton({ className = "h-40 sm:h-52 rounded-2xl" }: { cla
 // Скелет аватарки
 export function AvatarSkeleton({ size = 96 }: { size?: number }) {
   return (
-    <div className="relative rounded-full bg-white/5 overflow-hidden" style={{ width: size, height: size }}>
+    <div className="relative rounded-xl bg-white/5 overflow-hidden" style={{ width: size, height: size }}>
       <Shimmer />
     </div>
   );

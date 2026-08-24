@@ -498,7 +498,7 @@ function getGlowColor(user: any): string | null {
 {/* АВАТАРКА */}
 <div className={`flex flex-col items-center md:items-start ${profile.cover_url ? "mt-[-3.5rem] md:mt-[-5rem]" : ""} z-10`}>
   <div 
-    className="relative shrink-0 w-32 h-32 rounded-full ring-4 ring-[#171717] cursor-pointer group"
+    className="relative shrink-0 w-32 h-32 rounded-xl ring-4 ring-[#171717] cursor-pointer group"
     onClick={() => isOwnProfile && setShowAvatarMenu(!showAvatarMenu)}
   >
 <AvatarFrame 
@@ -517,7 +517,7 @@ function getGlowColor(user: any): string | null {
 </AvatarFrame>
     {/* Overlay "загрузка" при uploading */}
     {uploading && (
-      <div className="absolute inset-0 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+      <div className="absolute inset-0 rounded-xl bg-black/50 backdrop-blur-sm flex items-center justify-center">
         <span className="block w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
       </div>
     )}
