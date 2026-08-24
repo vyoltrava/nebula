@@ -97,40 +97,43 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
         </div>
       )}
 
-      {/* 🆕 ЗНАЧОК В ЛЕВОМ НИЖНЕМ УГЛУ */}
-      {userBadge && (
-        <div 
-          className={`absolute -bottom-1.5 -left-1.5 w-8 h-8 z-20 select-none ${
-            canEditBadge ? 'pointer-events-auto cursor-pointer hover:scale-110 transition-transform' : 'pointer-events-none'
-          }`}
-          onClick={canEditBadge ? onBadgeClick : undefined}
-          title={canEditBadge ? "Нажми, чтобы сменить значок" : ""}
-        >
-          {/* Подложка значка, чтобы он не сливался с фоном */}
-          <div className="absolute inset-0 rounded-full bg-[#171717] border-2 border-[#171717]" />
-          
-          {/* Свечение под значком (только если включено) */}
-          {userBadge.enable_glow && (
-            <div 
-              className="absolute inset-0 rounded-full"
-              style={{
-                background: `radial-gradient(circle, ${glowColor} 0%, ${glowColor}60 50%, transparent 70%)`,
-                filter: `blur(4px)`,
-                transform: `scale(1.4)`,
-                zIndex: -1,
-              }}
-            />
-          )}
-          
-          {/* Иконка значка */}
-          <img
-            src={userBadge.icon_url}
-            alt={userBadge.name || "Badge"}
-            className="relative w-full h-full object-contain p-0.5"
-            draggable={false}
-          />
-        </div>
-      )}
+
+
+
+{/* 🆕 ЗНАЧОК В ЛЕВОМ ВЕРХНЕМ УГЛУ */}
+{userBadge && (
+  <div 
+    className={`absolute -top-1.5 -left-1.5 w-8 h-8 z-20 select-none ${
+      canEditBadge ? 'pointer-events-auto cursor-pointer hover:scale-110 transition-transform' : 'pointer-events-none'
+    }`}
+    onClick={canEditBadge ? onBadgeClick : undefined}
+    title={canEditBadge ? "Нажми, чтобы сменить значок" : ""}
+  >
+    {/* Подложка значка, чтобы он не сливался с фоном */}
+    <div className="absolute inset-0 rounded-full bg-[#171717] border-2 border-[#171717]" />
+    
+    {/* Свечение под значком (только если включено) */}
+    {userBadge.enable_glow && (
+      <div 
+        className="absolute inset-0 rounded-full"
+        style={{
+          background: `radial-gradient(circle, ${glowColor} 0%, ${glowColor}60 50%, transparent 70%)`,
+          filter: `blur(4px)`,
+          transform: `scale(1.4)`,
+          zIndex: -1,
+        }}
+      />
+    )}
+    
+    {/* Иконка значка */}
+    <img
+      src={userBadge.icon_url}
+      alt={userBadge.name || "Badge"}
+      className="relative w-full h-full object-contain p-0.5"
+      draggable={false}
+    />
+  </div>
+)}
     </div>
   );
 }
