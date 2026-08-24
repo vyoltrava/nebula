@@ -121,11 +121,19 @@ export default function AdminPage() {
             {/* 🛠️ ИСПРАВЛЕНО: Вертикальный стек кнопок справа. Кнопка "Команда" теперь ведет на /team */}
             <div className="flex flex-col items-end gap-2 shrink-0">
               {canRoles && (
-                <Link
+                                <Link
                   href="/admin/roles"
                   className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-[#8b5cf6] bg-[#8b5cf6] text-white text-sm font-bold hover:bg-[#7c3aed] transition-all w-full"
                 >
                   <Crown size={16} /> Роли
+                </Link>
+              )}
+              {(me?.level ?? 0) >= 9 && (
+                <Link
+                  href="/adminnew/badges"
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-[#22c55e] bg-[#22c55e] text-white text-sm font-bold hover:bg-[#16a34a] transition-all w-full"
+                >
+                  <Palette size={16} /> Кастомные плашки
                 </Link>
               )}
               
