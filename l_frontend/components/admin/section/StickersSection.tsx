@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Button, IconButton } from "@/components/ui/Button";
 
+
 const CATEGORIES = [
   { key: "emotions", label: "Эмоции", range: [0, 25] },
   { key: "gestures", label: "Жесты", range: [25, 41] },
