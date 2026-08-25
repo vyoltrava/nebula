@@ -22,7 +22,8 @@ import { useWebSocket } from "@/src/hooks/useWebSocket";
 import { setLikedCache } from "@/lib/postCache";
 import { useLastReadPost } from "@/src/hooks/useLastReadPost";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
-import type { MessageKey } from "@/lib/i18n"; 
+import type { MessageKey } from "@/lib/i18n";
+import { BrandIcon } from "@/components/BrandIcon"; 
 import { CommunityTabs } from "@/components/CommunityTabs";
 
 
@@ -886,8 +887,8 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
   const desktopSidebarContent = (
     <>
       <div className={`flex ${isDock ? "justify-center" : "items-center gap-2"}`}>
-        <img src="/logo-icon.svg" alt="Trelod logo" className={isDock ? "w-8 h-8" : "w-9 h-9"} />
-        {!isDock && <h1 className="font-logo text-4xl text-[#8b5cf6]">trelod</h1>}
+        <BrandIcon className={isDock ? "w-8 h-8" : "w-9 h-9"} />
+        {!isDock && <h1 className={`font-logo text-4xl ${resolvedTheme === "light" ? "text-[#3D1F6D]" : "text-[#8b5cf6]"}`}>trelod</h1>}
       </div>
       
       <nav className="flex flex-col flex-1">
