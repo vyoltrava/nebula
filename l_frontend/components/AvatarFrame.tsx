@@ -92,7 +92,15 @@ const getAnimationClasses = (config: CustomBadgeConfig) => {
 };
 
 // === РЕНДЕР КАСТОМНОЙ ПЛАШКИ (ИСПРАВЛЕННЫЙ) ===
-function CustomBadgeRenderer({ badgeData, size }: { badgeData: CustomBadgeData; size: number }) {
+function CustomBadgeRenderer({ 
+  badgeData, 
+  size,
+  children 
+}: { 
+  badgeData: CustomBadgeData; 
+  size: number;
+  children?: ReactNode;
+}) {
   let config: CustomBadgeConfig;
   try {
     config = JSON.parse(badgeData.badge_config);
@@ -125,13 +133,20 @@ function CustomBadgeRenderer({ badgeData, size }: { badgeData: CustomBadgeData; 
       className={`relative w-full h-full rounded-xl overflow-hidden flex items-center justify-center`}
       style={{ ...bgStyle, ...innerEffectsStyle }}
     >
-      {config.icon_url && (
-        <img src={config.icon_url} alt={config.name} className={`w-3/4 h-3/4 object-contain z-10 ${animationClasses}`} />
-      )}
-      {config.text_content && !config.icon_url && (
-        <span className={`absolute inset-0 flex items-center justify-center text-white text-sm font-bold p-1 z-10 ${animationClasses}`}>
-          {config.text_content}
-        </span>
+      {/* Если есть children (аватарка), рендерим её */}
+      {children ? (
+        <div className="w-full h-full">{children}</div>
+      ) : (
+        <>
+          {config.icon_url && (
+            <img src={config.icon_url} alt={config.name} className={`w-3/4 h-3/4 object-contain z-10 ${animationClasses}`} />
+          )}
+          {config.text_content && !config.icon_url && (
+            <span className={`absolute inset-0 flex items-center justify-center text-white text-sm font-bold p-1 z-10 ${animationClasses}`}>
+              {config.text_content}
+            </span>
+          )}
+        </>
       )}
     </div>
   );
@@ -219,7 +234,10 @@ export function AvatarFrame({
   return (
     <div className="relative inline-block">
       {showCustomBadge ? (
-        <CustomBadgeRenderer badgeData={activeAssignment!.badge} size={size} />
+        // ✅ ТЕПЕРЬ ПЕРЕДАЕМ children (аватарку) в CustomBadgeRenderer
+        <CustomBadgeRenderer badgeData={activeAssignment!.badge} size={size}>
+          {children}
+        </CustomBadgeRenderer>
       ) : (
         <>
           {/* === СТРОГО ВНУТРИ AVATAR FRAME: БЕГУЩАЯ ОБВОДКА АВАТАРКИ === */}
