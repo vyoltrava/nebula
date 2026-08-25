@@ -80,30 +80,16 @@ const getAnimationClasses = (config: CustomBadgeConfig) => {
   if (config.animation_flags) {
     config.animation_flags.forEach(flag => {
       switch (flag) {
-        case 'perimeter_wave':
-          // Эта анимация теперь обрабатывается компонентом PerimeterWave, но класс можно оставить для совместимости
-          break;
-        case 'pulse_glow':
-          classes.push('animate-pulse-glow');
-          break;
-        case 'shimmer':
-          classes.push('animate-shimmer');
-          break;
-        case 'blink':
-          classes.push('animate-blink');
-          break;
-        case 'rotate_icon':
-          classes.push('animate-rotate-icon');
-          break;
-        case 'float':
-          classes.push('animate-float');
-          break;
+        case 'pulse_glow': classes.push('animate-pulse-glow'); break;
+        case 'shimmer': classes.push('animate-shimmer'); break;
+        case 'blink': classes.push('animate-blink'); break;
+        case 'rotate_icon': classes.push('animate-rotate-icon'); break;
+        case 'float': classes.push('animate-float'); break;
       }
     });
   }
   return classes.join(' ');
 };
-
 
 // === РЕНДЕР КАСТОМНОЙ ПЛАШКИ (ИСПРАВЛЕННЫЙ) ===
 function CustomBadgeRenderer({ badgeData, size }: { badgeData: CustomBadgeData; size: number }) {
@@ -117,21 +103,17 @@ function CustomBadgeRenderer({ badgeData, size }: { badgeData: CustomBadgeData; 
 
   const bgStyle = getBackgroundStyle(config);
   const animationClasses = getAnimationClasses(config);
-
-  // Проверяем, нужна ли анимация волн
   const hasPerimeterWave = config.animation_flags?.includes('perimeter_wave');
   
-  // Цвет для волны берем из border_color или дефолтный
   const waveColor = config.border_color || "#8b5cf6";
   const waveSpeed = config.animation_speed === 'slow' ? "slow" : "normal";
 
-  // Стили для внутренних эффектов
   const innerEffectsStyle: React.CSSProperties = {
     ...(config.shadow_enabled && config.shadow_color && {
       boxShadow: `${config.shadow_offset_x || 0}px ${config.shadow_offset_y || 0}px ${config.shadow_blur || 10}px ${config.shadow_color}`
     }),
     ...(config.inner_glow_enabled && {
-      boxShadow: `inset 0 0 15px rgba(255, 255, 255, 0.3)` // Упрощенный inner glow
+      boxShadow: `inset 0 0 15px rgba(255, 255, 255, 0.3)`
     }),
     ...(config.metallic_enabled && {
       backgroundImage: `${bgStyle.backgroundImage || ''}, linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.1) 100%)`
@@ -154,22 +136,17 @@ function CustomBadgeRenderer({ badgeData, size }: { badgeData: CustomBadgeData; 
     </div>
   );
 
-  // Если есть анимация волны, оборачиваем в PerimeterWave
+  // PerimeterWave используется ТОЛЬКО здесь, для кастомной плашки
   if (hasPerimeterWave) {
     return (
       <div className="relative inline-block" style={{ width: size, height: size }}>
-        <PerimeterWave 
-          color={waveColor} 
-          speed={waveSpeed}
-          extraDecorations={null} // Можно добавить декорации если нужно
-        >
+        <PerimeterWave color={waveColor} speed={waveSpeed} extraDecorations={null}>
           <Content />
         </PerimeterWave>
       </div>
     );
   }
 
-  // Иначе просто рендерим блок с обычной обводкой (если она есть и не является волной)
   const borderStyle = config.border_width && config.border_width > 0 ? {
     border: `${config.border_width}px ${config.border_style || 'solid'} ${config.border_color || 'transparent'}`,
     ...(config.border_glow && {
@@ -178,15 +155,11 @@ function CustomBadgeRenderer({ badgeData, size }: { badgeData: CustomBadgeData; 
   } : {};
 
   return (
-    <div 
-      className={`relative inline-block rounded-xl overflow-hidden`} 
-      style={{ width: size, height: size, ...borderStyle }}
-    >
+    <div className={`relative inline-block rounded-xl overflow-hidden`} style={{ width: size, height: size, ...borderStyle }}>
       <Content />
     </div>
   );
 }
-
 
 interface AvatarFrameProps {
   children: ReactNode;
@@ -195,38 +168,40 @@ interface AvatarFrameProps {
   availableBadges?: any[];
   canEditBadge?: boolean;
   onBadgeClick?: () => void;
-  activeCustomBadgeAssignment?: any; // 🆕 ДОБАВЛЕНО: чтобы TypeScript не ругался
+  activeCustomBadgeAssignment?: any;
 }
 
-export function AvatarFrame({ children, user, size = 128, availableBadges = [], canEditBadge = false, onBadgeClick }: AvatarFrameProps) {
+export function AvatarFrame({ 
+  children, 
+  user, 
+  size = 128, 
+  availableBadges = [], 
+  canEditBadge = false, 
+  onBadgeClick,
+  activeCustomBadgeAssignment 
+}: AvatarFrameProps) {
   if (!user) return <>{children}</>;
 
   const level = user.level ?? (user.username === "trelod" ? 11 : user.is_admin ? 10 : user.is_moderator ? 9 : user.role?.level ?? 1);
 
-  // --- NEW: Custom Badge Assignment Logic ---
-  const activeCustomBadgeAssignment: CustomBadgeAssignmentData | undefined = user.active_custom_badge_assignment;
-  
-  // Check if current date is past expires_at
-  const isExpired = activeCustomBadgeAssignment && activeCustomBadgeAssignment.expires_at ? new Date(activeCustomBadgeAssignment.expires_at) < new Date() : false;
-
-  const showCustomBadge = activeCustomBadgeAssignment && activeCustomBadgeAssignment.is_active && !isExpired && activeCustomBadgeAssignment.override_priority;
+  const activeAssignment: CustomBadgeAssignmentData | undefined = activeCustomBadgeAssignment || user.active_custom_badge_assignment;
+  const isExpired = activeAssignment && activeAssignment.expires_at ? new Date(activeAssignment.expires_at) < new Date() : false;
+  const showCustomBadge = activeAssignment && activeAssignment.is_active && !isExpired && activeAssignment.override_priority;
 
   let userBadge = !showCustomBadge ? (
-                    // Old custom_badge_url should be deprecated in favor of CustomBadgeAssignment
-                    (user.custom_badge_url ? {
-                      id: -1,
-                      icon_url: user.custom_badge_url,
-                      glow_color: "#8b5cf6",
-                      enable_ring: true,
-                      enable_glow: true,
-                      name: "Custom Badge"
-                    } : null) ||
-                    availableBadges.find((b: any) => b.id === user.selected_badge_id) || 
-                    availableBadges.find((b: any) => b.user_id === user.id) ||
-                    availableBadges.find((b: any) => b.role_id === user.role?.id)
-                  ) : null;
+    (user.custom_badge_url ? {
+      id: -1,
+      icon_url: user.custom_badge_url,
+      glow_color: "#8b5cf6",
+      enable_ring: true,
+      enable_glow: true,
+      name: "Custom Badge"
+    } : null) ||
+    availableBadges.find((b: any) => b.id === user.selected_badge_id) || 
+    availableBadges.find((b: any) => b.user_id === user.id) ||
+    availableBadges.find((b: any) => b.role_id === user.role?.id)
+  ) : null;
 
-  // Virtual badge for Level 10 (Founder), if not found in the list
   if (!userBadge && level === 10 && !showCustomBadge) {
      userBadge = {
          id: 999,
@@ -243,34 +218,58 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
 
   return (
     <div className="relative inline-block">
-      
       {showCustomBadge ? (
-        // Render the new custom badge
-        <CustomBadgeRenderer badgeData={activeCustomBadgeAssignment!.badge} size={size} />
+        <CustomBadgeRenderer badgeData={activeAssignment!.badge} size={size} />
       ) : (
-        // Render existing badges/rings
         <>
-          {/* === РЕНДЕРИНГ ЭФФЕКТОВ И АВАТАРКИ === */}
+          {/* === СТРОГО ВНУТРИ AVATAR FRAME: БЕГУЩАЯ ОБВОДКА АВАТАРКИ === */}
           {showRing ? (
-            <PerimeterWave 
-                color={glowColor} 
-                speed={level === 10 ? "slow" : "normal"}
-                extraDecorations={
-                    level === 9 ? (
-                        <>
-                          <span className="absolute top-1.5 left-1.5 text-[10px] font-mono text-blue-400 animate-pulse">&lt;/&gt;</span>
-                          <span className="absolute bottom-1.5 right-1.5 text-[10px] font-mono text-blue-300 animate-pulse">{`{ }`}</span>
-                        </>
-                    ) : level === 11 ? (
-                        <>
-                            <span className="absolute top-1.5 left-1.5 text-[9px] font-mono text-green-400 font-bold">01</span>
-                            <span className="absolute top-1.5 right-1.5 text-[9px] font-mono text-green-300 font-bold">10</span>
-                        </>
-                    ) : null
+            <div className="relative inline-block rounded-xl">
+              {/* 1. Внешнее размытое свечение */}
+              <div
+                className="absolute -inset-0.5 rounded-xl opacity-60 blur-md"
+                style={{
+                  background: `conic-gradient(from 0deg, transparent 0%, ${glowColor} 50%, transparent 100%)`,
+                  animation: `avatar-spin 4s linear infinite`,
+                }}
+              />
+              {/* 2. Чёткое кольцо обводки */}
+              <div
+                className="absolute -inset-0.5 rounded-xl"
+                style={{
+                  background: `conic-gradient(from 0deg, transparent 0%, ${glowColor} 40%, ${glowColor} 60%, transparent 100%)`,
+                  animation: `avatar-spin 4s linear infinite`,
+                }}
+              />
+
+              {/* 3. Дополнительные декорации (уровень 9/11) */}
+              {level === 9 && (
+                <div className="absolute inset-0 z-20 pointer-events-none rounded-xl overflow-hidden">
+                  <span className="absolute top-1.5 left-1.5 text-[10px] font-mono text-blue-400 animate-pulse">&lt;/&gt;</span>
+                  <span className="absolute bottom-1.5 right-1.5 text-[10px] font-mono text-blue-300 animate-pulse">{`{ }`}</span>
+                </div>
+              )}
+              {level === 11 && (
+                <div className="absolute inset-0 z-20 pointer-events-none rounded-xl overflow-hidden">
+                  <span className="absolute top-1.5 left-1.5 text-[9px] font-mono text-green-400 font-bold">01</span>
+                  <span className="absolute top-1.5 right-1.5 text-[9px] font-mono text-green-300 font-bold">10</span>
+                </div>
+              )}
+
+              {/* 4. Внутренний контейнер для аватарки */}
+              <div className="relative z-10 rounded-xl bg-[#101010] p-[2px]">
+                <div className="rounded-[10px] overflow-hidden w-full h-full">
+                  {children}
+                </div>
+              </div>
+
+              <style jsx>{`
+                @keyframes avatar-spin {
+                  from { transform: rotate(0deg); }
+                  to { transform: rotate(360deg); }
                 }
-            >
-              {children}
-            </PerimeterWave>
+              `}</style>
+            </div>
           ) : (
             <div className="relative z-10 rounded-xl overflow-hidden">
               {children}
@@ -281,7 +280,7 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
           {userBadge && (
             <div 
               className="absolute z-30 select-none"
-              style={{ top: '-10px', left: '-10px' }} // Чуть ближе к углу, так как убрали рамку
+              style={{ top: '-10px', left: '-10px' }}
             >
               <div 
                 className={`relative flex items-center justify-center p-1 ${
@@ -290,7 +289,6 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
                 onClick={canEditBadge ? onBadgeClick : undefined}
                 title={canEditBadge ? "Нажми, чтобы сменить значок" : userBadge.name}
               >
-                {/* Свечение строго под иконкой */}
                 {userBadge.enable_glow && (
                   <div 
                     className="absolute inset-0 rounded-md"
@@ -298,12 +296,10 @@ export function AvatarFrame({ children, user, size = 128, availableBadges = [], 
                       background: `radial-gradient(circle, ${glowColor} 0%, ${glowColor}50 60%, transparent 80%)`,
                       filter: `blur(6px)`,
                       transform: `scale(1.3)`,
-                      zIndex: -1, // Ensure it's behind the icon
+                      zIndex: -1,
                     }}
                   />
                 )}
-                
-                {/* Сама иконка без рамок и фона */}
                 <img
                   src={userBadge.icon_url}
                   alt={userBadge.name || "Badge"}
