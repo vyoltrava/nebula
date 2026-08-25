@@ -727,6 +727,12 @@ def user_out(user: User, session: Session = None) -> dict:
         "custom_badge_url": user.custom_badge_url,  # 🆕 ДОБАВЬ ЭТУ СТРОКУ
 
     }
+   
+    #  ДОБАВЬ ЭТОТ БЛОК:
+    if session:
+        result["active_custom_badge_assignment"] = get_active_custom_badge_for(user.id, session)
+    
+    return result
 
 
 def resolve_user(identifier: str, session: Session) -> User:
