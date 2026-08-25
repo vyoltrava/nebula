@@ -49,6 +49,9 @@ export function AvatarFrame({
 
   const glowColor = userBadge?.glow_color || user.role?.color || "#8b5cf6";
   const showRing = userBadge?.enable_ring || (level >= 6 && level <= 9) || level === 11;
+  
+  // 🆕 Проверяем наличие баннера, чтобы адаптировать обводку
+  const hasCover = !!user.cover_url;
 
   return (
     <div className="relative inline-block" style={{ width: size, height: size }}>
@@ -56,19 +59,19 @@ export function AvatarFrame({
         <div className="relative w-full h-full rounded-xl">
           
           {/* ═══════════════════════════════════════════════════ */}
-          {/* 🌌 ЭФФЕКТ "ОРБИТА / ВОЛНА" ЧЕРЕЗ SVG (ЗОЛОТОЙ СТАНДАРТ) */}
+          {/* 🌌 ЭФФЕКТ "ОРБИТА / ВОЛНА" ЧЕРЕЗ SVG */}
           {/* ═══════════════════════════════════════════════════ */}
           <svg 
             className="absolute inset-0 w-full h-full overflow-visible z-0 pointer-events-none"
             style={{ filter: `drop-shadow(0 0 6px ${glowColor})` }}
           >
-            {/* 1. Медленная "планета" с длинным хвостом (Эффект дыхания/орбиты) */}
+            {/* 1. Медленная "планета" с длинным хвостом */}
             <rect
               x="0" y="0" width="100%" height="100%" rx="12"
               fill="none"
-              stroke={glowColor}
+              stroke={glowColor} 
               strokeWidth="3"
-              strokeDasharray="40 220" /* 40px линия, 220px разрыв */
+              strokeDasharray="40 220"
               className="animate-orbit-slow"
               style={{ opacity: 0.8 }}
             />
@@ -77,13 +80,14 @@ export function AvatarFrame({
             <rect
               x="0" y="0" width="100%" height="100%" rx="12"
               fill="none"
-              stroke="#ffffff" /* Белый центр для эффекта раскаленной нити */
+              stroke={glowColor} /* 🆕 ИСПРАВЛЕНО: было "#ffffff", теперь строго цвет роли */
               strokeWidth="2"
               strokeDasharray="20 240"
               className="animate-orbit-fast"
+              style={{ opacity: 0.9 }} /* Добавлена прозрачность, чтобы не било в глаза */
             />
 
-            {/* 3. Обратное движение (для эффекта живого "дыхания" и сложности) */}
+            {/* 3. Обратное движение (для эффекта "дыхания") */}
             <rect
               x="0" y="0" width="100%" height="100%" rx="12"
               fill="none"
@@ -110,22 +114,26 @@ export function AvatarFrame({
           )}
 
           {/* 5. Внутренний контейнер для аватарки (ДЕТИ) */}
-          <div className="relative z-10 rounded-xl bg-[#101010] p-[2px] w-full h-full">
-            <div className="rounded-[10px] overflow-hidden w-full h-full">
+          {/* 🆕 ИСПРАВЛЕНИЕ ОБВОДКИ: если есть баннер, делаем её тонкой и полупрозрачной */}
+          <div className={`relative z-10 rounded-xl w-full h-full transition-all duration-300 ${
+            hasCover 
+              ? 'p-[1px] bg-black/30 backdrop-blur-sm' // С баннером: тонкая рамка + размытие фона под аватаркой
+              : 'p-[2px] bg-[#101010]'                // Без баннера: стандартная темная подложка
+          }`}>
+            <div className={`rounded-[10px] overflow-hidden w-full h-full ${hasCover ? 'border border-white/10' : ''}`}>
               {children}
             </div>
           </div>
 
           <style jsx>{`
-            /* Плавное движение по периметру */
             @keyframes orbit-slow {
-              to { stroke-dashoffset: -260; } /* 40 + 220 = 260 */
+              to { stroke-dashoffset: -260; }
             }
             @keyframes orbit-fast {
               to { stroke-dashoffset: -260; }
             }
             @keyframes orbit-reverse {
-              to { stroke-dashoffset: 260; } /* Движение в обратную сторону */
+              to { stroke-dashoffset: 260; }
             }
 
             .animate-orbit-slow {
