@@ -52,23 +52,41 @@ export function AvatarFrame({
 
   return (
     <div className="relative inline-block" style={{ width: size, height: size }}>
-      {/* === АВАТАРКА И КОЛЬЦО (РЕНДЕРИТСЯ ВСЕГДА) === */}
       {showRing ? (
         <div className="relative w-full h-full rounded-xl">
-          {/* 1. Внешнее размытое свечение */}
+          
+          {/* ═══════════════════════════════════════════════════ */}
+          {/* 🌊 НОВАЯ АНИМАЦИЯ ВОЛНЫ ПО КОНТУРУ (ЧЕРЕЗ МАСКУ) */}
+          {/* ═══════════════════════════════════════════════════ */}
+          
+          {/* 1. Размытое свечение волны (Glow) */}
           <div
-            className="absolute -inset-0.5 rounded-xl opacity-60 blur-md"
+            className="absolute -inset-[2px] rounded-xl z-0"
             style={{
-              background: `conic-gradient(from 0deg, transparent 0%, ${glowColor} 50%, transparent 100%)`,
-              animation: `avatar-spin 4s linear infinite`,
+              // Градиент с длинным прозрачным "хвостом" для эффекта кометы/волны
+              background: `conic-gradient(from 0deg, transparent 0%, transparent 60%, ${glowColor}60 85%, ${glowColor} 100%)`,
+              animation: `avatar-spin 3s linear infinite`,
+              // Магия маски: вырезаем центр, оставляем только рамку толщиной 2px
+              WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+              WebkitMaskComposite: 'xor',
+              maskComposite: 'exclude',
+              padding: '2px', // Толщина линии волны
+              borderRadius: '0.75rem', // Должно строго совпадать с rounded-xl (12px)
+              filter: 'blur(4px)',
             }}
           />
-          {/* 2. Чёткое кольцо обводки */}
+          
+          {/* 2. Чёткая яркая линия волны (Core) */}
           <div
-            className="absolute -inset-0.5 rounded-xl"
+            className="absolute -inset-[2px] rounded-xl z-0"
             style={{
-              background: `conic-gradient(from 0deg, transparent 0%, ${glowColor} 40%, ${glowColor} 60%, transparent 100%)`,
-              animation: `avatar-spin 4s linear infinite`,
+              background: `conic-gradient(from 0deg, transparent 0%, transparent 70%, ${glowColor} 90%, ${glowColor} 100%)`,
+              animation: `avatar-spin 3s linear infinite`,
+              WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+              WebkitMaskComposite: 'xor',
+              maskComposite: 'exclude',
+              padding: '2px', // Толщина линии волны
+              borderRadius: '0.75rem',
             }}
           />
 
