@@ -1,4 +1,6 @@
 "use client";
+import { useTheme } from "next-themes";
+import { resolveNickColor } from "@/lib/nickGlow";
 import { useWebSocket } from "@/src/hooks/useWebSocket";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -764,8 +766,9 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   return null;
 }
 
+  const { resolvedTheme } = useTheme();
   function glowStyle(user: any): React.CSSProperties | undefined {
-    const c = getGlowColor(user);
+    const c = resolveNickColor(getGlowColor(user), resolvedTheme);
     if (!c) return undefined;
     return { color: c, textShadow: `0 0 6px ${c}B3, 0 0 14px ${c}66` };
   }

@@ -1,4 +1,6 @@
 "use client";
+import { useTheme } from "next-themes";
+import { resolveNickColor } from "@/lib/nickGlow";
 import { Upload , Check, Ban, X, MessageSquare, Flag, Lock, Camera, Image as ImageIcon, X as XIcon, AlertTriangle } from "lucide-react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -142,8 +144,9 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     return hex;
   }
 
+  const { resolvedTheme } = useTheme();
   function glowStyle(user: any): React.CSSProperties | undefined {
-    const c = getGlowColor(user);
+    const c = resolveNickColor(getGlowColor(user), resolvedTheme);
     if (!c) return undefined;
     const full = normalizeHex(c);
     return {
@@ -601,7 +604,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       {profile.display_name}
     </h1>
   ) : (
-    <h1 className={`text-xl md:text-2xl font-black break-words ${glowStyle(profile) ? "" : "text-white"}`} style={glowStyle(profile)}>
+    <h1 className={`text-xl md:text-2xl font-black break-words ${glowStyle(profile) ? "" : "text-gray-900 dark:text-white"}`} style={glowStyle(profile)}>
       {profile.display_name}
     </h1>
   )}
@@ -784,7 +787,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                       <div className="shrink-0"><Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={48} /></div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className={`font-bold text-sm md:text-base truncate ${glowStyle(u) ? "" : "text-white"}`} style={glowStyle(u)}>{u.display_name}</p>
+                          <p className={`font-bold text-sm md:text-base truncate ${glowStyle(u) ? "" : "text-gray-900 dark:text-white"}`} style={glowStyle(u)}>{u.display_name}</p>
                           <RoleBadge user={u} activeCustomBadgeAssignment={u.active_custom_badge_assignment} size="sm" />                     </div>
                         <p className="text-xs md:text-sm text-gray-600 dark:text-white/50 truncate">@{u.username}</p>
                       </div>

@@ -1,4 +1,6 @@
 "use client";
+import { useTheme } from "next-themes";
+import { resolveNickColor } from "@/lib/nickGlow";
 import { STICKERS } from "@/lib/stickers";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -67,8 +69,8 @@ function getGlowColor(is_admin?: boolean, is_moderator?: boolean, role?: { name:
   return null;
 }
 
-function glowStyle(is_admin?: boolean, is_moderator?: boolean, role?: { name: string; color: string } | null): React.CSSProperties | undefined {
-  const color = getGlowColor(is_admin, is_moderator, role);
+function glowStyle(is_admin?: boolean, is_moderator?: boolean, role?: { name: string; color: string } | null, theme?: string): React.CSSProperties | undefined {
+  const color = resolveNickColor(getGlowColor(is_admin, is_moderator, role), theme);
   if (!color) return undefined;
   return {
     color,
@@ -146,6 +148,7 @@ export function Post({
   isMainPost?: boolean;
   externalReplies?: any[];
 }) {
+    const { resolvedTheme } = useTheme();
     const currentUserRaw = getCachedUser();
     const currentUser = currentUserRaw
       ? { 
@@ -544,9 +547,9 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               <Link
                 href={`/${cleanUsername}`}
                 className={`font-bold transition-all ${
-                  glowStyle(author_is_admin, author_is_moderator, author_role) ? "hover:opacity-80" : "text-gray-900 dark:text-white hover:text-[#8b5cf6]"
+                  glowStyle(author_is_admin, author_is_moderator, author_role, resolvedTheme) ? "hover:opacity-80" : "text-gray-900 dark:text-white hover:text-[#8b5cf6]"
                 }`}
-                style={glowStyle(author_is_admin, author_is_moderator, author_role)}
+                style={glowStyle(author_is_admin, author_is_moderator, author_role, resolvedTheme)}
               >
                 {author}
               </Link>
@@ -908,6 +911,7 @@ function ReplyItem({
   depth?: number;
 }) {
   const { t } = useI18n();
+  const { resolvedTheme } = useTheme();
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [showChildren, setShowChildren] = useState(true);
@@ -970,11 +974,11 @@ function ReplyItem({
             <Link
               href={`/user/${reply.username}`}
               className={`font-bold text-sm ${
-                glowStyle(reply.author_is_admin, reply.author_is_moderator, reply.author_role)
+                glowStyle(reply.author_is_admin, reply.author_is_moderator, reply.author_role, resolvedTheme)
                   ? "hover:opacity-80"
                   : "text-gray-900 dark:text-white hover:text-[#8b5cf6]"
               }`}
-              style={glowStyle(reply.author_is_admin, reply.author_is_moderator, reply.author_role)}
+              style={glowStyle(reply.author_is_admin, reply.author_is_moderator, reply.author_role, resolvedTheme)}
             >
               {reply.author}
             </Link>

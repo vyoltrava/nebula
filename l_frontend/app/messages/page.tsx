@@ -1,4 +1,6 @@
 "use client";
+import { useTheme } from "next-themes";
+import { resolveNickColor } from "@/lib/nickGlow";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
@@ -132,8 +134,9 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   if (user?.role?.color) return user.role.color;
   return null;
 }
+  const { resolvedTheme } = useTheme();
   function glowStyle(user: any): React.CSSProperties | undefined {
-    const c = getGlowColor(user);
+    const c = resolveNickColor(getGlowColor(user), resolvedTheme);
     if (!c) return undefined;
     return { color: c, textShadow: `0 0 6px ${c}B3, 0 0 14px ${c}66` };
   }
@@ -553,7 +556,7 @@ const confirmPrismKey = async () => {
                         </p>
                       ) : (
                         <>
-                          <p className={`font-bold truncate ${glowStyle(otherUser) ? "" : "text-white"}`} style={glowStyle(otherUser)}>
+                          <p className={`font-bold truncate ${glowStyle(otherUser) ? "" : "text-gray-900 dark:text-white"}`} style={glowStyle(otherUser)}>
                             {query.trim() ? highlight(otherUser?.display_name, query.trim()) : otherUser?.display_name}
                           </p>
                           

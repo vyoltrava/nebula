@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
 
 interface RoleBadgeProps {
   user: any;
@@ -10,6 +11,9 @@ interface RoleBadgeProps {
 
 export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", showAnimation = true }: RoleBadgeProps) {
   const [mounted, setMounted] = useState(false);
+  const { resolvedTheme } = useTheme();
+  // 🌗 До гидратации считаем тему тёмной (defaultTheme="dark") — SSR совпадёт
+  const badgeIsDark = mounted ? resolvedTheme !== "light" : true;
 
   useEffect(() => {
     setMounted(true);
@@ -108,17 +112,27 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
   // 🟡 2. FOUNDER (Level 10 / is_admin)
   // ═══════════════════════════════════════════
   if (user.is_admin) {
+    // 🌗 Инверсия по теме: dark — белая плашка с чёрным текстом,
+    // light — чёрная плашка с белым текстом
     return (
       <span
-        className={`badge-founder inline-flex items-center gap-1 ${sizeClasses[size]} rounded-md font-black uppercase tracking-widest shrink-0 text-black relative overflow-hidden ${showAnimation ? "animate-founder-glow" : ""}`}
-        style={{
-          background: "linear-gradient(135deg, #ffffff 0%, #e5e7eb 100%)",
-          border: "1px solid rgba(255,255,255,0.9)",
-          boxShadow: "0 4px 14px 0 rgba(255,255,255,0.4), inset 0 1px 0 rgba(255,255,255,0.8)",
-        }}
+        className={`badge-founder inline-flex items-center gap-1 ${sizeClasses[size]} rounded-md font-black uppercase tracking-widest shrink-0 relative overflow-hidden ${badgeIsDark ? "text-black" : "text-white"} ${showAnimation ? "animate-founder-glow" : ""}`}
+        style={
+          badgeIsDark
+            ? {
+                background: "linear-gradient(135deg, #ffffff 0%, #e5e7eb 100%)",
+                border: "1px solid rgba(255,255,255,0.9)",
+                boxShadow: "0 4px 14px 0 rgba(255,255,255,0.4), inset 0 1px 0 rgba(255,255,255,0.8)",
+              }
+            : {
+                background: "linear-gradient(135deg, #26221a 0%, #454034 100%)",
+                border: "1px solid rgba(38,34,26,0.85)",
+                boxShadow: "0 4px 14px 0 rgba(38,34,26,0.35)",
+              }
+        }
       >
         {showAnimation && mounted && <div className="absolute inset-0 animate-shimmer" />}
-        <img src="/role-icon.svg" alt="" className={`relative z-10 ${iconSize}`} style={{ filter: "brightness(0)" }} />
+        <img src="/role-icon.svg" alt="" className={`relative z-10 ${iconSize}`} style={{ filter: badgeIsDark ? "brightness(0)" : "brightness(0) invert(1)" }} />
         <span className="relative z-10">Founder</span>
       </span>
     );

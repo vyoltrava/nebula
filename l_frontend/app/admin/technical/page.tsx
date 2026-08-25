@@ -1,4 +1,6 @@
 "use client";
+import { useTheme } from "next-themes";
+import { resolveNickColor } from "@/lib/nickGlow";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Sidebar } from "@/components/Sidebar";
@@ -80,8 +82,9 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   return null;
 }
 
+  const { resolvedTheme } = useTheme();
   function glowStyle(user: any): React.CSSProperties | undefined {
-    const c = getGlowColor(user);
+    const c = resolveNickColor(getGlowColor(user), resolvedTheme);
     if (!c) return undefined;
     return { color: c, textShadow: `0 0 6px ${c}B3, 0 0 14px ${c}66` };
   }
@@ -490,7 +493,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                       <span className="text-gray-500 dark:text-white/40 font-bold w-6">{i + 1}</span>
                       <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={36} />
                       <div className="flex-1 min-w-0">
-                        <p className={`font-semibold text-sm truncate ${glowStyle(u) ? "" : "text-white"}`} style={glowStyle(u)}>{u.display_name}</p>
+                        <p className={`font-semibold text-sm truncate ${glowStyle(u) ? "" : "text-gray-900 dark:text-white"}`} style={glowStyle(u)}>{u.display_name}</p>
                         <p className="text-xs text-gray-500 dark:text-white/40">@{u.username}</p>
                       </div>
                       <span className="text-[#8b5cf6] font-bold text-sm">{u.followers_count}</span>
@@ -510,7 +513,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                       <span className="text-gray-500 dark:text-white/40 font-bold w-6">{i + 1}</span>
                       <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={36} />
                       <div className="flex-1 min-w-0">
-                        <p className={`font-semibold text-sm truncate ${glowStyle(u) ? "" : "text-white"}`} style={glowStyle(u)}>{u.display_name}</p>
+                        <p className={`font-semibold text-sm truncate ${glowStyle(u) ? "" : "text-gray-900 dark:text-white"}`} style={glowStyle(u)}>{u.display_name}</p>
                         <p className="text-xs text-gray-500 dark:text-white/40">@{u.username}</p>
                       </div>
                       <span className="text-[#8b5cf6] font-bold text-sm">{u.posts_count}</span>
@@ -538,7 +541,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                         <td className="p-3">
                           <div className="flex items-center gap-2">
                             <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={32} />
-                            <span className={`font-semibold ${glowStyle(u) ? "" : "text-white"}`} style={glowStyle(u)}>{u.display_name}</span>
+                            <span className={`font-semibold ${glowStyle(u) ? "" : "text-gray-900 dark:text-white"}`} style={glowStyle(u)}>{u.display_name}</span>
                           </div>
                         </td>
                         <td className="p-3 text-gray-600 dark:text-white/60">@{u.username}</td>
@@ -584,7 +587,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   >
                     <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={36} />
                     <div className="flex-1 min-w-0">
-                      <p className={`font-semibold text-sm truncate ${glowStyle(u) ? "" : "text-white"}`} style={glowStyle(u)}>{u.display_name}</p>
+                      <p className={`font-semibold text-sm truncate ${glowStyle(u) ? "" : "text-gray-900 dark:text-white"}`} style={glowStyle(u)}>{u.display_name}</p>
                       <p className="text-xs text-gray-500 dark:text-white/40 truncate">@{u.username}</p>
                       {u.last_ip && <p className="text-[10px] text-gray-500 dark:text-white/30 truncate">IP: {u.last_ip}</p>}
                     </div>
@@ -614,7 +617,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
 
                       <div className="flex-1 w-full">
                         <div className="flex items-center gap-2 flex-wrap mb-3">
-                          <h2 className={`text-lg sm:text-xl font-black ${glowStyle(selectedUser) ? "" : "text-white"}`} style={glowStyle(selectedUser)}>{selectedUser.display_name}</h2>
+                          <h2 className={`text-lg sm:text-xl font-black ${glowStyle(selectedUser) ? "" : "text-gray-900 dark:text-white"}`} style={glowStyle(selectedUser)}>{selectedUser.display_name}</h2>
                           {selectedUser.is_admin && <span className="px-1.5 py-0.5 rounded bg-white text-black text-[8px] font-black uppercase">Founder</span>}
                           {selectedUser.is_moderator && !selectedUser.is_admin && <span className="px-2 py-0.5 rounded bg-blue-500 text-white text-[10px] font-black uppercase">Developer</span>}
                           {selectedUser.role && !selectedUser.is_admin && !selectedUser.is_moderator && <span className="px-2 py-0.5 rounded text-white text-[10px] font-black uppercase" style={{ backgroundColor: selectedUser.role.color }}>{selectedUser.role.name}</span>}
