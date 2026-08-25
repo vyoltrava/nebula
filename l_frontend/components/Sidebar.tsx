@@ -888,7 +888,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     <>
       <div className={`flex ${isDock ? "justify-center" : "items-center gap-2"}`}>
         <BrandIcon className={isDock ? "w-8 h-8" : "w-9 h-9"} />
-        {!isDock && <h1 className={`font-logo text-4xl ${resolvedTheme === "light" ? "text-[#3D1F6D]" : "text-[#8b5cf6]"}`}>trelod</h1>}
+        {!isDock && <h1 className="font-logo text-4xl text-[#3D1F6D] dark:text-[#8b5cf6]">trelod</h1>}
       </div>
       
       <nav className="flex flex-col flex-1">
