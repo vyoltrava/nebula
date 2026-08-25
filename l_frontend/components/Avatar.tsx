@@ -28,8 +28,9 @@ export function Avatar({
       className={`relative shrink-0 inline-block ${className}`}
       style={{ width: size, height: size }}
     >
+      {/* 🆕 ЗАМЕНИЛ bg-white/[0.08] НА bg-transparent, чтобы не было ложной обводки */}
       <div
-        className="w-full h-full rounded-xl overflow-hidden bg-white/[0.08]"
+        className="w-full h-full rounded-xl overflow-hidden bg-transparent"
         style={{ width: size, height: size }}
       >
         {imageUrl ? (
@@ -38,17 +39,17 @@ export function Avatar({
             alt={name}
             className="w-full h-full object-cover"
             onError={(e) => {
-              // Если картинка не загрузилась — показываем заглушку
+              // Если картинка не загрузилась — показываем заглушку с тёмным фоном
               e.currentTarget.style.display = 'none';
               e.currentTarget.parentElement!.innerHTML = `
-                <div class="w-full h-full flex items-center justify-center text-white/40 select-none">
+                <div class="w-full h-full flex items-center justify-center bg-[#1a1a1a] select-none">
                   <img src="/default-avatar.svg" alt="" class="opacity-60" style="width: ${size * 0.55}px; height: ${size * 0.55}px;" />
                 </div>
               `;
             }}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-white/40 select-none">
+          <div className="w-full h-full flex items-center justify-center bg-[#1a1a1a] select-none">
             <img
               src="/default-avatar.svg"
               alt=""
