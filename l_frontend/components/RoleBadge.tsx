@@ -25,45 +25,74 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
 
   const iconSize = size === "sm" ? "w-3 h-3" : "w-3.5 h-3.5 md:w-4 md:h-4";
 
-  // ═══════════════════════════════════════════
-  // 🏆 1. ПРИОРИТЕТ: КАСТОМНАЯ ПЛАШКА (ИЗ АДМИНКИ)
-  // ═══════════════════════════════════════════
-  const isCustomActive = activeCustomBadgeAssignment?.is_active && 
-    (!activeCustomBadgeAssignment.expires_at || new Date(activeCustomBadgeAssignment.expires_at) > new Date());
+// ═══════════════════════════════════════════
+// 🏆 1. ПРИОРИТЕТ: КАСТОМНАЯ ПЛАШКА (ИЗ АДМИНКИ)
+// ═══════════════════════════════════════════
+const isCustomActive = activeCustomBadgeAssignment?.is_active && 
+  (!activeCustomBadgeAssignment.expires_at || new Date(activeCustomBadgeAssignment.expires_at) > new Date());
 
-  if (isCustomActive && activeCustomBadgeAssignment?.override_priority) {
-    let config: any = {}; // Используем any, чтобы TS не ругался на динамические поля из JSON
-    try {
-      config = JSON.parse(activeCustomBadgeAssignment.badge?.badge_config || "{}");
-    } catch (e) {
-      console.error("Failed to parse badge config", e);
-    }
-
-    const bgColor = config.bg_type === 'solid' ? config.bg_color : 'transparent';
-    const bgImage = config.bg_type === 'gradient' ? config.bg_gradient : (config.bg_type === 'image' ? `url(${config.bg_image_url})` : undefined);
-    const border = config.border_width ? `${config.border_width}px ${config.border_style || 'solid'} ${config.border_color || 'transparent'}` : '1px solid rgba(255,255,255,0.2)';
-    const boxShadow = config.shadow_enabled ? `${config.shadow_offset_x || 0}px ${config.shadow_offset_y || 0}px ${config.shadow_blur || 4}px ${config.shadow_color}` : '0 4px 14px 0 rgba(0,0,0,0.3)';
-
-    return (
-      <span
-        className={`inline-flex items-center gap-1.5 ${sizeClasses[size]} rounded-md font-bold uppercase tracking-wider shrink-0 relative overflow-hidden text-white`}
-        style={{
-          backgroundColor: bgColor,
-          backgroundImage: bgImage,
-          backgroundSize: config.bg_image_mode || 'cover',
-          border: border,
-          boxShadow: boxShadow,
-        }}
-      >
-        {config.icon_url && (
-          <img src={config.icon_url} alt="" className={`relative z-10 ${iconSize} object-contain`} />
-        )}
-        <span className="relative z-10 drop-shadow-md">
-          {config.text_content || activeCustomBadgeAssignment.badge?.name || "Badge"}
-        </span>
-      </span>
-    );
+if (isCustomActive && activeCustomBadgeAssignment?.override_priority) {
+  const badge = activeCustomBadgeAssignment.badge; // ← Все поля уже здесь!
+  
+  // Определяем фон в зависимости от bg_type
+  let backgroundStyle: React.CSSProperties = {};
+  
+  if (badge.bg_type === "solid") {
+    backgroundStyle.backgroundColor = badge.bg_color || "#3b82f6";
+  } else if (badge.bg_type === "gradient") {
+    backgroundStyle.backgroundImage = badge.bg_gradient || `linear-gradient(135deg, ${badge.bg_color || "#3b82f6"}, #8b5cf6)`;
+  } else if (badge.bg_type === "image" && badge.bg_image_url) {
+    backgroundStyle.backgroundImage = `url(${badge.bg_image_url})`;
+    backgroundStyle.backgroundSize = badge.bg_image_mode || "cover";
+    backgroundStyle.backgroundPosition = "center";
+    backgroundStyle.backgroundColor = badge.bg_color || "#3b82f6"; // Fallback цвет
   }
+
+  // Обводка
+  if (badge.border_width && badge.border_width > 0) {
+    backgroundStyle.border = `${badge.border_width}px ${badge.border_style || "solid"} ${badge.border_color || "transparent"}`;
+  }
+
+  // Тени и свечение
+  let boxShadow = "";
+  if (badge.shadow_enabled) {
+    boxShadow = `${badge.shadow_offset_x || 0}px ${badge.shadow_offset_y || 0}px ${badge.shadow_blur || 4}px ${badge.shadow_color || "rgba(0,0,0,0.3)"}`;
+  }
+  if (badge.inner_glow_enabled) {
+    boxShadow += boxShadow ? `, inset 0 0 15px rgba(255,255,255,0.3)` : `inset 0 0 15px rgba(255,255,255,0.3)`;
+  }
+  if (boxShadow) {
+    backgroundStyle.boxShadow = boxShadow;
+  }
+
+  // Металлический эффект
+  if (badge.metallic_enabled) {
+    const currentBg = backgroundStyle.backgroundImage || backgroundStyle.backgroundColor || "";
+    backgroundStyle.backgroundImage = `${currentBg}, linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.1) 100%)`;
+  }
+
+  // Border Glow
+  if (badge.border_glow && badge.border_color) {
+    backgroundStyle.filter = `drop-shadow(0 0 ${badge.border_glow_intensity || 5}px ${badge.border_color})`;
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 ${sizeClasses[size]} rounded-md font-bold uppercase tracking-wider shrink-0 relative overflow-hidden`}
+      style={{
+        ...backgroundStyle,
+        color: badge.text_color || "#ffffff", // 🆕 Цвет текста из БД!
+      }}
+    >
+      {badge.icon_url && (
+        <img src={badge.icon_url} alt="" className={`relative z-10 ${iconSize} object-contain`} />
+      )}
+      <span className="relative z-10 drop-shadow-md">
+        {badge.text_content || badge.name}
+      </span>
+    </span>
+  );
+}
 
   // ═══════════════════════════════════════════
   // 🟡 2. FOUNDER (Level 10 / is_admin)
