@@ -1,8 +1,0 @@
-INFO:     Started server process [11600]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:8010 (Press CTRL+C to quit)
-INFO:     127.0.0.1:50606 - "WebSocket /ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiZXhwIjoxNzg3NjQxNDg2fQ.J9Da5kNl5DIGHvob3Cqs4EEmiCfJLGDGZ3N1empb2rw" [accepted]
-INFO:     connection open
-INFO:     127.0.0.1:50607 - "WebSocket /ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwiZXhwIjoxNzg3NjQxNDg2fQ.jbwXfjUIJ4pQ6fizGRGByq24kHYzuZb8hxupK4d2AvY" [accepted]
-INFO:     connection open

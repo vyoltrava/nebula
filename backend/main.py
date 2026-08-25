@@ -8857,21 +8857,24 @@ async def websocket_endpoint(websocket: WebSocket):
 
             print(f"⚠️ WS: unknown/unroutable signal '{mtype}' from user {user_id}")
     except WebSocketDisconnect:
+        # Штатное отключение клиента
         await manager.disconnect(websocket, user_id)
+    except RuntimeError as e:
+        # 🛡 FIX (zombie-loop): Starlette бросает RuntimeError('Cannot call
+        # "receive" once a disconnect message has been received'), когда сокет
+        # уже мёртв — частая ситуация при флапающей сети. Раньше ниже торчал
+        # старый ping-only цикл, который делал повторный receive() по трупу
+        # сокета и сыпал «❌ WS error» в лог. Старый цикл удалён; здесь же
+        # штатно выходим без шума.
+        if "disconnect" in str(e).lower():
+            await manager.disconnect(websocket, user_id)
+        else:
+            print(f"❌ WS error for user {user_id}: {e}")
+            await manager.disconnect(websocket, user_id)
     except Exception as e:
         print(f"❌ WS error for user {user_id}: {e}")
         await manager.disconnect(websocket, user_id)
-    try:
-        # 7. Держим соединение открытым
-        while True:
-            data = await websocket.receive_text()
-            if data == "ping":
-                await websocket.send_text(json.dumps({"event": "pong"}))
-    except WebSocketDisconnect:
-        await manager.disconnect(websocket, user_id)
-    except Exception as e:
-        print(f"❌ WS error for user {user_id}: {e}")
-        await manager.disconnect(websocket, user_id)
+
 
 @app.get("/api/online-count")
 def get_online_count(user: User = Depends(get_current_user)):

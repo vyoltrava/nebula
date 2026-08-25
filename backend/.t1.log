@@ -1,9 +1,9 @@
 ⚠️ Redis отключен, используем заглушку
 === ЗАРЕГИСТРИРОВАННЫЕ РОУТЫ ===
-{'GET', 'HEAD'} /openapi.json
-{'GET', 'HEAD'} /docs
-{'GET', 'HEAD'} /docs/oauth2-redirect
-{'GET', 'HEAD'} /redoc
+{'HEAD', 'GET'} /openapi.json
+{'HEAD', 'GET'} /docs
+{'HEAD', 'GET'} /docs/oauth2-redirect
+{'HEAD', 'GET'} /redoc
 {'GET'} /debug/perf
 set() /uploads
 {'GET'} /health
@@ -293,8 +293,5 @@ set() /ws
                 END $$;
             ]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-INFO:     127.0.0.1:50602 - "GET /health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50602 - "GET /api/ice-servers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51758 - "GET /health HTTP/1.1" 200 OK
 ⚠️ WS: unknown/unroutable signal 'unknown_garbage_signal' from user 1
-❌ WS error for user 2: Cannot call "receive" once a disconnect message has been received.
-❌ WS error for user 1: Cannot call "receive" once a disconnect message has been received.
