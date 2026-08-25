@@ -1,0 +1,300 @@
+⚠️ Redis отключен, используем заглушку
+=== ЗАРЕГИСТРИРОВАННЫЕ РОУТЫ ===
+{'GET', 'HEAD'} /openapi.json
+{'GET', 'HEAD'} /docs
+{'GET', 'HEAD'} /docs/oauth2-redirect
+{'GET', 'HEAD'} /redoc
+{'GET'} /debug/perf
+set() /uploads
+{'GET'} /health
+{'POST'} /api/register
+{'POST'} /api/me/logout-all
+{'GET'} /api/me
+{'PATCH'} /api/me
+{'POST'} /api/me/password
+{'GET'} /api/me/live-text-settings
+{'POST'} /api/me/live-text-settings
+{'POST'} /api/me/avatar
+{'POST'} /api/me/cover
+{'DELETE'} /api/me/cover
+{'GET'} /api/users/recommended
+{'GET'} /api/users
+{'POST'} /api/users/{identifier}/follow
+{'GET'} /api/users/{identifier}/is-following
+{'GET'} /api/users/{identifier}
+{'GET'} /api/users/by-username/{username}
+{'GET'} /api/users/{identifier}/posts
+{'GET'} /api/users/{identifier}/followers
+{'GET'} /api/users/{identifier}/following
+{'GET'} /api/search
+{'GET'} /api/posts/following
+{'GET'} /api/posts/liked
+{'GET'} /api/posts/{post_id}/replies
+{'GET'} /api/posts/{post_id}/echo
+{'GET'} /api/posts/{post_id}
+{'POST'} /api/posts/{post_id}/like
+{'GET'} /api/counts
+{'POST'} /api/posts/{post_id}/bookmark
+{'GET'} /api/posts/{post_id}/is-bookmarked
+{'GET'} /api/bookmarks
+{'GET'} /api/posts/{post_id}/is-liked
+{'DELETE'} /api/posts/{post_id}
+{'DELETE'} /api/posts/{post_id}/repost
+{'GET'} /api/posts
+{'POST'} /api/posts
+{'POST'} /api/video-note
+{'GET'} /api/admin/permission-tabs
+{'POST'} /api/admin/permission-tabs
+{'GET'} /api/permissions
+{'GET'} /api/tags/popular
+{'GET'} /api/tags/{tag_name}/posts
+{'GET'} /api/roles
+{'POST'} /api/roles
+{'PATCH'} /api/roles/{role_id}
+{'DELETE'} /api/roles/{role_id}
+{'POST'} /api/roles/{role_id}/move
+{'GET'} /api/roles/assignable
+{'POST'} /api/users/{user_id}/role
+{'GET'} /api/admin/users
+{'POST'} /api/admin/users/{user_id}/ban
+{'POST'} /api/admin/users/{user_id}/warn
+{'GET'} /api/admin/users/{user_id}/warnings
+{'DELETE'} /api/admin/warnings/{warning_id}
+{'DELETE'} /api/admin/users/{user_id}/avatar
+{'POST'} /api/admin/users/{user_id}/moderator
+{'DELETE'} /api/admin/posts/{post_id}
+{'DELETE'} /api/admin/users/{user_id}/posts
+{'GET'} /api/admin/sticker-packs
+{'POST'} /api/admin/sticker-packs
+{'PUT'} /api/admin/sticker-packs/{pack_id}
+{'DELETE'} /api/admin/sticker-packs/{pack_id}
+{'POST'} /api/admin/sticker-packs/{pack_id}/stickers
+{'DELETE'} /api/admin/stickers/{sticker_id}
+{'PUT'} /api/admin/stickers/reorder
+{'GET'} /api/admin/chats
+{'GET'} /api/admin/chats/{chat_id}/messages
+{'GET'} /api/role-categories
+{'POST'} /api/role-categories
+{'PUT'} /api/role-categories/{cat_id}
+{'DELETE'} /api/role-categories/{cat_id}
+{'GET'} /api/admin/stats
+{'GET'} /api/admin/users/{user_id}/full
+{'PATCH'} /api/admin/users/{user_id}/technical
+{'POST'} /api/admin/users/{user_id}/reset-2fa
+{'POST'} /api/admin/users/{user_id}/avatar/set
+{'GET'} /api/chats
+{'POST'} /api/chats/group
+{'GET'} /api/chats/{chat_id}/members
+{'POST'} /api/chats/{chat_id}/members
+{'DELETE'} /api/chats/{chat_id}/members/{user_id}
+{'PATCH'} /api/chats/{chat_id}
+{'DELETE'} /api/chats/{chat_id}
+{'POST'} /api/me/last-read
+{'GET'} /api/me/last-read
+{'DELETE'} /api/me/last-read
+{'GET'} /api/sticker-packs
+{'POST'} /api/chats/{chat_id}/messages/{message_id}/reactions
+{'POST'} /api/chats/{chat_id}/messages/sticker
+{'GET'} /api/themes
+{'GET'} /api/themes/all
+{'POST'} /api/themes
+{'PUT'} /api/themes/{theme_id}
+{'DELETE'} /api/themes/{theme_id}
+{'GET'} /api/themes/settings
+{'POST'} /api/themes/settings
+{'DELETE'} /api/admin/users/{user_id}
+{'POST'} /api/chats
+{'POST'} /api/2fa/setup
+{'POST'} /api/2fa/activate
+{'POST'} /api/2fa/disable
+{'GET'} /api/2fa/status
+{'POST'} /api/2fa/backup-codes/regenerate
+{'POST'} /api/login
+{'POST'} /api/login/2fa
+{'GET'} /api/keys/me
+{'POST'} /api/keys/register
+{'GET'} /api/users/{user_id}/public-key
+{'POST'} /api/chats/{chat_id}/session-key
+{'GET'} /api/chats/{chat_id}/session-key
+{'POST'} /api/chats/secret
+{'POST'} /api/chats/{chat_id}/messages/encrypted-media
+{'GET'} /api/media/{filename}
+{'POST'} /api/chats/{chat_id}/messages
+{'POST'} /api/chats/{chat_id}/typing
+{'POST'} /api/chats/{chat_id}/live-text
+{'GET'} /api/chats/{chat_id}/messages
+{'PATCH'} /api/chats/{chat_id}/messages/{message_id}
+{'DELETE'} /api/chats/{chat_id}/messages/{message_id}
+{'POST'} /api/chats/{chat_id}/messages/{message_id}/forward
+{'GET'} /api/push/vapid
+{'POST'} /api/push/subscribe
+{'POST'} /api/push/unsubscribe
+{'GET'} /api/push/status
+{'POST'} /api/chats/{chat_id}/messages/{message_id}/pin
+{'POST'} /api/chats/{chat_id}/pin
+{'DELETE'} /api/chats/{chat_id}/pin
+{'GET'} /api/chats/{chat_id}/pinned
+{'DELETE'} /api/chats/{chat_id}/messages/{message_id}/unpin
+{'POST'} /api/chats/{chat_id}/avatar
+{'GET'} /api/chats/{chat_id}/media
+{'POST'} /api/chats/{chat_id}/read
+{'GET'} /api/chats/unread-count
+{'GET'} /api/chats/{chat_id}
+{'POST'} /api/chats/saved
+{'GET'} /api/notifications
+{'GET'} /api/notifications/unread-count
+{'POST'} /api/notifications/{notif_id}/read
+{'POST'} /api/notifications/read-all
+{'PATCH'} /api/posts/{post_id}
+{'GET'} /api/team
+{'GET'} /api/rules
+{'PUT'} /api/rules
+{'POST'} /api/reports
+{'GET'} /api/reports
+{'POST'} /api/reports/{report_id}/resolve
+{'POST'} /api/reports/{report_id}/reject
+{'GET'} /api/admin/users/{user_id}/ip-history
+{'GET'} /api/admin/ip-blocks
+{'POST'} /api/admin/ip-blocks
+{'DELETE'} /api/admin/ip-blocks/{block_id}
+{'GET'} /api/admin/logs
+{'GET'} /api/admin/logs/debug
+{'DELETE'} /api/admin/logs
+{'POST'} /api/bugs
+{'GET'} /api/bugs
+{'PATCH'} /api/bugs/{bug_id}
+{'DELETE'} /api/bugs/{bug_id}
+{'GET'} /api/users/by-username/{username}/posts
+{'GET'} /api/users/by-username/{username}/followers
+{'GET'} /api/users/by-username/{username}/following
+{'GET'} /api/users/by-username/{username}/is-following
+{'POST'} /api/users/by-username/{username}/follow
+{'GET'} /api/updates
+{'POST'} /api/updates/{update_id}/read
+{'POST'} /api/updates/read-all
+{'POST'} /api/updates
+{'DELETE'} /api/updates/{update_id}
+{'POST'} /api/posts/{post_id}/view
+{'GET'} /api/ice-servers
+set() /ws
+{'GET'} /api/online-count
+{'GET'} /api/support/tickets
+{'POST'} /api/support/tickets/{ticket_id}/close
+{'POST'} /api/support/start
+{'POST'} /api/support/messages
+{'GET'} /api/support/my-tickets
+{'GET'} /api/support/tickets/{ticket_id}/messages
+{'POST'} /api/chats/prism
+{'PATCH'} /api/users/me/prism-anchor
+{'POST'} /api/chats/prism-avatar
+{'GET'} /api/badges
+{'POST'} /api/badges
+{'POST'} /api/me/badge
+{'PUT'} /api/badges/{badge_id}
+{'POST'} /api/me/custom-badge
+{'DELETE'} /api/me/custom-badge
+{'POST'} /api/admin/stock-badges
+{'DELETE'} /api/badges/{badge_id}
+{'GET'} /api/admin/team-dashboard/stats
+{'GET'} /api/admin/team-statistics
+{'GET'} /api/admin/statistics/overview
+{'GET'} /api/suggestions/categories
+{'POST'} /api/suggestions/categories
+{'PATCH'} /api/suggestions/categories/{cat_id}
+{'GET'} /api/suggestions/prefixes
+{'POST'} /api/admin/suggestion-prefixes
+{'DELETE'} /api/admin/suggestion-prefixes/{prefix_id}
+{'GET'} /api/suggestions/threads/{category_id}
+{'POST'} /api/suggestions/threads
+{'GET'} /api/suggestions/thread/{thread_id}
+{'POST'} /api/suggestions/thread/{thread_id}/comments
+{'DELETE'} /api/suggestions/comments/{comment_id}
+{'PATCH'} /api/suggestions/thread/{thread_id}
+{'PATCH'} /api/suggestions/thread/{thread_id}/status
+{'PATCH'} /api/suggestions/thread/{thread_id}/pin
+{'PATCH'} /api/suggestions/thread/{thread_id}/close
+{'PATCH'} /api/suggestions/thread/{thread_id}/prefix
+{'PATCH'} /api/admin/suggestions/{thread_id}/move
+{'DELETE'} /api/admin/suggestions/{thread_id}
+{'GET'} /api/admin/stats/overview
+{'GET'} /api/admin/stats/users
+{'GET'} /api/custom-badges
+{'POST'} /api/custom-badges
+{'PUT'} /api/custom-badges/{badge_id}
+{'DELETE'} /api/custom-badges/{badge_id}
+{'POST'} /api/badges/{badge_id}/upload-icon
+{'POST'} /api/badges/{badge_id}/upload-bg-image
+{'GET'} /api/custom-badge-assignments
+{'POST'} /api/custom-badge-assignments
+{'POST'} /api/custom-badge-assignments/{assign_id}/revoke
+{'POST'} /api/custom-badge-assignments/{assign_id}/extend
+=================================
+⚠️ Блок 1 warning: (sqlite3.OperationalError) near "EXISTS": syntax error
+[SQL: ALTER TABLE "user" ADD COLUMN IF NOT EXISTS selected_badge_id INTEGER;]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+⚠️ Блок 2 warning: (sqlite3.OperationalError) near "(": syntax error
+[SQL: 
+                CREATE TABLE IF NOT EXISTS rolecategory (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(60) NOT NULL,
+                    color VARCHAR(20) DEFAULT '#8b5cf6',
+                    description VARCHAR(200),
+                    "order" INTEGER DEFAULT 0,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                );
+            ]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+⚠️ Блок 3 warning: (sqlite3.OperationalError) near "EXISTS": syntax error
+[SQL: ALTER TABLE post ADD COLUMN IF NOT EXISTS views_count INTEGER DEFAULT 0;]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+⚠️ Блок 4 warning: (sqlite3.OperationalError) near "EXISTS": syntax error
+[SQL: ALTER TABLE chat ADD COLUMN IF NOT EXISTS is_group BOOLEAN DEFAULT FALSE;]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+⚠️ Блок 5 warning: (sqlite3.OperationalError) near "EXISTS": syntax error
+[SQL: ALTER TABLE stickerpack DROP COLUMN IF EXISTS emojis;]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+⚠️ Блок 6 warning: (sqlite3.OperationalError) near "(": syntax error
+[SQL: 
+                CREATE TABLE IF NOT EXISTS suggestion_category (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(60) NOT NULL,
+                    description VARCHAR(200),
+                    icon VARCHAR(30) DEFAULT 'message-square',
+                    color VARCHAR(20) DEFAULT '#8b5cf6',
+                    "order" INTEGER DEFAULT 0,
+                    is_archived BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                );
+            ]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+⚠️ Блок 7 warning: (sqlite3.OperationalError) near "(": syntax error
+[SQL: 
+                CREATE TABLE IF NOT EXISTS lastreadpost (
+                    user_id INTEGER PRIMARY KEY REFERENCES "user"(id) ON DELETE CASCADE,
+                    post_id INTEGER NOT NULL REFERENCES post(id) ON DELETE CASCADE,
+                    saved_at TIMESTAMPTZ DEFAULT NOW()
+                );
+            ]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+⚠️ Блок 8 warning: (sqlite3.OperationalError) near ")": syntax error
+[SQL: CREATE UNIQUE INDEX IF NOT EXISTS idx_reaction_unique ON message_reaction(message_id, user_id, COALESCE(sticker_id, 0), COALESCE(emoji, ));]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+⚠️ Блок 9 warning: (sqlite3.OperationalError) near "DO": syntax error
+[SQL: 
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='supportticket' AND column_name='updated_at'
+                    ) THEN
+                        ALTER TABLE supportticket ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW();
+                        UPDATE supportticket SET updated_at = created_at WHERE updated_at IS NULL;
+                    END IF;
+                END $$;
+            ]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+INFO:     127.0.0.1:50602 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50602 - "GET /api/ice-servers HTTP/1.1" 200 OK
+⚠️ WS: unknown/unroutable signal 'unknown_garbage_signal' from user 1
+❌ WS error for user 2: Cannot call "receive" once a disconnect message has been received.
+❌ WS error for user 1: Cannot call "receive" once a disconnect message has been received.

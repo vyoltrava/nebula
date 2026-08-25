@@ -219,9 +219,13 @@ export async function refreshIceServers(): Promise<void> {
 
 const getRTCConfig = (): RTCConfiguration => {
   // Приоритет: серверные iceServers (TURN из Render env) -> локальная статика (STUN)
+  // 🔥 FIX: Google-STUN оставляем ВСЕГДА, TURN с бэкенда ДОБАВЛЯЕМ сверху.
+  // Раньше бэкенд-список ЗАМЕНЯЛ статику целиком: если DNS провайдера блокирует
+  // relay.metered.ca (errorCode 701 'host lookup'), мы теряли и публичный STUN —
+  // не собирались даже srflx-кандидаты для прямого P2P.
   const iceServers =
     dynamicIceServers && dynamicIceServers.length > 0
-      ? dynamicIceServers
+      ? [...ICE_SERVERS, ...dynamicIceServers]
       : ICE_SERVERS;
 
   const config: RTCConfiguration = {

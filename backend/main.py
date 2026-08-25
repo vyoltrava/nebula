@@ -8700,22 +8700,45 @@ async def api_get_ice_servers(user: User = Depends(get_current_user)):
                     s for s in raw
                     if isinstance(s, dict) and s.get("urls")
                 ]
+                # 🔥 FIX: публичный Google-STUN добавляем ВСЕГДА первым.
+                # Если DNS провайдера блокирует домен TURN-сервера (errorCode 701),
+                # srflx через Google остаётся шансом на прямое P2P-соединение.
+                servers.insert(0, {
+                    "urls": [
+                        "stun:stun.l.google.com:19302",
+                        "stun:stun1.l.google.com:19302",
+                    ]
+                })
         except Exception as e:  # noqa: BLE001 — внешний сервис, любой сбой => фолбэк
             print(f"⚠️ Metered API failed ({e}) — fallback to static creds")
 
     # --- 2) Статические креды из env (фолбэк) ---
     if not servers and username and password:
-        host = os.getenv("METERED_TURN_HOST", "").strip() or "relay.metered.ca"
-        servers = [{
-            "urls": [
-                f"turns:{host}:443?transport=tcp",
-                f"turn:{host}:443?transport=tcp",
-                f"turn:{host}:80?transport=tcp",
-                f"turn:{host}:3478?transport=udp",
-            ],
-            "username": username,
-            "credential": password,
-        }]
+        # 🔥 Поддержка НЕСКОЛЬКИХ хостов через запятую:
+        #   METERED_TURN_HOST=vps-turn.mydomain.ru,relay.metered.ca
+        # Так можно поставить свой coturn на доступный из РФ VPS и оставить
+        # Metered вторым эшелоном. Креды применяются ко всем хостам одинаково.
+        raw_hosts = os.getenv("METERED_TURN_HOST", "").strip() or "relay.metered.ca"
+        hosts = [h.strip() for h in raw_hosts.split(",") if h.strip()]
+        entries = []
+        for h in hosts:
+            entries.append({
+                "urls": [
+                    f"turns:{h}:443?transport=tcp",
+                    f"turn:{h}:443?transport=tcp",
+                    f"turn:{h}:80?transport=tcp",
+                    f"turn:{h}:3478?transport=udp",
+                ],
+                "username": username,
+                "credential": password,
+            })
+        servers = [
+            {"urls": [
+                "stun:stun.l.google.com:19302",
+                "stun:stun1.l.google.com:19302",
+            ]},
+            *entries,
+        ]
 
     if servers:
         _ice_servers_cache["servers"] = servers
