@@ -188,7 +188,7 @@ span: ({ node, className, children, ...props }) => {
               if (isInline) {
                 return <code className="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded text-sm font-mono text-pink-600 dark:text-pink-300" {...props}>{children}</code>;
               }
-              return <code className="block bg-black/40 p-3 rounded-lg text-sm font-mono overflow-x-auto my-2 border border-gray-200 dark:border-white/10" {...props}>{children}</code>;
+              return <code className="block bg-black/40 p-3 rounded-lg text-sm font-mono overflow-x-auto my-2 border border-line dark:border-white/10" {...props}>{children}</code>;
             },
             p: ({ node, children, ...props }) => {
               if (isMessage) return <>{children}</>;

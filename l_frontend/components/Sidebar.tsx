@@ -93,8 +93,8 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-[250] bg-paper dark:bg-[#171717] flex flex-col md:hidden">
-      <div className="flex items-center gap-2 p-3 border-b border-gray-200 dark:border-white/10 shrink-0">
-        <div className="flex-1 flex items-center gap-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2">
+      <div className="flex items-center gap-2 p-3 border-b border-line dark:border-white/10 shrink-0">
+        <div className="flex-1 flex items-center gap-2 bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 rounded-xl px-3 py-2">
           <Search size={16} className="text-gray-500 dark:text-white/40" />
           <input
             ref={inputRef}
@@ -133,7 +133,7 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
               <button
                 key={p.id}
                 onClick={() => { onClose(); router.push(`/post/${p.id}`); }}
-                className="w-full text-left p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors border-b border-gray-200 dark:border-white/5"
+                className="w-full text-left p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors border-b border-line dark:border-white/5"
               >
                 <div className="flex items-center gap-2 mb-1">
                   <Avatar src={p.author_avatar} name={p.author} id={p.author_id} size={24} />
@@ -184,10 +184,10 @@ export function setSidebarLayout(v: SidebarLayout) {
 
 function LayoutPreview({ kind }: { kind: SidebarLayout }) {
   return (
-    <div className="w-full h-16 rounded-md bg-gray-50 dark:bg-[#111114] border border-gray-200 dark:border-white/10 overflow-hidden flex">
+    <div className="w-full h-16 rounded-md bg-gray-50 dark:bg-[#111114] border border-line dark:border-white/10 overflow-hidden flex">
       {kind === "classic" && (
         <>
-          <div className="w-7 bg-gray-100 dark:bg-[#22222a] border-r border-gray-200 dark:border-white/10 p-1 space-y-1">
+          <div className="w-7 bg-gray-100 dark:bg-[#22222a] border-r border-line dark:border-white/10 p-1 space-y-1">
             <div className="h-1.5 w-full rounded bg-gray-200 dark:bg-white/25" />
             <div className="h-1.5 w-3/4 rounded bg-gray-100 dark:bg-white/15" />
             <div className="h-1.5 w-full rounded bg-gray-100 dark:bg-white/15" />
@@ -207,7 +207,7 @@ function LayoutPreview({ kind }: { kind: SidebarLayout }) {
       )}
       {kind === "dock" && (
         <>
-          <div className="w-4 bg-gray-100 dark:bg-[#22222a] border-r border-gray-200 dark:border-white/10 flex flex-col items-center gap-1 py-1">
+          <div className="w-4 bg-gray-100 dark:bg-[#22222a] border-r border-line dark:border-white/10 flex flex-col items-center gap-1 py-1">
             <div className="w-2 h-2 rounded bg-gray-200 dark:bg-white/25" />
             <div className="w-2 h-2 rounded bg-gray-100 dark:bg-white/15" />
             <div className="w-2 h-2 rounded bg-gray-100 dark:bg-white/15" />
@@ -232,7 +232,7 @@ function LayoutPicker({ current, onClose }: { current: SidebarLayout; onClose: (
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-[310]" onClick={onClose} />
-      <div className="fixed right-3 top-1/2 -translate-y-1/2 z-[311] w-[250px] bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-3">
+      <div className="fixed right-3 top-1/2 -translate-y-1/2 z-[311] w-[250px] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-3">
         <div className="flex items-center justify-between mb-2 px-1">
           <p className="text-sm font-black text-gray-900 dark:text-white">{t("nav.layout")}</p>
           <button onClick={onClose} className="text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white p-1"><X size={16} /></button>
@@ -243,7 +243,7 @@ function LayoutPicker({ current, onClose }: { current: SidebarLayout; onClose: (
               key={v.key}
               onClick={() => setSidebarLayout(v.key)}
               className={`w-full text-left rounded-xl border p-2 transition-all ${
-                current === v.key ? "border-[#8b5cf6] bg-[#8b5cf6]/10" : "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10"
+                current === v.key ? "border-[#8b5cf6] bg-[#8b5cf6]/10" : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10"
               }`}
             >
               <LayoutPreview kind={v.key} />
@@ -897,7 +897,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         const showUpdatesBadge = href === "/updates" && (counts.updates || 0) > 0;
           return (
             <Link key={href} href={href}
-              className={`flex ${containerClass} font-medium transition-all border-b border-gray-200 dark:border-white/5 last:border-none group relative ${
+              className={`flex ${containerClass} font-medium transition-all border-b border-line dark:border-white/5 last:border-none group relative ${
                 active ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"
               }`}>
               <Icon size={18} className={`${iconClass} ${active ? "text-[#8b5cf6]" : "text-gray-700 dark:text-white/80 group-hover:text-gray-600 dark:group-hover:text-gray-400"}`} />
@@ -914,7 +914,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
         {user && (
           <Link href="/messages"
-            className={`flex ${containerClass} font-medium transition-all relative border-b border-gray-200 dark:border-white/5 group ${
+            className={`flex ${containerClass} font-medium transition-all relative border-b border-line dark:border-white/5 group ${
               pathname?.startsWith("/messages") ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"
             }`}>
             <MessageSquare size={18} className={`${iconClass} ${pathname?.startsWith("/messages") ? "text-[#8b5cf6]" : "text-gray-700 dark:text-white/80 group-hover:text-gray-600 dark:group-hover:text-gray-400"}`} />
@@ -928,7 +928,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         )}
 
         <button onClick={loadNotifications}
-          className={`flex ${containerClass} font-medium transition-all relative border-b border-gray-200 dark:border-white/5 group ${
+          className={`flex ${containerClass} font-medium transition-all relative border-b border-line dark:border-white/5 group ${
             pathname === "/notifications" ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"
           }`}>
           <Bell size={18} className={`${iconClass} ${pathname === "/notifications" ? "text-[#8b5cf6]" : "text-gray-700 dark:text-white/80 group-hover:text-gray-600 dark:group-hover:text-gray-400"}`} />
@@ -942,7 +942,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
         {hasAdminAccess && !isDock && (
           <Link href="/adminnew"
-            className={`flex ${containerClass} font-medium transition-all border-b border-gray-200 dark:border-white/5 group ${
+            className={`flex ${containerClass} font-medium transition-all border-b border-line dark:border-white/5 group ${
               pathname?.startsWith("/adminnew") ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"
             }`}>
             <ShieldAlert size={18} className={`${iconClass} ${pathname?.startsWith("/adminnew") ? "text-[#8b5cf6]" : "text-gray-700 dark:text-white/80 group-hover:text-gray-600 dark:group-hover:text-gray-400"}`} />
@@ -951,7 +951,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         )}
 
         {hasAdminAccess && isDock && (
-           <Link href="/adminnew" className={`flex ${containerClass} font-medium transition-all border-b border-gray-200 dark:border-white/5 group text-gray-500 dark:text-white/40 hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60`}>
+           <Link href="/adminnew" className={`flex ${containerClass} font-medium transition-all border-b border-line dark:border-white/5 group text-gray-500 dark:text-white/40 hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60`}>
               <ShieldAlert size={18} className={iconClass} />
            </Link>
         )}
@@ -1037,7 +1037,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
               {!isDock && (
                 <button 
                   onClick={() => setShowOrbitSwitcher(true)}
-                  className="p-2 rounded-lg text-white/40 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0"
+                  className="p-2 rounded-lg text-gray-500 dark:text-white/40 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0"
                   title={t("account.accounts")}
                 >
                   <LogOut size={18} />
@@ -1115,8 +1115,8 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
                 ${isActive
                   ? "w-14 h-14 bg-[#8b5cf6] shadow-[0_0_28px_rgba(139,92,246,0.55)]"
                   : isOuter
-                    ? "w-11 h-11 bg-ivory/95 dark:bg-[#1a1a1f]/95 border border-gray-200 dark:border-white/15 shadow-lg shadow-gray-400/40 dark:shadow-black/40"
-                    : "w-12 h-12 bg-gray-100 dark:bg-[#22222a]/95 border border-gray-200 dark:border-white/20 shadow-lg shadow-gray-400/40 dark:shadow-black/40"
+                    ? "w-11 h-11 bg-ivory/95 dark:bg-[#1a1a1f]/95 border border-line dark:border-white/15 shadow-lg shadow-gray-400/40 dark:shadow-black/40"
+                    : "w-12 h-12 bg-gray-100 dark:bg-[#22222a]/95 border border-line dark:border-white/20 shadow-lg shadow-gray-400/40 dark:shadow-black/40"
                 }
               `}>
                 {item.isProfile && user ? (
@@ -1227,7 +1227,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
             transition-all duration-200
             ${wheelOpen
               ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/20 scale-110"
-              : "border-gray-200 dark:border-white/10 active:scale-95"}
+              : "border-line dark:border-white/10 active:scale-95"}
             ${layout === "orbit" 
               ? orbitDesktopPos
               : "right-0 top-[calc(50%+8px)] -translate-y-1/2 rounded-l-full"
@@ -1279,7 +1279,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     {counts.chats > 0 && (
       <button
         onClick={() => router.push("/messages")}
-        className="relative w-12 h-12 rounded-full bg-paper dark:bg-[#171717]/90 backdrop-blur-sm border border-gray-200 dark:border-white/10 flex items-center justify-center shadow-lg shadow-gray-400/40 dark:shadow-black/50 text-gray-600 dark:text-white/80 hover:text-[#8b5cf6] dark:hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
+        className="relative w-12 h-12 rounded-full bg-paper dark:bg-[#171717]/90 backdrop-blur-sm border border-line dark:border-white/10 flex items-center justify-center shadow-lg shadow-gray-400/40 dark:shadow-black/50 text-gray-600 dark:text-white/80 hover:text-[#8b5cf6] dark:hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
         title={t("nav.messages")}
       >
         <MessageSquare size={20} />
@@ -1292,7 +1292,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     {counts.notifications > 0 && (
       <button
         onClick={() => router.push("/notifications")}
-        className="relative w-12 h-12 rounded-full bg-paper dark:bg-[#171717]/90 backdrop-blur-sm border border-gray-200 dark:border-white/10 flex items-center justify-center shadow-lg shadow-gray-400/40 dark:shadow-black/50 text-gray-600 dark:text-white/80 hover:text-[#8b5cf6] dark:hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
+        className="relative w-12 h-12 rounded-full bg-paper dark:bg-[#171717]/90 backdrop-blur-sm border border-line dark:border-white/10 flex items-center justify-center shadow-lg shadow-gray-400/40 dark:shadow-black/50 text-gray-600 dark:text-white/80 hover:text-[#8b5cf6] dark:hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
         title={t("nav.notifications")}
       >
         <Bell size={20} />
@@ -1319,10 +1319,10 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       {showNotifs && (
         <>
           <div className="fixed inset-0 bg-black/60 z-[99]" onClick={() => setShowNotifs(false)} />
-          <div className={`fixed left-4 right-4 md:right-auto md:top-4 top-16 w-auto md:w-[380px] max-h-[70vh] md:max-h-[520px] overflow-hidden border border-gray-200 dark:border-white/10 rounded-2xl bg-ivory dark:bg-[#1f1f23] shadow-2xl z-[100] flex flex-col transition-all duration-300 ${
+          <div className={`fixed left-4 right-4 md:right-auto md:top-4 top-16 w-auto md:w-[380px] max-h-[70vh] md:max-h-[520px] overflow-hidden border border-line dark:border-white/10 rounded-2xl bg-ivory dark:bg-[#1f1f23] shadow-2xl z-[100] flex flex-col transition-all duration-300 ${
              isDock ? "md:left-24" : "md:left-[272px]"
           }`}>
-            <div className="sticky top-0 bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/10 p-3 flex items-center justify-between shrink-0">
+            <div className="sticky top-0 bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md border-b border-line dark:border-white/10 p-3 flex items-center justify-between shrink-0">
               <h3 className="font-bold text-gray-900 dark:text-white">{t("nav.notifications")}</h3>
               <div className="flex items-center gap-1">
                 {notifs.some((n) => !n.read) && (
@@ -1347,7 +1347,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
                 return (
                   <Link key={n.id} href={link}
                     onClick={() => { if (!n.read) markRead(n.id); setShowNotifs(false); }}
-                    className={`flex items-start gap-3 p-3 border-b border-gray-200 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors relative ${!n.read ? "bg-[#8b5cf6]/[0.03]" : ""}`}>
+                    className={`flex items-start gap-3 p-3 border-b border-line dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors relative ${!n.read ? "bg-[#8b5cf6]/[0.03]" : ""}`}>
                     {!n.read && <div className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-[#8b5cf6]" />}
                     <div className="shrink-0 relative">
                       <Avatar src={n.actor?.avatar_url} name={n.actor?.display_name || "User"} id={n.actor?.id} size={42} />
@@ -1369,7 +1369,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
                 );
               })}
             </div>
-            <div className="sticky bottom-0 bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md border-t border-gray-200 dark:border-white/10 p-2.5 shrink-0">
+            <div className="sticky bottom-0 bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md border-t border-line dark:border-white/10 p-2.5 shrink-0">
               <Link href="/notifications" onClick={() => setShowNotifs(false)}
                 className="block w-full text-center text-sm font-semibold text-[#8b5cf6] hover:text-[#a78bfa] py-2 rounded-lg hover:bg-[#8b5cf6]/10 transition-all">
                 {t("notif.viewAll")}

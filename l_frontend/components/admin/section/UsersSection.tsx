@@ -201,7 +201,7 @@ async function load() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Поиск по нику или имени..."
-            className="w-full pl-10 pr-10 py-2.5 border border-gray-200 dark:border-white/15 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
+            className="w-full pl-10 pr-10 py-2.5 border border-line dark:border-white/15 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
           />
           {searchQuery && (
             <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white">
@@ -211,21 +211,21 @@ async function load() {
         </div>
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => { setFilterType("all"); setSelectedRoleId(null); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold ${filterType === "all" && !selectedRoleId ? "border-[#8b5cf6] bg-[#8b5cf6]/20 text-[#8b5cf6]" : "border-gray-200 dark:border-white/15 text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold ${filterType === "all" && !selectedRoleId ? "border-[#8b5cf6] bg-[#8b5cf6]/20 text-[#8b5cf6]" : "border-line dark:border-white/15 text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
             <Users size={16} /> Все ({users.length})
           </button>
           <button onClick={() => { setFilterType("team"); setSelectedRoleId(null); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold ${filterType === "team" ? "border-[#3b82f6] bg-[#3b82f6]/20 text-[#3b82f6]" : "border-gray-200 dark:border-white/15 text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold ${filterType === "team" ? "border-[#3b82f6] bg-[#3b82f6]/20 text-[#3b82f6]" : "border-line dark:border-white/15 text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
             <ShieldCheck size={16} /> Команда
           </button>
           <button onClick={() => { setFilterType("users"); setSelectedRoleId(null); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold ${filterType === "users" ? "border-green-600 dark:border-green-400 bg-green-400/20 text-green-600 dark:text-green-400" : "border-gray-200 dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold ${filterType === "users" ? "border-green-600 dark:border-green-400 bg-green-400/20 text-green-600 dark:text-green-400" : "border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
             <Filter size={16} /> Обычные
           </button>
           <select
             value={selectedRoleId ?? ""}
             onChange={(e) => { setSelectedRoleId(e.target.value ? Number(e.target.value) : null); setFilterType("all"); }}
-            className="px-4 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm font-bold focus:outline-none focus:border-[#8b5cf6] cursor-pointer"
+            className="px-4 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm font-bold focus:outline-none focus:border-[#8b5cf6] cursor-pointer"
           >
             <option value="" className="bg-gray-900">Все роли</option>
             {roles.map((r) => (
@@ -242,7 +242,7 @@ async function load() {
           const targetLevel = u.level ?? 1;
           const canSanction = myLevel > targetLevel || me?.is_admin;
           return (
-            <div key={u.id} className={`border rounded-xl p-4 ${u.is_banned ? "border-red-500/30 bg-red-500/5" : "border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5"}`}>
+            <div key={u.id} className={`border rounded-xl p-4 ${u.is_banned ? "border-red-500/30 bg-red-500/5" : "border-line dark:border-white/15 bg-gray-100 dark:bg-white/5"}`}>
               <div className="flex items-start gap-4">
                 <Link href={`/user/${u.id}`} className="shrink-0">
                   <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={48} />
@@ -278,7 +278,7 @@ async function load() {
                         <Ban size={12} className="inline mr-1" />{u.is_banned ? "Разбанить" : "Забанить"}
                       </button>
                     ) : (
-                      <span className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/30 text-xs font-bold cursor-not-allowed">
+                      <span className="px-3 py-1.5 rounded-lg border border-line dark:border-white/10 text-gray-500 dark:text-white/30 text-xs font-bold cursor-not-allowed">
                         <Shield size={12} className="inline mr-1" />Иммунитет
                       </span>
                     )
@@ -305,11 +305,11 @@ async function load() {
 {(can("manage_roles") || can("assign_roles")) && !u.is_admin && canSanction && (
   <div className="relative">
     <Listbox value={u.role?.id ?? null} onChange={(roleId: number | null) => assignRole(u.id, roleId)}>
-                        <Listbox.Button className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-white/20 bg-gray-100 dark:bg-white/5 text-blue-600 dark:text-blue-400 text-xs font-bold cursor-pointer max-w-[140px] truncate">
+                        <Listbox.Button className="px-3 py-1.5 rounded-lg border border-line dark:border-white/20 bg-gray-100 dark:bg-white/5 text-blue-600 dark:text-blue-400 text-xs font-bold cursor-pointer max-w-[140px] truncate">
                           {u.role?.name || "Без роли"}
                         </Listbox.Button>
                         
-                        <Listbox.Options className="absolute right-0 z-50 mt-1 w-56 max-h-72 overflow-y-auto rounded-lg bg-gray-900 border border-gray-200 dark:border-white/10 shadow-xl">
+                        <Listbox.Options className="absolute right-0 z-50 mt-1 w-56 max-h-72 overflow-y-auto rounded-lg bg-gray-900 border border-line dark:border-white/10 shadow-xl">
                           {/* 1. Блок без команды */}
                           <Listbox.Option value={null} className={({ active }) => `cursor-pointer px-3 py-2 text-xs text-white ${active ? "bg-[#8b5cf6]" : "hover:bg-gray-100 dark:hover:bg-white/10"}`}>
                             Без роли
@@ -319,7 +319,7 @@ async function load() {
                           {groupedRoles.map((group: any) => (
                             <div key={group.id}>
                               {/* Заголовок отдела (прилипает при скролле) */}
-                              <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-white/40 bg-white/5 border-y border-gray-200 dark:border-white/10 flex items-center gap-2 sticky top-0 backdrop-blur-sm">
+                              <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-white/40 bg-white/5 border-y border-line dark:border-white/10 flex items-center gap-2 sticky top-0 backdrop-blur-sm">
                                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: group.color }}></span>
                                 {group.name}
                               </div>
@@ -342,7 +342,7 @@ async function load() {
                     </div>
                   )}
 
-                  <Link href={`/user/${u.id}`} className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-white/20 text-gray-600 dark:text-white/60 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10">
+                  <Link href={`/user/${u.id}`} className="px-3 py-1.5 rounded-lg border border-line dark:border-white/20 text-gray-600 dark:text-white/60 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10">
                     <ExternalLink size={12} />
                   </Link>
                 </div>
@@ -357,7 +357,7 @@ async function load() {
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200]" onClick={() => setWarnTarget(null)} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto max-h-[80vh] overflow-y-auto">
+            <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto max-h-[80vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
                   <AlertTriangle className="text-yellow-600 dark:text-yellow-400" size={18} /> Варны: {warnTarget.display_name}
@@ -366,7 +366,7 @@ async function load() {
               </div>
               <div className="mb-4 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
                 <textarea value={warnReason} onChange={(e) => setWarnReason(e.target.value)} placeholder="Причина..." rows={2}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400 resize-none" />
+                  className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400 resize-none" />
                 <button onClick={issueWarn} className="mt-2 w-full py-2 rounded-lg bg-yellow-500 text-black text-sm font-bold hover:bg-yellow-600 dark:hover:bg-yellow-400">
                   Выдать варн
                 </button>
@@ -375,7 +375,7 @@ async function load() {
                 {warnLoading && <p className="text-sm text-gray-500 dark:text-white/40 text-center py-3">Загрузка...</p>}
                 {!warnLoading && warnList.length === 0 && <p className="text-sm text-gray-500 dark:text-white/40 text-center py-3">Варнов нет</p>}
                 {warnList.map((w: any) => (
-                  <div key={w.id} className={`p-3 rounded-xl border ${w.active ? "border-yellow-500/30 bg-yellow-500/5" : "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 opacity-60"}`}>
+                  <div key={w.id} className={`p-3 rounded-xl border ${w.active ? "border-yellow-500/30 bg-yellow-500/5" : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 opacity-60"}`}>
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm text-gray-800 dark:text-white/90 flex-1">{w.reason}</p>
                       {w.active && (

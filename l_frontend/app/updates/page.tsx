@@ -248,7 +248,7 @@ export default function UpdatesPage() {
         {loading && <UpdatesSkeleton />}
 
         {!loading && updates.length === 0 && (
-          <div className="text-center p-12 border border-gray-200 dark:border-white/10 rounded-2xl bg-gray-100 dark:bg-white/5">
+          <div className="text-center p-12 border border-line dark:border-white/10 rounded-2xl bg-gray-100 dark:bg-white/5">
             <Megaphone size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
             <p className="text-gray-600 dark:text-white/50">{t("updates.empty")}</p>
           </div>
@@ -283,7 +283,7 @@ export default function UpdatesPage() {
                   onClick={() => toggleExpand(u.id)}
                   className={`border rounded-2xl p-5 backdrop-blur-sm transition-all cursor-pointer select-none relative overflow-hidden ${
                     read
-                      ? "bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 hover:bg-white/[0.07]"
+                      ? "bg-gray-100 dark:bg-white/5 border-line dark:border-white/10 hover:bg-white/[0.07]"
                       : "bg-[#8b5cf6]/[0.03] border-[#8b5cf6]/20 hover:bg-[#8b5cf6]/[0.06]"
                   }`}
                   style={isMajor && !read ? { boxShadow: cfg.glow } : undefined}
@@ -346,7 +346,7 @@ export default function UpdatesPage() {
                       )}
 
                       {u.author && (
-                        <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-200 dark:border-white/5">
+                        <div className="flex items-center gap-2 mt-4 pt-3 border-t border-line dark:border-white/5">
                           <Avatar src={u.author.avatar_url} name={u.author.display_name} id={u.author.id} size={24} />
                           <span className="text-xs text-gray-600 dark:text-white/50">
                             {u.author.display_name}
@@ -367,7 +367,7 @@ export default function UpdatesPage() {
                           e.stopPropagation();
                           deleteUpdate(u.id);
                         }}
-                        className="p-2 rounded-lg text-white/30 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0"
+                        className="p-2 rounded-lg text-gray-400 dark:text-white/30 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0"
                         title={t("common.delete")}
                       >
                         <Trash2 size={16} />
@@ -386,7 +386,7 @@ export default function UpdatesPage() {
         <>
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]" onClick={() => setShowForm(false)} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full max-w-xl border border-gray-200 dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
+            <div className="w-full max-w-xl border border-line dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-5">
                 <h2 className="text-xl font-black text-gray-900 dark:text-white">{t("updates.newTitle")}</h2>
                 <button onClick={() => setShowForm(false)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10">
@@ -400,7 +400,7 @@ export default function UpdatesPage() {
                   <input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
+                    className="w-full border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
                     placeholder={t("updates.titlePh")}
                   />
                 </div>
@@ -417,7 +417,7 @@ export default function UpdatesPage() {
                           className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold transition-all ${
                             importance === key
                               ? `${cfg.border} ${cfg.bg}`
-                              : "border-gray-200 dark:border-white/10 text-gray-600 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/5"
+                              : "border-line dark:border-white/10 text-gray-600 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/5"
                           }`}
                           style={importance === key ? { color: cfg.color } : undefined}
                         >
@@ -435,7 +435,7 @@ export default function UpdatesPage() {
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     rows={6}
-                    className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6] resize-none"
+                    className="w-full border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6] resize-none"
                     placeholder={t("updates.bodyPh")}
                   />
                 </div>

@@ -127,9 +127,9 @@ export default function NotificationsPage() {
     <div className="h-screen flex overflow-hidden bg-ivory dark:bg-[#18181b]">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
-      <main className="flex-1 overflow-y-auto overflow-x-hidden border-x border-gray-200 dark:border-white/10 md:border-x-0">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden border-x border-line dark:border-white/10 md:border-x-0">
         {/* Шапка */}
-        <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
+        <div className="p-3 sm:p-4 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
           <div className="flex items-center justify-between gap-2 sm:gap-3">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <button
@@ -154,7 +154,7 @@ export default function NotificationsPage() {
               disabled={unreadCount === 0 || markingAll}
               className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg border text-xs sm:text-sm font-semibold transition-all active:scale-95 shrink-0 ${
                 unreadCount === 0 || markingAll
-                  ? "border-gray-200 dark:border-white/5 text-gray-500 dark:text-white/20 cursor-not-allowed"
+                  ? "border-line dark:border-white/5 text-gray-500 dark:text-white/20 cursor-not-allowed"
                   : "border-[#8b5cf6]/40 text-[#8b5cf6] hover:bg-[#8b5cf6]/10 hover:text-[#a78bfa]"
               }`}
               title={t("notif.markAll")}
@@ -182,7 +182,7 @@ export default function NotificationsPage() {
           )}
 
           {!loading && notifs.length > 0 && (
-            <div className="divide-y divide-gray-200 dark:divide-white/5">
+            <div className="divide-y divide-line dark:divide-white/5">
               {notifs.map((n) => {
                 const link = getNotificationLink(n);
                 

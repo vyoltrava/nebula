@@ -48,7 +48,7 @@ export function LogsSection({ me }: { me: any }) {
         <div className="flex gap-2 flex-wrap">
           {[null, "login", "register", "ban_user", "delete_user", "block_ip", "delete_post"].map((act) => (
             <button key={act ?? "all"} onClick={() => setFilter(act)}
-              className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${filter === act ? "bg-[#3b82f6] border-[#3b82f6] text-white" : "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-white/70 hover:bg-gray-100 dark:hover:bg-white/10"}`}>
+              className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${filter === act ? "bg-[#3b82f6] border-[#3b82f6] text-white" : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-white/70 hover:bg-gray-100 dark:hover:bg-white/10"}`}>
               {act ? (ACTION_LABELS[act]?.label || act) : "Все"}
             </button>
           ))}
@@ -66,16 +66,16 @@ export function LogsSection({ me }: { me: any }) {
       {loading ? (
         <p className="p-8 text-center text-gray-600 dark:text-white/50">Загрузка...</p>
       ) : logs.length === 0 ? (
-        <div className="p-12 text-center border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5">
+        <div className="p-12 text-center border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5">
           <Activity size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
           <p className="text-gray-600 dark:text-white/50">Логов пока нет</p>
         </div>
       ) : (
-        <div className="border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden">
+        <div className="border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden">
           {logs.map((log) => {
             const cfg = ACTION_LABELS[log.action] || { label: log.action, color: "text-gray-600 dark:text-white/60" };
             return (
-              <div key={log.id} className="p-4 border-b border-gray-200 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 flex items-start gap-4">
+              <div key={log.id} className="p-4 border-b border-line dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 flex items-start gap-4">
                 <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center shrink-0">
                   <Activity size={16} className={cfg.color} />
                 </div>

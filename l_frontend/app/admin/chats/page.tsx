@@ -93,10 +93,10 @@ export default function AdminChatsPage() {
     <div className="h-screen flex overflow-hidden bg-ivory dark:bg-[#18181b]">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
-      <main className="flex-1 flex overflow-hidden border-x border-gray-200 dark:border-white/10">
+      <main className="flex-1 flex overflow-hidden border-x border-line dark:border-white/10">
         {/* СПИСОК ЧАТОВ */}
-        <div className={`w-full md:w-96 md:border-r border-gray-200 dark:border-white/10 flex flex-col ${activeChat ? "hidden md:flex" : "flex"}`}>
-          <div className="p-4 border-b border-gray-200 dark:border-white/10 bg-paper dark:bg-[#171717]/80 backdrop-blur-md">
+        <div className={`w-full md:w-96 md:border-r border-line dark:border-white/10 flex flex-col ${activeChat ? "hidden md:flex" : "flex"}`}>
+          <div className="p-4 border-b border-line dark:border-white/10 bg-paper dark:bg-[#171717]/80 backdrop-blur-md">
             <div className="flex items-center gap-3 mb-3">
               <button onClick={() => router.push("/admin")} className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10">
                 <ArrowLeft size={18} />
@@ -110,7 +110,7 @@ export default function AdminChatsPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Поиск чата..."
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-cyan-600 dark:focus:border-cyan-400"
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-cyan-600 dark:focus:border-cyan-400"
               />
             </div>
             <p className="text-xs text-gray-500 dark:text-white/40 mt-2">
@@ -122,7 +122,7 @@ export default function AdminChatsPage() {
               <button
                 key={c.id}
                 onClick={() => openChat(c)}
-                className={`w-full flex items-center gap-3 p-3 border-b border-gray-200 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-left ${
+                className={`w-full flex items-center gap-3 p-3 border-b border-line dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-left ${
                   activeChat?.id === c.id ? "bg-cyan-500/10" : ""
                 }`}
               >
@@ -163,7 +163,7 @@ export default function AdminChatsPage() {
             </div>
           ) : (
             <>
-              <div className="p-3 border-b border-gray-200 dark:border-white/10 bg-paper dark:bg-[#171717]/80 backdrop-blur-md flex items-center gap-3">
+              <div className="p-3 border-b border-line dark:border-white/10 bg-paper dark:bg-[#171717]/80 backdrop-blur-md flex items-center gap-3">
                 <button
                   onClick={() => setActiveChat(null)}
                   className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 md:hidden"

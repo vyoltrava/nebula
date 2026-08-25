@@ -45,7 +45,7 @@ export function AudioPlayer({ src, trackId, title }: { src: string; trackId?: st
   const total = duration || dur;
 
   return (
-    <div className="my-0.5 w-[230px] select-none rounded-2xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 px-3 py-2.5">
+    <div className="my-0.5 w-[230px] select-none rounded-2xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 px-3 py-2.5">
       {/* кнопка + линия */}
       <div className="flex items-center gap-2.5">
         <button

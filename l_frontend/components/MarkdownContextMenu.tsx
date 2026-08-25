@@ -67,7 +67,7 @@ export function MarkdownContextMenu({ x, y, onClose, onAction }: MarkdownContext
       <div className="fixed inset-0 z-[300]" onClick={onClose} />
       <div
         ref={menuRef}
-        className="fixed z-[301] bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl px-1.5 py-1 flex items-center gap-0.5"
+        className="fixed z-[301] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl shadow-2xl px-1.5 py-1 flex items-center gap-0.5"
         style={{ left: pos.x, top: pos.y }}
       >
         {btn(Bold, "Жирный", "bold")}

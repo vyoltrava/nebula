@@ -130,7 +130,7 @@ export function PermissionGate() {
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" />
-      <div className="relative w-full max-w-sm bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl p-6 shadow-2xl">
+      <div className="relative w-full max-w-sm bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl p-6 shadow-2xl">
         <div className="flex flex-col items-center text-center gap-4">
           <div className="flex items-center justify-center gap-3">
             <div className="w-14 h-14 rounded-2xl bg-[#8b5cf6]/15 flex items-center justify-center">

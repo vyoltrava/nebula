@@ -77,7 +77,7 @@ export const MessageBubble = memo(function MessageBubble({
         onPointerLeave={onPointerLeave}
       >
         {isSelectMode && (
-          <div className={`shrink-0 w-5 h-5 sm:w-5 sm:h-5 rounded-md border-2 flex items-center justify-center mt-2 transition-colors ${isSelected ? "bg-[#8b5cf6] border-[#8b5cf6]" : "border-gray-200 dark:border-white/30"}`}>
+          <div className={`shrink-0 w-5 h-5 sm:w-5 sm:h-5 rounded-md border-2 flex items-center justify-center mt-2 transition-colors ${isSelected ? "bg-[#8b5cf6] border-[#8b5cf6]" : "border-line dark:border-white/30"}`}>
             {isSelected && <Check size={12} className="text-gray-900 dark:text-white" />}
           </div>
         )}
@@ -96,7 +96,7 @@ export const MessageBubble = memo(function MessageBubble({
           )}
 
           <div className={`${bubbleRadius} transition-all ${isSelected ? "ring-2 ring-[#8b5cf6] ring-offset-2 ring-offset-[#171717]" : ""} ${isVideoNote || isAudio || isSticker ? "p-0 bg-transparent border-0 rounded-2xl overflow-hidden" : `px-3 sm:px-3.5 md:px-4 py-2 sm:py-2 ${isForwarded ? 
-            (isMine ? "bg-cyan-600 text-white border-l-4 border-cyan-600 dark:border-cyan-400" : "bg-cyan-950/40 text-white border-l-4 border-cyan-600 dark:border-cyan-400") : (isMine ? (isSecret ? "bg-emerald-600 text-white" : "bg-[#8b5cf6] text-white") : "bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white border border-gray-200 dark:border-white/15")}`}`}>            
+            (isMine ? "bg-cyan-600 text-white border-l-4 border-cyan-600 dark:border-cyan-400" : "bg-cyan-950/40 text-white border-l-4 border-cyan-600 dark:border-cyan-400") : (isMine ? (isSecret ? "bg-emerald-600 text-white" : "bg-[#8b5cf6] text-white") : "bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white border border-line dark:border-white/15")}`}`}>            
             
             {/* Медиа контент */}
             {msg.media_url && isEncryptedMedia ? (
@@ -173,7 +173,7 @@ export const MessageBubble = memo(function MessageBubble({
                   className={`flex items-center gap-1 px-2 py-1 rounded-full text-[13px] border transition-all active:scale-90 ${
                     r.me
                     ? "bg-[#8b5cf6]/25 border-[#8b5cf6] shadow-[0_0_8px_rgba(139,92,246,0.3)]"
-                    : "bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/15 hover:bg-gray-100 dark:hover:bg-white/10"
+                    : "bg-gray-100 dark:bg-white/5 border-line dark:border-white/15 hover:bg-gray-100 dark:hover:bg-white/10"
                   }`}
                 >
                   {r.type === "sticker" ? (

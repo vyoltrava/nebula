@@ -124,7 +124,7 @@ export function CustomBadgeAssignForm({ badge, badges, onClose, onSuccess }: Ass
           <select 
             value={selectedBadge?.id || ""} 
             onChange={(e) => { const b = badges?.find(b => b.id === parseInt(e.target.value)); setSelectedBadge(b || null); }}
-            className="w-full px-3 py-2 bg-ivory dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg text-sm text-gray-900 dark:text-white"
+            className="w-full px-3 py-2 bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg text-sm text-gray-900 dark:text-white"
           >
             <option value="">Выберите плашку</option>
             {badges?.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -141,14 +141,14 @@ export function CustomBadgeAssignForm({ badge, badges, onClose, onSuccess }: Ass
             value={searchQuery} 
             onChange={(e) => setSearchQuery(e.target.value)} 
             placeholder="Введите имя, @username или ID..."
-            className="w-full pl-9 pr-3 py-2 bg-ivory dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg text-sm text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none" 
+            className="w-full pl-9 pr-3 py-2 bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg text-sm text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none" 
           />
           {searchLoading && <div className="absolute right-3 top-2.5 w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />}
         </div>
         
         {/* Выпадающий список результатов */}
         {searchResults.length > 0 && (
-          <div className="mt-1 space-y-1 max-h-48 overflow-y-auto bg-ivory dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg p-1">
+          <div className="mt-1 space-y-1 max-h-48 overflow-y-auto bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg p-1">
             {searchResults.map((u) => (
               <button 
                 key={u.id} 
@@ -188,13 +188,13 @@ export function CustomBadgeAssignForm({ badge, badges, onClose, onSuccess }: Ass
             <input type="radio" name="dur" checked={durationType==="days"} onChange={()=>setDurationType("days")} className="accent-blue-500" /> На N дней
           </label>
           {durationType==="days" && (
-            <input type="number" value={days} onChange={(e)=>setDays(e.target.value)} min={1} className="ml-6 px-2 py-1 bg-ivory dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded w-24 text-gray-900 dark:text-white text-sm" />
+            <input type="number" value={days} onChange={(e)=>setDays(e.target.value)} min={1} className="ml-6 px-2 py-1 bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded w-24 text-gray-900 dark:text-white text-sm" />
           )}
           <label className="flex items-center gap-2 text-sm text-gray-300">
             <input type="radio" name="dur" checked={durationType==="date"} onChange={()=>setDurationType("date")} className="accent-blue-500" /> До конкретной даты
           </label>
           {durationType==="date" && (
-            <input type="date" value={date} onChange={(e)=>setDate(e.target.value)} className="ml-6 px-2 py-1 bg-ivory dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded text-gray-900 dark:text-white text-sm" />
+            <input type="date" value={date} onChange={(e)=>setDate(e.target.value)} className="ml-6 px-2 py-1 bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded text-gray-900 dark:text-white text-sm" />
           )}
         </div>
       </div>
@@ -216,13 +216,13 @@ export function CustomBadgeAssignForm({ badge, badges, onClose, onSuccess }: Ass
             value={customMessage} 
             onChange={(e)=>setCustomMessage(e.target.value)} 
             placeholder="Текст уведомления (необязательно)"
-            className="w-full px-3 py-2 bg-ivory dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded text-sm text-gray-900 dark:text-white" 
+            className="w-full px-3 py-2 bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded text-sm text-gray-900 dark:text-white" 
             rows={2} 
           />
         )}
       </div>
 
-      <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-white/10">
+      <div className="flex justify-end gap-2 pt-4 border-t border-line dark:border-white/10">
         {onClose && <button type="button" onClick={onClose} className="px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/5 rounded text-gray-300">Отмена</button>}
         <button type="submit" disabled={loading || !userId} className="px-4 py-2 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded disabled:opacity-50 flex items-center gap-2">
           {loading ? "Выдаётся..." : "Выдать плашку"}

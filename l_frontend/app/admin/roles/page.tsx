@@ -387,8 +387,8 @@ export default function RolesPage() {
     <div className="h-screen flex overflow-hidden bg-ivory dark:bg-[#18181b]">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
-      <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
-        <div className="p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
+      <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10">
+        <div className="p-6 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Palette size={24} className="text-[#8b5cf6]" />
@@ -408,7 +408,7 @@ export default function RolesPage() {
           </div>
         </div>
         {/* 🗂️ ВКЛАДКИ ГРУПП */}
-        <div className="px-6 pt-3 pb-0 border-b border-gray-200 dark:border-white/10 bg-paper dark:bg-[#171717]/40 flex items-center gap-1 overflow-x-auto">
+        <div className="px-6 pt-3 pb-0 border-b border-line dark:border-white/10 bg-paper dark:bg-[#171717]/40 flex items-center gap-1 overflow-x-auto">
           <button
             onClick={() => setActiveTab("all")}
             className={`px-4 py-2.5 text-sm font-bold whitespace-nowrap border-b-2 transition-all ${
@@ -441,8 +441,8 @@ export default function RolesPage() {
           />
         </div>
 
-        <div className="p-4 border-b border-gray-200 dark:border-white/5"></div>
-        <div className="p-4 border-b border-gray-200 dark:border-white/5">
+        <div className="p-4 border-b border-line dark:border-white/5"></div>
+        <div className="p-4 border-b border-line dark:border-white/5">
           <div className="bg-[#8b5cf6]/10 border border-[#8b5cf6]/30 rounded-xl p-4 flex gap-3">
             <Info size={20} className="text-[#8b5cf6] shrink-0 mt-0.5" />
             <div className="text-sm text-gray-800 dark:text-white/80 space-y-1">
@@ -452,7 +452,7 @@ export default function RolesPage() {
                 <strong>Галочка "Показывать в правилах"</strong> — роль появится на странице /rules в секции "Команда trelod".
               </p>
               <div className="flex flex-wrap gap-2 mt-2 text-xs">
-                <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white border border-gray-200 dark:border-white/20">Founder: 10</span>
+                <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white border border-line dark:border-white/20">Founder: 10</span>
                 <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30">Developer: 9</span>
                 <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/30">Лидеры: 8</span>
                 <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30">Визуальные: 1-2</span>
@@ -472,7 +472,7 @@ export default function RolesPage() {
             <div
               key={role.id}
               className={`border rounded-xl p-4 transition-all ${
-                role.is_staff ? "border-[#8b5cf6]/40 bg-[#8b5cf6]/5" : "border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5"
+                role.is_staff ? "border-[#8b5cf6]/40 bg-[#8b5cf6]/5" : "border-line dark:border-white/15 bg-gray-100 dark:bg-white/5"
               } hover:bg-white/[0.07]`}
             >
               <div className="flex items-center justify-between gap-4">
@@ -514,7 +514,7 @@ export default function RolesPage() {
                       />
                     )}
                     {role.name}
-                    <span className="border-l border-gray-200 dark:border-white/30 pl-2 text-[10px] font-mono opacity-90">
+                    <span className="border-l border-line dark:border-white/30 pl-2 text-[10px] font-mono opacity-90">
                       Lvl {role.level || 1}
                     </span>
                   </span>
@@ -616,7 +616,7 @@ export default function RolesPage() {
               onClick={() => !saving && setShowForm(false)}
             />
             <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-              <div className="w-full max-w-lg border border-gray-200 dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+              <div className="w-full max-w-lg border border-line dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-black text-gray-900 dark:text-white">
                     {editingRole ? "Редактировать роль" : "Создать роль"}
@@ -637,7 +637,7 @@ export default function RolesPage() {
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Например: Premium, Куратор, Chief Tech"
                       required
-                      className="w-full border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] transition-colors"
+                      className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] transition-colors"
                     />
                   </div>
 
@@ -649,7 +649,7 @@ export default function RolesPage() {
                     <select
                       value={categoryId ?? ""}
                       onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
-                      className="w-full border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
+                      className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
                     >
                       <option value="" className="bg-gray-900">Без группы</option>
                       {categories.map((c) => (
@@ -670,13 +670,13 @@ export default function RolesPage() {
                         type="color"
                         value={color}
                         onChange={(e) => setColor(e.target.value)}
-                        className="w-16 h-10 rounded-lg border border-gray-200 dark:border-white/20 cursor-pointer bg-transparent"
+                        className="w-16 h-10 rounded-lg border border-line dark:border-white/20 cursor-pointer bg-transparent"
                       />
                       <input
                         type="text"
                         value={color}
                         onChange={(e) => setColor(e.target.value)}
-                        className="flex-1 border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:border-[#8b5cf6]"
+                        className="flex-1 border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:border-[#8b5cf6]"
                       />
                     </div>
                   </div>
@@ -690,17 +690,17 @@ export default function RolesPage() {
                       onChange={(e) => setDescription(e.target.value)}
                       placeholder="Чем занимается эта роль? Например: Следит за порядком в чатах, помогает новичкам"
                       rows={2}
-                      className="w-full border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] resize-none"
+                      className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] resize-none"
                     />
                   </div>
 
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                     <input
                       type="checkbox"
                       id="is_staff"
                       checked={isStaff}
                       onChange={(e) => setIsStaff(e.target.checked)}
-                      className="w-4 h-4 rounded border-gray-200 dark:border-white/30 bg-gray-100 dark:bg-white/5 text-purple-500 focus:ring-purple-500"
+                      className="w-4 h-4 rounded border-line dark:border-white/30 bg-gray-100 dark:bg-white/5 text-purple-500 focus:ring-purple-500"
                     />
                     <label htmlFor="is_staff" className="text-sm text-gray-800 dark:text-white/90 font-semibold cursor-pointer flex items-center gap-2">
                       <Crown size={14} className="text-[#8b5cf6]" />
@@ -741,7 +741,7 @@ export default function RolesPage() {
                     </div>
 
                     {/* 🆕 Умный блок описания уровня */}
-                    <div className="mt-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 space-y-2">
+                    <div className="mt-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 space-y-2">
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-600 dark:text-white/50">Статус:</span>
                         <span className="text-sm font-bold" style={{ color: getLevelColor(level) }}>
@@ -751,7 +751,7 @@ export default function RolesPage() {
                       <p className="text-xs text-gray-800 dark:text-white/70 leading-relaxed">
                         {LEVEL_DESCRIPTIONS[level]?.desc}
                       </p>
-                      <div className="flex items-center gap-2 pt-1 border-t border-gray-200 dark:border-white/10">
+                      <div className="flex items-center gap-2 pt-1 border-t border-line dark:border-white/10">
                         <User size={12} className="text-gray-500 dark:text-white/40" />
                         <p className="text-xs text-gray-600 dark:text-white/50">
                           Идеально для: <span className="text-gray-800 dark:text-white/80 font-semibold">{LEVEL_DESCRIPTIONS[level]?.bestFor}</span>
@@ -777,7 +777,7 @@ export default function RolesPage() {
 
                   <div>
                     <p className="text-xs text-gray-600 dark:text-white/50 mb-2">Предпросмотр:</p>
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex-wrap">
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 flex-wrap">
                       {isStaff && (
                         <span className="px-2 py-0.5 rounded-full bg-[#8b5cf6]/20 text-[#8b5cf6] text-xs font-bold border border-[#8b5cf6]/40 flex items-center gap-1">
                           <Crown size={10} /> Staff
@@ -800,7 +800,7 @@ export default function RolesPage() {
                           />
                         )}
                         {name || "Название"}
-                        <span className="border-l border-gray-200 dark:border-white/30 pl-2 text-[10px] font-mono opacity-90">
+                        <span className="border-l border-line dark:border-white/30 pl-2 text-[10px] font-mono opacity-90">
                           Lvl {level}
                         </span>
                       </span>
@@ -850,14 +850,14 @@ export default function RolesPage() {
                                 className={`flex items-center gap-3 cursor-pointer p-2.5 rounded-lg border transition-all ${
                                   permissions.includes(perm.id)
                                     ? "border-[#8b5cf6] bg-purple-500/10"
-                                    : "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10"
+                                    : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10"
                                 }`}
                               >
                                 <input
                                   type="checkbox"
                                   checked={permissions.includes(perm.id)}
                                   onChange={() => togglePermission(perm.id)}
-                                  className="w-4 h-4 rounded border-gray-200 dark:border-white/30 bg-gray-100 dark:bg-white/5 text-purple-500 focus:ring-purple-500"
+                                  className="w-4 h-4 rounded border-line dark:border-white/30 bg-gray-100 dark:bg-white/5 text-purple-500 focus:ring-purple-500"
                                 />
                                 <span className="text-base">{perm.icon}</span>
                                 <span className="text-sm text-gray-800 dark:text-white/90 font-semibold flex-1">{perm.label}</span>
@@ -898,7 +898,7 @@ export default function RolesPage() {
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200]" onClick={() => !catSaving && setShowCatManager(false)} />
             <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-              <div className="w-full max-w-md border border-gray-200 dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[80vh] overflow-y-auto">
+              <div className="w-full max-w-md border border-line dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[80vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
                     <FolderOpen size={18} className="text-[#8b5cf6]" />
@@ -915,7 +915,7 @@ export default function RolesPage() {
                       onChange={(e) => setCatName(e.target.value)}
                       placeholder="Например: Модерация, Тех. отдел, Дизайн"
                       required
-                      className="w-full border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
+                      className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
                     />
                   </div>
                   <div>
@@ -924,16 +924,16 @@ export default function RolesPage() {
                       value={catDesc}
                       onChange={(e) => setCatDesc(e.target.value)}
                       placeholder="Чем занимается этот отдел?"
-                      className="w-full border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
+                      className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
                     />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Цвет</label>
                     <div className="flex items-center gap-3">
                       <input type="color" value={catColor} onChange={(e) => setCatColor(e.target.value)}
-                        className="w-12 h-9 rounded-lg border border-gray-200 dark:border-white/20 cursor-pointer bg-transparent" />
+                        className="w-12 h-9 rounded-lg border border-line dark:border-white/20 cursor-pointer bg-transparent" />
                       <input type="text" value={catColor} onChange={(e) => setCatColor(e.target.value)}
-                        className="flex-1 border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:border-[#8b5cf6]" />
+                        className="flex-1 border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:border-[#8b5cf6]" />
                     </div>
                   </div>
                   <Button type="submit" loading={catSaving} disabled={catSaving || !catName.trim()} className="w-full">
@@ -941,12 +941,12 @@ export default function RolesPage() {
                   </Button>
                 </form>
 
-                <div className="border-t border-gray-200 dark:border-white/10 pt-4">
+                <div className="border-t border-line dark:border-white/10 pt-4">
                   <p className="text-xs font-bold text-gray-600 dark:text-white/50 uppercase tracking-wider mb-3">Существующие группы</p>
                   <div className="space-y-2">
                     {categories.length === 0 && <p className="text-xs text-gray-500 dark:text-white/40 text-center py-3">Групп пока нет</p>}
                     {categories.map((c) => (
-                      <div key={c.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                      <div key={c.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                         <span className="w-3 h-3 rounded-full shrink-0" style={{ background: c.color }} />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{c.name}</p>

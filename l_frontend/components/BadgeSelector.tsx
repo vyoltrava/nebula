@@ -99,7 +99,7 @@ export function BadgeSelector({ currentUser, availableBadges, onUpdate }: { curr
   const hasCustomBadge = currentUser?.custom_badge_url;
 
   return (
-    <div className="mt-4 p-4 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+    <div className="mt-4 p-4 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
           <Sparkles size={16} className="text-purple-600 dark:text-purple-400" /> Значок профиля
@@ -143,7 +143,7 @@ export function BadgeSelector({ currentUser, availableBadges, onUpdate }: { curr
         <div className="space-y-3">
           {/* Кнопка загрузки своего значка */}
           {canUploadCustom && (
-            <div className="border-b border-gray-200 dark:border-white/10 pb-3">
+            <div className="border-b border-line dark:border-white/10 pb-3">
               <p className="text-xs text-gray-600 dark:text-white/60 mb-2">Загрузить свой значок:</p>
               <div className="flex gap-2">
                 <input 
@@ -187,7 +187,7 @@ export function BadgeSelector({ currentUser, availableBadges, onUpdate }: { curr
             <div>
               <p className="text-xs text-gray-600 dark:text-white/60 mb-2">Или выбери из списка:</p>
               <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                <button onClick={() => selectBadge(null)} className={`aspect-square rounded-lg border flex items-center justify-center text-xs font-bold transition-all ${!currentUser?.selected_badge_id && !hasCustomBadge ? "border-red-600 dark:border-red-400 bg-red-500/10 text-red-600 dark:text-red-400" : "border-gray-200 dark:border-white/10 text-white/40 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
+                <button onClick={() => selectBadge(null)} className={`aspect-square rounded-lg border flex items-center justify-center text-xs font-bold transition-all ${!currentUser?.selected_badge_id && !hasCustomBadge ? "border-red-600 dark:border-red-400 bg-red-500/10 text-red-600 dark:text-red-400" : "border-line dark:border-white/10 text-white/40 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
                   Снять
                 </button>
                 
@@ -195,7 +195,7 @@ export function BadgeSelector({ currentUser, availableBadges, onUpdate }: { curr
                   const isActive = currentUser?.selected_badge_id === badge.id && !hasCustomBadge;
                   return (
                     <button key={badge.id} onClick={() => selectBadge(badge.id)} 
-                      className={`aspect-square rounded-lg border flex items-center justify-center relative transition-all ${isActive ? "border-purple-600 dark:border-purple-400 bg-purple-500/20" : "border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5"}`}
+                      className={`aspect-square rounded-lg border flex items-center justify-center relative transition-all ${isActive ? "border-purple-600 dark:border-purple-400 bg-purple-500/20" : "border-line dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5"}`}
                       style={{ filter: isActive ? `drop-shadow(0 0 8px ${badge.glow_color || '#8b5cf6'}99)` : "none" }}
                     >
                       <img src={badge.icon_url} className="w-6 h-6 object-contain" alt={badge.name} />

@@ -62,19 +62,19 @@ export function ChatsSection({ me }: { me: any }) {
   return (
     <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-200px)]">
       {/* Список чатов */}
-      <div className={`w-full md:w-96 border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 flex flex-col ${activeChat ? "hidden md:flex" : "flex"}`}>
-        <div className="p-3 border-b border-gray-200 dark:border-white/10">
+      <div className={`w-full md:w-96 border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 flex flex-col ${activeChat ? "hidden md:flex" : "flex"}`}>
+        <div className="p-3 border-b border-line dark:border-white/10">
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Поиск чата..."
-              className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-cyan-600 dark:focus:border-cyan-400" />
+              className="w-full pl-9 pr-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-cyan-600 dark:focus:border-cyan-400" />
           </div>
           <p className="text-xs text-gray-500 dark:text-white/40 mt-2">Всего: {chats.length} • Показано: {filtered.length}</p>
         </div>
         <div className="flex-1 overflow-y-auto">
           {filtered.map((c) => (
             <button key={c.id} onClick={() => openChat(c)}
-              className={`w-full flex items-center gap-3 p-3 border-b border-gray-200 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 text-left ${activeChat?.id === c.id ? "bg-cyan-500/10" : ""}`}>
+              className={`w-full flex items-center gap-3 p-3 border-b border-line dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 text-left ${activeChat?.id === c.id ? "bg-cyan-500/10" : ""}`}>
               <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shrink-0 overflow-hidden">
                 {c.avatar_url ? <img src={mediaUrl(c.avatar_url)} alt="" className="w-full h-full object-cover" />
                   : c.is_group ? <Users size={20} className="text-gray-900 dark:text-white" /> : <MessageSquare size={18} className="text-gray-900 dark:text-white" />}
@@ -93,7 +93,7 @@ export function ChatsSection({ me }: { me: any }) {
       </div>
 
       {/* Сообщения */}
-      <div className={`flex-1 border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 flex flex-col ${activeChat ? "flex" : "hidden md:flex"}`}>
+      <div className={`flex-1 border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 flex flex-col ${activeChat ? "flex" : "hidden md:flex"}`}>
         {!activeChat ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
@@ -103,7 +103,7 @@ export function ChatsSection({ me }: { me: any }) {
           </div>
         ) : (
           <>
-            <div className="p-3 border-b border-gray-200 dark:border-white/10 flex items-center gap-3">
+            <div className="p-3 border-b border-line dark:border-white/10 flex items-center gap-3">
               <button onClick={() => setActiveChat(null)} className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 md:hidden">
                 <ArrowLeft size={18} />
               </button>
@@ -137,7 +137,7 @@ export function ChatsSection({ me }: { me: any }) {
                       {m.pinned ? <PinOff size={14} /> : <Pin size={14} />}
                     </button>
                     {me.is_admin && (
-                      <button onClick={() => deleteMsg(m.id)} className="p-1.5 rounded-lg text-white/40 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10" title="Удалить">
+                      <button onClick={() => deleteMsg(m.id)} className="p-1.5 rounded-lg text-gray-500 dark:text-white/40 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10" title="Удалить">
                         <Trash2 size={14} />
                       </button>
                     )}

@@ -80,7 +80,7 @@ export function PushSettings() {
   // Браузер не поддерживает
   if (status === "unsupported") {
     return (
-      <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+      <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center shrink-0">
             <BellOff size={18} className="text-[#B9B8BD]" />
@@ -135,7 +135,7 @@ export function PushSettings() {
       )}
 
       {/* Главный переключатель */}
-      <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+      <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${subscribed ? "bg-[#7B3FF2]/15" : "bg-gray-100 dark:bg-white/5"}`}>
@@ -153,7 +153,7 @@ export function PushSettings() {
 
         {/* Статус устройств */}
         {subscribed && (
-          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-white/10">
+          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-line dark:border-white/10">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#2ECC71]/10 border border-[#2ECC71]/20">
               <Smartphone size={12} className="text-[#2ECC71]" />
               <span className="text-xs text-[#2ECC71]">{t("push.mobile")}</span>

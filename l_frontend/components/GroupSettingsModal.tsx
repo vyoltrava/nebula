@@ -73,7 +73,7 @@ export function GroupSettingsModal({ chatId, chat, onClose, onUpdate }: GroupSet
 
   return (
     <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] rounded-2xl border border-gray-200 dark:border-white/10 shadow-2xl p-6">
+      <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] rounded-2xl border border-line dark:border-white/10 shadow-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-black text-gray-900 dark:text-white">Настройки группы</h2>
           <IconButton icon={X} size="iconSm" onClick={onClose} />
@@ -81,7 +81,7 @@ export function GroupSettingsModal({ chatId, chat, onClose, onUpdate }: GroupSet
 
         {/* Аватарка */}
         <div className="flex flex-col items-center mb-4">
-          <div className="relative w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 cursor-pointer group" onClick={() => fileRef.current?.click()}>
+          <div className="relative w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 cursor-pointer group" onClick={() => fileRef.current?.click()}>
             {avatarPreview ? (
               <img src={mediaUrl(avatarPreview)} alt="" className="w-full h-full object-cover" />
             ) : (
@@ -110,7 +110,7 @@ export function GroupSettingsModal({ chatId, chat, onClose, onUpdate }: GroupSet
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={80}
-            className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] text-sm"
+            className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] text-sm"
             placeholder="Название группы"
           />
           <p className="text-[10px] text-gray-500 dark:text-white/30 mt-0.5 text-right">{name.length}/80</p>

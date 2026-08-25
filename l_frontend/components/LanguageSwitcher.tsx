@@ -17,7 +17,7 @@ export function LanguageSwitcher({ variant = "default" }: { variant?: "default" 
   // 🎯 КОМПАКТНЫЙ РЕЖИМ (для страницы входа/регистрации)
   if (variant === "compact") {
     return (
-      <div className="flex items-center justify-center gap-1 bg-gray-100 dark:bg-white/5 rounded-lg p-1 border border-gray-200 dark:border-white/10">
+      <div className="flex items-center justify-center gap-1 bg-gray-100 dark:bg-white/5 rounded-lg p-1 border border-line dark:border-white/10">
         {locales.map((code) => {
           const isActive = locale === code;
           return (
@@ -46,7 +46,7 @@ export function LanguageSwitcher({ variant = "default" }: { variant?: "default" 
         <Globe size={14} className="text-[#7B3FF2]" />
         {t("lang.label")}
       </label>
-      <div className="inline-flex bg-gray-100 dark:bg-[#1C1C1F] border border-gray-200 dark:border-white/10 rounded-xl p-1 shadow-sm">
+      <div className="inline-flex bg-gray-100 dark:bg-[#1C1C1F] border border-line dark:border-white/10 rounded-xl p-1 shadow-sm">
         {locales.map((code) => {
           const isActive = locale === code;
           return (

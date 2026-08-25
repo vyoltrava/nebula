@@ -76,7 +76,7 @@ useEffect(() => {
     return (
       <div className="h-screen flex overflow-hidden bg-paper dark:bg-[#171717] text-gray-900 dark:text-white">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10 min-w-0">
+        <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10 min-w-0">
           <MainPostSkeleton />
         </main>
         <RightPanel />
@@ -88,7 +88,7 @@ useEffect(() => {
     return (
       <div className="h-screen flex overflow-hidden bg-paper dark:bg-[#171717] text-gray-900 dark:text-white">
         <Sidebar />
-        <main className="flex-1 flex flex-col items-center justify-center gap-4 border-x border-gray-200 dark:border-white/10">
+        <main className="flex-1 flex flex-col items-center justify-center gap-4 border-x border-line dark:border-white/10">
           <p className="text-gray-600 dark:text-white/60">{t("post.notFound")}</p>
           <button
             onClick={() => router.push("/")}
@@ -107,11 +107,11 @@ useEffect(() => {
   return (
     <div className="h-screen flex overflow-hidden bg-paper dark:bg-[#171717] text-gray-900 dark:text-white">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10 min-w-0">
+      <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10 min-w-0">
         <div className="w-full">
           <button
             onClick={() => router.back()}
-            className="sticky top-0 z-10 w-full px-4 py-3 bg-paper dark:bg-[#171717]/90 backdrop-blur-md border-b border-gray-200 dark:border-white/10 flex items-center gap-2 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white transition-colors font-medium"
+            className="sticky top-0 z-10 w-full px-4 py-3 bg-paper dark:bg-[#171717]/90 backdrop-blur-md border-b border-line dark:border-white/10 flex items-center gap-2 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white transition-colors font-medium"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -119,7 +119,7 @@ useEffect(() => {
             Назад
           </button>
 
-          <div className="border-b border-gray-200 dark:border-white/10">
+          <div className="border-b border-line dark:border-white/10">
             <Post
               {...postWithoutReplies}
               isMainPost={true}

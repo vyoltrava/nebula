@@ -212,8 +212,8 @@ export function SupportSection({ me }: { me: any }) {
 
   return (
     <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-200px)]">
-      <div className={`w-full md:w-96 border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 flex flex-col ${activeTicket ? "hidden md:flex" : "flex"}`}>
-        <div className="p-3 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+      <div className={`w-full md:w-96 border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 flex flex-col ${activeTicket ? "hidden md:flex" : "flex"}`}>
+        <div className="p-3 border-b border-line dark:border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Headphones size={18} className="text-green-600 dark:text-green-400" />
             <h3 className="font-bold text-gray-900 dark:text-white">Заявки</h3>
@@ -234,7 +234,7 @@ export function SupportSection({ me }: { me: any }) {
                 setActiveTicket(t);
                 loadMessages(t.id);
               }}
-              className={`w-full flex items-center gap-3 p-3 border-b border-gray-200 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 text-left ${
+              className={`w-full flex items-center gap-3 p-3 border-b border-line dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 text-left ${
                 activeTicket?.id === t.id ? "bg-green-500/10" : ""
               }`}
             >
@@ -261,7 +261,7 @@ export function SupportSection({ me }: { me: any }) {
                 setActiveTicket(t);
                 loadMessages(t.id);
               }}
-              className={`w-full flex items-center gap-3 p-3 border-b border-gray-200 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 text-left opacity-60 ${
+              className={`w-full flex items-center gap-3 p-3 border-b border-line dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 text-left opacity-60 ${
                 activeTicket?.id === t.id ? "bg-green-500/10 opacity-100" : ""
               }`}
             >
@@ -278,7 +278,7 @@ export function SupportSection({ me }: { me: any }) {
         </div>
       </div>
 
-      <div className={`flex-1 border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 flex flex-col ${activeTicket ? "flex" : "hidden md:flex"}`}>
+      <div className={`flex-1 border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 flex flex-col ${activeTicket ? "flex" : "hidden md:flex"}`}>
         {!activeTicket ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
@@ -288,7 +288,7 @@ export function SupportSection({ me }: { me: any }) {
           </div>
         ) : (
           <>
-            <div className="p-3 border-b border-gray-200 dark:border-white/10 flex items-center gap-3">
+            <div className="p-3 border-b border-line dark:border-white/10 flex items-center gap-3">
               <button
                 onClick={() => setActiveTicket(null)}
                 className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 md:hidden"
@@ -339,7 +339,7 @@ export function SupportSection({ me }: { me: any }) {
               <div ref={bottomRef} />
             </div>
             {activeTicket.status === "open" && (
-              <div className="p-3 border-t border-gray-200 dark:border-white/10 space-y-2">
+              <div className="p-3 border-t border-line dark:border-white/10 space-y-2">
                 {preview && (
                   <div className="relative inline-block">
                     <img src={preview} alt="Preview" className="w-20 h-20 object-cover rounded-lg" />
@@ -362,7 +362,7 @@ export function SupportSection({ me }: { me: any }) {
                   />
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-3 py-2.5 rounded-xl border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
+                    className="px-3 py-2.5 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
                     disabled={sending}
                   >
                     <ImageIcon size={16} />
@@ -378,7 +378,7 @@ export function SupportSection({ me }: { me: any }) {
                       }
                     }}
                     placeholder="Написать ответ..."
-                    className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-green-600 dark:focus:border-green-400"
+                    className="flex-1 px-4 py-2.5 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-green-600 dark:focus:border-green-400"
                     disabled={sending}
                   />
                   

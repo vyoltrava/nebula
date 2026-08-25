@@ -110,7 +110,7 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
         onClick={onClose}
       />
       <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-lg border border-gray-200 dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-5 sm:p-6 pointer-events-auto animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+        <div className="w-full max-w-lg border border-line dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-5 sm:p-6 pointer-events-auto animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center shrink-0">
@@ -147,7 +147,7 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Описание назначения */}
-              <div className="p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+              <div className="p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                 <p className="text-xs text-gray-800 dark:text-white/70 leading-relaxed">
                   <span className="font-bold text-gray-900 dark:text-white">{t("bugs.canSend")}</span>{" "}
                   {t("bugs.canSendBody")}
@@ -164,7 +164,7 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder={t("bugs.titlePh")}
                   maxLength={200}
-                  className="w-full border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2.5 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-orange-600 dark:focus:border-orange-400 transition-all text-sm"
+                  className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2.5 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-orange-600 dark:focus:border-orange-400 transition-all text-sm"
                 />
                 <p className="text-xs text-gray-500 dark:text-white/40 mt-1 text-right">{title.length}/200</p>
               </div>
@@ -189,7 +189,7 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
                           transition-all active:scale-95
                           ${isActive
                             ? `${opt.borderColor} ${opt.bg} ${opt.color}`
-                            : "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-800 dark:hover:text-white/80"
+                            : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-800 dark:hover:text-white/80"
                           }
                         `}
                       >
@@ -225,7 +225,7 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
                   }
                   rows={5}
                   maxLength={2000}
-                  className="w-full border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2.5 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-orange-600 dark:focus:border-orange-400 transition-all resize-none text-sm"
+                  className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2.5 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-orange-600 dark:focus:border-orange-400 transition-all resize-none text-sm"
                 />
                 <p className="text-xs text-gray-500 dark:text-white/40 mt-1 text-right">{description.length}/2000</p>
               </div>

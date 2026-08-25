@@ -10,7 +10,7 @@ const STATUS_CONFIG: Record<PermStatus, { label: string; color: string; bg: stri
   granted: { label: "Разрешено", color: "text-[#2ECC71]", bg: "bg-[#2ECC71]/15", border: "border-[#2ECC71]/30", icon: CheckCircle2 },
   denied: { label: "Запрещено", color: "text-[#E74C3C]", bg: "bg-[#E74C3C]/15", border: "border-[#E74C3C]/30", icon: XCircle },
   prompt: { label: "Не запрошено", color: "text-[#F39C12]", bg: "bg-[#F39C12]/15", border: "border-[#F39C12]/30", icon: HelpCircle },
-  unknown: { label: "Неизвестно", color: "text-[#B9B8BD]", bg: "bg-gray-100 dark:bg-white/5", border: "border-gray-200 dark:border-white/10", icon: HelpCircle },
+  unknown: { label: "Неизвестно", color: "text-[#B9B8BD]", bg: "bg-gray-100 dark:bg-white/5", border: "border-line dark:border-white/10", icon: HelpCircle },
 };
 
 function PermissionRow({
@@ -47,7 +47,7 @@ function PermissionRow({
   }
 
   return (
-    <div className={`p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 ${!isLast ? "mb-3" : ""}`}>
+    <div className={`p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 ${!isLast ? "mb-3" : ""}`}>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center shrink-0">
@@ -76,7 +76,7 @@ function PermissionRow({
           )}
           <button
             onClick={refresh}
-            className="w-10 h-10 shrink-0 rounded-lg border border-gray-200 dark:border-white/10 text-[#B9B8BD] hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-center transition-colors"
+            className="w-10 h-10 shrink-0 rounded-lg border border-line dark:border-white/10 text-[#B9B8BD] hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-center transition-colors"
             title={t("common.refresh")}
           >
             <RefreshCw size={15} />

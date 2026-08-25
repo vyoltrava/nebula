@@ -134,7 +134,7 @@ export default function ThreadPage() {
         </Link>
 
         {/* Шапка темы */}
-        <div className="border border-gray-200 dark:border-white/10 rounded-2xl p-6 bg-gray-100 dark:bg-white/5 mb-6">
+        <div className="border border-line dark:border-white/10 rounded-2xl p-6 bg-gray-100 dark:bg-white/5 mb-6">
           <div className="flex items-center gap-2 flex-wrap mb-3">
             {thread.is_pinned && <Pin size={18} className="text-yellow-600 dark:text-yellow-400" />}
             {thread.is_closed && (
@@ -154,7 +154,7 @@ export default function ThreadPage() {
 
           <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white mb-4">{thread.title}</h1>
 
-          <div className="flex items-center gap-3 mb-6 pb-6 border-b border-gray-200 dark:border-white/10">
+          <div className="flex items-center gap-3 mb-6 pb-6 border-b border-line dark:border-white/10">
             <Avatar src={thread.author?.avatar_url} name={thread.author?.display_name} id={thread.author?.id} size={40} />
             <div className="flex-1">
               <p className="text-gray-900 dark:text-white font-bold">{thread.author?.display_name}</p>
@@ -175,11 +175,11 @@ export default function ThreadPage() {
             <p className="text-xs font-black uppercase text-[#8b5cf6] mb-3">{t("suggestions.manage")}</p>
             <div className="flex flex-wrap gap-2 mb-3">
               <button onClick={() => setEditModal(true)}
-                className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-800 dark:text-white/70 text-xs font-bold hover:text-gray-900 dark:text-white flex items-center gap-1.5">
+                className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-gray-800 dark:text-white/70 text-xs font-bold hover:text-gray-900 dark:text-white flex items-center gap-1.5">
                 <Pencil size={13} /> {t("suggestions.editThread")}
               </button>
               <button onClick={() => api("PATCH", `/api/suggestions/thread/${threadId}/pin`, patchForm({ is_pinned: String(!thread.is_pinned) }))}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1.5 ${thread.is_pinned ? "bg-yellow-500/20 border-yellow-500/30 text-yellow-600 dark:text-yellow-400" : "bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-800 dark:text-white/70 hover:text-gray-900 dark:text-white"}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1.5 ${thread.is_pinned ? "bg-yellow-500/20 border-yellow-500/30 text-yellow-600 dark:text-yellow-400" : "bg-gray-100 dark:bg-white/5 border-line dark:border-white/10 text-gray-800 dark:text-white/70 hover:text-gray-900 dark:text-white"}`}>
                 <Pin size={13} /> {thread.is_pinned ? t("suggestions.unpin") : t("suggestions.pin")}
               </button>
               <button onClick={() => api("PATCH", `/api/suggestions/thread/${threadId}/close`, patchForm({ closed: String(!thread.is_closed) }))}
@@ -195,7 +195,7 @@ export default function ThreadPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <select value={thread.status}
                 onChange={(e) => api("PATCH", `/api/suggestions/thread/${threadId}/status`, patchForm({ status: e.target.value }))}
-                className="px-2 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-xs outline-none">
+                className="px-2 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/10 text-gray-900 dark:text-white text-xs outline-none">
                 <option value="pending">{t("suggestions.status.pending")}</option>
                 <option value="approved">{t("suggestions.status.approved")}</option>
                 <option value="implemented">{t("suggestions.status.implemented")}</option>
@@ -204,13 +204,13 @@ export default function ThreadPage() {
               </select>
               <select value={thread.prefix?.id || 0}
                 onChange={(e) => api("PATCH", `/api/suggestions/thread/${threadId}/prefix`, patchForm({ prefix_id: e.target.value }))}
-                className="px-2 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-xs outline-none">
+                className="px-2 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/10 text-gray-900 dark:text-white text-xs outline-none">
                 <option value={0}>{t("suggestions.noPrefix")}</option>
                 {prefixes.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
               <select value={thread.category_id}
                 onChange={(e) => api("PATCH", `/api/admin/suggestions/${threadId}/move`, patchForm({ category_id: e.target.value }))}
-                className="px-2 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-xs outline-none">
+                className="px-2 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/10 text-gray-900 dark:text-white text-xs outline-none">
                 {categories.map((c) => <option key={c.id} value={c.id}>{t("suggestions.moveThread")}: {c.name}</option>)}
               </select>
             </div>
@@ -222,7 +222,7 @@ export default function ThreadPage() {
           <h2 className="text-xl font-black text-gray-900 dark:text-white mb-4">{t("suggestions.commentsTitle")} ({comments.length})</h2>
           <div className="space-y-4">
             {comments.map((c) => (
-              <div key={c.id} className="border border-gray-200 dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
+              <div key={c.id} className="border border-line dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
                 <div className="flex items-start gap-3">
                   <Avatar src={c.author?.avatar_url} name={c.author?.display_name} id={c.author?.id} size={36} />
                   <div className="flex-1 min-w-0">
@@ -241,12 +241,12 @@ export default function ThreadPage() {
               </div>
             ))}
             {hasMore && (
-              <button onClick={() => loadThread(cursor)} className="w-full py-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white">
+              <button onClick={() => loadThread(cursor)} className="w-full py-3 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white">
                 {t("common.loadMore")}
               </button>
             )}
             {comments.length === 0 && (
-              <div className="text-center py-12 border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5">
+              <div className="text-center py-12 border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5">
                 <p className="text-gray-600 dark:text-white/50">{t("suggestions.noComments")}</p>
                 <p className="text-gray-500 dark:text-white/30 text-sm mt-1">{t("suggestions.beFirstComment")}</p>
               </div>
@@ -256,10 +256,10 @@ export default function ThreadPage() {
 
         {/* Форма комментария / заглушка закрытой темы */}
         {canWrite ? (
-          <div className="border border-gray-200 dark:border-white/10 rounded-2xl p-5 bg-gray-100 dark:bg-white/5">
+          <div className="border border-line dark:border-white/10 rounded-2xl p-5 bg-gray-100 dark:bg-white/5">
             <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)}
               placeholder={t("suggestions.commentPh")} rows={4}
-              className="w-full mb-4 px-4 py-3 rounded-lg bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:border-[#8b5cf6] outline-none resize-none" />
+              className="w-full mb-4 px-4 py-3 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/10 text-gray-900 dark:text-white focus:border-[#8b5cf6] outline-none resize-none" />
             <div className="flex justify-end">
               <button onClick={sendComment} disabled={sending || !newComment.trim()}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed] disabled:opacity-40 transition-all">
@@ -299,18 +299,18 @@ function EditModal({ thread, onClose, onSaved }: any) {
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl p-6">
+      <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-black text-gray-900 dark:text-white">{t("suggestions.editThread")}</h3>
           <button onClick={onClose} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white"><X size={20} /></button>
         </div>
         <input value={title} onChange={(e) => setTitle(e.target.value)}
-          className="w-full mb-4 px-4 py-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-lg focus:border-[#8b5cf6] outline-none" />
+          className="w-full mb-4 px-4 py-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-gray-900 dark:text-white text-lg focus:border-[#8b5cf6] outline-none" />
         <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={8}
-          className="w-full mb-4 px-4 py-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:border-[#8b5cf6] outline-none resize-none" />
+          className="w-full mb-4 px-4 py-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-gray-900 dark:text-white focus:border-[#8b5cf6] outline-none resize-none" />
         <div className="flex gap-3">
           <button onClick={save} className="flex-1 py-3 rounded-lg bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed]">{t("suggestions.saveChanges")}</button>
-          <button onClick={onClose} className="flex-1 py-3 rounded-lg border border-gray-200 dark:border-white/15 text-gray-800 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/5">{t("common.cancel")}</button>
+          <button onClick={onClose} className="flex-1 py-3 rounded-lg border border-line dark:border-white/15 text-gray-800 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/5">{t("common.cancel")}</button>
         </div>
       </div>
     </div>

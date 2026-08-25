@@ -220,9 +220,9 @@ export default function AdminThemesPage() {
       <AnimatedBackground />
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
-      <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10 relative">
+      <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10 relative">
         {/* Шапка */}
-        <div className="p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
+        <div className="p-6 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <button
@@ -249,7 +249,7 @@ export default function AdminThemesPage() {
           </div>
 
           {/* Глобальный тумблер */}
-          <div className="mt-4 p-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-between">
+          <div className="mt-4 p-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-3">
               {globalEnabled ? <Globe size={18} className="text-emerald-600 dark:text-emerald-400" /> : <Globe size={18} className="text-gray-500 dark:text-white/40" />}
               <div>
@@ -318,7 +318,7 @@ function ThemeCard({
 }) {
   return (
     <div className={`rounded-2xl overflow-hidden border transition-all ${
-      isCurrent ? "border-[#8b5cf6] ring-2 ring-[#8b5cf6]/50" : "border-gray-200 dark:border-white/10"
+      isCurrent ? "border-[#8b5cf6] ring-2 ring-[#8b5cf6]/50" : "border-line dark:border-white/10"
     } bg-ivory dark:bg-[#1f1f23]`}>
       {/* Превью */}
       <div className="relative h-40 overflow-hidden group">
@@ -371,7 +371,7 @@ function ThemeCard({
           {theme.colors.map((c, i) => (
             <div
               key={i}
-              className="w-5 h-5 rounded-full border border-gray-200 dark:border-white/20"
+              className="w-5 h-5 rounded-full border border-line dark:border-white/20"
               style={{ background: c }}
               title={c}
             />
@@ -485,8 +485,8 @@ function ThemeEditor({
     <>
       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={onClose} />
       <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl pointer-events-auto max-h-[90vh] overflow-y-auto">
-          <div className="sticky top-0 bg-ivory dark:bg-[#1f1f23] p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between z-10">
+        <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl pointer-events-auto max-h-[90vh] overflow-y-auto">
+          <div className="sticky top-0 bg-ivory dark:bg-[#1f1f23] p-4 border-b border-line dark:border-white/10 flex items-center justify-between z-10">
             <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
               <Palette size={20} className="text-[#8b5cf6]" />
               Редактор темы
@@ -498,7 +498,7 @@ function ThemeEditor({
 
           <div className="p-4 space-y-4">
             {/* Живое превью */}
-            <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-white/10 h-40 relative">
+            <div className="rounded-xl overflow-hidden border border-line dark:border-white/10 h-40 relative">
               <ThemePreview theme={theme} />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <p className="text-gray-800 dark:text-white/80 font-bold text-lg drop-shadow-lg">
@@ -514,7 +514,7 @@ function ThemeEditor({
                 value={theme.name}
                 onChange={(e) => onChange({ ...theme, name: e.target.value })}
                 placeholder="Например: Северное сияние"
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
+                className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
               />
             </div>
 
@@ -531,7 +531,7 @@ function ThemeEditor({
                       className={`p-3 rounded-xl border text-left transition-all ${
                         theme.type === t.value
                           ? "border-[#8b5cf6] bg-[#8b5cf6]/10"
-                          : "border-gray-200 dark:border-white/15 hover:bg-gray-100 dark:hover:bg-white/5"
+                          : "border-line dark:border-white/15 hover:bg-gray-100 dark:hover:bg-white/5"
                       }`}
                     >
                       <div className="flex items-center gap-2 mb-1">
@@ -567,7 +567,7 @@ function ThemeEditor({
                       type="color"
                       value={c}
                       onChange={(e) => updateColor(i, e.target.value)}
-                      className="w-full h-12 rounded-lg cursor-pointer border border-gray-200 dark:border-white/20 bg-transparent"
+                      className="w-full h-12 rounded-lg cursor-pointer border border-line dark:border-white/20 bg-transparent"
                     />
                     <div className="text-[10px] text-gray-500 dark:text-white/40 text-center mt-0.5 font-mono">
                       {c}
@@ -615,7 +615,7 @@ function ThemeEditor({
             />
 
             {/* Уровень доступа (на будущее) */}
-            <div className="p-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 flex items-center gap-3">
               <Lock size={16} className="text-gray-500 dark:text-white/40" />
               <div className="flex-1">
                 <p className="text-xs font-bold text-gray-800 dark:text-white/80">Уровень доступа</p>
@@ -628,15 +628,15 @@ function ThemeEditor({
                 min={0} max={10}
                 value={(theme as any).min_level ?? 0}
                 onChange={(e) => onChange({ ...theme, min_level: Number(e.target.value) } as any)}
-                className="w-16 px-2 py-1 rounded border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm text-center focus:outline-none focus:border-[#8b5cf6]"
+                className="w-16 px-2 py-1 rounded border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm text-center focus:outline-none focus:border-[#8b5cf6]"
               />
             </div>
           </div>
 
-          <div className="sticky bottom-0 bg-ivory dark:bg-[#1f1f23] p-4 border-t border-gray-200 dark:border-white/10 flex gap-2">
+          <div className="sticky bottom-0 bg-ivory dark:bg-[#1f1f23] p-4 border-t border-line dark:border-white/10 flex gap-2">
             <button
               onClick={onClose}
-              className="flex-1 py-2.5 rounded-lg border border-gray-200 dark:border-white/15 text-gray-800 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/5"
+              className="flex-1 py-2.5 rounded-lg border border-line dark:border-white/15 text-gray-800 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/5"
             >
               Отмена
             </button>

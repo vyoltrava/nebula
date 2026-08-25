@@ -210,9 +210,9 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Список пользователей */}
-      <div className="lg:col-span-1 border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden flex flex-col max-h-[75vh]">
-        <div className="p-3 border-b border-gray-200 dark:border-white/10">
-          <div className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 rounded-lg px-3 py-2 border border-gray-200 dark:border-white/10">
+      <div className="lg:col-span-1 border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden flex flex-col max-h-[75vh]">
+        <div className="p-3 border-b border-line dark:border-white/10">
+          <div className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 rounded-lg px-3 py-2 border border-line dark:border-white/10">
             <Search size={16} className="text-gray-500 dark:text-white/40" />
             <input
               value={searchQuery}
@@ -246,17 +246,17 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       {/* Редактирование */}
       <div className="lg:col-span-2">
         {!selectedUser ? (
-          <div className="border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-12 text-center">
+          <div className="border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-12 text-center">
             <Users size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
             <p className="text-gray-600 dark:text-white/50">Выбери пользователя для редактирования</p>
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-4 sm:p-6">
+            <div className="border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row items-start gap-6 mb-6">
                 <div className="text-center">
                   <Avatar src={selectedUser.avatar_url} name={selectedUser.display_name} id={selectedUser.id} size={96} />
-                  <label className="mt-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white/70 text-xs font-semibold hover:bg-gray-100 dark:hover:bg-white/10 cursor-pointer">
+                  <label className="mt-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white/70 text-xs font-semibold hover:bg-gray-100 dark:hover:bg-white/10 cursor-pointer">
                     <Upload size={12} /> Сменить
                     <input type="file" accept="image/*" className="hidden" onChange={uploadAvatar} />
                   </label>
@@ -273,19 +273,19 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   <p className="text-gray-600 dark:text-white/50 text-sm mb-3">@{selectedUser.username} · ID #{selectedUser.id}</p>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                    <div className="border border-gray-200 dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
+                    <div className="border border-line dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
                       <p className="text-gray-500 dark:text-white/40 text-xs">Постов</p>
                       <p className="text-gray-900 dark:text-white font-bold text-lg">{selectedUser.posts_count ?? "—"}</p>
                     </div>
-                    <div className="border border-gray-200 dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
+                    <div className="border border-line dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
                       <p className="text-gray-500 dark:text-white/40 text-xs">Подписчиков</p>
                       <p className="text-gray-900 dark:text-white font-bold text-lg">{selectedUser.followers_count ?? "—"}</p>
                     </div>
-                    <div className="border border-gray-200 dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
+                    <div className="border border-line dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
                       <p className="text-gray-500 dark:text-white/40 text-xs">Регистрация</p>
                       <p className="text-gray-900 dark:text-white font-bold text-xs">{selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString("ru-RU") : "—"}</p>
                     </div>
-                    <div className="border border-gray-200 dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
+                    <div className="border border-line dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
                       <p className="text-gray-500 dark:text-white/40 text-xs">Последний IP</p>
                       <p className="text-gray-900 dark:text-white font-bold text-xs font-mono truncate">{selectedUser.last_ip || "—"}</p>
                     </div>
@@ -299,14 +299,14 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                 </div>
               </div>
 
-              <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-white/10">
+              <div className="space-y-3 pt-4 border-t border-line dark:border-white/10">
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 dark:text-white/70 mb-1">Username (@)</label>
-                  <input value={editUsername} onChange={(e) => setEditUsername(e.target.value)} className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]" />
+                  <input value={editUsername} onChange={(e) => setEditUsername(e.target.value)} className="w-full border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 dark:text-white/70 mb-1">Отображаемое имя</label>
-                  <input value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]" />
+                  <input value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} className="w-full border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]" />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-800 dark:text-white/70 mb-1">
@@ -316,7 +316,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
+                    className="w-full border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
                   />
                 </div>
 
@@ -329,7 +329,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                     <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
                       selectedUser.two_fa_enabled
                         ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
-                        : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/40 border border-gray-200 dark:border-white/10"
+                        : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/40 border border-line dark:border-white/10"
                     }`}>
                       {selectedUser.two_fa_enabled ? "Включена" : "Выключена"}
                     </span>
@@ -380,7 +380,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
               </div>
             </div>
 
-            <div className="border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-4 sm:p-5">
+            <div className="border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-4 sm:p-5">
               <div className="flex items-center gap-2 mb-4">
                 <History size={18} className="text-[#8b5cf6]" />
                 <h3 className="font-bold text-gray-900 dark:text-white">История IP</h3>

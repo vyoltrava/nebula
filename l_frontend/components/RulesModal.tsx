@@ -20,8 +20,8 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
         onClick={onClose}
       />
       <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-3xl border border-gray-200 dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl pointer-events-auto max-h-[85vh] flex flex-col">
-          <div className="sticky top-0 bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/10 p-4 flex items-center justify-between shrink-0">
+        <div className="w-full max-w-3xl border border-line dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl pointer-events-auto max-h-[85vh] flex flex-col">
+          <div className="sticky top-0 bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md border-b border-line dark:border-white/10 p-4 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <Shield size={20} className="text-[#8b5cf6]" />
               <h2 className="font-black text-gray-900 dark:text-white text-lg">
@@ -45,7 +45,7 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
             {rules?.sections.map((section: any, i: number) => (
               <div
                 key={section.id || i}
-                className="border border-gray-200 dark:border-white/15 rounded-xl p-4 bg-gray-100 dark:bg-white/5"
+                className="border border-line dark:border-white/15 rounded-xl p-4 bg-gray-100 dark:bg-white/5"
               >
                 <h3 className="font-black text-gray-900 dark:text-white mb-3 text-base">
                   {section.heading}
@@ -68,7 +68,7 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs border-collapse">
                       <thead>
-                        <tr className="border-b border-gray-200 dark:border-white/20">
+                        <tr className="border-b border-line dark:border-white/20">
                           <th className="text-left p-2 text-gray-600 dark:text-white/60 font-bold">№</th>
                           <th className="text-left p-2 text-gray-600 dark:text-white/60 font-bold">Мера</th>
                           <th className="text-left p-2 text-gray-600 dark:text-white/60 font-bold">Описание</th>
@@ -76,7 +76,7 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
                       </thead>
                       <tbody>
                         {section.table.map((row: any, j: number) => (
-                          <tr key={j} className="border-b border-gray-200 dark:border-white/10">
+                          <tr key={j} className="border-b border-line dark:border-white/10">
                             <td className="p-2 text-gray-800 dark:text-white/70 font-bold">{row.num}</td>
                             <td className="p-2 text-gray-900 dark:text-white font-semibold">{row.measure}</td>
                             <td className="p-2 text-gray-800 dark:text-white/70">{row.description}</td>
@@ -96,7 +96,7 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
             ))}
           </div>
 
-          <div className="border-t border-gray-200 dark:border-white/10 p-4 shrink-0">
+          <div className="border-t border-line dark:border-white/10 p-4 shrink-0">
             <Button variant="primary" className="w-full" onClick={onClose}>
               Понятно
             </Button>

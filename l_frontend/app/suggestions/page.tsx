@@ -79,7 +79,7 @@ export default function SuggestionsPage() {
         </div>
 
         {/* Один блок со списком разделов — как в XenForo */}
-        <div className="border border-gray-200 dark:border-white/10 rounded-2xl bg-gray-100 dark:bg-white/5 overflow-hidden">
+        <div className="border border-line dark:border-white/10 rounded-2xl bg-gray-100 dark:bg-white/5 overflow-hidden">
           {categories.length === 0 && (
             <div className="text-center py-16">
               <MessageSquare size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
@@ -91,7 +91,7 @@ export default function SuggestionsPage() {
             const last = cat.last_activity;
             return (
               <div key={cat.id}
-                className={`flex items-center gap-4 p-5 hover:bg-gray-100 dark:hover:bg-white/5 transition-all cursor-pointer ${i > 0 ? "border-t border-gray-200 dark:border-white/10" : ""}`}
+                className={`flex items-center gap-4 p-5 hover:bg-gray-100 dark:hover:bg-white/5 transition-all cursor-pointer ${i > 0 ? "border-t border-line dark:border-white/10" : ""}`}
                 onClick={() => router.push(`/suggestions/category/${cat.id}`)}>
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0" style={{ background: `${cat.color}20` }}>
                   <Icon size={24} style={{ color: cat.color }} />
@@ -168,15 +168,15 @@ function CategoryModal({ initial, onClose, onSaved }: any) {
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl p-6">
+      <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-black text-gray-900 dark:text-white">{initial ? t("suggestions.editCategory") : t("suggestions.createCategory")}</h3>
           <IconButton icon={X} onClick={onClose} />
         </div>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("suggestions.categoryName")}
-          className="w-full mb-3 px-3 py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:border-[#8b5cf6] outline-none" />
+          className="w-full mb-3 px-3 py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-gray-900 dark:text-white focus:border-[#8b5cf6] outline-none" />
         <textarea value={desc} onChange={(e) => setDesc(e.target.value)} placeholder={t("suggestions.categoryDesc")} rows={2}
-          className="w-full mb-3 px-3 py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:border-[#8b5cf6] outline-none resize-none" />
+          className="w-full mb-3 px-3 py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-gray-900 dark:text-white focus:border-[#8b5cf6] outline-none resize-none" />
         <div className="flex gap-3 mb-3">
           <div className="flex-1">
             <label className="block text-xs text-gray-600 dark:text-white/60 mb-1">{t("suggestions.categoryColor")}</label>
@@ -185,7 +185,7 @@ function CategoryModal({ initial, onClose, onSaved }: any) {
           <div className="flex-1">
             <label className="block text-xs text-gray-600 dark:text-white/60 mb-1">{t("suggestions.categoryIcon")}</label>
             <select value={icon} onChange={(e) => setIcon(e.target.value)}
-              className="w-full h-10 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white px-2 outline-none">
+              className="w-full h-10 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-gray-900 dark:text-white px-2 outline-none">
               <option value="message-square">💬</option>
               <option value="globe">🌐</option>
               <option value="server">🖥️</option>
@@ -239,7 +239,7 @@ function PrefixModal({ prefixes, onClose, onSaved }: any) {
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-black text-gray-900 dark:text-white">{t("suggestions.prefixManager")}</h3>
           <IconButton icon={X} onClick={onClose} />
@@ -248,7 +248,7 @@ function PrefixModal({ prefixes, onClose, onSaved }: any) {
         <div className="space-y-2 mb-5">
           {list.length === 0 && <p className="text-gray-500 dark:text-white/40 text-sm text-center py-4">{t("suggestions.noPrefixes")}</p>}
           {list.map((p) => (
-            <div key={p.id} className="flex items-center gap-3 border border-gray-200 dark:border-white/10 rounded-lg p-2.5 bg-gray-100 dark:bg-white/5">
+            <div key={p.id} className="flex items-center gap-3 border border-line dark:border-white/10 rounded-lg p-2.5 bg-gray-100 dark:bg-white/5">
               <span className="px-2.5 py-1 rounded text-xs font-bold" style={{ color: p.color, background: p.bg_color }}>{p.name}</span>
               <div className="flex-1" />
               <IconButton icon={Trash2} variant="danger" size="iconSm" onClick={() => remove(p.id)} />
@@ -256,9 +256,9 @@ function PrefixModal({ prefixes, onClose, onSaved }: any) {
           ))}
         </div>
 
-        <div className="border-t border-gray-200 dark:border-white/10 pt-4">
+        <div className="border-t border-line dark:border-white/10 pt-4">
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("suggestions.prefixName")}
-            className="w-full mb-3 px-3 py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:border-[#8b5cf6] outline-none" />
+            className="w-full mb-3 px-3 py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-gray-900 dark:text-white focus:border-[#8b5cf6] outline-none" />
           <div className="flex gap-3 mb-3">
             <div className="flex-1">
               <label className="block text-xs text-gray-600 dark:text-white/60 mb-1">{t("suggestions.prefixColor")}</label>

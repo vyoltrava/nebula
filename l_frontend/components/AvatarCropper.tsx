@@ -74,7 +74,7 @@ export function AvatarCropper({ imageSrc, onCropComplete, onClose }: AvatarCropp
   return (
     <div className="fixed inset-0 bg-black/90 z-[300] flex flex-col">
       {/* Шапка */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-white/10">
+      <div className="flex items-center justify-between p-4 border-b border-line dark:border-white/10">
         <h2 className="text-gray-900 dark:text-white font-bold text-lg">Настройте аватарку</h2>
         <div className="flex items-center gap-2">
           <IconButton icon={X} size="icon" onClick={onClose} />
@@ -97,7 +97,7 @@ export function AvatarCropper({ imageSrc, onCropComplete, onClose }: AvatarCropp
       </div>
 
       {/* Контролы */}
-      <div className="p-4 border-t border-gray-200 dark:border-white/10 space-y-4 bg-paper dark:bg-[#171717]">
+      <div className="p-4 border-t border-line dark:border-white/10 space-y-4 bg-paper dark:bg-[#171717]">
         {/* Зум */}
         <div className="flex items-center gap-3 max-w-md mx-auto">
           <ZoomOut size={16} className="text-gray-600 dark:text-white/50" />

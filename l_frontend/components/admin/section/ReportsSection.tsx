@@ -56,7 +56,7 @@ export function ReportsSection({ me }: { me: any }) {
       <div className="flex gap-2 flex-wrap">
         {(["pending", "resolved", "rejected", "all"] as const).map((f) => (
           <button key={f} onClick={() => setFilter(f)}
-            className={`px-4 py-1.5 rounded-full border text-xs font-bold ${filter === f ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-gray-200 dark:border-white/20 text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"}`}>
+            className={`px-4 py-1.5 rounded-full border text-xs font-bold ${filter === f ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-line dark:border-white/20 text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"}`}>
             {f === "pending" && "⏳ Новые"}
             {f === "resolved" && "✅ Обработанные"}
             {f === "rejected" && "❌ Отклонённые"}
@@ -72,7 +72,7 @@ export function ReportsSection({ me }: { me: any }) {
           <div key={r.id} className={`border rounded-xl p-4 ${
             r.status === "pending" ? "border-orange-400/30 bg-orange-500/5"
             : r.status === "resolved" ? "border-green-400/30 bg-green-500/5"
-            : "border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5"
+            : "border-line dark:border-white/15 bg-gray-100 dark:bg-white/5"
           }`}>
             <div className="flex items-start gap-4">
               {r.reporter && <Avatar src={r.reporter.avatar_url} name={r.reporter.display_name} id={r.reporter.id} size={40} />}
@@ -90,13 +90,13 @@ export function ReportsSection({ me }: { me: any }) {
                 </div>
                 {r.comment && <p className="mt-2 text-sm text-gray-800 dark:text-white/70 italic">"{r.comment}"</p>}
                 {r.target?.type === "post" && (
-                  <div className="mt-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                  <div className="mt-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                     <p className="text-sm text-gray-800 dark:text-white/80 line-clamp-3">{r.target.text}</p>
                     <p className="text-xs text-gray-500 dark:text-white/40 mt-1">Автор: {r.target.author_name}</p>
                   </div>
                 )}
                 {r.target?.type === "user" && (
-                  <div className="mt-3 flex items-center gap-2 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                  <div className="mt-3 flex items-center gap-2 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                     <Avatar src={r.target.avatar_url} name={r.target.display_name} id={r.target.id} size={32} />
                     <div>
                       <p className="text-sm font-bold text-gray-900 dark:text-white">{r.target.display_name}</p>
@@ -122,7 +122,7 @@ export function ReportsSection({ me }: { me: any }) {
                     <CheckCircle size={12} /> Закрыть
                   </button>
                   <button onClick={() => rejectReport(r.id)}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-white/20 text-gray-600 dark:text-white/60 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10">
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-line dark:border-white/20 text-gray-600 dark:text-white/60 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10">
                     <XCircle size={12} /> Отклонить
                   </button>
                 </div>

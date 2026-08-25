@@ -109,10 +109,10 @@ export default function CallModal() {
               <img 
                 src={displayAvatar} 
                 alt={displayName} 
-                className={`w-28 h-28 rounded-xl object-cover border-4 ${status === 'ringing' ? 'border-green-500 animate-pulse' : 'border-gray-200 dark:border-white/30'}`} 
+                className={`w-28 h-28 rounded-xl object-cover border-4 ${status === 'ringing' ? 'border-green-500 animate-pulse' : 'border-line dark:border-white/30'}`} 
               />
             ) : (
-              <div className={`w-28 h-28 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-4xl font-bold border-4 ${status === 'ringing' ? 'border-green-500 animate-pulse' : 'border-gray-200 dark:border-white/30'}`}>
+              <div className={`w-28 h-28 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-4xl font-bold border-4 ${status === 'ringing' ? 'border-green-500 animate-pulse' : 'border-line dark:border-white/30'}`}>
                 {displayName.charAt(0).toUpperCase()}
               </div>
             )}
@@ -125,7 +125,7 @@ export default function CallModal() {
             Раньше ждали connecting/active: у звонящего во время «Вызов...»
             камера выглядела выключенной (симптом «камера только у получателя»). */}
         {isVideoCall && !!localStream && (
-          <div className="absolute top-20 right-6 w-28 h-40 rounded-xl overflow-hidden shadow-2xl border-2 border-gray-200 dark:border-white/20 bg-black">
+          <div className="absolute top-20 right-6 w-28 h-40 rounded-xl overflow-hidden shadow-2xl border-2 border-line dark:border-white/20 bg-black">
             <video 
               ref={localVideoRef} 
               autoPlay 

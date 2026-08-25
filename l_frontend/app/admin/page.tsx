@@ -254,9 +254,9 @@ export default function AdminPage() {
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
-      <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
+      <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10">
         {/* Шапка */}
-        <div className="p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
+        <div className="p-6 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3 flex-wrap">
               <Shield size={24} className="text-[#8b5cf6]" />
@@ -341,7 +341,7 @@ export default function AdminPage() {
         </div>
 
         {/* 🆕 Фильтры и поиск */}
-        <div className="p-4 border-b border-gray-200 dark:border-white/10 bg-ivory dark:bg-[#1a1a1a]/50">
+        <div className="p-4 border-b border-line dark:border-white/10 bg-ivory dark:bg-[#1a1a1a]/50">
           <div className="flex flex-col gap-3">
             {/* Поиск */}
             <div className="relative">
@@ -351,7 +351,7 @@ export default function AdminPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Поиск по нику или имени..."
-                className="w-full pl-10 pr-10 py-2.5 border border-gray-200 dark:border-white/15 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] transition-all"
+                className="w-full pl-10 pr-10 py-2.5 border border-line dark:border-white/15 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] transition-all"
               />
               {searchQuery && (
                 <button
@@ -373,7 +373,7 @@ export default function AdminPage() {
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold transition-all ${
                   filterType === "all" && !selectedRoleId
                     ? "border-[#8b5cf6] bg-[#8b5cf6]/20 text-[#8b5cf6]"
-                    : "border-gray-200 dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:text-white"
+                    : "border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:text-white"
                 }`}
               >
                 <Users size={16} />
@@ -388,7 +388,7 @@ export default function AdminPage() {
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold transition-all ${
                   filterType === "team"
                     ? "border-[#3b82f6] bg-[#3b82f6]/20 text-[#3b82f6]"
-                    : "border-gray-200 dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:text-white"
+                    : "border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:text-white"
                 }`}
               >
                 <ShieldCheck size={16} />
@@ -403,7 +403,7 @@ export default function AdminPage() {
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold transition-all ${
                   filterType === "users"
                     ? "border-green-600 dark:border-green-400 bg-green-400/20 text-green-600 dark:text-green-400"
-                    : "border-gray-200 dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:text-white"
+                    : "border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:text-white"
                 }`}
               >
                 <Filter size={16} />
@@ -417,7 +417,7 @@ export default function AdminPage() {
                   setSelectedRoleId(e.target.value ? Number(e.target.value) : null);
                   setFilterType("all");
                 }}
-                className="px-4 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm font-bold focus:outline-none focus:border-[#8b5cf6] transition-all cursor-pointer"
+                className="px-4 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm font-bold focus:outline-none focus:border-[#8b5cf6] transition-all cursor-pointer"
               >
                 <option value="" className="bg-gray-900">Все роли</option>
                 {roles.map((r) => (
@@ -468,7 +468,7 @@ export default function AdminPage() {
                 className={`border rounded-xl p-4 transition-all ${
                   u.is_banned
                     ? "border-red-500/30 bg-red-500/5"
-                    : "border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5"
+                    : "border-line dark:border-white/15 bg-gray-100 dark:bg-white/5"
                 }`}
               >
                 <div className="flex items-start gap-4">
@@ -506,7 +506,7 @@ export default function AdminPage() {
                           }}
                         >
                           {u.role.name}
-                          <span className="opacity-70 border-l border-gray-200 dark:border-white/30 pl-1 text-[9px]">
+                          <span className="opacity-70 border-l border-line dark:border-white/30 pl-1 text-[9px]">
                             Lvl {u.role.level ?? 1}
                           </span>
                         </span>
@@ -558,7 +558,7 @@ export default function AdminPage() {
                         </button>
                       ) : (
                         <div
-                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/30 text-xs font-bold cursor-not-allowed"
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-line dark:border-white/10 text-gray-500 dark:text-white/30 text-xs font-bold cursor-not-allowed"
                           title={`Иммунитет: уровень цели (${targetLevel}) ≥ вашего (${myLevel})`}
                         >
                           <Shield size={12} />
@@ -609,11 +609,11 @@ export default function AdminPage() {
       value={u.role?.id ?? null}
       onChange={(roleId: number | null) => assignRole(u.id, roleId)}
     >
-      <Listbox.Button className="px-3 py-1.5 rounded-lg border border-gray-200 dark:border-white/20 bg-gray-100 dark:bg-white/5 text-blue-600 dark:text-blue-400 text-xs font-bold focus:outline-none focus:border-[#8b5cf6] cursor-pointer max-w-[120px] truncate whitespace-nowrap">
+      <Listbox.Button className="px-3 py-1.5 rounded-lg border border-line dark:border-white/20 bg-gray-100 dark:bg-white/5 text-blue-600 dark:text-blue-400 text-xs font-bold focus:outline-none focus:border-[#8b5cf6] cursor-pointer max-w-[120px] truncate whitespace-nowrap">
         {u.role?.name || "Без роли"}
       </Listbox.Button>
 
-      <Listbox.Options className="absolute right-0 z-50 mt-1 w-48 overflow-auto rounded-lg bg-gray-900 border border-gray-200 dark:border-white/10 shadow-xl focus:outline-none">
+      <Listbox.Options className="absolute right-0 z-50 mt-1 w-48 overflow-auto rounded-lg bg-gray-900 border border-line dark:border-white/10 shadow-xl focus:outline-none">
         {/* Опция "Без роли" */}
         <Listbox.Option
           value={null}
@@ -648,7 +648,7 @@ export default function AdminPage() {
 )}
                     <Link
                       href={`/user/${u.id}`}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-white/20 text-gray-600 dark:text-white/60 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white transition-all"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-line dark:border-white/20 text-gray-600 dark:text-white/60 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white transition-all"
                       title="Открыть профиль"
                     >
                       <ExternalLink size={12} />
@@ -665,7 +665,7 @@ export default function AdminPage() {
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200]" onClick={() => setWarnTarget(null)} />
             <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-              <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto max-h-[80vh] overflow-y-auto">
+              <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto max-h-[80vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
                     <AlertTriangle className="text-yellow-600 dark:text-yellow-400" size={18} />
@@ -683,7 +683,7 @@ export default function AdminPage() {
                     onChange={(e) => setWarnReason(e.target.value)}
                     placeholder="Причина (спам, оскорбления...)"
                     rows={2}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400 resize-none"
+                    className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400 resize-none"
                   />
                   <button
                     onClick={issueWarn}
@@ -699,7 +699,7 @@ export default function AdminPage() {
                     <p className="text-sm text-gray-500 dark:text-white/40 text-center py-3">Варнов нет</p>
                   )}
                   {warnList.map((w: any) => (
-                    <div key={w.id} className={`p-3 rounded-xl border ${w.active ? "border-yellow-500/30 bg-yellow-500/5" : "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 opacity-60"}`}>
+                    <div key={w.id} className={`p-3 rounded-xl border ${w.active ? "border-yellow-500/30 bg-yellow-500/5" : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 opacity-60"}`}>
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-sm text-gray-800 dark:text-white/90 flex-1">{w.reason}</p>
                         {w.active && (

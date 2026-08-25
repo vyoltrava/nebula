@@ -83,8 +83,8 @@ export function CreateGroupModal({ onClose, onCreated }: Props) {
     <>
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]" onClick={onClose} />
       <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-lg max-h-[85vh] bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
-          <div className="p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between shrink-0">
+        <div className="w-full max-w-lg max-h-[85vh] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
+          <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <Users className="text-[#8b5cf6]" size={20} />
               <h2 className="text-lg font-black text-gray-900 dark:text-white">Новая группа</h2>
@@ -92,18 +92,18 @@ export function CreateGroupModal({ onClose, onCreated }: Props) {
             <IconButton icon={X} size="iconSm" onClick={onClose} />
           </div>
 
-          <div className="p-4 border-b border-gray-200 dark:border-white/10 shrink-0">
+          <div className="p-4 border-b border-line dark:border-white/10 shrink-0">
             <label className="block text-xs text-gray-600 dark:text-white/60 mb-1.5 font-bold">Название группы</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value.slice(0, 80))}
               placeholder="Например: Друзья, Проект X..."
-              className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
+              className="w-full px-3 py-2 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
               autoFocus
             />
           </div>
 
-          <div className="p-4 border-b border-gray-200 dark:border-white/10 shrink-0">
+          <div className="p-4 border-b border-line dark:border-white/10 shrink-0">
             <label className="block text-xs text-gray-600 dark:text-white/60 mb-1.5 font-bold">
               Добавить участников ({selected.size}/49)
             </label>
@@ -113,13 +113,13 @@ export function CreateGroupModal({ onClose, onCreated }: Props) {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Поиск по имени или @username..."
-                className="w-full pl-9 pr-3 py-2 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
               />
             </div>
           </div>
 
           {selected.size > 0 && (
-            <div className="p-3 border-b border-gray-200 dark:border-white/10 flex gap-1.5 flex-wrap shrink-0">
+            <div className="p-3 border-b border-line dark:border-white/10 flex gap-1.5 flex-wrap shrink-0">
               {selectedUsers.map((u) => (
                 <div
                   key={u.id}
@@ -150,7 +150,7 @@ export function CreateGroupModal({ onClose, onCreated }: Props) {
                 <div
                   key={u.id}
                   onClick={() => toggle(u.id)}
-                  className={`flex items-center gap-3 p-3 border-b border-gray-200 dark:border-white/5 cursor-pointer transition-colors ${
+                  className={`flex items-center gap-3 p-3 border-b border-line dark:border-white/5 cursor-pointer transition-colors ${
                     isSelected ? "bg-[#8b5cf6]/10" : "hover:bg-gray-100 dark:hover:bg-white/5"
                   }`}
                 >
@@ -161,7 +161,7 @@ export function CreateGroupModal({ onClose, onCreated }: Props) {
                   </div>
                   <div
                     className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                      isSelected ? "bg-[#8b5cf6] border-[#8b5cf6]" : "border-gray-200 dark:border-white/30"
+                      isSelected ? "bg-[#8b5cf6] border-[#8b5cf6]" : "border-line dark:border-white/30"
                     }`}
                   >
                     {isSelected && <Check size={12} className="text-gray-900 dark:text-white" />}
@@ -177,7 +177,7 @@ export function CreateGroupModal({ onClose, onCreated }: Props) {
             </div>
           )}
 
-          <div className="p-4 border-t border-gray-200 dark:border-white/10 shrink-0">
+          <div className="p-4 border-t border-line dark:border-white/10 shrink-0">
             <Button
               icon={Users}
               loading={loading}

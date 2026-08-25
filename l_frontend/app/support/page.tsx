@@ -298,8 +298,8 @@ export default function SupportPage() {
       <main className="flex-1 flex overflow-hidden">
         
         {/* ЛЕВАЯ КОЛОНКА: СПИСОК ЗАЯВОК */}
-        <div className={`w-full md:w-80 lg:w-96 border-r border-gray-200 dark:border-white/10 flex flex-col bg-white/[0.02] ${activeId ? "hidden md:flex" : "flex"}`}>
-          <div className="p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+        <div className={`w-full md:w-80 lg:w-96 border-r border-line dark:border-white/10 flex flex-col bg-white/[0.02] ${activeId ? "hidden md:flex" : "flex"}`}>
+          <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Headphones size={20} className="text-[#8b5cf6]" />
               <h2 className="font-bold text-gray-900 dark:text-white text-lg">{t("support.myTickets")}</h2>
@@ -312,10 +312,10 @@ export default function SupportPage() {
           </div>
 
           {showCreate && (
-            <div className="p-3 border-b border-gray-200 dark:border-white/10 bg-[#8b5cf6]/5 space-y-2">
+            <div className="p-3 border-b border-line dark:border-white/10 bg-[#8b5cf6]/5 space-y-2">
               <textarea value={newText} onChange={e => setNewText(e.target.value)}
                 placeholder={t("support.describe")} rows={3}
-                className="w-full px-3 py-2 rounded-xl border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-[#8b5cf6] resize-none" />
+                className="w-full px-3 py-2 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-[#8b5cf6] resize-none" />
               <div className="flex gap-2">
                 <button onClick={createTicket} disabled={creating || (!newText.trim() && !file)}
                   className="flex-1 py-2 bg-[#8b5cf6] hover:bg-[#7c3aed] text-white rounded-xl text-sm font-medium disabled:opacity-40 flex items-center justify-center gap-2">
@@ -328,7 +328,7 @@ export default function SupportPage() {
                   {t("support.create")}
                 </button>
                 <button onClick={() => { setShowCreate(false); setNewText(""); setFile(null); setPreviewUrl(null); }}
-                  className="px-3 py-2 rounded-xl border border-gray-200 dark:border-white/15 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white text-sm">
+                  className="px-3 py-2 rounded-xl border border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white text-sm">
                   {t("common.cancel")}
                 </button>
               </div>
@@ -345,7 +345,7 @@ export default function SupportPage() {
             )}
             {tickets.map(ticket => (
               <button key={ticket.id} onClick={() => setActiveId(ticket.id)}
-                className={`w-full text-left p-3 border-b border-gray-200 dark:border-white/5 transition-colors ${
+                className={`w-full text-left p-3 border-b border-line dark:border-white/5 transition-colors ${
                   activeId === ticket.id ? "bg-[#8b5cf6]/10 border-l-2 border-l-[#8b5cf6]" : "hover:bg-gray-100 dark:hover:bg-white/5 border-l-2 border-l-transparent"
                 }`}>
                 <div className="flex items-center justify-between mb-1">
@@ -378,7 +378,7 @@ export default function SupportPage() {
             </div>
           ) : (
             <>
-              <div className="p-3 border-b border-gray-200 dark:border-white/10 flex items-center gap-3 bg-white/[0.02]">
+              <div className="p-3 border-b border-line dark:border-white/10 flex items-center gap-3 bg-white/[0.02]">
                 <button onClick={() => setActiveId(null)}
                   className="md:hidden p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10">
                   <ChevronLeft size={20} />
@@ -423,10 +423,10 @@ export default function SupportPage() {
               </div>
 
               {activeTicket?.status === "open" ? (
-                <div className="p-3 border-t border-gray-200 dark:border-white/10 space-y-2 bg-white/[0.02]">
+                <div className="p-3 border-t border-line dark:border-white/10 space-y-2 bg-white/[0.02]">
                   {previewUrl && (
                     <div className="relative inline-block">
-                      <img src={previewUrl} alt="" className="h-16 rounded-lg border border-gray-200 dark:border-white/20" />
+                      <img src={previewUrl} alt="" className="h-16 rounded-lg border border-line dark:border-white/20" />
                       <button onClick={() => { setFile(null); setPreviewUrl(null); }}
                         className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5">
                         <X size={12} />
@@ -436,13 +436,13 @@ export default function SupportPage() {
                   <div className="flex gap-2 items-end">
                     <input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
                     <button onClick={() => fileInputRef.current?.click()}
-                      className="p-2.5 rounded-xl border border-gray-200 dark:border-white/15 text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 shrink-0">
+                      className="p-2.5 rounded-xl border border-line dark:border-white/15 text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 shrink-0">
                       <ImageIcon size={18} />
                     </button>
                     <input value={input} onChange={e => setInput(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
                       placeholder="Написать сообщение..." disabled={sending}
-                      className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-[#8b5cf6]" />
+                      className="flex-1 px-4 py-2.5 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-[#8b5cf6]" />
                     <button onClick={sendMessage} disabled={(!input.trim() && !file) || sending}
                       className="p-2.5 rounded-xl bg-[#8b5cf6] text-white hover:bg-[#7c3aed] disabled:opacity-40 shrink-0">
                       <Send size={18} />
@@ -450,7 +450,7 @@ export default function SupportPage() {
                   </div>
                 </div>
               ) : (
-                <div className="p-4 border-t border-gray-200 dark:border-white/10 text-center">
+                <div className="p-4 border-t border-line dark:border-white/10 text-center">
                   <p className="text-gray-500 dark:text-white/30 text-sm flex items-center justify-center gap-2">
                     <Clock size={14} /> Эта заявка закрыта
                   </p>

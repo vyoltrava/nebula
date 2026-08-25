@@ -15,7 +15,7 @@ export function CustomBadgeList({ badges, loading, onEdit, onDelete, onAssign }:
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="h-32 bg-ivory dark:bg-[#1a1a1a] rounded-xl border border-gray-200 dark:border-white/5 animate-pulse" />
+          <div key={i} className="h-32 bg-ivory dark:bg-[#1a1a1a] rounded-xl border border-line dark:border-white/5 animate-pulse" />
         ))}
       </div>
     );
@@ -33,7 +33,7 @@ export function CustomBadgeList({ badges, loading, onEdit, onDelete, onAssign }:
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {badges.map((badge) => (
-        <div key={badge.id} className="bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/10 rounded-xl p-4 hover:border-gray-200 dark:hover:border-white/20 transition-colors">
+        <div key={badge.id} className="bg-paper dark:bg-[#171717] border border-line dark:border-white/10 rounded-xl p-4 hover:border-gray-200 dark:hover:border-white/20 transition-colors">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               {badge.icon_url && (

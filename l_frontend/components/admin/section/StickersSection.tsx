@@ -302,7 +302,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
       {/* ПЕРЕКЛЮЧАТЕЛЬ ВКЛАДОК */}
-      <div className="flex gap-2 border-b border-gray-200 dark:border-white/10 pb-2">
+      <div className="flex gap-2 border-b border-line dark:border-white/10 pb-2">
         <button 
           onClick={() => setActiveTab("stickers")} 
           className={`px-4 py-2 rounded-t-lg font-bold text-sm transition-colors ${activeTab === "stickers" ? "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-b-2 border-yellow-600 dark:border-yellow-400" : "text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white"}`}
@@ -331,7 +331,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
           </div>
 
           {packs.map((pack) => (
-            <div key={pack.id} className={`border rounded-2xl p-4 ${pack.is_active ? "border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5" : "border-gray-200 dark:border-white/5 bg-white/[0.02] opacity-60"}`}>
+            <div key={pack.id} className={`border rounded-2xl p-4 ${pack.is_active ? "border-line dark:border-white/15 bg-gray-100 dark:bg-white/5" : "border-line dark:border-white/5 bg-white/[0.02] opacity-60"}`}>
               <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-bold text-gray-900 dark:text-white">{pack.name}</h3>
@@ -342,7 +342,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                   <span className="text-[10px] text-gray-500 dark:text-white/30">{pack.stickers?.length || 0} стикеров</span>
                 </div>
                 <div className="flex gap-1.5">
-                  <button onClick={() => toggleActive(pack)} className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${pack.is_active ? "border-green-400/30 text-green-600 dark:text-green-400" : "border-gray-200 dark:border-white/15 text-gray-500 dark:text-white/40"}`}>
+                  <button onClick={() => toggleActive(pack)} className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${pack.is_active ? "border-green-400/30 text-green-600 dark:text-green-400" : "border-line dark:border-white/15 text-gray-500 dark:text-white/40"}`}>
                     {pack.is_active ? "Активен" : "Выключен"}
                   </button>
                   <IconButton icon={Edit3} size="iconSm" onClick={() => { setEditingPack({ ...pack }); setSelectedEmojis([]); setPendingFiles([]); setPendingFileUrls([]); setShowEditor(true); }} />
@@ -352,7 +352,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
               <div className="flex flex-wrap gap-2 mb-3">
                 {pack.stickers?.map((s: any) => (
                   <div key={s.id} className="relative group">
-                    <div className="w-14 h-14 flex items-center justify-center bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl">
+                    <div className="w-14 h-14 flex items-center justify-center bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 rounded-xl">
                       {s.type === "emoji" ? <span className="text-2xl">{s.content}</span> : <img src={s.content} alt="" className="w-full h-full object-contain p-1" />}
                     </div>
                     <button onClick={() => deleteSticker(s.id)} className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">×</button>
@@ -360,17 +360,17 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                 ))}
                 {(!pack.stickers || pack.stickers.length === 0) && <p className="text-[11px] text-gray-500 dark:text-white/30">Пак пуст — добавь стикеры ниже ↓</p>}
               </div>
-              <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-gray-200 dark:border-white/10">
+              <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-line dark:border-white/10">
                 <input ref={(el) => { fileRefs.current[pack.id] = el; }} type="file" accept="image/*" multiple className="hidden" onChange={(e) => uploadImages(pack.id, e.target.files)} />
                 <input ref={(el) => { folderRefs.current[pack.id] = el; }} type="file" accept="image/*" multiple {...({ webkitdirectory: "", directory: "" } as any)} className="hidden" onChange={(e) => uploadImages(pack.id, e.target.files)} />
-                <button onClick={() => fileRefs.current[pack.id]?.click()} disabled={uploadingPackId === pack.id} className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/15 text-gray-800 dark:text-white/70 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-50">
+                <button onClick={() => fileRefs.current[pack.id]?.click()} disabled={uploadingPackId === pack.id} className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/15 text-gray-800 dark:text-white/70 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-50">
                   {uploadingPackId === pack.id ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />} Файлы
                 </button>
                 <button onClick={() => folderRefs.current[pack.id]?.click()} disabled={uploadingPackId === pack.id} className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-600 dark:text-purple-300 text-xs font-bold hover:bg-purple-500/30 disabled:opacity-50">
                   <FolderOpen size={14} /> Папку
                 </button>
                 <div className="flex-1 flex gap-2">
-                  <input value={emojiInputs[pack.id] || ""} onChange={(e) => setEmojiInputs((prev) => ({ ...prev, [pack.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") addEmoji(pack.id); }} placeholder="Вставь эмодзи: 💀 🗿 🔥" className="flex-1 px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400" />
+                  <input value={emojiInputs[pack.id] || ""} onChange={(e) => setEmojiInputs((prev) => ({ ...prev, [pack.id]: e.target.value }))} onKeyDown={(e) => { if (e.key === "Enter") addEmoji(pack.id); }} placeholder="Вставь эмодзи: 💀 🗿 🔥" className="flex-1 px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400" />
                   <button onClick={() => addEmoji(pack.id)} className="px-3 py-2 rounded-lg bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-xs font-bold hover:bg-yellow-500/30">+ Эмодзи</button>
                 </div>
               </div>
@@ -399,7 +399,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {badges.map((badge) => (
-              <div key={badge.id} className="border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 rounded-2xl p-4 flex gap-4">
+              <div key={badge.id} className="border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 rounded-2xl p-4 flex gap-4">
                 <div className="shrink-0 relative">
                   <div className="w-16 h-16 rounded-full bg-paper dark:bg-[#171717] flex items-center justify-center border-2 border-[#222]" style={{ filter: `drop-shadow(0 0 8px ${badge.glow_color || '#8b5cf6'}99)` }}>
                     <img src={badge.icon_url} alt={badge.name} className="w-10 h-10 object-contain" />
@@ -447,7 +447,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => !savingPack && setShowEditor(false)} />
           <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
-            <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
+            <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-black text-gray-900 dark:text-white text-lg">{editingPack.id ? "Редактировать пак" : "Новый пак"}</h2>
                 <IconButton icon={X} size="iconSm" onClick={() => !savingPack && setShowEditor(false)} />
@@ -456,11 +456,11 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Название</label>
-                    <input value={editingPack.name} onChange={(e) => setEditingPack({ ...editingPack, name: e.target.value })} placeholder="Например: Мемы, Вайб, VIP..." className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400" />
+                    <input value={editingPack.name} onChange={(e) => setEditingPack({ ...editingPack, name: e.target.value })} placeholder="Например: Мемы, Вайб, VIP..." className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400" />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Доступ</label>
-                    <select value={editingPack.min_level} onChange={(e) => setEditingPack({ ...editingPack, min_level: Number(e.target.value) })} className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400">
+                    <select value={editingPack.min_level} onChange={(e) => setEditingPack({ ...editingPack, min_level: Number(e.target.value) })} className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400">
                       <option value={1} className="bg-gray-900">Все пользователи (lvl 1+)</option>
                       <option value={2} className="bg-gray-900">Эксклюзив (lvl 2+)</option>
                       <option value={3} className="bg-gray-900">Спонсоры (lvl 3+)</option>
@@ -469,7 +469,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                   </div>
                 </div>
 
-                <div className="border border-gray-200 dark:border-white/10 rounded-xl p-3 bg-white/[0.02]">
+                <div className="border border-line dark:border-white/10 rounded-xl p-3 bg-white/[0.02]">
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-bold text-gray-600 dark:text-white/60 flex items-center gap-1.5">
                       <ImageIcon size={14} /> Картинки стикеров ({pendingFiles.length} выбрано)
@@ -481,7 +481,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                   <input ref={modalFileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleFilesSelected(e.target.files)} />
                   <input ref={modalFolderRef} type="file" accept="image/*" multiple {...({ webkitdirectory: "", directory: "" } as any)} className="hidden" onChange={(e) => handleFilesSelected(e.target.files)} />
                   <div className="flex gap-2 mb-3">
-                    <button onClick={() => modalFileRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/15 text-gray-800 dark:text-white/80 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                    <button onClick={() => modalFileRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/15 text-gray-800 dark:text-white/80 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                       <Upload size={14} /> Выбрать файлы
                     </button>
                     <button onClick={() => modalFolderRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-600 dark:text-purple-300 text-xs font-bold hover:bg-purple-500/30 transition-colors">
@@ -502,7 +502,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                   {pendingFiles.length === 0 && <p className="text-center text-gray-500 dark:text-white/30 text-xs py-4">Можно оставить пустым и добавить стикеры позже</p>}
                 </div>
 
-                <div className="border border-gray-200 dark:border-white/10 rounded-xl p-3 bg-white/[0.02]">
+                <div className="border border-line dark:border-white/10 rounded-xl p-3 bg-white/[0.02]">
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-bold text-gray-600 dark:text-white/60">Выбрать эмодзи ({selectedEmojis.length} выбрано)</label>
                     {selectedEmojis.length > 0 && <button onClick={() => setSelectedEmojis([])} className="text-[10px] text-red-600 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300">Сбросить</button>}
@@ -515,7 +515,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                     </div>
                   )}
                   <div className="relative mb-2">
-                    <input value={emojiSearch} onChange={(e) => setEmojiSearch(e.target.value)} placeholder="Поиск эмодзи..." className="w-full pl-3 pr-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400" />
+                    <input value={emojiSearch} onChange={(e) => setEmojiSearch(e.target.value)} placeholder="Поиск эмодзи..." className="w-full pl-3 pr-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400" />
                   </div>
                   {!emojiSearch && (
                     <div className="flex gap-1 mb-2 overflow-x-auto scrollbar-hide pb-1">
@@ -555,7 +555,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => !savingBadge && setShowBadgeEditor(false)} />
           <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
-            <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
+            <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-black text-gray-900 dark:text-white text-lg">{editingBadge.id ? "Редактировать значок" : "Новый значок"}</h2>
                 <IconButton icon={X} size="iconSm" onClick={() => !savingBadge && setShowBadgeEditor(false)} />
@@ -564,39 +564,39 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Название</label>
-                  <input value={editingBadge.name} onChange={(e) => setEditingBadge({ ...editingBadge, name: e.target.value })} placeholder="Например: Manager, VIP Gold..." className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-purple-600 dark:focus:border-purple-400" />
+                  <input value={editingBadge.name} onChange={(e) => setEditingBadge({ ...editingBadge, name: e.target.value })} placeholder="Например: Manager, VIP Gold..." className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-purple-600 dark:focus:border-purple-400" />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Иконка значка</label>
                   <input ref={badgeFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleBadgeFileSelect(e.target.files?.[0] || null)} />
                   <div className="flex gap-2">
-                    <button onClick={() => badgeFileRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/15 text-gray-800 dark:text-white/80 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10">
+                    <button onClick={() => badgeFileRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/15 text-gray-800 dark:text-white/80 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10">
                       <Upload size={14} /> {badgeFile ? "Заменить" : "Выбрать файл"}
                     </button>
                     {/* Показываем текущую иконку при редактировании */}
                     {(badgeFileUrl || editingBadge.icon_url) && (
-                      <div className="w-12 h-12 rounded-lg bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/10 flex items-center justify-center overflow-hidden">
+                      <div className="w-12 h-12 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/10 flex items-center justify-center overflow-hidden">
                         <img src={badgeFileUrl || editingBadge.icon_url} alt="Preview" className="w-8 h-8 object-contain" />
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="border-t border-gray-200 dark:border-white/10 pt-3 space-y-3">
+                <div className="border-t border-line dark:border-white/10 pt-3 space-y-3">
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={editingBadge.enable_ring ?? true} onChange={(e) => setEditingBadge({ ...editingBadge, enable_ring: e.target.checked })} className="w-4 h-4 rounded border-gray-200 dark:border-white/20 bg-gray-100 dark:bg-white/5 text-purple-500 focus:ring-purple-500" />
+                      <input type="checkbox" checked={editingBadge.enable_ring ?? true} onChange={(e) => setEditingBadge({ ...editingBadge, enable_ring: e.target.checked })} className="w-4 h-4 rounded border-line dark:border-white/20 bg-gray-100 dark:bg-white/5 text-purple-500 focus:ring-purple-500" />
                       <span className="text-xs text-gray-800 dark:text-white/70">Включить вращающееся кольцо</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={editingBadge.enable_glow ?? true} onChange={(e) => setEditingBadge({ ...editingBadge, enable_glow: e.target.checked })} className="w-4 h-4 rounded border-gray-200 dark:border-white/20 bg-gray-100 dark:bg-white/5 text-purple-500 focus:ring-purple-500" />
+                      <input type="checkbox" checked={editingBadge.enable_glow ?? true} onChange={(e) => setEditingBadge({ ...editingBadge, enable_glow: e.target.checked })} className="w-4 h-4 rounded border-line dark:border-white/20 bg-gray-100 dark:bg-white/5 text-purple-500 focus:ring-purple-500" />
                       <span className="text-xs text-gray-800 dark:text-white/70">Включить пульсацию свечения</span>
                     </label>
                   </div>
 
-                  <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
-                    <input type="checkbox" checked={!editingBadge.glow_color} onChange={(e) => setEditingBadge({ ...editingBadge, glow_color: e.target.checked ? null : "#8b5cf6" })} className="w-4 h-4 rounded border-gray-200 dark:border-white/20 bg-gray-100 dark:bg-white/5 text-purple-500 focus:ring-purple-500" />
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
+                    <input type="checkbox" checked={!editingBadge.glow_color} onChange={(e) => setEditingBadge({ ...editingBadge, glow_color: e.target.checked ? null : "#8b5cf6" })} className="w-4 h-4 rounded border-line dark:border-white/20 bg-gray-100 dark:bg-white/5 text-purple-500 focus:ring-purple-500" />
                     <span className="text-xs text-gray-800 dark:text-white/70">Использовать цвет роли автоматически</span>
                   </div>
 
@@ -617,16 +617,16 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                   <div>
                     <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Способ выдачи</label>
                     <div className="flex gap-2 mb-2">
-                      <button onClick={() => setEditingBadge({ ...editingBadge, user_id: null })} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${!editingBadge.user_id ? "bg-purple-500/20 border-purple-500 text-purple-600 dark:text-purple-300" : "bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-white/50"}`}>
+                      <button onClick={() => setEditingBadge({ ...editingBadge, user_id: null })} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${!editingBadge.user_id ? "bg-purple-500/20 border-purple-500 text-purple-600 dark:text-purple-300" : "bg-gray-100 dark:bg-white/5 border-line dark:border-white/10 text-white/50"}`}>
                         По роли
                       </button>
-                      <button onClick={() => setEditingBadge({ ...editingBadge, role_id: null, user_id: 0 })} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${editingBadge.user_id !== null && editingBadge.user_id !== undefined ? "bg-purple-500/20 border-purple-500 text-purple-600 dark:text-purple-300" : "bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-white/50"}`}>
+                      <button onClick={() => setEditingBadge({ ...editingBadge, role_id: null, user_id: 0 })} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${editingBadge.user_id !== null && editingBadge.user_id !== undefined ? "bg-purple-500/20 border-purple-500 text-purple-600 dark:text-purple-300" : "bg-gray-100 dark:bg-white/5 border-line dark:border-white/10 text-white/50"}`}>
                         По пользователю
                       </button>
                     </div>
 
                     {!editingBadge.user_id && editingBadge.user_id !== 0 && (
-                      <select value={editingBadge.role_id || ""} onChange={(e) => setEditingBadge({ ...editingBadge, role_id: e.target.value ? Number(e.target.value) : null })} className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs focus:outline-none focus:border-purple-600 dark:focus:border-purple-400">
+                      <select value={editingBadge.role_id || ""} onChange={(e) => setEditingBadge({ ...editingBadge, role_id: e.target.value ? Number(e.target.value) : null })} className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs focus:outline-none focus:border-purple-600 dark:focus:border-purple-400">
                         <option value="">Не привязывать (выдавать вручную)</option>
                         {roles.map((r: any) => (
                           <option key={r.id} value={r.id} className="bg-gray-900">{r.name} (ID: {r.id})</option>
@@ -645,15 +645,15 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
 
                   <div>
                     <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Эффект</label>
-                    <select value={editingBadge.effect_type || "none"} onChange={(e) => setEditingBadge({ ...editingBadge, effect_type: e.target.value })} className="w-full px-2 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs focus:outline-none focus:border-purple-600 dark:focus:border-purple-400">
+                    <select value={editingBadge.effect_type || "none"} onChange={(e) => setEditingBadge({ ...editingBadge, effect_type: e.target.value })} className="w-full px-2 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs focus:outline-none focus:border-purple-600 dark:focus:border-purple-400">
                       <option value="none" className="bg-gray-900">Без эффекта</option>
                       <option value="gold" className="bg-gray-900">🥇 Золотое свечение</option>
                       <option value="pulse" className="bg-gray-900">💫 Пульсация</option>
                     </select>
                   </div>
 
-                  <label className="flex items-center gap-2 cursor-pointer pt-2 border-t border-gray-200 dark:border-white/10">
-                    <input type="checkbox" checked={editingBadge.is_selectable || false} onChange={(e) => setEditingBadge({ ...editingBadge, is_selectable: e.target.checked })} className="w-4 h-4 rounded border-gray-200 dark:border-white/20 bg-gray-100 dark:bg-white/5 text-purple-500 focus:ring-purple-500" />
+                  <label className="flex items-center gap-2 cursor-pointer pt-2 border-t border-line dark:border-white/10">
+                    <input type="checkbox" checked={editingBadge.is_selectable || false} onChange={(e) => setEditingBadge({ ...editingBadge, is_selectable: e.target.checked })} className="w-4 h-4 rounded border-line dark:border-white/20 bg-gray-100 dark:bg-white/5 text-purple-500 focus:ring-purple-500" />
                     <span className="text-xs text-gray-800 dark:text-white/70">Разрешить пользователям выбирать этот значок самостоятельно</span>
                   </label>
                 </div>
@@ -675,7 +675,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => !uploadingStock && setShowStockUploader(false)} />
           <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
-            <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
+            <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-black text-gray-900 dark:text-white text-lg">Загрузить стоковые значки</h2>
                 <IconButton icon={X} size="iconSm" onClick={() => !uploadingStock && setShowStockUploader(false)} />
@@ -684,7 +684,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Название пака</label>
-                  <input value={stockBadgeName} onChange={(e) => setStockBadgeName(e.target.value)} placeholder="Например: Premium, VIP, Спонсор..." className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-purple-600 dark:focus:border-purple-400" />
+                  <input value={stockBadgeName} onChange={(e) => setStockBadgeName(e.target.value)} placeholder="Например: Premium, VIP, Спонсор..." className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-purple-600 dark:focus:border-purple-400" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -694,7 +694,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Эффект</label>
-                    <select value={stockBadgeEffect} onChange={(e) => setStockBadgeEffect(e.target.value)} className="w-full px-2 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs">
+                    <select value={stockBadgeEffect} onChange={(e) => setStockBadgeEffect(e.target.value)} className="w-full px-2 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs">
                       <option value="none">Без эффекта</option>
                       <option value="gold">🥇 Золотое</option>
                       <option value="pulse">💫 Пульсация</option>
@@ -704,10 +704,10 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
 
                 <div>
                   <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Мин. уровень</label>
-                  <input type="number" value={stockMinLevel} onChange={(e) => setStockMinLevel(Number(e.target.value))} min="1" className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white" />
+                  <input type="number" value={stockMinLevel} onChange={(e) => setStockMinLevel(Number(e.target.value))} min="1" className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white" />
                 </div>
 
-                <div className="border border-gray-200 dark:border-white/10 rounded-xl p-3 bg-white/[0.02]">
+                <div className="border border-line dark:border-white/10 rounded-xl p-3 bg-white/[0.02]">
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-bold text-gray-600 dark:text-white/60 flex items-center gap-1.5">
                       <ImageIcon size={14} /> Файлы значков ({stockFiles.length})
@@ -726,7 +726,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                     onChange={(e) => setStockFiles(Array.from(e.target.files || []))} 
                   />
                   
-                  <label htmlFor="stock-badge-files" className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/15 text-gray-800 dark:text-white/80 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer">
+                  <label htmlFor="stock-badge-files" className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/15 text-gray-800 dark:text-white/80 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition-colors cursor-pointer">
                     <Upload size={14} /> Выбрать файлы
                   </label>
                   

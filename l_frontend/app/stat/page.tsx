@@ -233,12 +233,12 @@ export default function StatPage() {
             <div>
               <h2 className="text-xs font-black uppercase text-gray-600 dark:text-white/50 mb-3">Общие показатели</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-                <div className="bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-xl p-4">
+                <div className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl p-4">
                   <p className="text-gray-600 dark:text-white/50 text-xs mb-1">Всего пользователей</p>
                   <p className="text-2xl font-black text-gray-900 dark:text-white mb-3">{overview.total_users}</p>
                   <MiniBars data={overview.reg_series.map((r: any) => r.count)} />
                 </div>
-                <div className="bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-xl p-4">
+                <div className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl p-4">
                   <p className="text-gray-600 dark:text-white/50 text-xs mb-1 flex items-center gap-1"><Activity size={12} /> Активные (MAU/DAU)</p>
                   <div className="flex gap-4 mb-3">
                     <div><p className="text-xl font-black text-gray-900 dark:text-white">{overview.mau}</p><p className="text-[10px] text-gray-500 dark:text-white/40">месяц</p></div>
@@ -246,7 +246,7 @@ export default function StatPage() {
                   </div>
                   <MiniBars data={overview.post_series.map((r: any) => r.count)} color="#22c55e" />
                 </div>
-                <div className="bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-xl p-4">
+                <div className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl p-4">
                   <p className="text-gray-600 dark:text-white/50 text-xs mb-1">Регистрации сегодня</p>
                   <p className="text-2xl font-black text-gray-900 dark:text-white">{overview.reg_today}</p>
                   <p className={`text-xs mt-2 font-bold ${overview.reg_today - overview.reg_yesterday >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
@@ -254,7 +254,7 @@ export default function StatPage() {
                   </p>
                   <p className="text-[10px] text-gray-500 dark:text-white/40 mt-1">Онлайн сейчас: {overview.online}</p>
                 </div>
-                <div className="bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-xl p-4">
+                <div className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl p-4">
                   <p className="text-gray-600 dark:text-white/50 text-xs mb-1">Загальний KPI</p>
                   <p className="text-2xl font-black text-gray-900 dark:text-white mb-3">{avgKpi}</p>
                   <div className="h-1.5 rounded-full bg-gray-100 dark:bg-white/10 overflow-hidden">
@@ -262,7 +262,7 @@ export default function StatPage() {
                   </div>
                   <p className="text-[10px] text-gray-500 dark:text-white/40 mt-2">Средняя оценка активности</p>
                 </div>
-                <div className="bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-xl p-4">
+                <div className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl p-4">
                   <p className="text-gray-600 dark:text-white/50 text-xs mb-3">Использование фич</p>
                   <div className="flex items-end gap-3 h-14">
                     {[
@@ -284,14 +284,14 @@ export default function StatPage() {
             </div>
 
             {/* ФИЛЬТРЫ */}
-            <div className="flex gap-3 items-center p-4 bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 flex-wrap relative">
+            <div className="flex gap-3 items-center p-4 bg-gray-100 dark:bg-white/5 rounded-xl border border-line dark:border-white/10 flex-wrap relative">
               <div className="flex-1 min-w-[200px] relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" size={18} />
                 <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Поиск пользователей..."
-                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:border-purple-500 outline-none" />
+                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/10 text-gray-900 dark:text-white focus:border-purple-500 outline-none" />
               </div>
               <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
-                className="px-3 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm outline-none">
+                className="px-3 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/10 text-gray-900 dark:text-white text-sm outline-none">
                 <option value="all">Все роли</option>
                 <option value="admin">Founder</option>
                 <option value="moderator">Модераторы</option>
@@ -299,7 +299,7 @@ export default function StatPage() {
                 <option value="norole">Без роли</option>
               </select>
               <select value={activityFilter} onChange={(e) => setActivityFilter(e.target.value)}
-                className="px-3 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm outline-none">
+                className="px-3 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/10 text-gray-900 dark:text-white text-sm outline-none">
                 <option value="all">Любая активность</option>
                 <option value="online">Онлайн сейчас</option>
                 <option value="today">Были сегодня</option>
@@ -307,11 +307,11 @@ export default function StatPage() {
                 <option value="dormant">Спят 30+ дней</option>
               </select>
               <div className="relative">
-                <button onClick={() => setShowColsMenu(!showColsMenu)} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/10 text-gray-800 dark:text-white/70 text-sm hover:text-gray-900 dark:text-white">
+                <button onClick={() => setShowColsMenu(!showColsMenu)} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/10 text-gray-800 dark:text-white/70 text-sm hover:text-gray-900 dark:text-white">
                   Колонки <ChevronDown size={14} />
                 </button>
                 {showColsMenu && (
-                  <div className="absolute right-0 top-11 z-50 w-48 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl p-2 space-y-1">
+                  <div className="absolute right-0 top-11 z-50 w-48 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl p-2 space-y-1">
                     {ALL_COLUMNS.map((c) => (
                       <label key={c.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-sm text-gray-800 dark:text-white/80 cursor-pointer">
                         <input type="checkbox" checked={visibleCols[c.id]} className="accent-purple-500"
@@ -325,10 +325,10 @@ export default function StatPage() {
             </div>
 
             {/* ТАБЛИЦА */}
-            <div className="bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-xl overflow-x-auto">
+            <div className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl overflow-x-auto">
               <table className="w-full text-sm border-collapse min-w-[900px]">
                 <thead>
-                  <tr className="border-b border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5">
+                  <tr className="border-b border-line dark:border-white/10 bg-gray-100 dark:bg-white/5">
                     <th className="text-left p-3 text-gray-600 dark:text-white/50 font-bold text-xs uppercase">#</th>
                     {th("username", "Аватар + имя")}
                     {th("level", "Роль")}
@@ -344,7 +344,7 @@ export default function StatPage() {
                     <th className="text-right p-3 text-gray-600 dark:text-white/50 font-bold text-xs uppercase">Действия</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 dark:divide-white/5">
+                <tbody className="divide-y divide-line dark:divide-white/5">
                   {paged.map((u, i) => {
                     const cat = catByRoleId(u.role?.id);
                     const roleName = u.is_admin ? "Founder" : u.is_moderator ? "Модератор" : u.role?.name || "Пользователь";
@@ -390,7 +390,7 @@ export default function StatPage() {
                           {menuUserId === u.id && (
                             <>
                               <div className="fixed inset-0 z-40" onClick={() => setMenuUserId(null)} />
-                              <div className="absolute right-4 top-12 z-50 w-44 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl p-1.5 space-y-0.5 text-left">
+                              <div className="absolute right-4 top-12 z-50 w-44 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl p-1.5 space-y-0.5 text-left">
                                 <button onClick={() => router.push(`/profile/${u.username}`)} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/5">
                                   <ExternalLink size={14} /> Профиль
                                 </button>
@@ -439,14 +439,14 @@ export default function StatPage() {
           <div className="space-y-6">
             <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase"> Команда</h2>
             {teamGroups.length === 0 ? (
-              <div className="text-center py-16 border border-gray-200 dark:border-white/10 rounded-2xl bg-gray-100 dark:bg-white/5">
+              <div className="text-center py-16 border border-line dark:border-white/10 rounded-2xl bg-gray-100 dark:bg-white/5">
                 <Shield size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
                 <p className="text-gray-600 dark:text-white/50 text-lg">Команда проекта пуста</p>
               </div>
             ) : (
               teamGroups.map((group) => (
                 <div key={group.id} className="space-y-4">
-                  <div className="flex items-center gap-3 pb-2 border-b border-gray-200 dark:border-white/10">
+                  <div className="flex items-center gap-3 pb-2 border-b border-line dark:border-white/10">
                     <div className="w-1 h-6 rounded-full" style={{ backgroundColor: group.color }} />
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-wide">{group.name}</h3>
                     <span className="text-xs text-gray-500 dark:text-white/40 bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-full">{group.members.length} чел.</span>
@@ -454,7 +454,7 @@ export default function StatPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {group.members.map((member: any) => (
                       <div key={member.user.id} onClick={() => { setSelectedMember(member); loadMemberStats(member.user.id); }}
-                        className="bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-xl p-4 hover:border-purple-500/50 transition-all cursor-pointer group">
+                        className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl p-4 hover:border-purple-500/50 transition-all cursor-pointer group">
                         <div className="flex items-start gap-3 mb-3">
                           <Avatar src={member.user.avatar_url} name={member.user.display_name} id={member.user.id} size={48} />
                           <div className="flex-1 min-w-0">
@@ -480,7 +480,7 @@ export default function StatPage() {
                             <span className="text-gray-600 dark:text-white/60">{fmtLastSeen(member.user.last_seen)}</span>
                           </div>
                         </div>
-                        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-white/10">
+                        <div className="mt-3 pt-3 border-t border-line dark:border-white/10">
                           <div className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg bg-gray-100 dark:bg-white/5 text-white/60 text-xs font-bold group-hover:bg-purple-500/20 group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-all">
                             <BarChart3 size={14} /> Детальная статистика
                           </div>
@@ -498,8 +498,8 @@ export default function StatPage() {
       {/* Модалка детальной статистики */}
       {selectedMember && memberStats && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[400] flex items-center justify-center p-4">
-          <div className="w-full max-w-5xl bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-ivory dark:bg-[#1f1f23] border-b border-gray-200 dark:border-white/10 p-4 flex items-center justify-between">
+          <div className="w-full max-w-5xl bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-ivory dark:bg-[#1f1f23] border-b border-line dark:border-white/10 p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Avatar src={selectedMember.user.avatar_url} name={selectedMember.user.display_name} id={selectedMember.user.id} size={40} />
                 <div>
@@ -513,29 +513,29 @@ export default function StatPage() {
             </div>
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10">
+                <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10">
                   <p className="text-gray-500 dark:text-white/40 text-xs mb-1">Всего действий</p>
                   <p className="text-2xl font-black text-gray-900 dark:text-white">{memberStats.total_actions || 0}</p>
                 </div>
-                <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10">
+                <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10">
                   <p className="text-gray-500 dark:text-white/40 text-xs mb-1">Уровень</p>
                   <p className="text-2xl font-black text-purple-600 dark:text-purple-400">Lvl {selectedMember.role?.level || selectedMember.level || 1}</p>
                 </div>
-                <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10">
+                <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10">
                   <p className="text-gray-500 dark:text-white/40 text-xs mb-1">Последний вход</p>
                   <p className="text-lg font-bold text-gray-900 dark:text-white">{fmtLastSeen(selectedMember.user.last_seen)}</p>
                 </div>
-                <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10">
+                <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10">
                   <p className="text-gray-500 dark:text-white/40 text-xs mb-1">KPI</p>
                   <div className="flex items-center gap-3"><KpiRing value={selectedMember.kpi || memberStats.total_actions ? Math.min(100, selectedMember.kpi || 50) : 0} /><span className="text-gray-600 dark:text-white/60 text-sm">/ 100</span></div>
                 </div>
               </div>
-              <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10">
+              <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10">
                 <h4 className="text-gray-900 dark:text-white font-bold mb-4 flex items-center gap-2"><Clock size={18} /> История действий</h4>
                 {memberStats.actions?.length > 0 ? (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {memberStats.actions.map((action: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/5">
+                      <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/5">
                         <div>
                           <p className="text-gray-900 dark:text-white text-sm font-bold">{action.action_type}</p>
                           <p className="text-gray-500 dark:text-white/40 text-xs">{action.target_type && action.target_id ? `${action.target_type} #${action.target_id}` : ""}</p>
@@ -547,11 +547,11 @@ export default function StatPage() {
                 ) : <p className="text-gray-500 dark:text-white/40 text-sm text-center py-8">Нет записей</p>}
               </div>
               {memberStats.role_history?.length > 0 && (
-                <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-gray-200 dark:border-white/10">
+                <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10">
                   <h4 className="text-gray-900 dark:text-white font-bold mb-4 flex items-center gap-2"><Settings size={18} /> История ролей</h4>
                   <div className="space-y-2">
                     {memberStats.role_history.map((role: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/5">
+                      <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/5">
                         <div className="flex items-center gap-3">
                           <span className="text-gray-500 dark:text-white/40 text-sm">{role.old_role || "—"}</span>
                           <ArrowRight size={16} className="text-gray-500 dark:text-white/40" />

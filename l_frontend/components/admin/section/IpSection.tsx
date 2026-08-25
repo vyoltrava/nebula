@@ -51,11 +51,11 @@ export function IpSection({ me }: { me: any }) {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           <input value={newIp} onChange={(e) => setNewIp(e.target.value)} placeholder="IP адрес"
-            className="border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white font-mono focus:outline-none focus:border-red-600 dark:focus:border-red-400" />
+            className="border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white font-mono focus:outline-none focus:border-red-600 dark:focus:border-red-400" />
           <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Причина"
-            className="border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-red-600 dark:focus:border-red-400" />
+            className="border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-red-600 dark:focus:border-red-400" />
           <input type="number" value={hours} onChange={(e) => setHours(e.target.value ? Number(e.target.value) : "")} placeholder="Часов (пусто = навсегда)"
-            className="border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-red-600 dark:focus:border-red-400" />
+            className="border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-red-600 dark:focus:border-red-400" />
           <button onClick={createBlock} disabled={!newIp.trim()}
             className="bg-red-500 text-white font-bold rounded-lg py-2 hover:bg-red-600 disabled:opacity-40">
             Заблокировать
@@ -63,15 +63,15 @@ export function IpSection({ me }: { me: any }) {
         </div>
       </div>
 
-      <div className="border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden">
-        <div className="p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+      <div className="border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden">
+        <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between">
           <h3 className="font-bold text-gray-900 dark:text-white">Заблокированные IP ({blocks.length})</h3>
           <button onClick={load} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white"><RefreshCw size={16} /></button>
         </div>
         {blocks.length === 0 ? (
           <p className="p-8 text-center text-gray-600 dark:text-white/50">Нет заблокированных IP</p>
         ) : (
-          <div className="divide-y divide-gray-200 dark:divide-white/5">
+          <div className="divide-y divide-line dark:divide-white/5">
             {blocks.map((b) => (
               <div key={b.id} className="p-4 flex items-center gap-4 hover:bg-gray-100 dark:hover:bg-white/5">
                 <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">

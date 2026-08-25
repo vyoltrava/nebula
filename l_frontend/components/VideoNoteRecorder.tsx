@@ -232,7 +232,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   }
 
   const glassBtn =
-    "flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-gray-200 dark:border-white/15 text-gray-800 dark:text-white/85 hover:bg-white/15 hover:text-gray-900 dark:text-white active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all";
+    "flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-line dark:border-white/15 text-gray-800 dark:text-white/85 hover:bg-white/15 hover:text-gray-900 dark:text-white active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all";
 
   // ===================== СВЁРНУТЫЙ РЕЖИМ (ORB) =====================
   if (isMinimized) {
@@ -283,7 +283,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
 
         {/* Таймер рядом с орбом */}
         {(isRecording || hasRecording) && (
-          <div className="pointer-events-auto flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-gray-200 dark:border-white/10 self-center">
+          <div className="pointer-events-auto flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-line dark:border-white/10 self-center">
             {isRecording && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
             <span className="text-xs font-mono font-bold text-gray-900 dark:text-white tabular-nums">
               {formatTime(seconds)}

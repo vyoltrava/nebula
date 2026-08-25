@@ -208,9 +208,9 @@ export default function AdminStickersPage() {
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
-      <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
+      <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10">
         {/* Шапка */}
-        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
+        <div className="p-4 sm:p-6 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
               <button onClick={() => router.push("/admin")} className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10">
@@ -240,7 +240,7 @@ export default function AdminStickersPage() {
         {/* Список паков */}
         <div className="p-4 space-y-4 max-w-4xl mx-auto">
           {packs.map(pack => (
-            <div key={pack.id} className={`border rounded-2xl p-4 ${pack.is_active ? "border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5" : "border-gray-200 dark:border-white/5 bg-white/[0.02] opacity-60"}`}>
+            <div key={pack.id} className={`border rounded-2xl p-4 ${pack.is_active ? "border-line dark:border-white/15 bg-gray-100 dark:bg-white/5" : "border-line dark:border-white/5 bg-white/[0.02] opacity-60"}`}>
               <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-bold text-gray-900 dark:text-white">{pack.name}</h3>
@@ -253,7 +253,7 @@ export default function AdminStickersPage() {
                   <span className="text-[10px] text-gray-500 dark:text-white/30">{pack.stickers.length} стикеров</span>
                 </div>
                 <div className="flex gap-1.5">
-                  <button onClick={() => toggleActive(pack)} className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${pack.is_active ? "border-green-400/30 text-green-600 dark:text-green-400" : "border-gray-200 dark:border-white/15 text-gray-500 dark:text-white/40"}`}>
+                  <button onClick={() => toggleActive(pack)} className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${pack.is_active ? "border-green-400/30 text-green-600 dark:text-green-400" : "border-line dark:border-white/15 text-gray-500 dark:text-white/40"}`}>
                     {pack.is_active ? "Активен" : "Выключен"}
                   </button>
                   <button onClick={() => { setEditingPack({ ...pack }); setSelectedEmojis([]); setShowPackEditor(true); }} className="p-1.5 rounded-lg text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10">
@@ -268,7 +268,7 @@ export default function AdminStickersPage() {
               <div className="flex flex-wrap gap-2 mb-3">
                 {pack.stickers.map((s: any) => (
                   <div key={s.id} className="relative group">
-                    <div className="w-14 h-14 flex items-center justify-center bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl">
+                    <div className="w-14 h-14 flex items-center justify-center bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 rounded-xl">
                       {s.type === "emoji" ? (
                         <span className="text-2xl">{s.content}</span>
                       ) : (
@@ -288,7 +288,7 @@ export default function AdminStickersPage() {
                 )}
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-gray-200 dark:border-white/10">
+              <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-line dark:border-white/10">
                 <input
                   ref={(el) => { fileRefs.current[pack.id] = el; }}
                   type="file"
@@ -300,7 +300,7 @@ export default function AdminStickersPage() {
                 <button
                   onClick={() => fileRefs.current[pack.id]?.click()}
                   disabled={uploadingPackId === pack.id}
-                  className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/15 text-gray-800 dark:text-white/70 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/15 text-gray-800 dark:text-white/70 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-50"
                 >
                   {uploadingPackId === pack.id ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
                   Загрузить картинки
@@ -312,7 +312,7 @@ export default function AdminStickersPage() {
                     onChange={(e) => setEmojiInputs(prev => ({ ...prev, [pack.id]: e.target.value }))}
                     onKeyDown={(e) => { if (e.key === "Enter") addEmoji(pack.id); }}
                     placeholder="Вставь эмодзи: 💀 🗿 🔥 (можно несколько через пробел)"
-                    className="flex-1 px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400"
+                    className="flex-1 px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400"
                   />
                   <button onClick={() => addEmoji(pack.id)} className="px-3 py-2 rounded-lg bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-xs font-bold hover:bg-yellow-500/30">
                     + Эмодзи
@@ -332,7 +332,7 @@ export default function AdminStickersPage() {
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => !savingPack && setShowPackEditor(false)} />
             <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
-              <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
+              <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-black text-gray-900 dark:text-white text-lg">{editingPack.id ? "Редактировать пак" : "Новый пак"}</h2>
                   <button onClick={() => !savingPack && setShowPackEditor(false)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white p-1"><X size={18} /></button>
@@ -346,7 +346,7 @@ export default function AdminStickersPage() {
                         value={editingPack.name}
                         onChange={e => setEditingPack({ ...editingPack, name: e.target.value })}
                         placeholder="Например: Мемы, Вайб, VIP..."
-                        className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400"
+                        className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400"
                       />
                     </div>
                     <div>
@@ -354,7 +354,7 @@ export default function AdminStickersPage() {
                       <select
                         value={editingPack.min_level}
                         onChange={e => setEditingPack({ ...editingPack, min_level: Number(e.target.value) })}
-                        className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400"
+                        className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400"
                       >
                         <option value={1} className="bg-gray-900">Все пользователи (lvl 1+)</option>
                         <option value={2} className="bg-gray-900">Эксклюзив (lvl 2+)</option>
@@ -365,7 +365,7 @@ export default function AdminStickersPage() {
                   </div>
 
                   {/* 🆕 ВЫБОР ЭМОДЗИ ИЗ БИБЛИОТЕКИ */}
-                  <div className="border border-gray-200 dark:border-white/10 rounded-xl p-3 bg-white/[0.02]">
+                  <div className="border border-line dark:border-white/10 rounded-xl p-3 bg-white/[0.02]">
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-xs font-bold text-gray-600 dark:text-white/60">
                         Выбрать эмодзи из библиотеки ({selectedEmojis.length} выбрано)
@@ -403,7 +403,7 @@ export default function AdminStickersPage() {
                         value={emojiSearch}
                         onChange={e => setEmojiSearch(e.target.value)}
                         placeholder="Поиск эмодзи..."
-                        className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400"
+                        className="w-full pl-9 pr-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400"
                       />
                     </div>
 
@@ -456,7 +456,7 @@ export default function AdminStickersPage() {
                   <button
                     onClick={() => !savingPack && setShowPackEditor(false)}
                     disabled={savingPack}
-                    className="flex-1 py-2.5 rounded-lg border border-gray-200 dark:border-white/15 text-gray-800 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-50"
+                    className="flex-1 py-2.5 rounded-lg border border-line dark:border-white/15 text-gray-800 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-50"
                   >
                     Отмена
                   </button>

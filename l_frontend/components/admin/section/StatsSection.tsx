@@ -26,7 +26,7 @@ export function StatsSection({ me }: { me: any }) {
           ["Лайков", stats.total_likes, TrendingUp],
           ["Чатов", stats.total_chats, Wifi],
         ].map(([label, val, Icon]: any) => (
-          <div key={label} className="border border-gray-200 dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
+          <div key={label} className="border border-line dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
             <Icon size={18} className="text-[#8b5cf6] mb-2" />
             <p className="text-gray-600 dark:text-white/50 text-sm">{label}</p>
             <p className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white mt-1">{val}</p>
@@ -34,7 +34,7 @@ export function StatsSection({ me }: { me: any }) {
         ))}
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="border border-gray-200 dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
+        <div className="border border-line dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
           <div className="flex items-center gap-2 mb-4">
             <Crown size={18} className="text-[#8b5cf6]" />
             <h2 className="font-bold text-gray-900 dark:text-white">Топ по подписчикам</h2>
@@ -53,7 +53,7 @@ export function StatsSection({ me }: { me: any }) {
             ))}
           </div>
         </div>
-        <div className="border border-gray-200 dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
+        <div className="border border-line dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp size={18} className="text-[#8b5cf6]" />
             <h2 className="font-bold text-gray-900 dark:text-white">Топ по постам</h2>

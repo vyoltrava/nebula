@@ -312,7 +312,7 @@ async function activate2FA() {
   const labelCls = "block text-xs font-medium text-gray-500 dark:text-[#B9B8BD] mb-1.5";
 
   const inputCls =
-    "w-full bg-gray-100 dark:bg-[#1C1C1F] border border-gray-200 dark:border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/25 focus:outline-none focus:border-[#7B3FF2] transition-colors";
+    "w-full bg-gray-100 dark:bg-[#1C1C1F] border border-line dark:border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/25 focus:outline-none focus:border-[#7B3FF2] transition-colors";
 
   const btnPrimary =
     "bg-[#7B3FF2] hover:bg-[#6a34d3] active:bg-[#5b2cb8] text-white text-sm font-medium rounded-lg px-5 py-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
@@ -333,7 +333,7 @@ async function activate2FA() {
         <header className="flex items-center gap-3 mb-6">
           <button
             onClick={() => router.push("/")}
-            className="w-10 h-10 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-[#1E1E23] text-[#B9B8BD] hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-center transition-colors"
+            className="w-10 h-10 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-[#1E1E23] text-[#B9B8BD] hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-center transition-colors"
             aria-label={t("common.back")}
           >
             <ArrowLeft size={18} />
@@ -350,7 +350,7 @@ async function activate2FA() {
       className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
         view === n.id
           ? "bg-[#8b5cf6]/15 text-[#a78bfa] border border-[#8b5cf6]/30"
-          : "bg-gray-100 dark:bg-[#1E1E23] border border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 hover:bg-white/[0.03]"
+          : "bg-gray-100 dark:bg-[#1E1E23] border border-line dark:border-white/10 text-gray-500 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 hover:bg-white/[0.03]"
       }`}
     >
       {n.label}
@@ -361,7 +361,7 @@ async function activate2FA() {
         <div className="lg:grid lg:grid-cols-[240px_1fr] lg:gap-6 items-start">
           {/* ===== Сайдбар (ПК) ===== */}
 
-<aside className="hidden lg:flex flex-col gap-1 bg-gray-100 dark:bg-[#1E1E23] border border-gray-200 dark:border-white/10 rounded-xl p-3 sticky top-6">
+<aside className="hidden lg:flex flex-col gap-1 bg-gray-100 dark:bg-[#1E1E23] border border-line dark:border-white/10 rounded-xl p-3 sticky top-6">
   {nav.map((n) => {
     const Icon = n.icon;
     const active = view === n.id;
@@ -395,7 +395,7 @@ async function activate2FA() {
 </aside>
 
           {/* ===== Контент ===== */}
-          <section className="bg-gray-100 dark:bg-[#1E1E23] border border-gray-200 dark:border-white/10 rounded-xl p-5 sm:p-6">
+          <section className="bg-gray-100 dark:bg-[#1E1E23] border border-line dark:border-white/10 rounded-xl p-5 sm:p-6">
             {/* ---------- ПРОФИЛЬ ---------- */}
             {view === "profile" && (
               <div className="space-y-6">
@@ -405,9 +405,9 @@ async function activate2FA() {
                 {/* Аватар */}
                 <div className="flex items-center gap-4">
                   {preview ? (
-                    <img src={preview} alt="" className="w-20 h-20 rounded-xl object-cover border border-gray-200 dark:border-white/10" />
+                    <img src={preview} alt="" className="w-20 h-20 rounded-xl object-cover border border-line dark:border-white/10" />
                   ) : (
-                    <div className="w-20 h-20 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center">
+                    <div className="w-20 h-20 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 flex items-center justify-center">
                       <User size={28} className="text-[#B9B8BD]" />
                     </div>
                   )}
@@ -451,7 +451,7 @@ async function activate2FA() {
                 <div>
                   <label className={labelCls}>Username</label>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-gray-100 dark:bg-[#1C1C1F] border border-gray-200 dark:border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-[#B9B8BD]">
+                    <div className="flex-1 bg-gray-100 dark:bg-[#1C1C1F] border border-line dark:border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-[#B9B8BD]">
                       @{user.username}
                     </div>
                     <IconButton
@@ -516,7 +516,7 @@ async function activate2FA() {
                 <h2 className="text-lg font-semibold">{t("settings.security")}</h2>
 
                 {/* 2FA */}
-                <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <div
@@ -552,7 +552,7 @@ async function activate2FA() {
                 </div>
 
                 {/* Email */}
-                <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center">
@@ -570,7 +570,7 @@ async function activate2FA() {
                 </div>
 
                 {/* Пароль */}
-                <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center">
                       <Lock size={18} className="text-[#a678f7]" />
@@ -685,7 +685,7 @@ async function activate2FA() {
 {show2FASetup && (
   <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
     <div className="absolute inset-0 bg-black/70" onClick={() => !loading2FA && setShow2FASetup(false)} />
-    <div className="relative bg-gray-100 dark:bg-[#1E1E23] border border-gray-200 dark:border-white/10 rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <div className="relative bg-gray-100 dark:bg-[#1E1E23] border border-line dark:border-white/10 rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
       <div className="flex items-center justify-between mb-5">
         <h3 className="text-lg font-semibold">
           {setupStep === "backup" ? t("settings.twoFaActivated") : t("settings.twoFaSetup")}
@@ -714,7 +714,7 @@ async function activate2FA() {
             <summary className="text-sm text-[#B9B8BD] cursor-pointer hover:text-gray-900 dark:text-white transition-colors">
               {t("settings.noCamera")}
             </summary>
-            <div className="mt-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+            <div className="mt-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
               <p className="text-xs text-[#B9B8BD] mb-1">{t("settings.secretKey")}</p>
               <p className="font-mono text-sm text-gray-900 dark:text-white break-all select-all">{secret}</p>
             </div>
@@ -777,11 +777,11 @@ async function activate2FA() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-gray-100 dark:bg-[#1C1C1F] border border-gray-200 dark:border-white/10">
+          <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-gray-100 dark:bg-[#1C1C1F] border border-line dark:border-white/10">
             {backupCodes.map((code, i) => (
               <div
                 key={i}
-                className="font-mono text-sm text-gray-900 dark:text-white bg-gray-100 dark:bg-white/5 px-3 py-2 rounded border border-gray-200 dark:border-white/10 text-center tracking-wider select-all"
+                className="font-mono text-sm text-gray-900 dark:text-white bg-gray-100 dark:bg-white/5 px-3 py-2 rounded border border-line dark:border-white/10 text-center tracking-wider select-all"
               >
                 {code}
               </div>
@@ -839,7 +839,7 @@ async function activate2FA() {
       {showDisable2FA && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70" onClick={() => !loading2FA && setShowDisable2FA(false)} />
-          <div className="relative bg-gray-100 dark:bg-[#1E1E23] border border-gray-200 dark:border-white/10 rounded-xl p-6 max-w-sm w-full">
+          <div className="relative bg-gray-100 dark:bg-[#1E1E23] border border-line dark:border-white/10 rounded-xl p-6 max-w-sm w-full">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-semibold">{t("settings.disable2fa")}</h3>
               <button

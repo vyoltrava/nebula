@@ -124,7 +124,7 @@ export default function TechPage() {
           {users.map((user) => (
             <div
               key={user.id}
-              className="bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
+              className="bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
             >
               <div className="flex items-center justify-between">
                 <div>

@@ -52,7 +52,7 @@ export function RightPanel() {
           if (q.trim()) router.push(`/search?q=${encodeURIComponent(q)}`);
         }}
       >
-        <label className="flex items-center gap-2 border border-gray-200 dark:border-white/15 rounded-xl px-4 py-2 bg-gray-100 dark:bg-white/5 focus-within:border-[#8b5cf6] focus-within:bg-gray-100 dark:bg-white/10 transition-all">
+        <label className="flex items-center gap-2 border border-line dark:border-white/15 rounded-xl px-4 py-2 bg-gray-100 dark:bg-white/5 focus-within:border-[#8b5cf6] focus-within:bg-gray-100 dark:bg-white/10 transition-all">
         <Search size={16} className="text-gray-600 dark:text-white/50" />
           <input
             value={q}
@@ -63,7 +63,7 @@ export function RightPanel() {
         </label>
       </form>
 
-      <section className="border border-gray-200 dark:border-white/15 rounded-2xl p-4 bg-white/5 backdrop-blur-sm">
+      <section className="border border-line dark:border-white/15 rounded-2xl p-4 bg-white/5 backdrop-blur-sm">
         <h2 className="font-black mb-3 text-gray-900 dark:text-white">{t("panel.popularTags")}</h2>
         {tags.length === 0 && <p className="text-sm text-gray-600 dark:text-white/50">{t("panel.noTags")}</p>}
         <div className="space-y-2">
@@ -76,7 +76,7 @@ export function RightPanel() {
         </div>
       </section>
 
-      <section className="border border-gray-200 dark:border-white/15 rounded-2xl p-4 bg-white/5 backdrop-blur-sm">
+      <section className="border border-line dark:border-white/15 rounded-2xl p-4 bg-white/5 backdrop-blur-sm">
         <h2 className="font-black mb-3 text-gray-900 dark:text-white">{t("panel.suggestedAuthors")}</h2>
         {authors.length === 0 && <p className="text-sm text-gray-600 dark:text-white/50">{t("panel.noSuggestions")}</p>}
         <div className="space-y-3">
@@ -92,7 +92,7 @@ export function RightPanel() {
               </div>
               <button
                 onClick={() => follow(a.id)}
-                className="text-xs font-bold px-3 py-1 rounded-full border border-gray-200 dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white transition-all"
+                className="text-xs font-bold px-3 py-1 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white transition-all"
               >
                 {t("post.follow")}
               </button>
@@ -104,7 +104,7 @@ export function RightPanel() {
       {/* Кнопка команды проекта — в самом низу правой панели */}
       <Link
         href="/team"
-        className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/15 bg-gradient-to-r from-white/5 to-white/10 text-gray-900 dark:text-white hover:from-[#8b5cf6]/20 hover:to-[#8b5cf6]/10 hover:border-[#8b5cf6]/50 transition-all font-semibold text-sm"
+        className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl border border-line dark:border-white/15 bg-gradient-to-r from-white/5 to-white/10 text-gray-900 dark:text-white hover:from-[#8b5cf6]/20 hover:to-[#8b5cf6]/10 hover:border-[#8b5cf6]/50 transition-all font-semibold text-sm"
       >
         <Users size={18} />
         {t("panel.team")}

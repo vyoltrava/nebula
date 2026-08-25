@@ -88,7 +88,7 @@ export function PrismPuzzleEnter({ chatId, onEnterSuccess }: PrismPuzzleEnterPro
   if (!landscape) return <div className="p-6 text-gray-900 dark:text-white">Загрузка пейзажа...</div>;
 
   return (
-    <div className="p-6 bg-gray-50 dark:bg-[#0f1225] rounded-xl border border-gray-200 dark:border-white/10 max-w-2xl mx-auto">
+    <div className="p-6 bg-gray-50 dark:bg-[#0f1225] rounded-xl border border-line dark:border-white/10 max-w-2xl mx-auto">
       <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 text-center">Prism Decryption</h2>
       <p className="text-gray-400 text-sm mb-4 text-center">
         {step === 'select' 
@@ -168,7 +168,7 @@ export function PrismPuzzleEnter({ chatId, onEnterSuccess }: PrismPuzzleEnterPro
           <button
             onClick={() => { setStep('select'); setSelectedObjectId(null); }}
             disabled={loading}
-            className="flex-1 p-3 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-gray-900 dark:text-white font-medium transition-colors"
+            className="flex-1 p-3 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-line dark:border-white/20 rounded-lg text-gray-900 dark:text-white font-medium transition-colors"
           >
             Отмена
           </button>

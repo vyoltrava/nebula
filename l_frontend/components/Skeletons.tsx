@@ -6,7 +6,7 @@ import { Video,
 // ==========================================
 export function PostSkeleton() {
   return (
-    <article className="p-4 border-b border-gray-200 dark:border-white/10 animate-pulse">
+    <article className="p-4 border-b border-line dark:border-white/10 animate-pulse">
       <div className="flex gap-3">
         <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0" />
         <div className="flex-1 space-y-2">
@@ -35,7 +35,7 @@ export function PostSkeleton() {
 // ==========================================
 export function MainPostSkeleton() {
   return (
-    <div className="p-4 border-b border-gray-200 dark:border-white/10 animate-pulse">
+    <div className="p-4 border-b border-line dark:border-white/10 animate-pulse">
       <div className="flex gap-3">
         {/* Аватарка */}
         <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0" />
@@ -70,7 +70,7 @@ export function MainPostSkeleton() {
 
 export function ProfileSkeleton() {
   return (
-    <div className="animate-pulse border-b border-gray-200 dark:border-white/10">
+    <div className="animate-pulse border-b border-line dark:border-white/10">
       <div className="p-4 md:p-6">
         <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-5">
           {/* Аватарка */}
@@ -129,7 +129,7 @@ export function BookmarkPageSkeleton() {
   return (
     <div className="animate-pulse">
       {/* Заголовок страницы */}
-      <div className="p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
+      <div className="p-6 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-purple-500/20" />
           <div className="h-6 bg-gray-100 dark:bg-white/10 rounded w-32" />
@@ -177,7 +177,7 @@ export function ChatWindowSkeleton() {
   return (
     <div className="flex-1 flex flex-col bg-paper dark:bg-[#171717] animate-pulse">
       {/* Шапка чата */}
-      <div className="h-16 border-b border-gray-200 dark:border-white/10 p-4 flex items-center gap-3">
+      <div className="h-16 border-b border-line dark:border-white/10 p-4 flex items-center gap-3">
         <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-white/10" />
         <div className="space-y-2 flex-1">
           <div className="h-4 w-32 bg-gray-100 dark:bg-white/10 rounded-md" />
@@ -215,7 +215,7 @@ export function ChatWindowSkeleton() {
       </div>
 
       {/* Поле ввода */}
-      <div className="p-4 border-t border-gray-200 dark:border-white/10">
+      <div className="p-4 border-t border-line dark:border-white/10">
         <div className="h-10 w-full bg-gray-100 dark:bg-white/5 rounded-xl" />
       </div>
     </div>
@@ -231,7 +231,7 @@ export function Shimmer() {
 // Скелет видео-квадрата в чате (ложится поверх, absolute)
 export function VideoNoteSkeleton() {
   return (
-    <div className="absolute inset-0 overflow-hidden rounded-2xl bg-white/5 border border-gray-200 dark:border-white/10">
+    <div className="absolute inset-0 overflow-hidden rounded-2xl bg-white/5 border border-line dark:border-white/10">
       <Shimmer />
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
         <div className="w-11 h-11 rounded-xl bg-gray-100 dark:bg-white/10 animate-pulse flex items-center justify-center">
@@ -266,7 +266,7 @@ export function AvatarSkeleton({ size = 96 }: { size?: number }) {
 // ==========================================
 export function TeamMemberSkeleton() {
   return (
-    <div className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 animate-pulse">
+    <div className="flex items-center gap-4 p-4 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 animate-pulse">
       <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0" />
       <div className="flex-1 min-w-0 space-y-2">
         <div className="h-4 bg-gray-100 dark:bg-white/10 rounded w-32" />
@@ -298,7 +298,7 @@ export function UserRowSkeleton() {
 export function SearchResultsSkeleton() {
   return (
     <div>
-      <div className="p-4 border-b border-gray-200 dark:border-white/10">
+      <div className="p-4 border-b border-line dark:border-white/10">
         <div className="h-4 bg-purple-500/20 rounded w-24 mb-3 animate-pulse" />
         <UserRowSkeleton />
         <UserRowSkeleton />
@@ -316,7 +316,7 @@ export function SearchResultsSkeleton() {
 // ==========================================
 export function NotificationsSkeleton() {
   return (
-    <div className="divide-y divide-gray-200 dark:divide-white/5 animate-pulse">
+    <div className="divide-y divide-line dark:divide-white/5 animate-pulse">
       {[...Array(6)].map((_, i) => (
         <div key={i} className="flex items-start gap-3 p-4">
           <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0 mt-0.5" />
@@ -356,7 +356,7 @@ export function StatSkeleton() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-xl p-4 space-y-3">
+            <div key={i} className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl p-4 space-y-3">
               <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-24" />
               <div className="h-7 bg-gray-100 dark:bg-white/10 rounded w-16" />
               <div className="h-8 bg-gray-100 dark:bg-white/5 rounded w-full" />
@@ -364,9 +364,9 @@ export function StatSkeleton() {
           ))}
         </div>
 
-        <div className="bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 p-4">
+        <div className="bg-gray-100 dark:bg-white/5 rounded-xl border border-line dark:border-white/10 p-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="flex items-center gap-4 py-3 border-b border-gray-200 dark:border-white/5 last:border-0">
+            <div key={i} className="flex items-center gap-4 py-3 border-b border-line dark:border-white/5 last:border-0">
               <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0" />
               <div className="flex-1 h-3 bg-gray-100 dark:bg-white/10 rounded w-32" />
               <div className="hidden sm:block h-3 bg-gray-100 dark:bg-white/5 rounded w-24" />
@@ -393,9 +393,9 @@ export function SuggestionsSkeleton() {
           </div>
           <div className="h-9 bg-gray-100 dark:bg-white/10 rounded-xl w-32" />
         </div>
-        <div className="border border-gray-200 dark:border-white/10 rounded-2xl bg-gray-100 dark:bg-white/5 overflow-hidden">
+        <div className="border border-line dark:border-white/10 rounded-2xl bg-gray-100 dark:bg-white/5 overflow-hidden">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="flex items-center gap-4 p-4 border-b border-gray-200 dark:border-white/5 last:border-0">
+            <div key={i} className="flex items-center gap-4 p-4 border-b border-line dark:border-white/5 last:border-0">
               <div className="w-11 h-11 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0" />
               <div className="flex-1 space-y-2">
                 <div className="h-4 bg-gray-100 dark:bg-white/10 rounded w-1/2" />
@@ -417,7 +417,7 @@ export function TeamDrawerSkeleton() {
     <div className="space-y-6 animate-pulse">
       {[...Array(3)].map((_, g) => (
         <div key={g} className="space-y-3">
-          <div className="flex items-center gap-3 pb-2 border-b border-gray-200 dark:border-white/5">
+          <div className="flex items-center gap-3 pb-2 border-b border-line dark:border-white/5">
             <div className="w-1 h-6 rounded-full bg-gray-100 dark:bg-white/10" />
             <div className="h-3 bg-gray-100 dark:bg-white/10 rounded w-28" />
             <div className="ml-auto h-5 bg-gray-100 dark:bg-white/5 rounded-full w-8" />
@@ -467,8 +467,8 @@ export function UpdatesSkeleton() {
       <div className="absolute left-[13px] top-2 bottom-0 w-px bg-gray-100 dark:bg-white/10" />
       {[...Array(3)].map((_, i) => (
         <div key={i} className="relative mb-8">
-          <span className="absolute -left-10 top-5 w-7 h-7 rounded-full border-2 border-gray-200 dark:border-white/10 bg-paper dark:bg-[#171717]" />
-          <div className="border border-gray-200 dark:border-white/10 rounded-2xl p-5 bg-gray-100 dark:bg-white/5">
+          <span className="absolute -left-10 top-5 w-7 h-7 rounded-full border-2 border-line dark:border-white/10 bg-paper dark:bg-[#171717]" />
+          <div className="border border-line dark:border-white/10 rounded-2xl p-5 bg-gray-100 dark:bg-white/5">
             <div className="flex items-center gap-2 mb-3">
               <div className="h-4 bg-gray-100 dark:bg-white/10 rounded w-16" />
               <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-24" />

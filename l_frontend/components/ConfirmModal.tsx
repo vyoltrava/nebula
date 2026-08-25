@@ -65,7 +65,7 @@ export function ConfirmModal() {
     <>
       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9998]" onClick={handleCancel} />
       <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-sm bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl pointer-events-auto animate-in zoom-in-95 duration-200 overflow-hidden">
+        <div className="w-full max-w-sm bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl pointer-events-auto animate-in zoom-in-95 duration-200 overflow-hidden">
           
           {/* Header */}
           <div className="p-5 pb-0 flex items-start gap-4">

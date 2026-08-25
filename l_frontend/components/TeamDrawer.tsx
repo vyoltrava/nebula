@@ -55,13 +55,13 @@ export function TeamDrawer({ open, onClose }: { open: boolean; onClose: () => vo
 
       {/* Drawer */}
       <div
-        className={`fixed top-0 right-0 h-full w-96 max-w-full bg-paper dark:bg-[#171717] border-l border-gray-200 dark:border-white/10 z-[201] transform transition-transform duration-300 ${
+        className={`fixed top-0 right-0 h-full w-96 max-w-full bg-paper dark:bg-[#171717] border-l border-line dark:border-white/10 z-[201] transform transition-transform duration-300 ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <div className="flex flex-col h-full">
           {/* Шапка */}
-          <div className="p-5 border-b border-gray-200 dark:border-white/10 flex items-center justify-between sticky top-0 bg-paper dark:bg-[#171717] z-10">
+          <div className="p-5 border-b border-line dark:border-white/10 flex items-center justify-between sticky top-0 bg-paper dark:bg-[#171717] z-10">
             <div className="flex items-center gap-3">
               <Users size={22} className="text-[#8b5cf6]" />
               <h2 className="text-xl font-black text-gray-900 dark:text-white">Команда разработчиков</h2>
@@ -80,7 +80,7 @@ export function TeamDrawer({ open, onClose }: { open: boolean; onClose: () => vo
             {groups.map((g) => (
               <div key={g.key} className="space-y-3">
                 {/* Заголовок группы с цветным акцентом */}
-                <div className="flex items-center gap-3 pb-2 border-b border-gray-200 dark:border-white/5">
+                <div className="flex items-center gap-3 pb-2 border-b border-line dark:border-white/5">
                   <div
                     className="w-1 h-6 rounded-full"
                     style={{ backgroundColor: g.color, boxShadow: `0 0 10px ${g.color}` }}

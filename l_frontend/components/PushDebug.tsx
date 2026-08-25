@@ -90,7 +90,7 @@ export function PushDebug() {
     <div className="mt-3">
       <button
         onClick={run}
-        className="w-full py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/15 text-gray-600 dark:text-white/60 text-xs font-bold"
+        className="w-full py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/15 text-gray-600 dark:text-white/60 text-xs font-bold"
       >
         🔍 Диагностика пушей
       </button>

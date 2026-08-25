@@ -526,7 +526,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
 
   return (
     <article 
-      className="p-4 border-b border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
+      className="p-4 border-b border-line dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
       onClick={handlePostClick}
       >
       {is_repost && (
@@ -597,7 +597,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 className={`text-xs font-bold px-3 py-1 rounded-full border transition-all shrink-0 ${
                   following
                     ? "border-[#8b5cf6] bg-[#8b5cf6] text-white"
-                    : "border-gray-200 dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white"
+                    : "border-line dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white"
                 }`}
               >
                 {following ? t("post.following") : t("post.follow")}
@@ -613,7 +613,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             )}
           
           {repost_of && !repost_of.deleted ? (
-            <div className="mt-2 border border-gray-200 dark:border-white/10 rounded-xl p-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+            <div className="mt-2 border border-line dark:border-white/10 rounded-xl p-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
               <div className="flex items-center gap-2 mb-2">
                 <Link href={`/${repost_of.handle?.replace("@", "")}`} onClick={(e) => e.stopPropagation()}>
                   <Avatar src={repost_of.author_avatar} name={repost_of.author} id={repost_of.author_id} size={24} />
@@ -628,12 +628,12 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 <SmartMedia 
                   src={mediaUrl(repost_of.media_url)} 
                   type={repost_of.media_type} 
-                  className="max-h-60 rounded-lg border border-gray-200 dark:border-white/10" 
+                  className="max-h-60 rounded-lg border border-line dark:border-white/10" 
                 />
               )}
             </div>
           ) : repost_of?.deleted ? (
-            <div className="mt-2 border border-gray-200 dark:border-white/10 rounded-xl p-4 bg-white/[0.02] text-center text-gray-500 dark:text-white/40 text-sm italic">
+            <div className="mt-2 border border-line dark:border-white/10 rounded-xl p-4 bg-white/[0.02] text-center text-gray-500 dark:text-white/40 text-sm italic">
               {t("post.originalDeleted")}
             </div>
           ) : (
@@ -656,7 +656,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               className={`flex items-center gap-1 px-3 py-1.5 rounded-full border transition-all ${
                 liked
                   ? "border-pink-400/50 bg-[#8B5CF6] text-white"
-                  : "border-gray-200 dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white"
+                  : "border-line dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white"
               }`}
             >
               <Heart size={16} fill={liked ? "currentColor" : "none"} />
@@ -666,7 +666,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
 
             <button
               onClick={() => startReply(cleanUsername, author)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-gray-200 dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white transition-all"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white transition-all"
             >
               <Reply size={16} />
             </button>
@@ -675,7 +675,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             {currentUser && currentUser.id !== author_id && !is_repost && !is_quote && (
               <button
                 onClick={() => handleRepostOrQuote(id)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-gray-200 dark:border-white/20 text-white/70 hover:bg-emerald-500/10 hover:border-emerald-400/30 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-line dark:border-white/20 text-gray-600 dark:text-white/70 hover:bg-emerald-500/10 hover:border-emerald-400/30 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
                 title={t("post.repostQuote")}
               >
                 <RefreshCw size={16} />
@@ -695,7 +695,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             {currentUser?.id !== author_id && !is_repost && (
               <button
                 onClick={() => setShowReport(true)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-gray-200 dark:border-white/20 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-orange-400/30 hover:text-orange-600 dark:hover:text-orange-400 transition-all"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-line dark:border-white/20 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-orange-400/30 hover:text-orange-600 dark:hover:text-orange-400 transition-all"
                 title={t("post.report")}
               >
                 <Flag size={16} />
@@ -741,7 +741,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                   }
                 }}
                 placeholder={t("post.replyPlaceholder", { author })}
-                className="flex-1 border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] transition-all"
+                className="flex-1 border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] transition-all"
               />
               <button
                 onClick={() => submitReply(id)}
@@ -755,7 +755,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                   setReplying(false);
                   setReplyText("");
                 }}
-                className="border border-gray-200 dark:border-white/20 text-gray-600 dark:text-white/60 rounded-lg px-3 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
+                className="border border-line dark:border-white/20 text-gray-600 dark:text-white/60 rounded-lg px-3 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
               >
                 ✕
               </button>
@@ -823,7 +823,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             onClick={(e) => e.stopPropagation()}
           >
             <div
-              className="w-full max-w-lg bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto"
+              className="w-full max-w-lg bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
@@ -856,7 +856,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 }}
                 rows={5}
                 placeholder={t("post.postText")}
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-blue-600 dark:focus:border-blue-400 resize-none"
+                className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-blue-600 dark:focus:border-blue-400 resize-none"
                 autoFocus
               />
 
@@ -875,7 +875,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); setEditing(false); }}
-                  className="px-5 py-2.5 rounded-lg border border-gray-200 dark:border-white/20 text-gray-800 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
+                  className="px-5 py-2.5 rounded-lg border border-line dark:border-white/20 text-gray-800 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
                 >
                   {t("common.cancel")}
                 </button>
@@ -1037,7 +1037,7 @@ function ReplyItem({
                   }
                 }}
                 placeholder={t("post.replyPlaceholder", { author: reply.author })}
-                className="flex-1 border border-gray-200 dark:border-white/15 rounded-lg px-2.5 py-1.5 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] transition-all"
+                className="flex-1 border border-line dark:border-white/15 rounded-lg px-2.5 py-1.5 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] transition-all"
                 autoFocus
               />
               <button
@@ -1052,7 +1052,7 @@ function ReplyItem({
                   setShowReplyForm(false);
                   setReplyText("");
                 }}
-                className="border border-gray-200 dark:border-white/20 text-gray-600 dark:text-white/60 rounded-lg px-2.5 hover:bg-gray-100 dark:hover:bg-white/10 transition-all text-sm"
+                className="border border-line dark:border-white/20 text-gray-600 dark:text-white/60 rounded-lg px-2.5 hover:bg-gray-100 dark:hover:bg-white/10 transition-all text-sm"
               >
                 ✕
               </button>

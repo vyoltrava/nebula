@@ -103,8 +103,8 @@ export function GroupMembersModal({ chatId, myRole, onClose, onChanged }: Props)
     <>
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]" onClick={onClose} />
       <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-md max-h-[80vh] bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
-          <div className="p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between shrink-0">
+        <div className="w-full max-w-md max-h-[80vh] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
+          <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between shrink-0">
             <h2 className="text-lg font-black text-gray-900 dark:text-white">
               Участники ({members.length})
             </h2>
@@ -122,7 +122,7 @@ export function GroupMembersModal({ chatId, myRole, onClose, onChanged }: Props)
           </div>
 
           {showAdd && isAdmin && (
-            <div className="p-3 border-b border-gray-200 dark:border-white/10 shrink-0">
+            <div className="p-3 border-b border-line dark:border-white/10 shrink-0">
               <div className="relative mb-2">
                 <Search
                   size={14}
@@ -132,7 +132,7 @@ export function GroupMembersModal({ chatId, myRole, onClose, onChanged }: Props)
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Поиск пользователя..."
-                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] text-sm"
+                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] text-sm"
                   autoFocus
                 />
               </div>
@@ -162,7 +162,7 @@ export function GroupMembersModal({ chatId, myRole, onClose, onChanged }: Props)
             {members.map((m) => (
               <div
                 key={m.user.id}
-                className="flex items-center gap-3 p-3 border-b border-gray-200 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5"
+                className="flex items-center gap-3 p-3 border-b border-line dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5"
               >
                 <Avatar
                   src={m.user.avatar_url}

@@ -2095,7 +2095,7 @@ const partnerGlow = getGlowColor(chatPartner);
 
 
 const ChatHeader = () => (
-  <div className="border-b border-gray-200 dark:border-white/10 backdrop-blur-md sticky top-0 z-30 bg-paper dark:bg-[#171717]/80">
+  <div className="border-b border-line dark:border-white/10 backdrop-blur-md sticky top-0 z-30 bg-paper dark:bg-[#171717]/80">
     {/* Основной блок */}
     <div className="p-3 sm:p-4 md:p-4">
       <div className="flex items-center gap-2 sm:gap-3 md:gap-3">
@@ -2289,7 +2289,7 @@ const ChatHeader = () => (
           className="fixed inset-0 z-40" 
           onClick={() => { if (Date.now() - menuOpenTimeRef.current < 400) return; setShowChatMenu(false); }} 
         />
-        <div className="absolute right-0 top-full mt-2 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] sm:min-w-[180px] z-50">
+        <div className="absolute right-0 top-full mt-2 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] sm:min-w-[180px] z-50">
           
           {/* 📱 МОБИЛЬНЫЕ КНОПКИ (скрыты на ПК) */}
 <button
@@ -2346,10 +2346,10 @@ const ChatHeader = () => (
 
     {/* Разделитель */}
     {pinnedMessages.length > 0 && (
-      <div className="border-t border-gray-200 dark:border-white/5" />
+      <div className="border-t border-line dark:border-white/5" />
     )}
     {pinnedMessages.length > 0 && (
-      <div className="px-3 sm:px-4 md:px-4 py-2 border-t border-gray-200 dark:border-white/5">
+      <div className="px-3 sm:px-4 md:px-4 py-2 border-t border-line dark:border-white/5">
         <button
           onClick={() => setShowPinnedList(!showPinnedList)}
           className="flex items-center gap-2 text-xs sm:text-xs text-gray-600 dark:text-white/60 hover:text-gray-800 dark:hover:text-white/80 font-medium transition-colors w-full"
@@ -2395,14 +2395,14 @@ const ChatHeader = () => (
     )}
 
     {showSearch && (
-      <div className="px-3 sm:px-4 md:px-4 py-2.5 border-t border-gray-200 dark:border-white/5">
+      <div className="px-3 sm:px-4 md:px-4 py-2.5 border-t border-line dark:border-white/5">
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
 <input
   value={searchQuery}
   onChange={(e) => setSearchQuery(e.target.value)}
   placeholder={isSecret ? t("messages.searchDecrypted") : t("messages.searchInChat")}
-  className="w-full pl-10 pr-9 py-2 rounded-xl border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 text-sm focus:outline-none focus:border-[#8b5cf6] focus:bg-gray-100 dark:focus:bg-white/10 transition-all"
+  className="w-full pl-10 pr-9 py-2 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 text-sm focus:outline-none focus:border-[#8b5cf6] focus:bg-gray-100 dark:focus:bg-white/10 transition-all"
   autoFocus
 />
           {searchQuery && (
@@ -2442,9 +2442,9 @@ const ChatHeader = () => (
 `}</style>
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
-<main className="flex-1 flex flex-col border-x border-gray-200 dark:border-white/10 overflow-hidden">
+<main className="flex-1 flex flex-col border-x border-line dark:border-white/10 overflow-hidden">
         {isSelectMode ? (
-          <div className="p-3 sm:p-3 md:p-4 border-b border-gray-200 dark:border-white/10 bg-paper dark:bg-[#171717]/95 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
+          <div className="p-3 sm:p-3 md:p-4 border-b border-line dark:border-white/10 bg-paper dark:bg-[#171717]/95 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button
                 onClick={toggleSelectMode}
@@ -2536,7 +2536,7 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
   if (msg.type === 'date') {
     return (
       <div key={msg.id} className="flex items-center justify-center my-4">
-        <span className="px-3 py-1 rounded-full bg-white/5 border border-gray-200 dark:border-white/10 text-[11px] font-bold text-gray-600 dark:text-white/50 backdrop-blur-sm">
+        <span className="px-3 py-1 rounded-full bg-white/5 border border-line dark:border-white/10 text-[11px] font-bold text-gray-600 dark:text-white/50 backdrop-blur-sm">
           {msg.text}
         </span>
       </div>
@@ -2644,13 +2644,13 @@ onDoubleClick={(e) => {
             {showScrollBtn && (
               <button
                 onClick={() => scrollToBottom()}
-                className="absolute bottom-28 right-6 w-10 h-10 rounded-full bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 shadow-2xl flex items-center justify-center text-gray-800 dark:text-white/80 hover:text-[#8b5cf6] hover:border-[#8b5cf6] transition-all active:scale-90 z-20 animate-in fade-in zoom-in-50 duration-200"
+                className="absolute bottom-28 right-6 w-10 h-10 rounded-full bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 shadow-2xl flex items-center justify-center text-gray-800 dark:text-white/80 hover:text-[#8b5cf6] hover:border-[#8b5cf6] transition-all active:scale-90 z-20 animate-in fade-in zoom-in-50 duration-200"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
               </button>
             )}
             {files.length > 0 && (
-              <div className="px-3 sm:px-3 py-2.5 border-t border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5">
+              <div className="px-3 sm:px-3 py-2.5 border-t border-line dark:border-white/10 bg-gray-100 dark:bg-white/5">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11px] sm:text-xs font-bold text-gray-800 dark:text-white/70">
                     {t("messages.attachmentsN", { n: files.length })}
@@ -2663,7 +2663,7 @@ onDoubleClick={(e) => {
                   {files.map((f, i) => (
                     <div
                       key={i}
-                      className="relative group border border-gray-200 dark:border-white/15 rounded-lg overflow-hidden bg-gray-100 dark:bg-white/5 shrink-0"
+                      className="relative group border border-line dark:border-white/15 rounded-lg overflow-hidden bg-gray-100 dark:bg-white/5 shrink-0"
                     >
                       {f.type.startsWith("image/") ? (
                         <img src={URL.createObjectURL(f)} alt="" className="w-16 h-16 sm:w-16 sm:h-16 md:w-20 md:h-20 object-cover" />
@@ -2688,7 +2688,7 @@ onDoubleClick={(e) => {
 
 
 {!isSelectMode && (
-  <div className="relative z-30 p-3 sm:p-3 md:p-4 border-t border-gray-200 dark:border-white/10 bg-paper dark:bg-[#171717]/80 backdrop-blur-md">
+  <div className="relative z-30 p-3 sm:p-3 md:p-4 border-t border-line dark:border-white/10 bg-paper dark:bg-[#171717]/80 backdrop-blur-md">
     {isRecording ? (
       <div className="flex items-center gap-2.5 sm:gap-3">
         <div className="relative w-2.5 h-2.5 shrink-0">
@@ -2710,7 +2710,7 @@ onDoubleClick={(e) => {
         <button onClick={stopRecording} className="shrink-0 px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 active:scale-95 transition-all flex items-center gap-1.5">
           <Square size={11} fill="currentColor" /> Стоп
         </button>
-        <button onClick={cancelRecording} className="shrink-0 p-1.5 rounded-lg text-white/50 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all" title={t("messages.cancelRec")}>
+        <button onClick={cancelRecording} className="shrink-0 p-1.5 rounded-lg text-gray-500 dark:text-white/50 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all" title={t("messages.cancelRec")}>
           <X size={16} />
         </button>
       </div>
@@ -2768,7 +2768,7 @@ onDoubleClick={(e) => {
             {showInputActions && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowInputActions(false)} />
-                <div className="absolute bottom-full left-0 mb-2 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[220px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                <div className="absolute bottom-full left-0 mb-2 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[220px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
                   <button onClick={() => { fileRef.current?.click(); setShowInputActions(false); }} className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-3 transition-colors">
                     <Paperclip size={18} className="text-gray-600 dark:text-white/60" /> <span>Прикрепить файл</span>
                   </button>
@@ -2777,7 +2777,7 @@ onDoubleClick={(e) => {
                       setShowStickers(true); 
                       setShowInputActions(false); 
                     }} 
-                    className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-3 transition-colors border-t border-gray-200 dark:border-white/5"
+                    className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-3 transition-colors border-t border-line dark:border-white/5"
                   >
                     <Smile size={18} className="text-gray-600 dark:text-white/60" /> <span>Смайлы и стикеры</span>
                   </button>
@@ -2787,7 +2787,7 @@ onDoubleClick={(e) => {
     editorRef.current?.openMenuAt(rect.left + rect.width / 2, rect.top - 8);
     setShowInputActions(false);
   }}
-  className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-3 transition-colors border-t border-gray-200 dark:border-white/5"
+  className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-3 transition-colors border-t border-line dark:border-white/5"
 >
   <Type size={18} className="text-gray-600 dark:text-white/60" /> <span>{t("messages.formatText")}</span>
 </button>
@@ -2800,7 +2800,7 @@ onDoubleClick={(e) => {
 {/* 🆕 ПОЛЕ ВВОДА — ТЕПЕРЬ WYSIWYG */}
 <div className="relative flex-1 flex items-end">
   {mentionSuggestions.length > 0 && mentionQuery !== null && (
-    <div className="absolute bottom-full left-0 mb-2 w-64 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+    <div className="absolute bottom-full left-0 mb-2 w-64 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
       {mentionSuggestions.map((u) => (
         <button key={u.id} type="button" onClick={() => selectMention(u)} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-white/10 text-left transition-colors">
           <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={28} />
@@ -2813,7 +2813,7 @@ onDoubleClick={(e) => {
     </div>
   )}
   {/* 🎨 ОБЁРТКА С РАМКОЙ — единый стиль с CreatePost */}
-  <div className="flex-1 rounded-xl border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] focus-within:bg-gray-100 dark:bg-white/10 transition-all">
+  <div className="flex-1 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] focus-within:bg-gray-100 dark:bg-white/10 transition-all">
     <RichEditor
       ref={editorRef}
       value={text}
@@ -2868,7 +2868,7 @@ onDoubleClick={(e) => {
             
             {/* Меню записи (остается как было) */}
             {showRecordMenu && (
-              <div className="absolute bottom-full right-0 mb-2 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none">
+              <div className="absolute bottom-full right-0 mb-2 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none">
                 <button ref={(el) => { menuItemRefs.current.voice = el; }} className={`w-full px-4 py-3 flex items-center gap-3 text-left text-sm transition-colors ${selectedMenuItem === 'voice' ? 'bg-gray-100 dark:bg-white/20' : ''} text-gray-900 dark:text-white`}>
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${selectedMenuItem === 'voice' ? 'bg-red-500/30 text-red-600 dark:text-red-300' : 'bg-red-500/20 text-red-600 dark:text-red-400'}`}>
                     <Mic size={18} />
@@ -2906,9 +2906,9 @@ onDoubleClick={(e) => {
   <>
     <div className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm" onClick={() => setReactionPickerFor(null)} />
     <div className="fixed inset-0 z-[261] flex items-center justify-center p-4 pointer-events-none">
-      <div className="w-full max-w-sm max-h-[80vh] bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
+      <div className="w-full max-w-sm max-h-[80vh] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
         {/* Шапка — всегда видна */}
-        <div className="shrink-0 p-3 pb-2 border-b border-gray-200 dark:border-white/10">
+        <div className="shrink-0 p-3 pb-2 border-b border-line dark:border-white/10">
           <div className="flex items-center justify-between mb-2 px-1">
             <p className="text-xs font-bold text-gray-600 dark:text-white/60">Выбрать реакцию</p>
             <button onClick={() => setReactionPickerFor(null)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white p-1">
@@ -3042,7 +3042,7 @@ style={{
             {/* Меню реакций */}
             {/* Меню реакций */}
             <div
-                className="fixed z-[251] bg-[#1c1c1e]/95 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl p-2 flex items-center gap-1"
+                className="fixed z-[251] bg-[#1c1c1e]/95 backdrop-blur-xl border border-line dark:border-white/10 rounded-2xl shadow-2xl p-2 flex items-center gap-1"
                 style={{
                     left,
                     top,
@@ -3122,13 +3122,13 @@ style={{
         md:inset-auto md:top-0 md:right-0 md:bottom-0 md:w-[420px]
         bg-paper dark:bg-[#171717]/95 md:bg-paper dark:bg-[#171717]
         backdrop-blur-md
-        border-l border-gray-200 dark:border-white/10
+        border-l border-line dark:border-white/10
         flex flex-col
         animate-in slide-in-from-right-4 duration-200
       `}
     >
       {/* Шапка с вкладками — ВСЕГДА сверху, не меняется */}
-      <div className="shrink-0 border-b border-gray-200 dark:border-white/10 bg-paper dark:bg-[#171717]/80">
+      <div className="shrink-0 border-b border-line dark:border-white/10 bg-paper dark:bg-[#171717]/80">
         <div className="flex items-center justify-between px-3 py-2.5">
           <h2 className="text-sm font-bold text-gray-900 dark:text-white">Медиа</h2>
           <button
@@ -3184,7 +3184,7 @@ style={{
               .map((item) => (
                 <div
                   key={item.id}
-                  className="aspect-square relative cursor-pointer group rounded-lg overflow-hidden border border-gray-200 dark:border-white/10 hover:border-[#8b5cf6]/50 transition-colors"
+                  className="aspect-square relative cursor-pointer group rounded-lg overflow-hidden border border-line dark:border-white/10 hover:border-[#8b5cf6]/50 transition-colors"
                   onClick={() => setSelectedMedia(item)}
                 >
                   {mediaTab === "image" ? (
@@ -3206,7 +3206,7 @@ style={{
             {mediaItems
               .filter((m) => m.media_type === mediaTab)
               .map((item) => (
-                <div key={item.id} className="p-2 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                <div key={item.id} className="p-2 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                   {mediaTab === "video_note" ? (
                     <div className="max-w-[200px]">
                       <VideoNotePlayer
@@ -3362,8 +3362,8 @@ style={{
       onClick={() => { setShowForwardModal(false); setForwardingMessage(null); }}
     />
     <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl max-h-[70vh] flex flex-col">
-        <div className="p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+      <div className="w-full max-w-sm bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl max-h-[70vh] flex flex-col">
+        <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between">
           <h3 className="font-bold text-gray-900 dark:text-white">Переслать сообщение</h3>
           <button
             onClick={() => { setShowForwardModal(false); setForwardingMessage(null); }}
@@ -3413,9 +3413,9 @@ style={{
       onClick={() => setShowReactionPicker(false)}
     />
     <div className="fixed inset-0 z-[261] flex items-center justify-center p-4 pointer-events-none">
-      <div className="w-full max-w-sm max-h-[80vh] bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
+      <div className="w-full max-w-sm max-h-[80vh] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
         {/* Шапка */}
-        <div className="shrink-0 p-3 pb-2 border-b border-gray-200 dark:border-white/10">
+        <div className="shrink-0 p-3 pb-2 border-b border-line dark:border-white/10">
           <div className="flex items-center justify-between mb-2 px-1">
             <p className="text-xs font-bold text-gray-600 dark:text-white/60">Быстрая реакция (двойной тап)</p>
             <button
@@ -3512,8 +3512,8 @@ style={{
               className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm" 
               onClick={() => setShowStickers(false)} 
             />
-            <div className="fixed inset-x-0 bottom-0 z-[261] md:inset-auto md:bottom-4 md:right-4 md:w-80 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col max-h-[70vh] md:max-h-[500px] animate-in slide-in-from-bottom-10 duration-200">
-              <div className="shrink-0 p-3 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+            <div className="fixed inset-x-0 bottom-0 z-[261] md:inset-auto md:bottom-4 md:right-4 md:w-80 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col max-h-[70vh] md:max-h-[500px] animate-in slide-in-from-bottom-10 duration-200">
+              <div className="shrink-0 p-3 border-b border-line dark:border-white/10 flex items-center justify-between">
                 <p className="text-sm font-bold text-gray-900 dark:text-white">Стикеры</p>
                 <button onClick={() => setShowStickers(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                   <X size={16} />
@@ -3541,7 +3541,7 @@ style={{
                         </div>
                         
                         {isLocked ? (
-                          <div className="p-4 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-center">
+                          <div className="p-4 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-center">
                             <Lock size={20} className="text-yellow-600 dark:text-yellow-400 mx-auto mb-1" />
                             <p className="text-xs text-gray-500 dark:text-white/40">Доступно с {pack.min_level} уровня</p>
                           </div>

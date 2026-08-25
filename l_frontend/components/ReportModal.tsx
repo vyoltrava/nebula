@@ -79,7 +79,7 @@ export function ReportModal({
         onClick={onClose}
       />
       <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-md border border-gray-200 dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl pointer-events-auto p-6">
+        <div className="w-full max-w-md border border-line dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl pointer-events-auto p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Flag size={20} className="text-red-600 dark:text-red-400" />
@@ -112,7 +112,7 @@ export function ReportModal({
                       className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                         reason === r.id
                           ? "border-red-400/50 bg-red-500/10"
-                          : "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10"
+                          : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10"
                       }`}
                     >
                       <input
@@ -138,7 +138,7 @@ export function ReportModal({
                   onChange={(e) => setComment(e.target.value)}
                   placeholder={t("report.details")}
                   rows={3}
-                  className="w-full border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-red-400/50 resize-none"
+                  className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-red-400/50 resize-none"
                 />
               </div>
 

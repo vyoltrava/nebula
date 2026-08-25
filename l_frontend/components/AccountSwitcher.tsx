@@ -49,8 +49,8 @@ export function AccountSwitcher({
       <>
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300]" onClick={() => onClose?.()} />
         <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none">
-          <div ref={ref} className="w-full max-w-xs bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl overflow-hidden pointer-events-auto animate-in zoom-in-95 duration-200">
-            <div className="p-3 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+          <div ref={ref} className="w-full max-w-xs bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl overflow-hidden pointer-events-auto animate-in zoom-in-95 duration-200">
+            <div className="p-3 border-b border-line dark:border-white/10 flex items-center justify-between">
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">{t("account.accounts")}</h3>
               <IconButton icon={X} size="iconSm" onClick={() => onClose?.()} />
             </div>
@@ -77,7 +77,7 @@ export function AccountSwitcher({
                 </div>
               ))}
             </div>
-            <div className="p-2 border-t border-gray-200 dark:border-white/10 space-y-1">
+            <div className="p-2 border-t border-line dark:border-white/10 space-y-1">
               <button onClick={handleAddAccount} className="w-full flex items-center gap-3 p-2.5 rounded-xl text-[#8b5cf6] hover:bg-[#8b5cf6]/10 transition-colors">
                 <Plus size={18} /> <span className="text-sm font-semibold">{t("account.addAccount")}</span>
               </button>

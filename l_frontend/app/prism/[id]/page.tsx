@@ -153,7 +153,7 @@ export default function PrismChatPage() {
     <div className="h-screen w-full bg-gray-50 dark:bg-[#050508] text-gray-900 dark:text-white overflow-hidden relative flex flex-col font-sans">
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_100%)] pointer-events-none" />
 
-      <header className="relative z-30 px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-[#050508]/80 backdrop-blur-xl">
+      <header className="relative z-30 px-4 py-3 flex items-center justify-between border-b border-line dark:border-white/5 bg-gray-50 dark:bg-[#050508]/80 backdrop-blur-xl">
         <button onClick={() => router.push("/messages")} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors text-gray-800 dark:text-white/70 hover:text-gray-900 dark:text-white">
           <ArrowLeft size={20} />
         </button>
@@ -239,7 +239,7 @@ export default function PrismChatPage() {
           
           return (
             <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-fade-in-up`} style={{ animationDelay: `${index * 0.05}s` }}>
-              <div className={`relative max-w-[85%] md:max-w-[70%] px-4 py-3 backdrop-blur-md border shadow-lg ${isMine ? 'bg-gradient-to-br from-purple-600/30 to-cyan-600/10 border-purple-500/30 rounded-2xl rounded-tr-sm' : 'bg-white/5 border-gray-200 dark:border-white/10 rounded-2xl rounded-tl-sm'}`}>
+              <div className={`relative max-w-[85%] md:max-w-[70%] px-4 py-3 backdrop-blur-md border shadow-lg ${isMine ? 'bg-gradient-to-br from-purple-600/30 to-cyan-600/10 border-purple-500/30 rounded-2xl rounded-tr-sm' : 'bg-white/5 border-line dark:border-white/10 rounded-2xl rounded-tl-sm'}`}>
                 <p className="relative text-[15px] leading-relaxed text-gray-800 dark:text-white/90 break-words">{msg.text}</p>
                 <div className="relative flex items-center justify-end gap-1.5 mt-2">
                   <span className="text-[10px] text-gray-500 dark:text-white/30 font-mono">{time}</span>
@@ -252,9 +252,9 @@ export default function PrismChatPage() {
         <div ref={messagesEndRef} className="h-4" />
       </div>
 
-      <div className="relative z-30 p-4 bg-gray-50 dark:bg-[#050508]/90 backdrop-blur-xl border-t border-gray-200 dark:border-white/5">
+      <div className="relative z-30 p-4 bg-gray-50 dark:bg-[#050508]/90 backdrop-blur-xl border-t border-line dark:border-white/5">
         <div className={`max-w-3xl mx-auto transition-all duration-300 ${isEntangled ? 'opacity-100 translate-y-0' : 'opacity-30 pointer-events-none translate-y-4'}`}>
-          <div className="relative flex items-end gap-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl p-2 focus-within:border-cyan-500/50 focus-within:bg-white/[0.07] transition-all">
+          <div className="relative flex items-end gap-2 bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 rounded-2xl p-2 focus-within:border-cyan-500/50 focus-within:bg-white/[0.07] transition-all">
             <textarea
               ref={inputRef}
               value={text}

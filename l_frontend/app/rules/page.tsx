@@ -189,8 +189,8 @@ export default function RulesPage() {
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
-      <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
-        <div className="p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
+      <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10">
+        <div className="p-6 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Shield size={24} className="text-[#8b5cf6]" />
@@ -221,14 +221,14 @@ export default function RulesPage() {
         {editing && editData && (
           <div className="p-6 max-w-4xl mx-auto space-y-6">
             {/* Заголовок и подзаголовок */}
-            <div className="border border-gray-200 dark:border-white/15 rounded-xl p-5 bg-gray-100 dark:bg-white/5 space-y-4">
+            <div className="border border-line dark:border-white/15 rounded-xl p-5 bg-gray-100 dark:bg-white/5 space-y-4">
               <h2 className="text-lg font-bold text-gray-900 dark:text-white">Общая информация</h2>
               <div>
                 <label className="block text-sm font-semibold text-gray-800 dark:text-white/70 mb-1">Заголовок страницы</label>
                 <input
                   value={editData.title || ""}
                   onChange={(e) => setEditData({ ...editData, title: e.target.value })}
-                  className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
+                  className="w-full border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
                 />
               </div>
               <div>
@@ -236,7 +236,7 @@ export default function RulesPage() {
                 <input
                   value={editData.subtitle || ""}
                   onChange={(e) => setEditData({ ...editData, subtitle: e.target.value })}
-                  className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
+                  className="w-full border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
                 />
               </div>
               <div>
@@ -244,14 +244,14 @@ export default function RulesPage() {
                 <input
                   value={editData.footer || ""}
                   onChange={(e) => setEditData({ ...editData, footer: e.target.value })}
-                  className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
+                  className="w-full border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
                 />
               </div>
             </div>
 
             {/* Секции */}
             {(editData.sections || []).map((section: any, sectionIndex: number) => (
-              <div key={sectionIndex} className="border border-gray-200 dark:border-white/15 rounded-xl p-5 bg-gray-100 dark:bg-white/5 space-y-4">
+              <div key={sectionIndex} className="border border-line dark:border-white/15 rounded-xl p-5 bg-gray-100 dark:bg-white/5 space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-bold text-gray-900 dark:text-white">Раздел #{sectionIndex + 1}</h2>
                   <div className="flex gap-2">
@@ -270,7 +270,7 @@ export default function RulesPage() {
                       newSections[sectionIndex].heading = e.target.value;
                       setEditData({ ...editData, sections: newSections });
                     }}
-                    className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
+                    className="w-full border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
                   />
                 </div>
 
@@ -288,7 +288,7 @@ export default function RulesPage() {
                         <input
                           value={item}
                           onChange={(e) => updateItem(sectionIndex, itemIndex, e.target.value)}
-                          className="flex-1 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
+                          className="flex-1 border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
                           placeholder={`Пункт ${itemIndex + 1}`}
                         />
                         <IconButton icon={Trash2} variant="danger" size="iconSm" onClick={() => removeItem(sectionIndex, itemIndex)} />
@@ -307,18 +307,18 @@ export default function RulesPage() {
                       </Button>
                     </div>
                     {section.table.map((row: any, rowIndex: number) => (
-                      <div key={rowIndex} className="border border-gray-200 dark:border-white/10 rounded-lg p-3 space-y-2">
+                      <div key={rowIndex} className="border border-line dark:border-white/10 rounded-lg p-3 space-y-2">
                         <div className="grid grid-cols-2 gap-2">
                           <input
                             value={row.num || ""}
                             onChange={(e) => updateTableCell(sectionIndex, rowIndex, "num", e.target.value)}
-                            className="border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
+                            className="border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
                             placeholder="№"
                           />
                           <input
                             value={row.measure || ""}
                             onChange={(e) => updateTableCell(sectionIndex, rowIndex, "measure", e.target.value)}
-                            className="border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
+                            className="border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
                             placeholder="Мера наказания"
                           />
                         </div>
@@ -326,13 +326,13 @@ export default function RulesPage() {
                           <input
                             value={row.description || ""}
                             onChange={(e) => updateTableCell(sectionIndex, rowIndex, "description", e.target.value)}
-                            className="border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
+                            className="border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
                             placeholder="Описание"
                           />
                           <input
                             value={row.violations || ""}
                             onChange={(e) => updateTableCell(sectionIndex, rowIndex, "violations", e.target.value)}
-                            className="border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
+                            className="border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
                             placeholder="Типичные нарушения"
                           />
                         </div>
@@ -355,7 +355,7 @@ export default function RulesPage() {
                         newSections[sectionIndex].note = e.target.value;
                         setEditData({ ...editData, sections: newSections });
                       }}
-                      className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
+                      className="w-full border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
                       placeholder="Текст заметки"
                     />
                   </div>
@@ -385,7 +385,7 @@ export default function RulesPage() {
         {rules && !editing && (
           <div className="p-6 space-y-6 max-w-4xl mx-auto">
             {visibleSections.map((section: any, i: number) => (
-              <div key={section.id || i} className="border border-gray-200 dark:border-white/15 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
+              <div key={section.id || i} className="border border-line dark:border-white/15 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
                 <h2 className="text-xl font-black text-gray-900 dark:text-white mb-4">{section.heading}</h2>
 
                 {section.items && (
@@ -402,7 +402,7 @@ export default function RulesPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm border-collapse">
                       <thead>
-                        <tr className="border-b border-gray-200 dark:border-white/20">
+                        <tr className="border-b border-line dark:border-white/20">
                           <th className="text-left p-3 text-gray-600 dark:text-white/60 font-bold">№</th>
                           <th className="text-left p-3 text-gray-600 dark:text-white/60 font-bold">{t("rules.measure")}</th>
                           <th className="text-left p-3 text-gray-600 dark:text-white/60 font-bold">{t("rules.description")}</th>
@@ -411,7 +411,7 @@ export default function RulesPage() {
                       </thead>
                       <tbody>
                         {section.table.map((row: any, j: number) => (
-                          <tr key={j} className="border-b border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+                          <tr key={j} className="border-b border-line dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
                             <td className="p-3 text-gray-800 dark:text-white/70 font-bold">{row.num}</td>
                             <td className="p-3 text-gray-900 dark:text-white font-semibold">{row.measure}</td>
                             <td className="p-3 text-gray-800 dark:text-white/70">{row.description}</td>
@@ -440,7 +440,7 @@ export default function RulesPage() {
                 {specialRoles.map((role) => (
                   <div
                     key={role.id}
-                    className="flex items-start gap-4 p-4 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
+                    className="flex items-start gap-4 p-4 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -465,7 +465,7 @@ export default function RulesPage() {
 
             {/* БЛОК 2: АДМИНИСТРАЦИЯ И МОДЕРАЦИЯ — ПО УРОВНЯМ */}
             {staffRoles.length > 0 && (
-              <div className="border border-gray-200 dark:border-white/15 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
+              <div className="border border-line dark:border-white/15 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
                 <div className="flex items-center gap-2 mb-4">
                   <Users size={20} className="text-[#8b5cf6]" />
                   <h2 className="text-xl font-black text-gray-900 dark:text-white">{t("rules.admin")}</h2>
@@ -482,7 +482,7 @@ export default function RulesPage() {
                     const Icon = group.icon;
 
                     return (
-                      <div key={group.title} className="border border-gray-200 dark:border-white/10 rounded-xl p-4 bg-white/[0.02]">
+                      <div key={group.title} className="border border-line dark:border-white/10 rounded-xl p-4 bg-white/[0.02]">
                         <div className="flex items-center gap-2 mb-1">
                           <Icon size={16} className="text-[#8b5cf6]/70" />
                           <h3 className="text-base font-bold text-gray-900 dark:text-white">{group.title}</h3>
@@ -493,7 +493,7 @@ export default function RulesPage() {
                           {groupRoles.map((role) => (
                             <div
                               key={role.id}
-                              className="flex items-start gap-4 p-3 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
+                              className="flex items-start gap-4 p-3 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
                             >
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1 flex-wrap">

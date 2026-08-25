@@ -96,11 +96,11 @@ function SearchContent() {
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
-      <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
+      <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10">
         {/* Шапка поиска */}
-        <div className="p-4 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
+        <div className="p-4 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
           <div className="flex gap-2 mb-3">
-            <div className="flex-1 flex items-center gap-2 border border-gray-200 dark:border-white/15 rounded-full px-4 py-2.5 bg-gray-100 dark:bg-white/5 focus-within:border-[#8b5cf6] transition-all">
+            <div className="flex-1 flex items-center gap-2 border border-line dark:border-white/15 rounded-full px-4 py-2.5 bg-gray-100 dark:bg-white/5 focus-within:border-[#8b5cf6] transition-all">
               <SearchIcon size={18} className="text-gray-600 dark:text-white/50 shrink-0" />
               <input
                 ref={inputRef}
@@ -158,7 +158,7 @@ function SearchContent() {
           <>
             {/* Люди */}
             {(activeTab === "all" || activeTab === "users") && filteredUsers.length > 0 && (
-              <section className="p-4 border-b border-gray-200 dark:border-white/10">
+              <section className="p-4 border-b border-line dark:border-white/10">
                 <h2 className="font-black mb-3 text-gray-900 dark:text-white flex items-center gap-2">
                   <Users size={16} className="text-[#8b5cf6]" />
                   {t("search.people")}

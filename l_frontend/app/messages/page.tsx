@@ -403,10 +403,10 @@ const confirmPrismKey = async () => {
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
-      <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
+      <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10">
         
         {/* ШАПКА - только иконка и поиск */}
-        <div className="p-4 md:p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
+        <div className="p-4 md:p-6 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
           {/* mr-12/md:mr-14 — резервируем место под fixed-кнопку "+", чтобы поиск не заезжал на неё */}
           <div className="flex items-center gap-3 md:gap-4 mr-12 md:mr-14">
             
@@ -422,7 +422,7 @@ const confirmPrismKey = async () => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t("messages.search")}
-                className="w-full pl-9 pr-4 py-2 rounded-xl border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 text-sm focus:outline-none focus:border-[#8b5cf6] focus:bg-gray-100 dark:focus:bg-white/10 transition-all"
+                className="w-full pl-9 pr-4 py-2 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 text-sm focus:outline-none focus:border-[#8b5cf6] focus:bg-gray-100 dark:focus:bg-white/10 transition-all"
               />
               {searchLoading && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
@@ -434,7 +434,7 @@ const confirmPrismKey = async () => {
         {loading && <ChatListSkeleton />}
         
         {!loading && q && sortedChats.length > 0 && (
-          <div className="px-4 md:px-6 py-2.5 border-b border-gray-200 dark:border-white/10 bg-[#8b5cf6]/5 flex items-center gap-3 backdrop-blur-md">
+          <div className="px-4 md:px-6 py-2.5 border-b border-line dark:border-white/10 bg-[#8b5cf6]/5 flex items-center gap-3 backdrop-blur-md">
             <Search size={14} className="text-[#8b5cf6] shrink-0" />
             <div className="flex items-center gap-2 text-xs flex-wrap">
               <span className="text-gray-800 dark:text-white/80">
@@ -644,7 +644,7 @@ const confirmPrismKey = async () => {
         </button>
 
         {showCreateMenu && (
-          <div className="absolute right-0 top-12 w-56 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl z-[9999] overflow-visible animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="absolute right-0 top-12 w-56 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl shadow-2xl z-[9999] overflow-visible animate-in fade-in slide-in-from-top-2 duration-200">
             <button
               onClick={() => { setShowCreateMenu(false); openSavedMessages(); }}
               className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
@@ -653,13 +653,13 @@ const confirmPrismKey = async () => {
             </button>
             <button
               onClick={() => { setShowCreateMenu(false); setShowCreateGroup(true); }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border-t border-gray-200 dark:border-white/5"
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border-t border-line dark:border-white/5"
             >
               <Users size={16} className="text-[#8b5cf6]" /> {t("messages.createGroup")}
             </button>
             <button
               onClick={() => { setShowCreateMenu(false); setShowPrismModal(true); }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border-t border-gray-200 dark:border-white/5"
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border-t border-line dark:border-white/5"
             >
               <ShieldCheck size={16} className="text-cyan-600 dark:text-cyan-400" /> PRISM Link
             </button>
@@ -679,7 +679,7 @@ const confirmPrismKey = async () => {
             />
             <div 
               className={`
-                fixed z-[9999] bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 shadow-2xl p-3 
+                fixed z-[9999] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 shadow-2xl p-3 
                 animate-in zoom-in-95 duration-200
                 /* Мобильные: по центру */
                 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 rounded-2xl
@@ -745,7 +745,7 @@ const confirmPrismKey = async () => {
             <div className="w-full max-w-2xl bg-paper dark:bg-[#171717] border border-cyan-500/30 rounded-2xl shadow-[0_0_40px_rgba(34,211,238,0.1)] flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
               
               {/* Шапка модалки */}
-              <div className="p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+              <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
                     <ShieldCheck size={18} className="text-cyan-600 dark:text-cyan-400" />
@@ -776,7 +776,7 @@ const confirmPrismKey = async () => {
                       value={prismSearchQuery}
                       onChange={(e) => { setPrismSearchQuery(e.target.value); searchUsersForPrism(e.target.value); }}
                       placeholder="Поиск пользователя..."
-                      className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-cyan-500/50 text-sm"
+                      className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-cyan-500/50 text-sm"
                       autoFocus
                     />
                   </div>

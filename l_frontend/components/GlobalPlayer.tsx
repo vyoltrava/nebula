@@ -154,7 +154,7 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
 
 {track && (
   <div className="fixed top-[70px] right-3 sm:right-5 z-[150] w-[calc(100vw-24px)] max-w-[420px] animate-in slide-in-from-top-2 duration-200">
-    <div className="bg-white/5 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl shadow-lg shadow-black/30">
+    <div className="bg-white/5 backdrop-blur-xl border border-line dark:border-white/10 rounded-2xl shadow-lg shadow-black/30">
       <div className="px-3 py-2">
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Перемотка и play */}
@@ -177,12 +177,12 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
           </div>
 
           {/* Скорость */}
-          <button onClick={cycleRate} className="shrink-0 px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-[11px] font-bold text-gray-800 dark:text-white/70 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 active:scale-95 transition-all" title="Скорость">
+          <button onClick={cycleRate} className="shrink-0 px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-[11px] font-bold text-gray-800 dark:text-white/70 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 active:scale-95 transition-all" title="Скорость">
             {rate}X
           </button>
 
           {/* Крестик */}
-          <button onClick={close} className="shrink-0 p-1.5 rounded-lg text-white/50 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all" title="Закрыть">
+          <button onClick={close} className="shrink-0 p-1.5 rounded-lg text-gray-500 dark:text-white/50 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all" title="Закрыть">
             <X size={18} />
           </button>
         </div>

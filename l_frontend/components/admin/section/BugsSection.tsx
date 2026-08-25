@@ -70,7 +70,7 @@ export function BugsSection({ me }: { me: any }) {
           const Icon = cfg.icon;
           return (
             <button key={key} onClick={() => setStatusFilter(statusFilter === key ? null : key)}
-              className={`border rounded-xl p-4 text-left transition-all ${statusFilter === key ? `${cfg.border} ${cfg.bg}` : "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10"}`}>
+              className={`border rounded-xl p-4 text-left transition-all ${statusFilter === key ? `${cfg.border} ${cfg.bg}` : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10"}`}>
               <div className="flex items-center justify-between mb-2">
                 <Icon size={18} className={cfg.color} />
                 <span className={`text-2xl font-black ${cfg.color}`}>{counts[key as keyof typeof counts]}</span>
@@ -84,7 +84,7 @@ export function BugsSection({ me }: { me: any }) {
       {loading ? (
         <p className="text-center text-gray-600 dark:text-white/50 py-12">Загрузка...</p>
       ) : bugs.length === 0 ? (
-        <div className="p-12 text-center border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5">
+        <div className="p-12 text-center border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5">
           <Bug size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
           <p className="text-gray-600 dark:text-white/60">Обращений пока нет</p>
         </div>
@@ -101,7 +101,7 @@ export function BugsSection({ me }: { me: any }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-2">
                       <h3 className="font-bold text-gray-900 dark:text-white truncate">{bug.title}</h3>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${pc.color} bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10`}>{pc.label}</span>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${pc.color} bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10`}>{pc.label}</span>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${sc.color} ${sc.bg}`}>{sc.label}</span>
                     </div>
                     <p className="text-sm text-gray-600 dark:text-white/60 line-clamp-2">{bug.description}</p>
@@ -122,7 +122,7 @@ export function BugsSection({ me }: { me: any }) {
         <>
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]" onClick={() => setSelected(null)} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full max-w-2xl border border-gray-200 dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
+            <div className="w-full max-w-2xl border border-line dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
               <div className="flex items-start justify-between mb-4 gap-3">
                 <div className="flex-1 min-w-0">
                   <h2 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white">{selected.title}</h2>
@@ -135,24 +135,24 @@ export function BugsSection({ me }: { me: any }) {
                 </div>
                 <button onClick={() => setSelected(null)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"><X size={20} /></button>
               </div>
-              <p className="text-gray-800 dark:text-white/90 whitespace-pre-wrap bg-gray-100 dark:bg-white/5 p-4 rounded-lg border border-gray-200 dark:border-white/10 mb-6">{selected.description}</p>
+              <p className="text-gray-800 dark:text-white/90 whitespace-pre-wrap bg-gray-100 dark:bg-white/5 p-4 rounded-lg border border-line dark:border-white/10 mb-6">{selected.description}</p>
               <h3 className="text-sm font-bold text-gray-800 dark:text-white/80 mb-3">Сменить статус:</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
                 {Object.entries(STATUS_CFG).map(([key, cfg]) => {
                   const Icon = cfg.icon;
                   return (
                     <button key={key} onClick={() => updateStatus(selected.id, key)} disabled={selected.status === key}
-                      className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold ${selected.status === key ? `${cfg.border} ${cfg.bg} ${cfg.color}` : "border-gray-200 dark:border-white/20 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"} disabled:opacity-60`}>
+                      className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold ${selected.status === key ? `${cfg.border} ${cfg.bg} ${cfg.color}` : "border-line dark:border-white/20 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"} disabled:opacity-60`}>
                       <Icon size={14} /> {cfg.label}
                     </button>
                   );
                 })}
               </div>
-              <div className="flex gap-3 pt-2 border-t border-gray-200 dark:border-white/10">
+              <div className="flex gap-3 pt-2 border-t border-line dark:border-white/10">
                 <button onClick={() => deleteBug(selected.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-400/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 text-sm font-bold">
                   <Trash2 size={16} /> Удалить
                 </button>
-                <button onClick={() => setSelected(null)} className="flex-1 border border-gray-200 dark:border-white/20 rounded-lg py-2 font-bold text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10">Закрыть</button>
+                <button onClick={() => setSelected(null)} className="flex-1 border border-line dark:border-white/20 rounded-lg py-2 font-bold text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10">Закрыть</button>
               </div>
             </div>
           </div>

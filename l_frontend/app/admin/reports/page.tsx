@@ -89,8 +89,8 @@ export default function ReportsPage() {
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
-      <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
-        <div className="p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
+      <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10">
+        <div className="p-6 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <Flag size={24} className="text-red-600 dark:text-red-400" />
@@ -113,7 +113,7 @@ export default function ReportsPage() {
                 className={`px-4 py-1.5 rounded-full border text-xs font-bold transition-all ${
                   filter === f
                     ? "border-[#8b5cf6] bg-[#8b5cf6] text-white"
-                    : "border-gray-200 dark:border-white/20 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"
+                    : "border-line dark:border-white/20 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"
                 }`}
               >
                 {f === "pending" && "⏳ Новые"}
@@ -138,7 +138,7 @@ export default function ReportsPage() {
                   ? "border-orange-400/30 bg-orange-500/5"
                   : r.status === "resolved"
                   ? "border-green-400/30 bg-green-500/5"
-                  : "border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5"
+                  : "border-line dark:border-white/15 bg-gray-100 dark:bg-white/5"
               }`}
             >
               <div className="flex items-start gap-4">
@@ -187,7 +187,7 @@ export default function ReportsPage() {
 
                   {/* Цель жалобы */}
                   {r.target?.type === "post" && (
-                    <div className="mt-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                    <div className="mt-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                       <p className="text-sm text-gray-800 dark:text-white/80 line-clamp-3">
                         {r.target.text}
                       </p>
@@ -197,7 +197,7 @@ export default function ReportsPage() {
                     </div>
                   )}
                   {r.target?.type === "user" && (
-                    <div className="mt-3 flex items-center gap-2 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                    <div className="mt-3 flex items-center gap-2 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                       <Avatar
                         src={r.target.avatar_url}
                         name={r.target.display_name}
@@ -242,7 +242,7 @@ export default function ReportsPage() {
                     </button>
                     <button
                       onClick={() => rejectReport(r.id)}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-white/20 text-gray-600 dark:text-white/60 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-line dark:border-white/20 text-gray-600 dark:text-white/60 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
                     >
                       <XCircle size={12} />
                       Отклонить

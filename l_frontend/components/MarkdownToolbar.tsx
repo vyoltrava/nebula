@@ -52,7 +52,7 @@ export function MarkdownToolbar({ textareaRef, onInsert }: MarkdownToolbarProps)
   ];
 
   return (
-    <div className="flex items-center gap-0.5 px-2 py-1.5 border-t border-gray-200 dark:border-white/10 bg-white/[0.02]">
+    <div className="flex items-center gap-0.5 px-2 py-1.5 border-t border-line dark:border-white/10 bg-white/[0.02]">
       {buttons.map((btn, i) => (
         <button
           key={i}

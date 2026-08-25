@@ -417,7 +417,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       <div className="h-screen flex overflow-hidden">
         <Sidebar />
         <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
-        <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
+        <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10">
           <ProfileSkeleton />
           <PostSkeleton />
           <PostSkeleton />
@@ -439,10 +439,10 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
-      <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
+      <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10">
         
         {/* ================= ШАПКА ПРОФИЛЯ ================= */}
-        <div className="border-b border-gray-200 dark:border-white/10">
+        <div className="border-b border-line dark:border-white/10">
           
           {/* ОБЛОЖКА */}
 {profile.cover_url ? (
@@ -470,7 +470,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
         {showCoverMenu && (
           <>
             <div className="fixed inset-0 z-30" onClick={() => setShowCoverMenu(false)} />
-            <div className="absolute top-4 right-4 z-40 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
+            <div className="absolute top-4 right-4 z-40 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
               <button
                 onClick={(e) => { e.stopPropagation(); coverInputRef.current?.click(); setShowCoverMenu(false); }}
                 className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
@@ -557,7 +557,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     {isOwnProfile && showAvatarMenu && !uploading && (
       <>
         <div className="fixed inset-0 z-30" onClick={() => setShowAvatarMenu(false)} />
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-40 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-40 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
           <button
             onClick={(e) => { e.stopPropagation(); openFilePicker(); setShowAvatarMenu(false); }}
             className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
@@ -621,10 +621,10 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   {/* Кнопки действий — ДЕСКТОП */}
                   {!isOwnProfile && (
                     <div className="hidden md:flex items-center gap-2 shrink-0 pt-1">
-                      <button onClick={toggleFollow} className={`px-4 py-2 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-gray-200 dark:border-white/20 text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-white"}`}>
+                      <button onClick={toggleFollow} className={`px-4 py-2 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-line dark:border-white/20 text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-white"}`}>
                         {following ? t("post.following") : t("post.follow")}
                       </button>
-                      <button onClick={startChat} className="flex items-center justify-center p-2 rounded-full border border-gray-200 dark:border-white/20 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white transition-all" title={t("profile.write")}>
+                      <button onClick={startChat} className="flex items-center justify-center p-2 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white transition-all" title={t("profile.write")}>
                         <MessageSquare size={18} />
                       </button>
                       <button
@@ -655,7 +655,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                           <Ban size={18} />
                         </button>
                       )}
-                      <button onClick={() => setShowReport(true)} className="p-2 rounded-full border border-gray-200 dark:border-white/20 text-white/60 hover:bg-red-500/10 hover:border-red-400/50 hover:text-red-600 dark:hover:text-red-400 transition-all" title={t("profile.report")}>
+                      <button onClick={() => setShowReport(true)} className="p-2 rounded-full border border-line dark:border-white/20 text-gray-500 dark:text-white/60 hover:bg-red-500/10 hover:border-red-400/50 hover:text-red-600 dark:hover:text-red-400 transition-all" title={t("profile.report")}>
                         <Flag size={18} />
                       </button>
                     </div>
@@ -672,10 +672,10 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                 {/* Кнопки действий — МОБИЛЬНЫЕ */}
                 {!isOwnProfile && (
                   <div className="flex md:hidden items-center justify-center gap-2 mt-4">
-                    <button onClick={toggleFollow} className={`px-5 py-2.5 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-gray-200 dark:border-white/20 text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-white"}`}>
+                    <button onClick={toggleFollow} className={`px-5 py-2.5 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-line dark:border-white/20 text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-white"}`}>
                       {following ? t("post.following") : t("post.follow")}
                     </button>
-                    <button onClick={startChat} className="p-2.5 rounded-full border border-gray-200 dark:border-white/20 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white transition-all" title={t("profile.write")}>
+                    <button onClick={startChat} className="p-2.5 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white transition-all" title={t("profile.write")}>
                       <MessageSquare size={18} />
                     </button>
                     <button
@@ -706,7 +706,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                         <Ban size={18} />
                       </button>
                     )}
-                    <button onClick={() => setShowReport(true)} className="p-2.5 rounded-full border border-gray-200 dark:border-white/20 text-white/60 hover:bg-red-500/10 hover:border-red-400/50 hover:text-red-600 dark:hover:text-red-400 transition-all" title={t("profile.report")}>
+                    <button onClick={() => setShowReport(true)} className="p-2.5 rounded-full border border-line dark:border-white/20 text-gray-500 dark:text-white/60 hover:bg-red-500/10 hover:border-red-400/50 hover:text-red-600 dark:hover:text-red-400 transition-all" title={t("profile.report")}>
                       <Flag size={18} />
                     </button>
                   </div>
@@ -758,7 +758,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
         )}
         {/* Подсказка лимитов для обложки */}
         {showCoverMenu && (
-          <div className="absolute top-[calc(100%+8px)] right-4 z-30 text-[10px] text-gray-500 dark:text-white/40 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 shadow-lg">
+          <div className="absolute top-[calc(100%+8px)] right-4 z-30 text-[10px] text-gray-500 dark:text-white/40 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-lg px-2.5 py-1.5 shadow-lg">
             {UPLOAD_RULES.banner.hint}
           </div>
         )}
@@ -774,8 +774,8 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200]" onClick={() => setModalType(null)} />
             <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-              <div className="w-full max-w-md border border-gray-200 dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl pointer-events-auto max-h-[80vh] md:max-h-[70vh] flex flex-col">
-                <div className="sticky top-0 bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/10 p-4 flex items-center justify-between shrink-0">
+              <div className="w-full max-w-md border border-line dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl pointer-events-auto max-h-[80vh] md:max-h-[70vh] flex flex-col">
+                <div className="sticky top-0 bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md border-b border-line dark:border-white/10 p-4 flex items-center justify-between shrink-0">
                   <h2 className="font-black text-gray-900 dark:text-white text-lg">{modalType === "followers" ? t("profile.followersTitle") : t("profile.followingTitle")}</h2>
                   <button onClick={() => setModalType(null)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"><X size={20} /></button>
                 </div>
@@ -808,7 +808,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => setShowBadgeModal(false)} />
             <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none">
-              <div className="w-full max-w-sm bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-4 pointer-events-auto animate-in zoom-in-95 duration-200">
+              <div className="w-full max-w-sm bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-4 pointer-events-auto animate-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-bold text-gray-900 dark:text-white text-sm">Сменить значок</h3>
                   <button onClick={() => setShowBadgeModal(false)} className="text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white p-1"><X size={16} /></button>
@@ -817,7 +817,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                 <div className="space-y-4">
                   {/* 1. БЛОК ЗАГРУЗКИ СВОЕГО ЗНАЧКА */}
                   {canEditBadge && (
-                    <div className="border-b border-gray-200 dark:border-white/10 pb-3">
+                    <div className="border-b border-line dark:border-white/10 pb-3">
                       <p className="text-xs text-gray-600 dark:text-white/60 mb-2">Загрузить свой значок:</p>
                       <input 
                         type="file" 
@@ -912,7 +912,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                                   setProfile(fresh);
                                 }}
                                 className={`aspect-square rounded-lg border flex items-center justify-center relative transition-all ${
-                                  isActive ? "border-purple-600 dark:border-purple-400 bg-purple-500/20" : "border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5"
+                                  isActive ? "border-purple-600 dark:border-purple-400 bg-purple-500/20" : "border-line dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5"
                                 }`}
                                 style={{ filter: isActive ? `drop-shadow(0 0 8px ${badge.glow_color || '#8b5cf6'}99)` : "none" }}
                               >

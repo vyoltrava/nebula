@@ -127,7 +127,7 @@ export default function CategoryPage() {
           </div>
         )}
 
-        <div className="border border-gray-200 dark:border-white/10 rounded-2xl bg-gray-100 dark:bg-white/5 overflow-hidden">
+        <div className="border border-line dark:border-white/10 rounded-2xl bg-gray-100 dark:bg-white/5 overflow-hidden">
           {threads.length === 0 ? (
             <div className="text-center py-16">
               <MessageSquare size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
@@ -138,7 +138,7 @@ export default function CategoryPage() {
             <>
               {threads.map((th, i) => (
                 <div key={th.id}
-                  className={`flex items-center gap-4 p-5 hover:bg-gray-100 dark:hover:bg-white/5 transition-all cursor-pointer ${i > 0 ? "border-t border-gray-200 dark:border-white/10" : ""}`}
+                  className={`flex items-center gap-4 p-5 hover:bg-gray-100 dark:hover:bg-white/5 transition-all cursor-pointer ${i > 0 ? "border-t border-line dark:border-white/10" : ""}`}
                   onClick={() => router.push(`/suggestions/thread/${th.id}`)}>
                   <Avatar src={th.author?.avatar_url} name={th.author?.display_name} id={th.author?.id} size={40} />
                   <div className="flex-1 min-w-0">
@@ -175,7 +175,7 @@ export default function CategoryPage() {
               ))}
               {hasMore && (
                 <button onClick={() => loadThreads(cursor)}
-                  className="w-full py-3 border-t border-gray-200 dark:border-white/10 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white transition-all">
+                  className="w-full py-3 border-t border-line dark:border-white/10 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white transition-all">
                   {t("suggestions.loadMoreThreads")}
                 </button>
               )}
@@ -186,25 +186,25 @@ export default function CategoryPage() {
 
       {showCreate && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-black text-gray-900 dark:text-white">{t("suggestions.newThread")}</h3>
               <button onClick={() => setShowCreate(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white"><X size={20} /></button>
             </div>
             {canManage && prefixes.length > 0 && (
               <select value={prefixId} onChange={(e) => setPrefixId(parseInt(e.target.value))}
-                className="w-full mb-3 px-3 py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none">
+                className="w-full mb-3 px-3 py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-gray-900 dark:text-white outline-none">
                 <option value={0}>{t("suggestions.noPrefix")}</option>
                 {prefixes.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             )}
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("suggestions.threadTitlePh")}
-              className="w-full mb-4 px-4 py-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-lg focus:border-[#8b5cf6] outline-none" />
+              className="w-full mb-4 px-4 py-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-gray-900 dark:text-white text-lg focus:border-[#8b5cf6] outline-none" />
             <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder={t("suggestions.threadContentPh")} rows={8}
-              className="w-full mb-4 px-4 py-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:border-[#8b5cf6] outline-none resize-none" />
+              className="w-full mb-4 px-4 py-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-gray-900 dark:text-white focus:border-[#8b5cf6] outline-none resize-none" />
             <div className="flex gap-3">
               <button onClick={createThread} className="flex-1 py-3 rounded-lg bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed]">{t("suggestions.publish")}</button>
-              <button onClick={() => setShowCreate(false)} className="flex-1 py-3 rounded-lg border border-gray-200 dark:border-white/15 text-gray-800 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/5">{t("common.cancel")}</button>
+              <button onClick={() => setShowCreate(false)} className="flex-1 py-3 rounded-lg border border-line dark:border-white/15 text-gray-800 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/5">{t("common.cancel")}</button>
             </div>
           </div>
         </div>

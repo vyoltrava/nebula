@@ -115,7 +115,7 @@ function renderToken(token: Token, q: string, key: number): React.ReactNode {
       return (
         <span
           key={key}
-          className="inline-block align-middle mx-0.5 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/40 italic text-[0.9em] border border-gray-200 dark:border-white/10"
+          className="inline-block align-middle mx-0.5 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/40 italic text-[0.9em] border border-line dark:border-white/10"
         >
           спойлер
         </span>

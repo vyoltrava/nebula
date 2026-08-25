@@ -209,8 +209,8 @@ export function CreatePost() {
 
   if (!logged) {
     return (
-      <div className="p-4 border-b border-gray-200 dark:border-white/10">
-        <Link href="/login" className="block text-center border border-gray-200 dark:border-white/20 rounded-xl py-3 font-bold text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white transition-all">
+      <div className="p-4 border-b border-line dark:border-white/10">
+        <Link href="/login" className="block text-center border border-line dark:border-white/20 rounded-xl py-3 font-bold text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white transition-all">
           {t("compose.loginToPost")}
         </Link>
       </div>
@@ -218,12 +218,12 @@ export function CreatePost() {
   }
 
   return (
-    <div className="p-4 border-b border-gray-200 dark:border-white/10">
+    <div className="p-4 border-b border-line dark:border-white/10">
       <div className="flex gap-3">
         <Avatar src={user?.avatar_url} name={user?.display_name || "?"} id={user?.id} />
         <div className="flex-1">
  {/* ✅ ПОЛЕ ВВОДА (только RichEditor внутри рамки) */}
-<div className="rounded-xl border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] focus-within:bg-gray-100 dark:bg-white/10 transition-all">
+<div className="rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] focus-within:bg-gray-100 dark:bg-white/10 transition-all">
   <RichEditor
     ref={editorRef}
     value={text}
@@ -239,9 +239,9 @@ export function CreatePost() {
     {file.type.startsWith("audio/") ? (
       <div className="pr-8"><AudioPlayer src={preview} /></div>
     ) : file.type.startsWith("video/") ? (
-      <video src={preview} controls className="max-h-48 rounded-xl border border-gray-200 dark:border-white/20" />
+      <video src={preview} controls className="max-h-48 rounded-xl border border-line dark:border-white/20" />
     ) : (
-      <img src={preview} alt="" className="max-h-48 rounded-xl border border-gray-200 dark:border-white/20" />
+      <img src={preview} alt="" className="max-h-48 rounded-xl border border-line dark:border-white/20" />
     )}
     <button
       onClick={() => onFile(null)}
@@ -284,7 +284,7 @@ export function CreatePost() {
       </div>
     </div>
     <div className="flex items-center gap-2">
-      <button onClick={cancelRecording} className="p-2 rounded-lg text-white/60 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-all" title={t("compose.cancelRec")}>
+      <button onClick={cancelRecording} className="p-2 rounded-lg text-gray-500 dark:text-white/60 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-all" title={t("compose.cancelRec")}>
         <Trash2 size={20} />
       </button>
       <button onClick={stopRecording} className="flex items-center gap-2 bg-red-500 text-white rounded-lg px-4 py-2 font-semibold hover:bg-red-600 transition-all">
@@ -323,7 +323,7 @@ export function CreatePost() {
       {showStickers && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowStickers(false)} />
-          <div className="absolute top-full left-0 mt-2 p-3 border border-gray-200 dark:border-white/20 rounded-xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl z-50 w-64 max-h-72 overflow-y-auto">
+          <div className="absolute top-full left-0 mt-2 p-3 border border-line dark:border-white/20 rounded-xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl z-50 w-64 max-h-72 overflow-y-auto">
             <p className="text-xs font-bold text-gray-600 dark:text-white/60 mb-2 uppercase tracking-wider sticky top-0 bg-ivory dark:bg-[#1f1f23]/95 pb-1">Стикеры</p>
             <div className="grid grid-cols-5 gap-1">
               {STICKERS.map((s) => (

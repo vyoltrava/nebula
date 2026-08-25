@@ -420,8 +420,8 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
-      <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
-        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
+      <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10">
+        <div className="p-4 sm:p-6 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <Settings size={24} className="text-[#8b5cf6]" />
@@ -446,7 +446,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-medium transition-all relative whitespace-nowrap shrink-0 ${
                     activeTab === key
                       ? `bg-[${color}] border-[${color}] text-gray-900 dark:text-white`
-                      : "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10"
+                      : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10"
                   }`}
                   style={activeTab === key ? { backgroundColor: color, borderColor: color } : undefined}
                 >
@@ -471,7 +471,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                 ["Лайков", stats.total_likes, TrendingUp],
                 ["Чатов", stats.total_chats, Wifi],
               ].map(([label, val, Icon]: any) => (
-                <div key={label} className="border border-gray-200 dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
+                <div key={label} className="border border-line dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
                   <div className="flex items-center justify-between mb-2">
                     <Icon size={18} className="text-[#8b5cf6]" />
                   </div>
@@ -482,7 +482,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="border border-gray-200 dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
+              <div className="border border-line dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
                 <div className="flex items-center gap-2 mb-4">
                   <Crown size={18} className="text-[#8b5cf6]" />
                   <h2 className="font-bold text-gray-900 dark:text-white">Топ по подписчикам</h2>
@@ -502,7 +502,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                 </div>
               </div>
 
-              <div className="border border-gray-200 dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
+              <div className="border border-line dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
                 <div className="flex items-center gap-2 mb-4">
                   <TrendingUp size={18} className="text-[#8b5cf6]" />
                   <h2 className="font-bold text-gray-900 dark:text-white">Топ по постам</h2>
@@ -523,12 +523,12 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
               </div>
             </div>
 
-            <div className="border border-gray-200 dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
+            <div className="border border-line dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
               <h2 className="font-bold text-gray-900 dark:text-white mb-4">Последние регистрации</h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-200 dark:border-white/10">
+                    <tr className="border-b border-line dark:border-white/10">
                       <th className="text-left p-3 text-gray-600 dark:text-white/50">Пользователь</th>
                       <th className="text-left p-3 text-gray-600 dark:text-white/50">Username</th>
                       <th className="text-left p-3 text-gray-600 dark:text-white/50">Дата</th>
@@ -537,7 +537,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   </thead>
                   <tbody>
                     {stats.recent_registrations.map((u: any) => (
-                      <tr key={u.id} className="border-b border-gray-200 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">
+                      <tr key={u.id} className="border-b border-line dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">
                         <td className="p-3">
                           <div className="flex items-center gap-2">
                             <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={32} />
@@ -564,9 +564,9 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
 
         {activeTab === "users" && (
           <div className="p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-1 border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden flex flex-col max-h-[75vh]">
-              <div className="p-3 border-b border-gray-200 dark:border-white/10">
-                <div className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 rounded-lg px-3 py-2 border border-gray-200 dark:border-white/10">
+            <div className="lg:col-span-1 border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden flex flex-col max-h-[75vh]">
+              <div className="p-3 border-b border-line dark:border-white/10">
+                <div className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 rounded-lg px-3 py-2 border border-line dark:border-white/10">
                   <Search size={16} className="text-gray-500 dark:text-white/40" />
                   <input
                     value={searchQuery}
@@ -599,17 +599,17 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
 
             <div className="lg:col-span-2">
               {!selectedUser ? (
-                <div className="border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-12 text-center">
+                <div className="border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-12 text-center">
                   <Users size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
                   <p className="text-gray-600 dark:text-white/50">Выбери пользователя</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-4 sm:p-6">
+                  <div className="border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-4 sm:p-6">
                     <div className="flex flex-col sm:flex-row items-start gap-6 mb-6">
                       <div className="text-center">
                         <Avatar src={selectedUser.avatar_url} name={selectedUser.display_name} id={selectedUser.id} size={96} />
-                        <label className="mt-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white/70 text-xs font-semibold hover:bg-gray-100 dark:hover:bg-white/10 cursor-pointer">
+                        <label className="mt-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white/70 text-xs font-semibold hover:bg-gray-100 dark:hover:bg-white/10 cursor-pointer">
                           <Upload size={12} /> Сменить
                           <input type="file" accept="image/*" className="hidden" onChange={uploadAvatar} />
                         </label>
@@ -626,19 +626,19 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                         <p className="text-gray-600 dark:text-white/50 text-sm mb-3">@{selectedUser.username} · ID #{selectedUser.id}</p>
 
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                          <div className="border border-gray-200 dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
+                          <div className="border border-line dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
                             <p className="text-gray-500 dark:text-white/40 text-xs">Постов</p>
                             <p className="text-gray-900 dark:text-white font-bold text-lg">{selectedUser.posts_count ?? "—"}</p>
                           </div>
-                          <div className="border border-gray-200 dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
+                          <div className="border border-line dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
                             <p className="text-gray-500 dark:text-white/40 text-xs">Подписчиков</p>
                             <p className="text-gray-900 dark:text-white font-bold text-lg">{selectedUser.followers_count ?? "—"}</p>
                           </div>
-                          <div className="border border-gray-200 dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
+                          <div className="border border-line dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
                             <p className="text-gray-500 dark:text-white/40 text-xs">Регистрация</p>
                             <p className="text-gray-900 dark:text-white font-bold text-xs">{selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString("ru-RU") : "—"}</p>
                           </div>
-                          <div className="border border-gray-200 dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
+                          <div className="border border-line dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
                             <p className="text-gray-500 dark:text-white/40 text-xs">Последний IP</p>
                             <p className="text-gray-900 dark:text-white font-bold text-xs font-mono truncate">{selectedUser.last_ip || "—"}</p>
                           </div>
@@ -664,14 +664,14 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                       </div>
                     </div>
 
-                    <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-white/10">
+                    <div className="space-y-3 pt-4 border-t border-line dark:border-white/10">
                       <div>
                         <label className="block text-sm font-semibold text-gray-800 dark:text-white/70 mb-1">Username (@)</label>
-                        <input value={editUsername} onChange={(e) => setEditUsername(e.target.value)} className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]" />
+                        <input value={editUsername} onChange={(e) => setEditUsername(e.target.value)} className="w-full border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]" />
                       </div>
                       <div>
                         <label className="block text-sm font-semibold text-gray-800 dark:text-white/70 mb-1">Отображаемое имя</label>
-                        <input value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]" />
+                        <input value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} className="w-full border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]" />
                       </div>
                       <div>
                         <label className="block text-sm font-semibold text-gray-800 dark:text-white/70 mb-1">
@@ -681,7 +681,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                           type="password"
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
-                          className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
+                          className="w-full border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
                         />
                       </div>
 
@@ -698,7 +698,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                             className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
                               selectedUser.two_fa_enabled
                                 ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
-                                : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/40 border border-gray-200 dark:border-white/10"
+                                : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/40 border border-line dark:border-white/10"
                             }`}
                           >
                             {selectedUser.two_fa_enabled ? "Включена" : "Выключена"}
@@ -781,7 +781,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                     </div>
                   </div>
 
-                  <div className="border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-4 sm:p-5">
+                  <div className="border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-4 sm:p-5">
                     <div className="flex items-center gap-2 mb-4">
                       <History size={18} className="text-[#8b5cf6]" />
                       <h3 className="font-bold text-gray-900 dark:text-white">История IP-адресов</h3>
@@ -858,20 +858,20 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   value={blockIpTarget || newBlockIp}
                   onChange={(e) => { setNewBlockIp(e.target.value); setBlockIpTarget(null); }}
                   placeholder="IP адрес (напр. 192.168.1.1)"
-                  className="border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white font-mono focus:outline-none focus:border-red-600 dark:focus:border-red-400"
+                  className="border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white font-mono focus:outline-none focus:border-red-600 dark:focus:border-red-400"
                 />
                 <input
                   value={newBlockReason}
                   onChange={(e) => setNewBlockReason(e.target.value)}
                   placeholder="Причина (опционально)"
-                  className="border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-red-600 dark:focus:border-red-400"
+                  className="border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-red-600 dark:focus:border-red-400"
                 />
                 <input
                   type="number"
                   value={newBlockHours}
                   onChange={(e) => setNewBlockHours(e.target.value ? Number(e.target.value) : "")}
                   placeholder="Часов (пусто = навсегда)"
-                  className="border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-red-600 dark:focus:border-red-400"
+                  className="border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-red-600 dark:focus:border-red-400"
                 />
                 <Button
                   variant="danger"
@@ -883,15 +883,15 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
               </div>
             </div>
 
-            <div className="border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden">
-              <div className="p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+            <div className="border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden">
+              <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between">
                 <h3 className="font-bold text-gray-900 dark:text-white">Заблокированные IP ({ipBlocks.length})</h3>
                 <IconButton icon={RefreshCw} size="iconSm" onClick={loadIpBlocks} />
               </div>
               {ipBlocks.length === 0 ? (
                 <p className="p-8 text-center text-gray-600 dark:text-white/50">Нет заблокированных IP</p>
               ) : (
-                <div className="divide-y divide-gray-200 dark:divide-white/5">
+                <div className="divide-y divide-line dark:divide-white/5">
                   {ipBlocks.map((b) => (
                     <div key={b.id} className="p-4 flex items-center gap-4 hover:bg-gray-100 dark:hover:bg-white/5">
                       <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
@@ -934,7 +934,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                     key={act ?? "all"}
                     onClick={() => setLogsFilter(act)}
                     className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all ${
-                      logsFilter === act ? "bg-[#3b82f6] border-[#3b82f6] text-white" : "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-white/70 hover:bg-gray-100 dark:hover:bg-white/10"
+                      logsFilter === act ? "bg-[#3b82f6] border-[#3b82f6] text-white" : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-white/70 hover:bg-gray-100 dark:hover:bg-white/10"
                     }`}
                   >
                     {act ? (ACTION_LABELS[act]?.label || act) : "Все"}
@@ -954,16 +954,16 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
             {logsLoading ? (
               <p className="p-8 text-center text-gray-600 dark:text-white/50">Загрузка...</p>
             ) : logs.length === 0 ? (
-              <div className="p-12 text-center border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5">
+              <div className="p-12 text-center border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5">
                 <Activity size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
                 <p className="text-gray-600 dark:text-white/50">Логов пока нет</p>
               </div>
             ) : (
-              <div className="border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden">
+              <div className="border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden">
                 {logs.map((log) => {
                   const cfg = ACTION_LABELS[log.action] || { label: log.action, color: "text-gray-600 dark:text-white/60" };
                   return (
-                    <div key={log.id} className="p-4 border-b border-gray-200 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 flex items-start gap-4">
+                    <div key={log.id} className="p-4 border-b border-line dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 flex items-start gap-4">
                       <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center shrink-0">
                         <Activity size={16} className={cfg.color} />
                       </div>
@@ -1005,7 +1005,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   <button
                     key={key}
                     onClick={() => setBugStatusFilter(bugStatusFilter === key ? null : key)}
-                    className={`border rounded-xl p-4 transition-all text-left ${bugStatusFilter === key ? `${config.border} ${config.bg}` : "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10"}`}
+                    className={`border rounded-xl p-4 transition-all text-left ${bugStatusFilter === key ? `${config.border} ${config.bg}` : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10"}`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <StatusIcon size={18} className={config.color} />
@@ -1020,7 +1020,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
             {bugsLoading ? (
               <p className="p-12 text-center text-gray-600 dark:text-white/50">Загрузка...</p>
             ) : bugs.length === 0 ? (
-              <div className="p-12 text-center border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5">
+              <div className="p-12 text-center border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5">
                 <Bug size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
                 <p className="text-gray-600 dark:text-white/60">Обращений пока нет</p>
               </div>
@@ -1039,7 +1039,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap mb-2">
                             <h3 className="font-bold text-gray-900 dark:text-white truncate">{bug.title}</h3>
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${pc.color} bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10`}>{pc.label}</span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${pc.color} bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10`}>{pc.label}</span>
                             <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${sc.color} ${sc.bg}`}>{sc.label}</span>
                           </div>
                           <p className="text-sm text-gray-600 dark:text-white/60 line-clamp-2">{bug.description}</p>
@@ -1061,7 +1061,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
           <>
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]" onClick={() => setSelectedBug(null)} />
             <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-              <div className="w-full max-w-2xl border border-gray-200 dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-4 sm:p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
+              <div className="w-full max-w-2xl border border-line dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-4 sm:p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
                 <div className="flex items-start justify-between mb-4 gap-3">
                   <div className="flex-1 min-w-0">
                     <h2 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white">{selectedBug.title}</h2>
@@ -1076,7 +1076,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   </div>
                   <IconButton icon={X} size="iconSm" onClick={() => setSelectedBug(null)} />
                 </div>
-                <p className="text-gray-800 dark:text-white/90 whitespace-pre-wrap bg-gray-100 dark:bg-white/5 p-4 rounded-lg border border-gray-200 dark:border-white/10 mb-6">{selectedBug.description}</p>
+                <p className="text-gray-800 dark:text-white/90 whitespace-pre-wrap bg-gray-100 dark:bg-white/5 p-4 rounded-lg border border-line dark:border-white/10 mb-6">{selectedBug.description}</p>
                 <h3 className="text-sm font-bold text-gray-800 dark:text-white/80 mb-3">Сменить статус:</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
                   {Object.entries(BUG_STATUS_CONFIG).map(([key, config]) => {
@@ -1086,14 +1086,14 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                         key={key}
                         onClick={() => updateBugStatus(selectedBug.id, key)}
                         disabled={selectedBug.status === key}
-                        className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold ${selectedBug.status === key ? `${config.border} ${config.bg} ${config.color}` : "border-gray-200 dark:border-white/20 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"} disabled:opacity-60`}
+                        className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold ${selectedBug.status === key ? `${config.border} ${config.bg} ${config.color}` : "border-line dark:border-white/20 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"} disabled:opacity-60`}
                       >
                         <StatusIcon size={14} /> {config.label}
                       </button>
                     );
                   })}
                 </div>
-                <div className="flex gap-3 pt-2 border-t border-gray-200 dark:border-white/10">
+                <div className="flex gap-3 pt-2 border-t border-line dark:border-white/10">
                   <Button variant="danger" icon={Trash2} onClick={() => deleteBug(selectedBug.id)}>
                     Удалить
                   </Button>
