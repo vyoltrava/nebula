@@ -518,10 +518,10 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     
 {/* АВАТАРКА */}
 <div className={`flex flex-col items-center md:items-start ${profile.cover_url ? "mt-[-3.5rem] md:mt-[-5rem]" : ""} z-10`}>
-  <div 
-    className="relative shrink-0 w-32 h-32 rounded-xl ring-4 ring-[#171717] cursor-pointer group"
-    onClick={() => isOwnProfile && setShowAvatarMenu(!showAvatarMenu)}
-  >
+<div 
+  className="relative shrink-0 w-32 h-32 rounded-xl cursor-pointer group"
+  onClick={() => isOwnProfile && setShowAvatarMenu(!showAvatarMenu)}
+>
 <AvatarFrame 
   user={profile} 
   availableBadges={availableBadges}
