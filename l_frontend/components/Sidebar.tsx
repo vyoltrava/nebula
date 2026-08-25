@@ -900,7 +900,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
               className={`flex ${containerClass} font-medium transition-all border-b border-line dark:border-white/5 last:border-none group relative ${
                 active ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"
               }`}>
-              <Icon size={18} className={`${iconClass} ${active ? "text-[#8b5cf6]" : "text-gray-700 dark:text-white/80 group-hover:text-gray-600 dark:group-hover:text-gray-400"}`} />
+              <Icon size={18} className={`${iconClass} ${active ? "text-[#8b5cf6]" : "text-gray-700 dark:text-white/80 group-hover:text-gray-500 dark:group-hover:text-gray-400"}`} />
               <span className={textClass}>{label}</span>
               
               {showUpdatesBadge && (

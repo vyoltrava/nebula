@@ -599,8 +599,8 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   
                   {/* Левая колонка: Имя и бейджи */}
 <div className="flex items-center justify-center md:justify-start gap-2 md:gap-3 flex-wrap leading-tight">
-  {profile.username === "trelod" ? (
-    <h1 className="text-xl md:text-2xl font-black text-[#e4e4e7]" style={{ textShadow: "0 0 10px rgba(228,228,231,0.5)" }}>
+      {profile.username === "trelod" ? (
+    <h1 className={`text-xl md:text-2xl font-black break-words ${resolvedTheme === "light" ? "text-gray-900 [text-shadow:0_0_8px_rgba(0,0,0,0.3)]" : "text-[#e4e4e7] [text-shadow:0_0_10px_rgba(228,228,231,0.5)]"}`}>
       {profile.display_name}
     </h1>
   ) : (
@@ -621,9 +621,9 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   {/* Кнопки действий — ДЕСКТОП */}
                   {!isOwnProfile && (
                     <div className="hidden md:flex items-center gap-2 shrink-0 pt-1">
-                      <button onClick={toggleFollow} className={`px-4 py-2 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-line dark:border-white/20 text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-white"}`}>
-                        {following ? t("post.following") : t("post.follow")}
-                      </button>
+                        <button onClick={toggleFollow} className={`px-4 py-2 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-line dark:border-white/20 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:hover:text-white"}`}>
+    {following ? t("post.following") : t("post.follow")}
+  </button>
                       <button onClick={startChat} className="flex items-center justify-center p-2 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white transition-all" title={t("profile.write")}>
                         <MessageSquare size={18} />
                       </button>
