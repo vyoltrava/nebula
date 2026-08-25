@@ -437,7 +437,7 @@ export default function RulesPage() {
                 {t("rules.foundersHint")}
               </p>
               <div className="space-y-3">
-                {specialRoles.map((role) => (
+                                {specialRoles.map((role) => (
                   <div
                     key={role.id}
                     className="flex items-start gap-4 p-4 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
@@ -445,11 +445,11 @@ export default function RulesPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
                         <span
-                          className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest"
-                          style={{ 
-                            backgroundColor: role.color, 
-                            color: role.textColor 
-                          }}
+                          className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest ${
+                            role.id === "founder"
+                              ? "bg-[#26221a] text-white dark:bg-white dark:text-[#26221a]"
+                              : `bg-[${role.color}] text-white`
+                          }`}
                         >
                           {role.name}
                         </span>
@@ -497,8 +497,8 @@ export default function RulesPage() {
                             >
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                  <span
-                                    className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest text-gray-900 dark:text-white"
+                                                                    <span
+                                    className="px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest text-white"
                                     style={{ backgroundColor: role.color }}
                                   >
                                     {role.name}
