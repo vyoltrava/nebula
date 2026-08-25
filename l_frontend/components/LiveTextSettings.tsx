@@ -9,7 +9,7 @@ function Toggle({ on, onChange }: { on: boolean; onChange: () => void }) {
     <button
       onClick={onChange}
       className={`relative shrink-0 w-11 h-6 rounded-full transition-all ${
-        on ? "bg-[#7B3FF2] shadow-[0_0_12px_rgba(123,63,242,0.5)]" : "bg-white/10"
+        on ? "bg-[#7B3FF2] shadow-[0_0_12px_rgba(123,63,242,0.5)]" : "bg-gray-100 dark:bg-white/10"
       }`}
     >
       <span
@@ -59,7 +59,7 @@ export function LiveTextSettings() {
 
   if (!loaded) {
     return (
-      <div className="p-4 rounded-lg bg-white/5 border border-white/10 flex items-center gap-3">
+      <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center gap-3">
         <Loader2 size={16} className="animate-spin text-[#7B3FF2]" />
         <span className="text-sm text-[#B9B8BD]">{t("common.loading")}</span>
       </div>
@@ -69,10 +69,10 @@ export function LiveTextSettings() {
   return (
     <div className="space-y-3">
       {/* Живые сообщения */}
-      <div className="p-4 rounded-lg bg-white/5 border border-white/10">
+      <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${enabled ? "bg-[#7B3FF2]/15" : "bg-white/5"}`}>
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${enabled ? "bg-[#7B3FF2]/15" : "bg-gray-100 dark:bg-white/5"}`}>
               <Zap size={18} className={enabled ? "text-[#7B3FF2]" : "text-[#B9B8BD]"} />
             </div>
             <div className="min-w-0">
@@ -92,10 +92,10 @@ export function LiveTextSettings() {
       </div>
 
       {/* Скрыть мой набор */}
-      <div className="p-4 rounded-lg bg-white/5 border border-white/10">
+      <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${broadcast ? "bg-[#7B3FF2]/15" : "bg-white/5"}`}>
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${broadcast ? "bg-[#7B3FF2]/15" : "bg-gray-100 dark:bg-white/5"}`}>
               <EyeOff size={18} className={broadcast ? "text-[#7B3FF2]" : "text-[#B9B8BD]"} />
             </div>
             <div className="min-w-0">

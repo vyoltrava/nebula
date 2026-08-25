@@ -13,12 +13,12 @@ type Size = "sm" | "md" | "lg" | "icon" | "iconSm";
 const variantClasses: Record<Variant, string> = {
   primary: "bg-[#8b5cf6] text-white hover:bg-[#7c3aed]",
   secondary:
-    "border border-white/15 text-white/80 hover:bg-white/5",
+    "border border-gray-200 dark:border-white/15 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/5",
   danger:
-    "bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30",
+    "bg-red-500/20 border border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/30",
   success:
-    "bg-green-500/20 border border-green-500/30 text-green-400 hover:bg-green-500/30",
-  ghost: "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white",
+    "bg-green-500/20 border border-green-500/30 text-green-600 dark:text-green-400 hover:bg-green-500/30",
+  ghost: "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white",
 };
 
 const sizeClasses: Record<Size, string> = {

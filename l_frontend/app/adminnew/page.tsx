@@ -48,7 +48,7 @@ const TABS: TabDef[] = [
 ];
 
 // Общий класс для иконок-кнопок (прозрачный фон, белый цвет, подсветка при наведении)
-const iconBtnClass = "p-2 rounded-lg text-white/60 hover:bg-white/10 hover:text-white transition-all flex items-center justify-center";
+const iconBtnClass = "p-2 rounded-lg text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white transition-all flex items-center justify-center";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -90,8 +90,8 @@ export default function AdminPage() {
 
   if (!me || !activeTab) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[#18181b]">
-        <p className="text-white/60 animate-pulse">Загрузка...</p>
+      <div className="h-screen flex items-center justify-center bg-white dark:bg-[#18181b]">
+        <p className="text-gray-600 dark:text-white/60 animate-pulse">Загрузка...</p>
       </div>
     );
   }
@@ -104,17 +104,17 @@ export default function AdminPage() {
   const canRoles = me.is_admin || (me.permissions || []).includes("manage_roles");
 
   return (
-    <div className="h-screen flex overflow-hidden bg-[#18181b]">
+    <div className="h-screen flex overflow-hidden bg-white dark:bg-[#18181b]">
       <Sidebar />
-      <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
-      <main className="flex-1 overflow-y-auto border-x border-white/10">
+      <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
+      <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
         {/* Шапка */}
-        <div className="p-4 sm:p-6 border-b border-white/10 sticky top-0 bg-[#171717]/95 backdrop-blur-md z-10">
+        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/95 backdrop-blur-md z-10">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <Shield size={24} className="text-[#8b5cf6]" />
-              <h1 className="text-xl sm:text-2xl font-black text-white">Центр управления</h1>
-              <span className="px-2 py-0.5 rounded bg-white/10 text-white/60 text-xs font-mono">
+              <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white">Центр управления</h1>
+              <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/60 text-xs font-mono">
                 Lvl {me.level ?? 1}
               </span>
             </div>
@@ -137,7 +137,7 @@ export default function AdminPage() {
                 </Link>
               )}
               
-              <div className="w-px h-6 bg-white/10 mx-1" /> {/* Разделитель */}
+              <div className="w-px h-6 bg-gray-100 dark:bg-white/10 mx-1" /> {/* Разделитель */}
               
               <Link href="/" className={iconBtnClass} title="На главную">
                 <ArrowLeft size={20} />
@@ -156,8 +156,8 @@ export default function AdminPage() {
                   onClick={() => setActiveTab(t.id)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-medium transition-all whitespace-nowrap shrink-0 text-sm ${
                     active
-                      ? "text-white border-transparent"
-                      : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+                      ? "text-gray-900 dark:text-white border-transparent"
+                      : "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white"
                   }`}
                   style={active ? { backgroundColor: t.color } : undefined}
                 >

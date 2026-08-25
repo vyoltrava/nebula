@@ -131,7 +131,7 @@ export function RichContextMenu({ x, y, items, onClose, zIndex = 9990 }: Props) 
     const Icon = item.icon;
     return (
       <React.Fragment key={item.id}>
-        {item.separatorBefore && <div className="h-px bg-white/10 my-1" />}
+        {item.separatorBefore && <div className="h-px bg-gray-100 dark:bg-white/10 my-1" />}
         <button
           onMouseDown={(e) => e.preventDefault()}
           onTouchStart={(e) => e.stopPropagation()}
@@ -147,13 +147,13 @@ export function RichContextMenu({ x, y, items, onClose, zIndex = 9990 }: Props) 
           }}
           disabled={item.disabled}
           className={`w-full px-3 py-2.5 flex items-center gap-2.5 text-[13px] rounded-lg transition-colors ${
-            item.disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-white/10 active:bg-white/15"
-          } ${item.danger ? "text-red-400" : "text-white/90"}`}
+            item.disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-gray-100 dark:hover:bg-white/10 active:bg-gray-100 dark:active:bg-white/15"
+          } ${item.danger ? "text-red-600 dark:text-red-400" : "text-gray-800 dark:text-white/90"}`}
         >
-          {Icon && <Icon size={15} className={item.danger ? "text-red-400" : "text-white/50"} />}
+          {Icon && <Icon size={15} className={item.danger ? "text-red-600 dark:text-red-400" : "text-gray-600 dark:text-white/50"} />}
           <span className="flex-1 text-left truncate">{item.label}</span>
-          {item.shortcut && !isCoarse && <span className="text-[11px] text-white/30">{item.shortcut}</span>}
-          {item.children && <ChevronRight size={14} className="text-white/40" />}
+          {item.shortcut && !isCoarse && <span className="text-[11px] text-gray-500 dark:text-white/30">{item.shortcut}</span>}
+          {item.children && <ChevronRight size={14} className="text-gray-500 dark:text-white/40" />}
         </button>
       </React.Fragment>
     );
@@ -164,7 +164,7 @@ export function RichContextMenu({ x, y, items, onClose, zIndex = 9990 }: Props) 
   const panel = (
     <div
       ref={mainRef}
-      className="pointer-events-auto p-1.5 rounded-xl border border-white/10 bg-[#1f1f23]/95 backdrop-blur-xl shadow-2xl"
+      className="pointer-events-auto p-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1f1f23]/95 backdrop-blur-xl shadow-2xl"
       style={isCoarse ? { width: MENU_W } : { position: "fixed", left: pos.x, top: pos.y, width: MENU_W }}
     >
       {items.map(renderItem)}
@@ -173,7 +173,7 @@ export function RichContextMenu({ x, y, items, onClose, zIndex = 9990 }: Props) 
 
   const submenu = openSub && subItems && (
     <div
-      className="pointer-events-auto p-1.5 rounded-xl border border-white/10 bg-[#1f1f23]/95 backdrop-blur-xl shadow-2xl"
+      className="pointer-events-auto p-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1f1f23]/95 backdrop-blur-xl shadow-2xl"
       style={{ position: "fixed", left: subPos.x, top: subPos.y, width: MENU_W }}
     >
       {subItems.map(renderItem)}

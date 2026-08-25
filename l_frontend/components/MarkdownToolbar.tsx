@@ -52,7 +52,7 @@ export function MarkdownToolbar({ textareaRef, onInsert }: MarkdownToolbarProps)
   ];
 
   return (
-    <div className="flex items-center gap-0.5 px-2 py-1.5 border-t border-white/10 bg-white/[0.02]">
+    <div className="flex items-center gap-0.5 px-2 py-1.5 border-t border-gray-200 dark:border-white/10 bg-white/[0.02]">
       {buttons.map((btn, i) => (
         <button
           key={i}
@@ -61,13 +61,13 @@ export function MarkdownToolbar({ textareaRef, onInsert }: MarkdownToolbarProps)
             e.preventDefault();
             btn.action();
           }}
-          className="p-1.5 rounded-md text-white/50 hover:text-[#8b5cf6] hover:bg-white/10 transition-all active:scale-90"
+          className="p-1.5 rounded-md text-gray-600 dark:text-white/50 hover:text-[#8b5cf6] hover:bg-gray-100 dark:hover:bg-white/10 transition-all active:scale-90"
           title={btn.label}
         >
           <btn.icon size={14} />
         </button>
       ))}
-      <div className="ml-auto text-[10px] text-white/30">
+      <div className="ml-auto text-[10px] text-gray-500 dark:text-white/30">
         Поддерживается Markdown
       </div>
     </div>

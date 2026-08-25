@@ -178,7 +178,7 @@ export default function BadgesAdminPage() {
   const level = me.level ?? getUserLevel(me);
 
   return (
-    <div className="min-h-screen bg-[#101010] text-white">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#101010] text-gray-900 dark:text-white">
       <div className="max-w-6xl mx-auto p-4 pt-6">
         {/* ═══════════════════════════════════════════════════ */}
         {/* ШАПКА С КНОПКОЙ НАЗАД */}
@@ -196,7 +196,7 @@ export default function BadgesAdminPage() {
             
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2">
-                <Shield className="text-blue-400" /> Кастомные плашки
+                <Shield className="text-blue-600 dark:text-blue-400" /> Кастомные плашки
               </h1>
               <p className="text-sm text-gray-400 mt-1">Управление кастомными плашками (level {level})</p>
             </div>
@@ -204,14 +204,14 @@ export default function BadgesAdminPage() {
         </div>
 
         {/* ВКЛАДКИ */}
-        <div className="flex gap-1 mb-6 bg-[#171717] p-1 rounded-lg border border-white/10">
-          <button onClick={() => setActiveTab("my")} className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${activeTab === "my" ? "bg-blue-500/20 text-blue-400" : "text-gray-400 hover:text-gray-300"}`}>
+        <div className="flex gap-1 mb-6 bg-gray-50 dark:bg-[#171717] p-1 rounded-lg border border-gray-200 dark:border-white/10">
+          <button onClick={() => setActiveTab("my")} className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${activeTab === "my" ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" : "text-gray-400 hover:text-gray-300"}`}>
             <List className="inline mr-2" size={16} /> Мои плашки
           </button>
-          <button onClick={() => setActiveTab("assign")} className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${activeTab === "assign" ? "bg-blue-500/20 text-blue-400" : "text-gray-400 hover:text-gray-300"}`}>
+          <button onClick={() => setActiveTab("assign")} className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${activeTab === "assign" ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" : "text-gray-400 hover:text-gray-300"}`}>
             <Gift className="inline mr-2" size={16} /> Выдать плашку
           </button>
-          <button onClick={() => setActiveTab("assigned")} className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${activeTab === "assigned" ? "bg-blue-500/20 text-blue-400" : "text-gray-400 hover:text-gray-300"}`}>
+          <button onClick={() => setActiveTab("assigned")} className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${activeTab === "assigned" ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" : "text-gray-400 hover:text-gray-300"}`}>
             <Sparkles className="inline mr-2" size={16} /> Выданные плашки
           </button>
         </div>
@@ -221,7 +221,7 @@ export default function BadgesAdminPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Поиск плашек..."
-                className="px-3 py-1.5 bg-[#1a1a1a] border border-white/10 rounded-lg text-sm focus:outline-none focus:border-blue-500/50" />
+                className="px-3 py-1.5 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-blue-500/50" />
               <button onClick={() => { setFormBadge(null); setShowForm(true); }}
                 className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
                 <Plus size={16} /> Создать плашку
@@ -236,7 +236,7 @@ export default function BadgesAdminPage() {
 
         {/* ВКЛАДКА: ВЫДАТЬ ПЛАШКУ */}
         {activeTab === "assign" && (
-          <div className="bg-[#171717] border border-white/10 rounded-xl p-6">
+          <div className="bg-gray-50 dark:bg-[#171717] border border-gray-200 dark:border-white/10 rounded-xl p-6">
             <h2 className="text-lg font-semibold mb-4">Выдача плашки пользователю</h2>
             <CustomBadgeAssignForm badges={badges} onSuccess={handleAssignmentSuccess} />
           </div>
@@ -246,10 +246,10 @@ export default function BadgesAdminPage() {
         {activeTab === "assigned" && (
           <div className="space-y-4">
             <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Поиск выданных плашек..."
-              className="w-full px-3 py-2 bg-[#1a1a1a] border border-white/10 rounded-lg text-sm focus:outline-none focus:border-blue-500/50" />
-            <div className="bg-[#171717] border border-white/10 rounded-xl overflow-hidden">
+              className="w-full px-3 py-2 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-blue-500/50" />
+            <div className="bg-gray-50 dark:bg-[#171717] border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden">
               <table className="w-full">
-                <thead><tr className="border-b border-white/10">
+                <thead><tr className="border-b border-gray-200 dark:border-white/10">
                   <th className="text-left p-4 text-sm font-medium text-gray-300">Пользователь</th>
                   <th className="text-left p-4 text-sm font-medium text-gray-300">Плашка</th>
                   <th className="text-left p-4 text-sm font-medium text-gray-300">Выдана</th>
@@ -261,27 +261,27 @@ export default function BadgesAdminPage() {
                   {assignmentsLoading ? <tr><td colSpan={6} className="p-8 text-center text-gray-400">Загрузка...</td></tr>
                   : filteredAssignments.length === 0 ? <tr><td colSpan={6} className="p-8 text-center text-gray-400">Нет выданных плашек</td></tr>
 : filteredAssignments.map((a) => (
-    <tr key={a.id} className="border-b border-white/5">
+    <tr key={a.id} className="border-b border-gray-200 dark:border-white/5">
       <td className="p-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-[#1a1a1a]"></div>
+          <div className="w-8 h-8 rounded-full bg-white dark:bg-[#1a1a1a]"></div>
           <span className="text-sm">ID: {a.user_id}</span>
         </div>
       </td>
       <td className="p-4">{a.badge?.name || "—"}</td>
       <td className="p-4 text-sm text-gray-400">{formatDate(a.granted_at)}</td>
       <td className="p-4 text-sm text-gray-400">
-        {a.expires_at ? formatDate(a.expires_at) : <span className="text-green-400">Бессрочно</span>}
+        {a.expires_at ? formatDate(a.expires_at) : <span className="text-green-600 dark:text-green-400">Бессрочно</span>}
       </td>
       <td className="p-4">
-        <span className={`px-2 py-1 rounded text-xs ${a.is_active ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"}`}>
+        <span className={`px-2 py-1 rounded text-xs ${a.is_active ? "bg-green-500/20 text-green-600 dark:text-green-400" : "bg-gray-500/20 text-gray-400"}`}>
           {a.is_active ? "Активна" : "Истекла"}
         </span>
       </td>
       <td className="p-4 text-right">
         <div className="flex justify-end gap-1">
-          <button onClick={() => extendAssignment(a.id, 30)} className="px-2 py-1 text-xs bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded">+30 дней</button>
-          <button onClick={() => revokeAssignment(a.id)} className="px-2 py-1 text-xs bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded">Отозвать</button>
+          <button onClick={() => extendAssignment(a.id, 30)} className="px-2 py-1 text-xs bg-blue-500/20 hover:bg-blue-500/30 text-blue-600 dark:text-blue-400 rounded">+30 дней</button>
+          <button onClick={() => revokeAssignment(a.id)} className="px-2 py-1 text-xs bg-red-500/20 hover:bg-red-500/30 text-red-600 dark:text-red-400 rounded">Отозвать</button>
         </div>
       </td>
     </tr>

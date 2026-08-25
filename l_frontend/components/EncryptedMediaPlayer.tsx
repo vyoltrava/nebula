@@ -73,7 +73,7 @@ export function EncryptedMediaPlayer({ mediaUrl, mediaType, chatId }: Props) {
 
   if (error) {
     return (
-      <div className="flex items-center gap-2 text-red-400 text-xs py-2">
+      <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-xs py-2">
         <Lock size={12} /> {error}
       </div>
     );
@@ -81,8 +81,8 @@ export function EncryptedMediaPlayer({ mediaUrl, mediaType, chatId }: Props) {
 
   if (!decryptedUrl) {
     return (
-      <div className="w-56 h-56 rounded-2xl bg-white/5 animate-pulse flex items-center justify-center">
-        <Lock size={20} className="text-white/30" />
+      <div className="w-56 h-56 rounded-2xl bg-gray-100 dark:bg-white/5 animate-pulse flex items-center justify-center">
+        <Lock size={20} className="text-gray-500 dark:text-white/30" />
       </div>
     );
   }

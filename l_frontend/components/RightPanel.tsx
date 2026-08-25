@@ -52,47 +52,47 @@ export function RightPanel() {
           if (q.trim()) router.push(`/search?q=${encodeURIComponent(q)}`);
         }}
       >
-        <label className="flex items-center gap-2 border border-white/15 rounded-xl px-4 py-2 bg-white/5 focus-within:border-[#8b5cf6] focus-within:bg-white/10 transition-all">
-        <Search size={16} className="text-white/50" />
+        <label className="flex items-center gap-2 border border-gray-200 dark:border-white/15 rounded-xl px-4 py-2 bg-gray-100 dark:bg-white/5 focus-within:border-[#8b5cf6] focus-within:bg-gray-100 dark:bg-white/10 transition-all">
+        <Search size={16} className="text-gray-600 dark:text-white/50" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={t("common.search")}
-            className="w-full bg-transparent focus:outline-none text-white placeholder-white/40"
+            className="w-full bg-transparent focus:outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40"
           />
         </label>
       </form>
 
-      <section className="border border-white/15 rounded-2xl p-4 bg-white/5 backdrop-blur-sm">
-        <h2 className="font-black mb-3 text-white">{t("panel.popularTags")}</h2>
-        {tags.length === 0 && <p className="text-sm text-white/50">{t("panel.noTags")}</p>}
+      <section className="border border-gray-200 dark:border-white/15 rounded-2xl p-4 bg-white/5 backdrop-blur-sm">
+        <h2 className="font-black mb-3 text-gray-900 dark:text-white">{t("panel.popularTags")}</h2>
+        {tags.length === 0 && <p className="text-sm text-gray-600 dark:text-white/50">{t("panel.noTags")}</p>}
         <div className="space-y-2">
           {tags.map((tag) => (
-            <Link key={tag.name} href={`/tag/${tag.name}`} className="block hover:bg-white/5 rounded-lg p-2 -mx-2 transition-colors">
+            <Link key={tag.name} href={`/tag/${tag.name}`} className="block hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg p-2 -mx-2 transition-colors">
               <p className="font-bold text-sm text-[#8b5cf6]">#{tag.name}</p>
-              <p className="text-xs text-white/50">{t("panel.postsCount", { n: tag.count })}</p>
+              <p className="text-xs text-gray-600 dark:text-white/50">{t("panel.postsCount", { n: tag.count })}</p>
             </Link>
           ))}
         </div>
       </section>
 
-      <section className="border border-white/15 rounded-2xl p-4 bg-white/5 backdrop-blur-sm">
-        <h2 className="font-black mb-3 text-white">{t("panel.suggestedAuthors")}</h2>
-        {authors.length === 0 && <p className="text-sm text-white/50">{t("panel.noSuggestions")}</p>}
+      <section className="border border-gray-200 dark:border-white/15 rounded-2xl p-4 bg-white/5 backdrop-blur-sm">
+        <h2 className="font-black mb-3 text-gray-900 dark:text-white">{t("panel.suggestedAuthors")}</h2>
+        {authors.length === 0 && <p className="text-sm text-gray-600 dark:text-white/50">{t("panel.noSuggestions")}</p>}
         <div className="space-y-3">
           {authors.map((a) => (
             <div key={a.id} className="flex items-center gap-3">
               <Avatar src={a.avatar_url} name={a.display_name} id={a.id} size={36} />
 
               <div className="flex-1 leading-tight">
-                <Link href={`/${a.username}`} className="font-bold text-sm text-white hover:text-[#8b5cf6] transition-colors">
+                <Link href={`/${a.username}`} className="font-bold text-sm text-gray-900 dark:text-white hover:text-[#8b5cf6] transition-colors">
                   {a.display_name}
                 </Link>
-                <p className="text-xs text-white/50">{t("panel.followersCount", { n: a.followers_count })}</p>
+                <p className="text-xs text-gray-600 dark:text-white/50">{t("panel.followersCount", { n: a.followers_count })}</p>
               </div>
               <button
                 onClick={() => follow(a.id)}
-                className="text-xs font-bold px-3 py-1 rounded-full border border-white/20 text-white/70 hover:bg-white/10 hover:border-white/40 hover:text-white transition-all"
+                className="text-xs font-bold px-3 py-1 rounded-full border border-gray-200 dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white transition-all"
               >
                 {t("post.follow")}
               </button>
@@ -104,7 +104,7 @@ export function RightPanel() {
       {/* Кнопка команды проекта — в самом низу правой панели */}
       <Link
         href="/team"
-        className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl border border-white/15 bg-gradient-to-r from-white/5 to-white/10 text-white hover:from-[#8b5cf6]/20 hover:to-[#8b5cf6]/10 hover:border-[#8b5cf6]/50 transition-all font-semibold text-sm"
+        className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-white/15 bg-gradient-to-r from-white/5 to-white/10 text-gray-900 dark:text-white hover:from-[#8b5cf6]/20 hover:to-[#8b5cf6]/10 hover:border-[#8b5cf6]/50 transition-all font-semibold text-sm"
       >
         <Users size={18} />
         {t("panel.team")}

@@ -232,7 +232,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   }
 
   const glassBtn =
-    "flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/15 text-white/85 hover:bg-white/15 hover:text-white active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all";
+    "flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-gray-200 dark:border-white/15 text-gray-800 dark:text-white/85 hover:bg-white/15 hover:text-gray-900 dark:text-white active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all";
 
   // ===================== СВЁРНУТЫЙ РЕЖИМ (ORB) =====================
   if (isMinimized) {
@@ -276,16 +276,16 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
           {/* Готово — галочка */}
           {hasRecording && !isRecording && (
             <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-[#0a0a0a] flex items-center justify-center">
-              <span className="text-[8px] text-white font-black">✓</span>
+              <span className="text-[8px] text-gray-900 dark:text-white font-black">✓</span>
             </span>
           )}
         </div>
 
         {/* Таймер рядом с орбом */}
         {(isRecording || hasRecording) && (
-          <div className="pointer-events-auto flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 self-center">
+          <div className="pointer-events-auto flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-gray-200 dark:border-white/10 self-center">
             {isRecording && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
-            <span className="text-xs font-mono font-bold text-white tabular-nums">
+            <span className="text-xs font-mono font-bold text-gray-900 dark:text-white tabular-nums">
               {formatTime(seconds)}
             </span>
           </div>
@@ -321,7 +321,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
           </button>
           <button
             onClick={() => { cancelRef.current = true; cleanupResources(); onCancel(); }}
-            className={`${glassBtn} w-10 h-10 border-red-500/30 text-red-300 hover:bg-red-500/20`}
+            className={`${glassBtn} w-10 h-10 border-red-500/30 text-red-600 dark:text-red-300 hover:bg-red-500/20`}
             title="Закрыть"
           >
             <X size={15} />
@@ -385,10 +385,10 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
                   {isRecording && (
                     <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.9)]" />
                   )}
-                  <span className="text-base sm:text-lg font-mono font-bold text-white tabular-nums">
+                  <span className="text-base sm:text-lg font-mono font-bold text-gray-900 dark:text-white tabular-nums">
                     {formatTime(seconds)}
                   </span>
-                  <span className="text-sm font-mono text-white/40">/ {formatTime(maxDuration)}</span>
+                  <span className="text-sm font-mono text-gray-500 dark:text-white/40">/ {formatTime(maxDuration)}</span>
                 </div>
               </div>
             )}
@@ -396,7 +396,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
             {/* Подсказка когда не пишем */}
             {!isRecording && !hasRecording && isCameraReady && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <p className="text-white/30 text-sm font-medium px-6 text-center">
+                <p className="text-gray-500 dark:text-white/30 text-sm font-medium px-6 text-center">
                   Нажми кнопку ниже для записи
                 </p>
               </div>
@@ -447,14 +447,14 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
                 className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.6)] ring-4 ring-red-500/30 active:scale-90 transition-all relative"
                 title="Стоп"
               >
-                <span className="absolute inset-0 rounded-full border-2 border-red-300 animate-ping opacity-50" />
+                <span className="absolute inset-0 rounded-full border-2 border-red-600 dark:border-red-300 animate-ping opacity-50" />
                 <Square size={26} fill="currentColor" />
               </button>
             ) : (
               <button
                 onClick={startRecording}
                 disabled={!isCameraReady}
-                className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/10 hover:bg-white/20 border-[3px] border-white flex items-center justify-center active:scale-90 transition-all disabled:opacity-40 group"
+                className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-100 dark:hover:bg-white/20 border-[3px] border-white flex items-center justify-center active:scale-90 transition-all disabled:opacity-40 group"
                 title="Запись"
               >
                 <span className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#8b5cf6] group-hover:scale-95 transition-transform shadow-[0_0_20px_rgba(139,92,246,0.6)]" />
@@ -471,7 +471,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
             )}
             <button
               onClick={() => { cancelRef.current = true; cleanupResources(); onCancel(); }}
-              className={`${glassBtn} w-11 h-11 sm:w-12 sm:h-12 border-red-500/30 text-red-300 hover:bg-red-500/20`}
+              className={`${glassBtn} w-11 h-11 sm:w-12 sm:h-12 border-red-500/30 text-red-600 dark:text-red-300 hover:bg-red-500/20`}
               title="Отмена"
             >
               <X size={20} />
@@ -480,7 +480,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
         </div>
 
         {/* Подпись */}
-        <p className="mt-4 text-center text-[11px] text-white/30 px-4">
+        <p className="mt-4 text-center text-[11px] text-gray-500 dark:text-white/30 px-4">
           {hasRecording
             ? "Пересмотри и отправь, либо перезапиши"
             : isRecording

@@ -81,41 +81,41 @@ export default function TechPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#18181b] flex items-center justify-center">
-        <div className="text-white text-xl">Проверка авторизации...</div>
+      <div className="min-h-screen bg-white dark:bg-[#18181b] flex items-center justify-center">
+        <div className="text-gray-900 dark:text-white text-xl">Проверка авторизации...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#18181b] flex items-center justify-center p-8">
+      <div className="min-h-screen bg-white dark:bg-[#18181b] flex items-center justify-center p-8">
         <div className="bg-red-500/20 border border-red-500 rounded-xl p-6 max-w-2xl">
-          <h2 className="text-red-400 text-xl font-bold mb-2">Ошибка</h2>
-          <p className="text-white">{error}</p>
+          <h2 className="text-red-600 dark:text-red-400 text-xl font-bold mb-2">Ошибка</h2>
+          <p className="text-gray-900 dark:text-white">{error}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#18181b] p-8">
+    <div className="min-h-screen bg-white dark:bg-[#18181b] p-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-black text-white">
+          <h1 className="text-3xl font-black text-gray-900 dark:text-white">
             Техническая панель (ТЕСТ)
           </h1>
           <div className="text-right">
-            <p className="text-white font-bold">{me?.display_name}</p>
-            <p className="text-white/60 text-sm">@{me?.username}</p>
+            <p className="text-gray-900 dark:text-white font-bold">{me?.display_name}</p>
+            <p className="text-gray-600 dark:text-white/60 text-sm">@{me?.username}</p>
           </div>
         </div>
         
         <div className="bg-green-500/20 border border-green-500 rounded-xl p-4 mb-6">
-          <p className="text-green-400 font-bold">
+          <p className="text-green-600 dark:text-green-400 font-bold">
             ✅ Загружено пользователей: {users.length}
           </p>
-          <p className="text-white/60 text-sm mt-1">
+          <p className="text-gray-600 dark:text-white/60 text-sm mt-1">
             API: {API_URL}/api/admin/users
           </p>
         </div>
@@ -124,15 +124,15 @@ export default function TechPage() {
           {users.map((user) => (
             <div
               key={user.id}
-              className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-all"
+              className="bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-white font-bold">{user.display_name}</p>
-                  <p className="text-white/60 text-sm">@{user.username}</p>
+                  <p className="text-gray-900 dark:text-white font-bold">{user.display_name}</p>
+                  <p className="text-gray-600 dark:text-white/60 text-sm">@{user.username}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-white/40 text-xs">ID: {user.id}</p>
+                  <p className="text-gray-500 dark:text-white/40 text-xs">ID: {user.id}</p>
                   {user.is_admin && (
                     <span className="text-xs bg-white text-black px-2 py-0.5 rounded font-bold">
                       Admin

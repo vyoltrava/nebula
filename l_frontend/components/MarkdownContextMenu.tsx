@@ -53,21 +53,21 @@ export function MarkdownContextMenu({ x, y, onClose, onAction }: MarkdownContext
     <button
       key={action}
       onClick={() => { onAction(action); onClose(); }}
-      className="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-white/10 active:scale-90 transition-all text-white/70 hover:text-white"
+      className="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90 transition-all text-gray-800 dark:text-white/70 hover:text-gray-900 dark:text-white"
       title={label}
     >
       <Icon size={16} />
     </button>
   );
 
-  const sep = <div key={Math.random()} className="w-px h-6 bg-white/10 mx-0.5" />;
+  const sep = <div key={Math.random()} className="w-px h-6 bg-gray-100 dark:bg-white/10 mx-0.5" />;
 
   return (
     <>
       <div className="fixed inset-0 z-[300]" onClick={onClose} />
       <div
         ref={menuRef}
-        className="fixed z-[301] bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl px-1.5 py-1 flex items-center gap-0.5"
+        className="fixed z-[301] bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl px-1.5 py-1 flex items-center gap-0.5"
         style={{ left: pos.x, top: pos.y }}
       >
         {btn(Bold, "Жирный", "bold")}

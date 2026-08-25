@@ -83,22 +83,22 @@ export default function ReportsPage() {
     load();
   }
 
-  if (!me) return <div className="p-8 text-white/60">Загрузка...</div>;
+  if (!me) return <div className="p-8 text-gray-600 dark:text-white/60">Загрузка...</div>;
 
   return (
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
-      <div className="w-px shrink-0 bg-white/10 my-3" />
-      <main className="flex-1 overflow-y-auto border-x border-white/10">
-        <div className="p-6 border-b border-white/10 sticky top-0 bg-[#171717]/80 backdrop-blur-md z-10">
+      <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
+      <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
+        <div className="p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/80 backdrop-blur-md z-10">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
-              <Flag size={24} className="text-red-400" />
-              <h1 className="text-2xl font-black text-white">Жалобы</h1>
+              <Flag size={24} className="text-red-600 dark:text-red-400" />
+              <h1 className="text-2xl font-black text-gray-900 dark:text-white">Жалобы</h1>
             </div>
             <Link
               href="/admin"
-              className="text-sm text-white/60 hover:text-white transition-colors"
+              className="text-sm text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white transition-colors"
             >
               ← Назад в админку
             </Link>
@@ -113,7 +113,7 @@ export default function ReportsPage() {
                 className={`px-4 py-1.5 rounded-full border text-xs font-bold transition-all ${
                   filter === f
                     ? "border-[#8b5cf6] bg-[#8b5cf6] text-white"
-                    : "border-white/20 text-white/60 hover:bg-white/10"
+                    : "border-gray-200 dark:border-white/20 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"
                 }`}
               >
                 {f === "pending" && "⏳ Новые"}
@@ -127,7 +127,7 @@ export default function ReportsPage() {
 
         <div className="p-4 space-y-3">
           {reports.length === 0 && (
-            <p className="p-8 text-center text-white/50">Нет жалоб</p>
+            <p className="p-8 text-center text-gray-600 dark:text-white/50">Нет жалоб</p>
           )}
 
           {reports.map((r) => (
@@ -138,7 +138,7 @@ export default function ReportsPage() {
                   ? "border-orange-400/30 bg-orange-500/5"
                   : r.status === "resolved"
                   ? "border-green-400/30 bg-green-500/5"
-                  : "border-white/15 bg-white/5"
+                  : "border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5"
               }`}
             >
               <div className="flex items-start gap-4">
@@ -155,10 +155,10 @@ export default function ReportsPage() {
                 <div className="flex-1 min-w-0">
                   {/* Инфо о жалобе */}
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-bold text-white">
+                    <span className="font-bold text-gray-900 dark:text-white">
                       {r.reporter?.display_name || "Unknown"}
                     </span>
-                    <span className="text-white/50 text-sm">пожаловался на</span>
+                    <span className="text-gray-600 dark:text-white/50 text-sm">пожаловался на</span>
                     {r.target?.type === "post" ? (
                       <span className="text-[#8b5cf6] font-bold">пост</span>
                     ) : (
@@ -170,34 +170,34 @@ export default function ReportsPage() {
 
                   {/* Причина */}
                   <div className="mt-2 flex items-center gap-2 flex-wrap">
-                    <span className="px-2 py-1 rounded-lg bg-white/10 text-xs font-bold text-white/80">
+                    <span className="px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/10 text-xs font-bold text-gray-800 dark:text-white/80">
                       {REASON_LABELS[r.reason] || r.reason}
                     </span>
-                    <span className="text-white/40 text-xs">
+                    <span className="text-gray-500 dark:text-white/40 text-xs">
                       {new Date(r.created_at).toLocaleString("ru-RU")}
                     </span>
                   </div>
 
                   {/* Комментарий */}
                   {r.comment && (
-                    <p className="mt-2 text-sm text-white/70 italic">
+                    <p className="mt-2 text-sm text-gray-800 dark:text-white/70 italic">
                       "{r.comment}"
                     </p>
                   )}
 
                   {/* Цель жалобы */}
                   {r.target?.type === "post" && (
-                    <div className="mt-3 p-3 rounded-lg bg-white/5 border border-white/10">
-                      <p className="text-sm text-white/80 line-clamp-3">
+                    <div className="mt-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                      <p className="text-sm text-gray-800 dark:text-white/80 line-clamp-3">
                         {r.target.text}
                       </p>
-                      <p className="text-xs text-white/40 mt-1">
+                      <p className="text-xs text-gray-500 dark:text-white/40 mt-1">
                         Автор: {r.target.author_name}
                       </p>
                     </div>
                   )}
                   {r.target?.type === "user" && (
-                    <div className="mt-3 flex items-center gap-2 p-3 rounded-lg bg-white/5 border border-white/10">
+                    <div className="mt-3 flex items-center gap-2 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
                       <Avatar
                         src={r.target.avatar_url}
                         name={r.target.display_name}
@@ -205,10 +205,10 @@ export default function ReportsPage() {
                         size={32}
                       />
                       <div>
-                        <p className="text-sm font-bold text-white">
+                        <p className="text-sm font-bold text-gray-900 dark:text-white">
                           {r.target.display_name}
                         </p>
-                        <p className="text-xs text-white/40">@{r.target.username}</p>
+                        <p className="text-xs text-gray-500 dark:text-white/40">@{r.target.username}</p>
                       </div>
                     </div>
                   )}
@@ -220,7 +220,7 @@ export default function ReportsPage() {
                     {r.target?.type === "post" && (
                       <button
                         onClick={() => resolveReport(r.id, "delete_post")}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-400/30 text-red-400 text-xs font-bold hover:bg-red-500/10 transition-all"
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-400/30 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-500/10 transition-all"
                       >
                         <Trash2 size={12} />
                         Удалить пост
@@ -228,21 +228,21 @@ export default function ReportsPage() {
                     )}
                     <button
                       onClick={() => resolveReport(r.id, "ban_user")}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-400/30 text-red-400 text-xs font-bold hover:bg-red-500/10 transition-all"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-400/30 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-500/10 transition-all"
                     >
                       <Ban size={12} />
                       Забанить
                     </button>
                     <button
                       onClick={() => resolveReport(r.id, "ignore")}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-green-400/30 text-green-400 text-xs font-bold hover:bg-green-500/10 transition-all"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-green-400/30 text-green-600 dark:text-green-400 text-xs font-bold hover:bg-green-500/10 transition-all"
                     >
                       <CheckCircle size={12} />
                       Закрыть
                     </button>
                     <button
                       onClick={() => rejectReport(r.id)}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-white/20 text-white/60 text-xs font-bold hover:bg-white/10 transition-all"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-white/20 text-gray-600 dark:text-white/60 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
                     >
                       <XCircle size={12} />
                       Отклонить
@@ -252,13 +252,13 @@ export default function ReportsPage() {
 
                 {/* Статусы для обработанных */}
                 {r.status === "resolved" && (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-500/20 text-green-400 text-xs font-bold">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-500/20 text-green-600 dark:text-green-400 text-xs font-bold">
                     <CheckCircle size={12} />
                     Обработана
                   </span>
                 )}
                 {r.status === "rejected" && (
-                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-white/10 text-white/60 text-xs font-bold">
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/60 text-xs font-bold">
                     <XCircle size={12} />
                     Отклонена
                   </span>

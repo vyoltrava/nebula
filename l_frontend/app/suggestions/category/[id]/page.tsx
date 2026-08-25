@@ -90,28 +90,28 @@ export default function CategoryPage() {
     }
   }
 
-  if (loading) return <div className="p-8 text-center text-white/50">{t("common.loading")}</div>;
-  if (!category) return <div className="min-h-screen bg-[#171717] flex items-center justify-center"><p className="text-white/50">{t("suggestions.categoryNotFound")}</p></div>;
+  if (loading) return <div className="p-8 text-center text-gray-600 dark:text-white/50">{t("common.loading")}</div>;
+  if (!category) return <div className="min-h-screen bg-gray-50 dark:bg-[#171717] flex items-center justify-center"><p className="text-gray-600 dark:text-white/50">{t("suggestions.categoryNotFound")}</p></div>;
 
   return (
-    <div className="min-h-screen bg-[#171717]">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#171717]">
       <div className="max-w-6xl mx-auto px-4 py-10">
-        <Link href="/suggestions" className="inline-flex items-center gap-2 text-white/50 hover:text-white mb-6">
+        <Link href="/suggestions" className="inline-flex items-center gap-2 text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white mb-6">
           <ArrowLeft size={16} /> {t("suggestions.title")}
         </Link>
 
         <div className="flex items-start justify-between mb-6 flex-wrap gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-black text-white">{category.name}</h1>
+              <h1 className="text-3xl font-black text-gray-900 dark:text-white">{category.name}</h1>
               {category.is_archived && (
                 <span className="px-2 py-1 rounded text-[10px] font-bold bg-gray-500/20 text-gray-400 flex items-center gap-1">
                   <Lock size={10} /> {t("suggestions.closedCategory")}
                 </span>
               )}
             </div>
-            {category.description && <p className="text-white/50 mt-1">{category.description}</p>}
-            <p className="text-white/40 text-sm mt-2">{category.threads_count} {t("suggestions.threads")} · {category.comments_count} {t("suggestions.messages")}</p>
+            {category.description && <p className="text-gray-600 dark:text-white/50 mt-1">{category.description}</p>}
+            <p className="text-gray-500 dark:text-white/40 text-sm mt-2">{category.threads_count} {t("suggestions.threads")} · {category.comments_count} {t("suggestions.messages")}</p>
           </div>
           {!category.is_archived && (
             <button onClick={() => setShowCreate(true)}
@@ -122,37 +122,37 @@ export default function CategoryPage() {
         </div>
 
         {category.is_archived && (
-          <div className="mb-4 px-4 py-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 text-yellow-400 text-sm">
+          <div className="mb-4 px-4 py-3 rounded-xl border border-yellow-500/30 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 text-sm">
             {t("suggestions.categoryClosed")}
           </div>
         )}
 
-        <div className="border border-white/10 rounded-2xl bg-white/5 overflow-hidden">
+        <div className="border border-gray-200 dark:border-white/10 rounded-2xl bg-gray-100 dark:bg-white/5 overflow-hidden">
           {threads.length === 0 ? (
             <div className="text-center py-16">
-              <MessageSquare size={48} className="mx-auto text-white/20 mb-4" />
-              <p className="text-white/50">{t("suggestions.noThreads")}</p>
-              <p className="text-white/30 text-sm mt-1">{t("suggestions.beFirst")}</p>
+              <MessageSquare size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
+              <p className="text-gray-600 dark:text-white/50">{t("suggestions.noThreads")}</p>
+              <p className="text-gray-500 dark:text-white/30 text-sm mt-1">{t("suggestions.beFirst")}</p>
             </div>
           ) : (
             <>
               {threads.map((th, i) => (
                 <div key={th.id}
-                  className={`flex items-center gap-4 p-5 hover:bg-white/5 transition-all cursor-pointer ${i > 0 ? "border-t border-white/10" : ""}`}
+                  className={`flex items-center gap-4 p-5 hover:bg-gray-100 dark:hover:bg-white/5 transition-all cursor-pointer ${i > 0 ? "border-t border-gray-200 dark:border-white/10" : ""}`}
                   onClick={() => router.push(`/suggestions/thread/${th.id}`)}>
                   <Avatar src={th.author?.avatar_url} name={th.author?.display_name} id={th.author?.id} size={40} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      {th.is_pinned && <Pin size={14} className="text-yellow-400 shrink-0" />}
-                      {th.is_closed && <Lock size={14} className="text-red-400 shrink-0" />}
+                      {th.is_pinned && <Pin size={14} className="text-yellow-600 dark:text-yellow-400 shrink-0" />}
+                      {th.is_closed && <Lock size={14} className="text-red-600 dark:text-red-400 shrink-0" />}
                       {th.prefix && (
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold shrink-0" style={{ color: th.prefix.color, background: th.prefix.bg_color }}>
                           {th.prefix.name}
                         </span>
                       )}
-                      <h3 className="font-bold text-white truncate hover:text-[#8b5cf6] transition-colors">{th.title}</h3>
+                      <h3 className="font-bold text-gray-900 dark:text-white truncate hover:text-[#8b5cf6] transition-colors">{th.title}</h3>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-white/40">
+                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-white/40">
                       <span>{th.author?.display_name}</span>
                       <span>·</span>
                       <span>{fmtDate(th.created_at)}</span>
@@ -167,15 +167,15 @@ export default function CategoryPage() {
                       )}
                     </div>
                   </div>
-                  <div className="hidden sm:flex text-center text-xs text-white/50 gap-5 shrink-0">
-                    <div><p className="font-black text-white text-base">{th.comments_count}</p>{t("suggestions.messages")}</div>
-                    <div><p className="font-black text-white text-base">{th.views_count}</p>{t("suggestions.views")}</div>
+                  <div className="hidden sm:flex text-center text-xs text-gray-600 dark:text-white/50 gap-5 shrink-0">
+                    <div><p className="font-black text-gray-900 dark:text-white text-base">{th.comments_count}</p>{t("suggestions.messages")}</div>
+                    <div><p className="font-black text-gray-900 dark:text-white text-base">{th.views_count}</p>{t("suggestions.views")}</div>
                   </div>
                 </div>
               ))}
               {hasMore && (
                 <button onClick={() => loadThreads(cursor)}
-                  className="w-full py-3 border-t border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-all">
+                  className="w-full py-3 border-t border-gray-200 dark:border-white/10 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white transition-all">
                   {t("suggestions.loadMoreThreads")}
                 </button>
               )}
@@ -186,25 +186,25 @@ export default function CategoryPage() {
 
       {showCreate && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-[#1f1f23] border border-white/15 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-2xl bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-black text-white">{t("suggestions.newThread")}</h3>
-              <button onClick={() => setShowCreate(false)} className="text-white/40 hover:text-white"><X size={20} /></button>
+              <h3 className="text-xl font-black text-gray-900 dark:text-white">{t("suggestions.newThread")}</h3>
+              <button onClick={() => setShowCreate(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white"><X size={20} /></button>
             </div>
             {canManage && prefixes.length > 0 && (
               <select value={prefixId} onChange={(e) => setPrefixId(parseInt(e.target.value))}
-                className="w-full mb-3 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white outline-none">
+                className="w-full mb-3 px-3 py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white outline-none">
                 <option value={0}>{t("suggestions.noPrefix")}</option>
                 {prefixes.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             )}
             <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("suggestions.threadTitlePh")}
-              className="w-full mb-4 px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white text-lg focus:border-[#8b5cf6] outline-none" />
+              className="w-full mb-4 px-4 py-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-lg focus:border-[#8b5cf6] outline-none" />
             <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder={t("suggestions.threadContentPh")} rows={8}
-              className="w-full mb-4 px-4 py-3 rounded-lg bg-white/5 border border-white/10 text-white focus:border-[#8b5cf6] outline-none resize-none" />
+              className="w-full mb-4 px-4 py-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:border-[#8b5cf6] outline-none resize-none" />
             <div className="flex gap-3">
               <button onClick={createThread} className="flex-1 py-3 rounded-lg bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed]">{t("suggestions.publish")}</button>
-              <button onClick={() => setShowCreate(false)} className="flex-1 py-3 rounded-lg border border-white/15 text-white/80 font-bold hover:bg-white/5">{t("common.cancel")}</button>
+              <button onClick={() => setShowCreate(false)} className="flex-1 py-3 rounded-lg border border-gray-200 dark:border-white/15 text-gray-800 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/5">{t("common.cancel")}</button>
             </div>
           </div>
         </div>

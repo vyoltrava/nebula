@@ -39,11 +39,11 @@ export function FeedTabs() {
 
   return (
     <>
-      <div className="flex border-b border-white/10 sticky top-0 bg-[#171717]/80 backdrop-blur-md z-10">
+      <div className="flex border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/80 backdrop-blur-md z-10">
         <button
           onClick={() => setTab("all")}
           className={`flex-1 py-3 font-bold transition-colors ${
-            tab === "all" ? "text-white border-b-2 border-purple-400" : "text-white/50 hover:text-white/80"
+            tab === "all" ? "text-gray-900 dark:text-white border-b-2 border-purple-600 dark:border-purple-400" : "text-gray-600 dark:text-white/50 hover:text-gray-800 dark:hover:text-white/80"
           }`}
         >
           {t("feed.all")}
@@ -51,7 +51,7 @@ export function FeedTabs() {
         <button
           onClick={() => setTab("following")}
           className={`flex-1 py-3 font-bold transition-colors ${
-            tab === "following" ? "text-white border-b-2 border-purple-400" : "text-white/50 hover:text-white/80"
+            tab === "following" ? "text-gray-900 dark:text-white border-b-2 border-purple-600 dark:border-purple-400" : "text-gray-600 dark:text-white/50 hover:text-gray-800 dark:hover:text-white/80"
           }`}
         >
           {t("feed.following")}
@@ -63,7 +63,7 @@ export function FeedTabs() {
       ))}
 
       {tab === "following" && posts.length === 0 && (
-        <p className="p-8 text-center text-white/50">
+        <p className="p-8 text-center text-gray-600 dark:text-white/50">
           {t("feed.followingEmpty")}
         </p>
       )}

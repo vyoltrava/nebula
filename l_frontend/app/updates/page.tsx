@@ -206,7 +206,7 @@ export default function UpdatesPage() {
   const unreadCount = updates.filter((u) => !isRead(u.id)).length;
 
   return (
-    <div className="min-h-screen bg-[#171717]">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#171717]">
       <div className="max-w-3xl mx-auto px-4 py-10">
                    <CommunityTabs />
 
@@ -217,11 +217,11 @@ export default function UpdatesPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#8b5cf6]/20 border border-[#8b5cf6]/40 mb-4 shadow-[0_0_30px_rgba(139,92,246,0.3)]">
             <Megaphone size={28} className="text-[#8b5cf6]" />
           </div>
-          <h1 className="text-4xl font-black text-white mb-2">{t("updates.blogTitle")}</h1>
-          <p className="text-white/50">
+          <h1 className="text-4xl font-black text-gray-900 dark:text-white mb-2">{t("updates.blogTitle")}</h1>
+          <p className="text-gray-600 dark:text-white/50">
             {t("updates.blogHint")}
           </p>
-          <p className="text-white/30 text-xs mt-2 font-mono">
+          <p className="text-gray-500 dark:text-white/30 text-xs mt-2 font-mono">
             {t("updates.count", { n: updates.length })}
           </p>
 
@@ -248,9 +248,9 @@ export default function UpdatesPage() {
         {loading && <UpdatesSkeleton />}
 
         {!loading && updates.length === 0 && (
-          <div className="text-center p-12 border border-white/10 rounded-2xl bg-white/5">
-            <Megaphone size={48} className="mx-auto text-white/20 mb-4" />
-            <p className="text-white/50">{t("updates.empty")}</p>
+          <div className="text-center p-12 border border-gray-200 dark:border-white/10 rounded-2xl bg-gray-100 dark:bg-white/5">
+            <Megaphone size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
+            <p className="text-gray-600 dark:text-white/50">{t("updates.empty")}</p>
           </div>
         )}
 
@@ -269,7 +269,7 @@ export default function UpdatesPage() {
               <div key={u.id} className="relative mb-8">
                 {/* Точка на таймлайне */}
                 <span
-                  className="absolute -left-10 top-5 w-7 h-7 rounded-full border-2 bg-[#171717] flex items-center justify-center z-10"
+                  className="absolute -left-10 top-5 w-7 h-7 rounded-full border-2 bg-gray-50 dark:bg-[#171717] flex items-center justify-center z-10"
                   style={{
                     borderColor: read ? "rgba(255,255,255,0.15)" : cfg.color,
                     boxShadow: read ? "none" : cfg.glow,
@@ -283,7 +283,7 @@ export default function UpdatesPage() {
                   onClick={() => toggleExpand(u.id)}
                   className={`border rounded-2xl p-5 backdrop-blur-sm transition-all cursor-pointer select-none relative overflow-hidden ${
                     read
-                      ? "bg-white/5 border-white/10 hover:bg-white/[0.07]"
+                      ? "bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 hover:bg-white/[0.07]"
                       : "bg-[#8b5cf6]/[0.03] border-[#8b5cf6]/20 hover:bg-[#8b5cf6]/[0.06]"
                   }`}
                   style={isMajor && !read ? { boxShadow: cfg.glow } : undefined}
@@ -303,7 +303,7 @@ export default function UpdatesPage() {
                           <Icon size={10} />
                           {t(cfg.labelKey)}
                         </span>
-                        <span className="inline-flex items-center gap-1 text-xs text-white/40">
+                        <span className="inline-flex items-center gap-1 text-xs text-gray-500 dark:text-white/40">
                           <Clock size={11} />
                           {new Date(u.created_at).toLocaleString(locale === "en" ? "en-US" : "ru-RU", {
                             day: "2-digit", month: "long", year: "numeric",
@@ -317,14 +317,14 @@ export default function UpdatesPage() {
                         )}
                       </div>
 
-                      <h2 className={`font-black text-white mb-3 ${isMajor ? "text-2xl" : "text-lg"}`}>
+                      <h2 className={`font-black text-gray-900 dark:text-white mb-3 ${isMajor ? "text-2xl" : "text-lg"}`}>
                         {u.title}
                       </h2>
 
                       {/* Контент с обрезкой */}
                       <div className="relative">
                         <p
-                          className={`text-white/70 text-sm leading-relaxed whitespace-pre-wrap transition-all ${
+                          className={`text-gray-800 dark:text-white/70 text-sm leading-relaxed whitespace-pre-wrap transition-all ${
                             expanded ? "" : "line-clamp-3"
                           }`}
                         >
@@ -346,16 +346,16 @@ export default function UpdatesPage() {
                       )}
 
                       {u.author && (
-                        <div className="flex items-center gap-2 mt-4 pt-3 border-t border-white/5">
+                        <div className="flex items-center gap-2 mt-4 pt-3 border-t border-gray-200 dark:border-white/5">
                           <Avatar src={u.author.avatar_url} name={u.author.display_name} id={u.author.id} size={24} />
-                          <span className="text-xs text-white/50">
+                          <span className="text-xs text-gray-600 dark:text-white/50">
                             {u.author.display_name}
                           </span>
                           {u.author.level >= 11 && (
                             <span className="text-[9px] font-black uppercase tracking-widest text-[#00ff41]">System</span>
                           )}
                           {u.author.level === 10 && (
-                            <span className="text-[9px] font-black uppercase tracking-widest text-white">Founder</span>
+                            <span className="text-[9px] font-black uppercase tracking-widest text-gray-900 dark:text-white">Founder</span>
                           )}
                         </div>
                       )}
@@ -367,7 +367,7 @@ export default function UpdatesPage() {
                           e.stopPropagation();
                           deleteUpdate(u.id);
                         }}
-                        className="p-2 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0"
+                        className="p-2 rounded-lg text-white/30 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0"
                         title={t("common.delete")}
                       >
                         <Trash2 size={16} />
@@ -386,27 +386,27 @@ export default function UpdatesPage() {
         <>
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]" onClick={() => setShowForm(false)} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full max-w-xl border border-white/20 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
+            <div className="w-full max-w-xl border border-gray-200 dark:border-white/20 rounded-2xl bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-5">
-                <h2 className="text-xl font-black text-white">{t("updates.newTitle")}</h2>
-                <button onClick={() => setShowForm(false)} className="text-white/60 hover:text-white p-1.5 rounded-lg hover:bg-white/10">
+                <h2 className="text-xl font-black text-gray-900 dark:text-white">{t("updates.newTitle")}</h2>
+                <button onClick={() => setShowForm(false)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10">
                   <X size={20} />
                 </button>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-white/70 mb-1">{t("updates.titleLabel")}</label>
+                  <label className="block text-sm font-semibold text-gray-800 dark:text-white/70 mb-1">{t("updates.titleLabel")}</label>
                   <input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="w-full border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]"
+                    className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
                     placeholder={t("updates.titlePh")}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-white/70 mb-2">{t("updates.importance")}</label>
+                  <label className="block text-sm font-semibold text-gray-800 dark:text-white/70 mb-2">{t("updates.importance")}</label>
                   <div className="grid grid-cols-3 gap-2">
                     {Object.entries(IMPORTANCE).map(([key, cfg]: [string, any]) => {
                       const Icon = cfg.icon;
@@ -417,7 +417,7 @@ export default function UpdatesPage() {
                           className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold transition-all ${
                             importance === key
                               ? `${cfg.border} ${cfg.bg}`
-                              : "border-white/10 text-white/50 hover:bg-white/5"
+                              : "border-gray-200 dark:border-white/10 text-gray-600 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/5"
                           }`}
                           style={importance === key ? { color: cfg.color } : undefined}
                         >
@@ -430,18 +430,18 @@ export default function UpdatesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-white/70 mb-1">{t("updates.bodyLabel")}</label>
+                  <label className="block text-sm font-semibold text-gray-800 dark:text-white/70 mb-1">{t("updates.bodyLabel")}</label>
                   <textarea
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     rows={6}
-                    className="w-full border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6] resize-none"
+                    className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6] resize-none"
                     placeholder={t("updates.bodyPh")}
                   />
                 </div>
 
                 {error && (
-                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-semibold">
+                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-sm font-semibold">
                     {error}
                   </div>
                 )}

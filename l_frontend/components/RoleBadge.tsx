@@ -87,7 +87,7 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
 
     return (
       <span
-        // Убрали text-white отсюда, чтобы цвет текста контролировался ТОЛЬКО через style
+        // Убрали text-gray-900 dark:text-white отсюда, чтобы цвет текста контролировался ТОЛЬКО через style
         className={`inline-flex items-center gap-1.5 ${sizeClasses[size]} rounded-md font-bold uppercase tracking-wider shrink-0 relative overflow-hidden`}
         style={{
           ...bgStyle,
@@ -172,7 +172,7 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
     const color = user.role.color || "#f59e0b";
     return (
       <span
-        className={`badge-special-dept inline-flex items-center gap-1.5 ${sizeClasses[size]} rounded-md font-black uppercase tracking-widest shrink-0 border-2 text-white relative overflow-hidden ${showAnimation ? "animate-special-glow" : ""}`}
+        className={`badge-special-dept inline-flex items-center gap-1.5 ${sizeClasses[size]} rounded-md font-black uppercase tracking-widest shrink-0 border-2 text-gray-900 dark:text-white relative overflow-hidden ${showAnimation ? "animate-special-glow" : ""}`}
         style={{
           background: `linear-gradient(135deg, ${color} 0%, ${color}dd 50%, ${color}bb 100%)`,
           borderColor: color,
@@ -200,7 +200,7 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
     const color = user.role.color || "#8b5cf6";
     return (
       <span
-        className={`badge-role inline-flex items-center gap-1 ${sizeClasses[size]} rounded-md font-black uppercase tracking-widest shrink-0 border text-white relative overflow-hidden`}
+        className={`badge-role inline-flex items-center gap-1 ${sizeClasses[size]} rounded-md font-black uppercase tracking-widest shrink-0 border text-gray-900 dark:text-white relative overflow-hidden`}
         style={{
           backgroundColor: color,
           borderColor: `${color}80`,

@@ -299,20 +299,20 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-[#171717] border border-white/10 rounded-xl w-full max-w-5xl h-[90vh] flex flex-col shadow-2xl">
+      <div className="bg-gray-50 dark:bg-[#171717] border border-gray-200 dark:border-white/10 rounded-xl w-full max-w-5xl h-[90vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-white/10">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             {isEdit ? "Редактирование плашки" : "Создание новой плашки"}
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white">
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-gray-900 dark:text-white">
             <X size={20} />
           </button>
         </div>
 
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar Tabs */}
-          <div className="w-64 border-r border-white/10 flex flex-col bg-[#121212]">
+          <div className="w-64 border-r border-gray-200 dark:border-white/10 flex flex-col bg-gray-50 dark:bg-[#121212]">
             <div className="p-4 space-y-1">
               {SUB_TABS.map((tab) => (
                 <button
@@ -320,8 +320,8 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                   onClick={() => setActiveSubTab(tab.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
                     activeSubTab === tab.id
-                      ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                      : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
+                      ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                      : "text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-200"
                   }`}
                 >
                   {tab.icon}
@@ -331,7 +331,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
             </div>
             
             {/* Mini Preview in Sidebar */}
-            <div className="mt-auto p-6 border-t border-white/10 flex flex-col items-center gap-4">
+            <div className="mt-auto p-6 border-t border-gray-200 dark:border-white/10 flex flex-col items-center gap-4">
               <span className="text-xs text-gray-500 uppercase tracking-wider">Предпросмотр</span>
               <div 
                 className="relative flex items-center justify-center px-4 py-2 rounded-lg min-w-[120px] min-h-[40px]"
@@ -340,7 +340,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                 {iconPreview && (
                   <img src={iconPreview} alt="" className="w-5 h-5 mr-2 object-contain" />
                 )}
-                {/* Убрали text-white, цвет теперь берется из getPreviewStyle().color */}
+                {/* Убрали text-gray-900 dark:text-white, цвет теперь берется из getPreviewStyle().color */}
                 <span className="text-sm font-bold drop-shadow-md whitespace-nowrap">
                   {textContent || name || "Плашка"}
                 </span>
@@ -353,7 +353,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
             <form onSubmit={handleSubmit} className="space-y-8 max-w-3xl">
               
               {error && (
-                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-600 dark:text-red-400 text-sm">
                   {error}
                 </div>
               )}
@@ -368,7 +368,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500/50 transition-colors"
+                        className="w-full bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500/50 transition-colors"
                         placeholder="Например: VIP Gold"
                       />
                     </label>
@@ -378,7 +378,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                       <textarea
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
-                        className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500/50 transition-colors h-24 resize-none"
+                        className="w-full bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500/50 transition-colors h-24 resize-none"
                         placeholder="Краткое описание назначения плашки..."
                       />
                     </label>
@@ -389,7 +389,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                         type="text"
                         value={textContent}
                         onChange={(e) => setTextContent(e.target.value)}
-                        className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500/50 transition-colors"
+                        className="w-full bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500/50 transition-colors"
                         placeholder="Текст, который будет виден пользователям"
                         maxLength={40}
                       />
@@ -397,10 +397,10 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                     </label>
                   </div>
 
-                  <div className="pt-6 border-t border-white/10">
+                  <div className="pt-6 border-t border-gray-200 dark:border-white/10">
                     <span className="text-sm font-medium text-gray-300 mb-3 block">Иконка / Логотип</span>
                     <div className="flex items-center gap-4">
-                      <div className="w-16 h-16 bg-[#1a1a1a] border border-white/10 rounded-lg flex items-center justify-center overflow-hidden relative group">
+                      <div className="w-16 h-16 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg flex items-center justify-center overflow-hidden relative group">
                         {iconPreview ? (
                           <img src={iconPreview} alt="Icon" className="w-full h-full object-cover" />
                         ) : (
@@ -412,7 +412,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                             onClick={removeIcon}
                             className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                           >
-                            <Trash2 size={20} className="text-red-400" />
+                            <Trash2 size={20} className="text-red-600 dark:text-red-400" />
                           </button>
                         )}
                       </div>
@@ -448,8 +448,8 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                           onClick={() => setBgType(type.id)}
                           className={`py-2 px-3 rounded-lg text-sm border transition-all ${
                             bgType === type.id
-                              ? "bg-blue-500/20 border-blue-500/50 text-blue-400"
-                              : "bg-[#1a1a1a] border-white/10 text-gray-400 hover:border-white/20"
+                              ? "bg-blue-500/20 border-blue-500/50 text-blue-600 dark:text-blue-400"
+                              : "bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-white/10 text-gray-400 hover:border-gray-200 dark:hover:border-white/20"
                           }`}
                         >
                           {type.label}
@@ -473,7 +473,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                             type="text"
                             value={bgColor}
                             onChange={(e) => setBgColor(e.target.value)}
-                            className="flex-1 bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white"
+                            className="flex-1 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-gray-900 dark:text-white"
                           />
                         </div>
                       </label>
@@ -485,7 +485,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                               key={i}
                               type="button"
                               onClick={() => resetToPreset(p)}
-                              className="w-8 h-8 rounded-full border-2 border-white/10 hover:scale-110 transition-transform"
+                              className="w-8 h-8 rounded-full border-2 border-gray-200 dark:border-white/10 hover:scale-110 transition-transform"
                               style={{ backgroundColor: p.bg_color }}
                               title={p.name}
                             />
@@ -495,7 +495,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                     </div>
                   )}
                   {/* Добавь это внутри вкладки "visual", например, после блока bgType === "solid" */}
-<div className="pt-4 border-t border-white/10">
+<div className="pt-4 border-t border-gray-200 dark:border-white/10">
   <label className="block">
     <span className="text-sm font-medium text-gray-300 mb-1 block">Цвет текста на плашке</span>
     <div className="flex gap-2 flex-wrap">
@@ -509,7 +509,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
         type="text"
         value={textColor}
         onChange={(e) => setTextColor(e.target.value)}
-        className="flex-1 bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white"
+        className="flex-1 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-gray-900 dark:text-white"
       />
     </div>
   </label>
@@ -523,7 +523,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                           type="text"
                           value={bgGradient}
                           onChange={(e) => setBgGradient(e.target.value)}
-                          className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white"
+                          className="w-full bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-gray-900 dark:text-white"
                         />
                       </label>
                       <div className="grid grid-cols-2 gap-4">
@@ -533,7 +533,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                              type="number"
                              value={bgGradientAngle}
                              onChange={(e) => setBgGradientAngle(Number(e.target.value))}
-                             className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
+                             className="w-full bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white"
                            />
                          </label>
                       </div>
@@ -545,7 +545,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                               key={i}
                               type="button"
                               onClick={() => setBgGradient(grad)}
-                              className="h-10 rounded-lg border border-white/10 hover:scale-105 transition-transform"
+                              className="h-10 rounded-lg border border-gray-200 dark:border-white/10 hover:scale-105 transition-transform"
                               style={{ background: grad }}
                             />
                           ))}
@@ -559,7 +559,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                        <label className="block">
                         <span className="text-sm font-medium text-gray-300 mb-1 block">Фоновое изображение</span>
                         <div className="flex items-center gap-4">
-                          <div className="w-16 h-16 bg-[#1a1a1a] border border-white/10 rounded-lg flex items-center justify-center overflow-hidden relative group">
+                          <div className="w-16 h-16 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg flex items-center justify-center overflow-hidden relative group">
                             {bgImagePreview ? (
                               <img src={bgImagePreview} alt="BG" className="w-full h-full object-cover" />
                             ) : (
@@ -571,7 +571,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                                 onClick={removeBgImage}
                                 className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                               >
-                                <Trash2 size={20} className="text-red-400" />
+                                <Trash2 size={20} className="text-red-600 dark:text-red-400" />
                               </button>
                             )}
                           </div>
@@ -589,7 +589,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                         <select
                           value={bgImageMode}
                           onChange={(e) => setBgImageMode(e.target.value)}
-                          className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
+                          className="w-full bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white"
                         >
                           <option value="cover">Cover (Заполнить)</option>
                           <option value="contain">Contain (Вместить)</option>
@@ -618,7 +618,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                           type="text"
                           value={borderColor}
                           onChange={(e) => setBorderColor(e.target.value)}
-                          className="flex-1 bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white"
+                          className="flex-1 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-gray-900 dark:text-white"
                         />
                       </div>
                     </label>
@@ -651,8 +651,8 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                           onClick={() => setBorderStyle(style)}
                           className={`py-2 px-3 rounded-lg text-sm border transition-all capitalize ${
                             borderStyle === style
-                              ? "bg-blue-500/20 border-blue-500/50 text-blue-400"
-                              : "bg-[#1a1a1a] border-white/10 text-gray-400 hover:border-white/20"
+                              ? "bg-blue-500/20 border-blue-500/50 text-blue-600 dark:text-blue-400"
+                              : "bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-white/10 text-gray-400 hover:border-gray-200 dark:hover:border-white/20"
                           }`}
                         >
                           {style}
@@ -661,7 +661,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                     </div>
                   </label>
 
-                  <div className="pt-4 border-t border-white/10">
+                  <div className="pt-4 border-t border-gray-200 dark:border-white/10">
                     <div className="flex items-center justify-between mb-4">
                       <span className="text-sm font-medium text-gray-300">Свечение обводки (Glow)</span>
                       <button
@@ -710,8 +710,8 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                           onClick={() => toggleAnimation(opt.value)}
                           className={`flex items-center justify-between p-3 rounded-lg border text-left transition-all ${
                             animationFlags.includes(opt.value)
-                              ? "bg-blue-500/10 border-blue-500/50 text-blue-400"
-                              : "bg-[#1a1a1a] border-white/10 text-gray-400 hover:border-white/20"
+                              ? "bg-blue-500/10 border-blue-500/50 text-blue-600 dark:text-blue-400"
+                              : "bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-white/10 text-gray-400 hover:border-gray-200 dark:hover:border-white/20"
                           }`}
                         >
                           <span className="text-sm">{opt.label}</span>
@@ -721,7 +721,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-white/10">
+                  <div className="pt-4 border-t border-gray-200 dark:border-white/10">
                     <span className="text-sm font-medium text-gray-300 mb-3 block">Скорость анимации</span>
                     <div className="grid grid-cols-3 gap-3">
                       {SPEED_OPTIONS.map((speed) => (
@@ -731,8 +731,8 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                           onClick={() => setAnimationSpeed(speed.value)}
                           className={`py-2 px-3 rounded-lg text-sm border transition-all ${
                             animationSpeed === speed.value
-                              ? "bg-blue-500/20 border-blue-500/50 text-blue-400"
-                              : "bg-[#1a1a1a] border-white/10 text-gray-400 hover:border-white/20"
+                              ? "bg-blue-500/20 border-blue-500/50 text-blue-600 dark:text-blue-400"
+                              : "bg-white dark:bg-[#1a1a1a] border-gray-200 dark:border-white/10 text-gray-400 hover:border-gray-200 dark:hover:border-white/20"
                           }`}
                         >
                           {speed.label}
@@ -747,7 +747,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
               {activeSubTab === "effects" && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                   {/* Shadow */}
-                  <div className="p-4 bg-[#1a1a1a] rounded-xl border border-white/5 space-y-4">
+                  <div className="p-4 bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-200 dark:border-white/5 space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-gray-300">Тень (Drop Shadow)</span>
                       <button
@@ -772,7 +772,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                             type="number"
                             value={shadowBlur}
                             onChange={(e) => setShadowBlur(Number(e.target.value))}
-                            className="w-full bg-[#121212] border border-white/10 rounded px-2 py-1 text-sm text-white"
+                            className="w-full bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-white/10 rounded px-2 py-1 text-sm text-gray-900 dark:text-white"
                           />
                         </label>
                         <label className="block">
@@ -781,7 +781,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                             type="text"
                             value={shadowColor}
                             onChange={(e) => setShadowColor(e.target.value)}
-                            className="w-full bg-[#121212] border border-white/10 rounded px-2 py-1 text-sm text-white font-mono"
+                            className="w-full bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-white/10 rounded px-2 py-1 text-sm text-gray-900 dark:text-white font-mono"
                           />
                         </label>
                       </div>
@@ -795,7 +795,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                       { label: "Блики (Specular)", state: specularEnabled, setter: setSpecularEnabled },
                       { label: "Металлический эффект", state: metallicEnabled, setter: setMetallicEnabled },
                     ].map((item, i) => (
-                      <div key={i} className="flex items-center justify-between p-3 bg-[#1a1a1a] rounded-lg border border-white/5">
+                      <div key={i} className="flex items-center justify-between p-3 bg-white dark:bg-[#1a1a1a] rounded-lg border border-gray-200 dark:border-white/5">
                         <span className="text-sm text-gray-300">{item.label}</span>
                         <button
                           type="button"
@@ -826,7 +826,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                         type="number"
                         value={priority}
                         onChange={(e) => setPriority(Number(e.target.value))}
-                        className="w-full bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-sm text-white"
+                        className="w-full bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white"
                         placeholder="0"
                       />
                       <span className="text-xs text-gray-500 mt-1 block">Чем выше число, тем выше плашка в списке.</span>
@@ -859,11 +859,11 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
         </div>
 
         {/* Footer Actions */}
-        <div className="p-6 border-t border-white/10 bg-[#121212] flex justify-end gap-3">
+        <div className="p-6 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#121212] flex justify-end gap-3">
           <button
             type="button"
             onClick={onClose}
-            className="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+            className="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
           >
             Отмена
           </button>
@@ -874,7 +874,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
           >
             {loading ? (
               <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-gray-200 dark:border-white/30 border-t-white rounded-full animate-spin" />
                 Сохранение...
               </>
             ) : (

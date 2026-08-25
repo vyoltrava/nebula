@@ -65,7 +65,7 @@ export default function CallModal() {
       <div className="relative z-10 flex flex-col items-center justify-between w-full h-full p-6 max-w-md mx-auto">
         {/* Верхняя панель */}
         <div className="w-full text-center mt-8">
-          <div className="text-white/80 text-sm mb-2 font-medium">
+          <div className="text-gray-800 dark:text-white/80 text-sm mb-2 font-medium">
             {status === 'ringing' && isCaller && 'Вызов...'}
             {status === 'ringing' && !isCaller && 'Входящий звонок'}
             {status === 'connecting' && 'Соединение...'}
@@ -75,20 +75,20 @@ export default function CallModal() {
 
           {/* 📊 ИНДИКАТОР ЭТАПА СОЕДИНЕНИЯ: ICE-стейт, типы кандидатов, TURN */}
           {(status === 'connecting' || status === 'active') && diag && (
-            <div className="flex items-center justify-center gap-2 text-[11px] font-mono text-white/50">
+            <div className="flex items-center justify-center gap-2 text-[11px] font-mono text-gray-600 dark:text-white/50">
               <span>ICE:{diag.ice}</span>
               <span>·</span>
               <span>
                 H/S/R:{diag.candHost}/{diag.candSrflx}/{diag.candRelay}
               </span>
               <span>·</span>
-              <span className={diag.turnActive ? 'text-emerald-400' : 'text-red-400'}>
+              <span className={diag.turnActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}>
                 TURN:{diag.turnActive ? 'ON' : 'OFF'}
               </span>
               {diag.candidateErrors > 0 && (
                 <>
                   <span>·</span>
-                  <span className="text-amber-400">err:{diag.candidateErrors}</span>
+                  <span className="text-amber-600 dark:text-amber-400">err:{diag.candidateErrors}</span>
                 </>
               )}
             </div>
@@ -96,7 +96,7 @@ export default function CallModal() {
 
           {/* 🚨 ИНДИКАТОР ПРОВАЛА СОЕДИНЕНИЯ с человекочитаемой причиной */}
           {status === 'connecting' && diag && (diag.ice === 'failed' || diag.conn === 'failed') && (
-            <div className="mx-auto mt-3 max-w-xs rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[12px] leading-snug text-red-300">
+            <div className="mx-auto mt-3 max-w-xs rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[12px] leading-snug text-red-600 dark:text-red-300">
               {diag.hint ?? 'Не удалось установить P2P-соединение'}
             </div>
           )}
@@ -109,15 +109,15 @@ export default function CallModal() {
               <img 
                 src={displayAvatar} 
                 alt={displayName} 
-                className={`w-28 h-28 rounded-xl object-cover border-4 ${status === 'ringing' ? 'border-green-500 animate-pulse' : 'border-white/30'}`} 
+                className={`w-28 h-28 rounded-xl object-cover border-4 ${status === 'ringing' ? 'border-green-500 animate-pulse' : 'border-gray-200 dark:border-white/30'}`} 
               />
             ) : (
-              <div className={`w-28 h-28 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-4xl font-bold border-4 ${status === 'ringing' ? 'border-green-500 animate-pulse' : 'border-white/30'}`}>
+              <div className={`w-28 h-28 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-4xl font-bold border-4 ${status === 'ringing' ? 'border-green-500 animate-pulse' : 'border-gray-200 dark:border-white/30'}`}>
                 {displayName.charAt(0).toUpperCase()}
               </div>
             )}
-            <h2 className="text-white text-2xl font-semibold">{displayName}</h2>
-            <p className="text-white/60">{isVideoCall ? 'Видеозвонок' : 'Аудиозвонок'}</p>
+            <h2 className="text-gray-900 dark:text-white text-2xl font-semibold">{displayName}</h2>
+            <p className="text-gray-600 dark:text-white/60">{isVideoCall ? 'Видеозвонок' : 'Аудиозвонок'}</p>
           </div>
         )}
 
@@ -125,7 +125,7 @@ export default function CallModal() {
             Раньше ждали connecting/active: у звонящего во время «Вызов...»
             камера выглядела выключенной (симптом «камера только у получателя»). */}
         {isVideoCall && !!localStream && (
-          <div className="absolute top-20 right-6 w-28 h-40 rounded-xl overflow-hidden shadow-2xl border-2 border-white/20 bg-black">
+          <div className="absolute top-20 right-6 w-28 h-40 rounded-xl overflow-hidden shadow-2xl border-2 border-gray-200 dark:border-white/20 bg-black">
             <video 
               ref={localVideoRef} 
               autoPlay 
@@ -135,7 +135,7 @@ export default function CallModal() {
             />
             {isVideoOff && (
               <div className="absolute inset-0 bg-gray-800 flex items-center justify-center">
-                <svg className="w-8 h-8 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-8 h-8 text-gray-600 dark:text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                 </svg>
               </div>
@@ -148,23 +148,23 @@ export default function CallModal() {
           {status === 'ringing' && !isCaller && (
             <>
               <button onClick={rejectCall} className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg transition-transform hover:scale-110">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.258-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" /></svg>
+                <svg className="w-8 h-8 text-gray-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.258-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" /></svg>
               </button>
               <button onClick={acceptCall} className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center shadow-lg transition-transform hover:scale-110 animate-pulse">
-                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                <svg className="w-8 h-8 text-gray-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
               </button>
             </>
           )}
 
           {status === 'ringing' && isCaller && (
             <button onClick={endCall} className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg transition-transform hover:scale-110">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.258-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" /></svg>
+              <svg className="w-8 h-8 text-gray-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.258-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" /></svg>
             </button>
           )}
 
           {(status === 'active' || status === 'connecting') && (
             <>
-              <button onClick={toggleMute} className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all ${isMuted ? 'bg-white text-gray-900' : 'bg-white/20 hover:bg-white/30 text-white'}`}>
+              <button onClick={toggleMute} className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all ${isMuted ? 'bg-white text-gray-900' : 'bg-gray-100 dark:bg-white/20 hover:bg-gray-200 dark:hover:bg-white/30 text-gray-900 dark:text-white'}`}>
                 {isMuted ? (
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" /></svg>
                 ) : (
@@ -173,7 +173,7 @@ export default function CallModal() {
               </button>
 
               {isVideoCall && (
-                <button onClick={toggleVideo} className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all ${isVideoOff ? 'bg-white text-gray-900' : 'bg-white/20 hover:bg-white/30 text-white'}`}>
+                <button onClick={toggleVideo} className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-all ${isVideoOff ? 'bg-white text-gray-900' : 'bg-gray-100 dark:bg-white/20 hover:bg-gray-200 dark:hover:bg-white/30 text-gray-900 dark:text-white'}`}>
                   {isVideoOff ? (
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
                   ) : (

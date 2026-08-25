@@ -55,7 +55,7 @@ function SmartMedia({ src, type, className }: { src: string; type?: string | nul
   }, [src, mediaKind]);
 
   if (mediaKind === "audio") return <AudioPlayer src={src} />;
-  if (mediaKind === "loading") return <div className="mt-2 h-16 w-full rounded-xl bg-white/5 animate-pulse" />;
+  if (mediaKind === "loading") return <div className="mt-2 h-16 w-full rounded-xl bg-gray-100 dark:bg-white/5 animate-pulse" />;
   if (mediaKind === "video") return <video controls src={src} className={`mt-2 max-h-96 w-auto rounded-xl ${className || ""}`} />;
   return <img src={src} alt="" className={`mt-2 max-h-96 w-auto rounded-xl ${className || ""}`} />;
 }
@@ -85,7 +85,7 @@ function AuthorBadges({ is_admin, is_moderator, is_banned, role }: {
   return (
     <>
       {is_banned && (
-        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-[8px] font-black uppercase border border-red-500/30 shrink-0">
+        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-500/20 text-red-600 dark:text-red-400 text-[8px] font-black uppercase border border-red-500/30 shrink-0">
           <Ban size={8} /> BANNED
         </span>
       )}
@@ -523,11 +523,11 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
 
   return (
     <article 
-      className="p-4 border-b border-white/10 hover:bg-white/5 transition-colors cursor-pointer"
+      className="p-4 border-b border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
       onClick={handlePostClick}
       >
       {is_repost && (
-        <div className="flex items-center gap-2 text-xs text-white/50 ml-12 mb-1">
+        <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-white/50 ml-12 mb-1">
           <RefreshCw size={14} />
           <span>{author} {t("post.repostedBy")}</span>
         </div>
@@ -544,7 +544,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               <Link
                 href={`/${cleanUsername}`}
                 className={`font-bold transition-all ${
-                  glowStyle(author_is_admin, author_is_moderator, author_role) ? "hover:opacity-80" : "text-white hover:text-[#8b5cf6]"
+                  glowStyle(author_is_admin, author_is_moderator, author_role) ? "hover:opacity-80" : "text-gray-900 dark:text-white hover:text-[#8b5cf6]"
                 }`}
                 style={glowStyle(author_is_admin, author_is_moderator, author_role)}
               >
@@ -556,9 +556,9 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 is_banned={author_is_banned}
                 role={author_role}
               />
-              <span className="font-normal text-white/50 flex items-center gap-1.5">
+              <span className="font-normal text-gray-600 dark:text-white/50 flex items-center gap-1.5">
                 {handle} {created_at ? `· ${timeAgo(created_at)}` : ""}
-                {isEdited && <span className="text-white/40 text-[10px] italic">{t("post.edited")}</span>}
+                {isEdited && <span className="text-gray-500 dark:text-white/40 text-[10px] italic">{t("post.edited")}</span>}
                 
                 {/* Карандаш (Редактировать) */}
                 {canEdit && !is_repost && !editing && (
@@ -568,7 +568,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                       setEditText(displayText);
                       setEditing(true);
                     }}
-                    className="text-white/30 hover:text-blue-400 transition-colors p-1.5 -m-1.5 rounded-full hover:bg-blue-400/10 active:scale-95"
+                    className="text-gray-500 dark:text-white/30 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-1.5 -m-1.5 rounded-full hover:bg-blue-400/10 active:scale-95"
                     title={currentUser?.id === author_id ? t("post.edit") : t("post.modEdit")}
                   >
                     <Pencil size={15} />
@@ -581,7 +581,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                     e.stopPropagation();
                     setShowEcho(true);
                   }}
-                  className="text-white/30 hover:text-purple-400 transition-colors p-1.5 -m-1.5 rounded-full hover:bg-purple-400/10 active:scale-95"
+                  className="text-white/30 hover:text-purple-600 dark:hover:text-purple-400 transition-colors p-1.5 -m-1.5 rounded-full hover:bg-purple-400/10 active:scale-95"
                   title={t("post.echo")}
                 >
                   <Radio size={15} />
@@ -594,7 +594,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 className={`text-xs font-bold px-3 py-1 rounded-full border transition-all shrink-0 ${
                   following
                     ? "border-[#8b5cf6] bg-[#8b5cf6] text-white"
-                    : "border-white/20 text-white/70 hover:bg-white/10 hover:border-white/40 hover:text-white"
+                    : "border-gray-200 dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white"
                 }`}
               >
                 {following ? t("post.following") : t("post.follow")}
@@ -610,27 +610,27 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             )}
           
           {repost_of && !repost_of.deleted ? (
-            <div className="mt-2 border border-white/10 rounded-xl p-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+            <div className="mt-2 border border-gray-200 dark:border-white/10 rounded-xl p-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
               <div className="flex items-center gap-2 mb-2">
                 <Link href={`/${repost_of.handle?.replace("@", "")}`} onClick={(e) => e.stopPropagation()}>
                   <Avatar src={repost_of.author_avatar} name={repost_of.author} id={repost_of.author_id} size={24} />
                 </Link>
-                <Link href={`/${repost_of.handle?.replace("@", "")}`} className="font-semibold text-sm text-white hover:underline" onClick={(e) => e.stopPropagation()}>
+                <Link href={`/${repost_of.handle?.replace("@", "")}`} className="font-semibold text-sm text-gray-900 dark:text-white hover:underline" onClick={(e) => e.stopPropagation()}>
                   {repost_of.author}
                 </Link>
-                <span className="text-sm text-white/40">{repost_of.handle}</span>
+                <span className="text-sm text-gray-500 dark:text-white/40">{repost_of.handle}</span>
               </div>
               <div className="text-sm"><MarkdownRenderer text={repost_of.text} /></div>
               {repost_of.media_url && (
                 <SmartMedia 
                   src={mediaUrl(repost_of.media_url)} 
                   type={repost_of.media_type} 
-                  className="max-h-60 rounded-lg border border-white/10" 
+                  className="max-h-60 rounded-lg border border-gray-200 dark:border-white/10" 
                 />
               )}
             </div>
           ) : repost_of?.deleted ? (
-            <div className="mt-2 border border-white/10 rounded-xl p-4 bg-white/[0.02] text-center text-white/40 text-sm italic">
+            <div className="mt-2 border border-gray-200 dark:border-white/10 rounded-xl p-4 bg-white/[0.02] text-center text-gray-500 dark:text-white/40 text-sm italic">
               {t("post.originalDeleted")}
             </div>
           ) : (
@@ -653,7 +653,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               className={`flex items-center gap-1 px-3 py-1.5 rounded-full border transition-all ${
                 liked
                   ? "border-pink-400/50 bg-[#8B5CF6] text-white"
-                  : "border-white/20 text-white/70 hover:bg-white/10 hover:border-white/40 hover:text-white"
+                  : "border-gray-200 dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white"
               }`}
             >
               <Heart size={16} fill={liked ? "currentColor" : "none"} />
@@ -663,7 +663,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
 
             <button
               onClick={() => startReply(cleanUsername, author)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-white/20 text-white/70 hover:bg-white/10 hover:border-white/40 hover:text-white transition-all"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-gray-200 dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white transition-all"
             >
               <Reply size={16} />
             </button>
@@ -672,7 +672,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             {currentUser && currentUser.id !== author_id && !is_repost && !is_quote && (
               <button
                 onClick={() => handleRepostOrQuote(id)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-white/20 text-white/70 hover:bg-emerald-500/10 hover:border-emerald-400/30 hover:text-emerald-400 transition-all"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-gray-200 dark:border-white/20 text-white/70 hover:bg-emerald-500/10 hover:border-emerald-400/30 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
                 title={t("post.repostQuote")}
               >
                 <RefreshCw size={16} />
@@ -682,7 +682,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             {is_repost && currentUser?.id === author_id && (
               <button
                 onClick={() => handleCancelRepost(id)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-red-400/30 text-red-400 hover:bg-red-500/10 hover:border-red-400/50 transition-all"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-red-400/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 hover:border-red-400/50 transition-all"
               >
                 <RefreshCw size={16} />
                 <span className="text-sm font-semibold">{t("post.undo")}</span>
@@ -692,7 +692,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             {currentUser?.id !== author_id && !is_repost && (
               <button
                 onClick={() => setShowReport(true)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-white/20 text-white/60 hover:bg-white/10 hover:border-orange-400/30 hover:text-orange-400 transition-all"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-gray-200 dark:border-white/20 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-orange-400/30 hover:text-orange-600 dark:hover:text-orange-400 transition-all"
                 title={t("post.report")}
               >
                 <Flag size={16} />
@@ -702,7 +702,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             {canDelete && (
               <button
                 onClick={deletePost}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-red-400/30 text-red-400 hover:bg-red-500/10 hover:border-red-400/50 transition-all"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-red-400/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 hover:border-red-400/50 transition-all"
               >
                 <Trash2 size={16} />
                 <span className="text-sm font-semibold">{t("post.delete")}</span>
@@ -710,7 +710,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             )}
             
             {views_count !== undefined && (
-              <span className="text-sm text-white/40 flex items-center gap-1">
+              <span className="text-sm text-gray-500 dark:text-white/40 flex items-center gap-1">
                 👁 {views_count}
               </span>
             )}
@@ -738,7 +738,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                   }
                 }}
                 placeholder={t("post.replyPlaceholder", { author })}
-                className="flex-1 border border-white/15 rounded-lg px-3 py-2 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] transition-all"
+                className="flex-1 border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] transition-all"
               />
               <button
                 onClick={() => submitReply(id)}
@@ -752,7 +752,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                   setReplying(false);
                   setReplyText("");
                 }}
-                className="border border-white/20 text-white/60 rounded-lg px-3 hover:bg-white/10 transition-all"
+                className="border border-gray-200 dark:border-white/20 text-gray-600 dark:text-white/60 rounded-lg px-3 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
               >
                 ✕
               </button>
@@ -791,7 +791,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                   />
                 ))}
               {replies.filter((r) => r.reply_to_id === id).length === 0 && (
-                <p className="text-sm text-white/50">{t("post.noReplies")}</p>
+                <p className="text-sm text-gray-600 dark:text-white/50">{t("post.noReplies")}</p>
               )}
             </div>
           )}
@@ -820,24 +820,24 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             onClick={(e) => e.stopPropagation()}
           >
             <div
-              className="w-full max-w-lg bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto"
+              className="w-full max-w-lg bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-black text-white flex items-center gap-2">
-                  <Pencil size={18} className="text-blue-400" />
+                <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
+                  <Pencil size={18} className="text-blue-600 dark:text-blue-400" />
                   {currentUser?.id === author_id ? t("post.editPost") : t("post.modEdit")}
                 </h2>
                 <button
                   onClick={(e) => { e.stopPropagation(); setEditing(false); }}
-                  className="text-white/60 hover:text-white p-1"
+                  className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white p-1"
                 >
                   <X size={18} />
                 </button>
               </div>
 
               {currentUser?.id !== author_id && (
-                <div className="mb-3 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 text-xs">
+                <div className="mb-3 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-300 text-xs">
                   {t("post.modEditWarn")}
                 </div>
               )}
@@ -853,11 +853,11 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 }}
                 rows={5}
                 placeholder={t("post.postText")}
-                className="w-full px-3 py-2 rounded-lg border border-white/15 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-blue-400 resize-none"
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-blue-600 dark:focus:border-blue-400 resize-none"
                 autoFocus
               />
 
-              <div className="flex items-center justify-between mt-3 text-xs text-white/40">
+              <div className="flex items-center justify-between mt-3 text-xs text-gray-500 dark:text-white/40">
                 <span>{t("post.ctrlEnter")}</span>
                 <span>{t("post.chars", { n: editText.length })}</span>
               </div>
@@ -872,7 +872,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); setEditing(false); }}
-                  className="px-5 py-2.5 rounded-lg border border-white/20 text-white/80 font-bold hover:bg-white/10 transition-all"
+                  className="px-5 py-2.5 rounded-lg border border-gray-200 dark:border-white/20 text-gray-800 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
                 >
                   {t("common.cancel")}
                 </button>
@@ -954,12 +954,12 @@ function ReplyItem({
 
         <div className="flex-1 min-w-0">
           {reply.parent && (
-            <div className="flex items-center gap-1.5 text-xs text-white/40 mb-1">
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-white/40 mb-1">
               <CornerDownRight size={12} />
               <span>{t("post.inReplyTo")}</span>
               <Link
                 href={`/${reply.parent.author_username}`}
-                className="text-pink-400 hover:text-pink-300 font-semibold"
+                className="text-pink-600 dark:text-pink-400 hover:text-pink-600 dark:hover:text-pink-300 font-semibold"
               >
                 {reply.parent.author_name}
               </Link>
@@ -972,7 +972,7 @@ function ReplyItem({
               className={`font-bold text-sm ${
                 glowStyle(reply.author_is_admin, reply.author_is_moderator, reply.author_role)
                   ? "hover:opacity-80"
-                  : "text-white hover:text-[#8b5cf6]"
+                  : "text-gray-900 dark:text-white hover:text-[#8b5cf6]"
               }`}
               style={glowStyle(reply.author_is_admin, reply.author_is_moderator, reply.author_role)}
             >
@@ -984,10 +984,10 @@ function ReplyItem({
               is_banned={reply.author_is_banned}
               role={reply.author_role}
             />
-            <span className="font-normal text-white/40 text-xs">{reply.handle}</span>
+            <span className="font-normal text-gray-500 dark:text-white/40 text-xs">{reply.handle}</span>
           </div>
           
-          <div className="text-white/85 mt-0.5"><MarkdownRenderer text={reply.text} isMessage={true} /></div>
+          <div className="text-gray-800 dark:text-white/85 mt-0.5"><MarkdownRenderer text={reply.text} isMessage={true} /></div>
           
           <div className="flex items-center gap-3 mt-1.5 flex-wrap">
               <button
@@ -995,7 +995,7 @@ function ReplyItem({
                   setShowReplyForm(true);
                   setReplyText(`@${reply.username} `);
                 }}
-                className="text-xs text-white/50 hover:text-white flex items-center gap-1 transition-colors"
+                className="text-xs text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white flex items-center gap-1 transition-colors"
               >
               <Reply size={12} />
               {t("post.reply")}
@@ -1004,7 +1004,7 @@ function ReplyItem({
             {canDelete && (
               <button
                 onClick={onDelete}
-                className="text-xs text-red-400/60 hover:text-red-400 flex items-center gap-1 transition-colors"
+                className="text-xs text-red-400/60 hover:text-red-600 dark:hover:text-red-400 flex items-center gap-1 transition-colors"
               >
                 <Trash2 size={12} />
                 {t("post.delete")}
@@ -1033,7 +1033,7 @@ function ReplyItem({
                   }
                 }}
                 placeholder={t("post.replyPlaceholder", { author: reply.author })}
-                className="flex-1 border border-white/15 rounded-lg px-2.5 py-1.5 bg-white/5 text-white text-sm placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] transition-all"
+                className="flex-1 border border-gray-200 dark:border-white/15 rounded-lg px-2.5 py-1.5 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] transition-all"
                 autoFocus
               />
               <button
@@ -1048,7 +1048,7 @@ function ReplyItem({
                   setShowReplyForm(false);
                   setReplyText("");
                 }}
-                className="border border-white/20 text-white/60 rounded-lg px-2.5 hover:bg-white/10 transition-all text-sm"
+                className="border border-gray-200 dark:border-white/20 text-gray-600 dark:text-white/60 rounded-lg px-2.5 hover:bg-gray-100 dark:hover:bg-white/10 transition-all text-sm"
               >
                 ✕
               </button>

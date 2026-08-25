@@ -57,7 +57,7 @@ export function EchoModal({ postId, onClose }: { postId: number; onClose: () => 
         <div className={`w-full max-w-lg rounded-2xl border transition-all duration-300 ${
           isRoot 
             ? "bg-gradient-to-br from-purple-900/30 to-indigo-900/30 border-purple-500/50 shadow-[0_0_30px_rgba(168,85,247,0.2)]" 
-            : "bg-white/[0.04] border-white/15 hover:border-purple-400/40 hover:bg-white/[0.06]"
+            : "bg-white/[0.04] border-gray-200 dark:border-white/15 hover:border-purple-400/40 hover:bg-white/[0.06]"
         }`}>
           <div className="p-4">
             <div className="flex gap-3">
@@ -73,44 +73,44 @@ export function EchoModal({ postId, onClose }: { postId: number; onClose: () => 
                 <div className="flex items-center gap-2 text-sm flex-wrap">
                   <Link 
                     href={`/${node.handle?.replace("@", "")}`} 
-                    className="font-bold text-white hover:text-purple-300 transition-colors" 
+                    className="font-bold text-gray-900 dark:text-white hover:text-purple-600 dark:hover:text-purple-300 transition-colors" 
                     onClick={e => e.stopPropagation()}
                   >
                     {node.author}
                   </Link>
-                  <span className="text-white/40 text-xs">{node.handle}</span>
-                  <span className="text-white/25 text-xs">· {timeAgo(node.created_at)}</span>
+                  <span className="text-gray-500 dark:text-white/40 text-xs">{node.handle}</span>
+                  <span className="text-gray-500 dark:text-white/25 text-xs">· {timeAgo(node.created_at)}</span>
                 </div>
 
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   {node.is_quote ? (
-                    <span className="text-cyan-400 text-[11px] flex items-center gap-1 bg-cyan-400/10 px-2 py-0.5 rounded-full border border-cyan-400/20">
+                    <span className="text-cyan-600 dark:text-cyan-400 text-[11px] flex items-center gap-1 bg-cyan-400/10 px-2 py-0.5 rounded-full border border-cyan-400/20">
                       <Quote size={10} /> {t("echo.quote")}
                     </span>
                   ) : isRoot ? (
-                    <span className="text-yellow-400 text-[11px] flex items-center gap-1 bg-yellow-400/10 px-2 py-0.5 rounded-full border border-yellow-400/20">
+                    <span className="text-yellow-600 dark:text-yellow-400 text-[11px] flex items-center gap-1 bg-yellow-400/10 px-2 py-0.5 rounded-full border border-yellow-400/20">
                       <Star size={10} fill="currentColor" /> {t("echo.original")}
                     </span>
                   ) : (
-                    <span className="text-emerald-400 text-[11px] flex items-center gap-1 bg-emerald-400/10 px-2 py-0.5 rounded-full border border-emerald-400/20">
+                    <span className="text-emerald-600 dark:text-emerald-400 text-[11px] flex items-center gap-1 bg-emerald-400/10 px-2 py-0.5 rounded-full border border-emerald-400/20">
                       <RefreshCw size={10} /> {t("echo.repost")}
                     </span>
                   )}
                 </div>
 
                 {node.text && (
-                  <p className="text-white/85 text-sm mt-2 whitespace-pre-wrap break-words leading-relaxed">
+                  <p className="text-gray-800 dark:text-white/85 text-sm mt-2 whitespace-pre-wrap break-words leading-relaxed">
                     {node.text}
                   </p>
                 )}
 
                 <div className="flex items-center gap-4 mt-3">
-                  <span className="text-white/40 text-xs flex items-center gap-1.5">
-                    <span className="text-pink-400">♥</span> {node.likes_count}
+                  <span className="text-gray-500 dark:text-white/40 text-xs flex items-center gap-1.5">
+                    <span className="text-pink-600 dark:text-pink-400">♥</span> {node.likes_count}
                   </span>
                   <Link 
                     href={`/post/${node.id}`} 
-                    className="text-purple-400 text-xs hover:text-purple-300 hover:underline underline-offset-2 transition-colors" 
+                    className="text-purple-600 dark:text-purple-400 text-xs hover:text-purple-600 dark:hover:text-purple-300 hover:underline underline-offset-2 transition-colors" 
                     onClick={e => e.stopPropagation()}
                   >
                     {t("echo.openPost")}
@@ -178,27 +178,27 @@ export function EchoModal({ postId, onClose }: { postId: number; onClose: () => 
         onClick={e => e.stopPropagation()}
       >
         {/* Шапка */}
-        <div className="relative flex items-center justify-between p-5 border-b border-white/10 bg-gradient-to-r from-purple-900/20 via-indigo-900/10 to-transparent">
+        <div className="relative flex items-center justify-between p-5 border-b border-gray-200 dark:border-white/10 bg-gradient-to-r from-purple-900/20 via-indigo-900/10 to-transparent">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <Sparkles size={22} className="text-purple-400" />
+              <Sparkles size={22} className="text-purple-600 dark:text-purple-400" />
               <div className="absolute inset-0 blur-md bg-purple-400/50" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-white tracking-wide">
+              <h2 className="text-lg font-black text-gray-900 dark:text-white tracking-wide">
                 {t("echo.title")}
               </h2>
-              <div className="flex items-center gap-3 text-xs text-white/50 mt-0.5">
+              <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-white/50 mt-0.5">
                 <span className="flex items-center gap-1">
-                  <Star size={10} className="text-yellow-400" fill="currentColor" />
+                  <Star size={10} className="text-yellow-600 dark:text-yellow-400" fill="currentColor" />
                   {t("echo.total", { n: totalCount })}
                 </span>
                 <span className="flex items-center gap-1">
-                  <RefreshCw size={10} className="text-emerald-400" />
+                  <RefreshCw size={10} className="text-emerald-600 dark:text-emerald-400" />
                   {t("echo.reposts", { n: repostCount })}
                 </span>
                 <span className="flex items-center gap-1">
-                  <Quote size={10} className="text-cyan-400" />
+                  <Quote size={10} className="text-cyan-600 dark:text-cyan-400" />
                   {t("echo.quotes", { n: quoteCount })}
                 </span>
               </div>
@@ -220,14 +220,14 @@ export function EchoModal({ postId, onClose }: { postId: number; onClose: () => 
                 <div className="w-12 h-12 rounded-full border-2 border-purple-500/30 border-t-purple-400 animate-spin" />
                 <div className="absolute inset-0 w-12 h-12 rounded-full border-2 border-cyan-500/20 border-b-cyan-400 animate-spin [animation-direction:reverse] [animation-duration:1.5s]" />
               </div>
-              <p className="text-white/40 text-sm">{t("echo.loading")}</p>
+              <p className="text-gray-500 dark:text-white/40 text-sm">{t("echo.loading")}</p>
             </div>
           ) : nodes.length <= 1 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
               <div className="w-16 h-16 rounded-full bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
                 <Sparkles size={28} className="text-purple-400/50" />
               </div>
-              <p className="text-white/50 text-sm text-center max-w-xs">
+              <p className="text-gray-600 dark:text-white/50 text-sm text-center max-w-xs">
                 {t("echo.empty")}
               </p>
             </div>

@@ -2092,13 +2092,13 @@ const partnerGlow = getGlowColor(chatPartner);
 
 
 const ChatHeader = () => (
-  <div className="border-b border-white/10 backdrop-blur-md sticky top-0 z-30 bg-[#171717]/80">
+  <div className="border-b border-gray-200 dark:border-white/10 backdrop-blur-md sticky top-0 z-30 bg-gray-50 dark:bg-[#171717]/80">
     {/* Основной блок */}
     <div className="p-3 sm:p-4 md:p-4">
       <div className="flex items-center gap-2 sm:gap-3 md:gap-3">
         <button
           onClick={() => router.push("/messages")}
-          className="text-white/60 hover:text-white shrink-0 p-2 sm:p-1 -ml-1 sm:ml-0 active:scale-95 transition-transform"
+          className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white shrink-0 p-2 sm:p-1 -ml-1 sm:ml-0 active:scale-95 transition-transform"
           title={t("common.back")}
         >
           <span className="text-lg sm:text-base">←</span>
@@ -2118,14 +2118,14 @@ const ChatHeader = () => (
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <Users size={22} className="text-white" />
+                <Users size={22} className="text-gray-900 dark:text-white" />
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-bold truncate break-words text-[15px] sm:text-base md:text-lg text-white group-hover:text-[#8b5cf6] transition-colors leading-tight">
+              <p className="font-bold truncate break-words text-[15px] sm:text-base md:text-lg text-gray-900 dark:text-white group-hover:text-[#8b5cf6] transition-colors leading-tight">
                 {chatInfo.name}
               </p>
-              <p className="text-[11px] sm:text-xs text-white/50 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-gray-600 dark:text-white/50 mt-0.5">
                 {partnerTyping && typingUserName
                   ? <span className="text-[#8b5cf6]">✎ {t("messages.typingName", { name: typingUserName })}</span>
                   : (chatInfo.members_count === 1 ? t("messages.membersOne", { n: chatInfo.members_count }) : chatInfo.members_count < 5 ? t("messages.membersFew", { n: chatInfo.members_count }) : t("messages.membersMore", { n: chatInfo.members_count }))
@@ -2137,13 +2137,13 @@ const ChatHeader = () => (
           // 🆕 ЧАТ С САМИМ СОБОЙ (ИЗБРАННОЕ) — стиль как в списке чатов
           <div className="flex items-center gap-3 sm:gap-3 flex-1 min-w-0">
             <div className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
-              <Bookmark size={22} className="text-yellow-400" />
+              <Bookmark size={22} className="text-yellow-600 dark:text-yellow-400" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="font-bold truncate text-[15px] sm:text-base md:text-lg text-yellow-400 leading-tight">
+              <p className="font-bold truncate text-[15px] sm:text-base md:text-lg text-yellow-600 dark:text-yellow-400 leading-tight">
                 {t("messages.saved")}
               </p>
-              <p className="text-[11px] sm:text-xs text-white/50 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-gray-600 dark:text-white/50 mt-0.5">
                 {t("messages.notesHint")}
               </p>
             </div>
@@ -2162,7 +2162,7 @@ const ChatHeader = () => (
               />
               {isSecret && (
                 <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 sm:w-4 sm:h-4 rounded-full bg-emerald-500 border-2 border-[#171717] flex items-center justify-center">
-                  <Lock size={8} className="text-white" />
+                  <Lock size={8} className="text-gray-900 dark:text-white" />
                 </div>
               )}
             </div>
@@ -2170,21 +2170,21 @@ const ChatHeader = () => (
               <div className="flex items-center gap-1.5 flex-wrap">
                 <p
                   className={`font-bold truncate text-[15px] sm:text-base md:text-lg transition-all group-hover:opacity-80 leading-tight ${
-                    glowStyle(chatPartner) ? "" : "text-white"
+                    glowStyle(chatPartner) ? "" : "text-gray-900 dark:text-white"
                   }`}
                   style={glowStyle(chatPartner)}
                 >
                   {chatPartner.display_name}
                 </p>
                 {isSecret && (
-                  <span className="inline-flex items-center gap-1 px-1.5 sm:px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] sm:text-[10px] font-black uppercase tracking-widest border border-emerald-500/30 shrink-0">
+                  <span className="inline-flex items-center gap-1 px-1.5 sm:px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[9px] sm:text-[10px] font-black uppercase tracking-widest border border-emerald-500/30 shrink-0">
                     <Lock size={8} />
                     <span className="hidden sm:inline">E2EE</span>
                   </span>
                 )}
               </div>
               <p className={`text-[11px] sm:text-xs mt-0.5 transition-colors ${
-                partnerTyping ? "text-[#8b5cf6] animate-pulse" : isOnline(chatPartner.last_seen) ? "text-green-400" : "text-white/50"
+                partnerTyping ? "text-[#8b5cf6] animate-pulse" : isOnline(chatPartner.last_seen) ? "text-green-600 dark:text-green-400" : "text-gray-600 dark:text-white/50"
               }`}>
                 {partnerTyping
                   ? `✎ ${t("messages.typing")}`
@@ -2197,7 +2197,7 @@ const ChatHeader = () => (
           </Link>
         ) : (
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-white text-[15px] sm:text-base">
+            <p className="font-bold text-gray-900 dark:text-white text-[15px] sm:text-base">
               {chatInfo ? t("common.loading") : t("messages.chatNotFound")}
             </p>
           </div>
@@ -2234,7 +2234,7 @@ const ChatHeader = () => (
                       setActivePackTab(0);
                       setShowReactionPicker(true);
                     }}
-                    className="hidden sm:flex p-2 sm:p-1.5 rounded-lg transition-colors active:scale-95 hover:bg-white/5 items-center justify-center min-w-[36px] min-h-[36px]"
+                    className="hidden sm:flex p-2 sm:p-1.5 rounded-lg transition-colors active:scale-95 hover:bg-gray-100 dark:hover:bg-white/5 items-center justify-center min-w-[36px] min-h-[36px]"
                     title={t("messages.setReaction")}
                   >
                     {quickReaction ? (
@@ -2244,13 +2244,13 @@ const ChatHeader = () => (
                         <img src={quickReaction.content} alt="" className="w-6 h-6 object-contain" />
                       )
                     ) : (
-                      <SmilePlus size={18} className="text-white/40" />
+                      <SmilePlus size={18} className="text-gray-500 dark:text-white/40" />
                     )}
                   </button>
                   
                   <button
                     onClick={() => { setMediaTab("image"); loadMedia(); setShowMediaGallery(true); }}
-                    className="hidden sm:flex p-2.5 sm:p-2 text-white/60 hover:text-[#8b5cf6] transition-colors active:scale-95"
+                    className="hidden sm:flex p-2.5 sm:p-2 text-gray-600 dark:text-white/60 hover:text-[#8b5cf6] transition-colors active:scale-95"
                     title={t("messages.media")}
                   >
                     <ImageIcon size={19} className="sm:w-5 sm:h-5" />
@@ -2259,7 +2259,7 @@ const ChatHeader = () => (
                   {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && (
                     <button
                       onClick={() => setShowGroupSettings(true)}
-                      className="hidden sm:flex p-2.5 sm:p-2 text-white/60 hover:text-white transition-colors active:scale-95"
+                      className="hidden sm:flex p-2.5 sm:p-2 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white transition-colors active:scale-95"
                       title={t("messages.groupSettings")}
                     >
                       <Settings size={19} className="sm:w-5 sm:h-5" />
@@ -2273,7 +2273,7 @@ const ChatHeader = () => (
                         if (!showChatMenu) menuOpenTimeRef.current = Date.now();
                         setShowChatMenu((prev) => !prev);
                       }}
-                      className="p-2.5 sm:p-2 text-white/60 hover:text-white transition-colors active:scale-95"
+                      className="p-2.5 sm:p-2 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white transition-colors active:scale-95"
                       title={t("common.more")}
                     >
                       <MoreVertical size={19} className="sm:w-5 sm:h-5" />
@@ -2286,7 +2286,7 @@ const ChatHeader = () => (
           className="fixed inset-0 z-40" 
           onClick={() => { if (Date.now() - menuOpenTimeRef.current < 400) return; setShowChatMenu(false); }} 
         />
-        <div className="absolute right-0 top-full mt-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] sm:min-w-[180px] z-50">
+        <div className="absolute right-0 top-full mt-2 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] sm:min-w-[180px] z-50">
           
           {/* 📱 МОБИЛЬНЫЕ КНОПКИ (скрыты на ПК) */}
 <button
@@ -2295,40 +2295,40 @@ const ChatHeader = () => (
     setShowReactionPicker(true); 
     setShowChatMenu(false); 
   }}
-  className="sm:hidden w-full px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
+  className="sm:hidden w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
 >
   <SmilePlus size={15} /> {t("messages.quickReaction")}
 </button>
           <button
             onClick={() => { setMediaTab("image"); loadMedia(); setShowMediaGallery(true); setShowChatMenu(false); }}
-            className="sm:hidden w-full px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
+            className="sm:hidden w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
           >
             <ImageIcon size={15} /> {t("messages.mediaFiles")}
           </button>
           {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && (
             <button
               onClick={() => { setShowGroupSettings(true); setShowChatMenu(false); }}
-              className="sm:hidden w-full px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
+              className="sm:hidden w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
             >
               <Settings size={15} /> {t("messages.groupSettings")}
             </button>
           )}
           
           {/* Разделитель только для мобильных */}
-          <div className="sm:hidden h-px bg-white/10 my-1" />
+          <div className="sm:hidden h-px bg-gray-100 dark:bg-white/10 my-1" />
 
           {/* 🖥️ ОБЩИЕ КНОПКИ МЕНЮ */}
           {isGroup && (
             <button
               onClick={() => { setShowGroupMembers(true); setShowChatMenu(false); }}
-              className="w-full px-3 py-2.5 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2 transition-colors"
+              className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
             >
               <Users size={15} /> {t("messages.membersTitle")}
             </button>
           )}
           <button
             onClick={() => { deleteChat(); setShowChatMenu(false); }}
-            className="w-full px-3 py-2.5 text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
+            className="w-full px-3 py-2.5 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
           >
             <Trash2 size={15} />
             {isGroup ? (chatInfo?.my_role === "owner" ? t("messages.deleteGroup") : t("messages.leaveGroup")) : t("messages.deleteChat")}
@@ -2343,19 +2343,19 @@ const ChatHeader = () => (
 
     {/* Разделитель */}
     {pinnedMessages.length > 0 && (
-      <div className="border-t border-white/5" />
+      <div className="border-t border-gray-200 dark:border-white/5" />
     )}
     {pinnedMessages.length > 0 && (
-      <div className="px-3 sm:px-4 md:px-4 py-2 border-t border-white/5">
+      <div className="px-3 sm:px-4 md:px-4 py-2 border-t border-gray-200 dark:border-white/5">
         <button
           onClick={() => setShowPinnedList(!showPinnedList)}
-          className="flex items-center gap-2 text-xs sm:text-xs text-white/60 hover:text-white/80 font-medium transition-colors w-full"
+          className="flex items-center gap-2 text-xs sm:text-xs text-gray-600 dark:text-white/60 hover:text-gray-800 dark:hover:text-white/80 font-medium transition-colors w-full"
         >
           <Pin size={12} className="text-[#8b5cf6] shrink-0" />
           <span className="font-semibold">
             {pinnedMessages.length === 1 ? t("messages.pinnedOne", { n: pinnedMessages.length }) : t("messages.pinnedMany", { n: pinnedMessages.length })}
           </span>
-          <span className="text-white/30 ml-auto">{showPinnedList ? '▲' : '▼'}</span>
+          <span className="text-gray-500 dark:text-white/30 ml-auto">{showPinnedList ? '▲' : '▼'}</span>
         </button>
         {showPinnedList && (
           <div className="mt-2 space-y-1 max-h-32 sm:max-h-40 overflow-y-auto">
@@ -2375,12 +2375,12 @@ const ChatHeader = () => (
                     alert(t("messages.msgNotFound"));
                   }
                 }}
-                className="flex items-start gap-2 text-[11px] sm:text-xs text-white/60 hover:bg-white/5 rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer active:scale-[0.98]"
+                className="flex items-start gap-2 text-[11px] sm:text-xs text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg px-2.5 py-1.5 transition-colors cursor-pointer active:scale-[0.98]"
               >
                 <Pin size={10} className="text-[#8b5cf6] shrink-0 mt-0.5" />
                 <div className="min-w-0 flex-1">
-                  <span className="text-white/80 font-medium">{msg.sender_name}:</span>{' '}
-                  <span className="text-white/50">
+                  <span className="text-gray-800 dark:text-white/80 font-medium">{msg.sender_name}:</span>{' '}
+                  <span className="text-gray-600 dark:text-white/50">
                     {msg.text || (msg.media_type === 'image' ? `📷 ${t('common.photo')}` : msg.media_type === 'audio' ? `🎙️ ${t('common.audio')}` : msg.media_type === 'video' ? `🎬 ${t('common.video')}` : ` ${t('common.attachment')}`)}
                   </span>
                 </div>
@@ -2392,27 +2392,27 @@ const ChatHeader = () => (
     )}
 
     {showSearch && (
-      <div className="px-3 sm:px-4 md:px-4 py-2.5 border-t border-white/5">
+      <div className="px-3 sm:px-4 md:px-4 py-2.5 border-t border-gray-200 dark:border-white/5">
         <div className="relative">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
 <input
   value={searchQuery}
   onChange={(e) => setSearchQuery(e.target.value)}
   placeholder={isSecret ? t("messages.searchDecrypted") : t("messages.searchInChat")}
-  className="w-full pl-10 pr-9 py-2 rounded-xl border border-white/15 bg-white/5 text-white placeholder-white/40 text-sm focus:outline-none focus:border-[#8b5cf6] focus:bg-white/10 transition-all"
+  className="w-full pl-10 pr-9 py-2 rounded-xl border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 text-sm focus:outline-none focus:border-[#8b5cf6] focus:bg-gray-100 dark:focus:bg-white/10 transition-all"
   autoFocus
 />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40 hover:text-white p-1"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white p-1"
             >
               <X size={15} />
             </button>
           )}
         </div>
         {searchQuery && (
-          <p className="text-[11px] sm:text-xs text-white/40 mt-1.5">
+          <p className="text-[11px] sm:text-xs text-gray-500 dark:text-white/40 mt-1.5">
             {t("messages.ofMessages", { n: filteredMessages.length, m: messages.length })}
           </p>
         )}
@@ -2438,25 +2438,25 @@ const ChatHeader = () => (
   }
 `}</style>
       <Sidebar />
-      <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
-<main className="flex-1 flex flex-col border-x border-white/10 overflow-hidden">
+      <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
+<main className="flex-1 flex flex-col border-x border-gray-200 dark:border-white/10 overflow-hidden">
         {isSelectMode ? (
-          <div className="p-3 sm:p-3 md:p-4 border-b border-white/10 bg-[#171717]/95 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
+          <div className="p-3 sm:p-3 md:p-4 border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#171717]/95 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button
                 onClick={toggleSelectMode}
-                className="text-white/60 hover:text-white transition-colors p-2 -ml-1 active:scale-95"
+                className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white transition-colors p-2 -ml-1 active:scale-95"
               >
                 <X size={20} />
               </button>
-              <span className="font-bold text-white text-sm md:text-base">
+              <span className="font-bold text-gray-900 dark:text-white text-sm md:text-base">
                 {t("messages.selectedN", { n: selectedMessages.size })}
               </span>
             </div>
             <button
               onClick={deleteSelectedMessages}
               disabled={selectedMessages.size === 0}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/20 text-red-400 text-sm font-bold hover:bg-red-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors active:scale-95"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/20 text-red-600 dark:text-red-400 text-sm font-bold hover:bg-red-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors active:scale-95"
             >
               <Trash2 size={15} />
               <span className="hidden xs:inline">{t("common.delete")}</span>
@@ -2473,9 +2473,9 @@ const ChatHeader = () => (
 {isSecret && messages.length === 0 && secretState !== "error" && secretState !== "waiting" && (
               <div className="p-3 sm:p-4 bg-emerald-500/5 border-b border-emerald-500/20">
                 <div className="flex items-start gap-2 max-w-2xl mx-auto text-center">
-                  <Lock size={15} className="text-emerald-400 mt-0.5 shrink-0" />
+                  <Lock size={15} className="text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
                   <div className="text-xs sm:text-sm text-emerald-100/80">
-                    <p className="font-bold text-emerald-300 mb-0.5 sm:mb-1">{t("profile.secretChat")}</p>
+                    <p className="font-bold text-emerald-600 dark:text-emerald-300 mb-0.5 sm:mb-1">{t("profile.secretChat")}</p>
                     <p className="text-[11px] sm:text-xs">
                       {t("messages.secretHint")}
                     </p>
@@ -2488,9 +2488,9 @@ const ChatHeader = () => (
 {isSecret && secretState === "waiting" && (
   <div className="p-3 sm:p-4 bg-amber-500/10 border-b border-amber-500/30">
     <div className="flex items-start gap-2 max-w-2xl mx-auto">
-      <Lock size={15} className="text-amber-400 mt-0.5 shrink-0" />
+      <Lock size={15} className="text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
       <div className="flex-1">
-        <p className="text-xs sm:text-sm text-amber-300 font-bold">{t("messages.waitingPeer")}</p>
+        <p className="text-xs sm:text-sm text-amber-600 dark:text-amber-300 font-bold">{t("messages.waitingPeer")}</p>
         <p className="text-[11px] sm:text-xs text-amber-200/70 mt-1">{secretError}</p>
         <button
           onClick={() => { secretInitRef.current = false; initSecretChat(); }}
@@ -2507,9 +2507,9 @@ const ChatHeader = () => (
 {isSecret && secretState === "error" && (
   <div className="p-3 sm:p-4 bg-red-500/10 border-b border-red-500/30">
     <div className="flex items-start gap-2 max-w-2xl mx-auto">
-      <AlertTriangle size={15} className="text-red-400 mt-0.5 shrink-0" />
+      <AlertTriangle size={15} className="text-red-600 dark:text-red-400 mt-0.5 shrink-0" />
       <div className="flex-1">
-        <p className="text-xs sm:text-sm text-red-300 font-bold">{secretError}</p>
+        <p className="text-xs sm:text-sm text-red-600 dark:text-red-300 font-bold">{secretError}</p>
         <button
           onClick={() => { secretInitRef.current = false; initSecretChat(); }}
           className="mt-2 text-[11px] px-3 py-1 rounded bg-red-500/20 text-red-200 hover:bg-red-500/30 border border-red-500/30"
@@ -2533,7 +2533,7 @@ className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 
   if (msg.type === 'date') {
     return (
       <div key={msg.id} className="flex items-center justify-center my-4">
-        <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-bold text-white/50 backdrop-blur-sm">
+        <span className="px-3 py-1 rounded-full bg-white/5 border border-gray-200 dark:border-white/10 text-[11px] font-bold text-gray-600 dark:text-white/50 backdrop-blur-sm">
           {msg.text}
         </span>
       </div>
@@ -2623,11 +2623,11 @@ onDoubleClick={(e) => {
                         : "animate-in fade-in slide-in-from-bottom-2 zoom-in-95 duration-300"
                     }`}
                   >
-                    <div className="max-w-[85%] sm:max-w-[75%] px-3 sm:px-3.5 py-2 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl rounded-bl-[4px] bg-white/5 border border-[#8b5cf6]/40 shadow-[0_0_14px_rgba(139,92,246,0.15)] transition-all duration-200 ease-out">
+                    <div className="max-w-[85%] sm:max-w-[75%] px-3 sm:px-3.5 py-2 rounded-tl-2xl rounded-tr-2xl rounded-br-2xl rounded-bl-[4px] bg-gray-100 dark:bg-white/5 border border-[#8b5cf6]/40 shadow-[0_0_14px_rgba(139,92,246,0.15)] transition-all duration-200 ease-out">
                       <p className="text-[11px] font-bold text-[#8b5cf6] mb-0.5">
                         {lt.name} · {t("messages.liveTyping")}
                       </p>
-                      <p className="whitespace-pre-wrap break-words text-[15px] sm:text-sm text-white/80 leading-snug">
+                      <p className="whitespace-pre-wrap break-words text-[15px] sm:text-sm text-gray-800 dark:text-white/80 leading-snug">
                         {lt.text}
                         <span className="inline-block w-[2px] h-4 bg-[#8b5cf6] ml-0.5 align-middle animate-pulse" />
                       </p>
@@ -2641,18 +2641,18 @@ onDoubleClick={(e) => {
             {showScrollBtn && (
               <button
                 onClick={() => scrollToBottom()}
-                className="absolute bottom-28 right-6 w-10 h-10 rounded-full bg-[#1f1f23] border border-white/15 shadow-2xl flex items-center justify-center text-white/80 hover:text-[#8b5cf6] hover:border-[#8b5cf6] transition-all active:scale-90 z-20 animate-in fade-in zoom-in-50 duration-200"
+                className="absolute bottom-28 right-6 w-10 h-10 rounded-full bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 shadow-2xl flex items-center justify-center text-gray-800 dark:text-white/80 hover:text-[#8b5cf6] hover:border-[#8b5cf6] transition-all active:scale-90 z-20 animate-in fade-in zoom-in-50 duration-200"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
               </button>
             )}
             {files.length > 0 && (
-              <div className="px-3 sm:px-3 py-2.5 border-t border-white/10 bg-white/5">
+              <div className="px-3 sm:px-3 py-2.5 border-t border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] sm:text-xs font-bold text-white/70">
+                  <span className="text-[11px] sm:text-xs font-bold text-gray-800 dark:text-white/70">
                     {t("messages.attachmentsN", { n: files.length })}
                   </span>
-                  <button onClick={() => setFiles([])} className="text-[11px] sm:text-xs text-red-400 px-2 py-1">
+                  <button onClick={() => setFiles([])} className="text-[11px] sm:text-xs text-red-600 dark:text-red-400 px-2 py-1">
                     {t("messages.clear")}
                   </button>
                 </div>
@@ -2660,15 +2660,15 @@ onDoubleClick={(e) => {
                   {files.map((f, i) => (
                     <div
                       key={i}
-                      className="relative group border border-white/15 rounded-lg overflow-hidden bg-white/5 shrink-0"
+                      className="relative group border border-gray-200 dark:border-white/15 rounded-lg overflow-hidden bg-gray-100 dark:bg-white/5 shrink-0"
                     >
                       {f.type.startsWith("image/") ? (
                         <img src={URL.createObjectURL(f)} alt="" className="w-16 h-16 sm:w-16 sm:h-16 md:w-20 md:h-20 object-cover" />
                       ) : (
                         <div className="w-16 h-16 sm:w-16 sm:h-16 md:w-20 md:h-20 flex flex-col items-center justify-center gap-0.5 p-1">
-                          <FileText size={16} className="text-white/60" />
-                          <span className="text-[9px] sm:text-[9px] text-white/60 truncate w-full px-1 text-center">{f.name}</span>
-                          <span className="text-[8px] sm:text-[8px] text-white/40">{formatSize(f.size)}</span>
+                          <FileText size={16} className="text-gray-600 dark:text-white/60" />
+                          <span className="text-[9px] sm:text-[9px] text-gray-600 dark:text-white/60 truncate w-full px-1 text-center">{f.name}</span>
+                          <span className="text-[8px] sm:text-[8px] text-gray-500 dark:text-white/40">{formatSize(f.size)}</span>
                         </div>
                       )}
                       <button
@@ -2685,14 +2685,14 @@ onDoubleClick={(e) => {
 
 
 {!isSelectMode && (
-  <div className="relative z-30 p-3 sm:p-3 md:p-4 border-t border-white/10 bg-[#171717]/80 backdrop-blur-md">
+  <div className="relative z-30 p-3 sm:p-3 md:p-4 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#171717]/80 backdrop-blur-md">
     {isRecording ? (
       <div className="flex items-center gap-2.5 sm:gap-3">
         <div className="relative w-2.5 h-2.5 shrink-0">
           <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />
           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
         </div>
-        <span className="text-sm font-bold text-red-400 tabular-nums shrink-0">
+        <span className="text-sm font-bold text-red-600 dark:text-red-400 tabular-nums shrink-0">
           {formatRecordingTime(recordingTime)}
         </span>
         <div className="flex-1 flex items-end justify-between gap-[2px] h-5 overflow-hidden">
@@ -2707,7 +2707,7 @@ onDoubleClick={(e) => {
         <button onClick={stopRecording} className="shrink-0 px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 active:scale-95 transition-all flex items-center gap-1.5">
           <Square size={11} fill="currentColor" /> Стоп
         </button>
-        <button onClick={cancelRecording} className="shrink-0 p-1.5 rounded-lg text-white/50 hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all" title={t("messages.cancelRec")}>
+        <button onClick={cancelRecording} className="shrink-0 p-1.5 rounded-lg text-white/50 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all" title={t("messages.cancelRec")}>
           <X size={16} />
         </button>
       </div>
@@ -2720,11 +2720,11 @@ onDoubleClick={(e) => {
     <Edit2 size={14} className="text-[#8b5cf6] shrink-0" />
     <div className="flex-1 min-w-0 border-l-2 border-[#8b5cf6] pl-2.5">
       <p className="text-[11px] font-bold text-[#8b5cf6]">Редактирование</p>
-      <p className="text-[11px] text-white/50 truncate">{text}</p>
+      <p className="text-[11px] text-gray-600 dark:text-white/50 truncate">{text}</p>
     </div>
     <button 
       onClick={cancelEdit} 
-      className="p-1 text-white/40 hover:text-white rounded-full hover:bg-white/10 transition-colors shrink-0"
+      className="p-1 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors shrink-0"
     >
       <X size={14} />
     </button>
@@ -2739,11 +2739,11 @@ onDoubleClick={(e) => {
             <Send size={14} className="rotate-180 text-[#8b5cf6] shrink-0" />
             <div className="flex-1 min-w-0 border-l-2 border-[#8b5cf6] pl-2.5">
               <p className="text-[11px] font-bold text-[#8b5cf6]">{replyTo.sender_name}</p>
-              <p className="text-[11px] text-white/50 truncate">
+              <p className="text-[11px] text-gray-600 dark:text-white/50 truncate">
                 {decryptDisplayText(replyTo) || (replyTo.media_type === 'audio' ? '🎙️ Голосовое' : replyTo.media_type === 'video' ? '🎬 Видео' : replyTo.media_type === 'image' ? '📷 Фото' : '📎 Вложение')}
               </p>
             </div>
-            <button onClick={cancelReply} className="p-1 text-white/40 hover:text-white rounded-full hover:bg-white/10 transition-colors shrink-0">
+            <button onClick={cancelReply} className="p-1 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors shrink-0">
               <X size={14} />
             </button>
           </div>
@@ -2756,7 +2756,7 @@ onDoubleClick={(e) => {
           <div className="relative shrink-0 flex items-end pb-1">
             <button
               onClick={() => setShowInputActions(!showInputActions)}
-              className={`p-2.5 sm:p-2 rounded-full transition-all active:scale-95 ${showInputActions ? "text-[#8b5cf6] bg-[#8b5cf6]/10" : "text-white/60 hover:text-[#8b5cf6] hover:bg-white/5"}`}
+              className={`p-2.5 sm:p-2 rounded-full transition-all active:scale-95 ${showInputActions ? "text-[#8b5cf6] bg-[#8b5cf6]/10" : "text-white/60 hover:text-[#8b5cf6] hover:bg-gray-100 dark:hover:bg-white/5"}`}
               title={t("messages.actions")}
             >
               <Plus size={22} className="sm:w-5 sm:h-5" />
@@ -2765,18 +2765,18 @@ onDoubleClick={(e) => {
             {showInputActions && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowInputActions(false)} />
-                <div className="absolute bottom-full left-0 mb-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[220px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                  <button onClick={() => { fileRef.current?.click(); setShowInputActions(false); }} className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/10 flex items-center gap-3 transition-colors">
-                    <Paperclip size={18} className="text-white/60" /> <span>Прикрепить файл</span>
+                <div className="absolute bottom-full left-0 mb-2 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[220px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                  <button onClick={() => { fileRef.current?.click(); setShowInputActions(false); }} className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-3 transition-colors">
+                    <Paperclip size={18} className="text-gray-600 dark:text-white/60" /> <span>Прикрепить файл</span>
                   </button>
                   <button 
                     onClick={() => { 
                       setShowStickers(true); 
                       setShowInputActions(false); 
                     }} 
-                    className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/10 flex items-center gap-3 transition-colors border-t border-white/5"
+                    className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-3 transition-colors border-t border-gray-200 dark:border-white/5"
                   >
-                    <Smile size={18} className="text-white/60" /> <span>Смайлы и стикеры</span>
+                    <Smile size={18} className="text-gray-600 dark:text-white/60" /> <span>Смайлы и стикеры</span>
                   </button>
 <button
   onClick={(e) => {
@@ -2784,9 +2784,9 @@ onDoubleClick={(e) => {
     editorRef.current?.openMenuAt(rect.left + rect.width / 2, rect.top - 8);
     setShowInputActions(false);
   }}
-  className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/10 flex items-center gap-3 transition-colors border-t border-white/5"
+  className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-3 transition-colors border-t border-gray-200 dark:border-white/5"
 >
-  <Type size={18} className="text-white/60" /> <span>{t("messages.formatText")}</span>
+  <Type size={18} className="text-gray-600 dark:text-white/60" /> <span>{t("messages.formatText")}</span>
 </button>
                 </div>
               </>
@@ -2797,20 +2797,20 @@ onDoubleClick={(e) => {
 {/* 🆕 ПОЛЕ ВВОДА — ТЕПЕРЬ WYSIWYG */}
 <div className="relative flex-1 flex items-end">
   {mentionSuggestions.length > 0 && mentionQuery !== null && (
-    <div className="absolute bottom-full left-0 mb-2 w-64 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+    <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
       {mentionSuggestions.map((u) => (
-        <button key={u.id} type="button" onClick={() => selectMention(u)} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/10 text-left transition-colors">
+        <button key={u.id} type="button" onClick={() => selectMention(u)} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-white/10 text-left transition-colors">
           <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={28} />
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-white font-medium truncate">{u.display_name}</p>
-            <p className="text-xs text-white/40 truncate">@{u.username}</p>
+            <p className="text-sm text-gray-900 dark:text-white font-medium truncate">{u.display_name}</p>
+            <p className="text-xs text-gray-500 dark:text-white/40 truncate">@{u.username}</p>
           </div>
         </button>
       ))}
     </div>
   )}
   {/* 🎨 ОБЁРТКА С РАМКОЙ — единый стиль с CreatePost */}
-  <div className="flex-1 rounded-xl border border-white/15 bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] focus-within:bg-white/10 transition-all">
+  <div className="flex-1 rounded-xl border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] focus-within:bg-gray-100 dark:bg-white/10 transition-all">
     <RichEditor
       ref={editorRef}
       value={text}
@@ -2836,7 +2836,7 @@ onDoubleClick={(e) => {
         sendLiveText(v);
       }}
       placeholder={isSecret ? (secretState === "ready" ? t("messages.encryptedPlaceholder") : t("messages.waitingEncrypt")) : isGroup ? t("messages.groupPlaceholder") : t("messages.msgPlaceholder")}
-      className="w-full bg-transparent text-white text-[15px] sm:text-sm md:text-base placeholder-white/40 px-3 py-2.5 min-h-[48px] max-h-32 overflow-y-auto disabled:opacity-50 disabled:cursor-not-allowed leading-snug"
+      className="w-full bg-transparent text-gray-900 dark:text-white text-[15px] sm:text-sm md:text-base placeholder-gray-400 dark:placeholder-white/40 px-3 py-2.5 min-h-[48px] max-h-32 overflow-y-auto disabled:opacity-50 disabled:cursor-not-allowed leading-snug"
       onKeyDown={(e) => {
         if (e.key === "Enter" && !e.shiftKey) {
           e.preventDefault();
@@ -2856,7 +2856,7 @@ onDoubleClick={(e) => {
               disabled={isSecret && secretState !== "ready"}
               className={`p-2.5 sm:p-2.5 md:p-3 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition-all min-w-[44px] sm:min-w-[40px] md:min-w-[44px] min-h-[44px] sm:min-h-[40px] md:min-h-[44px] flex items-center justify-center active:scale-95 select-none touch-none ${
                 isSecret
-                  ? "border border-emerald-500 bg-emerald-600 text-white hover:bg-emerald-700"
+                  ? "border border-emerald-500 bg-emerald-600 text-gray-900 dark:text-white hover:bg-emerald-700"
                   : "border border-[#8b5cf6] bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"
               }`}
             >
@@ -2865,24 +2865,24 @@ onDoubleClick={(e) => {
             
             {/* Меню записи (остается как было) */}
             {showRecordMenu && (
-              <div className="absolute bottom-full right-0 mb-2 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none">
-                <button ref={(el) => { menuItemRefs.current.voice = el; }} className={`w-full px-4 py-3 flex items-center gap-3 text-left text-sm transition-colors ${selectedMenuItem === 'voice' ? 'bg-white/20' : ''} text-white`}>
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${selectedMenuItem === 'voice' ? 'bg-red-500/30 text-red-300' : 'bg-red-500/20 text-red-400'}`}>
+              <div className="absolute bottom-full right-0 mb-2 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none">
+                <button ref={(el) => { menuItemRefs.current.voice = el; }} className={`w-full px-4 py-3 flex items-center gap-3 text-left text-sm transition-colors ${selectedMenuItem === 'voice' ? 'bg-gray-100 dark:bg-white/20' : ''} text-gray-900 dark:text-white`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${selectedMenuItem === 'voice' ? 'bg-red-500/30 text-red-600 dark:text-red-300' : 'bg-red-500/20 text-red-600 dark:text-red-400'}`}>
                     <Mic size={18} />
                   </div>
                   <div className="flex flex-col">
                     <span className="font-medium">Голосовое</span>
-                    <span className="text-[10px] text-white/40">Аудиосообщение</span>
+                    <span className="text-[10px] text-gray-500 dark:text-white/40">Аудиосообщение</span>
                   </div>
                 </button>
-                <div className="h-px bg-white/10" />
-                <button ref={(el) => { menuItemRefs.current.video = el; }} className={`w-full px-4 py-3 flex items-center gap-3 text-left text-sm transition-colors ${selectedMenuItem === 'video' ? 'bg-white/20' : ''} text-white`}>
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${selectedMenuItem === 'video' ? 'bg-blue-500/30 text-blue-300' : 'bg-blue-500/20 text-blue-400'}`}>
+                <div className="h-px bg-gray-100 dark:bg-white/10" />
+                <button ref={(el) => { menuItemRefs.current.video = el; }} className={`w-full px-4 py-3 flex items-center gap-3 text-left text-sm transition-colors ${selectedMenuItem === 'video' ? 'bg-gray-100 dark:bg-white/20' : ''} text-gray-900 dark:text-white`}>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${selectedMenuItem === 'video' ? 'bg-blue-500/30 text-blue-600 dark:text-blue-300' : 'bg-blue-500/20 text-blue-600 dark:text-blue-400'}`}>
                     <Video size={18} />
                   </div>
                   <div className="flex flex-col">
                     <span className="font-medium">Видео</span>
-                    <span className="text-[10px] text-white/40">Видео-квадрат</span>
+                    <span className="text-[10px] text-gray-500 dark:text-white/40">Видео-квадрат</span>
                   </div>
                 </button>
               </div>
@@ -2903,12 +2903,12 @@ onDoubleClick={(e) => {
   <>
     <div className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm" onClick={() => setReactionPickerFor(null)} />
     <div className="fixed inset-0 z-[261] flex items-center justify-center p-4 pointer-events-none">
-      <div className="w-full max-w-sm max-h-[80vh] bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
+      <div className="w-full max-w-sm max-h-[80vh] bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
         {/* Шапка — всегда видна */}
-        <div className="shrink-0 p-3 pb-2 border-b border-white/10">
+        <div className="shrink-0 p-3 pb-2 border-b border-gray-200 dark:border-white/10">
           <div className="flex items-center justify-between mb-2 px-1">
-            <p className="text-xs font-bold text-white/60">Выбрать реакцию</p>
-            <button onClick={() => setReactionPickerFor(null)} className="text-white/40 hover:text-white p-1">
+            <p className="text-xs font-bold text-gray-600 dark:text-white/60">Выбрать реакцию</p>
+            <button onClick={() => setReactionPickerFor(null)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white p-1">
               <X size={14} />
             </button>
           </div>
@@ -2922,10 +2922,10 @@ onDoubleClick={(e) => {
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap shrink-0 transition-all ${
                   activePackTab === i
                     ? "bg-[#8b5cf6] text-white"
-                    : "bg-white/5 text-white/50 hover:bg-white/10"
+                    : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/10"
                 }`}
               >
-                {pack.locked && <Lock size={10} className="text-yellow-400" />}
+                {pack.locked && <Lock size={10} className="text-yellow-600 dark:text-yellow-400" />}
                 {pack.name}
               </button>
             ))}
@@ -2938,10 +2938,10 @@ onDoubleClick={(e) => {
             stickerPacks[activePackTab].locked ? (
               <div className="flex flex-col items-center gap-2 py-8 text-center">
                 <div className="w-12 h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
-                  <Lock size={18} className="text-yellow-400" />
+                  <Lock size={18} className="text-yellow-600 dark:text-yellow-400" />
                 </div>
-                <p className="text-sm font-bold text-white">Пак заблокирован</p>
-                <p className="text-[11px] text-white/40 max-w-[220px]">
+                <p className="text-sm font-bold text-gray-900 dark:text-white">Пак заблокирован</p>
+                <p className="text-[11px] text-gray-500 dark:text-white/40 max-w-[220px]">
                   Доступен с уровня {stickerPacks[activePackTab].min_level}. 
                   Повысь уровень, чтобы использовать эти реакции.
                 </p>
@@ -2959,7 +2959,7 @@ onDoubleClick={(e) => {
       toggleReaction(reactionPickerFor!, Number(s.id), undefined);
     }
   }}
-  className="aspect-square flex items-center justify-center rounded-xl hover:bg-white/10 active:scale-90 transition-all"
+  className="aspect-square flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90 transition-all"
 >
                     {s.type === "emoji" ? (
                       <span className="text-2xl">{s.content}</span>
@@ -3039,7 +3039,7 @@ style={{
             {/* Меню реакций */}
             {/* Меню реакций */}
             <div
-                className="fixed z-[251] bg-[#1c1c1e]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-2 flex items-center gap-1"
+                className="fixed z-[251] bg-[#1c1c1e]/95 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl p-2 flex items-center gap-1"
                 style={{
                     left,
                     top,
@@ -3064,7 +3064,7 @@ style={{
       setLongPressMenu(null);
     }
   }}
-  className={`text-2xl p-2 rounded-full transition-all ${r.locked ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white/10 active:scale-110'}`}
+  className={`text-2xl p-2 rounded-full transition-all ${r.locked ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-white/10 active:scale-110'}`}
   style={{ animation: `popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards`, animationDelay: `${i * 30}ms` }}
   title={r.locked ? t("messages.needLevel", { n: r.minLevel ?? 0 }) : r.packName}
 >
@@ -3072,19 +3072,19 @@ style={{
 </button>
                   ))
                 ) : (
-                  <div className="px-3 py-2 text-xs text-white/50 whitespace-nowrap">
+                  <div className="px-3 py-2 text-xs text-gray-600 dark:text-white/50 whitespace-nowrap">
                     {stickerPacks.length === 0 ? t("messages.loadingPacks") : t("messages.noReactions")}
                   </div>
                 )}
                 
-                <div className="w-px h-8 bg-white/10 mx-0.5" />
+                <div className="w-px h-8 bg-gray-100 dark:bg-white/10 mx-0.5" />
                 
                 <button
                   onClick={() => {
                     setReactionPickerFor(longPressMenu.msgId);
                     setLongPressMenu(null);
                   }}
-                  className="w-9 h-9 flex items-center justify-center rounded-full bg-white/5 hover:bg-[#8b5cf6]/20 hover:text-[#8b5cf6] active:scale-90 transition-all text-white/70"
+                  className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 dark:bg-white/5 hover:bg-[#8b5cf6]/20 hover:text-[#8b5cf6] active:scale-90 transition-all text-white/70"
                   style={{ animation: 'popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards', animationDelay: '180ms' }}
                   title={t("messages.allReactions")}
                 >
@@ -3117,20 +3117,20 @@ style={{
         inset-0
         /* Десктоп: компактная панель справа */
         md:inset-auto md:top-0 md:right-0 md:bottom-0 md:w-[420px]
-        bg-[#171717]/95 md:bg-[#171717]
+        bg-gray-50 dark:bg-[#171717]/95 md:bg-gray-50 dark:bg-[#171717]
         backdrop-blur-md
-        border-l border-white/10
+        border-l border-gray-200 dark:border-white/10
         flex flex-col
         animate-in slide-in-from-right-4 duration-200
       `}
     >
       {/* Шапка с вкладками — ВСЕГДА сверху, не меняется */}
-      <div className="shrink-0 border-b border-white/10 bg-[#171717]/80">
+      <div className="shrink-0 border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#171717]/80">
         <div className="flex items-center justify-between px-3 py-2.5">
-          <h2 className="text-sm font-bold text-white">Медиа</h2>
+          <h2 className="text-sm font-bold text-gray-900 dark:text-white">Медиа</h2>
           <button
             onClick={() => setShowMediaGallery(false)}
-            className="text-white/50 hover:text-white p-1.5 rounded-lg hover:bg-white/10 active:scale-95 transition-all"
+            className="text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 active:scale-95 transition-all"
           >
             <X size={18} />
           </button>
@@ -3155,12 +3155,12 @@ style={{
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all shrink-0 ${
                   active
                     ? "bg-[#8b5cf6] text-white"
-                    : "bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/80"
+                    : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-800 dark:hover:text-white/80"
                 }`}
               >
                 {t.icon}
                 {t.label}
-                <span className={`${active ? "text-white/70" : "text-white/30"}`}>{count}</span>
+                <span className={`${active ? "text-gray-800 dark:text-white/70" : "text-gray-500 dark:text-white/30"}`}>{count}</span>
               </button>
             );
           })}
@@ -3181,7 +3181,7 @@ style={{
               .map((item) => (
                 <div
                   key={item.id}
-                  className="aspect-square relative cursor-pointer group rounded-lg overflow-hidden border border-white/10 hover:border-[#8b5cf6]/50 transition-colors"
+                  className="aspect-square relative cursor-pointer group rounded-lg overflow-hidden border border-gray-200 dark:border-white/10 hover:border-[#8b5cf6]/50 transition-colors"
                   onClick={() => setSelectedMedia(item)}
                 >
                   {mediaTab === "image" ? (
@@ -3190,7 +3190,7 @@ style={{
                     <>
                       <video src={mediaUrl(item.media_url)} className="w-full h-full object-cover" />
                       <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition-colors">
-                        <Film size={20} className="text-white/70" />
+                        <Film size={20} className="text-gray-800 dark:text-white/70" />
                       </div>
                     </>
                   )}
@@ -3203,7 +3203,7 @@ style={{
             {mediaItems
               .filter((m) => m.media_type === mediaTab)
               .map((item) => (
-                <div key={item.id} className="p-2 rounded-xl bg-white/5 border border-white/10">
+                <div key={item.id} className="p-2 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
                   {mediaTab === "video_note" ? (
                     <div className="max-w-[200px]">
                       <VideoNotePlayer
@@ -3218,7 +3218,7 @@ style={{
                       title={t("common.audio")}
                     />
                   )}
-                  <p className="text-[10px] text-white/30 mt-1.5">
+                  <p className="text-[10px] text-gray-500 dark:text-white/30 mt-1.5">
                     {formatChatTime(item.created_at)}
                   </p>
                 </div>
@@ -3237,7 +3237,7 @@ style={{
         >
           <button
             onClick={() => setSelectedMedia(null)}
-            className="absolute top-3 sm:top-4 right-3 sm:right-4 text-white/60 hover:text-white p-2 z-10"
+            className="absolute top-3 sm:top-4 right-3 sm:right-4 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white p-2 z-10"
           >
             <X size={24} />
           </button>
@@ -3359,12 +3359,12 @@ style={{
       onClick={() => { setShowForwardModal(false); setForwardingMessage(null); }}
     />
     <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl max-h-[70vh] flex flex-col">
-        <div className="p-4 border-b border-white/10 flex items-center justify-between">
-          <h3 className="font-bold text-white">Переслать сообщение</h3>
+      <div className="w-full max-w-sm bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl max-h-[70vh] flex flex-col">
+        <div className="p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+          <h3 className="font-bold text-gray-900 dark:text-white">Переслать сообщение</h3>
           <button
             onClick={() => { setShowForwardModal(false); setForwardingMessage(null); }}
-            className="text-white/60 hover:text-white p-1"
+            className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white p-1"
           >
             <X size={18} />
           </button>
@@ -3375,22 +3375,22 @@ style={{
             <button
               key={c.id}
               onClick={() => forwardToChat(c.id)}
-              className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors text-left"
+              className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-left"
             >
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shrink-0">
                 {c.is_group ? (
-                  <Users size={18} className="text-white" />
+                  <Users size={18} className="text-gray-900 dark:text-white" />
                 ) : c.other?.avatar_url ? (
                   <img src={mediaUrl(c.other.avatar_url)} alt="" className="w-full h-full rounded-xl object-cover" />
                 ) : (
-                  <span className="text-white font-bold">{(c.other?.display_name || "?")[0]}</span>
+                  <span className="text-gray-900 dark:text-white font-bold">{(c.other?.display_name || "?")[0]}</span>
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-medium text-white truncate">
+                <p className="font-medium text-gray-900 dark:text-white truncate">
                   {c.is_group ? c.name : c.other?.display_name}
                 </p>
-                <p className="text-xs text-white/40 truncate">
+                <p className="text-xs text-gray-500 dark:text-white/40 truncate">
                   {c.is_group ? `${c.members_count} участников` : `@${c.other?.username}`}
                 </p>
               </div>
@@ -3410,14 +3410,14 @@ style={{
       onClick={() => setShowReactionPicker(false)}
     />
     <div className="fixed inset-0 z-[261] flex items-center justify-center p-4 pointer-events-none">
-      <div className="w-full max-w-sm max-h-[80vh] bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
+      <div className="w-full max-w-sm max-h-[80vh] bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
         {/* Шапка */}
-        <div className="shrink-0 p-3 pb-2 border-b border-white/10">
+        <div className="shrink-0 p-3 pb-2 border-b border-gray-200 dark:border-white/10">
           <div className="flex items-center justify-between mb-2 px-1">
-            <p className="text-xs font-bold text-white/60">Быстрая реакция (двойной тап)</p>
+            <p className="text-xs font-bold text-gray-600 dark:text-white/60">Быстрая реакция (двойной тап)</p>
             <button
               onClick={() => setShowReactionPicker(false)}
-              className="text-white/40 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+              className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
             >
               <X size={14} />
             </button>
@@ -3432,10 +3432,10 @@ style={{
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap shrink-0 transition-all ${
                   activePackTab === i
                     ? "bg-[#8b5cf6] text-white"
-                    : "bg-white/5 text-white/50 hover:bg-white/10"
+                    : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/10"
                 }`}
               >
-                {pack.locked && <Lock size={10} className="text-yellow-400" />}
+                {pack.locked && <Lock size={10} className="text-yellow-600 dark:text-yellow-400" />}
                 {pack.name}
               </button>
             ))}
@@ -3448,10 +3448,10 @@ style={{
             stickerPacks[activePackTab].locked ? (
               <div className="flex flex-col items-center gap-2 py-8 text-center">
                 <div className="w-12 h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
-                  <Lock size={18} className="text-yellow-400" />
+                  <Lock size={18} className="text-yellow-600 dark:text-yellow-400" />
                 </div>
-                <p className="text-sm font-bold text-white">Пак заблокирован</p>
-                <p className="text-[11px] text-white/40 max-w-[220px]">
+                <p className="text-sm font-bold text-gray-900 dark:text-white">Пак заблокирован</p>
+                <p className="text-[11px] text-gray-500 dark:text-white/40 max-w-[220px]">
                   Доступен с уровня {stickerPacks[activePackTab].min_level}.
                   Повысь уровень, чтобы использовать эти реакции.
                 </p>
@@ -3477,7 +3477,7 @@ style={{
                       className={`aspect-square flex items-center justify-center rounded-xl transition-all ${
                         isActive
                           ? 'ring-2 ring-[#8b5cf6] bg-[#8b5cf6]/20'
-                          : 'hover:bg-white/10 active:scale-90'
+                          : 'hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90'
                       }`}
                       title={s.type === 'emoji' ? 'Эмодзи' : 'Стикер'}
                     >
@@ -3492,7 +3492,7 @@ style={{
               </div>
             )
           ) : (
-            <div className="py-8 text-center text-white/50">
+            <div className="py-8 text-center text-gray-600 dark:text-white/50">
               {stickerPacks.length === 0 ? "Загрузка паков..." : "Нет доступных паков"}
             </div>
           )}
@@ -3509,10 +3509,10 @@ style={{
               className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm" 
               onClick={() => setShowStickers(false)} 
             />
-            <div className="fixed inset-x-0 bottom-0 z-[261] md:inset-auto md:bottom-4 md:right-4 md:w-80 bg-[#1f1f23] border border-white/15 rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col max-h-[70vh] md:max-h-[500px] animate-in slide-in-from-bottom-10 duration-200">
-              <div className="shrink-0 p-3 border-b border-white/10 flex items-center justify-between">
-                <p className="text-sm font-bold text-white">Стикеры</p>
-                <button onClick={() => setShowStickers(false)} className="text-white/40 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors">
+            <div className="fixed inset-x-0 bottom-0 z-[261] md:inset-auto md:bottom-4 md:right-4 md:w-80 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col max-h-[70vh] md:max-h-[500px] animate-in slide-in-from-bottom-10 duration-200">
+              <div className="shrink-0 p-3 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+                <p className="text-sm font-bold text-gray-900 dark:text-white">Стикеры</p>
+                <button onClick={() => setShowStickers(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                   <X size={16} />
                 </button>
               </div>
@@ -3520,10 +3520,10 @@ style={{
               <div className="flex-1 overflow-y-auto p-3 min-h-0">
                 {stickerPacks.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center mb-2">
-                      <Smile size={20} className="text-white/30" />
+                    <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-2">
+                      <Smile size={20} className="text-gray-500 dark:text-white/30" />
                     </div>
-                    <p className="text-sm text-white/60">Загрузка стикеров...</p>
+                    <p className="text-sm text-gray-600 dark:text-white/60">Загрузка стикеров...</p>
                   </div>
                 ) : (
                   stickerPacks.map((pack) => {
@@ -3533,14 +3533,14 @@ style={{
                     return (
                       <div key={pack.id} className="mb-4 last:mb-0">
                         <div className="flex items-center gap-2 mb-2 px-1">
-                          <span className="text-xs font-bold text-white/60">{pack.name}</span>
-                          {isLocked && <Lock size={12} className="text-yellow-400" />}
+                          <span className="text-xs font-bold text-gray-600 dark:text-white/60">{pack.name}</span>
+                          {isLocked && <Lock size={12} className="text-yellow-600 dark:text-yellow-400" />}
                         </div>
                         
                         {isLocked ? (
-                          <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
-                            <Lock size={20} className="text-yellow-400 mx-auto mb-1" />
-                            <p className="text-xs text-white/40">Доступно с {pack.min_level} уровня</p>
+                          <div className="p-4 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-center">
+                            <Lock size={20} className="text-yellow-600 dark:text-yellow-400 mx-auto mb-1" />
+                            <p className="text-xs text-gray-500 dark:text-white/40">Доступно с {pack.min_level} уровня</p>
                           </div>
                         ) : (
                           <div className="grid grid-cols-5 gap-2">
@@ -3560,7 +3560,7 @@ style={{
         setShowStickers(false); // Панель закрываем после отправки стикера
       }
     }}
-    className="aspect-square flex items-center justify-center rounded-xl hover:bg-white/10 active:scale-90 transition-all"
+    className="aspect-square flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90 transition-all"
     title={s.type === "emoji" ? "Вставить в текст" : "Отправить стикер"}
   >
     {s.type === "emoji" ? (

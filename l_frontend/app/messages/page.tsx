@@ -73,14 +73,14 @@ function SwipeableChatItem({
 
       {showLeftIcon && (
         <div className="absolute inset-y-0 right-0 flex items-center pr-5 pointer-events-none" style={{ opacity: iconOpacity }}>
-          <div className="w-10 h-10 rounded-full bg-red-500/90 border-2 border-red-400 flex items-center justify-center shadow-[0_0_15px_rgba(239,68,68,0.5)]">
-            <Trash2 size={18} className="text-white" />
+          <div className="w-10 h-10 rounded-full bg-red-500/90 border-2 border-red-600 dark:border-red-400 flex items-center justify-center shadow-[0_0_15px_rgba(239,68,68,0.5)]">
+            <Trash2 size={18} className="text-gray-900 dark:text-white" />
           </div>
         </div>
       )}
 
       <div
-        className="relative z-10 bg-[#171717] transition-transform"
+        className="relative z-10 bg-gray-50 dark:bg-[#171717] transition-transform"
         style={{
           transform: `translateX(${isSwiping ? offset : 0}px)`,
           transition: isSwiping ? "none" : "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
@@ -399,11 +399,11 @@ const confirmPrismKey = async () => {
   return (
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
-      <div className="w-px shrink-0 bg-white/10 my-3" />
-      <main className="flex-1 overflow-y-auto border-x border-white/10">
+      <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
+      <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
         
         {/* ШАПКА - только иконка и поиск */}
-        <div className="p-4 md:p-6 border-b border-white/10 sticky top-0 bg-[#171717]/95 backdrop-blur-md z-10">
+        <div className="p-4 md:p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/95 backdrop-blur-md z-10">
           {/* mr-12/md:mr-14 — резервируем место под fixed-кнопку "+", чтобы поиск не заезжал на неё */}
           <div className="flex items-center gap-3 md:gap-4 mr-12 md:mr-14">
             
@@ -414,12 +414,12 @@ const confirmPrismKey = async () => {
 
             {/* Поиск — тянется от иконки до кнопки "+" на любой ширине */}
             <div className="relative flex-1 min-w-0">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={t("messages.search")}
-                className="w-full pl-9 pr-4 py-2 rounded-xl border border-white/15 bg-white/5 text-white placeholder-white/40 text-sm focus:outline-none focus:border-[#8b5cf6] focus:bg-white/10 transition-all"
+                className="w-full pl-9 pr-4 py-2 rounded-xl border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 text-sm focus:outline-none focus:border-[#8b5cf6] focus:bg-gray-100 dark:focus:bg-white/10 transition-all"
               />
               {searchLoading && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
@@ -431,11 +431,11 @@ const confirmPrismKey = async () => {
         {loading && <ChatListSkeleton />}
         
         {!loading && q && sortedChats.length > 0 && (
-          <div className="px-4 md:px-6 py-2.5 border-b border-white/10 bg-[#8b5cf6]/5 flex items-center gap-3 backdrop-blur-md">
+          <div className="px-4 md:px-6 py-2.5 border-b border-gray-200 dark:border-white/10 bg-[#8b5cf6]/5 flex items-center gap-3 backdrop-blur-md">
             <Search size={14} className="text-[#8b5cf6] shrink-0" />
             <div className="flex items-center gap-2 text-xs flex-wrap">
-              <span className="text-white/80">
-                Найдено <span className="font-bold text-white">{sortedChats.length}</span>
+              <span className="text-gray-800 dark:text-white/80">
+                Найдено <span className="font-bold text-gray-900 dark:text-white">{sortedChats.length}</span>
               </span>
               {nameMatches > 0 && <span className="text-[#a78bfa]">· {nameMatches} по имени</span>}
               {textMatches > 0 && <span className="text-[#a78bfa]">· {textMatches} в сообщениях</span>}
@@ -445,9 +445,9 @@ const confirmPrismKey = async () => {
         
         {!loading && chats.length === 0 && (
           <div className="p-12 text-center">
-            <MessageSquare size={48} className="text-white/20 mx-auto mb-4" />
-            <p className="text-white/60 text-lg">{query ? t("messages.nothingFound") : t("messages.noDialogs")}</p>
-            <p className="text-white/40 text-sm mt-2">
+            <MessageSquare size={48} className="text-gray-500 dark:text-white/20 mx-auto mb-4" />
+            <p className="text-gray-600 dark:text-white/60 text-lg">{query ? t("messages.nothingFound") : t("messages.noDialogs")}</p>
+            <p className="text-gray-500 dark:text-white/40 text-sm mt-2">
               {query ? t("messages.tryAnother") : t("messages.startHint")}
             </p>
           </div>
@@ -495,7 +495,7 @@ const confirmPrismKey = async () => {
                   ? "bg-cyan-950/20 border-l-4 border-l-cyan-500 border-b-cyan-500/20 hover:bg-cyan-900/30"
                   : chat.is_secret
                   ? "bg-emerald-950/20 border-l-4 border-l-emerald-500 border-b-emerald-500/20 hover:bg-emerald-900/30"
-                  : "border-b-white/10 border-l-4 border-l-transparent hover:bg-white/5"
+                  : "border-b-white/10 border-l-4 border-l-transparent hover:bg-gray-100 dark:hover:bg-white/5"
               } ${
                 chat.unread_count > 0 
                   ? (chat.is_prism ? "bg-cyan-900/40" : chat.is_secret ? "bg-emerald-900/40" : "bg-purple-500/10") 
@@ -505,21 +505,21 @@ const confirmPrismKey = async () => {
                 <div className="shrink-0 relative">
                   {isSaved ? (
                     <div className="w-12 h-12 rounded-xl bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
-                      <Bookmark size={24} className="text-yellow-400" />
+                      <Bookmark size={24} className="text-yellow-600 dark:text-yellow-400" />
                     </div>
                   ) : isGroup ? (
                     chat.avatar_url ? (
                       <Avatar src={chat.avatar_url} name={chat.name || t("common.group")} id={chat.id} size={48} />
                     ) : (
-                      <div className="w-12 h-12 relative flex items-center justify-center bg-white/5 rounded-xl">
+                      <div className="w-12 h-12 relative flex items-center justify-center bg-gray-100 dark:bg-white/5 rounded-xl">
                         {(chat.members || []).slice(0, 3).map((m: any, i: number) => (
                           <div key={m.user.id} className="absolute" style={{ top: i === 0 ? 0 : i === 1 ? 24 : 0, left: i === 0 ? 0 : i === 1 ? 24 : 24, zIndex: 3 - i }}>
                             <Avatar src={m.user.avatar_url} name={m.user.display_name} id={m.user.id} size={28} />
                           </div>
                         ))}
-                        {!(chat.members || []).length && <Users size={24} className="text-white/40" />}
+                        {!(chat.members || []).length && <Users size={24} className="text-gray-500 dark:text-white/40" />}
                         <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#8b5cf6] border-2 border-[#171717] flex items-center justify-center">
-                          <Users size={10} className="text-white" />
+                          <Users size={10} className="text-gray-900 dark:text-white" />
                         </div>
                       </div>
                     )
@@ -528,12 +528,12 @@ const confirmPrismKey = async () => {
                       <Avatar src={otherUser?.avatar_url} name={otherUser?.display_name} id={otherUser?.id} size={48} />
                       {chat.is_prism && (
                         <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-cyan-500 border-2 border-[#171717] flex items-center justify-center shadow-[0_0_12px_rgba(34,211,238,0.8)] z-10">
-                          <ShieldCheck size={12} className="text-white" />
+                          <ShieldCheck size={12} className="text-gray-900 dark:text-white" />
                         </div>
                       )}
                       {chat.is_secret && !chat.is_prism && (
                         <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-2 border-[#171717] flex items-center justify-center shadow-[0_0_12px_rgba(16,185,129,0.8)] z-10">
-                          <Lock size={12} className="text-white" />
+                          <Lock size={12} className="text-gray-900 dark:text-white" />
                         </div>
                       )}
                     </div>
@@ -546,9 +546,9 @@ const confirmPrismKey = async () => {
                       {chat.pinned && <Pin size={12} className="text-[#8b5cf6] shrink-0" />}
                       
                       {isSaved ? (
-                        <p className="font-bold truncate text-yellow-400">{t("messages.saved")}</p>
+                        <p className="font-bold truncate text-yellow-600 dark:text-yellow-400">{t("messages.saved")}</p>
                       ) : isGroup ? (
-                        <p className="font-bold truncate text-white">
+                        <p className="font-bold truncate text-gray-900 dark:text-white">
                           {query.trim() ? highlight(chat.name, query.trim()) : chat.name}
                         </p>
                       ) : (
@@ -558,13 +558,13 @@ const confirmPrismKey = async () => {
                           </p>
                           
                           {chat.is_prism && (
-                            <span className="ml-1 px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/40 text-cyan-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-[0_0_8px_rgba(34,211,238,0.2)]">
+                            <span className="ml-1 px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/40 text-cyan-600 dark:text-cyan-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-[0_0_8px_rgba(34,211,238,0.2)]">
                               <ShieldCheck size={10} /> PRISM
                             </span>
                           )}
                           
                           {chat.is_secret && !chat.is_prism && (
-                            <span className="ml-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-[0_0_8px_rgba(16,185,129,0.2)]">
+                            <span className="ml-1 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-[0_0_8px_rgba(16,185,129,0.2)]">
                               <Lock size={10} /> SECRET
                             </span>
                           )}
@@ -572,7 +572,7 @@ const confirmPrismKey = async () => {
                       )}
                     </div>
                     {chat.last_message && (
-                      <span className="text-xs text-white/40 shrink-0">
+                      <span className="text-xs text-gray-500 dark:text-white/40 shrink-0">
                         {new Date(chat.last_message.created_at).toLocaleTimeString(locale === "en" ? "en-US" : "ru-RU", { hour: "2-digit", minute: "2-digit" })}
                       </span>
                     )}
@@ -581,12 +581,12 @@ const confirmPrismKey = async () => {
                   {/* ТЕКСТ ПОСЛЕДНЕГО СООБЩЕНИЯ */}
                   {chat.last_message ? (
                     <div className="mt-0.5">
-                      <p className={`text-sm truncate ${chat.unread_count > 0 ? "text-white" : "text-white/50"}`}>
+                      <p className={`text-sm truncate ${chat.unread_count > 0 ? "text-gray-900 dark:text-white" : "text-gray-600 dark:text-white/50"}`}>
                         <ChatPreview text={chat.last_message.text} query={query.trim()} />
                       </p>
                     </div>
                   ) : (
-                    <p className="text-sm text-white/40 mt-0.5">
+                    <p className="text-sm text-gray-500 dark:text-white/40 mt-0.5">
                       {isGroup ? t("messages.members", { n: chat.members_count }) : t("messages.startChat")}
                     </p>
                   )}
@@ -594,7 +594,7 @@ const confirmPrismKey = async () => {
 
                 <div className="shrink-0 flex items-center gap-2">
                   {chat.unread_count > 0 && (
-                    <span className={`text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shrink-0 ${
+                    <span className={`text-gray-900 dark:text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shrink-0 ${
                       isGroup ? "bg-[#8b5cf6]" : chat.is_secret ? "bg-emerald-500" : "bg-gradient-to-r from-pink-500 to-purple-500"
                     }`}>
                       {chat.unread_count}
@@ -616,10 +616,10 @@ const confirmPrismKey = async () => {
                         });
                       }
                     }}
-                    className="p-1.5 text-white/40 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+                    className="p-1.5 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                   >
                     {pinningChat === chat.id ? (
-                      <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-gray-300 dark:border-white/40 border-t-white rounded-full animate-spin" />
                     ) : (
                       <MoreVertical size={16} />
                     )}
@@ -641,24 +641,24 @@ const confirmPrismKey = async () => {
         </button>
 
         {showCreateMenu && (
-          <div className="absolute right-0 top-12 w-56 bg-[#1f1f23] border border-white/10 rounded-xl shadow-2xl z-[9999] overflow-visible animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="absolute right-0 top-12 w-56 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl z-[9999] overflow-visible animate-in fade-in slide-in-from-top-2 duration-200">
             <button
               onClick={() => { setShowCreateMenu(false); openSavedMessages(); }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
             >
-              <Bookmark size={16} className="text-yellow-400" /> {t("messages.saved")}
+              <Bookmark size={16} className="text-yellow-600 dark:text-yellow-400" /> {t("messages.saved")}
             </button>
             <button
               onClick={() => { setShowCreateMenu(false); setShowCreateGroup(true); }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors border-t border-white/5"
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border-t border-gray-200 dark:border-white/5"
             >
               <Users size={16} className="text-[#8b5cf6]" /> {t("messages.createGroup")}
             </button>
             <button
               onClick={() => { setShowCreateMenu(false); setShowPrismModal(true); }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors border-t border-white/5"
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border-t border-gray-200 dark:border-white/5"
             >
-              <ShieldCheck size={16} className="text-cyan-400" /> PRISM Link
+              <ShieldCheck size={16} className="text-cyan-600 dark:text-cyan-400" /> PRISM Link
             </button>
           </div>
         )}
@@ -676,7 +676,7 @@ const confirmPrismKey = async () => {
             />
             <div 
               className={`
-                fixed z-[9999] bg-[#1f1f23] border border-white/15 shadow-2xl p-3 
+                fixed z-[9999] bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 shadow-2xl p-3 
                 animate-in zoom-in-95 duration-200
                 /* Мобильные: по центру */
                 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 rounded-2xl
@@ -685,14 +685,14 @@ const confirmPrismKey = async () => {
               `}
               style={menuPosition ? { top: menuPosition.top, right: menuPosition.right } : undefined}
             >
-              <p className="text-xs text-white/40 mb-2 px-1 truncate">
+              <p className="text-xs text-gray-500 dark:text-white/40 mb-2 px-1 truncate">
                 {menuChat.is_group ? menuChat.name : menuChat.other?.display_name}
               </p>
               <button
                 onClick={() => togglePinChat(menuChat.id, !!menuChat.pinned)}
-                className="w-full px-3 py-3 rounded-xl text-left text-sm text-white hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+                className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
               >
-                {menuChat.pinned ? <PinOff size={16} className="text-yellow-400" /> : <Pin size={16} className="text-[#8b5cf6]" />}
+                {menuChat.pinned ? <PinOff size={16} className="text-yellow-600 dark:text-yellow-400" /> : <Pin size={16} className="text-[#8b5cf6]" />}
                 {menuChat.pinned ? t("messages.unpin") : t("messages.pin")}
               </button>
               <button
@@ -702,11 +702,11 @@ const confirmPrismKey = async () => {
                   refresh(); 
                   router.push(menuChat.is_prism ? `/prism/${menuChat.id}` : `/messages/${menuChat.id}`); 
                 }}
-                className="w-full px-3 py-3 rounded-xl text-left text-sm text-white hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+                className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
               >
-                <MessageSquare size={16} className="text-white/60" /> {t("messages.openChat")}
+                <MessageSquare size={16} className="text-gray-600 dark:text-white/60" /> {t("messages.openChat")}
               </button>
-              <div className="h-px bg-white/10 my-1" />
+              <div className="h-px bg-gray-100 dark:bg-white/10 my-1" />
               <button
                 onClick={() => {
                   const name = menuChat.is_group ? menuChat.name : menuChat.other?.display_name || t("common.chat");
@@ -714,9 +714,9 @@ const confirmPrismKey = async () => {
                   setMenuPosition(null);
                   deleteChat(menuChat.id, name);
                 }}
-                className="w-full px-3 py-3 rounded-xl text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
+                className="w-full px-3 py-3 rounded-xl text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
               >
-                <Trash2 size={16} className="text-red-400" /> {t("messages.deleteChat")}
+                <Trash2 size={16} className="text-red-600 dark:text-red-400" /> {t("messages.deleteChat")}
               </button>
             </div>
           </>
@@ -739,16 +739,16 @@ const confirmPrismKey = async () => {
         <>
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[2000]" onClick={() => { setShowPrismModal(false); setCreationLandscape(null); setSelectedCreationObject(null); }} />
           <div className="fixed inset-0 z-[2001] flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full max-w-2xl bg-[#171717] border border-cyan-500/30 rounded-2xl shadow-[0_0_40px_rgba(34,211,238,0.1)] flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
+            <div className="w-full max-w-2xl bg-gray-50 dark:bg-[#171717] border border-cyan-500/30 rounded-2xl shadow-[0_0_40px_rgba(34,211,238,0.1)] flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
               
               {/* Шапка модалки */}
-              <div className="p-4 border-b border-white/10 flex items-center justify-between">
+              <div className="p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg bg-cyan-500/20 flex items-center justify-center">
-                    <ShieldCheck size={18} className="text-cyan-400" />
+                    <ShieldCheck size={18} className="text-cyan-600 dark:text-cyan-400" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-white tracking-wide">
+                    <h3 className="text-base font-bold text-gray-900 dark:text-white tracking-wide">
                       {creationLandscape ? "ВЫБЕРИТЕ КЛЮЧ" : "INITIATE PRISM"}
                     </h3>
                     <p className="text-[10px] text-cyan-400/70 uppercase tracking-widest">
@@ -756,7 +756,7 @@ const confirmPrismKey = async () => {
                     </p>
                   </div>
                 </div>
-                <button onClick={() => { setShowPrismModal(false); setCreationLandscape(null); setSelectedCreationObject(null); }} className="text-white/40 hover:text-white p-1">
+                <button onClick={() => { setShowPrismModal(false); setCreationLandscape(null); setSelectedCreationObject(null); }} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white p-1">
                   <X size={18} />
                 </button>
               </div>
@@ -764,16 +764,16 @@ const confirmPrismKey = async () => {
               {/* ШАГ 1: Поиск пользователя */}
               {!creationLandscape && (
                 <div className="p-4 space-y-4">
-                  <p className="text-xs text-white/60 leading-relaxed">
+                  <p className="text-xs text-gray-600 dark:text-white/60 leading-relaxed">
                     Введите имя пользователя. После создания чата вам будет предложено выбрать визуальный ключ на пейзаже.
                   </p>
                   <div className="relative">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
                     <input
                       value={prismSearchQuery}
                       onChange={(e) => { setPrismSearchQuery(e.target.value); searchUsersForPrism(e.target.value); }}
                       placeholder="Поиск пользователя..."
-                      className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-white/10 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-cyan-500/50 text-sm"
+                      className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-cyan-500/50 text-sm"
                       autoFocus
                     />
                   </div>
@@ -787,18 +787,18 @@ const confirmPrismKey = async () => {
                       >
                         <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={36} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-white truncate">{u.display_name}</p>
-                          <p className="text-xs text-white/40 truncate">@{u.username}</p>
+                          <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{u.display_name}</p>
+                          <p className="text-xs text-gray-500 dark:text-white/40 truncate">@{u.username}</p>
                         </div>
                         <Lock size={14} className="text-cyan-400/50" />
                       </button>
                     ))}
                     {prismSearchQuery && prismSearchResults.length === 0 && !isCreatingPrism && (
-                      <p className="text-center text-xs text-white/30 py-4">Пользователи не найдены</p>
+                      <p className="text-center text-xs text-gray-500 dark:text-white/30 py-4">Пользователи не найдены</p>
                     )}
                     {isCreatingPrism && (
-                      <div className="flex items-center justify-center gap-2 py-4 text-cyan-400 text-xs">
-                        <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+                      <div className="flex items-center justify-center gap-2 py-4 text-cyan-600 dark:text-cyan-400 text-xs">
+                        <div className="w-4 h-4 border-2 border-cyan-600 dark:border-cyan-400 border-t-transparent rounded-full animate-spin" />
                         Генерация пейзажа...
                       </div>
                     )}
@@ -809,7 +809,7 @@ const confirmPrismKey = async () => {
               {/* ШАГ 2: Выбор объекта на пейзаже */}
               {creationLandscape && (
                 <div className="p-4 space-y-4">
-                  <div className="relative bg-white/5 rounded-xl p-2 border border-cyan-500/30">
+                  <div className="relative bg-gray-100 dark:bg-white/5 rounded-xl p-2 border border-cyan-500/30">
                     <div dangerouslySetInnerHTML={{ __html: creationLandscape.svg }} className="absolute inset-0 opacity-60 pointer-events-none rounded-lg" />
                     <svg viewBox="0 0 800 600" className="relative w-full h-auto z-10">
                       {creationLandscape.objects.map(obj => {

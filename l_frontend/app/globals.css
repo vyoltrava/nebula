@@ -1,6 +1,36 @@
 @import "tailwindcss";
 
+/* Tailwind v4: включаем dark-вариант по классу "dark" на <html>.
+   (Аналог darkMode: 'class' из tailwind.config.js, которого в v4 больше нет.)
+   Класс на <html> вешает next-themes (см. components/ThemeModeProvider.tsx). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ============================================================
+   🌗 ЦВЕТОВЫЕ ТОКЕНЫ (Light по умолчанию, Dark через класс .dark
+   на <html>, который вешает next-themes)
+   ============================================================ */
 :root {
+  /* Light theme */
+  --bg-primary: #f9fafb;            /* gray-50 — фон страницы */
+  --bg-secondary: #ffffff;          /* карточки */
+  --bg-tertiary: #f3f4f6;           /* gray-100 — поля ввода, ховеры */
+  --accent: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --border: rgba(17, 24, 39, 0.08);
+  --border-strong: rgba(17, 24, 39, 0.16);
+  --text: #111827;                  /* gray-900 */
+  --text-muted: rgba(17, 24, 39, 0.6);
+  --scrollbar-thumb: rgba(17, 24, 39, 0.2);
+  --splash-bg: #f9fafb;
+
+  /* Подложка и «вуаль» анимированных фонов (Themes) */
+  --anim-base: #eef0f5;
+  --anim-veil: rgba(250, 250, 252, 0.55);
+  --anim-veil-strong: rgba(250, 250, 252, 0.74);
+}
+
+.dark {
+  /* Dark theme — прежние значения приложения */
   --bg-primary: #171717;
   --bg-secondary: #1f1f23;
   --bg-tertiary: #2a2a2f;
@@ -10,6 +40,12 @@
   --border-strong: rgba(255, 255, 255, 0.15);
   --text: #e8e8f0;
   --text-muted: rgba(232, 232, 240, 0.6);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.15);
+  --splash-bg: #171717;
+
+  --anim-base: #0a0a0e;
+  --anim-veil: rgba(10, 10, 14, 0.45);
+  --anim-veil-strong: rgba(8, 8, 12, 0.65);
 }
 
 * {
@@ -22,6 +58,7 @@ body {
   color: var(--text);
   background: var(--bg-primary);
   min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .font-logo {
@@ -29,7 +66,7 @@ body {
   letter-spacing: 0.05em;
 }
 
-/* Скроллбар */
+/* Скроллбар (адаптивный) */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -38,11 +75,11 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--text-muted);
 }
 /* === Подсветка ника цветом роли === */
 .role-glow {
@@ -58,7 +95,7 @@ body {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: #171717;
+  background: var(--splash-bg, #171717);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -170,15 +207,17 @@ body {
   z-index: -1;
   overflow: hidden;
   pointer-events: none;
-  background: #0a0a0e;
+  /* Адаптивная подложка: светлая/тёмная (см. токены --anim-* выше).
+     Сами анимации (Themes) работают в обеих темах без изменений. */
+  background: var(--anim-base, #0a0a0e);
 }
 
-/* Тёмная вуаль поверх анимации — чтобы контент читался */
+/* Вуаль поверх анимации — чтобы контент читался (светлее в light) */
 .animated-bg::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: rgba(10, 10, 14, 0.45);
+  background: var(--anim-veil, rgba(10, 10, 14, 0.45));
 }
 
 /* ---------- AURORA: плавающие размытые пятна ---------- */
@@ -229,7 +268,7 @@ body {
   animation: gradient-flow var(--theme-speed, 18s) ease infinite;
 }
 .animated-bg.type-gradient::after {
-  background: rgba(8, 8, 12, 0.65);
+  background: var(--anim-veil-strong, rgba(8, 8, 12, 0.65));
 }
 @keyframes gradient-flow {
   0%   { background-position: 0% 50%; }
@@ -288,6 +327,30 @@ body {
   .animated-bg * { animation: none !important; }
 }
 
+/* ============================================================
+   🌗 АДАПТАЦИЯ АНИМИРОВАННЫХ ФОНОВ ПОД СВЕТЛУЮ ТЕМУ
+   Пятна/волны/неон рассчитаны на тёмную подложку. На светлой
+   используем multiply (краска на бумаге) + лёгкую насыщенность,
+   а неяркую интенсивность компенсируем повышением opacity.
+   Тёмная тема продолжает рендериться как раньше.
+   ============================================================ */
+html:not(.dark) .animated-bg .blob,
+html:not(.dark) .animated-bg .wave,
+html:not(.dark) .animated-bg .neon-spot {
+  mix-blend-mode: multiply;
+  filter: blur(var(--theme-blur, 70px)) saturate(1.35);
+}
+
+html:not(.dark) .animated-bg .blob {
+  opacity: calc(var(--theme-intensity, 0.22) * 1.6);
+}
+html:not(.dark) .animated-bg .wave {
+  opacity: calc(var(--theme-intensity, 0.16) * 1.5);
+}
+html:not(.dark) .animated-bg .neon-spot {
+  opacity: calc(var(--theme-intensity, 0.2) * 1.2);
+}
+
 /* 🦴 Скелетоны — фиолетовый шиммер */
 @keyframes skeleton-shimmer {
   0%   { transform: translateX(-100%); }
@@ -300,11 +363,11 @@ body {
 
 
 
-/* Markdown базовые стили */
-.markdown-body hr { border-color: rgba(255,255,255,0.1); margin: 1rem 0; }
+/* Markdown базовые стили (адаптивные через токены) */
+.markdown-body hr { border-color: var(--border-strong); margin: 1rem 0; }
 .markdown-body table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
-.markdown-body th, .markdown-body td { border: 1px solid rgba(255,255,255,0.2); padding: 0.5rem; text-align: left; }
-.markdown-body th { background: rgba(255,255,255,0.05); font-weight: bold; }
+.markdown-body th, .markdown-body td { border: 1px solid var(--border-strong); padding: 0.5rem; text-align: left; }
+.markdown-body th { background: var(--bg-tertiary); font-weight: bold; }
 
 
 

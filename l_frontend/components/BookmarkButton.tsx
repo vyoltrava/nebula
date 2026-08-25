@@ -52,7 +52,7 @@ export function BookmarkButton({ postId, initial }: { postId: number; initial?: 
       className={`p-2 rounded-lg transition-all ${
         bookmarked
           ? "text-[#8b5cf6] bg-[#8b5cf6]/10"
-          : "text-white/50 hover:text-[#8b5cf6] hover:bg-white/5"
+          : "text-gray-600 dark:text-white/50 hover:text-[#8b5cf6] hover:bg-gray-100 dark:hover:bg-white/5"
       }`}
       title={bookmarked ? "Убрать из закладок" : "В закладки"}
     >

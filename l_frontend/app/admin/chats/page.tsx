@@ -86,34 +86,34 @@ export default function AdminChatsPage() {
   );
 
   if (!me) {
-    return <div className="h-screen flex items-center justify-center bg-[#18181b]"><p className="text-white/60 animate-pulse">Загрузка...</p></div>;
+    return <div className="h-screen flex items-center justify-center bg-white dark:bg-[#18181b]"><p className="text-gray-600 dark:text-white/60 animate-pulse">Загрузка...</p></div>;
   }
 
   return (
-    <div className="h-screen flex overflow-hidden bg-[#18181b]">
+    <div className="h-screen flex overflow-hidden bg-white dark:bg-[#18181b]">
       <Sidebar />
-      <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
-      <main className="flex-1 flex overflow-hidden border-x border-white/10">
+      <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
+      <main className="flex-1 flex overflow-hidden border-x border-gray-200 dark:border-white/10">
         {/* СПИСОК ЧАТОВ */}
-        <div className={`w-full md:w-96 md:border-r border-white/10 flex flex-col ${activeChat ? "hidden md:flex" : "flex"}`}>
-          <div className="p-4 border-b border-white/10 bg-[#171717]/80 backdrop-blur-md">
+        <div className={`w-full md:w-96 md:border-r border-gray-200 dark:border-white/10 flex flex-col ${activeChat ? "hidden md:flex" : "flex"}`}>
+          <div className="p-4 border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#171717]/80 backdrop-blur-md">
             <div className="flex items-center gap-3 mb-3">
-              <button onClick={() => router.push("/admin")} className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10">
+              <button onClick={() => router.push("/admin")} className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10">
                 <ArrowLeft size={18} />
               </button>
-              <MessageSquare size={20} className="text-cyan-400" />
-              <h1 className="text-lg font-black text-white">Модерация чатов</h1>
+              <MessageSquare size={20} className="text-cyan-600 dark:text-cyan-400" />
+              <h1 className="text-lg font-black text-gray-900 dark:text-white">Модерация чатов</h1>
             </div>
             <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Поиск чата..."
-                className="w-full pl-9 pr-3 py-2 rounded-lg border border-white/15 bg-white/5 text-white text-sm placeholder-white/40 focus:outline-none focus:border-cyan-400"
+                className="w-full pl-9 pr-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-cyan-600 dark:focus:border-cyan-400"
               />
             </div>
-            <p className="text-xs text-white/40 mt-2">
+            <p className="text-xs text-gray-500 dark:text-white/40 mt-2">
               Всего: {chats.length} · Показано: {filtered.length}
             </p>
           </div>
@@ -122,7 +122,7 @@ export default function AdminChatsPage() {
               <button
                 key={c.id}
                 onClick={() => openChat(c)}
-                className={`w-full flex items-center gap-3 p-3 border-b border-white/5 hover:bg-white/5 transition-colors text-left ${
+                className={`w-full flex items-center gap-3 p-3 border-b border-gray-200 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-left ${
                   activeChat?.id === c.id ? "bg-cyan-500/10" : ""
                 }`}
               >
@@ -130,16 +130,16 @@ export default function AdminChatsPage() {
                   {c.avatar_url ? (
                     <img src={mediaUrl(c.avatar_url)} alt="" className="w-full h-full object-cover" />
                   ) : c.is_group ? (
-                    <Users size={20} className="text-white" />
+                    <Users size={20} className="text-gray-900 dark:text-white" />
                   ) : (
-                    <MessageSquare size={18} className="text-white" />
+                    <MessageSquare size={18} className="text-gray-900 dark:text-white" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-bold text-white text-sm truncate">
+                  <p className="font-bold text-gray-900 dark:text-white text-sm truncate">
                     {c.name || (c.is_group ? "Группа" : "Диалог")}
                   </p>
-                  <p className="text-[11px] text-white/40 truncate">
+                  <p className="text-[11px] text-gray-500 dark:text-white/40 truncate">
                     {c.is_group ? `${c.members_count} участников` : "Личный чат"}
                     {c.last_message && ` · ${c.last_message.text?.slice(0, 25) || "📎"}`}
                   </p>
@@ -147,7 +147,7 @@ export default function AdminChatsPage() {
               </button>
             ))}
             {filtered.length === 0 && (
-              <p className="text-center text-white/40 text-sm py-8">Чатов не найдено</p>
+              <p className="text-center text-gray-500 dark:text-white/40 text-sm py-8">Чатов не найдено</p>
             )}
           </div>
         </div>
@@ -157,39 +157,39 @@ export default function AdminChatsPage() {
           {!activeChat ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <MessageSquare size={48} className="text-white/10 mx-auto mb-3" />
-                <p className="text-white/30 text-sm">Выбери чат для модерации</p>
+                <MessageSquare size={48} className="text-gray-500 dark:text-white/10 mx-auto mb-3" />
+                <p className="text-gray-500 dark:text-white/30 text-sm">Выбери чат для модерации</p>
               </div>
             </div>
           ) : (
             <>
-              <div className="p-3 border-b border-white/10 bg-[#171717]/80 backdrop-blur-md flex items-center gap-3">
+              <div className="p-3 border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#171717]/80 backdrop-blur-md flex items-center gap-3">
                 <button
                   onClick={() => setActiveChat(null)}
-                  className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 md:hidden"
+                  className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 md:hidden"
                 >
                   <ArrowLeft size={18} />
                 </button>
-                <p className="font-bold text-white text-sm truncate flex-1">{activeChat.name}</p>
-                <span className="text-[10px] text-white/40">{activeChat.members_count} участников</span>
+                <p className="font-bold text-gray-900 dark:text-white text-sm truncate flex-1">{activeChat.name}</p>
+                <span className="text-[10px] text-gray-500 dark:text-white/40">{activeChat.members_count} участников</span>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {loading && <p className="text-center text-white/40 text-sm">Загрузка...</p>}
+                {loading && <p className="text-center text-gray-500 dark:text-white/40 text-sm">Загрузка...</p>}
                 {!loading && messages.length === 0 && (
-                  <p className="text-center text-white/40 text-sm">Сообщений нет</p>
+                  <p className="text-center text-gray-500 dark:text-white/40 text-sm">Сообщений нет</p>
                 )}
                 {!loading && messages.map((m) => (
                   <div key={m.id} className="flex items-start gap-2.5">
                     <Avatar src={m.sender_avatar} name={m.sender_name} id={m.sender_id} size={32} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-white/50">
-                        <span className="font-bold text-white/80">{m.sender_name}</span> ·{" "}
+                      <p className="text-[11px] text-gray-600 dark:text-white/50">
+                        <span className="font-bold text-gray-800 dark:text-white/80">{m.sender_name}</span> ·{" "}
                         {new Date(m.created_at).toLocaleString("ru-RU", {
                           day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
                         })}
                         {m.pinned && <Pin size={10} className="inline ml-1 text-[#8b5cf6]" />}
                       </p>
-                      <div className="text-sm text-white/90 break-words mt-0.5">
+                      <div className="text-sm text-gray-800 dark:text-white/90 break-words mt-0.5">
                         {m.media_type === "image" || m.media_type === "sticker" ? (
                           <img src={mediaUrl(m.media_url)} alt="" className="max-w-[180px] rounded-lg" />
                         ) : m.media_type === "video" || m.media_type === "video_note" ? (

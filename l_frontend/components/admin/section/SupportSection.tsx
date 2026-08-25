@@ -212,21 +212,21 @@ export function SupportSection({ me }: { me: any }) {
 
   return (
     <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-200px)]">
-      <div className={`w-full md:w-96 border border-white/10 rounded-xl bg-white/5 flex flex-col ${activeTicket ? "hidden md:flex" : "flex"}`}>
-        <div className="p-3 border-b border-white/10 flex items-center justify-between">
+      <div className={`w-full md:w-96 border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 flex flex-col ${activeTicket ? "hidden md:flex" : "flex"}`}>
+        <div className="p-3 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Headphones size={18} className="text-green-400" />
-            <h3 className="font-bold text-white">Заявки</h3>
+            <Headphones size={18} className="text-green-600 dark:text-green-400" />
+            <h3 className="font-bold text-gray-900 dark:text-white">Заявки</h3>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-green-400 font-bold">{openTickets.length} открытых</span>
-            <button onClick={loadTickets} className="p-1.5 rounded-lg hover:bg-white/10 text-white/60 hover:text-white">
+            <span className="text-xs text-green-600 dark:text-green-400 font-bold">{openTickets.length} открытых</span>
+            <button onClick={loadTickets} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white">
               <RefreshCw size={14} />
             </button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {openTickets.length > 0 && <p className="px-3 py-2 text-[10px] font-bold text-white/40 uppercase">Открытые</p>}
+          {openTickets.length > 0 && <p className="px-3 py-2 text-[10px] font-bold text-gray-500 dark:text-white/40 uppercase">Открытые</p>}
           {openTickets.map((t) => (
             <button
               key={t.id}
@@ -234,18 +234,18 @@ export function SupportSection({ me }: { me: any }) {
                 setActiveTicket(t);
                 loadMessages(t.id);
               }}
-              className={`w-full flex items-center gap-3 p-3 border-b border-white/5 hover:bg-white/5 text-left ${
+              className={`w-full flex items-center gap-3 p-3 border-b border-gray-200 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 text-left ${
                 activeTicket?.id === t.id ? "bg-green-500/10" : ""
               }`}
             >
               <Avatar src={t.user?.avatar_url} name={t.user?.display_name} id={t.user?.id} size={36} />
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-white text-sm truncate">{t.user?.display_name || "Unknown"}</p>
-                <p className="text-[11px] text-white/40 truncate">
+                <p className="font-bold text-gray-900 dark:text-white text-sm truncate">{t.user?.display_name || "Unknown"}</p>
+                <p className="text-[11px] text-gray-500 dark:text-white/40 truncate">
                   {t.last_message?.text?.slice(0, 40) || "Нет сообщений"}
                 </p>
               </div>
-              <span className="text-[10px] text-white/30 shrink-0">
+              <span className="text-[10px] text-gray-500 dark:text-white/30 shrink-0">
                 {new Date(t.updated_at || t.created_at).toLocaleDateString("ru-RU", {
                   day: "numeric",
                   month: "short",
@@ -253,7 +253,7 @@ export function SupportSection({ me }: { me: any }) {
               </span>
             </button>
           ))}
-          {closedTickets.length > 0 && <p className="px-3 py-2 text-[10px] font-bold text-white/40 uppercase">Закрытые</p>}
+          {closedTickets.length > 0 && <p className="px-3 py-2 text-[10px] font-bold text-gray-500 dark:text-white/40 uppercase">Закрытые</p>}
           {closedTickets.map((t) => (
             <button
               key={t.id}
@@ -261,55 +261,55 @@ export function SupportSection({ me }: { me: any }) {
                 setActiveTicket(t);
                 loadMessages(t.id);
               }}
-              className={`w-full flex items-center gap-3 p-3 border-b border-white/5 hover:bg-white/5 text-left opacity-60 ${
+              className={`w-full flex items-center gap-3 p-3 border-b border-gray-200 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 text-left opacity-60 ${
                 activeTicket?.id === t.id ? "bg-green-500/10 opacity-100" : ""
               }`}
             >
               <Avatar src={t.user?.avatar_url} name={t.user?.display_name} id={t.user?.id} size={36} />
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-white text-sm truncate">{t.user?.display_name || "Unknown"}</p>
-                <p className="text-[11px] text-white/40 truncate">
+                <p className="font-bold text-gray-900 dark:text-white text-sm truncate">{t.user?.display_name || "Unknown"}</p>
+                <p className="text-[11px] text-gray-500 dark:text-white/40 truncate">
                   {t.last_message?.text?.slice(0, 40) || "Нет сообщений"}
                 </p>
               </div>
             </button>
           ))}
-          {tickets.length === 0 && <p className="text-center text-white/40 text-sm py-8">Заявок пока нет</p>}
+          {tickets.length === 0 && <p className="text-center text-gray-500 dark:text-white/40 text-sm py-8">Заявок пока нет</p>}
         </div>
       </div>
 
-      <div className={`flex-1 border border-white/10 rounded-xl bg-white/5 flex flex-col ${activeTicket ? "flex" : "hidden md:flex"}`}>
+      <div className={`flex-1 border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 flex flex-col ${activeTicket ? "flex" : "hidden md:flex"}`}>
         {!activeTicket ? (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-              <Headphones size={48} className="text-white/10 mx-auto mb-3" />
-              <p className="text-white/30 text-sm">Выбери заявку для просмотра</p>
+              <Headphones size={48} className="text-gray-500 dark:text-white/10 mx-auto mb-3" />
+              <p className="text-gray-500 dark:text-white/30 text-sm">Выбери заявку для просмотра</p>
             </div>
           </div>
         ) : (
           <>
-            <div className="p-3 border-b border-white/10 flex items-center gap-3">
+            <div className="p-3 border-b border-gray-200 dark:border-white/10 flex items-center gap-3">
               <button
                 onClick={() => setActiveTicket(null)}
-                className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 md:hidden"
+                className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 md:hidden"
               >
                 <ArrowLeft size={18} />
               </button>
               <Avatar src={activeTicket.user?.avatar_url} name={activeTicket.user?.display_name} id={activeTicket.user?.id} size={32} />
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-white text-sm truncate">{activeTicket.user?.display_name || "Unknown"}</p>
-                <p className="text-[10px] text-white/40">@{activeTicket.user?.username}</p>
+                <p className="font-bold text-gray-900 dark:text-white text-sm truncate">{activeTicket.user?.display_name || "Unknown"}</p>
+                <p className="text-[10px] text-gray-500 dark:text-white/40">@{activeTicket.user?.username}</p>
               </div>
               {activeTicket.status === "open" && (
                 <button
                   onClick={() => closeTicket(activeTicket.id)}
-                  className="px-3 py-1.5 rounded-lg border border-red-400/30 text-red-400 text-xs font-bold hover:bg-red-500/10"
+                  className="px-3 py-1.5 rounded-lg border border-red-400/30 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-500/10"
                 >
                   Закрыть
                 </button>
               )}
               {activeTicket.status !== "open" && (
-                <span className="px-2 py-1 rounded-lg bg-white/10 text-white/50 text-[10px] font-bold uppercase">Закрыта</span>
+                <span className="px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/50 text-[10px] font-bold uppercase">Закрыта</span>
               )}
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -317,10 +317,10 @@ export function SupportSection({ me }: { me: any }) {
                 <div key={m.id} className={`flex ${m.sender_is_staff ? "justify-end" : "justify-start"}`}>
                   <div
                     className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${
-                      m.sender_is_staff ? "bg-[#8b5cf6] text-white rounded-br-md" : "bg-white/10 text-white rounded-bl-md"
+                      m.sender_is_staff ? "bg-[#8b5cf6] text-white rounded-br-md" : "bg-gray-100 dark:bg-white/10 text-white rounded-bl-md"
                     } ${m.pending ? "opacity-60" : ""}`}
                   >
-                    {!m.sender_is_staff && <p className="text-[10px] text-white/50 mb-1">{m.sender_name || "Пользователь"}</p>}
+                    {!m.sender_is_staff && <p className="text-[10px] text-gray-600 dark:text-white/50 mb-1">{m.sender_name || "Пользователь"}</p>}
                     {m.text && <p className="text-sm whitespace-pre-wrap break-words">{m.text}</p>}
                     {m.media_url && (
                       <img
@@ -330,7 +330,7 @@ export function SupportSection({ me }: { me: any }) {
                         onClick={() => window.open(m.media_url, "_blank")}
                       />
                     )}
-                    <p className={`text-[10px] mt-1 ${m.sender_is_staff ? "text-white/60" : "text-white/40"}`}>
+                    <p className={`text-[10px] mt-1 ${m.sender_is_staff ? "text-gray-600 dark:text-white/60" : "text-gray-500 dark:text-white/40"}`}>
                       {new Date(m.created_at).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}
                     </p>
                   </div>
@@ -339,7 +339,7 @@ export function SupportSection({ me }: { me: any }) {
               <div ref={bottomRef} />
             </div>
             {activeTicket.status === "open" && (
-              <div className="p-3 border-t border-white/10 space-y-2">
+              <div className="p-3 border-t border-gray-200 dark:border-white/10 space-y-2">
                 {preview && (
                   <div className="relative inline-block">
                     <img src={preview} alt="Preview" className="w-20 h-20 object-cover rounded-lg" />
@@ -362,7 +362,7 @@ export function SupportSection({ me }: { me: any }) {
                   />
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-3 py-2.5 rounded-xl border border-white/15 bg-white/5 text-white hover:bg-white/10"
+                    className="px-3 py-2.5 rounded-xl border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
                     disabled={sending}
                   >
                     <ImageIcon size={16} />
@@ -378,7 +378,7 @@ export function SupportSection({ me }: { me: any }) {
                       }
                     }}
                     placeholder="Написать ответ..."
-                    className="flex-1 px-4 py-2.5 rounded-xl border border-white/15 bg-white/5 text-white text-sm placeholder-white/30 focus:outline-none focus:border-green-400"
+                    className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-green-600 dark:focus:border-green-400"
                     disabled={sending}
                   />
                   

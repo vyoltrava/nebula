@@ -6,23 +6,23 @@ import { Video,
 // ==========================================
 export function PostSkeleton() {
   return (
-    <article className="p-4 border-b border-white/10 animate-pulse">
+    <article className="p-4 border-b border-gray-200 dark:border-white/10 animate-pulse">
       <div className="flex gap-3">
-        <div className="w-12 h-12 rounded-xl bg-white/10 shrink-0" />
+        <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0" />
         <div className="flex-1 space-y-2">
           <div className="flex items-center gap-2">
-            <div className="h-4 bg-white/10 rounded w-32" />
-            <div className="h-3 bg-white/5 rounded w-20" />
+            <div className="h-4 bg-gray-100 dark:bg-white/10 rounded w-32" />
+            <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-20" />
           </div>
           <div className="space-y-1.5">
-            <div className="h-3 bg-white/10 rounded w-full" />
-            <div className="h-3 bg-white/10 rounded w-4/5" />
-            <div className="h-3 bg-white/10 rounded w-3/5" />
+            <div className="h-3 bg-gray-100 dark:bg-white/10 rounded w-full" />
+            <div className="h-3 bg-gray-100 dark:bg-white/10 rounded w-4/5" />
+            <div className="h-3 bg-gray-100 dark:bg-white/10 rounded w-3/5" />
           </div>
           <div className="flex gap-3 pt-2">
-            <div className="h-7 bg-white/10 rounded-full w-16" />
-            <div className="h-7 bg-white/10 rounded-full w-20" />
-            <div className="h-7 bg-white/10 rounded-full w-24" />
+            <div className="h-7 bg-gray-100 dark:bg-white/10 rounded-full w-16" />
+            <div className="h-7 bg-gray-100 dark:bg-white/10 rounded-full w-20" />
+            <div className="h-7 bg-gray-100 dark:bg-white/10 rounded-full w-24" />
           </div>
         </div>
       </div>
@@ -35,32 +35,32 @@ export function PostSkeleton() {
 // ==========================================
 export function MainPostSkeleton() {
   return (
-    <div className="p-4 border-b border-white/10 animate-pulse">
+    <div className="p-4 border-b border-gray-200 dark:border-white/10 animate-pulse">
       <div className="flex gap-3">
         {/* Аватарка */}
-        <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white/10 shrink-0" />
+        <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0" />
         
         <div className="flex-1 space-y-3">
           {/* Имя и юзернейм */}
           <div className="flex items-center gap-2">
-            <div className="h-4 w-32 bg-white/10 rounded-md" />
-            <div className="h-3 w-24 bg-white/5 rounded-md" />
+            <div className="h-4 w-32 bg-gray-100 dark:bg-white/10 rounded-md" />
+            <div className="h-3 w-24 bg-gray-100 dark:bg-white/5 rounded-md" />
           </div>
           
           {/* Текст поста */}
           <div className="space-y-2">
-            <div className="h-4 w-full bg-white/10 rounded-md" />
-            <div className="h-4 w-4/5 bg-white/10 rounded-md" />
+            <div className="h-4 w-full bg-gray-100 dark:bg-white/10 rounded-md" />
+            <div className="h-4 w-4/5 bg-gray-100 dark:bg-white/10 rounded-md" />
           </div>
           
           {/* Заглушка под медиа (картинку/видео) */}
-          <div className="h-48 w-full bg-white/5 rounded-xl" />
+          <div className="h-48 w-full bg-gray-100 dark:bg-white/5 rounded-xl" />
           
           {/* Кнопки действий (лайк, ответ и т.д.) */}
           <div className="flex gap-4 pt-2">
-            <div className="h-8 w-16 bg-white/10 rounded-full" />
-            <div className="h-8 w-16 bg-white/10 rounded-full" />
-            <div className="h-8 w-16 bg-white/10 rounded-full" />
+            <div className="h-8 w-16 bg-gray-100 dark:bg-white/10 rounded-full" />
+            <div className="h-8 w-16 bg-gray-100 dark:bg-white/10 rounded-full" />
+            <div className="h-8 w-16 bg-gray-100 dark:bg-white/10 rounded-full" />
           </div>
         </div>
       </div>
@@ -70,12 +70,12 @@ export function MainPostSkeleton() {
 
 export function ProfileSkeleton() {
   return (
-    <div className="animate-pulse border-b border-white/10">
+    <div className="animate-pulse border-b border-gray-200 dark:border-white/10">
       <div className="p-4 md:p-6">
         <div className="flex flex-col md:flex-row md:items-start gap-4 md:gap-5">
           {/* Аватарка */}
           <div className="flex justify-center md:justify-start">
-            <div className="w-20 h-20 md:w-24 md:h-24 rounded-xl bg-white/10" />
+            <div className="w-20 h-20 md:w-24 md:h-24 rounded-xl bg-gray-100 dark:bg-white/10" />
           </div>
 
           {/* Контент */}
@@ -84,21 +84,21 @@ export function ProfileSkeleton() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div className="min-w-0 text-center md:text-left space-y-2">
                 <div className="flex items-center gap-2 flex-wrap justify-center md:justify-start">
-                  <div className="h-6 bg-white/10 rounded w-40" />
+                  <div className="h-6 bg-gray-100 dark:bg-white/10 rounded w-40" />
                   <div className="h-4 bg-purple-500/20 rounded w-16" />
                 </div>
-                <div className="h-3 bg-white/10 rounded w-24 mx-auto md:mx-0" />
+                <div className="h-3 bg-gray-100 dark:bg-white/10 rounded w-24 mx-auto md:mx-0" />
                 {/* Bio */}
                 <div className="space-y-1.5 pt-1">
-                  <div className="h-3 bg-white/5 rounded w-full" />
-                  <div className="h-3 bg-white/5 rounded w-4/5" />
+                  <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-full" />
+                  <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-4/5" />
                 </div>
               </div>
 
               {/* Кнопки действий */}
               <div className="flex gap-2 shrink-0 w-full md:w-auto justify-center md:justify-end">
                 <div className="h-9 bg-purple-500/20 rounded-full w-24" />
-                <div className="h-9 bg-white/10 rounded-full w-28" />
+                <div className="h-9 bg-gray-100 dark:bg-white/10 rounded-full w-28" />
                 <div className="h-9 bg-emerald-500/10 rounded-full w-32 hidden sm:block" />
               </div>
             </div>
@@ -106,16 +106,16 @@ export function ProfileSkeleton() {
             {/* Статистика */}
             <div className="flex gap-4 md:gap-6 pt-2 justify-center md:justify-start">
               <div className="space-y-1">
-                <div className="h-4 bg-white/10 rounded w-10" />
-                <div className="h-3 bg-white/5 rounded w-16" />
+                <div className="h-4 bg-gray-100 dark:bg-white/10 rounded w-10" />
+                <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-16" />
               </div>
               <div className="space-y-1">
-                <div className="h-4 bg-white/10 rounded w-10" />
-                <div className="h-3 bg-white/5 rounded w-20" />
+                <div className="h-4 bg-gray-100 dark:bg-white/10 rounded w-10" />
+                <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-20" />
               </div>
               <div className="space-y-1">
-                <div className="h-4 bg-white/10 rounded w-10" />
-                <div className="h-3 bg-white/5 rounded w-14" />
+                <div className="h-4 bg-gray-100 dark:bg-white/10 rounded w-10" />
+                <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-14" />
               </div>
             </div>
           </div>
@@ -129,10 +129,10 @@ export function BookmarkPageSkeleton() {
   return (
     <div className="animate-pulse">
       {/* Заголовок страницы */}
-      <div className="p-6 border-b border-white/10 sticky top-0 bg-[#171717]/80 backdrop-blur-md z-10">
+      <div className="p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/80 backdrop-blur-md z-10">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-purple-500/20" />
-          <div className="h-6 bg-white/10 rounded w-32" />
+          <div className="h-6 bg-gray-100 dark:bg-white/10 rounded w-32" />
         </div>
       </div>
 
@@ -154,15 +154,15 @@ export function ChatListSkeleton() {
       {[1, 2, 3, 4, 5].map((i) => (
         <div key={i} className="flex items-center gap-3 p-3 rounded-xl">
           {/* Аватарка */}
-          <div className="w-12 h-12 rounded-full bg-white/10 shrink-0" />
+          <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-white/10 shrink-0" />
           <div className="flex-1 space-y-2">
             {/* Имя и время */}
             <div className="flex justify-between">
-              <div className="h-4 w-32 bg-white/10 rounded-md" />
-              <div className="h-3 w-12 bg-white/5 rounded-md" />
+              <div className="h-4 w-32 bg-gray-100 dark:bg-white/10 rounded-md" />
+              <div className="h-3 w-12 bg-gray-100 dark:bg-white/5 rounded-md" />
             </div>
             {/* Последнее сообщение */}
-            <div className="h-3 w-48 bg-white/5 rounded-md" />
+            <div className="h-3 w-48 bg-gray-100 dark:bg-white/5 rounded-md" />
           </div>
         </div>
       ))}
@@ -175,13 +175,13 @@ export function ChatListSkeleton() {
 // ==========================================
 export function ChatWindowSkeleton() {
   return (
-    <div className="flex-1 flex flex-col bg-[#171717] animate-pulse">
+    <div className="flex-1 flex flex-col bg-gray-50 dark:bg-[#171717] animate-pulse">
       {/* Шапка чата */}
-      <div className="h-16 border-b border-white/10 p-4 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-full bg-white/10" />
+      <div className="h-16 border-b border-gray-200 dark:border-white/10 p-4 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-white/10" />
         <div className="space-y-2 flex-1">
-          <div className="h-4 w-32 bg-white/10 rounded-md" />
-          <div className="h-3 w-20 bg-white/5 rounded-md" />
+          <div className="h-4 w-32 bg-gray-100 dark:bg-white/10 rounded-md" />
+          <div className="h-3 w-20 bg-gray-100 dark:bg-white/5 rounded-md" />
         </div>
       </div>
 
@@ -189,10 +189,10 @@ export function ChatWindowSkeleton() {
       <div className="flex-1 p-4 space-y-4 overflow-y-auto">
         {/* Входящее сообщение */}
         <div className="flex gap-3">
-          <div className="w-8 h-8 rounded-xl bg-white/10 shrink-0 mt-1" />
+          <div className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0 mt-1" />
           <div className="space-y-2 max-w-[75%]">
-            <div className="h-3 w-24 bg-white/5 rounded-md" />
-            <div className="h-12 w-56 bg-white/10 rounded-2xl rounded-tl-sm" />
+            <div className="h-3 w-24 bg-gray-100 dark:bg-white/5 rounded-md" />
+            <div className="h-12 w-56 bg-gray-100 dark:bg-white/10 rounded-2xl rounded-tl-sm" />
           </div>
         </div>
 
@@ -200,23 +200,23 @@ export function ChatWindowSkeleton() {
         <div className="flex gap-3 justify-end">
           <div className="space-y-2 max-w-[75%]">
             <div className="h-10 w-72 bg-[#8b5cf6]/20 rounded-2xl rounded-tr-sm" />
-            <div className="h-3 w-16 bg-white/5 rounded-md ml-auto" />
+            <div className="h-3 w-16 bg-gray-100 dark:bg-white/5 rounded-md ml-auto" />
           </div>
         </div>
 
         {/* Входящее сообщение 2 */}
         <div className="flex gap-3">
-          <div className="w-8 h-8 rounded-xl bg-white/10 shrink-0 mt-1" />
+          <div className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0 mt-1" />
           <div className="space-y-2 max-w-[60%]">
-            <div className="h-3 w-20 bg-white/5 rounded-md" />
-            <div className="h-8 w-32 bg-white/10 rounded-2xl rounded-tl-sm" />
+            <div className="h-3 w-20 bg-gray-100 dark:bg-white/5 rounded-md" />
+            <div className="h-8 w-32 bg-gray-100 dark:bg-white/10 rounded-2xl rounded-tl-sm" />
           </div>
         </div>
       </div>
 
       {/* Поле ввода */}
-      <div className="p-4 border-t border-white/10">
-        <div className="h-10 w-full bg-white/5 rounded-xl" />
+      <div className="p-4 border-t border-gray-200 dark:border-white/10">
+        <div className="h-10 w-full bg-gray-100 dark:bg-white/5 rounded-xl" />
       </div>
     </div>
   );
@@ -231,13 +231,13 @@ export function Shimmer() {
 // Скелет видео-квадрата в чате (ложится поверх, absolute)
 export function VideoNoteSkeleton() {
   return (
-    <div className="absolute inset-0 overflow-hidden rounded-2xl bg-white/5 border border-white/10">
+    <div className="absolute inset-0 overflow-hidden rounded-2xl bg-white/5 border border-gray-200 dark:border-white/10">
       <Shimmer />
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-        <div className="w-11 h-11 rounded-xl bg-white/10 animate-pulse flex items-center justify-center">
+        <div className="w-11 h-11 rounded-xl bg-gray-100 dark:bg-white/10 animate-pulse flex items-center justify-center">
           <Video size={18} className="text-[#a78bfa]" />
         </div>
-        <span className="text-[10px] font-medium text-white/30">Загрузка видео…</span>
+        <span className="text-[10px] font-medium text-gray-500 dark:text-white/30">Загрузка видео…</span>
       </div>
     </div>
   );
@@ -246,7 +246,7 @@ export function VideoNoteSkeleton() {
 // Скелет баннера
 export function BannerSkeleton({ className = "h-40 sm:h-52 rounded-2xl" }: { className?: string }) {
   return (
-    <div className={`relative w-full overflow-hidden bg-white/5 ${className}`}>
+    <div className={`relative w-full overflow-hidden bg-gray-100 dark:bg-white/5 ${className}`}>
       <Shimmer />
     </div>
   );
@@ -255,7 +255,7 @@ export function BannerSkeleton({ className = "h-40 sm:h-52 rounded-2xl" }: { cla
 // Скелет аватарки
 export function AvatarSkeleton({ size = 96 }: { size?: number }) {
   return (
-    <div className="relative rounded-xl bg-white/5 overflow-hidden" style={{ width: size, height: size }}>
+    <div className="relative rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden" style={{ width: size, height: size }}>
       <Shimmer />
     </div>
   );
@@ -266,12 +266,12 @@ export function AvatarSkeleton({ size = 96 }: { size?: number }) {
 // ==========================================
 export function TeamMemberSkeleton() {
   return (
-    <div className="flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5 animate-pulse">
-      <div className="w-14 h-14 rounded-xl bg-white/10 shrink-0" />
+    <div className="flex items-center gap-4 p-4 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 animate-pulse">
+      <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0" />
       <div className="flex-1 min-w-0 space-y-2">
-        <div className="h-4 bg-white/10 rounded w-32" />
-        <div className="h-3 bg-white/5 rounded w-20" />
-        <div className="h-4 bg-white/10 rounded w-16" />
+        <div className="h-4 bg-gray-100 dark:bg-white/10 rounded w-32" />
+        <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-20" />
+        <div className="h-4 bg-gray-100 dark:bg-white/10 rounded w-16" />
       </div>
     </div>
   );
@@ -283,10 +283,10 @@ export function TeamMemberSkeleton() {
 export function UserRowSkeleton() {
   return (
     <div className="flex items-center gap-3 p-2.5 animate-pulse">
-      <div className="w-11 h-11 rounded-xl bg-white/10 shrink-0" />
+      <div className="w-11 h-11 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0" />
       <div className="flex-1 space-y-2">
-        <div className="h-4 bg-white/10 rounded w-28" />
-        <div className="h-3 bg-white/5 rounded w-20" />
+        <div className="h-4 bg-gray-100 dark:bg-white/10 rounded w-28" />
+        <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-20" />
       </div>
     </div>
   );
@@ -298,7 +298,7 @@ export function UserRowSkeleton() {
 export function SearchResultsSkeleton() {
   return (
     <div>
-      <div className="p-4 border-b border-white/10">
+      <div className="p-4 border-b border-gray-200 dark:border-white/10">
         <div className="h-4 bg-purple-500/20 rounded w-24 mb-3 animate-pulse" />
         <UserRowSkeleton />
         <UserRowSkeleton />
@@ -316,18 +316,18 @@ export function SearchResultsSkeleton() {
 // ==========================================
 export function NotificationsSkeleton() {
   return (
-    <div className="divide-y divide-white/5 animate-pulse">
+    <div className="divide-y divide-gray-200 dark:divide-white/5 animate-pulse">
       {[...Array(6)].map((_, i) => (
         <div key={i} className="flex items-start gap-3 p-4">
-          <div className="w-10 h-10 rounded-xl bg-white/10 shrink-0 mt-0.5" />
+          <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0 mt-0.5" />
           <div className="flex-1 space-y-2">
             <div className="flex items-center gap-2">
-              <div className="h-4 bg-white/10 rounded w-32" />
-              <div className="h-3 bg-white/5 rounded w-24" />
+              <div className="h-4 bg-gray-100 dark:bg-white/10 rounded w-32" />
+              <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-24" />
             </div>
-            <div className="h-3 bg-white/5 rounded w-40" />
+            <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-40" />
           </div>
-          <div className="w-2 h-2 rounded-full bg-white/10 shrink-0 mt-3" />
+          <div className="w-2 h-2 rounded-full bg-gray-100 dark:bg-white/10 shrink-0 mt-3" />
         </div>
       ))}
     </div>
@@ -338,39 +338,39 @@ export function NotificationsSkeleton() {
 // ==========================================
 export function StatSkeleton() {
   return (
-    <div className="min-h-screen bg-[#171717] animate-pulse">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#171717] animate-pulse">
       <div className="max-w-7xl mx-auto px-4 py-10">
         <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-white/10" />
+            <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/10" />
             <div>
-              <div className="h-7 bg-white/10 rounded w-48 mb-2" />
-              <div className="h-3 bg-white/5 rounded w-64" />
+              <div className="h-7 bg-gray-100 dark:bg-white/10 rounded w-48 mb-2" />
+              <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-64" />
             </div>
           </div>
           <div className="flex gap-2">
-            <div className="h-9 bg-white/10 rounded-lg w-28" />
-            <div className="h-9 bg-white/10 rounded-lg w-28" />
+            <div className="h-9 bg-gray-100 dark:bg-white/10 rounded-lg w-28" />
+            <div className="h-9 bg-gray-100 dark:bg-white/10 rounded-lg w-28" />
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="bg-[#1f1f23] border border-white/10 rounded-xl p-4 space-y-3">
-              <div className="h-3 bg-white/5 rounded w-24" />
-              <div className="h-7 bg-white/10 rounded w-16" />
-              <div className="h-8 bg-white/5 rounded w-full" />
+            <div key={i} className="bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-xl p-4 space-y-3">
+              <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-24" />
+              <div className="h-7 bg-gray-100 dark:bg-white/10 rounded w-16" />
+              <div className="h-8 bg-gray-100 dark:bg-white/5 rounded w-full" />
             </div>
           ))}
         </div>
 
-        <div className="bg-white/5 rounded-xl border border-white/10 p-4">
+        <div className="bg-gray-100 dark:bg-white/5 rounded-xl border border-gray-200 dark:border-white/10 p-4">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="flex items-center gap-4 py-3 border-b border-white/5 last:border-0">
-              <div className="w-10 h-10 rounded-xl bg-white/10 shrink-0" />
-              <div className="flex-1 h-3 bg-white/10 rounded w-32" />
-              <div className="hidden sm:block h-3 bg-white/5 rounded w-24" />
-              <div className="hidden md:block h-3 bg-white/5 rounded w-16" />
+            <div key={i} className="flex items-center gap-4 py-3 border-b border-gray-200 dark:border-white/5 last:border-0">
+              <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0" />
+              <div className="flex-1 h-3 bg-gray-100 dark:bg-white/10 rounded w-32" />
+              <div className="hidden sm:block h-3 bg-gray-100 dark:bg-white/5 rounded w-24" />
+              <div className="hidden md:block h-3 bg-gray-100 dark:bg-white/5 rounded w-16" />
             </div>
           ))}
         </div>
@@ -384,24 +384,24 @@ export function StatSkeleton() {
 // ==========================================
 export function SuggestionsSkeleton() {
   return (
-    <div className="min-h-screen bg-[#171717] animate-pulse">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#171717] animate-pulse">
       <div className="max-w-6xl mx-auto px-4 py-10">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <div className="h-8 bg-white/10 rounded w-56 mb-2" />
-            <div className="h-3 bg-white/5 rounded w-72" />
+            <div className="h-8 bg-gray-100 dark:bg-white/10 rounded w-56 mb-2" />
+            <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-72" />
           </div>
-          <div className="h-9 bg-white/10 rounded-xl w-32" />
+          <div className="h-9 bg-gray-100 dark:bg-white/10 rounded-xl w-32" />
         </div>
-        <div className="border border-white/10 rounded-2xl bg-white/5 overflow-hidden">
+        <div className="border border-gray-200 dark:border-white/10 rounded-2xl bg-gray-100 dark:bg-white/5 overflow-hidden">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="flex items-center gap-4 p-4 border-b border-white/5 last:border-0">
-              <div className="w-11 h-11 rounded-xl bg-white/10 shrink-0" />
+            <div key={i} className="flex items-center gap-4 p-4 border-b border-gray-200 dark:border-white/5 last:border-0">
+              <div className="w-11 h-11 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0" />
               <div className="flex-1 space-y-2">
-                <div className="h-4 bg-white/10 rounded w-1/2" />
-                <div className="h-3 bg-white/5 rounded w-1/3" />
+                <div className="h-4 bg-gray-100 dark:bg-white/10 rounded w-1/2" />
+                <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-1/3" />
               </div>
-              <div className="h-6 bg-white/10 rounded-full w-16" />
+              <div className="h-6 bg-gray-100 dark:bg-white/10 rounded-full w-16" />
             </div>
           ))}
         </div>
@@ -417,18 +417,18 @@ export function TeamDrawerSkeleton() {
     <div className="space-y-6 animate-pulse">
       {[...Array(3)].map((_, g) => (
         <div key={g} className="space-y-3">
-          <div className="flex items-center gap-3 pb-2 border-b border-white/5">
-            <div className="w-1 h-6 rounded-full bg-white/10" />
-            <div className="h-3 bg-white/10 rounded w-28" />
-            <div className="ml-auto h-5 bg-white/5 rounded-full w-8" />
+          <div className="flex items-center gap-3 pb-2 border-b border-gray-200 dark:border-white/5">
+            <div className="w-1 h-6 rounded-full bg-gray-100 dark:bg-white/10" />
+            <div className="h-3 bg-gray-100 dark:bg-white/10 rounded w-28" />
+            <div className="ml-auto h-5 bg-gray-100 dark:bg-white/5 rounded-full w-8" />
           </div>
           <div className="space-y-1">
             {[...Array(3)].map((_, m) => (
               <div key={m} className="flex items-center gap-3 p-2.5">
-                <div className="w-10 h-10 rounded-xl bg-white/10 shrink-0" />
+                <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-3.5 bg-white/10 rounded w-28" />
-                  <div className="h-3 bg-white/5 rounded w-16" />
+                  <div className="h-3.5 bg-gray-100 dark:bg-white/10 rounded w-28" />
+                  <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-16" />
                 </div>
               </div>
             ))}
@@ -447,10 +447,10 @@ export function UserSearchFieldSkeleton() {
     <div className="px-3 py-2 space-y-2 animate-pulse">
       {[...Array(2)].map((_, i) => (
         <div key={i} className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-white/10 shrink-0" />
+          <div className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/10 shrink-0" />
           <div className="flex-1 space-y-1.5">
-            <div className="h-2.5 bg-white/10 rounded w-24" />
-            <div className="h-2 bg-white/5 rounded w-16" />
+            <div className="h-2.5 bg-gray-100 dark:bg-white/10 rounded w-24" />
+            <div className="h-2 bg-gray-100 dark:bg-white/5 rounded w-16" />
           </div>
         </div>
       ))}
@@ -464,20 +464,20 @@ export function UserSearchFieldSkeleton() {
 export function UpdatesSkeleton() {
   return (
     <div className="relative pl-10 animate-pulse">
-      <div className="absolute left-[13px] top-2 bottom-0 w-px bg-white/10" />
+      <div className="absolute left-[13px] top-2 bottom-0 w-px bg-gray-100 dark:bg-white/10" />
       {[...Array(3)].map((_, i) => (
         <div key={i} className="relative mb-8">
-          <span className="absolute -left-10 top-5 w-7 h-7 rounded-full border-2 border-white/10 bg-[#171717]" />
-          <div className="border border-white/10 rounded-2xl p-5 bg-white/5">
+          <span className="absolute -left-10 top-5 w-7 h-7 rounded-full border-2 border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#171717]" />
+          <div className="border border-gray-200 dark:border-white/10 rounded-2xl p-5 bg-gray-100 dark:bg-white/5">
             <div className="flex items-center gap-2 mb-3">
-              <div className="h-4 bg-white/10 rounded w-16" />
-              <div className="h-3 bg-white/5 rounded w-24" />
+              <div className="h-4 bg-gray-100 dark:bg-white/10 rounded w-16" />
+              <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-24" />
             </div>
-            <div className="h-5 bg-white/10 rounded w-2/3 mb-3" />
+            <div className="h-5 bg-gray-100 dark:bg-white/10 rounded w-2/3 mb-3" />
             <div className="space-y-2">
-              <div className="h-3 bg-white/5 rounded w-full" />
-              <div className="h-3 bg-white/5 rounded w-4/5" />
-              <div className="h-3 bg-white/5 rounded w-3/5" />
+              <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-full" />
+              <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-4/5" />
+              <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-3/5" />
             </div>
           </div>
         </div>

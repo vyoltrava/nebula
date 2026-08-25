@@ -55,16 +55,16 @@ export function TeamDrawer({ open, onClose }: { open: boolean; onClose: () => vo
 
       {/* Drawer */}
       <div
-        className={`fixed top-0 right-0 h-full w-96 max-w-full bg-[#171717] border-l border-white/10 z-[201] transform transition-transform duration-300 ${
+        className={`fixed top-0 right-0 h-full w-96 max-w-full bg-gray-50 dark:bg-[#171717] border-l border-gray-200 dark:border-white/10 z-[201] transform transition-transform duration-300 ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <div className="flex flex-col h-full">
           {/* Шапка */}
-          <div className="p-5 border-b border-white/10 flex items-center justify-between sticky top-0 bg-[#171717] z-10">
+          <div className="p-5 border-b border-gray-200 dark:border-white/10 flex items-center justify-between sticky top-0 bg-gray-50 dark:bg-[#171717] z-10">
             <div className="flex items-center gap-3">
               <Users size={22} className="text-[#8b5cf6]" />
-              <h2 className="text-xl font-black text-white">Команда разработчиков</h2>
+              <h2 className="text-xl font-black text-gray-900 dark:text-white">Команда разработчиков</h2>
             </div>
             <IconButton icon={X} size="icon" onClick={onClose} />
           </div>
@@ -74,13 +74,13 @@ export function TeamDrawer({ open, onClose }: { open: boolean; onClose: () => vo
             {loading && <TeamDrawerSkeleton />}
 
             {!loading && groups.length === 0 && (
-              <p className="text-center text-white/50 py-8">Пока никого нет</p>
+              <p className="text-center text-gray-600 dark:text-white/50 py-8">Пока никого нет</p>
             )}
 
             {groups.map((g) => (
               <div key={g.key} className="space-y-3">
                 {/* Заголовок группы с цветным акцентом */}
-                <div className="flex items-center gap-3 pb-2 border-b border-white/5">
+                <div className="flex items-center gap-3 pb-2 border-b border-gray-200 dark:border-white/5">
                   <div
                     className="w-1 h-6 rounded-full"
                     style={{ backgroundColor: g.color, boxShadow: `0 0 10px ${g.color}` }}
@@ -94,7 +94,7 @@ export function TeamDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                   >
                     {g.label}
                   </h3>
-                  <span className="ml-auto text-xs text-white/40 bg-white/5 px-2 py-0.5 rounded-full">
+                  <span className="ml-auto text-xs text-gray-500 dark:text-white/40 bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-full">
                     {g.members.length}
                   </span>
                 </div>
@@ -108,7 +108,7 @@ export function TeamDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                         key={m.id}
                         href={`/user/${m.id}`}
                         onClick={onClose}
-                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-all group"
+                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-all group"
                       >
                         <div
                           className="shrink-0"
@@ -126,7 +126,7 @@ export function TeamDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                         <div className="flex-1 min-w-0">
                           <p
                             className={`font-bold text-sm truncate transition-all ${
-                              glow ? "group-hover:opacity-80" : "text-white group-hover:text-[#8b5cf6]"
+                              glow ? "group-hover:opacity-80" : "text-gray-900 dark:text-white group-hover:text-[#8b5cf6]"
                             }`}
                             style={
                               glow
@@ -139,7 +139,7 @@ export function TeamDrawer({ open, onClose }: { open: boolean; onClose: () => vo
                           >
                             {m.display_name}
                           </p>
-                          <p className="text-xs text-white/40 truncate">@{m.username}</p>
+                          <p className="text-xs text-gray-500 dark:text-white/40 truncate">@{m.username}</p>
                         </div>
                       </Link>
                     );

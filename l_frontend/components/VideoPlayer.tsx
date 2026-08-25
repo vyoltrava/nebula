@@ -110,8 +110,8 @@ export function VideoPlayer({ src, className = "" }: VideoPlayerProps) {
     return (
       <div key={feedback.id} className={`absolute top-1/2 ${positionClass} -translate-y-1/2 pointer-events-none z-10 animate-[ping_0.6s_ease-out_forwards]`}>
         <div className="w-12 h-12 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center">
-          <Icon size={24} className="text-white" fill="currentColor" />
-          {label && <span className="absolute bottom-0.5 text-[10px] font-bold text-white">{label}</span>}
+          <Icon size={24} className="text-gray-900 dark:text-white" fill="currentColor" />
+          {label && <span className="absolute bottom-0.5 text-[10px] font-bold text-gray-900 dark:text-white">{label}</span>}
         </div>
       </div>
     );
@@ -134,34 +134,34 @@ export function VideoPlayer({ src, className = "" }: VideoPlayerProps) {
         onError={() => setFailed(true)}
       />
 
-      <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20">
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-100 dark:bg-white/20">
         <div className="h-full bg-[#8b5cf6] transition-all duration-200" style={{ width: `${progress}%` }} />
       </div>
 
-      <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/60 text-white/80 text-[10px] font-mono">
+      <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/60 text-gray-800 dark:text-white/80 text-[10px] font-mono">
         {isPlaying ? formatTime(duration - currentTime) : formatTime(duration)}
       </div>
 
-      <button onClick={toggleMute} className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white/80 hover:bg-black/80 transition-colors">
+      <button onClick={toggleMute} className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-gray-800 dark:text-white/80 hover:bg-black/80 transition-colors">
         {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
       </button>
 
       {renderFeedbackIcon()}
 
       {!loaded && !failed && (
-        <div className="absolute inset-0 bg-[#0d0d10]">
+        <div className="absolute inset-0 bg-gray-50 dark:bg-[#0d0d10]">
           <div className="absolute inset-0 skeleton-shimmer" />
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-            <div className="w-12 h-12 rounded-full bg-white/10 animate-pulse flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-white/10 animate-pulse flex items-center justify-center">
               <Film size={20} className="text-[#a78bfa]" />
             </div>
-            <span className="text-[10px] font-medium text-white/30">Загрузка видео…</span>
+            <span className="text-[10px] font-medium text-gray-500 dark:text-white/30">Загрузка видео…</span>
           </div>
         </div>
       )}
 
       {failed && (
-        <div className="absolute inset-0 bg-[#0d0d10] flex flex-col items-center justify-center gap-1.5 text-white/30">
+        <div className="absolute inset-0 bg-gray-50 dark:bg-[#0d0d10] flex flex-col items-center justify-center gap-1.5 text-gray-500 dark:text-white/30">
           <Film size={20} />
           <span className="text-[10px] font-bold">видео недоступно</span>
         </div>

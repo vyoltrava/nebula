@@ -413,8 +413,8 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     return (
       <div className="h-screen flex overflow-hidden">
         <Sidebar />
-        <div className="w-px shrink-0 bg-white/10 my-3" />
-        <main className="flex-1 overflow-y-auto border-x border-white/10">
+        <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
+        <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
           <ProfileSkeleton />
           <PostSkeleton />
           <PostSkeleton />
@@ -435,11 +435,11 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   return (
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
-      <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
-      <main className="flex-1 overflow-y-auto border-x border-white/10">
+      <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
+      <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
         
         {/* ================= ШАПКА ПРОФИЛЯ ================= */}
-        <div className="border-b border-white/10">
+        <div className="border-b border-gray-200 dark:border-white/10">
           
           {/* ОБЛОЖКА */}
 {profile.cover_url ? (
@@ -459,7 +459,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
         {/* Иконка камеры в центре при hover */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
           <div className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center">
-            <ImageIcon size={24} className="text-white" />
+            <ImageIcon size={24} className="text-gray-900 dark:text-white" />
           </div>
         </div>
 
@@ -467,17 +467,17 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
         {showCoverMenu && (
           <>
             <div className="fixed inset-0 z-30" onClick={() => setShowCoverMenu(false)} />
-            <div className="absolute top-4 right-4 z-40 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
+            <div className="absolute top-4 right-4 z-40 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
               <button
                 onClick={(e) => { e.stopPropagation(); coverInputRef.current?.click(); setShowCoverMenu(false); }}
-                className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+                className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
               >
                 <ImageIcon size={16} className="text-[#8b5cf6]" />
                 {t("profile.changeCover")}
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); removeCover(); setShowCoverMenu(false); }}
-                className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
+                className="w-full px-4 py-3 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
               >
                 <XIcon size={16} />
                 {t("profile.deleteCover")}
@@ -494,7 +494,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       className="relative w-full h-16 md:h-20 bg-white/[0.02] hover:bg-white/[0.06] transition-colors cursor-pointer flex items-center justify-center group"
       onClick={() => coverInputRef.current?.click()}
     >
-      <span className="flex items-center gap-2 text-white/30 group-hover:text-white/60 text-sm font-bold transition-colors">
+      <span className="flex items-center gap-2 text-gray-500 dark:text-white/30 group-hover:text-gray-600 dark:group-hover:text-white/60 text-sm font-bold transition-colors">
         <ImageIcon size={18} />
         {t("profile.addCover")}
       </span>
@@ -505,9 +505,9 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
 {/* ❌ Ошибка загрузки обложки */}
 {coverError && (
   <div className="px-4 md:px-6 py-2.5 bg-red-500/10 border-b border-red-500/30 flex items-center gap-2">
-    <AlertTriangle size={14} className="text-red-400 shrink-0" />
-    <p className="text-xs md:text-sm text-red-300 font-semibold flex-1">{coverError}</p>
-    <button onClick={() => setCoverError(null)} className="text-red-400 hover:text-red-300 p-1 shrink-0">
+    <AlertTriangle size={14} className="text-red-600 dark:text-red-400 shrink-0" />
+    <p className="text-xs md:text-sm text-red-600 dark:text-red-300 font-semibold flex-1">{coverError}</p>
+    <button onClick={() => setCoverError(null)} className="text-red-600 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 p-1 shrink-0">
       <X size={14} />
     </button>
   </div>
@@ -546,7 +546,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     {/* Затемнение при hover */}
     {isOwnProfile && !uploading && (
       <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/30 transition-colors duration-200 flex items-center justify-center">
-        <Camera size={28} className="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+        <Camera size={28} className="text-gray-900 dark:text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
       </div>
     )}
 
@@ -554,10 +554,10 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     {isOwnProfile && showAvatarMenu && !uploading && (
       <>
         <div className="fixed inset-0 z-30" onClick={() => setShowAvatarMenu(false)} />
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-40 bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-40 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
           <button
             onClick={(e) => { e.stopPropagation(); openFilePicker(); setShowAvatarMenu(false); }}
-            className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+            className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
           >
             <Camera size={16} className="text-[#8b5cf6]" />
             {t("profile.changeAvatar")}
@@ -565,7 +565,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
           {profile.avatar_url && (
             <button
               onClick={(e) => { e.stopPropagation(); alert(t("profile.avatarDeleteUnavailable")); setShowAvatarMenu(false); }}
-              className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
+              className="w-full px-4 py-3 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
             >
               <XIcon size={16} />
               {t("profile.deleteCover")}
@@ -579,9 +579,9 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   {/* ❌ Ошибка загрузки аватарки */}
   {avatarError && isOwnProfile && (
     <div className="mt-2 flex items-center gap-2 bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-1.5 max-w-xs">
-      <AlertTriangle size={12} className="text-red-400 shrink-0" />
-      <p className="text-[11px] text-red-300 font-semibold flex-1 leading-tight">{avatarError}</p>
-      <button onClick={() => setAvatarError(null)} className="text-red-400 hover:text-red-300 p-0.5 shrink-0">
+      <AlertTriangle size={12} className="text-red-600 dark:text-red-400 shrink-0" />
+      <p className="text-[11px] text-red-600 dark:text-red-300 font-semibold flex-1 leading-tight">{avatarError}</p>
+      <button onClick={() => setAvatarError(null)} className="text-red-600 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 p-0.5 shrink-0">
         <X size={12} />
       </button>
     </div>
@@ -618,10 +618,10 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   {/* Кнопки действий — ДЕСКТОП */}
                   {!isOwnProfile && (
                     <div className="hidden md:flex items-center gap-2 shrink-0 pt-1">
-                      <button onClick={toggleFollow} className={`px-4 py-2 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-white/20 text-white/80 hover:bg-white/10 hover:border-white/40 hover:text-white"}`}>
+                      <button onClick={toggleFollow} className={`px-4 py-2 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-gray-200 dark:border-white/20 text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-white"}`}>
                         {following ? t("post.following") : t("post.follow")}
                       </button>
-                      <button onClick={startChat} className="flex items-center justify-center p-2 rounded-full border border-white/20 text-white/80 hover:bg-white/10 hover:border-white/40 hover:text-white transition-all" title={t("profile.write")}>
+                      <button onClick={startChat} className="flex items-center justify-center p-2 rounded-full border border-gray-200 dark:border-white/20 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white transition-all" title={t("profile.write")}>
                         <MessageSquare size={18} />
                       </button>
                       <button
@@ -642,17 +642,17 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                             alert(t("common.networkError"));
                           }
                         }}
-                        className="flex items-center justify-center p-2 rounded-full border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 transition-all"
+                        className="flex items-center justify-center p-2 rounded-full border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-all"
                         title={t("profile.secretChat")}
                       >
                         <Lock size={18} />
                       </button>
                       {canBan && (
-                        <button onClick={toggleBan} className={`flex items-center justify-center p-2 rounded-full border transition-all ${profile.is_banned ? "border-green-400/40 text-green-400 hover:bg-green-500/10" : "border-red-400/40 text-red-400 hover:bg-red-500/10"}`} title={profile.is_banned ? t("profile.unban") : t("profile.ban")}>
+                        <button onClick={toggleBan} className={`flex items-center justify-center p-2 rounded-full border transition-all ${profile.is_banned ? "border-green-400/40 text-green-600 dark:text-green-400 hover:bg-green-500/10" : "border-red-400/40 text-red-600 dark:text-red-400 hover:bg-red-500/10"}`} title={profile.is_banned ? t("profile.unban") : t("profile.ban")}>
                           <Ban size={18} />
                         </button>
                       )}
-                      <button onClick={() => setShowReport(true)} className="p-2 rounded-full border border-white/20 text-white/60 hover:bg-red-500/10 hover:border-red-400/50 hover:text-red-400 transition-all" title={t("profile.report")}>
+                      <button onClick={() => setShowReport(true)} className="p-2 rounded-full border border-gray-200 dark:border-white/20 text-white/60 hover:bg-red-500/10 hover:border-red-400/50 hover:text-red-600 dark:hover:text-red-400 transition-all" title={t("profile.report")}>
                         <Flag size={18} />
                       </button>
                     </div>
@@ -661,7 +661,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
 
                 {/* Био */}
                   {profile.bio && (
-                    <p className="text-white/80 mt-3 text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                    <p className="text-gray-800 dark:text-white/80 mt-3 text-sm whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                       {profile.bio}
                     </p>
                   )}
@@ -669,10 +669,10 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                 {/* Кнопки действий — МОБИЛЬНЫЕ */}
                 {!isOwnProfile && (
                   <div className="flex md:hidden items-center justify-center gap-2 mt-4">
-                    <button onClick={toggleFollow} className={`px-5 py-2.5 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-white/20 text-white/80 hover:bg-white/10 hover:border-white/40 hover:text-white"}`}>
+                    <button onClick={toggleFollow} className={`px-5 py-2.5 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-gray-200 dark:border-white/20 text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-white"}`}>
                       {following ? t("post.following") : t("post.follow")}
                     </button>
-                    <button onClick={startChat} className="p-2.5 rounded-full border border-white/20 text-white/80 hover:bg-white/10 hover:border-white/40 hover:text-white transition-all" title={t("profile.write")}>
+                    <button onClick={startChat} className="p-2.5 rounded-full border border-gray-200 dark:border-white/20 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white transition-all" title={t("profile.write")}>
                       <MessageSquare size={18} />
                     </button>
                     <button
@@ -693,30 +693,30 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                           alert(t("common.networkError"));
                         }
                       }}
-                      className="p-2.5 rounded-full border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 transition-all"
+                      className="p-2.5 rounded-full border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-all"
                       title={t("profile.secretChat")}
                     >
                       <Lock size={18} />
                     </button>
                     {canBan && (
-                      <button onClick={toggleBan} className={`p-2.5 rounded-full border transition-all ${profile.is_banned ? "border-green-400/40 text-green-400 hover:bg-green-500/10" : "border-red-400/40 text-red-400 hover:bg-red-500/10"}`} title={profile.is_banned ? t("profile.unban") : t("profile.ban")}>
+                      <button onClick={toggleBan} className={`p-2.5 rounded-full border transition-all ${profile.is_banned ? "border-green-400/40 text-green-600 dark:text-green-400 hover:bg-green-500/10" : "border-red-400/40 text-red-600 dark:text-red-400 hover:bg-red-500/10"}`} title={profile.is_banned ? t("profile.unban") : t("profile.ban")}>
                         <Ban size={18} />
                       </button>
                     )}
-                    <button onClick={() => setShowReport(true)} className="p-2.5 rounded-full border border-white/20 text-white/60 hover:bg-red-500/10 hover:border-red-400/50 hover:text-red-400 transition-all" title={t("profile.report")}>
+                    <button onClick={() => setShowReport(true)} className="p-2.5 rounded-full border border-gray-200 dark:border-white/20 text-white/60 hover:bg-red-500/10 hover:border-red-400/50 hover:text-red-600 dark:hover:text-red-400 transition-all" title={t("profile.report")}>
                       <Flag size={18} />
                     </button>
                   </div>
                 )}
 
                 {/* Статистика */}
-                <div className="flex justify-center md:justify-start gap-4 md:gap-6 mt-4 text-xs md:text-sm font-semibold text-white/70">
+                <div className="flex justify-center md:justify-start gap-4 md:gap-6 mt-4 text-xs md:text-sm font-semibold text-gray-800 dark:text-white/70">
                   <span>{profile.posts_count} <span className="hidden sm:inline">{t("profile.posts")}</span><span className="sm:hidden">{t("profile.postsShort")}</span></span>
                   <button onClick={() => openModal("followers")} className="hover:text-[#8b5cf6] transition-colors cursor-pointer">
-                    <span className="text-white font-bold">{profile.followers_count}</span> <span className="hidden sm:inline">{t("profile.followers")}</span><span className="sm:hidden">{t("profile.followersShort")}</span>
+                    <span className="text-gray-900 dark:text-white font-bold">{profile.followers_count}</span> <span className="hidden sm:inline">{t("profile.followers")}</span><span className="sm:hidden">{t("profile.followersShort")}</span>
                   </button>
                   <button onClick={() => openModal("following")} className="hover:text-[#8b5cf6] transition-colors cursor-pointer">
-                    <span className="text-white font-bold">{profile.following_count}</span> <span className="hidden sm:inline">{t("profile.following")}</span><span className="sm:hidden">{t("profile.followingShort")}</span>
+                    <span className="text-gray-900 dark:text-white font-bold">{profile.following_count}</span> <span className="hidden sm:inline">{t("profile.following")}</span><span className="sm:hidden">{t("profile.followingShort")}</span>
                   </button>
                 </div>
               </div>
@@ -732,9 +732,9 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
             liked_by_me={post.liked_by_me ?? post.is_liked ?? false} 
           />
         ))}
-        {posts.length === 0 && !postsLoading && <p className="p-8 text-center text-white/50">{t("common.noPosts")}</p>}
+        {posts.length === 0 && !postsLoading && <p className="p-8 text-center text-gray-600 dark:text-white/50">{t("common.noPosts")}</p>}
         {hasMore && posts.length > 0 && !postsLoading && (
-          <button onClick={() => loadMorePosts()} className="w-full p-4 text-center text-[#8b5cf6] font-semibold hover:bg-white/5 transition-all">
+          <button onClick={() => loadMorePosts()} className="w-full p-4 text-center text-[#8b5cf6] font-semibold hover:bg-gray-100 dark:hover:bg-white/5 transition-all">
             {t("profile.loadMore")}
           </button>
         )}
@@ -755,7 +755,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
         )}
         {/* Подсказка лимитов для обложки */}
         {showCoverMenu && (
-          <div className="absolute top-[calc(100%+8px)] right-4 z-30 text-[10px] text-white/40 bg-[#1f1f23] border border-white/10 rounded-lg px-2.5 py-1.5 shadow-lg">
+          <div className="absolute top-[calc(100%+8px)] right-4 z-30 text-[10px] text-gray-500 dark:text-white/40 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 shadow-lg">
             {UPLOAD_RULES.banner.hint}
           </div>
         )}
@@ -771,22 +771,22 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200]" onClick={() => setModalType(null)} />
             <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-              <div className="w-full max-w-md border border-white/20 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl pointer-events-auto max-h-[80vh] md:max-h-[70vh] flex flex-col">
-                <div className="sticky top-0 bg-[#1f1f23]/95 backdrop-blur-md border-b border-white/10 p-4 flex items-center justify-between shrink-0">
-                  <h2 className="font-black text-white text-lg">{modalType === "followers" ? t("profile.followersTitle") : t("profile.followingTitle")}</h2>
-                  <button onClick={() => setModalType(null)} className="text-white/60 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"><X size={20} /></button>
+              <div className="w-full max-w-md border border-gray-200 dark:border-white/20 rounded-2xl bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl pointer-events-auto max-h-[80vh] md:max-h-[70vh] flex flex-col">
+                <div className="sticky top-0 bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/10 p-4 flex items-center justify-between shrink-0">
+                  <h2 className="font-black text-gray-900 dark:text-white text-lg">{modalType === "followers" ? t("profile.followersTitle") : t("profile.followingTitle")}</h2>
+                  <button onClick={() => setModalType(null)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"><X size={20} /></button>
                 </div>
                 <div className="overflow-y-auto flex-1 p-2">
-                  {modalLoading && <p className="p-8 text-center text-white/50">{t("common.loading")}</p>}
-                  {!modalLoading && modalUsers.length === 0 && <p className="p-8 text-center text-white/50">{modalType === "followers" ? t("profile.noFollowers") : t("profile.noFollowing")}</p>}
+                  {modalLoading && <p className="p-8 text-center text-gray-600 dark:text-white/50">{t("common.loading")}</p>}
+                  {!modalLoading && modalUsers.length === 0 && <p className="p-8 text-center text-gray-600 dark:text-white/50">{modalType === "followers" ? t("profile.noFollowers") : t("profile.noFollowing")}</p>}
                   {!modalLoading && modalUsers.map((u) => (
-                    <Link key={u.id} href={`/${u.username}`} onClick={() => setModalType(null)} className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors">
+                    <Link key={u.id} href={`/${u.username}`} onClick={() => setModalType(null)} className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
                       <div className="shrink-0"><Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={48} /></div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className={`font-bold text-sm md:text-base truncate ${glowStyle(u) ? "" : "text-white"}`} style={glowStyle(u)}>{u.display_name}</p>
                           <RoleBadge user={u} activeCustomBadgeAssignment={u.active_custom_badge_assignment} size="sm" />                     </div>
-                        <p className="text-xs md:text-sm text-white/50 truncate">@{u.username}</p>
+                        <p className="text-xs md:text-sm text-gray-600 dark:text-white/50 truncate">@{u.username}</p>
                       </div>
                     </Link>
                   ))}
@@ -805,17 +805,17 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => setShowBadgeModal(false)} />
             <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none">
-              <div className="w-full max-w-sm bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl p-4 pointer-events-auto animate-in zoom-in-95 duration-200">
+              <div className="w-full max-w-sm bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-4 pointer-events-auto animate-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-white text-sm">Сменить значок</h3>
-                  <button onClick={() => setShowBadgeModal(false)} className="text-white/50 hover:text-white p-1"><X size={16} /></button>
+                  <h3 className="font-bold text-gray-900 dark:text-white text-sm">Сменить значок</h3>
+                  <button onClick={() => setShowBadgeModal(false)} className="text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white p-1"><X size={16} /></button>
                 </div>
                 
                 <div className="space-y-4">
                   {/* 1. БЛОК ЗАГРУЗКИ СВОЕГО ЗНАЧКА */}
                   {canEditBadge && (
-                    <div className="border-b border-white/10 pb-3">
-                      <p className="text-xs text-white/60 mb-2">Загрузить свой значок:</p>
+                    <div className="border-b border-gray-200 dark:border-white/10 pb-3">
+                      <p className="text-xs text-gray-600 dark:text-white/60 mb-2">Загрузить свой значок:</p>
                       <input 
                         type="file" 
                         accept="image/*" 
@@ -858,7 +858,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                               const fresh = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`).then(r => r.json());
                               setProfile(fresh);
                             }}
-                            className="px-3 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 transition-colors"
+                            className="px-3 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/30 transition-colors"
                           >
                             <X size={14} />
                           </button>
@@ -870,14 +870,14 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   {/* 2. МОИ ЗАГРУЗКИ (кастомный значок) */}
                   {profile?.custom_badge_url && (
                     <div>
-                      <p className="text-xs text-white/60 mb-2">Мой загруженный значок:</p>
+                      <p className="text-xs text-gray-600 dark:text-white/60 mb-2">Мой загруженный значок:</p>
                       <div className="grid grid-cols-4 gap-2">
                         <button 
                           onClick={async () => {
                             // Выбираем кастомный значок (он уже установлен, просто закрываем модалку)
                             setShowBadgeModal(false);
                           }}
-                          className="aspect-square rounded-lg border border-purple-400 bg-purple-500/20 flex items-center justify-center relative"
+                          className="aspect-square rounded-lg border border-purple-600 dark:border-purple-400 bg-purple-500/20 flex items-center justify-center relative"
                           style={{ filter: `drop-shadow(0 0 8px #8b5cf699)` }}
                         >
                           <img src={profile.custom_badge_url} className="w-6 h-6 object-contain" alt="custom" />
@@ -890,7 +890,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   {/* 3. СТОКОВЫЕ ЗНАЧКИ (из админки) */}
                   {availableBadges.filter(b => b.role_id === currentUser?.role?.id || b.user_id === currentUser?.id || (b.is_selectable && (currentUser?.level ?? 1) >= 3)).length > 0 && (
                     <div>
-                      <p className="text-xs text-white/60 mb-2">Стоковые значки:</p>
+                      <p className="text-xs text-gray-600 dark:text-white/60 mb-2">Стоковые значки:</p>
                       <div className="grid grid-cols-4 gap-2">
                         {availableBadges
                           .filter(b => b.role_id === currentUser?.role?.id || b.user_id === currentUser?.id || (b.is_selectable && (currentUser?.level ?? 1) >= 3))
@@ -909,7 +909,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                                   setProfile(fresh);
                                 }}
                                 className={`aspect-square rounded-lg border flex items-center justify-center relative transition-all ${
-                                  isActive ? "border-purple-400 bg-purple-500/20" : "border-white/10 hover:bg-white/5"
+                                  isActive ? "border-purple-600 dark:border-purple-400 bg-purple-500/20" : "border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5"
                                 }`}
                                 style={{ filter: isActive ? `drop-shadow(0 0 8px ${badge.glow_color || '#8b5cf6'}99)` : "none" }}
                               >

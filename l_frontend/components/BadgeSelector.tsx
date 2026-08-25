@@ -99,12 +99,12 @@ export function BadgeSelector({ currentUser, availableBadges, onUpdate }: { curr
   const hasCustomBadge = currentUser?.custom_badge_url;
 
   return (
-    <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10">
+    <div className="mt-4 p-4 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-bold text-white flex items-center gap-2">
-          <Sparkles size={16} className="text-purple-400" /> Значок профиля
+        <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <Sparkles size={16} className="text-purple-600 dark:text-purple-400" /> Значок профиля
         </h3>
-        <button onClick={() => setSelecting(!selecting)} className="text-xs text-purple-400 hover:text-purple-300 font-bold">
+        <button onClick={() => setSelecting(!selecting)} className="text-xs text-purple-600 dark:text-purple-400 hover:text-purple-600 dark:hover:text-purple-300 font-bold">
           {selecting ? "Отмена" : "Изменить"}
         </button>
       </div>
@@ -114,37 +114,37 @@ export function BadgeSelector({ currentUser, availableBadges, onUpdate }: { curr
           {hasCustomBadge ? (
             <>
               <div 
-                className="w-10 h-10 rounded-full bg-[#171717] flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+                className="w-10 h-10 rounded-full bg-gray-50 dark:bg-[#171717] flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
                 style={{ filter: `drop-shadow(0 0 6px #8b5cf699)` }}
                 onClick={() => setSelecting(true)}
                 title="Нажми чтобы сменить"
               >
                 <img src={currentUser.custom_badge_url} className="w-6 h-6 object-contain" alt="custom badge" />
               </div>
-              <span className="text-sm text-white/70">Свой значок</span>
+              <span className="text-sm text-gray-800 dark:text-white/70">Свой значок</span>
             </>
           ) : currentBadge ? (
             <>
               <div 
-                className="w-10 h-10 rounded-full bg-[#171717] flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+                className="w-10 h-10 rounded-full bg-gray-50 dark:bg-[#171717] flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
                 style={{ filter: `drop-shadow(0 0 6px ${currentBadge.glow_color || '#8b5cf6'}99)` }}
                 onClick={() => setSelecting(true)}
                 title="Нажми чтобы сменить"
               >
                 <img src={currentBadge.icon_url} className="w-6 h-6 object-contain" alt="badge" />
               </div>
-              <span className="text-sm text-white/70">{currentBadge.name}</span>
+              <span className="text-sm text-gray-800 dark:text-white/70">{currentBadge.name}</span>
             </>
           ) : (
-            <span className="text-sm text-white/40">Значок не выбран</span>
+            <span className="text-sm text-gray-500 dark:text-white/40">Значок не выбран</span>
           )}
         </div>
       ) : (
         <div className="space-y-3">
           {/* Кнопка загрузки своего значка */}
           {canUploadCustom && (
-            <div className="border-b border-white/10 pb-3">
-              <p className="text-xs text-white/60 mb-2">Загрузить свой значок:</p>
+            <div className="border-b border-gray-200 dark:border-white/10 pb-3">
+              <p className="text-xs text-gray-600 dark:text-white/60 mb-2">Загрузить свой значок:</p>
               <div className="flex gap-2">
                 <input 
                   ref={fileRef}
@@ -173,7 +173,7 @@ export function BadgeSelector({ currentUser, availableBadges, onUpdate }: { curr
                 {hasCustomBadge && (
                   <button 
                     onClick={deleteCustomBadge}
-                    className="px-3 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-bold hover:bg-red-500/30"
+                    className="px-3 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-500/30"
                   >
                     <X size={14} />
                   </button>
@@ -185,9 +185,9 @@ export function BadgeSelector({ currentUser, availableBadges, onUpdate }: { curr
           {/* Выбор из предустановленных */}
           {myBadges.length > 0 && (
             <div>
-              <p className="text-xs text-white/60 mb-2">Или выбери из списка:</p>
+              <p className="text-xs text-gray-600 dark:text-white/60 mb-2">Или выбери из списка:</p>
               <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                <button onClick={() => selectBadge(null)} className={`aspect-square rounded-lg border flex items-center justify-center text-xs font-bold transition-all ${!currentUser?.selected_badge_id && !hasCustomBadge ? "border-red-400 bg-red-500/10 text-red-400" : "border-white/10 text-white/40 hover:bg-white/5"}`}>
+                <button onClick={() => selectBadge(null)} className={`aspect-square rounded-lg border flex items-center justify-center text-xs font-bold transition-all ${!currentUser?.selected_badge_id && !hasCustomBadge ? "border-red-600 dark:border-red-400 bg-red-500/10 text-red-600 dark:text-red-400" : "border-gray-200 dark:border-white/10 text-white/40 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
                   Снять
                 </button>
                 
@@ -195,7 +195,7 @@ export function BadgeSelector({ currentUser, availableBadges, onUpdate }: { curr
                   const isActive = currentUser?.selected_badge_id === badge.id && !hasCustomBadge;
                   return (
                     <button key={badge.id} onClick={() => selectBadge(badge.id)} 
-                      className={`aspect-square rounded-lg border flex items-center justify-center relative transition-all ${isActive ? "border-purple-400 bg-purple-500/20" : "border-white/10 hover:bg-white/5"}`}
+                      className={`aspect-square rounded-lg border flex items-center justify-center relative transition-all ${isActive ? "border-purple-600 dark:border-purple-400 bg-purple-500/20" : "border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5"}`}
                       style={{ filter: isActive ? `drop-shadow(0 0 8px ${badge.glow_color || '#8b5cf6'}99)` : "none" }}
                     >
                       <img src={badge.icon_url} className="w-6 h-6 object-contain" alt={badge.name} />

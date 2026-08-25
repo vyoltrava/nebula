@@ -11,11 +11,11 @@ function Toggle({ on, onChange, busy = false }: { on: boolean; onChange: () => v
       onClick={onChange}
       disabled={busy}
       className={`relative shrink-0 w-11 h-6 rounded-full transition-all ${
-        on ? "bg-[#7B3FF2] shadow-[0_0_12px_rgba(123,63,242,0.5)]" : "bg-white/10"
+        on ? "bg-[#7B3FF2] shadow-[0_0_12px_rgba(123,63,242,0.5)]" : "bg-gray-100 dark:bg-white/10"
       } ${busy ? "opacity-40 cursor-not-allowed" : ""}`}
     >
       {busy ? (
-        <Loader2 size={12} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white animate-spin" />
+        <Loader2 size={12} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-gray-900 dark:text-white animate-spin" />
       ) : (
         <span
           className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${
@@ -80,9 +80,9 @@ export function PushSettings() {
   // Браузер не поддерживает
   if (status === "unsupported") {
     return (
-      <div className="p-4 rounded-lg bg-white/5 border border-white/10">
+      <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center shrink-0">
             <BellOff size={18} className="text-[#B9B8BD]" />
           </div>
           <div>
@@ -135,10 +135,10 @@ export function PushSettings() {
       )}
 
       {/* Главный переключатель */}
-      <div className="p-4 rounded-lg bg-white/5 border border-white/10">
+      <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${subscribed ? "bg-[#7B3FF2]/15" : "bg-white/5"}`}>
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${subscribed ? "bg-[#7B3FF2]/15" : "bg-gray-100 dark:bg-white/5"}`}>
               <Bell size={18} className={subscribed ? "text-[#7B3FF2]" : "text-[#B9B8BD]"} />
             </div>
             <div className="min-w-0">
@@ -153,7 +153,7 @@ export function PushSettings() {
 
         {/* Статус устройств */}
         {subscribed && (
-          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/10">
+          <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-white/10">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#2ECC71]/10 border border-[#2ECC71]/20">
               <Smartphone size={12} className="text-[#2ECC71]" />
               <span className="text-xs text-[#2ECC71]">{t("push.mobile")}</span>

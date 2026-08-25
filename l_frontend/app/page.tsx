@@ -96,17 +96,17 @@ export default function HomePage() {
   return (
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
-      <div className="w-px shrink-0 bg-white/10 my-3" />
+      <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
 
-      <main ref={mainRef} className="flex-1 overflow-y-auto border-x border-white/10">
+      <main ref={mainRef} className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
         {/* Вкладки */}
-        <div className="flex border-b border-white/10 sticky top-0 bg-[#171717]/80 backdrop-blur-md z-10">
+        <div className="flex border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/80 backdrop-blur-md z-10">
           <button
             onClick={() => setActiveTab("all")}
             className={`flex-1 py-3 font-bold text-center transition-all ${
               activeTab === "all"
-                ? "text-white border-b-2 border-purple-400"
-                : "text-white/50 hover:text-white/80"
+                ? "text-gray-900 dark:text-white border-b-2 border-purple-600 dark:border-purple-400"
+                : "text-gray-600 dark:text-white/50 hover:text-gray-800 dark:hover:text-white/80"
             }`}
           >
             {t("feed.all")}
@@ -115,8 +115,8 @@ export default function HomePage() {
             onClick={() => setActiveTab("following")}
             className={`flex-1 py-3 font-bold text-center transition-all ${
               activeTab === "following"
-                ? "text-white border-b-2 border-purple-400"
-                : "text-white/50 hover:text-white/80"
+                ? "text-gray-900 dark:text-white border-b-2 border-purple-600 dark:border-purple-400"
+                : "text-gray-600 dark:text-white/50 hover:text-gray-800 dark:hover:text-white/80"
             }`}
           >
             {t("feed.following")}
@@ -154,7 +154,7 @@ export default function HomePage() {
         )}
 
         {posts.length === 0 && !loading && (
-          <p className="p-8 text-center text-white/50">
+          <p className="p-8 text-center text-gray-600 dark:text-white/50">
             {activeTab === "following"
               ? t("feed.emptyFollowing")
               : t("common.noPosts")}
@@ -164,7 +164,7 @@ export default function HomePage() {
         {hasMore && posts.length > 0 && !loading && (
           <button
             onClick={() => loadMore()}
-            className="w-full p-4 text-center text-[#8b5cf6] font-semibold hover:bg-white/5 transition-all"
+            className="w-full p-4 text-center text-[#8b5cf6] font-semibold hover:bg-gray-100 dark:hover:bg-white/5 transition-all"
           >
             {t("common.loadMore")}
           </button>

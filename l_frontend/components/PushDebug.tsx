@@ -90,12 +90,12 @@ export function PushDebug() {
     <div className="mt-3">
       <button
         onClick={run}
-        className="w-full py-2 rounded-lg bg-white/5 border border-white/15 text-white/60 text-xs font-bold"
+        className="w-full py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/15 text-gray-600 dark:text-white/60 text-xs font-bold"
       >
         🔍 Диагностика пушей
       </button>
       {lines.length > 0 && (
-        <pre className="mt-2 p-2 rounded-lg bg-black/50 text-[10px] text-emerald-300 whitespace-pre-wrap break-all">
+        <pre className="mt-2 p-2 rounded-lg bg-black/50 text-[10px] text-emerald-600 dark:text-emerald-300 whitespace-pre-wrap break-all">
           {lines.join("\n")}
         </pre>
       )}

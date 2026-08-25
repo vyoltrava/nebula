@@ -22,15 +22,17 @@ import {
   X,
   RefreshCw,
   ShieldAlert,
+  Palette,
 } from "lucide-react";
 import { PushSettings } from "@/components/PushSettings";
 import { DevicePermissionsSection } from "@/components/DevicePermissionsSection";
 import { LiveTextSettings } from "@/components/LiveTextSettings";
+import { AppearanceSettings } from "@/components/AppearanceSettings";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Button, IconButton } from "@/components/ui/Button";
 
-type View = "profile" | "notifications" | "permissions" | "messages" | "security";
+type View = "profile" | "appearance" | "notifications" | "permissions" | "messages" | "security";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
@@ -290,7 +292,7 @@ async function activate2FA() {
 
   if (!user)
     return (
-      <div className="min-h-screen bg-[#1C1C1F] flex items-center justify-center">
+      <div className="min-h-screen bg-gray-100 dark:bg-[#1C1C1F] flex items-center justify-center">
         <div className="flex items-center gap-3 text-[#B9B8BD]">
           <RefreshCw size={16} className="animate-spin text-[#7B3FF2]" />
           <span className="text-sm">{t("common.loading")}</span>
@@ -300,29 +302,30 @@ async function activate2FA() {
 
   const nav: { id: View; label: string; icon: any }[] = [
     { id: "profile", label: t("settings.profile"), icon: User },
+    { id: "appearance", label: t("settings.appearance"), icon: Palette },
     { id: "notifications", label: t("settings.notifications"), icon: Bell },
     { id: "permissions", label: t("settings.permissions"), icon: Mic },
     { id: "messages", label: t("settings.liveMessages"), icon: Zap },
     { id: "security", label: t("settings.security"), icon: ShieldCheck },
   ];
 
-  const labelCls = "block text-xs font-medium text-[#B9B8BD] mb-1.5";
+  const labelCls = "block text-xs font-medium text-gray-500 dark:text-[#B9B8BD] mb-1.5";
 
   const inputCls =
-    "w-full bg-[#1C1C1F] border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-[#7B3FF2] transition-colors";
+    "w-full bg-gray-100 dark:bg-[#1C1C1F] border border-gray-200 dark:border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/25 focus:outline-none focus:border-[#7B3FF2] transition-colors";
 
   const btnPrimary =
     "bg-[#7B3FF2] hover:bg-[#6a34d3] active:bg-[#5b2cb8] text-white text-sm font-medium rounded-lg px-5 py-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
 
   const btnSecondary =
-    "border border-[#7B3FF2]/60 text-[#a678f7] hover:bg-[#7B3FF2]/10 text-sm font-medium rounded-lg px-5 py-2.5 transition-colors";
+    "border border-[#7B3FF2]/60 text-violet-600 dark:text-[#a678f7] hover:bg-[#7B3FF2]/10 text-sm font-medium rounded-lg px-5 py-2.5 transition-colors";
 
   const btnDanger =
     "border border-[#E74C3C]/50 bg-[#E74C3C]/10 text-[#E74C3C] hover:bg-[#E74C3C]/20 text-sm font-medium rounded-lg px-5 py-2.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed";
 
   return (
     <div
-      className="min-h-screen bg-[#1C1C1F] text-white"
+      className="min-h-screen bg-gray-100 dark:bg-[#1C1C1F] text-gray-900 dark:text-white"
       style={{ fontFamily: "'Inter', -apple-system, system-ui, sans-serif" }}
     >
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 lg:py-10">
@@ -330,7 +333,7 @@ async function activate2FA() {
         <header className="flex items-center gap-3 mb-6">
           <button
             onClick={() => router.push("/")}
-            className="w-10 h-10 rounded-lg border border-white/10 bg-[#1E1E23] text-[#B9B8BD] hover:text-white hover:bg-white/5 flex items-center justify-center transition-colors"
+            className="w-10 h-10 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-[#1E1E23] text-[#B9B8BD] hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-center transition-colors"
             aria-label={t("common.back")}
           >
             <ArrowLeft size={18} />
@@ -347,7 +350,7 @@ async function activate2FA() {
       className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
         view === n.id
           ? "bg-[#8b5cf6]/15 text-[#a78bfa] border border-[#8b5cf6]/30"
-          : "bg-[#1E1E23] border border-white/10 text-white/40 hover:text-white/60 hover:bg-white/[0.03]"
+          : "bg-gray-100 dark:bg-[#1E1E23] border border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/40 hover:text-gray-600 dark:hover:text-white/60 hover:bg-white/[0.03]"
       }`}
     >
       {n.label}
@@ -358,7 +361,7 @@ async function activate2FA() {
         <div className="lg:grid lg:grid-cols-[240px_1fr] lg:gap-6 items-start">
           {/* ===== Сайдбар (ПК) ===== */}
 
-<aside className="hidden lg:flex flex-col gap-1 bg-[#1E1E23] border border-white/10 rounded-xl p-3 sticky top-6">
+<aside className="hidden lg:flex flex-col gap-1 bg-gray-100 dark:bg-[#1E1E23] border border-gray-200 dark:border-white/10 rounded-xl p-3 sticky top-6">
   {nav.map((n) => {
     const Icon = n.icon;
     const active = view === n.id;
@@ -369,18 +372,18 @@ async function activate2FA() {
         className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
           active 
             ? "bg-[#8b5cf6]/15 text-[#a78bfa]" 
-            : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
+            : "text-gray-500 dark:text-white/40 hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"
         }`}
       >
         <Icon 
           size={16} 
-          className={active ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"} 
+          className={active ? "text-[#8b5cf6]" : "text-gray-800 dark:text-white/80 group-hover:text-gray-900 dark:text-white"} 
         />
         {n.label}
       </button>
     );
   })}
-  <div className="my-2 h-px bg-white/10" />
+  <div className="my-2 h-px bg-gray-100 dark:bg-white/10" />
   <button
     onClick={logoutAll}
     disabled={loggingOutAll}
@@ -392,7 +395,7 @@ async function activate2FA() {
 </aside>
 
           {/* ===== Контент ===== */}
-          <section className="bg-[#1E1E23] border border-white/10 rounded-xl p-5 sm:p-6">
+          <section className="bg-gray-100 dark:bg-[#1E1E23] border border-gray-200 dark:border-white/10 rounded-xl p-5 sm:p-6">
             {/* ---------- ПРОФИЛЬ ---------- */}
             {view === "profile" && (
               <div className="space-y-6">
@@ -402,9 +405,9 @@ async function activate2FA() {
                 {/* Аватар */}
                 <div className="flex items-center gap-4">
                   {preview ? (
-                    <img src={preview} alt="" className="w-20 h-20 rounded-xl object-cover border border-white/10" />
+                    <img src={preview} alt="" className="w-20 h-20 rounded-xl object-cover border border-gray-200 dark:border-white/10" />
                   ) : (
-                    <div className="w-20 h-20 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                    <div className="w-20 h-20 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex items-center justify-center">
                       <User size={28} className="text-[#B9B8BD]" />
                     </div>
                   )}
@@ -448,7 +451,7 @@ async function activate2FA() {
                 <div>
                   <label className={labelCls}>Username</label>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 bg-[#1C1C1F] border border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-[#B9B8BD]">
+                    <div className="flex-1 bg-gray-100 dark:bg-[#1C1C1F] border border-gray-200 dark:border-white/10 rounded-lg px-3.5 py-2.5 text-sm text-[#B9B8BD]">
                       @{user.username}
                     </div>
                     <IconButton
@@ -468,6 +471,17 @@ async function activate2FA() {
                     {t("common.cancel")}
                   </Button>
                 </div>
+              </div>
+            )}
+
+            {/* ---------- ВНЕШНИЙ ВИД ---------- */}
+            {view === "appearance" && (
+              <div>
+                <h2 className="text-lg font-semibold mb-1">{t("settings.appearance")}</h2>
+                <p className="text-sm text-[#B9B8BD] mb-4 dark:text-gray-600 dark:text-white/60">
+                  {t("settings.appearanceHint")}
+                </p>
+                <AppearanceSettings />
               </div>
             )}
 
@@ -502,12 +516,12 @@ async function activate2FA() {
                 <h2 className="text-lg font-semibold">{t("settings.security")}</h2>
 
                 {/* 2FA */}
-                <div className="p-4 rounded-lg bg-white/5 border border-white/10">
+                <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <div
                         className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          securityStatus?.enabled ? "bg-[#2ECC71]/15 text-[#2ECC71]" : "bg-white/5 text-[#B9B8BD]"
+                          securityStatus?.enabled ? "bg-[#2ECC71]/15 text-[#2ECC71]" : "bg-gray-100 dark:bg-white/5 text-[#B9B8BD]"
                         }`}
                       >
                         <ShieldCheck size={18} />
@@ -538,10 +552,10 @@ async function activate2FA() {
                 </div>
 
                 {/* Email */}
-                <div className="p-4 rounded-lg bg-white/5 border border-white/10">
+                <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center">
                         <Mail size={18} className="text-[#B9B8BD]" />
                       </div>
                       <div>
@@ -556,9 +570,9 @@ async function activate2FA() {
                 </div>
 
                 {/* Пароль */}
-                <div className="p-4 rounded-lg bg-white/5 border border-white/10">
+                <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
                   <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center">
                       <Lock size={18} className="text-[#a678f7]" />
                     </div>
                     <p className="text-sm font-medium">{t("settings.changePassword")}</p>
@@ -579,7 +593,7 @@ async function activate2FA() {
                         <button
                           type="button"
                           onClick={() => setShowOld(!showOld)}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#B9B8BD] hover:text-white transition-colors"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#B9B8BD] hover:text-gray-900 dark:text-white transition-colors"
                         >
                           {showOld ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
@@ -601,7 +615,7 @@ async function activate2FA() {
                         <button
                           type="button"
                           onClick={() => setShowNew(!showNew)}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#B9B8BD] hover:text-white transition-colors"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#B9B8BD] hover:text-gray-900 dark:text-white transition-colors"
                         >
                           {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
@@ -671,7 +685,7 @@ async function activate2FA() {
 {show2FASetup && (
   <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
     <div className="absolute inset-0 bg-black/70" onClick={() => !loading2FA && setShow2FASetup(false)} />
-    <div className="relative bg-[#1E1E23] border border-white/10 rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <div className="relative bg-gray-100 dark:bg-[#1E1E23] border border-gray-200 dark:border-white/10 rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
       <div className="flex items-center justify-between mb-5">
         <h3 className="text-lg font-semibold">
           {setupStep === "backup" ? t("settings.twoFaActivated") : t("settings.twoFaSetup")}
@@ -697,12 +711,12 @@ async function activate2FA() {
           </div>
 
           <details className="group">
-            <summary className="text-sm text-[#B9B8BD] cursor-pointer hover:text-white transition-colors">
+            <summary className="text-sm text-[#B9B8BD] cursor-pointer hover:text-gray-900 dark:text-white transition-colors">
               {t("settings.noCamera")}
             </summary>
-            <div className="mt-3 p-3 rounded-lg bg-white/5 border border-white/10">
+            <div className="mt-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
               <p className="text-xs text-[#B9B8BD] mb-1">{t("settings.secretKey")}</p>
-              <p className="font-mono text-sm text-white break-all select-all">{secret}</p>
+              <p className="font-mono text-sm text-gray-900 dark:text-white break-all select-all">{secret}</p>
             </div>
           </details>
 
@@ -734,7 +748,7 @@ async function activate2FA() {
           <button
             onClick={() => setSetupStep("scan")}
             disabled={loading2FA}
-            className="w-full text-sm text-[#B9B8BD] hover:text-white transition-colors disabled:opacity-40"
+            className="w-full text-sm text-[#B9B8BD] hover:text-gray-900 dark:text-white transition-colors disabled:opacity-40"
           >
             ← {t("common.back")}
           </button>
@@ -746,16 +760,16 @@ async function activate2FA() {
         <div className="space-y-4">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
-              <CheckCircle2 size={18} className="text-emerald-400" />
+              <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400" />
             </div>
             <div>
-              <h4 className="text-white font-bold">{t("settings.twoFaActivated")}</h4>
-              <p className="text-xs text-white/50">{t("settings.saveBackup")}</p>
+              <h4 className="text-gray-900 dark:text-white font-bold">{t("settings.twoFaActivated")}</h4>
+              <p className="text-xs text-gray-600 dark:text-white/50">{t("settings.saveBackup")}</p>
             </div>
           </div>
 
           <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-            <p className="text-xs text-amber-300 font-semibold mb-2">
+            <p className="text-xs text-amber-600 dark:text-amber-300 font-semibold mb-2">
               {t("settings.backupWarn")}
             </p>
             <p className="text-[11px] text-amber-200/70 mb-3">
@@ -763,11 +777,11 @@ async function activate2FA() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-[#1C1C1F] border border-white/10">
+          <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-gray-100 dark:bg-[#1C1C1F] border border-gray-200 dark:border-white/10">
             {backupCodes.map((code, i) => (
               <div
                 key={i}
-                className="font-mono text-sm text-white bg-white/5 px-3 py-2 rounded border border-white/10 text-center tracking-wider select-all"
+                className="font-mono text-sm text-gray-900 dark:text-white bg-gray-100 dark:bg-white/5 px-3 py-2 rounded border border-gray-200 dark:border-white/10 text-center tracking-wider select-all"
               >
                 {code}
               </div>
@@ -808,7 +822,7 @@ async function activate2FA() {
             </Button>
           </div>
 
-          <p className="text-[10px] text-white/30 text-center">
+          <p className="text-[10px] text-gray-500 dark:text-white/30 text-center">
             {t("settings.iSavedHint")}
           </p>
         </div>
@@ -825,12 +839,12 @@ async function activate2FA() {
       {showDisable2FA && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/70" onClick={() => !loading2FA && setShowDisable2FA(false)} />
-          <div className="relative bg-[#1E1E23] border border-white/10 rounded-xl p-6 max-w-sm w-full">
+          <div className="relative bg-gray-100 dark:bg-[#1E1E23] border border-gray-200 dark:border-white/10 rounded-xl p-6 max-w-sm w-full">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-semibold">{t("settings.disable2fa")}</h3>
               <button
                 onClick={() => !loading2FA && setShowDisable2FA(false)}
-                className="text-[#B9B8BD] hover:text-white transition-colors p-1"
+                className="text-[#B9B8BD] hover:text-gray-900 dark:text-white transition-colors p-1"
                 disabled={loading2FA}
               >
                 <X size={20} />

@@ -207,15 +207,15 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Список пользователей */}
-      <div className="lg:col-span-1 border border-white/10 rounded-xl bg-white/5 overflow-hidden flex flex-col max-h-[75vh]">
-        <div className="p-3 border-b border-white/10">
-          <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2 border border-white/10">
-            <Search size={16} className="text-white/40" />
+      <div className="lg:col-span-1 border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden flex flex-col max-h-[75vh]">
+        <div className="p-3 border-b border-gray-200 dark:border-white/10">
+          <div className="flex items-center gap-2 bg-gray-100 dark:bg-white/5 rounded-lg px-3 py-2 border border-gray-200 dark:border-white/10">
+            <Search size={16} className="text-gray-500 dark:text-white/40" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Поиск по имени или @"
-              className="flex-1 bg-transparent focus:outline-none text-white placeholder-white/40 text-sm"
+              className="flex-1 bg-transparent focus:outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 text-sm"
             />
           </div>
         </div>
@@ -225,16 +225,16 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
               key={u.id}
               onClick={() => selectUser(u)}
               className={`w-full flex items-center gap-3 p-3 transition-all text-left ${
-                selectedUser?.id === u.id ? "bg-[#8b5cf6]/20 border-l-2 border-[#8b5cf6]" : "hover:bg-white/5 border-l-2 border-transparent"
+                selectedUser?.id === u.id ? "bg-[#8b5cf6]/20 border-l-2 border-[#8b5cf6]" : "hover:bg-gray-100 dark:hover:bg-white/5 border-l-2 border-transparent"
               }`}
             >
               <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={36} />
               <div className="flex-1 min-w-0">
                 <p className={`font-semibold text-sm truncate ${glowStyle(u) ? "" : "text-white"}`} style={glowStyle(u)}>{u.display_name}</p>
-                <p className="text-xs text-white/40 truncate">@{u.username}</p>
-                {u.last_ip && <p className="text-[10px] text-white/30 truncate">IP: {u.last_ip}</p>}
+                <p className="text-xs text-gray-500 dark:text-white/40 truncate">@{u.username}</p>
+                {u.last_ip && <p className="text-[10px] text-gray-500 dark:text-white/30 truncate">IP: {u.last_ip}</p>}
               </div>
-              {u.is_banned && <Ban size={14} className="text-red-400 shrink-0" />}
+              {u.is_banned && <Ban size={14} className="text-red-600 dark:text-red-400 shrink-0" />}
             </button>
           ))}
         </div>
@@ -243,17 +243,17 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       {/* Редактирование */}
       <div className="lg:col-span-2">
         {!selectedUser ? (
-          <div className="border border-white/10 rounded-xl bg-white/5 p-12 text-center">
-            <Users size={48} className="mx-auto text-white/20 mb-4" />
-            <p className="text-white/50">Выбери пользователя для редактирования</p>
+          <div className="border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-12 text-center">
+            <Users size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
+            <p className="text-gray-600 dark:text-white/50">Выбери пользователя для редактирования</p>
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="border border-white/10 rounded-xl bg-white/5 p-4 sm:p-6">
+            <div className="border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-4 sm:p-6">
               <div className="flex flex-col sm:flex-row items-start gap-6 mb-6">
                 <div className="text-center">
                   <Avatar src={selectedUser.avatar_url} name={selectedUser.display_name} id={selectedUser.id} size={96} />
-                  <label className="mt-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-white/70 text-xs font-semibold hover:bg-white/10 cursor-pointer">
+                  <label className="mt-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white/70 text-xs font-semibold hover:bg-gray-100 dark:hover:bg-white/10 cursor-pointer">
                     <Upload size={12} /> Сменить
                     <input type="file" accept="image/*" className="hidden" onChange={uploadAvatar} />
                   </label>
@@ -267,24 +267,24 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                     {selectedUser.role && !selectedUser.is_admin && !selectedUser.is_moderator && <span className="px-2 py-0.5 rounded text-white text-[10px] font-black uppercase" style={{ backgroundColor: selectedUser.role.color }}>{selectedUser.role.name}</span>}
                     {selectedUser.is_banned && <span className="px-2 py-0.5 rounded bg-red-500 text-white text-[10px] font-black uppercase">BANNED</span>}
                   </div>
-                  <p className="text-white/50 text-sm mb-3">@{selectedUser.username} · ID #{selectedUser.id}</p>
+                  <p className="text-gray-600 dark:text-white/50 text-sm mb-3">@{selectedUser.username} · ID #{selectedUser.id}</p>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                    <div className="border border-white/10 rounded-lg p-3 bg-white/5">
-                      <p className="text-white/40 text-xs">Постов</p>
-                      <p className="text-white font-bold text-lg">{selectedUser.posts_count ?? "—"}</p>
+                    <div className="border border-gray-200 dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
+                      <p className="text-gray-500 dark:text-white/40 text-xs">Постов</p>
+                      <p className="text-gray-900 dark:text-white font-bold text-lg">{selectedUser.posts_count ?? "—"}</p>
                     </div>
-                    <div className="border border-white/10 rounded-lg p-3 bg-white/5">
-                      <p className="text-white/40 text-xs">Подписчиков</p>
-                      <p className="text-white font-bold text-lg">{selectedUser.followers_count ?? "—"}</p>
+                    <div className="border border-gray-200 dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
+                      <p className="text-gray-500 dark:text-white/40 text-xs">Подписчиков</p>
+                      <p className="text-gray-900 dark:text-white font-bold text-lg">{selectedUser.followers_count ?? "—"}</p>
                     </div>
-                    <div className="border border-white/10 rounded-lg p-3 bg-white/5">
-                      <p className="text-white/40 text-xs">Регистрация</p>
-                      <p className="text-white font-bold text-xs">{selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString("ru-RU") : "—"}</p>
+                    <div className="border border-gray-200 dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
+                      <p className="text-gray-500 dark:text-white/40 text-xs">Регистрация</p>
+                      <p className="text-gray-900 dark:text-white font-bold text-xs">{selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString("ru-RU") : "—"}</p>
                     </div>
-                    <div className="border border-white/10 rounded-lg p-3 bg-white/5">
-                      <p className="text-white/40 text-xs">Последний IP</p>
-                      <p className="text-white font-bold text-xs font-mono truncate">{selectedUser.last_ip || "—"}</p>
+                    <div className="border border-gray-200 dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
+                      <p className="text-gray-500 dark:text-white/40 text-xs">Последний IP</p>
+                      <p className="text-gray-900 dark:text-white font-bold text-xs font-mono truncate">{selectedUser.last_ip || "—"}</p>
                     </div>
                   </div>
 
@@ -296,37 +296,37 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                 </div>
               </div>
 
-              <div className="space-y-3 pt-4 border-t border-white/10">
+              <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-white/10">
                 <div>
-                  <label className="block text-sm font-semibold text-white/70 mb-1">Username (@)</label>
-                  <input value={editUsername} onChange={(e) => setEditUsername(e.target.value)} className="w-full border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]" />
+                  <label className="block text-sm font-semibold text-gray-800 dark:text-white/70 mb-1">Username (@)</label>
+                  <input value={editUsername} onChange={(e) => setEditUsername(e.target.value)} className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]" />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-white/70 mb-1">Отображаемое имя</label>
-                  <input value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} className="w-full border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]" />
+                  <label className="block text-sm font-semibold text-gray-800 dark:text-white/70 mb-1">Отображаемое имя</label>
+                  <input value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]" />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-white/70 mb-1">
-                    Новый пароль <span className="text-white/40">(пусто = не менять)</span>
+                  <label className="block text-sm font-semibold text-gray-800 dark:text-white/70 mb-1">
+                    Новый пароль <span className="text-gray-500 dark:text-white/40">(пусто = не менять)</span>
                   </label>
                   <input
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-[#8b5cf6]"
+                    className="w-full border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]"
                   />
                 </div>
 
                 <div className="border border-amber-500/30 rounded-lg bg-amber-500/5 p-3">
                   <div className="flex items-center justify-between gap-3 mb-2">
                     <div className="flex items-center gap-2">
-                      <ShieldCheck size={16} className={selectedUser.two_fa_enabled ? "text-emerald-400" : "text-white/40"} />
-                      <span className="text-sm font-bold text-white">2FA</span>
+                      <ShieldCheck size={16} className={selectedUser.two_fa_enabled ? "text-emerald-600 dark:text-emerald-400" : "text-gray-500 dark:text-white/40"} />
+                      <span className="text-sm font-bold text-gray-900 dark:text-white">2FA</span>
                     </div>
                     <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
                       selectedUser.two_fa_enabled
-                        ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                        : "bg-white/5 text-white/40 border border-white/10"
+                        ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                        : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/40 border border-gray-200 dark:border-white/10"
                     }`}>
                       {selectedUser.two_fa_enabled ? "Включена" : "Выключена"}
                     </span>
@@ -361,12 +361,12 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                       </div>
                     )
                   ) : (
-                    <p className="text-xs text-white/40">2FA не настроена.</p>
+                    <p className="text-xs text-gray-500 dark:text-white/40">2FA не настроена.</p>
                   )}
                 </div>
 
                 {saveMsg && (
-                  <div className={`p-3 rounded-lg border text-sm font-semibold ${saveMsg.type === "ok" ? "bg-green-500/10 border-green-500/30 text-green-400" : "bg-red-500/10 border-red-500/30 text-red-400"}`}>
+                  <div className={`p-3 rounded-lg border text-sm font-semibold ${saveMsg.type === "ok" ? "bg-green-500/10 border-green-500/30 text-green-600 dark:text-green-400" : "bg-red-500/10 border-red-500/30 text-red-600 dark:text-red-400"}`}>
                     {saveMsg.text}
                   </div>
                 )}
@@ -377,22 +377,22 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
               </div>
             </div>
 
-            <div className="border border-white/10 rounded-xl bg-white/5 p-4 sm:p-5">
+            <div className="border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-4 sm:p-5">
               <div className="flex items-center gap-2 mb-4">
                 <History size={18} className="text-[#8b5cf6]" />
-                <h3 className="font-bold text-white">История IP</h3>
+                <h3 className="font-bold text-gray-900 dark:text-white">История IP</h3>
               </div>
               {ipHistory.length === 0 ? (
-                <p className="text-white/50 text-sm">История пуста</p>
+                <p className="text-gray-600 dark:text-white/50 text-sm">История пуста</p>
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {ipHistory.map((log) => (
-                    <div key={log.id} className="flex items-center justify-between p-2 rounded-lg bg-white/5 text-sm">
+                    <div key={log.id} className="flex items-center justify-between p-2 rounded-lg bg-gray-100 dark:bg-white/5 text-sm">
                       <div className="flex items-center gap-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${log.action === "login" ? "bg-blue-500/20 text-blue-400" : "bg-green-500/20 text-green-400"}`}>{log.action}</span>
-                        <span className="font-mono text-white">{log.ip_address}</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${log.action === "login" ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" : "bg-green-500/20 text-green-600 dark:text-green-400"}`}>{log.action}</span>
+                        <span className="font-mono text-gray-900 dark:text-white">{log.ip_address}</span>
                       </div>
-                      <span className="text-white/40 text-xs">{new Date(log.created_at).toLocaleString("ru-RU")}</span>
+                      <span className="text-gray-500 dark:text-white/40 text-xs">{new Date(log.created_at).toLocaleString("ru-RU")}</span>
                     </div>
                   ))}
                 </div>
@@ -401,18 +401,18 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
             {me.permissions?.includes("delete_users") && (
               <div className="border border-red-400/30 rounded-xl bg-red-500/5 p-4 sm:p-5">
                 <div className="flex items-center gap-2 mb-3">
-                  <AlertTriangle size={18} className="text-red-400" />
-                  <h3 className="font-bold text-red-400">Анонимизация аккаунта</h3>
+                  <AlertTriangle size={18} className="text-red-600 dark:text-red-400" />
+                  <h3 className="font-bold text-red-600 dark:text-red-400">Анонимизация аккаунта</h3>
                 </div>
-                <p className="text-sm text-white/60 mb-3">
+                <p className="text-sm text-gray-600 dark:text-white/60 mb-3">
                   Аккаунт будет переименован в "Удаленный аккаунт", аватарка и данные будут стёрты, а вход заблокирован. 
-                  История чатов и постов <span className="text-white font-semibold">сохранится</span>.
+                  История чатов и постов <span className="text-gray-900 dark:text-white font-semibold">сохранится</span>.
                 </p>
                 <input
                   value={deleteConfirm}
                   onChange={(e) => setDeleteConfirm(e.target.value.replace(/^@/, ""))}
                   placeholder={`Введите ${selectedUser.username} для подтверждения`}
-                  className="w-full border border-red-400/30 rounded-lg px-3 py-2 bg-red-500/5 text-white focus:outline-none focus:border-red-400 mb-3 placeholder-red-400/40"
+                  className="w-full border border-red-400/30 rounded-lg px-3 py-2 bg-red-500/5 text-white focus:outline-none focus:border-red-600 dark:focus:border-red-400 mb-3 placeholder-red-400/40"
                 />
                 <Button
                   variant="danger"

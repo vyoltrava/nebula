@@ -74,8 +74,8 @@ export function AvatarCropper({ imageSrc, onCropComplete, onClose }: AvatarCropp
   return (
     <div className="fixed inset-0 bg-black/90 z-[300] flex flex-col">
       {/* Шапка */}
-      <div className="flex items-center justify-between p-4 border-b border-white/10">
-        <h2 className="text-white font-bold text-lg">Настройте аватарку</h2>
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-white/10">
+        <h2 className="text-gray-900 dark:text-white font-bold text-lg">Настройте аватарку</h2>
         <div className="flex items-center gap-2">
           <IconButton icon={X} size="icon" onClick={onClose} />
         </div>
@@ -97,10 +97,10 @@ export function AvatarCropper({ imageSrc, onCropComplete, onClose }: AvatarCropp
       </div>
 
       {/* Контролы */}
-      <div className="p-4 border-t border-white/10 space-y-4 bg-[#171717]">
+      <div className="p-4 border-t border-gray-200 dark:border-white/10 space-y-4 bg-gray-50 dark:bg-[#171717]">
         {/* Зум */}
         <div className="flex items-center gap-3 max-w-md mx-auto">
-          <ZoomOut size={16} className="text-white/50" />
+          <ZoomOut size={16} className="text-gray-600 dark:text-white/50" />
           <input
             type="range"
             min={1}
@@ -110,7 +110,7 @@ export function AvatarCropper({ imageSrc, onCropComplete, onClose }: AvatarCropp
             onChange={(e) => setZoom(Number(e.target.value))}
             className="flex-1 accent-[#8b5cf6]"
           />
-          <ZoomIn size={16} className="text-white/50" />
+          <ZoomIn size={16} className="text-gray-600 dark:text-white/50" />
         </div>
 
         {/* Кнопки */}

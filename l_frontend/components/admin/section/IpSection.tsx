@@ -46,16 +46,16 @@ export function IpSection({ me }: { me: any }) {
     <div className="space-y-6">
       <div className="border border-red-400/30 rounded-xl bg-red-500/5 p-4 sm:p-5">
         <div className="flex items-center gap-2 mb-4">
-          <Lock size={18} className="text-red-400" />
-          <h3 className="font-bold text-white">Заблокировать IP</h3>
+          <Lock size={18} className="text-red-600 dark:text-red-400" />
+          <h3 className="font-bold text-gray-900 dark:text-white">Заблокировать IP</h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
           <input value={newIp} onChange={(e) => setNewIp(e.target.value)} placeholder="IP адрес"
-            className="border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white font-mono focus:outline-none focus:border-red-400" />
+            className="border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white font-mono focus:outline-none focus:border-red-600 dark:focus:border-red-400" />
           <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Причина"
-            className="border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-red-400" />
+            className="border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-red-600 dark:focus:border-red-400" />
           <input type="number" value={hours} onChange={(e) => setHours(e.target.value ? Number(e.target.value) : "")} placeholder="Часов (пусто = навсегда)"
-            className="border border-white/10 rounded-lg px-3 py-2 bg-white/5 text-white focus:outline-none focus:border-red-400" />
+            className="border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-red-600 dark:focus:border-red-400" />
           <button onClick={createBlock} disabled={!newIp.trim()}
             className="bg-red-500 text-white font-bold rounded-lg py-2 hover:bg-red-600 disabled:opacity-40">
             Заблокировать
@@ -63,32 +63,32 @@ export function IpSection({ me }: { me: any }) {
         </div>
       </div>
 
-      <div className="border border-white/10 rounded-xl bg-white/5 overflow-hidden">
-        <div className="p-4 border-b border-white/10 flex items-center justify-between">
-          <h3 className="font-bold text-white">Заблокированные IP ({blocks.length})</h3>
-          <button onClick={load} className="p-1.5 rounded-lg hover:bg-white/10 text-white/60 hover:text-white"><RefreshCw size={16} /></button>
+      <div className="border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden">
+        <div className="p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+          <h3 className="font-bold text-gray-900 dark:text-white">Заблокированные IP ({blocks.length})</h3>
+          <button onClick={load} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white"><RefreshCw size={16} /></button>
         </div>
         {blocks.length === 0 ? (
-          <p className="p-8 text-center text-white/50">Нет заблокированных IP</p>
+          <p className="p-8 text-center text-gray-600 dark:text-white/50">Нет заблокированных IP</p>
         ) : (
-          <div className="divide-y divide-white/5">
+          <div className="divide-y divide-gray-200 dark:divide-white/5">
             {blocks.map((b) => (
-              <div key={b.id} className="p-4 flex items-center gap-4 hover:bg-white/5">
+              <div key={b.id} className="p-4 flex items-center gap-4 hover:bg-gray-100 dark:hover:bg-white/5">
                 <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
-                  <Lock size={18} className="text-red-400" />
+                  <Lock size={18} className="text-red-600 dark:text-red-400" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-mono text-white font-bold">{b.ip_address}</p>
-                  <div className="flex items-center gap-3 text-xs text-white/50 flex-wrap mt-1">
+                  <p className="font-mono text-gray-900 dark:text-white font-bold">{b.ip_address}</p>
+                  <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-white/50 flex-wrap mt-1">
                     {b.reason && <span>Причина: {b.reason}</span>}
                     <span>Заблокирован: {new Date(b.created_at).toLocaleString("ru-RU")}</span>
                     {b.expires_at
-                      ? <span className="text-yellow-400">До: {new Date(b.expires_at).toLocaleString("ru-RU")}</span>
-                      : <span className="text-red-400 font-bold">НАВСЕГДА</span>}
+                      ? <span className="text-yellow-600 dark:text-yellow-400">До: {new Date(b.expires_at).toLocaleString("ru-RU")}</span>
+                      : <span className="text-red-600 dark:text-red-400 font-bold">НАВСЕГДА</span>}
                     {b.blocked_by && <span>Кем: {b.blocked_by.display_name}</span>}
                   </div>
                 </div>
-                <button onClick={() => deleteBlock(b.id)} className="p-2 rounded-lg border border-red-400/30 text-red-400 hover:bg-red-500/10">
+                <button onClick={() => deleteBlock(b.id)} className="p-2 rounded-lg border border-red-400/30 text-red-600 dark:text-red-400 hover:bg-red-500/10">
                   <Trash2 size={16} />
                 </button>
               </div>

@@ -49,19 +49,19 @@ export function AccountSwitcher({
       <>
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300]" onClick={() => onClose?.()} />
         <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none">
-          <div ref={ref} className="w-full max-w-xs bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl overflow-hidden pointer-events-auto animate-in zoom-in-95 duration-200">
-            <div className="p-3 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-white">{t("account.accounts")}</h3>
+          <div ref={ref} className="w-full max-w-xs bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl overflow-hidden pointer-events-auto animate-in zoom-in-95 duration-200">
+            <div className="p-3 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white">{t("account.accounts")}</h3>
               <IconButton icon={X} size="iconSm" onClick={() => onClose?.()} />
             </div>
             <div className="max-h-60 overflow-y-auto p-2 space-y-1">
               {accounts.map((acc) => (
-                <div key={acc.userId} className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-colors group">
+                <div key={acc.userId} className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group">
                   <button onClick={() => { switchAccount(acc.userId); onClose?.(); }} className="flex items-center gap-3 flex-1 min-w-0 text-left">
                     <Avatar src={acc.avatarUrl} name={acc.displayName} id={acc.userId} size={36} />
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-white truncate">{acc.displayName}</p>
-                      <p className="text-xs text-white/40 truncate">@{acc.username}</p>
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{acc.displayName}</p>
+                      <p className="text-xs text-gray-500 dark:text-white/40 truncate">@{acc.username}</p>
                     </div>
                     {acc.userId === activeId && <Check size={16} className="text-[#8b5cf6] shrink-0" />}
                   </button>
@@ -77,11 +77,11 @@ export function AccountSwitcher({
                 </div>
               ))}
             </div>
-            <div className="p-2 border-t border-white/10 space-y-1">
+            <div className="p-2 border-t border-gray-200 dark:border-white/10 space-y-1">
               <button onClick={handleAddAccount} className="w-full flex items-center gap-3 p-2.5 rounded-xl text-[#8b5cf6] hover:bg-[#8b5cf6]/10 transition-colors">
                 <Plus size={18} /> <span className="text-sm font-semibold">{t("account.addAccount")}</span>
               </button>
-              <button onClick={handleLogout} className="w-full flex items-center gap-3 p-2.5 rounded-xl text-red-400 hover:bg-red-500/10 transition-colors">
+              <button onClick={handleLogout} className="w-full flex items-center gap-3 p-2.5 rounded-xl text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors">
                 <LogOut size={18} /> <span className="text-sm font-semibold">{t("nav.logout")}</span>
               </button>
             </div>

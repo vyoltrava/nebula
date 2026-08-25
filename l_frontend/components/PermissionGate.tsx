@@ -130,22 +130,22 @@ export function PermissionGate() {
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" />
-      <div className="relative w-full max-w-sm bg-[#1f1f23] border border-white/15 rounded-2xl p-6 shadow-2xl">
+      <div className="relative w-full max-w-sm bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl p-6 shadow-2xl">
         <div className="flex flex-col items-center text-center gap-4">
           <div className="flex items-center justify-center gap-3">
             <div className="w-14 h-14 rounded-2xl bg-[#8b5cf6]/15 flex items-center justify-center">
               <Mic size={26} className="text-[#8b5cf6]" />
             </div>
             <div className="w-14 h-14 rounded-2xl bg-blue-500/15 flex items-center justify-center">
-              <Video size={26} className="text-blue-400" />
+              <Video size={26} className="text-blue-600 dark:text-blue-400" />
             </div>
           </div>
 
-          <h2 className="text-lg font-black text-white">
+          <h2 className="text-lg font-black text-gray-900 dark:text-white">
             {t("perm.title")}
           </h2>
 
-          <p className="text-sm text-white/50 leading-relaxed">
+          <p className="text-sm text-gray-600 dark:text-white/50 leading-relaxed">
             {t("perm.hint")}
           </p>
 

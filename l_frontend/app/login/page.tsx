@@ -8,7 +8,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Button } from "@/components/ui/Button";
 
 const inputCls =
-  "border border-white/15 rounded-lg px-3 py-2 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] focus:bg-white/10 transition-all";
+  "border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] focus:bg-gray-100 dark:focus:bg-white/10 transition-all";
 
 export default function LoginPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -146,7 +146,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-sm border border-white/15 rounded-2xl bg-white/5 backdrop-blur-md p-6">
+      <div className="w-full max-w-sm border border-gray-200 dark:border-white/15 rounded-2xl bg-white/5 backdrop-blur-md p-6">
         <h1 className="font-logo text-5xl text-center mb-6 text-[#8b5cf6]">
           trelod
         </h1>
@@ -155,10 +155,10 @@ export default function LoginPage() {
           <form onSubmit={submit2FA} className="flex flex-col gap-3">
             <div className="flex items-center justify-center gap-2 mb-2">
               <ShieldCheck size={24} className="text-[#8b5cf6]" />
-              <h2 className="text-lg font-bold text-white">{t("login.twoFaTitle")}</h2>
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t("login.twoFaTitle")}</h2>
             </div>
 
-            <p className="text-sm text-white/60 text-center mb-2">
+            <p className="text-sm text-gray-600 dark:text-white/60 text-center mb-2">
               {t("login.twoFaHint")}
             </p>
 
@@ -175,7 +175,7 @@ export default function LoginPage() {
             />
 
             {error && (
-              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-semibold">
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-sm font-semibold">
                 {error}
               </div>
             )}
@@ -201,14 +201,14 @@ export default function LoginPage() {
           </form>
         ) : (
           <>
-            <div className="flex border border-white/15 rounded-full overflow-hidden mb-6 bg-white/5">
+            <div className="flex border border-gray-200 dark:border-white/15 rounded-full overflow-hidden mb-6 bg-gray-100 dark:bg-white/5">
               <button
                 type="button"
                 onClick={() => setMode("login")}
                 className={`flex-1 py-2 font-bold transition-all ${
                   mode === "login"
                     ? "bg-[#8b5cf6] text-white"
-                    : "text-white/60 hover:text-white"
+                    : "text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white"
                 }`}
               >
                 {t("login.tabLogin")}
@@ -219,7 +219,7 @@ export default function LoginPage() {
                 className={`flex-1 py-2 font-bold transition-all ${
                   mode === "register"
                     ? "bg-[#8b5cf6] text-white"
-                    : "text-white/60 hover:text-white"
+                    : "text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white"
                 }`}
               >
                 {t("login.tabRegister")}
@@ -252,7 +252,7 @@ export default function LoginPage() {
                 className={inputCls}
               />
               {error && (
-                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-semibold">
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-sm font-semibold">
                   {error}
                 </div>
               )}
@@ -262,7 +262,7 @@ export default function LoginPage() {
             </form>
             
             {/* Гармоничный футер с переключателем языка */}
-            <div className="mt-6 pt-4 border-t border-white/10 flex justify-center">
+            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-white/10 flex justify-center">
               <LanguageSwitcher variant="compact" />
             </div>
           </>

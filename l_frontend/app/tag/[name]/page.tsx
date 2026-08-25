@@ -28,17 +28,17 @@ export default function TagPage() {
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
 
-      <div className="w-px shrink-0 bg-white/10 my-3" />
+      <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
 
-      <main className="flex-1 overflow-y-auto border-x border-white/10">
-        <h1 className="text-2xl font-black p-4 border-b border-white/10 sticky top-0 bg-[#171717]/80 backdrop-blur-md text-[#8b5cf6]">
+      <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
+        <h1 className="text-2xl font-black p-4 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/80 backdrop-blur-md text-[#8b5cf6]">
           #{tagName}
         </h1>
         {posts.map((post) => (
           <Post key={post.id} {...post} />
         ))}
         {posts.length === 0 && (
-          <p className="p-8 text-center text-white/50">{t("tag.noPosts")}</p>
+          <p className="p-8 text-center text-gray-600 dark:text-white/50">{t("tag.noPosts")}</p>
         )}
       </main>
     </div>

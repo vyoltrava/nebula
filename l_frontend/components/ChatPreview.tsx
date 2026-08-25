@@ -92,13 +92,13 @@ function renderToken(token: Token, q: string, key: number): React.ReactNode {
       return <span key={key}>{highlightText(token.value, q)}</span>;
     case "bold":
       return (
-        <strong key={key} className="font-bold text-white/90">
+        <strong key={key} className="font-bold text-gray-800 dark:text-white/90">
           {highlightText(token.value, q)}
         </strong>
       );
     case "italic":
       return (
-        <em key={key} className="italic text-white/80">
+        <em key={key} className="italic text-gray-800 dark:text-white/80">
           {highlightText(token.value, q)}
         </em>
       );
@@ -106,7 +106,7 @@ function renderToken(token: Token, q: string, key: number): React.ReactNode {
       return (
         <code
           key={key}
-          className="inline bg-white/10 px-1 py-0.5 rounded text-[0.95em] font-mono text-pink-300"
+          className="inline bg-gray-100 dark:bg-white/10 px-1 py-0.5 rounded text-[0.95em] font-mono text-pink-600 dark:text-pink-300"
         >
           {highlightText(token.value, q)}
         </code>
@@ -115,20 +115,20 @@ function renderToken(token: Token, q: string, key: number): React.ReactNode {
       return (
         <span
           key={key}
-          className="inline-block align-middle mx-0.5 px-1.5 py-0.5 rounded bg-white/10 text-white/40 italic text-[0.9em] border border-white/10"
+          className="inline-block align-middle mx-0.5 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/40 italic text-[0.9em] border border-gray-200 dark:border-white/10"
         >
           спойлер
         </span>
       );
     case "link":
       return (
-        <span key={key} className="text-sky-300 underline underline-offset-2">
+        <span key={key} className="text-sky-600 dark:text-sky-300 underline underline-offset-2">
           {highlightText(token.value, q)}
         </span>
       );
     case "mention":
       return (
-        <span key={key} className="text-pink-400 font-semibold">
+        <span key={key} className="text-pink-600 dark:text-pink-400 font-semibold">
           @{highlightText(token.value, q)}
         </span>
       );

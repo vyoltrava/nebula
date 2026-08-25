@@ -71,22 +71,22 @@ export default function TeamPage() {
   return (
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
-      <div className="w-px shrink-0 bg-white/10 my-3" />
-      <main className="flex-1 overflow-y-auto border-x border-white/10">
+      <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
+      <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
         {/* Шапка */}
-        <div className="p-6 border-b border-white/10 sticky top-0 bg-[#171717]/95 backdrop-blur-md z-10">
+        <div className="p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/95 backdrop-blur-md z-10">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.back()}
-              className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all"
+              className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
             >
               <ArrowLeft size={20} />
             </button>
             <div className="flex items-center gap-3">
               <Users size={28} className="text-[#8b5cf6]" />
               <div>
-                <h1 className="text-3xl font-black text-white">{t("team.title")}</h1>
-                <p className="text-sm text-white/50 mt-1">{t("team.subtitle")}</p>
+                <h1 className="text-3xl font-black text-gray-900 dark:text-white">{t("team.title")}</h1>
+                <p className="text-sm text-gray-600 dark:text-white/50 mt-1">{t("team.subtitle")}</p>
               </div>
             </div>
           </div>
@@ -107,8 +107,8 @@ export default function TeamPage() {
 
           {!loading && groupedDepartments.length === 0 && (
             <div className="text-center py-16">
-              <Users size={56} className="text-white/20 mx-auto mb-4" />
-              <p className="text-white/60 text-lg">{t("team.empty")}</p>
+              <Users size={56} className="text-gray-500 dark:text-white/20 mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-white/60 text-lg">{t("team.empty")}</p>
             </div>
           )}
 
@@ -124,7 +124,7 @@ export default function TeamPage() {
                   <h2 className="font-black text-lg uppercase tracking-widest text-[#8b5cf6] flex-1">
                     {t(g.labelKey as any)}
                   </h2>
-                  <span className="text-sm text-white/50 font-semibold">
+                  <span className="text-sm text-gray-600 dark:text-white/50 font-semibold">
                     {t(g.members.length === 1 ? "team.people1" : g.members.length < 5 ? "team.peopleFew" : "team.peopleMany", { n: g.members.length })}
                   </span>
                 </div>
@@ -137,7 +137,7 @@ export default function TeamPage() {
                       <Link
                         key={m.id}
                         href={`/user/${m.id}`}
-                        className="group relative flex items-center gap-4 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all overflow-hidden"
+                        className="group relative flex items-center gap-4 p-4 rounded-xl border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-200 dark:hover:border-white/20 transition-all overflow-hidden"
                       >
                         {/* Фоновое свечение при ховере */}
                         {glow && (
@@ -177,7 +177,7 @@ export default function TeamPage() {
                           >
                             {m.display_name}
                           </p>
-                          <p className="text-sm text-white/50 truncate">@{m.username}</p>
+                          <p className="text-sm text-gray-600 dark:text-white/50 truncate">@{m.username}</p>
 
                           {/* Только плашка роли — без текстовых бейджей уровней */}
                           {/* Плашки статусов и ролей */}
@@ -203,7 +203,7 @@ export default function TeamPage() {
                             {/* Показываем обычную роль, если она есть */}
                             {m.role && (
                               <span
-                                className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-white"
+                                className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-gray-900 dark:text-white"
                                 style={{ backgroundColor: m.role.color }}
                               >
                                 {m.role.name}

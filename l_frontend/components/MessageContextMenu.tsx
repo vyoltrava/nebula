@@ -66,7 +66,7 @@ export function MessageContextMenu({ x, y, items, onClose }: MessageContextMenuP
     <>
       <div
         ref={menuRef}
-        className="fixed z-[300] bg-[#1f1f23] border border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] py-1 animate-in fade-in zoom-in-95 duration-100"
+        className="fixed z-[300] bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] py-1 animate-in fade-in zoom-in-95 duration-100"
         style={{
           left: adjustedPos.x,
           top: adjustedPos.y,
@@ -82,8 +82,8 @@ export function MessageContextMenu({ x, y, items, onClose }: MessageContextMenuP
             }}
             className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2.5 transition-colors ${
               item.danger
-                ? "text-red-400 hover:bg-red-500/10"
-                : "text-white hover:bg-white/10"
+                ? "text-red-600 dark:text-red-400 hover:bg-red-500/10"
+                : "text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"
             }`}
           >
             <item.icon size={15} />

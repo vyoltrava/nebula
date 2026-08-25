@@ -45,7 +45,7 @@ export function AudioPlayer({ src, trackId, title }: { src: string; trackId?: st
   const total = duration || dur;
 
   return (
-    <div className="my-0.5 w-[230px] select-none rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5">
+    <div className="my-0.5 w-[230px] select-none rounded-2xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 px-3 py-2.5">
       {/* кнопка + линия */}
       <div className="flex items-center gap-2.5">
         <button
@@ -56,7 +56,7 @@ export function AudioPlayer({ src, trackId, title }: { src: string; trackId?: st
           {playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
         </button>
 
-        <div className="flex-1 h-1 bg-white/15 rounded-full cursor-pointer group" onClick={seek}>
+        <div className="flex-1 h-1 bg-gray-100 dark:bg-white/15 rounded-full cursor-pointer group" onClick={seek}>
           <div
             className={`h-full rounded-full relative ${playing ? "audio-line-live" : "bg-[#8b5cf6]"}`}
             style={{ width: `${progress}%` }}
@@ -71,7 +71,7 @@ export function AudioPlayer({ src, trackId, title }: { src: string; trackId?: st
       </div>
 
       {/* время: слева прошло, справа всего */}
-      <div className="flex items-center justify-between mt-1.5 pl-[46px] text-[10px] font-mono tabular-nums text-white/40">
+      <div className="flex items-center justify-between mt-1.5 pl-[46px] text-[10px] font-mono tabular-nums text-gray-500 dark:text-white/40">
         <span className={playing ? "text-[#a78bfa]" : ""}>{fmt(currentTime)}</span>
         <span>{fmt(total)}</span>
       </div>

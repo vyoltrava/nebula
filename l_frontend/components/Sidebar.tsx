@@ -90,19 +90,19 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
   }, [q]);
 
   return (
-    <div className="fixed inset-0 z-[250] bg-[#171717] flex flex-col md:hidden">
-      <div className="flex items-center gap-2 p-3 border-b border-white/10 shrink-0">
-        <div className="flex-1 flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
-          <Search size={16} className="text-white/40" />
+    <div className="fixed inset-0 z-[250] bg-gray-50 dark:bg-[#171717] flex flex-col md:hidden">
+      <div className="flex items-center gap-2 p-3 border-b border-gray-200 dark:border-white/10 shrink-0">
+        <div className="flex-1 flex items-center gap-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2">
+          <Search size={16} className="text-gray-500 dark:text-white/40" />
           <input
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={t("nav.peoplePostsTags")}
-            className="flex-1 bg-transparent text-white text-sm focus:outline-none placeholder-white/40"
+            className="flex-1 bg-transparent text-gray-900 dark:text-white text-sm focus:outline-none placeholder-gray-400 dark:placeholder-white/40"
           />
         </div>
-        <button onClick={onClose} className="p-2 text-white/60 hover:text-white">
+        <button onClick={onClose} className="p-2 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white">
           <X size={20} />
         </button>
       </div>
@@ -110,14 +110,14 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
       <div className="flex-1 overflow-y-auto">
         {users.length > 0 && (
           <div className="p-3 pb-1">
-            <p className="text-[11px] font-bold uppercase text-white/40 mb-2">{t("search.people")}</p>
+            <p className="text-[11px] font-bold uppercase text-gray-500 dark:text-white/40 mb-2">{t("search.people")}</p>
             {users.map((u) => (
               <Link key={u.id} href={`/${u.username}`} onClick={onClose}
-                className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-colors">
+                className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
                 <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={40} />
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{u.display_name}</p>
-                  <p className="text-xs text-white/40">@{u.username}</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{u.display_name}</p>
+                  <p className="text-xs text-gray-500 dark:text-white/40">@{u.username}</p>
                 </div>
               </Link>
             ))}
@@ -126,20 +126,20 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
 
         {posts.length > 0 && (
           <div className="p-3 pt-1">
-            <p className="text-[11px] font-bold uppercase text-white/40 mb-2">{t("search.posts")}</p>
+            <p className="text-[11px] font-bold uppercase text-gray-500 dark:text-white/40 mb-2">{t("search.posts")}</p>
             {posts.map((p) => (
               <button
                 key={p.id}
                 onClick={() => { onClose(); router.push(`/post/${p.id}`); }}
-                className="w-full text-left p-3 rounded-xl hover:bg-white/5 transition-colors border-b border-white/5"
+                className="w-full text-left p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors border-b border-gray-200 dark:border-white/5"
               >
                 <div className="flex items-center gap-2 mb-1">
                   <Avatar src={p.author_avatar} name={p.author} id={p.author_id} size={24} />
-                  <span className="text-xs font-bold text-white truncate">{p.author}</span>
-                  <span className="text-[10px] text-white/40">{p.handle}</span>
+                  <span className="text-xs font-bold text-gray-900 dark:text-white truncate">{p.author}</span>
+                  <span className="text-[10px] text-gray-500 dark:text-white/40">{p.handle}</span>
                 </div>
-                <p className="text-sm text-white/80 line-clamp-3 whitespace-pre-wrap break-words">{p.text}</p>
-                <div className="flex items-center gap-3 mt-1.5 text-[11px] text-white/40">
+                <p className="text-sm text-gray-800 dark:text-white/80 line-clamp-3 whitespace-pre-wrap break-words">{p.text}</p>
+                <div className="flex items-center gap-3 mt-1.5 text-[11px] text-gray-500 dark:text-white/40">
                   <span>❤️ {p.likes_count}</span>
                   <span>💬 {p.replies_count}</span>
                   <span>👁 {p.views_count ?? 0}</span>
@@ -151,10 +151,10 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
 
         {loading && <div className="p-3"><UserRowSkeleton /><UserRowSkeleton /><UserRowSkeleton /></div>}
         {!loading && q.trim() && users.length === 0 && posts.length === 0 && (
-          <p className="text-center text-white/40 text-sm mt-10">{t("search.nothing")}</p>
+          <p className="text-center text-gray-500 dark:text-white/40 text-sm mt-10">{t("search.nothing")}</p>
         )}
         {!q.trim() && (
-          <p className="text-center text-white/30 text-sm mt-10">{t("search.startTypingNames")}</p>
+          <p className="text-center text-gray-500 dark:text-white/30 text-sm mt-10">{t("search.startTypingNames")}</p>
         )}
       </div>
     </div>
@@ -182,37 +182,37 @@ export function setSidebarLayout(v: SidebarLayout) {
 
 function LayoutPreview({ kind }: { kind: SidebarLayout }) {
   return (
-    <div className="w-full h-16 rounded-md bg-[#111114] border border-white/10 overflow-hidden flex">
+    <div className="w-full h-16 rounded-md bg-[#111114] border border-gray-200 dark:border-white/10 overflow-hidden flex">
       {kind === "classic" && (
         <>
-          <div className="w-7 bg-[#22222a] border-r border-white/10 p-1 space-y-1">
-            <div className="h-1.5 w-full rounded bg-white/25" />
-            <div className="h-1.5 w-3/4 rounded bg-white/15" />
-            <div className="h-1.5 w-full rounded bg-white/15" />
+          <div className="w-7 bg-gray-100 dark:bg-[#22222a] border-r border-gray-200 dark:border-white/10 p-1 space-y-1">
+            <div className="h-1.5 w-full rounded bg-gray-200 dark:bg-white/25" />
+            <div className="h-1.5 w-3/4 rounded bg-gray-100 dark:bg-white/15" />
+            <div className="h-1.5 w-full rounded bg-gray-100 dark:bg-white/15" />
           </div>
           <div className="flex-1 p-1.5 space-y-1">
-            <div className="h-1.5 w-full rounded bg-white/10" />
-            <div className="h-1.5 w-3/4 rounded bg-white/10" />
+            <div className="h-1.5 w-full rounded bg-gray-100 dark:bg-white/10" />
+            <div className="h-1.5 w-3/4 rounded bg-gray-100 dark:bg-white/10" />
           </div>
         </>
       )}
       {kind === "orbit" && (
         <div className="relative flex-1 p-1.5 space-y-1">
           <div className="absolute right-2 bottom-2 w-4 h-4 rounded-full bg-[#8b5cf6]" />
-          <div className="h-1.5 w-full rounded bg-white/10" />
-          <div className="h-1.5 w-3/4 rounded bg-white/10" />
+          <div className="h-1.5 w-full rounded bg-gray-100 dark:bg-white/10" />
+          <div className="h-1.5 w-3/4 rounded bg-gray-100 dark:bg-white/10" />
         </div>
       )}
       {kind === "dock" && (
         <>
-          <div className="w-4 bg-[#22222a] border-r border-white/10 flex flex-col items-center gap-1 py-1">
-            <div className="w-2 h-2 rounded bg-white/25" />
-            <div className="w-2 h-2 rounded bg-white/15" />
-            <div className="w-2 h-2 rounded bg-white/15" />
+          <div className="w-4 bg-gray-100 dark:bg-[#22222a] border-r border-gray-200 dark:border-white/10 flex flex-col items-center gap-1 py-1">
+            <div className="w-2 h-2 rounded bg-gray-200 dark:bg-white/25" />
+            <div className="w-2 h-2 rounded bg-gray-100 dark:bg-white/15" />
+            <div className="w-2 h-2 rounded bg-gray-100 dark:bg-white/15" />
           </div>
           <div className="flex-1 p-1.5 space-y-1">
-            <div className="h-1.5 w-full rounded bg-white/10" />
-            <div className="h-1.5 w-3/4 rounded bg-white/10" />
+            <div className="h-1.5 w-full rounded bg-gray-100 dark:bg-white/10" />
+            <div className="h-1.5 w-3/4 rounded bg-gray-100 dark:bg-white/10" />
           </div>
         </>
       )}
@@ -230,10 +230,10 @@ function LayoutPicker({ current, onClose }: { current: SidebarLayout; onClose: (
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-[310]" onClick={onClose} />
-      <div className="fixed right-3 top-1/2 -translate-y-1/2 z-[311] w-[250px] bg-[#1f1f23] border border-white/15 rounded-2xl shadow-2xl p-3">
+      <div className="fixed right-3 top-1/2 -translate-y-1/2 z-[311] w-[250px] bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-3">
         <div className="flex items-center justify-between mb-2 px-1">
-          <p className="text-sm font-black text-white">{t("nav.layout")}</p>
-          <button onClick={onClose} className="text-white/50 hover:text-white p-1"><X size={16} /></button>
+          <p className="text-sm font-black text-gray-900 dark:text-white">{t("nav.layout")}</p>
+          <button onClick={onClose} className="text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white p-1"><X size={16} /></button>
         </div>
         <div className="space-y-2">
           {variants.map((v) => (
@@ -241,19 +241,19 @@ function LayoutPicker({ current, onClose }: { current: SidebarLayout; onClose: (
               key={v.key}
               onClick={() => setSidebarLayout(v.key)}
               className={`w-full text-left rounded-xl border p-2 transition-all ${
-                current === v.key ? "border-[#8b5cf6] bg-[#8b5cf6]/10" : "border-white/10 bg-white/5 hover:bg-white/10"
+                current === v.key ? "border-[#8b5cf6] bg-[#8b5cf6]/10" : "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10"
               }`}
             >
               <LayoutPreview kind={v.key} />
-              <p className="mt-1.5 text-xs font-bold text-white flex items-center gap-1.5">
+              <p className="mt-1.5 text-xs font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
                 {v.name}
                 {current === v.key && <span className="text-[9px] text-[#a78bfa] font-black uppercase">{t("nav.layoutActive")}</span>}
               </p>
-              <p className="text-[10px] text-white/50 mt-0.5 leading-snug">{v.desc}</p>
+              <p className="text-[10px] text-gray-600 dark:text-white/50 mt-0.5 leading-snug">{v.desc}</p>
             </button>
           ))}
         </div>
-        <p className="mt-2 text-[10px] text-white/40 text-center">{t("nav.layoutHint")}</p>
+        <p className="mt-2 text-[10px] text-gray-500 dark:text-white/40 text-center">{t("nav.layoutHint")}</p>
       </div>
     </>
   );
@@ -819,14 +819,14 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     quote: <Quote size={12} />,
   };
   const iconBg: Record<string, string> = {
-    like: "bg-pink-500/20 text-pink-400",
-    reply: "bg-blue-500/20 text-blue-400",
-    follow: "bg-purple-500/20 text-purple-400",
-    mention: "bg-yellow-500/20 text-yellow-400",
-    message: "bg-green-500/20 text-green-400",
-    login_alert: "bg-red-500/20 text-red-400",
-    repost: "bg-emerald-500/20 text-emerald-400",
-    quote: "bg-cyan-500/20 text-cyan-400",
+    like: "bg-pink-500/20 text-pink-600 dark:text-pink-400",
+    reply: "bg-blue-500/20 text-blue-600 dark:text-blue-400",
+    follow: "bg-purple-500/20 text-purple-600 dark:text-purple-400",
+    mention: "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400",
+    message: "bg-green-500/20 text-green-600 dark:text-green-400",
+    login_alert: "bg-red-500/20 text-red-600 dark:text-red-400",
+    repost: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400",
+    quote: "bg-cyan-500/20 text-cyan-600 dark:text-cyan-400",
   };
   const notifKeys: Record<string, MessageKey> = {
     like: "notif.like",
@@ -881,10 +881,10 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         const showUpdatesBadge = href === "/updates" && (counts.updates || 0) > 0;
           return (
             <Link key={href} href={href}
-              className={`flex ${containerClass} font-medium transition-all border-b border-white/5 last:border-none group relative ${
+              className={`flex ${containerClass} font-medium transition-all border-b border-gray-200 dark:border-white/5 last:border-none group relative ${
                 active ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
               }`}>
-              <Icon size={18} className={`${iconClass} ${active ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"}`} />
+              <Icon size={18} className={`${iconClass} ${active ? "text-[#8b5cf6]" : "text-gray-800 dark:text-white/80 group-hover:text-gray-900 dark:text-white"}`} />
               <span className={textClass}>{label}</span>
               
               {showUpdatesBadge && (
@@ -898,10 +898,10 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
         {user && (
           <Link href="/messages"
-            className={`flex ${containerClass} font-medium transition-all relative border-b border-white/5 group ${
+            className={`flex ${containerClass} font-medium transition-all relative border-b border-gray-200 dark:border-white/5 group ${
               pathname?.startsWith("/messages") ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
             }`}>
-            <MessageSquare size={18} className={`${iconClass} ${pathname?.startsWith("/messages") ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"}`} />
+            <MessageSquare size={18} className={`${iconClass} ${pathname?.startsWith("/messages") ? "text-[#8b5cf6]" : "text-gray-800 dark:text-white/80 group-hover:text-gray-900 dark:text-white"}`} />
             <span className={textClass}>{t("nav.messages")}</span>
             {counts.chats > 0 && (
               <span className={`${isDock ? "absolute top-2 right-2" : "ml-auto"} bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm`}>
@@ -912,10 +912,10 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         )}
 
         <button onClick={loadNotifications}
-          className={`flex ${containerClass} font-medium transition-all relative border-b border-white/5 group ${
+          className={`flex ${containerClass} font-medium transition-all relative border-b border-gray-200 dark:border-white/5 group ${
             pathname === "/notifications" ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
           }`}>
-          <Bell size={18} className={`${iconClass} ${pathname === "/notifications" ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"}`} />
+          <Bell size={18} className={`${iconClass} ${pathname === "/notifications" ? "text-[#8b5cf6]" : "text-gray-800 dark:text-white/80 group-hover:text-gray-900 dark:text-white"}`} />
           <span className={textClass}>{t("nav.notifications")}</span>
           {counts.notifications > 0 && (
             <span className={`${isDock ? "absolute top-2 right-2" : "ml-auto"} bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm`}>
@@ -926,16 +926,16 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
         {hasAdminAccess && !isDock && (
           <Link href="/adminnew"
-            className={`flex ${containerClass} font-medium transition-all border-b border-white/5 group ${
+            className={`flex ${containerClass} font-medium transition-all border-b border-gray-200 dark:border-white/5 group ${
               pathname?.startsWith("/adminnew") ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
             }`}>
-            <ShieldAlert size={18} className={`${iconClass} ${pathname?.startsWith("/adminnew") ? "text-[#8b5cf6]" : "text-white/80 group-hover:text-white"}`} />
+            <ShieldAlert size={18} className={`${iconClass} ${pathname?.startsWith("/adminnew") ? "text-[#8b5cf6]" : "text-gray-800 dark:text-white/80 group-hover:text-gray-900 dark:text-white"}`} />
             <span className={textClass}>{t("nav.adminPanel")}</span>
           </Link>
         )}
 
         {hasAdminAccess && isDock && (
-           <Link href="/adminnew" className={`flex ${containerClass} font-medium transition-all border-b border-white/5 group text-white/40 hover:bg-white/[0.03] hover:text-white/60`}>
+           <Link href="/adminnew" className={`flex ${containerClass} font-medium transition-all border-b border-gray-200 dark:border-white/5 group text-gray-500 dark:text-white/40 hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60`}>
               <ShieldAlert size={18} className={iconClass} />
            </Link>
         )}
@@ -956,11 +956,11 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       </button>
     )}
     <button onClick={() => setShowBugModal(true)}
-      className="p-2.5 rounded-xl text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all" title={t("nav.reportProblem")}>
+      className="p-2.5 rounded-xl text-orange-400/80 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/10 transition-all" title={t("nav.reportProblem")}>
       <Bug size={18} />
     </button>
     <button onClick={() => router.push("/support")} // 🆕 Замените "/support" на открытие модалки, если нужно
-      className="p-2.5 rounded-xl text-cyan-400/80 hover:text-cyan-400 hover:bg-cyan-500/10 transition-all" title={t("nav.supportChat")}>
+      className="p-2.5 rounded-xl text-cyan-400/80 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-cyan-500/10 transition-all" title={t("nav.supportChat")}>
       <Headphones size={18} />
     </button>
     <button onClick={() => setShowLayoutPicker(true)}
@@ -981,11 +981,11 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       </button>
     )}
     <button onClick={() => setShowBugModal(true)}
-      className="p-2 rounded-lg text-orange-400/80 hover:text-orange-400 hover:bg-orange-500/10 transition-all shrink-0" title={t("nav.bugs")}>
+      className="p-2 rounded-lg text-orange-400/80 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/10 transition-all shrink-0" title={t("nav.bugs")}>
       <Bug size={20} className="shrink-0" />
     </button>
     <button onClick={() => router.push("/support")}
-      className="p-2 rounded-lg text-cyan-400/80 hover:text-cyan-400 hover:bg-cyan-500/10 transition-all shrink-0" title={t("nav.support")}>
+      className="p-2 rounded-lg text-cyan-400/80 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-cyan-500/10 transition-all shrink-0" title={t("nav.support")}>
       <Headphones size={20} className="shrink-0" />
     </button>
     <button onClick={() => setShowLayoutPicker(true)}
@@ -1000,18 +1000,18 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         {user ? (
           <div className={isDock ? "flex flex-col items-center gap-2 px-2" : "px-2"}>
             {/* Ссылка на профиль + кнопка выхода внутри */}
-            <div className={`flex ${isDock ? "justify-center" : "items-center gap-3"} px-2 py-2 rounded-lg hover:bg-white/5 transition-all group w-full`}>
+            <div className={`flex ${isDock ? "justify-center" : "items-center gap-3"} px-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-all group w-full`}>
               <Link href={`/${user.username}`} className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="shrink-0" style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}>
                   <Avatar src={user.avatar_url} name={user.display_name} id={user.id} />
                 </div>
                 {!isDock && (
                   <div className="leading-tight min-w-0 flex-1">
-                    <p className={`font-semibold text-sm truncate transition-all ${glow ? "group-hover:opacity-80" : "text-white group-hover:text-[#8b5cf6]"}`}
+                    <p className={`font-semibold text-sm truncate transition-all ${glow ? "group-hover:opacity-80" : "text-gray-900 dark:text-white group-hover:text-[#8b5cf6]"}`}
                       style={glow ? { color: glow, textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66` } : undefined}>
                       {user.display_name}
                     </p>
-                    <p className="text-sm text-white/40 truncate">@{user.username}</p>
+                    <p className="text-sm text-gray-500 dark:text-white/40 truncate">@{user.username}</p>
                   </div>
                 )}
               </Link>
@@ -1020,7 +1020,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
               {!isDock && (
                 <button 
                   onClick={() => setShowOrbitSwitcher(true)}
-                  className="p-2 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0"
+                  className="p-2 rounded-lg text-white/40 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0"
                   title={t("account.accounts")}
                 >
                   <LogOut size={18} />
@@ -1098,8 +1098,8 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
                 ${isActive
                   ? "w-14 h-14 bg-[#8b5cf6] shadow-[0_0_28px_rgba(139,92,246,0.55)]"
                   : isOuter
-                    ? "w-11 h-11 bg-[#1a1a1f]/95 border border-white/15 shadow-lg shadow-black/40"
-                    : "w-12 h-12 bg-[#22222a]/95 border border-white/20 shadow-lg shadow-black/40"
+                    ? "w-11 h-11 bg-[#1a1a1f]/95 border border-gray-200 dark:border-white/15 shadow-lg shadow-black/40"
+                    : "w-12 h-12 bg-gray-100 dark:bg-[#22222a]/95 border border-gray-200 dark:border-white/20 shadow-lg shadow-black/40"
                 }
               `}>
                 {item.isProfile && user ? (
@@ -1111,12 +1111,12 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
                       className="absolute inset-0 w-full h-full object-cover"
                     />
                   ) : (
-                    <span className={`font-bold ${isActive ? "text-white" : "text-white/70"}`}>
+                    <span className={`font-bold ${isActive ? "text-gray-900 dark:text-white" : "text-gray-800 dark:text-white/70"}`}>
                       {(user.display_name || "?")[0]?.toUpperCase()}
                     </span>
                   )
                 ) : (
-                  <item.icon size={isActive ? 26 : isOuter ? 19 : 21} className={isActive ? "text-white" : "text-white/70"} />
+                  <item.icon size={isActive ? 26 : isOuter ? 19 : 21} className={isActive ? "text-gray-900 dark:text-white" : "text-gray-800 dark:text-white/70"} />
                 )}
                   </div>
                 {!!item.count && item.count > 0 && (
@@ -1205,12 +1205,12 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
           onDoubleClick={handleOrbitDoubleClick}
           onTouchEnd={handleOrbitTouchEnd}
           className={`fixed z-[98] w-14 h-14 
-            bg-[#171717]/90 backdrop-blur-sm border 
+            bg-gray-50 dark:bg-[#171717]/90 backdrop-blur-sm border 
             flex items-center justify-center shadow-lg shadow-black/50
             transition-all duration-200
             ${wheelOpen
               ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/20 scale-110"
-              : "border-white/10 active:scale-95"}
+              : "border-gray-200 dark:border-white/10 active:scale-95"}
             ${layout === "orbit" 
               ? orbitDesktopPos
               : "right-0 top-[calc(50%+8px)] -translate-y-1/2 rounded-l-full"
@@ -1224,7 +1224,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
           }}
           aria-label={t("nav.navMenu")}
         >
-          <Orbit size={22} className={`transition-all duration-300 ${wheelOpen ? "text-[#8b5cf6] rotate-[60deg]" : "text-white/80"}`} />
+          <Orbit size={22} className={`transition-all duration-300 ${wheelOpen ? "text-[#8b5cf6] rotate-[60deg]" : "text-gray-800 dark:text-white/80"}`} />
         </button>
         {renderWheel()}
       </div>
@@ -1262,7 +1262,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     {counts.chats > 0 && (
       <button
         onClick={() => router.push("/messages")}
-        className="relative w-12 h-12 rounded-full bg-[#171717]/90 backdrop-blur-sm border border-white/10 flex items-center justify-center shadow-lg shadow-black/50 text-white/80 hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
+        className="relative w-12 h-12 rounded-full bg-gray-50 dark:bg-[#171717]/90 backdrop-blur-sm border border-gray-200 dark:border-white/10 flex items-center justify-center shadow-lg shadow-black/50 text-white/80 hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
         title={t("nav.messages")}
       >
         <MessageSquare size={20} />
@@ -1275,7 +1275,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     {counts.notifications > 0 && (
       <button
         onClick={() => router.push("/notifications")}
-        className="relative w-12 h-12 rounded-full bg-[#171717]/90 backdrop-blur-sm border border-white/10 flex items-center justify-center shadow-lg shadow-black/50 text-white/80 hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
+        className="relative w-12 h-12 rounded-full bg-gray-50 dark:bg-[#171717]/90 backdrop-blur-sm border border-gray-200 dark:border-white/10 flex items-center justify-center shadow-lg shadow-black/50 text-white/80 hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
         title={t("nav.notifications")}
       >
         <Bell size={20} />
@@ -1291,7 +1291,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
       {/* ═══════ ДЕСКТОП CLASSIC / DOCK ═══════ */}
       {layout !== "orbit" && (
-        <aside className={`hidden md:flex shrink-0 overflow-y-auto flex-col bg-[#171717] transition-all duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+        <aside className={`hidden md:flex shrink-0 overflow-y-auto flex-col bg-gray-50 dark:bg-[#171717] transition-all duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
           isDock ? "md:w-20 md:min-w-20 px-0 py-4 gap-2" : "md:w-64 md:min-w-64 p-5 gap-5"
         }`}>
           {desktopSidebarContent}
@@ -1302,18 +1302,18 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       {showNotifs && (
         <>
           <div className="fixed inset-0 bg-black/60 z-[99]" onClick={() => setShowNotifs(false)} />
-          <div className={`fixed left-4 right-4 md:right-auto md:top-4 top-16 w-auto md:w-[380px] max-h-[70vh] md:max-h-[520px] overflow-hidden border border-white/10 rounded-2xl bg-[#1f1f23] shadow-2xl z-[100] flex flex-col transition-all duration-300 ${
+          <div className={`fixed left-4 right-4 md:right-auto md:top-4 top-16 w-auto md:w-[380px] max-h-[70vh] md:max-h-[520px] overflow-hidden border border-gray-200 dark:border-white/10 rounded-2xl bg-white dark:bg-[#1f1f23] shadow-2xl z-[100] flex flex-col transition-all duration-300 ${
              isDock ? "md:left-24" : "md:left-[272px]"
           }`}>
-            <div className="sticky top-0 bg-[#1f1f23]/95 backdrop-blur-md border-b border-white/10 p-3 flex items-center justify-between shrink-0">
-              <h3 className="font-bold text-white">{t("nav.notifications")}</h3>
+            <div className="sticky top-0 bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/10 p-3 flex items-center justify-between shrink-0">
+              <h3 className="font-bold text-gray-900 dark:text-white">{t("nav.notifications")}</h3>
               <div className="flex items-center gap-1">
                 {notifs.some((n) => !n.read) && (
                   <button onClick={markAllRead} className="text-xs text-[#8b5cf6] hover:text-[#a78bfa] font-semibold px-2 py-1 rounded-lg hover:bg-[#8b5cf6]/10 transition-colors">
                     {t("notif.markAll")}
                   </button>
                 )}
-                <button onClick={() => setShowNotifs(false)} className="p-1.5 text-white/50 hover:text-white rounded-lg hover:bg-white/10 transition-colors">
+                <button onClick={() => setShowNotifs(false)} className="p-1.5 text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                   <X size={16} />
                 </button>
               </div>
@@ -1321,8 +1321,8 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
             <div className="overflow-y-auto flex-1">
               {notifs.length === 0 && (
                 <div className="p-8 text-center">
-                  <Bell size={32} className="text-white/20 mx-auto mb-3" />
-                  <p className="text-sm text-white/50">{t("notif.empty")}</p>
+                  <Bell size={32} className="text-gray-500 dark:text-white/20 mx-auto mb-3" />
+                  <p className="text-sm text-gray-600 dark:text-white/50">{t("notif.empty")}</p>
                 </div>
               )}
               {notifs.map((n) => {
@@ -1330,7 +1330,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
                 return (
                   <Link key={n.id} href={link}
                     onClick={() => { if (!n.read) markRead(n.id); setShowNotifs(false); }}
-                    className={`flex items-start gap-3 p-3 border-b border-white/5 hover:bg-white/5 transition-colors relative ${!n.read ? "bg-[#8b5cf6]/[0.03]" : ""}`}>
+                    className={`flex items-start gap-3 p-3 border-b border-gray-200 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors relative ${!n.read ? "bg-[#8b5cf6]/[0.03]" : ""}`}>
                     {!n.read && <div className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-[#8b5cf6]" />}
                     <div className="shrink-0 relative">
                       <Avatar src={n.actor?.avatar_url} name={n.actor?.display_name || "User"} id={n.actor?.id} size={42} />
@@ -1339,11 +1339,11 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[13px] text-white/90 leading-snug">
-                        <span className="font-semibold text-white">{n.actor?.display_name || t("common.unknown")}</span>{" "}
+                      <p className="text-[13px] text-gray-800 dark:text-white/90 leading-snug">
+                        <span className="font-semibold text-gray-900 dark:text-white">{n.actor?.display_name || t("common.unknown")}</span>{" "}
                         {t(notifKeys[n.type] ?? "notif.fallback")}
                       </p>
-                      <p className="text-[11px] text-white/40 mt-1">
+                      <p className="text-[11px] text-gray-500 dark:text-white/40 mt-1">
                         {new Date(n.created_at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                       </p>
                     </div>
@@ -1352,7 +1352,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
                 );
               })}
             </div>
-            <div className="sticky bottom-0 bg-[#1f1f23]/95 backdrop-blur-md border-t border-white/10 p-2.5 shrink-0">
+            <div className="sticky bottom-0 bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md border-t border-gray-200 dark:border-white/10 p-2.5 shrink-0">
               <Link href="/notifications" onClick={() => setShowNotifs(false)}
                 className="block w-full text-center text-sm font-semibold text-[#8b5cf6] hover:text-[#a78bfa] py-2 rounded-lg hover:bg-[#8b5cf6]/10 transition-all">
                 {t("notif.viewAll")}

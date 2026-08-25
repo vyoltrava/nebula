@@ -150,11 +150,11 @@ export default function PrismChatPage() {
   const isEntangled = syncStatus === "entangled";
 
   return (
-    <div className="h-screen w-full bg-[#050508] text-white overflow-hidden relative flex flex-col font-sans">
+    <div className="h-screen w-full bg-gray-50 dark:bg-[#050508] text-gray-900 dark:text-white overflow-hidden relative flex flex-col font-sans">
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_100%)] pointer-events-none" />
 
-      <header className="relative z-30 px-4 py-3 flex items-center justify-between border-b border-white/5 bg-[#050508]/80 backdrop-blur-xl">
-        <button onClick={() => router.push("/messages")} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/70 hover:text-white">
+      <header className="relative z-30 px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-white/5 bg-gray-50 dark:bg-[#050508]/80 backdrop-blur-xl">
+        <button onClick={() => router.push("/messages")} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors text-gray-800 dark:text-white/70 hover:text-gray-900 dark:text-white">
           <ArrowLeft size={20} />
         </button>
         
@@ -165,19 +165,19 @@ export default function PrismChatPage() {
                 {otherUser?.avatar_url ? (
                   <img src={otherUser.avatar_url} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-sm font-bold text-white/80">{otherUser?.display_name?.[0] || '?'}</span>
+                  <span className="text-sm font-bold text-gray-800 dark:text-white/80">{otherUser?.display_name?.[0] || '?'}</span>
                 )}
               </div>
             </div>
             {isEntangled && (
               <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-emerald-500 rounded-full border-2 border-[#050508] flex items-center justify-center">
-                <Lock size={8} className="text-white" />
+                <Lock size={8} className="text-gray-900 dark:text-white" />
               </div>
             )}
           </div>
           <div>
             <p className="text-sm font-semibold tracking-wide">{otherUser?.display_name || "Prism Channel"}</p>
-            <p className={`text-[10px] font-mono flex items-center gap-1.5 ${isEntangled ? 'text-emerald-400' : 'text-amber-400 animate-pulse'}`}>
+            <p className={`text-[10px] font-mono flex items-center gap-1.5 ${isEntangled ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400 animate-pulse'}`}>
               <ShieldCheck size={10} />
               {isEntangled ? 'PRISM PUZZLE ACTIVE' : 'ТРЕБУЕТСЯ АУТЕНТИФИКАЦИЯ'}
             </p>
@@ -190,13 +190,13 @@ export default function PrismChatPage() {
         <div className="absolute inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-4">
           <div className="max-w-4xl w-full space-y-6">
             <div className="text-center space-y-2">
-              <h2 className="text-2xl font-bold text-cyan-400 flex items-center justify-center gap-2">
+              <h2 className="text-2xl font-bold text-cyan-600 dark:text-cyan-400 flex items-center justify-center gap-2">
                 <Sparkles size={24} /> Prism Puzzle
               </h2>
-              <p className="text-white/60">Найдите объект, который вы выбрали при создании чата</p>
+              <p className="text-gray-600 dark:text-white/60">Найдите объект, который вы выбрали при создании чата</p>
             </div>
             
-            <div className="relative bg-white/5 rounded-2xl p-2 border border-cyan-500/30 shadow-[0_0_30px_rgba(34,211,238,0.1)]">
+            <div className="relative bg-gray-100 dark:bg-white/5 rounded-2xl p-2 border border-cyan-500/30 shadow-[0_0_30px_rgba(34,211,238,0.1)]">
               <div dangerouslySetInnerHTML={{ __html: landscape.svg }} className="absolute inset-0 opacity-60 pointer-events-none rounded-xl" />
               
               <svg viewBox="0 0 800 600" className="relative w-full h-auto z-10">
@@ -222,9 +222,9 @@ export default function PrismChatPage() {
             
             <div className="text-center">
               {syncStatus === "verifying" ? (
-                <p className="text-cyan-400 text-sm animate-pulse">Проверка визуального ключа...</p>
+                <p className="text-cyan-600 dark:text-cyan-400 text-sm animate-pulse">Проверка визуального ключа...</p>
               ) : (
-                <p className="text-white/40 text-sm">Кликните на светящийся объект</p>
+                <p className="text-gray-500 dark:text-white/40 text-sm">Кликните на светящийся объект</p>
               )}
             </div>
           </div>
@@ -239,11 +239,11 @@ export default function PrismChatPage() {
           
           return (
             <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'} animate-fade-in-up`} style={{ animationDelay: `${index * 0.05}s` }}>
-              <div className={`relative max-w-[85%] md:max-w-[70%] px-4 py-3 backdrop-blur-md border shadow-lg ${isMine ? 'bg-gradient-to-br from-purple-600/30 to-cyan-600/10 border-purple-500/30 rounded-2xl rounded-tr-sm' : 'bg-white/5 border-white/10 rounded-2xl rounded-tl-sm'}`}>
-                <p className="relative text-[15px] leading-relaxed text-white/90 break-words">{msg.text}</p>
+              <div className={`relative max-w-[85%] md:max-w-[70%] px-4 py-3 backdrop-blur-md border shadow-lg ${isMine ? 'bg-gradient-to-br from-purple-600/30 to-cyan-600/10 border-purple-500/30 rounded-2xl rounded-tr-sm' : 'bg-white/5 border-gray-200 dark:border-white/10 rounded-2xl rounded-tl-sm'}`}>
+                <p className="relative text-[15px] leading-relaxed text-gray-800 dark:text-white/90 break-words">{msg.text}</p>
                 <div className="relative flex items-center justify-end gap-1.5 mt-2">
-                  <span className="text-[10px] text-white/30 font-mono">{time}</span>
-                  {isMine && <span className="text-cyan-400 text-[10px]">◆</span>}
+                  <span className="text-[10px] text-gray-500 dark:text-white/30 font-mono">{time}</span>
+                  {isMine && <span className="text-cyan-600 dark:text-cyan-400 text-[10px]">◆</span>}
                 </div>
               </div>
             </div>
@@ -252,21 +252,21 @@ export default function PrismChatPage() {
         <div ref={messagesEndRef} className="h-4" />
       </div>
 
-      <div className="relative z-30 p-4 bg-[#050508]/90 backdrop-blur-xl border-t border-white/5">
+      <div className="relative z-30 p-4 bg-gray-50 dark:bg-[#050508]/90 backdrop-blur-xl border-t border-gray-200 dark:border-white/5">
         <div className={`max-w-3xl mx-auto transition-all duration-300 ${isEntangled ? 'opacity-100 translate-y-0' : 'opacity-30 pointer-events-none translate-y-4'}`}>
-          <div className="relative flex items-end gap-2 bg-white/5 border border-white/10 rounded-2xl p-2 focus-within:border-cyan-500/50 focus-within:bg-white/[0.07] transition-all">
+          <div className="relative flex items-end gap-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl p-2 focus-within:border-cyan-500/50 focus-within:bg-white/[0.07] transition-all">
             <textarea
               ref={inputRef}
               value={text}
               onChange={(e) => { setText(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; }}
               onKeyDown={handleKeyDown}
               placeholder="Напишите защищенное сообщение..."
-              className="flex-1 bg-transparent border-none outline-none text-white placeholder-white/30 resize-none text-[15px] py-2.5 px-2 max-h-[120px]"
+              className="flex-1 bg-transparent border-none outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 resize-none text-[15px] py-2.5 px-2 max-h-[120px]"
               rows={1}
               disabled={!isEntangled}
             />
             <button onClick={sendMessage} disabled={!text.trim() || !isEntangled} className="shrink-0 p-2.5 rounded-xl bg-gradient-to-br from-cyan-500 to-purple-600 disabled:opacity-30 disabled:grayscale hover:scale-105 active:scale-95 transition-all shadow-lg shadow-purple-500/20">
-              <Send size={18} className="text-white" />
+              <Send size={18} className="text-gray-900 dark:text-white" />
             </button>
           </div>
         </div>

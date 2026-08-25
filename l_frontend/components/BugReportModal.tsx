@@ -12,8 +12,8 @@ const PRIORITY_OPTIONS = [
     labelKey: "bugs.idea" as const, 
     hintKey: "bugs.ideaHint" as const, 
     icon: Lightbulb, 
-    color: "text-green-400", 
-    borderColor: "border-green-400", 
+    color: "text-green-600 dark:text-green-400", 
+    borderColor: "border-green-600 dark:border-green-400", 
     bg: "bg-green-500/10" 
   },
   { 
@@ -21,8 +21,8 @@ const PRIORITY_OPTIONS = [
     labelKey: "bugs.bug" as const, 
     hintKey: "bugs.bugHint" as const, 
     icon: Bug, 
-    color: "text-yellow-400", 
-    borderColor: "border-yellow-400", 
+    color: "text-yellow-600 dark:text-yellow-400", 
+    borderColor: "border-yellow-600 dark:border-yellow-400", 
     bg: "bg-yellow-500/10" 
   },
   { 
@@ -30,8 +30,8 @@ const PRIORITY_OPTIONS = [
     labelKey: "bugs.important" as const, 
     hintKey: "bugs.highHint" as const, 
     icon: AlertTriangle, 
-    color: "text-orange-400", 
-    borderColor: "border-orange-400", 
+    color: "text-orange-600 dark:text-orange-400", 
+    borderColor: "border-orange-600 dark:border-orange-400", 
     bg: "bg-orange-500/10" 
   },
   { 
@@ -39,8 +39,8 @@ const PRIORITY_OPTIONS = [
     labelKey: "bugs.critical" as const, 
     hintKey: "bugs.critHint" as const, 
     icon: AlertTriangle, 
-    color: "text-red-400", 
-    borderColor: "border-red-400", 
+    color: "text-red-600 dark:text-red-400", 
+    borderColor: "border-red-600 dark:border-red-400", 
     bg: "bg-red-500/10" 
   },
 ];
@@ -110,17 +110,17 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
         onClick={onClose}
       />
       <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-lg border border-white/20 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-5 sm:p-6 pointer-events-auto animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+        <div className="w-full max-w-lg border border-gray-200 dark:border-white/20 rounded-2xl bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-5 sm:p-6 pointer-events-auto animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center shrink-0">
-                <Bug size={18} className="text-orange-400" />
+                <Bug size={18} className="text-orange-600 dark:text-orange-400" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-lg sm:text-xl font-black text-white truncate">
+                <h2 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white truncate">
                   {t("bugs.feedback")}
                 </h2>
-                <p className="text-xs text-white/50 hidden sm:block">
+                <p className="text-xs text-gray-600 dark:text-white/50 hidden sm:block">
                   {t("bugs.feedbackHint")}
                 </p>
               </div>
@@ -137,26 +137,26 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
           {success ? (
             <div className="py-8 text-center">
               <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
-                <Send size={32} className="text-green-400" />
+                <Send size={32} className="text-green-600 dark:text-green-400" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">{t("bugs.sent")}</h3>
-              <p className="text-white/60 text-sm">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t("bugs.sent")}</h3>
+              <p className="text-gray-600 dark:text-white/60 text-sm">
                 {t("bugs.thanks")}
               </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Описание назначения */}
-              <div className="p-3 rounded-lg bg-white/5 border border-white/10">
-                <p className="text-xs text-white/70 leading-relaxed">
-                  <span className="font-bold text-white">{t("bugs.canSend")}</span>{" "}
+              <div className="p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                <p className="text-xs text-gray-800 dark:text-white/70 leading-relaxed">
+                  <span className="font-bold text-gray-900 dark:text-white">{t("bugs.canSend")}</span>{" "}
                   {t("bugs.canSendBody")}
                 </p>
               </div>
 
               {/* Заголовок */}
               <div>
-                <label className="block text-sm font-bold text-white/80 mb-2">
+                <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">
                   {t("bugs.titleLabel")}
                 </label>
                 <input
@@ -164,14 +164,14 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder={t("bugs.titlePh")}
                   maxLength={200}
-                  className="w-full border border-white/15 rounded-lg px-3 py-2.5 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-orange-400 transition-all text-sm"
+                  className="w-full border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2.5 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-orange-600 dark:focus:border-orange-400 transition-all text-sm"
                 />
-                <p className="text-xs text-white/40 mt-1 text-right">{title.length}/200</p>
+                <p className="text-xs text-gray-500 dark:text-white/40 mt-1 text-right">{title.length}/200</p>
               </div>
 
               {/* Приоритет — АДАПТИВНАЯ СЕТКА */}
               <div>
-                <label className="block text-sm font-bold text-white/80 mb-2">
+                <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">
                   {t("bugs.typeLabel")}
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -189,7 +189,7 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
                           transition-all active:scale-95
                           ${isActive
                             ? `${opt.borderColor} ${opt.bg} ${opt.color}`
-                            : "border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80"
+                            : "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-800 dark:hover:text-white/80"
                           }
                         `}
                       >
@@ -201,7 +201,7 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
                 </div>
                 {/* Подсказка под выбранным типом */}
                 {selectedPriority && (
-                  <p className="text-xs text-white/50 mt-2 flex items-center gap-1.5">
+                  <p className="text-xs text-gray-600 dark:text-white/50 mt-2 flex items-center gap-1.5">
                     <selectedPriority.icon size={12} className={selectedPriority.color} />
                     <span>{t(selectedPriority.hintKey)}</span>
                   </p>
@@ -210,7 +210,7 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
 
               {/* Описание */}
               <div>
-                <label className="block text-sm font-bold text-white/80 mb-2">
+                <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">
                   {t("bugs.descLabel")}
                 </label>
                 <textarea
@@ -225,13 +225,13 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
                   }
                   rows={5}
                   maxLength={2000}
-                  className="w-full border border-white/15 rounded-lg px-3 py-2.5 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-orange-400 transition-all resize-none text-sm"
+                  className="w-full border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2.5 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-orange-600 dark:focus:border-orange-400 transition-all resize-none text-sm"
                 />
-                <p className="text-xs text-white/40 mt-1 text-right">{description.length}/2000</p>
+                <p className="text-xs text-gray-500 dark:text-white/40 mt-1 text-right">{description.length}/2000</p>
               </div>
 
               {error && (
-                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-sm">
                   {error}
                 </div>
               )}

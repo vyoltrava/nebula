@@ -106,11 +106,11 @@ export default function NotificationsPage() {
   }
 
   const icons: Record<string, React.ReactNode> = {
-    like: <Heart size={16} className="text-pink-400" fill="currentColor" />,
-    reply: <MessageCircle size={16} className="text-blue-400" />,
-    follow: <UserPlus size={16} className="text-purple-400" />,
-    mention: <AtSign size={16} className="text-yellow-400" />,
-    message: <MessageSquare size={16} className="text-green-400" />,
+    like: <Heart size={16} className="text-pink-600 dark:text-pink-400" fill="currentColor" />,
+    reply: <MessageCircle size={16} className="text-blue-600 dark:text-blue-400" />,
+    follow: <UserPlus size={16} className="text-purple-600 dark:text-purple-400" />,
+    mention: <AtSign size={16} className="text-yellow-600 dark:text-yellow-400" />,
+    message: <MessageSquare size={16} className="text-green-600 dark:text-green-400" />,
   };
 
   const notifKeys: Record<string, MessageKey> = {
@@ -124,23 +124,23 @@ export default function NotificationsPage() {
   const unreadCount = notifs.filter((n) => !n.read).length;
 
   return (
-    <div className="h-screen flex overflow-hidden bg-[#18181b]">
+    <div className="h-screen flex overflow-hidden bg-white dark:bg-[#18181b]">
       <Sidebar />
-      <div className="w-px shrink-0 bg-white/10 my-3 hidden md:block" />
-      <main className="flex-1 overflow-y-auto overflow-x-hidden border-x border-white/10 md:border-x-0">
+      <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
+      <main className="flex-1 overflow-y-auto overflow-x-hidden border-x border-gray-200 dark:border-white/10 md:border-x-0">
         {/* Шапка */}
-        <div className="p-3 sm:p-4 border-b border-white/10 sticky top-0 bg-[#171717]/95 backdrop-blur-md z-10">
+        <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/95 backdrop-blur-md z-10">
           <div className="flex items-center justify-between gap-2 sm:gap-3">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <button
                 onClick={() => router.back()}
-                className="p-1.5 sm:p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all active:scale-95 shrink-0"
+                className="p-1.5 sm:p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all active:scale-95 shrink-0"
               >
                 <ArrowLeft size={18} className="sm:w-5 sm:h-5" />
               </button>
               <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                 <Bell size={20} className="sm:w-6 sm:h-6 text-[#8b5cf6] shrink-0" />
-                <h1 className="text-lg sm:text-2xl font-black text-white truncate">{t("nav.notifications")}</h1>
+                <h1 className="text-lg sm:text-2xl font-black text-gray-900 dark:text-white truncate">{t("nav.notifications")}</h1>
                 {unreadCount > 0 && (
                   <span className="px-1.5 sm:px-2 py-0.5 rounded-full bg-[#8b5cf6] text-white text-[10px] sm:text-xs font-bold shrink-0">
                     {unreadCount}
@@ -154,7 +154,7 @@ export default function NotificationsPage() {
               disabled={unreadCount === 0 || markingAll}
               className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg border text-xs sm:text-sm font-semibold transition-all active:scale-95 shrink-0 ${
                 unreadCount === 0 || markingAll
-                  ? "border-white/5 text-white/20 cursor-not-allowed"
+                  ? "border-gray-200 dark:border-white/5 text-gray-500 dark:text-white/20 cursor-not-allowed"
                   : "border-[#8b5cf6]/40 text-[#8b5cf6] hover:bg-[#8b5cf6]/10 hover:text-[#a78bfa]"
               }`}
               title={t("notif.markAll")}
@@ -173,16 +173,16 @@ export default function NotificationsPage() {
 
           {!loading && notifs.length === 0 && (
             <div className="text-center py-12 sm:py-16 px-4">
-              <Bell size={44} className="sm:w-14 sm:h-14 text-white/20 mx-auto mb-3 sm:mb-4" />
-              <p className="text-white/50 text-base sm:text-lg font-semibold">{t("notif.empty")}</p>
-              <p className="text-white/30 text-xs sm:text-sm mt-1.5 sm:mt-2 max-w-xs mx-auto">
+              <Bell size={44} className="sm:w-14 sm:h-14 text-gray-500 dark:text-white/20 mx-auto mb-3 sm:mb-4" />
+              <p className="text-gray-600 dark:text-white/50 text-base sm:text-lg font-semibold">{t("notif.empty")}</p>
+              <p className="text-gray-500 dark:text-white/30 text-xs sm:text-sm mt-1.5 sm:mt-2 max-w-xs mx-auto">
                 {t("notif.emptyHint")}
               </p>
             </div>
           )}
 
           {!loading && notifs.length > 0 && (
-            <div className="divide-y divide-white/5">
+            <div className="divide-y divide-gray-200 dark:divide-white/5">
               {notifs.map((n) => {
                 const link = getNotificationLink(n);
                 
@@ -195,10 +195,10 @@ export default function NotificationsPage() {
                     onClick={() => {
                       if (!n.read) markRead(n.id);
                     }}
-                    className={`flex items-start gap-2.5 sm:gap-3 p-3 sm:p-4 transition-all group active:bg-white/10 ${
+                    className={`flex items-start gap-2.5 sm:gap-3 p-3 sm:p-4 transition-all group active:bg-gray-100 dark:active:bg-white/10 ${
                       !n.read
                         ? "bg-[#8b5cf6]/5 hover:bg-[#8b5cf6]/10"
-                        : "hover:bg-white/5"
+                        : "hover:bg-gray-100 dark:hover:bg-white/5"
                     }`}
                   >
                     {/* Аватарка */}
@@ -214,21 +214,21 @@ export default function NotificationsPage() {
                     {/* Контент */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-                        <span className="font-bold text-[13px] sm:text-sm text-white truncate group-hover:text-[#a78bfa] transition-colors max-w-[40%] sm:max-w-none">
+                        <span className="font-bold text-[13px] sm:text-sm text-gray-900 dark:text-white truncate group-hover:text-[#a78bfa] transition-colors max-w-[40%] sm:max-w-none">
                           {n.actor?.display_name || t("common.unknown")}
                         </span>
-                        <span className="text-[11px] sm:text-sm text-white/60 truncate">
+                        <span className="text-[11px] sm:text-sm text-gray-600 dark:text-white/60 truncate">
                           {t(notifKeys[n.type] ?? "notif.fallback")}
                         </span>
                         <span className={`p-0.5 sm:p-1 rounded-full shrink-0 ${
-                          !n.read ? "bg-white/10" : "bg-white/5"
+                          !n.read ? "bg-gray-100 dark:bg-white/10" : "bg-gray-100 dark:bg-white/5"
                         }`}>
                           {icons[n.type as keyof typeof icons] || <Bell size={11} className="sm:w-3 sm:h-3" />}
                         </span>
                       </div>
                       
                       <div className="flex items-center justify-between gap-2 mt-1">
-                        <p className="text-[11px] sm:text-xs text-white/40 shrink-0">
+                        <p className="text-[11px] sm:text-xs text-gray-500 dark:text-white/40 shrink-0">
                           {timeAgo(n.created_at, t, locale)}
                         </p>
 

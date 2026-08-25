@@ -39,10 +39,10 @@ useEffect(() => {
       target="_blank" 
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
-      className="mt-2 flex gap-3 rounded-lg border border-white/10 bg-white/5 p-3 transition-colors hover:bg-white/10"
+      className="mt-2 flex gap-3 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 p-3 transition-colors hover:bg-gray-100 dark:hover:bg-white/10"
     >
       <div className="min-w-0 flex-1 border-l-2 border-pink-500 pl-3">
-        <div className="truncate text-xs text-pink-400">{data.site}</div>
+        <div className="truncate text-xs text-pink-600 dark:text-pink-400">{data.site}</div>
         <div className="mt-0.5 line-clamp-2 text-sm font-semibold">{data.title}</div>
         {data.description && (
           <div className="mt-0.5 line-clamp-2 text-xs text-zinc-400">{data.description}</div>

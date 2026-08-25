@@ -77,8 +77,8 @@ export const MessageBubble = memo(function MessageBubble({
         onPointerLeave={onPointerLeave}
       >
         {isSelectMode && (
-          <div className={`shrink-0 w-5 h-5 sm:w-5 sm:h-5 rounded-md border-2 flex items-center justify-center mt-2 transition-colors ${isSelected ? "bg-[#8b5cf6] border-[#8b5cf6]" : "border-white/30"}`}>
-            {isSelected && <Check size={12} className="text-white" />}
+          <div className={`shrink-0 w-5 h-5 sm:w-5 sm:h-5 rounded-md border-2 flex items-center justify-center mt-2 transition-colors ${isSelected ? "bg-[#8b5cf6] border-[#8b5cf6]" : "border-gray-200 dark:border-white/30"}`}>
+            {isSelected && <Check size={12} className="text-gray-900 dark:text-white" />}
           </div>
         )}
 
@@ -96,13 +96,13 @@ export const MessageBubble = memo(function MessageBubble({
           )}
 
           <div className={`${bubbleRadius} transition-all ${isSelected ? "ring-2 ring-[#8b5cf6] ring-offset-2 ring-offset-[#171717]" : ""} ${isVideoNote || isAudio || isSticker ? "p-0 bg-transparent border-0 rounded-2xl overflow-hidden" : `px-3 sm:px-3.5 md:px-4 py-2 sm:py-2 ${isForwarded ? 
-            (isMine ? "bg-cyan-600 text-white border-l-4 border-cyan-400" : "bg-cyan-950/40 text-white border-l-4 border-cyan-400") : (isMine ? (isSecret ? "bg-emerald-600 text-white" : "bg-[#8b5cf6] text-white") : "bg-white/10 text-white border border-white/15")}`}`}>            
+            (isMine ? "bg-cyan-600 text-white border-l-4 border-cyan-600 dark:border-cyan-400" : "bg-cyan-950/40 text-white border-l-4 border-cyan-600 dark:border-cyan-400") : (isMine ? (isSecret ? "bg-emerald-600 text-white" : "bg-[#8b5cf6] text-white") : "bg-gray-100 dark:bg-white/10 text-white border border-gray-200 dark:border-white/15")}`}`}>            
             
             {/* Медиа контент */}
             {msg.media_url && isEncryptedMedia ? (
               msg.media_url === "temp_encrypted_media" ? (
-                <div className="w-56 h-56 rounded-2xl bg-white/5 animate-pulse flex items-center justify-center">
-                  <Lock size={20} className="text-white/30" />
+                <div className="w-56 h-56 rounded-2xl bg-gray-100 dark:bg-white/5 animate-pulse flex items-center justify-center">
+                  <Lock size={20} className="text-gray-500 dark:text-white/30" />
                 </div>
               ) : (
                 <EncryptedMediaPlayer mediaUrl={msg.media_url} mediaType={msg.media_type} chatId={Number(chatId)} />
@@ -142,13 +142,13 @@ export const MessageBubble = memo(function MessageBubble({
                   }
                 }}
                 className={`w-full text-left mb-2 p-2 rounded-lg border-l-2 transition-colors cursor-pointer ${
-                  isMine ? "bg-white/15 border-white/60 hover:bg-white/20" : "bg-white/5 border-[#8b5cf6] hover:bg-white/10"
+                  isMine ? "bg-gray-100 dark:bg-white/15 border-gray-300 dark:border-white/60 hover:bg-gray-100 dark:hover:bg-white/20" : "bg-gray-100 dark:bg-white/5 border-[#8b5cf6] hover:bg-gray-100 dark:hover:bg-white/10"
                 }`}
               >
-                <p className={`text-[11px] font-bold mb-0.5 ${isMine ? "text-white/90" : "text-[#8b5cf6]"}`}>
+                <p className={`text-[11px] font-bold mb-0.5 ${isMine ? "text-gray-800 dark:text-white/90" : "text-[#8b5cf6]"}`}>
                   {msg.reply_preview.sender_name}
                 </p>
-                <p className={`text-[11px] truncate ${isMine ? "text-white/70" : "text-white/50"}`}>
+                <p className={`text-[11px] truncate ${isMine ? "text-gray-800 dark:text-white/70" : "text-gray-600 dark:text-white/50"}`}>
                   {msg.reply_preview.text || "📎 Вложение"}
                 </p>
               </button>
@@ -173,7 +173,7 @@ export const MessageBubble = memo(function MessageBubble({
                   className={`flex items-center gap-1 px-2 py-1 rounded-full text-[13px] border transition-all active:scale-90 ${
                     r.me
                     ? "bg-[#8b5cf6]/25 border-[#8b5cf6] shadow-[0_0_8px_rgba(139,92,246,0.3)]"
-                    : "bg-white/5 border-white/15 hover:bg-white/10"
+                    : "bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/15 hover:bg-gray-100 dark:hover:bg-white/10"
                   }`}
                 >
                   {r.type === "sticker" ? (
@@ -182,7 +182,7 @@ export const MessageBubble = memo(function MessageBubble({
                   ) : (
                     <span>{r.emoji}</span>
                   )}
-                  <span className={`text-[11px] font-bold ${r.me ? "text-[#a78bfa]" : "text-white/60"}`}>
+                  <span className={`text-[11px] font-bold ${r.me ? "text-[#a78bfa]" : "text-gray-600 dark:text-white/60"}`}>
                     {r.count}
                   </span>
                 </button>
@@ -193,16 +193,16 @@ export const MessageBubble = memo(function MessageBubble({
           {/* Время и галочки */}
           {!isEditing && !isSelectMode && (
             <div className={`flex items-center gap-1.5 sm:gap-2 mt-1 px-1 ${isMine ? "flex-row-reverse" : "flex-row"}`}>
-              <p className={`text-[10px] sm:text-[11px] flex items-center gap-1 ${isMine ? "text-white/60" : "text-white/40"}`}>
+              <p className={`text-[10px] sm:text-[11px] flex items-center gap-1 ${isMine ? "text-gray-600 dark:text-white/60" : "text-gray-500 dark:text-white/40"}`}>
                 {isPinned && <Pin size={10} className="text-[#8b5cf6]" />}
                 {formatChatTime(msg.created_at)}
-                {isMine && (msg.read ? <CheckCheck size={12} className="text-sky-300" /> : <Check size={12} className="text-white/50" />)}
+                {isMine && (msg.read ? <CheckCheck size={12} className="text-sky-600 dark:text-sky-300" /> : <Check size={12} className="text-gray-600 dark:text-white/50" />)}
               </p>
-              <button onClick={onReactionClick} className="p-1 text-white/40 hover:text-[#8b5cf6] active:scale-90 transition-transform" title="Реакция">
+              <button onClick={onReactionClick} className="p-1 text-gray-500 dark:text-white/40 hover:text-[#8b5cf6] active:scale-90 transition-transform" title="Реакция">
                 <SmilePlus size={14} />
               </button>
               {!isSecret && (
-                <button onClick={onMenuClick} className="p-1 text-white/40 hover:text-white active:scale-90 transition-transform">
+                <button onClick={onMenuClick} className="p-1 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white active:scale-90 transition-transform">
                   <MoreVertical size={13} />
                 </button>
               )}

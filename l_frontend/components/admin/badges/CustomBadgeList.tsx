@@ -15,7 +15,7 @@ export function CustomBadgeList({ badges, loading, onEdit, onDelete, onAssign }:
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="h-32 bg-[#1a1a1a] rounded-xl border border-white/5 animate-pulse" />
+          <div key={i} className="h-32 bg-white dark:bg-[#1a1a1a] rounded-xl border border-gray-200 dark:border-white/5 animate-pulse" />
         ))}
       </div>
     );
@@ -33,7 +33,7 @@ export function CustomBadgeList({ badges, loading, onEdit, onDelete, onAssign }:
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {badges.map((badge) => (
-        <div key={badge.id} className="bg-[#171717] border border-white/10 rounded-xl p-4 hover:border-white/20 transition-colors">
+        <div key={badge.id} className="bg-gray-50 dark:bg-[#171717] border border-gray-200 dark:border-white/10 rounded-xl p-4 hover:border-gray-200 dark:hover:border-white/20 transition-colors">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               {badge.icon_url && (
@@ -42,7 +42,7 @@ export function CustomBadgeList({ badges, loading, onEdit, onDelete, onAssign }:
               <span className="font-medium text-sm">{badge.name}</span>
             </div>
             <span className={`px-1.5 py-0.5 rounded text-xs ${
-              badge.is_active ? "bg-green-500/20 text-green-400" : "bg-gray-500/20 text-gray-400"
+              badge.is_active ? "bg-green-500/20 text-green-600 dark:text-green-400" : "bg-gray-500/20 text-gray-400"
             }`}>
               {badge.is_active ? "Активна" : "Скрыта"}
             </span>
@@ -55,19 +55,19 @@ export function CustomBadgeList({ badges, loading, onEdit, onDelete, onAssign }:
           <div className="flex gap-1">
             <button
               onClick={() => onAssign(badge)}
-              className="flex-1 px-2 py-1.5 text-xs bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded"
+              className="flex-1 px-2 py-1.5 text-xs bg-blue-500/20 hover:bg-blue-500/30 text-blue-600 dark:text-blue-400 rounded"
             >
               Выдать
             </button>
             <button
               onClick={() => onEdit(badge)}
-              className="px-2 py-1.5 text-xs bg-white/5 hover:bg-white/10 rounded"
+              className="px-2 py-1.5 text-xs bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded"
             >
               ✏️
             </button>
             <button
               onClick={() => onDelete(badge.id)}
-              className="px-2 py-1.5 text-xs bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded"
+              className="px-2 py-1.5 text-xs bg-red-500/20 hover:bg-red-500/30 text-red-600 dark:text-red-400 rounded"
             >
               🗑️
             </button>

@@ -70,30 +70,30 @@ export function VideoNotePlayer({ src, trackId, title }: { src: string; trackId?
         className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
       />
       
-      <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 text-[10px] font-mono text-white/80">
+      <span className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/60 text-[10px] font-mono text-gray-800 dark:text-white/80">
         {fmt(active ? gp.duration || dur : dur)}
       </span>
 
       {active && (
-        <div className="absolute bottom-0 inset-x-0 h-1 bg-white/10">
+        <div className="absolute bottom-0 inset-x-0 h-1 bg-gray-100 dark:bg-white/10">
           <div className="h-full bg-[#8b5cf6] transition-all duration-200" style={{ width: `${progress}%` }} />
         </div>
       )}
 
       {!loaded && !failed && (
-        <div className="absolute inset-0 bg-[#0d0d10]">
+        <div className="absolute inset-0 bg-gray-50 dark:bg-[#0d0d10]">
           <div className="absolute inset-0 skeleton-shimmer" />
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-            <div className="w-11 h-11 rounded-full bg-white/10 animate-pulse flex items-center justify-center">
+            <div className="w-11 h-11 rounded-full bg-gray-100 dark:bg-white/10 animate-pulse flex items-center justify-center">
               <Video size={18} className="text-[#a78bfa]" />
             </div>
-            <span className="text-[10px] font-medium text-white/30">Загрузка…</span>
+            <span className="text-[10px] font-medium text-gray-500 dark:text-white/30">Загрузка…</span>
           </div>
         </div>
       )}
 
       {failed && (
-        <div className="absolute inset-0 bg-[#0d0d10] flex flex-col items-center justify-center gap-1.5 text-white/30">
+        <div className="absolute inset-0 bg-gray-50 dark:bg-[#0d0d10] flex flex-col items-center justify-center gap-1.5 text-gray-500 dark:text-white/30">
           <VideoOff size={20} />
           <span className="text-[10px] font-bold">видео недоступно</span>
         </div>

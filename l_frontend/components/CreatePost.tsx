@@ -209,8 +209,8 @@ export function CreatePost() {
 
   if (!logged) {
     return (
-      <div className="p-4 border-b border-white/10">
-        <Link href="/login" className="block text-center border border-white/20 rounded-xl py-3 font-bold text-white/80 hover:bg-white/10 hover:text-white transition-all">
+      <div className="p-4 border-b border-gray-200 dark:border-white/10">
+        <Link href="/login" className="block text-center border border-gray-200 dark:border-white/20 rounded-xl py-3 font-bold text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white transition-all">
           {t("compose.loginToPost")}
         </Link>
       </div>
@@ -218,18 +218,18 @@ export function CreatePost() {
   }
 
   return (
-    <div className="p-4 border-b border-white/10">
+    <div className="p-4 border-b border-gray-200 dark:border-white/10">
       <div className="flex gap-3">
         <Avatar src={user?.avatar_url} name={user?.display_name || "?"} id={user?.id} />
         <div className="flex-1">
  {/* ✅ ПОЛЕ ВВОДА (только RichEditor внутри рамки) */}
-<div className="rounded-xl border border-white/15 bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] focus-within:bg-white/10 transition-all">
+<div className="rounded-xl border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] focus-within:bg-gray-100 dark:bg-white/10 transition-all">
   <RichEditor
     ref={editorRef}
     value={text}
     onChange={(v) => setText(v)}
     placeholder={t("compose.placeholder")}
-    className="w-full bg-transparent text-white placeholder-white/40 p-3 min-h-[76px] max-h-60 overflow-y-auto text-sm"
+    className="w-full bg-transparent text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 p-3 min-h-[76px] max-h-60 overflow-y-auto text-sm"
   />
 </div>
 
@@ -239,9 +239,9 @@ export function CreatePost() {
     {file.type.startsWith("audio/") ? (
       <div className="pr-8"><AudioPlayer src={preview} /></div>
     ) : file.type.startsWith("video/") ? (
-      <video src={preview} controls className="max-h-48 rounded-xl border border-white/20" />
+      <video src={preview} controls className="max-h-48 rounded-xl border border-gray-200 dark:border-white/20" />
     ) : (
-      <img src={preview} alt="" className="max-h-48 rounded-xl border border-white/20" />
+      <img src={preview} alt="" className="max-h-48 rounded-xl border border-gray-200 dark:border-white/20" />
     )}
     <button
       onClick={() => onFile(null)}
@@ -264,7 +264,7 @@ export function CreatePost() {
 />
 
 {error && (
-  <div className="mt-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-semibold">
+  <div className="mt-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-sm font-semibold">
     {error}
   </div>
 )}
@@ -273,18 +273,18 @@ export function CreatePost() {
   <div className="flex items-center justify-between mt-3 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
     <div className="flex items-center gap-3">
       <span className="relative flex h-3 w-3">
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-600 dark:bg-red-400 opacity-75" />
         <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
       </span>
-      <span className="text-red-400 font-mono font-bold">{formatTime(recordTime)}</span>
+      <span className="text-red-600 dark:text-red-400 font-mono font-bold">{formatTime(recordTime)}</span>
       <div className="flex items-end gap-[3px] h-7">
         {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-          <span key={i} className="voice-bar w-[3px] bg-red-400 rounded-full" style={{ animationDelay: `${i * 0.12}s` }} />
+          <span key={i} className="voice-bar w-[3px] bg-red-600 dark:bg-red-400 rounded-full" style={{ animationDelay: `${i * 0.12}s` }} />
         ))}
       </div>
     </div>
     <div className="flex items-center gap-2">
-      <button onClick={cancelRecording} className="p-2 rounded-lg text-white/60 hover:text-red-400 hover:bg-red-500/10 transition-all" title={t("compose.cancelRec")}>
+      <button onClick={cancelRecording} className="p-2 rounded-lg text-white/60 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-all" title={t("compose.cancelRec")}>
         <Trash2 size={20} />
       </button>
       <button onClick={stopRecording} className="flex items-center gap-2 bg-red-500 text-white rounded-lg px-4 py-2 font-semibold hover:bg-red-600 transition-all">
@@ -295,20 +295,20 @@ export function CreatePost() {
 ) : (
   <div className="flex items-center justify-between mt-3">
     <div className="flex gap-3 relative">
-      <button className="text-white/60 hover:text-[#8b5cf6] transition-colors" onClick={() => fileRef.current?.click()} title={t("compose.photoGif")}>
+      <button className="text-gray-600 dark:text-white/60 hover:text-[#8b5cf6] transition-colors" onClick={() => fileRef.current?.click()} title={t("compose.photoGif")}>
         <ImageIcon size={20} />
       </button>
-      <button className="text-white/60 hover:text-[#8b5cf6] transition-colors" onClick={() => fileRef.current?.click()} title={t("compose.video")}>
+      <button className="text-gray-600 dark:text-white/60 hover:text-[#8b5cf6] transition-colors" onClick={() => fileRef.current?.click()} title={t("compose.video")}>
         <Clapperboard size={20} />
       </button>
       {canUploadAudio && (
-        <button className="text-white/60 hover:text-emerald-400 transition-colors" onClick={startRecording} title={t("compose.voice")}>
+        <button className="text-gray-600 dark:text-white/60 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors" onClick={startRecording} title={t("compose.voice")}>
           <Mic size={20} />
         </button>
       )}
       <button
         type="button"
-        className="transition-colors text-white/60 hover:text-[#8b5cf6]"
+        className="transition-colors text-gray-600 dark:text-white/60 hover:text-[#8b5cf6]"
         onClick={(e) => {
           const rect = e.currentTarget.getBoundingClientRect();
           editorRef.current?.openMenuAt(rect.left + rect.width / 2, rect.top - 8);
@@ -317,20 +317,20 @@ export function CreatePost() {
       >
         <Type size={20} />
       </button>
-      <button className={`transition-colors ${showStickers ? "text-[#8b5cf6]" : "text-white/60 hover:text-[#8b5cf6]"}`} onClick={() => setShowStickers(!showStickers)}>
+      <button className={`transition-colors ${showStickers ? "text-[#8b5cf6]" : "text-gray-600 dark:text-white/60 hover:text-[#8b5cf6]"}`} onClick={() => setShowStickers(!showStickers)}>
         <Smile size={20} />
       </button>
       {showStickers && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowStickers(false)} />
-          <div className="absolute top-full left-0 mt-2 p-3 border border-white/20 rounded-xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl z-50 w-64 max-h-72 overflow-y-auto">
-            <p className="text-xs font-bold text-white/60 mb-2 uppercase tracking-wider sticky top-0 bg-[#1f1f23]/95 pb-1">Стикеры</p>
+          <div className="absolute top-full left-0 mt-2 p-3 border border-gray-200 dark:border-white/20 rounded-xl bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl z-50 w-64 max-h-72 overflow-y-auto">
+            <p className="text-xs font-bold text-gray-600 dark:text-white/60 mb-2 uppercase tracking-wider sticky top-0 bg-white dark:bg-[#1f1f23]/95 pb-1">Стикеры</p>
             <div className="grid grid-cols-5 gap-1">
               {STICKERS.map((s) => (
                 <button
                   key={s.code}
                   onClick={() => insertSticker(s.emoji)}
-                  className="text-2xl hover:bg-white/10 rounded-lg p-1.5 transition-colors"
+                  className="text-2xl hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg p-1.5 transition-colors"
                   title={s.label}
                 >
                   {s.emoji}

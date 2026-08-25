@@ -25,36 +25,36 @@ export function BanOverlay() {
         <div className="relative flex flex-col items-center text-center gap-4">
           {/* Иконка */}
           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center shadow-lg shadow-red-500/50 animate-pulse">
-            <Ban size={40} className="text-white" />
+            <Ban size={40} className="text-gray-900 dark:text-white" />
           </div>
 
           {/* Заголовок */}
           <div>
-            <h1 className="text-3xl font-black text-red-400 tracking-widest uppercase mb-2">
+            <h1 className="text-3xl font-black text-red-600 dark:text-red-400 tracking-widest uppercase mb-2">
               {t("ban.title")}
             </h1>
             <div className="h-1 w-24 mx-auto bg-gradient-to-r from-transparent via-red-500 to-transparent" />
           </div>
 
           {/* Сообщение */}
-          <p className="text-white/70 text-sm leading-relaxed mt-2">
+          <p className="text-gray-800 dark:text-white/70 text-sm leading-relaxed mt-2">
             {t("ban.body")}
           </p>
 
           {/* Причина */}
           <div className="w-full bg-red-950/40 border border-red-500/30 rounded-lg p-4 mt-2">
-            <div className="flex items-center gap-2 text-red-400 text-xs font-bold uppercase tracking-wider mb-2">
+            <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-xs font-bold uppercase tracking-wider mb-2">
               <ShieldAlert size={14} />
               <span>{t("ban.status")}</span>
             </div>
-            <p className="text-white/90 text-sm font-semibold">BANNED</p>
-            <p className="text-white/50 text-xs mt-2">
+            <p className="text-gray-800 dark:text-white/90 text-sm font-semibold">BANNED</p>
+            <p className="text-gray-600 dark:text-white/50 text-xs mt-2">
               {t("ban.appeal")}
             </p>
           </div>
 
           {/* Нижний текст */}
-          <p className="text-white/40 text-xs mt-4">
+          <p className="text-gray-500 dark:text-white/40 text-xs mt-4">
             {t("ban.footer")}
           </p>
         </div>

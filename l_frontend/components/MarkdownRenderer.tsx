@@ -105,7 +105,7 @@ export function MarkdownRenderer({ text, isMessage = false }: { text: string; is
 
   const baseClass = isMessage
     ? "whitespace-pre-wrap break-words text-[15px] sm:text-sm md:text-base leading-snug"
-    : "text-white/90 whitespace-pre-wrap break-words";
+    : "text-gray-800 dark:text-white/90 whitespace-pre-wrap break-words";
 
   return (
     <>
@@ -145,7 +145,7 @@ export function MarkdownRenderer({ text, isMessage = false }: { text: string; is
               if (href?.startsWith("/mention/")) {
                 const username = href.split("/").pop();
                 return (
-                  <Link href={`/${username}`} className="font-bold text-pink-400 hover:text-pink-300 underline underline-offset-2" onClick={(e) => e.stopPropagation()}>
+                  <Link href={`/${username}`} className="font-bold text-pink-600 dark:text-pink-400 hover:text-pink-600 dark:hover:text-pink-300 underline underline-offset-2" onClick={(e) => e.stopPropagation()}>
                     @{username}
                   </Link>
                 );
@@ -160,7 +160,7 @@ export function MarkdownRenderer({ text, isMessage = false }: { text: string; is
               }
               const cleanHref = href?.replace(/[.,;:!?)]+$/, "") || "";
               return (
-                <a href={cleanHref} target="_blank" rel="noopener noreferrer" className="font-semibold text-sky-300 hover:text-sky-200 underline underline-offset-2 break-all" onClick={(e) => e.stopPropagation()}>
+                <a href={cleanHref} target="_blank" rel="noopener noreferrer" className="font-semibold text-sky-600 dark:text-sky-300 hover:text-sky-200 underline underline-offset-2 break-all" onClick={(e) => e.stopPropagation()}>
                   {cleanHref}
                 </a>
               );
@@ -186,9 +186,9 @@ span: ({ node, className, children, ...props }) => {
             code: ({ node, className, children, ...props }) => {
               const isInline = !className;
               if (isInline) {
-                return <code className="bg-white/10 px-1.5 py-0.5 rounded text-sm font-mono text-pink-300" {...props}>{children}</code>;
+                return <code className="bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded text-sm font-mono text-pink-600 dark:text-pink-300" {...props}>{children}</code>;
               }
-              return <code className="block bg-black/40 p-3 rounded-lg text-sm font-mono overflow-x-auto my-2 border border-white/10" {...props}>{children}</code>;
+              return <code className="block bg-black/40 p-3 rounded-lg text-sm font-mono overflow-x-auto my-2 border border-gray-200 dark:border-white/10" {...props}>{children}</code>;
             },
             p: ({ node, children, ...props }) => {
               if (isMessage) return <>{children}</>;
@@ -196,7 +196,7 @@ span: ({ node, className, children, ...props }) => {
             },
             ul: ({ node, children, ...props }) => <ul className="list-disc pl-5 mb-2 space-y-1" {...props}>{children}</ul>,
             ol: ({ node, children, ...props }) => <ol className="list-decimal pl-5 mb-2 space-y-1" {...props}>{children}</ol>,
-            blockquote: ({ node, children, ...props }) => <blockquote className="border-l-3 border-[#8b5cf6] pl-3 text-white/70 italic my-2" {...props}>{children}</blockquote>,
+            blockquote: ({ node, children, ...props }) => <blockquote className="border-l-3 border-[#8b5cf6] pl-3 text-gray-800 dark:text-white/70 italic my-2" {...props}>{children}</blockquote>,
             h1: ({ node, children, ...props }) => <h1 className="text-xl font-black mb-2" {...props}>{children}</h1>,
             h2: ({ node, children, ...props }) => <h2 className="text-lg font-bold mb-1" {...props}>{children}</h2>,
             h3: ({ node, children, ...props }) => <h3 className="text-base font-bold mb-1" {...props}>{children}</h3>,

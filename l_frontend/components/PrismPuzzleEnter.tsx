@@ -85,11 +85,11 @@ export function PrismPuzzleEnter({ chatId, onEnterSuccess }: PrismPuzzleEnterPro
     }
   };
 
-  if (!landscape) return <div className="p-6 text-white">Загрузка пейзажа...</div>;
+  if (!landscape) return <div className="p-6 text-gray-900 dark:text-white">Загрузка пейзажа...</div>;
 
   return (
-    <div className="p-6 bg-[#0f1225] rounded-xl border border-white/10 max-w-2xl mx-auto">
-      <h2 className="text-xl font-bold text-white mb-2 text-center">Prism Decryption</h2>
+    <div className="p-6 bg-gray-50 dark:bg-[#0f1225] rounded-xl border border-gray-200 dark:border-white/10 max-w-2xl mx-auto">
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2 text-center">Prism Decryption</h2>
       <p className="text-gray-400 text-sm mb-4 text-center">
         {step === 'select' 
           ? "Выберите объект, который служит вашим ключом" 
@@ -97,7 +97,7 @@ export function PrismPuzzleEnter({ chatId, onEnterSuccess }: PrismPuzzleEnterPro
       </p>
 
       {/* Контейнер для SVG */}
-      <div className="relative w-full aspect-[4/3] bg-[#050714] rounded-lg overflow-hidden border border-cyan-500/30 mb-4 shadow-[0_0_30px_rgba(6,182,212,0.1)]">
+      <div className="relative w-full aspect-[4/3] bg-gray-50 dark:bg-[#050714] rounded-lg overflow-hidden border border-cyan-500/30 mb-4 shadow-[0_0_30px_rgba(6,182,212,0.1)]">
         
         {/* Рендерим фоновые элементы из оригинального SVG (не интерактивные) */}
         <div dangerouslySetInnerHTML={{ __html: landscape.svg }} className="absolute inset-0 opacity-50 pointer-events-none" />
@@ -151,14 +151,14 @@ export function PrismPuzzleEnter({ chatId, onEnterSuccess }: PrismPuzzleEnterPro
 
         {/* Подсказка при наведении (опционально) */}
         {step === 'select' && (
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-white text-xs px-3 py-1 rounded-full backdrop-blur-sm">
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/60 text-gray-900 dark:text-white text-xs px-3 py-1 rounded-full backdrop-blur-sm">
             Наведите и нажмите на светящийся объект
           </div>
         )}
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-lg mb-4 text-sm text-center">
+        <div className="bg-red-500/10 border border-red-500/50 text-red-600 dark:text-red-400 p-3 rounded-lg mb-4 text-sm text-center">
           {error}
         </div>
       )}
@@ -168,7 +168,7 @@ export function PrismPuzzleEnter({ chatId, onEnterSuccess }: PrismPuzzleEnterPro
           <button
             onClick={() => { setStep('select'); setSelectedObjectId(null); }}
             disabled={loading}
-            className="flex-1 p-3 bg-white/5 hover:bg-white/10 border border-white/20 rounded-lg text-white font-medium transition-colors"
+            className="flex-1 p-3 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg text-gray-900 dark:text-white font-medium transition-colors"
           >
             Отмена
           </button>
@@ -177,10 +177,10 @@ export function PrismPuzzleEnter({ chatId, onEnterSuccess }: PrismPuzzleEnterPro
         <button
           onClick={handleSubmit}
           disabled={loading || step === 'select'}
-          className={`flex-1 p-3 rounded-lg text-white font-bold transition-all ${
+          className={`flex-1 p-3 rounded-lg text-gray-900 dark:text-white font-bold transition-all ${
             step === 'select' 
               ? 'bg-gray-700 cursor-not-allowed opacity-50' 
-              : 'bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-400 hover:to-purple-500 shadow-lg shadow-cyan-500/20'
+              : 'bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 dark:hover:from-cyan-400 hover:to-purple-500 shadow-lg shadow-cyan-500/20'
           }`}
         >
           {loading ? 'Проверка ключа...' : 'Расшифровать чат'}

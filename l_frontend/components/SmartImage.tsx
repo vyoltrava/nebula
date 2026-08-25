@@ -19,7 +19,7 @@ export function SmartImage({ src, alt = "", wrapperClassName = "", imgClassName 
   useEffect(() => { setStatus("loading"); setAttempt(0); }, [src]);
 
   return (
-    <div className={`relative overflow-hidden bg-white/5 ${wrapperClassName}`}>
+    <div className={`relative overflow-hidden bg-gray-100 dark:bg-white/5 ${wrapperClassName}`}>
       {status !== "error" && src && (
         <img
           key={attempt}
@@ -38,7 +38,7 @@ export function SmartImage({ src, alt = "", wrapperClassName = "", imgClassName 
           {fallback ?? (
             <button
               onClick={() => { setStatus("loading"); setAttempt((a) => a + 1); }}
-              className="flex flex-col items-center gap-1 text-white/30 hover:text-white/60 transition-colors"
+              className="flex flex-col items-center gap-1 text-gray-500 dark:text-white/30 hover:text-gray-600 dark:hover:text-white/60 transition-colors"
               title="Повторить"
             >
               <ImageOff size={18} />

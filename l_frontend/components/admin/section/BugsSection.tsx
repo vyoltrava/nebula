@@ -5,17 +5,17 @@ import { getToken } from "@/lib/auth";
 import { Bug, AlertCircle, Clock, CheckCircle, XCircle, Trash2, X } from "lucide-react";
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
-  new: { label: "Новый", color: "text-blue-400", bg: "bg-blue-500/10", border: "border-blue-400/30", icon: AlertCircle },
-  in_progress: { label: "В обработке", color: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-400/30", icon: Clock },
-  resolved: { label: "Решено", color: "text-green-400", bg: "bg-green-500/10", border: "border-green-400/30", icon: CheckCircle },
-  rejected: { label: "Отклонено", color: "text-red-400", bg: "bg-red-500/10", border: "border-red-400/30", icon: XCircle },
+  new: { label: "Новый", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10", border: "border-blue-400/30", icon: AlertCircle },
+  in_progress: { label: "В обработке", color: "text-yellow-600 dark:text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-400/30", icon: Clock },
+  resolved: { label: "Решено", color: "text-green-600 dark:text-green-400", bg: "bg-green-500/10", border: "border-green-400/30", icon: CheckCircle },
+  rejected: { label: "Отклонено", color: "text-red-600 dark:text-red-400", bg: "bg-red-500/10", border: "border-red-400/30", icon: XCircle },
 };
 
 const PRIORITY_CFG: Record<string, { label: string; color: string }> = {
-  low: { label: "Низкий", color: "text-green-400" },
-  medium: { label: "Средний", color: "text-yellow-400" },
-  high: { label: "Высокий", color: "text-orange-400" },
-  critical: { label: "Критический", color: "text-red-400" },
+  low: { label: "Низкий", color: "text-green-600 dark:text-green-400" },
+  medium: { label: "Средний", color: "text-yellow-600 dark:text-yellow-400" },
+  high: { label: "Высокий", color: "text-orange-600 dark:text-orange-400" },
+  critical: { label: "Критический", color: "text-red-600 dark:text-red-400" },
 };
 
 export function BugsSection({ me }: { me: any }) {
@@ -70,23 +70,23 @@ export function BugsSection({ me }: { me: any }) {
           const Icon = cfg.icon;
           return (
             <button key={key} onClick={() => setStatusFilter(statusFilter === key ? null : key)}
-              className={`border rounded-xl p-4 text-left transition-all ${statusFilter === key ? `${cfg.border} ${cfg.bg}` : "border-white/10 bg-white/5 hover:bg-white/10"}`}>
+              className={`border rounded-xl p-4 text-left transition-all ${statusFilter === key ? `${cfg.border} ${cfg.bg}` : "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10"}`}>
               <div className="flex items-center justify-between mb-2">
                 <Icon size={18} className={cfg.color} />
                 <span className={`text-2xl font-black ${cfg.color}`}>{counts[key as keyof typeof counts]}</span>
               </div>
-              <p className="text-sm font-bold text-white/80">{cfg.label}</p>
+              <p className="text-sm font-bold text-gray-800 dark:text-white/80">{cfg.label}</p>
             </button>
           );
         })}
       </div>
 
       {loading ? (
-        <p className="text-center text-white/50 py-12">Загрузка...</p>
+        <p className="text-center text-gray-600 dark:text-white/50 py-12">Загрузка...</p>
       ) : bugs.length === 0 ? (
-        <div className="p-12 text-center border border-white/10 rounded-xl bg-white/5">
-          <Bug size={48} className="mx-auto text-white/20 mb-4" />
-          <p className="text-white/60">Обращений пока нет</p>
+        <div className="p-12 text-center border border-gray-200 dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5">
+          <Bug size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
+          <p className="text-gray-600 dark:text-white/60">Обращений пока нет</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -95,18 +95,18 @@ export function BugsSection({ me }: { me: any }) {
             const pc = PRIORITY_CFG[bug.priority] || PRIORITY_CFG.medium;
             const Icon = sc.icon;
             return (
-              <div key={bug.id} onClick={() => setSelected(bug)} className={`border rounded-xl p-4 hover:bg-white/5 cursor-pointer ${sc.border}`}>
+              <div key={bug.id} onClick={() => setSelected(bug)} className={`border rounded-xl p-4 hover:bg-gray-100 dark:hover:bg-white/5 cursor-pointer ${sc.border}`}>
                 <div className="flex items-start gap-4">
                   <div className={`p-2 rounded-lg ${sc.bg} shrink-0`}><Icon size={20} className={sc.color} /></div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-2">
-                      <h3 className="font-bold text-white truncate">{bug.title}</h3>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${pc.color} bg-white/5 border border-white/10`}>{pc.label}</span>
+                      <h3 className="font-bold text-gray-900 dark:text-white truncate">{bug.title}</h3>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${pc.color} bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10`}>{pc.label}</span>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${sc.color} ${sc.bg}`}>{sc.label}</span>
                     </div>
-                    <p className="text-sm text-white/60 line-clamp-2">{bug.description}</p>
-                    <div className="flex items-center gap-4 mt-2 text-xs text-white/40 flex-wrap">
-                      <span>От: <span className="text-white/70">{bug.reporter?.display_name}</span></span>
+                    <p className="text-sm text-gray-600 dark:text-white/60 line-clamp-2">{bug.description}</p>
+                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-white/40 flex-wrap">
+                      <span>От: <span className="text-gray-800 dark:text-white/70">{bug.reporter?.display_name}</span></span>
                       <span>{new Date(bug.created_at).toLocaleString("ru-RU")}</span>
                     </div>
                   </div>
@@ -122,37 +122,37 @@ export function BugsSection({ me }: { me: any }) {
         <>
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]" onClick={() => setSelected(null)} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full max-w-2xl border border-white/20 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
+            <div className="w-full max-w-2xl border border-gray-200 dark:border-white/20 rounded-2xl bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
               <div className="flex items-start justify-between mb-4 gap-3">
                 <div className="flex-1 min-w-0">
-                  <h2 className="text-lg sm:text-xl font-black text-white">{selected.title}</h2>
-                  <p className="text-sm text-white/50 mt-1">
+                  <h2 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white">{selected.title}</h2>
+                  <p className="text-sm text-gray-600 dark:text-white/50 mt-1">
                     ID #{selected.id} • От:{" "}
                     {selected.reporter ? (
                       <Link href={`/user/${selected.reporter.id}`} className="text-[#8b5cf6] hover:underline">@{selected.reporter.username}</Link>
                     ) : "неизвестен"}
                   </p>
                 </div>
-                <button onClick={() => setSelected(null)} className="text-white/60 hover:text-white p-1.5 rounded-lg hover:bg-white/10"><X size={20} /></button>
+                <button onClick={() => setSelected(null)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"><X size={20} /></button>
               </div>
-              <p className="text-white/90 whitespace-pre-wrap bg-white/5 p-4 rounded-lg border border-white/10 mb-6">{selected.description}</p>
-              <h3 className="text-sm font-bold text-white/80 mb-3">Сменить статус:</h3>
+              <p className="text-gray-800 dark:text-white/90 whitespace-pre-wrap bg-gray-100 dark:bg-white/5 p-4 rounded-lg border border-gray-200 dark:border-white/10 mb-6">{selected.description}</p>
+              <h3 className="text-sm font-bold text-gray-800 dark:text-white/80 mb-3">Сменить статус:</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
                 {Object.entries(STATUS_CFG).map(([key, cfg]) => {
                   const Icon = cfg.icon;
                   return (
                     <button key={key} onClick={() => updateStatus(selected.id, key)} disabled={selected.status === key}
-                      className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold ${selected.status === key ? `${cfg.border} ${cfg.bg} ${cfg.color}` : "border-white/20 text-white/60 hover:bg-white/10"} disabled:opacity-60`}>
+                      className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-bold ${selected.status === key ? `${cfg.border} ${cfg.bg} ${cfg.color}` : "border-gray-200 dark:border-white/20 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"} disabled:opacity-60`}>
                       <Icon size={14} /> {cfg.label}
                     </button>
                   );
                 })}
               </div>
-              <div className="flex gap-3 pt-2 border-t border-white/10">
-                <button onClick={() => deleteBug(selected.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-400/30 text-red-400 hover:bg-red-500/10 text-sm font-bold">
+              <div className="flex gap-3 pt-2 border-t border-gray-200 dark:border-white/10">
+                <button onClick={() => deleteBug(selected.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-400/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 text-sm font-bold">
                   <Trash2 size={16} /> Удалить
                 </button>
-                <button onClick={() => setSelected(null)} className="flex-1 border border-white/20 rounded-lg py-2 font-bold text-white/80 hover:bg-white/10">Закрыть</button>
+                <button onClick={() => setSelected(null)} className="flex-1 border border-gray-200 dark:border-white/20 rounded-lg py-2 font-bold text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10">Закрыть</button>
               </div>
             </div>
           </div>

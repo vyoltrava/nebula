@@ -79,11 +79,11 @@ export function ReportModal({
         onClick={onClose}
       />
       <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-md border border-white/20 rounded-2xl bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl pointer-events-auto p-6">
+        <div className="w-full max-w-md border border-gray-200 dark:border-white/20 rounded-2xl bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl pointer-events-auto p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Flag size={20} className="text-red-400" />
-              <h2 className="text-xl font-black text-white">
+              <Flag size={20} className="text-red-600 dark:text-red-400" />
+              <h2 className="text-xl font-black text-gray-900 dark:text-white">
                 {targetType === "post" ? t("report.post") : t("report.user")}
               </h2>
             </div>
@@ -93,8 +93,8 @@ export function ReportModal({
           {success ? (
             <div className="text-center py-8">
               <div className="text-5xl mb-3">✅</div>
-              <p className="text-white font-bold">{t("report.success")}</p>
-              <p className="text-white/60 text-sm mt-1">
+              <p className="text-gray-900 dark:text-white font-bold">{t("report.success")}</p>
+              <p className="text-gray-600 dark:text-white/60 text-sm mt-1">
                 {t("report.successHint")}
               </p>
             </div>
@@ -102,7 +102,7 @@ export function ReportModal({
             <div className="space-y-4">
               {/* Причины */}
               <div>
-                <label className="block text-sm font-bold text-white/80 mb-2">
+                <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">
                   {t("report.reasonLabel")}
                 </label>
                 <div className="space-y-2">
@@ -112,7 +112,7 @@ export function ReportModal({
                       className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
                         reason === r.id
                           ? "border-red-400/50 bg-red-500/10"
-                          : "border-white/10 bg-white/5 hover:bg-white/10"
+                          : "border-gray-200 dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10"
                       }`}
                     >
                       <input
@@ -122,7 +122,7 @@ export function ReportModal({
                         className="w-4 h-4 text-red-500 focus:ring-red-500"
                       />
                       <span className="text-lg">{r.icon}</span>
-                      <span className="text-sm text-white/90 font-semibold">{t(r.labelKey)}</span>
+                      <span className="text-sm text-gray-800 dark:text-white/90 font-semibold">{t(r.labelKey)}</span>
                     </label>
                   ))}
                 </div>
@@ -130,7 +130,7 @@ export function ReportModal({
 
               {/* Комментарий */}
               <div>
-                <label className="block text-sm font-bold text-white/80 mb-2">
+                <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">
                   {t("report.commentLabel")}
                 </label>
                 <textarea
@@ -138,12 +138,12 @@ export function ReportModal({
                   onChange={(e) => setComment(e.target.value)}
                   placeholder={t("report.details")}
                   rows={3}
-                  className="w-full border border-white/15 rounded-lg px-3 py-2 bg-white/5 text-white placeholder-white/40 focus:outline-none focus:border-red-400/50 resize-none"
+                  className="w-full border border-gray-200 dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-red-400/50 resize-none"
                 />
               </div>
 
               {error && (
-                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm font-semibold">
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-sm font-semibold">
                   {error}
                 </div>
               )}
