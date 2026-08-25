@@ -239,58 +239,60 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
   };
 
   // Live preview badge style
+  // Live preview badge style
   const getPreviewStyle = () => {
     const style: React.CSSProperties = {};
     
-    // Фон
+    // 1. Фон
     if (bgType === "gradient") {
-      style.background = bgGradient;
+      style.backgroundImage = bgGradient;
     } else if (bgType === "image" && bgImagePreview) {
-      style.backgroundImage = `url(${bgImagePreview})`;
+      style.backgroundImage = `url('${bgImagePreview}')`;
       style.backgroundSize = bgImageMode;
       style.backgroundPosition = "center";
       style.backgroundRepeat = bgImageMode === "tile" ? "repeat" : "no-repeat";
-      style.backgroundColor = "#3b82f6";
+      style.backgroundColor = bgColor || "#3b82f6"; // Fallback
     } else {
-      style.backgroundColor = bgColor;
+      style.backgroundColor = bgColor || "#3b82f6";
     }
 
-    // Обводка
-    style.borderColor = borderColor;
-    style.borderWidth = `${borderWidth}px`;
-    style.borderStyle = borderStyle;
+    // 2. Металлический эффект (БЕЗОПАСНАЯ конкатенация)
+    if (metallicEnabled) {
+      const metallicGradient = "linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.1) 100%)";
+      if (style.backgroundImage) {
+        style.backgroundImage = `${style.backgroundImage}, ${metallicGradient}`;
+      } else {
+        style.backgroundImage = metallicGradient;
+      }
+    }
 
-    // Тени и свечение
-    let boxShadow = "";
+    // 3. Обводка
+    if (borderWidth > 0) {
+      style.border = `${borderWidth}px ${borderStyle} ${borderColor}`;
+    }
+
+    // 4. Тени (Сборка в массив)
+    const shadows: string[] = [];
     if (shadowEnabled) {
-      boxShadow = `${shadowOffsetX}px ${shadowOffsetY}px ${shadowBlur}px ${shadowColor}`;
+      shadows.push(`${shadowOffsetX}px ${shadowOffsetY}px ${shadowBlur}px ${shadowColor}`);
     }
-    
-    // Добавляем Inner Glow и Specular к box-shadow
     if (innerGlowEnabled) {
-      boxShadow += boxShadow ? `, inset 0 0 15px rgba(255, 255, 255, 0.4)` : `inset 0 0 15px rgba(255, 255, 255, 0.4)`;
+      shadows.push(`inset 0 0 15px rgba(255, 255, 255, 0.4)`);
     }
     if (specularEnabled) {
-      boxShadow += boxShadow ? `, inset 0 4px 6px rgba(255, 255, 255, 0.6)` : `inset 0 4px 6px rgba(255, 255, 255, 0.6)`;
+      shadows.push(`inset 0 4px 6px rgba(255, 255, 255, 0.6)`);
     }
-    
-    if (boxShadow) {
-      style.boxShadow = boxShadow;
-    }
-
-    // Металлический эффект (градиентный оверлей)
-    if (metallicEnabled) {
-      style.backgroundImage = style.backgroundImage 
-        ? `${style.backgroundImage}, linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.1) 100%)`
-        : 'linear-gradient(135deg, #e2e8f0 0%, #94a3b8 50%, #cbd5e1 100%)';
+    if (shadows.length > 0) {
+      style.boxShadow = shadows.join(", ");
     }
 
-    // Border Glow (используем filter, так как он лучше работает с drop-shadow)
+    // 5. Свечение обводки
     if (borderGlow) {
       style.filter = `drop-shadow(0 0 ${borderGlowIntensity}px ${borderColor})`;
     }
 
-  style.color = textColor; // 🆕 ДОБАВЛЕНО: применяем цвет текста
+    // 6. Цвет текста (для мгновенного отображения в превью)
+    style.color = textColor;
 
     return style;
   };
@@ -338,7 +340,8 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                 {iconPreview && (
                   <img src={iconPreview} alt="" className="w-5 h-5 mr-2 object-contain" />
                 )}
-                <span className="text-sm font-bold text-white drop-shadow-md whitespace-nowrap">
+                {/* Убрали text-white, цвет теперь берется из getPreviewStyle().color */}
+                <span className="text-sm font-bold drop-shadow-md whitespace-nowrap">
                   {textContent || name || "Плашка"}
                 </span>
               </div>

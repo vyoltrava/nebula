@@ -35,11 +35,11 @@ export function AvatarFrame({
   availableBadges.find((b: any) => b.user_id === user.id) ||
   availableBadges.find((b: any) => b.role_id === user.role?.id);
 
-  // Фоллбэк для Founder, если нет другого значка
+  // Фоллбэк для Founder
   if (!userBadge && level === 10) {
      userBadge = {
          id: 999,
-         icon_url: "/hello-kitty.png", // Или твоя иконка фаундера
+         icon_url: "/hello-kitty.png",
          glow_color: "#ffffff",
          enable_ring: true,
          enable_glow: true,
@@ -56,41 +56,46 @@ export function AvatarFrame({
         <div className="relative w-full h-full rounded-xl">
           
           {/* ═══════════════════════════════════════════════════ */}
-          {/* 🌊 НОВАЯ АНИМАЦИЯ ВОЛНЫ ПО КОНТУРУ (ЧЕРЕЗ МАСКУ) */}
+          {/* 🌌 ЭФФЕКТ "ОРБИТА / ВОЛНА" ЧЕРЕЗ SVG (ЗОЛОТОЙ СТАНДАРТ) */}
           {/* ═══════════════════════════════════════════════════ */}
-          
-          {/* 1. Размытое свечение волны (Glow) */}
-          <div
-            className="absolute -inset-[2px] rounded-xl z-0"
-            style={{
-              // Градиент с длинным прозрачным "хвостом" для эффекта кометы/волны
-              background: `conic-gradient(from 0deg, transparent 0%, transparent 60%, ${glowColor}60 85%, ${glowColor} 100%)`,
-              animation: `avatar-spin 3s linear infinite`,
-              // Магия маски: вырезаем центр, оставляем только рамку толщиной 2px
-              WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-              WebkitMaskComposite: 'xor',
-              maskComposite: 'exclude',
-              padding: '2px', // Толщина линии волны
-              borderRadius: '0.75rem', // Должно строго совпадать с rounded-xl (12px)
-              filter: 'blur(4px)',
-            }}
-          />
-          
-          {/* 2. Чёткая яркая линия волны (Core) */}
-          <div
-            className="absolute -inset-[2px] rounded-xl z-0"
-            style={{
-              background: `conic-gradient(from 0deg, transparent 0%, transparent 70%, ${glowColor} 90%, ${glowColor} 100%)`,
-              animation: `avatar-spin 3s linear infinite`,
-              WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-              WebkitMaskComposite: 'xor',
-              maskComposite: 'exclude',
-              padding: '2px', // Толщина линии волны
-              borderRadius: '0.75rem',
-            }}
-          />
+          <svg 
+            className="absolute inset-0 w-full h-full overflow-visible z-0 pointer-events-none"
+            style={{ filter: `drop-shadow(0 0 6px ${glowColor})` }}
+          >
+            {/* 1. Медленная "планета" с длинным хвостом (Эффект дыхания/орбиты) */}
+            <rect
+              x="0" y="0" width="100%" height="100%" rx="12"
+              fill="none"
+              stroke={glowColor}
+              strokeWidth="3"
+              strokeDasharray="40 220" /* 40px линия, 220px разрыв */
+              className="animate-orbit-slow"
+              style={{ opacity: 0.8 }}
+            />
+            
+            {/* 2. Быстрая яркая вспышка (Ядро волны) */}
+            <rect
+              x="0" y="0" width="100%" height="100%" rx="12"
+              fill="none"
+              stroke="#ffffff" /* Белый центр для эффекта раскаленной нити */
+              strokeWidth="2"
+              strokeDasharray="20 240"
+              className="animate-orbit-fast"
+            />
 
-          {/* 3. Дополнительные декорации (уровень 9/11) */}
+            {/* 3. Обратное движение (для эффекта живого "дыхания" и сложности) */}
+            <rect
+              x="0" y="0" width="100%" height="100%" rx="12"
+              fill="none"
+              stroke={glowColor}
+              strokeWidth="1.5"
+              strokeDasharray="10 250"
+              className="animate-orbit-reverse"
+              style={{ opacity: 0.5 }}
+            />
+          </svg>
+
+          {/* 4. Дополнительные декорации (уровень 9/11) */}
           {level === 9 && (
             <div className="absolute inset-0 z-20 pointer-events-none rounded-xl overflow-hidden">
               <span className="absolute top-1.5 left-1.5 text-[10px] font-mono text-blue-400 animate-pulse">&lt;/&gt;</span>
@@ -104,7 +109,7 @@ export function AvatarFrame({
             </div>
           )}
 
-          {/* 4. Внутренний контейнер для аватарки (ДЕТИ) */}
+          {/* 5. Внутренний контейнер для аватарки (ДЕТИ) */}
           <div className="relative z-10 rounded-xl bg-[#101010] p-[2px] w-full h-full">
             <div className="rounded-[10px] overflow-hidden w-full h-full">
               {children}
@@ -112,9 +117,25 @@ export function AvatarFrame({
           </div>
 
           <style jsx>{`
-            @keyframes avatar-spin {
-              from { transform: rotate(0deg); }
-              to { transform: rotate(360deg); }
+            /* Плавное движение по периметру */
+            @keyframes orbit-slow {
+              to { stroke-dashoffset: -260; } /* 40 + 220 = 260 */
+            }
+            @keyframes orbit-fast {
+              to { stroke-dashoffset: -260; }
+            }
+            @keyframes orbit-reverse {
+              to { stroke-dashoffset: 260; } /* Движение в обратную сторону */
+            }
+
+            .animate-orbit-slow {
+              animation: orbit-slow 4s linear infinite;
+            }
+            .animate-orbit-fast {
+              animation: orbit-fast 2.5s linear infinite;
+            }
+            .animate-orbit-reverse {
+              animation: orbit-reverse 6s linear infinite;
             }
           `}</style>
         </div>
