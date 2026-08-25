@@ -7,6 +7,8 @@ import {
   useEffect,
 } from 'react';
 
+import { getToken } from '@/lib/auth';
+
 export type CallType = 'audio' | 'video';
 
 export interface CallState {
@@ -141,16 +143,64 @@ const ICE_SERVERS: RTCIceServer[] = [
 // Это можно вынести в проп хука, если нужно переключать динамически
 const FORCE_RELAY_ONLY = false; 
 
-const getRTCConfig = (): RTCConfiguration => ({
-  iceServers: ICE_SERVERS,
-  
-  // 🔥 ИЗМЕНЕНИЕ: Если включен флаг или мы detect проблемы, ставим 'relay'
-  iceTransportPolicy: FORCE_RELAY_ONLY ? 'relay' : 'all',
-  
-  bundlePolicy: 'max-bundle',
-  rtcpMuxPolicy: 'require',
-  iceCandidatePoolSize: 8, // Увеличили пул для быстрого старта
-});
+// ============================================================================
+// 🔥 ДИНАМИЧЕСКИЕ ICE-SERVERS С БЭКЕНДА (/api/ice-servers)
+// TURN-ключи хранятся ТОЛЬКО на сервере (Render env: METERED_USERNAME /
+// METERED_PASSWORD / METERED_API_KEY) и не светятся в клиентском бандле.
+// Грузим один раз до создания PeerConnection; при сбое — локальный STUN.
+// ============================================================================
+
+let dynamicIceServers: RTCIceServer[] | null = null;
+
+export async function refreshIceServers(): Promise<void> {
+  if (!isBrowser || dynamicIceServers) return;
+  try {
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000')
+      .replace(/\/+$/, '');
+    const token = getToken();
+    const res = await fetch(`${apiUrl}/api/ice-servers`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (Array.isArray(data?.iceServers) && data.iceServers.length > 0) {
+      dynamicIceServers = data.iceServers as RTCIceServer[];
+      rtcLog('🔥 Dynamic ICE servers loaded from backend');
+    }
+  } catch (err) {
+    rtcWarn('ice-servers fetch failed — using local STUN fallback', err);
+  }
+}
+
+const getRTCConfig = (): RTCConfiguration => {
+  // Приоритет: серверные iceServers (TURN из Render env) -> локальная статика (STUN)
+  const iceServers =
+    dynamicIceServers && dynamicIceServers.length > 0
+      ? dynamicIceServers
+      : ICE_SERVERS;
+
+  const config: RTCConfiguration = {
+    iceServers,
+
+    // 🔥 ИЗМЕНЕНИЕ: Если включен флаг или мы detect проблемы, ставим 'relay'
+    iceTransportPolicy: FORCE_RELAY_ONLY ? 'relay' : 'all',
+
+    bundlePolicy: 'max-bundle',
+    rtcpMuxPolicy: 'require',
+    iceCandidatePoolSize: 8, // Увеличили пул для быстрого старта
+  };
+
+  // 🔍 VERIFICATION AID: видно, какие iceServers реально попали в PeerConnection.
+  // Здесь должны быть turn:-URL'ы, когда на Render заданы METERED_* переменные.
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(
+      '🧊 [WEBRTC] RTC config iceServers:',
+      JSON.stringify(config.iceServers),
+    );
+  }
+
+  return config;
+};
 
 const DISCONNECTED_GRACE_MS = 15_000;
 const ICE_RESTART_TIMEOUT_MS = 8_000;
@@ -586,6 +636,8 @@ export function useWebRTC(
   const initiateCall = useCallback(
     async (targetUserId: number, callType: CallType, callerName: string, callerAvatar: string) => {
       rtcLog(`📞 Initiating call to ${targetUserId}`);
+      // 🔥 Подтягиваем актуальные TURN-сервера ДО создания PeerConnection
+      await refreshIceServers();
       try {
         const stream = await getMediaStream(callType);
         setState((prev) => ({
@@ -617,6 +669,8 @@ export function useWebRTC(
   const acceptCall = useCallback(
     async (callId: string, callerId: number, callType: CallType, callerName: string, callerAvatar: string) => {
       rtcLog(`✅ Accepting call ${callId}`);
+      // 🔥 Подтягиваем актуальные TURN-сервера ДО создания PeerConnection
+      await refreshIceServers();
       try {
         const stream = await getMediaStream(callType);
         activeCallIdRef.current = callId;

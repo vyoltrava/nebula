@@ -15,11 +15,23 @@ import smtplib
 import secrets
 import jwt
 import redis
+import sys
 import bcrypt
 import os
 import uuid
 import re
 import json
+
+# 🛡️ FIX (Windows/cp1251): эмодзи в print() по всему файлу валили процесс
+# с UnicodeEncodeError, когда stdout/stderr перенаправлены (сервис, пайпы,
+# лог-файлы, Start-Process -RedirectStandardOutput). Форсируем UTF-8 stdio.
+# Обратимо: блок можно просто удалить — он не влияет на логику приложения.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    # Нестандартная обёртка stdout (например, reload-воркер uvicorn) — не критично.
+    pass
 import cloudinary
 import cloudinary.uploader
 import subprocess
@@ -405,7 +417,16 @@ def get_current_user(
 
     # 🚀 НЕ БЛОКИРУЕМ ОТВЕТ — обновление в фоне
     now = datetime.now(timezone.utc)
-    if not user.last_seen or (now - user.last_seen).total_seconds() > 180:
+    # 🛡 FIX (tz-safe): SQLite возвращает НАИВНЫЙ datetime (без offset), а now — aware.
+    # Вычитание смешанных типов давало TypeError и валило 500-й ЛЮБОГО
+    # авторизованного REST-запроса пользователя с непустым last_seen
+    # (латентный баг вскрыт эндпоинтом /api/ice-servers).
+    # Старая строка (для истории):
+    #   if not user.last_seen or (now - user.last_seen).total_seconds() > 180:
+    last_seen = user.last_seen
+    if last_seen is not None and last_seen.tzinfo is None:
+        last_seen = last_seen.replace(tzinfo=timezone.utc)  # пишем туда только UTC
+    if not last_seen or (now - last_seen).total_seconds() > 180:
         if background_tasks:
             background_tasks.add_task(_update_last_seen_sync, user.id)
         # Убрали session.add(user) и session.commit() отсюда!
@@ -8632,6 +8653,77 @@ async def track_view(
     background_tasks.add_task(_track_view_sync, post_id, viewer_hash)
     return {"ok": True}
 
+# ============================================================
+# 📞 ICE-SERVERS: выдаём клиенту конфиг TURN для RTCPeerConnection.
+# Секреты живут ТОЛЬКО здесь (Render env): METERED_USERNAME / METERED_PASSWORD /
+# METERED_API_KEY (+ опционально METERED_DOMAIN, METERED_TURN_HOST).
+# Фронтенд забирает их через GET /api/ice-servers — ключи НЕ попадают в его бандл.
+# ============================================================
+
+_ice_servers_cache: dict = {"servers": None, "expires": 0.0}
+
+
+@app.get("/api/ice-servers")
+async def api_get_ice_servers(user: User = Depends(get_current_user)):
+    """Список iceServers для WebRTC-звонков.
+
+    Приоритет источников:
+      1) Эфемерные креды через Metered API (если задан METERED_API_KEY)
+      2) Статические METERED_USERNAME / METERED_PASSWORD
+      3) Пустой список -> фронтенд использует свой локальный STUN-фолбэк
+    Кэш 4 минуты, чтобы не дёргать внешний API на каждый звонок.
+    """
+    now = time.time()
+    if _ice_servers_cache["servers"] is not None and now < _ice_servers_cache["expires"]:
+        return {"iceServers": _ice_servers_cache["servers"], "cached": True}
+
+    api_key = os.getenv("METERED_API_KEY", "").strip()
+    username = os.getenv("METERED_USERNAME", "").strip()
+    password = os.getenv("METERED_PASSWORD", "").strip()
+    domain = os.getenv("METERED_DOMAIN", "").strip() or "nebula"
+
+    servers: list = []
+
+    # --- 1) Эфемерные креды через Metered API ---
+    if api_key:
+        import httpx  # локальный импорт: больше нигде в main.py не нужен
+        try:
+            async with httpx.AsyncClient(timeout=6.0) as client:
+                resp = await client.get(
+                    f"https://{domain}.metered.live/api/v1/turn/credentials",
+                    params={"secretKey": api_key},
+                )
+                resp.raise_for_status()
+                raw = resp.json()
+            if isinstance(raw, list):
+                servers = [
+                    s for s in raw
+                    if isinstance(s, dict) and s.get("urls")
+                ]
+        except Exception as e:  # noqa: BLE001 — внешний сервис, любой сбой => фолбэк
+            print(f"⚠️ Metered API failed ({e}) — fallback to static creds")
+
+    # --- 2) Статические креды из env (фолбэк) ---
+    if not servers and username and password:
+        host = os.getenv("METERED_TURN_HOST", "").strip() or "relay.metered.ca"
+        servers = [{
+            "urls": [
+                f"turns:{host}:443?transport=tcp",
+                f"turn:{host}:443?transport=tcp",
+                f"turn:{host}:80?transport=tcp",
+                f"turn:{host}:3478?transport=udp",
+            ],
+            "username": username,
+            "credential": password,
+        }]
+
+    if servers:
+        _ice_servers_cache["servers"] = servers
+        _ice_servers_cache["expires"] = now + 240.0
+
+    return {"iceServers": servers, "cached": False}
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     # 1. Принимаем соединение ПЕРЕД любыми действиями
@@ -8667,6 +8759,85 @@ async def websocket_endpoint(websocket: WebSocket):
     # 6. ✅ ОБНОВЛЯЕМ last_seen БЕЗ блокировки event loop
     await run_in_threadpool(_update_last_seen_sync, user_id)
     
+    try:
+        # 7. Держим соединение открытым + 📞 РЕТРАНСЛЯЦИЯ СИГНАЛОВ ЗВОНКОВ
+        #
+        # 🔄 ИЗМЕНЕНО (fix WebRTC signaling): старый цикл обрабатывал ТОЛЬКО
+        # "ping" и молча отбрасывал все остальные сообщения, из-за чего
+        # SDP-offer/answer и ICE-кандидаты никогда не доходили до собеседника.
+        # Старый код (для отката через git history):
+        #   while True:
+        #       data = await websocket.receive_text()
+        #       if data == "ping":
+        #           await websocket.send_text(json.dumps({"event": "pong"}))
+        while True:
+            raw = await websocket.receive_text()
+
+            # Keep-alive (как раньше)
+            if raw == "ping":
+                await websocket.send_text(json.dumps({"event": "pong"}))
+                continue
+
+            # Все остальные сообщения — это JSON-сигналы WebRTC
+            try:
+                msg = json.loads(raw)
+                if not isinstance(msg, dict):
+                    raise ValueError("not an object")
+            except (ValueError, TypeError):
+                print(f"⚠️ WS: non-JSON message from user {user_id}: {raw[:120]}")
+                continue
+
+            mtype = msg.get("type")
+            target_id = msg.get("target_user_id")
+
+            # --- call_initiate: сервер генерирует call_id и рассылает обеим сторонам.
+            # Фронтенд НЕ генерирует call_id сам: инициатор ждёт его в 'call_initiated'
+            # (useWebRTC.ts case 'call_initiated'), вызываемый ждёт его в 'call_incoming'.
+            if mtype == "call_initiate":
+                if not isinstance(target_id, int):
+                    continue
+                call_id = f"call-{user_id}-{target_id}-{uuid.uuid4().hex[:8]}"
+                # 1) Входящий вызов адресату (useWebRTC.ts case 'call_incoming')
+                await manager.send_to_user(target_id, "call_incoming", {
+                    "call_id": call_id,
+                    "call_type": msg.get("call_type", "audio"),
+                    "caller_id": user_id,
+                    "caller_name": msg.get("caller_name", ""),
+                    "caller_avatar": msg.get("caller_avatar", ""),
+                })
+                # 2) Подтверждение инициатору (useWebRTC.ts case 'call_initiated')
+                await manager.send_to_user(user_id, "call_initiated", {
+                    "call_id": call_id,
+                    "target_user_id": target_id,
+                })
+                continue
+
+            # --- Остальные сигналы: релей адресату «как есть».
+            # Маппинг имён клиент -> сервер -> клиент сверен с подписками
+            # в l_frontend/components/WebSocketProvider.tsx (call_accepted /
+            # call_rejected / call_ended / call_offer / call_answer / call_ice_candidate).
+            if mtype in ("call_accept", "call_reject", "call_end",
+                         "call_offer", "call_answer", "call_ice_candidate"):
+                if not isinstance(target_id, int):
+                    continue
+                out_event = {
+                    "call_accept": "call_accepted",
+                    "call_reject": "call_rejected",
+                    "call_end": "call_ended",
+                }.get(mtype, mtype)
+                payload = {
+                    k: v for k, v in msg.items()
+                    if k not in ("type", "target_user_id")
+                }
+                await manager.send_to_user(target_id, out_event, payload)
+                continue
+
+            print(f"⚠️ WS: unknown/unroutable signal '{mtype}' from user {user_id}")
+    except WebSocketDisconnect:
+        await manager.disconnect(websocket, user_id)
+    except Exception as e:
+        print(f"❌ WS error for user {user_id}: {e}")
+        await manager.disconnect(websocket, user_id)
     try:
         # 7. Держим соединение открытым
         while True:

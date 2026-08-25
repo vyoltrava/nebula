@@ -1,4 +1,5 @@
 Set-Location $PSScriptRoot
+$env:PYTHONUTF8 = '1'  # 🛡️ эмодзи-print'ы бэкенда ломаются на cp1251-консоли Windows
 if (-not (Test-Path ".\venv")) {
   python -m venv venv
 }
