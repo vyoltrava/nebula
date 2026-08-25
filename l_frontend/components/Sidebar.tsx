@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useTheme } from "next-themes";
+import { resolveNickColor } from "@/lib/nickGlow";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -845,19 +847,18 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     : user.role?.color ?? null
     : null;
 
-  // 🌗 Светлые цвета ролей (#ffffff у админа/Founder и т.п.) нечитаемы на светлом
-  // фоне — для ТЕКСТА ника их не применяем, цвет придёт из классов темы.
-  // Свечение аватара оставляем как есть (там белый ореол безвреден).
-  const nickGlowStyle = (() => {
-    if (!glow) return undefined;
-    const m = /^#?([0-9a-f]{6})$/i.exec(glow.trim());
-    if (m) {
-      const v = parseInt(m[1], 16);
-      const r = (v >> 16) & 255, g = (v >> 8) & 255, b = v & 255;
-      if (0.299 * r + 0.587 * g + 0.114 * b > 200) return undefined; // слишком светлый
-    }
-    return { color: glow, textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66` } as React.CSSProperties;
-  })();
+  // 🌗 Цвет ника и свечения с учётом темы:
+  //  dark — цвет роли как есть (#ffffff у Founder светится белым),
+  //  light — светлые цвета инвертируются в «чернила», свечение тёмное.
+  const { resolvedTheme } = useTheme();
+  const displayNickColor = resolveNickColor(glow, resolvedTheme);
+  const nickGlowStyle = displayNickColor
+    ? ({ color: displayNickColor, textShadow: `0 0 6px ${displayNickColor}B3, 0 0 14px ${displayNickColor}66` } as React.CSSProperties)
+    : undefined;
+  // Свечение аватарки тем же цветом, что и ник (в light — тёмный ореол)
+  const avatarGlowStyle = displayNickColor
+    ? ({ filter: `drop-shadow(0 0 8px ${displayNickColor})` } as React.CSSProperties)
+    : undefined;
 
 
   const hasAdminAccess = user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users");
@@ -1017,7 +1018,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
             {/* Ссылка на профиль + кнопка выхода внутри */}
             <div className={`flex ${isDock ? "justify-center" : "items-center gap-3"} px-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-all group w-full`}>
               <Link href={`/${user.username}`} className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="shrink-0" style={glow ? { filter: `drop-shadow(0 0 8px ${glow})` } : undefined}>
+                <div className="shrink-0" style={avatarGlowStyle}>
                   <Avatar src={user.avatar_url} name={user.display_name} id={user.id} />
                 </div>
                 {!isDock && (

@@ -5,11 +5,11 @@
    Класс на <html> вешает next-themes (см. components/ThemeModeProvider.tsx). */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* 🎨 Фирменные светлые тона: слоновая кость (карточки) и тёплая бумага (фон страниц).
-   Генерируют утилиты bg-ivory / bg-paper / border-ivory и т.д. */
+/* 🎨 Фирменные светлые тона: приглушённая слоновая кость (карточки) и тёплая
+   крафт-бумага (фон страниц). Генерируют утилиты bg-ivory / bg-paper и т.д. */
 @theme {
-  --color-ivory: #FAF8F1;
-  --color-paper: #F4F1E8;
+  --color-ivory: #F5F1E6;
+  --color-paper: #ECE7D8;
 }
 
 
@@ -18,23 +18,23 @@
    на <html>, который вешает next-themes)
    ============================================================ */
 :root {
-  /* Light theme — тёплые «бумажные» оттенки */
-  --bg-primary: #f4f1e8;            /* paper — фон страницы */
-  --bg-secondary: #faf8f1;          /* ivory — карточки */
-  --bg-tertiary: #efece1;           /* поля ввода, ховеры */
+  /* Light theme — тёплые, заметно приглушённые «бумажные» оттенки */
+  --bg-primary: #ece7d8;            /* paper — фон страницы */
+  --bg-secondary: #f5f1e6;          /* ivory — карточки */
+  --bg-tertiary: #e3ddca;           /* поля ввода, ховеры */
   --accent: #8b5cf6;
   --accent-hover: #7c3aed;
-  --border: rgba(17, 24, 39, 0.08);
-  --border-strong: rgba(17, 24, 39, 0.16);
+  --border: rgba(38, 30, 16, 0.1);
+  --border-strong: rgba(38, 30, 16, 0.2);
   --text: #26221a;
-  --text-muted: rgba(38, 34, 26, 0.62);
-  --scrollbar-thumb: rgba(38, 34, 26, 0.22);
-  --splash-bg: #f4f1e8;
+  --text-muted: rgba(38, 34, 26, 0.65);
+  --scrollbar-thumb: rgba(38, 34, 26, 0.26);
+  --splash-bg: #ece7d8;
 
   /* Подложка и «вуаль» анимированных фонов (Themes) */
-  --anim-base: #edeadd;
-  --anim-veil: rgba(252, 250, 244, 0.55);
-  --anim-veil-strong: rgba(252, 250, 244, 0.74);
+  --anim-base: #e6e0ce;
+  --anim-veil: rgba(249, 246, 238, 0.55);
+  --anim-veil-strong: rgba(249, 246, 238, 0.74);
 }
 
 .dark {

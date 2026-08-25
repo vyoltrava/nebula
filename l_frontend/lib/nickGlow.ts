@@ -11,10 +11,28 @@ import type { CSSProperties } from "react";
  */
 
 export function parseHexColor(color: string): [number, number, number] | null {
-  const m = /^#?([0-9a-f]{6})$/i.exec((color || "").trim());
-  if (!m) return null;
-  const v = parseInt(m[1], 16);
-  return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  const raw = (color || "").trim();
+  let m = /^#?([0-9a-f]{6})$/i.exec(raw);
+  if (m) {
+    const v = parseInt(m[1], 16);
+    return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  }
+  // Короткая форма #fff -> #ffffff
+  m = /^#?([0-9a-f]{3})$/i.exec(raw);
+  if (m) {
+    const h = m[1];
+    const v = parseInt(h[0] + h[0] + h[1] + h[1] + h[2] + h[2], 16);
+    return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  }
+  return null;
+}
+
+/** Приводит любой поддержанный hex к форме #rrggbb (для теней/склейки) */
+export function normalizeHexColor(color: string): string | null {
+  const rgb = parseHexColor(color);
+  if (!rgb) return null;
+  const hex = (n: number) => n.toString(16).padStart(2, "0");
+  return `#${hex(rgb[0])}${hex(rgb[1])}${hex(rgb[2])}`;
 }
 
 export function isLightColor(color: string): boolean {
@@ -36,9 +54,8 @@ export function resolveNickColor(
 }
 
 function glowShadow(color: string): string | undefined {
-  return /^#?[0-9a-f]{6}$/i.test(color.trim())
-    ? `0 0 6px ${color}B3, 0 0 14px ${color}66`
-    : undefined;
+  const norm = normalizeHexColor(color);
+  return norm ? `0 0 6px ${norm}B3, 0 0 14px ${norm}66` : undefined;
 }
 
 /** Inline-стиль для ника: цвет + свечение под цвет «плашки» с учётом темы */
