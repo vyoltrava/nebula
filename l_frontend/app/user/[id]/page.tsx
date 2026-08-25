@@ -527,7 +527,6 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   availableBadges={availableBadges}
   canEditBadge={isOwnProfile && canEditBadge}
   onBadgeClick={() => setShowBadgeModal(true)}
-  activeCustomBadgeAssignment={activeCustomBadgeAssignment} // 🆕 ПЕРЕДАЕМ ДАННЫЕ О ПЛАШКЕ
 >
   <Avatar 
     src={profile.avatar_url} 
@@ -596,21 +595,25 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-y-1 gap-x-4">
                   
                   {/* Левая колонка: Имя и бейджи */}
-                  <div className="flex flex-col items-center md:items-start gap-1">
-                    <div className="flex items-center justify-center md:justify-start gap-2 md:gap-3 flex-wrap leading-tight">
-{profile.username === "trelod" ? (
-  <h1 className="text-xl md:text-2xl font-black text-[#e4e4e7]" style={{ textShadow: "0 0 10px rgba(228,228,231,0.5)" }}>
-    {profile.display_name}
-  </h1>
-) : (
-                        <h1 className={`text-xl md:text-2xl font-black break-words ${glowStyle(profile) ? "" : "text-white"}`} style={glowStyle(profile)}>
-                          {profile.display_name}
-                        </h1>
-                      )}
-                      <RoleBadge user={profile} size="md" />
-                    </div>
-                    <p className="text-white/50 text-sm leading-tight mt-0.5">@{profile.username}</p>
-                  </div>
+<div className="flex items-center justify-center md:justify-start gap-2 md:gap-3 flex-wrap leading-tight">
+  {profile.username === "trelod" ? (
+    <h1 className="text-xl md:text-2xl font-black text-[#e4e4e7]" style={{ textShadow: "0 0 10px rgba(228,228,231,0.5)" }}>
+      {profile.display_name}
+    </h1>
+  ) : (
+    <h1 className={`text-xl md:text-2xl font-black break-words ${glowStyle(profile) ? "" : "text-white"}`} style={glowStyle(profile)}>
+      {profile.display_name}
+    </h1>
+  )}
+  
+  {/* ✅ ДОБАВЬ activeCustomBadgeAssignment СЮДА */}
+  <RoleBadge 
+    user={profile} 
+    activeCustomBadgeAssignment={activeCustomBadgeAssignment} 
+    size="md" 
+  />
+</div>
+
 
                   {/* Кнопки действий — ДЕСКТОП */}
                   {!isOwnProfile && (
@@ -782,7 +785,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className={`font-bold text-sm md:text-base truncate ${glowStyle(u) ? "" : "text-white"}`} style={glowStyle(u)}>{u.display_name}</p>
-                          <RoleBadge user={u} size="sm" />                        </div>
+                          <RoleBadge user={u} activeCustomBadgeAssignment={u.active_custom_badge_assignment} size="sm" />                     </div>
                         <p className="text-xs md:text-sm text-white/50 truncate">@{u.username}</p>
                       </div>
                     </Link>
