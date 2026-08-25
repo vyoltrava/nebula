@@ -124,12 +124,12 @@ export default function NotificationsPage() {
   const unreadCount = notifs.filter((n) => !n.read).length;
 
   return (
-    <div className="h-screen flex overflow-hidden bg-white dark:bg-[#18181b]">
+    <div className="h-screen flex overflow-hidden bg-ivory dark:bg-[#18181b]">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
       <main className="flex-1 overflow-y-auto overflow-x-hidden border-x border-gray-200 dark:border-white/10 md:border-x-0">
         {/* Шапка */}
-        <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/95 backdrop-blur-md z-10">
+        <div className="p-3 sm:p-4 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
           <div className="flex items-center justify-between gap-2 sm:gap-3">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <button

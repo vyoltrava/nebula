@@ -91,10 +91,10 @@ export default function CategoryPage() {
   }
 
   if (loading) return <div className="p-8 text-center text-gray-600 dark:text-white/50">{t("common.loading")}</div>;
-  if (!category) return <div className="min-h-screen bg-gray-50 dark:bg-[#171717] flex items-center justify-center"><p className="text-gray-600 dark:text-white/50">{t("suggestions.categoryNotFound")}</p></div>;
+  if (!category) return <div className="min-h-screen bg-paper dark:bg-[#171717] flex items-center justify-center"><p className="text-gray-600 dark:text-white/50">{t("suggestions.categoryNotFound")}</p></div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#171717]">
+    <div className="min-h-screen bg-paper dark:bg-[#171717]">
       <div className="max-w-6xl mx-auto px-4 py-10">
         <Link href="/suggestions" className="inline-flex items-center gap-2 text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white mb-6">
           <ArrowLeft size={16} /> {t("suggestions.title")}
@@ -186,7 +186,7 @@ export default function CategoryPage() {
 
       {showCreate && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-black text-gray-900 dark:text-white">{t("suggestions.newThread")}</h3>
               <button onClick={() => setShowCreate(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white"><X size={20} /></button>

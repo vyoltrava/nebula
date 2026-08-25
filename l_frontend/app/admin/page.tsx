@@ -256,7 +256,7 @@ export default function AdminPage() {
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
       <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
         {/* Шапка */}
-        <div className="p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/80 backdrop-blur-md z-10">
+        <div className="p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3 flex-wrap">
               <Shield size={24} className="text-[#8b5cf6]" />
@@ -341,7 +341,7 @@ export default function AdminPage() {
         </div>
 
         {/* 🆕 Фильтры и поиск */}
-        <div className="p-4 border-b border-gray-200 dark:border-white/10 bg-white dark:bg-[#1a1a1a]/50">
+        <div className="p-4 border-b border-gray-200 dark:border-white/10 bg-ivory dark:bg-[#1a1a1a]/50">
           <div className="flex flex-col gap-3">
             {/* Поиск */}
             <div className="relative">
@@ -665,7 +665,7 @@ export default function AdminPage() {
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200]" onClick={() => setWarnTarget(null)} />
             <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-              <div className="w-full max-w-md bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto max-h-[80vh] overflow-y-auto">
+              <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto max-h-[80vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
                     <AlertTriangle className="text-yellow-600 dark:text-yellow-400" size={18} />

@@ -56,7 +56,7 @@ export default function SuggestionsPage() {
   if (loading) return <SuggestionsSkeleton />;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#171717]">
+    <div className="min-h-screen bg-paper dark:bg-[#171717]">
       <div className="max-w-6xl mx-auto px-4 py-10">
         <CommunityTabs />
 
@@ -168,7 +168,7 @@ function CategoryModal({ initial, onClose, onSaved }: any) {
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl p-6">
+      <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-black text-gray-900 dark:text-white">{initial ? t("suggestions.editCategory") : t("suggestions.createCategory")}</h3>
           <IconButton icon={X} onClick={onClose} />
@@ -239,7 +239,7 @@ function PrefixModal({ prefixes, onClose, onSaved }: any) {
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-black text-gray-900 dark:text-white">{t("suggestions.prefixManager")}</h3>
           <IconButton icon={X} onClick={onClose} />

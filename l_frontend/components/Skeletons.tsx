@@ -129,7 +129,7 @@ export function BookmarkPageSkeleton() {
   return (
     <div className="animate-pulse">
       {/* Заголовок страницы */}
-      <div className="p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/80 backdrop-blur-md z-10">
+      <div className="p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-purple-500/20" />
           <div className="h-6 bg-gray-100 dark:bg-white/10 rounded w-32" />
@@ -175,7 +175,7 @@ export function ChatListSkeleton() {
 // ==========================================
 export function ChatWindowSkeleton() {
   return (
-    <div className="flex-1 flex flex-col bg-gray-50 dark:bg-[#171717] animate-pulse">
+    <div className="flex-1 flex flex-col bg-paper dark:bg-[#171717] animate-pulse">
       {/* Шапка чата */}
       <div className="h-16 border-b border-gray-200 dark:border-white/10 p-4 flex items-center gap-3">
         <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-white/10" />
@@ -338,7 +338,7 @@ export function NotificationsSkeleton() {
 // ==========================================
 export function StatSkeleton() {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#171717] animate-pulse">
+    <div className="min-h-screen bg-paper dark:bg-[#171717] animate-pulse">
       <div className="max-w-7xl mx-auto px-4 py-10">
         <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div className="flex items-center gap-4">
@@ -356,7 +356,7 @@ export function StatSkeleton() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-xl p-4 space-y-3">
+            <div key={i} className="bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-xl p-4 space-y-3">
               <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-24" />
               <div className="h-7 bg-gray-100 dark:bg-white/10 rounded w-16" />
               <div className="h-8 bg-gray-100 dark:bg-white/5 rounded w-full" />
@@ -384,7 +384,7 @@ export function StatSkeleton() {
 // ==========================================
 export function SuggestionsSkeleton() {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#171717] animate-pulse">
+    <div className="min-h-screen bg-paper dark:bg-[#171717] animate-pulse">
       <div className="max-w-6xl mx-auto px-4 py-10">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -467,7 +467,7 @@ export function UpdatesSkeleton() {
       <div className="absolute left-[13px] top-2 bottom-0 w-px bg-gray-100 dark:bg-white/10" />
       {[...Array(3)].map((_, i) => (
         <div key={i} className="relative mb-8">
-          <span className="absolute -left-10 top-5 w-7 h-7 rounded-full border-2 border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#171717]" />
+          <span className="absolute -left-10 top-5 w-7 h-7 rounded-full border-2 border-gray-200 dark:border-white/10 bg-paper dark:bg-[#171717]" />
           <div className="border border-gray-200 dark:border-white/10 rounded-2xl p-5 bg-gray-100 dark:bg-white/5">
             <div className="flex items-center gap-2 mb-3">
               <div className="h-4 bg-gray-100 dark:bg-white/10 rounded w-16" />

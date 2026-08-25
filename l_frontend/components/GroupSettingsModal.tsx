@@ -73,7 +73,7 @@ export function GroupSettingsModal({ chatId, chat, onClose, onUpdate }: GroupSet
 
   return (
     <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white dark:bg-[#1f1f23] rounded-2xl border border-gray-200 dark:border-white/10 shadow-2xl p-6">
+      <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] rounded-2xl border border-gray-200 dark:border-white/10 shadow-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-black text-gray-900 dark:text-white">Настройки группы</h2>
           <IconButton icon={X} size="iconSm" onClick={onClose} />

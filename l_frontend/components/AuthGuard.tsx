@@ -29,10 +29,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // Пока проверяем — показываем загрузку (чтобы не мелькали защищённые данные)
   if (!checked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0f0f10]">
+      <div className="min-h-screen flex items-center justify-center bg-paper dark:bg-[#0f0f10]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
-          <p className="text-gray-600 dark:text-white/60 text-sm">Проверка авторизации...</p>
+          <p className="text-white/60 text-sm">Проверка авторизации...</p>
         </div>
       </div>
     );

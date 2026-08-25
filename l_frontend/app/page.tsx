@@ -100,7 +100,7 @@ export default function HomePage() {
 
       <main ref={mainRef} className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
         {/* Вкладки */}
-        <div className="flex border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/80 backdrop-blur-md z-10">
+        <div className="flex border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
           <button
             onClick={() => setActiveTab("all")}
             className={`flex-1 py-3 font-bold text-center transition-all ${

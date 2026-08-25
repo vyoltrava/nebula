@@ -97,7 +97,7 @@ export function AvatarCropper({ imageSrc, onCropComplete, onClose }: AvatarCropp
       </div>
 
       {/* Контролы */}
-      <div className="p-4 border-t border-gray-200 dark:border-white/10 space-y-4 bg-gray-50 dark:bg-[#171717]">
+      <div className="p-4 border-t border-gray-200 dark:border-white/10 space-y-4 bg-paper dark:bg-[#171717]">
         {/* Зум */}
         <div className="flex items-center gap-3 max-w-md mx-auto">
           <ZoomOut size={16} className="text-gray-600 dark:text-white/50" />

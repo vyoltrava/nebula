@@ -49,7 +49,7 @@ export function AccountSwitcher({
       <>
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300]" onClick={() => onClose?.()} />
         <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none">
-          <div ref={ref} className="w-full max-w-xs bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl overflow-hidden pointer-events-auto animate-in zoom-in-95 duration-200">
+          <div ref={ref} className="w-full max-w-xs bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl overflow-hidden pointer-events-auto animate-in zoom-in-95 duration-200">
             <div className="p-3 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
               <h3 className="text-sm font-bold text-gray-900 dark:text-white">{t("account.accounts")}</h3>
               <IconButton icon={X} size="iconSm" onClick={() => onClose?.()} />

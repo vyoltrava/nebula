@@ -114,7 +114,7 @@ export function BadgeSelector({ currentUser, availableBadges, onUpdate }: { curr
           {hasCustomBadge ? (
             <>
               <div 
-                className="w-10 h-10 rounded-full bg-gray-50 dark:bg-[#171717] flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+                className="w-10 h-10 rounded-full bg-paper dark:bg-[#171717] flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
                 style={{ filter: `drop-shadow(0 0 6px #8b5cf699)` }}
                 onClick={() => setSelecting(true)}
                 title="Нажми чтобы сменить"
@@ -126,7 +126,7 @@ export function BadgeSelector({ currentUser, availableBadges, onUpdate }: { curr
           ) : currentBadge ? (
             <>
               <div 
-                className="w-10 h-10 rounded-full bg-gray-50 dark:bg-[#171717] flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+                className="w-10 h-10 rounded-full bg-paper dark:bg-[#171717] flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
                 style={{ filter: `drop-shadow(0 0 6px ${currentBadge.glow_color || '#8b5cf6'}99)` }}
                 onClick={() => setSelecting(true)}
                 title="Нажми чтобы сменить"

@@ -418,7 +418,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
       <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
-        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/95 backdrop-blur-md z-10">
+        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <Settings size={24} className="text-[#8b5cf6]" />
@@ -1058,7 +1058,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
           <>
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]" onClick={() => setSelectedBug(null)} />
             <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-              <div className="w-full max-w-2xl border border-gray-200 dark:border-white/20 rounded-2xl bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-4 sm:p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
+              <div className="w-full max-w-2xl border border-gray-200 dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-4 sm:p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
                 <div className="flex items-start justify-between mb-4 gap-3">
                   <div className="flex-1 min-w-0">
                     <h2 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white">{selectedBug.title}</h2>

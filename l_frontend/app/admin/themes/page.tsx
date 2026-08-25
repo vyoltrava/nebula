@@ -222,7 +222,7 @@ export default function AdminThemesPage() {
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
       <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10 relative">
         {/* Шапка */}
-        <div className="p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/80 backdrop-blur-md z-10">
+        <div className="p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <button
@@ -319,7 +319,7 @@ function ThemeCard({
   return (
     <div className={`rounded-2xl overflow-hidden border transition-all ${
       isCurrent ? "border-[#8b5cf6] ring-2 ring-[#8b5cf6]/50" : "border-gray-200 dark:border-white/10"
-    } bg-white dark:bg-[#1f1f23]`}>
+    } bg-ivory dark:bg-[#1f1f23]`}>
       {/* Превью */}
       <div className="relative h-40 overflow-hidden group">
         <ThemePreview theme={theme} />
@@ -485,8 +485,8 @@ function ThemeEditor({
     <>
       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={onClose} />
       <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-2xl bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl pointer-events-auto max-h-[90vh] overflow-y-auto">
-          <div className="sticky top-0 bg-white dark:bg-[#1f1f23] p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between z-10">
+        <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl pointer-events-auto max-h-[90vh] overflow-y-auto">
+          <div className="sticky top-0 bg-ivory dark:bg-[#1f1f23] p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between z-10">
             <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
               <Palette size={20} className="text-[#8b5cf6]" />
               Редактор темы
@@ -633,7 +633,7 @@ function ThemeEditor({
             </div>
           </div>
 
-          <div className="sticky bottom-0 bg-white dark:bg-[#1f1f23] p-4 border-t border-gray-200 dark:border-white/10 flex gap-2">
+          <div className="sticky bottom-0 bg-ivory dark:bg-[#1f1f23] p-4 border-t border-gray-200 dark:border-white/10 flex gap-2">
             <button
               onClick={onClose}
               className="flex-1 py-2.5 rounded-lg border border-gray-200 dark:border-white/15 text-gray-800 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/5"

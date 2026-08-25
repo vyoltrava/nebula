@@ -13,7 +13,7 @@ export function PermissionHelpModal({ device, onClose }: Props) {
     <>
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[250]" onClick={onClose} />
       <div className="fixed inset-0 z-[251] flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-sm border border-gray-200 dark:border-white/15 rounded-2xl bg-white dark:bg-[#1f1f23] shadow-2xl p-5 pointer-events-auto">
+        <div className="w-full max-w-sm border border-gray-200 dark:border-white/15 rounded-2xl bg-ivory dark:bg-[#1f1f23] shadow-2xl p-5 pointer-events-auto">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               {isMic ? <Mic className="text-red-600 dark:text-red-400" size={18} /> : <Video className="text-blue-600 dark:text-blue-400" size={18} />}

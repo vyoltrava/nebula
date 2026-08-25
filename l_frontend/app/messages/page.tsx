@@ -80,7 +80,7 @@ function SwipeableChatItem({
       )}
 
       <div
-        className="relative z-10 bg-gray-50 dark:bg-[#171717] transition-transform"
+        className="relative z-10 bg-paper dark:bg-[#171717] transition-transform"
         style={{
           transform: `translateX(${isSwiping ? offset : 0}px)`,
           transition: isSwiping ? "none" : "transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
@@ -403,7 +403,7 @@ const confirmPrismKey = async () => {
       <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
         
         {/* ШАПКА - только иконка и поиск */}
-        <div className="p-4 md:p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/95 backdrop-blur-md z-10">
+        <div className="p-4 md:p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
           {/* mr-12/md:mr-14 — резервируем место под fixed-кнопку "+", чтобы поиск не заезжал на неё */}
           <div className="flex items-center gap-3 md:gap-4 mr-12 md:mr-14">
             
@@ -641,7 +641,7 @@ const confirmPrismKey = async () => {
         </button>
 
         {showCreateMenu && (
-          <div className="absolute right-0 top-12 w-56 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl z-[9999] overflow-visible animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="absolute right-0 top-12 w-56 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl z-[9999] overflow-visible animate-in fade-in slide-in-from-top-2 duration-200">
             <button
               onClick={() => { setShowCreateMenu(false); openSavedMessages(); }}
               className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
@@ -676,7 +676,7 @@ const confirmPrismKey = async () => {
             />
             <div 
               className={`
-                fixed z-[9999] bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 shadow-2xl p-3 
+                fixed z-[9999] bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 shadow-2xl p-3 
                 animate-in zoom-in-95 duration-200
                 /* Мобильные: по центру */
                 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 rounded-2xl
@@ -739,7 +739,7 @@ const confirmPrismKey = async () => {
         <>
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[2000]" onClick={() => { setShowPrismModal(false); setCreationLandscape(null); setSelectedCreationObject(null); }} />
           <div className="fixed inset-0 z-[2001] flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full max-w-2xl bg-gray-50 dark:bg-[#171717] border border-cyan-500/30 rounded-2xl shadow-[0_0_40px_rgba(34,211,238,0.1)] flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
+            <div className="w-full max-w-2xl bg-paper dark:bg-[#171717] border border-cyan-500/30 rounded-2xl shadow-[0_0_40px_rgba(34,211,238,0.1)] flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
               
               {/* Шапка модалки */}
               <div className="p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">

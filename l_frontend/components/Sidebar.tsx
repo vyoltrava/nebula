@@ -90,7 +90,7 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
   }, [q]);
 
   return (
-    <div className="fixed inset-0 z-[250] bg-gray-50 dark:bg-[#171717] flex flex-col md:hidden">
+    <div className="fixed inset-0 z-[250] bg-paper dark:bg-[#171717] flex flex-col md:hidden">
       <div className="flex items-center gap-2 p-3 border-b border-gray-200 dark:border-white/10 shrink-0">
         <div className="flex-1 flex items-center gap-2 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2">
           <Search size={16} className="text-gray-500 dark:text-white/40" />
@@ -182,7 +182,7 @@ export function setSidebarLayout(v: SidebarLayout) {
 
 function LayoutPreview({ kind }: { kind: SidebarLayout }) {
   return (
-    <div className="w-full h-16 rounded-md bg-[#111114] border border-gray-200 dark:border-white/10 overflow-hidden flex">
+    <div className="w-full h-16 rounded-md bg-gray-50 dark:bg-[#111114] border border-gray-200 dark:border-white/10 overflow-hidden flex">
       {kind === "classic" && (
         <>
           <div className="w-7 bg-gray-100 dark:bg-[#22222a] border-r border-gray-200 dark:border-white/10 p-1 space-y-1">
@@ -230,7 +230,7 @@ function LayoutPicker({ current, onClose }: { current: SidebarLayout; onClose: (
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-[310]" onClick={onClose} />
-      <div className="fixed right-3 top-1/2 -translate-y-1/2 z-[311] w-[250px] bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-3">
+      <div className="fixed right-3 top-1/2 -translate-y-1/2 z-[311] w-[250px] bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-3">
         <div className="flex items-center justify-between mb-2 px-1">
           <p className="text-sm font-black text-gray-900 dark:text-white">{t("nav.layout")}</p>
           <button onClick={onClose} className="text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white p-1"><X size={16} /></button>
@@ -845,6 +845,21 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     : user.role?.color ?? null
     : null;
 
+  // 🌗 Светлые цвета ролей (#ffffff у админа/Founder и т.п.) нечитаемы на светлом
+  // фоне — для ТЕКСТА ника их не применяем, цвет придёт из классов темы.
+  // Свечение аватара оставляем как есть (там белый ореол безвреден).
+  const nickGlowStyle = (() => {
+    if (!glow) return undefined;
+    const m = /^#?([0-9a-f]{6})$/i.exec(glow.trim());
+    if (m) {
+      const v = parseInt(m[1], 16);
+      const r = (v >> 16) & 255, g = (v >> 8) & 255, b = v & 255;
+      if (0.299 * r + 0.587 * g + 0.114 * b > 200) return undefined; // слишком светлый
+    }
+    return { color: glow, textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66` } as React.CSSProperties;
+  })();
+
+
   const hasAdminAccess = user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users");
 
   const isDock = layout === "dock";
@@ -882,7 +897,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
           return (
             <Link key={href} href={href}
               className={`flex ${containerClass} font-medium transition-all border-b border-gray-200 dark:border-white/5 last:border-none group relative ${
-                active ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
+                active ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"
               }`}>
               <Icon size={18} className={`${iconClass} ${active ? "text-[#8b5cf6]" : "text-gray-800 dark:text-white/80 group-hover:text-gray-900 dark:text-white"}`} />
               <span className={textClass}>{label}</span>
@@ -899,7 +914,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         {user && (
           <Link href="/messages"
             className={`flex ${containerClass} font-medium transition-all relative border-b border-gray-200 dark:border-white/5 group ${
-              pathname?.startsWith("/messages") ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
+              pathname?.startsWith("/messages") ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"
             }`}>
             <MessageSquare size={18} className={`${iconClass} ${pathname?.startsWith("/messages") ? "text-[#8b5cf6]" : "text-gray-800 dark:text-white/80 group-hover:text-gray-900 dark:text-white"}`} />
             <span className={textClass}>{t("nav.messages")}</span>
@@ -913,7 +928,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
         <button onClick={loadNotifications}
           className={`flex ${containerClass} font-medium transition-all relative border-b border-gray-200 dark:border-white/5 group ${
-            pathname === "/notifications" ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
+            pathname === "/notifications" ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"
           }`}>
           <Bell size={18} className={`${iconClass} ${pathname === "/notifications" ? "text-[#8b5cf6]" : "text-gray-800 dark:text-white/80 group-hover:text-gray-900 dark:text-white"}`} />
           <span className={textClass}>{t("nav.notifications")}</span>
@@ -927,7 +942,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         {hasAdminAccess && !isDock && (
           <Link href="/adminnew"
             className={`flex ${containerClass} font-medium transition-all border-b border-gray-200 dark:border-white/5 group ${
-              pathname?.startsWith("/adminnew") ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-white/40 hover:bg-white/[0.03] hover:text-white/60"
+              pathname?.startsWith("/adminnew") ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"
             }`}>
             <ShieldAlert size={18} className={`${iconClass} ${pathname?.startsWith("/adminnew") ? "text-[#8b5cf6]" : "text-gray-800 dark:text-white/80 group-hover:text-gray-900 dark:text-white"}`} />
             <span className={textClass}>{t("nav.adminPanel")}</span>
@@ -1007,8 +1022,9 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
                 </div>
                 {!isDock && (
                   <div className="leading-tight min-w-0 flex-1">
-                    <p className={`font-semibold text-sm truncate transition-all ${glow ? "group-hover:opacity-80" : "text-gray-900 dark:text-white group-hover:text-[#8b5cf6]"}`}
-                      style={glow ? { color: glow, textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66` } : undefined}>
+                    <p className={`font-semibold text-sm truncate transition-all ${nickGlowStyle ? "group-hover:opacity-80" : "text-gray-900 dark:text-white group-hover:text-[#8b5cf6]"}`}
+                      style={nickGlowStyle}>
+
                       {user.display_name}
                     </p>
                     <p className="text-sm text-gray-500 dark:text-white/40 truncate">@{user.username}</p>
@@ -1098,8 +1114,8 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
                 ${isActive
                   ? "w-14 h-14 bg-[#8b5cf6] shadow-[0_0_28px_rgba(139,92,246,0.55)]"
                   : isOuter
-                    ? "w-11 h-11 bg-[#1a1a1f]/95 border border-gray-200 dark:border-white/15 shadow-lg shadow-black/40"
-                    : "w-12 h-12 bg-gray-100 dark:bg-[#22222a]/95 border border-gray-200 dark:border-white/20 shadow-lg shadow-black/40"
+                    ? "w-11 h-11 bg-ivory/95 dark:bg-[#1a1a1f]/95 border border-gray-200 dark:border-white/15 shadow-lg shadow-gray-400/40 dark:shadow-black/40"
+                    : "w-12 h-12 bg-gray-100 dark:bg-[#22222a]/95 border border-gray-200 dark:border-white/20 shadow-lg shadow-gray-400/40 dark:shadow-black/40"
                 }
               `}>
                 {item.isProfile && user ? (
@@ -1120,7 +1136,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
                 )}
                   </div>
                 {!!item.count && item.count > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#8b5cf6] border-2 border-[#171717] text-white text-[9px] font-bold flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#8b5cf6] border-2 border-paper dark:border-[#171717] text-white text-[9px] font-bold flex items-center justify-center">
                     {item.count > 9 ? "9+" : item.count}
                   </span>
                 )}
@@ -1205,8 +1221,8 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
           onDoubleClick={handleOrbitDoubleClick}
           onTouchEnd={handleOrbitTouchEnd}
           className={`fixed z-[98] w-14 h-14 
-            bg-gray-50 dark:bg-[#171717]/90 backdrop-blur-sm border 
-            flex items-center justify-center shadow-lg shadow-black/50
+            bg-paper dark:bg-[#171717]/90 backdrop-blur-sm border 
+            flex items-center justify-center shadow-lg shadow-gray-400/40 dark:shadow-black/50
             transition-all duration-200
             ${wheelOpen
               ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/20 scale-110"
@@ -1262,11 +1278,11 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     {counts.chats > 0 && (
       <button
         onClick={() => router.push("/messages")}
-        className="relative w-12 h-12 rounded-full bg-gray-50 dark:bg-[#171717]/90 backdrop-blur-sm border border-gray-200 dark:border-white/10 flex items-center justify-center shadow-lg shadow-black/50 text-white/80 hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
+        className="relative w-12 h-12 rounded-full bg-paper dark:bg-[#171717]/90 backdrop-blur-sm border border-gray-200 dark:border-white/10 flex items-center justify-center shadow-lg shadow-gray-400/40 dark:shadow-black/50 text-gray-600 dark:text-white/80 hover:text-[#8b5cf6] dark:hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
         title={t("nav.messages")}
       >
         <MessageSquare size={20} />
-        <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-[#8b5cf6] border-2 border-[#171717] text-white text-[10px] font-bold flex items-center justify-center">
+        <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-[#8b5cf6] border-2 border-paper dark:border-[#171717] text-white text-[10px] font-bold flex items-center justify-center">
           {counts.chats > 9 ? "9+" : counts.chats}
         </span>
       </button>
@@ -1275,11 +1291,11 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     {counts.notifications > 0 && (
       <button
         onClick={() => router.push("/notifications")}
-        className="relative w-12 h-12 rounded-full bg-gray-50 dark:bg-[#171717]/90 backdrop-blur-sm border border-gray-200 dark:border-white/10 flex items-center justify-center shadow-lg shadow-black/50 text-white/80 hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
+        className="relative w-12 h-12 rounded-full bg-paper dark:bg-[#171717]/90 backdrop-blur-sm border border-gray-200 dark:border-white/10 flex items-center justify-center shadow-lg shadow-gray-400/40 dark:shadow-black/50 text-gray-600 dark:text-white/80 hover:text-[#8b5cf6] dark:hover:text-white hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 transition-all"
         title={t("nav.notifications")}
       >
         <Bell size={20} />
-        <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-[#8b5cf6] border-2 border-[#171717] text-white text-[10px] font-bold flex items-center justify-center">
+        <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-[#8b5cf6] border-2 border-paper dark:border-[#171717] text-white text-[10px] font-bold flex items-center justify-center">
           {counts.notifications > 9 ? "9+" : counts.notifications}
         </span>
       </button>
@@ -1291,7 +1307,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
       {/* ═══════ ДЕСКТОП CLASSIC / DOCK ═══════ */}
       {layout !== "orbit" && (
-        <aside className={`hidden md:flex shrink-0 overflow-y-auto flex-col bg-gray-50 dark:bg-[#171717] transition-all duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+        <aside className={`hidden md:flex shrink-0 overflow-y-auto flex-col bg-paper dark:bg-[#171717] transition-all duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
           isDock ? "md:w-20 md:min-w-20 px-0 py-4 gap-2" : "md:w-64 md:min-w-64 p-5 gap-5"
         }`}>
           {desktopSidebarContent}
@@ -1302,10 +1318,10 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       {showNotifs && (
         <>
           <div className="fixed inset-0 bg-black/60 z-[99]" onClick={() => setShowNotifs(false)} />
-          <div className={`fixed left-4 right-4 md:right-auto md:top-4 top-16 w-auto md:w-[380px] max-h-[70vh] md:max-h-[520px] overflow-hidden border border-gray-200 dark:border-white/10 rounded-2xl bg-white dark:bg-[#1f1f23] shadow-2xl z-[100] flex flex-col transition-all duration-300 ${
+          <div className={`fixed left-4 right-4 md:right-auto md:top-4 top-16 w-auto md:w-[380px] max-h-[70vh] md:max-h-[520px] overflow-hidden border border-gray-200 dark:border-white/10 rounded-2xl bg-ivory dark:bg-[#1f1f23] shadow-2xl z-[100] flex flex-col transition-all duration-300 ${
              isDock ? "md:left-24" : "md:left-[272px]"
           }`}>
-            <div className="sticky top-0 bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/10 p-3 flex items-center justify-between shrink-0">
+            <div className="sticky top-0 bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/10 p-3 flex items-center justify-between shrink-0">
               <h3 className="font-bold text-gray-900 dark:text-white">{t("nav.notifications")}</h3>
               <div className="flex items-center gap-1">
                 {notifs.some((n) => !n.read) && (
@@ -1352,7 +1368,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
                 );
               })}
             </div>
-            <div className="sticky bottom-0 bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md border-t border-gray-200 dark:border-white/10 p-2.5 shrink-0">
+            <div className="sticky bottom-0 bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md border-t border-gray-200 dark:border-white/10 p-2.5 shrink-0">
               <Link href="/notifications" onClick={() => setShowNotifs(false)}
                 className="block w-full text-center text-sm font-semibold text-[#8b5cf6] hover:text-[#a78bfa] py-2 rounded-lg hover:bg-[#8b5cf6]/10 transition-all">
                 {t("notif.viewAll")}

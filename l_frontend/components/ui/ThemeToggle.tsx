@@ -46,7 +46,7 @@ export function ThemeToggle({ className = "", size = 18 }: Props) {
       onClick={() => setTheme(isDark ? "light" : "dark")}
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
       title={isDark ? "Switch to light theme" : "Switch to dark theme"}
-      className={`group relative inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-white text-gray-600 transition-colors duration-300 hover:bg-gray-100 active:scale-95 dark:border-gray-200 dark:border-white/15 dark:bg-gray-100 dark:bg-white/5 dark:text-gray-600 dark:text-white/60 dark:hover:bg-gray-100 dark:hover:bg-white/10 ${className}`}
+      className={`group relative inline-flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-ivory text-gray-600 transition-colors duration-300 hover:bg-gray-100 active:scale-95 dark:border-white/15 dark:bg-white/5 dark:text-white/60 dark:hover:bg-white/10 ${className}`}
     >
       {/* Солнце видно в тёмной теме (клик → светлая) */}
       <Sun

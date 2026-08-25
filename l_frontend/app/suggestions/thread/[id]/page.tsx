@@ -119,15 +119,15 @@ export default function ThreadPage() {
     if (res.ok) router.push(`/suggestions/category/${thread.category_id}`);
   }
 
-  if (loading) return <div className="min-h-screen bg-gray-50 dark:bg-[#171717] flex items-center justify-center"><p className="text-gray-600 dark:text-white/50 animate-pulse">{t("common.loading")}</p></div>;
-  if (!thread) return <div className="min-h-screen bg-gray-50 dark:bg-[#171717] flex items-center justify-center"><p className="text-gray-600 dark:text-white/50">{t("suggestions.notFound")}</p></div>;
+  if (loading) return <div className="min-h-screen bg-paper dark:bg-[#171717] flex items-center justify-center"><p className="text-gray-600 dark:text-white/50 animate-pulse">{t("common.loading")}</p></div>;
+  if (!thread) return <div className="min-h-screen bg-paper dark:bg-[#171717] flex items-center justify-center"><p className="text-gray-600 dark:text-white/50">{t("suggestions.notFound")}</p></div>;
 
   const st = STATUS_CONFIG[thread.status] || STATUS_CONFIG.pending;
   const StatusIcon = st.icon;
   const canWrite = !thread.is_closed || canManage;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#171717]">
+    <div className="min-h-screen bg-paper dark:bg-[#171717]">
       <div className="max-w-4xl mx-auto px-4 py-10">
         <Link href={`/suggestions/category/${thread.category_id}`} className="inline-flex items-center gap-2 text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white mb-6">
           <ArrowLeft size={16} /> {t("suggestions.backToCategory")}
@@ -195,7 +195,7 @@ export default function ThreadPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <select value={thread.status}
                 onChange={(e) => api("PATCH", `/api/suggestions/thread/${threadId}/status`, patchForm({ status: e.target.value }))}
-                className="px-2 py-2 rounded-lg bg-gray-50 dark:bg-[#171717] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-xs outline-none">
+                className="px-2 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-xs outline-none">
                 <option value="pending">{t("suggestions.status.pending")}</option>
                 <option value="approved">{t("suggestions.status.approved")}</option>
                 <option value="implemented">{t("suggestions.status.implemented")}</option>
@@ -204,13 +204,13 @@ export default function ThreadPage() {
               </select>
               <select value={thread.prefix?.id || 0}
                 onChange={(e) => api("PATCH", `/api/suggestions/thread/${threadId}/prefix`, patchForm({ prefix_id: e.target.value }))}
-                className="px-2 py-2 rounded-lg bg-gray-50 dark:bg-[#171717] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-xs outline-none">
+                className="px-2 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-xs outline-none">
                 <option value={0}>{t("suggestions.noPrefix")}</option>
                 {prefixes.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
               <select value={thread.category_id}
                 onChange={(e) => api("PATCH", `/api/admin/suggestions/${threadId}/move`, patchForm({ category_id: e.target.value }))}
-                className="px-2 py-2 rounded-lg bg-gray-50 dark:bg-[#171717] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-xs outline-none">
+                className="px-2 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-xs outline-none">
                 {categories.map((c) => <option key={c.id} value={c.id}>{t("suggestions.moveThread")}: {c.name}</option>)}
               </select>
             </div>
@@ -259,7 +259,7 @@ export default function ThreadPage() {
           <div className="border border-gray-200 dark:border-white/10 rounded-2xl p-5 bg-gray-100 dark:bg-white/5">
             <textarea value={newComment} onChange={(e) => setNewComment(e.target.value)}
               placeholder={t("suggestions.commentPh")} rows={4}
-              className="w-full mb-4 px-4 py-3 rounded-lg bg-gray-50 dark:bg-[#171717] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:border-[#8b5cf6] outline-none resize-none" />
+              className="w-full mb-4 px-4 py-3 rounded-lg bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white focus:border-[#8b5cf6] outline-none resize-none" />
             <div className="flex justify-end">
               <button onClick={sendComment} disabled={sending || !newComment.trim()}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-lg bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed] disabled:opacity-40 transition-all">
@@ -299,7 +299,7 @@ function EditModal({ thread, onClose, onSaved }: any) {
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl p-6">
+      <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-black text-gray-900 dark:text-white">{t("suggestions.editThread")}</h3>
           <button onClick={onClose} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white"><X size={20} /></button>

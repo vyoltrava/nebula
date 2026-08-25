@@ -103,7 +103,7 @@ export function GroupMembersModal({ chatId, myRole, onClose, onChanged }: Props)
     <>
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]" onClick={onClose} />
       <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-md max-h-[80vh] bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
+        <div className="w-full max-w-md max-h-[80vh] bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
           <div className="p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between shrink-0">
             <h2 className="text-lg font-black text-gray-900 dark:text-white">
               Участники ({members.length})

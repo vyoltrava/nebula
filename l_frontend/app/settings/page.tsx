@@ -478,7 +478,7 @@ async function activate2FA() {
             {view === "appearance" && (
               <div>
                 <h2 className="text-lg font-semibold mb-1">{t("settings.appearance")}</h2>
-                <p className="text-sm text-[#B9B8BD] mb-4 dark:text-gray-600 dark:text-white/60">
+                <p className="text-sm text-[#B9B8BD] mb-4 dark:text-white/60">
                   {t("settings.appearanceHint")}
                 </p>
                 <AppearanceSettings />

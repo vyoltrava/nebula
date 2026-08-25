@@ -122,7 +122,7 @@ export function BugsSection({ me }: { me: any }) {
         <>
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]" onClick={() => setSelected(null)} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full max-w-2xl border border-gray-200 dark:border-white/20 rounded-2xl bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
+            <div className="w-full max-w-2xl border border-gray-200 dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
               <div className="flex items-start justify-between mb-4 gap-3">
                 <div className="flex-1 min-w-0">
                   <h2 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white">{selected.title}</h2>

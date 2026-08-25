@@ -3,12 +3,21 @@
 #  Добавляет light-вариант к жёстко заданным тёмным классам.
 #  Guard-ы защищают белый текст на цветных/акцентных подложках.
 #  Запуск: powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/add-light-theme.ps1
+#  Точечно: ... -OnlyFiles @("MessageBubble.tsx","AuthGuard.tsx")
 # ============================================================
+param(
+  [string[]]$OnlyFiles = @()
+)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 
 $targets = Get-ChildItem "$root\app", "$root\components" -Recurse -Include *.tsx, *.ts |
   Where-Object { $_.FullName -notmatch '\\(_backup|__tests__|node_modules)\\' }
+
+if ($OnlyFiles.Count -gt 0) {
+  $targets = $targets | Where-Object { $OnlyFiles -contains $_.Name }
+}
+
 
 # Префикс вариантности (hover:/focus:/...) — колон внутри, вся группа опциональна
 $P = '((?:(?:hover|focus|active|group-hover):)?)'

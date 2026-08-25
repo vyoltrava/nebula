@@ -820,7 +820,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             onClick={(e) => e.stopPropagation()}
           >
             <div
-              className="w-full max-w-lg bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto"
+              className="w-full max-w-lg bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">

@@ -178,7 +178,7 @@ export default function BadgesAdminPage() {
   const level = me.level ?? getUserLevel(me);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#101010] text-gray-900 dark:text-white">
+    <div className="min-h-screen bg-paper dark:bg-[#101010] text-gray-900 dark:text-white">
       <div className="max-w-6xl mx-auto p-4 pt-6">
         {/* ═══════════════════════════════════════════════════ */}
         {/* ШАПКА С КНОПКОЙ НАЗАД */}
@@ -204,7 +204,7 @@ export default function BadgesAdminPage() {
         </div>
 
         {/* ВКЛАДКИ */}
-        <div className="flex gap-1 mb-6 bg-gray-50 dark:bg-[#171717] p-1 rounded-lg border border-gray-200 dark:border-white/10">
+        <div className="flex gap-1 mb-6 bg-paper dark:bg-[#171717] p-1 rounded-lg border border-gray-200 dark:border-white/10">
           <button onClick={() => setActiveTab("my")} className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${activeTab === "my" ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" : "text-gray-400 hover:text-gray-300"}`}>
             <List className="inline mr-2" size={16} /> Мои плашки
           </button>
@@ -221,7 +221,7 @@ export default function BadgesAdminPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Поиск плашек..."
-                className="px-3 py-1.5 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-blue-500/50" />
+                className="px-3 py-1.5 bg-ivory dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-blue-500/50" />
               <button onClick={() => { setFormBadge(null); setShowForm(true); }}
                 className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
                 <Plus size={16} /> Создать плашку
@@ -236,7 +236,7 @@ export default function BadgesAdminPage() {
 
         {/* ВКЛАДКА: ВЫДАТЬ ПЛАШКУ */}
         {activeTab === "assign" && (
-          <div className="bg-gray-50 dark:bg-[#171717] border border-gray-200 dark:border-white/10 rounded-xl p-6">
+          <div className="bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/10 rounded-xl p-6">
             <h2 className="text-lg font-semibold mb-4">Выдача плашки пользователю</h2>
             <CustomBadgeAssignForm badges={badges} onSuccess={handleAssignmentSuccess} />
           </div>
@@ -246,8 +246,8 @@ export default function BadgesAdminPage() {
         {activeTab === "assigned" && (
           <div className="space-y-4">
             <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Поиск выданных плашек..."
-              className="w-full px-3 py-2 bg-white dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-blue-500/50" />
-            <div className="bg-gray-50 dark:bg-[#171717] border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden">
+              className="w-full px-3 py-2 bg-ivory dark:bg-[#1a1a1a] border border-gray-200 dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-blue-500/50" />
+            <div className="bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden">
               <table className="w-full">
                 <thead><tr className="border-b border-gray-200 dark:border-white/10">
                   <th className="text-left p-4 text-sm font-medium text-gray-300">Пользователь</th>
@@ -264,7 +264,7 @@ export default function BadgesAdminPage() {
     <tr key={a.id} className="border-b border-gray-200 dark:border-white/5">
       <td className="p-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-white dark:bg-[#1a1a1a]"></div>
+          <div className="w-8 h-8 rounded-full bg-ivory dark:bg-[#1a1a1a]"></div>
           <span className="text-sm">ID: {a.user_id}</span>
         </div>
       </td>

@@ -40,12 +40,12 @@ export function AppearanceSettings() {
   return (
     <div className="space-y-5">
       {/* Быстрый переключатель */}
-      <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-white p-4 transition-colors duration-300 dark:border-gray-200 dark:border-white/10 dark:bg-white/[0.03]">
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 bg-ivory p-4 transition-colors duration-300 dark:border-white/10 dark:bg-white/[0.03]">
         <div>
-          <p className="text-sm font-medium text-gray-900 dark:text-gray-900 dark:text-white">
+          <p className="text-sm font-medium text-gray-900 dark:text-white">
             {t("settings.appearance")}
           </p>
-          <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-600 dark:text-white/50">
+          <p className="mt-0.5 text-xs text-gray-500 dark:text-white/50">
             {resolvedTheme === "dark"
               ? t("settings.themeDark")
               : resolvedTheme === "light"
@@ -60,7 +60,7 @@ export function AppearanceSettings() {
       <div
         role="radiogroup"
         aria-label={t("settings.appearance")}
-        className="grid grid-cols-3 gap-2 rounded-xl border border-gray-200 bg-gray-100/60 p-1.5 transition-colors duration-300 dark:border-gray-200 dark:border-white/10 dark:bg-black/20"
+        className="grid grid-cols-3 gap-2 rounded-xl border border-gray-200 bg-gray-100/60 p-1.5 transition-colors duration-300 dark:border-white/10 dark:bg-black/20"
       >
         {modes.map((m) => {
           const Icon = m.icon;
@@ -75,7 +75,7 @@ export function AppearanceSettings() {
               className={`flex flex-col items-center gap-1.5 rounded-lg px-2 py-3 text-xs font-medium transition-all duration-300 ${
                 active
                   ? "bg-[#8b5cf6] text-white shadow-sm"
-                  : "text-gray-500 hover:bg-white hover:text-gray-900 dark:text-gray-600 dark:text-white/50 dark:hover:bg-gray-100 dark:hover:bg-white/5 dark:hover:text-gray-900 dark:text-white"
+                  : "text-gray-500 hover:bg-white hover:text-gray-900 dark:text-white/50 dark:hover:bg-white/5 dark:hover:text-white"
               }`}
             >
               <Icon size={18} />
@@ -85,7 +85,7 @@ export function AppearanceSettings() {
         })}
       </div>
 
-      <p className="text-xs text-gray-500 dark:text-gray-500 dark:text-white/40">
+      <p className="text-xs text-gray-500 dark:text-white/40">
         {t("settings.appearanceHint")}
       </p>
     </div>

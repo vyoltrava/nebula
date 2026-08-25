@@ -294,7 +294,7 @@ export default function RolesPage() {
   }
 
   if (!me) return (
-    <div className="h-screen flex items-center justify-center bg-white dark:bg-[#18181b]">
+    <div className="h-screen flex items-center justify-center bg-ivory dark:bg-[#18181b]">
       <p className="text-gray-600 dark:text-white/60 animate-pulse">Загрузка...</p>
     </div>
   );
@@ -384,11 +384,11 @@ export default function RolesPage() {
   });
 
   return (
-    <div className="h-screen flex overflow-hidden bg-white dark:bg-[#18181b]">
+    <div className="h-screen flex overflow-hidden bg-ivory dark:bg-[#18181b]">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
       <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
-        <div className="p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/80 backdrop-blur-md z-10">
+        <div className="p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Palette size={24} className="text-[#8b5cf6]" />
@@ -408,7 +408,7 @@ export default function RolesPage() {
           </div>
         </div>
         {/* 🗂️ ВКЛАДКИ ГРУПП */}
-        <div className="px-6 pt-3 pb-0 border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#171717]/40 flex items-center gap-1 overflow-x-auto">
+        <div className="px-6 pt-3 pb-0 border-b border-gray-200 dark:border-white/10 bg-paper dark:bg-[#171717]/40 flex items-center gap-1 overflow-x-auto">
           <button
             onClick={() => setActiveTab("all")}
             className={`px-4 py-2.5 text-sm font-bold whitespace-nowrap border-b-2 transition-all ${
@@ -616,7 +616,7 @@ export default function RolesPage() {
               onClick={() => !saving && setShowForm(false)}
             />
             <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-              <div className="w-full max-w-lg border border-gray-200 dark:border-white/20 rounded-2xl bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+              <div className="w-full max-w-lg border border-gray-200 dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-black text-gray-900 dark:text-white">
                     {editingRole ? "Редактировать роль" : "Создать роль"}
@@ -898,7 +898,7 @@ export default function RolesPage() {
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200]" onClick={() => !catSaving && setShowCatManager(false)} />
             <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-              <div className="w-full max-w-md border border-gray-200 dark:border-white/20 rounded-2xl bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[80vh] overflow-y-auto">
+              <div className="w-full max-w-md border border-gray-200 dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[80vh] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
                     <FolderOpen size={18} className="text-[#8b5cf6]" />

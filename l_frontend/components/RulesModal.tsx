@@ -20,8 +20,8 @@ export function RulesModal({ onClose }: { onClose: () => void }) {
         onClick={onClose}
       />
       <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-3xl border border-gray-200 dark:border-white/20 rounded-2xl bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl pointer-events-auto max-h-[85vh] flex flex-col">
-          <div className="sticky top-0 bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/10 p-4 flex items-center justify-between shrink-0">
+        <div className="w-full max-w-3xl border border-gray-200 dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl pointer-events-auto max-h-[85vh] flex flex-col">
+          <div className="sticky top-0 bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/10 p-4 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <Shield size={20} className="text-[#8b5cf6]" />
               <h2 className="font-black text-gray-900 dark:text-white text-lg">

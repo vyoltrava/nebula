@@ -96,7 +96,7 @@ export const MessageBubble = memo(function MessageBubble({
           )}
 
           <div className={`${bubbleRadius} transition-all ${isSelected ? "ring-2 ring-[#8b5cf6] ring-offset-2 ring-offset-[#171717]" : ""} ${isVideoNote || isAudio || isSticker ? "p-0 bg-transparent border-0 rounded-2xl overflow-hidden" : `px-3 sm:px-3.5 md:px-4 py-2 sm:py-2 ${isForwarded ? 
-            (isMine ? "bg-cyan-600 text-white border-l-4 border-cyan-600 dark:border-cyan-400" : "bg-cyan-950/40 text-white border-l-4 border-cyan-600 dark:border-cyan-400") : (isMine ? (isSecret ? "bg-emerald-600 text-white" : "bg-[#8b5cf6] text-white") : "bg-gray-100 dark:bg-white/10 text-white border border-gray-200 dark:border-white/15")}`}`}>            
+            (isMine ? "bg-cyan-600 text-white border-l-4 border-cyan-600 dark:border-cyan-400" : "bg-cyan-950/40 text-white border-l-4 border-cyan-600 dark:border-cyan-400") : (isMine ? (isSecret ? "bg-emerald-600 text-white" : "bg-[#8b5cf6] text-white") : "bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white border border-gray-200 dark:border-white/15")}`}`}>            
             
             {/* Медиа контент */}
             {msg.media_url && isEncryptedMedia ? (

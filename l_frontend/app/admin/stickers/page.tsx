@@ -210,7 +210,7 @@ export default function AdminStickersPage() {
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
       <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
         {/* Шапка */}
-        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/80 backdrop-blur-md z-10">
+        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
               <button onClick={() => router.push("/admin")} className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10">
@@ -332,7 +332,7 @@ export default function AdminStickersPage() {
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => !savingPack && setShowPackEditor(false)} />
             <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
-              <div className="w-full max-w-2xl bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
+              <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-black text-gray-900 dark:text-white text-lg">{editingPack.id ? "Редактировать пак" : "Новый пак"}</h2>
                   <button onClick={() => !savingPack && setShowPackEditor(false)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white p-1"><X size={18} /></button>

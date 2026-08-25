@@ -323,8 +323,8 @@ export function CreatePost() {
       {showStickers && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowStickers(false)} />
-          <div className="absolute top-full left-0 mt-2 p-3 border border-gray-200 dark:border-white/20 rounded-xl bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl z-50 w-64 max-h-72 overflow-y-auto">
-            <p className="text-xs font-bold text-gray-600 dark:text-white/60 mb-2 uppercase tracking-wider sticky top-0 bg-white dark:bg-[#1f1f23]/95 pb-1">Стикеры</p>
+          <div className="absolute top-full left-0 mt-2 p-3 border border-gray-200 dark:border-white/20 rounded-xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl z-50 w-64 max-h-72 overflow-y-auto">
+            <p className="text-xs font-bold text-gray-600 dark:text-white/60 mb-2 uppercase tracking-wider sticky top-0 bg-ivory dark:bg-[#1f1f23]/95 pb-1">Стикеры</p>
             <div className="grid grid-cols-5 gap-1">
               {STICKERS.map((s) => (
                 <button

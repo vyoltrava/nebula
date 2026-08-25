@@ -206,7 +206,7 @@ export default function UpdatesPage() {
   const unreadCount = updates.filter((u) => !isRead(u.id)).length;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#171717]">
+    <div className="min-h-screen bg-paper dark:bg-[#171717]">
       <div className="max-w-3xl mx-auto px-4 py-10">
                    <CommunityTabs />
 
@@ -269,7 +269,7 @@ export default function UpdatesPage() {
               <div key={u.id} className="relative mb-8">
                 {/* Точка на таймлайне */}
                 <span
-                  className="absolute -left-10 top-5 w-7 h-7 rounded-full border-2 bg-gray-50 dark:bg-[#171717] flex items-center justify-center z-10"
+                  className="absolute -left-10 top-5 w-7 h-7 rounded-full border-2 bg-paper dark:bg-[#171717] flex items-center justify-center z-10"
                   style={{
                     borderColor: read ? "rgba(255,255,255,0.15)" : cfg.color,
                     boxShadow: read ? "none" : cfg.glow,
@@ -386,7 +386,7 @@ export default function UpdatesPage() {
         <>
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]" onClick={() => setShowForm(false)} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full max-w-xl border border-gray-200 dark:border-white/20 rounded-2xl bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
+            <div className="w-full max-w-xl border border-gray-200 dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-5">
                 <h2 className="text-xl font-black text-gray-900 dark:text-white">{t("updates.newTitle")}</h2>
                 <button onClick={() => setShowForm(false)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10">

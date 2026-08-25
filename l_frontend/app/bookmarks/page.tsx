@@ -37,7 +37,7 @@ export default function BookmarksPage() {
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
       <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
         {/* Шапка — остаётся всегда видимой */}
-        <div className="p-4 md:p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/95 backdrop-blur-md z-10">
+        <div className="p-4 md:p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
           <div className="flex items-center gap-3">
             <Bookmark size={24} className="text-[#8b5cf6]" fill="currentColor" />
             <h1 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white">{t("nav.bookmarks")}</h1>

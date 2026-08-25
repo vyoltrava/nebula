@@ -86,17 +86,17 @@ export default function AdminChatsPage() {
   );
 
   if (!me) {
-    return <div className="h-screen flex items-center justify-center bg-white dark:bg-[#18181b]"><p className="text-gray-600 dark:text-white/60 animate-pulse">Загрузка...</p></div>;
+    return <div className="h-screen flex items-center justify-center bg-ivory dark:bg-[#18181b]"><p className="text-gray-600 dark:text-white/60 animate-pulse">Загрузка...</p></div>;
   }
 
   return (
-    <div className="h-screen flex overflow-hidden bg-white dark:bg-[#18181b]">
+    <div className="h-screen flex overflow-hidden bg-ivory dark:bg-[#18181b]">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
       <main className="flex-1 flex overflow-hidden border-x border-gray-200 dark:border-white/10">
         {/* СПИСОК ЧАТОВ */}
         <div className={`w-full md:w-96 md:border-r border-gray-200 dark:border-white/10 flex flex-col ${activeChat ? "hidden md:flex" : "flex"}`}>
-          <div className="p-4 border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#171717]/80 backdrop-blur-md">
+          <div className="p-4 border-b border-gray-200 dark:border-white/10 bg-paper dark:bg-[#171717]/80 backdrop-blur-md">
             <div className="flex items-center gap-3 mb-3">
               <button onClick={() => router.push("/admin")} className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10">
                 <ArrowLeft size={18} />
@@ -163,7 +163,7 @@ export default function AdminChatsPage() {
             </div>
           ) : (
             <>
-              <div className="p-3 border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#171717]/80 backdrop-blur-md flex items-center gap-3">
+              <div className="p-3 border-b border-gray-200 dark:border-white/10 bg-paper dark:bg-[#171717]/80 backdrop-blur-md flex items-center gap-3">
                 <button
                   onClick={() => setActiveChat(null)}
                   className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 md:hidden"

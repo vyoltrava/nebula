@@ -357,7 +357,7 @@ async function load() {
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200]" onClick={() => setWarnTarget(null)} />
           <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-            <div className="w-full max-w-md bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto max-h-[80vh] overflow-y-auto">
+            <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto max-h-[80vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
                   <AlertTriangle className="text-yellow-600 dark:text-yellow-400" size={18} /> Варны: {warnTarget.display_name}

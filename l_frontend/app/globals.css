@@ -5,28 +5,36 @@
    Класс на <html> вешает next-themes (см. components/ThemeModeProvider.tsx). */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* 🎨 Фирменные светлые тона: слоновая кость (карточки) и тёплая бумага (фон страниц).
+   Генерируют утилиты bg-ivory / bg-paper / border-ivory и т.д. */
+@theme {
+  --color-ivory: #FAF8F1;
+  --color-paper: #F4F1E8;
+}
+
+
 /* ============================================================
    🌗 ЦВЕТОВЫЕ ТОКЕНЫ (Light по умолчанию, Dark через класс .dark
    на <html>, который вешает next-themes)
    ============================================================ */
 :root {
-  /* Light theme */
-  --bg-primary: #f9fafb;            /* gray-50 — фон страницы */
-  --bg-secondary: #ffffff;          /* карточки */
-  --bg-tertiary: #f3f4f6;           /* gray-100 — поля ввода, ховеры */
+  /* Light theme — тёплые «бумажные» оттенки */
+  --bg-primary: #f4f1e8;            /* paper — фон страницы */
+  --bg-secondary: #faf8f1;          /* ivory — карточки */
+  --bg-tertiary: #efece1;           /* поля ввода, ховеры */
   --accent: #8b5cf6;
   --accent-hover: #7c3aed;
   --border: rgba(17, 24, 39, 0.08);
   --border-strong: rgba(17, 24, 39, 0.16);
-  --text: #111827;                  /* gray-900 */
-  --text-muted: rgba(17, 24, 39, 0.6);
-  --scrollbar-thumb: rgba(17, 24, 39, 0.2);
-  --splash-bg: #f9fafb;
+  --text: #26221a;
+  --text-muted: rgba(38, 34, 26, 0.62);
+  --scrollbar-thumb: rgba(38, 34, 26, 0.22);
+  --splash-bg: #f4f1e8;
 
   /* Подложка и «вуаль» анимированных фонов (Themes) */
-  --anim-base: #eef0f5;
-  --anim-veil: rgba(250, 250, 252, 0.55);
-  --anim-veil-strong: rgba(250, 250, 252, 0.74);
+  --anim-base: #edeadd;
+  --anim-veil: rgba(252, 250, 244, 0.55);
+  --anim-veil-strong: rgba(252, 250, 244, 0.74);
 }
 
 .dark {
@@ -88,6 +96,13 @@ body {
     0 0 4px  color-mix(in srgb, var(--role-color) 80%, transparent),
     0 0 10px color-mix(in srgb, var(--role-color) 55%, transparent),
     0 0 22px color-mix(in srgb, var(--role-color) 30%, transparent);
+}
+
+/* 🌗 Светлая тема: светлые цвета ролей (например, белый у Founder) смешиваются
+   с тёмной подложкой — ник остаётся читаемым; неоновое свечение убираем */
+html:not(.dark) .role-glow {
+  color: color-mix(in srgb, var(--role-color, currentColor) 68%, #211d14);
+  text-shadow: none;
 }
 
 /* ===== Splash screen ===== */
@@ -158,6 +173,15 @@ body {
 }
 .badge-founder::after {
   background: linear-gradient(100deg, transparent, rgba(139,92,246,.45), #fff, rgba(56,189,248,.45), transparent);
+}
+
+/* 🌗 Светлая тема: белая плашка Founder должна отделяться от светлого фона
+   (перебиваем inline-стили с белой рамкой/свечением) */
+html:not(.dark) .badge-founder {
+  border: 1px solid rgba(38, 34, 26, 0.28) !important;
+  box-shadow:
+    0 3px 10px rgba(38, 34, 26, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
 }
 
 /* DEVELOPER: синий перелив + белый блик */

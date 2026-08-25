@@ -291,7 +291,7 @@ export default function SupportPage() {
   const activeTicket = tickets.find(t => t.id === activeId);
 
   return (
-    <div className="h-screen flex overflow-hidden bg-white dark:bg-[#18181b]">
+    <div className="h-screen flex overflow-hidden bg-ivory dark:bg-[#18181b]">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
 
@@ -367,7 +367,7 @@ export default function SupportPage() {
         </div>
 
         {/* ПРАВАЯ КОЛОНКА: ЧАТ */}
-        <div className={`flex-1 flex flex-col bg-white dark:bg-[#18181b] ${activeId ? "flex" : "hidden md:flex"}`}>
+        <div className={`flex-1 flex flex-col bg-ivory dark:bg-[#18181b] ${activeId ? "flex" : "hidden md:flex"}`}>
           {!activeId ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center max-w-xs">

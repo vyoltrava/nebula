@@ -83,7 +83,7 @@ export function UserSearchField({ selectedUserId, onSelect, onClear }: UserSearc
         className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-purple-600 dark:focus:border-purple-400"
       />
       {query.trim() && (loading || results.length > 0) && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden z-50 max-h-48 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden z-50 max-h-48 overflow-y-auto">
           {loading && <UserSearchFieldSkeleton />}
           {!loading && results.length === 0 && (
             <div className="px-3 py-2 text-xs text-gray-500 dark:text-white/40 text-center">Ничего не найдено</div>

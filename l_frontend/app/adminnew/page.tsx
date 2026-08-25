@@ -90,7 +90,7 @@ export default function AdminPage() {
 
   if (!me || !activeTab) {
     return (
-      <div className="h-screen flex items-center justify-center bg-white dark:bg-[#18181b]">
+      <div className="h-screen flex items-center justify-center bg-ivory dark:bg-[#18181b]">
         <p className="text-gray-600 dark:text-white/60 animate-pulse">Загрузка...</p>
       </div>
     );
@@ -104,12 +104,12 @@ export default function AdminPage() {
   const canRoles = me.is_admin || (me.permissions || []).includes("manage_roles");
 
   return (
-    <div className="h-screen flex overflow-hidden bg-white dark:bg-[#18181b]">
+    <div className="h-screen flex overflow-hidden bg-ivory dark:bg-[#18181b]">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
       <main className="flex-1 overflow-y-auto border-x border-gray-200 dark:border-white/10">
         {/* Шапка */}
-        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-gray-50 dark:bg-[#171717]/95 backdrop-blur-md z-10">
+        <div className="p-4 sm:p-6 border-b border-gray-200 dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <Shield size={24} className="text-[#8b5cf6]" />

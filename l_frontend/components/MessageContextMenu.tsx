@@ -66,7 +66,7 @@ export function MessageContextMenu({ x, y, items, onClose }: MessageContextMenuP
     <>
       <div
         ref={menuRef}
-        className="fixed z-[300] bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] py-1 animate-in fade-in zoom-in-95 duration-100"
+        className="fixed z-[300] bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] py-1 animate-in fade-in zoom-in-95 duration-100"
         style={{
           left: adjustedPos.x,
           top: adjustedPos.y,

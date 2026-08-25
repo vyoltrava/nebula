@@ -81,7 +81,7 @@ export default function TechPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white dark:bg-[#18181b] flex items-center justify-center">
+      <div className="min-h-screen bg-ivory dark:bg-[#18181b] flex items-center justify-center">
         <div className="text-gray-900 dark:text-white text-xl">Проверка авторизации...</div>
       </div>
     );
@@ -89,7 +89,7 @@ export default function TechPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-white dark:bg-[#18181b] flex items-center justify-center p-8">
+      <div className="min-h-screen bg-ivory dark:bg-[#18181b] flex items-center justify-center p-8">
         <div className="bg-red-500/20 border border-red-500 rounded-xl p-6 max-w-2xl">
           <h2 className="text-red-600 dark:text-red-400 text-xl font-bold mb-2">Ошибка</h2>
           <p className="text-gray-900 dark:text-white">{error}</p>
@@ -99,7 +99,7 @@ export default function TechPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#18181b] p-8">
+    <div className="min-h-screen bg-ivory dark:bg-[#18181b] p-8">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-black text-gray-900 dark:text-white">

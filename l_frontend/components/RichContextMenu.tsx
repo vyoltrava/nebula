@@ -164,7 +164,7 @@ export function RichContextMenu({ x, y, items, onClose, zIndex = 9990 }: Props) 
   const panel = (
     <div
       ref={mainRef}
-      className="pointer-events-auto p-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1f1f23]/95 backdrop-blur-xl shadow-2xl"
+      className="pointer-events-auto p-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-xl shadow-2xl"
       style={isCoarse ? { width: MENU_W } : { position: "fixed", left: pos.x, top: pos.y, width: MENU_W }}
     >
       {items.map(renderItem)}
@@ -173,7 +173,7 @@ export function RichContextMenu({ x, y, items, onClose, zIndex = 9990 }: Props) 
 
   const submenu = openSub && subItems && (
     <div
-      className="pointer-events-auto p-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1f1f23]/95 backdrop-blur-xl shadow-2xl"
+      className="pointer-events-auto p-1.5 rounded-xl border border-gray-200 dark:border-white/10 bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-xl shadow-2xl"
       style={{ position: "fixed", left: subPos.x, top: subPos.y, width: MENU_W }}
     >
       {subItems.map(renderItem)}

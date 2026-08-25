@@ -401,7 +401,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
             {badges.map((badge) => (
               <div key={badge.id} className="border border-gray-200 dark:border-white/15 bg-gray-100 dark:bg-white/5 rounded-2xl p-4 flex gap-4">
                 <div className="shrink-0 relative">
-                  <div className="w-16 h-16 rounded-full bg-gray-50 dark:bg-[#171717] flex items-center justify-center border-2 border-[#222]" style={{ filter: `drop-shadow(0 0 8px ${badge.glow_color || '#8b5cf6'}99)` }}>
+                  <div className="w-16 h-16 rounded-full bg-paper dark:bg-[#171717] flex items-center justify-center border-2 border-[#222]" style={{ filter: `drop-shadow(0 0 8px ${badge.glow_color || '#8b5cf6'}99)` }}>
                     <img src={badge.icon_url} alt={badge.name} className="w-10 h-10 object-contain" />
                   </div>
                   {badge.effect_type === "gold" && <div className="absolute inset-0 rounded-full border-2 border-yellow-400/50 animate-pulse pointer-events-none" />}
@@ -447,7 +447,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => !savingPack && setShowEditor(false)} />
           <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
-            <div className="w-full max-w-2xl bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
+            <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-black text-gray-900 dark:text-white text-lg">{editingPack.id ? "Редактировать пак" : "Новый пак"}</h2>
                 <IconButton icon={X} size="iconSm" onClick={() => !savingPack && setShowEditor(false)} />
@@ -555,7 +555,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => !savingBadge && setShowBadgeEditor(false)} />
           <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
-            <div className="w-full max-w-md bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
+            <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-black text-gray-900 dark:text-white text-lg">{editingBadge.id ? "Редактировать значок" : "Новый значок"}</h2>
                 <IconButton icon={X} size="iconSm" onClick={() => !savingBadge && setShowBadgeEditor(false)} />
@@ -576,7 +576,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                     </button>
                     {/* Показываем текущую иконку при редактировании */}
                     {(badgeFileUrl || editingBadge.icon_url) && (
-                      <div className="w-12 h-12 rounded-lg bg-gray-50 dark:bg-[#171717] border border-gray-200 dark:border-white/10 flex items-center justify-center overflow-hidden">
+                      <div className="w-12 h-12 rounded-lg bg-paper dark:bg-[#171717] border border-gray-200 dark:border-white/10 flex items-center justify-center overflow-hidden">
                         <img src={badgeFileUrl || editingBadge.icon_url} alt="Preview" className="w-8 h-8 object-contain" />
                       </div>
                     )}
@@ -675,7 +675,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
         <>
           <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => !uploadingStock && setShowStockUploader(false)} />
           <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
-            <div className="w-full max-w-md bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
+            <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-black text-gray-900 dark:text-white text-lg">Загрузить стоковые значки</h2>
                 <IconButton icon={X} size="iconSm" onClick={() => !uploadingStock && setShowStockUploader(false)} />

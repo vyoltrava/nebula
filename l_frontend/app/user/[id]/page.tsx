@@ -467,7 +467,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
         {showCoverMenu && (
           <>
             <div className="fixed inset-0 z-30" onClick={() => setShowCoverMenu(false)} />
-            <div className="absolute top-4 right-4 z-40 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
+            <div className="absolute top-4 right-4 z-40 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
               <button
                 onClick={(e) => { e.stopPropagation(); coverInputRef.current?.click(); setShowCoverMenu(false); }}
                 className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
@@ -554,7 +554,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     {isOwnProfile && showAvatarMenu && !uploading && (
       <>
         <div className="fixed inset-0 z-30" onClick={() => setShowAvatarMenu(false)} />
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-40 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-40 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[160px]">
           <button
             onClick={(e) => { e.stopPropagation(); openFilePicker(); setShowAvatarMenu(false); }}
             className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
@@ -755,7 +755,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
         )}
         {/* Подсказка лимитов для обложки */}
         {showCoverMenu && (
-          <div className="absolute top-[calc(100%+8px)] right-4 z-30 text-[10px] text-gray-500 dark:text-white/40 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 shadow-lg">
+          <div className="absolute top-[calc(100%+8px)] right-4 z-30 text-[10px] text-gray-500 dark:text-white/40 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-1.5 shadow-lg">
             {UPLOAD_RULES.banner.hint}
           </div>
         )}
@@ -771,8 +771,8 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200]" onClick={() => setModalType(null)} />
             <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-              <div className="w-full max-w-md border border-gray-200 dark:border-white/20 rounded-2xl bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl pointer-events-auto max-h-[80vh] md:max-h-[70vh] flex flex-col">
-                <div className="sticky top-0 bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/10 p-4 flex items-center justify-between shrink-0">
+              <div className="w-full max-w-md border border-gray-200 dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl pointer-events-auto max-h-[80vh] md:max-h-[70vh] flex flex-col">
+                <div className="sticky top-0 bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md border-b border-gray-200 dark:border-white/10 p-4 flex items-center justify-between shrink-0">
                   <h2 className="font-black text-gray-900 dark:text-white text-lg">{modalType === "followers" ? t("profile.followersTitle") : t("profile.followingTitle")}</h2>
                   <button onClick={() => setModalType(null)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"><X size={20} /></button>
                 </div>
@@ -805,7 +805,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => setShowBadgeModal(false)} />
             <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none">
-              <div className="w-full max-w-sm bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-4 pointer-events-auto animate-in zoom-in-95 duration-200">
+              <div className="w-full max-w-sm bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl p-4 pointer-events-auto animate-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-bold text-gray-900 dark:text-white text-sm">Сменить значок</h3>
                   <button onClick={() => setShowBadgeModal(false)} className="text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white p-1"><X size={16} /></button>

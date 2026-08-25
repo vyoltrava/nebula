@@ -26,7 +26,7 @@ export function CommunityTabs() {
   ];
 
   return (
-    <div className="sticky top-0 z-20 -mx-4 px-4 py-2 mb-6 bg-gray-50 dark:bg-[#171717]/90 backdrop-blur-md flex items-center gap-1 sm:static sm:z-auto sm:mx-0 sm:px-0 sm:py-0 sm:mb-8 sm:bg-transparent sm:backdrop-blur-none">
+    <div className="sticky top-0 z-20 -mx-4 px-4 py-2 mb-6 bg-paper dark:bg-[#171717]/90 backdrop-blur-md flex items-center gap-1 sm:static sm:z-auto sm:mx-0 sm:px-0 sm:py-0 sm:mb-8 sm:bg-transparent sm:backdrop-blur-none">
       {/* Назад — чисто стрелка */}
       <Link
         href="/"

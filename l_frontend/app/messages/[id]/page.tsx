@@ -2092,7 +2092,7 @@ const partnerGlow = getGlowColor(chatPartner);
 
 
 const ChatHeader = () => (
-  <div className="border-b border-gray-200 dark:border-white/10 backdrop-blur-md sticky top-0 z-30 bg-gray-50 dark:bg-[#171717]/80">
+  <div className="border-b border-gray-200 dark:border-white/10 backdrop-blur-md sticky top-0 z-30 bg-paper dark:bg-[#171717]/80">
     {/* Основной блок */}
     <div className="p-3 sm:p-4 md:p-4">
       <div className="flex items-center gap-2 sm:gap-3 md:gap-3">
@@ -2286,7 +2286,7 @@ const ChatHeader = () => (
           className="fixed inset-0 z-40" 
           onClick={() => { if (Date.now() - menuOpenTimeRef.current < 400) return; setShowChatMenu(false); }} 
         />
-        <div className="absolute right-0 top-full mt-2 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] sm:min-w-[180px] z-50">
+        <div className="absolute right-0 top-full mt-2 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] sm:min-w-[180px] z-50">
           
           {/* 📱 МОБИЛЬНЫЕ КНОПКИ (скрыты на ПК) */}
 <button
@@ -2441,7 +2441,7 @@ const ChatHeader = () => (
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
 <main className="flex-1 flex flex-col border-x border-gray-200 dark:border-white/10 overflow-hidden">
         {isSelectMode ? (
-          <div className="p-3 sm:p-3 md:p-4 border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#171717]/95 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
+          <div className="p-3 sm:p-3 md:p-4 border-b border-gray-200 dark:border-white/10 bg-paper dark:bg-[#171717]/95 backdrop-blur-md sticky top-0 z-20 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button
                 onClick={toggleSelectMode}
@@ -2641,7 +2641,7 @@ onDoubleClick={(e) => {
             {showScrollBtn && (
               <button
                 onClick={() => scrollToBottom()}
-                className="absolute bottom-28 right-6 w-10 h-10 rounded-full bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 shadow-2xl flex items-center justify-center text-gray-800 dark:text-white/80 hover:text-[#8b5cf6] hover:border-[#8b5cf6] transition-all active:scale-90 z-20 animate-in fade-in zoom-in-50 duration-200"
+                className="absolute bottom-28 right-6 w-10 h-10 rounded-full bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 shadow-2xl flex items-center justify-center text-gray-800 dark:text-white/80 hover:text-[#8b5cf6] hover:border-[#8b5cf6] transition-all active:scale-90 z-20 animate-in fade-in zoom-in-50 duration-200"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
               </button>
@@ -2685,7 +2685,7 @@ onDoubleClick={(e) => {
 
 
 {!isSelectMode && (
-  <div className="relative z-30 p-3 sm:p-3 md:p-4 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#171717]/80 backdrop-blur-md">
+  <div className="relative z-30 p-3 sm:p-3 md:p-4 border-t border-gray-200 dark:border-white/10 bg-paper dark:bg-[#171717]/80 backdrop-blur-md">
     {isRecording ? (
       <div className="flex items-center gap-2.5 sm:gap-3">
         <div className="relative w-2.5 h-2.5 shrink-0">
@@ -2765,7 +2765,7 @@ onDoubleClick={(e) => {
             {showInputActions && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowInputActions(false)} />
-                <div className="absolute bottom-full left-0 mb-2 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[220px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                <div className="absolute bottom-full left-0 mb-2 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[220px] z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
                   <button onClick={() => { fileRef.current?.click(); setShowInputActions(false); }} className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-3 transition-colors">
                     <Paperclip size={18} className="text-gray-600 dark:text-white/60" /> <span>Прикрепить файл</span>
                   </button>
@@ -2797,7 +2797,7 @@ onDoubleClick={(e) => {
 {/* 🆕 ПОЛЕ ВВОДА — ТЕПЕРЬ WYSIWYG */}
 <div className="relative flex-1 flex items-end">
   {mentionSuggestions.length > 0 && mentionQuery !== null && (
-    <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+    <div className="absolute bottom-full left-0 mb-2 w-64 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
       {mentionSuggestions.map((u) => (
         <button key={u.id} type="button" onClick={() => selectMention(u)} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-white/10 text-left transition-colors">
           <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={28} />
@@ -2865,7 +2865,7 @@ onDoubleClick={(e) => {
             
             {/* Меню записи (остается как было) */}
             {showRecordMenu && (
-              <div className="absolute bottom-full right-0 mb-2 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none">
+              <div className="absolute bottom-full right-0 mb-2 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px] z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200 pointer-events-none">
                 <button ref={(el) => { menuItemRefs.current.voice = el; }} className={`w-full px-4 py-3 flex items-center gap-3 text-left text-sm transition-colors ${selectedMenuItem === 'voice' ? 'bg-gray-100 dark:bg-white/20' : ''} text-gray-900 dark:text-white`}>
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${selectedMenuItem === 'voice' ? 'bg-red-500/30 text-red-600 dark:text-red-300' : 'bg-red-500/20 text-red-600 dark:text-red-400'}`}>
                     <Mic size={18} />
@@ -2903,7 +2903,7 @@ onDoubleClick={(e) => {
   <>
     <div className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm" onClick={() => setReactionPickerFor(null)} />
     <div className="fixed inset-0 z-[261] flex items-center justify-center p-4 pointer-events-none">
-      <div className="w-full max-w-sm max-h-[80vh] bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
+      <div className="w-full max-w-sm max-h-[80vh] bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
         {/* Шапка — всегда видна */}
         <div className="shrink-0 p-3 pb-2 border-b border-gray-200 dark:border-white/10">
           <div className="flex items-center justify-between mb-2 px-1">
@@ -3117,7 +3117,7 @@ style={{
         inset-0
         /* Десктоп: компактная панель справа */
         md:inset-auto md:top-0 md:right-0 md:bottom-0 md:w-[420px]
-        bg-gray-50 dark:bg-[#171717]/95 md:bg-gray-50 dark:bg-[#171717]
+        bg-paper dark:bg-[#171717]/95 md:bg-paper dark:bg-[#171717]
         backdrop-blur-md
         border-l border-gray-200 dark:border-white/10
         flex flex-col
@@ -3125,7 +3125,7 @@ style={{
       `}
     >
       {/* Шапка с вкладками — ВСЕГДА сверху, не меняется */}
-      <div className="shrink-0 border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#171717]/80">
+      <div className="shrink-0 border-b border-gray-200 dark:border-white/10 bg-paper dark:bg-[#171717]/80">
         <div className="flex items-center justify-between px-3 py-2.5">
           <h2 className="text-sm font-bold text-gray-900 dark:text-white">Медиа</h2>
           <button
@@ -3359,7 +3359,7 @@ style={{
       onClick={() => { setShowForwardModal(false); setForwardingMessage(null); }}
     />
     <div className="fixed inset-0 z-[201] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl max-h-[70vh] flex flex-col">
+      <div className="w-full max-w-sm bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl max-h-[70vh] flex flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
           <h3 className="font-bold text-gray-900 dark:text-white">Переслать сообщение</h3>
           <button
@@ -3410,7 +3410,7 @@ style={{
       onClick={() => setShowReactionPicker(false)}
     />
     <div className="fixed inset-0 z-[261] flex items-center justify-center p-4 pointer-events-none">
-      <div className="w-full max-w-sm max-h-[80vh] bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
+      <div className="w-full max-w-sm max-h-[80vh] bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
         {/* Шапка */}
         <div className="shrink-0 p-3 pb-2 border-b border-gray-200 dark:border-white/10">
           <div className="flex items-center justify-between mb-2 px-1">
@@ -3509,7 +3509,7 @@ style={{
               className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm" 
               onClick={() => setShowStickers(false)} 
             />
-            <div className="fixed inset-x-0 bottom-0 z-[261] md:inset-auto md:bottom-4 md:right-4 md:w-80 bg-white dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col max-h-[70vh] md:max-h-[500px] animate-in slide-in-from-bottom-10 duration-200">
+            <div className="fixed inset-x-0 bottom-0 z-[261] md:inset-auto md:bottom-4 md:right-4 md:w-80 bg-ivory dark:bg-[#1f1f23] border border-gray-200 dark:border-white/15 rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col max-h-[70vh] md:max-h-[500px] animate-in slide-in-from-bottom-10 duration-200">
               <div className="shrink-0 p-3 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
                 <p className="text-sm font-bold text-gray-900 dark:text-white">Стикеры</p>
                 <button onClick={() => setShowStickers(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">

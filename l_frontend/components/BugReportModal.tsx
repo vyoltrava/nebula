@@ -110,7 +110,7 @@ export function BugReportModal({ onClose }: { onClose: () => void }) {
         onClick={onClose}
       />
       <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-lg border border-gray-200 dark:border-white/20 rounded-2xl bg-white dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-5 sm:p-6 pointer-events-auto animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+        <div className="w-full max-w-lg border border-gray-200 dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-5 sm:p-6 pointer-events-auto animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center shrink-0">
