@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getToken, getUserLevel } from "@/lib/auth";
-import { Plus, Shield, Gift, List, Sparkles } from "lucide-react";
+import { Plus, Shield, Gift, List, Sparkles, ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/Button"; // ← ИМПОРТ КНОПКИ
 import { CustomBadgeForm } from "@/components/admin/badges/CustomBadgeForm";
 import { CustomBadgeAssignForm } from "@/components/admin/badges/CustomBadgeAssignForm";
 import { CustomBadgeList } from "@/components/admin/badges/CustomBadgeList";
@@ -179,13 +180,30 @@ export default function BadgesAdminPage() {
   return (
     <div className="min-h-screen bg-[#101010] text-white">
       <div className="max-w-6xl mx-auto p-4 pt-6">
+        {/* ═══════════════════════════════════════════════════ */}
+        {/* ШАПКА С КНОПКОЙ НАЗАД */}
+        {/* ═══════════════════════════════════════════════════ */}
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2"><Shield className="text-blue-400" /> Кастомные плашки</h1>
-            <p className="text-sm text-gray-400 mt-1">Управление кастомными плашками (level {level})</p>
+          <div className="flex items-center gap-3">
+            {/*  КНОПКА НАЗАД */}
+            <Button
+              variant="secondary"
+              size="iconSm"
+              icon={ArrowLeft}
+              onClick={() => router.back()}
+              title="Вернуться назад"
+            />
+            
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <Shield className="text-blue-400" /> Кастомные плашки
+              </h1>
+              <p className="text-sm text-gray-400 mt-1">Управление кастомными плашками (level {level})</p>
+            </div>
           </div>
         </div>
 
+        {/* ВКЛАДКИ */}
         <div className="flex gap-1 mb-6 bg-[#171717] p-1 rounded-lg border border-white/10">
           <button onClick={() => setActiveTab("my")} className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${activeTab === "my" ? "bg-blue-500/20 text-blue-400" : "text-gray-400 hover:text-gray-300"}`}>
             <List className="inline mr-2" size={16} /> Мои плашки
@@ -198,6 +216,7 @@ export default function BadgesAdminPage() {
           </button>
         </div>
 
+        {/* ВКЛАДКА: МОИ ПЛАШКИ */}
         {activeTab === "my" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -215,6 +234,7 @@ export default function BadgesAdminPage() {
           </div>
         )}
 
+        {/* ВКЛАДКА: ВЫДАТЬ ПЛАШКУ */}
         {activeTab === "assign" && (
           <div className="bg-[#171717] border border-white/10 rounded-xl p-6">
             <h2 className="text-lg font-semibold mb-4">Выдача плашки пользователю</h2>
@@ -222,6 +242,7 @@ export default function BadgesAdminPage() {
           </div>
         )}
 
+        {/* ВКЛАДКА: ВЫДАННЫЕ ПЛАШКИ */}
         {activeTab === "assigned" && (
           <div className="space-y-4">
             <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Поиск выданных плашек..."
