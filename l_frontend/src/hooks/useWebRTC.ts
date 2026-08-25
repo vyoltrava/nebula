@@ -11,6 +11,18 @@ import { getToken } from '@/lib/auth';
 
 export type CallType = 'audio' | 'video';
 
+/** 📊 Диагностика соединения для UI-индикаторов (рендерится в CallModal). */
+export interface CallDiagnostics {
+  ice: string;            // iceConnectionState: new / checking / connected / failed...
+  conn: string;           // connectionState
+  candHost: number;       // host-кандидаты (локальная сеть)
+  candSrflx: number;      // srflx/prflx (прошли STUN)
+  candRelay: number;      // relay (через TURN) — критичны для звонков между сетями
+  candidateErrors: number;// ошибки сбора кандидатов (блокировки/таймауты STUN-TURN)
+  turnActive: boolean;    // подтянулись ли TURN-сервера с бэкенда
+  hint: string | null;    // человекочитаемая причина проблемы
+}
+
 export interface CallState {
   status:
     | 'idle'
@@ -36,6 +48,9 @@ export interface CallState {
   isVideoOff: boolean;
 
   duration: number;
+
+  /** 📊 Живая диагностика соединения (рендерится в CallModal) */
+  diag?: CallDiagnostics;
 }
 
 export type WebRTCSignal =
@@ -151,24 +166,54 @@ const FORCE_RELAY_ONLY = false;
 // ============================================================================
 
 let dynamicIceServers: RTCIceServer[] | null = null;
+let iceFetchInFlight = false;
+
+/** Есть ли рабочий TURN (подтянутый с бэкенда)? Для индикаторов и подсказок. */
+export function isTurnConfigured(): boolean {
+  return !!(dynamicIceServers && dynamicIceServers.length > 0);
+}
+
+const emptyDiag = () => ({
+  ice: 'new',
+  conn: 'new',
+  candHost: 0,
+  candSrflx: 0,
+  candRelay: 0,
+  candidateErrors: 0,
+  turnActive: false,
+  hint: null as string | null,
+});
 
 export async function refreshIceServers(): Promise<void> {
-  if (!isBrowser || dynamicIceServers) return;
+  if (!isBrowser || dynamicIceServers || iceFetchInFlight) return;
+  iceFetchInFlight = true;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ICE_FETCH_TIMEOUT_MS);
   try {
     const apiUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000')
       .replace(/\/+$/, '');
     const token = getToken();
     const res = await fetch(`${apiUrl}/api/ice-servers`, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      signal: controller.signal,
+      cache: 'no-store',
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (Array.isArray(data?.iceServers) && data.iceServers.length > 0) {
       dynamicIceServers = data.iceServers as RTCIceServer[];
-      rtcLog('🔥 Dynamic ICE servers loaded from backend');
+      rtcLog('🔥 Dynamic TURN iceServers loaded from backend');
+    } else {
+      rtcWarn(
+        '⚠️ Backend вернул ПУСТОЙ iceServers — TURN не настроен! ' +
+        'Задай METERED_* переменные на Render, иначе межсетевые звонки невозможны.',
+      );
     }
   } catch (err) {
-    rtcWarn('ice-servers fetch failed — using local STUN fallback', err);
+    rtcWarn('ice-servers fetch failed/timeout — using local STUN fallback', err);
+  } finally {
+    clearTimeout(timer);
+    iceFetchInFlight = false;
   }
 }
 
@@ -205,6 +250,8 @@ const getRTCConfig = (): RTCConfiguration => {
 const DISCONNECTED_GRACE_MS = 15_000;
 const ICE_RESTART_TIMEOUT_MS = 8_000;
 const DURATION_INTERVAL_MS = 1_000;
+// 🔥 Сеть не должна блокировать камеру дольше этого времени:
+const ICE_FETCH_TIMEOUT_MS = 4_000;
 
 type BufferedIceCandidate = RTCIceCandidateInit;
 
@@ -445,6 +492,12 @@ export function useWebRTC(
       pcRef.current = pc;
       activeCallIdRef.current = callId;
 
+      // 📊 Сброс диагностики на старте каждого PeerConnection
+      setState((prev) => ({
+        ...prev,
+        diag: { ...emptyDiag(), turnActive: isTurnConfigured() },
+      }));
+
       stream.getTracks().forEach((track) => {
         rtcLog(`➕ Adding ${track.kind} track`);
         pc.addTrack(track, stream);
@@ -462,6 +515,16 @@ export function useWebRTC(
         // 🔥 Логирование типа кандидата для диагностики VPN
         rtcLog(`🧊 ICE candidate: ${info.type}/${info.protocol}`, info);
 
+        // 📊 Индикатор: считаем кандидатов по типам (host/srflx/relay)
+        setState((prev) => {
+          const d: CallDiagnostics =
+            prev.diag ?? { ...emptyDiag(), turnActive: isTurnConfigured() };
+          if (info.type === 'relay') d.candRelay += 1;
+          else if (info.type === 'srflx' || info.type === 'prflx') d.candSrflx += 1;
+          else d.candHost += 1;
+          return { ...prev, diag: d };
+        });
+
         safeSendSignal({
           type: 'call_ice_candidate',
           call_id: callId,
@@ -476,6 +539,12 @@ export function useWebRTC(
           errorCode: event.errorCode,
           errorText: event.errorText,
         });
+        // 📊 Индикатор: ошибки сбора кандидатов (STUN/TURN недоступен)
+        setState((prev) => {
+          const d: CallDiagnostics =
+            prev.diag ?? { ...emptyDiag(), turnActive: isTurnConfigured() };
+          return { ...prev, diag: { ...d, candidateErrors: d.candidateErrors + 1 } };
+        });
       };
 
       pc.onicegatheringstatechange = () => {
@@ -485,6 +554,19 @@ export function useWebRTC(
       pc.oniceconnectionstatechange = () => {
         const iceState = pc.iceConnectionState;
         rtcLog(`💧 ICE state: ${iceState}`);
+
+        // 📊 Индикатор состояния ICE (+ причина при провале)
+        setState((prev) => {
+          const d: CallDiagnostics =
+            prev.diag ?? { ...emptyDiag(), turnActive: isTurnConfigured() };
+          let hint = d.hint;
+          if (iceState === 'failed') {
+            hint = isTurnConfigured()
+              ? 'TURN задан, но недоступен из вашей сети (провайдер/DPI). Попробуйте VPN или другой TURN.'
+              : 'TURN НЕ НАСТРОЕН: звонок между разными сетями невозможен. Задайте METERED_* на бэкенде.';
+          }
+          return { ...prev, diag: { ...d, ice: iceState, hint } };
+        });
 
         if (iceState === 'checking') {
           setState((prev) => ({ ...prev, status: 'connecting' }));
@@ -519,6 +601,13 @@ export function useWebRTC(
       pc.onconnectionstatechange = () => {
         const connState = pc.connectionState;
         rtcLog(` Connection state: ${connState}`);
+
+        // 📊 Индикатор состояния соединения
+        setState((prev) => {
+          const d: CallDiagnostics =
+            prev.diag ?? { ...emptyDiag(), turnActive: isTurnConfigured() };
+          return { ...prev, diag: { ...d, conn: connState } };
+        });
 
         switch (connState) {
           case 'connecting':
@@ -636,10 +725,13 @@ export function useWebRTC(
   const initiateCall = useCallback(
     async (targetUserId: number, callType: CallType, callerName: string, callerAvatar: string) => {
       rtcLog(`📞 Initiating call to ${targetUserId}`);
-      // 🔥 Подтягиваем актуальные TURN-сервера ДО создания PeerConnection
-      await refreshIceServers();
+      // 🔥 Медиа и TURN грузим ПАРАЛЛЕЛЬНО: камера включается мгновенно,
+      // а не после (возможно очень медленного) запроса /api/ice-servers.
+      // refreshIceServers ограничен таймаутом 4с и никогда не бросает исключений.
+      const streamPromise = getMediaStream(callType);
       try {
-        const stream = await getMediaStream(callType);
+        await refreshIceServers();
+        const stream = await streamPromise;
         setState((prev) => ({
           ...prev,
           status: 'initiating',
@@ -669,10 +761,11 @@ export function useWebRTC(
   const acceptCall = useCallback(
     async (callId: string, callerId: number, callType: CallType, callerName: string, callerAvatar: string) => {
       rtcLog(`✅ Accepting call ${callId}`);
-      // 🔥 Подтягиваем актуальные TURN-сервера ДО создания PeerConnection
-      await refreshIceServers();
+      // 🔥 Медиа и TURN параллельно (см. initiateCall) — камера включается мгновенно
+      const streamPromise = getMediaStream(callType);
       try {
-        const stream = await getMediaStream(callType);
+        await refreshIceServers();
+        const stream = await streamPromise;
         activeCallIdRef.current = callId;
 
         setState((prev) => ({

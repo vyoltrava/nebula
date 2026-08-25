@@ -8675,7 +8675,7 @@ async def api_get_ice_servers(user: User = Depends(get_current_user)):
     """
     now = time.time()
     if _ice_servers_cache["servers"] is not None and now < _ice_servers_cache["expires"]:
-        return {"iceServers": _ice_servers_cache["servers"], "cached": True}
+        return {"iceServers": _ice_servers_cache["servers"], "cached": True, "configured": True}
 
     api_key = os.getenv("METERED_API_KEY", "").strip()
     username = os.getenv("METERED_USERNAME", "").strip()
@@ -8721,7 +8721,7 @@ async def api_get_ice_servers(user: User = Depends(get_current_user)):
         _ice_servers_cache["servers"] = servers
         _ice_servers_cache["expires"] = now + 240.0
 
-    return {"iceServers": servers, "cached": False}
+    return {"iceServers": servers, "cached": False, "configured": bool(servers)}
 
 
 @app.websocket("/ws")

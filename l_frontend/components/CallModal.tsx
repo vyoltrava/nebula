@@ -18,7 +18,8 @@ export default function CallModal() {
 
   const { 
     status, callType, remoteUserName, remoteUserAvatar, isCaller, 
-    localStream, remoteStream, isMuted, isVideoOff, duration 
+    localStream, remoteStream, isMuted, isVideoOff, duration,
+    diag,
   } = callState;
 
   // Привязка локального видео
@@ -71,6 +72,34 @@ export default function CallModal() {
             {status === 'active' && formatDuration(duration)}
             {status === 'ended' && 'Звонок завершён'}
           </div>
+
+          {/* 📊 ИНДИКАТОР ЭТАПА СОЕДИНЕНИЯ: ICE-стейт, типы кандидатов, TURN */}
+          {(status === 'connecting' || status === 'active') && diag && (
+            <div className="flex items-center justify-center gap-2 text-[11px] font-mono text-white/50">
+              <span>ICE:{diag.ice}</span>
+              <span>·</span>
+              <span>
+                H/S/R:{diag.candHost}/{diag.candSrflx}/{diag.candRelay}
+              </span>
+              <span>·</span>
+              <span className={diag.turnActive ? 'text-emerald-400' : 'text-red-400'}>
+                TURN:{diag.turnActive ? 'ON' : 'OFF'}
+              </span>
+              {diag.candidateErrors > 0 && (
+                <>
+                  <span>·</span>
+                  <span className="text-amber-400">err:{diag.candidateErrors}</span>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* 🚨 ИНДИКАТОР ПРОВАЛА СОЕДИНЕНИЯ с человекочитаемой причиной */}
+          {status === 'connecting' && diag && (diag.ice === 'failed' || diag.conn === 'failed') && (
+            <div className="mx-auto mt-3 max-w-xs rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-[12px] leading-snug text-red-300">
+              {diag.hint ?? 'Не удалось установить P2P-соединение'}
+            </div>
+          )}
         </div>
 
         {/* Центральная часть: Аватар или инициалы */}
@@ -92,8 +121,10 @@ export default function CallModal() {
           </div>
         )}
 
-        {/* Локальное видео (картинка в картинке) */}
-        {isVideoCall && isActive && (
+        {/* Локальное видео — показываем СРАЗУ после получения стрима.
+            Раньше ждали connecting/active: у звонящего во время «Вызов...»
+            камера выглядела выключенной (симптом «камера только у получателя»). */}
+        {isVideoCall && !!localStream && (
           <div className="absolute top-20 right-6 w-28 h-40 rounded-xl overflow-hidden shadow-2xl border-2 border-white/20 bg-black">
             <video 
               ref={localVideoRef} 
