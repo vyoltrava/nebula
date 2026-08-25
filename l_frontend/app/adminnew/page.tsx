@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { getToken } from "@/lib/auth";
 import {
   Users, BarChart3, Bug, Globe, Activity, Flag,
-  MessageSquare, SmilePlus, Palette, Headphones, Shield, Crown, Wrench,
+  MessageSquare, SmilePlus, Palette, Headphones, Shield, Crown, Wrench, ArrowLeft
 } from "lucide-react";
 
 import { UsersSection } from "@/components/admin/section/UsersSection";
@@ -21,7 +21,6 @@ import { ThemesSection } from "@/components/admin/section/ThemesSection";
 import { SupportSection } from "@/components/admin/section/SupportSection";
 import { TechUsersSection } from "@/components/admin/section/TechUsersSection";
 
-// 🛠️ ИСПРАВЛЕНО: убран "team" из типов, так как это теперь отдельная страница
 type TabId =
   | "users" | "tech_users" | "stats" | "bugs" | "ip" | "logs"
   | "reports" | "chats" | "support" | "stickers" | "themes";
@@ -34,7 +33,6 @@ interface TabDef {
   permission: string | null;
 }
 
-// 🛠️ ИСПРАВЛЕНО: убрана вкладка "team" из массива
 const TABS: TabDef[] = [
   { id: "users",     label: "Пользователи", icon: Users,         color: "#8b5cf6", permission: "manage_users" },
   { id: "tech_users",label: "Управление",   icon: Wrench,        color: "#0E7490", permission: "tech_access" },
@@ -48,6 +46,9 @@ const TABS: TabDef[] = [
   { id: "stickers",  label: "Стикеры",      icon: SmilePlus,     color: "#f59e0b", permission: "manage_stickers" },
   { id: "themes",    label: "Темы",         icon: Palette,       color: "#a855f7", permission: null },
 ];
+
+// Общий класс для иконок-кнопок (прозрачный фон, белый цвет, подсветка при наведении)
+const iconBtnClass = "p-2 rounded-lg text-white/60 hover:bg-white/10 hover:text-white transition-all flex items-center justify-center";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -118,36 +119,28 @@ export default function AdminPage() {
               </span>
             </div>
             
-            {/* 🛠️ ИСПРАВЛЕНО: Вертикальный стек кнопок справа. Кнопка "Команда" теперь ведет на /team */}
-            <div className="flex flex-col items-end gap-2 shrink-0">
+            {/* 🛠️ ИСПРАВЛЕНО: Только иконки, без текста и цветных фонов */}
+            <div className="flex items-center gap-1 shrink-0">
               {canRoles && (
-                                <Link
-                  href="/admin/roles"
-                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-[#8b5cf6] bg-[#8b5cf6] text-white text-sm font-bold hover:bg-[#7c3aed] transition-all w-full"
-                >
-                  <Crown size={16} /> Роли
+                <Link href="/admin/roles" className={iconBtnClass} title="Роли">
+                  <Crown size={20} />
                 </Link>
               )}
               {(me?.level ?? 0) >= 9 && (
-                <Link
-                  href="/adminnew/badges"
-                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-[#22c55e] bg-[#22c55e] text-white text-sm font-bold hover:bg-[#16a34a] transition-all w-full"
-                >
-                  <Palette size={16} /> Кастомные плашки
+                <Link href="/adminnew/badges" className={iconBtnClass} title="Кастомные плашки">
+                  <Palette size={20} />
+                </Link>
+              )}
+              {(me.is_admin || (me.permissions || []).includes("manage_team_stats")) && (
+                <Link href="/stat" className={iconBtnClass} title="Команда">
+                  <Shield size={20} />
                 </Link>
               )}
               
-              {(me.is_admin || (me.permissions || []).includes("manage_team_stats")) && (
-                <Link
-                  href="/stat"
-                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-pink-500/50 bg-pink-500/10 text-pink-300 text-sm font-bold hover:bg-pink-500/20 transition-all w-full"
-                >
-                  <Shield size={16} /> Команда
-                </Link>
-              )}
-
-              <Link href="/" className="text-sm text-white/60 hover:text-white transition-colors text-right w-full pt-1">
-                ← Главная
+              <div className="w-px h-6 bg-white/10 mx-1" /> {/* Разделитель */}
+              
+              <Link href="/" className={iconBtnClass} title="На главную">
+                <ArrowLeft size={20} />
               </Link>
             </div>
           </div>
@@ -188,8 +181,6 @@ export default function AdminPage() {
           {activeTab === "logs"      && <LogsSection me={me} />}
           {activeTab === "stickers"  && <StickersSection me={me} roles={roles} />}
           {activeTab === "themes"    && <ThemesSection me={me} />}
-          
-          {/* 🛠️ ИСПРАВЛЕНО: убран рендер TeamDashboard внутри админки */}
         </div>
       </main>
     </div>
