@@ -618,7 +618,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                       <div className="flex-1 w-full">
                         <div className="flex items-center gap-2 flex-wrap mb-3">
                           <h2 className={`text-lg sm:text-xl font-black ${glowStyle(selectedUser) ? "" : "text-gray-900 dark:text-white"}`} style={glowStyle(selectedUser)}>{selectedUser.display_name}</h2>
-                          {selectedUser.is_admin && <span className="px-1.5 py-0.5 rounded bg-white text-black text-[8px] font-black uppercase">Founder</span>}
+                          {selectedUser.is_admin && <span className="px-1.5 py-0.5 rounded bg-black text-white dark:bg-white dark:text-black text-[8px] font-black uppercase">Founder</span>}
                           {selectedUser.is_moderator && !selectedUser.is_admin && <span className="px-2 py-0.5 rounded bg-blue-500 text-white text-[10px] font-black uppercase">Developer</span>}
                           {selectedUser.role && !selectedUser.is_admin && !selectedUser.is_moderator && <span className="px-2 py-0.5 rounded text-white text-[10px] font-black uppercase" style={{ backgroundColor: selectedUser.role.color }}>{selectedUser.role.name}</span>}
                           {selectedUser.is_banned && <span className="px-2 py-0.5 rounded bg-red-500 text-white text-[10px] font-black uppercase">BANNED</span>}

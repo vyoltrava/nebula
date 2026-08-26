@@ -196,9 +196,11 @@ export default function TeamPage() {
                             )}
                             
                             {m.is_admin && (
-                              /* 🐞 FIX: была белая плашка — в светлой теме сливалась с фоном.
-                                 Теперь чёрная плашка, текст внутри — белый (в обеих темах). */
-                              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-white bg-black shadow-[0_0_8px_rgba(0,0,0,0.4)]">
+                              /* 🌗 Плашка Founder инвертируется по теме приложения,
+                                 как в components/RoleBadge.tsx:
+                                 dark  — белая плашка, текст внутри чёрный;
+                                 light — чёрная плашка, текст белый (как было). */
+                              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-black text-white dark:bg-white dark:text-black shadow-[0_0_8px_rgba(0,0,0,0.4)] dark:shadow-[0_0_8px_rgba(255,255,255,0.35)]">
                                 FOUNDER
                               </span>
                             )}
