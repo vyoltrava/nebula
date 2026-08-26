@@ -368,7 +368,7 @@ const confirmPrismKey = async () => {
     setSelectedCreationObject(null);
     setPrismSearchQuery("");
     setPrismSearchResults([]);
-    router.push(`/prism/${creationLandscape.chat_id}`);
+    router.push(`/prisme/${creationLandscape.chat_id}`);
   } catch (e) {
     alert("Ошибка при установке ключа. Попробуйте снова.");
     setIsCreatingPrism(false);
@@ -451,7 +451,7 @@ const confirmPrismKey = async () => {
               onClick={() => {
                 refresh();
                 if (chat.is_prism) {
-                  router.push(`/prism/${chat.id}`);
+                  router.push(`/prisme/${chat.id}`);
                 } else {
                   router.push(`/messages/${chat.id}`);
                 }
@@ -679,7 +679,7 @@ const confirmPrismKey = async () => {
                   setActiveChatMenu(null); 
                   setMenuPosition(null);
                   refresh(); 
-                  router.push(menuChat.is_prism ? `/prism/${menuChat.id}` : `/messages/${menuChat.id}`); 
+                  router.push(menuChat.is_prism ? `/prisme/${menuChat.id}` : `/messages/${menuChat.id}`); 
                 }}
                 className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
               >

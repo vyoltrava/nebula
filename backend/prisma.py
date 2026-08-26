@@ -386,9 +386,9 @@ def _scene_payload(session: Session, scene: PrismeScene, user: Optional[User] = 
     free_n = sum(1 for o in objs if o.status == "free")
     chats_stat = _get_stat(session, scene.id, "chats_created").value
     reqs_stat = _get_stat(session, scene.id, "requests_total").value
-    joins_stat = _get_stat(session, scene.id, "joins_total").value
+    keys_stat = _get_stat(session, scene.id, "keys_total").value
 
-    # Имена владельцев (для подсказки «чей чат» при входе по ключу)
+    # Имена владельцев (подсказка, чей ключ висит на объекте)
     owner_ids = {o.owner_id for o in objs if o.owner_id}
     users = {}
     if owner_ids:
@@ -414,11 +414,36 @@ def _scene_payload(session: Session, scene: PrismeScene, user: Optional[User] = 
         d["i_am_member"] = bool(o.chat_id and o.chat_id in member_of)
         out_objects.append(d)
 
-    my_obj = None
+    # Мои личные ключи (объекты, привязанные к моим prisme-чатам)
+    my_keys = [
+        {"object_id": o.id, "slot": o.slot, "kind": o.kind, "chat_id": o.chat_id}
+        for o in objs
+        if user and o.owner_id == user.id and o.chat_id
+    ]
+
+    # Prisme-чаты, где я участник, но СВОЙ ключ ещё не поставил
+    awaiting_my_key = []
     if user:
-        mine = next((o for o in objs if o.owner_id == user.id), None)
-        if mine:
-            my_obj = {"slot": mine.slot, "object_id": mine.id, "chat_id": mine.chat_id, "kind": mine.kind}
+        keyed_chats = {k["chat_id"] for k in my_keys}
+        seen: set = set()
+        links = session.exec(select(ChatMember).where(ChatMember.user_id == user.id)).all()
+        for ln in links:
+            if ln.chat_id in keyed_chats or ln.chat_id in seen:
+                continue
+            ch = session.get(Chat, ln.chat_id)
+            if not ch or not getattr(ch, "is_prism", False):
+                continue
+            seen.add(ln.chat_id)
+            om = session.exec(select(ChatMember).where(
+                ChatMember.chat_id == ch.id, ChatMember.user_id != user.id
+            )).first()
+            partner = session.get(User, om.user_id) if om else None
+            awaiting_my_key.append({
+                "chat_id": ch.id,
+                "name": ch.name,
+                "partner_username": partner.username if partner else None,
+                "partner_display_name": partner.display_name if partner else None,
+            })
 
     return {
         "scene_id": scene.id,
@@ -432,8 +457,9 @@ def _scene_payload(session: Session, scene: PrismeScene, user: Optional[User] = 
         "occupied_count": len(objs) - free_n,
         "chats_created": chats_stat,
         "requests_total": reqs_stat,
-        "joins_total": joins_stat,
-        "my_object": my_obj,
+        "keys_total": keys_stat,
+        "my_keys": my_keys,
+        "awaiting_my_key": awaiting_my_key,
         "objects": out_objects,
     }
 
@@ -451,6 +477,12 @@ def _admin_required(
 # ------------------------------------------------------------------
 class PrismeChatIn(BaseModel):
     object_id: int
+    other_user_id: int
+
+
+class PrismeKeyIn(BaseModel):
+    object_id: int
+    chat_id: int
 
 
 class PrismeRequestIn(BaseModel):
@@ -484,7 +516,8 @@ def create_prisme_chat(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Создание чата: выбор свободного объекта = уникальный ключ доступа."""
+    """Создание Prisme-чата с получателем: выбранный объект становится
+    ЛИЧНЫМ КЛЮЧОМ создателя; получатель позже ставит свой отдельный ключ."""
     scene = _ensure_scene(session)
     obj = session.get(PrismeObject, data.object_id)
     if not obj or obj.scene_id != scene.id:
@@ -492,14 +525,24 @@ def create_prisme_chat(
     if obj.status == "occupied":
         raise HTTPException(409, "Этот объект уже занят")
 
-    # Уже есть чат у пользователя?
-    mine = session.exec(select(PrismeObject).where(
-        PrismeObject.scene_id == scene.id,
-        PrismeObject.owner_id == user.id,
-    )).first()
-    if mine:
-        return {"ok": True, "already_existed": True, "chat_id": mine.chat_id,
-                "slot": mine.slot, "key": str(mine.slot)}
+    other = session.get(User, data.other_user_id)
+    if not other:
+        raise HTTPException(404, "Получатель не найден")
+    if other.id == user.id:
+        raise HTTPException(400, "Нельзя создать Prisme-чат с собой")
+
+    # Дедуп по паре: prisme-чат с этим пользователем уже существует?
+    my_links = session.exec(select(ChatMember).where(ChatMember.user_id == user.id)).all()
+    for link in my_links:
+        ex = session.get(Chat, link.chat_id)
+        if not ex or not getattr(ex, "is_prism", False):
+            continue
+        paired = session.exec(select(ChatMember).where(
+            ChatMember.chat_id == link.chat_id,
+            ChatMember.user_id == data.other_user_id,
+        )).first()
+        if paired:
+            return {"ok": True, "already_existed": True, "chat_id": link.chat_id}
 
     # Атомарно занимаем объект (защита от гонки)
     from sqlalchemy import update
@@ -512,12 +555,15 @@ def create_prisme_chat(
         session.rollback()
         raise HTTPException(409, "Этот объект уже занят")
 
-    chat = Chat(is_prism=True, owner_id=user.id, name=f"PRISME #{obj.slot}")
+    chat = Chat(is_prism=True, owner_id=user.id,
+                name=f"PRISME #{obj.slot}·{other.username}")
     session.add(chat)
     session.commit()
     session.refresh(chat)
 
+    # Оба участника сразу в чате — это настоящий диалог на двоих
     session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="owner"))
+    session.add(ChatMember(chat_id=chat.id, user_id=other.id, role="member"))
     session.add(Message(
         chat_id=chat.id, sender_id=user.id, media_type="system",
         text=f"__PRISME_GENESIS__:{obj.slot}:{obj.kind}",
@@ -525,54 +571,80 @@ def create_prisme_chat(
     obj.chat_id = chat.id
     session.add(obj)
     _bump(session, scene.id, "chats_created")
+    # Получатель должен поставить СВОЙ объект-ключ
+    session.add(Notification(user_id=other.id, actor_id=user.id, type="prisme_invited"))
+    log_action(session, user.id, "prisme_chat_created", target_type="chat",
+               target_id=chat.id, details={"slot": obj.slot, "with": other.username})
     session.commit()
 
     return {"ok": True, "already_existed": False, "chat_id": chat.id,
-            "slot": obj.slot, "key": str(obj.slot), "kind": obj.kind}
+            "slot": obj.slot, "key": str(obj.slot), "kind": obj.kind,
+            "other": {"id": other.id, "username": other.username,
+                      "display_name": other.display_name}}
 
 
-class PrismeJoinIn(BaseModel):
-    slot: int
-
-
-@router.post("/prisme/chat/join")
-def join_prisme_chat(
-    data: PrismeJoinIn,
+@router.post("/prisme/key")
+def set_prisme_key(
+    data: PrismeKeyIn,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Вход в существующий чат по объекту-ключу: второй участник выбирает
-    тот же занятый объект на картинке и присоединяется к чату владельца."""
+    """Получатель ставит СВОЙ личный объект-ключ для приглашённого чата.
+    У каждого участника — свой собственный объект на общей картинке."""
     scene = _ensure_scene(session)
-    obj = session.exec(select(PrismeObject).where(
-        PrismeObject.scene_id == scene.id, PrismeObject.slot == data.slot
+    chat = session.get(Chat, data.chat_id)
+    if not chat or not getattr(chat, "is_prism", False):
+        raise HTTPException(404, "Prisme-чат не найден")
+
+    membership = session.exec(select(ChatMember).where(
+        ChatMember.chat_id == chat.id, ChatMember.user_id == user.id
     )).first()
-    if not obj:
+    if not membership:
+        raise HTTPException(403, "Вы не участник этого чата")
+
+    already = session.exec(select(PrismeObject).where(
+        PrismeObject.owner_id == user.id,
+        PrismeObject.chat_id == chat.id,
+        PrismeObject.scene_id == scene.id,
+    )).first()
+    if already:
+        return {"ok": True, "already_set": True, "chat_id": chat.id,
+                "slot": already.slot, "key": str(already.slot), "kind": already.kind}
+
+    obj = session.get(PrismeObject, data.object_id)
+    if not obj or obj.scene_id != scene.id:
         raise HTTPException(404, "Объект не найден")
-    if obj.status != "occupied" or not obj.chat_id:
-        raise HTTPException(400, "Этот объект свободен — выберите его, чтобы создать новый чат")
+    if obj.status != "free":
+        raise HTTPException(409, "Этот объект уже занят")
 
-    base = {"slot": obj.slot, "key": str(obj.slot), "kind": obj.kind,
-            "chat_id": obj.chat_id}
+    from sqlalchemy import update
+    res = session.exec(
+        update(PrismeObject)
+        .where(PrismeObject.id == obj.id, PrismeObject.status == "free")
+        .values(status="occupied", owner_id=user.id, occupied_at=utcnow(),
+                chat_id=chat.id)
+    )
+    if res.rowcount == 0:
+        session.rollback()
+        raise HTTPException(409, "Этот объект уже занят")
 
-    if obj.owner_id == user.id:
-        return {"ok": True, "already_member": True, **base}
-
-    existing = session.exec(select(ChatMember).where(
-        ChatMember.chat_id == obj.chat_id, ChatMember.user_id == user.id
-    )).first()
-    if existing:
-        return {"ok": True, "already_member": True, **base}
-
-    session.add(ChatMember(chat_id=obj.chat_id, user_id=user.id, role="member"))
-    # Уведомляем владельца, что к его чату присоединились по ключу
-    session.add(Notification(user_id=obj.owner_id, actor_id=user.id, type="prisme_joined"))
-    log_action(session, user.id, "prisme_join", target_type="chat",
-               target_id=obj.chat_id, details={"slot": obj.slot})
-    _bump(session, scene.id, "joins_total")
+    _bump(session, scene.id, "keys_total")
+    log_action(session, user.id, "prisme_key_set", target_type="chat",
+               target_id=chat.id, details={"slot": obj.slot})
+    # Сообщаем партнёру, что второй ключ установлен
+    partner_id = chat.owner_id if chat.owner_id and chat.owner_id != user.id else None
+    if not partner_id:
+        om = session.exec(select(ChatMember).where(
+            ChatMember.chat_id == chat.id, ChatMember.user_id != user.id
+        )).first()
+        partner_id = om.user_id if om else None
+    if partner_id:
+        session.add(Notification(user_id=partner_id, actor_id=user.id,
+                                 type="prisme_key_set"))
     session.commit()
 
-    return {"ok": True, "already_member": False, **base}
+    return {"ok": True, "already_set": False, "chat_id": chat.id,
+            "slot": obj.slot, "key": str(obj.slot), "kind": obj.kind}
 
 
 @router.post("/prisme/request")
@@ -626,7 +698,7 @@ def prisme_stats(
     stats = {
         "chats_created": _get_stat(session, scene.id, "chats_created").value,
         "requests_total": _get_stat(session, scene.id, "requests_total").value,
-        "joins_total": _get_stat(session, scene.id, "joins_total").value,
+        "keys_total": _get_stat(session, scene.id, "keys_total").value,
         "object_count": len(objs),
         "base_count": scene.base_count,
         "free_count": free_n,
