@@ -6,6 +6,7 @@ import Link from "next/link";
 import { getToken } from "@/lib/auth";
 import { errMsg } from "@/lib/apiError";
 import { Terminal } from "@/components/prisme/Retro";
+import LinkPreview from "@/components/LinkPreview";
 import "@/components/prisme/prisme.css";
 
 interface Msg {
@@ -29,6 +30,33 @@ interface ChatInfo {
 const isService = (m: Msg) =>
   m.media_type === "system" ||
   (!!m.text && (m.text.startsWith("__PRISM_GENESIS__") || m.text.startsWith("__PRISME_GENESIS__")));
+
+const URL_SPLIT = /(https?:\/\/[^\s<>"']+)/gi;
+
+/** Превращает URL в тексте сообщения в неоновые кликабельные ссылки. */
+function renderWithLinks(text: string) {
+  return text.split(URL_SPLIT).map((part, i) =>
+    /^https?:\/\//i.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="prv-link"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {part}
+      </a>
+    ) : (
+      <span key={i}>{part}</span>
+    ),
+  );
+}
+
+function firstUrl(text: string): string | null {
+  const m = text.match(/https?:\/\/[^\s<>"']+/i);
+  return m ? m[0] : null;
+}
 
 export default function PrismeRoomPage() {
   const params = useParams();
@@ -153,7 +181,7 @@ export default function PrismeRoomPage() {
 
   if (loading) {
     return (
-      <div className="prv-root prv-crt min-h-screen flex items-center justify-center p-6">
+      <div className="prv-root prv-crt h-screen overflow-hidden flex items-center justify-center">
         <div className="prv-card px-10 py-8 prv-sub">
           ОТКРЫВАЕМ КАНАЛ<span className="prv-cursor" />
         </div>
@@ -162,14 +190,14 @@ export default function PrismeRoomPage() {
   }
 
   return (
-    <div className="prv-root prv-crt min-h-screen">
-      <div className="prv-room h-screen">
+    <div className="prv-root prv-crt h-screen overflow-hidden flex flex-col">
+      <div className="prv-room flex-1 min-h-0">
         {/* Космический фон */}
         <div className="prv-stars" />
         <div className="prv-gridfloor" />
 
         {/* Шапка канала */}
-        <header className="prv-roomhead">
+        <header className="prv-roomhead shrink-0">
           <button
             className="prv-btn prv-btn--ghost px-3"
             onClick={() => router.push("/messages")}
@@ -218,12 +246,17 @@ export default function PrismeRoomPage() {
                   <span className="prv-meta mb-0.5 ml-1">{m.sender_name || "unknown"}</span>
                 )}
                 <div className={`prv-bubble ${mine ? "prv-bubble-me" : "prv-bubble-they"}`}>
-                  {body}
+                  {renderWithLinks(body)}
                   <div className={`prv-meta flex items-center gap-1 ${mine ? "justify-end" : ""}`}>
                     {fmtTime(m.created_at)}
                     {mine && <span style={{ color: "#00F5FF" }}>◆</span>}
                   </div>
                 </div>
+                {firstUrl(body) && (
+                  <div className={`${mine ? "self-end" : "self-start"} w-[86%] max-w-full`}>
+                    <LinkPreview url={firstUrl(body)!} />
+                  </div>
+                )}
               </div>
             );
           })}
@@ -231,7 +264,7 @@ export default function PrismeRoomPage() {
         </main>
 
         {/* Панель ввода */}
-        <footer className="prv-roominput">
+        <footer className="prv-roominput shrink-0">
           <textarea
             ref={taRef}
             className="prv-input flex-1 resize-none"

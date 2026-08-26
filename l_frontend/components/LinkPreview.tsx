@@ -43,9 +43,9 @@ useEffect(() => {
     >
       <div className="min-w-0 flex-1 border-l-2 border-pink-500 pl-3">
         <div className="truncate text-xs text-pink-600 dark:text-pink-400">{data.site}</div>
-        <div className="mt-0.5 line-clamp-2 text-sm font-semibold">{data.title}</div>
+        <div className="mt-0.5 line-clamp-2 text-sm font-semibold text-gray-900 dark:text-white">{data.title}</div>
         {data.description && (
-          <div className="mt-0.5 line-clamp-2 text-xs text-zinc-400">{data.description}</div>
+          <div className="mt-0.5 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400">{data.description}</div>
         )}
       </div>
       {data.image && imgOk && (

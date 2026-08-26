@@ -217,10 +217,10 @@ export default function StatPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setActiveTab("users")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === "users" ? "bg-purple-500 text-white" : "bg-gray-100 dark:bg-white/5 text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"}`}>
+            <button onClick={() => setActiveTab("users")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === "users" ? "bg-purple-500 text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/10"}`}>
               <Users size={16} /> Пользователи
             </button>
-            <button onClick={() => setActiveTab("team")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === "team" ? "bg-purple-500 text-white" : "bg-gray-100 dark:bg-white/5 text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"}`}>
+            <button onClick={() => setActiveTab("team")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === "team" ? "bg-purple-500 text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/10"}`}>
               <Shield size={16} /> Команда
             </button>
           </div>
@@ -481,7 +481,7 @@ export default function StatPage() {
                           </div>
                         </div>
                         <div className="mt-3 pt-3 border-t border-line dark:border-white/10">
-                          <div className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg bg-gray-100 dark:bg-white/5 text-white/60 text-xs font-bold group-hover:bg-purple-500/20 group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-all">
+                          <div className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 text-xs font-bold group-hover:bg-purple-500/20 group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-all">
                             <BarChart3 size={14} /> Детальная статистика
                           </div>
                         </div>
