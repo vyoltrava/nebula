@@ -26,5 +26,6 @@ export { ZuneModal } from "./components/ZuneModal";
 export { ZuneProfile } from "./components/ZuneProfile";
 export { ZuneSettings } from "./components/ZuneSettings";
 export { ZuneThemeToggle } from "./components/ZuneThemeToggle";
+export { ZuneSettingsToggle } from "./components/SettingsThemeInjector";
 export { ZuneMusicPlayer } from "./components/ZuneMusicPlayer";
 export { ZuneNavigation } from "./components/ZuneNavigation";

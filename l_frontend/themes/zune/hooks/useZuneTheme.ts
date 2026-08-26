@@ -56,3 +56,72 @@ export function useZuneTheme(): ZuneThemeContextValue {
   }
   return ctx;
 }
+
+/* ------------------------------------------------------------------
+   Мини-store поверх localStorage для useSyncExternalStore.
+   Читает выбор темы синхронно и оповещает подписчиков при изменении
+   (локальном или из другой вкладки). Благодаря этому тема читается
+   БЕЗ setState-в-эффекте и без проблем гидратации: сервер и первый
+   клиентский рендер получают одно и то же значение ("standard"),
+   а реальный выбор подхватывается сразу после монтирования.
+   ------------------------------------------------------------------ */
+
+export const THEME_CLASS = "zune-theme";
+
+type PreferenceListener = () => void;
+
+const preferenceListeners = new Set<PreferenceListener>();
+
+function emitPreferenceChanged() {
+  preferenceListeners.forEach((listener) => listener());
+}
+
+function onCrossTabStorage(e: StorageEvent) {
+  if (e.key === ZUNE_STORAGE_KEY || e.key === ZUNE_LEGACY_KEY) {
+    emitPreferenceChanged();
+  }
+}
+
+/** Подписка для useSyncExternalStore (+ синхронизация между вкладками) */
+export function subscribePreference(listener: PreferenceListener): () => void {
+  const isFirst = preferenceListeners.size === 0;
+  preferenceListeners.add(listener);
+  if (isFirst && typeof window !== "undefined") {
+    window.addEventListener("storage", onCrossTabStorage);
+  }
+  return () => {
+    preferenceListeners.delete(listener);
+    if (
+      preferenceListeners.size === 0 &&
+      typeof window !== "undefined"
+    ) {
+      window.removeEventListener("storage", onCrossTabStorage);
+    }
+  };
+}
+
+/** Снимок для useSyncExternalStore (строковый литерал — стабилен для ===) */
+export function getPreferenceSnapshot(): ZunePreference {
+  return readZunePreference();
+}
+
+/** Серверный снимок: до гидратации тема всегда стандартная */
+export function getPreferenceServerSnapshot(): ZunePreference {
+  return "standard";
+}
+
+/** Записать выбор: localStorage + класс на <body> + оповещение подписчиков */
+export function writePreference(pref: ZunePreference): void {
+  if (typeof document !== "undefined") {
+    document.body.classList.toggle(THEME_CLASS, pref === "zune");
+  }
+  try {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(ZUNE_STORAGE_KEY, pref);
+      window.localStorage.removeItem(ZUNE_LEGACY_KEY);
+    }
+  } catch {
+    /* приватный режим — тема применится хотя бы до перезагрузки */
+  }
+  emitPreferenceChanged();
+}

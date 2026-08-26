@@ -1,0 +1,140 @@
+⨯ ./themes/zune/ZuneThemeProvider.tsx:33:1
+Error: Module not found: Can't resolve './components/SettingsThemeInjector'
+  [90m31 |[0m } [36mfrom[0m [32m"./hooks/useZuneTheme"[0m;
+  [90m32 |[0m [36mimport[0m { [33mZuneThemeToggle[0m } [36mfrom[0m [32m"./components/ZuneThemeToggle"[0m;
+[31m[1m>[0m [90m33 |[0m [36mimport[0m { [33mZuneSettingsToggle[0m } [36mfrom[0m [32m"./components/SettingsThemeInjector"[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m34 |[0m
+  [90m35 |[0m [36mconst[0m [33mTHEME_CLASS[0m = [32m"zune-theme"[0m;
+  [90m36 |[0m
+
+
+
+Import trace:
+  Server Component:
+    ./themes/zune/ZuneThemeProvider.tsx
+    ./app/layout.tsx
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./themes/zune/ZuneThemeProvider.tsx:33:1
+Error: Module not found: Can't resolve './components/SettingsThemeInjector'
+  [90m31 |[0m } [36mfrom[0m [32m"./hooks/useZuneTheme"[0m;
+  [90m32 |[0m [36mimport[0m { [33mZuneThemeToggle[0m } [36mfrom[0m [32m"./components/ZuneThemeToggle"[0m;
+[31m[1m>[0m [90m33 |[0m [36mimport[0m { [33mZuneSettingsToggle[0m } [36mfrom[0m [32m"./components/SettingsThemeInjector"[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m34 |[0m
+  [90m35 |[0m [36mconst[0m [33mTHEME_CLASS[0m = [32m"zune-theme"[0m;
+  [90m36 |[0m
+
+
+
+Import trace:
+  Server Component:
+    ./themes/zune/ZuneThemeProvider.tsx
+    ./app/layout.tsx
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./themes/zune/ZuneThemeProvider.tsx:33:1
+Error: Module not found: Can't resolve './components/SettingsThemeInjector'
+  [90m31 |[0m } [36mfrom[0m [32m"./hooks/useZuneTheme"[0m;
+  [90m32 |[0m [36mimport[0m { [33mZuneThemeToggle[0m } [36mfrom[0m [32m"./components/ZuneThemeToggle"[0m;
+[31m[1m>[0m [90m33 |[0m [36mimport[0m { [33mZuneSettingsToggle[0m } [36mfrom[0m [32m"./components/SettingsThemeInjector"[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m34 |[0m
+  [90m35 |[0m [36mconst[0m [33mTHEME_CLASS[0m = [32m"zune-theme"[0m;
+  [90m36 |[0m
+
+
+
+Import trace:
+  Server Component:
+    ./themes/zune/ZuneThemeProvider.tsx
+    ./app/layout.tsx
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./themes/zune/ZuneThemeProvider.tsx:33:1
+Error: Module not found: Can't resolve './components/SettingsThemeInjector'
+  [90m31 |[0m } [36mfrom[0m [32m"./hooks/useZuneTheme"[0m;
+  [90m32 |[0m [36mimport[0m { [33mZuneThemeToggle[0m } [36mfrom[0m [32m"./components/ZuneThemeToggle"[0m;
+[31m[1m>[0m [90m33 |[0m [36mimport[0m { [33mZuneSettingsToggle[0m } [36mfrom[0m [32m"./components/SettingsThemeInjector"[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m34 |[0m
+  [90m35 |[0m [36mconst[0m [33mTHEME_CLASS[0m = [32m"zune-theme"[0m;
+  [90m36 |[0m
+
+
+
+Import trace:
+  Server Component:
+    ./themes/zune/ZuneThemeProvider.tsx
+    ./app/layout.tsx
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./themes/zune/index.ts:29:1
+Error: Module not found: Can't resolve './components/SettingsThemeInjector'
+  [90m27 |[0m [36mexport[0m { [33mZuneSettings[0m } [36mfrom[0m [32m"./components/ZuneSettings"[0m;
+  [90m28 |[0m [36mexport[0m { [33mZuneThemeToggle[0m } [36mfrom[0m [32m"./components/ZuneThemeToggle"[0m;
+[31m[1m>[0m [90m29 |[0m [36mexport[0m { [33mZuneSettingsToggle[0m } [36mfrom[0m [32m"./components/SettingsThemeInjector"[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m30 |[0m [36mexport[0m { [33mZuneMusicPlayer[0m } [36mfrom[0m [32m"./components/ZuneMusicPlayer"[0m;
+  [90m31 |[0m [36mexport[0m { [33mZuneNavigation[0m } [36mfrom[0m [32m"./components/ZuneNavigation"[0m;
+  [90m32 |[0m
+
+
+
+Import trace:
+  Server Component:
+    ./themes/zune/index.ts
+    ./app/layout.tsx
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./themes/zune/index.ts:8:1
+Error: Module not found: Can't resolve './ZuneThemeProvider'
+  [90m 6 |[0m    ============================================================ */
+  [90m 7 |[0m
+[31m[1m>[0m [90m 8 |[0m [36mexport[0m { [33mZuneThemeProvider[0m } [36mfrom[0m [32m"./ZuneThemeProvider"[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m 9 |[0m [36mexport[0m {
+  [90m10 |[0m   useZuneTheme,
+  [90m11 |[0m   readZunePreference,
+
+
+
+Import trace:
+  Server Component:
+    ./themes/zune/index.ts
+    ./app/layout.tsx
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./themes/zune/index.ts:8:1
+Error: Module not found: Can't resolve './ZuneThemeProvider'
+  [90m 6 |[0m    ============================================================ */
+  [90m 7 |[0m
+[31m[1m>[0m [90m 8 |[0m [36mexport[0m { [33mZuneThemeProvider[0m } [36mfrom[0m [32m"./ZuneThemeProvider"[0m;
+  [90m   |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m 9 |[0m [36mexport[0m {
+  [90m10 |[0m   useZuneTheme,
+  [90m11 |[0m   readZunePreference,
+
+
+
+Import trace:
+  Server Component:
+    ./themes/zune/index.ts
+    ./app/layout.tsx
+
+https://nextjs.org/docs/messages/module-not-found
+
+

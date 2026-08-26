@@ -122,7 +122,9 @@
   color: #ffffff;
 }
 
-/* ---------- Плавающий переключатель темы (когда Zune активна) ---------- */
+/* ---------- Плавающий переключатель темы ---------- */
+/* Стили самодостаточны (явные цвета): кнопка должна быть видна
+   и ДО включения темы, когда переменные .zune-theme ещё не определены */
 .zune-floating-toggle {
   position: fixed;
   right: 16px;
@@ -136,14 +138,30 @@
   background: rgba(10, 10, 10, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 0;
-  color: var(--zune-text);
-  font-family: var(--zune-font);
+  color: #ffffff;
+  font-family: "Segoe UI", "Segoe UI Historic", Zegoe, system-ui, sans-serif;
   font-size: 14px;
   cursor: pointer;
   backdrop-filter: blur(6px);
-  transition: border-color 0.2s ease, transform 200ms var(--zune-spring);
+  transition: border-color 0.2s ease, transform 200ms var(--zune-spring, cubic-bezier(0.68, -0.55, 0.27, 1.55));
 }
 .zune-floating-toggle:hover {
   border-color: #ffffff;
   transform: translateX(-4px);
+}
+
+/* Приглашение включить тему (в настройках, пока Zune выключена) */
+.zune-floating-toggle--invite {
+  border-color: rgba(255, 0, 255, 0.65);
+}
+.zune-floating-toggle--invite:hover {
+  border-color: #ff00ff;
+  transform: translateY(-3px);
+}
+.zune-floating-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ff00ff;
+  box-shadow: 0 0 0 3px rgba(255, 0, 255, 0.25);
 }
