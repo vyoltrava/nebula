@@ -670,7 +670,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               className={`flex items-center gap-1 px-3 py-1.5 rounded-full border transition-all ${
                 liked
                   ? "border-pink-400/50 bg-[#8B5CF6] text-white"
-                  : "border-line dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:hover:text-[#e0e0e0]! transition-all"
+                  : "border-line dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-500 dark:hover:text-[#e0e0e0]! transition-all"
               }`}
             >
               <Heart size={16} fill={liked ? "currentColor" : "none"} />
@@ -680,7 +680,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
 
             <button
               onClick={() => startReply(cleanUsername, author)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:hover:text-[#e0e0e0]! transition-all"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-500 dark:hover:text-[#e0e0e0]! transition-all"
             >
               <Reply size={16} />
             </button>
@@ -689,7 +689,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             {currentUser && currentUser.id !== author_id && !is_repost && !is_quote && (
               <button
                 onClick={() => handleRepostOrQuote(id)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-line dark:border-white/20 text-gray-600 dark:text-white/70 hover:bg-emerald-500/10 hover:border-emerald-400/30 hover:text-emerald-600 dark:hover:bg-white/10 dark:hover:border-white/40 dark:hover:text-[#e0e0e0]! transition-all"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-line dark:border-white/20 text-gray-600 dark:text-white/70 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-500 dark:hover:bg-white/10 dark:hover:border-white/40 dark:hover:text-[#e0e0e0]! transition-all"
                 title={t("post.repostQuote")}
               >
                 <RefreshCw size={16} />
