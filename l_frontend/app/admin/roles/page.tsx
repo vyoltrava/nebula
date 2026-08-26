@@ -498,7 +498,7 @@ export default function RolesPage() {
                   )}
                   
                   <span
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-gray-900 dark:text-white text-sm font-black uppercase tracking-widest shadow-lg border"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-white text-sm font-black uppercase tracking-widest shadow-lg border"
                     style={{
                       backgroundColor: role.color,
                       borderColor: `${role.color}80`,
@@ -514,7 +514,7 @@ export default function RolesPage() {
                       />
                     )}
                     {role.name}
-                    <span className="border-l border-line dark:border-white/30 pl-2 text-[10px] font-mono opacity-90">
+                    <span className="border-l border-white/30 pl-2 text-[10px] font-mono opacity-90">
                       Lvl {role.level || 1}
                     </span>
                   </span>
@@ -784,7 +784,7 @@ export default function RolesPage() {
                         </span>
                       )}
                       <span
-                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-gray-900 dark:text-white text-sm font-black uppercase tracking-widest shadow-lg border"
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-white text-sm font-black uppercase tracking-widest shadow-lg border"
                         style={{
                           backgroundColor: color,
                           borderColor: `${color}80`,
@@ -800,7 +800,7 @@ export default function RolesPage() {
                           />
                         )}
                         {name || "Название"}
-                        <span className="border-l border-line dark:border-white/30 pl-2 text-[10px] font-mono opacity-90">
+                        <span className="border-l border-white/30 pl-2 text-[10px] font-mono opacity-90">
                           Lvl {level}
                         </span>
                       </span>

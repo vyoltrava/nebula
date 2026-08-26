@@ -498,7 +498,7 @@ export default function AdminPage() {
                       )}
                       {u.role && !u.is_admin && !u.is_moderator && (
                         <span
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-gray-900 dark:text-white text-[10px] font-black uppercase tracking-widest border shadow-sm"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-white text-[10px] font-black uppercase tracking-widest border shadow-sm"
                           style={{
                             backgroundColor: u.role.color,
                             borderColor: `${u.role.color}80`,
@@ -506,7 +506,7 @@ export default function AdminPage() {
                           }}
                         >
                           {u.role.name}
-                          <span className="opacity-70 border-l border-line dark:border-white/30 pl-1 text-[9px]">
+                          <span className="opacity-70 border-l border-white/30 pl-1 text-[9px]">
                             Lvl {u.role.level ?? 1}
                           </span>
                         </span>
