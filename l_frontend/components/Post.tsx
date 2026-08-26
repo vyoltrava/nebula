@@ -689,7 +689,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             {currentUser && currentUser.id !== author_id && !is_repost && !is_quote && (
               <button
                 onClick={() => handleRepostOrQuote(id)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-line dark:border-white/20 text-gray-600 dark:text-white/70 hover:bg-emerald-500/10 hover:border-emerald-400/30 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-line dark:border-white/20 text-gray-600 dark:text-white/70 hover:bg-emerald-500/10 hover:border-emerald-400/30 hover:text-emerald-600 dark:hover:bg-emerald-400/10 dark:hover:border-emerald-400/40 dark:hover:text-emerald-300! transition-all"
                 title={t("post.repostQuote")}
               >
                 <RefreshCw size={16} />
