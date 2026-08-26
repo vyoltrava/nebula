@@ -1,128 +1,96 @@
 "use client";
 
 /**
- * Сайдбар в стиле Windows Phone Hub — Zune-версия навигации.
+ * САЙДБАР WINDOWS PHONE — новая структура поверх существующего компонента
+ * (стандартные файлы не изменяются: структура встраивается в живой DOM):
  *
- * ★ ФИКС БАГА С ИКОНКАМИ ★
- * Иконки — символы Segoe MDL2 (Unicode) БЕЛОГО цвета:
- *   неактивные rgba(255,255,255,0.7), активные #FFFFFF.
- * Никаких #FF00FF/#FF1493/pink/magenta/red на иконках нет
- * (проверяется в zune-navigation.css).
- *
- * Активный пункт подсвечивается белой линией снизу.
+ *  - ширина колонки 360px (контролируется CSS по [data-zune-sidebar]);
+ *  - блок бренда «ZUNE» (48px, тонкое начертание) + линия-разделитель
+ *    в самое начало колонки;
+ *  - пункты меню без иконок (иконки скрывает CSS), активный пункт
+ *    отмечается data-zune-active → белая вертикальная полоса слева;
+ *    логика активности повторяет стандартную (включая пары маршрутов
+ *    вида /updates ↔ /suggestions);
+ *  - навигация тянется flex:1, освобождая низ колонки под встроенный
+ *    плеер (его ставит ZuneMusicPlayer последним элементом).
  */
 
-import Link from "next/link";
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { useI18n } from "@/lib/i18n/LanguageProvider";
-import { useMemo } from "react";
 
-export interface ZuneNavItem {
-  href: string;
-  label: string;
-  /** Unicode-символ Segoe MDL2 Assets, например "\uE80F" (Home) */
-  glyph?: string;
-}
+export const BRAND_HOST_ID = "zune-brand";
+export const PLAYER_HOST_ID = "zune-player-host";
 
-/* Segoe MDL2 Assets — белые глифы вместо цветных иконок (ФИКС БАГА) */
-export const MDL2 = {
-  home: "\uE80F",
-  message: "\uE8BD",
-  contact: "\uE77B",
-  favoriteStar: "\uE734",
-  settings: "\uE713",
-  mail: "\uE715",
-  play: "\uE768",
-  bell: "\uE727",
-  bookmark: "\uE735",
-  shield: "\uE729",
-  bug: "\uE777",
-  headset: "\uE767",
-  palette: "\uE70F",
-  logout: "\uE741",
-  search: "\uE721",
-  updates: "\uE791",
-} as const;
-
-/**
- * Пункты меню — синхронизированы с реальными роутами Sidebar.tsx.
- * Используем useI18n для лейблов (как в оригинале), но иконки — чистые глифы
- * Segoe MDL2 Assets, которые наследуют цвет текста и НИКОГДА не окрашиваются
- * в #FF00FF/#FF1493/pink/magenta/red (см. zune-navigation.css).
- */
-export function useZuneNavItems(): ZuneNavItem[] {
-  const { t } = useI18n();
-
-  return useMemo(
-    () => [
-      { href: "/", label: t("nav.home"), glyph: MDL2.home },
-      { href: "/messages", label: t("nav.messages"), glyph: MDL2.message },
-      { href: "/notifications", label: t("nav.notifications"), glyph: MDL2.bell },
-      { href: "/bookmarks", label: t("nav.bookmarks"), glyph: MDL2.bookmark },
-      { href: "/updates", label: t("nav.community"), glyph: MDL2.updates },
-      { href: "/settings", label: t("nav.settings"), glyph: MDL2.settings },
-      { href: "/rules", label: t("nav.rules"), glyph: MDL2.shield },
-      { href: "/support", label: t("nav.support"), glyph: MDL2.headset },
-      { href: "/search", label: t("nav.search"), glyph: MDL2.search },
-    ],
-    [t]
-  );
-}
-
-const DEFAULT_ITEMS: ZuneNavItem[] = [
-  { href: "/", label: "ЛЕНТА", glyph: MDL2.home },
-  { href: "/messages", label: "СООБЩЕНИЯ", glyph: MDL2.message },
-  { href: "/notifications", label: "УВЕДОМЛЕНИЯ", glyph: MDL2.bell },
-  { href: "/bookmarks", label: "ЗАКЛАДКИ", glyph: MDL2.bookmark },
-  { href: "/updates", label: "СООБЩЕСТВО", glyph: MDL2.updates },
-  { href: "/settings", label: "НАСТРОЙКИ", glyph: MDL2.settings },
-  { href: "/rules", label: "ПРАВИЛА", glyph: MDL2.shield },
-  { href: "/support", label: "ПОДДЕРЖКА", glyph: MDL2.headset },
-];
-
-interface ZuneSidebarProps {
-  items?: ZuneNavItem[];
-  title?: string;
-  /** Дополнительный контент внизу сайдбара (например, плеер) */
-  footer?: React.ReactNode;
-}
-
-export function ZuneSidebar({
-  items = DEFAULT_ITEMS,
-  title = "МЕНЮ",
-  footer,
-}: ZuneSidebarProps) {
+export function ZuneSidebar() {
   const pathname = usePathname();
 
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
+  useEffect(() => {
+    const aside = document.querySelector("aside") as HTMLElement | null;
+    if (!aside) return;
 
-  return (
-    <aside className="zune-sidebar">
-      <div className="zune-sidebar-title">{title}</div>
-      <nav className="zune-sidebar-list" aria-label="Основная навигация">
-        {items.map((item) => {
-          const active = isActive(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="zune-sidebar-item"
-              data-active={active}
-              aria-current={active ? "page" : undefined}
-            >
-              <span
-                className={`zune-sidebar-icon${active ? " active" : ""}`}
-                aria-hidden="true"
-              >
-                {item.glyph ?? "\uE80F"}
-              </span>
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-      {footer ? <div style={{ marginTop: "auto" }}>{footer}</div> : null}
-    </aside>
-  );
+    /* Разметка нового каркаса */
+    aside.dataset.zuneSidebar = "true";
+
+    let brand = document.getElementById(
+      BRAND_HOST_ID
+    ) as HTMLDivElement | null;
+    if (!brand) {
+      brand = document.createElement("div");
+      brand.id = BRAND_HOST_ID;
+      brand.className = "zune-brand";
+      brand.innerHTML =
+        '<span class="zune-brand-word">ZUNE</span>' +
+        '<span class="zune-brand-line" aria-hidden="true"></span>';
+    }
+    if (aside.firstElementChild !== brand) {
+      aside.insertBefore(brand, aside.firstChild);
+    }
+
+    /* Активный пункт меню — та же логика, что у стандартного компонента */
+    const stampActive = () => {
+      const links = aside.querySelectorAll<HTMLAnchorElement>('a[href^="/"]');
+      let matched: HTMLAnchorElement | null = null;
+
+      for (const anchor of Array.from(links)) {
+        const raw = anchor.getAttribute("href") ?? "";
+        const base = raw.split("?")[0].split("#")[0] || "/";
+        delete anchor.dataset.zuneActive;
+
+        const isCurrent =
+          base === pathname ||
+          (base === "/updates" && pathname?.startsWith("/suggestions")) ||
+          (base !== "/" && Boolean(pathname?.startsWith(`${base}/`)));
+
+        if (isCurrent && !matched) {
+          matched = anchor;
+        }
+      }
+
+      if (matched) matched.dataset.zuneActive = "true";
+    };
+
+    stampActive();
+
+    /* Переразметка после ре-рендеров React — через observer (rAF-дебаунс),
+       без setState в теле эффекта */
+    let raf = 0;
+    const schedule = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(stampActive);
+    };
+    const mo = new MutationObserver(schedule);
+    mo.observe(aside, { childList: true, subtree: true });
+
+    return () => {
+      cancelAnimationFrame(raf);
+      mo.disconnect();
+      delete aside.dataset.zuneSidebar;
+      brand?.remove();
+      aside
+        .querySelectorAll("[data-zune-active]")
+        .forEach((node) => node.removeAttribute("data-zune-active"));
+    };
+  }, [pathname]);
+
+  return null;
 }

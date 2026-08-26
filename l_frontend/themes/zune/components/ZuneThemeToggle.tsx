@@ -1,16 +1,13 @@
 "use client";
 
 /**
- * Переключатель темы «Стандартная ↔ Zune Windows Phone».
+ * Переключатель «Стандартная ↔ Zune Windows Phone».
  * Нативный switch в стиле Windows Phone: круглый ползунок.
  *
- * Режимы использования:
+ * Режимы:
  *   <ZuneThemeToggle />                          — строка с подписями;
- *   <ZuneThemeToggle floating />                 — плавающая кнопка возврата
- *                                                  к стандартной теме;
- *   <ZuneThemeToggle floating variant="invite" />— приглашение попробовать
- *                                                  тему (в настройках, пока
- *                                                  она ещё выключена).
+ *   <ZuneThemeToggle floating />                 — плавающая кнопка возврата;
+ *   <ZuneThemeToggle floating variant="invite"/> — приглашение включить тему.
  */
 
 import { useZuneTheme } from "../hooks/useZuneTheme";
@@ -18,7 +15,7 @@ import { useZuneTheme } from "../hooks/useZuneTheme";
 interface ZuneThemeToggleProps {
   /** Плавающий режим (кнопка поверх UI) */
   floating?: boolean;
-  /** Что делает плавающая кнопка: exit — выключить тему, invite — включить */
+  /** exit — выключить тему, invite — пригласить включить */
   variant?: "exit" | "invite";
 }
 
@@ -61,7 +58,6 @@ export function ZuneThemeToggle({
     <div className="zune-theme-toggle">
       <label className="zune-toggle-row">
         <span className="zune-toggle-label">Стандартная</span>
-        {/* Нативный switch, как в WP: чекбокс + круглый ползунок */}
         <input
           type="checkbox"
           role="switch"

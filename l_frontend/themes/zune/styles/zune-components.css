@@ -1,388 +1,196 @@
 /* ============================================================
-   ZUNE THEME — компоненты: посты-плитки, кнопки, инпуты
+   ZUNE-COMPONENTS — альтернативная анатомия контента.
+   Лента: НЕ карточки, а чистые блоки на чёрном полотне,
+   разделённые тонкой белой линией; крупная типографика;
+   действия поста — прозрачный текст с иконкой слева.
+   Инпуты: без фона, нижняя линия → маджента в фокусе.
+   Модалки: полноэкранные, как в Windows Phone.
    ============================================================ */
 
-/* ---------- ПОСТ = ПЛИТКА METRO ---------- */
-.zune-post {
-  background: var(--zune-surface); /* #1A1A1A */
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 0;
-  box-shadow: none;
-  padding: 20px;
-  color: var(--zune-text);
+/* ---------- ЛЕНТА: пост как блок Metro ---------- */
+.zune-theme article[data-post-id],
+.zune-theme article[data-post-id]:hover {
+  background: transparent !important;
 }
 
-.zune-post-head {
-  display: flex;
-  align-items: center;
-  gap: 14px;
+.zune-theme article[data-post-id] {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 26px 20px 30px !important;
+  margin: 0 !important;
+  max-width: 720px;
+  cursor: pointer;
+  outline: 1px solid transparent;      /* рамка появляется на hover */
+  outline-offset: -1px;
+  border-bottom-color: var(--zune-divider);
+  transition: background-color 200ms ease,
+              outline-color 200ms ease,
+              transform 260ms var(--zune-spring);
+}
+.zune-theme article[data-post-id]:hover {
+  background: rgba(255, 255, 255, 0.02) !important;
+  outline-color: rgba(255, 255, 255, 0.28);
+  transform: translateX(4px);
+}
+.zune-theme article[data-post-id]:active {
+  transform: translateX(2px) scale(0.995);
 }
 
-/* Аватар: круглый, обводка маджента 2px (+ пульс см. animations) */
-.zune-avatar {
-  width: 48px;
-  height: 48px;
+/* Внутренняя сетка поста: крупный аватар и воздух */
+.zune-theme article[data-post-id] > div {
+  gap: 18px !important;
+}
+
+/* Аватар 56px с маджента-кольцом */
+.zune-theme article[data-post-id] > div > a:first-child {
+  display: block;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  border: 2px solid var(--zune-accent);
-  object-fit: cover;
+  overflow: hidden;
+  border: 2px solid #ff00ff;
   flex-shrink: 0;
 }
+.zune-theme article[data-post-id] > div > a:first-child img,
+.zune-theme article[data-post-id] > div > a:first-child > div {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 50% !important;
+  object-fit: cover;
+}
 
-.zune-user-name {
+/* Шапка поста: имя 17px/600, служебное — мелко и тускло */
+.zune-theme article[data-post-id] a.font-bold {
+  font-size: 17px;
   font-weight: 600;
-  font-size: 15px;
+  letter-spacing: 0.01em;
+}
+.zune-theme article[data-post-id] .text-gray-600,
+.zune-theme article[data-post-id] .dark\:text-white\/50 {
+  font-size: 12px !important;
+  letter-spacing: 0.04em;
+}
+
+/* Текст поста: 18px / интервал 1.8 / воздух сверху */
+.zune-theme article[data-post-id] .whitespace-pre-wrap,
+.zune-theme article[data-post-id] p.mt-1 {
+  font-size: 18px !important;
+  line-height: 1.8 !important;
   color: var(--zune-text);
+  margin-top: 14px !important;
+  margin-bottom: 10px;
+  letter-spacing: 0.005em;
 }
 
-.zune-post-date {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
+/* Медиа: во всю ширину блока, без скруглений */
+.zune-theme article[data-post-id] img.rounded-xl,
+.zune-theme article[data-post-id] video.rounded-xl {
+  border-radius: 0 !important;
+  width: 100% !important;
+  max-height: 70vh;
+  object-fit: cover;
+  border: 1px solid var(--zune-divider);
+  margin-top: 16px !important;
 }
 
-.zune-post-text {
-  margin: 14px 0 0;
-  font-size: 16px;
-  line-height: 1.6;
-  color: var(--zune-text);
-  word-break: break-word;
-}
-
-.zune-post-media {
-  margin-top: 14px;
-  max-width: 100%;
-  border: 1px solid var(--zune-border);
-}
-
-/* Действия: плоские, текст + иконка слева, hover — подчёркивание */
-.zune-post-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 14px;
-}
-.zune-post-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 0 12px;
-  background: none;
-  border: 0;
+/* Кнопка Follow и все «привидения»: плоские, обводка-линия */
+.zune-theme article[data-post-id] button {
+  background: transparent;
   border-radius: 0;
-  color: rgba(255, 255, 255, 0.6);
-  font-family: var(--zune-font);
-  font-size: 14px;
-  cursor: pointer;
-  transition: color 0.2s ease;
+  box-shadow: none;
+  color: var(--zune-text-secondary);
+  transition: color 150ms ease, transform 220ms var(--zune-spring);
 }
-.zune-post-action:hover {
+.zune-theme article[data-post-id] button:hover {
   color: #ffffff;
   text-decoration: underline;
   text-underline-offset: 4px;
+  transform: translateY(-1px);
 }
-.zune-post-action[data-active="true"] {
-  color: var(--zune-accent);
+.zune-theme article[data-post-id] button:active {
+  transform: scale(0.94);
 }
-
-/* Разделитель между постами */
-.zune-feed-sep {
-  height: 1px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 0;
-  margin: 16px 0;
-}
-
-/* ---------- КНОПКИ (Flat) ---------- */
-.zune-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: var(--zune-btn-h);
-  padding: 0 var(--zune-btn-pad-x);
-  border: 0;
-  border-radius: 0;
-  font-family: var(--zune-font);
-  font-size: 16px;
-  font-weight: 300;
-  cursor: pointer;
-  transition: filter 140ms ease, border-color 200ms ease,
-    transform 160ms var(--zune-spring);
-}
-.zune-btn:active {
-  transform: scale(0.97);
-}
-.zune-btn:disabled {
-  opacity: 0.4;
-  pointer-events: none;
-}
-
-.zune-btn--primary {
-  background: var(--zune-accent);
-  color: #ffffff;
-}
-.zune-btn--primary:hover {
-  filter: brightness(1.12);
-}
-.zune-btn--primary:active {
-  filter: brightness(0.72); /* затемнение вместо ripple */
-}
-
-.zune-btn--secondary {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: #ffffff;
-}
-.zune-btn--secondary:hover {
-  border-color: #ffffff;
-}
-
-.zune-btn--block {
-  width: 100%;
-}
-
-/* ---------- ИНПУТЫ (Windows Phone style) ---------- */
-.zune-input-wrap {
-  position: relative;
-  width: 100%;
-}
-
-.zune-input {
-  width: 100%;
-  min-height: 44px;
-  padding: 10px 2px;
-  background: transparent;
-  border: 0;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 0;
-  color: var(--zune-text);
-  font-family: var(--zune-font);
-  font-size: 16px;
-  transition: border-color 0.2s ease;
-}
-.zune-input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
-  font-size: 16px;
-}
-.zune-input:focus {
-  outline: none;
-  border-bottom-color: var(--zune-accent); /* нижняя линия → маджента */
-}
-
-textarea.zune-input {
-  min-height: 96px;
-  resize: vertical;
-}
-
-/* Поле поиска: иконка лупы внутри слева, без обводки */
-.zune-input-wrap.has-icon .zune-input {
-  padding-left: 36px;
-}
-.zune-input-icon {
-  position: absolute;
-  left: 2px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-family: var(--zune-icon-font);
-  font-size: 18px;
-  color: rgba(255, 255, 255, 0.3);
-  pointer-events: none;
-}
-
-/* ---------- КНОПКИ-ВЫСТУПЫ (Zune HD) ----------
-   Боковые кнопки уходят за края экрана, оставаясь кликабельными. */
-.zune-theme {
-  --zune-button-bleed: -15px;
-  --zune-nav-pad-x: 56px;
-}
-@media (max-width: 768px) {
-  .zune-theme {
-    --zune-button-bleed: -22px;
-    --zune-nav-pad-x: 44px;
-  }
-}
-
-.zt-nav {
-  display: flex;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 0;
-}
-.zt-nav-btn {
-  min-height: var(--zune-btn-h);
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  border: 0;
-  border-radius: 0;
-  cursor: pointer;
-  color: #ffffff;
-  font-family: var(--zune-font);
-  font-size: 17px;
-  font-weight: 300;
-  white-space: nowrap;
-  transition: filter 140ms ease, transform 200ms var(--zune-spring);
-}
-.zt-nav-btn:hover { filter: brightness(1.15); }
-.zt-nav-btn--bleed-left {
-  margin-right: auto;
-  padding: 0 var(--zune-nav-pad-x);
-  background: var(--zune-accent-alt, #ff6600);
-  transform: translateX(var(--zune-button-bleed));
-}
-.zt-nav-btn--center {
-  min-width: 96px;
-  justify-content: center;
-  padding: 0 28px;
-  background: #ffffff;
-  color: #0a0a0a;
+/* Подписаться/отписаться — белый прямоугольник с рамкой */
+.zune-theme article[data-post-id] .shrink-0.rounded-full {
+  border-radius: 0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  background: transparent !important;
   text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
-.zt-nav-btn--bleed-right {
-  margin-left: auto;
-  padding: 0 var(--zune-nav-pad-x);
-  background: var(--zune-accent);
-  transform: translateX(calc(-1 * var(--zune-button-bleed)));
-}
-.zt-nav-glyph {
-  font-family: var(--zune-icon-font), var(--zune-font);
-  font-size: 20px;
-  line-height: 1;
-}
-/* ============================================================
-   Переключатель «Стандартная ↔ Zune» в настройках.
-   ВАЖНО: виджет должен выглядеть корректно ДО включения темы,
-   поэтому базовые стили не зависят от .zune-theme — все цвета
-   заданы явно, с адаптацией под оформление самого приложения
-   (.dark на <html> ставит next-themes). Правила .zune-theme …
-   ниже возвращают фирменный вид после включения темы.
-   ============================================================ */
-.zune-toggle-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  width: 100%;
-  cursor: pointer;
-  margin-top: 12px;
-}
-.zune-toggle-label {
-  font-size: 15px;
-  color: #111827;                       /* светлый режим приложения */
-}
-.dark .zune-toggle-label {
-  color: #f3f4f6;                       /* тёмный режим приложения  */
-}
-.zune-theme .zune-toggle-label {
-  color: var(--zune-text);              /* активная Zune-тема       */
+.zune-theme article[data-post-id] .shrink-0.rounded-full:hover {
+  background: #ffffff !important;
+  color: #000000 !important;
+  text-decoration: none;
 }
 
-.zune-switch {
-  appearance: none;
-  -webkit-appearance: none;
-  position: relative;
-  width: 56px;
-  height: 28px;
-  margin: 0;
-  padding: 0;
-  background: transparent;
-  border: 1px solid rgba(17, 24, 39, 0.35);
-  border-radius: 999px;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background-color 0.25s ease, border-color 0.25s ease;
-}
-.dark .zune-switch,
-.zune-theme .zune-switch {
-  border-color: rgba(255, 255, 255, 0.35);
-}
-.zune-switch::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 3px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%; /* круглый ползунок */
-  background: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-  transform: translateY(-50%);
-  transition: left 0.25s var(--zune-spring, cubic-bezier(0.68, -0.55, 0.27, 1.55));
-}
-.dark .zune-switch::before {
-  box-shadow: none;
-}
-.zune-switch:checked {
-  background: var(--zune-accent, #ff00ff);
-  border-color: var(--zune-accent, #ff00ff);
-}
-.zune-switch:checked::before {
-  left: calc(100% - 23px);
+/* Разделитель репоста */
+.zune-theme article[data-post-id] .text-xs.text-gray-600 {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 11px !important;
 }
 
-/* ---------- Карточка «Тема Zune» в стандартных настройках ---------- */
-.zst-root {
-  margin-top: 20px;
-  padding: 16px 18px;
-  border-radius: 14px;
-  border: 1px solid rgba(17, 24, 39, 0.08);
-  background: #ffffff;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+/* ---------- ИНПУТЫ WINDOWS PHONE ---------- */
+.zune-theme input:not([type="checkbox"]):not([type="radio"]),
+.zune-theme textarea,
+.zune-theme select {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.22) !important;
+  border-radius: 0 !important;
+  color: var(--zune-text) !important;
+  font-size: 16px;
+  padding: 10px 2px;
+  box-shadow: none !important;
+  transition: border-color 180ms ease;
+  min-height: 44px;
 }
-.dark .zst-root {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.03);
+.zune-theme input::placeholder,
+.zune-theme textarea::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 16px;
 }
-.zune-theme .zst-root {
-  border-color: var(--zune-border);
-  background: var(--zune-surface);
-  border-radius: 0;
+.zune-theme input:focus,
+.zune-theme textarea:focus,
+.zune-theme select:focus {
+  outline: none !important;
+  border-bottom-color: #ff00ff !important;
 }
-.zst-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+/* Поле поиска: лупа-глиф перед вводом не трогаем, но поле без фона */
+.zune-theme input[placeholder*="Поиск"],
+.zune-theme input[placeholder*="поиск"],
+.zune-theme input[placeholder*="Search"],
+.zune-theme input[placeholder*="search"] {
+  font-size: 18px;
 }
-.zst-title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: #111827;
-}
-.dark .zst-title {
+
+/* ---------- МОДАЛЬНЫЕ ОКНА: ПОЛНОЭКРАННЫЕ ---------- */
+.zune-theme [role="dialog"],
+.zune-theme dialog {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  max-width: none !important;
+  height: 100vh !important;
+  max-height: none !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: rgba(0, 0, 0, 0.9) !important;
+  backdrop-filter: blur(10px);
   color: #ffffff;
+  animation: zModalIn 280ms var(--zune-spring);
+  overflow-y: auto;
 }
-.zune-theme .zst-title {
+@keyframes zModalIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ---------- КИРПИЧИКИ ФОРМ НАСТРОЕК ---------- */
+.zune-theme label.text-sm,
+.zune-theme label.font-medium {
+  font-size: 18px !important;
   color: var(--zune-text);
 }
-.zst-subtitle {
-  margin: 2px 0 0;
-  font-size: 12px;
-  color: #6b7280;
-}
-.dark .zst-subtitle {
-  color: rgba(255, 255, 255, 0.5);
-}
-.zune-theme .zst-subtitle {
-  color: var(--zune-text-secondary);
-}
-.zst-badge {
-  flex-shrink: 0;
-  font-size: 11px;
-  line-height: 1;
-  letter-spacing: 0.06em;
-  padding: 6px 10px;
-  border: 1px solid rgba(17, 24, 39, 0.15);
-  border-radius: 999px;
-  color: #6b7280;
-}
-.dark .zst-badge {
-  border-color: rgba(255, 255, 255, 0.18);
-  color: rgba(255, 255, 255, 0.55);
-}
-.zst-badge.is-on {
-  border-color: #ff00ff;
-  color: #ff00ff;
-}
-

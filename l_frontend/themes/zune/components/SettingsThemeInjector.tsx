@@ -3,18 +3,14 @@
 /**
  * Встраивает переключатель «Стандартная ↔ Zune Windows Phone» прямо в
  * существующую страницу настроек (раздел «Оформление») БЕЗ изменения
- * стандартных файлов проекта — через React Portal.
+ * стандартных файлов — через React Portal.
  *
- * Как работает:
- *  - компонент активен только на маршруте /settings;
- *  - <AppearanceSettings /> монтируется лишь после открытия вкладки
- *    «Оформление», поэтому момент её появления ловит MutationObserver
- *    (раньше был одноразовый интервал, «сдававшийся» за 10 секунд,
- *     если пользователь открыл другую вкладку настроек);
+ *  - активен только на маршруте /settings;
+ *  - AppearanceSettings монтируется лишь после открытия вкладки
+ *    «Оформление», поэтому момент её появления ловит MutationObserver;
  *  - якорь — корневой блок .space-y-5, содержащий role="radiogroup"
- *    (переключатель Светлая/Тёмная/Системная): точный признак именно
- *    этого раздела, независимый от языка интерфейса;
- *  - уход с вкладки или покидание страницы аккуратно снимают портал.
+ *    (переключатель Светлая/Тёмная/Системная): точный признак раздела;
+ *  - уход с маршрута аккуратно снимает портал.
  */
 
 import { useEffect, useState } from "react";
@@ -25,7 +21,7 @@ import { ZuneThemeToggle } from "./ZuneThemeToggle";
 
 const HOST_ID = "zune-settings-toggle-host";
 
-export function ZuneSettingsToggle() {
+export function SettingsThemeInjector() {
   const pathname = usePathname();
   const { isZuneTheme } = useZuneTheme();
   const [root, setRoot] = useState<HTMLElement | null>(null);
@@ -40,7 +36,7 @@ export function ZuneSettingsToggle() {
       host = null;
     };
 
-    /** Корень <AppearanceSettings />: списочный блок с radiogroup тем */
+    /** Корень AppearanceSettings: списочный блок с radiogroup тем */
     const findAnchor = (): HTMLElement | null =>
       Array.from(document.querySelectorAll<HTMLElement>(".space-y-5")).find(
         (el) => el.querySelector('[role="radiogroup"]') !== null
@@ -66,10 +62,8 @@ export function ZuneSettingsToggle() {
       }
     };
 
-    /* Первичная привязка — асинхронно (микрозадачей), чтобы не вызывать
-       setState синхронно в теле эффекта (react-hooks/set-state-in-effect).
-       Дальнейшие обновления приходят из колбэков MutationObserver —
-       это штатный канал «внешняя система → React». */
+    /* Первичная привязка асинхронно (микрозадачей): setState не вызывается
+       синхронно в теле эффекта (react-hooks/set-state-in-effect). */
     const firstRun = setTimeout(ensure, 0);
 
     const observer = new MutationObserver(ensure);

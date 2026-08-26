@@ -1,25 +1,21 @@
 "use client";
 
 /**
- * Провайдер темы «ZUNE PHONE DESIGN SYSTEM».
+ * Провайдер темы «ZUNE».
  *
- * Принцип (жёсткое правило №1): стандартные файлы не изменяются.
+ * Источник истины — мини-store над localStorage (useSyncExternalStore):
+ * без мигания при гидратации и без setState-в-эффекте. Когда тема активна,
+ * монтирует движки трансформации (все они — самостоятельные компоненты,
+ * которые встраивают новую структуру В ЖИВОЙ DOM стандартных компонентов,
+ * не изменяя ни одного файла проекта):
  *
- * Источник истины — мини-store над localStorage, подключённый через
- * useSyncExternalStore: значение одинаково на сервере и при первом
- * клиентском рендере ("standard"), а реальный выбор из localStorage
- * подхватывается сразу после монтирования — без setState-в-эффекте
- * (требование eslint-правила react-hooks/set-state-in-effect).
- * Синхронизация между вкладками — событие storage внутри store.
- *
- * Поведение UI:
- *  - на странице /settings, пока тема выключена, показывает плавающее
- *    приглашение «Включить тему Zune», а после включения — плавающую
- *    кнопку возврата из любого места приложения;
- *  - встраивает полноценный WP-переключатель в раздел «Оформление»
- *    настроек через портал (SettingsThemeInjector);
- *  - мигание при загрузке убирает блокирующий скрипт в layout.tsx
- *    (единственное разрешённое касание корневого файла).
+ *  - ZuneSidebar       — «ZUNE» 48px, разделитель, пункты только текстом,
+ *                        белая полоса активного пункта, встроенный плеер;
+ *  - ZunePanorama      — фиксированный гигантский заголовок раздела,
+ *                        уходящий за левый край, со сжатием при скролле;
+ *  - ZuneChats / ZuneNotifications — разметка списков под плитки Metro;
+ *  - плавающая кнопка возврата к стандартной теме;
+ *  - переключатель WP-стиля внутри Настроек (SettingsThemeInjector).
  */
 
 import {
@@ -41,9 +37,14 @@ import {
   type ZunePreference,
 } from "./hooks/useZuneTheme";
 import { ZuneThemeToggle } from "./components/ZuneThemeToggle";
-import { ZuneSettingsToggle } from "./components/SettingsThemeInjector";
+import { SettingsThemeInjector } from "./components/SettingsThemeInjector";
+import { ZuneSidebar } from "./components/ZuneSidebar";
+import { ZuneMusicPlayer } from "./components/ZuneMusicPlayer";
+import { ZunePanorama } from "./components/ZunePanorama";
+import { ZuneChats } from "./components/ZuneChats";
+import { ZuneNotifications } from "./components/ZuneNotifications";
 
-/* Канонический признак завершения гидратации (без setState в эффекте):
+/* Признак завершения гидратации (канонический, без setState в эффекте):
    сервер → false, клиент после монтирования → true */
 const emptySubscribe = () => () => {};
 function useMounted(): boolean {
@@ -61,14 +62,15 @@ export function ZuneThemeProvider({ children }: { children: ReactNode }) {
     getPreferenceServerSnapshot
   );
   const mounted = useMounted();
+  const isZune = preference === "zune";
 
   const pathname = usePathname();
   const onSettingsRoute = Boolean(pathname?.startsWith("/settings"));
 
   /* Синхронизация внешней системы (класс <body>) с текущим выбором */
   useEffect(() => {
-    document.body.classList.toggle(THEME_CLASS, preference === "zune");
-  }, [preference]);
+    document.body.classList.toggle(THEME_CLASS, isZune);
+  }, [isZune]);
 
   const setPreference = useCallback((pref: ZunePreference) => {
     writePreference(pref);
@@ -81,27 +83,38 @@ export function ZuneThemeProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       preference,
-      isZuneTheme: preference === "zune",
+      isZuneTheme: isZune,
       setPreference,
       toggleTheme,
     }),
-    [preference, setPreference, toggleTheme]
+    [preference, isZune, setPreference, toggleTheme]
   );
 
   return (
     <ZuneThemeContext.Provider value={value}>
       {children}
 
-      {/* Плавающая кнопка поверх UI:
-          тема выключена + настройки → приглашение её включить;
+      {/* Движки трансформации — живут только пока тема включена */}
+      {mounted && isZune && (
+        <>
+          <ZuneSidebar />
+          <ZuneMusicPlayer />
+          <ZunePanorama />
+          <ZuneChats />
+          <ZuneNotifications />
+        </>
+      )}
+
+      {/* Плавающие кнопки поверх UI:
+          тема выключена + Настройки → приглашение попробовать Zune;
           тема включена → возврат к стандартной из любого места */}
-      {mounted && preference !== "zune" && onSettingsRoute && (
+      {mounted && !isZune && onSettingsRoute && (
         <ZuneThemeToggle floating variant="invite" />
       )}
-      {mounted && preference === "zune" && <ZuneThemeToggle floating />}
+      {mounted && isZune && <ZuneThemeToggle floating />}
 
-      {/* Полноценный переключатель внутри раздела «Оформление» настроек */}
-      {mounted && <ZuneSettingsToggle />}
+      {/* Переключатель темы внутри раздела «Оформление» настроек */}
+      {mounted && <SettingsThemeInjector />}
     </ZuneThemeContext.Provider>
   );
 }

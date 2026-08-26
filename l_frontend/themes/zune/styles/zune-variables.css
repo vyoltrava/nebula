@@ -1,58 +1,57 @@
 /* ============================================================
-   ZUNE THEME — CSS-переменные (точные значения по спецификации)
+   ZUNE VARIABLES — фирменные токены Windows Phone / Zune HD.
+   Все объявлены в скоупе тела .zune-theme, чтобы стандартная
+   тема проекта осталась нетронутой.
    ============================================================ */
 
-/* Шрифт: Segoe UI системный в Windows («Segoe UI Historic», «Zegoe» —
-   локальные). Веб-импорт Segoe невозможен (не распространяется через
-   Google Fonts), поэтому стек деградирует в system-ui на других ОС:
-   @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600');
-   ↑ при желании раскомментировать как метрически близкий fallback */
-
 .zune-theme {
-  /* ---------- Цвета (спецификация, п.13) ---------- */
-  --zune-bg: #0a0a0a;                          /* глубокий чёрный           */
-  --zune-surface: #1a1a1a;                     /* плитки/карточки           */
-  --zune-text: #ffffff;
-  --zune-text-secondary: rgba(255, 255, 255, 0.5);
-  --zune-text-faint: rgba(255, 255, 255, 0.4);
-  --zune-text-ghost: rgba(255, 255, 255, 0.3);
-  --zune-accent: #ff00ff;                      /* маджента                  */
-  --zune-link: #00bfff;                        /* голубой WP для ссылок     */
-  --zune-divider: rgba(255, 255, 255, 0.05);
-  --zune-border: rgba(255, 255, 255, 0.1);
-  --zune-error: #ff0000;
+  /* --- Типографика (Segoe UI / Zegoe) --- */
+  --z-font:
+    "Segoe UI Variable Display", "Segoe UI", "Segoe UI Historic", "Zegoe",
+    "Noto Sans", system-ui, sans-serif;
+  --z-weight-thin: 200;
+  --z-weight-light: 300;
+  --z-weight-regular: 400;
+  --z-weight-semibold: 600;
+  --z-tracking-tight: -0.03em;
 
-  /* ---------- Иконки навигации (ФИКС БАГА: ТОЛЬКО белый!) ---------- */
-  --zune-icon-idle: rgba(255, 255, 255, 0.7);
-  --zune-icon-active: #ffffff;
+  /* --- Палитра (точные значения спецификации) --- */
+  --z-bg: #0a0a0a;                       /* глубокий чёрный          */
+  --z-bg-raise: #111111;                 /* приподнятые зоны         */
+  --z-tile: #1a1a1a;                     /* плитки                   */
+  --z-text: #ffffff;
+  --z-text-secondary: rgba(255, 255, 255, 0.55);
+  --z-text-dim: rgba(255, 255, 255, 0.35);
+  --z-accent: #ff00ff;                   /* маджента                 */
+  --z-link: #00bfff;                     /* голубой WP для ссылок    */
+  --z-divider: rgba(255, 255, 255, 0.06);/* межплиточные линии       */
+  --z-stroke: rgba(255, 255, 255, 0.12); /* рамки плиток             */
+  --z-danger: #ff004c;
 
-  /* ---------- OVERSCAN / PANORAMA ---------- */
-  --zune-header-shift: -20%;                   /* сдвиг заголовка за край   */
-  --zune-parallax: 0px;
-  --zune-giant-size: clamp(48px, 8vw, 64px);
+  /* --- Overscan / Bleed --- */
+  --z-bleed-offset: -22%;                /* вынос заголовка за экран */
+  --z-button-bleed: -14px;               /* выступ кнопок            */
 
-  /* ---------- Геометрия ---------- */
-  --zune-sidebar-w: 320px;
-  --zune-nav-item-h: 60px;
-  --zune-nav-font: 20px;
-  --zune-btn-h: 48px;
-  --zune-btn-pad-x: 32px;
-  --zune-content-pad-x: 24px;
+  /* --- Motion --- */
+  --z-spring: cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  --z-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --z-speed: 240ms;
 
-  /* ---------- Motion: пружинящий Zune-"liquid" ---------- */
-  --zune-spring: cubic-bezier(0.68, -0.55, 0.27, 1.55);
-  --zune-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* --- Каркас --- */
+  --z-sidebar-w: 360px;                  /* ширина сайдбара WP       */
+  --z-gutter: 28px;                      /* ритм полей контента      */
+  --z-panorama-top: 96px;                /* высота панорамы до скролла */
+  --z-content-pad-top: calc(var(--z-panorama-top) + 40px);
 
-  /* ---------- Шрифт (п.12) ---------- */
-  --zune-font:
-    "Segoe UI", "Segoe UI Historic", "Zegoe", "Segoe UI Light", system-ui,
-    sans-serif;
-  --zune-icon-font: "Segoe Fluent Icons", "Segoe MDL2 Assets", "Segoe UI Symbol";
+  /* --- Радиусы/тени: по умолчанию НЕТ (Metro flat) --- */
+  --z-radius: 0px;
 }
 
-@media (prefers-reduced-motion: reduce) {
+/* Мобильная адаптация Phone-first */
+@media (max-width: 480px) {
   .zune-theme {
-    --zune-parallax: 0px !important;
-    --zune-spring: ease !important;
+    --z-bleed-offset: -30%;
+    --z-gutter: 16px;
+    --z-content-pad-top: calc(var(--z-panorama-top) + 8px);
   }
 }

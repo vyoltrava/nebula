@@ -1,31 +1,15 @@
-/* ============================================================
-   ZUNE PHONE DESIGN SYSTEM — точка входа.
-   Всё для подключения темы экспортируется отсюда:
-
-     import { ZuneThemeProvider, useZuneTheme } from "@/themes/zune";
-   ============================================================ */
+/**
+ * Точка входа темы «ZUNE» (Windows Phone Metro).
+ * Импорты корневого layout.tsx опираются на этот модуль:
+ *   import { ZuneThemeProvider } from "@/themes/zune";
+ *   import "@/themes/zune/styles/index.css";
+ */
 
 export { ZuneThemeProvider } from "./ZuneThemeProvider";
+export { useZuneTheme } from "./hooks/useZuneTheme";
 export {
-  useZuneTheme,
   readZunePreference,
-  ZUNE_STORAGE_KEY,
-  ZUNE_LEGACY_KEY,
-  type ZunePreference,
-  type ZuneThemeContextValue,
+  writePreference,
+  subscribePreference,
 } from "./hooks/useZuneTheme";
-
-export { ZuneSidebar, MDL2, type ZuneNavItem } from "./components/ZuneSidebar";
-export { ZuneHeader } from "./components/ZuneHeader";
-export { ZunePost, type ZunePostData } from "./components/ZunePost";
-export { ZunePostList } from "./components/ZunePostList";
-export { ZuneFeedWrapper } from "./components/ZuneFeedWrapper";
-export { ZuneButton } from "./components/ZuneButton";
-export { ZuneInput } from "./components/ZuneInput";
-export { ZuneModal } from "./components/ZuneModal";
-export { ZuneProfile } from "./components/ZuneProfile";
-export { ZuneSettings } from "./components/ZuneSettings";
-export { ZuneThemeToggle } from "./components/ZuneThemeToggle";
-export { ZuneSettingsToggle } from "./components/SettingsThemeInjector";
-export { ZuneMusicPlayer } from "./components/ZuneMusicPlayer";
-export { ZuneNavigation } from "./components/ZuneNavigation";
+export type { ZunePreference, ZuneThemeContextValue } from "./hooks/useZuneTheme";

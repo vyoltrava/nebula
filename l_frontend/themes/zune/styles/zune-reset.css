@@ -1,76 +1,118 @@
 /* ============================================================
-   ZUNE THEME — сброс стилей ТОЛЬКО внутри .zune-theme:
-   убрать тени и скругления, перекрасить полотно.
+   ZUNE RESET — полное «обнуление» привычного вида внутри темы.
+   Принцип Content before chrome: без теней, без скруглений,
+   бумага заменена глубоким чёрным полотном.
+   Осторожно: радиусы/тени гасятся универсально, отдельные
+   исключения возвращаются уже ВЫШЕ по специфичности.
    ============================================================ */
 
-body.zune-theme {
-  margin: 0;
-  background-color: var(--zune-bg);
-  color: var(--zune-text);
-  font-family: var(--zune-font);
-  font-weight: 400;
-  -webkit-font-smoothing: antialiased;
+.zune-theme {
+  background: var(--z-bg) !important;
+  color: var(--z-text);
+  font-family: var(--z-font);
+  font-weight: var(--z-weight-regular);
+  letter-spacing: 0.01em;
+  min-height: 100dvh;
 }
 
-/* Content before chrome: никаких радиусов и теней на базовых блоках */
-.zune-theme article,
-.zune-theme aside,
-.zune-theme nav,
-.zune-theme section,
-.zune-theme [data-zune-tile] {
+/* Убиваем бумажные подложки приложения (bg-paper/bg-ivory/utilities) */
+.zune-theme [class*="bg-paper"],
+.zune-theme [class*="bg-ivory"],
+.zune-theme [class*="bg-gray-50"],
+.zune-theme [class*="bg-gray-100"] {
+  background-color: transparent !important;
+}
+
+/* Flat: никаких скруглений и теней нигде */
+.zune-theme,
+.zune-theme * {
   border-radius: 0;
   box-shadow: none;
+  text-shadow: none;
 }
 
-/* Заголовки — тонкая типографика Metro */
-.zune-theme h1,
-.zune-theme h2,
-.zune-theme h3 {
-  font-family: var(--zune-font);
-  font-weight: 300;
-  letter-spacing: 0.01em;
-  color: var(--zune-text);
+/* Исключения: круглые аватары и ползунок-switch */
+.zune-theme img[alt][src*="avatar"],
+.zune-theme .avatar,
+.zune-theme [data-avatar],
+.zune-theme img.rounded-full,
+.zune-theme div.rounded-full {
+  border-radius: 9999px !important;
+}
+.zune-theme .zune-switch {
+  border-radius: 9999px;
 }
 
-/* Ссылки — голубой WP (#00BFFF) */
-.zune-theme a {
-  color: var(--zune-link);
-  text-decoration: none;
-}
-.zune-theme a:hover {
-  text-decoration: underline;
-  text-underline-offset: 4px;
+/* Обводки плиток приглушаем к фирменному белому штриху */
+.zune-theme [class*="border"],
+.zune-theme [style*="border"] {
+  border-color: var(--z-stroke);
 }
 
-/* Разделители контента */
-.zune-theme hr {
-  border: 0;
-  border-top: 1px solid var(--zune-divider);
-}
-
-/* ---------- Скроллбар Zune: линия 3px → 5px при наведении ---------- */
+/* Скроллбар ZUNE: линия 3px → 5px при наведении */
 .zune-theme ::-webkit-scrollbar {
   width: 3px;
   height: 3px;
-}
-.zune-theme ::-webkit-scrollbar-track {
   background: transparent;
 }
 .zune-theme ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.9);
-  border-radius: 2px;
+  border-radius: 0;
+  transition: width 120ms linear;
 }
-.zune-theme ::-webkit-scrollbar-thumb:hover {
-  width: 5px;
-  height: 5px;
+.zune-theme ::-webkit-scrollbar-track {
+  background: transparent;
 }
-body.zune-theme {
+.zune-theme:hover::-webkit-scrollbar-thumb:hover,
+.zune-theme *:hover::-webkit-scrollbar-thumb {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.9);
+}
+.zune-theme *::-webkit-scrollbar-thumb:hover {
+  background: #fff;
+}
+.zune-theme {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.9) transparent;
 }
 
-/* Выделение текста — маджента */
+/* Выделение текста — маджента, как акцент темы */
 .zune-theme ::selection {
-  background: rgba(255, 0, 255, 0.35);
-  color: #ffffff;
+  background: var(--z-accent);
+  color: #000;
+}
+
+/* Ссылки: голубой WP, подчёркивание при наведении (в духе меню WP) */
+.zune-theme main a,
+.zune-theme article a,
+.zune-theme section a:not(.zp-btn):not([data-zune-nav-item]) {
+  color: var(--z-link);
+  text-decoration: none;
+  transition: color var(--z-speed) var(--z-ease-out),
+    opacity var(--z-speed) var(--z-ease-out);
+}
+.zune-theme main a:hover {
+  opacity: 0.82;
+}
+
+/* Заголовки типографики: тонкие, плотные, крупнее */
+.zune-theme h1,
+.zune-theme h2,
+.zune-theme h3 {
+  font-family: var(--z-font);
+  font-weight: var(--z-weight-light);
+  letter-spacing: var(--z-tracking-tight);
+  line-height: 1.05;
+}
+.zune-theme h2 {
+  font-size: clamp(24px, 3vw, 34px);
+}
+.zune-theme h3 {
+  font-size: 20px;
+}
+
+/* Плоские разделители повсеместно */
+.zune-theme hr {
+  height: 1px;
+  background: var(--z-divider);
+  border: 0;
 }

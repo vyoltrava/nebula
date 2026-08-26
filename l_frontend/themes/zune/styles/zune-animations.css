@@ -1,76 +1,105 @@
 /* ============================================================
-   ZUNE THEME — анимации («liquid» feel, Motion as feedback)
+   ZUNE-ANIMATIONS — «жидкая» пластика Windows Phone.
+   Пружина cubic-bezier(0.68,-0.55,0.27,1.55); посты выезжают
+   снизу каскадом; живое кольцо аватара; скроллбар 3px → 5px.
    ============================================================ */
 
-/* Пружинящая кривая по спецификации: cubic-bezier(0.68,-0.55,0.27,1.55) */
-.zune-theme .zune-btn,
-.zune-theme .zune-post,
-.zune-theme .zune-tile,
-.zune-theme .zune-modal {
+:root {
+  --zune-ease-in-out: cubic-bezier(0.3, 0, 0.2, 1);
+}
+
+/* ---------- Каскад появления постов (translateY 30px → 0) ---------- */
+@keyframes zPostRise {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+body.zune-theme main article[data-post-id] {
+  animation: zPostRise 460ms var(--zune-spring) backwards;
+}
+body.zune-theme main article[data-post-id]:nth-child(1) { animation-delay: 0ms; }
+body.zune-theme main article[data-post-id]:nth-child(2) { animation-delay: 55ms; }
+body.zune-theme main article[data-post-id]:nth-child(3) { animation-delay: 110ms; }
+body.zune-theme main article[data-post-id]:nth-child(4) { animation-delay: 165ms; }
+body.zune-theme main article[data-post-id]:nth-child(5) { animation-delay: 220ms; }
+body.zune-theme main article[data-post-id]:nth-child(6) { animation-delay: 275ms; }
+body.zune-theme main article[data-post-id]:nth-child(n + 7) { animation-delay: 320ms; }
+
+/* ---------- Плитки чатов/уведомлений: каскад со сдвигом вправо ---------- */
+@keyframes zTileIn {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+body.zune-theme [data-zune-list] > [data-zune-tile] {
+  animation: zTileIn 420ms var(--zune-spring) backwards;
+}
+body.zune-theme [data-zune-list] > [data-zune-tile]:nth-child(1) { animation-delay: 0ms; }
+body.zune-theme [data-zune-list] > [data-zune-tile]:nth-child(2) { animation-delay: 45ms; }
+body.zune-theme [data-zune-list] > [data-zune-tile]:nth-child(3) { animation-delay: 90ms; }
+body.zune-theme [data-zune-list] > [data-zune-tile]:nth-child(4) { animation-delay: 135ms; }
+body.zune-theme [data-zune-list] > [data-zune-tile]:nth-child(5) { animation-delay: 180ms; }
+body.zune-theme [data-zune-list] > [data-zune-tile]:nth-child(n + 6) { animation-delay: 230ms; }
+
+/* ---------- Живая плитка: пульс маджента-обводки аватара ---------- */
+@keyframes zAvatarPulse {
+  0%, 78% { box-shadow: 0 0 0 2px rgba(255, 0, 255, 0.85), 0 0 12px rgba(255, 0, 255, 0.25); }
+  88%     { box-shadow: 0 0 0 6px rgba(255, 0, 255, 0.35), 0 0 26px rgba(255, 0, 255, 0.5); }
+  100%    { box-shadow: 0 0 0 2px rgba(255, 0, 255, 0.85), 0 0 12px rgba(255, 0, 255, 0.25); }
+}
+body.zune-theme article[data-post-id] > div > a:first-child,
+body.zune-theme [data-zune-list] [data-zune-tile] > a:first-child {
+  animation: zAvatarPulse 3s ease-in-out infinite;
+}
+
+/* ---------- Наведение кнопок плиток: мягкий подскок ---------- */
+body.zune-theme [data-zune-tile] button,
+body.zune-theme .zst-root button,
+body.zune-theme .zune-player button {
+  transition: transform 240ms var(--zune-spring), color 150ms ease;
+}
+body.zune-theme [data-zune-tile] button:hover,
+body.zune-theme .zst-root button:hover,
+body.zune-theme .zp-player button:hover {
+  transform: scale(1.05);
+}
+
+/* ---------- Смена разделов: горизонтальный слайд колонки ---------- */
+@keyframes zSectionIn {
+  from { opacity: 0; transform: translateX(48px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+body.zune-theme main > div,
+body.zune-theme main > section {
+  animation: zSectionIn 420ms var(--zune-spring);
+}
+
+/* ---------- Скроллбар ZUNE: линия 3px → 5px при наведении ---------- */
+body.zune-theme *::-webkit-scrollbar { width: 3px; height: 3px; }
+body.zune-theme *::-webkit-scrollbar-track { background: transparent; }
+body.zune-theme *::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.65);
+  border-radius: 0;
+}
+body.zune-theme *::-webkit-scrollbar-thumb:hover { width: 5px; }
+body.zune-theme * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.65) transparent; }
+
+/* ---------- Общий куплет плавности для интерфейсных узлов ---------- */
+body.zune-theme a,
+body.zune-theme nav aside,
+body.zune-theme aside {
+  transition-property: transform, opacity, background-color, border-color, color;
+  transition-duration: 220ms;
   transition-timing-function: var(--zune-spring);
 }
 
-/* Появление постов снизу при загрузке ленты */
-@keyframes zune-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-.zune-anim-slide-up {
-  animation: zune-slide-up 460ms var(--zune-ease-out) both;
-  animation-delay: var(--zune-stagger, 0ms); /* каскад списка */
-}
-
-/* Горизонтальный слайд при переключении разделов */
-@keyframes zune-slide-in-right {
-  from { opacity: 0; transform: translateX(28px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-@keyframes zune-slide-in-left {
-  from { opacity: 0; transform: translateX(-28px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-.zune-anim-slide-left  { animation: zune-slide-in-left 380ms var(--zune-spring) both; }
-.zune-anim-slide-right { animation: zune-slide-in-right 380ms var(--zune-spring) both; }
-
-/* «Живая плитка»: пульсация маджентовой обводки аватара раз в 3с */
-@keyframes zune-avatar-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(255, 0, 255, 0.45);
-  }
-  50% {
-    box-shadow: 0 0 0 6px rgba(255, 0, 255, 0);
-  }
-}
-.zune-avatar-pulse {
-  animation: zune-avatar-pulse 3s ease-in-out infinite;
-}
-
-/* Наведение на плитку: scale(1.02) + белая тень БЕЗ размытия */
-.zune-hoverable {
-  transition: transform 260ms var(--zune-spring),
-    box-shadow 260ms var(--zune-ease-out);
-}
-.zune-hoverable:hover {
-  transform: scale(1.02);
-  box-shadow: -8px 8px 0 0 rgba(255, 255, 255, 0.08);
-}
-
-/* Уважение к prefers-reduced-motion */
+/* ---------- Уважение к reduce-motion ---------- */
 @media (prefers-reduced-motion: reduce) {
-  .zune-anim-slide-up,
-  .zune-anim-slide-left,
-  .zune-anim-slide-right,
-  .zune-avatar-pulse {
-    animation: none;
-  }
-  .zune-hoverable:hover {
-    transform: none;
-    box-shadow: none;
+  body.zune-theme *,
+  body.zune-theme *::before,
+  body.zune-theme *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -1,81 +1,189 @@
 /* ============================================================
-   ZUNE THEME — каркас: сайдбар + контент + PANORAMA-хедер
+   ZUNE LAYOUT — Panorama-каркас: гигантский заголовок раздела,
+   бесконтейнерная лента, плитки списков, ритм полей Phone-first.
    ============================================================ */
 
-.zune-layout {
-  display: flex;
-  min-height: 100dvh;
-  background: var(--zune-bg);
-}
-
-.zune-main {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding-bottom: 96px;
-}
-
-.zune-content {
-  width: 100%;
-  max-width: 720px;
-  margin-inline: auto;
-  padding: 0 var(--zune-content-pad-x);
-}
-
-/* ============================================================
-   PANORAMA-ХЕДЕР: гигантский заголовок уходит за левый край,
-   sticky сверху, при скролле плавно «сжимается»
-   ============================================================ */
+/* ---------- PANORAMA: фиксированный заголовок поверх контента ---------- */
 .zune-panorama {
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 100;
-  padding: 34px 0 18px;
+  /* правая колонка: отступаем на ширину сайдбара */
+  left: var(--z-sidebar-w);
+  right: 0;
+  z-index: 60;
+  pointer-events: none;         /* заголовок лежит фоном, клики проходят */
+  padding: 6px 0 26px;
   background: linear-gradient(
     180deg,
-    var(--zune-bg) 0%,
-    rgba(10, 10, 10, 0.92) 70%,
+    rgba(10, 10, 10, 0.96) 0%,
+    rgba(10, 10, 10, 0.75) 70%,
     rgba(10, 10, 10, 0) 100%
   );
 }
 
 .zune-panorama-title {
-  margin: 0;
-  font-size: var(--zune-giant-size);
-  line-height: 1;
-  font-weight: 300;
-  text-transform: uppercase;
+  font-family: var(--z-font);
+  font-size: clamp(56px, 9vw, 96px);
+  font-weight: 150;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
   white-space: nowrap;
-  color: var(--zune-text);
-  opacity: 0.9;
-  pointer-events: none;
-  /* overscan: сдвиг влево за край экрана + параллакс скролла */
-  transform: translateX(calc(var(--zune-header-shift) + var(--zune-parallax)));
-  will-change: transform, font-size;
-  transition: font-size 320ms var(--zune-ease-out),
-    transform 320ms var(--zune-ease-out), opacity 320ms ease;
+  color: rgba(255, 255, 255, 0.85);
+  /* фирменный вынос за левый край экрана */
+  transform: translateX(var(--z-bleed-offset));
+  transition:
+    transform 420ms var(--z-spring),
+    font-size 420ms var(--z-ease-out),
+    opacity 300ms ease;
 }
 
-/* При скролле заголовок плавно уменьшается */
-.zune-panorama[data-scrolled="true"] .zune-panorama-title {
-  font-size: clamp(30px, 5vw, 40px);
-  transform: translateX(calc(-6% + var(--zune-parallax)));
+.zune-panorama-sub {
+  font-size: 13px;
+  color: var(--z-text-dim);
+  letter-spacing: 0.08em;
+  margin: 10px 0 0 calc(-1 * var(--z-bleed-offset) * 0.35);
+}
+
+/* Сжатие при скролле: мельче и менее выносной */
+.zune-panorama.is-scrolled {
+  padding-bottom: 14px;
+  background: linear-gradient(180deg, rgba(10, 10, 10, 0.97), rgba(10, 10, 10, 0));
+}
+.zune-panorama.is-scrolled .zune-panorama-title {
+  font-size: clamp(34px, 4.5vw, 48px);
+  transform: translateX(calc(var(--z-bleed-offset) * 0.45));
   opacity: 0.95;
 }
-
-.zune-panorama-subtitle {
-  margin: 10px 0 0;
-  padding-left: calc(var(--zune-content-pad-x));
-  font-size: 14px;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.3);
+.zune-panorama.is-scrolled .zune-panorama-sub {
+  margin-top: 2px;
+  font-size: 11px;
 }
 
-/* ---------- Мобильный каркас ---------- */
-@media (max-width: 1024px) {
-  .zune-layout {
-    flex-direction: column;
+@media (max-width: 1023px) {
+  .zune-panorama {
+    left: 0;
+    padding-top: 2px;
   }
-  .zune-content {
-    padding: 0 16px;
-  }
+}
+
+/* ---------- ЛЕНТА: посты без карточек, линия между ними ---------- */
+.zune-theme article {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0;
+  padding: 26px var(--z-gutter);
+  overflow: visible;
+  transition: transform 260ms var(--z-spring),
+    background-color 260ms ease;
+  will-change: transform;
+}
+
+/* Тонкая белая линия-разделитель вместо карточек */
+.zune-theme article + article {
+  border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+/* Наведение на пост: микроувеличение + белая рамка */
+.zune-theme article:hover {
+  transform: scale(1.01);
+  outline: 1px solid rgba(255, 255, 255, 0.9);
+  outline-offset: -1px;
+}
+
+/* Текст поста: крупный, воздушный */
+.zune-theme article p,
+.zune-theme article [class*="whitespace-pre-wrap"] {
+  font-size: 18px;
+  line-height: 1.8;
+  color: var(--z-text);
+}
+
+/* Мелкие вторичные подписи в шапке поста */
+.zune-theme article time,
+.zune-theme article [class*="text-xs"],
+.zune-theme article [class*="text-sm"] {
+  color: var(--z-text-dim);
+}
+
+/* Аватар в ленте — крупный акцент шапки */
+.zune-theme article img[src*="avatar"] {
+  width: 56px;
+  height: 56px;
+}
+
+/* ---------- ПЛИТКИ СПИСКОВ (диалоги / уведомления) ---------- */
+.zune-theme [data-zune-list] {
+  display: flex;
+  flex-direction: column;
+}
+
+.zune-theme [data-zune-tile],
+.zune-theme [data-zune-list] > * {
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--z-stroke) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 20px var(--z-gutter) !important;
+  margin: 0 !important;
+  transition: background-color var(--z-speed) ease,
+    transform var(--z-speed) var(--z-spring);
+}
+
+.zune-theme [data-zune-tile]:hover,
+.zune-theme [data-zune-list] > *:hover {
+  background: #101010 !important;
+  transform: translateX(4px);
+}
+
+/* Крупная типографика внутри диалогов/уведомлений */
+.zune-theme [data-zune-tile] img {
+  width: 48px;
+  height: 48px;
+}
+.zune-theme [data-zune-tile] p:first-of-type {
+  font-size: 17px;
+  font-weight: var(--z-weight-semibold);
+  color: var(--z-text);
+}
+.zune-theme [data-zune-tile] time,
+.zune-theme [data-zune-tile] [class*="text-xs"] {
+  font-size: 12px;
+  color: var(--z-text-dim);
+}
+
+/* Непрочитанные — маджентовый маркер слева (по активным классам приложения) */
+.zune-theme [data-zune-tile][class*="unread"]::before,
+.zune-theme [data-zune-tile].unread::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--z-accent);
+  box-shadow: 0 0 8px rgba(255, 0, 255, 0.8);
+  transform: translateY(-50%);
+}
+
+/* ---------- ПРОФИЛЬ: сетки статистики превращаются в плитки ---------- */
+.zune-theme main [class*="grid"][class*="gap"] > *:has(img[alt]) {
+  background: transparent;
+}
+
+/* Статистические ячейки профилей: центр, рамка, крупная цифра */
+.zune-theme main [class*="grid"] > * > [class*="font-bold"]:first-child,
+.zune-theme main [class*="grid"] > * > [class*="text-2xl"]:first-child,
+.zune-theme main [class*="grid"] > * > [class*="text-xl"]:first-child {
+  font-size: 32px !important;
+  font-weight: var(--z-weight-light) !important;
+  display: block;
+  text-align: center;
+}
+
+/* ---------- Страница целиком: верхняя «панорамная» подушка ---------- */
+.zune-theme main,
+.zune-theme [class*="max-w"][class*="mx-auto"]:first-child {
+  padding-top: var(--z-content-pad-top);
 }
