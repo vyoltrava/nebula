@@ -718,16 +718,23 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
   const lastMouseRef = useRef({ x: 0, y: 0 });      // последняя позиция курсора (для Ctrl)
   const suppressClickRef = useRef(false);           // гасим клик «сквозь» открытую дугу
 
-  // 🎯 Общая точка входа жеста: кнопка орбиты, свободная орбита и Ctrl
-  const startGestureAt = useCallback((px: number, py: number) => {
+  // 🎯 Общая точка входа жеста: кнопка орбиты, свободная орбита и Ctrl.
+  // centerAtPress:
+  //   false (по умолчанию) — жест с КНОПКИ: дуга-полукруг от кнопки (как было);
+  //   true — orbit2 / Ctrl: ПОЛНЫЙ КРУГ вокруг точки зажима.
+  const startGestureAt = useCallback((px: number, py: number, centerAtPress = false) => {
     startPos.current = { x: px, y: py };
     // 🆕 нашли элемент скролла ОДИН раз — дальше только лёгкий scrollBy
     scrollTargetRef.current = findScrollTarget();
 
     longPressTimer.current = setTimeout(() => {
       longPressTimer.current = null;
-      openWheelAt(px, py);              // дуга центрируется в точке зажима
-      suppressClickRef.current = true;  // отпускание не должно «нажать» то, что под ним
+      if (centerAtPress) {
+        openWheelAt(px, py);              // 🔄 полный круг вокруг точки зажима
+      } else {
+        openWheelAt();                    // ◗ полудуга от кнопки (прежнее поведение)
+      }
+      suppressClickRef.current = true;    // отпускание не должно «нажать» то, что под ним
       const idx = findNearest(px, py);
       setHoveredIdx(idx);
       setFingerPos({ x: px, y: py });
@@ -777,7 +784,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       const pt = "touches" in e ? e.touches[0] : (e as MouseEvent);
       if (!pt) return;
       if (isExcluded(e.target)) return;
-      startGestureAt(pt.clientX, pt.clientY);
+      startGestureAt(pt.clientX, pt.clientY, true);
     };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("touchstart", onDown, { passive: true });
@@ -802,7 +809,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       if (e.key !== "Control") { cancelPending(); return; }   // Ctrl+C и пр. отменяют ещё не открытую дугу
       if (e.repeat || wheelOpen || isLongPressed.current || longPressTimer.current) return;
       if (isTypingTarget(e.target)) return;
-      startGestureAt(lastMouseRef.current.x, lastMouseRef.current.y);
+      startGestureAt(lastMouseRef.current.x, lastMouseRef.current.y, true);
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.key !== "Control") return;
