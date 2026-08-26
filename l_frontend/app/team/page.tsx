@@ -163,16 +163,23 @@ export default function TeamPage() {
                         </div>
 
                         <div className="flex-1 min-w-0 relative">
-                          {/* Никнейм с glow */}
+                          {/* Никнейм с glow.
+                              🐞 FIX: белый ник (#ffffff у Founder) в светлой теме
+                              был невидим — для него добавляем класс team-nick-on-light,
+                              который в light-теме красит ник в чёрный (см. globals.css).
+                              Fallback-белый цвет убран: обычные участники наследуют
+                              цвет темы (--text). */}
                           <p
-                            className="font-bold text-base truncate transition-all"
+                            className={`font-bold text-base truncate transition-all ${
+                              glow?.toLowerCase() === "#ffffff" ? "team-nick-on-light" : ""
+                            }`}
                             style={
                               glow
                                 ? {
                                     color: glow,
                                     textShadow: `0 0 6px ${glow}B3, 0 0 14px ${glow}66`,
                                   }
-                                : { color: "#ffffff" }
+                                : undefined
                             }
                           >
                             {m.display_name}
@@ -183,13 +190,15 @@ export default function TeamPage() {
                           {/* Плашки статусов и ролей */}
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {m.is_system && (
-                              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-black bg-[#00ff41] shadow-[0_0_8px_rgba(0,255,65,0.4)]">
+                              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-white bg-[#00ff41] shadow-[0_0_8px_rgba(0,255,65,0.4)]">
                                 SYSTEM
                               </span>
                             )}
                             
                             {m.is_admin && (
-                              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-black bg-white shadow-[0_0_8px_rgba(255,255,255,0.4)]">
+                              /* 🐞 FIX: была белая плашка — в светлой теме сливалась с фоном.
+                                 Теперь чёрная плашка, текст внутри — белый (в обеих темах). */
+                              <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-white bg-black shadow-[0_0_8px_rgba(0,0,0,0.4)]">
                                 FOUNDER
                               </span>
                             )}
@@ -203,7 +212,7 @@ export default function TeamPage() {
                             {/* Показываем обычную роль, если она есть */}
                             {m.role && (
                               <span
-                                className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-gray-900 dark:text-white"
+                                className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-white"
                                 style={{ backgroundColor: m.role.color }}
                               >
                                 {m.role.name}

@@ -727,3 +727,18 @@ html:not(.dark) .animated-bg .neon-spot {
 [data-theme="dark"] .chat-input-shell .rich-editor:empty::before {
   color: rgba(224, 224, 224, 0.45);
 }
+
+/* ============================================================
+   🐞 FIX: Страница Team — ник Founder'а
+   Цвет ника задаётся инлайн-стилем (#ffffff для Founder), поэтому
+   в светлой теме он сливался с фоном. Класс .team-nick-on-light
+   навешивается из team/page.tsx только для светящихся БЕЛЫХ ников
+   и перекрашивает их в чёрный в светлой теме (в тёмной остаётся
+   инлайн-белый цвет и неоновое свечение).
+   !important — чтобы перебить инлайн-стили React.
+   ============================================================ */
+html:not(.dark) .team-nick-on-light,
+:root:not(.dark) [data-theme="light"] .team-nick-on-light {
+  color: #111111 !important;
+  text-shadow: none !important;
+}
