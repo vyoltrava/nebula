@@ -1,0 +1,280 @@
+/* ============================================================
+   ZUNE PHONE DESIGN SYSTEM — тема «Overscan / Bleed Effect»
+   Изоляция: КАЖДОЕ правило начинается с .zune-theme.
+   Подключается страницей (см. app/zune/page.tsx).
+   ============================================================ */
+
+@import "./zune-variables.css";
+
+/* ---------- Корень темы ---------- */
+.zune-theme {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: clip;            /* режем bleed по краям, sticky не ломаем */
+  background: var(--zune-bg);
+  color: var(--zune-text);
+  font-family: "Segoe UI", "Segoe UI Light", system-ui, sans-serif;
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Скроллящаяся область: здесь живёт sticky-заголовок */
+.zune-theme .zt-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+
+/* ============================================================
+   1) ЗАГОЛОВКИ-ГИГАНТЫ
+   position: sticky + transform: translateX() — заголовок прилипает,
+   уходит за левый край (--zune-bleed-offset) и слегка плывёт
+   при скролле (--zune-parallax). Полупрозрачный, служит фоном.
+   ============================================================ */
+.zune-theme .zt-giant {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  margin: 0;
+  padding: 28px 40px 14px 40px;
+  font-size: var(--zune-giant-size);
+  line-height: 1;
+  font-weight: 200;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #ffffff;
+  opacity: 0.8;                                   /* полупрозрачный фон-надпись */
+  pointer-events: none;                           /* не перехватывает клики списка */
+  transform: translateX(calc(var(--zune-bleed-offset) + var(--zune-parallax)));
+  will-change: transform;
+  /* мягкая подложка, чтобы список читался, «проезжая» под гигантом */
+  background: linear-gradient(
+    180deg,
+    var(--zune-bg) 0%,
+    rgba(18, 18, 18, 0.86) 62%,
+    rgba(18, 18, 18, 0) 100%
+  );
+}
+
+/* активная секция подсвечивается фирменным цветом */
+.zune-theme .zt-giant > em {
+  font-style: normal;
+  color: var(--zune-accent);
+}
+
+/* ============================================================
+   2) СПИСОК / ПЛИТКИ — вся ширина + воздух справа
+   ============================================================ */
+.zune-theme .zt-section {
+  padding-right: var(--zune-content-pad-right);   /* не прилипает к правому краю */
+}
+
+.zune-theme .zt-track {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 64px;
+  padding: 10px 16px;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 160ms var(--zune-ease);
+}
+.zune-theme .zt-track:hover,
+.zune-theme .zt-track:focus-visible {
+  background: var(--zune-bg-hover);
+  outline: none;
+}
+.zune-theme .zt-track[data-active="true"] {
+  background: linear-gradient(90deg, rgba(241, 13, 162, 0.22), transparent 70%);
+}
+.zune-theme .zt-track-num {
+  min-width: 34px;
+  color: var(--zune-text-dim);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.zune-theme .zt-track-title {
+  flex: 1;
+  font-size: 17px;
+  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.zune-theme .zt-track-meta {
+  color: var(--zune-text-dim);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   3) КНОПКИ-БЕСКОНЕЧНОСТЬ (ZuneNavigation)
+   Крупные, уходят за левый/правый край экрана (--zune-button-bleed),
+   но остаются кликабельными: transform не влияет на hit-area.
+   ============================================================ */
+.zune-theme .zt-nav {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 0;
+  background: linear-gradient(180deg, rgba(18, 18, 18, 0), var(--zune-bg) 40%);
+}
+
+.zune-theme .zt-nav-btn {
+  min-height: var(--zune-nav-height);             /* крупные: ≥64px */
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  cursor: pointer;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  transition: filter 140ms ease, transform 200ms var(--zune-ease);
+}
+.zune-theme .zt-nav-btn:hover { filter: brightness(1.12); }
+.zune-theme .zt-nav-btn:active { filter: brightness(0.92); }
+.zune-theme .zt-nav-btn:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: -4px;
+}
+
+/* боковые кнопки выступают за границы вьюпорта */
+.zune-theme .zt-nav-btn--bleed-left {
+  margin-right: auto;
+  padding: 0 var(--zune-nav-pad-x);
+  background: var(--zune-accent-alt);             /* zune orange */
+  border-radius: 0 999px 999px 0;
+  transform: translateX(var(--zune-button-bleed));
+}
+.zune-theme .zt-nav-btn--bleed-right {
+  margin-left: auto;
+  padding: 0 var(--zune-nav-pad-x);
+  background: var(--zune-accent);                 /* zune pink */
+  border-radius: 999px 0 0 999px;
+  transform: translateX(calc(-1 * var(--zune-button-bleed)));
+}
+/* центральная «Воспроизвести» — крупная плоская плитка Metro */
+.zune-theme .zt-nav-btn--center {
+  min-width: 96px;
+  justify-content: center;
+  padding: 0 28px;
+  background: #ffffff;
+  color: #121212;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.zune-theme .zt-nav-glyph {
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* ============================================================
+   4) ПОЛЗУНОК — «бесконечная лента»: дорожка начинается
+   от левого края экрана и уходит вправо.
+   ============================================================ */
+.zune-theme .zt-ribbon {
+  flex: 0 0 auto;
+  padding: 14px 20px 6px 0;                       /* воздух только справа */
+  margin-left: calc(-1 * var(--zune-button-bleed)); /* тянем дорожку к левому краю экрана */
+}
+
+.zune-theme .zt-range {
+  --zune-fill: 35%;
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  width: calc(100vw - var(--zune-content-pad-right) + var(--zune-button-bleed));
+  height: 44px;                                   /* удобный тач-таргет */
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.zune-theme .zt-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 0 2px 2px 0;
+  /* заполнение слева фирменным цветом, дальше — тусклая лента */
+  background: linear-gradient(
+    90deg,
+    var(--zune-accent) 0%,
+    var(--zune-accent) var(--zune-fill),
+    rgba(255, 255, 255, 0.18) var(--zune-fill),
+    rgba(255, 255, 255, 0.18) 100%
+  );
+}
+.zune-theme .zt-range::-moz-range-track {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.18);
+}
+.zune-theme .zt-range::-moz-range-progress {
+  height: 4px;
+  background: var(--zune-accent);
+}
+.zune-theme .zt-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border-radius: 2px;                             /* квадратный бегунок Metro */
+  background: #ffffff;
+  box-shadow: 0 0 0 3px var(--zune-accent);
+}
+.zune-theme .zt-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 2px;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px var(--zune-accent);
+}
+.zune-theme .zt-range-labels {
+  display: flex;
+  justify-content: space-between;
+  color: var(--zune-text-dim);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================
+   5) МЕЛКОЕ: переключатель секций и нижний отступ
+   ============================================================ */
+.zune-theme .zt-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 12px var(--zune-content-pad-right) 0 24px;
+}
+.zune-theme .zt-tab {
+  min-height: 36px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+  color: var(--zune-text-dim);
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.zune-theme .zt-tab[data-active="true"] {
+  border-color: transparent;
+  background: var(--zune-text);
+  color: #121212;
+  font-weight: 600;
+}
+.zune-theme .zt-spacer { flex: 1 1 auto; }
+
