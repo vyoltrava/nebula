@@ -1,0 +1,126 @@
+/* ============================================================
+   ZUNE THEME — переопределение СУЩЕСТВУЮЩИХ компонентов соцсети.
+   Ничего не переписываем: только перекрываем цвета/формы,
+   пока активен класс .zune-theme на <body>.
+   ============================================================ */
+
+/* ---------- КНОПКИ: плоские, без теней, подчёркивание при наведении ---------- */
+.zune-theme button,
+.zune-theme [role="button"] {
+  font-family: var(--zune-font);
+  border-radius: 4px;
+  box-shadow: none;
+}
+.zune-theme button:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 2px;
+}
+.zune-theme button:active {
+  transform: scale(0.97); /* «жидкое» нажатие */
+}
+/* Акцентные CTA (фирменный фиолетовый приложения) → маджента Zune.
+   Попадаем прямо в Tailwind-класс — специфичности хватает без !important. */
+.zune-theme [class*="bg-[#8b5cf6]"] {
+  background-color: var(--zune-accent);
+}
+.zune-theme [class*="hover:bg-[#7c3aed]"]:hover {
+  background-color: #d900d9;
+}
+.zune-theme [class*="text-[#8b5cf6]"] {
+  color: var(--zune-accent);
+}
+
+/* ---------- ИНПУТЫ: без фона, только нижняя белая линия ---------- */
+.zune-theme input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+.zune-theme textarea,
+.zune-theme select {
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.55);
+  border-radius: 0;
+  color: var(--zune-text);
+}
+.zune-theme input::placeholder,
+.zune-theme textarea::placeholder {
+  color: var(--zune-text-dim);
+}
+.zune-theme input:focus,
+.zune-theme textarea:focus,
+.zune-theme select:focus {
+  outline: none;
+  border-bottom-color: #ffffff;
+}
+
+/* ---------- ПОСТЫ: плитки Metro с белой рамкой ----------
+   Посты приложения рендерятся как <article>; плюс опциональная
+   обёртка <ZunePost data-zune-tile>. */
+.zune-theme article,
+.zune-theme [data-zune-tile] {
+  background: var(--zune-bg-raised);
+  border: 1px solid var(--zune-line);
+  border-radius: 0;
+  color: var(--zune-text);
+  padding: 16px var(--zune-content-pad-x);
+}
+/* Плитки на всю ширину, но с полями по краям (как в WP) */
+.zune-theme main article,
+.zune-theme [data-zune-feed] > article {
+  width: 100%;
+  margin-inline: auto;
+}
+
+/* ---------- АВАТАРКИ: обводка в стиле Zune (маджента) ----------
+   В проекте аватар — div.relative.shrink-0 > div.rounded-xl.
+   Селектор через :has() не требует правок самого компонента. */
+.zune-theme div.relative.shrink-0.inline-block:has(> .rounded-xl.overflow-hidden)
+  > .rounded-xl {
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 2px var(--zune-accent),
+    0 0 12px rgba(255, 0, 255, 0.35);
+}
+
+/* ---------- Ссылки: белые, подчёркивание при наведении ---------- */
+.zune-theme a {
+  color: inherit;
+}
+
+/* ---------- ВИДЖЕТ «СЕЙЧАС ИГРАЕТ» (ZuneMusicPlayer) ---------- */
+.zt-player {
+  display: block;
+}
+.zt-player > header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--zune-text-dim);
+}
+.zt-player .zt-marquee {
+  margin: 10px 0 6px;
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--zune-text);
+}
+.zune-theme .zt-range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--zune-text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.zt-player .zt-nav {
+  justify-content: space-between;
+}
+.zt-player .zt-nav-btn {
+  min-height: 44px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 4px;
+  padding: 0 14px;
+  font-size: 14px;
+  transform: none; /* внутри виджета кнопки не выступают за экран */
+}

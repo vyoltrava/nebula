@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import ZuneNavigation from "@/components/ZuneNavigation";
-import ZuneGiantHeader from "@/components/zune/ZuneGiantHeader";
-import "@/components/zune/zune-theme.css";
+import {
+  ZuneHeader,
+  ZuneMusicPlayer,
+  ZuneNavigation,
+} from "@/themes/zune";
 
 /* ============================================================
    ZUNE PHONE DESIGN SYSTEM — демо-экран «Overscan / Bleed»
@@ -95,7 +97,7 @@ export default function ZunePage() {
     <div className="zune-theme">
       {/* Скроллящаяся область: sticky-гигант + контент */}
       <div className="zt-scroll" ref={scrollerRef}>
-        <ZuneGiantHeader title={active.title} accent={active.accent} scrollRef={scrollerRef} />
+        <ZuneHeader title={active.title} accent={active.accent} scrollRef={scrollerRef} />
 
         {/* Переключатель разделов */}
         <div className="zt-tabs" role="tablist" aria-label="Разделы библиотеки">
@@ -144,6 +146,11 @@ export default function ZunePage() {
             </button>
           ))}
         </section>
+
+        {/* 🎵 Декоративный виджет «сейчас играет» (Zune HD) */}
+        <div style={{ padding: "0 var(--zune-content-pad-x)" }}>
+          <ZuneMusicPlayer />
+        </div>
 
         <div className="zt-spacer" />
       </div>

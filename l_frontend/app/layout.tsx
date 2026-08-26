@@ -14,6 +14,8 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { ThemeModeProvider } from "@/components/ThemeModeProvider";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
+import { ZuneThemeProvider } from "@/themes/zune";
+import "@/themes/zune/styles/index.css";
 import "./globals.css";
 
 const jersey = Jersey_25({ weight: "400", subsets: ["latin"], variable: "--font-jersey" });
@@ -48,6 +50,8 @@ export const metadata: Metadata = {
   },
 };
 
+const zuneNoFlashScript = `try{if(localStorage.getItem("theme-preference")==="zune")document.body.classList.add("zune-theme")}catch(e){}`;
+
 export default function RootLayout({
   children,
 }: {
@@ -71,38 +75,28 @@ export default function RootLayout({
         `}} />
       </head>
       <body className="font-sans">
-        {/* 🌗 Light/Dark color scheme (next-themes). Должен оборачивать всё,
-            чтобы класс "dark" применялся до первой отрисовки контента. */}
+        <script dangerouslySetInnerHTML={{ __html: zuneNoFlashScript }} />
         <ThemeModeProvider>
+        <ZuneThemeProvider>
         <ThemeProvider>
         <LanguageProvider>
         <AnimatedBackground />
         <GlobalPlayerProvider>
         <PWARegister />
         <InstallPrompt />
-
-        {/* 🔥 Сплэш-скрин */}
         <SplashScreen />
-
-        {/* 🔔 Баннер запроса разрешения на push-уведомления */}
         <NotificationPermissionPrompt />
-
-        {/* 🌐 WebSocket вынесен наружу AuthGuard — он сам проверяет токен */}
         <WebSocketProvider>
-          {/* 🛡️ AuthGuard оборачивает только защищённые компоненты */}
-          {/*<AuthGuard>*/}
             <UnreadCountsProvider>
-              <PermissionGate /> 
+              <PermissionGate />
               {children}
             </UnreadCountsProvider>
-            
-            {/* 🚫 Оверлей блокировки (бан) */}
             <BanOverlay />
-          {/*</AuthGuard>*/}
         </WebSocketProvider>
         </GlobalPlayerProvider>
         </LanguageProvider>
         </ThemeProvider>
+        </ZuneThemeProvider>
         </ThemeModeProvider>
       </body>
     </html>

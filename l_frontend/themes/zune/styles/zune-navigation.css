@@ -1,0 +1,164 @@
+/* ============================================================
+   ZUNE THEME — навигация: overscan-заголовки, кнопки-выступы,
+   плитки меню, ползунок-«лента».
+   ============================================================ */
+
+/* ---------- Полноэкранный «корпус» плеера ---------- */
+.zt-shell {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+.zune-theme .zt-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* ============================================================
+   ЗАГОЛОВКИ-ГИГАНТЫ (Overscan): sticky + translateX за край
+   ============================================================ */
+.zune-theme .zt-giant {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  margin: 0;
+  padding: 28px 40px 14px;
+  font-size: var(--zune-giant-size);
+  line-height: 1;
+  font-weight: 200;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #ffffff;
+  opacity: 0.8;                       /* полупрозрачный фон-надпись */
+  pointer-events: none;
+  transform: translateX(calc(var(--zune-bleed-offset) + var(--zune-parallax)));
+  will-change: transform;
+  background: linear-gradient(
+    180deg,
+    var(--zune-bg) 0%,
+    rgba(0, 0, 0, 0.86) 62%,
+    rgba(0, 0, 0, 0) 100%
+  );
+}
+.zune-theme .zt-giant > em {
+  font-style: normal;
+  color: var(--zune-accent);
+}
+
+/* ============================================================
+   КНОПКИ-ВЫСТУПЫ: уходят за края экрана, кликабельны
+   ============================================================ */
+.zune-theme .zt-nav {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 0;
+}
+.zune-theme .zt-nav-btn {
+  min-height: var(--zune-nav-height);
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  cursor: pointer;
+  color: #ffffff;
+  font-family: var(--zune-font);
+  font-size: 17px;
+  white-space: nowrap;
+  transition: filter 140ms ease, transform 200ms var(--zune-ease);
+}
+.zune-theme .zt-nav-btn:hover { filter: brightness(1.15); text-decoration: none; }
+.zune-theme .zt-nav-btn--bleed-left {
+  margin-right: auto;
+  padding: 0 var(--zune-nav-pad-x);
+  background: var(--zune-accent-alt);
+  border-radius: 0 999px 999px 0;
+  transform: translateX(var(--zune-button-bleed));
+}
+.zune-theme .zt-nav-btn--bleed-right {
+  margin-left: auto;
+  padding: 0 var(--zune-nav-pad-x);
+  background: var(--zune-accent);
+  border-radius: 999px 0 0 999px;
+  transform: translateX(calc(-1 * var(--zune-button-bleed)));
+}
+.zune-theme .zt-nav-btn--center {
+  min-width: 96px;
+  justify-content: center;
+  padding: 0 28px;
+  background: #ffffff;
+  color: #000000;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.zune-theme .zt-nav-glyph { font-size: 22px; line-height: 1; }
+
+/* ============================================================
+   ПЛИТОЧНОЕ МЕНЮ (стартовый экран WP): активный раздел —
+   белая рамка снизу (аналог activeRoute в роутере)
+   ============================================================ */
+.zune-theme .zt-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+.zune-theme .zt-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--zune-nav-height);
+  padding: 0 16px;
+  background: var(--zune-accent-alt);
+  color: #fff;
+  font-family: var(--zune-font);
+  font-size: 15px;
+  font-weight: 400;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 180ms var(--zune-ease), filter 140ms ease;
+}
+.zune-theme .zt-tile:hover { filter: brightness(1.15); text-decoration: none; }
+.zune-theme .zt-tile[data-active="true"] {
+  box-shadow: inset 0 -3px 0 0 #ffffff; /* белая рамка снизу */
+}
+
+/* ============================================================
+   ПОЛЗУНОК-ЛЕНТА: дорожка от левого края экрана вправо
+   ============================================================ */
+.zune-theme .zt-ribbon {
+  flex: 0 0 auto;
+  padding: 14px var(--zune-content-pad-x) 6px 0;
+  margin-left: calc(-1 * var(--zune-button-bleed));
+}
+.zune-theme .zt-range {
+  --zune-fill: 35%;
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  width: calc(100vw - var(--zune-content-pad-x) + var(--zune-button-bleed));
+  height: 44px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.zune-theme .zt-range::-webkit-slider-runnable-track {
+  height: 4px;
+  background: linear-gradient(90deg,
+    var(--zune-accent) 0%, var(--zune-accent) var(--zune-fill),
+    rgba(255, 255, 255, 0.18) var(--zune-fill), rgba(255, 255, 255, 0.18) 100%);
+}
+.zune-theme .zt-range::-moz-range-track { height: 4px; background: rgba(255,255,255,.18); }
+.zune-theme .zt-range::-moz-range-progress { height: 4px; background: var(--zune-accent); }
+.zune-theme .zt-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px; margin-top: -6px;
+  border-radius: 2px; background: #fff;
+  box-shadow: 0 0 0 3px var(--zune-accent);
+}
+.zune-theme .zt-range::-moz-range-thumb {
+  width: 16px; height: 16px; border: none; border-radius: 2px;
+  background: #fff; box-shadow: 0 0 0 3px var(--zune-accent);
+}

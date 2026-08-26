@@ -1,0 +1,78 @@
+/* ============================================================
+   ZUNE THEME — «живые» анимации Windows Phone / Zune
+   ============================================================ */
+
+/* Живая плитка: пост/плитка слегка увеличивается и смещается */
+.zune-theme article,
+.zune-theme [data-zune-tile],
+.zune-theme .zt-tile {
+  transition:
+    transform 220ms var(--zune-ease),
+    box-shadow 220ms var(--zune-ease),
+    background-color 160ms ease;
+}
+.zune-theme article:hover,
+.zune-theme [data-zune-tile]:hover {
+  transform: translateX(-3px) scale(1.02);
+  box-shadow: 6px 6px 0 0 rgba(255, 0, 255, 0.25); /* Metro-тень сдвигом */
+}
+.zune-theme .zt-tile:hover {
+  transform: scale(1.02);
+}
+
+/* Появление контента при загрузке секции */
+@keyframes zune-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.zune-theme [data-zune-animate] {
+  animation: zune-rise 420ms var(--zune-ease) both;
+}
+
+/* Пульс «сейчас играет» в виджете плеера */
+@keyframes zune-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+.zune-theme .zt-playing-dot {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--zune-accent);
+  animation: zune-pulse 1.2s ease-in-out infinite;
+}
+
+/* Бегущая строка для длинных названий треков */
+@keyframes zune-marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.zune-theme .zt-marquee {
+  overflow: hidden;
+  white-space: nowrap;
+}
+.zune-theme .zt-marquee > span {
+  display: inline-block;
+  padding-right: 32px;
+  animation: zune-marquee 9s linear infinite;
+}
+
+/* Параллакс-заголовок: плавный отклик без дёрганья */
+body.zune-theme .zt-giant {
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* Уважение к prefers-reduced-motion: гасим всё декоративное движение */
+@media (prefers-reduced-motion: reduce) {
+  .zune-theme article:hover,
+  .zune-theme [data-zune-tile]:hover,
+  .zune-theme .zt-tile:hover {
+    transform: none;
+  }
+  .zune-theme [data-zune-animate],
+  .zune-theme .zt-playing-dot,
+  .zune-theme .zt-marquee > span {
+    animation: none;
+  }
+}

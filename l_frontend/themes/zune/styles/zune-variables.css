@@ -1,0 +1,67 @@
+/* ============================================================
+   ZUNE THEME — CSS-переменные (цвета, шрифты, отступы, overscan)
+   ============================================================ */
+
+.zune-theme {
+  /* ---------- Палитра Windows Phone / Zune ---------- */
+  --zune-bg: #000000;               /* чёрный холст WP              */
+  --zune-bg-raised: #17171a;        /* плитки, карточки             */
+  --zune-bg-hover: #222226;
+  --zune-text: #ffffff;
+  --zune-text-dim: rgba(255, 255, 255, 0.6);
+  --zune-accent: #ff00ff;           /* маджента (акцент по ТЗ)      */
+  --zune-accent-alt: #ff6600;       /* zune orange                  */
+  --zune-line: rgba(255, 255, 255, 0.85);
+
+  /* ---------- OVERSCAN / BLEED ---------- */
+  --zune-bleed-offset: -25%;        /* сдвиг заголовков за левый край */
+  --zune-button-bleed: -15px;       /* выступ кнопок навигации        */
+  --zune-parallax: 0px;             /* управляется из ZuneHeader      */
+
+  /* ---------- Типографика (Segoe UI / Zegoe) ---------- */
+  --zune-font: "Segoe UI", "Zegoe UI", "Segoe UI Light", system-ui, sans-serif;
+  --zune-giant-size: clamp(48px, 8vw, 64px);
+
+  /* ---------- Геометрия ---------- */
+  --zune-nav-height: 64px;
+  --zune-nav-height-mobile: 56px;   /* удобный тач-таргет */
+  --zune-nav-pad-x: 56px;
+  --zune-content-pad-x: 20px;       /* поля плиток по краям экрана */
+
+  /* ---------- Движение ---------- */
+  --zune-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ---------- «Бумажная» текстура (почти незаметная) ---------- */
+  --zune-paper:
+    repeating-linear-gradient(
+      115deg,
+      rgba(255, 255, 255, 0.014) 0px,
+      rgba(255, 255, 255, 0.014) 1px,
+      transparent 1px,
+      transparent 3px
+    ),
+    repeating-linear-gradient(
+      65deg,
+      rgba(255, 255, 255, 0.01) 0px,
+      rgba(255, 255, 255, 0.01) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+}
+
+/* ---------- Mobile-first усиление (<768px) ----------
+   Заголовки уходят на −35%, кнопки ≥56px, выступ сильнее. */
+@media (max-width: 768px) {
+  .zune-theme {
+    --zune-bleed-offset: -35%;
+    --zune-button-bleed: -22px;
+    --zune-nav-height: var(--zune-nav-height-mobile);
+    --zune-nav-pad-x: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zune-theme {
+    --zune-parallax: 0px !important;
+  }
+}

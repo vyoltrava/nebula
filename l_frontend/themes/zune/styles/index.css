@@ -1,0 +1,12 @@
+/* ============================================================
+   ZUNE THEME — точка входа стилей.
+   Импортируется один раз в app/layout.tsx.
+   Порядок важен: переменные → reset → компоненты → навигация → анимации.
+   Изоляция: всё скоупится классом .zune-theme на <body>.
+   ============================================================ */
+
+@import "./zune-variables.css";
+@import "./zune-reset.css";
+@import "./zune-components.css";
+@import "./zune-navigation.css";
+@import "./zune-animations.css";

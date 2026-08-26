@@ -1,0 +1,65 @@
+/* ============================================================
+   ZUNE THEME — сброс базовых стилей ТОЛЬКО внутри .zune-theme
+   Класс живёт на <body>, поэтому здесь же — фон/шрифт полотна,
+   текстура «бумаги» и кастомный скроллбар.
+   ============================================================ */
+
+/* Полотно страницы: чёрное, Segoe UI, лёгкая бумажная текстура */
+body.zune-theme {
+  margin: 0;
+  background-color: var(--zune-bg);
+  background-image: var(--zune-paper);
+  color: var(--zune-text);
+  font-family: var(--zune-font);
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Мягкое перетекание при переключении тем */
+body.zune-theme,
+body.zune-theme * {
+  transition-property: background-color, border-color, color;
+  transition-duration: 200ms;
+  transition-timing-function: ease;
+}
+
+/* Локальный сброс внутри темы (наследники получают box-sizing и т.п.) */
+.zune-theme h1,
+.zune-theme h2,
+.zune-theme h3,
+.zune-theme p {
+  margin-block: revert;
+}
+.zune-theme h1,
+.zune-theme h2,
+.zune-theme h3 {
+  font-family: var(--zune-font);
+  font-weight: 200;
+  letter-spacing: 0.01em;
+}
+
+/* ---------- Скроллбар в стиле Zune: тонкая белая линия ---------- */
+.zune-theme ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.zune-theme ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.zune-theme ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 0;
+}
+.zune-theme ::-webkit-scrollbar-thumb:hover {
+  background: #ffffff;
+}
+body.zune-theme {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.55) transparent;
+}
+
+/* Выделение текста — маджента, как фирменный акцент */
+.zune-theme ::selection {
+  background: rgba(255, 0, 255, 0.35);
+  color: #ffffff;
+}
