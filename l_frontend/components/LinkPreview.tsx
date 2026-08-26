@@ -39,7 +39,7 @@ useEffect(() => {
       target="_blank" 
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
-      className="mt-2 flex gap-3 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 p-3 transition-colors hover:bg-gray-100 dark:hover:bg-white/10"
+      className="mt-2 flex gap-3 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 p-3 transition-colors hover:bg-gray-100 dark:hover:bg-white/10 w-full max-w-full min-w-0 overflow-hidden"
     >
       <div className="min-w-0 flex-1 border-l-2 border-pink-500 pl-3">
         <div className="truncate text-xs text-pink-600 dark:text-pink-400">{data.site}</div>

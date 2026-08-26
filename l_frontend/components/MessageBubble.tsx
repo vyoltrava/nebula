@@ -88,7 +88,7 @@ export const MessageBubble = memo(function MessageBubble({
           </div>
         )}
 
-        <div className={`max-w-[85%] sm:max-w-[75%] md:max-w-[70%] flex flex-col ${isMine ? "items-end" : "items-start"}`}>
+        <div className={`max-w-[85%] sm:max-w-[75%] md:max-w-[70%] min-w-0 flex flex-col ${isMine ? "items-end" : "items-start"}`}>
           {isGroup && !isMine && (
             <p className="text-[11px] sm:text-xs font-bold mb-1 px-1" style={senderGlow ? { color: senderGlow } : { color: "#a78bfa" }}>
               {msg.sender_name}
@@ -158,7 +158,11 @@ export const MessageBubble = memo(function MessageBubble({
             {displayText && (
               <>
                 <MarkdownRenderer text={displayText} isMessage={true} />
-                {!isSecret && extractFirstUrl(displayText) && <LinkPreview url={extractFirstUrl(displayText)!} />}
+                {!isSecret && extractFirstUrl(displayText) && (
+                  <div className="w-full min-w-0">
+                    <LinkPreview url={extractFirstUrl(displayText)!} />
+                  </div>
+                )}
               </>
             )}
           </div>

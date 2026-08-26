@@ -250,11 +250,14 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
           -webkit-touch-callout: none;
           word-break: break-word;
           white-space: pre-wrap;
-          caret-color: #fff;
+          /* Цвет текста и каретки — из токенов темы приложения:
+             light → тёмный текст, dark → светлый (раньше был всегда белый) */
+          color: var(--text, #e8e8f0);
+          caret-color: currentColor;
         }
         .rich-editor:empty::before {
           content: attr(data-placeholder);
-          color: rgba(255, 255, 255, 0.4);
+          color: var(--text-muted, rgba(128, 132, 140, 0.55));
           pointer-events: none;
         }
         .rich-editor:focus { outline: none; }

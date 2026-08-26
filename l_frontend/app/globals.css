@@ -385,6 +385,8 @@ html:not(.dark) .animated-bg .neon-spot {
 .markdown-body table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
 .markdown-body th, .markdown-body td { border: 1px solid var(--border-strong); padding: 0.5rem; text-align: left; }
 .markdown-body th { background: var(--bg-tertiary); font-weight: bold; }
+/* Длинные слова/URL переносятся и не выносят сообщение за экран (мобильные) */
+.markdown-body { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
 
 
 

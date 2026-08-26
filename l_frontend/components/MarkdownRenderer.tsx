@@ -160,7 +160,7 @@ export function MarkdownRenderer({ text, isMessage = false }: { text: string; is
               }
               const cleanHref = href?.replace(/[.,;:!?)]+$/, "") || "";
               return (
-                <a href={cleanHref} target="_blank" rel="noopener noreferrer" className="font-semibold text-sky-600 dark:text-sky-300 hover:text-sky-200 underline underline-offset-2 break-all" onClick={(e) => e.stopPropagation()}>
+                <a href={cleanHref} target="_blank" rel="noopener noreferrer" className="font-semibold text-sky-700 dark:text-sky-300 hover:text-sky-800 dark:hover:text-sky-200 underline underline-offset-2 break-all" onClick={(e) => e.stopPropagation()}>
                   {cleanHref}
                 </a>
               );

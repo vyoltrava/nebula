@@ -7080,13 +7080,18 @@ async def pin_message(
             ChatMember.user_id == user.id,
         )
     ).first()
-    has_pin_right = has_permission(user, "pin_messages", session)
-    if (not member or member.role not in ("owner", "admin")) and not has_pin_right:
-        raise HTTPException(403, "Только админы группы или владельцы права pin_messages")
+    if not member:
+        raise HTTPException(403, "Вы не участник чата")
+
     # 2. Получаем чат
     chat = session.get(Chat, chat_id)
     if not chat:
         raise HTTPException(404, "Чат не найден")
+
+    # 3. Права закрепления: ЛИЧНЫЙ чат — любой участник;
+    #    ГРУППА — только владелец.
+    if bool(chat.is_group) and not ((member.role == "owner") or (chat.owner_id == user.id)):
+        raise HTTPException(403, "В группах закреплять сообщения может только владелец")
     
 
     
@@ -7248,24 +7253,22 @@ async def unpin_message(
             ChatMember.user_id == user.id,
         )
     ).first()
-    has_pin_right = has_permission(user, "pin_messages", session)
-    if (not member or member.role not in ("owner", "admin")) and not has_pin_right:
-        raise HTTPException(403, "Только админы группы или владельцы права pin_messages")
-    
+    if not member:
+        raise HTTPException(403, "Вы не участник чата")
+
     # 2. Получаем чат
     chat = session.get(Chat, chat_id)
     if not chat:
         raise HTTPException(404, "Чат не найден")
-    
-    
+
+    # 3. Права открепления: те же, что и на закрепление
+    if bool(chat.is_group) and not ((member.role == "owner") or (chat.owner_id == user.id)):
+        raise HTTPException(403, "В группах откреплять сообщения может только владелец")
+
     # 4. Получаем сообщение
     msg = session.get(Message, message_id)
     if not msg or msg.chat_id != chat_id:
         raise HTTPException(404, "Сообщение не найдено")
-    
-    # 5. Проверяем права: либо ты закрепил, либо ты админ
-    if msg.pinned_by != user.id and member.role not in ("owner", "admin"):
-        raise HTTPException(403, "Вы не закрепляли это сообщение и не являетесь админом")
     
     # 6. Открепляем
     msg.pinned = False

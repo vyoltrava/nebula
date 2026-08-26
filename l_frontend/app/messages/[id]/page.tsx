@@ -1517,35 +1517,36 @@ function getMessageMenuItems(msg: any): { icon: any; label: string; onClick: () 
     });
   }
 
-  // Закрепить/Открепить
-  if (!msg.pinned) {
-    items.push({
-      icon: Pin,
-      label: t("messages.pin"),
-      onClick: async () => {
-        try {
-          await pinMessage(Number(chatId), msg.id);
-          await loadPinned();
-          await loadMessages();
-        } catch (e: any) {
-          alert(e?.message || t("messages.pinFailed"));
-        }
-      },
-    });
-  } else {
-    items.push({
-      icon: PinOff,
-      label: t("messages.unpin"),
-      onClick: async () => {
-        try {
-          await unpinMessage(Number(chatId), msg.id);
-          await loadPinned();
-          await loadMessages();
-        } catch (e: any) {
-          alert(e?.message || t("messages.unpinFailed"));
-        }
-      },
-    });
+  // Закрепить/Открепить: личный чат — все участники; группа — только владелец
+  const canPinMessages = !isGroup || chatInfo?.my_role === "owner";
+  if (canPinMessages && !msg.pinned) {
+      items.push({
+        icon: Pin,
+        label: t("messages.pin"),
+        onClick: async () => {
+          try {
+            await pinMessage(Number(chatId), msg.id);
+            await loadPinned();
+            await loadMessages();
+          } catch (e: any) {
+            alert(e?.message || t("messages.pinFailed"));
+          }
+        },
+      });
+  } else if (canPinMessages && msg.pinned) {
+      items.push({
+        icon: PinOff,
+        label: t("messages.unpin"),
+        onClick: async () => {
+          try {
+            await unpinMessage(Number(chatId), msg.id);
+            await loadPinned();
+            await loadMessages();
+          } catch (e: any) {
+            alert(e?.message || t("messages.unpinFailed"));
+          }
+        },
+      });
   }
 
   return items;
@@ -2759,7 +2760,7 @@ onDoubleClick={(e) => {
           <div className="relative shrink-0 flex items-end pb-1">
             <button
               onClick={() => setShowInputActions(!showInputActions)}
-              className={`p-2.5 sm:p-2 rounded-full transition-all active:scale-95 ${showInputActions ? "text-[#8b5cf6] bg-[#8b5cf6]/10" : "text-white/60 hover:text-[#8b5cf6] hover:bg-gray-100 dark:hover:bg-white/5"}`}
+              className={`p-2.5 sm:p-2 rounded-full transition-all active:scale-95 ${showInputActions ? "text-[#8b5cf6] bg-[#8b5cf6]/10" : "text-gray-500 dark:text-white/60 hover:text-[#8b5cf6] hover:bg-gray-200 dark:hover:bg-white/5"}`}
               title={t("messages.actions")}
             >
               <Plus size={22} className="sm:w-5 sm:h-5" />
