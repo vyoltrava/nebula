@@ -579,3 +579,70 @@ class CustomBadgeAssignment(SQLModel, table=True):
         if self.expires_at:
             return datetime.now(timezone.utc) > self.expires_at
         return False
+
+
+# ============================================================
+# ✨ PRISME CHAT — система "выбора объекта как ключа доступа"
+# ============================================================
+
+class PrismeScene(SQLModel, table=True):
+    """Единственная активная "картинка" (генератор объектов)."""
+    __tablename__ = "prisme_scene"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(default="Prisme Grid", max_length=80)
+    seed: str = Field(default="retro-1987")
+    # Количество объектов, которое сгенерировано СЕЙЧАС (после расширений).
+    object_count: int = Field(default=0)
+    base_count: int = Field(default=0)          # стартовое кол-во объектов
+    expansion_level: int = Field(default=0)      # сколько раз расширяли
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
+class PrismeObject(SQLModel, table=True):
+    """Отдельный объект на картинке. Каждый — ключ доступа к своему чату."""
+    __tablename__ = "prisme_object"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    scene_id: int = Field(foreign_key="prisme_scene.id", index=True)
+    slot: int = Field(default=0, index=True)        # порядковый номер на сетке
+    kind: str = Field(default="rocket")             # тип (робот, ракета, ...)
+    x: float = Field(default=0.0)
+    y: float = Field(default=0.0)
+    size: float = Field(default=48.0)
+    rotation: float = Field(default=0.0)
+    color: str = Field(default="#00F5FF")
+    # Статус: free | occupied
+    status: str = Field(default="free", index=True)
+    added_at: int = Field(default=0)                # номер расширения (уровень)
+    chat_id: Optional[int] = Field(default=None, foreign_key="chat.id")
+    owner_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    occupied_at: Optional[datetime] = None
+    # Доп. атрибуты (подсветка, палитра) — JSON-строка
+    attrs: Optional[str] = Field(default=None)
+
+
+class PrismeRequest(SQLModel, table=True):
+    """Очередь ожидания: когда все объекты заняты."""
+    __tablename__ = "prisme_request"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    scene_id: int = Field(foreign_key="prisme_scene.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    message: Optional[str] = Field(default=None, max_length=500)
+    # pending | granted | dismissed
+    status: str = Field(default="pending", index=True)
+    created_at: datetime = Field(default_factory=utcnow)
+    resolved_at: Optional[datetime] = None
+    resolved_by: Optional[int] = Field(default=None, foreign_key="user.id")
+
+
+class PrismeStat(SQLModel, table=True):
+    """Счётчики для статистики админ-панели."""
+    __tablename__ = "prisme_stat"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    scene_id: int = Field(foreign_key="prisme_scene.id", index=True)
+    key: str = Field(default="chats_created", index=True)   # chats_created | requests_total | assignments
+    value: int = Field(default=0)

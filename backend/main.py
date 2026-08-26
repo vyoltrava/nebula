@@ -10938,3 +10938,9 @@ def extend_assignment(
     session.commit()
     
     return {"success": True, "assignment": _assignment_out(assignment, session)}
+# ============================================================
+# PRISME CHAT — регистрация роутера (модуль prisma.py)
+# ============================================================
+from prisma import router as prisma_router
+
+app.include_router(prisma_router, prefix="/api")
