@@ -168,13 +168,13 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
 // ════════════════════════════════════════════════════════════════
 // 🎛 ВАРИАНТЫ САЙДБАРА
 // ════════════════════════════════════════════════════════════════
-export type SidebarLayout = "classic" | "orbit" | "dock";
+export type SidebarLayout = "classic" | "orbit" | "dock" | "orbit2";
 const LAYOUT_KEY = "trelod_sidebar_layout";
 
 export function getSidebarLayout(): SidebarLayout {
   if (typeof window === "undefined") return "classic";
   const v = localStorage.getItem(LAYOUT_KEY);
-  return v === "orbit" || v === "dock" ? v : "classic";
+  return v === "orbit" || v === "dock" || v === "orbit2" ? v : "classic";
 }
 
 export function setSidebarLayout(v: SidebarLayout) {
@@ -206,6 +206,13 @@ function LayoutPreview({ kind }: { kind: SidebarLayout }) {
           <div className="h-1.5 w-3/4 rounded bg-gray-100 dark:bg-white/10" />
         </div>
       )}
+      {kind === "orbit2" && (
+        <div className="relative flex-1 p-1.5 space-y-1">
+          <div className="h-1.5 w-full rounded bg-gray-100 dark:bg-white/10" />
+          <div className="h-1.5 w-3/4 rounded bg-gray-100 dark:bg-white/10" />
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[#8b5cf6] ring-4 ring-[#8b5cf6]/25" />
+        </div>
+      )}
       {kind === "dock" && (
         <>
           <div className="w-4 bg-gray-100 dark:bg-[#22222a] border-r border-line dark:border-white/10 flex flex-col items-center gap-1 py-1">
@@ -228,12 +235,13 @@ function LayoutPicker({ current, onClose }: { current: SidebarLayout; onClose: (
   const variants: { key: SidebarLayout; name: string; desc: string }[] = [
     { key: "classic", name: t("nav.layoutClassic"), desc: t("nav.layoutClassicDesc") },
     { key: "orbit", name: t("nav.layoutOrbit"), desc: t("nav.layoutOrbitDesc") },
+    { key: "orbit2", name: t("nav.layoutOrbit2"), desc: t("nav.layoutOrbit2Desc") },
     { key: "dock", name: t("nav.layoutDock"), desc: t("nav.layoutDockDesc") },
   ];
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-[310]" onClick={onClose} />
-      <div className="fixed right-3 top-1/2 -translate-y-1/2 z-[311] w-[250px] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-3">
+      <div className="fixed z-[311] w-[270px] max-w-[calc(100vw-24px)] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 md:left-auto md:right-3 md:translate-x-0 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-3">
         <div className="flex items-center justify-between mb-2 px-1">
           <p className="text-sm font-black text-gray-900 dark:text-white">{t("nav.layout")}</p>
           <button onClick={onClose} className="text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white p-1"><X size={16} /></button>
@@ -257,6 +265,7 @@ function LayoutPicker({ current, onClose }: { current: SidebarLayout; onClose: (
           ))}
         </div>
         <p className="mt-2 text-[10px] text-gray-500 dark:text-white/40 text-center">{t("nav.layoutHint")}</p>
+        <p className="mt-1 text-[10px] text-[#8b5cf6] dark:text-[#a78bfa] text-center leading-snug">{t("nav.layoutCtrlHint")}</p>
       </div>
     </>
   );
@@ -431,6 +440,8 @@ const continueConfig = lastReadPost
   innerItems.push({ href: "/bookmarks", icon: Bookmark, label: t("nav.bookmarks") });
   if (isMobile) {
     innerItems.push({ href: "#search", icon: Search, label: t("nav.search") });
+    // 🆕 Выбор вида интерфейса доступен и с телефона — прямо из орбиты
+    innerItems.push({ href: "#layout", icon: Palette, label: t("nav.layout") });
   }
 innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), count: counts.updates });
   if (user) innerItems.push({ href: `/${user.username}`, icon: Home, label: t("nav.profile"), isProfile: true });
@@ -549,9 +560,19 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     };
   }, [innerItems.length, outerItems.length]);
 
-  const openWheel = useCallback(() => {
-    if (!buttonRef.current) return;
-    const rect = buttonRef.current.getBoundingClientRect();
+  const openWheelAt = useCallback((cx?: number, cy?: number) => {
+    let centerX: number;
+    let centerY: number;
+    if (typeof cx === "number" && typeof cy === "number") {
+      // 🆕 Свободная орбита / Ctrl: центр дуги — точка зажима (курсор/палец)
+      centerX = cx;
+      centerY = cy;
+    } else {
+      if (!buttonRef.current) return;
+      const rect = buttonRef.current.getBoundingClientRect();
+      centerX = rect.left + rect.width / 2 + ARC_OFFSET_X;
+      centerY = rect.top + rect.height / 2;
+    }
 
     arcParamsRef.current = {
       start: ARC_START,
@@ -559,10 +580,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       offsetX: ARC_OFFSET_X,
       offsetY: 0,
     };
-    arcCenterRef.current = {
-      x: rect.left + rect.width / 2 + ARC_OFFSET_X,
-      y: rect.top + rect.height / 2,
-    };
+    arcCenterRef.current = { x: centerX, y: centerY };
 
     isLongPressed.current = true;
     setWheelOpen(true);
@@ -645,21 +663,103 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     return document.documentElement;
   };
 
-  const handleStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
-    const px = "touches" in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
-    const py = "touches" in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+  // 🆕 ═══ РЕФСЫ ДЛЯ СВОБОДНОЙ ОРБИТЫ И CTRL-РЕЖИМА ═══
+  const lastMouseRef = useRef({ x: 0, y: 0 });      // последняя позиция курсора (для Ctrl)
+  const suppressClickRef = useRef(false);           // гасим клик «сквозь» открытую дугу
+
+  // 🎯 Общая точка входа жеста: кнопка орбиты, свободная орбита и Ctrl
+  const startGestureAt = useCallback((px: number, py: number) => {
     startPos.current = { x: px, y: py };
     // 🆕 нашли элемент скролла ОДИН раз — дальше только лёгкий scrollBy
     scrollTargetRef.current = findScrollTarget();
 
     longPressTimer.current = setTimeout(() => {
       longPressTimer.current = null;
-      openWheel();
+      openWheelAt(px, py);              // дуга центрируется в точке зажима
+      suppressClickRef.current = true;  // отпускание не должно «нажать» то, что под ним
       const idx = findNearest(px, py);
       setHoveredIdx(idx);
       setFingerPos({ x: px, y: py });
     }, LONG_PRESS_MS);
-  }, [openWheel, findNearest]);
+  }, [openWheelAt, findNearest]);
+
+  const handleStart = useCallback((e: React.TouchEvent | React.MouseEvent) => {
+    const px = "touches" in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const py = "touches" in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    startGestureAt(px, py);
+  }, [startGestureAt]);
+
+  // 🖥 Следим за курсором — нужно для открытия дуги у курсора по Ctrl
+  useEffect(() => {
+    const track = (e: MouseEvent) => { lastMouseRef.current = { x: e.clientX, y: e.clientY }; };
+    document.addEventListener("mousemove", track);
+    return () => document.removeEventListener("mousemove", track);
+  }, []);
+
+  // 🛡 Клик «сквозь» открытую дугу гасим ОДИН раз (capture),
+  //    чтобы отпускание пальца/кнопки не активировало ссылку под точкой зажима
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (!suppressClickRef.current) return;
+      suppressClickRef.current = false;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, []);
+
+  // 🆕 ORBIT2 («свободная орбита»): зажал В ЛЮБОМ месте экрана → выбрал → отпустил.
+  //    Работает и на ПК, и на телефоне. Поля ввода исключены.
+  useEffect(() => {
+    if (layout !== "orbit2") return;
+    const isExcluded = (t: EventTarget | null) =>
+      t instanceof HTMLElement &&
+      !!t.closest("input, textarea, select, [contenteditable='true'], [data-orbit-ignore]");
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      if (wheelOpen || isLongPressed.current || longPressTimer.current) return;
+      const pt = "touches" in e ? e.touches[0] : (e as MouseEvent);
+      if (!pt) return;
+      if (isExcluded(e.target)) return;
+      startGestureAt(pt.clientX, pt.clientY);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("touchstart", onDown, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("touchstart", onDown);
+    };
+  }, [layout, wheelOpen, startGestureAt]);
+
+  // 🆕 CTRL-ОРБИТА НА ПК (доступна в ЛЮБОМ виде сайдбара):
+  //    зажал Ctrl → дуга открылась у курсора → подвёл к пункту → отпустил Ctrl.
+  useEffect(() => {
+    if (isMobile) return;
+    const isTypingTarget = (t: EventTarget | null) =>
+      t instanceof HTMLElement &&
+      (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
+    const cancelPending = () => {
+      if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isLongPressed.current) { closeWheel(false); return; }
+      if (e.key !== "Control") { cancelPending(); return; }   // Ctrl+C и пр. отменяют ещё не открытую дугу
+      if (e.repeat || wheelOpen || isLongPressed.current || longPressTimer.current) return;
+      if (isTypingTarget(e.target)) return;
+      startGestureAt(lastMouseRef.current.x, lastMouseRef.current.y);
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key !== "Control") return;
+      cancelPending();
+      if (isLongPressed.current) closeWheel(hoveredIdx !== null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, [isMobile, wheelOpen, hoveredIdx, closeWheel, startGestureAt]);
 
   useEffect(() => {
     const cancelTimer = () => {
@@ -1198,8 +1298,9 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
   return (
     <>
-      {/* ═══════ МОБИЛКА ИЛИ DESKTOP ORBIT ═══════ */}
-      <div className={layout === "orbit" ? "block" : "md:hidden"}>
+      {/* ═══════ МОБИЛКА / DESKTOP ORBIT / DESKTOP ORBIT2 ═══════ */}
+      {/* orbit2 — без фиксированной кнопки: дуга открывается зажимом в любом месте */}
+      <div className={layout === "orbit" ? "block" : layout === "orbit2" ? "hidden" : "md:hidden"}>
         {/* 🔥 КРУГИ НА ВОДЕ (Память ленты) */}
         {/* 🔥 МЯГКОЕ СВЕЧЕНИЕ (Сохраненный пост) */}
         {lastReadPost && (
@@ -1244,11 +1345,14 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         >
           <Orbit size={22} className={`transition-all duration-300 ${wheelOpen ? "text-[#8b5cf6] rotate-[60deg]" : "text-gray-800 dark:text-white/80"}`} />
         </button>
-        {renderWheel()}
       </div>
 
+      {/* 🆕 Дуга рендерится ВНЕ обёртки — доступна в любом виде сайдбара
+          (Ctrl на ПК в classic/dock/orbit, свободный зажим в orbit2) */}
+      {renderWheel()}
+
 {/* 🆕 🔥 ТУЛТИП "ПРОДОЛЖИТЬ ЧТЕНИЕ" */}
-{showTooltip && showContinueButton && (
+{showTooltip && showContinueButton && layout !== "orbit2" && (
   <div 
     className={`fixed z-[99] bg-[#8b5cf6] text-white text-xs font-bold px-3 py-2 rounded-lg shadow-xl whitespace-nowrap animate-bounce
       ${layout === "orbit" 
@@ -1307,8 +1411,8 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
 
 
-      {/* ═══════ ДЕСКТОП CLASSIC / DOCK ═══════ */}
-      {layout !== "orbit" && (
+      {/* ═══════ ДЕСКТОП CLASSIC / DOCK (в orbit и orbit2 сайдбара нет) ═══════ */}
+      {layout !== "orbit" && layout !== "orbit2" && (
         <aside className={`hidden md:flex shrink-0 overflow-y-auto flex-col bg-paper dark:bg-[#171717] transition-all duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
           isDock ? "md:w-20 md:min-w-20 px-0 py-4 gap-2" : "md:w-64 md:min-w-64 p-5 gap-5"
         }`}>
