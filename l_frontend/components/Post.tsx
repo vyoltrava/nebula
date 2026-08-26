@@ -584,11 +584,25 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                     e.stopPropagation();
                     setShowEcho(true);
                   }}
-                  className="text-white/30 hover:text-purple-600 dark:hover:text-purple-400 transition-colors p-1.5 -m-1.5 rounded-full hover:bg-purple-400/10 active:scale-95"
+                  className="text-gray-400 dark:text-white/30 hover:text-purple-600 dark:hover:text-purple-400 transition-colors p-1.5 -m-1.5 rounded-full hover:bg-purple-400/10 active:scale-95"
                   title={t("post.echo")}
                 >
                   <Radio size={15} />
                 </button>
+
+                {/* 🆕 Жалоба на пост — вынесена к кнопке Эхо (в шапку поста) */}
+                {currentUser?.id !== author_id && !is_repost && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowReport(true);
+                    }}
+                    className="text-gray-400 dark:text-white/30 hover:text-orange-600 dark:hover:text-orange-400 transition-colors p-1.5 -m-1.5 rounded-full hover:bg-orange-400/10 active:scale-95"
+                    title={t("post.report")}
+                  >
+                    <Flag size={15} />
+                  </button>
+                )}
               </span>
             </div>
             {currentUser?.id !== author_id && !is_repost && (
@@ -692,23 +706,13 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               </button>
             )}
 
-            {currentUser?.id !== author_id && !is_repost && (
-              <button
-                onClick={() => setShowReport(true)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-line dark:border-white/20 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-orange-400/30 hover:text-orange-600 dark:hover:text-orange-400 transition-all"
-                title={t("post.report")}
-              >
-                <Flag size={16} />
-              </button>
-            )}
-
             {canDelete && (
               <button
                 onClick={deletePost}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-red-400/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 hover:border-red-400/50 transition-all"
+                title={t("post.delete")}
               >
                 <Trash2 size={16} />
-                <span className="text-sm font-semibold">{t("post.delete")}</span>
               </button>
             )}
             
