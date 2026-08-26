@@ -223,7 +223,7 @@ export function CreatePost() {
         <Avatar src={user?.avatar_url} name={user?.display_name || "?"} id={user?.id} />
         <div className="flex-1">
  {/* ✅ ПОЛЕ ВВОДА (только RichEditor внутри рамки) */}
-<div className="rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] focus-within:bg-gray-100 dark:bg-white/10 transition-all">
+<div className="chat-input-shell rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] transition-all">
   <RichEditor
     ref={editorRef}
     value={text}
