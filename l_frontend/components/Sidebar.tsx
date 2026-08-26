@@ -32,6 +32,10 @@ import { CommunityTabs } from "@/components/CommunityTabs";
 // ════════════════════════════════════════════════════════════════
 const INNER_RADIUS     = 135;
 const OUTER_RADIUS     = 215;
+// 🆕 Радиусы для СВОБОДНОЙ орбиты (полный круг вокруг точки зажима):
+// меньше базовых, чтобы круг гарантированно влезал в экран телефона
+const FREE_INNER_RADIUS = 95;
+const FREE_OUTER_RADIUS = 150;
 const SNAP_RADIUS      = 48;
 const LONG_PRESS_MS    = 250;
 
@@ -50,6 +54,17 @@ const ARC_OFFSET_X = -40;
 
 const FEED_MEMORY_KEY = "trelod_feed_memory";
 const FEED_TOOLTIP_KEY = "trelod_feed_tooltip";
+
+// 🛡 Блокировка выделения текста, пока открыта дуга орбиты.
+// Оверлей дуги pointer-events-none, поэтому выделение надо глушить на <body>:
+// иначе зажим (orbit2/Ctrl) начинает выделять текст ПОД дугой.
+function setBodySelectionLock(lock: boolean) {
+  if (typeof document === "undefined") return;
+  const b = document.body;
+  b.style.userSelect = lock ? "none" : "";
+  (b.style as unknown as { webkitUserSelect?: string }).webkitUserSelect = lock ? "none" : "";
+  (b.style as unknown as { WebkitTouchCallout?: string }).WebkitTouchCallout = lock ? "none" : "";
+}
 
 // ════════════════════════════════════════════════════════════════
 //  Админский dropdown (desktop classic)
@@ -230,13 +245,17 @@ function LayoutPreview({ kind }: { kind: SidebarLayout }) {
   );
 }
 
-function LayoutPicker({ current, onClose }: { current: SidebarLayout; onClose: () => void }) {
+function LayoutPicker({ current, onClose, isMobile }: { current: SidebarLayout; onClose: () => void; isMobile?: boolean }) {
   const { t } = useI18n();
+  // 📱 На телефоне компьютерные виды (Орбита-кнопка / Док) НЕ показываем —
+  //    там всё равно мобильная версия интерфейса. Только «Классика» и «Орбита 2».
   const variants: { key: SidebarLayout; name: string; desc: string }[] = [
     { key: "classic", name: t("nav.layoutClassic"), desc: t("nav.layoutClassicDesc") },
-    { key: "orbit", name: t("nav.layoutOrbit"), desc: t("nav.layoutOrbitDesc") },
+    ...(isMobile ? [] : [
+      { key: "orbit" as SidebarLayout, name: t("nav.layoutOrbit"), desc: t("nav.layoutOrbitDesc") },
+      { key: "dock" as SidebarLayout, name: t("nav.layoutDock"), desc: t("nav.layoutDockDesc") },
+    ]),
     { key: "orbit2", name: t("nav.layoutOrbit2"), desc: t("nav.layoutOrbit2Desc") },
-    { key: "dock", name: t("nav.layoutDock"), desc: t("nav.layoutDockDesc") },
   ];
   return (
     <>
@@ -420,7 +439,7 @@ const continueConfig = lastReadPost
     return () => mq.removeEventListener("change", update);
   }, []);
 
-  const arcParamsRef = useRef({ start: 0, end: 0, offsetX: 0, offsetY: 0 });
+  const arcParamsRef = useRef({ start: 0, end: 0, offsetX: 0, offsetY: 0, fullCircle: false });
 
   useEffect(() => {
     const on = (e: Event) => setLayout((e as CustomEvent).detail as SidebarLayout);
@@ -546,12 +565,22 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     const info = itemLayerMap.get(globalIdx);
     if (!info) return { x: arcCenterRef.current.x, y: arcCenterRef.current.y };
 
-    const radius = info.layer === "inner" ? INNER_RADIUS : OUTER_RADIUS;
+    const ap    = arcParamsRef.current;
     const items  = info.layer === "inner" ? innerItems : outerItems;
     const n = items.length;
 
-    const ap    = arcParamsRef.current;
-    const step  = (ap.end - ap.start) / Math.max(n - 1, 1);
+    // 🆕 Свободная орбита (полный круг) — компактные радиусы,
+    //    обычная кнопка — прежние радиусы полудуги
+    const radius = info.layer === "inner"
+      ? (ap.fullCircle ? FREE_INNER_RADIUS : INNER_RADIUS)
+      : (ap.fullCircle ? FREE_OUTER_RADIUS : OUTER_RADIUS);
+
+    // 🔄 Полный круг: шаг 2π/n — пункты РАВНОМЕРНО ВОКРУГ зажима,
+    //     первый сверху, без склейки первого и последнего.
+    //    Полудуга от кнопки: как раньше — (end−start)/(n−1).
+    const step  = ap.fullCircle
+      ? (Math.PI * 2) / Math.max(n, 1)
+      : (ap.end - ap.start) / Math.max(n - 1, 1);
     const angle = ap.start + info.localIdx * step;
 
     return {
@@ -563,10 +592,17 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
   const openWheelAt = useCallback((cx?: number, cy?: number) => {
     let centerX: number;
     let centerY: number;
-    if (typeof cx === "number" && typeof cy === "number") {
-      // 🆕 Свободная орбита / Ctrl: центр дуги — точка зажима (курсор/палец)
-      centerX = cx;
-      centerY = cy;
+    // 🆕 Свободное открытие (orbit2 / Ctrl): ПОЛНЫЙ КРУГ вокруг точки зажима
+    const freeForm = typeof cx === "number" && typeof cy === "number";
+    if (freeForm) {
+      centerX = cx as number;
+      centerY = cy as number;
+      // Круг не должен вылезать за края экрана — поджимаем центр к вьюпорту
+      if (typeof window !== "undefined") {
+        const pad = FREE_OUTER_RADIUS + 12;
+        centerX = Math.min(Math.max(centerX, pad), window.innerWidth - pad);
+        centerY = Math.min(Math.max(centerY, pad), window.innerHeight - pad);
+      }
     } else {
       if (!buttonRef.current) return;
       const rect = buttonRef.current.getBoundingClientRect();
@@ -574,15 +610,29 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       centerY = rect.top + rect.height / 2;
     }
 
-    arcParamsRef.current = {
-      start: ARC_START,
-      end: ARC_END,
-      offsetX: ARC_OFFSET_X,
-      offsetY: 0,
-    };
+    arcParamsRef.current = freeForm
+      ? {
+          // 🔄 Полный круг: старт сверху, шаг 2π/n считается в getIconPos
+          start: -Math.PI / 2,
+          end: -Math.PI / 2 + Math.PI * 2,
+          offsetX: 0,
+          offsetY: 0,
+          fullCircle: true,
+        }
+      : {
+          start: ARC_START,
+          end: ARC_END,
+          offsetX: ARC_OFFSET_X,
+          offsetY: 0,
+          fullCircle: false,
+        };
     arcCenterRef.current = { x: centerX, y: centerY };
 
     isLongPressed.current = true;
+    // 🛡 Защита от выделения: снимаем уже начатое выделение и блокируем новое,
+    // пока дуга открыта (возвращаем в closeWheel)
+    try { window.getSelection()?.removeAllRanges(); } catch {}
+    setBodySelectionLock(true);
     setWheelOpen(true);
     setClosing(false);
     setPullingBack(false);
@@ -633,6 +683,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       setWheelOpen(false);
       setClosing(false);
       isLongPressed.current = false;
+      setBodySelectionLock(false); // 🛡 выделение снова разрешено
     }, 280);
   }, [hoveredIdx, wheelItems, router, pullingBack]);
 
@@ -694,6 +745,11 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     const track = (e: MouseEvent) => { lastMouseRef.current = { x: e.clientX, y: e.clientY }; };
     document.addEventListener("mousemove", track);
     return () => document.removeEventListener("mousemove", track);
+  }, []);
+
+  // 🛡 Страховка: если компонент размонтировали с открытой дугой — вернуть выделение
+  useEffect(() => {
+    return () => setBodySelectionLock(false);
   }, []);
 
   // 🛡 Клик «сквозь» открытую дугу гасим ОДИН раз (capture),
@@ -1167,11 +1223,20 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
 
   useEffect(() => {
-    if (buttonRef.current && wheelOpen) {
+    if (!wheelOpen) return;
+    if (buttonRef.current) {
       const r = buttonRef.current.getBoundingClientRect();
-      buttonCx.current = r.left + r.width / 2;
-      buttonCy.current = r.top + r.height / 2;
+      // Кнопка видима → пункты разлетаются из неё (классическая орбита)
+      if (r.width > 0 || r.height > 0) {
+        buttonCx.current = r.left + r.width / 2;
+        buttonCy.current = r.top + r.height / 2;
+        return;
+      }
     }
+    // 🆕 orbit2 / Ctrl: кнопки нет или она скрыта —
+    // точка входа анимации = место зажима (центр круга)
+    buttonCx.current = arcCenterRef.current.x;
+    buttonCy.current = arcCenterRef.current.y;
   }, [wheelOpen]);
 
   const renderWheel = () => {
@@ -1181,7 +1246,12 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     return (
       <div
         className="fixed inset-0 z-[100] pointer-events-none"
-        style={{ touchAction: "none" }}
+        style={{
+          touchAction: "none",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          WebkitTouchCallout: "none",
+        } as React.CSSProperties}
       >
         {wheelItems.map((item, i) => {
           const finalPos = getIconPos(i);
@@ -1486,7 +1556,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
       {showBugModal && <BugReportModal onClose={() => setShowBugModal(false)} />}
       {showSearch && <MobileSearch onClose={() => setShowSearch(false)} />}
-      {showLayoutPicker && <LayoutPicker current={layout} onClose={() => setShowLayoutPicker(false)} />}
+      {showLayoutPicker && <LayoutPicker current={layout} isMobile={isMobile} onClose={() => setShowLayoutPicker(false)} />}
       
       {/* 🆕 МОДАЛКА СМЕНЫ АККАУНТА */}
       {showOrbitSwitcher && (
