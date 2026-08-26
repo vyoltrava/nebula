@@ -11,6 +11,11 @@ export interface PrismeSceneObject {
   size: number;
   color: string;
   status: "free" | "occupied";
+  /** Поля, которые бэкенд присылает для занятых объектов: */
+  chat_id?: number | null;
+  i_am_member?: boolean;
+  owner_username?: string | null;
+  owner_display_name?: string | null;
 }
 
 interface PrismeSceneProps {
@@ -20,14 +25,16 @@ interface PrismeSceneProps {
   interactive?: boolean;
   /** Разрешить клики и по занятым объектам (режим админа). */
   allowOccupiedClick?: boolean;
+  /** Клик по занятому объекту = попытка входа в чат по ключу. */
+  onSelectOccupied?: (obj: PrismeSceneObject) => void;
   onSelect?: (obj: PrismeSceneObject) => void;
   hint?: string;
 }
 
 /**
  * Интерактивная SVG-картинка Prisme.
- * Свободные объекты (<g class="prisme-free" data-slot="N">) кликабельны,
- * занятые затемнены и не реагируют на клики (если не включён allowOccupiedClick).
+ * Свободные объекты (<g class="prisme-free" data-slot="N">) кликабельны — создание чата.
+ * Занятые кликабельны при allowOccupiedClick (админ) или onSelectOccupied (вход по ключу).
  */
 export function PrismeScene({
   svg,
@@ -35,12 +42,14 @@ export function PrismeScene({
   selectedSlot = null,
   interactive = true,
   allowOccupiedClick = false,
+  onSelectOccupied,
   onSelect,
   hint,
 }: PrismeSceneProps) {
   const frameRef = useRef<HTMLDivElement>(null);
   const objectsRef = useRef(objects);
   const onSelectRef = useRef(onSelect);
+  const onSelectOccupiedRef = useRef(onSelectOccupied);
   const interactiveRef = useRef(interactive);
   const allowOccupiedRef = useRef(allowOccupiedClick);
 
@@ -48,9 +57,12 @@ export function PrismeScene({
   useEffect(() => {
     objectsRef.current = objects;
     onSelectRef.current = onSelect;
+    onSelectOccupiedRef.current = onSelectOccupied;
     interactiveRef.current = interactive;
     allowOccupiedRef.current = allowOccupiedClick;
   });
+
+  const joinable = !!onSelectOccupied || allowOccupiedClick;
 
   // Пост-обработка инжектированного SVG: клики, клавиатура, aria.
   useEffect(() => {
@@ -67,10 +79,14 @@ export function PrismeScene({
     const selectByGroup = (g: Element) => {
       if (!interactiveRef.current) return;
       const isFree = g.classList.contains("prisme-free");
-      if (!isFree && !allowOccupiedRef.current) return;
       const obj = getObject(g);
-      if (obj && onSelectRef.current) {
-        onSelectRef.current(obj);
+      if (!obj) return;
+      if (isFree) {
+        onSelectRef.current?.(obj);
+      } else if (onSelectOccupiedRef.current) {
+        onSelectOccupiedRef.current(obj);
+      } else if (allowOccupiedRef.current) {
+        onSelectRef.current?.(obj);
       }
     };
 
@@ -82,20 +98,30 @@ export function PrismeScene({
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Enter" && e.key !== " ") return;
-      if ((e.target as Element)?.classList?.contains("prisme-free")) {
+      const el = e.target as Element;
+      if (el?.classList?.contains("prisme-free") ||
+          (joinable && el?.classList?.contains("prisme-occupied"))) {
         e.preventDefault();
-        selectByGroup(e.target as Element);
+        selectByGroup(el);
       }
     };
 
-    // Доступность: focusable free-объекты с подписями
-    svgEl.querySelectorAll<SVGGElement>("g.prisme-free[data-slot]").forEach((g) => {
+    // Доступность: focusable объекты с подписями
+    svgEl.querySelectorAll<SVGGElement>("g[data-slot]").forEach((g) => {
       const slot = g.getAttribute("data-slot") || "";
       const kind = g.getAttribute("data-kind") || "object";
-      g.setAttribute("tabindex", "0");
-      g.setAttribute("role", "button");
-      g.setAttribute("aria-label", `Свободный объект ${kind}, ключ #${slot}`);
-      g.style.outline = "none";
+      const isFree = g.classList.contains("prisme-free");
+      if (isFree || joinable) {
+        g.setAttribute("tabindex", "0");
+        g.setAttribute("role", "button");
+        g.setAttribute(
+          "aria-label",
+          isFree
+            ? `Свободный объект ${kind}, ключ #${slot}`
+            : `Занятый объект ${kind}, ключ #${slot} — вход в чат по ключу`
+        );
+        g.style.outline = "none";
+      }
     });
     svgEl.addEventListener("click", onClick);
     svgEl.addEventListener("keydown", onKey as EventListener);
@@ -116,10 +142,13 @@ export function PrismeScene({
       svgEl.removeEventListener("click", onClick);
       svgEl.removeEventListener("keydown", onKey as EventListener);
     };
-  }, [svg, selectedSlot]);
+  }, [svg, selectedSlot, joinable]);
 
   return (
-    <div ref={frameRef} className="prisme prisme-frame relative w-full overflow-hidden">
+    <div
+      ref={frameRef}
+      className={`prisme prisme-frame relative w-full overflow-hidden${joinable ? " prisme-joinable" : ""}`}
+    >
       <div
         className="w-full"
         style={{ aspectRatio: "1200 / 800" }}

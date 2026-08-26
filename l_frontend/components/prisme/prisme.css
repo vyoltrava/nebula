@@ -342,3 +342,12 @@
 .prv-admin-svg .prisme-occupied.is-selected {
   filter: drop-shadow(0 0 14px #ffffff) drop-shadow(0 0 6px var(--np));
 }
+
+/* режим входа по ключу: занятые объекты кликабельны для всех пользователей */
+.prisme-joinable .prisme-occupied { pointer-events: auto; cursor: pointer; }
+.prisme-joinable .prisme-occupied:hover {
+  filter: drop-shadow(0 0 10px rgba(255,230,0,0.65));
+}
+.prisme-joinable .prisme-occupied.is-selected {
+  filter: drop-shadow(0 0 14px #ffffff) drop-shadow(0 0 6px var(--ny));
+}

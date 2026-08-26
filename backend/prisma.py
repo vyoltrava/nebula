@@ -386,11 +386,40 @@ def _scene_payload(session: Session, scene: PrismeScene, user: Optional[User] = 
     free_n = sum(1 for o in objs if o.status == "free")
     chats_stat = _get_stat(session, scene.id, "chats_created").value
     reqs_stat = _get_stat(session, scene.id, "requests_total").value
+    joins_stat = _get_stat(session, scene.id, "joins_total").value
+
+    # Имена владельцев (для подсказки «чей чат» при входе по ключу)
+    owner_ids = {o.owner_id for o in objs if o.owner_id}
+    users = {}
+    if owner_ids:
+        us = session.exec(select(User).where(User.id.in_(list(owner_ids)))).all()
+        users = {u.id: u for u in us}
+
+    # Чаты, где текущий пользователь уже участник
+    member_of: set = set()
+    if user:
+        cids = [o.chat_id for o in objs if o.chat_id]
+        if cids:
+            ms = session.exec(select(ChatMember).where(
+                ChatMember.user_id == user.id, ChatMember.chat_id.in_(cids)
+            )).all()
+            member_of = {m.chat_id for m in ms}
+
+    out_objects = []
+    for o in objs:
+        d = _object_out(o)
+        u = users.get(o.owner_id)
+        d["owner_username"] = u.username if u else None
+        d["owner_display_name"] = u.display_name if u else None
+        d["i_am_member"] = bool(o.chat_id and o.chat_id in member_of)
+        out_objects.append(d)
+
     my_obj = None
     if user:
         mine = next((o for o in objs if o.owner_id == user.id), None)
         if mine:
             my_obj = {"slot": mine.slot, "object_id": mine.id, "chat_id": mine.chat_id, "kind": mine.kind}
+
     return {
         "scene_id": scene.id,
         "name": scene.name,
@@ -403,8 +432,9 @@ def _scene_payload(session: Session, scene: PrismeScene, user: Optional[User] = 
         "occupied_count": len(objs) - free_n,
         "chats_created": chats_stat,
         "requests_total": reqs_stat,
+        "joins_total": joins_stat,
         "my_object": my_obj,
-        "objects": [_object_out(o) for o in objs],
+        "objects": out_objects,
     }
 
 
@@ -501,6 +531,50 @@ def create_prisme_chat(
             "slot": obj.slot, "key": str(obj.slot), "kind": obj.kind}
 
 
+class PrismeJoinIn(BaseModel):
+    slot: int
+
+
+@router.post("/prisme/chat/join")
+def join_prisme_chat(
+    data: PrismeJoinIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Вход в существующий чат по объекту-ключу: второй участник выбирает
+    тот же занятый объект на картинке и присоединяется к чату владельца."""
+    scene = _ensure_scene(session)
+    obj = session.exec(select(PrismeObject).where(
+        PrismeObject.scene_id == scene.id, PrismeObject.slot == data.slot
+    )).first()
+    if not obj:
+        raise HTTPException(404, "Объект не найден")
+    if obj.status != "occupied" or not obj.chat_id:
+        raise HTTPException(400, "Этот объект свободен — выберите его, чтобы создать новый чат")
+
+    base = {"slot": obj.slot, "key": str(obj.slot), "kind": obj.kind,
+            "chat_id": obj.chat_id}
+
+    if obj.owner_id == user.id:
+        return {"ok": True, "already_member": True, **base}
+
+    existing = session.exec(select(ChatMember).where(
+        ChatMember.chat_id == obj.chat_id, ChatMember.user_id == user.id
+    )).first()
+    if existing:
+        return {"ok": True, "already_member": True, **base}
+
+    session.add(ChatMember(chat_id=obj.chat_id, user_id=user.id, role="member"))
+    # Уведомляем владельца, что к его чату присоединились по ключу
+    session.add(Notification(user_id=obj.owner_id, actor_id=user.id, type="prisme_joined"))
+    log_action(session, user.id, "prisme_join", target_type="chat",
+               target_id=obj.chat_id, details={"slot": obj.slot})
+    _bump(session, scene.id, "joins_total")
+    session.commit()
+
+    return {"ok": True, "already_member": False, **base}
+
+
 @router.post("/prisme/request")
 def create_prisme_request(
     data: PrismeRequestIn,
@@ -552,6 +626,7 @@ def prisme_stats(
     stats = {
         "chats_created": _get_stat(session, scene.id, "chats_created").value,
         "requests_total": _get_stat(session, scene.id, "requests_total").value,
+        "joins_total": _get_stat(session, scene.id, "joins_total").value,
         "object_count": len(objs),
         "base_count": scene.base_count,
         "free_count": free_n,
