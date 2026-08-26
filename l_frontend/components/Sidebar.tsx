@@ -1064,7 +1064,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
               className={`flex ${containerClass} font-medium transition-all border-b border-line dark:border-white/5 last:border-none group relative ${
                 active ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"
               }`}>
-              <Icon size={18} className={`${iconClass} ${active ? "text-[#8b5cf6]" : "text-gray-700 dark:text-white/80 group-hover:text-emerald-600 dark:group-hover:text-emerald-300!"}`} />
+              <Icon size={18} className={`${iconClass} ${active ? "text-[#8b5cf6]" : "text-gray-700 dark:text-white/80 group-hover:text-gray-500 dark:group-hover:text-[#e0e0e0]!"}`} />
               <span className={textClass}>{label}</span>
               
               {showUpdatesBadge && (
@@ -1081,7 +1081,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
             className={`flex ${containerClass} font-medium transition-all relative border-b border-line dark:border-white/5 group ${
               pathname?.startsWith("/messages") ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"
             }`}>
-            <MessageSquare size={18} className={`${iconClass} ${pathname?.startsWith("/messages") ? "text-[#8b5cf6]" : "text-gray-700 dark:text-white/80 group-hover:text-emerald-600 dark:group-hover:text-emerald-300!"}`} />
+            <MessageSquare size={18} className={`${iconClass} ${pathname?.startsWith("/messages") ? "text-[#8b5cf6]" : "text-gray-700 dark:text-white/80 group-hover:text-gray-500 dark:group-hover:text-[#e0e0e0]!"}`} />
             <span className={textClass}>{t("nav.messages")}</span>
             {counts.chats > 0 && (
               <span className={`${isDock ? "absolute top-2 right-2" : "ml-auto"} bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm`}>
@@ -1095,7 +1095,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
           className={`flex ${containerClass} font-medium transition-all relative border-b border-line dark:border-white/5 group ${
             pathname === "/notifications" ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"
           }`}>
-          <Bell size={18} className={`${iconClass} ${pathname === "/notifications" ? "text-[#8b5cf6]" : "text-gray-700 dark:text-white/80 group-hover:text-emerald-600 dark:group-hover:text-emerald-300!"}`} />
+          <Bell size={18} className={`${iconClass} ${pathname === "/notifications" ? "text-[#8b5cf6]" : "text-gray-700 dark:text-white/80 group-hover:text-gray-500 dark:group-hover:text-[#e0e0e0]!"}`} />
           <span className={textClass}>{t("nav.notifications")}</span>
           {counts.notifications > 0 && (
             <span className={`${isDock ? "absolute top-2 right-2" : "ml-auto"} bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm`}>
@@ -1109,7 +1109,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
             className={`flex ${containerClass} font-medium transition-all border-b border-line dark:border-white/5 group ${
               pathname?.startsWith("/adminnew") ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"
             }`}>
-            <ShieldAlert size={18} className={`${iconClass} ${pathname?.startsWith("/adminnew") ? "text-[#8b5cf6]" : "text-gray-700 dark:text-white/80 group-hover:text-emerald-600 dark:group-hover:text-emerald-300!"}`} />
+            <ShieldAlert size={18} className={`${iconClass} ${pathname?.startsWith("/adminnew") ? "text-[#8b5cf6]" : "text-gray-700 dark:text-white/80 group-hover:text-gray-500 dark:group-hover:text-[#e0e0e0]!"}`} />
             <span className={textClass}>{t("nav.adminPanel")}</span>
           </Link>
         )}
