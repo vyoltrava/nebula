@@ -333,7 +333,8 @@
   animation: prv-blink 1s steps(2, start) infinite;
 }
 @keyframes prv-blink { to { visibility: hidden; } }
-/* режим админа: занятые тоже кликабельны */
+
+/* Admin mode: occupied objects stay clickable */
 .prv-admin-svg .prisme-occupied { pointer-events: auto; cursor: pointer; }
 .prv-admin-svg .prisme-occupied:hover {
   filter: drop-shadow(0 0 10px rgba(255,0,110,0.6));
