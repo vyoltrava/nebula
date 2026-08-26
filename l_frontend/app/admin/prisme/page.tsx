@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, RefreshCw, Plus, Database, Inbox } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { PrismeScene, PrismeSceneObject } from "@/components/prisme/PrismeScene";
-import { StatDisplay, Terminal, PrismeTitle } from "@/components/prisme/Retro";
+import { StatDisplay, Terminal, PrismeTitle, errMsg } from "@/components/prisme/Retro";
 import "@/components/prisme/prisme.css";
 
 interface SceneData {
@@ -109,7 +109,7 @@ export default function AdminPrismePage() {
       });
       if (!res.ok) {
         const d = await res.json();
-        setExpandMsg(d.detail || "Ошибка расширения");
+        setExpandMsg(errMsg(d, "Ошибка расширения"));
         return;
       }
       const data = await res.json();

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Lock, Plus, Unlock } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { PrismeScene, PrismeSceneObject } from "@/components/prisme/PrismeScene";
-import { StatDisplay, Terminal, PrismeModal, PrismeTitle } from "@/components/prisme/Retro";
+import { StatDisplay, Terminal, PrismeModal, PrismeTitle, errMsg } from "@/components/prisme/Retro";
 import "@/components/prisme/prisme.css";
 
 interface SceneData {
@@ -86,7 +86,7 @@ export default function PrismePage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setConfirmError(data.detail || "Не удалось создать чат");
+        setConfirmError(errMsg(data, "Не удалось создать чат"));
         load();
         return;
       }
@@ -114,7 +114,9 @@ export default function PrismePage() {
         setReqSent(true);
         load();
       } else {
-        setConfirmError("Не удалось оставить заявку");
+        let data: unknown = null;
+        try { data = await res.json(); } catch { /* ignore */ }
+        setConfirmError(errMsg(data, "Не удалось оставить заявку"));
       }
     } catch {
       setConfirmError("Ошибка сети");

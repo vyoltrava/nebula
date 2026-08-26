@@ -91,3 +91,5 @@ export function PrismeTitle({ children }: { children: string }) {
     </h1>
   );
 }
+
+export { errMsg } from "@/lib/apiError";

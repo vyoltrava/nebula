@@ -328,44 +328,20 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       setPrismSearchResults([]);
     }
   };
-const initiatePrism = async (targetUserId: number, targetUserName: string) => {
-  const token = getToken();
-  if (!token) return;
-
-  try {
-    setIsCreatingPrism(true);
-    
-    // 1. Создаем чат на бэкенде, он вернет нам landscape
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/prism`, {
-      method: "POST",
-      headers: { 
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ other_user_id: targetUserId }),
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || "Ошибка создания канала");
-    }
-
-    const data = await res.json();
-    
-    // 2. Показываем ландшафт для выбора ключа
-    setCreationLandscape({
-      chat_id: data.chat_id,
-      svg: data.svg,
-      objects: data.objects
-    });
-    setIsCreatingPrism(false); // Снимаем лоадер, так как теперь ждем действия пользователя
-    
-  } catch (e) {
-    console.error("❌ ОШИБКА СОЗДАНИЯ ПРИЗМЫ:", e);
-    alert("Ошибка: " + (e as Error).message);
-    setIsCreatingPrism(false);
-    setShowPrismModal(false);
-  }
+const initiatePrism = async () => {
+  // Старый флоу POST /api/chats/prism мёртв: бэкенд требует shard1_encrypted /
+  // shard2_genesis / avatar_url, а confirmPrismKey стучится в несуществующий
+  // /prism-key. Отсюда была ошибка "Ошибка: [object Object],..." — массив
+  // валидации 422 из трёх объектов, склеенный в строку.
+  // Новая система Prisme Chat живёт на /prisme: пользователь выбирает
+  // свободный объект-ключ, и чат создаётся корректно.
+  setShowPrismModal(false);
+  setCreationLandscape(null);
+  setSelectedCreationObject(null);
+  setPrismSearchQuery("");
+  setPrismSearchResults([]);
+  setIsCreatingPrism(true);
+  router.push("/prisme");
 };
 
 // Новая функция для сохранения выбранного ключа
@@ -784,7 +760,7 @@ const confirmPrismKey = async () => {
                     {prismSearchResults.map((u: any) => (
                       <button
                         key={u.id}
-                        onClick={() => initiatePrism(u.id, u.username)}
+                        onClick={() => initiatePrism()}
                         disabled={isCreatingPrism}
                         className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/30 transition-all text-left disabled:opacity-50"
                       >
