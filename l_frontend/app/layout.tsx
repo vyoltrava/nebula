@@ -50,7 +50,9 @@ export const metadata: Metadata = {
   },
 };
 
-const zuneNoFlashScript = `try{if(localStorage.getItem("theme-preference")==="zune")document.body.classList.add("zune-theme")}catch(e){}`;
+/* 🟣 Анти-FOUC для Zune-темы: применяем класс до первой отрисовки.
+   Читаем новый ключ и легаси-ключ. */
+const zuneNoFlashScript = `try{var k=localStorage.getItem("zune-theme-preference")||localStorage.getItem("theme-preference");if(k==="zune")document.body.classList.add("zune-theme")}catch(e){}`;
 
 export default function RootLayout({
   children,

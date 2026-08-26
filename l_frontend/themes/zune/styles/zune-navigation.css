@@ -1,164 +1,122 @@
 /* ============================================================
-   ZUNE THEME — навигация: overscan-заголовки, кнопки-выступы,
-   плитки меню, ползунок-«лента».
+   ZUNE THEME — НАВИГАЦИЯ (Windows Phone Hub).
+   ФИКС БАГА С ИКОНКАМИ: цвет иконок ТОЛЬКО белый
+   (0.7 — неактивные / 1.0 — активные). Никакой мадженты!
    ============================================================ */
 
-/* ---------- Полноэкранный «корпус» плеера ---------- */
-.zt-shell {
-  min-height: 100dvh;
+/* ---------- Сайдбар ---------- */
+.zune-sidebar {
+  flex: 0 0 var(--zune-sidebar-w);
+  width: var(--zune-sidebar-w);
+  background: #0a0a0a; /* чистый чёрный по спецификации */
+  border-right: 1px solid var(--zune-divider);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  overflow-y: auto;
+}
+
+.zune-sidebar-title {
+  padding: 28px 24px 18px;
+  font-size: 28px;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  color: var(--zune-text);
+}
+
+.zune-sidebar-list {
   display: flex;
   flex-direction: column;
 }
-.zune-theme .zt-scroll {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
 
-/* ============================================================
-   ЗАГОЛОВКИ-ГИГАНТЫ (Overscan): sticky + translateX за край
-   ============================================================ */
-.zune-theme .zt-giant {
-  position: sticky;
-  top: 0;
-  z-index: 6;
-  margin: 0;
-  padding: 28px 40px 14px;
-  font-size: var(--zune-giant-size);
-  line-height: 1;
-  font-weight: 200;
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: #ffffff;
-  opacity: 0.8;                       /* полупрозрачный фон-надпись */
-  pointer-events: none;
-  transform: translateX(calc(var(--zune-bleed-offset) + var(--zune-parallax)));
-  will-change: transform;
-  background: linear-gradient(
-    180deg,
-    var(--zune-bg) 0%,
-    rgba(0, 0, 0, 0.86) 62%,
-    rgba(0, 0, 0, 0) 100%
-  );
-}
-.zune-theme .zt-giant > em {
-  font-style: normal;
-  color: var(--zune-accent);
-}
-
-/* ============================================================
-   КНОПКИ-ВЫСТУПЫ: уходят за края экрана, кликабельны
-   ============================================================ */
-.zune-theme .zt-nav {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 0;
-}
-.zune-theme .zt-nav-btn {
-  min-height: var(--zune-nav-height);
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  border: 0;
-  cursor: pointer;
-  color: #ffffff;
-  font-family: var(--zune-font);
-  font-size: 17px;
-  white-space: nowrap;
-  transition: filter 140ms ease, transform 200ms var(--zune-ease);
-}
-.zune-theme .zt-nav-btn:hover { filter: brightness(1.15); text-decoration: none; }
-.zune-theme .zt-nav-btn--bleed-left {
-  margin-right: auto;
-  padding: 0 var(--zune-nav-pad-x);
-  background: var(--zune-accent-alt);
-  border-radius: 0 999px 999px 0;
-  transform: translateX(var(--zune-button-bleed));
-}
-.zune-theme .zt-nav-btn--bleed-right {
-  margin-left: auto;
-  padding: 0 var(--zune-nav-pad-x);
-  background: var(--zune-accent);
-  border-radius: 999px 0 0 999px;
-  transform: translateX(calc(-1 * var(--zune-button-bleed)));
-}
-.zune-theme .zt-nav-btn--center {
-  min-width: 96px;
-  justify-content: center;
-  padding: 0 28px;
-  background: #ffffff;
-  color: #000000;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-.zune-theme .zt-nav-glyph { font-size: 22px; line-height: 1; }
-
-/* ============================================================
-   ПЛИТОЧНОЕ МЕНЮ (стартовый экран WP): активный раздел —
-   белая рамка снизу (аналог activeRoute в роутере)
-   ============================================================ */
-.zune-theme .zt-tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 8px;
-}
-.zune-theme .zt-tile {
+.zune-sidebar-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: var(--zune-nav-height);
-  padding: 0 16px;
-  background: var(--zune-accent-alt);
-  color: #fff;
-  font-family: var(--zune-font);
-  font-size: 15px;
-  font-weight: 400;
+  gap: 16px;
+  height: var(--zune-nav-item-h);
+  padding: 0 24px;
+  font-size: var(--zune-nav-font);
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.7);
   text-decoration: none;
-  cursor: pointer;
-  transition: transform 180ms var(--zune-ease), filter 140ms ease;
+  position: relative;
+  transition: transform 220ms var(--zune-ease-out), color 0.3s ease,
+    background-color 0.3s ease;
 }
-.zune-theme .zt-tile:hover { filter: brightness(1.15); text-decoration: none; }
-.zune-theme .zt-tile[data-active="true"] {
-  box-shadow: inset 0 -3px 0 0 #ffffff; /* белая рамка снизу */
+
+/* Наведение: лёгкое смещение вправо */
+.zune-sidebar-item:hover {
+  transform: translateX(8px);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Активный пункт: белая линия снизу (как в Windows Phone) */
+.zune-sidebar-item[data-active="true"] {
+  color: #ffffff;
+}
+.zune-sidebar-item[data-active="true"]::after {
+  content: "";
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 0;
+  height: 2px;
+  background: #ffffff;
 }
 
 /* ============================================================
-   ПОЛЗУНОК-ЛЕНТА: дорожка от левого края экрана вправо
+   ★★★ ФИКС БАГА: ИКОНКИ САЙДБАРА — ТОЛЬКО БЕЛЫЕ ★★★
+   Символы Segoe MDL2 (Unicode). Запрещены #FF00FF/#FF1493/pink/red.
    ============================================================ */
-.zune-theme .zt-ribbon {
-  flex: 0 0 auto;
-  padding: 14px var(--zune-content-pad-x) 6px 0;
-  margin-left: calc(-1 * var(--zune-button-bleed));
+.zune-theme .zune-sidebar-icon {
+  font-family: var(--zune-icon-font);
+  font-size: 22px;
+  line-height: 1;
+  width: 28px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+  transition: color 0.3s ease;
 }
-.zune-theme .zt-range {
-  --zune-fill: 35%;
-  appearance: none;
-  -webkit-appearance: none;
-  display: block;
-  width: calc(100vw - var(--zune-content-pad-x) + var(--zune-button-bleed));
-  height: 44px;
-  margin: 0;
-  background: transparent;
-  cursor: pointer;
+.zune-theme .zune-sidebar-icon.active {
+  color: #ffffff;
 }
-.zune-theme .zt-range::-webkit-slider-runnable-track {
-  height: 4px;
-  background: linear-gradient(90deg,
-    var(--zune-accent) 0%, var(--zune-accent) var(--zune-fill),
-    rgba(255, 255, 255, 0.18) var(--zune-fill), rgba(255, 255, 255, 0.18) 100%);
+.zune-theme .zune-sidebar-item:hover .zune-sidebar-icon {
+  color: #ffffff;
 }
-.zune-theme .zt-range::-moz-range-track { height: 4px; background: rgba(255,255,255,.18); }
-.zune-theme .zt-range::-moz-range-progress { height: 4px; background: var(--zune-accent); }
-.zune-theme .zt-range::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 16px; height: 16px; margin-top: -6px;
-  border-radius: 2px; background: #fff;
-  box-shadow: 0 0 0 3px var(--zune-accent);
+
+/* Страховка: любые svg/lucide-иконки внутри пунктов наследуют белый */
+.zune-theme .zune-sidebar-item svg {
+  color: inherit;
+  stroke: currentColor;
 }
-.zune-theme .zt-range::-moz-range-thumb {
-  width: 16px; height: 16px; border: none; border-radius: 2px;
-  background: #fff; box-shadow: 0 0 0 3px var(--zune-accent);
+
+/* ---------- Горизонтальная лента на планшетах/телефонах ---------- */
+@media (max-width: 1024px) {
+  .zune-sidebar {
+    position: static;
+    width: 100%;
+    flex: none;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--zune-divider);
+  }
+  .zune-sidebar-list {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+  .zune-sidebar-item {
+    height: 52px;
+    font-size: 17px;
+    white-space: nowrap;
+  }
+  .zune-sidebar-item:hover {
+    transform: none;
+  }
+  .zune-sidebar-item[data-active="true"]::after {
+    left: 12px;
+    right: 12px;
+  }
 }

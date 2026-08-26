@@ -1,67 +1,58 @@
 /* ============================================================
-   ZUNE THEME — CSS-переменные (цвета, шрифты, отступы, overscan)
+   ZUNE THEME — CSS-переменные (точные значения по спецификации)
    ============================================================ */
 
+/* Шрифт: Segoe UI системный в Windows («Segoe UI Historic», «Zegoe» —
+   локальные). Веб-импорт Segoe невозможен (не распространяется через
+   Google Fonts), поэтому стек деградирует в system-ui на других ОС:
+   @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600');
+   ↑ при желании раскомментировать как метрически близкий fallback */
+
 .zune-theme {
-  /* ---------- Палитра Windows Phone / Zune ---------- */
-  --zune-bg: #000000;               /* чёрный холст WP              */
-  --zune-bg-raised: #17171a;        /* плитки, карточки             */
-  --zune-bg-hover: #222226;
+  /* ---------- Цвета (спецификация, п.13) ---------- */
+  --zune-bg: #0a0a0a;                          /* глубокий чёрный           */
+  --zune-surface: #1a1a1a;                     /* плитки/карточки           */
   --zune-text: #ffffff;
-  --zune-text-dim: rgba(255, 255, 255, 0.6);
-  --zune-accent: #ff00ff;           /* маджента (акцент по ТЗ)      */
-  --zune-accent-alt: #ff6600;       /* zune orange                  */
-  --zune-line: rgba(255, 255, 255, 0.85);
+  --zune-text-secondary: rgba(255, 255, 255, 0.5);
+  --zune-text-faint: rgba(255, 255, 255, 0.4);
+  --zune-text-ghost: rgba(255, 255, 255, 0.3);
+  --zune-accent: #ff00ff;                      /* маджента                  */
+  --zune-link: #00bfff;                        /* голубой WP для ссылок     */
+  --zune-divider: rgba(255, 255, 255, 0.05);
+  --zune-border: rgba(255, 255, 255, 0.1);
+  --zune-error: #ff0000;
 
-  /* ---------- OVERSCAN / BLEED ---------- */
-  --zune-bleed-offset: -25%;        /* сдвиг заголовков за левый край */
-  --zune-button-bleed: -15px;       /* выступ кнопок навигации        */
-  --zune-parallax: 0px;             /* управляется из ZuneHeader      */
+  /* ---------- Иконки навигации (ФИКС БАГА: ТОЛЬКО белый!) ---------- */
+  --zune-icon-idle: rgba(255, 255, 255, 0.7);
+  --zune-icon-active: #ffffff;
 
-  /* ---------- Типографика (Segoe UI / Zegoe) ---------- */
-  --zune-font: "Segoe UI", "Zegoe UI", "Segoe UI Light", system-ui, sans-serif;
+  /* ---------- OVERSCAN / PANORAMA ---------- */
+  --zune-header-shift: -20%;                   /* сдвиг заголовка за край   */
+  --zune-parallax: 0px;
   --zune-giant-size: clamp(48px, 8vw, 64px);
 
   /* ---------- Геометрия ---------- */
-  --zune-nav-height: 64px;
-  --zune-nav-height-mobile: 56px;   /* удобный тач-таргет */
-  --zune-nav-pad-x: 56px;
-  --zune-content-pad-x: 20px;       /* поля плиток по краям экрана */
+  --zune-sidebar-w: 320px;
+  --zune-nav-item-h: 60px;
+  --zune-nav-font: 20px;
+  --zune-btn-h: 48px;
+  --zune-btn-pad-x: 32px;
+  --zune-content-pad-x: 24px;
 
-  /* ---------- Движение ---------- */
-  --zune-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  /* ---------- Motion: пружинящий Zune-"liquid" ---------- */
+  --zune-spring: cubic-bezier(0.68, -0.55, 0.27, 1.55);
+  --zune-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* ---------- «Бумажная» текстура (почти незаметная) ---------- */
-  --zune-paper:
-    repeating-linear-gradient(
-      115deg,
-      rgba(255, 255, 255, 0.014) 0px,
-      rgba(255, 255, 255, 0.014) 1px,
-      transparent 1px,
-      transparent 3px
-    ),
-    repeating-linear-gradient(
-      65deg,
-      rgba(255, 255, 255, 0.01) 0px,
-      rgba(255, 255, 255, 0.01) 1px,
-      transparent 1px,
-      transparent 4px
-    );
-}
-
-/* ---------- Mobile-first усиление (<768px) ----------
-   Заголовки уходят на −35%, кнопки ≥56px, выступ сильнее. */
-@media (max-width: 768px) {
-  .zune-theme {
-    --zune-bleed-offset: -35%;
-    --zune-button-bleed: -22px;
-    --zune-nav-height: var(--zune-nav-height-mobile);
-    --zune-nav-pad-x: 44px;
-  }
+  /* ---------- Шрифт (п.12) ---------- */
+  --zune-font:
+    "Segoe UI", "Segoe UI Historic", "Zegoe", "Segoe UI Light", system-ui,
+    sans-serif;
+  --zune-icon-font: "Segoe Fluent Icons", "Segoe MDL2 Assets", "Segoe UI Symbol";
 }
 
 @media (prefers-reduced-motion: reduce) {
   .zune-theme {
     --zune-parallax: 0px !important;
+    --zune-spring: ease !important;
   }
 }

@@ -1,0 +1,149 @@
+/* ============================================================
+   ZUNE THEME — виджеты: Zune Music Player + плавающий переключатель
+   ============================================================ */
+
+/* ---------- ZUNE MUSIC PLAYER ---------- */
+.zune-player {
+  background: var(--zune-bg);
+  border: 1px solid var(--zune-border);
+  padding: 20px;
+  width: 100%;
+}
+
+.zune-player-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.zune-player-cover {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 220px;
+  margin: 14px auto;
+  background:
+    linear-gradient(135deg, #ff00ff 0%, #7a007a 45%, #0a0a0a 100%);
+  border: 1px solid var(--zune-border);
+}
+
+.zune-player-title {
+  font-size: 17px;
+  font-weight: 400;
+  color: var(--zune-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zune-player-artist {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5); /* исполнитель — серым */
+  margin-bottom: 12px;
+}
+
+/* Прогресс: белая линия, ползунок — маленький круг */
+.zune-progress {
+  position: relative;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.zune-progress-line {
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.25);
+  position: relative;
+}
+.zune-progress-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: #ffffff;
+}
+.zune-progress-thumb {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%; /* маленький круг */
+  background: #ffffff;
+  transform: translate(-50%, -50%);
+}
+
+.zune-player-times {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
+}
+
+/* Кнопки ◄ ►► ▶ символами */
+.zune-player-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.zune-player-btn {
+  min-width: 48px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 0;
+  color: var(--zune-text);
+  font-family: var(--zune-icon-font), var(--zune-font);
+  font-size: 16px;
+  cursor: pointer;
+  transition: filter 140ms ease, transform 160ms var(--zune-spring);
+}
+.zune-player-btn:hover {
+  filter: brightness(1.3);
+  border-color: #ffffff;
+}
+.zune-player-btn:active {
+  transform: scale(0.94);
+}
+.zune-player-btn--play {
+  flex: 1;
+  background: var(--zune-accent);
+  border-color: var(--zune-accent);
+  color: #ffffff;
+}
+
+/* ---------- Плавающий переключатель темы (когда Zune активна) ---------- */
+.zune-floating-toggle {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1200;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 20px;
+  background: rgba(10, 10, 10, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 0;
+  color: var(--zune-text);
+  font-family: var(--zune-font);
+  font-size: 14px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: border-color 0.2s ease, transform 200ms var(--zune-spring);
+}
+.zune-floating-toggle:hover {
+  border-color: #ffffff;
+  transform: translateX(-4px);
+}

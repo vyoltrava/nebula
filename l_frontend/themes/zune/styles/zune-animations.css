@@ -1,78 +1,76 @@
 /* ============================================================
-   ZUNE THEME — «живые» анимации Windows Phone / Zune
+   ZUNE THEME — анимации («liquid» feel, Motion as feedback)
    ============================================================ */
 
-/* Живая плитка: пост/плитка слегка увеличивается и смещается */
-.zune-theme article,
-.zune-theme [data-zune-tile],
-.zune-theme .zt-tile {
-  transition:
-    transform 220ms var(--zune-ease),
-    box-shadow 220ms var(--zune-ease),
-    background-color 160ms ease;
-}
-.zune-theme article:hover,
-.zune-theme [data-zune-tile]:hover {
-  transform: translateX(-3px) scale(1.02);
-  box-shadow: 6px 6px 0 0 rgba(255, 0, 255, 0.25); /* Metro-тень сдвигом */
-}
-.zune-theme .zt-tile:hover {
-  transform: scale(1.02);
+/* Пружинящая кривая по спецификации: cubic-bezier(0.68,-0.55,0.27,1.55) */
+.zune-theme .zune-btn,
+.zune-theme .zune-post,
+.zune-theme .zune-tile,
+.zune-theme .zune-modal {
+  transition-timing-function: var(--zune-spring);
 }
 
-/* Появление контента при загрузке секции */
-@keyframes zune-rise {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.zune-theme [data-zune-animate] {
-  animation: zune-rise 420ms var(--zune-ease) both;
-}
-
-/* Пульс «сейчас играет» в виджете плеера */
-@keyframes zune-pulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.35; }
-}
-.zune-theme .zt-playing-dot {
-  display: inline-block;
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  background: var(--zune-accent);
-  animation: zune-pulse 1.2s ease-in-out infinite;
-}
-
-/* Бегущая строка для длинных названий треков */
-@keyframes zune-marquee {
-  0%   { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-.zune-theme .zt-marquee {
-  overflow: hidden;
-  white-space: nowrap;
-}
-.zune-theme .zt-marquee > span {
-  display: inline-block;
-  padding-right: 32px;
-  animation: zune-marquee 9s linear infinite;
-}
-
-/* Параллакс-заголовок: плавный отклик без дёрганья */
-body.zune-theme .zt-giant {
-  will-change: transform;
-  backface-visibility: hidden;
-}
-
-/* Уважение к prefers-reduced-motion: гасим всё декоративное движение */
-@media (prefers-reduced-motion: reduce) {
-  .zune-theme article:hover,
-  .zune-theme [data-zune-tile]:hover,
-  .zune-theme .zt-tile:hover {
-    transform: none;
+/* Появление постов снизу при загрузке ленты */
+@keyframes zune-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
   }
-  .zune-theme [data-zune-animate],
-  .zune-theme .zt-playing-dot,
-  .zune-theme .zt-marquee > span {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.zune-anim-slide-up {
+  animation: zune-slide-up 460ms var(--zune-ease-out) both;
+  animation-delay: var(--zune-stagger, 0ms); /* каскад списка */
+}
+
+/* Горизонтальный слайд при переключении разделов */
+@keyframes zune-slide-in-right {
+  from { opacity: 0; transform: translateX(28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes zune-slide-in-left {
+  from { opacity: 0; transform: translateX(-28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.zune-anim-slide-left  { animation: zune-slide-in-left 380ms var(--zune-spring) both; }
+.zune-anim-slide-right { animation: zune-slide-in-right 380ms var(--zune-spring) both; }
+
+/* «Живая плитка»: пульсация маджентовой обводки аватара раз в 3с */
+@keyframes zune-avatar-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 0, 255, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(255, 0, 255, 0);
+  }
+}
+.zune-avatar-pulse {
+  animation: zune-avatar-pulse 3s ease-in-out infinite;
+}
+
+/* Наведение на плитку: scale(1.02) + белая тень БЕЗ размытия */
+.zune-hoverable {
+  transition: transform 260ms var(--zune-spring),
+    box-shadow 260ms var(--zune-ease-out);
+}
+.zune-hoverable:hover {
+  transform: scale(1.02);
+  box-shadow: -8px 8px 0 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Уважение к prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .zune-anim-slide-up,
+  .zune-anim-slide-left,
+  .zune-anim-slide-right,
+  .zune-avatar-pulse {
     animation: none;
+  }
+  .zune-hoverable:hover {
+    transform: none;
+    box-shadow: none;
   }
 }

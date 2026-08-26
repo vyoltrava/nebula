@@ -1,67 +1,89 @@
 "use client";
 
 /**
- * Боковое меню в стиле стартового экрана Windows Phone:
- * цветные плитки «иконка + текст». Активный раздел подсвечивается
- * белой рамкой снизу (аналог activeRoute; в Next.js путь даёт usePathname).
+ * Сайдбар в стиле Windows Phone Hub — Zune-версия навигации.
+ *
+ * ★ ФИКС БАГА С ИКОНКАМИ ★
+ * Иконки — символы Segoe MDL2 (Unicode) БЕЛОГО цвета:
+ *   неактивные rgba(255,255,255,0.7), активные #FFFFFF.
+ * Никаких #FF00FF/#FF1493/pink/magenta/red на иконках нет
+ * (проверяется в zune-navigation.css).
+ *
+ * Активный пункт подсвечивается белой линией снизу.
  */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
 
 export interface ZuneNavItem {
   href: string;
   label: string;
-  icon?: LucideIcon;
-  /** Цвет плитки; по умолчанию чередуются акценты Zune */
-  color?: string;
+  /** Unicode-символ Segoe MDL2 Assets, например "\uE80F" (Home) */
+  glyph?: string;
 }
 
-const DEFAULT_COLORS = ["#ff00ff", "#ff6600", "#00aba9", "#a4c400", "#e51400"];
+/* Стандартные глифы Segoe MDL2 */
+export const MDL2 = {
+  home: "\uE80F",
+  message: "\uE8BD",
+  contact: "\uE77B",
+  favoriteStar: "\uE734",
+  settings: "\uE713",
+  mail: "\uE715",
+  play: "\uE768",
+} as const;
 
-function tileColor(items: ZuneNavItem[], index: number): string {
-  if (items[index]?.color) return items[index].color as string;
-  return DEFAULT_COLORS[index % DEFAULT_COLORS.length];
-}
+const DEFAULT_ITEMS: ZuneNavItem[] = [
+  { href: "/", label: "ЛЕНТА", glyph: MDL2.home },
+  { href: "/messages", label: "СООБЩЕНИЯ", glyph: MDL2.message },
+  { href: "/suggestions", label: "ДРУЗЬЯ", glyph: MDL2.contact },
+  { href: "/bookmarks", label: "ЗАКЛАДКИ", glyph: MDL2.favoriteStar },
+  { href: "/settings", label: "НАСТРОЙКИ", glyph: MDL2.settings },
+];
 
 interface ZuneSidebarProps {
-  items: ZuneNavItem[];
-  /** Заголовок над плитками */
+  items?: ZuneNavItem[];
   title?: string;
-  className?: string;
+  /** Дополнительный контент внизу сайдбара (например, плеер) */
+  footer?: React.ReactNode;
 }
 
-export function ZuneSidebar({ items, title = "МЕНЮ", className }: ZuneSidebarProps) {
+export function ZuneSidebar({
+  items = DEFAULT_ITEMS,
+  title = "МЕНЮ",
+  footer,
+}: ZuneSidebarProps) {
   const pathname = usePathname();
 
   const isActive = (href: string) =>
-    pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
-    <nav className={`zt-sidebar ${className ?? ""}`} aria-label="Разделы Zune">
-      <h2 className="zt-giant" style={{ position: "static" }}>
-        {title}
-      </h2>
-      <div className="zt-tiles">
-        {items.map((item, i) => {
-          const Icon = item.icon;
+    <aside className="zune-sidebar">
+      <div className="zune-sidebar-title">{title}</div>
+      <nav className="zune-sidebar-list" aria-label="Основная навигация">
+        {items.map((item) => {
           const active = isActive(item.href);
           return (
             <Link
               key={item.href}
               href={item.href}
-              className="zt-tile"
+              className="zune-sidebar-item"
               data-active={active}
               aria-current={active ? "page" : undefined}
-              style={{ backgroundColor: tileColor(items, i) }}
             >
-              {Icon ? <Icon size={20} aria-hidden /> : null}
+              <span
+                className={`zune-sidebar-icon${active ? " active" : ""}`}
+                aria-hidden="true"
+              >
+                {item.glyph ?? "\uE80F"}
+              </span>
               <span>{item.label}</span>
             </Link>
           );
         })}
-      </div>
-    </nav>
+      </nav>
+      {footer ? <div style={{ marginTop: "auto" }}>{footer}</div> : null}
+    </aside>
   );
 }

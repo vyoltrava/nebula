@@ -1,55 +1,57 @@
 "use client";
 
 /**
- * Шапка Zune: гигантский заголовок, уходящий за левый край экрана
- * (--zune-bleed-offset), с параллаксом при скролле.
+ * Хедер в стиле Panorama: гигантский заголовок уходит за левый край
+ * экрана (translateX(-20%), opacity .9), под ним подзаголовок
+ * (количество постов/уведомлений). Sticky top:0 z-index:100.
  *
- * position: sticky + transform: translateX(): sticky прижимает заголовок
- * к верху, а смещение складывается из двух переменных:
- *   --zune-bleed-offset  — статический сдвиг за край (CSS, по ТЗ −25%);
- *   --zune-parallax      — динамический сдвиг при прокрутке (пишется здесь).
- *
- * Если передан scrollRef — слушаем внутренний контейнер,
- * иначе — скролл окна (типичный режим ленты соцсети).
+ * При скролле заголовок плавно уменьшается: обработчик переключает
+ * data-scrolled, а переход делают CSS transition на font-size/transform
+ * (см. zune-layout.css).
  */
 
 import { useEffect, useRef } from "react";
 
 interface ZuneHeaderProps {
   title: string;
-  /** Акцентная часть слова, красится маджентой */
-  accent?: string;
-  /** Скроллящийся контейнер; если не задан — используется window */
+  /** Подзаголовок: количество постов / уведомлений и т.п. */
+  subtitle?: string;
+  /** Скроллящийся контейнер; по умолчанию — окно */
   scrollRef?: React.RefObject<HTMLElement | null>;
+  /** Порог срабатывания «сжатия», px */
+  shrinkAfter?: number;
 }
 
-const MAX_PARALLAX = 14; // px
-
-export function ZuneHeader({ title, accent, scrollRef }: ZuneHeaderProps) {
-  const nodeRef = useRef<HTMLHeadingElement | null>(null);
+export function ZuneHeader({
+  title,
+  subtitle,
+  scrollRef,
+  shrinkAfter = 48,
+}: ZuneHeaderProps) {
+  const nodeRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const node = nodeRef.current;
     if (!node) return undefined;
 
     let rafId = 0;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-    const computeShift = (): number => {
+    const apply = () => {
+      rafId = 0;
       const top =
         scrollRef && scrollRef.current
           ? scrollRef.current.scrollTop
           : window.scrollY || document.documentElement.scrollTop || 0;
-      return Math.min(MAX_PARALLAX, Math.abs(top) * 0.055);
-    };
 
-    const apply = () => {
-      rafId = 0;
-      if (reduced.matches) {
-        node.style.setProperty("--zune-parallax", "0px");
-        return;
+      /* 1) сжатие заголовка после порога */
+      node.dataset.scrolled = top > shrinkAfter ? "true" : "false";
+
+      /* 2) лёгкий параллакс-сдвиг (до 12px) */
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+      if (!reduced.matches) {
+        const shift = Math.min(12, Math.abs(top) * 0.05);
+        node.style.setProperty("--zune-parallax", `${shift.toFixed(1)}px`);
       }
-      node.style.setProperty("--zune-parallax", `${computeShift().toFixed(1)}px`);
     };
 
     const onScroll = () => {
@@ -64,12 +66,14 @@ export function ZuneHeader({ title, accent, scrollRef }: ZuneHeaderProps) {
       target.removeEventListener("scroll", onScroll);
       if (rafId) window.cancelAnimationFrame(rafId);
     };
-  }, [scrollRef]);
+  }, [scrollRef, shrinkAfter]);
 
   return (
-    <h1 ref={nodeRef} className="zt-giant" aria-label={title}>
-      {title}
-      {accent ? <em>&nbsp;{accent}</em> : null}
-    </h1>
+    <header ref={nodeRef} className="zune-panorama">
+      <h1 className="zune-panorama-title" aria-label={title}>
+        {title}
+      </h1>
+      {subtitle ? <p className="zune-panorama-subtitle">{subtitle}</p> : null}
+    </header>
   );
 }

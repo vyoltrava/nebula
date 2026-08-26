@@ -1,186 +1,182 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
+  MDL2,
+  ZuneButton,
+  ZuneFeedWrapper,
   ZuneHeader,
+  ZuneInput,
+  ZuneModal,
   ZuneMusicPlayer,
   ZuneNavigation,
+  ZuneProfile,
+  ZuneSidebar,
+  type ZuneNavItem,
+  type ZunePostData,
 } from "@/themes/zune";
+import { useZuneTheme } from "@/themes/zune/hooks/useZuneTheme";
 
 /* ============================================================
-   ZUNE PHONE DESIGN SYSTEM — демо-экран «Overscan / Bleed»
-   /zune — изолированная тема, стили основного приложения
-   не затрагиваются (всё внутри .zune-theme).
+   ZUNE THEME — витрина (/zune).
+   Показывает все Zune-компоненты. Стандартные файлы не тронуты:
+   страница — новый маршрут, подключённый через themes/zune.
    ============================================================ */
 
-type SectionId = "playlists" | "albums" | "artists";
-
-interface Track {
-  id: number;
-  title: string;
-  meta: string;
-  duration: string;
-}
-
-const SECTIONS: { id: SectionId; title: string; accent: string }[] = [
-  { id: "playlists", title: "PLAY", accent: "LISTS" },
-  { id: "albums", title: "AL", accent: "BUMS" },
-  { id: "artists", title: "ART", accent: "ISTS" },
+const NAV_ITEMS: ZuneNavItem[] = [
+  { href: "/zune", label: "ЛЕНТА", glyph: MDL2.home },
+  { href: "/messages", label: "СООБЩЕНИЯ", glyph: MDL2.message },
+  { href: "/suggestions", label: "ДРУЗЬЯ", glyph: MDL2.contact },
+  { href: "/settings", label: "НАСТРОЙКИ", glyph: MDL2.settings },
 ];
 
-const LIBRARY: Record<SectionId, Track[]> = {
-  playlists: [
-    { id: 1, title: "Zune Origins — Mixtape", meta: "24 трека", duration: "1:42" },
-    { id: 2, title: "Metro Night Drive", meta: "18 треков", duration: "3:07" },
-    { id: 3, title: "Squircle & Squares", meta: "12 треков", duration: "4:15" },
-    { id: 4, title: "Pink & Orange", meta: "31 трек", duration: "0:58" },
-    { id: 5, title: "Segoe Dreams", meta: "9 треков", duration: "5:23" },
-    { id: 6, title: "Overscan Anthems", meta: "16 треков", duration: "2:46" },
-    { id: 7, title: "HD Radio Sessions", meta: "21 трек", duration: "3:33" },
-    { id: 8, title: "Butterfly Effect", meta: "14 треков", duration: "4:02" },
-  ],
-  albums: [
-    { id: 1, title: "Songs for the Metro", meta: "Kinect Orchestra", duration: "3:41" },
-    { id: 2, title: "Tile by Tile", meta: "Live Tiles", duration: "2:59" },
-    { id: 3, title: "Magenta Static", meta: "Zune HD", duration: "4:18" },
-    { id: 4, title: "Brown Bag Special", meta: "Original Firmware", duration: "3:05" },
-    { id: 5, title: "Scroll Parallax", meta: "Sticky Headers", duration: "2:27" },
-    { id: 6, title: "Bleed the Edge", meta: "Overscan Collective", duration: "5:01" },
-  ],
-  artists: [
-    { id: 1, title: "The Pins & Needles", meta: "7 альбомов", duration: "—" },
-    { id: 2, title: "Marquee Type", meta: "3 альбома", duration: "—" },
-    { id: 3, title: "Flat Squares", meta: "12 альбомов", duration: "—" },
-    { id: 4, title: "Chromium Bloom", meta: "5 альбомов", duration: "—" },
-    { id: 5, title: "Vector Youth", meta: "9 альбомов", duration: "—" },
-  ],
+const POSTS: ZunePostData[] = [
+  {
+    id: 1,
+    author: { name: "Metro Fan", avatarUrl: null },
+    createdAt: "2 ч назад",
+    text: "Content before chrome. Никаких теней — только типографика и воздух. Плитки живые, обводка пульсирует раз в 3 секунды.",
+    likes: 42,
+    comments: 7,
+    liked: false,
+  },
+  {
+    id: 2,
+    author: { name: "Segoe UI", avatarUrl: null },
+    createdAt: "5 ч назад",
+    text: "Заголовок раздела уходит за левый край экрана на −20% и плавно уменьшается при скролле. Это Panorama, детка.",
+    likes: 128,
+    comments: 24,
+    liked: true,
+  },
+  {
+    id: 3,
+    author: { name: "Zune HD", avatarUrl: null },
+    createdAt: "вчера",
+    text: "Пружинящая кривая cubic-bezier(0.68, -0.55, 0.27, 1.55) делает интерфейс жидким. Motion as feedback!",
+    likes: 77,
+    comments: 13,
+    liked: false,
+  },
+];
+
+const PROFILE = {
+  name: "Пользователь Zune",
+  handle: "@zune.fan",
+  bio: "Люблю плоский дизайн, мадженту и Segoe UI Light.",
 };
 
-const TOTAL_SECONDS = 214; // длительность «трека» для прогресс-ленты
-
-function formatTime(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60);
-  const s = Math.floor(totalSeconds % 60);
-  return `${m}:${String(s).padStart(2, "0")}`;
+function fmtTotal(posts: ZunePostData[]): string {
+  const likes = posts.reduce((acc, p) => acc + (p.likes ?? 0), 0);
+  return `${posts.length} постов · ${likes} отметок «нравится»`;
 }
 
-export default function ZunePage() {
-  const [section, setSection] = useState<SectionId>("playlists");
-  const [activeTrack, setActiveTrack] = useState(1);
+export default function ZuneDemoPage() {
+  const [posts, setPosts] = useState<ZunePostData[]>(POSTS);
+  const [modalOpen, setModalOpen] = useState(false);
   const [playing, setPlaying] = useState(false);
-  const [progress, setProgress] = useState(35);
-  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const { isZuneTheme } = useZuneTheme();
 
-  const active = useMemo(
-    () => SECTIONS.find((s) => s.id === section) ?? SECTIONS[0],
-    [section]
-  );
-  const tracks = LIBRARY[section];
+  const subtitle = useMemo(() => fmtTotal(posts), [posts]);
 
-  /* «Проигрывание»: лента прогресса ползёт сама */
-  useEffect(() => {
-    if (!playing) return undefined;
-    const timer = window.setInterval(() => {
-      setProgress((p) => (p >= 100 ? 0 : p + 100 / TOTAL_SECONDS));
-    }, 500);
-    return () => window.clearInterval(timer);
-  }, [playing]);
-
-  const step = (dir: 1 | -1) => {
-    const idx = SECTIONS.findIndex((s) => s.id === section);
-    const next = SECTIONS[(idx + dir + SECTIONS.length) % SECTIONS.length];
-    setSection(next.id);
-    if (scrollerRef.current) scrollerRef.current.scrollTop = 0;
-  };
+  const like = (id: ZunePostData["id"]) =>
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, liked: !p.liked, likes: (p.likes ?? 0) + (p.liked ? -1 : 1) }
+          : p
+      )
+    );
 
   return (
-    <div className="zune-theme">
-      {/* Скроллящаяся область: sticky-гигант + контент */}
-      <div className="zt-scroll" ref={scrollerRef}>
-        <ZuneHeader title={active.title} accent={active.accent} scrollRef={scrollerRef} />
-
-        {/* Переключатель разделов */}
-        <div className="zt-tabs" role="tablist" aria-label="Разделы библиотеки">
-          {SECTIONS.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              role="tab"
-              aria-selected={s.id === section}
-              data-active={s.id === section}
-              className="zt-tab"
-              onClick={() => {
-                setSection(s.id);
-                if (scrollerRef.current) scrollerRef.current.scrollTop = 0;
-              }}
-            >
-              {s.title}
-              {s.accent}
-            </button>
-          ))}
-        </div>
-
-        {/* Список: вся ширина + воздух справа (--zune-content-pad-right) */}
-        <section className="zt-section" aria-label="Список раздела">
-          {tracks.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className="zt-track"
-              data-active={t.id === activeTrack}
-              onClick={() => {
-                setActiveTrack(t.id);
-                setPlaying(true);
-                setProgress(0);
-              }}
-            >
-              <span className="zt-track-num">{String(t.id).padStart(2, "0")}</span>
-              <span>
-                <span className="zt-track-title">{t.title}</span>
-                <br />
-                <span className="zt-track-meta">{t.meta}</span>
-              </span>
-              <span className="zt-track-meta">
-                {playing && t.id === activeTrack ? "▶" : t.duration}
-              </span>
-            </button>
-          ))}
-        </section>
-
-        {/* 🎵 Декоративный виджет «сейчас играет» (Zune HD) */}
-        <div style={{ padding: "0 var(--zune-content-pad-x)" }}>
-          <ZuneMusicPlayer />
-        </div>
-
-        <div className="zt-spacer" />
-      </div>
-
-      {/* Ползунок-«бесконечная лента»: дорожка от левого края экрана */}
-      <div className="zt-ribbon">
-        <input
-          type="range"
-          className="zt-range"
-          min={0}
-          max={100}
-          step={0.5}
-          value={progress}
-          aria-label="Прогресс трека"
-          onChange={(e) => setProgress(Number(e.target.value))}
-          style={{ "--zune-fill": `${progress}%` } as React.CSSProperties}
-        />
-        <div className="zt-range-labels">
-          <span>{formatTime((progress / 100) * TOTAL_SECONDS)}</span>
-          <span>{formatTime(TOTAL_SECONDS)}</span>
-        </div>
-      </div>
-
-      {/* Кнопки-бесконечность */}
-      <ZuneNavigation
-        onBack={() => step(-1)}
-        onPlay={() => setPlaying((v) => !v)}
-        onNext={() => step(1)}
-        playing={playing}
+    <div className="zune-layout">
+      {/* ─── САЙДБАР: белый Hub + плеер в подвале ─── */}
+      <ZuneSidebar
+        items={NAV_ITEMS}
+        title="ZUNE"
+        footer={<ZuneMusicPlayer />}
       />
+
+      {/* ─── КОНТЕНТ ─── */}
+      <main className="zune-main">
+        <div className="zune-content">
+          <ZuneHeader title="ЛЕНТА" subtitle={subtitle} />
+
+          {/* Плитки-посты: каскадный slide-up + разделители */}
+          <ZuneFeedWrapper posts={posts} toZune={(p) => p} onLike={like} />
+
+          <hr className="zune-feed-sep" style={{ margin: "28px 0" }} />
+
+          {/* ─── КНОПКИ И ИНПУТЫ ─── */}
+          <section aria-label="Элементы управления">
+            <h2 className="zune-modal-title" style={{ fontSize: 32 }}>
+              ЭЛЕМЕНТЫ
+            </h2>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 20 }}>
+              <ZuneButton variant="primary">Маджента</ZuneButton>
+              <ZuneButton variant="secondary">Обводка</ZuneButton>
+              <ZuneButton variant="ghost">Только текст</ZuneButton>
+            </div>
+            <div style={{ display: "grid", gap: 16, maxWidth: 420 }}>
+              <ZuneInput placeholder="Ваше имя" />
+              <ZuneInput type="search" placeholder="Поиск в ленте" />
+            </div>
+          </section>
+
+          <hr className="zune-feed-sep" style={{ margin: "28px 0" }} />
+
+          {/* ─── ПРОФИЛЬ ─── */}
+          <section aria-label="Профиль" style={{ marginTop: 8 }}>
+            <ZuneProfile
+              name={PROFILE.name}
+              handle={PROFILE.handle}
+              bio={PROFILE.bio}
+              avatarUrl={null}
+              stats={{ posts: 128, followers: 1024, following: 96 }}
+            />
+          </section>
+
+          {/* ─── КНОПКИ-ВЫСТУПЫ ─── */}
+          <div style={{ marginTop: 32 }}>
+            <ZuneNavigation onPlay={() => setPlaying((v) => !v)} playing={playing} />
+          </div>
+
+          <p className="zune-post-date" style={{ marginTop: 24 }}>
+            Тема: {isZuneTheme ? "Zune Windows Phone" : "стандартная"} ·
+            выключить — плавающей кнопкой справа снизу.
+          </p>
+        </div>
+      </main>
+
+      {/* ─── МОДАЛКА ─── */}
+      <ZuneModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="О ТЕМЕ"
+      >
+        <p className="zune-post-text">
+          Windows Phone / Zune: типографика Segoe UI, плитки Metro,
+          overscan-заголовки, маджента #FF00FF и пружинящие анимации.
+          Стандартные файлы проекта не изменены — вся тема живёт
+          в themes/zune.
+        </p>
+        <div style={{ marginTop: 24 }}>
+          <ZuneButton variant="primary" onClick={() => setModalOpen(false)}>
+            Понятно
+          </ZuneButton>
+        </div>
+      </ZuneModal>
+
+      {/* Кнопка открытия модалки — плавающая слева снизу */}
+      <button
+        type="button"
+        onClick={() => setModalOpen(true)}
+        className="zune-floating-toggle"
+        style={{ left: 16, right: "auto" }}
+        aria-label="О теме"
+      >
+        О теме
+      </button>
     </div>
   );
 }

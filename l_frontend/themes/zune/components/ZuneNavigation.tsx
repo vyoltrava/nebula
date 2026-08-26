@@ -1,9 +1,8 @@
 "use client";
 
 /**
- * Кнопки-выступы Zune: «Назад / Воспроизвести / Далее»,
- * уходят за края экрана (--zune-button-bleed), остаются кликабельными.
- * Стили — themes/zune/styles/zune-navigation.css.
+ * Кнопки-выступы Zune HD: «Назад / Воспроизвести / Далее».
+ * Боковые уходят за края экрана и остаются кликабельными.
  */
 
 interface ZuneNavigationProps {
@@ -11,7 +10,6 @@ interface ZuneNavigationProps {
   onPlay?: () => void;
   onNext?: () => void;
   playing?: boolean;
-  disabled?: boolean;
   backLabel?: string;
   playLabel?: string;
   pauseLabel?: string;
@@ -23,7 +21,6 @@ export function ZuneNavigation({
   onPlay,
   onNext,
   playing = false,
-  disabled = false,
   backLabel = "Назад",
   playLabel = "Воспроизвести",
   pauseLabel = "Пауза",
@@ -35,9 +32,8 @@ export function ZuneNavigation({
         type="button"
         className="zt-nav-btn zt-nav-btn--bleed-left"
         onClick={onBack}
-        disabled={disabled}
       >
-        <span className="zt-nav-glyph" aria-hidden="true">◄</span> {backLabel}
+        <span className="zt-nav-glyph" aria-hidden>◄</span> {backLabel}
       </button>
 
       <button
@@ -45,9 +41,8 @@ export function ZuneNavigation({
         className="zt-nav-btn zt-nav-btn--center"
         onClick={onPlay}
         aria-pressed={playing}
-        disabled={disabled}
       >
-        <span className="zt-nav-glyph" aria-hidden="true">{playing ? "❚❚" : "▶"}</span>{" "}
+        <span className="zt-nav-glyph" aria-hidden>{playing ? "❚❚" : "▶"}</span>{" "}
         {playing ? pauseLabel : playLabel}
       </button>
 
@@ -55,9 +50,8 @@ export function ZuneNavigation({
         type="button"
         className="zt-nav-btn zt-nav-btn--bleed-right"
         onClick={onNext}
-        disabled={disabled}
       >
-        {nextLabel} <span className="zt-nav-glyph" aria-hidden="true">►</span>
+        {nextLabel} <span className="zt-nav-glyph" aria-hidden>►</span>
       </button>
     </nav>
   );

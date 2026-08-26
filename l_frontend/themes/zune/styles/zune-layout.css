@@ -1,0 +1,81 @@
+/* ============================================================
+   ZUNE THEME — каркас: сайдбар + контент + PANORAMA-хедер
+   ============================================================ */
+
+.zune-layout {
+  display: flex;
+  min-height: 100dvh;
+  background: var(--zune-bg);
+}
+
+.zune-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-bottom: 96px;
+}
+
+.zune-content {
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+  padding: 0 var(--zune-content-pad-x);
+}
+
+/* ============================================================
+   PANORAMA-ХЕДЕР: гигантский заголовок уходит за левый край,
+   sticky сверху, при скролле плавно «сжимается»
+   ============================================================ */
+.zune-panorama {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 34px 0 18px;
+  background: linear-gradient(
+    180deg,
+    var(--zune-bg) 0%,
+    rgba(10, 10, 10, 0.92) 70%,
+    rgba(10, 10, 10, 0) 100%
+  );
+}
+
+.zune-panorama-title {
+  margin: 0;
+  font-size: var(--zune-giant-size);
+  line-height: 1;
+  font-weight: 300;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--zune-text);
+  opacity: 0.9;
+  pointer-events: none;
+  /* overscan: сдвиг влево за край экрана + параллакс скролла */
+  transform: translateX(calc(var(--zune-header-shift) + var(--zune-parallax)));
+  will-change: transform, font-size;
+  transition: font-size 320ms var(--zune-ease-out),
+    transform 320ms var(--zune-ease-out), opacity 320ms ease;
+}
+
+/* При скролле заголовок плавно уменьшается */
+.zune-panorama[data-scrolled="true"] .zune-panorama-title {
+  font-size: clamp(30px, 5vw, 40px);
+  transform: translateX(calc(-6% + var(--zune-parallax)));
+  opacity: 0.95;
+}
+
+.zune-panorama-subtitle {
+  margin: 10px 0 0;
+  padding-left: calc(var(--zune-content-pad-x));
+  font-size: 14px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* ---------- Мобильный каркас ---------- */
+@media (max-width: 1024px) {
+  .zune-layout {
+    flex-direction: column;
+  }
+  .zune-content {
+    padding: 0 16px;
+  }
+}

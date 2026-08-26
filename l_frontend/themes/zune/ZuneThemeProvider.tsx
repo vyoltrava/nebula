@@ -3,14 +3,18 @@
 /**
  * Провайдер темы «ZUNE PHONE DESIGN SYSTEM».
  *
- * По ТЗ класс-обёртка .zune-theme ставится на <body>.
- * Весь CSS темы скоупится этим классом, поэтому:
- *  - включили → интерфейс полностью перекрашивается;
- *  - выключили → сайт ровно как был (ни одного остаточного стиля).
+ * Принцип (жёсткое правило №1): стандартные файлы не изменяются.
+ * Провайдер:
+ *  - ставит/снимает класс .zune-theme на <body> — весь CSS темы
+ *    скоупится этим классом;
+ *  - хранит выбор в localStorage ("zune-theme-preference");
+ *  - когда тема активна, показывает плавающий переключатель
+ *    (чтобы вернуться к стандартной теме можно было из любого места,
+ *     не трогая стандартные Настройки);
+ *  - синхронизируется между вкладками через storage-событие.
  *
- * Выбор сохраняется в localStorage ("theme-preference").
- * Мерцание при загрузке убирает блокирующий скрипт в layout,
- * который ставит класс до первой отрисовки.
+ * Мерцание при загрузке убирает блокирующий скрипт в layout.tsx
+ * (единственное разрешённое касание корневого файла).
  */
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -20,6 +24,7 @@ import {
   readZunePreference,
   type ZunePreference,
 } from "./hooks/useZuneTheme";
+import { ZuneThemeToggle } from "./components/ZuneThemeToggle";
 
 const THEME_CLASS = "zune-theme";
 
@@ -29,20 +34,19 @@ function applyBodyClass(pref: ZunePreference) {
 }
 
 export function ZuneThemeProvider({ children }: { children: ReactNode }) {
-  /* Ленивая инициализация: на клиенте сразу читаем localStorage.
-     Гидратация безопасна: провайдер не рендерит ничего от этого флага,
-     а потребители (AppearanceSettings) показывают выбор только после mount. */
-  const [preference, setPreferenceState] = useState<ZunePreference>(
-    () => readZunePreference()
+  /* Ленивая инициализация из localStorage (SSR → "standard").
+     Гидратация безопасна: сам провайдер не рендерит контент от флага,
+     кроме плавающего тумблера (он появляется только после mount). */
+  const [preference, setPreferenceState] = useState<ZunePreference>(() =>
+    readZunePreference()
   );
 
-  /* Держим DOM-класс согласованным (анти-FOUC скрипт из layout обычно
-     уже поставил его до первой отрисовки) + слушаем другие вкладки */
   useEffect(() => {
+    /* Гарантия согласованности DOM-класса с хранилищем */
     applyBodyClass(readZunePreference());
 
     const onStorage = (e: StorageEvent) => {
-      if (e.key !== ZUNE_STORAGE_KEY) return;
+      if (e.key !== ZUNE_STORAGE_KEY && e.key !== "theme-preference") return;
       const next: ZunePreference = e.newValue === "zune" ? "zune" : "standard";
       applyBodyClass(next);
       setPreferenceState(next);
@@ -55,20 +59,22 @@ export function ZuneThemeProvider({ children }: { children: ReactNode }) {
     setPreferenceState(pref);
     applyBodyClass(pref);
     try {
+      // пишем только в новый ключ; старый подчищаем
       window.localStorage.setItem(ZUNE_STORAGE_KEY, pref);
+      window.localStorage.removeItem("theme-preference");
     } catch {
       // приватный режим — тема применится хотя бы до перезагрузки
     }
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setPreference(preference === "zune" ? "standard" : "zune");
-  }, [preference, setPreference]);
+    setPreference(readZunePreference() === "zune" ? "standard" : "zune");
+  }, [setPreference]);
 
   const value = useMemo(
     () => ({
       preference,
-      zuneEnabled: preference === "zune",
+      isZuneTheme: preference === "zune",
       setPreference,
       toggleTheme,
     }),
@@ -78,6 +84,8 @@ export function ZuneThemeProvider({ children }: { children: ReactNode }) {
   return (
     <ZuneThemeContext.Provider value={value}>
       {children}
+      {/* Плавающая кнопка возврата к стандартной теме */}
+      {preference === "zune" ? <ZuneThemeToggle floating /> : null}
     </ZuneThemeContext.Provider>
   );
 }

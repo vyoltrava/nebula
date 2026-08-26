@@ -1,126 +1,299 @@
 /* ============================================================
-   ZUNE THEME — переопределение СУЩЕСТВУЮЩИХ компонентов соцсети.
-   Ничего не переписываем: только перекрываем цвета/формы,
-   пока активен класс .zune-theme на <body>.
+   ZUNE THEME — компоненты: посты-плитки, кнопки, инпуты
    ============================================================ */
 
-/* ---------- КНОПКИ: плоские, без теней, подчёркивание при наведении ---------- */
-.zune-theme button,
-.zune-theme [role="button"] {
-  font-family: var(--zune-font);
-  border-radius: 4px;
+/* ---------- ПОСТ = ПЛИТКА METRO ---------- */
+.zune-post {
+  background: var(--zune-surface); /* #1A1A1A */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0;
   box-shadow: none;
+  padding: 20px;
+  color: var(--zune-text);
 }
-.zune-theme button:hover {
+
+.zune-post-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Аватар: круглый, обводка маджента 2px (+ пульс см. animations) */
+.zune-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid var(--zune-accent);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.zune-user-name {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--zune-text);
+}
+
+.zune-post-date {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.zune-post-text {
+  margin: 14px 0 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--zune-text);
+  word-break: break-word;
+}
+
+.zune-post-media {
+  margin-top: 14px;
+  max-width: 100%;
+  border: 1px solid var(--zune-border);
+}
+
+/* Действия: плоские, текст + иконка слева, hover — подчёркивание */
+.zune-post-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.zune-post-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 12px;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-family: var(--zune-font);
+  font-size: 14px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.zune-post-action:hover {
+  color: #ffffff;
   text-decoration: underline;
   text-underline-offset: 4px;
-  text-decoration-thickness: 2px;
 }
-.zune-theme button:active {
-  transform: scale(0.97); /* «жидкое» нажатие */
-}
-/* Акцентные CTA (фирменный фиолетовый приложения) → маджента Zune.
-   Попадаем прямо в Tailwind-класс — специфичности хватает без !important. */
-.zune-theme [class*="bg-[#8b5cf6]"] {
-  background-color: var(--zune-accent);
-}
-.zune-theme [class*="hover:bg-[#7c3aed]"]:hover {
-  background-color: #d900d9;
-}
-.zune-theme [class*="text-[#8b5cf6]"] {
+.zune-post-action[data-active="true"] {
   color: var(--zune-accent);
 }
 
-/* ---------- ИНПУТЫ: без фона, только нижняя белая линия ---------- */
-.zune-theme input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
-.zune-theme textarea,
-.zune-theme select {
+/* Разделитель между постами */
+.zune-feed-sep {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 0;
+  margin: 16px 0;
+}
+
+/* ---------- КНОПКИ (Flat) ---------- */
+.zune-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: var(--zune-btn-h);
+  padding: 0 var(--zune-btn-pad-x);
+  border: 0;
+  border-radius: 0;
+  font-family: var(--zune-font);
+  font-size: 16px;
+  font-weight: 300;
+  cursor: pointer;
+  transition: filter 140ms ease, border-color 200ms ease,
+    transform 160ms var(--zune-spring);
+}
+.zune-btn:active {
+  transform: scale(0.97);
+}
+.zune-btn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.zune-btn--primary {
+  background: var(--zune-accent);
+  color: #ffffff;
+}
+.zune-btn--primary:hover {
+  filter: brightness(1.12);
+}
+.zune-btn--primary:active {
+  filter: brightness(0.72); /* затемнение вместо ripple */
+}
+
+.zune-btn--secondary {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+.zune-btn--secondary:hover {
+  border-color: #ffffff;
+}
+
+.zune-btn--block {
+  width: 100%;
+}
+
+/* ---------- ИНПУТЫ (Windows Phone style) ---------- */
+.zune-input-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.zune-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 2px;
   background: transparent;
   border: 0;
-  border-bottom: 2px solid rgba(255, 255, 255, 0.55);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
   border-radius: 0;
   color: var(--zune-text);
+  font-family: var(--zune-font);
+  font-size: 16px;
+  transition: border-color 0.2s ease;
 }
-.zune-theme input::placeholder,
-.zune-theme textarea::placeholder {
-  color: var(--zune-text-dim);
+.zune-input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 16px;
 }
-.zune-theme input:focus,
-.zune-theme textarea:focus,
-.zune-theme select:focus {
+.zune-input:focus {
   outline: none;
-  border-bottom-color: #ffffff;
+  border-bottom-color: var(--zune-accent); /* нижняя линия → маджента */
 }
 
-/* ---------- ПОСТЫ: плитки Metro с белой рамкой ----------
-   Посты приложения рендерятся как <article>; плюс опциональная
-   обёртка <ZunePost data-zune-tile>. */
-.zune-theme article,
-.zune-theme [data-zune-tile] {
-  background: var(--zune-bg-raised);
-  border: 1px solid var(--zune-line);
+textarea.zune-input {
+  min-height: 96px;
+  resize: vertical;
+}
+
+/* Поле поиска: иконка лупы внутри слева, без обводки */
+.zune-input-wrap.has-icon .zune-input {
+  padding-left: 36px;
+}
+.zune-input-icon {
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--zune-icon-font);
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+
+/* ---------- КНОПКИ-ВЫСТУПЫ (Zune HD) ----------
+   Боковые кнопки уходят за края экрана, оставаясь кликабельными. */
+.zune-theme {
+  --zune-button-bleed: -15px;
+  --zune-nav-pad-x: 56px;
+}
+@media (max-width: 768px) {
+  .zune-theme {
+    --zune-button-bleed: -22px;
+    --zune-nav-pad-x: 44px;
+  }
+}
+
+.zt-nav {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 0;
+}
+.zt-nav-btn {
+  min-height: var(--zune-btn-h);
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  border: 0;
   border-radius: 0;
-  color: var(--zune-text);
-  padding: 16px var(--zune-content-pad-x);
+  cursor: pointer;
+  color: #ffffff;
+  font-family: var(--zune-font);
+  font-size: 17px;
+  font-weight: 300;
+  white-space: nowrap;
+  transition: filter 140ms ease, transform 200ms var(--zune-spring);
 }
-/* Плитки на всю ширину, но с полями по краям (как в WP) */
-.zune-theme main article,
-.zune-theme [data-zune-feed] > article {
-  width: 100%;
-  margin-inline: auto;
+.zt-nav-btn:hover { filter: brightness(1.15); }
+.zt-nav-btn--bleed-left {
+  margin-right: auto;
+  padding: 0 var(--zune-nav-pad-x);
+  background: var(--zune-accent-alt, #ff6600);
+  transform: translateX(var(--zune-button-bleed));
 }
-
-/* ---------- АВАТАРКИ: обводка в стиле Zune (маджента) ----------
-   В проекте аватар — div.relative.shrink-0 > div.rounded-xl.
-   Селектор через :has() не требует правок самого компонента. */
-.zune-theme div.relative.shrink-0.inline-block:has(> .rounded-xl.overflow-hidden)
-  > .rounded-xl {
-  border-radius: 12px;
-  box-shadow:
-    0 0 0 2px var(--zune-accent),
-    0 0 12px rgba(255, 0, 255, 0.35);
+.zt-nav-btn--center {
+  min-width: 96px;
+  justify-content: center;
+  padding: 0 28px;
+  background: #ffffff;
+  color: #0a0a0a;
+  text-transform: uppercase;
 }
-
-/* ---------- Ссылки: белые, подчёркивание при наведении ---------- */
-.zune-theme a {
-  color: inherit;
+.zt-nav-btn--bleed-right {
+  margin-left: auto;
+  padding: 0 var(--zune-nav-pad-x);
+  background: var(--zune-accent);
+  transform: translateX(calc(-1 * var(--zune-button-bleed)));
 }
-
-/* ---------- ВИДЖЕТ «СЕЙЧАС ИГРАЕТ» (ZuneMusicPlayer) ---------- */
-.zt-player {
-  display: block;
+.zt-nav-glyph {
+  font-family: var(--zune-icon-font), var(--zune-font);
+  font-size: 20px;
+  line-height: 1;
 }
-.zt-player > header {
+/* Нативный switch Windows Phone: круглый ползунок */
+.zune-toggle-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--zune-text-dim);
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  cursor: pointer;
+  margin-top: 12px;
 }
-.zt-player .zt-marquee {
-  margin: 10px 0 6px;
+.zune-toggle-label {
   font-size: 15px;
-  font-weight: 400;
   color: var(--zune-text);
 }
-.zune-theme .zt-range-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: var(--zune-text-dim);
-  font-variant-numeric: tabular-nums;
-}
-.zt-player .zt-nav {
-  justify-content: space-between;
-}
-.zt-player .zt-nav-btn {
-  min-height: 44px;
+.zune-switch {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  width: 56px;
+  height: 28px;
+  margin: 0;
   background: transparent;
   border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 4px;
-  padding: 0 14px;
-  font-size: 14px;
-  transform: none; /* внутри виджета кнопки не выступают за экран */
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+  flex-shrink: 0;
 }
+.zune-switch::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%; /* круглый ползунок на белом фоне */
+  background: #ffffff;
+  transform: translateY(-50%);
+  transition: left 0.25s var(--zune-spring);
+}
+.zune-switch:checked {
+  background: var(--zune-accent);
+  border-color: var(--zune-accent);
+}
+.zune-switch:checked::before {
+  left: calc(100% - 23px);
+}
+
