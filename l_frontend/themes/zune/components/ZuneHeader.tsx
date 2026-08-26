@@ -1,79 +1,50 @@
-"use client";
+﻿"use client";
 
 /**
- * Хедер в стиле Panorama: гигантский заголовок уходит за левый край
- * экрана (translateX(-20%), opacity .9), под ним подзаголовок
- * (количество постов/уведомлений). Sticky top:0 z-index:100.
+ * 🎯 Ш в стиле WP Panorama — Zune-версия.
  *
- * При скролле заголовок плавно уменьшается: обработчик переключает
- * data-scrolled, а переход делают CSS transition на font-size/transform
- * (см. zune-layout.css).
+ * ★ Overscan / Parallax ★
+ * игантский заголовок (48-64px) уходит за левый край экрана
+ * (transform: translateX(-25%)) и слегка смещается при скролле.
+ * иксированная (position: sticky), остаётся наверху.
  */
+import { useEffect, useState, useRef, type FC } from "react";
+import { useZuneTheme } from "../hooks/useZuneTheme";
 
-import { useEffect, useRef } from "react";
-
-interface ZuneHeaderProps {
+export interface ZuneHeaderProps {
   title: string;
-  /** Подзаголовок: количество постов / уведомлений и т.п. */
   subtitle?: string;
-  /** Скроллящийся контейнер; по умолчанию — окно */
-  scrollRef?: React.RefObject<HTMLElement | null>;
-  /** Порог срабатывания «сжатия», px */
-  shrinkAfter?: number;
+  actions?: React.ReactNode;
 }
 
-export function ZuneHeader({
-  title,
-  subtitle,
-  scrollRef,
-  shrinkAfter = 48,
-}: ZuneHeaderProps) {
-  const nodeRef = useRef<HTMLDivElement | null>(null);
+export const ZuneHeader: FC<ZuneHeaderProps> = ({ title, subtitle, actions }) => {
+  const { isZuneTheme } = useZuneTheme();
+  const [scrolled, setScrolled] = useState(false);
+  const scrollRaf = useRef<number | null>(null);
 
   useEffect(() => {
-    const node = nodeRef.current;
-    if (!node) return undefined;
-
-    let rafId = 0;
-
-    const apply = () => {
-      rafId = 0;
-      const top =
-        scrollRef && scrollRef.current
-          ? scrollRef.current.scrollTop
-          : window.scrollY || document.documentElement.scrollTop || 0;
-
-      /* 1) сжатие заголовка после порога */
-      node.dataset.scrolled = top > shrinkAfter ? "true" : "false";
-
-      /* 2) лёгкий параллакс-сдвиг (до 12px) */
-      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
-      if (!reduced.matches) {
-        const shift = Math.min(12, Math.abs(top) * 0.05);
-        node.style.setProperty("--zune-parallax", `${shift.toFixed(1)}px`);
-      }
-    };
-
+    if (!isZuneTheme) return;
     const onScroll = () => {
-      if (!rafId) rafId = window.requestAnimationFrame(apply);
+      if (scrollRaf.current) cancelAnimationFrame(scrollRaf.current);
+      scrollRaf.current = requestAnimationFrame(() => setScrolled(window.scrollY > 40));
     };
-
-    const target: HTMLElement | Window = scrollRef?.current ?? window;
-    target.addEventListener("scroll", onScroll, { passive: true });
-    apply();
-
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
-      target.removeEventListener("scroll", onScroll);
-      if (rafId) window.cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", onScroll);
+      if (scrollRaf.current) cancelAnimationFrame(scrollRaf.current);
     };
-  }, [scrollRef, shrinkAfter]);
+  }, [isZuneTheme]);
 
   return (
-    <header ref={nodeRef} className="zune-panorama">
-      <h1 className="zune-panorama-title" aria-label={title}>
-        {title}
-      </h1>
-      {subtitle ? <p className="zune-panorama-subtitle">{subtitle}</p> : null}
+    <header className="zune-header">
+      <div className="zune-header-content">
+        <h1 className="zune-title" data-scrolled={scrolled || undefined} aria-label={title}>
+          {title}
+        </h1>
+        {subtitle && <p className="zune-subtitle">{subtitle}</p>}
+      </div>
+      {actions && <div className="zune-header-actions">{actions}</div>}
     </header>
   );
-}
+};

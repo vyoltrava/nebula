@@ -1,47 +1,28 @@
-"use client";
+﻿"use client";
 
 /**
- * Инпут в стиле Windows Phone: без фона, только нижняя линия,
- * при фокусе линия становится маджентой. Для type="search"
- * автоматически добавляется иконка лупы (Segoe MDL2 \uE71E) слева.
+ * нпут в стиле Windows Phone — прозрачный, только нижняя линия.
+ * ри фокусе линия становится #FF00FF.
  */
+import type { InputHTMLAttributes, FC } from "react";
 
-import type { InputHTMLAttributes } from "react";
-import { useId } from "react";
-
-interface ZuneInputProps extends InputHTMLAttributes<HTMLInputElement> {
+export interface ZuneInputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
+  icon?: React.ReactNode;
 }
 
-export function ZuneInput({
+export const ZuneInput: FC<ZuneInputProps> = ({
   label,
-  className,
-  type = "text",
+  icon,
+  className = "",
   ...rest
-}: ZuneInputProps) {
-  const id = useId();
-  const withIcon = type === "search";
-
+}) => {
+  const inputCls = `zune-input ${className}`.trim();
   return (
-    <div className="space-y-1">
-      {label ? (
-        <label htmlFor={id} className="zune-post-date block">
-          {label}
-        </label>
-      ) : null}
-      <div className={`zune-input-wrap${withIcon ? " has-icon" : ""}`}>
-        {withIcon ? (
-          <span className="zune-input-icon" aria-hidden="true">
-            {"\uE71E"}
-          </span>
-        ) : null}
-        <input
-          id={id}
-          type={type}
-          className={`zune-input ${className ?? ""}`}
-          {...rest}
-        />
-      </div>
+        <div className="zune-input-wrap">
+      {icon && <span className="zune-input-icon">{icon}</span>}
+      <input className={inputCls} {...rest} />
+      {label && <label className="zune-input-label">{label}</label>}
     </div>
   );
-}
+};

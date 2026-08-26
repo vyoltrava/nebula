@@ -26,7 +26,7 @@ export interface ZunePostData {
   liked?: boolean;
 }
 
-interface ZunePostProps {
+export interface ZunePostProps {
   post: ZunePostData;
   onLike?: (id: ZunePostData["id"]) => void;
   onComment?: (id: ZunePostData["id"]) => void;

@@ -14,6 +14,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useI18n } from "@/lib/i18n/LanguageProvider";
+import { useMemo } from "react";
 
 export interface ZuneNavItem {
   href: string;
@@ -22,7 +24,7 @@ export interface ZuneNavItem {
   glyph?: string;
 }
 
-/* Стандартные глифы Segoe MDL2 */
+/* Segoe MDL2 Assets — белые глифы вместо цветных иконок (ФИКС БАГА) */
 export const MDL2 = {
   home: "\uE80F",
   message: "\uE8BD",
@@ -31,14 +33,51 @@ export const MDL2 = {
   settings: "\uE713",
   mail: "\uE715",
   play: "\uE768",
+  bell: "\uE727",
+  bookmark: "\uE735",
+  shield: "\uE729",
+  bug: "\uE777",
+  headset: "\uE767",
+  palette: "\uE70F",
+  logout: "\uE741",
+  search: "\uE721",
+  updates: "\uE791",
 } as const;
+
+/**
+ * Пункты меню — синхронизированы с реальными роутами Sidebar.tsx.
+ * Используем useI18n для лейблов (как в оригинале), но иконки — чистые глифы
+ * Segoe MDL2 Assets, которые наследуют цвет текста и НИКОГДА не окрашиваются
+ * в #FF00FF/#FF1493/pink/magenta/red (см. zune-navigation.css).
+ */
+export function useZuneNavItems(): ZuneNavItem[] {
+  const { t } = useI18n();
+
+  return useMemo(
+    () => [
+      { href: "/", label: t("nav.home"), glyph: MDL2.home },
+      { href: "/messages", label: t("nav.messages"), glyph: MDL2.message },
+      { href: "/notifications", label: t("nav.notifications"), glyph: MDL2.bell },
+      { href: "/bookmarks", label: t("nav.bookmarks"), glyph: MDL2.bookmark },
+      { href: "/updates", label: t("nav.community"), glyph: MDL2.updates },
+      { href: "/settings", label: t("nav.settings"), glyph: MDL2.settings },
+      { href: "/rules", label: t("nav.rules"), glyph: MDL2.shield },
+      { href: "/support", label: t("nav.support"), glyph: MDL2.headset },
+      { href: "/search", label: t("nav.search"), glyph: MDL2.search },
+    ],
+    [t]
+  );
+}
 
 const DEFAULT_ITEMS: ZuneNavItem[] = [
   { href: "/", label: "ЛЕНТА", glyph: MDL2.home },
   { href: "/messages", label: "СООБЩЕНИЯ", glyph: MDL2.message },
-  { href: "/suggestions", label: "ДРУЗЬЯ", glyph: MDL2.contact },
-  { href: "/bookmarks", label: "ЗАКЛАДКИ", glyph: MDL2.favoriteStar },
+  { href: "/notifications", label: "УВЕДОМЛЕНИЯ", glyph: MDL2.bell },
+  { href: "/bookmarks", label: "ЗАКЛАДКИ", glyph: MDL2.bookmark },
+  { href: "/updates", label: "СООБЩЕСТВО", glyph: MDL2.updates },
   { href: "/settings", label: "НАСТРОЙКИ", glyph: MDL2.settings },
+  { href: "/rules", label: "ПРАВИЛА", glyph: MDL2.shield },
+  { href: "/support", label: "ПОДДЕРЖКА", glyph: MDL2.headset },
 ];
 
 interface ZuneSidebarProps {

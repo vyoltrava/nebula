@@ -1,0 +1,5 @@
+themes/zune/components/ZuneFeed.tsx(29,13): error TS2322: Type '{ post: ZunePostData; onDeleted: any; }' is not assignable to type 'IntrinsicAttributes & ZunePostProps'.
+  Property 'onDeleted' does not exist on type 'IntrinsicAttributes & ZunePostProps'.
+themes/zune/components/ZuneFeed.tsx(29,51): error TS2339: Property 'onDeleted' does not exist on type 'ZunePostProps'.
+
+C:\webvvv\nebula\l_frontend>
