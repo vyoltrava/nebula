@@ -1517,8 +1517,12 @@ function getMessageMenuItems(msg: any): { icon: any; label: string; onClick: () 
     });
   }
 
-  // Закрепить/Открепить: личный чат — все участники; группа — только владелец
-  const canPinMessages = !isGroup || chatInfo?.my_role === "owner";
+  // Закрепить/Открепить: личный чат — все участники; группа — owner/admin.
+  // (Финальную проверку прав всегда выполняет бэкенд.)
+  const canPinMessages =
+    !isGroup ||
+    chatInfo?.my_role === "owner" ||
+    chatInfo?.my_role === "admin";
   if (canPinMessages && !msg.pinned) {
       items.push({
         icon: Pin,
@@ -2814,7 +2818,7 @@ onDoubleClick={(e) => {
     </div>
   )}
   {/* 🎨 ОБЁРТКА С РАМКОЙ — единый стиль с CreatePost */}
-  <div className="flex-1 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] focus-within:bg-gray-100 dark:bg-white/10 transition-all">
+  <div className="chat-input-shell flex-1 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] transition-all">
     <RichEditor
       ref={editorRef}
       value={text}

@@ -653,3 +653,77 @@ html:not(.dark) .animated-bg .neon-spot {
 .animate-blink {
   animation: blink 1s step-end infinite;
 }
+
+/* ============================================================
+   🐞 FIX: Поле ввода сообщения в чате — ТЁМНАЯ ТЕМА
+   ------------------------------------------------------------
+   Симптом: в тёмной теме текст поля белый, а фон при наведении/
+   фокусе становился светлым (focus-within:bg-gray-100) → текст
+   сливался с фоном и становился невидимым.
+
+   Правила применяются ТОЛЬКО к тёмной теме:
+     • `.dark` — так тему вешает next-themes в этом проекте
+       (класс на <html>, см. ThemeModeProvider / globals.css);
+     • `[data-theme="dark"]` — резерв для data-атрибут-темы.
+   Светлая тема этими правилами не затрагивается вообще.
+
+   Состояния:
+     база        → фон #2d2d2d, тонкая рамка
+     :hover      → фон чуть светлее #3d3d3d + рамка ярче (НЕ белый!)
+     :focus-within → фон остаётся тёмным #333, рамка — акцент #8b5cf6
+     :active     → как у hover, без белой вспышки
+     текст       → светло-серый #e0e0e0 (не чисто белый), читаем
+                   во ВСЕХ состояниях
+     плейсхолдер → приглушённый светло-серый
+   ============================================================ */
+
+/* --- Обёртка поля ввода (фон/рамка) --- */
+.dark .chat-input-shell,
+[data-theme="dark"] .chat-input-shell {
+  background-color: #2d2d2d;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.dark .chat-input-shell:hover,
+[data-theme="dark"] .chat-input-shell:hover {
+  /* Фон остаётся ТЁМНЫМ, чуть светлее базы + тонкая рамка */
+  background-color: #3d3d3d;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.dark .chat-input-shell:focus-within,
+[data-theme="dark"] .chat-input-shell:focus-within {
+  /* При фокусе фон НЕ белеет — лишь слегка светлее базы */
+  background-color: #333333;
+  border-color: #8b5cf6; /* фирменный акцент приложения */
+}
+
+.dark .chat-input-shell:active,
+[data-theme="dark"] .chat-input-shell:active {
+  background-color: #3d3d3d;
+}
+
+/* --- Сам редактор (contentEditable, класс .rich-editor) --- */
+.dark .chat-input-shell .rich-editor,
+[data-theme="dark"] .chat-input-shell .rich-editor {
+  /* Светлый, но НЕ белый текст — читается на любом из тёмных фонов выше */
+  color: #e0e0e0;
+  caret-color: #e0e0e0;
+}
+
+/* Текст остаётся читаемым при наведении, фокусе и нажатии
+   (перестраховка от любых hover-утилит Tailwind) */
+.dark .chat-input-shell:hover .rich-editor,
+[data-theme="dark"] .chat-input-shell:hover .rich-editor,
+.dark .chat-input-shell:focus-within .rich-editor,
+[data-theme="dark"] .chat-input-shell:focus-within .rich-editor,
+.dark .chat-input-shell:active .rich-editor,
+[data-theme="dark"] .chat-input-shell:active .rich-editor {
+  color: #e0e0e0;
+}
+
+/* Плейсхолдер — приглушённый светло-серый */
+.dark .chat-input-shell .rich-editor:empty::before,
+[data-theme="dark"] .chat-input-shell .rich-editor:empty::before {
+  color: rgba(224, 224, 224, 0.45);
+}

@@ -19,11 +19,17 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
 }
 
 // ============================================================
-// 📌 ЗАКРЕПЛЕНИЯ (ДОБАВИТЬ В КОНЕЦ ФАЙЛА)
+// 📌 ЗАКРЕПЛЕНИЯ
+// 🐞 FIX: раньше здесь читался легаси-ключ localStorage.getItem('token').
+//    В приложении мультиаккаунт (AccountSwitcher), и в этом ключе мог
+//    лежать токен ДРУГОГО аккаунта → сервер отвечал 403 «Вы не участник
+//    чата», хотя пользователь находится в чате. Теперь используем
+//    getToken() — токен именно АКТИВНОГО аккаунта (как и весь остальной
+//    код приложения).
 // ============================================================
 
 export async function pinMessage(chatId: number, messageId: number): Promise<void> {
-  const token = localStorage.getItem('token');
+  const token = getToken();
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/${messageId}/pin`, {
     method: 'POST',
     headers: {
@@ -37,7 +43,7 @@ export async function pinMessage(chatId: number, messageId: number): Promise<voi
 }
 
 export async function unpinMessage(chatId: number, messageId: number): Promise<void> {
-  const token = localStorage.getItem('token');
+  const token = getToken();
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/${messageId}/unpin`, {
     method: 'DELETE',
     headers: {
@@ -51,7 +57,7 @@ export async function unpinMessage(chatId: number, messageId: number): Promise<v
 }
 
 export async function getPinnedMessages(chatId: number): Promise<any[]> {
-  const token = localStorage.getItem('token');
+  const token = getToken();
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/pinned`, {
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

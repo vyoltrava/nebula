@@ -7073,25 +7073,40 @@ async def pin_message(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    # 1. Проверяем, что пользователь участник чата
+    # 1. Получаем чат — ДО проверки членства: иначе при обращении к
+    #    несуществующему/удалённому чату человек получал бы бессмысленное
+    #    «Вы не участник чата» вместо честного 404.
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+
+    # 2. Проверяем, что пользователь участник чата.
+    #    🆕 Исключение: админ сайта или право pin_messages могут закреплять
+    #    даже без записи в ChatMember (модерация и т.п.).
     member = session.exec(
         select(ChatMember).where(
             ChatMember.chat_id == chat_id,
             ChatMember.user_id == user.id,
         )
     ).first()
-    if not member:
+    can_site_pin = has_permission(user, "pin_messages", session)
+    if not member and not can_site_pin:
         raise HTTPException(403, "Вы не участник чата")
 
-    # 2. Получаем чат
-    chat = session.get(Chat, chat_id)
-    if not chat:
-        raise HTTPException(404, "Чат не найден")
-
-    # 3. Права закрепления: ЛИЧНЫЙ чат — любой участник;
-    #    ГРУППА — только владелец.
-    if bool(chat.is_group) and not ((member.role == "owner") or (chat.owner_id == user.id)):
-        raise HTTPException(403, "В группах закреплять сообщения может только владелец")
+    # 3. Права закрепления:
+    #    • Личный/секретный чат («Избранное» тоже) — ЛЮБОЙ участник:
+    #      если пользователь видит чат и может отправлять в него сообщения,
+    #      он может закреплять;
+    #    • Группа — владелец или админ группы (либо сайт-право
+    #      pin_messages / manage_groups). Обычному участнику — ПОНЯТНАЯ
+    #      ошибка вместо вводящего в заблуждение отказа.
+    if bool(chat.is_group):
+        is_group_admin = (
+            (member is not None and member.role in ("owner", "admin"))
+            or chat.owner_id == user.id
+        )
+        if not is_group_admin and not (can_site_pin or has_permission(user, "manage_groups", session)):
+            raise HTTPException(403, "Закрепление сообщений доступно только администраторам")
     
 
     
@@ -7100,6 +7115,10 @@ async def pin_message(
     if not msg or msg.chat_id != chat_id:
         raise HTTPException(404, "Сообщение не найдено")
     
+    # 🆕 Повторное закрепление того же сообщения — не ошибка
+    if msg.pinned:
+        return {"ok": True, "already_pinned": True}
+
     # 5. Считаем уже закреплённые (макс 5)
     pinned_count = session.exec(
         select(func.count(Message.id)).where(
@@ -7246,37 +7265,55 @@ async def unpin_message(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    # 1. Проверяем, что пользователь участник чата
+    # 1. Чат — ДО проверки членства (см. pin_message)
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+
+    # 2. Участник? (админ сайта / право pin_messages — исключение)
     member = session.exec(
         select(ChatMember).where(
             ChatMember.chat_id == chat_id,
             ChatMember.user_id == user.id,
         )
     ).first()
-    if not member:
+    can_site_pin = has_permission(user, "pin_messages", session)
+    if not member and not can_site_pin:
         raise HTTPException(403, "Вы не участник чата")
 
-    # 2. Получаем чат
-    chat = session.get(Chat, chat_id)
-    if not chat:
-        raise HTTPException(404, "Чат не найден")
-
-    # 3. Права открепления: те же, что и на закрепление
-    if bool(chat.is_group) and not ((member.role == "owner") or (chat.owner_id == user.id)):
-        raise HTTPException(403, "В группах откреплять сообщения может только владелец")
+    # 3. Права открепления — те же, что и на закрепление
+    if bool(chat.is_group):
+        is_group_admin = (
+            (member is not None and member.role in ("owner", "admin"))
+            or chat.owner_id == user.id
+        )
+        if not is_group_admin and not (can_site_pin or has_permission(user, "manage_groups", session)):
+            raise HTTPException(403, "Открепление сообщений доступно только администраторам")
 
     # 4. Получаем сообщение
     msg = session.get(Message, message_id)
     if not msg or msg.chat_id != chat_id:
         raise HTTPException(404, "Сообщение не найдено")
-    
-    # 6. Открепляем
+
+    # 5. Открепляем (повторный вызов — не ошибка)
+    if not msg.pinned:
+        return {"ok": True, "already_unpinned": True}
     msg.pinned = False
     msg.pinned_at = None
     msg.pinned_by = None
     session.add(msg)
     session.commit()
-    
+
+    # 6. Уведомляем участников через WS (как при pin — консистентность UI)
+    all_member_ids = session.exec(
+        select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
+    ).all()
+    await manager.broadcast_to_users(
+        [m for m in all_member_ids],
+        "message_unpinned",
+        {"chat_id": chat_id, "message_id": message_id, "unpinned_by": user.id},
+    )
+
     return {"ok": True}
 
 
