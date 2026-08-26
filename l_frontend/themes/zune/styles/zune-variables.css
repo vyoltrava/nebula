@@ -1,57 +1,48 @@
 /* ============================================================
-   ZUNE VARIABLES — фирменные токены Windows Phone / Zune HD.
-   Все объявлены в скоупе тела .zune-theme, чтобы стандартная
-   тема проекта осталась нетронутой.
+   ZUNE VARIABLES — все токены темы.
+   Жёсткая изоляция: каждая переменная объявлена ТОЛЬКО внутри
+   .zune-theme — стандартная тема приложения не затрагивается.
+   Палитра: глубокий чёрный Segoe-стиль Windows Phone + маджента.
    ============================================================ */
 
 .zune-theme {
-  /* --- Типографика (Segoe UI / Zegoe) --- */
-  --z-font:
-    "Segoe UI Variable Display", "Segoe UI", "Segoe UI Historic", "Zegoe",
-    "Noto Sans", system-ui, sans-serif;
-  --z-weight-thin: 200;
+  /* --- Поверхности --- */
+  --z-bg: #0a0a0a;                       /* полотно всего интерфейса   */
+  --z-bg-raise: #141414;                 /* плитки, блоки постов       */
+
+  /* --- Текст --- */
+  --z-text: #ffffff;
+  --z-text-secondary: rgba(255, 255, 255, 0.55);
+  --z-text-dim: rgba(255, 255, 255, 0.32);
+
+  /* --- Линии --- */
+  --z-stroke: rgba(255, 255, 255, 0.14); /* белые штрихи плиток        */
+  --z-divider: rgba(255, 255, 255, 0.06);
+
+  /* --- Акценты --- */
+  --z-accent: #ff00ff;                   /* маджента WP                */
+  --z-link: #00bfff;                     /* голубой WP для ссылок      */
+
+  /* --- Типографика Segoe / Zegoe --- */
+  --z-font: "Segoe UI", "Segoe UI Historic", "Zegoe", system-ui,
+    -apple-system, sans-serif;
   --z-weight-light: 300;
   --z-weight-regular: 400;
   --z-weight-semibold: 600;
-  --z-tracking-tight: -0.03em;
+  --z-tracking-tight: -0.02em;
 
-  /* --- Палитра (точные значения спецификации) --- */
-  --z-bg: #0a0a0a;                       /* глубокий чёрный          */
-  --z-bg-raise: #111111;                 /* приподнятые зоны         */
-  --z-tile: #1a1a1a;                     /* плитки                   */
-  --z-text: #ffffff;
-  --z-text-secondary: rgba(255, 255, 255, 0.55);
-  --z-text-dim: rgba(255, 255, 255, 0.35);
-  --z-accent: #ff00ff;                   /* маджента                 */
-  --z-link: #00bfff;                     /* голубой WP для ссылок    */
-  --z-divider: rgba(255, 255, 255, 0.06);/* межплиточные линии       */
-  --z-stroke: rgba(255, 255, 255, 0.12); /* рамки плиток             */
-  --z-danger: #ff004c;
-
-  /* --- Overscan / Bleed --- */
-  --z-bleed-offset: -22%;                /* вынос заголовка за экран */
-  --z-button-bleed: -14px;               /* выступ кнопок            */
-
-  /* --- Motion --- */
+  /* --- Motion: «жидкий» пластик Windows Phone --- */
   --z-spring: cubic-bezier(0.68, -0.55, 0.27, 1.55);
-  --z-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --z-speed: 240ms;
+  --z-ease-out: cubic-bezier(0.16, 0.84, 0.28, 1);
+  --z-speed: 220ms;
 
-  /* --- Каркас --- */
-  --z-sidebar-w: 360px;                  /* ширина сайдбара WP       */
-  --z-gutter: 28px;                      /* ритм полей контента      */
-  --z-panorama-top: 96px;                /* высота панорамы до скролла */
-  --z-content-pad-top: calc(var(--z-panorama-top) + 40px);
-
-  /* --- Радиусы/тени: по умолчанию НЕТ (Metro flat) --- */
-  --z-radius: 0px;
+  /* --- Сетки отступов (phone-first: компактнее на мобильных) --- */
+  --z-gutter: 40px;
 }
 
-/* Мобильная адаптация Phone-first */
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .zune-theme {
-    --z-bleed-offset: -30%;
-    --z-gutter: 16px;
-    --z-content-pad-top: calc(var(--z-panorama-top) + 8px);
+    --z-gutter: 20px;
+    --z-speed: 180ms;
   }
 }

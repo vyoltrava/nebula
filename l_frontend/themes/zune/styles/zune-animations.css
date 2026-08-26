@@ -1,21 +1,18 @@
-/* ============================================================
-   ZUNE-ANIMATIONS — «жидкая» пластика Windows Phone.
-   Пружина cubic-bezier(0.68,-0.55,0.27,1.55); посты выезжают
-   снизу каскадом; живое кольцо аватара; скроллбар 3px → 5px.
+﻿/* ============================================================
+   ZUNE-ANIMATIONS вЂ” В«Р¶РёРґРєР°СЏВ» РїР»Р°СЃС‚РёРєР° Windows Phone.
+   РџСЂСѓР¶РёРЅР° cubic-bezier(0.68,-0.55,0.27,1.55); РїРѕСЃС‚С‹ РІС‹РµР·Р¶Р°СЋС‚
+   СЃРЅРёР·Сѓ РєР°СЃРєР°РґРѕРј; Р¶РёРІРѕРµ РєРѕР»СЊС†Рѕ Р°РІР°С‚Р°СЂР°; СЃРєСЂРѕР»Р»Р±Р°СЂ 3px в†’ 5px.
    ============================================================ */
 
-:root {
-  --zune-ease-in-out: cubic-bezier(0.3, 0, 0.2, 1);
-}
 
-/* ---------- Каскад появления постов (translateY 30px → 0) ---------- */
+/* ---------- РљР°СЃРєР°Рґ РїРѕСЏРІР»РµРЅРёСЏ РїРѕСЃС‚РѕРІ (translateY 30px в†’ 0) ---------- */
 @keyframes zPostRise {
   from { opacity: 0; transform: translateY(30px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
 body.zune-theme main article[data-post-id] {
-  animation: zPostRise 460ms var(--zune-spring) backwards;
+  animation: zPostRise 460ms var(--z-spring) backwards;
 }
 body.zune-theme main article[data-post-id]:nth-child(1) { animation-delay: 0ms; }
 body.zune-theme main article[data-post-id]:nth-child(2) { animation-delay: 55ms; }
@@ -25,13 +22,13 @@ body.zune-theme main article[data-post-id]:nth-child(5) { animation-delay: 220ms
 body.zune-theme main article[data-post-id]:nth-child(6) { animation-delay: 275ms; }
 body.zune-theme main article[data-post-id]:nth-child(n + 7) { animation-delay: 320ms; }
 
-/* ---------- Плитки чатов/уведомлений: каскад со сдвигом вправо ---------- */
+/* ---------- РџР»РёС‚РєРё С‡Р°С‚РѕРІ/СѓРІРµРґРѕРјР»РµРЅРёР№: РєР°СЃРєР°Рґ СЃРѕ СЃРґРІРёРіРѕРј РІРїСЂР°РІРѕ ---------- */
 @keyframes zTileIn {
   from { opacity: 0; transform: translateX(-24px); }
   to   { opacity: 1; transform: translateX(0); }
 }
 body.zune-theme [data-zune-list] > [data-zune-tile] {
-  animation: zTileIn 420ms var(--zune-spring) backwards;
+  animation: zTileIn 420ms var(--z-spring) backwards;
 }
 body.zune-theme [data-zune-list] > [data-zune-tile]:nth-child(1) { animation-delay: 0ms; }
 body.zune-theme [data-zune-list] > [data-zune-tile]:nth-child(2) { animation-delay: 45ms; }
@@ -40,7 +37,7 @@ body.zune-theme [data-zune-list] > [data-zune-tile]:nth-child(4) { animation-del
 body.zune-theme [data-zune-list] > [data-zune-tile]:nth-child(5) { animation-delay: 180ms; }
 body.zune-theme [data-zune-list] > [data-zune-tile]:nth-child(n + 6) { animation-delay: 230ms; }
 
-/* ---------- Живая плитка: пульс маджента-обводки аватара ---------- */
+/* ---------- Р–РёРІР°СЏ РїР»РёС‚РєР°: РїСѓР»СЊСЃ РјР°РґР¶РµРЅС‚Р°-РѕР±РІРѕРґРєРё Р°РІР°С‚Р°СЂР° ---------- */
 @keyframes zAvatarPulse {
   0%, 78% { box-shadow: 0 0 0 2px rgba(255, 0, 255, 0.85), 0 0 12px rgba(255, 0, 255, 0.25); }
   88%     { box-shadow: 0 0 0 6px rgba(255, 0, 255, 0.35), 0 0 26px rgba(255, 0, 255, 0.5); }
@@ -51,29 +48,27 @@ body.zune-theme [data-zune-list] [data-zune-tile] > a:first-child {
   animation: zAvatarPulse 3s ease-in-out infinite;
 }
 
-/* ---------- Наведение кнопок плиток: мягкий подскок ---------- */
+/* ---------- РќР°РІРµРґРµРЅРёРµ РєРЅРѕРїРѕРє РїР»РёС‚РѕРє: РјСЏРіРєРёР№ РїРѕРґСЃРєРѕРє ---------- */
 body.zune-theme [data-zune-tile] button,
-body.zune-theme .zst-root button,
-body.zune-theme .zune-player button {
-  transition: transform 240ms var(--zune-spring), color 150ms ease;
+body.zune-theme .zst-root button {
+  transition: transform 240ms var(--z-spring), color 150ms ease;
 }
 body.zune-theme [data-zune-tile] button:hover,
-body.zune-theme .zst-root button:hover,
-body.zune-theme .zp-player button:hover {
+body.zune-theme .zst-root button:hover {
   transform: scale(1.05);
 }
 
-/* ---------- Смена разделов: горизонтальный слайд колонки ---------- */
+/* ---------- РЎРјРµРЅР° СЂР°Р·РґРµР»РѕРІ: РіРѕСЂРёР·РѕРЅС‚Р°Р»СЊРЅС‹Р№ СЃР»Р°Р№Рґ РєРѕР»РѕРЅРєРё ---------- */
 @keyframes zSectionIn {
   from { opacity: 0; transform: translateX(48px); }
   to   { opacity: 1; transform: translateX(0); }
 }
 body.zune-theme main > div,
 body.zune-theme main > section {
-  animation: zSectionIn 420ms var(--zune-spring);
+  animation: zSectionIn 420ms var(--z-spring);
 }
 
-/* ---------- Скроллбар ZUNE: линия 3px → 5px при наведении ---------- */
+/* ---------- РЎРєСЂРѕР»Р»Р±Р°СЂ ZUNE: Р»РёРЅРёСЏ 3px в†’ 5px РїСЂРё РЅР°РІРµРґРµРЅРёРё ---------- */
 body.zune-theme *::-webkit-scrollbar { width: 3px; height: 3px; }
 body.zune-theme *::-webkit-scrollbar-track { background: transparent; }
 body.zune-theme *::-webkit-scrollbar-thumb {
@@ -83,16 +78,16 @@ body.zune-theme *::-webkit-scrollbar-thumb {
 body.zune-theme *::-webkit-scrollbar-thumb:hover { width: 5px; }
 body.zune-theme * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.65) transparent; }
 
-/* ---------- Общий куплет плавности для интерфейсных узлов ---------- */
+/* ---------- РћР±С‰РёР№ РєСѓРїР»РµС‚ РїР»Р°РІРЅРѕСЃС‚Рё РґР»СЏ РёРЅС‚РµСЂС„РµР№СЃРЅС‹С… СѓР·Р»РѕРІ ---------- */
 body.zune-theme a,
 body.zune-theme nav aside,
 body.zune-theme aside {
   transition-property: transform, opacity, background-color, border-color, color;
   transition-duration: 220ms;
-  transition-timing-function: var(--zune-spring);
+  transition-timing-function: var(--z-spring);
 }
 
-/* ---------- Уважение к reduce-motion ---------- */
+/* ---------- РЈРІР°Р¶РµРЅРёРµ Рє reduce-motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   body.zune-theme *,
   body.zune-theme *::before,

@@ -1,13 +1,13 @@
-/* ============================================================
-   ZUNE-COMPONENTS — альтернативная анатомия контента.
-   Лента: НЕ карточки, а чистые блоки на чёрном полотне,
-   разделённые тонкой белой линией; крупная типографика;
-   действия поста — прозрачный текст с иконкой слева.
-   Инпуты: без фона, нижняя линия → маджента в фокусе.
-   Модалки: полноэкранные, как в Windows Phone.
+﻿/* ============================================================
+   ZUNE-COMPONENTS вЂ” Р°Р»СЊС‚РµСЂРЅР°С‚РёРІРЅР°СЏ Р°РЅР°С‚РѕРјРёСЏ РєРѕРЅС‚РµРЅС‚Р°.
+   Р›РµРЅС‚Р°: РќР• РєР°СЂС‚РѕС‡РєРё, Р° С‡РёСЃС‚С‹Рµ Р±Р»РѕРєРё РЅР° С‡С‘СЂРЅРѕРј РїРѕР»РѕС‚РЅРµ,
+   СЂР°Р·РґРµР»С‘РЅРЅС‹Рµ С‚РѕРЅРєРѕР№ Р±РµР»РѕР№ Р»РёРЅРёРµР№; РєСЂСѓРїРЅР°СЏ С‚РёРїРѕРіСЂР°С„РёРєР°;
+   РґРµР№СЃС‚РІРёСЏ РїРѕСЃС‚Р° вЂ” РїСЂРѕР·СЂР°С‡РЅС‹Р№ С‚РµРєСЃС‚ СЃ РёРєРѕРЅРєРѕР№ СЃР»РµРІР°.
+   РРЅРїСѓС‚С‹: Р±РµР· С„РѕРЅР°, РЅРёР¶РЅСЏСЏ Р»РёРЅРёСЏ в†’ РјР°РґР¶РµРЅС‚Р° РІ С„РѕРєСѓСЃРµ.
+   РњРѕРґР°Р»РєРё: РїРѕР»РЅРѕСЌРєСЂР°РЅРЅС‹Рµ, РєР°Рє РІ Windows Phone.
    ============================================================ */
 
-/* ---------- ЛЕНТА: пост как блок Metro ---------- */
+/* ---------- Р›Р•РќРўРђ: РїРѕСЃС‚ РєР°Рє Р±Р»РѕРє Metro ---------- */
 .zune-theme article[data-post-id],
 .zune-theme article[data-post-id]:hover {
   background: transparent !important;
@@ -20,12 +20,12 @@
   margin: 0 !important;
   max-width: 720px;
   cursor: pointer;
-  outline: 1px solid transparent;      /* рамка появляется на hover */
+  outline: 1px solid transparent;      /* СЂР°РјРєР° РїРѕСЏРІР»СЏРµС‚СЃСЏ РЅР° hover */
   outline-offset: -1px;
-  border-bottom-color: var(--zune-divider);
+  border-bottom-color: var(--z-divider);
   transition: background-color 200ms ease,
               outline-color 200ms ease,
-              transform 260ms var(--zune-spring);
+              transform 260ms var(--z-spring);
 }
 .zune-theme article[data-post-id]:hover {
   background: rgba(255, 255, 255, 0.02) !important;
@@ -36,12 +36,12 @@
   transform: translateX(2px) scale(0.995);
 }
 
-/* Внутренняя сетка поста: крупный аватар и воздух */
+/* Р’РЅСѓС‚СЂРµРЅРЅСЏСЏ СЃРµС‚РєР° РїРѕСЃС‚Р°: РєСЂСѓРїРЅС‹Р№ Р°РІР°С‚Р°СЂ Рё РІРѕР·РґСѓС… */
 .zune-theme article[data-post-id] > div {
   gap: 18px !important;
 }
 
-/* Аватар 56px с маджента-кольцом */
+/* РђРІР°С‚Р°СЂ 56px СЃ РјР°РґР¶РµРЅС‚Р°-РєРѕР»СЊС†РѕРј */
 .zune-theme article[data-post-id] > div > a:first-child {
   display: block;
   width: 56px;
@@ -59,7 +59,7 @@
   object-fit: cover;
 }
 
-/* Шапка поста: имя 17px/600, служебное — мелко и тускло */
+/* РЁР°РїРєР° РїРѕСЃС‚Р°: РёРјСЏ 17px/600, СЃР»СѓР¶РµР±РЅРѕРµ вЂ” РјРµР»РєРѕ Рё С‚СѓСЃРєР»Рѕ */
 .zune-theme article[data-post-id] a.font-bold {
   font-size: 17px;
   font-weight: 600;
@@ -71,35 +71,35 @@
   letter-spacing: 0.04em;
 }
 
-/* Текст поста: 18px / интервал 1.8 / воздух сверху */
+/* РўРµРєСЃС‚ РїРѕСЃС‚Р°: 18px / РёРЅС‚РµСЂРІР°Р» 1.8 / РІРѕР·РґСѓС… СЃРІРµСЂС…Сѓ */
 .zune-theme article[data-post-id] .whitespace-pre-wrap,
 .zune-theme article[data-post-id] p.mt-1 {
   font-size: 18px !important;
   line-height: 1.8 !important;
-  color: var(--zune-text);
+  color: var(--z-text);
   margin-top: 14px !important;
   margin-bottom: 10px;
   letter-spacing: 0.005em;
 }
 
-/* Медиа: во всю ширину блока, без скруглений */
+/* РњРµРґРёР°: РІРѕ РІСЃСЋ С€РёСЂРёРЅСѓ Р±Р»РѕРєР°, Р±РµР· СЃРєСЂСѓРіР»РµРЅРёР№ */
 .zune-theme article[data-post-id] img.rounded-xl,
 .zune-theme article[data-post-id] video.rounded-xl {
   border-radius: 0 !important;
   width: 100% !important;
   max-height: 70vh;
   object-fit: cover;
-  border: 1px solid var(--zune-divider);
+  border: 1px solid var(--z-divider);
   margin-top: 16px !important;
 }
 
-/* Кнопка Follow и все «привидения»: плоские, обводка-линия */
+/* РљРЅРѕРїРєР° Follow Рё РІСЃРµ В«РїСЂРёРІРёРґРµРЅРёСЏВ»: РїР»РѕСЃРєРёРµ, РѕР±РІРѕРґРєР°-Р»РёРЅРёСЏ */
 .zune-theme article[data-post-id] button {
   background: transparent;
   border-radius: 0;
   box-shadow: none;
-  color: var(--zune-text-secondary);
-  transition: color 150ms ease, transform 220ms var(--zune-spring);
+  color: var(--z-text-secondary);
+  transition: color 150ms ease, transform 220ms var(--z-spring);
 }
 .zune-theme article[data-post-id] button:hover {
   color: #ffffff;
@@ -110,7 +110,7 @@
 .zune-theme article[data-post-id] button:active {
   transform: scale(0.94);
 }
-/* Подписаться/отписаться — белый прямоугольник с рамкой */
+/* РџРѕРґРїРёСЃР°С‚СЊСЃСЏ/РѕС‚РїРёСЃР°С‚СЊСЃСЏ вЂ” Р±РµР»С‹Р№ РїСЂСЏРјРѕСѓРіРѕР»СЊРЅРёРє СЃ СЂР°РјРєРѕР№ */
 .zune-theme article[data-post-id] .shrink-0.rounded-full {
   border-radius: 0 !important;
   border: 1px solid rgba(255, 255, 255, 0.35) !important;
@@ -124,14 +124,14 @@
   text-decoration: none;
 }
 
-/* Разделитель репоста */
+/* Р Р°Р·РґРµР»РёС‚РµР»СЊ СЂРµРїРѕСЃС‚Р° */
 .zune-theme article[data-post-id] .text-xs.text-gray-600 {
   text-transform: uppercase;
   letter-spacing: 0.14em;
   font-size: 11px !important;
 }
 
-/* ---------- ИНПУТЫ WINDOWS PHONE ---------- */
+/* ---------- РРќРџРЈРўР« WINDOWS PHONE ---------- */
 .zune-theme input:not([type="checkbox"]):not([type="radio"]),
 .zune-theme textarea,
 .zune-theme select {
@@ -139,7 +139,7 @@
   border: none !important;
   border-bottom: 2px solid rgba(255, 255, 255, 0.22) !important;
   border-radius: 0 !important;
-  color: var(--zune-text) !important;
+  color: var(--z-text) !important;
   font-size: 16px;
   padding: 10px 2px;
   box-shadow: none !important;
@@ -157,15 +157,15 @@
   outline: none !important;
   border-bottom-color: #ff00ff !important;
 }
-/* Поле поиска: лупа-глиф перед вводом не трогаем, но поле без фона */
-.zune-theme input[placeholder*="Поиск"],
-.zune-theme input[placeholder*="поиск"],
+/* РџРѕР»Рµ РїРѕРёСЃРєР°: Р»СѓРїР°-РіР»РёС„ РїРµСЂРµРґ РІРІРѕРґРѕРј РЅРµ С‚СЂРѕРіР°РµРј, РЅРѕ РїРѕР»Рµ Р±РµР· С„РѕРЅР° */
+.zune-theme input[placeholder*="РџРѕРёСЃРє"],
+.zune-theme input[placeholder*="РїРѕРёСЃРє"],
 .zune-theme input[placeholder*="Search"],
 .zune-theme input[placeholder*="search"] {
   font-size: 18px;
 }
 
-/* ---------- МОДАЛЬНЫЕ ОКНА: ПОЛНОЭКРАННЫЕ ---------- */
+/* ---------- РњРћР”РђР›Р¬РќР«Р• РћРљРќРђ: РџРћР›РќРћР­РљР РђРќРќР«Р• ---------- */
 .zune-theme [role="dialog"],
 .zune-theme dialog {
   position: fixed !important;
@@ -180,7 +180,7 @@
   background: rgba(0, 0, 0, 0.9) !important;
   backdrop-filter: blur(10px);
   color: #ffffff;
-  animation: zModalIn 280ms var(--zune-spring);
+  animation: zModalIn 280ms var(--z-spring);
   overflow-y: auto;
 }
 @keyframes zModalIn {
@@ -188,9 +188,175 @@
   to   { opacity: 1; transform: scale(1); }
 }
 
-/* ---------- КИРПИЧИКИ ФОРМ НАСТРОЕК ---------- */
+/* ---------- РљРР РџРР§РРљР Р¤РћР Рњ РќРђРЎРўР РћР•Рљ ---------- */
 .zune-theme label.text-sm,
 .zune-theme label.font-medium {
   font-size: 18px !important;
-  color: var(--zune-text);
+  color: var(--z-text);
+}
+
+/* ============================================================
+   ХРОМ ПЕРЕКЛЮЧАТЕЛЯ ТЕМЫ.
+   Стили самодостаточные (явные цвета): карточка и тумблер должны
+   выглядеть корректно ДО включения темы — приглашение показывается
+   в стандартной светлой/тёмной теме приложения (.dark ставит next-themes).
+   После включения правила .zune-theme … возвращают фирменный вид.
+   ============================================================ */
+
+/* ---------- Карточка «Тема Zune» в настройках ---------- */
+.zst-root {
+  margin-top: 20px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: #ffffff;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+.dark .zst-root {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+.zune-theme .zst-root {
+  border-color: var(--z-stroke);
+  background: var(--z-bg-raise);
+  border-radius: 0;
+}
+.zst-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.zst-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+.dark .zst-title { color: #ffffff; }
+.zune-theme .zst-title { color: var(--z-text); font-weight: var(--z-weight-semibold); }
+.zst-subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #6b7280;
+}
+.dark .zst-subtitle { color: rgba(255, 255, 255, 0.5); }
+.zune-theme .zst-subtitle { color: var(--z-text-secondary); }
+.zst-badge {
+  flex-shrink: 0;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  padding: 6px 10px;
+  border: 1px solid rgba(17, 24, 39, 0.15);
+  border-radius: 999px;
+  color: #6b7280;
+}
+.dark .zst-badge {
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.55);
+}
+.zune-theme .zst-badge { border-radius: 0; }
+.zst-badge.is-on {
+  border-color: #ff00ff;
+  color: #ff00ff;
+}
+
+/* ---------- Строка + нативный switch Windows Phone ---------- */
+.zune-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  cursor: pointer;
+  margin-top: 12px;
+}
+.zune-toggle-label {
+  font-size: 15px;
+  color: #111827;
+}
+.dark .zune-toggle-label { color: #f3f4f6; }
+.zune-theme .zune-toggle-label { color: var(--z-text); }
+
+.zune-switch {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  width: 56px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 1px solid rgba(17, 24, 39, 0.35);
+  border-radius: 999px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+}
+.dark .zune-switch,
+.zune-theme .zune-switch {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+.zune-switch::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  transform: translateY(-50%);
+  transition: left 0.25s var(--z-spring, cubic-bezier(0.68, -0.55, 0.27, 1.55));
+}
+.dark .zune-switch::before { box-shadow: none; }
+.zune-switch:checked {
+  background: var(--z-accent, #ff00ff);
+  border-color: var(--z-accent, #ff00ff);
+}
+.zune-switch:checked::before {
+  left: calc(100% - 23px);
+}
+
+/* ---------- Плавающие кнопки поверх UI ---------- */
+.zune-floating-toggle {
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 1200;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 20px;
+  background: rgba(10, 10, 10, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 0;
+  color: #ffffff;
+  font-family: "Segoe UI", "Segoe UI Historic", Zegoe, system-ui, sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: border-color 0.2s ease,
+    transform 200ms var(--z-spring, cubic-bezier(0.68, -0.55, 0.27, 1.55));
+}
+.zune-floating-toggle:hover {
+  border-color: #ffffff;
+  transform: translateX(-4px);
+}
+.zune-floating-toggle--invite {
+  border-color: rgba(255, 0, 255, 0.65);
+}
+.zune-floating-toggle--invite:hover {
+  border-color: #ff00ff;
+  transform: translateY(-3px);
+}
+.zune-floating-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ff00ff;
+  box-shadow: 0 0 0 3px rgba(255, 0, 255, 0.25);
 }

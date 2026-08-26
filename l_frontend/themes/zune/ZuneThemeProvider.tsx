@@ -5,14 +5,11 @@
  *
  * Источник истины — мини-store над localStorage (useSyncExternalStore):
  * без мигания при гидратации и без setState-в-эффекте. Когда тема активна,
- * монтирует движки трансформации (все они — самостоятельные компоненты,
- * которые встраивают новую структуру В ЖИВОЙ DOM стандартных компонентов,
- * не изменяя ни одного файла проекта):
+ * монтирует движки трансформации (самостоятельные компоненты поверх живого
+ * DOM, ни один файл проекта не изменяется):
  *
- *  - ZuneSidebar       — «ZUNE» 48px, разделитель, пункты только текстом,
- *                        белая полоса активного пункта, встроенный плеер;
- *  - ZunePanorama      — фиксированный гигантский заголовок раздела,
- *                        уходящий за левый край, со сжатием при скролле;
+ *  - ZuneSidebar                  — помечает <aside>; CSS превращает его
+ *                                   в компактную панель в стиле Windows;
  *  - ZuneChats / ZuneNotifications — разметка списков под плитки Metro;
  *  - плавающая кнопка возврата к стандартной теме;
  *  - переключатель WP-стиля внутри Настроек (SettingsThemeInjector).
@@ -39,8 +36,6 @@ import {
 import { ZuneThemeToggle } from "./components/ZuneThemeToggle";
 import { SettingsThemeInjector } from "./components/SettingsThemeInjector";
 import { ZuneSidebar } from "./components/ZuneSidebar";
-import { ZuneMusicPlayer } from "./components/ZuneMusicPlayer";
-import { ZunePanorama } from "./components/ZunePanorama";
 import { ZuneChats } from "./components/ZuneChats";
 import { ZuneNotifications } from "./components/ZuneNotifications";
 
@@ -98,8 +93,6 @@ export function ZuneThemeProvider({ children }: { children: ReactNode }) {
       {mounted && isZune && (
         <>
           <ZuneSidebar />
-          <ZuneMusicPlayer />
-          <ZunePanorama />
           <ZuneChats />
           <ZuneNotifications />
         </>

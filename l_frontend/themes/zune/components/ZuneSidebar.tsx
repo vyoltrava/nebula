@@ -1,25 +1,19 @@
 "use client";
 
 /**
- * САЙДБАР WINDOWS PHONE — новая структура поверх существующего компонента
- * (стандартные файлы не изменяются: структура встраивается в живой DOM):
+ * САЙДБАР В СТИЛЕ WINDOWS — компактная навигационная панель.
  *
- *  - ширина колонки 360px (контролируется CSS по [data-zune-sidebar]);
- *  - блок бренда «ZUNE» (48px, тонкое начертание) + линия-разделитель
- *    в самое начало колонки;
- *  - пункты меню без иконок (иконки скрывает CSS), активный пункт
- *    отмечается data-zune-active → белая вертикальная полоса слева;
- *    логика активности повторяет стандартную (включая пары маршрутов
- *    вида /updates ↔ /suggestions);
- *  - навигация тянется flex:1, освобождая низ колонки под встроенный
- *    плеер (его ставит ZuneMusicPlayer последним элементом).
+ * Компонент ничего не вставляет и не рисует сам: он лишь помечает
+ * существующий <aside> атрибутом data-zune-sidebar — CSS в
+ * zune-navigation.css превращает его в панель в духе WinUI
+ * NavigationView (иконка + подпись, активная белая полоса слева).
+ * Дополнительно повторяет стандартную логику активного пункта
+ * меню (data-zune-active), включая пары маршрутов /updates ↔ /suggestions.
+ * Стандартные файлы проекта не изменяются.
  */
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-
-export const BRAND_HOST_ID = "zune-brand";
-export const PLAYER_HOST_ID = "zune-player-host";
 
 export function ZuneSidebar() {
   const pathname = usePathname();
@@ -28,23 +22,7 @@ export function ZuneSidebar() {
     const aside = document.querySelector("aside") as HTMLElement | null;
     if (!aside) return;
 
-    /* Разметка нового каркаса */
     aside.dataset.zuneSidebar = "true";
-
-    let brand = document.getElementById(
-      BRAND_HOST_ID
-    ) as HTMLDivElement | null;
-    if (!brand) {
-      brand = document.createElement("div");
-      brand.id = BRAND_HOST_ID;
-      brand.className = "zune-brand";
-      brand.innerHTML =
-        '<span class="zune-brand-word">ZUNE</span>' +
-        '<span class="zune-brand-line" aria-hidden="true"></span>';
-    }
-    if (aside.firstElementChild !== brand) {
-      aside.insertBefore(brand, aside.firstChild);
-    }
 
     /* Активный пункт меню — та же логика, что у стандартного компонента */
     const stampActive = () => {
@@ -85,7 +63,6 @@ export function ZuneSidebar() {
       cancelAnimationFrame(raf);
       mo.disconnect();
       delete aside.dataset.zuneSidebar;
-      brand?.remove();
       aside
         .querySelectorAll("[data-zune-active]")
         .forEach((node) => node.removeAttribute("data-zune-active"));

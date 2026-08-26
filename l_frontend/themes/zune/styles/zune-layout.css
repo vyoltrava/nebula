@@ -1,70 +1,8 @@
 /* ============================================================
-   ZUNE LAYOUT — Panorama-каркас: гигантский заголовок раздела,
-   бесконтейнерная лента, плитки списков, ритм полей Phone-first.
+   ZUNE LAYOUT — бесконтейнерная лента и плитки списков,
+   ритм полей Phone-first. Гигантских заголовков сверху больше
+   нет: стандартные шапки страниц остаются, их красит общий слой.
    ============================================================ */
-
-/* ---------- PANORAMA: фиксированный заголовок поверх контента ---------- */
-.zune-panorama {
-  position: fixed;
-  top: 0;
-  /* правая колонка: отступаем на ширину сайдбара */
-  left: var(--z-sidebar-w);
-  right: 0;
-  z-index: 60;
-  pointer-events: none;         /* заголовок лежит фоном, клики проходят */
-  padding: 6px 0 26px;
-  background: linear-gradient(
-    180deg,
-    rgba(10, 10, 10, 0.96) 0%,
-    rgba(10, 10, 10, 0.75) 70%,
-    rgba(10, 10, 10, 0) 100%
-  );
-}
-
-.zune-panorama-title {
-  font-family: var(--z-font);
-  font-size: clamp(56px, 9vw, 96px);
-  font-weight: 150;
-  letter-spacing: -0.04em;
-  line-height: 0.95;
-  white-space: nowrap;
-  color: rgba(255, 255, 255, 0.85);
-  /* фирменный вынос за левый край экрана */
-  transform: translateX(var(--z-bleed-offset));
-  transition:
-    transform 420ms var(--z-spring),
-    font-size 420ms var(--z-ease-out),
-    opacity 300ms ease;
-}
-
-.zune-panorama-sub {
-  font-size: 13px;
-  color: var(--z-text-dim);
-  letter-spacing: 0.08em;
-  margin: 10px 0 0 calc(-1 * var(--z-bleed-offset) * 0.35);
-}
-
-/* Сжатие при скролле: мельче и менее выносной */
-.zune-panorama.is-scrolled {
-  padding-bottom: 14px;
-  background: linear-gradient(180deg, rgba(10, 10, 10, 0.97), rgba(10, 10, 10, 0));
-}
-.zune-panorama.is-scrolled .zune-panorama-title {
-  font-size: clamp(34px, 4.5vw, 48px);
-  transform: translateX(calc(var(--z-bleed-offset) * 0.45));
-  opacity: 0.95;
-}
-.zune-panorama.is-scrolled .zune-panorama-sub {
-  margin-top: 2px;
-  font-size: 11px;
-}
-
-@media (max-width: 1023px) {
-  .zune-panorama {
-    left: 0;
-    padding-top: 2px;
-  }
-}
 
 /* ---------- ЛЕНТА: посты без карточек, линия между ними ---------- */
 .zune-theme article {
@@ -182,8 +120,22 @@
   text-align: center;
 }
 
-/* ---------- Страница целиком: верхняя «панорамная» подушка ---------- */
-.zune-theme main,
-.zune-theme [class*="max-w"][class*="mx-auto"]:first-child {
-  padding-top: var(--z-content-pad-top);
+/* ---------- Мобильная адаптация (<768px): компактнее поля ---------- */
+@media (max-width: 767px) {
+  .zune-theme article {
+    padding: 18px 14px 22px;
+  }
+  .zune-theme article p,
+  .zune-theme article [class*="whitespace-pre-wrap"] {
+    font-size: 16px;
+    line-height: 1.65;
+  }
+  .zune-theme [data-zune-tile],
+  .zune-theme [data-zune-list] > * {
+    padding: 14px 14px !important;
+  }
+  .zune-theme [data-zune-tile] img {
+    width: 40px;
+    height: 40px;
+  }
 }
