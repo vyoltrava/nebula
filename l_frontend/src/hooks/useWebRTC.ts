@@ -79,16 +79,19 @@ export type WebRTCSignal =
   | {
       type: 'call_offer';
       call_id: string;
+      target_user_id: number;
       sdp: RTCSessionDescriptionInit;
     }
   | {
       type: 'call_answer';
       call_id: string;
+      target_user_id: number;
       sdp: RTCSessionDescriptionInit;
     }
   | {
       type: 'call_ice_candidate';
       call_id: string;
+      target_user_id: number;
       candidate: RTCIceCandidateInit;
     };
 
@@ -440,6 +443,7 @@ export function useWebRTC(
       safeSendSignal({
         type: 'call_answer',
         call_id: callId,
+        target_user_id: stateRef.current.remoteUserId ?? 0,
         sdp: pc.localDescription,
       });
       rtcLog('📤 ANSWER sent');
@@ -465,10 +469,11 @@ export function useWebRTC(
           return;
         }
         const desc = cur.localDescription;
-        if (desc && desc.type === 'answer') {
+        const tid = stateRef.current.remoteUserId;
+        if (desc && desc.type === 'answer' && tid) {
           resendAttempts += 1;
           rtcWarn(`🔁 ANSWER not confirmed — resending (attempt ${resendAttempts})`);
-          safeSendSignal({ type: 'call_answer', call_id: callId, sdp: desc });
+          safeSendSignal({ type: 'call_answer', call_id: callId, target_user_id: tid, sdp: desc });
         }
       }, ANSWER_RESEND_INTERVAL_MS);
     },
@@ -500,6 +505,7 @@ export function useWebRTC(
       safeSendSignal({
         type: 'call_offer',
         call_id: currentState.callId,
+        target_user_id: currentState.remoteUserId ?? 0,
         sdp: pc.localDescription,
       });
 
@@ -617,6 +623,7 @@ export function useWebRTC(
         safeSendSignal({
           type: 'call_ice_candidate',
           call_id: callId,
+          target_user_id: stateRef.current.remoteUserId ?? 0,
           candidate: candidate.toJSON(),
         });
       };
@@ -804,6 +811,7 @@ export function useWebRTC(
         safeSendSignal({
           type: 'call_offer',
           call_id: callId,
+          target_user_id: stateRef.current.remoteUserId ?? 0,
           sdp: pc.localDescription,
         });
 
@@ -822,8 +830,9 @@ export function useWebRTC(
             rtcWarn('⏱ ANSWER not received in time — resending OFFER');
             const desc = cur.localDescription;
             const cid = stateRef.current.callId;
-            if (desc && cid) {
-              safeSendSignal({ type: 'call_offer', call_id: cid, sdp: desc });
+            const tid = stateRef.current.remoteUserId;
+            if (desc && cid && tid) {
+              safeSendSignal({ type: 'call_offer', call_id: cid, target_user_id: tid, sdp: desc });
             }
           }
         }, ANSWER_TIMEOUT_MS);
