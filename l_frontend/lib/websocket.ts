@@ -15,6 +15,11 @@ class NebulaSocket {
   // 🔥 ОЧЕРЕДЬ СООБЩЕНИЙ: Сюда кладем данные, если сокет закрыт
   private messageQueue: any[] = [];
 
+  // 🔥 ПОСЛЕДНИЙ ТОКЕН: нужен для восстановления связи после чистого закрытия
+  // сервером (деплой Render/scale) и для переподключения из send(), когда
+  // сигнал (offer/answer/ICE) понадобилось отправить, а сокет уже мёртв.
+  private lastToken: string | null = null;
+
   constructor() {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
     this.url = apiUrl.replace(/^http/, "ws") + "/ws";
@@ -25,6 +30,8 @@ class NebulaSocket {
       return;
     }
 
+    // 🔥 Запоминаем токен для восстановления после чистого закрытия сервером
+    this.lastToken = token;
     this.shouldReconnect = true;
 
     try {
@@ -68,12 +75,16 @@ class NebulaSocket {
         }
 
         if (event.wasClean && event.code === 1000) {
-          console.log("⚡ WS closed cleanly (will reconnect if needed)");
-          // Не прерываем reconnect, если мы ждем звонка или есть сообщения в очереди
-          if (this.messageQueue.length > 0) {
-             console.log("⏳ Есть сообщения в очереди, инициируем переподключение...");
-             this.scheduleReconnect(token);
-             return;
+          console.log("⚡ WS closed cleanly");
+          // Явный socket.disconnect() всегда сначала выставляет
+          // shouldReconnect=false, поэтому сюда с shouldReconnect=true мы
+          // попадаем только при СЕРВЕРНОМ чистом закрытии (деплой Render,
+          // scale-down) или обрыве транспорта, который браузер оформил как
+          // чистый. Раньше здесь просто возвращались — и сокет умирал до тех
+          // пор, пока не отправлялось новое сообщение. Восстанавливаем связь.
+          if (this.shouldReconnect && this.lastToken) {
+            this.scheduleReconnect(this.lastToken);
+            return;
           }
           return;
         }
@@ -143,23 +154,15 @@ class NebulaSocket {
       // 🔥 ЕСЛИ СОКЕТ ЗАКРЫТ - КЛАДЕМ В ОЧЕРЕДЬ
       console.warn("⚡ WS не подключен, добавляю в очередь:", data.type || 'unknown');
       this.messageQueue.push(data);
-      
-      // Если сокет закрыт, пытаемся переподключиться (если еще не идет процесс)
-      if (!this.ws || this.ws.readyState === WebSocket.CLOSED) {
-         // Токен нужно где-то хранить глобально или передавать, 
-         // но так как connect вызывается один раз при старте, 
-         // мы полагаемся на то, что onclose запустит reconnect, 
-         // либо вызываем connect заново, если у нас есть токен.
-         // Для простоты: если очереди не пусто и сокет мертв - форсируем reconnect
-         if (this.messageQueue.length === 1) { // Только первый раз логируем
-            console.log(" Попытка восстановить соединение для отправки очереди...");
-            // Здесь нужен токен. В идеале храним его в классе.
-            // Но так как connect уже был вызван с токеном, мы можем попробовать вызвать его снова,
-            // если сохраним токен в поле класса.
-            // ДОБАВЛЕНИЕ ПОЛЯ ДЛЯ ТОКЕНА:
-            // this.lastToken = token; // в конструкторе или connect
-            // this.connect(this.lastToken); 
-         }
+
+      // 🔥 Если сокет мёртв и переподключение ещё не запланировано —
+      // запускаем его сами. Раньше сообщение просто лежало в очереди,
+      // пока кто-то другой не вызовет connect(), и сигналы звонка
+      // (offer/answer/ICE) терялись.
+      const dead = !this.ws || this.ws.readyState === WebSocket.CLOSED;
+      if (dead && this.lastToken && this.reconnectTimeout === null) {
+        console.log(" Попытка восстановить соединение для отправки очереди...");
+        this.scheduleReconnect(this.lastToken);
       }
     }
   }

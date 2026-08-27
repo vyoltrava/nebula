@@ -1,7 +1,7 @@
 // frontend/components/WebSocketProvider.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { socket } from "@/lib/websocket";
 import { getToken } from "@/lib/auth";
 import { showBackgroundNotification } from "@/lib/notifications";
@@ -22,6 +22,24 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   } = useWebRTC((data) => {
     // ✅ ТЕПЕРЬ ЭТО РАБОТАЕТ, так как мы добавили метод send в шаге 1
     socket.send(data); 
+  });
+  // 🛡 STABILIZATION FIX (критично для звонков):
+  // Раньше весь этот useEffect зависел от [handleSignal], а handleSignal
+  // пересоздавался при КАЖДОМ рендере провайдера (sendSignal передаётся
+  // inline-стрелкой -> новые useCallback внутри useWebRTC). Во время звонка
+  // провайдер рендерится очень часто (таймер длительности, обновление
+  // диагностики на каждый ICE-кандидат), из-за чего эффект размонтировался:
+  //   unsubscribe -> socket.disconnect() (close 1000) -> socket.connect()
+  // Соединение "мигало", входящие call_offer/call_answer/call_ice_candidate
+  // терялись => ICE не собирался => сторона ловила 'failed' и обрывала звонок
+  // (в консоли второй стороны: "📴 Remote ended: call_ended").
+  //
+  // Фикс: держим последний handleSignal в ref и подписываемся на события
+  // ОДИН раз за монтирование ([]). Теперь рефакторы колбэков НЕ убивают WS.
+  const handleSignalRef = useRef(handleSignal);
+
+  useEffect(() => {
+    handleSignalRef.current = handleSignal;
   });
 
   useEffect(() => {
@@ -64,16 +82,17 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
-    // 🔥 Подписки на звонки
-    const unsubCallIncoming = socket.on("call_incoming", (data: any) => handleSignal({ type: "call_incoming", ...data }));
-    const unsubCallInitiated = socket.on("call_initiated", (data: any) => handleSignal({ type: "call_initiated", ...data }));
-    const unsubCallAccepted = socket.on("call_accepted", (data: any) => handleSignal({ type: "call_accepted", ...data }));
-    const unsubCallRejected = socket.on("call_rejected", (data: any) => handleSignal({ type: "call_rejected", ...data }));
-    const unsubCallEnded = socket.on("call_ended", (data: any) => handleSignal({ type: "call_ended", ...data }));
-    const unsubCallOffer = socket.on("call_offer", (data: any) => handleSignal({ type: "call_offer", ...data }));
-    const unsubCallAnswer = socket.on("call_answer", (data: any) => handleSignal({ type: "call_answer", ...data }));
-    const unsubCallIce = socket.on("call_ice_candidate", (data: any) => handleSignal({ type: "call_ice_candidate", ...data }));
-    const unsubCallBusy = socket.on("call_busy", (data: any) => handleSignal({ type: "call_busy", ...data }));
+    // 🔥 Подписки на звонки — всегда через handleSignalRef.current,
+    // чтобы актуальный обработчик использовался без пересоздания подписок.
+    const unsubCallIncoming = socket.on("call_incoming", (data: any) => handleSignalRef.current({ type: "call_incoming", ...data }));
+    const unsubCallInitiated = socket.on("call_initiated", (data: any) => handleSignalRef.current({ type: "call_initiated", ...data }));
+    const unsubCallAccepted = socket.on("call_accepted", (data: any) => handleSignalRef.current({ type: "call_accepted", ...data }));
+    const unsubCallRejected = socket.on("call_rejected", (data: any) => handleSignalRef.current({ type: "call_rejected", ...data }));
+    const unsubCallEnded = socket.on("call_ended", (data: any) => handleSignalRef.current({ type: "call_ended", ...data }));
+    const unsubCallOffer = socket.on("call_offer", (data: any) => handleSignalRef.current({ type: "call_offer", ...data }));
+    const unsubCallAnswer = socket.on("call_answer", (data: any) => handleSignalRef.current({ type: "call_answer", ...data }));
+    const unsubCallIce = socket.on("call_ice_candidate", (data: any) => handleSignalRef.current({ type: "call_ice_candidate", ...data }));
+    const unsubCallBusy = socket.on("call_busy", (data: any) => handleSignalRef.current({ type: "call_busy", ...data }));
 
     return () => {
       unsubMessage();
@@ -88,9 +107,12 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       unsubCallAnswer();
       unsubCallIce();
       unsubCallBusy();
+      // Разрываем соединение ТОЛЬКО при финальном размонтировании провайдера
+      // ([] deps), а не при каждом рендере, как раньше.
       socket.disconnect();
     };
-  }, [handleSignal]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ✅ ИСПРАВЛЕНО: Правильная передача аргументов из текущего состояния
   const contextValue = {

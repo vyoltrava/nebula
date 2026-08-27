@@ -784,13 +784,18 @@ export function useWebRTC(
           localStream: stream,
         }));
 
+        // 🔥 FIX (race condition): сначала создаём PeerConnection и ТОЛЬКО
+        // потом объявляем о готовности. Раньше call_accept уходил до
+        // setupPeerConnection: инициатор мгновенно получал 'call_accepted',
+        // собирал offer и отправлял его по WS раньше, чем у вызываемого
+        // создавался pcRef -> 'Received OFFER but no PC' -> offer терялся.
+        await setupPeerConnection(callId, stream, false);
+
         safeSendSignal({
           type: 'call_accept',
           call_id: callId,
           target_user_id: callerId,
         });
-
-        await setupPeerConnection(callId, stream, false);
       } catch (error) {
         rtcError('Failed to accept call', error);
         safeSendSignal({ type: 'call_reject', call_id: callId, target_user_id: callerId });
