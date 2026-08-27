@@ -8892,7 +8892,18 @@ async def websocket_endpoint(websocket: WebSocket):
                     k: v for k, v in msg.items()
                     if k not in ("type", "target_user_id")
                 }
-                await manager.send_to_user(target_id, out_event, payload)
+                # 📞 ДИАГНОСТИКА ЗВОНКОВ: каждое релеированное событие видно в
+                # логах сервера. Так точно видно, ДОШЁЛ ли offer/answer/ICE до
+                # адресата или потерялся по пути клиент->сервер->клиент.
+                _sdp = payload.get("sdp")
+                sdp_len = len(_sdp.get("sdp", "")) if isinstance(_sdp, dict) else 0
+                suffix = f" sdp={sdp_len}b" if mtype in ("call_offer", "call_answer") else ""
+                print(f"[📞 RELAY] {mtype}: {user_id} -> {target_id}{suffix}")
+                try:
+                    await manager.send_to_user(target_id, out_event, payload)
+                    print(f"[📞 RELAY] {mtype}: {user_id} -> {target_id} delivered")
+                except Exception as e:  # noqa: BLE001 — мёртвый получатель не должен ронять сокет отправителя
+                    print(f"[📞 RELAY] {mtype}: {user_id} -> {target_id} FAILED: {e}")
                 continue
 
             print(f"⚠️ WS: unknown/unroutable signal '{mtype}' from user {user_id}")

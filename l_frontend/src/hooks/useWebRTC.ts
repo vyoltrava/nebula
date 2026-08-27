@@ -256,6 +256,9 @@ const ICE_RESTART_TIMEOUT_MS = 8_000;
 const DURATION_INTERVAL_MS = 1_000;
 // 🔥 Сеть не должна блокировать камеру дольше этого времени:
 const ICE_FETCH_TIMEOUT_MS = 4_000;
+// ⏱ Сколько ждём call_answer после отправки offer, прежде чем переотправить
+// offer ещё раз (самолечение потерянных/зарейсившихся SDP-сообщений).
+const ANSWER_TIMEOUT_MS = 8_000;
 
 type BufferedIceCandidate = RTCIceCandidateInit;
 
@@ -305,6 +308,15 @@ export function useWebRTC(
   const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startTimeRef = useRef<number>(0);
   const iceRestartInProgressRef = useRef(false);
+  // 🔥 Самолечение handshake: offer, пришедший ДО создания PeerConnection,
+  // больше не теряется ("Received OFFER but no PC") — буферизуем и применяем
+  // сразу после создания PC.
+  const pendingOfferRef = useRef<{
+    callId: string;
+    sdp: RTCSessionDescriptionInit;
+  } | null>(null);
+  const answerTimeoutTimerRef =
+    useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const safeSendSignal = useCallback(
     (data: WebRTCSignal) => {
@@ -399,6 +411,35 @@ export function useWebRTC(
     [],
   );
 
+  const applyRemoteOffer = useCallback(
+    async (
+      pc: RTCPeerConnection,
+      callId: string,
+      sdp: RTCSessionDescriptionInit,
+    ) => {
+      rtcLog('📝 Applying remote OFFER');
+      await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+      await flushIceCandidateBuffer(pc);
+
+      rtcLog('📝 Creating ANSWER');
+      const answer = await pc.createAnswer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: true,
+      });
+      await pc.setLocalDescription(answer);
+
+      if (!pc.localDescription) throw new Error('localDescription null');
+
+      safeSendSignal({
+        type: 'call_answer',
+        call_id: callId,
+        sdp: pc.localDescription,
+      });
+      rtcLog('📤 ANSWER sent');
+    },
+    [flushIceCandidateBuffer, safeSendSignal],
+  );
+
   const restartIce = useCallback(async () => {
     const pc = pcRef.current;
     if (!pc || iceRestartInProgressRef.current) return;
@@ -441,6 +482,11 @@ export function useWebRTC(
     iceCandidateBufferRef.current = [];
     iceAddQueueRef.current = Promise.resolve();
     iceRestartInProgressRef.current = false;
+    if (answerTimeoutTimerRef.current) {
+      clearTimeout(answerTimeoutTimerRef.current);
+      answerTimeoutTimerRef.current = null;
+    }
+    pendingOfferRef.current = null;
 
     const pc = pcRef.current;
     if (pc) {
@@ -721,9 +767,44 @@ export function useWebRTC(
           call_id: callId,
           sdp: pc.localDescription,
         });
+
+        // ⏱ WATCHDOG: если answer не пришёл вовремя — один раз переотправляем
+        // offer. Лечит потерянный по пути offer ИЛИ потерянный answer: при
+        // повторном получении того же offer принимающая сторона просто
+        // создаёт новый ответ.
+        if (answerTimeoutTimerRef.current) {
+          clearTimeout(answerTimeoutTimerRef.current);
+        }
+        answerTimeoutTimerRef.current = setTimeout(() => {
+          answerTimeoutTimerRef.current = null;
+          const cur = pcRef.current;
+          if (!cur || cur.connectionState === 'connected') return;
+          if (cur.signalingState !== 'stable' || !cur.remoteDescription) {
+            rtcWarn('⏱ ANSWER not received in time — resending OFFER');
+            const desc = cur.localDescription;
+            const cid = stateRef.current.callId;
+            if (desc && cid) {
+              safeSendSignal({ type: 'call_offer', call_id: cid, sdp: desc });
+            }
+          }
+        }, ANSWER_TIMEOUT_MS);
+      }
+
+      // 🔥 SELF-HEALING: если offer пришёл до создания PC (гонка при медленном
+      // getUserMedia/refreshIceServers на принимающей стороне), применяем его
+      // сразу после готовности PeerConnection.
+      if (!isCaller && pendingOfferRef.current?.callId === callId) {
+        const buffered = pendingOfferRef.current;
+        pendingOfferRef.current = null;
+        try {
+          rtcLog('↩️ Applying buffered OFFER');
+          await applyRemoteOffer(pc, callId, buffered.sdp);
+        } catch (error) {
+          rtcError('Failed to apply buffered OFFER', error);
+        }
       }
     },
-    [cleanup, restartIce, safeSendSignal]
+    [applyRemoteOffer, cleanup, restartIce, safeSendSignal]
   );
 
   const initiateCall = useCallback(
@@ -878,42 +959,31 @@ export function useWebRTC(
         }
 
         case 'call_offer': {
-          const pc = pcRef.current;
-          if (!pc) {
-            rtcError('Received OFFER but no PC');
-            return;
-          }
           if (!data.sdp) {
             rtcError('OFFER missing SDP');
             return;
           }
 
-          try {
-            rtcLog(' Setting remote OFFER');
-            await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-            await flushIceCandidateBuffer(pc);
+          const pc = pcRef.current;
+          const callId = data.call_id ?? stateRef.current.callId;
 
-            rtcLog(' Creating ANSWER');
-            const answer = await pc.createAnswer({
-              offerToReceiveAudio: true,
-              offerToReceiveVideo: true,
-            });
-            await pc.setLocalDescription(answer);
-
-            if (!pc.localDescription) throw new Error('localDescription null');
-
-            const callId = data.call_id ?? stateRef.current.callId;
-            if (!callId) throw new Error('No callId for answer');
-
-            safeSendSignal({
-              type: 'call_answer',
-              call_id: callId,
-              sdp: pc.localDescription,
-            });
-            rtcLog('📤 ANSWER sent');
-          } catch (error) {
-            rtcError('Failed to handle OFFER', error);
+          if (!pc || !callId) {
+            // 🔥 FIX: раньше offer, пришедший до создания PC, терялся навсегда
+            // ("Received OFFER but no PC"). Теперь буферизуем — setupPeerConnection
+            // применит его сразу после готовности PeerConnection.
+            rtcWarn('Received OFFER before PC — buffering');
+            if (callId) {
+              pendingOfferRef.current = { callId, sdp: data.sdp };
+            }
+            return;
           }
+
+          if (pc.signalingState === 'have-remote-offer') {
+            rtcWarn('Duplicate OFFER while have-remote-offer — ignoring');
+            return;
+          }
+
+          await applyRemoteOffer(pc, callId, data.sdp);
           break;
         }
 
@@ -969,7 +1039,8 @@ export function useWebRTC(
           rtcWarn(`Unknown signal: ${data.type}`);
       }
     },
-    [addRemoteIceCandidate, cleanup, flushIceCandidateBuffer, safeSendSignal, setupPeerConnection]
+    [addRemoteIceCandidate, applyRemoteOffer, cleanup,
+      flushIceCandidateBuffer, safeSendSignal, setupPeerConnection]
   );
 
   const toggleMute = useCallback(() => {
