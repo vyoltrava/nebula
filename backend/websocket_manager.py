@@ -55,13 +55,19 @@ class ConnectionManager:
             self.total_connections,
         )
 
-    async def send_to_user(self, user_id: int, event: str, data: Any):
-        """Отправить событие конкретному пользователю"""
+    async def send_to_user(self, user_id: int, event: str, data: Any) -> bool:
+        """Отправить событие конкретному пользователю.
+
+        🔥 Возвращает True, если хотя бы одно соединение успешно получило
+        сообщение, и False если пользователь ОФФЛАЙН (нет живых соединений).
+        Раньше оффлайн был НЕВИДИМ — метод просто молча выходил, из-за чего
+        сигналы звонков «терялись» без единой строчки в логах.
+        """
         async with self._lock:
             connections = list(self.active_connections.get(user_id, set()))
 
         if not connections:
-            return
+            return False
 
         message = json.dumps(
             {
@@ -72,10 +78,12 @@ class ConnectionManager:
         )
 
         dead_connections = []
+        delivered = False
 
         for websocket in connections:
             try:
                 await websocket.send_text(message)
+                delivered = True
             except Exception:
                 dead_connections.append(websocket)
 
@@ -84,13 +92,15 @@ class ConnectionManager:
                 active = self.active_connections.get(user_id)
 
                 if active is None:
-                    return
+                    return delivered
 
                 for websocket in dead_connections:
                     active.discard(websocket)
 
                 if not active:
                     del self.active_connections[user_id]
+
+        return delivered
 
     async def broadcast_to_users(self, user_ids: list[int], event: str, data: Any):
         """Отправить событие нескольким пользователям"""

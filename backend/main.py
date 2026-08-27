@@ -8893,15 +8893,23 @@ async def websocket_endpoint(websocket: WebSocket):
                     if k not in ("type", "target_user_id")
                 }
                 # 📞 ДИАГНОСТИКА ЗВОНКОВ: каждое релеированное событие видно в
-                # логах сервера. Так точно видно, ДОШЁЛ ли offer/answer/ICE до
-                # адресата или потерялся по пути клиент->сервер->клиент.
+                # логах сервера. send_to_user теперь сообщает, было ли хотя бы
+                # одно ЖИВОЕ соединение у адресата — иначе честно пишем
+                # TARGET OFFLINE (например, собеседник перезагрузил страницу
+                # сразу после нажатия «Принять»).
                 _sdp = payload.get("sdp")
                 sdp_len = len(_sdp.get("sdp", "")) if isinstance(_sdp, dict) else 0
                 suffix = f" sdp={sdp_len}b" if mtype in ("call_offer", "call_answer") else ""
                 print(f"[📞 RELAY] {mtype}: {user_id} -> {target_id}{suffix}")
                 try:
-                    await manager.send_to_user(target_id, out_event, payload)
-                    print(f"[📞 RELAY] {mtype}: {user_id} -> {target_id} delivered")
+                    ok = await manager.send_to_user(target_id, out_event, payload)
+                    if ok:
+                        print(f"[📞 RELAY] {mtype}: {user_id} -> {target_id} delivered")
+                    else:
+                        print(
+                            f"[📞 RELAY] {mtype}: {user_id} -> {target_id} "
+                            "⚠️ TARGET OFFLINE — сообщение НЕ доставлено!"
+                        )
                 except Exception as e:  # noqa: BLE001 — мёртвый получатель не должен ронять сокет отправителя
                     print(f"[📞 RELAY] {mtype}: {user_id} -> {target_id} FAILED: {e}")
                 continue

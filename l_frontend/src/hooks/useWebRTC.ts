@@ -259,6 +259,10 @@ const ICE_FETCH_TIMEOUT_MS = 4_000;
 // ⏱ Сколько ждём call_answer после отправки offer, прежде чем переотправить
 // offer ещё раз (самолечение потерянных/зарейсившихся SDP-сообщений).
 const ANSWER_TIMEOUT_MS = 8_000;
+// 🔁 Симметричное самолечение на ВЫЗЫВАЕМОЙ стороне: как часто переотправлять
+// call_answer, пока соединение не установилось (лечит потерю ответа у вызывающего).
+const ANSWER_RESEND_INTERVAL_MS = 5_000;
+const ANSWER_RESEND_MAX_ATTEMPTS = 5;
 
 type BufferedIceCandidate = RTCIceCandidateInit;
 
@@ -317,6 +321,9 @@ export function useWebRTC(
   } | null>(null);
   const answerTimeoutTimerRef =
     useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 🔁 Периодическая переотправка ANSWER вызываемой стороной
+  const answerResendTimerRef =
+    useRef<ReturnType<typeof setInterval> | null>(null);
 
   const safeSendSignal = useCallback(
     (data: WebRTCSignal) => {
@@ -436,6 +443,34 @@ export function useWebRTC(
         sdp: pc.localDescription,
       });
       rtcLog('📤 ANSWER sent');
+
+      // 🔁 RESEND-WATCHDOG: если инициатор не получил наш ответ (потерянный
+      // WS-пакет/мигание соединения), периодически отправляем его заново,
+      // пока PeerConnection не подключится или не кончатся попытки.
+      if (answerResendTimerRef.current) {
+        clearInterval(answerResendTimerRef.current);
+      }
+      let resendAttempts = 0;
+      answerResendTimerRef.current = setInterval(() => {
+        const cur = pcRef.current ?? pc;
+        if (
+          !cur ||
+          cur.connectionState === 'connected' ||
+          resendAttempts >= ANSWER_RESEND_MAX_ATTEMPTS
+        ) {
+          if (answerResendTimerRef.current) {
+            clearInterval(answerResendTimerRef.current);
+            answerResendTimerRef.current = null;
+          }
+          return;
+        }
+        const desc = cur.localDescription;
+        if (desc && desc.type === 'answer') {
+          resendAttempts += 1;
+          rtcWarn(`🔁 ANSWER not confirmed — resending (attempt ${resendAttempts})`);
+          safeSendSignal({ type: 'call_answer', call_id: callId, sdp: desc });
+        }
+      }, ANSWER_RESEND_INTERVAL_MS);
     },
     [flushIceCandidateBuffer, safeSendSignal],
   );
@@ -485,6 +520,10 @@ export function useWebRTC(
     if (answerTimeoutTimerRef.current) {
       clearTimeout(answerTimeoutTimerRef.current);
       answerTimeoutTimerRef.current = null;
+    }
+    if (answerResendTimerRef.current) {
+      clearInterval(answerResendTimerRef.current);
+      answerResendTimerRef.current = null;
     }
     pendingOfferRef.current = null;
 
