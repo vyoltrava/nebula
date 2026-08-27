@@ -1,0 +1,91 @@
+/* ============================================================
+   IOS RESET — «пергаментное» полотно скевоморфной темы.
+   Убираем привычный плоский «ивовый» вид приложения и задаём
+   облик старого iOS: линованная бумага, дерево, стеклянный
+   глянец, рамки-фотографии вместо кружков.
+   ============================================================ */
+
+/* --- Тело: кожа/линен вместо бумаги приложения --- */
+body.ios-theme {
+  background: var(--ios-bg);
+  background-image: var(--ios-bg-gradient);
+  color: var(--ios-text);
+  font-family: var(--ios-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Плоские «бумажные» подложки приложения убираем в прозрачность */
+body.ios-theme [class*="bg-paper"],
+body.ios-theme [class*="bg-ivory"],
+body.ios-theme [class*="bg-gray-50"],
+body.ios-theme [class*="bg-gray-100"] {
+  background-color: transparent !important;
+}
+
+/* Типографика */
+body.ios-theme h1,
+body.ios-theme h2,
+body.ios-theme h3,
+body.ios-theme h4 {
+  font-family: var(--ios-font);
+  color: var(--ios-text);
+}
+body.ios-theme h1 { text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); }
+
+/* Ссылки — атласный синий, как в iOS */
+body.ios-theme main a,
+body.ios-theme article a,
+body.ios-theme section a {
+  color: var(--ios-blue);
+  text-decoration: none;
+}
+
+/* Ссылки в панели сайдбара — светлые */
+body.ios-theme aside a { color: rgba(255, 255, 255, 0.9); }
+
+/* Выделение текста — как фломастер */
+body.ios-theme ::selection {
+  background: rgba(0, 122, 255, 0.85);
+  color: #ffffff;
+}
+
+/* Аватары — «фотографии в белых рамках» вместо кружков */
+body.ios-theme img[alt][src*="avatar"],
+body.ios-theme .avatar,
+body.ios-theme [data-avatar],
+body.ios-theme img.rounded-full,
+body.ios-theme div.rounded-full {
+  border-radius: 4px !important;
+  border: 3px solid #ffffff;
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+  object-fit: cover;
+}
+
+/* --- Скроллбар: тонкий «металлический» --- */
+body.ios-theme ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  background: transparent;
+}
+body.ios-theme ::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #cfc9bc, #a9a294);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+body.ios-theme ::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.06);
+}
+body.ios-theme {
+  scrollbar-width: thin;
+  scrollbar-color: #b7b0a2 rgba(0, 0, 0, 0.06);
+}
+
+/* Разделители — мягкая бумажная складка */
+body.ios-theme hr {
+  border: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(0,0,0,0.18), transparent);
+}

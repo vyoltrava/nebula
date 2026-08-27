@@ -1,0 +1,63 @@
+/* ============================================================
+   IOS-ANIMATIONS — «оживание» бумажных и физических объектов.
+   Посты-листы мягко «ложатся» на стол; плитки каскадом;
+   уважение prefers-reduced-motion.
+   ============================================================ */
+
+/* ---------- Пост «ложится» на стол ---------- */
+@keyframes iosPostLand {
+  from { opacity: 0; transform: rotate(var(--ios-rotation, 0.4deg)) translateY(-18px) scale(0.98); }
+  to   { opacity: 1; transform: rotate(var(--ios-rotation, 0.4deg)) translateY(0) scale(1); }
+}
+body.ios-theme main article[data-post-id] {
+  animation: iosPostLand 520ms var(--ios-spring) backwards;
+  will-change: transform;
+}
+body.ios-theme main article[data-post-id]:nth-child(1) { animation-delay: 0ms; }
+body.ios-theme main article[data-post-id]:nth-child(2) { animation-delay: 60ms; }
+body.ios-theme main article[data-post-id]:nth-child(3) { animation-delay: 120ms; }
+body.ios-theme main article[data-post-id]:nth-child(4) { animation-delay: 180ms; }
+body.ios-theme main article[data-post-id]:nth-child(5) { animation-delay: 240ms; }
+body.ios-theme main article[data-post-id]:nth-child(n + 6) { animation-delay: 300ms; }
+
+/* ---------- Плитки каскадом «ложатся» ---------- */
+@keyframes iosTileIn {
+  from { opacity: 0; transform: translateY(-10px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+body.ios-theme [data-ios-list] > [data-ios-tile] {
+  animation: iosTileIn 420ms var(--ios-spring) backwards;
+}
+body.ios-theme [data-ios-list] > [data-ios-tile]:nth-child(1) { animation-delay: 0ms; }
+body.ios-theme [data-ios-list] > [data-ios-tile]:nth-child(2) { animation-delay: 50ms; }
+body.ios-theme [data-ios-list] > [data-ios-tile]:nth-child(3) { animation-delay: 100ms; }
+body.ios-theme [data-ios-list] > [data-ios-tile]:nth-child(4) { animation-delay: 150ms; }
+body.ios-theme [data-ios-list] > [data-ios-tile]:nth-child(n + 5) { animation-delay: 200ms; }
+
+/* ---------- Кнопки-плитки: мягкое нажатие ---------- */
+body.ios-theme article button,
+body.ios-theme main button {
+  transition-property: transform, box-shadow, background, color;
+  transition-duration: var(--ios-speed);
+  transition-timing-function: var(--ios-spring);
+}
+
+/* ---------- Общий «живой» интерфейс ---------- */
+body.ios-theme a,
+body.ios-theme aside {
+  transition-property: transform, opacity, background-color, border-color, color, box-shadow;
+  transition-duration: var(--ios-speed);
+  transition-timing-function: var(--ios-ease);
+}
+
+/* ---------- Уважение к reduce-motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  body.ios-theme *,
+  body.ios-theme *::before,
+  body.ios-theme *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

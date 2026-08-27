@@ -1,0 +1,11 @@
+/*
+ * Точка входа стилей темы OLD iOS (подключается один раз в layout.tsx).
+ * Порядок важен: переменные → сброс → каркас → навигация → компоненты → анимации.
+ */
+
+@import "./ios-variables.css";
+@import "./ios-reset.css";
+@import "./ios-layout.css";
+@import "./ios-navigation.css";
+@import "./ios-components.css";
+@import "./ios-animations.css";

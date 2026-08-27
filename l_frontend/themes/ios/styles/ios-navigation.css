@@ -1,0 +1,139 @@
+/* ============================================================
+   IOS-NAVIGATION — сайдбар как «панель из тёмного дерева» с
+   физическими кнопками. Движок data-ios-sidebar помечает <aside>,
+   активный пункт — [data-ios-active]. Селекторы только под body.ios-theme.
+   ============================================================ */
+
+/* --- Панель целиком: текстура дерева, резная кромка --- */
+body.ios-theme [data-ios-sidebar] {
+  background: var(--ios-wood-top);
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 2px,
+      var(--ios-wood-grain) 2px,
+      var(--ios-wood-grain) 5px
+    ),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0px,
+      transparent 26px,
+      rgba(0, 0, 0, 0.05) 26px,
+      rgba(0, 0, 0, 0.05) 27px
+    ),
+    linear-gradient(180deg, var(--ios-wood-top) 0%, var(--ios-wood-bottom) 100%) !important;
+  border-right: 3px solid rgba(0, 0, 0, 0.35);
+  box-shadow:
+    inset -8px 0 14px rgba(0, 0, 0, 0.3),
+    inset 4px 0 6px rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff;
+  padding: 10px 0;
+}
+
+/* --- Пункты меню — как «кнопки» с бликом --- */
+body.ios-theme [data-ios-sidebar] a {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  margin: 6px 12px;
+  padding: 0 14px !important;
+  background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.92) !important;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  transition: transform var(--ios-speed) var(--ios-ease),
+    box-shadow var(--ios-speed) var(--ios-ease),
+    background var(--ios-speed) var(--ios-ease);
+}
+
+/* Иконки наследуют цвет пункта */
+body.ios-theme [data-ios-sidebar] svg {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+body.ios-theme [data-ios-sidebar] a > span:last-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Наведение — кнопка «приподнимается» */
+@media (hover: hover) {
+  body.ios-theme [data-ios-sidebar] a:hover {
+    transform: translateY(-1px) scale(1.02);
+    background: linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.14) 100%);
+    box-shadow:
+      0 4px 8px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    color: #ffffff !important;
+  }
+}
+
+/* Нажатие — кнопка «утапливается» */
+@media (hover: hover) {
+  body.ios-theme [data-ios-sidebar] a:active {
+    transform: scale(0.96);
+    background: linear-gradient(180deg, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.1) 100%);
+    box-shadow:
+      inset 0 3px 6px rgba(0, 0, 0, 0.4),
+      0 1px 0 rgba(255, 255, 255, 0.12);
+  }
+}
+
+/* --- Активный пункт: «нажатая» кнопка с янтарной подсветкой --- */
+body.ios-theme [data-ios-sidebar] a[data-ios-active="true"] {
+  background: linear-gradient(180deg, #d89b33 0%, #b06f1c 100%);
+  border-color: rgba(255, 200, 90, 0.6);
+  color: #ffffff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.25),
+    0 2px 6px rgba(0, 0, 0, 0.35);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+}
+body.ios-theme [data-ios-sidebar] a[data-ios-active="true"] svg {
+  color: #ffffff;
+}
+
+/* Счётчики/подписи наследуют цвет пункта */
+body.ios-theme [data-ios-sidebar] a span,
+body.ios-theme [data-ios-sidebar] a p {
+  color: inherit;
+}
+
+/* Фокус с клавиатуры — глянцевая рамка */
+body.ios-theme [data-ios-sidebar] a:focus-visible {
+  outline: 2px solid var(--ios-blue);
+  outline-offset: -2px;
+}
+
+/* ============================================================
+   МОБИЛЬНАЯ АДАПТАЦИЯ
+   ============================================================ */
+@media (max-width: 767px) {
+  body.ios-theme [data-ios-sidebar] a {
+    min-height: 42px;
+    margin: 5px 8px;
+    padding-left: max(12px, env(safe-area-inset-left)) !important;
+    padding-right: max(12px, env(safe-area-inset-right)) !important;
+  }
+}
+
+@media (hover: none) {
+  body.ios-theme [data-ios-sidebar] a:hover {
+    transform: none;
+    background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%);
+  }
+}

@@ -16,6 +16,8 @@ import { ThemeModeProvider } from "@/components/ThemeModeProvider";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
 import { ZuneThemeProvider } from "@/themes/zune";
 import "@/themes/zune/styles/index.css";
+import { IosThemeProvider } from "@/themes/ios";
+import "@/themes/ios/styles/index.css";
 import "./globals.css";
 
 const jersey = Jersey_25({ weight: "400", subsets: ["latin"], variable: "--font-jersey" });
@@ -54,6 +56,10 @@ export const metadata: Metadata = {
    Читаем новый ключ и легаси-ключ. */
 const zuneNoFlashScript = `try{var k=localStorage.getItem("zune-theme-preference")||localStorage.getItem("theme-preference");if(k==="zune")document.body.classList.add("zune-theme")}catch(e){}`;
 
+/* 🟢 Анти-FOUC для iOS-темы: применяем класс до первой отрисовки.
+   Если выбрана Old iOS — вешаем ios-theme (и снимаем zune-theme). */
+const iosNoFlashScript = `try{var k=localStorage.getItem("ios-theme-preference");if(k==="ios"){document.body.classList.add("ios-theme");document.body.classList.remove("zune-theme")}}catch(e){}`;
+
 export default function RootLayout({
   children,
 }: {
@@ -78,8 +84,10 @@ export default function RootLayout({
       </head>
       <body className="font-sans">
         <script dangerouslySetInnerHTML={{ __html: zuneNoFlashScript }} />
+        <script dangerouslySetInnerHTML={{ __html: iosNoFlashScript }} />
         <ThemeModeProvider>
         <ZuneThemeProvider>
+        <IosThemeProvider>
         <ThemeProvider>
         <LanguageProvider>
         <AnimatedBackground />
@@ -98,6 +106,7 @@ export default function RootLayout({
         </GlobalPlayerProvider>
         </LanguageProvider>
         </ThemeProvider>
+        </IosThemeProvider>
         </ZuneThemeProvider>
         </ThemeModeProvider>
       </body>
