@@ -99,12 +99,12 @@ export function ZuneThemeProvider({ children }: { children: ReactNode }) {
       )}
 
       {/* Плавающие кнопки поверх UI:
-          тема выключена + Настройки → приглашение попробовать Zune;
-          тема включена → возврат к стандартной из любого места */}
+          тема выключена + Настройки → приглашение попробовать Zune.
+          (Кнопки возврата к стандартной теме ВЕЗДЕ больше нет — в неё нет
+          смысла, переключатель живёт в Настройках. Она только мешала.) */}
       {mounted && !isZune && onSettingsRoute && (
         <ZuneThemeToggle floating variant="invite" />
       )}
-      {mounted && isZune && <ZuneThemeToggle floating />}
 
       {/* Переключатель темы внутри раздела «Оформление» настроек */}
       {mounted && <SettingsThemeInjector />}

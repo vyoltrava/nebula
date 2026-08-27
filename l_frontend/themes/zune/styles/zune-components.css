@@ -141,7 +141,12 @@
   border-radius: 0 !important;
   color: var(--z-text) !important;
   font-size: 16px;
-  padding: 10px 2px;
+  /* Горизонтальный padding НЕ трогаем: нативные классы (pl-9/pr-4 и т.п.)
+     пододвигают текст от иконок (например, лупа поиска). Раньше
+     `padding: 10px 2px` перебивал их по специфичности, и иконка наезжала
+     на текст в поле поиска чатов. Задаём только вертикальные отступы. */
+  padding-top: 10px;
+  padding-bottom: 10px;
   box-shadow: none !important;
   transition: border-color 180ms ease;
   min-height: 44px;
