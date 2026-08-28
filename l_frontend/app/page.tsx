@@ -81,9 +81,14 @@ export default function HomePage() {
     window.dispatchEvent(new CustomEvent("like-sync", { detail: data }));
   }, []);
 
+  const handlePostDisliked = useCallback((data: any) => {
+    window.dispatchEvent(new CustomEvent("dislike-sync", { detail: data }));
+  }, []);
+
   useWebSocket("new_post", handleNewPost);
   useWebSocket("post_deleted", handlePostDeleted);
   useWebSocket("post_liked", handlePostLiked);
+  useWebSocket("post_disliked", handlePostDisliked);
 
   useEffect(() => {
     const cleanup = onFeedRefresh(() => {

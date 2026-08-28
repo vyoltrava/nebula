@@ -91,6 +91,14 @@ class Like(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "post_id"),)
 
 
+class Dislike(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    post_id: int = Field(foreign_key="post.id", index=True)
+    created_at: datetime = Field(default_factory=utcnow)
+    __table_args__ = (UniqueConstraint("user_id", "post_id"),)
+
+
 class Follow(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     follower_id: int = Field(foreign_key="user.id", index=True)

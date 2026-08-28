@@ -416,13 +416,25 @@ const continueConfig = lastReadPost
 
   useWebSocket("post_liked", (data: any) => {
     window.dispatchEvent(new CustomEvent("like-sync", {
-      detail: { post_id: data.post_id, likes_count: data.likes_count },
+      detail: { post_id: data.post_id, likes_count: data.likes_count, dislikes_count: data.dislikes_count, disliked: data.disliked },
     }));
     const me = getCachedUser();
     if (me && data.liker_id === me.id) {
       setLikedCache(data.post_id, !!data.liked);
       window.dispatchEvent(new CustomEvent("like-state-sync", {
         detail: { post_id: data.post_id, liked: !!data.liked },
+      }));
+    }
+  });
+
+  useWebSocket("post_disliked", (data: any) => {
+    window.dispatchEvent(new CustomEvent("dislike-sync", {
+      detail: { post_id: data.post_id, dislikes_count: data.dislikes_count, likes_count: data.likes_count, disliked: data.disliked, liked: data.liked },
+    }));
+    const me = getCachedUser();
+    if (me && data.disliker_id === me.id) {
+      window.dispatchEvent(new CustomEvent("dislike-state-sync", {
+        detail: { post_id: data.post_id, disliked: !!data.disliked },
       }));
     }
   });

@@ -5,7 +5,7 @@ import { STICKERS } from "@/lib/stickers";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio } from "lucide-react";
+import { Heart, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio, ThumbsDown } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
 import { safeFetch } from "@/lib/ban";
@@ -154,6 +154,8 @@ export function Post({
   media_type,
   likes_count,
   liked_by_me,
+  dislikes_count,
+  disliked_by_me,
   bookmarked,
   replies_count,
   created_at,
@@ -180,6 +182,8 @@ export function Post({
   media_type?: string | null;
   likes_count: number;
   liked_by_me?: boolean;
+  dislikes_count?: number;
+  disliked_by_me?: boolean;
   bookmarked?: boolean;
   replies_count: number;
   created_at: string;
@@ -215,6 +219,16 @@ export function Post({
         setLikedCache(id, true);
       }
     }, [id, liked_by_me]);
+
+    const [disliked, setDisliked] = useState<boolean>(disliked_by_me === true);
+    useEffect(() => {
+      if (disliked_by_me === true) setDisliked(true);
+    }, [id, disliked_by_me]);
+
+    const [dislikeCount, setDislikeCount] = useState(dislikes_count ?? 0);
+    useEffect(() => {
+      setDislikeCount(dislikes_count ?? 0);
+    }, [dislikes_count]);
 
 
     const [count, setCount] = useState(likes_count ?? 0);
@@ -281,6 +295,8 @@ useEffect(() => {
     if (d.post_id === id) {
       // 🛡️ Защита от отрицательных значений и undefined
       setCount(Math.max(0, d.likes_count ?? 0));
+      if (d.dislikes_count !== undefined) setDislikeCount(Math.max(0, d.dislikes_count));
+      if (d.disliked !== undefined) setDisliked(!!d.disliked);
     }
   };
   window.addEventListener("like-sync", handler);
@@ -324,6 +340,31 @@ useEffect(() => {
       return () => window.removeEventListener("like-state-sync", handler);
     }, [id]);
 
+    useEffect(() => {
+      const handler = (e: Event) => {
+        const d = (e as CustomEvent).detail;
+        if (d.post_id === id) {
+          setDislikeCount(Math.max(0, d.dislikes_count ?? 0));
+          if (d.likes_count !== undefined) setCount(Math.max(0, d.likes_count));
+          if (d.liked !== undefined) setLiked(!!d.liked);
+          if (d.disliked !== undefined) setDisliked(!!d.disliked);
+        }
+      };
+      window.addEventListener("dislike-sync", handler);
+      return () => window.removeEventListener("dislike-sync", handler);
+    }, [id]);
+
+    useEffect(() => {
+      const handler = (e: Event) => {
+        const d = (e as CustomEvent).detail;
+        if (d.post_id === id) {
+          setDisliked(d.disliked);
+        }
+      };
+      window.addEventListener("dislike-state-sync", handler);
+      return () => window.removeEventListener("dislike-state-sync", handler);
+    }, [id]);
+
 // Было:
 // setCount((c) => (next ? c + 1 : c - 1));
 
@@ -338,6 +379,11 @@ async function toggleLike() {
   setLiked(next);
   setCount((c) => Math.max(0, next ? (c ?? 0) + 1 : (c ?? 0) - 1));
   setLikedCache(id, next); // ← РАСКОММЕНТИРОВАТЬ, пишем сразу
+  // Взаимное исключение: при лайке снимаем дизлайк
+  if (next && disliked) {
+    setDisliked(false);
+    setDislikeCount((c) => Math.max(0, (c ?? 0) - 1));
+  }
 
   const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/like`, {
     method: "POST",
@@ -350,11 +396,67 @@ async function toggleLike() {
     if (data.likes_count !== undefined) {
       setCount(data.likes_count); 
     }
+    if (data.dislikes_count !== undefined) {
+      setDislikeCount(Math.max(0, data.dislikes_count));
+    }
+    if (data.disliked !== undefined) {
+      setDisliked(!!data.disliked);
+    }
     setLikedCache(id, data.liked);
   } else {
     setLiked(!next);
     setCount((c) => Math.max(0, next ? (c ?? 0) - 1 : (c ?? 0) + 1));
     setLikedCache(id, !next); // откат кэша
+    if (next && disliked) {
+      setDisliked(true);
+      setDislikeCount((c) => (c ?? 0) + 1);
+    }
+  }
+}
+
+async function toggleDislike() {
+  const token = getToken();
+  if (!token) {
+    router.push("/login");
+    return;
+  }
+
+  const next = !disliked;
+  setDisliked(next);
+  setDislikeCount((c) => Math.max(0, next ? (c ?? 0) + 1 : (c ?? 0) - 1));
+  // Взаимное исключение: при дизлайке снимаем лайк
+  if (next && liked) {
+    setLiked(false);
+    setCount((c) => Math.max(0, (c ?? 0) - 1));
+    setLikedCache(id, false);
+  }
+
+  const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/dislike`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (res.ok) {
+    const data = await res.json();
+    setDisliked(data.disliked);
+    if (data.dislikes_count !== undefined) {
+      setDislikeCount(Math.max(0, data.dislikes_count));
+    }
+    if (data.likes_count !== undefined) {
+      setCount(Math.max(0, data.likes_count));
+    }
+    if (data.liked !== undefined) {
+      setLiked(!!data.liked);
+      setLikedCache(id, !!data.liked);
+    }
+  } else {
+    setDisliked(!next);
+    setDislikeCount((c) => Math.max(0, next ? (c ?? 0) - 1 : (c ?? 0) + 1));
+    if (next && liked) {
+      setLiked(true);
+      setCount((c) => (c ?? 0) + 1);
+      setLikedCache(id, true);
+    }
   }
 }
 
@@ -769,6 +871,18 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             >
               <Heart size={16} fill={liked ? "currentColor" : "none"} />
               <span className="text-sm font-semibold">{count}</span>
+            </button>
+            <button
+              onClick={toggleDislike}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full border transition-all ${
+                disliked
+                  ? "border-red-400/60 bg-red-500/15 text-red-600 dark:text-red-400"
+                  : "border-line dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-500 dark:hover:text-[#e0e0e0]! transition-all"
+              }`}
+              title={disliked ? "Отменить дизлайк" : "Дизлайк"}
+            >
+              <ThumbsDown size={16} fill={disliked ? "currentColor" : "none"} />
+              <span className="text-sm font-semibold">{dislikeCount}</span>
             </button>
             <BookmarkButton postId={id} initial={bookmarked} />
 

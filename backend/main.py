@@ -51,7 +51,7 @@ from cloudinary_config import UPLOAD_FOLDER
 from datetime import datetime, timedelta, timezone
 from database import init_db, get_session, engine
 from models import (
-    User, Post, Like, Follow, Notification, Tag, PostTag, Role,
+    User, Post, Like, Dislike, Follow, Notification, Tag, PostTag, Role,
     Chat, ChatMember, Message, Report, UserKey, ChatSessionKey,
     IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead,
     PushSubscription, StickerPack, Sticker, MessageReaction, Theme, SystemSetting,
@@ -493,6 +493,7 @@ async def cascade_delete_post(post_id: int, session: Session):
 
     # 2. Массовые DELETE (ОПТИМИЗАЦИЯ 1)
     session.exec(delete(Like).where(Like.post_id.in_(id_list)))
+    session.exec(delete(Dislike).where(Dislike.post_id.in_(id_list)))
     session.exec(delete(PostTag).where(PostTag.post_id.in_(id_list)))
     session.exec(delete(Notification).where(Notification.post_id.in_(id_list)))
     session.exec(delete(Bookmark).where(Bookmark.post_id.in_(id_list)))
@@ -846,6 +847,8 @@ class PostOut(BaseModel):
     media_url: Optional[str] = None
     likes_count: int = 0
     liked_by_me: bool = False
+    dislikes_count: int = 0
+    disliked_by_me: bool = False
     replies_count: int = 0
     created_at: datetime  # когда пост создан
     bookmarked_by_me: bool = False  # в закладках ли у меня
@@ -1211,6 +1214,8 @@ def search_users_by_query(
             "media_url": p.media_url,
             "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": False,
+            "dislikes_count": 0,
+            "disliked_by_me": False,
             "replies_count": replies_counts.get(p.id, 0),
             "media_type": p.media_type,  # 🆕
         })
@@ -1381,6 +1386,12 @@ def get_user_posts(
         .group_by(Post.reply_to_id)
     ).all())
 
+    dislikes_counts = dict(session.exec(
+        select(Dislike.post_id, func.count(Dislike.id))
+        .where(Dislike.post_id.in_(post_ids))
+        .group_by(Dislike.post_id)
+    ).all())
+
     # 🆕 Массовая загрузка оригинальных постов для репостов
     repost_ids = list({p.repost_of_id for p in posts if p.repost_of_id})
     originals_map = {}
@@ -1446,6 +1457,8 @@ def get_user_posts(
             "media_url": p.media_url,
             "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": False,
+            "dislikes_count": dislikes_counts.get(p.id, 0),
+            "disliked_by_me": False,
             "replies_count": replies_counts.get(p.id, 0),
             "views_count": p.views_count or 0,
             "created_at": p.created_at.isoformat(),
@@ -1548,6 +1561,12 @@ def search(
         .group_by(Like.post_id)
     ).all())
 
+    dislikes_counts = dict(session.exec(
+        select(Dislike.post_id, func.count(Dislike.id))
+        .where(Dislike.post_id.in_(post_ids))
+        .group_by(Dislike.post_id)
+    ).all())
+
     replies_counts = dict(session.exec(
         select(Post.reply_to_id, func.count(Post.id))
         .where(Post.reply_to_id.in_(post_ids))
@@ -1563,6 +1582,9 @@ def search(
         ).all())
         bookmarked_ids = set(session.exec(
             select(Bookmark.post_id).where(Bookmark.user_id == viewer.id, Bookmark.post_id.in_(post_ids))
+        ).all())
+        disliked_ids = set(session.exec(
+            select(Dislike.post_id).where(Dislike.user_id == viewer.id, Dislike.post_id.in_(post_ids))
         ).all())
 
     # 🆕 Загружаем оригиналы для репостов
@@ -1626,6 +1648,8 @@ def search(
             "media_type": p.media_type,
             "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": p.id in liked_ids,
+            "dislikes_count": dislikes_counts.get(p.id, 0),
+            "disliked_by_me": p.id in disliked_ids,
             "bookmarked": p.id in bookmarked_ids,
             "replies_count": replies_counts.get(p.id, 0),
             "views_count": p.views_count or 0,
@@ -1695,6 +1719,12 @@ def get_following_posts(
         .group_by(Post.reply_to_id)
     ).all())
 
+    dislikes_counts = dict(session.exec(
+        select(Dislike.post_id, func.count(Dislike.id))
+        .where(Dislike.post_id.in_(post_ids))
+        .group_by(Dislike.post_id)
+    ).all())
+
     liked_ids = set(session.exec(
         select(Like.post_id).where(Like.user_id == user.id, Like.post_id.in_(post_ids))
     ).all())
@@ -1702,6 +1732,10 @@ def get_following_posts(
     # ... (предыдущий код функции) ...
     bookmarked_ids = set(session.exec(
         select(Bookmark.post_id).where(Bookmark.user_id == user.id, Bookmark.post_id.in_(post_ids))
+    ).all())
+
+    disliked_ids = set(session.exec(
+        select(Dislike.post_id).where(Dislike.user_id == user.id, Dislike.post_id.in_(post_ids))
     ).all())
 
     # 🆕 Массовая загрузка оригинальных постов для репостов
@@ -1762,6 +1796,8 @@ def get_following_posts(
             "text": p.text, "media_url": p.media_url,
             "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": p.id in liked_ids,
+            "dislikes_count": dislikes_counts.get(p.id, 0),
+            "disliked_by_me": p.id in disliked_ids,
             "bookmarked": p.id in bookmarked_ids,
             "replies_count": replies_counts.get(p.id, 0),
             "views_count": p.views_count or 0,
@@ -1832,6 +1868,8 @@ def get_liked_posts(
             "media_url": p.media_url,
             "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": True,
+            "dislikes_count": 0,
+            "disliked_by_me": False,
             "replies_count": 0,
             "views_count": p.views_count or 0,
             "media_type": p.media_type,  # 🆕
@@ -1921,6 +1959,8 @@ def get_replies(post_id: int, session: Session = Depends(get_session)):
             "media_url": p.media_url,
             "likes_count": likes_counts.get(p.id, 0),
             "liked_by_me": False,
+            "dislikes_count": 0,
+            "disliked_by_me": False,
             "replies_count": replies_counts.get(p.id, 0),
             "reply_to_id": p.reply_to_id,
             "parent": parent_info,
@@ -1989,6 +2029,7 @@ def get_echo_tree(post_id: int, session: Session = Depends(get_session)):
             "repost_of_id": p.repost_of_id,
             "is_quote": bool(p.text.strip()),
             "likes_count": likes_map.get(p.id, 0),
+            "dislikes_count": 0,
         })
     return result
 
@@ -2004,13 +2045,16 @@ def get_single_post(
     
     author = session.get(User, post.author_id)
     likes_count = session.exec(select(func.count()).select_from(Like).where(Like.post_id == post_id)).one()
+    dislikes_count = session.exec(select(func.count()).select_from(Dislike).where(Dislike.post_id == post_id)).one()
     replies_count = session.exec(select(func.count()).select_from(Post).where(Post.reply_to_id == post_id)).one()
     
     liked_by_me = False
     bookmarked = False
+    disliked_by_me = False
     if viewer:
         liked_by_me = session.exec(select(Like).where(Like.user_id == viewer.id, Like.post_id == post_id)).first() is not None
         bookmarked = session.exec(select(Bookmark).where(Bookmark.user_id == viewer.id, Bookmark.post_id == post_id)).first() is not None
+        disliked_by_me = session.exec(select(Dislike).where(Dislike.user_id == viewer.id, Dislike.post_id == post_id)).first() is not None
 
     repost_data = None
     is_repost = False
@@ -2048,6 +2092,7 @@ def get_single_post(
         "author_role": get_author_role(author, session) if author else None,
         "text": post.text, "media_url": post.media_url, "media_type": post.media_type,
         "likes_count": likes_count, "liked_by_me": liked_by_me, "bookmarked": bookmarked,
+        "dislikes_count": dislikes_count, "disliked_by_me": disliked_by_me,
         "replies_count": replies_count, "views_count": post.views_count or 0,
         "created_at": post.created_at.isoformat(), "reply_to_id": post.reply_to_id,
         "repost_of": repost_data, "is_repost": is_repost, "is_quote": is_quote,
@@ -2080,20 +2125,32 @@ async def toggle_like(
         if post and post.author_id != user.id:
             notif = Notification(user_id=post.author_id, actor_id=user.id, type="like", post_id=post_id)
             session.add(notif)
+
+        # Взаимное исключение: лайк снимает дизлайк
+        existing_dislike = session.exec(
+            select(Dislike).where(Dislike.user_id == user.id, Dislike.post_id == post_id)
+        ).first()
+        if existing_dislike:
+            session.delete(existing_dislike)
             
     session.commit()
     
-    # Считаем актуальное количество лайков после коммита
+    # Считаем актуальное количество лайков/дизлайков после коммита
     cnt = session.exec(
         select(func.count()).select_from(Like).where(Like.post_id == post_id)
+    ).one()
+    dislike_cnt = session.exec(
+        select(func.count()).select_from(Dislike).where(Dislike.post_id == post_id)
     ).one()
     
     # 🚀 Единый payload для WebSocket (всё, что нужно фронту)
     ws_payload = {
         "post_id": post_id,
         "likes_count": cnt,
+        "dislikes_count": dislike_cnt,
         "liker_id": user.id,      # 👈 КРИТИЧЕСКИ ВАЖНО: фронт должен знать, КТО лайкнул
         "liked": is_liking,       # 👈 True (поставил) / False (снял)
+        "disliked": False,
     }
     
     # Рассылаем ВСЕМ подключенным клиентам (включая второе/третье устройство этого же юзера)
@@ -2102,7 +2159,72 @@ async def toggle_like(
     # Возвращаем полные данные на фронт, чтобы UI обновился мгновенно из HTTP-ответа
     return {
         "liked": is_liking,
-        "likes_count": cnt
+        "likes_count": cnt,
+        "disliked": False,
+        "dislikes_count": dislike_cnt,
+    }
+
+
+@app.post("/api/posts/{post_id}/dislike")
+@limiter.limit("30/minute")
+async def toggle_dislike(
+    request: Request,
+    post_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    post = session.get(Post, post_id)
+    if not post:
+        raise HTTPException(404, "Post not found")
+
+    existing = session.exec(
+        select(Dislike).where(Dislike.user_id == user.id, Dislike.post_id == post_id)
+    ).first()
+
+    # True, если мы ставим дизлайк. False, если снимаем.
+    is_disliking = not bool(existing)
+
+    if existing:
+        session.delete(existing)
+    else:
+        dislike = Dislike(user_id=user.id, post_id=post_id)
+        session.add(dislike)
+        log_action(session, user.id, "dislike_post", target_type="post", target_id=post_id)
+
+        # Взаимное исключение: дизлайк снимает лайк
+        existing_like = session.exec(
+            select(Like).where(Like.user_id == user.id, Like.post_id == post_id)
+        ).first()
+        if existing_like:
+            session.delete(existing_like)
+
+    session.commit()
+
+    # Считаем актуальное количество лайков/дизлайков после коммита
+    cnt = session.exec(
+        select(func.count()).select_from(Like).where(Like.post_id == post_id)
+    ).one()
+    dislike_cnt = session.exec(
+        select(func.count()).select_from(Dislike).where(Dislike.post_id == post_id)
+    ).one()
+
+    # 🚀 Единый payload для WebSocket (всё, что нужно фронту)
+    ws_payload = {
+        "post_id": post_id,
+        "dislikes_count": dislike_cnt,
+        "likes_count": cnt,
+        "disliker_id": user.id,
+        "disliked": is_disliking,
+        "liked": False,
+    }
+
+    await manager.broadcast_all("post_disliked", ws_payload)
+
+    return {
+        "disliked": is_disliking,
+        "dislikes_count": dislike_cnt,
+        "liked": False,
+        "likes_count": cnt,
     }
 
 
@@ -2212,6 +2334,10 @@ def list_bookmarks(
         select(Like.post_id, func.count()).where(Like.post_id.in_(post_ids)).group_by(Like.post_id)
     ).all())
 
+    dislikes_map = dict(session.exec(
+        select(Dislike.post_id, func.count()).where(Dislike.post_id.in_(post_ids)).group_by(Dislike.post_id)
+    ).all())
+
     replies_map = dict(session.exec(
         select(Post.reply_to_id, func.count()).where(Post.reply_to_id.in_(post_ids)).group_by(Post.reply_to_id)
     ).all())
@@ -2219,6 +2345,10 @@ def list_bookmarks(
     # 4. Какие из них лайкнуты текущим пользователем
     liked_ids = set(session.exec(
         select(Like.post_id).where(Like.user_id == user.id, Like.post_id.in_(post_ids))
+    ).all())
+
+    disliked_ids = set(session.exec(
+        select(Dislike.post_id).where(Dislike.user_id == user.id, Dislike.post_id.in_(post_ids))
     ).all())
 
     result = []
@@ -2243,6 +2373,8 @@ def list_bookmarks(
             "media_url": post.media_url,
             "likes_count": likes_map.get(post.id, 0),
             "liked_by_me": post.id in liked_ids,
+            "dislikes_count": dislikes_map.get(post.id, 0),
+            "disliked_by_me": post.id in disliked_ids,
             "bookmarked": True,
             "replies_count": replies_map.get(post.id, 0),
             # ✅ ИСПРАВЛЕНО: заменили 'p' на 'post'
@@ -2347,6 +2479,9 @@ def get_posts(
     likes_map = dict(session.exec(
         select(Like.post_id, func.count()).where(Like.post_id.in_(ids)).group_by(Like.post_id)
     ).all())
+    dislikes_map = dict(session.exec(
+        select(Dislike.post_id, func.count()).where(Dislike.post_id.in_(ids)).group_by(Dislike.post_id)
+    ).all())
     replies_map = dict(session.exec(
         select(Post.reply_to_id, func.count()).where(Post.reply_to_id.in_(ids)).group_by(Post.reply_to_id)
     ).all())
@@ -2370,12 +2505,16 @@ def get_posts(
 
     liked_ids = set()
     bookmarked_ids = set()
+    disliked_ids = set()
     if viewer:
         liked_ids = set(session.exec(
             select(Like.post_id).where(Like.user_id == viewer.id, Like.post_id.in_(ids))
         ).all())
         bookmarked_ids = set(session.exec(
             select(Bookmark.post_id).where(Bookmark.user_id == viewer.id, Bookmark.post_id.in_(ids))
+        ).all())
+        disliked_ids = set(session.exec(
+            select(Dislike.post_id).where(Dislike.user_id == viewer.id, Dislike.post_id.in_(ids))
         ).all())
 
     result = []
@@ -2425,6 +2564,8 @@ def get_posts(
             "media_type": p.media_type,  # ✅ p здесь — это текущий пост
             "likes_count": likes_map.get(p.id, 0),
             "liked_by_me": p.id in liked_ids,
+            "dislikes_count": dislikes_map.get(p.id, 0),
+            "disliked_by_me": p.id in disliked_ids,
             "bookmarked": p.id in bookmarked_ids,
             "replies_count": replies_map.get(p.id, 0),
             "created_at": p.created_at.isoformat(),
@@ -2876,6 +3017,8 @@ def tag_posts(tag_name: str, session: Session = Depends(get_session)):
             "media_url": p.media_url,
             "likes_count": likes_map.get(p.id, 0),
             "liked_by_me": False,
+            "dislikes_count": 0,
+            "disliked_by_me": False,
             "replies_count": replies_map.get(p.id, 0),
             "views_count": p.views_count or 0,
             "created_at": p.created_at.isoformat(),
@@ -3417,6 +3560,7 @@ async def admin_delete_all_user_posts(
     reply_ids = [r.id for r in user_replies]
     if reply_ids:
         session.exec(delete(Like).where(Like.post_id.in_(reply_ids)))
+        session.exec(delete(Dislike).where(Dislike.post_id.in_(reply_ids)))
         session.exec(delete(PostTag).where(PostTag.post_id.in_(reply_ids)))
         session.exec(delete(Notification).where(Notification.post_id.in_(reply_ids)))
         session.exec(delete(PostView).where(PostView.post_id.in_(reply_ids)))
