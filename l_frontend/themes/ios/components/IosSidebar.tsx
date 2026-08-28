@@ -73,6 +73,13 @@ export function IosSidebar() {
     const mountIcons = () => {
       const links = aside.querySelectorAll<HTMLAnchorElement>("a[href]");
       links.forEach((anchor) => {
+        /* Механический счётчик непрочитанного — латунный барабан (CSS) */
+        const badge = anchor.querySelector<HTMLElement>('span[class*="rounded-full"]');
+        if (badge) {
+          const raw = (badge.textContent ?? "").trim();
+          badge.setAttribute("data-ios-count", /^\d+$/.test(raw) ? raw : "0");
+        }
+
         const href = anchor.getAttribute("href") ?? "";
         const base = href.split("?")[0].split("#")[0];
         const cls = resolveIcon(base);
@@ -137,6 +144,9 @@ export function IosSidebar() {
       aside
         .querySelectorAll("[data-ios-active]")
         .forEach((node) => node.removeAttribute("data-ios-active"));
+      aside
+        .querySelectorAll("[data-ios-count]")
+        .forEach((node) => node.removeAttribute("data-ios-count"));
     };
   }, [pathname]);
 

@@ -359,5 +359,330 @@ body.ios-theme main [role="switch"]:checked::before { left: 24px; }
 .ios-theme-option-hint { font-size: 12px; opacity: 0.65; margin-top: 1px; }
 .ios-theme-option.is-active .ios-theme-option-hint { opacity: 0.85; }
 
+/* ============================================================
+   ЧАСТЬ 5 — АВИАЦИОННЫЕ / ИНДУСТРИАЛЬНЫЕ КНОПКИ ДЕЙСТВИЙ:
+   металлический корпус-безель + цветной колпачок, вдавливание
+   при нажатии. Атрибуты ставит IosActions (по lucide-иконкам).
+   ============================================================ */
+
+body.ios-theme main button[data-ios-btn],
+body.ios-theme .ist-root button[data-ios-btn] {
+  width: 48px;
+  height: 36px;
+  min-width: 48px;
+  padding: 0 !important;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #f6f4ec 0%, #d4d1c5 55%, #a8a496 100%);
+  border: 1px solid #55524a;
+  border-top-color: #ffffff;
+  box-shadow:
+    0 2px 3px rgba(0, 0, 0, 0.35),
+    0 6px 12px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.2),
+    inset 0 0 0 3px rgba(0, 0, 0, 0.07);
+  color: #35332c;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+body.ios-theme main button[data-ios-btn] svg {
+  width: 17px;
+  height: 17px;
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.65));
+}
+
+/* ЛАЙК — красная приборная кнопка с внутренним свечением */
+body.ios-theme main button[data-ios-btn="like"] {
+  background: linear-gradient(180deg, #ff9484 0%, #f04a35 52%, #bd2a17 100%);
+  border-color: #8c1d0e;
+  color: #fff5f0;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.45);
+  box-shadow:
+    0 2px 3px rgba(0, 0, 0, 0.4),
+    0 6px 14px rgba(240, 74, 53, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -3px 5px rgba(90, 10, 2, 0.55),
+    inset 0 0 0 3px rgba(0, 0, 0, 0.14);
+}
+
+/* КОММЕНТАРИЙ — состаренное серебро с гравировкой */
+body.ios-theme main button[data-ios-btn="comment"] {
+  background: linear-gradient(180deg, #eceae2 0%, #c2bfb2 55%, #8f8c7e 100%);
+  border-color: #565349;
+  color: #3a382f;
+}
+
+/* ПОДЕЛИТЬСЯ — синяя объёмная */
+body.ios-theme main button[data-ios-btn="share"] {
+  background: linear-gradient(180deg, #63a4ff 0%, #1f7ae8 52%, #0a5bc4 100%);
+  border-color: #084697;
+  color: #eaf4ff;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 2px 3px rgba(0, 0, 0, 0.4),
+    0 6px 14px rgba(31, 122, 232, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -3px 5px rgba(4, 42, 96, 0.55),
+    inset 0 0 0 3px rgba(0, 0, 0, 0.14);
+}
+
+/* ЗАКЛАДКА — латунь */
+body.ios-theme main button[data-ios-btn="bookmark"] {
+  background: linear-gradient(180deg, #f2d489 0%, #cf9f3c 52%, #93671a 100%);
+  border-color: #6b4a10;
+  color: #3d2a06;
+}
+
+/* УДАЛИТЬ — красная с ЗАЩИТНЫМ КОЛПАЧКОМ (полосатая дуга) */
+body.ios-theme main button[data-ios-btn="delete"] {
+  background: linear-gradient(180deg, #ff9484 0%, #ef3b28 52%, #b32312 100%);
+  border-color: #7e1809;
+  color: #fff5f0;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.45);
+}
+body.ios-theme main button[data-ios-btn="delete"]::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 24px;
+  padding: 3px;
+  background: repeating-linear-gradient(45deg,
+    #ffd23e 0 5px, #35322a 5px 10px);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Нажатие — кнопка вдавливается в панель */
+body.ios-theme main button[data-ios-btn]:active,
+body.ios-theme .ist-root button[data-ios-btn]:active {
+  transform: translateY(2px) scale(0.95);
+  box-shadow:
+    inset 0 4px 9px rgba(0, 0, 0, 0.5),
+    inset 0 0 0 3px rgba(0, 0, 0, 0.14),
+    0 1px 0 rgba(255, 255, 255, 0.35);
+}
+body.ios-theme main button[data-ios-btn="like"]:active,
+body.ios-theme main button[data-ios-btn="share"]:active {
+  box-shadow:
+    inset 0 4px 9px rgba(0, 0, 0, 0.55),
+    inset 0 0 12px rgba(255, 255, 255, 0.25),
+    0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+/* ---------- МЕХАНИЧЕСКИЕ СЧЁТЧИКИ (баранки одометров) ---------- */
+body.ios-theme main button[data-ios-btn] + span,
+body.ios-theme main button[data-ios-btn] + small,
+body.ios-theme main button[data-ios-btn] + b {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, #23211b 0%, #3b3830 100%);
+  border: 1px solid #0f0e0b;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.85),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.14),
+    0 1px 0 rgba(255, 255, 255, 0.55);
+  color: #ffd98f;
+  font-family: var(--ios-font);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 6px rgba(255, 190, 90, 0.65);
+}
+
+/* ============================================================
+   ЧАСТЬ 6 — СУРГУЧНАЯ ПЕЧАТЬ «Опубликовать»: круглая восковая
+   печать с наплывами по краю и гравировкой-оттиском; при
+   нажатии — анимация оттиска (iosSealPress) + звук штампа.
+   ============================================================ */
+
+body.ios-theme main button[data-ios-seal],
+body.ios-theme .ist-root button[data-ios-seal] {
+  position: relative;
+  width: 66px;
+  height: 66px;
+  min-width: 66px;
+  padding: 0 !important;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 26%,
+      #ff9d8d 0%, #e6392a 45%, #a01a0d 82%, #6f0f05 100%);
+  border: 2px solid #7c130a;
+  box-shadow:
+    0 6px 12px rgba(0, 0, 0, 0.4),
+    0 14px 26px rgba(160, 30, 15, 0.35),
+    inset 0 3px 5px rgba(255, 255, 255, 0.5),
+    inset 0 -5px 8px rgba(70, 5, 0, 0.6);
+  color: #ffe9dd;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+  line-height: 1.15;
+  text-transform: uppercase;
+  text-shadow: 0 -1px 0 rgba(80, 8, 2, 0.85);
+  text-align: center;
+}
+
+/* Гравировка-оттиск внутри воска */
+body.ios-theme main button[data-ios-seal]::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(255, 225, 210, 0.5);
+  box-shadow: inset 0 1px 2px rgba(90, 10, 4, 0.55);
+  background: none;
+  height: auto;
+  opacity: 1;
+}
+
+/* Наплывы воска по неровному краю */
+body.ios-theme main button[data-ios-seal]::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background:
+    radial-gradient(9px 7px at 12% 30%, #e6392a 0 60%, transparent 70%),
+    radial-gradient(7px 8px at 84% 22%, #d63425 0 60%, transparent 70%),
+    radial-gradient(8px 6px at 78% 82%, #c93022 0 60%, transparent 70%),
+    radial-gradient(6px 7px at 26% 86%, #e6392a 0 60%, transparent 70%);
+  filter: blur(0.4px);
+  height: auto;
+  opacity: 1;
+}
+
+/* Оттиск при нажатии */
+body.ios-theme main button[data-ios-seal]:active {
+  transform: scale(0.9) rotate(-5deg);
+  animation: iosSealPress 450ms var(--ios-spring);
+}
+
+/* ---------- ТУМБЛЕР ЗВУКА в селекторе тем ---------- */
+.ios-theme-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+.ios-sfx-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f2efe7 46%, #dcd7c8 100%);
+  border: 1px solid #b3ac9b;
+  border-top-color: #eae6da;
+  border-bottom-color: #998f79;
+  border-radius: 12px;
+  box-shadow:
+    0 2px 3px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.08);
+}
+.ios-sfx-label {
+  font: 600 15px var(--ios-font);
+  color: var(--ios-text, #33302a);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+.ios-sfx-switch {
+  position: relative;
+  width: 52px;
+  height: 30px;
+  border-radius: 999px;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  background: linear-gradient(180deg, #a9a291 0%, #c6c0b0 100%);
+  border: 1px solid #857d6b;
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.32),
+    0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: background 250ms var(--ios-ease), box-shadow 250ms var(--ios-ease);
+}
+.ios-sfx-switch::before {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 26%, #ffffff 0%, #f0eee6 45%, #cbc7b9 100%);
+  border: 1px solid #908875;
+  box-shadow:
+    0 3px 6px rgba(0, 0, 0, 0.4),
+    inset 0 2px 2px rgba(255, 255, 255, 0.95);
+  transition: left 300ms var(--ios-spring), transform 150ms var(--ios-spring);
+}
+.ios-sfx-switch:active::before { transform: scale(0.92); }
+.ios-sfx-switch[data-state="on"] {
+  background: linear-gradient(180deg, #58d877 0%, #2fae55 100%);
+  border-color: #1f7a3c;
+  box-shadow:
+    inset 0 2px 6px rgba(18, 88, 38, 0.45),
+    0 0 12px rgba(52, 199, 89, 0.35),
+    0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.ios-sfx-switch[data-state="on"]::before { left: 24px; }
+
+/* Латунный диск-проверка у выбранной темы */
+.ios-theme-check {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffffff;
+  background: radial-gradient(circle at 32% 26%, #ffe9a8 0%, #d8ab4e 55%, #8a6420 100%);
+  border: 1px solid #6b4a10;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+/* ---------- ЛАМПОЧКИ НАКАЛИВАНИЯ (индикатор онлайн) ---------- */
+body.ios-theme main .bg-green-500,
+body.ios-theme main .bg-emerald-500 {
+  background: radial-gradient(circle at 35% 30%, #d6ffe0 0%, #4ade80 45%, #15803d 100%) !important;
+  border-radius: 50%;
+  box-shadow:
+    0 0 6px rgba(74, 222, 128, 0.9),
+    0 0 14px rgba(74, 222, 128, 0.5),
+    inset 0 -1px 2px rgba(0, 60, 20, 0.5);
+}
+body.ios-theme main .bg-red-500,
+body.ios-theme main .bg-gray-400 {
+  background: radial-gradient(circle at 35% 30%, #ffd6cf 0%, #f87171 45%, #991b1b 100%) !important;
+  border-radius: 50%;
+  box-shadow:
+    0 0 5px rgba(248, 113, 113, 0.7),
+    inset 0 -1px 2px rgba(70, 0, 0, 0.5);
+}
+
+/* ---------- БАРАБАН ЗАГРУЗКИ (печатная машинка) ---------- */
+body.ios-theme main [class*="animate-spin"] {
+  border: 0 !important;
+  border-radius: 50%;
+  background: conic-gradient(
+    #d8ab4e 0deg 40deg, #8a6420 40deg 60deg,
+    #d8ab4e 60deg 120deg, #8a6420 120deg 140deg,
+    #d8ab4e 140deg 200deg, #8a6420 200deg 220deg,
+    #d8ab4e 220deg 280deg, #8a6420 280deg 300deg,
+    #d8ab4e 300deg 360deg) !important;
+  box-shadow:
+    inset 0 0 0 3px #5c3f10,
+    inset 0 0 0 4px #d8ab4e,
+    0 2px 5px rgba(0, 0, 0, 0.4);
+}
+
 
 

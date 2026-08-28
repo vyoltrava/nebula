@@ -8,7 +8,8 @@
  *  - синхронизирует класс `ios-theme` на <body> (единственный эффект, БЕЗ
  *    MutationObserver — именно слежение за <body> ломало интерфейс в прошлый раз);
  *  - когда тема включена — монтирует движки трансформации (маркируют живой DOM
- *    атрибутами data-ios-*, по которым CSS рисует скевоморфизм);
+ *    атрибутами data-ios-*, по которым CSS рисует скевоморфизм) и звуковой
+ *    движок Web Audio (клики, штампы, телеграф, отправка письма);
  *  - всегда монтирует SettingsThemeInjector — переключатель трёх тем из Настроек.
  *
  * Взаимоисключение с Zune решает сам селектор (applyThemeChoice), а не этот
@@ -34,6 +35,9 @@ import {
 import { IosSidebar } from "./components/IosSidebar";
 import { IosChats } from "./components/IosChats";
 import { IosNotifications } from "./components/IosNotifications";
+import { IosActions } from "./components/IosActions";
+import { IosBoard } from "./components/IosBoard";
+import { IosSfx } from "./components/IosSfx";
 import { SettingsThemeInjector } from "./components/SettingsThemeInjector";
 
 /* Признак завершения гидратации (без setState в эффекте) */
@@ -69,10 +73,13 @@ export function IosThemeProvider({ children }: { children: ReactNode }) {
     <IosThemeContext.Provider value={value}>
       {children}
 
-      {/* Движки трансформации — живут только пока включена iOS-тема */}
+      {/* Движки трансформации и звука — живут только пока включена iOS-тема */}
       {mounted && isIos && (
         <>
+          <IosSfx />
           <IosSidebar />
+          <IosActions />
+          <IosBoard />
           <IosChats />
           <IosNotifications />
         </>

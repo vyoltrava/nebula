@@ -791,6 +791,122 @@ body.ios-theme [data-ios-sidebar] a [data-ios-count]:not([data-ios-count="0"]) {
   text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.4);
 }
 
+/* ============================================================
+   ЧАСТЬ 4 — ПЕРЕДЕЛ В КОЖУ: натуральная кожа с порами, складками
+   и потёртостями; гравировка надписей; ЛАТУННЫЕ вставки под
+   иконки; прошитые нитки между клавишами; активная клавиша —
+   глубокая гравировка с подсветкой изнутри. (Позже дерева —
+   перекрывает его при равной специфичности.)
+   ============================================================ */
+
+/* ---------- Панель: кожа ---------- */
+body.ios-theme [data-ios-sidebar] {
+  background-color: #6b4a2f;
+  background-image:
+    /* потёртости и блики от света сверху */
+    radial-gradient(190px 130px at 24% 8%, rgba(255, 226, 180, 0.09), transparent 70%),
+    radial-gradient(230px 160px at 78% 32%, rgba(0, 0, 0, 0.24), transparent 72%),
+    radial-gradient(210px 140px at 28% 64%, rgba(255, 228, 185, 0.05), transparent 70%),
+    radial-gradient(250px 170px at 72% 90%, rgba(0, 0, 0, 0.30), transparent 72%),
+    /* ПОРЫ кожи — две решётки мелких крапинок */
+    repeating-radial-gradient(ellipse 8px 6px at 6px 8px,
+      rgba(0, 0, 0, 0.13) 0 1.1px, transparent 1.1px 5px),
+    repeating-radial-gradient(ellipse 9px 7px at 13px 15px,
+      rgba(255, 232, 195, 0.06) 0 1px, transparent 1px 6px),
+    /* база */
+    linear-gradient(165deg, #7d5636 0%, #65432b 46%, #4a301c 100%);
+  border-right: 1px solid #241505;
+  box-shadow:
+    inset -18px 0 26px rgba(0, 0, 0, 0.55),
+    inset 6px 0 10px rgba(255, 224, 175, 0.10),
+    inset 0 0 70px rgba(0, 0, 0, 0.28),
+    6px 0 18px rgba(0, 0, 0, 0.35);
+}
+
+/* Складки кожи (шрамы/морщины) поверх пор */
+body.ios-theme [data-ios-sidebar]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(113deg,
+      transparent 0 34px, rgba(0, 0, 0, 0.11) 34px 35px,
+      transparent 35px 41px, rgba(255, 235, 200, 0.045) 41px 42px,
+      transparent 42px 78px),
+    repeating-linear-gradient(63deg,
+      transparent 0 55px, rgba(0, 0, 0, 0.09) 55px 56px,
+      transparent 56px 61px);
+  mix-blend-mode: multiply;
+  opacity: 0.75;
+}
+
+/* ---------- Клавиша: кожаная накладка с ГРАВИРОВКОЙ ---------- */
+body.ios-theme [data-ios-sidebar] a {
+  background: linear-gradient(180deg,
+    rgba(255, 240, 210, 0.10) 0%,
+    rgba(0, 0, 0, 0.05) 52%,
+    rgba(0, 0, 0, 0.22) 100%);
+  border: 1px solid rgba(28, 16, 6, 0.9);
+  border-top-color: rgba(255, 232, 190, 0.26);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 235, 200, 0.24),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.38),
+    0 3px 6px rgba(0, 0, 0, 0.5),
+    0 10px 20px rgba(0, 0, 0, 0.24);
+  color: #ecd7b2 !important;
+  text-shadow:
+    0 -1px 1px rgba(0, 0, 0, 0.85),
+    0 1px 0 rgba(255, 235, 200, 0.22);
+}
+
+/* Прошитые нитки между клавишами (контрастная строчка) */
+body.ios-theme [data-ios-sidebar] a:not([data-ios-active="true"])::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: -5.5px;
+  height: 0;
+  border-top: 2px dashed rgba(240, 222, 180, 0.42);
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.55));
+}
+
+/* ---------- Активная клавиша: глубокая гравировка + подсветка ---------- */
+body.ios-theme [data-ios-sidebar] a[data-ios-active="true"] {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.38) 0%, rgba(0, 0, 0, 0.16) 100%);
+  border-color: rgba(15, 8, 2, 0.95);
+  color: #ffdf9e !important;
+  text-shadow:
+    0 -1px 2px rgba(0, 0, 0, 0.95),
+    0 0 12px rgba(255, 190, 90, 0.55);
+  box-shadow:
+    inset 0 4px 10px rgba(0, 0, 0, 0.66),
+    inset 0 -1px 0 rgba(255, 235, 200, 0.22),
+    0 0 0 1px rgba(255, 190, 90, 0.28),
+    0 0 22px rgba(255, 180, 60, 0.38);
+}
+
+/* ---------- ЛАТУННЫЕ ВСТАВКИ под иконками ---------- */
+body.ios-theme [data-ios-sidebar] .ios-3d-icon {
+  border-radius: 9px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0) 42%),
+    radial-gradient(circle at 30% 20%,
+      #ffedb0 0%, #d8ab4e 36%, #8a6420 76%, #5c3f10 100%);
+  border: 1px solid #3f2a0c;
+  box-shadow:
+    inset 0 2px 3px rgba(255, 250, 220, 0.55),
+    inset 0 -3px 5px rgba(60, 38, 6, 0.6),
+    inset 0 0 0 2px rgba(255, 226, 150, 0.18),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.5));
+}
+body.ios-theme [data-ios-sidebar] a:hover .ios-3d-icon {
+  filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.5))
+    drop-shadow(0 0 8px rgba(255, 210, 120, 0.45));
+}
+
 
 
 
