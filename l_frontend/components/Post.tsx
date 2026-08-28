@@ -5,7 +5,7 @@ import { STICKERS } from "@/lib/stickers";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio, ThumbsDown } from "lucide-react";
+import { Heart, HeartCrack, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
 import { safeFetch } from "@/lib/ban";
@@ -861,29 +861,46 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             </div>
           ) : (
           <div className="flex items-center gap-3 mt-3 flex-wrap">
+          <div
+            className={`flex items-center rounded-full border transition-all overflow-hidden ${
+              liked || disliked
+                ? liked
+                  ? "border-pink-400/60 bg-[#8B5CF6]/12"
+                  : "border-red-400/60 bg-red-500/15"
+                : "border-line dark:border-white/20 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40"
+            }`}
+          >
+            {/* Лайк: счётчик слева, сердечко ближе к центру */}
             <button
               onClick={toggleLike}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-full border transition-all ${
+              className={`flex items-center gap-1 py-1.5 pl-3 pr-2.5 transition-all ${
                 liked
-                  ? "border-pink-400/50 bg-[#8B5CF6] text-white"
-                  : "border-line dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-500 dark:hover:text-[#e0e0e0]! transition-all"
+                  ? "text-pink-500 dark:text-pink-400"
+                  : "text-gray-800 dark:text-white/70 hover:text-pink-500"
               }`}
+              title={liked ? "Отменить лайк" : "Лайк"}
             >
-              <Heart size={16} fill={liked ? "currentColor" : "none"} />
               <span className="text-sm font-semibold">{count}</span>
+              <Heart size={16} fill={liked ? "currentColor" : "none"} />
             </button>
+
+            {/* Разделитель */}
+            <div className="w-px self-stretch my-1.5 bg-line dark:bg-white/20" />
+
+            {/* Дизлайк: разбитое сердечко ближе к центру, счётчик справа */}
             <button
               onClick={toggleDislike}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-full border transition-all ${
+              className={`flex items-center gap-1 py-1.5 pl-2.5 pr-3 transition-all ${
                 disliked
-                  ? "border-red-400/60 bg-red-500/15 text-red-600 dark:text-red-400"
-                  : "border-line dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-500 dark:hover:text-[#e0e0e0]! transition-all"
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-gray-800 dark:text-white/70 hover:text-red-500"
               }`}
               title={disliked ? "Отменить дизлайк" : "Дизлайк"}
             >
-              <ThumbsDown size={16} fill={disliked ? "currentColor" : "none"} />
+              <HeartCrack size={16} fill={disliked ? "currentColor" : "none"} />
               <span className="text-sm font-semibold">{dislikeCount}</span>
             </button>
+          </div>
             <BookmarkButton postId={id} initial={bookmarked} />
 
             <button
