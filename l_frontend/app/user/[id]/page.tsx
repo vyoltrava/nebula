@@ -768,14 +768,15 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
           </div>
         </div>
 
-        {/* ================= ПОСТЫ ================= */}
-        {posts.map((post) => (
-          <Post 
-            key={post.id} 
-            {...post} 
-            liked_by_me={post.liked_by_me ?? post.is_liked ?? false} 
-          />
-        ))}
+{/* ================= ПОСТЫ ================= */}
+{posts.map((post) => (
+  <Post 
+    key={post.id} 
+    {...post} 
+    liked_by_me={post.liked_by_me ?? post.is_liked ?? false}
+    disliked_by_me={post.disliked_by_me ?? post.is_disliked ?? false} // <-- ДОБАВЬ ЭТУ СТРОКУ
+  />
+))}
         {posts.length === 0 && !postsLoading && <p className="p-8 text-center text-gray-600 dark:text-white/50">{t("common.noPosts")}</p>}
         {hasMore && posts.length > 0 && !postsLoading && (
           <button onClick={() => loadMorePosts()} className="w-full p-4 text-center text-[#8b5cf6] font-semibold hover:bg-gray-100 dark:hover:bg-white/5 transition-all">
