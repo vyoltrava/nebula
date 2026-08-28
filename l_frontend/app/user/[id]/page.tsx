@@ -185,6 +185,30 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       .catch(() => setAvailableBadges([]));
   }, []);
 
+
+    // 🔄 Синхронизация лайков/дизлайков в реальном времени (если страница профиля не размонтирована)
+  useEffect(() => {
+    const handlePostSync = (e: Event) => {
+      const d = (e as CustomEvent).detail;
+      setPosts(prev => prev.map(p => 
+        p.id === d.post_id ? { 
+          ...p, 
+          liked_by_me: d.liked ?? p.liked_by_me, 
+          likes_count: d.likes_count ?? p.likes_count,
+          disliked_by_me: d.disliked ?? p.disliked_by_me,
+          dislikes_count: d.dislikes_count ?? p.dislikes_count
+        } : p
+      ));
+    };
+    window.addEventListener("like-sync", handlePostSync);
+    window.addEventListener("dislike-sync", handlePostSync);
+    
+    return () => {
+      window.removeEventListener("like-sync", handlePostSync);
+      window.removeEventListener("dislike-sync", handlePostSync);
+    };
+  }, []);
+
   useEffect(() => {
     loadBadges();
     const token = getToken();
@@ -203,10 +227,27 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     // Загружаем бейджи
     loadBadges();
     
-    // 🆕 Обновляем бейджи при возврате на вкладку
+
+    // 🆕 Обновляем бейджи и посты при возврате на вкладку
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         loadBadges();
+        
+        // 🔄 Перезагружаем первую страницу постов, чтобы актуализировать счетчики лайков/дизлайков
+        if (profile?.id) {
+          const token = getToken();
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${profile.id}/posts?limit=20`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          })
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => {
+              if (data) {
+                setPosts(data.posts);
+                setHasMore(data.has_more);
+                setNextCursor(data.next_cursor);
+              }
+            });
+        }
       }
     };
     

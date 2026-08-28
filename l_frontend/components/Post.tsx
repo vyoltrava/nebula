@@ -394,16 +394,17 @@ async function toggleLike() {
   if (res.ok) {
     const data = await res.json();
     setLiked(data.liked);
-    if (data.likes_count !== undefined) {
-      setCount(data.likes_count); 
-    }
-    if (data.dislikes_count !== undefined) {
-      setDislikeCount(Math.max(0, data.dislikes_count));
-    }
-    if (data.disliked !== undefined) {
-      setDisliked(!!data.disliked);
-    }
+    if (data.likes_count !== undefined) setCount(data.likes_count);
+    if (data.dislikes_count !== undefined) setDislikeCount(Math.max(0, data.dislikes_count));
+    if (data.disliked !== undefined) setDisliked(!!data.disliked);
     setLikedCache(id, data.liked);
+    
+    // 🔄 Глобальная синхронизация для других компонентов (профиль, лента)
+    window.dispatchEvent(new CustomEvent("like-sync", { detail: { post_id: id, ...data } }));
+    window.dispatchEvent(new CustomEvent("like-state-sync", { detail: { post_id: id, liked: data.liked } }));
+    if (data.disliked !== undefined) {
+      window.dispatchEvent(new CustomEvent("dislike-state-sync", { detail: { post_id: id, disliked: data.disliked } }));
+    }
   } else {
     setLiked(!next);
     setCount((c) => Math.max(0, next ? (c ?? 0) - 1 : (c ?? 0) + 1));
@@ -440,15 +441,18 @@ async function toggleDislike() {
   if (res.ok) {
     const data = await res.json();
     setDisliked(data.disliked);
-    if (data.dislikes_count !== undefined) {
-      setDislikeCount(Math.max(0, data.dislikes_count));
-    }
-    if (data.likes_count !== undefined) {
-      setCount(Math.max(0, data.likes_count));
-    }
+    if (data.dislikes_count !== undefined) setDislikeCount(Math.max(0, data.dislikes_count));
+    if (data.likes_count !== undefined) setCount(Math.max(0, data.likes_count));
     if (data.liked !== undefined) {
       setLiked(!!data.liked);
       setLikedCache(id, !!data.liked);
+    }
+    
+    // 🔄 Глобальная синхронизация для других компонентов (профиль, лента)
+    window.dispatchEvent(new CustomEvent("dislike-sync", { detail: { post_id: id, ...data } }));
+    window.dispatchEvent(new CustomEvent("dislike-state-sync", { detail: { post_id: id, disliked: data.disliked } }));
+    if (data.liked !== undefined) {
+      window.dispatchEvent(new CustomEvent("like-state-sync", { detail: { post_id: id, liked: data.liked } }));
     }
   } else {
     setDisliked(!next);
