@@ -305,13 +305,13 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
       <div className="flex gap-2 border-b border-line dark:border-white/10 pb-2">
         <button 
           onClick={() => setActiveTab("stickers")} 
-          className={`px-4 py-2 rounded-t-lg font-bold text-sm transition-colors ${activeTab === "stickers" ? "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-b-2 border-yellow-600 dark:border-yellow-400" : "text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white"}`}
+          className={`px-4 py-2 rounded-t-lg font-bold text-sm transition-colors ${activeTab === "stickers" ? "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-b-2 border-yellow-600 dark:border-yellow-400" : "text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white"}`}
         >
           😂 Стикеры и Эмодзи
         </button>
         <button 
           onClick={() => setActiveTab("badges")} 
-          className={`px-4 py-2 rounded-t-lg font-bold text-sm transition-colors flex items-center gap-1.5 ${activeTab === "badges" ? "bg-purple-500/20 text-purple-600 dark:text-purple-400 border-b-2 border-purple-600 dark:border-purple-400" : "text-white/50 hover:text-white"}`}
+          className={`px-4 py-2 rounded-t-lg font-bold text-sm transition-colors flex items-center gap-1.5 ${activeTab === "badges" ? "bg-purple-500/20 text-purple-600 dark:text-purple-400 border-b-2 border-purple-600 dark:border-purple-400" : "text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white"}`}
         >
           <Sparkles size={14} /> Значки (Badges)
         </button>
@@ -412,7 +412,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                   <div className="flex items-start justify-between">
                     <h3 className="font-bold text-gray-900 dark:text-white truncate">{badge.name}</h3>
                     <div className="flex gap-1">
-                      <button onClick={() => { setEditingBadge({...badge}); setBadgeFile(null); setBadgeFileUrl(""); setShowBadgeEditor(true); }} className="p-1.5 rounded-lg text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10"><Edit3 size={14} /></button>
+                      <button onClick={() => { setEditingBadge({...badge}); setBadgeFile(null); setBadgeFileUrl(""); setShowBadgeEditor(true); }} className="p-1.5 rounded-lg text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10"><Edit3 size={14} /></button>
                       <button onClick={() => deleteBadge(badge.id)} className="p-1.5 rounded-lg text-red-400/60 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10"><Trash2 size={14} /></button>
                     </div>
                   </div>
@@ -461,10 +461,10 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                   <div>
                     <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Доступ</label>
                     <select value={editingPack.min_level} onChange={(e) => setEditingPack({ ...editingPack, min_level: Number(e.target.value) })} className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400">
-                      <option value={1} className="bg-gray-900">Все пользователи (lvl 1+)</option>
-                      <option value={2} className="bg-gray-900">Эксклюзив (lvl 2+)</option>
-                      <option value={3} className="bg-gray-900">Спонсоры (lvl 3+)</option>
-                      <option value={9} className="bg-gray-900">Команда (lvl 9+)</option>
+                      <option value={1} className="bg-white dark:bg-gray-900">Все пользователи (lvl 1+)</option>
+                      <option value={2} className="bg-white dark:bg-gray-900">Эксклюзив (lvl 2+)</option>
+                      <option value={3} className="bg-white dark:bg-gray-900">Спонсоры (lvl 3+)</option>
+                      <option value={9} className="bg-white dark:bg-gray-900">Команда (lvl 9+)</option>
                     </select>
                   </div>
                 </div>
@@ -617,10 +617,10 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                   <div>
                     <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Способ выдачи</label>
                     <div className="flex gap-2 mb-2">
-                      <button onClick={() => setEditingBadge({ ...editingBadge, user_id: null })} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${!editingBadge.user_id ? "bg-purple-500/20 border-purple-500 text-purple-600 dark:text-purple-300" : "bg-gray-100 dark:bg-white/5 border-line dark:border-white/10 text-white/50"}`}>
+                      <button onClick={() => setEditingBadge({ ...editingBadge, user_id: null })} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${!editingBadge.user_id ? "bg-purple-500/20 border-purple-500 text-purple-600 dark:text-purple-300" : "bg-gray-100 dark:bg-white/5 border-line dark:border-white/10 text-gray-600 dark:text-white/50"}`}>
                         По роли
                       </button>
-                      <button onClick={() => setEditingBadge({ ...editingBadge, role_id: null, user_id: 0 })} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${editingBadge.user_id !== null && editingBadge.user_id !== undefined ? "bg-purple-500/20 border-purple-500 text-purple-600 dark:text-purple-300" : "bg-gray-100 dark:bg-white/5 border-line dark:border-white/10 text-white/50"}`}>
+                      <button onClick={() => setEditingBadge({ ...editingBadge, role_id: null, user_id: 0 })} className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${editingBadge.user_id !== null && editingBadge.user_id !== undefined ? "bg-purple-500/20 border-purple-500 text-purple-600 dark:text-purple-300" : "bg-gray-100 dark:bg-white/5 border-line dark:border-white/10 text-gray-600 dark:text-white/50"}`}>
                         По пользователю
                       </button>
                     </div>
@@ -629,7 +629,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                       <select value={editingBadge.role_id || ""} onChange={(e) => setEditingBadge({ ...editingBadge, role_id: e.target.value ? Number(e.target.value) : null })} className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs focus:outline-none focus:border-purple-600 dark:focus:border-purple-400">
                         <option value="">Не привязывать (выдавать вручную)</option>
                         {roles.map((r: any) => (
-                          <option key={r.id} value={r.id} className="bg-gray-900">{r.name} (ID: {r.id})</option>
+                          <option key={r.id} value={r.id} className="bg-white dark:bg-gray-900">{r.name} (ID: {r.id})</option>
                         ))}
                       </select>
                     )}
@@ -646,9 +646,9 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                   <div>
                     <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Эффект</label>
                     <select value={editingBadge.effect_type || "none"} onChange={(e) => setEditingBadge({ ...editingBadge, effect_type: e.target.value })} className="w-full px-2 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs focus:outline-none focus:border-purple-600 dark:focus:border-purple-400">
-                      <option value="none" className="bg-gray-900">Без эффекта</option>
-                      <option value="gold" className="bg-gray-900">🥇 Золотое свечение</option>
-                      <option value="pulse" className="bg-gray-900">💫 Пульсация</option>
+                      <option value="none" className="bg-white dark:bg-gray-900">Без эффекта</option>
+                      <option value="gold" className="bg-white dark:bg-gray-900">🥇 Золотое свечение</option>
+                      <option value="pulse" className="bg-white dark:bg-gray-900">💫 Пульсация</option>
                     </select>
                   </div>
 

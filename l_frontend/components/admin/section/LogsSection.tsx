@@ -48,7 +48,7 @@ export function LogsSection({ me }: { me: any }) {
         <div className="flex gap-2 flex-wrap">
           {[null, "login", "register", "ban_user", "delete_user", "block_ip", "delete_post"].map((act) => (
             <button key={act ?? "all"} onClick={() => setFilter(act)}
-              className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${filter === act ? "bg-[#3b82f6] border-[#3b82f6] text-white" : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-white/70 hover:bg-gray-100 dark:hover:bg-white/10"}`}>
+              className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${filter === act ? "bg-[#3b82f6] border-[#3b82f6] text-white" : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10"}`}>
               {act ? (ACTION_LABELS[act]?.label || act) : "Все"}
             </button>
           ))}
@@ -59,7 +59,7 @@ export function LogsSection({ me }: { me: any }) {
               Очистить логи
             </button>
           )}
-          <button onClick={load} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white"><RefreshCw size={16} /></button>
+          <button onClick={load} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white"><RefreshCw size={16} /></button>
         </div>
       </div>
 

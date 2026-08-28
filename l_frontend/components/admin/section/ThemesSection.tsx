@@ -477,7 +477,7 @@ function ThemeCard({
           className={`w-full py-2 rounded-lg text-xs font-bold transition-all ${
             theme.is_default
               ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 cursor-default"
-              : "bg-gray-100 dark:bg-white/5 text-white/70 hover:bg-[#8b5cf6]/20 hover:text-[#8b5cf6]"
+              : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/70 hover:bg-[#8b5cf6]/20 hover:text-[#8b5cf6]"
           }`}
         >
           {theme.is_default ? "✓ По умолчанию" : "Сделать по умолчанию"}
@@ -569,7 +569,7 @@ function ThemeEditor({
               <Palette size={20} className="text-[#8b5cf6]" />
               Редактор темы
             </h2>
-            <button onClick={onClose} className="p-2 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-white/10">
+            <button onClick={onClose} className="p-2 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-white/10">
               <X size={18} />
             </button>
           </div>

@@ -66,7 +66,7 @@ export function IpSection({ me }: { me: any }) {
       <div className="border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden">
         <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between">
           <h3 className="font-bold text-gray-900 dark:text-white">Заблокированные IP ({blocks.length})</h3>
-          <button onClick={load} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white"><RefreshCw size={16} /></button>
+          <button onClick={load} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white"><RefreshCw size={16} /></button>
         </div>
         {blocks.length === 0 ? (
           <p className="p-8 text-center text-gray-600 dark:text-white/50">Нет заблокированных IP</p>

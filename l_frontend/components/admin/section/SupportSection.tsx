@@ -220,7 +220,7 @@ export function SupportSection({ me }: { me: any }) {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-green-600 dark:text-green-400 font-bold">{openTickets.length} открытых</span>
-            <button onClick={loadTickets} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white">
+            <button onClick={loadTickets} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white">
               <RefreshCw size={14} />
             </button>
           </div>
@@ -291,7 +291,7 @@ export function SupportSection({ me }: { me: any }) {
             <div className="p-3 border-b border-line dark:border-white/10 flex items-center gap-3">
               <button
                 onClick={() => setActiveTicket(null)}
-                className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 md:hidden"
+                className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 md:hidden"
               >
                 <ArrowLeft size={18} />
               </button>

@@ -104,7 +104,7 @@ export function ChatsSection({ me }: { me: any }) {
         ) : (
           <>
             <div className="p-3 border-b border-line dark:border-white/10 flex items-center gap-3">
-              <button onClick={() => setActiveChat(null)} className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 md:hidden">
+              <button onClick={() => setActiveChat(null)} className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 md:hidden">
                 <ArrowLeft size={18} />
               </button>
               <p className="font-bold text-gray-900 dark:text-white text-sm truncate flex-1">{activeChat.name}</p>

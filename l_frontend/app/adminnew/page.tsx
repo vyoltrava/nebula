@@ -48,7 +48,7 @@ const TABS: TabDef[] = [
 ];
 
 // Общий класс для иконок-кнопок (прозрачный фон, белый цвет, подсветка при наведении)
-const iconBtnClass = "p-2 rounded-lg text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white transition-all flex items-center justify-center";
+const iconBtnClass = "p-2 rounded-lg text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white transition-all flex items-center justify-center";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -146,7 +146,7 @@ export default function AdminPage() {
           </div>
 
           {/* Вкладки */}
-          <div className="flex gap-2 mt-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent">
+          <div className="flex gap-2 mt-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-400 dark:scrollbar-thumb-white/20 scrollbar-track-transparent">
             {visibleTabs.map((t) => {
               const Icon = t.icon;
               const active = activeTab === t.id;
@@ -157,7 +157,7 @@ export default function AdminPage() {
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-medium transition-all whitespace-nowrap shrink-0 text-sm ${
                     active
                       ? "text-gray-900 dark:text-white border-transparent"
-                      : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white"
+                      : "bg-white dark:bg-white/5 border-line dark:border-white/10 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white"
                   }`}
                   style={active ? { backgroundColor: t.color } : undefined}
                 >

@@ -56,7 +56,7 @@ export function ReportsSection({ me }: { me: any }) {
       <div className="flex gap-2 flex-wrap">
         {(["pending", "resolved", "rejected", "all"] as const).map((f) => (
           <button key={f} onClick={() => setFilter(f)}
-            className={`px-4 py-1.5 rounded-full border text-xs font-bold ${filter === f ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-line dark:border-white/20 text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"}`}>
+            className={`px-4 py-1.5 rounded-full border text-xs font-bold ${filter === f ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-line dark:border-white/20 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"}`}>
             {f === "pending" && "⏳ Новые"}
             {f === "resolved" && "✅ Обработанные"}
             {f === "rejected" && "❌ Отклонённые"}

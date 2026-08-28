@@ -70,7 +70,7 @@ export function BugsSection({ me }: { me: any }) {
           const Icon = cfg.icon;
           return (
             <button key={key} onClick={() => setStatusFilter(statusFilter === key ? null : key)}
-              className={`border rounded-xl p-4 text-left transition-all ${statusFilter === key ? `${cfg.border} ${cfg.bg}` : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10"}`}>
+              className={`border rounded-xl p-4 text-left transition-all ${statusFilter === key ? `${cfg.border} ${cfg.bg}` : "border-line dark:border-white/10 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10"}`}>
               <div className="flex items-center justify-between mb-2">
                 <Icon size={18} className={cfg.color} />
                 <span className={`text-2xl font-black ${cfg.color}`}>{counts[key as keyof typeof counts]}</span>
@@ -133,7 +133,7 @@ export function BugsSection({ me }: { me: any }) {
                     ) : "неизвестен"}
                   </p>
                 </div>
-                <button onClick={() => setSelected(null)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"><X size={20} /></button>
+                <button onClick={() => setSelected(null)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"><X size={20} /></button>
               </div>
               <p className="text-gray-800 dark:text-white/90 whitespace-pre-wrap bg-gray-100 dark:bg-white/5 p-4 rounded-lg border border-line dark:border-white/10 mb-6">{selected.description}</p>
               <h3 className="text-sm font-bold text-gray-800 dark:text-white/80 mb-3">Сменить статус:</h3>

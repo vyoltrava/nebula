@@ -204,18 +204,18 @@ async function load() {
             className="w-full pl-10 pr-10 py-2.5 border border-line dark:border-white/15 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
           />
           {searchQuery && (
-            <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white">
+            <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white">
               <X size={18} />
             </button>
           )}
         </div>
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => { setFilterType("all"); setSelectedRoleId(null); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold ${filterType === "all" && !selectedRoleId ? "border-[#8b5cf6] bg-[#8b5cf6]/20 text-[#8b5cf6]" : "border-line dark:border-white/15 text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold ${filterType === "all" && !selectedRoleId ? "border-[#8b5cf6] bg-[#8b5cf6]/20 text-[#8b5cf6]" : "border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
             <Users size={16} /> Все ({users.length})
           </button>
           <button onClick={() => { setFilterType("team"); setSelectedRoleId(null); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold ${filterType === "team" ? "border-[#3b82f6] bg-[#3b82f6]/20 text-[#3b82f6]" : "border-line dark:border-white/15 text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold ${filterType === "team" ? "border-[#3b82f6] bg-[#3b82f6]/20 text-[#3b82f6]" : "border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
             <ShieldCheck size={16} /> Команда
           </button>
           <button onClick={() => { setFilterType("users"); setSelectedRoleId(null); }}
@@ -227,9 +227,9 @@ async function load() {
             onChange={(e) => { setSelectedRoleId(e.target.value ? Number(e.target.value) : null); setFilterType("all"); }}
             className="px-4 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm font-bold focus:outline-none focus:border-[#8b5cf6] cursor-pointer"
           >
-            <option value="" className="bg-gray-900">Все роли</option>
+            <option value="" className="bg-white dark:bg-gray-900">Все роли</option>
             {roles.map((r) => (
-              <option key={r.id} value={r.id} className="bg-gray-900">{r.name} (Lvl {r.level ?? 1})</option>
+              <option key={r.id} value={r.id} className="bg-white dark:bg-gray-900">{r.name} (Lvl {r.level ?? 1})</option>
             ))}
           </select>
         </div>
@@ -309,9 +309,9 @@ async function load() {
                           {u.role?.name || "Без роли"}
                         </Listbox.Button>
                         
-                        <Listbox.Options className="absolute right-0 z-50 mt-1 w-56 max-h-72 overflow-y-auto rounded-lg bg-gray-900 border border-line dark:border-white/10 shadow-xl">
+                        <Listbox.Options className="absolute right-0 z-50 mt-1 w-56 max-h-72 overflow-y-auto rounded-lg bg-white dark:bg-gray-900 border border-line dark:border-white/10 shadow-xl">
                           {/* 1. Блок без команды */}
-                          <Listbox.Option value={null} className={({ active }) => `cursor-pointer px-3 py-2 text-xs text-white ${active ? "bg-[#8b5cf6]" : "hover:bg-gray-100 dark:hover:bg-white/10"}`}>
+                          <Listbox.Option value={null} className={({ active }) => `cursor-pointer px-3 py-2 text-xs text-gray-800 dark:text-white ${active ? "bg-[#8b5cf6] text-white" : "hover:bg-gray-100 dark:hover:bg-white/10"}`}>
                             Без роли
                           </Listbox.Option>
 
@@ -319,7 +319,7 @@ async function load() {
                           {groupedRoles.map((group: any) => (
                             <div key={group.id}>
                               {/* Заголовок отдела (прилипает при скролле) */}
-                              <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-white/40 bg-white/5 border-y border-line dark:border-white/10 flex items-center gap-2 sticky top-0 backdrop-blur-sm">
+                              <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-gray-500 dark:text-white/40 bg-gray-100 dark:bg-white/5 border-y border-line dark:border-white/10 flex items-center gap-2 sticky top-0 backdrop-blur-sm">
                                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: group.color }}></span>
                                 {group.name}
                               </div>
@@ -329,7 +329,7 @@ async function load() {
                                   <Listbox.Option
                                     key={r.id}
                                     value={r.id}
-                                    className={({ active }) => `cursor-pointer px-3 py-2 text-xs text-white flex items-center justify-between ${active ? "bg-[#8b5cf6]" : "hover:bg-gray-100 dark:hover:bg-white/10"}`}
+                                    className={({ active }) => `cursor-pointer px-3 py-2 text-xs text-gray-800 dark:text-white flex items-center justify-between ${active ? "bg-[#8b5cf6] text-white" : "hover:bg-gray-100 dark:hover:bg-white/10"}`}
                                   >
                                     <span className="truncate">{r.name}</span>
                                     <span className="text-[10px] text-gray-500 dark:text-white/40 ml-2 shrink-0">Lvl {r.level ?? 1}</span>
@@ -362,7 +362,7 @@ async function load() {
                 <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
                   <AlertTriangle className="text-yellow-600 dark:text-yellow-400" size={18} /> Варны: {warnTarget.display_name}
                 </h2>
-                <button onClick={() => setWarnTarget(null)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white p-1"><X size={18} /></button>
+                <button onClick={() => setWarnTarget(null)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white p-1"><X size={18} /></button>
               </div>
               <div className="mb-4 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
                 <textarea value={warnReason} onChange={(e) => setWarnReason(e.target.value)} placeholder="Причина..." rows={2}

@@ -305,7 +305,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
           <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             {isEdit ? "Редактирование плашки" : "Создание новой плашки"}
           </h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-gray-900 dark:text-white">
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-gray-900 dark:hover:text-white">
             <X size={20} />
           </button>
         </div>
@@ -863,7 +863,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
           <button
             type="button"
             onClick={onClose}
-            className="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+            className="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
           >
             Отмена
           </button>
