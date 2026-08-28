@@ -29,7 +29,7 @@ function decorate(): void {
   const items = aside.querySelectorAll<HTMLElement>(
     'ul > li, [class*="space-y"] > *, [class*="divide-y"] > *'
   );
-  let seenSections = new Set<HTMLElement>();
+  const seenSections = new Set<HTMLElement>();
   let groupIndex = 0;
 
   items.forEach((item) => {
