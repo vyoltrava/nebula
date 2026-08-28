@@ -133,7 +133,7 @@ function InlinePostEditor({
       onClick={(e) => e.stopPropagation()}
       rows={6}
       placeholder={placeholder}
-      className="notebook-paper mt-1 block w-full resize-y rounded-xl shadow-inner"
+      className="post-inline-editor mt-1 block w-full resize-y"
     />
   );
 }
@@ -571,7 +571,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
     <article 
       className={`p-4 transition-colors cursor-pointer ${
         editing
-          ? "rounded-xl border-2 border-[#8b5cf6] shadow-[0_0_0_1px_rgba(139,92,246,0.25),0_8px_24px_rgba(139,92,246,0.18)] bg-[#faf6ea] dark:bg-[#211d2e]"
+          ? "post-editing rounded-xl border-2 border-[#8b5cf6] shadow-[0_0_0_1px_rgba(139,92,246,0.2)] bg-ivory dark:bg-[#1f1f23]"
           : "border-b border-line dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5"
       }`}
       onClick={handlePostClick}
@@ -742,14 +742,14 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               <button
                 onClick={(e) => { e.stopPropagation(); saveEdit(); }}
                 disabled={!editText.trim() || editText === displayText || savingEdit}
-                className="wax-seal-btn px-6 py-2.5 text-sm font-black tracking-wide disabled:cursor-not-allowed"
+                className="post-edit-save px-6 py-2.5 text-sm font-bold disabled:cursor-not-allowed"
                 title={t("post.ctrlEnter")}
               >
                 {savingEdit ? t("post.saving") : t("common.save")}
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setEditing(false); }}
-                className="metal-btn px-5 py-2.5 text-sm font-bold tracking-wide"
+                className="post-edit-cancel px-5 py-2.5 text-sm font-bold"
               >
                 {t("common.cancel")}
               </button>

@@ -745,14 +745,130 @@ html:not(.dark) .team-nick-on-light,
 /* ============================================================
    📝 РЕДАКТОР ПОСТА ВНУТРИ КАРТОЧКИ (inline, без модалки)
    ------------------------------------------------------------
-   • .notebook-paper — textarea на пожелтевшей бумаге с линовкой
-     «как в тетради» и рукописным шрифтом
-   • .wax-seal-btn   — кнопка «Сохранить» в виде сургучной печати
-   • .metal-btn      — кнопка «Отмена» из шлифованного металла
+   По умолчанию (классическая тема) — обычное минималистичное
+   поле ввода и кнопки в стиле основного интерфейса.
+   Тематические переопределения:
+   • body.zune-theme — Metro-стиль ZUNE (плоско, жёсткие углы)
+   • body.ios-theme  — «лист тетради», сургучная печать и металл
    ============================================================ */
 
-/* --- Пожелтевшая бумага с линовкой (строка 28px: 27px поле + 1px линия) --- */
-.notebook-paper {
+/* --- Классическая тема: поле как везде в приложении --- */
+.post-inline-editor {
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 8px 12px;
+  color: var(--text);
+  caret-color: var(--accent);
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  transition: border-color 0.15s ease;
+}
+
+.post-inline-editor::placeholder {
+  color: var(--text-muted);
+}
+
+.post-inline-editor:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* --- Классическая тема: кнопки как везде в приложении --- */
+.post-edit-save {
+  background-color: var(--accent);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.post-edit-save:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+.post-edit-save:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.post-edit-save:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.post-edit-cancel {
+  background-color: transparent;
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  transition: background-color 0.15s ease;
+}
+
+.post-edit-cancel:hover {
+  background-color: var(--bg-tertiary);
+}
+
+/* --- ZUNE: Metro — плоско, жёсткие углы, Segoe UI --- */
+body.zune-theme .post-editing {
+  border-radius: 0;
+  border-color: var(--z-accent);
+  background-color: var(--z-bg-raise);
+  box-shadow: 0 0 0 1px rgba(255, 0, 255, 0.15);
+}
+
+body.zune-theme .post-inline-editor {
+  font-family: var(--z-font);
+  font-size: 15px;
+  font-weight: var(--z-weight-regular);
+  padding: 10px 12px;
+  color: var(--z-text);
+  caret-color: var(--z-accent);
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 2px solid var(--z-stroke);
+  border-radius: 0;
+  transition: border-color var(--z-speed) var(--z-ease-out);
+}
+
+body.zune-theme .post-inline-editor::placeholder {
+  color: var(--z-text-dim);
+}
+
+body.zune-theme .post-inline-editor:focus {
+  border-color: var(--z-accent);
+}
+
+body.zune-theme .post-edit-save {
+  background-color: var(--z-accent);
+  color: #ffffff;
+  border-radius: 0;
+  font-weight: var(--z-weight-semibold);
+  transition: background-color var(--z-speed) var(--z-ease-out), transform 0.1s ease;
+}
+
+body.zune-theme .post-edit-save:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+
+body.zune-theme .post-edit-cancel {
+  background-color: transparent;
+  color: var(--z-text);
+  border: 2px solid var(--z-stroke);
+  border-radius: 0;
+  font-weight: var(--z-weight-semibold);
+  transition: background-color var(--z-speed) var(--z-ease-out);
+}
+
+body.zune-theme .post-edit-cancel:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* --- iOS: «лист тетради» на пожелтевшей бумаге --- */
+body.ios-theme .post-editing {
+  border-radius: 16px;
+}
+
+body.ios-theme .post-inline-editor {
   font-family: "Segoe Script", "Bradley Hand", "Comic Sans MS", cursive;
   font-size: 15px;
   line-height: 28px;
@@ -762,50 +878,35 @@ html:not(.dark) .team-nick-on-light,
   background-color: #f6efdb;
   background-image:
     radial-gradient(ellipse at top left, rgba(255, 252, 240, 0.9), transparent 60%),
-    repeating-linear-gradient(
-      180deg,
-      transparent 0px,
-      transparent 27px,
-      rgba(116, 132, 180, 0.4) 27px,
-      rgba(116, 132, 180, 0.4) 28px
-    );
+    repeating-linear-gradient(180deg, transparent 0px, transparent 27px, rgba(116, 132, 180, 0.4) 27px, rgba(116, 132, 180, 0.4) 28px);
   /* Линовка прокручивается вместе с текстом, «свет бумаги» остаётся на месте */
   background-attachment: scroll, local;
   background-position: 0 10px, 0 10px;
   border: 1px solid #d9d1ba;
+  border-radius: 12px;
 }
 
-.notebook-paper::placeholder {
+body.ios-theme .post-inline-editor::placeholder {
   color: rgba(122, 106, 70, 0.55);
   font-style: italic;
 }
 
-.notebook-paper:focus {
-  outline: none;
-}
-
-.dark .notebook-paper {
+.dark body.ios-theme .post-inline-editor {
   color: #ecdfc0;
   caret-color: #a78bfa;
   background-color: #292317;
   background-image:
     radial-gradient(ellipse at top left, rgba(255, 240, 200, 0.05), transparent 60%),
-    repeating-linear-gradient(
-      180deg,
-      transparent 0px,
-      transparent 27px,
-      rgba(167, 139, 250, 0.18) 27px,
-      rgba(167, 139, 250, 0.18) 28px
-    );
+    repeating-linear-gradient(180deg, transparent 0px, transparent 27px, rgba(167, 139, 250, 0.18) 27px, rgba(167, 139, 250, 0.18) 28px);
   border-color: rgba(255, 255, 255, 0.12);
 }
 
-.dark .notebook-paper::placeholder {
+.dark body.ios-theme .post-inline-editor::placeholder {
   color: rgba(236, 223, 192, 0.35);
 }
 
-/* --- Сургучная печать (кнопка «Сохранить») --- */
-.wax-seal-btn {
+/* --- iOS: сургучная печать (Сохранить) --- */
+body.ios-theme .post-edit-save {
   background:
     radial-gradient(circle at 30% 25%, rgba(255, 190, 175, 0.45) 0%, rgba(255, 190, 175, 0) 42%),
     radial-gradient(circle at 68% 80%, rgba(70, 6, 16, 0.55) 0%, rgba(70, 6, 16, 0) 55%),
@@ -823,21 +924,22 @@ html:not(.dark) .team-nick-on-light,
   transition: filter 0.15s ease, transform 0.1s ease;
 }
 
-.wax-seal-btn:hover:not(:disabled) {
+body.ios-theme .post-edit-save:hover:not(:disabled) {
   filter: brightness(1.1) saturate(1.05);
 }
 
-.wax-seal-btn:active:not(:disabled) {
+body.ios-theme .post-edit-save:active:not(:disabled) {
   transform: translateY(1px) scale(0.97);
 }
 
-.wax-seal-btn:disabled {
+body.ios-theme .post-edit-save:disabled {
   filter: grayscale(0.4) brightness(0.75);
+  opacity: 1;
   cursor: not-allowed;
 }
 
-/* --- Металлическая кнопка (кнопка «Отмена») --- */
-.metal-btn {
+/* --- iOS: металлическая кнопка (Отмена) --- */
+body.ios-theme .post-edit-cancel {
   background: linear-gradient(180deg, #f2f2ef 0%, #d4d4cf 40%, #a8a8a2 60%, #c4c4be 100%);
   color: #40403a;
   border: 1px solid #8f8f88;
@@ -850,17 +952,17 @@ html:not(.dark) .team-nick-on-light,
   transition: filter 0.15s ease, transform 0.1s ease;
 }
 
-.dark .metal-btn {
+.dark body.ios-theme .post-edit-cancel {
   background: linear-gradient(180deg, #63636b 0%, #45454d 40%, #2e2e34 60%, #4a4a52 100%);
   color: #e4e4ea;
   border-color: #191920;
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65);
 }
 
-.metal-btn:hover {
+body.ios-theme .post-edit-cancel:hover {
   filter: brightness(1.06);
 }
 
-.metal-btn:active {
+body.ios-theme .post-edit-cancel:active {
   transform: translateY(1px);
 }
