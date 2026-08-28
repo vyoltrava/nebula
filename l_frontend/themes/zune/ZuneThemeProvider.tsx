@@ -19,10 +19,15 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
+import {
+  getCachedShellSwitcherEnabled,
+  SHELL_SWITCHER_EVENT,
+} from "@/lib/shellSwitcher";
 import {
   ZuneThemeContext,
   THEME_CLASS,
@@ -58,6 +63,22 @@ export function ZuneThemeProvider({ children }: { children: ReactNode }) {
   );
   const mounted = useMounted();
   const isZune = preference === "zune";
+
+  /* 🎛️ Глобальный флаг «смены оболочек»: пока выключен (темы в разработке),
+     переключатели скрыты, а Zune принудительно сбрасывается в классику */
+  const [shellSwitcherEnabled, setShellSwitcherEnabled] = useState(
+    getCachedShellSwitcherEnabled
+  );
+
+  useEffect(() => {
+    const sync = () => setShellSwitcherEnabled(getCachedShellSwitcherEnabled());
+    sync();
+    window.addEventListener(SHELL_SWITCHER_EVENT, sync);
+    if (!shellSwitcherEnabled && preference === "zune") {
+      writePreference("standard");
+    }
+    return () => window.removeEventListener(SHELL_SWITCHER_EVENT, sync);
+  }, [shellSwitcherEnabled, preference]);
 
   const pathname = usePathname();
   const onSettingsRoute = Boolean(pathname?.startsWith("/settings"));
@@ -102,12 +123,12 @@ export function ZuneThemeProvider({ children }: { children: ReactNode }) {
           тема выключена + Настройки → приглашение попробовать Zune.
           (Кнопки возврата к стандартной теме ВЕЗДЕ больше нет — в неё нет
           смысла, переключатель живёт в Настройках. Она только мешала.) */}
-      {mounted && !isZune && onSettingsRoute && (
+      {mounted && !isZune && onSettingsRoute && shellSwitcherEnabled && (
         <ZuneThemeToggle floating variant="invite" />
       )}
 
       {/* Переключатель темы внутри раздела «Оформление» настроек */}
-      {mounted && <SettingsThemeInjector />}
+      {mounted && shellSwitcherEnabled && <SettingsThemeInjector />}
     </ZuneThemeContext.Provider>
   );
 }

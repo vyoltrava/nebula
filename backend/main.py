@@ -2744,6 +2744,30 @@ def save_permission_tabs(
     session.commit()
     return {"ok": True}
 
+@app.get("/api/settings/shell-switcher")
+def get_shell_switcher_enabled(session: Session = Depends(get_session)):
+    """🆕 Включено ли отображение смены оболочек (Zune / Old iOS) в настройках.
+    Публичный: флаг нужен клиенту до логина (для сброса всех на классику)."""
+    setting = session.get(SystemSetting, "shell_switcher_enabled")
+    return {"enabled": bool(setting and setting.value == "1")}
+
+@app.post("/api/admin/settings/shell-switcher")
+def set_shell_switcher_enabled(
+    enabled: bool = Form(...),
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session)
+):
+    """🆕 Админ-переключатель отображения смены оболочек (Темы → Компоненты)"""
+    value = "1" if enabled else "0"
+    setting = session.get(SystemSetting, "shell_switcher_enabled")
+    if not setting:
+        setting = SystemSetting(key="shell_switcher_enabled", value=value)
+    else:
+        setting.value = value
+    session.add(setting)
+    session.commit()
+    return {"ok": True, "enabled": enabled}
+
 @app.get("/api/permissions")
 def list_permissions():
     return [

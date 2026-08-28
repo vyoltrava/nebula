@@ -6,6 +6,7 @@ import { WebSocketProvider } from "@/components/WebSocketProvider";
 import { GlobalPlayerProvider } from "@/components/GlobalPlayer";
 import { UnreadCountsProvider } from "@/lib/UnreadCountsContext";
 import SplashScreen from "@/components/SplashScreen";
+import { ShellSwitcherGate } from "@/components/ShellSwitcherGate";
 import {PermissionGate} from "@/components/PermissionGate";
 import PWARegister from "@/components/PWARegister";
 import InstallPrompt from "@/components/InstallPrompt";
@@ -53,13 +54,16 @@ export const metadata: Metadata = {
 };
 
 /* 🟣 Анти-FOUC для Zune-темы: применяем класс до первой отрисовки.
-   Читаем новый ключ и легаси-ключ. */
-const zuneNoFlashScript = `try{var k=localStorage.getItem("zune-theme-preference")||localStorage.getItem("theme-preference");if(k==="zune")document.body.classList.add("zune-theme")}catch(e){}`;
+   Читаем новый ключ и легаси-ключ. Если смена оболочек выключена
+   (кэш флага "0" — темы в разработке), предпочтения сбрасываются
+   в классику ещё до первой отрисовки. */
+const zuneNoFlashScript = `try{if(localStorage.getItem("shell-switcher-enabled")==="0"){localStorage.removeItem("zune-theme-preference");localStorage.removeItem("theme-preference");localStorage.removeItem("ios-theme-preference")}var k=localStorage.getItem("zune-theme-preference")||localStorage.getItem("theme-preference");if(k==="zune")document.body.classList.add("zune-theme")}catch(e){}`;
 
 /* 🟢 Анти-FOUC для iOS-темы: применяем класс до первой отрисовки.
    Если выбрана Old iOS — вешаем ios-theme (и снимаем zune-theme, чтобы они
-   не конфликтовали до загрузки JS). */
-const iosNoFlashScript = `try{var k=localStorage.getItem("ios-theme-preference");if(k==="ios"){document.body.classList.add("ios-theme");document.body.classList.remove("zune-theme")}}catch(e){}`;
+   не конфликтовали до загрузки JS). При выключенной смене оболочек —
+   сброс всех предпочтений в классику до первой отрисовки. */
+const iosNoFlashScript = `try{if(localStorage.getItem("shell-switcher-enabled")==="0"){localStorage.removeItem("ios-theme-preference");localStorage.removeItem("zune-theme-preference");localStorage.removeItem("theme-preference")}var k=localStorage.getItem("ios-theme-preference");if(k==="ios"){document.body.classList.add("ios-theme");document.body.classList.remove("zune-theme")}}catch(e){}`;
 
 export default function RootLayout({
   children,
@@ -96,6 +100,7 @@ export default function RootLayout({
         <PWARegister />
         <InstallPrompt />
         <SplashScreen />
+        <ShellSwitcherGate />
         <NotificationPermissionPrompt />
         <WebSocketProvider>
             <UnreadCountsProvider>

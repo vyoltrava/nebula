@@ -20,9 +20,14 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import {
+  getCachedShellSwitcherEnabled,
+  SHELL_SWITCHER_EVENT,
+} from "@/lib/shellSwitcher";
 import {
   IosThemeContext,
   IOS_CLASS,
@@ -55,6 +60,22 @@ export function IosThemeProvider({ children }: { children: ReactNode }) {
   const mounted = useMounted();
   const isIos = preference === "ios";
 
+  /* 🎛️ Глобальный флаг «смены оболочек»: пока выключен (темы в разработке),
+     переключатель скрыт, оболочка принудительно сбрасывается в классику */
+  const [shellSwitcherEnabled, setShellSwitcherEnabled] = useState(
+    getCachedShellSwitcherEnabled
+  );
+
+  useEffect(() => {
+    const sync = () => setShellSwitcherEnabled(getCachedShellSwitcherEnabled());
+    sync();
+    window.addEventListener(SHELL_SWITCHER_EVENT, sync);
+    if (!shellSwitcherEnabled && preference !== "standard") {
+      applyThemeChoice("standard");
+    }
+    return () => window.removeEventListener(SHELL_SWITCHER_EVENT, sync);
+  }, [shellSwitcherEnabled, preference]);
+
   /* Синхронизация собственного класса <body> с текущим выбором */
   useEffect(() => {
     document.body.classList.toggle(IOS_CLASS, isIos);
@@ -86,7 +107,7 @@ export function IosThemeProvider({ children }: { children: ReactNode }) {
       )}
 
       {/* Переключатель трёх тем внутри раздела «Оформление» Настроек */}
-      {mounted && <SettingsThemeInjector />}
+      {mounted && shellSwitcherEnabled && <SettingsThemeInjector />}
     </IosThemeContext.Provider>
   );
 }
