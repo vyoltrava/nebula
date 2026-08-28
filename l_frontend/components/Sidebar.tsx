@@ -416,7 +416,7 @@ const continueConfig = lastReadPost
 
   useWebSocket("post_liked", (data: any) => {
     window.dispatchEvent(new CustomEvent("like-sync", {
-      detail: { post_id: data.post_id, likes_count: data.likes_count, dislikes_count: data.dislikes_count, disliked: data.disliked },
+      detail: { post_id: data.post_id, likes_count: data.likes_count, dislikes_count: data.dislikes_count, disliked: data.disliked, liked: data.liked },
     }));
     const me = getCachedUser();
     if (me && data.liker_id === me.id) {

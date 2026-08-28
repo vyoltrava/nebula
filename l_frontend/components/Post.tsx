@@ -296,6 +296,7 @@ useEffect(() => {
       // 🛡️ Защита от отрицательных значений и undefined
       setCount(Math.max(0, d.likes_count ?? 0));
       if (d.dislikes_count !== undefined) setDislikeCount(Math.max(0, d.dislikes_count));
+      if (d.liked !== undefined) setLiked(!!d.liked);
       if (d.disliked !== undefined) setDisliked(!!d.disliked);
     }
   };
@@ -861,21 +862,13 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             </div>
           ) : (
           <div className="flex items-center gap-3 mt-3 flex-wrap">
-          <div
-            className={`flex items-center rounded-full border transition-all overflow-hidden ${
-              liked || disliked
-                ? liked
-                  ? "border-pink-400/60 bg-[#8B5CF6]/12"
-                  : "border-red-400/60 bg-red-500/15"
-                : "border-line dark:border-white/20 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40"
-            }`}
-          >
+          <div className="flex items-center rounded-full border border-line dark:border-white/20 overflow-hidden hover:bg-gray-100 dark:hover:bg-white/10">
             {/* Лайк: счётчик слева, сердечко ближе к центру */}
             <button
               onClick={toggleLike}
               className={`flex items-center gap-1 py-1.5 pl-3 pr-2.5 transition-all ${
                 liked
-                  ? "text-pink-500 dark:text-pink-400"
+                  ? "bg-[#8B5CF6] text-white"
                   : "text-gray-800 dark:text-white/70 hover:text-pink-500"
               }`}
               title={liked ? "Отменить лайк" : "Лайк"}
@@ -892,7 +885,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               onClick={toggleDislike}
               className={`flex items-center gap-1 py-1.5 pl-2.5 pr-3 transition-all ${
                 disliked
-                  ? "text-red-600 dark:text-red-400"
+                  ? "bg-red-500 text-white"
                   : "text-gray-800 dark:text-white/70 hover:text-red-500"
               }`}
               title={disliked ? "Отменить дизлайк" : "Дизлайк"}
