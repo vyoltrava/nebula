@@ -254,3 +254,50 @@ body.ios-theme main button[data-ios-seal] {
   animation: iosSealPop 520ms var(--ios-spring) backwards;
 }
 
+/* ---------- Лампочки накаливания мерцают ---------- */
+@keyframes iosFlicker {
+  0%, 100% { opacity: 1; }
+  8%  { opacity: 0.72; }
+  12% { opacity: 1; }
+  47% { opacity: 0.85; }
+  52% { opacity: 1; }
+  78% { opacity: 0.9; }
+  82% { opacity: 1; }
+}
+body.ios-theme main .bg-green-500,
+body.ios-theme main .bg-emerald-500 {
+  animation: iosFlicker 2.8s infinite;
+}
+
+/* ---------- Закладки: страница ежедневника со скрепкой ---------- */
+body.ios-theme[data-ios-page="bookmarks"] [data-ios-post] {
+  background-color: #fffaf0 !important;
+  background-image:
+    linear-gradient(90deg, transparent 0 34px, rgba(220, 20, 60, 0.3) 34px 36px, transparent 36px),
+    repeating-linear-gradient(180deg, transparent 0 22px, rgba(74, 102, 140, 0.22) 22px 23px) !important;
+}
+body.ios-theme[data-ios-page="bookmarks"] [data-ios-post] p,
+body.ios-theme[data-ios-page="bookmarks"] [data-ios-post] .whitespace-pre-wrap {
+  font-family: "Segoe Script", "Bradley Hand", "Comic Sans MS", cursive;
+  font-size: 16px;
+  color: #2c3e50;
+}
+/* металлическая скрепка на странице */
+body.ios-theme[data-ios-page="bookmarks"] [data-ios-post]::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 22px;
+  width: 16px;
+  height: 30px;
+  border: 3px solid #c0c0c0;
+  border-radius: 8px;
+  box-shadow:
+    inset 0 0 0 1.5px #ffffff,
+    1px 2px 3px rgba(0, 0, 0, 0.35);
+  transform: rotate(-10deg);
+  z-index: 3;
+  pointer-events: none;
+}
+
+

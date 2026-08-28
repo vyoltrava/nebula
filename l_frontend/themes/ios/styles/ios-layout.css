@@ -645,5 +645,192 @@ body.ios-theme[data-ios-page="notifications"] [data-ios-list] > * time {
   font-family: "Courier New", Courier, monospace;
 }
 
+/* ============================================================
+   ЧАСТЬ 9 — ВЕРХНЯЯ ПАНЕЛЬ С ТАБАМИ: состаренное дерево,
+   табы — деревянные таблички, прибитые гвоздями; активный
+   таб приподнят и освещён сверху.
+   ============================================================ */
+
+/* Деревянная рейка панели табов */
+body.ios-theme main div[class*="border-b"]:has(> button.flex-1) {
+  background-color: #a0826d;
+  background-image:
+    repeating-linear-gradient(0deg,
+      transparent 0px, transparent 5px,
+      rgba(61, 40, 23, 0.09) 5px, rgba(61, 40, 23, 0.09) 6px),
+    linear-gradient(180deg, #b39478 0%, #a0826d 55%, #8b6f47 100%);
+  border-bottom: 2px solid #4a3428;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+}
+
+/* Таб — прибитая деревянная табличка */
+body.ios-theme main div[class*="border-b"] > button.flex-1 {
+  position: relative;
+  margin: 6px 6px 0;
+  border-radius: 7px 7px 0 0;
+  background: linear-gradient(180deg, #b39478 0%, #a0826d 100%);
+  border: 2px solid #6b5344;
+  border-bottom: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 1px 2px rgba(0, 0, 0, 0.25);
+  color: #3d2817 !important;
+  text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.3);
+  transition: transform 200ms var(--ios-spring), box-shadow 200ms var(--ios-ease);
+}
+
+/* Четыре гвоздя по углам таблички */
+body.ios-theme main div[class*="border-b"] > button.flex-1::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 5px 5px 0 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle 2.5px at 8px 8px, #d9c9a8 0%, #4a3c28 60%, transparent 70%),
+    radial-gradient(circle 2.5px at calc(100% - 8px) 8px, #d9c9a8 0%, #4a3c28 60%, transparent 70%);
+  background-repeat: no-repeat;
+}
+
+/* Активный таб — приподнятая светлая пластина */
+body.ios-theme main div[class*="border-b"] > button.flex-1[class*="border-purple"] {
+  background: linear-gradient(180deg, #d6bb8c 0%, #c4a574 100%);
+  border-color: #4a3428;
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 -2px 5px rgba(0, 0, 0, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.25);
+  color: #2c1810 !important;
+  font-weight: 800;
+  z-index: 2;
+}
+
+/* ============================================================
+   ЧАСТЬ 10 — ПОСТЫ В ЛЕНТЕ: обёртки div[data-post-id] →
+   картонные карточки; аватар — поляроид с наклоном; имя —
+   печатная машинка; дата — штемпель; кнопка письма — конверт.
+   ============================================================ */
+
+body.ios-theme [data-ios-post] {
+  position: relative;
+  background: linear-gradient(180deg, #faf5ea 0%, #f5f0e6 100%) !important;
+  border: 1px solid #e0d5c5 !important;
+  border-radius: 3px !important;
+  box-shadow:
+    2px 4px 12px rgba(0, 0, 0, 0.15),
+    inset 0 0 30px rgba(0, 0, 0, 0.05) !important;
+  padding: 20px 24px !important;
+  margin: 0 0 18px !important;
+  transform: rotate(var(--ios-rotation, 0.4deg));
+  transition: transform 300ms var(--ios-spring), box-shadow 300ms var(--ios-ease);
+}
+body.ios-theme main [data-ios-post]:nth-child(odd)  { --ios-rotation: 0.55deg; }
+body.ios-theme main [data-ios-post]:nth-child(even) { --ios-rotation: -0.4deg; }
+body.ios-theme [data-ios-post]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  pointer-events: none;
+  background-image: var(--ios-noise);
+  background-size: 220px 220px;
+  opacity: 0.05;
+  mix-blend-mode: multiply;
+}
+@media (hover: hover) {
+  body.ios-theme [data-ios-post]:hover {
+    transform: rotate(0deg) translateY(-2px);
+    box-shadow:
+      2px 8px 20px rgba(0, 0, 0, 0.2),
+      inset 0 0 30px rgba(0, 0, 0, 0.05) !important;
+    z-index: 5;
+  }
+}
+
+/* Поляроид: наклон и широкая нижняя рамка */
+body.ios-theme [data-ios-post] img.rounded-full {
+  transform: rotate(-2deg);
+  border-bottom-width: 10px !important;
+  transition: transform 260ms var(--ios-spring);
+}
+@media (hover: hover) {
+  body.ios-theme [data-ios-post] img.rounded-full:hover { transform: rotate(0deg) scale(1.05); }
+}
+
+/* Имя — печать на печатной машинке */
+body.ios-theme [data-ios-post] a[class*="font-bold"] {
+  font-family: "Courier New", Courier, monospace;
+  color: #2c1810;
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.5);
+}
+/* Ник — карандашная серость */
+body.ios-theme [data-ios-post] [class*="text-gray-400"],
+body.ios-theme [data-ios-post] [class*="text-gray-500"] {
+  color: #8b7355;
+}
+
+/* Дата — штемпель почтового отправления */
+body.ios-theme [data-ios-post] time {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #dcdcdc 0%, #d3d3d3 100%);
+  border: 1px solid #b5b5b5;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
+  color: #696969;
+  font-family: "Courier New", Courier, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+/* Кнопка «написать» — маленький конверт с открывающимся клапаном */
+body.ios-theme main button[data-ios-btn="mail"] {
+  background: linear-gradient(180deg, #faf3e0 0%, #efe5cc 60%, #e0d3b2 100%);
+  border: 1px solid #a89a76;
+  color: #6b5344;
+  box-shadow:
+    0 3px 0 #8b7355,
+    0 5px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+body.ios-theme main button[data-ios-btn="mail"]::before {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  right: 1px;
+  height: 55%;
+  border-radius: 8px 8px 0 0;
+  background: linear-gradient(180deg, #f7efdb 0%, #ead9b8 100%);
+  clip-path: polygon(0 0, 100% 0, 50% 92%);
+  transform-origin: 50% 0;
+  transition: transform 320ms var(--ios-spring);
+  opacity: 1;
+}
+body.ios-theme main button[data-ios-btn="mail"]::after {
+  content: "";
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #ff9384 0%, #e6392a 52%, #8f1409 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  opacity: 1;
+}
+@media (hover: hover) {
+  body.ios-theme main button[data-ios-btn="mail"]:hover { transform: translateY(-1px); }
+  body.ios-theme main button[data-ios-btn="mail"]:hover::before { transform: rotateX(-160deg); }
+}
+body.ios-theme main button[data-ios-btn="mail"]:active {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 #8b7355, inset 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+
+
 
 

@@ -684,5 +684,74 @@ body.ios-theme main [class*="animate-spin"] {
     0 2px 5px rgba(0, 0, 0, 0.4);
 }
 
+/* ============================================================
+   ЧАСТЬ 11 — МЕХАНИЧЕСКИЕ СЧЁТЧИКИ, ДЕРЕВЯННЫЙ СКРОЛЛБАР,
+   ТЕТРАДНЫЕ ЛИНИИ КОМПОЗЕРА.
+   ============================================================ */
+
+/* Счётчики у кнопок — приборная панель: чёрный корпус,
+   зелёные цифры, monospace */
+body.ios-theme main [data-ios-btn] svg + span:not(:empty) {
+  font-family: "Courier New", Courier, monospace;
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 16px;
+  color: #39ff14;
+  background: #1c1c1c;
+  border-radius: 3px;
+  padding: 0 6px;
+  text-shadow: 0 0 4px rgba(57, 255, 20, 0.7);
+  box-shadow:
+    inset 0 0 0 2px #4a4a4a,
+    inset 0 0 6px rgba(0, 255, 0, 0.25),
+    0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Скроллбар: деревянная дорожка, металлический ползунок */
+body.ios-theme ::-webkit-scrollbar-track {
+  background: linear-gradient(90deg, #6b5344 0%, #8b6f47 45%, #6b5344 100%);
+  border-left: 2px solid #4a3428;
+  box-shadow: inset 2px 0 4px rgba(0, 0, 0, 0.35);
+}
+body.ios-theme ::-webkit-scrollbar-thumb {
+  background: linear-gradient(90deg, #f0f0ee 0%, #c4c4c2 45%, #a9a9a9 100%);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 8px;
+  box-shadow:
+    2px 2px 5px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+body.ios-theme ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, #ffffff 0%, #d8d8d6 45%, #b5b5b3 100%);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+body.ios-theme ::-webkit-scrollbar-button:single-button {
+  display: block;
+  height: 12px;
+  background: linear-gradient(180deg, #d8d8d6 0%, #a9a9a9 100%);
+  border: 1px solid #7a7a78;
+}
+
+/* Поле ввода композера — тетрадный лист: линии и «рукописный» текст */
+body.ios-theme main [data-ios-composer] textarea {
+  background-color: #f4e8d0 !important;
+  background-image: linear-gradient(transparent 9px,
+    rgba(164, 194, 212, 0.55) 9px,
+    rgba(164, 194, 212, 0.55) 10px,
+    transparent 10px) !important;
+  background-size: 100% 20px !important;
+  line-height: 20px;
+  color: #2c3e50;
+  font-family: "Segoe Script", "Bradley Hand", "Comic Sans MS", cursive;
+  font-size: 16px;
+}
+body.ios-theme main [data-ios-composer] textarea::placeholder {
+  color: #95a5a6;
+  font-style: italic;
+}
+
+
 
 

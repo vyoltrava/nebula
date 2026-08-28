@@ -72,6 +72,18 @@ export function IosSidebar() {
     /** Инъекция физических 3D-иконок перед плоским lucide-SVG */
     const mountIcons = () => {
       const links = aside.querySelectorAll<HTMLAnchorElement>("a[href]");
+
+      /* Прошитые нитяные разделители между клавишами (3 стежка) */
+      links.forEach((anchor, index) => {
+        if (index === 0) return;
+        const prev = anchor.previousElementSibling;
+        if (prev?.classList.contains("ios-stitch")) return;
+        const stitch = document.createElement("span");
+        stitch.className = "ios-stitch";
+        stitch.setAttribute("aria-hidden", "true");
+        anchor.parentElement?.insertBefore(stitch, anchor);
+      });
+
       links.forEach((anchor) => {
         /* Механический счётчик непрочитанного — латунный барабан (CSS) */
         const badge = anchor.querySelector<HTMLElement>('span[class*="rounded-full"]');
@@ -141,6 +153,7 @@ export function IosSidebar() {
       mo.disconnect();
       delete aside.dataset.iosSidebar;
       aside.querySelectorAll(".ios-3d-icon").forEach((node) => node.remove());
+      aside.querySelectorAll(".ios-stitch").forEach((node) => node.remove());
       aside
         .querySelectorAll("[data-ios-active]")
         .forEach((node) => node.removeAttribute("data-ios-active"));

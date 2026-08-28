@@ -14,6 +14,7 @@ import { useEffect } from "react";
 const BTN_MAP: Array<[RegExp, string]> = [
   [/lucide-heart/, "like"],
   [/lucide-message-circle|lucide-message-square|lucide-messages-square/, "comment"],
+  [/lucide-mail/, "mail"],
   [/lucide-share2|lucide-share|lucide-forward|lucide-repeat/, "share"],
   [/lucide-trash2|lucide-trash/, "delete"],
   [/lucide-bookmark/, "bookmark"],
@@ -30,6 +31,9 @@ function clearStamp(scope: ParentNode): void {
   );
   scope.querySelectorAll("[data-ios-seal]").forEach((n) =>
     n.removeAttribute("data-ios-seal")
+  );
+  scope.querySelectorAll("[data-ios-post]").forEach((n) =>
+    n.removeAttribute("data-ios-post")
   );
 }
 
@@ -71,6 +75,12 @@ function decorate(): void {
       if (seal) seal.setAttribute("data-ios-seal", "");
     }
   }
+
+  /* 3. Обёртки постов: в ленте data-post-id висит на div — штампуем
+     его для CSS (карточка картона, поляроид, машинка, штемпель) */
+  root
+    .querySelectorAll<HTMLElement>("[data-post-id]")
+    .forEach((wrapper) => wrapper.setAttribute("data-ios-post", ""));
 }
 
 export function IosActions() {
