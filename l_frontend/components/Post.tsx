@@ -2,10 +2,10 @@
 import { useTheme } from "next-themes";
 import { resolveNickColor } from "@/lib/nickGlow";
 import { STICKERS } from "@/lib/stickers";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, X, Radio } from "lucide-react";
+import { Heart, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
 import { safeFetch } from "@/lib/ban";
@@ -92,6 +92,49 @@ function AuthorBadges({ is_admin, is_moderator, is_banned, role }: {
         </span>
       )}
     </>
+  );
+}
+
+// 🆕 Инлайн-редактор поста — «лист тетради» на пожелтевшей бумаге.
+// Рендерится прямо внутри карточки поста на месте текста (никаких модалок).
+function InlinePostEditor({
+  value,
+  onChange,
+  onSave,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onSave: () => void;
+  placeholder?: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  // Автофокус + курсор в конец текста
+  useEffect(() => {
+    const el = ref.current;
+    if (el) {
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    }
+  }, []);
+
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          onSave();
+        }
+      }}
+      onClick={(e) => e.stopPropagation()}
+      rows={6}
+      placeholder={placeholder}
+      className="notebook-paper mt-1 block w-full resize-y rounded-xl shadow-inner"
+    />
   );
 }
 
@@ -526,7 +569,11 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
 
   return (
     <article 
-      className="p-4 border-b border-line dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors cursor-pointer"
+      className={`p-4 transition-colors cursor-pointer ${
+        editing
+          ? "rounded-xl border-2 border-[#8b5cf6] shadow-[0_0_0_1px_rgba(139,92,246,0.25),0_8px_24px_rgba(139,92,246,0.18)] bg-[#faf6ea] dark:bg-[#211d2e]"
+          : "border-b border-line dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5"
+      }`}
       onClick={handlePostClick}
       >
       {is_repost && (
@@ -619,12 +666,28 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             )}
           </div>
           
+          {/* 🛡️ Предупреждение при модераторском редактировании чужого поста */}
+          {editing && currentUser?.id !== author_id && (
+            <div className="mt-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-300 text-xs">
+              {t("post.modEditWarn")}
+            </div>
+          )}
+
           {is_quote && (
+            editing ? (
+              <InlinePostEditor
+                value={editText}
+                onChange={setEditText}
+                onSave={saveEdit}
+                placeholder={t("post.postText")}
+              />
+            ) : (
               <>
                 <div className="mt-1"><MarkdownRenderer text={displayText} /></div>
                 {extractFirstUrl(displayText) && <LinkPreview url={extractFirstUrl(displayText)!} />}
               </>
-            )}
+            )
+          )}
           
           {repost_of && !repost_of.deleted ? (
             <div className="mt-2 border border-line dark:border-white/10 rounded-xl p-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
@@ -653,10 +716,19 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
           ) : (
             <>
                 {!is_quote && (
-                  <>
-                    <div className="mt-1"><MarkdownRenderer text={displayText} /></div>
-                    {extractFirstUrl(displayText) && <LinkPreview url={extractFirstUrl(displayText)!} />}
-                  </>
+                  editing ? (
+                    <InlinePostEditor
+                      value={editText}
+                      onChange={setEditText}
+                      onSave={saveEdit}
+                      placeholder={t("post.postText")}
+                    />
+                  ) : (
+                    <>
+                      <div className="mt-1"><MarkdownRenderer text={displayText} /></div>
+                      {extractFirstUrl(displayText) && <LinkPreview url={extractFirstUrl(displayText)!} />}
+                    </>
+                  )
                 )}
               {media_url && (
                 <SmartMedia src={mediaUrl(media_url)} type={media_type} />
@@ -664,6 +736,28 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             </>
           )}
 
+          {/* ✍️ Режим редактирования: вместо действий — «Сохранить» (сургуч) и «Отмена» (металл) */}
+          {editing ? (
+            <div className="flex items-center gap-3 mt-3 flex-wrap">
+              <button
+                onClick={(e) => { e.stopPropagation(); saveEdit(); }}
+                disabled={!editText.trim() || editText === displayText || savingEdit}
+                className="wax-seal-btn px-6 py-2.5 text-sm font-black tracking-wide disabled:cursor-not-allowed"
+                title={t("post.ctrlEnter")}
+              >
+                {savingEdit ? t("post.saving") : t("common.save")}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setEditing(false); }}
+                className="metal-btn px-5 py-2.5 text-sm font-bold tracking-wide"
+              >
+                {t("common.cancel")}
+              </button>
+              <span className="text-xs text-gray-500 dark:text-white/40">
+                {t("post.ctrlEnter")} · {t("post.chars", { n: editText.length })}
+              </span>
+            </div>
+          ) : (
           <div className="flex items-center gap-3 mt-3 flex-wrap">
             <button
               onClick={toggleLike}
@@ -731,6 +825,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               </button>
             )}
           </div>
+          )}
 
           {replying && (
             <div className="mt-3 flex gap-2">
@@ -816,78 +911,6 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
         />
       )}
 
-      {editing && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200]"
-            onClick={(e) => { e.stopPropagation(); setEditing(false); }}
-          />
-          <div
-            className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              className="w-full max-w-lg bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
-                  <Pencil size={18} className="text-blue-600 dark:text-blue-400" />
-                  {currentUser?.id === author_id ? t("post.editPost") : t("post.modEdit")}
-                </h2>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setEditing(false); }}
-                  className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white p-1"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {currentUser?.id !== author_id && (
-                <div className="mb-3 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-300 text-xs">
-                  {t("post.modEditWarn")}
-                </div>
-              )}
-
-              <textarea
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-                    e.preventDefault();
-                    saveEdit();
-                  }
-                }}
-                rows={5}
-                placeholder={t("post.postText")}
-                className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-blue-600 dark:focus:border-blue-400 resize-none"
-                autoFocus
-              />
-
-              <div className="flex items-center justify-between mt-3 text-xs text-gray-500 dark:text-white/40">
-                <span>{t("post.ctrlEnter")}</span>
-                <span>{t("post.chars", { n: editText.length })}</span>
-              </div>
-
-              <div className="flex gap-2 mt-4">
-                <button
-                  onClick={(e) => { e.stopPropagation(); saveEdit(); }}
-                  disabled={!editText.trim() || editText === displayText || savingEdit}
-                  className="flex-1 py-2.5 rounded-lg bg-blue-500 text-white font-bold hover:bg-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                >
-                  {savingEdit ? t("post.saving") : t("common.save")}
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setEditing(false); }}
-                  className="px-5 py-2.5 rounded-lg border border-line dark:border-white/20 text-gray-800 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
-                >
-                  {t("common.cancel")}
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
     </article>
   );
 }

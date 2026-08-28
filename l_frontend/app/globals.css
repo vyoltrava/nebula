@@ -742,3 +742,125 @@ html:not(.dark) .team-nick-on-light,
   color: #111111 !important;
   text-shadow: none !important;
 }
+/* ============================================================
+   📝 РЕДАКТОР ПОСТА ВНУТРИ КАРТОЧКИ (inline, без модалки)
+   ------------------------------------------------------------
+   • .notebook-paper — textarea на пожелтевшей бумаге с линовкой
+     «как в тетради» и рукописным шрифтом
+   • .wax-seal-btn   — кнопка «Сохранить» в виде сургучной печати
+   • .metal-btn      — кнопка «Отмена» из шлифованного металла
+   ============================================================ */
+
+/* --- Пожелтевшая бумага с линовкой (строка 28px: 27px поле + 1px линия) --- */
+.notebook-paper {
+  font-family: "Segoe Script", "Bradley Hand", "Comic Sans MS", cursive;
+  font-size: 15px;
+  line-height: 28px;
+  padding: 10px 14px 12px;
+  color: #3a3226;
+  caret-color: #8b5cf6;
+  background-color: #f6efdb;
+  background-image:
+    radial-gradient(ellipse at top left, rgba(255, 252, 240, 0.9), transparent 60%),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0px,
+      transparent 27px,
+      rgba(116, 132, 180, 0.4) 27px,
+      rgba(116, 132, 180, 0.4) 28px
+    );
+  /* Линовка прокручивается вместе с текстом, «свет бумаги» остаётся на месте */
+  background-attachment: scroll, local;
+  background-position: 0 10px, 0 10px;
+  border: 1px solid #d9d1ba;
+}
+
+.notebook-paper::placeholder {
+  color: rgba(122, 106, 70, 0.55);
+  font-style: italic;
+}
+
+.notebook-paper:focus {
+  outline: none;
+}
+
+.dark .notebook-paper {
+  color: #ecdfc0;
+  caret-color: #a78bfa;
+  background-color: #292317;
+  background-image:
+    radial-gradient(ellipse at top left, rgba(255, 240, 200, 0.05), transparent 60%),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0px,
+      transparent 27px,
+      rgba(167, 139, 250, 0.18) 27px,
+      rgba(167, 139, 250, 0.18) 28px
+    );
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.dark .notebook-paper::placeholder {
+  color: rgba(236, 223, 192, 0.35);
+}
+
+/* --- Сургучная печать (кнопка «Сохранить») --- */
+.wax-seal-btn {
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 190, 175, 0.45) 0%, rgba(255, 190, 175, 0) 42%),
+    radial-gradient(circle at 68% 80%, rgba(70, 6, 16, 0.55) 0%, rgba(70, 6, 16, 0) 55%),
+    linear-gradient(145deg, #c93a48 0%, #a91f2e 48%, #821524 100%);
+  color: #ffeee6;
+  border: none;
+  border-radius: 999px;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 214, 200, 0.35),
+    inset 0 0 0 5px rgba(96, 10, 20, 0.5),
+    inset 0 -7px 14px rgba(70, 6, 16, 0.5),
+    inset 0 6px 10px rgba(255, 178, 158, 0.28),
+    0 4px 12px rgba(140, 25, 40, 0.45);
+  text-shadow: 0 -1px 1px rgba(80, 8, 18, 0.75);
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.wax-seal-btn:hover:not(:disabled) {
+  filter: brightness(1.1) saturate(1.05);
+}
+
+.wax-seal-btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.97);
+}
+
+.wax-seal-btn:disabled {
+  filter: grayscale(0.4) brightness(0.75);
+  cursor: not-allowed;
+}
+
+/* --- Металлическая кнопка (кнопка «Отмена») --- */
+.metal-btn {
+  background: linear-gradient(180deg, #f2f2ef 0%, #d4d4cf 40%, #a8a8a2 60%, #c4c4be 100%);
+  color: #40403a;
+  border: 1px solid #8f8f88;
+  border-radius: 10px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.22),
+    0 2px 6px rgba(0, 0, 0, 0.22);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.dark .metal-btn {
+  background: linear-gradient(180deg, #63636b 0%, #45454d 40%, #2e2e34 60%, #4a4a52 100%);
+  color: #e4e4ea;
+  border-color: #191920;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65);
+}
+
+.metal-btn:hover {
+  filter: brightness(1.06);
+}
+
+.metal-btn:active {
+  transform: translateY(1px);
+}
