@@ -1,30 +1,62 @@
 /* ============================================================
-   IOS RESET — «пергаментное» полотно скевоморфной темы.
+   IOS RESET — «полотно» темы: льняной холст с настоящим зерном
+   (фиксированный шумовой слой поверх ВСЕЙ страницы), виньетка,
+   тиснёные заголовки, прошитые разделители, металлический скроллбар.
    ============================================================ */
 
 body.ios-theme {
-  background: var(--ios-bg);
+  background-color: var(--ios-linen);
   background-image: var(--ios-bg-gradient);
+  background-attachment: fixed;
   color: var(--ios-text);
   font-family: var(--ios-font);
   -webkit-font-smoothing: antialiased;
 }
 
-/* Плоские «бумажные» подложки приложения убираем в прозрачность */
+/* ЗЕРНО БУМАГИ поверх всего интерфейса (не перехватывает события) */
+body.ios-theme::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  background-image: var(--ios-noise);
+  background-size: 220px 220px;
+  opacity: 0.05;
+  mix-blend-mode: multiply;
+}
+
+/* Мягкая виньетка — «свет настольной лампы» */
+body.ios-theme::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2147482999;
+  pointer-events: none;
+  background: radial-gradient(120% 100% at 50% 0%,
+    transparent 55%, rgba(60, 44, 20, 0.10) 82%, rgba(40, 28, 10, 0.18) 100%);
+}
+
+/* Плоские подложки приложения — в прозрачность (материал даёт тема) */
 body.ios-theme [class*="bg-paper"],
 body.ios-theme [class*="bg-ivory"],
 body.ios-theme [class*="bg-gray-50"],
-body.ios-theme [class*="bg-gray-100"] {
+body.ios-theme [class*="bg-gray-100"],
+body.ios-theme [class*="backdrop-blur"] {
   background-color: transparent !important;
+  backdrop-filter: none !important;
 }
 
-/* Типографика */
+/* Типографика — заголовки «выдавлены» в поверхности */
 body.ios-theme h1,
 body.ios-theme h2,
 body.ios-theme h3,
 body.ios-theme h4 {
   font-family: var(--ios-font);
-  color: var(--ios-text);
+  color: var(--ios-ink);
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.55),
+    0 -1px 1px rgba(0, 0, 0, 0.18);
 }
 
 /* Ссылки — атласный синий */
@@ -34,47 +66,39 @@ body.ios-theme section a {
   color: var(--ios-blue);
   text-decoration: none;
 }
-body.ios-theme aside a { color: rgba(255, 255, 255, 0.9); }
+body.ios-theme aside a { color: inherit; }
 
 body.ios-theme ::selection {
-  background: rgba(0, 122, 255, 0.85);
+  background: rgba(10, 106, 232, 0.85);
   color: #ffffff;
 }
 
-/* Аватары — «фотографии в белых рамках» вместо кружков */
-body.ios-theme img[alt][src*="avatar"],
-body.ios-theme .avatar,
-body.ios-theme [data-avatar],
+/* Аватары — фотографии в белых рамках с лёгким наклоном */
 body.ios-theme img.rounded-full,
 body.ios-theme div.rounded-full {
   border-radius: 4px !important;
   border: 3px solid #ffffff;
   box-shadow:
-    0 2px 6px rgba(0, 0, 0, 0.28),
+    0 2px 6px rgba(0, 0, 0, 0.30),
     inset 0 0 0 1px rgba(0, 0, 0, 0.06);
   object-fit: cover;
 }
 
-/* --- Скроллбар --- */
-body.ios-theme ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-  background: transparent;
-}
+/* --- Скроллбар: брашированный металл --- */
+body.ios-theme ::-webkit-scrollbar { width: 12px; height: 12px; background: transparent; }
 body.ios-theme ::-webkit-scrollbar-thumb {
-  background: linear-gradient(90deg, #cfc9bc, #a9a294);
+  background:
+    linear-gradient(90deg, #efece4 0%, #cfcabd 45%, #b3ac9d 100%);
   border-radius: 999px;
-  border: 2px solid transparent;
+  border: 3px solid transparent;
   background-clip: padding-box;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), inset 0 -1px 2px rgba(0, 0, 0, 0.2);
 }
-body.ios-theme {
-  scrollbar-width: thin;
-  scrollbar-color: #b7b0a2 rgba(0, 0, 0, 0.06);
-}
+body.ios-theme { scrollbar-width: thin; scrollbar-color: #b3ac9d rgba(0, 0, 0, 0.05); }
 
-/* Разделители — бумажная складка */
+/* Разделители — прошитая нить */
 body.ios-theme hr {
   border: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(0,0,0,0.18), transparent);
+  height: 0;
+  border-top: 2px dashed rgba(94, 68, 38, 0.38);
 }

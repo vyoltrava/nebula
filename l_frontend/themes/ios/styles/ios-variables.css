@@ -1,59 +1,87 @@
 /* ============================================================
-   IOS VARIABLES — токены скевоморфной темы «Old iOS».
-   Жёсткая изоляция: каждая переменная объявлена ТОЛЬКО внутри
-   body.ios-theme — стандартная тема и Zune не затрагиваются.
+   IOS VARIABLES — материальные токены скевоморфной темы «Old iOS».
+   Всё объявлено ТОЛЬКО внутри body.ios-theme: стандартная тема и
+   Zune не затрагиваются. Текстуры — SVG feTurbulence (зерно),
+   материалы — дерево, кожа, латунь, сталь, бумага, лён.
    ============================================================ */
 
 body.ios-theme {
-  /* --- Поверхности --- */
-  --ios-bg: #b8b0a3;
+  /* --- Холст: лён / холст --- */
+  --ios-linen: #d8d0c1;
   --ios-bg-gradient:
-    radial-gradient(120% 120% at 50% 0%, #c8c0b4 0%, #b0a79a 55%, #9c9386 100%);
-  --ios-paper: #faf5e6;
-  --ios-paper-line: #e5dcc7;
-  --ios-paper-edge: #d6c9ac;
-  --ios-wood-top: #8b7355;
-  --ios-wood-bottom: #6b5335;
-  --ios-wood-grain: rgba(0, 0, 0, 0.06);
+    radial-gradient(120% 90% at 50% 0%, #e6dece 0%, #d3cab9 46%, #b7ac98 100%);
+
+  /* --- Бумага --- */
+  --ios-paper: #faf4e1;
+  --ios-paper-deep: #f1e8d1;
+  --ios-paper-line: #e4d9bd;
+  --ios-paper-edge: #c9bb99;
+  --ios-ink: #23211c;
 
   /* --- Текст --- */
-  --ios-text: #2a2a28;
-  --ios-text-soft: #6e6a61;
-  --ios-text-faint: #9d988c;
-  --ios-ink: #1c1c1e;
+  --ios-text: #33302a;
+  --ios-text-soft: #6e675a;
+  --ios-text-faint: #9a9184;
 
-  /* --- Кнопка / глянец --- */
-  --ios-glint-top: rgba(255, 255, 255, 0.95);
-  --ios-glint-mid: rgba(255, 255, 255, 0.55);
-  --ios-btn-base-top: #fbfaf7;
-  --ios-btn-base-bottom: #e3e0d8;
-  --ios-btn-edge: #c8c3b8;
-  --ios-btn-depth: rgba(0, 0, 0, 0.35);
+  /* --- Дерево --- */
+  --ios-wood-1: #8a6a48;
+  --ios-wood-2: #5e4426;
+  --ios-wood-3: #3a2a15;
+  --ios-wood-grain: rgba(0, 0, 0, 0.08);
+
+  /* --- Кожа / латунь / сталь --- */
+  --ios-leather-1: #7c4b33;
+  --ios-leather-2: #48291a;
+  --ios-brass-1: #f6dc8e;
+  --ios-brass-2: #c99b2f;
+  --ios-brass-3: #7e5a12;
+  --ios-steel-1: #f5f5f3;
+  --ios-steel-2: #b9babc;
+  --ios-steel-3: #77797c;
+
+  /* --- Зерно (шум) — SVG-фильтр feTurbulence --- */
+  --ios-noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  /* --- Блик (стекло/пластик) --- */
+  --ios-gloss: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(255, 255, 255, 0.22) 44%,
+    rgba(255, 255, 255, 0.04) 52%,
+    rgba(255, 255, 255, 0) 100%);
+
+  /* --- Тени: физический подъём и углубления --- */
+  --ios-raise-1: 0 1px 2px rgba(0, 0, 0, 0.20), 0 4px 9px rgba(0, 0, 0, 0.16);
+  --ios-raise-2: 0 2px 4px rgba(0, 0, 0, 0.22), 0 12px 28px rgba(0, 0, 0, 0.20);
+  --ios-press: inset 0 3px 7px rgba(0, 0, 0, 0.30), 0 1px 0 rgba(255, 255, 255, 0.35);
+  --ios-well: inset 0 2px 5px rgba(0, 0, 0, 0.16), inset 0 -1px 0 rgba(255, 255, 255, 0.65);
 
   /* --- Акценты --- */
-  --ios-blue: #007aff;
-  --ios-blue-bottom: #0057d9;
+  --ios-blue: #0a6ae8;
+  --ios-blue-top: #4c9bff;
+  --ios-blue-bottom: #0757c4;
   --ios-green: #34c759;
+  --ios-green-top: #5ede7c;
+  --ios-green-bottom: #2fae55;
   --ios-red: #ff3b30;
+  --ios-red-top: #ff7a6e;
+  --ios-red-bottom: #d0321f;
+  --ios-purple-top: #a78bfa;
+  --ios-purple-bottom: #7452e8;
 
   /* --- Тумблер --- */
-  --ios-toggle-track: #d8d4c9;
-  --ios-toggle-on: #34c759;
+  --ios-toggle-track: #c7c1b1;
+  --ios-toggle-on: var(--ios-green);
 
   /* --- Типографика --- */
-  --ios-font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica,
-    Arial, system-ui, sans-serif;
-  --ios-serif: "Palatino Linotype", "Book Antiqua", Georgia, "Times New Roman",
-    serif;
+  --ios-font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, system-ui, sans-serif;
+  --ios-serif: "Palatino Linotype", "Book Antiqua", Georgia, "Times New Roman", serif;
 
-  /* --- Motion --- */
+  /* --- Motion: пружина и физика нажатия --- */
   --ios-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ios-ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
   --ios-speed: 220ms;
 }
 
 @media (max-width: 640px) {
-  body.ios-theme {
-    --ios-speed: 180ms;
-  }
+  body.ios-theme { --ios-speed: 180ms; }
 }

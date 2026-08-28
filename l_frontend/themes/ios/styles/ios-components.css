@@ -1,247 +1,363 @@
 /* ============================================================
-   IOS-COMPONENTS — «физические» элементы: кнопки, поля ввода
-   и встроенный переключатель трёх тем (ist-* / ios-theme-*).
+   IOS COMPONENTS — «железо» интерфейса: физические кнопки с
+   глянцем и продавливанием, углубления-колодцы для ввода,
+   настоящий тумблер, алюминиевая плита настроек с винтами,
+   клавиши переключателя тем со светодиодами.
    ============================================================ */
 
-/* ---------- КНОПКИ КАК «ФИЗИЧЕСКИЕ» ---------- */
-body.ios-theme button {
+/* ---------- 1. КНОПКИ: ФИЗИЧЕСКИЕ ---------- */
+body.ios-theme main button,
+body.ios-theme .ist-root button {
+  position: relative;
+  border-radius: 9px;
+  font-weight: 600;
   font-family: var(--ios-font);
-}
-body.ios-theme article button,
-body.ios-theme main button:not([class*="fixed"]) {
-  background: linear-gradient(180deg, var(--ios-btn-base-top) 0%, var(--ios-btn-base-bottom) 100%);
-  border: 1px solid var(--ios-btn-edge);
-  border-radius: 7px;
+  background: linear-gradient(180deg, #ffffff 0%, #f2efe7 46%, #dcd7c8 100%);
+  border: 1px solid #b3ac9b;
+  border-top-color: #eae6da;
+  border-bottom-color: #998f79;
   box-shadow:
-    0 2px 3px var(--ios-btn-depth),
-    inset 0 1px 0 var(--ios-glint-top);
+    0 2px 3px rgba(0, 0, 0, 0.20),
+    0 7px 14px rgba(0, 0, 0, 0.13),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.09);
   color: var(--ios-blue);
-  cursor: pointer;
-  transition: transform var(--ios-speed) var(--ios-ease),
-    box-shadow var(--ios-speed) var(--ios-ease),
-    background var(--ios-speed) var(--ios-ease);
-}
-body.ios-theme article button:hover,
-body.ios-theme main button:not([class*="fixed"]):hover {
-  box-shadow:
-    0 3px 5px var(--ios-btn-depth),
-    inset 0 1px 0 var(--ios-glint-mid);
-}
-body.ios-theme article button:active,
-body.ios-theme main button:not([class*="fixed"]):active {
-  transform: scale(0.96);
-  background: linear-gradient(180deg, var(--ios-btn-base-bottom) 0%, var(--ios-btn-base-top) 100%);
-  box-shadow: inset 0 2px 4px var(--ios-btn-depth);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.75);
+  transition:
+    transform 160ms var(--ios-spring),
+    box-shadow 160ms var(--ios-ease),
+    filter 160ms var(--ios-ease);
 }
 
-/* Акцентные кнопки */
-body.ios-theme main button[class*="bg-indigo"],
-body.ios-theme main button[class*="bg-violet"],
-body.ios-theme main button[class*="bg-purple"] {
-  background: linear-gradient(180deg, #4f7cff 0%, var(--ios-blue-bottom) 100%);
+/* Стеклянный блик сверху */
+body.ios-theme main button::before,
+body.ios-theme .ist-root button::before {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  right: 1px;
+  height: 45%;
+  border-radius: 8px 8px 10px 10px;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 255, 255, 0.25) 60%,
+    rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+  transition: opacity 160ms var(--ios-ease);
+}
+
+@media (hover: hover) {
+  body.ios-theme main button:hover,
+  body.ios-theme .ist-root button:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.03);
+    box-shadow:
+      0 3px 5px rgba(0, 0, 0, 0.22),
+      0 10px 20px rgba(0, 0, 0, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      inset 0 -2px 3px rgba(0, 0, 0, 0.09);
+  }
+}
+
+/* Нажатие — кнопка утапливается в корпус */
+body.ios-theme main button:active,
+body.ios-theme .ist-root button:active {
+  transform: translateY(1.5px) scale(0.97);
+  box-shadow:
+    inset 0 3px 7px rgba(0, 0, 0, 0.22),
+    0 1px 0 rgba(255, 255, 255, 0.45);
+}
+body.ios-theme main button:active::before,
+body.ios-theme .ist-root button:active::before { opacity: 0.3; }
+
+/* Цветные ключи: синий / зелёный / красный / фиолетовый */
+body.ios-theme main button[class*="bg-blue"],
+body.ios-theme main button[class*="bg-[#"] {
+  background: linear-gradient(180deg, var(--ios-blue-top) 0%, #1a7bf0 55%, var(--ios-blue-bottom) 100%);
   border-color: var(--ios-blue-bottom);
+  border-top-color: rgba(255, 255, 255, 0.45);
   color: #ffffff;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.3);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.22),
+    0 8px 16px rgba(10, 106, 232, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.18);
 }
-body.ios-theme main button[class*="bg-green"] {
-  background: linear-gradient(180deg, #4cd964 0%, var(--ios-green) 100%);
-  border-color: #2fbf4d;
+body.ios-theme main button[class*="bg-green"],
+body.ios-theme main button[class*="emerald"] {
+  background: linear-gradient(180deg, var(--ios-green-top) 0%, #3dc066 55%, var(--ios-green-bottom) 100%);
+  border-color: #23894a;
+  border-top-color: rgba(255, 255, 255, 0.45);
   color: #ffffff;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.3);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.22),
+    0 8px 16px rgba(52, 199, 89, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.18);
 }
-body.ios-theme main button[class*="bg-red"] {
-  background: linear-gradient(180deg, #ff6458 0%, var(--ios-red) 100%);
-  border-color: #e02e24;
+body.ios-theme main button[class*="bg-red"],
+body.ios-theme main button[class*="rose"] {
+  background: linear-gradient(180deg, var(--ios-red-top) 0%, #f04a38 55%, var(--ios-red-bottom) 100%);
+  border-color: #a62513;
+  border-top-color: rgba(255, 255, 255, 0.45);
   color: #ffffff;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.3);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.22),
+    0 8px 16px rgba(255, 59, 48, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.18);
 }
-
-/* ---------- ИНПУТЫ КАК «УГЛУБЛЕНИЯ» ---------- */
-body.ios-theme input[type="text"],
-body.ios-theme input[type="password"],
-body.ios-theme input[type="email"],
-body.ios-theme input[type="search"],
-body.ios-theme textarea,
-body.ios-theme select {
-  font-family: var(--ios-font);
+body.ios-theme main button[class*="8b5cf6"],
+body.ios-theme main button[class*="violet"],
+body.ios-theme main button[class*="purple"] {
+  background: linear-gradient(180deg, var(--ios-purple-top) 0%, #8b6cf2 55%, var(--ios-purple-bottom) 100%);
+  border-color: #5b3ed1;
+  border-top-color: rgba(255, 255, 255, 0.45);
+  color: #ffffff;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.3);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.22),
+    0 8px 16px rgba(139, 92, 246, 0.30),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.18);
+}
+/* ---------- 2. ПОЛЯ ВВОДА: УГЛУБЛЕНИЯ-КОЛОДЦЫ ---------- */
+body.ios-theme main input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+body.ios-theme main textarea,
+body.ios-theme main select {
+  background: linear-gradient(180deg, #e6ddc6 0%, #f3ecd8 28%, #fbf6e7 100%);
+  border: 1px solid #a89e85;
+  border-bottom-color: #cfc6ad;
+  border-radius: 9px;
   color: var(--ios-ink);
-  background: linear-gradient(180deg, #e8e4da 0%, #f4f0e7 100%);
-  border: 2px solid #c9c2b2;
-  border-radius: 6px;
+  font-family: var(--ios-font);
   box-shadow:
-    inset 0 2px 5px rgba(0, 0, 0, 0.22),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.8);
+    inset 0 2px 5px rgba(0, 0, 0, 0.16),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.65),
+    0 1px 0 rgba(255, 255, 255, 0.55);
+  transition:
+    border-color 220ms var(--ios-ease),
+    box-shadow 220ms var(--ios-ease);
 }
-body.ios-theme input:focus,
-body.ios-theme textarea:focus,
-body.ios-theme select:focus {
+body.ios-theme main input::placeholder,
+body.ios-theme main textarea::placeholder {
+  color: var(--ios-text-faint);
+  font-style: italic;
+  font-weight: 300;
+}
+body.ios-theme main input:focus,
+body.ios-theme main textarea:focus,
+body.ios-theme main select:focus {
   outline: none;
-  border-color: var(--ios-blue);
+  border-color: #3b82f6;
   box-shadow:
-    inset 0 2px 5px rgba(0, 0, 0, 0.2),
-    0 0 0 3px rgba(0, 122, 255, 0.28);
+    inset 0 2px 5px rgba(0, 0, 0, 0.14),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.65),
+    0 0 0 3px rgba(59, 130, 246, 0.25),
+    0 0 16px rgba(59, 130, 246, 0.22);
 }
 
-/* ---------- ТУМБЛЕР (выключатель-«переключатель») ---------- */
+/* ---------- 3. ТУМБЛЕР: НАСТОЯЩИЙ ПЕРЕКЛЮЧАТЕЛЬ ---------- */
 body.ios-theme main [role="switch"] {
   appearance: none;
   -webkit-appearance: none;
   position: relative;
   width: 52px;
-  height: 31px;
-  margin: 0;
-  padding: 0;
-  background: var(--ios-toggle-track);
+  height: 30px;
   border-radius: 999px;
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35);
   cursor: pointer;
-  transition: background-color 0.22s ease;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, #a9a291 0%, #c6c0b0 100%);
+  border: 1px solid #857d6b;
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.32),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.5),
+    0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: background 250ms var(--ios-ease), box-shadow 250ms var(--ios-ease);
 }
+/* ручка-кнопка с бликом */
 body.ios-theme main [role="switch"]::before {
   content: "";
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 25px;
-  height: 25px;
+  top: 1px;
+  left: 1px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #e9e9e9 60%, #cfcfcf 100%);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
-  transition: left 0.22s var(--ios-spring);
-}
-body.ios-theme main [role="switch"]:checked { background: var(--ios-toggle-on); }
-body.ios-theme main [role="switch"]:checked::before { left: 24px; }
-
-/* ============================================================
-   ВСТРОЕННЫЙ ПЕРЕКЛЮЧАТЕЛЬ ТРЁХ ТЕМ (SettingsThemeInjector, ist-*).
-   Живёт вне body.ios-theme: панель должна быть видна на всех темах.
-   ============================================================ */
-
-.ist-root {
-  font-family: var(--ios-font, -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif);
-  margin: 18px 0 24px;
-  padding: 16px 18px;
-  background:
-    linear-gradient(var(--ios-paper-line, #e5dcc7) 1px, transparent 1px),
-    linear-gradient(90deg, var(--ios-paper-line, #e5dcc7) 1px, transparent 1px),
-    linear-gradient(180deg, #fdf9ec 0%, #f4eeda 100%);
-  background-size: 16px 16px;
-  background-position: -1px -1px;
-  border: 2px solid var(--ios-paper-edge, #d6c9ac);
-  border-radius: 10px;
+  background: radial-gradient(circle at 32% 26%, #ffffff 0%, #f0eee6 45%, #cbc7b9 100%);
+  border: 1px solid #908875;
   box-shadow:
-    0 4px 14px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    0 3px 6px rgba(0, 0, 0, 0.4),
+    0 1px 2px rgba(0, 0, 0, 0.22),
+    inset 0 2px 2px rgba(255, 255, 255, 0.95),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.12);
+  transition: left 300ms var(--ios-spring), transform 150ms var(--ios-spring);
 }
+body.ios-theme main [role="switch"]:active::before { transform: scale(0.92); }
+/* ВКЛ — лат с зелёным глянцем */
+body.ios-theme main [role="switch"]:checked {
+  background: linear-gradient(180deg, #58d877 0%, #2fae55 100%);
+  border-color: #1f7a3c;
+  box-shadow:
+    inset 0 2px 6px rgba(18, 88, 38, 0.45),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.35),
+    0 1px 0 rgba(255, 255, 255, 0.6),
+    0 0 12px rgba(52, 199, 89, 0.35);
+}
+body.ios-theme main [role="switch"]:checked::before { left: 24px; }
+/* ---------- 4. НАСТРОЙКИ: АЛЮМИНИЕВАЯ ПЛИТА С ВИНТАМИ ---------- */
+.ist-root {
+  position: relative;
+  font-family: var(--ios-font);
+  margin: 20px 0 24px;
+  padding: 18px 20px;
+  background: linear-gradient(180deg, #f8f6f0 0%, #e7e3d9 52%, #d7d3c7 100%);
+  border: 1px solid #a9a394;
+  border-top-color: #f4f2ec;
+  border-radius: 14px;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.22),
+    0 12px 28px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+/* винты по углам плиты */
+.ist-root::before,
+.ist-root::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background:
+    linear-gradient(38deg, transparent 42%, rgba(90, 90, 90, 0.85) 42%, rgba(90, 90, 90, 0.85) 58%, transparent 58%),
+    radial-gradient(circle at 34% 28%, #ffffff 0%, #c9c9c7 55%, #8f8f8d 100%);
+  box-shadow:
+    inset 0 -2px 3px rgba(0, 0, 0, 0.35),
+    0 1px 1px rgba(255, 255, 255, 0.6);
+}
+.ist-root::before { top: 10px; left: 12px; }
+.ist-root::after  { bottom: 10px; right: 12px; }
+
 .ist-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 2px;
 }
-.ist-title { margin: 0; font-size: 16px; font-weight: 600; color: #2a2a28; }
-.ist-subtitle { margin: 2px 0 0; font-size: 12px; color: #8a8374; }
+.ist-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ios-ink, #23211c);
+  letter-spacing: 0.01em;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.75), 0 -1px 1px rgba(0, 0, 0, 0.14);
+}
+.ist-subtitle { font-size: 12px; color: var(--ios-text-soft, #6e675a); margin-top: 2px; }
 .ist-badge {
-  flex-shrink: 0;
-  font-size: 11px;
-  line-height: 1;
-  letter-spacing: 0.05em;
-  padding: 6px 10px;
-  border: 1px solid rgba(0, 0, 0, 0.18);
+  padding: 3px 10px;
   border-radius: 999px;
-  color: rgba(0, 0, 0, 0.55);
-  background: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6e675a;
+  background: linear-gradient(180deg, #e3dfd3 0%, #c9c4b5 100%);
+  border: 1px solid #a49d8c;
+  border-top-color: #ffffff;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12), 0 1px 0 rgba(255, 255, 255, 0.7);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
 }
-
-/* --- Ряд «физических» кнопок --- */
+/* ---------- 5. ПЕРЕКЛЮЧАТЕЛЬ ТЕМ: КЛАВИШИ СО СВЕТОДИОДАМИ ---------- */
 .ios-theme-selector {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 10px;
+  margin-top: 14px;
 }
 .ios-theme-option {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 12px 14px;
-  background: linear-gradient(180deg, #ffffff 0%, #e8e4da 100%);
-  border: 2px solid #cfc9bb;
-  border-radius: 9px;
-  box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  color: #2a2a28;
-  font-size: 15px;
-  font-weight: 500;
   text-align: left;
+  padding: 12px 14px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: transform 180ms var(--ios-spring, cubic-bezier(0.34, 1.56, 0.64, 1)),
-    box-shadow 180ms var(--ios-ease, cubic-bezier(0.25, 0.46, 0.45, 0.94)),
-    background 180ms var(--ios-ease, cubic-bezier(0.25, 0.46, 0.45, 0.94));
-}
-.ios-theme-option:hover {
-  transform: translateY(-1px);
+  font-family: var(--ios-font);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ios-text, #33302a);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
+  background: linear-gradient(180deg, #ffffff 0%, #f2efe7 46%, #dcd7c8 100%);
+  border: 1px solid #b3ac9b;
+  border-top-color: #eae6da;
+  border-bottom-color: #998f79;
   box-shadow:
-    0 4px 8px rgba(0, 0, 0, 0.22),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    0 2px 3px rgba(0, 0, 0, 0.18),
+    0 7px 14px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.08);
+  transition:
+    transform 170ms var(--ios-spring),
+    box-shadow 170ms var(--ios-ease),
+    background 170ms var(--ios-ease),
+    color 170ms var(--ios-ease);
+}
+.ios-theme-option::before {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  right: 1px;
+  height: 44%;
+  border-radius: 11px 11px 12px 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.1) 70%, transparent 100%);
+  pointer-events: none;
+  transition: opacity 170ms var(--ios-ease);
+}
+@media (hover: hover) {
+  .ios-theme-option:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 3px 5px rgba(0, 0, 0, 0.2),
+      0 10px 20px rgba(0, 0, 0, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      inset 0 -2px 3px rgba(0, 0, 0, 0.08);
+  }
 }
 .ios-theme-option:active {
-  transform: scale(0.98);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  transform: translateY(1.5px) scale(0.985);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.22), 0 1px 0 rgba(255, 255, 255, 0.45);
 }
+/* выбранная клавиша — «утоплена», синяя, со свечением */
 .ios-theme-option.is-active {
-  background: linear-gradient(180deg, #4c8dff 0%, var(--ios-blue-bottom, #0057d9) 100%);
-  border-color: var(--ios-blue-bottom, #0057d9);
+  background: linear-gradient(180deg, #3f8dff 0%, #1565e0 55%, var(--ios-blue-bottom, #0757c4) 100%);
+  border-color: #084db0;
+  border-top-color: rgba(255, 255, 255, 0.4);
   color: #ffffff;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.32);
+  transform: translateY(1px);
   box-shadow:
-    0 2px 6px rgba(0, 122, 255, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    inset 0 3px 8px rgba(0, 0, 0, 0.35),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.25),
+    0 1px 0 rgba(255, 255, 255, 0.5);
 }
+.ios-theme-option.is-active::before { opacity: 0.25; }
 .ios-theme-option-body {
   flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 0;
+  position: relative;
+  z-index: 1;
 }
-.ios-theme-option-label { font-weight: 600; }
-.ios-theme-option-hint {
-  font-size: 12px;
-  opacity: 0.65;
-  margin-top: 1px;
-}
-.ios-theme-option.is-active .ios-theme-option-hint { opacity: 0.8; }
+.ios-theme-option-label { font-weight: 700; }
+.ios-theme-option-hint { font-size: 12px; opacity: 0.65; margin-top: 1px; }
+.ios-theme-option.is-active .ios-theme-option-hint { opacity: 0.85; }
 
-/* --- Индикатор темы --- */
-.ios-theme-dot {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  border: 2px solid rgba(0, 0, 0, 0.14);
-  box-shadow: inset 0 -2px 3px rgba(0, 0, 0, 0.25);
-}
-.ios-theme-option.is-active .ios-theme-dot { border-color: rgba(255, 255, 255, 0.55); }
-.ios-dot--standard { background: radial-gradient(circle at 32% 28%, #9db8e8, #4a6fb5 70%); }
-.ios-dot--zune { background: radial-gradient(circle at 32% 28%, #ff7dff, #d400d4 70%); }
-.ios-dot--ios {
-  background:
-    radial-gradient(circle at 32% 26%, #7be38a 0%, #34c759 55%),
-    linear-gradient(135deg, #34c759 0%, #007aff 100%);
-}
-.ios-theme-check {
-  width: 22px;
-  height: 22px;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  border: 2px solid rgba(0, 0, 0, 0.12);
-  color: transparent;
-  font-size: 13px;
-  font-weight: 700;
-}
-.ios-theme-option.is-active .ios-theme-check {
-  border-color: rgba(255, 255, 255, 0.6);
-  color: #ffffff;
-}
+
+

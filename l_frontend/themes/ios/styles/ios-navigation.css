@@ -1,62 +1,168 @@
 /* ============================================================
-   IOS-NAVIGATION — сайдбар как «панель из тёмного дерева» с
-   физическими кнопками. Движок data-ios-sidebar помечает <aside>,
-   активный пункт — [data-ios-active]. Селекторы только под body.ios-theme.
+   IOS-NAVIGATION — сайдбар как панель из НАСТОЯЩЕГО ДЕРЕВА:
+   доски со швами и сучками, лаковый блик, резная кромка.
+   Пункты меню — физические клавиши с глянцем и продавливанием,
+   активная клавиша «утоплена» и подсвечена янтарным светодиодом.
+   ИКОНКИ — миниатюрные 3D-объекта (10 шт., CSS-only):
+   лаковый фотоальбом, конверт с сургучом, латунный колокольчик,
+   кожаная книга, деревянное радио с антенной, стальная шестерня,
+   поляроид в раме, щит, божья коровка, наушники.
+   Движок: data-ios-sidebar на <aside>, [data-ios-active], .ios-3d-*.
    ============================================================ */
 
-/* --- Панель целиком: текстура дерева, резная кромка --- */
+/* ---------- 1. ПАНЕЛЬ: ДЕРЕВО ---------- */
 body.ios-theme [data-ios-sidebar] {
-  background: var(--ios-wood-top);
+  position: relative;
+  background-color: var(--ios-wood-2);
   background-image:
-    repeating-linear-gradient(
-      90deg,
-      transparent 0px,
-      transparent 2px,
-      var(--ios-wood-grain) 2px,
-      var(--ios-wood-grain) 5px
-    ),
-    repeating-linear-gradient(
-      180deg,
-      transparent 0px,
-      transparent 26px,
-      rgba(0, 0, 0, 0.05) 26px,
-      rgba(0, 0, 0, 0.05) 27px
-    ),
-    linear-gradient(180deg, var(--ios-wood-top) 0%, var(--ios-wood-bottom) 100%) !important;
-  border-right: 3px solid rgba(0, 0, 0, 0.35);
+    /* вертикальные волокна */
+    repeating-linear-gradient(90deg,
+      transparent 0px, transparent 3px,
+      rgba(0, 0, 0, 0.06) 3px, rgba(0, 0, 0, 0.06) 4px,
+      transparent 4px, transparent 8px,
+      rgba(255, 240, 210, 0.045) 8px, rgba(255, 240, 210, 0.045) 9px),
+    /* швы между досками */
+    repeating-linear-gradient(180deg,
+      transparent 0px, transparent 128px,
+      rgba(0, 0, 0, 0.30) 128px, rgba(0, 0, 0, 0.30) 129px,
+      rgba(255, 236, 200, 0.08) 129px, rgba(255, 236, 200, 0.08) 130px,
+      transparent 130px, transparent 158px),
+    /* сучки */
+    radial-gradient(150px 90px at 80% 9%, rgba(0, 0, 0, 0.20), transparent 68%),
+    radial-gradient(120px 70px at 24% 46%, rgba(0, 0, 0, 0.16), transparent 66%),
+    radial-gradient(160px 90px at 70% 84%, rgba(0, 0, 0, 0.18), transparent 68%),
+    /* базовый тон */
+    linear-gradient(180deg, var(--ios-wood-1) 0%, var(--ios-wood-2) 52%, var(--ios-wood-3) 100%);
+  border-right: 1px solid #201405;
   box-shadow:
-    inset -8px 0 14px rgba(0, 0, 0, 0.3),
-    inset 4px 0 6px rgba(255, 255, 255, 0.08) !important;
-  color: #ffffff;
-  padding: 10px 0;
+    inset -16px 0 24px rgba(0, 0, 0, 0.45),
+    inset 4px 0 8px rgba(255, 236, 200, 0.12),
+    4px 0 16px rgba(0, 0, 0, 0.30);
+  color: #f7ecd9;
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
 
-/* --- Пункты меню — как «кнопки» с бликом --- */
+/* Лаковый блик на панели */
+body.ios-theme [data-ios-sidebar]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(115deg,
+    rgba(255, 255, 255, 0.10) 0%,
+    rgba(255, 255, 255, 0.03) 20%,
+    transparent 38%,
+    transparent 70%,
+    rgba(255, 255, 255, 0.06) 88%,
+    rgba(255, 255, 255, 0.12) 100%);
+  mix-blend-mode: screen;
+}
+
+/* ---------- 2. ПУНКТЫ: ФИЗИЧЕСКИЕ КЛАВИШИ ---------- */
 body.ios-theme [data-ios-sidebar] a {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 44px;
-  margin: 6px 12px;
-  padding: 0 14px !important;
-  background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 8px;
+  gap: 10px;
+  min-height: 48px;
+  margin: 7px 12px;
+  padding: 0 12px !important;
+  border-radius: 11px;
+  background: linear-gradient(180deg,
+    rgba(255, 246, 224, 0.17) 0%,
+    rgba(255, 246, 224, 0.05) 46%,
+    rgba(0, 0, 0, 0.07) 100%);
+  border: 1px solid rgba(46, 32, 14, 0.9);
+  border-top-color: rgba(255, 236, 200, 0.35);
   box-shadow:
-    0 2px 4px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  color: rgba(255, 255, 255, 0.92) !important;
+    0 1px 0 rgba(255, 236, 200, 0.10),
+    0 3px 5px rgba(0, 0, 0, 0.48),
+    0 9px 18px rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.30),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.24);
+  color: #f7ecd9 !important;
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.01em;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.5);
   text-decoration: none;
-  transition: transform var(--ios-speed) var(--ios-ease),
-    box-shadow var(--ios-speed) var(--ios-ease),
-    background var(--ios-speed) var(--ios-ease);
+  transition:
+    transform 200ms var(--ios-spring),
+    box-shadow 200ms var(--ios-ease),
+    background 200ms var(--ios-ease);
 }
 
-body.ios-theme [data-ios-sidebar] svg { color: rgba(255, 255, 255, 0.9); }
+/* Глянец на клавише */
+body.ios-theme [data-ios-sidebar] a::before {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  right: 1px;
+  height: 46%;
+  border-radius: 10px 10px 8px 8px;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.32) 0%,
+    rgba(255, 255, 255, 0.06) 70%,
+    rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+  transition: opacity 200ms var(--ios-ease);
+}
+
+/* Наведение — клавиша «приподнимается» */
+@media (hover: hover) {
+  body.ios-theme [data-ios-sidebar] a:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 2px 0 rgba(255, 236, 200, 0.12),
+      0 6px 10px rgba(0, 0, 0, 0.5),
+      0 14px 24px rgba(0, 0, 0, 0.26),
+      inset 0 1px 0 rgba(255, 255, 255, 0.38),
+      inset 0 -2px 3px rgba(0, 0, 0, 0.24);
+  }
+  body.ios-theme [data-ios-sidebar] a:hover::before { opacity: 1.35; filter: brightness(1.15); }
+}
+
+/* Нажатие — клавиша утапливается */
+body.ios-theme [data-ios-sidebar] a:active {
+  transform: translateY(1px) scale(0.985);
+  box-shadow: var(--ios-press), 0 1px 0 rgba(255, 236, 200, 0.08);
+}
+body.ios-theme [data-ios-sidebar] a:active::before { opacity: 0.35; }
+
+/* Активный пункт — «утоплен» + янтарный светодиод */
+body.ios-theme [data-ios-sidebar] a[data-ios-active="true"] {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.30) 0%, rgba(0, 0, 0, 0.12) 100%);
+  border-color: rgba(20, 13, 4, 0.95);
+  box-shadow:
+    inset 0 3px 8px rgba(0, 0, 0, 0.55),
+    inset 0 -1px 0 rgba(255, 236, 200, 0.14),
+    0 0 0 1px rgba(255, 196, 90, 0.22),
+    0 0 16px rgba(255, 180, 60, 0.30);
+  color: #ffe9c4 !important;
+}
+body.ios-theme [data-ios-sidebar] a[data-ios-active="true"]::before { opacity: 0.25; }
+body.ios-theme [data-ios-sidebar] a[data-ios-active="true"]::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  width: 7px;
+  height: 7px;
+  transform: translateY(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff3c8 0%, #f5b83d 55%, #8a5b12 100%);
+  box-shadow:
+    0 0 8px rgba(255, 190, 80, 0.95),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.4);
+}
+
+/* Плоский lucide-SVG прячем только там, где вставлен настоящий объект */
+body.ios-theme [data-ios-sidebar] a.ios-has-3d > svg,
+body.ios-theme [data-ios-sidebar] a.ios-has-3d svg.lucide {
+  display: none !important;
+}
 
 body.ios-theme [data-ios-sidebar] a > span:last-child {
   flex: 1;
@@ -65,67 +171,628 @@ body.ios-theme [data-ios-sidebar] a > span:last-child {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-/* Наведение — кнопка «приподнимается» */
-@media (hover: hover) {
-  body.ios-theme [data-ios-sidebar] a:hover {
-    transform: translateY(-1px) scale(1.02);
-    background: linear-gradient(180deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.14) 100%);
-    box-shadow:
-      0 4px 8px rgba(0, 0, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.35);
-    color: #ffffff !important;
-  }
+/* ---------- 3. 3D-ИКОНКИ: ОБЩАЯ ФИЗИКА ---------- */
+.ios-3d-icon {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  position: relative;
+  transform-style: preserve-3d;
+  transform: perspective(560px) rotateX(7deg) rotateY(-8deg);
+  transition: transform 280ms var(--ios-spring);
+  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.55));
+}
+.ios-3d-inner {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+body.ios-theme [data-ios-sidebar] a:hover .ios-3d-icon {
+  transform: perspective(560px) rotateX(2deg) rotateY(-2deg) translateY(-2px) scale(1.07);
+  filter: drop-shadow(0 7px 9px rgba(0, 0, 0, 0.55));
+}
+body.ios-theme [data-ios-sidebar] a:active .ios-3d-icon {
+  transform: perspective(560px) scale(0.92);
+}
+body.ios-theme [data-ios-sidebar] a[data-ios-active="true"] .ios-3d-icon {
+  filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 0 10px rgba(255, 190, 80, 0.65));
 }
 
-/* Нажатие — кнопка «утапливается» */
-@media (hover: hover) {
-  body.ios-theme [data-ios-sidebar] a:active {
-    transform: scale(0.96);
-    background: linear-gradient(180deg, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.1) 100%);
-    box-shadow:
-      inset 0 3px 6px rgba(0, 0, 0, 0.4),
-      0 1px 0 rgba(255, 255, 255, 0.12);
-  }
-}
-
-/* --- Активный пункт: «нажатая» кнопка с янтарной подсветкой --- */
-body.ios-theme [data-ios-sidebar] a[data-ios-active="true"] {
-  background: linear-gradient(180deg, #d89b33 0%, #b06f1c 100%);
-  border-color: rgba(255, 200, 90, 0.6);
-  color: #ffffff !important;
+/* ---------- 3a. ЛЕНТА: ЛАКОВЫЙ ФОТОАЛЬБОМ ---------- */
+.ios-3d-feed::before {
+  /* обложка из красного лака */
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 8px;
+  background: linear-gradient(150deg, #ff8a66 0%, #ee5a35 48%, #c73f22 100%);
+  border: 1px solid rgba(80, 20, 8, 0.65);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.4),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.25),
-    0 2px 6px rgba(0, 0, 0, 0.35);
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+    inset 0 2px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -4px 6px rgba(90, 15, 5, 0.4),
+    inset 2px 0 3px rgba(255, 255, 255, 0.18);
 }
-body.ios-theme [data-ios-sidebar] a[data-ios-active="true"] svg { color: #ffffff; }
-
-body.ios-theme [data-ios-sidebar] a span,
-body.ios-theme [data-ios-sidebar] a p { color: inherit; }
-
-/* Фокус с клавиатуры — глянцевая рамка */
-body.ios-theme [data-ios-sidebar] a:focus-visible {
-  outline: 2px solid var(--ios-blue);
-  outline-offset: -2px;
+.ios-3d-feed::after {
+  /* корешок альбома */
+  content: "";
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: 5px;
+  border-radius: 3px 0 0 3px;
+  background: linear-gradient(90deg, #7e2413 0%, #a83520 60%, rgba(0, 0, 0, 0) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.ios-3d-feed .ios-3d-inner::before {
+  /* страница с сеткой 3×3 миниатюр */
+  content: "";
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  left: 11px;
+  right: 7px;
+  border-radius: 3px;
+  background-color: #fffdf4;
+  background-image:
+    linear-gradient(90deg, transparent 30%, rgba(200, 70, 40, 0.4) 30%, rgba(200, 70, 40, 0.4) 33%, transparent 33%),
+    linear-gradient(90deg, transparent 64%, rgba(200, 70, 40, 0.4) 64%, rgba(200, 70, 40, 0.4) 67%, transparent 67%),
+    linear-gradient(0deg, transparent 30%, rgba(200, 70, 40, 0.4) 30%, rgba(200, 70, 40, 0.4) 33%, transparent 33%),
+    linear-gradient(0deg, transparent 64%, rgba(200, 70, 40, 0.4) 64%, rgba(200, 70, 40, 0.4) 67%, transparent 67%);
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.25),
+    0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.ios-3d-feed .ios-3d-inner::after {
+  /* стеклянный блик по диагонали обложки */
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 8px;
+  background: linear-gradient(125deg,
+    rgba(255, 255, 255, 0.42) 0%,
+    rgba(255, 255, 255, 0.08) 26%,
+    transparent 42%,
+    transparent 78%,
+    rgba(255, 255, 255, 0.12) 100%);
+  pointer-events: none;
+}
+/* ---------- 3b. СООБЩЕНИЯ: КОНВЕРТ С СУРГУЧНОЙ ПЕЧАТЬЮ ---------- */
+.ios-3d-messages::before {
+  /* корпус конверта */
+  content: "";
+  position: absolute;
+  inset: 8px 4px 7px 4px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #fffef6 0%, #efe7d2 78%, #ddd2b6 100%);
+  border: 1px solid rgba(105, 88, 48, 0.55);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -2px 3px rgba(120, 100, 60, 0.25),
+    0 2px 4px rgba(0, 0, 0, 0.35);
+}
+.ios-3d-messages::after {
+  /* клапан (открывается при наведении — см. ios-animations) */
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: 5px;
+  right: 5px;
+  height: 18px;
+  background: linear-gradient(180deg, #f4ecd7 0%, #e2d6b8 100%);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  filter: drop-shadow(0 2px 1px rgba(60, 45, 15, 0.35));
+  transform-origin: 50% 0%;
+  z-index: 2;
+}
+.ios-3d-messages .ios-3d-inner::before {
+  /* сургучная печать */
+  content: "";
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  width: 13px;
+  height: 13px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #ff9a8c 0%, #e6392a 52%, #8f1409 100%);
+  box-shadow:
+    0 2px 3px rgba(0, 0, 0, 0.4),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.55);
+  z-index: 3;
+}
+.ios-3d-messages .ios-3d-inner::after {
+  /* блик на корпусе конверта */
+  content: "";
+  position: absolute;
+  inset: 8px 4px 7px 4px;
+  border-radius: 4px;
+  background: linear-gradient(125deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    transparent 34%,
+    transparent 76%,
+    rgba(255, 255, 255, 0.16) 100%);
+  z-index: 1;
 }
 
-/* ============================================================
-   МОБИЛЬНАЯ АДАПТАЦИЯ
-   ============================================================ */
-@media (max-width: 767px) {
-  body.ios-theme [data-ios-sidebar] a {
-    min-height: 42px;
-    margin: 5px 8px;
-    padding-left: max(12px, env(safe-area-inset-left)) !important;
-    padding-right: max(12px, env(safe-area-inset-right)) !important;
-  }
+/* ---------- 3c. УВЕДОМЛЕНИЯ: ЛАТУННЫЙ КОЛОКОЛЬЧИК ---------- */
+.ios-3d-notifications::before {
+  /* купол колокола */
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  width: 27px;
+  height: 22px;
+  transform: translateX(-50%);
+  border-radius: 50% 50% 10% 10% / 62% 62% 10% 10%;
+  background:
+    radial-gradient(circle at 32% 22%, rgba(255, 255, 255, 0.85) 0%, transparent 34%),
+    linear-gradient(105deg, var(--ios-brass-1) 0%, var(--ios-brass-2) 52%, var(--ios-brass-3) 100%);
+  border: 1px solid rgba(80, 55, 8, 0.7);
+  box-shadow:
+    inset 0 -3px 4px rgba(70, 45, 5, 0.4),
+    0 3px 5px rgba(0, 0, 0, 0.4);
+}
+.ios-3d-notifications::after {
+  /* язычок колокола */
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  width: 7px;
+  height: 7px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffe9a8 0%, var(--ios-brass-2) 55%, var(--ios-brass-3) 100%);
+  border: 1px solid rgba(80, 55, 8, 0.7);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+.ios-3d-notifications .ios-3d-inner::before {
+  /* ушко для подвеса */
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  border: 3px solid var(--ios-brass-2);
+  border-top-color: var(--ios-brass-1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.ios-3d-notifications .ios-3d-inner::after {
+  /* продольный блик купола */
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 13px;
+  width: 7px;
+  height: 15px;
+  transform: translateX(-160%);
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 80%);
+  filter: blur(0.5px);
+}
+/* ---------- 3d. ЗАКЛАДКИ: КОЖАНАЯ КНИГА ---------- */
+.ios-3d-bookmarks::before {
+  /* кожаная обложка */
+  content: "";
+  position: absolute;
+  inset: 4px 5px;
+  border-radius: 4px 8px 8px 4px;
+  background:
+    radial-gradient(140% 100% at 18% 0%, rgba(255, 220, 180, 0.14) 0%, transparent 46%),
+    linear-gradient(150deg, var(--ios-leather-1) 0%, #5e3623 55%, var(--ios-leather-2) 100%);
+  border: 1px solid rgba(40, 20, 10, 0.75);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.16),
+    inset 0 -4px 6px rgba(20, 8, 2, 0.45),
+    0 2px 4px rgba(0, 0, 0, 0.4);
+}
+.ios-3d-bookmarks::after {
+  /* бумажный блок страниц */
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  right: 3px;
+  width: 7px;
+  border-radius: 0 2px 2px 0;
+  background: repeating-linear-gradient(180deg, #fffdf2 0px, #fffdf2 2px, #e4dbc4 2px, #e4dbc4 3px);
+  box-shadow: inset 0 0 0 1px rgba(120, 100, 60, 0.4);
+}
+.ios-3d-bookmarks .ios-3d-inner::before {
+  /* ляссе */
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 12px;
+  width: 5px;
+  height: 26px;
+  background: linear-gradient(180deg, #d8b64a 0%, #a8842a 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 82%, 50% 100%, 0 82%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.ios-3d-bookmarks .ios-3d-inner::after {
+  /* тиснение на обложке */
+  content: "";
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 12px;
+  width: 12px;
+  border: 2px solid rgba(255, 226, 170, 0.35);
+  border-radius: 2px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
 }
 
-@media (hover: none) {
-  body.ios-theme [data-ios-sidebar] a:hover {
-    transform: none;
-    background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%);
-  }
+/* ---------- 3e. ОБНОВЛЕНИЯ: ДЕРЕВЯННОЕ РАДИО ---------- */
+.ios-3d-updates::before {
+  /* корпус из дерева */
+  content: "";
+  position: absolute;
+  inset: 10px 3px 8px 3px;
+  border-radius: 6px 10px 4px 4px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 2px, rgba(0, 0, 0, 0.08) 2px 3px),
+    linear-gradient(160deg, #9a744c 0%, #6e4e2c 60%, #4c3418 100%);
+  border: 1px solid rgba(30, 18, 6, 0.8);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 236, 200, 0.25),
+    inset 0 -3px 5px rgba(0, 0, 0, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.4);
 }
+.ios-3d-updates::after {
+  /* антенна */
+  content: "";
+  position: absolute;
+  top: 1px;
+  right: 9px;
+  width: 2px;
+  height: 12px;
+  background: linear-gradient(180deg, #d9d9d7 0%, #8f8f8d 100%);
+  transform: rotate(16deg);
+  transform-origin: bottom center;
+  border-radius: 1px;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
+}
+.ios-3d-updates .ios-3d-inner::before {
+  /* решётка динамика */
+  content: "";
+  position: absolute;
+  left: 8px;
+  bottom: 12px;
+  width: 15px;
+  height: 11px;
+  border-radius: 2px;
+  background: repeating-linear-gradient(0deg, #2e1d0c 0 1px, #55381c 1px 3px);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 236, 200, 0.18);
+}
+.ios-3d-updates .ios-3d-inner::after {
+  /* зелёный индикатор сигнала — мигает */
+  content: "";
+  position: absolute;
+  right: 8px;
+  bottom: 14px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #d8ffe0 0%, #37e05f 45%, #14672c 100%);
+  box-shadow: 0 0 6px rgba(52, 199, 89, 0.8), inset 0 -1px 1px rgba(0, 0, 0, 0.4);
+  animation: iosSignalBlink 1.6s ease-in-out infinite;
+}
+
+/* ---------- 3f. НАСТРОЙКИ: СТАЛЬНАЯ ШЕСТЕРНЯ ---------- */
+.ios-3d-settings::before {
+  /* диск шестерни */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 26%, #ffffff 0%, #d9d9d7 40%, #8f8f8d 78%, #63656a 100%);
+  border: 1px solid rgba(50, 52, 56, 0.7);
+  box-shadow:
+    inset 0 2px 3px rgba(255, 255, 255, 0.9),
+    inset 0 -3px 4px rgba(0, 0, 0, 0.35),
+    0 3px 6px rgba(0, 0, 0, 0.45);
+}
+.ios-3d-settings::after {
+  /* зубцы по окружности — вращаются */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 36px;
+  height: 36px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    #cfd0d2 0deg 12deg,
+    #7c7e83 12deg 15deg,
+    transparent 15deg 30deg);
+  -webkit-mask: radial-gradient(circle, transparent 57%, #000 58%, #000 76%, transparent 77%);
+  mask: radial-gradient(circle, transparent 57%, #000 58%, #000 76%, transparent 77%);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.45));
+  animation: iosGearSpin 9s linear infinite;
+}
+.ios-3d-settings .ios-3d-inner::before {
+  /* осевое отверстие */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 32%, #6a6c70 0%, #3c3e42 70%);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7), 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.ios-3d-settings .ios-3d-inner::after {
+  /* блик по стали */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.75) 0%, transparent 45%);
+  pointer-events: none;
+}
+/* ---------- 3g. ПРОФИЛЬ: ПОЛЯРОИД В РАМЕ ---------- */
+.ios-3d-profile::before {
+  /* деревянная рама */
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 4px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 2px, rgba(0, 0, 0, 0.07) 2px 3px),
+    linear-gradient(160deg, #a5805a 0%, #77552f 55%, #523a1e 100%);
+  border: 1px solid rgba(30, 18, 6, 0.8);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 236, 200, 0.3),
+    inset 0 -3px 5px rgba(0, 0, 0, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.4);
+}
+.ios-3d-profile::after {
+  /* белый паспарту */
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border-radius: 2px;
+  background: linear-gradient(160deg, #fffef6 0%, #ece4cd 100%);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.ios-3d-profile .ios-3d-inner::before {
+  /* силуэт фотографии */
+  content: "";
+  position: absolute;
+  inset: 13px;
+  border-radius: 1px;
+  background:
+    radial-gradient(circle at 50% 36%, #5a6d80 0 26%, transparent 27%),
+    radial-gradient(circle at 50% 105%, #5a6d80 0 46%, transparent 47%),
+    linear-gradient(180deg, #cfd8de 0%, #aebbc4 100%);
+  box-shadow: inset 0 0 0 1px rgba(90, 70, 40, 0.35);
+}
+.ios-3d-profile .ios-3d-inner::after {
+  /* блик стекла рамки */
+  content: "";
+  position: absolute;
+  inset: 9px;
+  border-radius: 2px;
+  background: linear-gradient(125deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    transparent 36%,
+    transparent 74%,
+    rgba(255, 255, 255, 0.18) 100%);
+}
+
+/* ---------- 3h. ПРАВИЛА: ДЕРЕВЯННЫЙ ЩИТ С ЛАТУНЬЮ ---------- */
+.ios-3d-rules::before {
+  /* щит с фаской */
+  content: "";
+  position: absolute;
+  inset: 5px 6px;
+  background: linear-gradient(160deg, #a5805a 0%, #77552f 52%, #4c3418 100%);
+  clip-path: polygon(50% 0, 100% 12%, 100% 55%, 50% 100%, 0 55%, 0 12%);
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.5));
+}
+.ios-3d-rules::after {
+  /* латунная кайма */
+  content: "";
+  position: absolute;
+  inset: 8px 9px;
+  background: linear-gradient(160deg, var(--ios-brass-1) 0%, var(--ios-brass-2) 55%, var(--ios-brass-3) 100%);
+  clip-path: polygon(50% 0, 100% 12%, 100% 55%, 50% 100%, 0 55%, 0 12%);
+  opacity: 0.9;
+}
+.ios-3d-rules .ios-3d-inner::before {
+  /* галочка-гравировка */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 12px;
+  height: 7px;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  border-left: 3px solid #4c3418;
+  border-bottom: 3px solid #4c3418;
+  filter: drop-shadow(0 1px 0 rgba(255, 236, 200, 0.4));
+}
+.ios-3d-rules .ios-3d-inner::after {
+  /* блик лака */
+  content: "";
+  position: absolute;
+  inset: 5px 6px;
+  clip-path: polygon(50% 0, 100% 12%, 100% 55%, 50% 100%, 0 55%, 0 12%);
+  background: linear-gradient(125deg, rgba(255, 255, 255, 0.4) 0%, transparent 40%);
+}
+/* ---------- 3i. БАГ-РЕПОРТ: БОЖЬЯ КОРОВКА ---------- */
+.ios-3d-bug::before {
+  /* надкрылья */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 29px;
+  transform: translate(-50%, -52%);
+  border-radius: 50% 50% 46% 46% / 58% 58% 42% 42%;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.5) 0%, transparent 30%),
+    linear-gradient(160deg, #ff6b5a 0%, #e02f22 55%, #8f1409 100%);
+  border: 1px solid rgba(60, 8, 3, 0.8);
+  box-shadow: inset 0 -3px 5px rgba(0, 0, 0, 0.35), 0 3px 5px rgba(0, 0, 0, 0.45);
+}
+.ios-3d-bug::after {
+  /* линия смыкания надкрылий */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 27px;
+  transform: translate(-50%, -52%);
+  background: linear-gradient(180deg, rgba(30, 4, 2, 0.9), rgba(30, 4, 2, 0.55));
+  border-radius: 1px;
+}
+.ios-3d-bug .ios-3d-inner::before {
+  /* чёрные горошинки */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 24px;
+  height: 27px;
+  transform: translate(-50%, -52%);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle 2.5px at 30% 30%, #2a0503 98%, transparent),
+    radial-gradient(circle 2.5px at 68% 44%, #2a0503 98%, transparent),
+    radial-gradient(circle 2.5px at 32% 66%, #2a0503 98%, transparent),
+    radial-gradient(circle 2.5px at 66% 78%, #2a0503 98%, transparent);
+}
+.ios-3d-bug .ios-3d-inner::after {
+  /* голова с усиками */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 6px;
+  width: 10px;
+  height: 8px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, #4a1008 0%, #1c0301 80%);
+  box-shadow:
+    -4px -3px 0 -2px #1c0301,
+    4px -3px 0 -2px #1c0301;
+}
+
+/* ---------- 3j. ПОДДЕРЖКА: КОЖАНЫЕ НАУШНИКИ ---------- */
+.ios-3d-support::before {
+  /* головная дуга */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  width: 30px;
+  height: 26px;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--ios-leather-1);
+  border-radius: 50%;
+  box-shadow:
+    inset 0 2px 2px rgba(255, 220, 180, 0.25),
+    0 2px 3px rgba(0, 0, 0, 0.4);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.4));
+}
+.ios-3d-support::after {
+  /* стальные штанги */
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 21px;
+  width: 30px;
+  height: 8px;
+  transform: translateX(-50%);
+  background:
+    linear-gradient(90deg, var(--ios-steel-2) 0 4px, transparent 4px calc(100% - 4px), var(--ios-steel-2) calc(100% - 4px));
+}
+.ios-3d-support .ios-3d-inner::before {
+  /* левая амбушюра */
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 24px;
+  width: 12px;
+  height: 15px;
+  border-radius: 5px;
+  background: linear-gradient(160deg, var(--ios-leather-1) 0%, var(--ios-leather-2) 100%);
+  border: 1px solid rgba(30, 14, 6, 0.8);
+  box-shadow: inset 0 2px 2px rgba(255, 220, 180, 0.25), 0 2px 4px rgba(0, 0, 0, 0.45);
+}
+.ios-3d-support .ios-3d-inner::after {
+  /* правая амбушюра */
+  content: "";
+  position: absolute;
+  right: 5px;
+  top: 24px;
+  width: 12px;
+  height: 15px;
+  border-radius: 5px;
+  background: linear-gradient(200deg, var(--ios-leather-1) 0%, var(--ios-leather-2) 100%);
+  border: 1px solid rgba(30, 14, 6, 0.8);
+  box-shadow: inset 0 2px 2px rgba(255, 220, 180, 0.25), 0 2px 4px rgba(0, 0, 0, 0.45);
+}
+/* ---------- 4. ЯРЛЫКИ РАЗДЕЛОВ И ЛАТУННЫЕ СЧЁТЧИКИ ---------- */
+body.ios-theme [data-ios-sidebar] [data-ios-section] {
+  display: block;
+  margin: 14px 22px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 236, 200, 0.55);
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.6);
+}
+/* Латунный счётчик непрочитанного */
+body.ios-theme [data-ios-sidebar] a [data-ios-count]:not([data-ios-count="0"]) {
+  position: relative;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff8e6;
+  background: radial-gradient(circle at 32% 26%, #ff8d7a 0%, #e02f22 55%, #8f1409 100%);
+  border: 1px solid rgba(70, 10, 4, 0.85);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.35),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.4);
+}
+
+
+
+
+
+

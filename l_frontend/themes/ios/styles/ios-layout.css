@@ -1,67 +1,122 @@
 /* ============================================================
-   IOS LAYOUT — «бумажные» карточки постов и списков,
-   фотографии-рамки, плитки статистики профиля.
+   IOS LAYOUT — лента и профили из НАСТОЯЩИХ предметов:
+   посты — листы линованной бумаги с зерном и потёртыми краями,
+   аватары — полароиды со скотчем и стеклянным бликом,
+   медиа — полароидные снимки с толстой нижней кромкой,
+   списки — карточки с сургучными печатями непрочитанного,
+   статистика профиля — приклеенные бумажные карточки.
    ============================================================ */
 
-/* ---------- ПОСТ КАК БУМАЖНЫЙ ЛИСТ ---------- */
+/* ---------- 1. ПОСТ: ЛИСТ ЛИНОВАННОЙ БУМАГИ ---------- */
 body.ios-theme article[data-post-id] {
-  background:
+  position: relative;
+  background-color: var(--ios-paper);
+  background-image:
     linear-gradient(var(--ios-paper-line) 1px, transparent 1px),
     linear-gradient(90deg, var(--ios-paper-line) 1px, transparent 1px),
     linear-gradient(180deg, #fdf9ec 0%, var(--ios-paper) 100%);
-  background-size: 20px 20px;
-  background-position: -1px -1px;
+  background-size: 20px 20px, 20px 20px, 100% 100%;
+  background-position: -1px -1px, -1px -1px, 0 0;
   border: 1px solid var(--ios-paper-edge);
-  border-radius: 4px;
-  padding: 20px 24px 22px !important;
-  margin: 0 0 18px !important;
+  border-radius: 3px;
+  padding: 22px 26px 24px !important;
+  margin: 0 0 20px !important;
   max-width: 720px;
   box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.22),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.05);
+    0 1px 2px rgba(0, 0, 0, 0.14),
+    0 10px 26px rgba(0, 0, 0, 0.20),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
   transform: rotate(var(--ios-rotation, 0.4deg));
-  transition: transform 260ms var(--ios-spring),
-    box-shadow 260ms var(--ios-ease);
+  transition:
+    transform 300ms var(--ios-spring),
+    box-shadow 300ms var(--ios-ease);
   cursor: pointer;
 }
-body.ios-theme main article[data-post-id]:nth-child(odd) { --ios-rotation: 0.7deg; }
-body.ios-theme main article[data-post-id]:nth-child(even) { --ios-rotation: -0.4deg; }
+
+/* Потёртые края листа */
+body.ios-theme article[data-post-id]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  pointer-events: none;
+  background: linear-gradient(135deg,
+    rgba(180, 160, 120, 0.22) 0%, transparent 14%,
+    transparent 86%, rgba(180, 160, 120, 0.16) 100%),
+    linear-gradient(0deg,
+    rgba(180, 160, 120, 0.10) 0%, transparent 6%);
+}
+
+/* Бумажное зерно */
+body.ios-theme article[data-post-id]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  pointer-events: none;
+  background-image: var(--ios-noise);
+  background-size: 220px 220px;
+  opacity: 0.05;
+  mix-blend-mode: multiply;
+}
+
+/* Каждый лист лежит со своим наклоном */
+body.ios-theme main article[data-post-id]:nth-child(odd)  { --ios-rotation: 0.7deg; }
+body.ios-theme main article[data-post-id]:nth-child(even) { --ios-rotation: -0.45deg; }
+body.ios-theme main article[data-post-id]:nth-child(3n)   { --ios-rotation: 0.25deg; }
 
 @media (hover: hover) {
   body.ios-theme article[data-post-id]:hover {
-    transform: rotate(0deg) scale(1.01);
-    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+    transform: rotate(0deg) scale(1.012);
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.14),
+      0 18px 44px rgba(0, 0, 0, 0.26),
+      inset 0 -2px 5px rgba(0, 0, 0, 0.05);
+    z-index: 5;
   }
 }
 body.ios-theme article[data-post-id]:active {
-  transform: rotate(0deg) scale(0.99);
+  transform: rotate(0deg) scale(0.995);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
 }
 
-/* Текст поста — «напечатанный» на бумаге */
+/* Текст поста — «напечатан» на бумаге */
 body.ios-theme article[data-post-id] .whitespace-pre-wrap,
 body.ios-theme article[data-post-id] p.mt-1,
 body.ios-theme article[data-post-id] p {
   font-size: 17px;
-  line-height: 1.7;
+  line-height: 1.72;
   color: var(--ios-text);
   font-family: var(--ios-serif);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 body.ios-theme article[data-post-id] time,
 body.ios-theme article[data-post-id] [class*="text-xs"],
 body.ios-theme article[data-post-id] [class*="text-sm"] {
   color: var(--ios-text-faint);
 }
-
-/* Аватар в ленте — фотография в рамке */
+body.ios-theme article[data-post-id] a.font-bold {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ios-ink);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+/* ---------- 2. АВАТАР: ПОЛАРОИД СО СКОТЧЕМ И СТЕКЛОМ ---------- */
 body.ios-theme article[data-post-id] > div > a:first-child {
+  position: relative;
   display: block;
-  width: 52px;
-  height: 52px;
-  border-radius: 4px;
-  overflow: hidden;
+  width: 54px;
+  height: 54px;
+  border-radius: 3px;
+  overflow: visible;
   border: 3px solid #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: #ffffff;
+  box-shadow:
+    0 2px 3px rgba(0, 0, 0, 0.22),
+    0 6px 14px rgba(0, 0, 0, 0.2);
   flex-shrink: 0;
+  transition: transform 260ms var(--ios-spring), box-shadow 260ms var(--ios-ease);
 }
 body.ios-theme article[data-post-id] > div > a:first-child img,
 body.ios-theme article[data-post-id] > div > a:first-child > div {
@@ -70,26 +125,71 @@ body.ios-theme article[data-post-id] > div > a:first-child > div {
   border-radius: 0 !important;
   object-fit: cover;
 }
-
-body.ios-theme article[data-post-id] a.font-bold {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--ios-text);
+/* желтоватый скотч через угол рамки */
+body.ios-theme article[data-post-id] > div > a:first-child::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: -9px;
+  width: 30px;
+  height: 11px;
+  transform: rotate(-38deg);
+  background: linear-gradient(180deg, rgba(252, 243, 208, 0.72) 0%, rgba(238, 224, 178, 0.6) 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+  border-left: 1px dashed rgba(255, 255, 255, 0.65);
+  border-right: 1px dashed rgba(255, 255, 255, 0.65);
+  z-index: 2;
+  pointer-events: none;
+}
+/* блик стекла поверх фотографии */
+body.ios-theme article[data-post-id] > div > a:first-child::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 1px;
+  pointer-events: none;
+  background: linear-gradient(135deg,
+    rgba(255, 255, 255, 0.38) 0%,
+    rgba(255, 255, 255, 0.06) 38%,
+    transparent 52%,
+    transparent 82%,
+    rgba(255, 255, 255, 0.12) 100%);
+  z-index: 1;
+}
+@media (hover: hover) {
+  body.ios-theme article[data-post-id] > div > a:first-child:hover {
+    transform: rotate(-1.4deg) scale(1.06);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.24), 0 12px 22px rgba(0, 0, 0, 0.24);
+    z-index: 6;
+  }
 }
 
-/* Медиа — как поляроидные снимки */
+/* ---------- 3. МЕДИА: ПОЛЯРОИДНЫЙ СНИМОК ---------- */
 body.ios-theme article[data-post-id] img.rounded-xl,
 body.ios-theme article[data-post-id] video.rounded-xl {
-  border-radius: 4px !important;
+  border-radius: 2px !important;
   width: 100% !important;
   max-height: 70vh;
   object-fit: cover;
-  border: 5px solid #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border: 6px solid #ffffff;
+  border-bottom-width: 30px;
+  background: #ffffff;
+  box-shadow:
+    0 3px 6px rgba(0, 0, 0, 0.22),
+    0 14px 30px rgba(0, 0, 0, 0.22),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.08);
   margin-top: 16px !important;
+  transform: rotate(0.5deg);
+  transition: transform 300ms var(--ios-spring), box-shadow 300ms var(--ios-ease);
 }
-
-/* ---------- СПИСКИ (диалоги/уведомления) КАК БУМАЖНЫЕ КАРТОЧКИ ---------- */
+@media (hover: hover) {
+  body.ios-theme article[data-post-id] img.rounded-xl:hover,
+  body.ios-theme article[data-post-id] video.rounded-xl:hover {
+    transform: rotate(0deg) scale(1.012);
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.24), 0 22px 44px rgba(0, 0, 0, 0.26);
+  }
+}
+/* ---------- 4. СПИСКИ: КАРТОЧКИ С СУРГУЧНОЙ ПЕЧАТЬЮ ---------- */
 body.ios-theme [data-ios-list] {
   display: flex;
   flex-direction: column;
@@ -97,92 +197,180 @@ body.ios-theme [data-ios-list] {
 }
 body.ios-theme [data-ios-tile],
 body.ios-theme [data-ios-list] > * {
+  position: relative;
   background: linear-gradient(180deg, #fdf9ec 0%, var(--ios-paper) 100%);
   border: 1px solid var(--ios-paper-edge) !important;
-  border-radius: 4px !important;
+  border-radius: 3px !important;
   box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.14),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.04) !important;
+    0 1px 2px rgba(0, 0, 0, 0.12),
+    0 6px 14px rgba(0, 0, 0, 0.13),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
   padding: 14px 18px !important;
   margin: 0 !important;
-  transition: transform var(--ios-speed) var(--ios-spring),
-    box-shadow var(--ios-speed) var(--ios-ease);
+  transform: rotate(var(--ios-rotation, 0deg));
+  transition: transform 260ms var(--ios-spring), box-shadow 260ms var(--ios-ease);
 }
-body.ios-theme [data-ios-tile]:hover,
-body.ios-theme [data-ios-list] > *:hover {
-  transform: translateY(-1px) scale(1.01);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+body.ios-theme [data-ios-list] > :nth-child(odd)  { --ios-rotation: 0.35deg; }
+body.ios-theme [data-ios-list] > :nth-child(even) { --ios-rotation: -0.3deg; }
+/* бумажное зерно карточки */
+body.ios-theme [data-ios-tile]::after,
+body.ios-theme [data-ios-list] > *::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  pointer-events: none;
+  background-image: var(--ios-noise);
+  background-size: 220px 220px;
+  opacity: 0.045;
+  mix-blend-mode: multiply;
+  z-index: 0;
 }
+@media (hover: hover) {
+  body.ios-theme [data-ios-tile]:hover,
+  body.ios-theme [data-ios-list] > *:hover {
+    transform: rotate(0deg) translateY(-1px) scale(1.008);
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.14),
+      0 12px 24px rgba(0, 0, 0, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
+    z-index: 4;
+  }
+}
+body.ios-theme [data-ios-tile] > *,
+body.ios-theme [data-ios-list] > * > * { position: relative; z-index: 1; }
 body.ios-theme [data-ios-tile] img,
 body.ios-theme [data-ios-list] > * img[alt] {
   width: 46px;
   height: 46px;
-  border-radius: 4px;
+  border-radius: 3px;
 }
-body.ios-theme [data-ios-tile] p:first-of-type {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--ios-text);
-}
+body.ios-theme [data-ios-tile] p:first-of-type { font-size: 15px; font-weight: 600; color: var(--ios-text); }
 body.ios-theme [data-ios-tile] time,
-body.ios-theme [data-ios-tile] [class*="text-xs"] {
-  font-size: 12px;
-  color: var(--ios-text-faint);
-}
+body.ios-theme [data-ios-tile] [class*="text-xs"] { font-size: 12px; color: var(--ios-text-faint); }
 
-/* Непрочитанные — красный «почтовый» маркер */
+/* Сургучная печать непрочитанного */
 body.ios-theme [data-ios-tile][class*="unread"]::before,
 body.ios-theme [data-ios-tile].unread::before {
   content: "";
   position: absolute;
-  left: -1px;
-  top: 50%;
-  width: 5px;
-  height: 70%;
-  border-radius: 999px;
-  background: var(--ios-red);
-  transform: translateY(-50%);
+  top: 10px;
+  right: 12px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #ff9384 0%, #e6392a 52%, #8f1409 100%);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.35),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.55);
+  z-index: 2;
+  animation: iosSealPop 480ms var(--ios-spring) backwards;
 }
-
-/* ---------- ПРОФИЛЬ: ПЛИТКИ-КАРТОЧКИ ---------- */
+/* ---------- 5. ПРОФИЛЬ: ПРИКЛЕЕННЫЕ БУМАЖНЫЕ КАРТОЧКИ ---------- */
 body.ios-theme main [class*="grid"][class*="gap"] > * {
+  position: relative;
   background: linear-gradient(180deg, #fdf9ec 0%, var(--ios-paper) 100%);
   border: 1px solid var(--ios-paper-edge);
-  border-radius: 4px;
+  border-radius: 3px;
   box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.14),
+    0 1px 2px rgba(0, 0, 0, 0.12),
+    0 6px 14px rgba(0, 0, 0, 0.13),
     inset 0 -2px 4px rgba(0, 0, 0, 0.04);
-  padding: 14px 10px;
+  padding: 16px 10px 14px;
   text-align: center;
-  margin: 4px;
+  margin: 6px 2px;
+  transform: rotate(var(--ios-rotation, 0.4deg));
+  transition: transform 280ms var(--ios-spring), box-shadow 280ms var(--ios-ease);
+}
+body.ios-theme main [class*="grid"] > :nth-child(1) { --ios-rotation: 0.8deg; }
+body.ios-theme main [class*="grid"] > :nth-child(2) { --ios-rotation: -0.5deg; }
+body.ios-theme main [class*="grid"] > :nth-child(3) { --ios-rotation: 0.4deg; }
+/* полоска скотча сверху */
+body.ios-theme main [class*="grid"][class*="gap"] > *::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  width: 62px;
+  height: 15px;
+  transform: translateX(-50%) rotate(-2deg);
+  background: linear-gradient(180deg, rgba(252, 243, 208, 0.72) 0%, rgba(238, 224, 178, 0.6) 100%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  border-left: 1px dashed rgba(255, 255, 255, 0.65);
+  border-right: 1px dashed rgba(255, 255, 255, 0.65);
+  pointer-events: none;
+}
+/* зерно бумаги */
+body.ios-theme main [class*="grid"][class*="gap"] > *::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  pointer-events: none;
+  background-image: var(--ios-noise);
+  background-size: 220px 220px;
+  opacity: 0.045;
+  mix-blend-mode: multiply;
+}
+@media (hover: hover) {
+  body.ios-theme main [class*="grid"][class*="gap"] > *:hover {
+    animation: iosWobble 850ms var(--ios-ease);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.14), 0 12px 24px rgba(0, 0, 0, 0.17);
+  }
 }
 body.ios-theme main [class*="grid"] > * > [class*="font-bold"]:first-child,
 body.ios-theme main [class*="grid"] > * > [class*="text-2xl"]:first-child,
 body.ios-theme main [class*="grid"] > * > [class*="text-xl"]:first-child {
   font-size: 26px !important;
-  font-weight: 600 !important;
-  color: var(--ios-text);
+  font-weight: 700 !important;
+  color: var(--ios-ink);
   display: block;
   text-align: center;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 body.ios-theme main [class*="grid"] > * > [class*="text-xs"],
 body.ios-theme main [class*="grid"] > * > [class*="text-sm"] {
   color: var(--ios-text-faint);
   font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
-/* ---------- Мобильная адаптация ---------- */
-@media (max-width: 767px) {
-  body.ios-theme article[data-post-id] {
-    padding: 16px 16px 20px !important;
-  }
-  body.ios-theme article[data-post-id] .whitespace-pre-wrap,
-  body.ios-theme article[data-post-id] p {
-    font-size: 16px;
-    line-height: 1.6;
-  }
-  body.ios-theme [data-ios-tile],
-  body.ios-theme [data-ios-list] > * {
-    padding: 12px 14px !important;
-  }
+/* ---------- 6. ПРАВАЯ ПАНЕЛЬ: КОЖАНЫЙ ПЕРЕПЛЁТ ---------- */
+body.ios-theme aside[class*="w-80"] {
+  position: relative;
+  background: linear-gradient(180deg, #f7f2e2 0%, #efe7d0 100%);
+  border-left: 6px solid var(--ios-leather-2);
+  border-radius: 0;
+  box-shadow:
+    inset 8px 0 12px -8px rgba(0, 0, 0, 0.55),
+    inset 1px 0 0 rgba(255, 236, 200, 0.25);
 }
+body.ios-theme aside[class*="w-80"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -6px;
+  width: 6px;
+  background: repeating-linear-gradient(180deg,
+    var(--ios-leather-1) 0px, var(--ios-leather-1) 10px,
+    var(--ios-leather-2) 10px, var(--ios-leather-2) 12px);
+  pointer-events: none;
+}
+
+/* ---------- 7. Мобильная адаптация ---------- */
+@media (max-width: 767px) {
+  body.ios-theme article[data-post-id] { padding: 16px 16px 20px !important; }
+  body.ios-theme article[data-post-id] .whitespace-pre-wrap,
+  body.ios-theme article[data-post-id] p { font-size: 16px; line-height: 1.6; }
+  body.ios-theme [data-ios-tile],
+  body.ios-theme [data-ios-list] > * { padding: 12px 14px !important; }
+  body.ios-theme article[data-post-id] img.rounded-xl,
+  body.ios-theme article[data-post-id] video.rounded-xl { border-bottom-width: 24px; }
+}
+
+
+

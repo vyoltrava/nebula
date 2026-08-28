@@ -1,14 +1,27 @@
 /* ============================================================
-   IOS-ANIMATIONS — «оживление» бумажных и физических объектов.
-   Посты-листы мягко «ложатся» на стол; плитки каскадом.
+   IOS ANIMATIONS — физика предметов: пружинные приземления,
+   «утапливание» нажатий, раскачка колокольчика, открывание
+   клапана конверта, вращение шестерни, мигание антенны,
+   покачивание приклеенных карточек.
    ============================================================ */
 
+/* ---------- Посты «ложатся» на стол с перелётом ---------- */
 @keyframes iosPostLand {
-  from { opacity: 0; transform: rotate(var(--ios-rotation, 0.4deg)) translateY(-18px) scale(0.98); }
-  to   { opacity: 1; transform: rotate(var(--ios-rotation, 0.4deg)) translateY(0) scale(1); }
+  0% {
+    opacity: 0;
+    transform: rotate(calc(var(--ios-rotation, 0.4deg) * 4)) translateY(-26px) scale(0.97);
+  }
+  62% {
+    opacity: 1;
+    transform: rotate(calc(var(--ios-rotation, 0.4deg) * -0.5)) translateY(3px) scale(1.005);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(var(--ios-rotation, 0.4deg)) translateY(0) scale(1);
+  }
 }
 body.ios-theme main article[data-post-id] {
-  animation: iosPostLand 520ms var(--ios-spring) backwards;
+  animation: iosPostLand 560ms var(--ios-ease) backwards;
   will-change: transform;
 }
 body.ios-theme main article[data-post-id]:nth-child(1) { animation-delay: 0ms; }
@@ -18,12 +31,13 @@ body.ios-theme main article[data-post-id]:nth-child(4) { animation-delay: 180ms;
 body.ios-theme main article[data-post-id]:nth-child(5) { animation-delay: 240ms; }
 body.ios-theme main article[data-post-id]:nth-child(n + 6) { animation-delay: 300ms; }
 
+/* ---------- Карточки списков въезжают стопкой ---------- */
 @keyframes iosTileIn {
-  from { opacity: 0; transform: translateY(-10px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(-12px) rotate(-1.2deg) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) rotate(var(--ios-rotation, 0deg)) scale(1); }
 }
 body.ios-theme [data-ios-list] > [data-ios-tile] {
-  animation: iosTileIn 420ms var(--ios-spring) backwards;
+  animation: iosTileIn 440ms var(--ios-spring) backwards;
 }
 body.ios-theme [data-ios-list] > [data-ios-tile]:nth-child(1) { animation-delay: 0ms; }
 body.ios-theme [data-ios-list] > [data-ios-tile]:nth-child(2) { animation-delay: 50ms; }
@@ -31,22 +45,64 @@ body.ios-theme [data-ios-list] > [data-ios-tile]:nth-child(3) { animation-delay:
 body.ios-theme [data-ios-list] > [data-ios-tile]:nth-child(4) { animation-delay: 150ms; }
 body.ios-theme [data-ios-list] > [data-ios-tile]:nth-child(n + 5) { animation-delay: 200ms; }
 
-/* Кнопки-плитки: мягкое нажатие */
+/* ---------- Общая физика нажатий ---------- */
 body.ios-theme article button,
-body.ios-theme main button {
-  transition-property: transform, box-shadow, background, color;
+body.ios-theme main button,
+body.ios-theme .ist-root button {
+  transition-property: transform, box-shadow, background, color, filter;
   transition-duration: var(--ios-speed);
   transition-timing-function: var(--ios-spring);
 }
 
-/* Живой интерфейс */
-body.ios-theme a,
-body.ios-theme aside {
-  transition-property: transform, opacity, background-color, border-color, color, box-shadow;
-  transition-duration: var(--ios-speed);
-  transition-timing-function: var(--ios-ease);
+/* ---------- Раскачка латунного колокольчика ---------- */
+@keyframes iosBellSwing {
+  0%   { transform: perspective(560px) rotateX(7deg) rotateY(-8deg) rotate(0deg); }
+  16%  { transform: perspective(560px) rotate(13deg); }
+  38%  { transform: perspective(560px) rotate(-11deg); }
+  58%  { transform: perspective(560px) rotate(7deg); }
+  78%  { transform: perspective(560px) rotate(-4deg); }
+  100% { transform: perspective(560px) rotateX(7deg) rotateY(-8deg) rotate(0deg); }
+}
+body.ios-theme [data-ios-sidebar] a:hover .ios-3d-notifications {
+  animation: iosBellSwing 950ms var(--ios-ease);
 }
 
+/* ---------- Открывание клапана конверта ---------- */
+body.ios-theme [data-ios-sidebar] a .ios-3d-messages::after {
+  transition: transform 380ms var(--ios-spring);
+  transform-origin: 50% 0%;
+}
+body.ios-theme [data-ios-sidebar] a:hover .ios-3d-messages::after {
+  transform: rotateX(-150deg);
+}
+
+/* ---------- Шестерня вращается постоянно ---------- */
+@keyframes iosGearSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ---------- Мигание антенны радиоприёмника ---------- */
+@keyframes iosSignalBlink {
+  0%, 100% { opacity: 0.15; }
+  50%      { opacity: 0.85; }
+}
+
+/* ---------- Печать сургуча «шлёпается» ---------- */
+@keyframes iosSealPop {
+  0%   { transform: scale(2.1) rotate(-14deg); opacity: 0; }
+  70%  { transform: scale(0.92) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* ---------- Приклеенная карточка слегка качается ---------- */
+@keyframes iosWobble {
+  0%, 100% { transform: rotate(var(--ios-rotation, 0.5deg)); }
+  30%      { transform: rotate(calc(var(--ios-rotation, 0.5deg) * -2.2)); }
+  65%      { transform: rotate(calc(var(--ios-rotation, 0.5deg) * 1.4)); }
+}
+
+/* ---------- Уважение к reduced-motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   body.ios-theme *,
   body.ios-theme *::before,
