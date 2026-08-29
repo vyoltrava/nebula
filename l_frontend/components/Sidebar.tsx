@@ -806,22 +806,35 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     };
   }, [layout, wheelOpen, startGestureAt]);
 
-  // 🆕 CTRL-ОРБИТА НА ПК (доступна в ЛЮБОМ виде сайдбара):
-  //    зажал Ctrl → дуга открылась у курсора → подвёл к пункту → отпустил Ctrl.
+  // 🆕 CTRL-ОРБИТА НА ПК (в любом виде сайдбара):
+  //    зажал Ctrl → меню (полный круг, как вторая орбита) ОТКРЫВАЕТСЯ СРАЗУ у курсора;
+  //    просто кликаешь по пункту — выбираешь; отпустил Ctrl / Esc — закрылось.
+  //    🔒 Не срабатывает над полями ввода и элементами с [data-orbit-ignore] (бары и пр.).
   useEffect(() => {
     if (isMobile) return;
-    const isTypingTarget = (t: EventTarget | null) =>
-      t instanceof HTMLElement &&
-      (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable);
+    const isExcludedUnderMouse = () => {
+      const { x, y } = lastMouseRef.current;
+      const el = document.elementFromPoint(x, y);
+      return el instanceof HTMLElement &&
+        !!el.closest("input, textarea, select, [contenteditable='true'], [data-orbit-ignore]");
+    };
     const cancelPending = () => {
       if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isLongPressed.current) { closeWheel(false); return; }
-      if (e.key !== "Control") { cancelPending(); return; }   // Ctrl+C и пр. отменяют ещё не открытую дугу
+      if (e.key !== "Control") return;
       if (e.repeat || wheelOpen || isLongPressed.current || longPressTimer.current) return;
-      if (isTypingTarget(e.target)) return;
-      startGestureAt(lastMouseRef.current.x, lastMouseRef.current.y, true);
+      if (isExcludedUnderMouse()) return;   // 🔒 над полем ввода/баром — не открываем
+      // Открываем СРАЗУ (без таймера долгого зажатия) — полный круг у курсора
+      const { x, y } = lastMouseRef.current;
+      startPos.current = { x, y };
+      scrollTargetRef.current = findScrollTarget();
+      openWheelAt(x, y);
+      setHoveredIdx(findNearest(x, y));
+      setFingerPos({ x, y });
+      // ВАЖНО: suppressClickRef НЕ ставим — жест начинался без зажатия мыши,
+      // поэтому обычный клик по пункту («нажал и выбрал») дойдёт до кнопки.
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.key !== "Control") return;
@@ -834,7 +847,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [isMobile, wheelOpen, hoveredIdx, closeWheel, startGestureAt]);
+  }, [isMobile, wheelOpen, hoveredIdx, closeWheel, openWheelAt, findNearest]);
 
   useEffect(() => {
     const cancelTimer = () => {
