@@ -892,14 +892,13 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               onClick={toggleDislike}
               className={`flex items-center gap-1 py-1.5 pl-2.5 pr-3 transition-all ${
                 disliked
-                  ? "bg-gray-100 dark:bg-white/10"
+                  ? "bg-red-500/15 text-red-500"
                   : "text-gray-800 dark:text-white/70 hover:text-red-500"
               }`}
               title={disliked ? "Отменить дизлайк" : "Дизлайк"}
             >
               <HeartCrack
                 size={16}
-                fill={disliked ? "currentColor" : "none"}
                 className={disliked ? "text-red-500" : "text-gray-500 dark:text-gray-400"}
               />
               <span className="text-sm font-semibold">{dislikeCount}</span>
