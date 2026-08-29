@@ -8,7 +8,7 @@
  * - В обычном режиме компонент ничего не рендерит и ничего не меняет:
  *   соцсеть работает ровно как до внедрения Nebula.
  */
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useNebulaMode } from "@/lib/useNebula";
 import { NebulaSidebar } from "@/components/NebulaSidebar";
@@ -16,9 +16,8 @@ import { NebulaSidebar } from "@/components/NebulaSidebar";
 const NEBULA_CSS = `
 html.nebula-mode .h-screen.flex > div:first-child { display: none !important; }
 html.nebula-mode .h-screen.flex > .w-px { display: none !important; }
-@media (min-width: 768px) {
-  html.nebula-mode .h-screen { padding-left: 16rem; }
-  html.nebula-mode .h-screen.flex.overflow-hidden { padding-left: 16rem; }
+@media (min-width: 640px) {
+  html.nebula-mode .h-screen { padding-left: 4rem; }
 }
 `;
 
@@ -26,6 +25,10 @@ export function NebulaGate() {
   const { isNebula } = useNebulaMode();
   const router = useRouter();
   const pathname = usePathname();
+  // Важно: редиректим только после того, как localStorage прочитан,
+  // иначе при перезагрузке /nebula-settings тебя выкидывает на /messages
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
 
   // Пометка <html> классом + инъекция CSS только на время режима
   useEffect(() => {
@@ -44,14 +47,14 @@ export function NebulaGate() {
 
   // Блокировка соцсети: только чаты и настройки Nebula
   useEffect(() => {
-    if (!isNebula) return;
+    if (!ready || !isNebula) return;
     const allowed =
       pathname.startsWith("/messages") ||
       pathname.startsWith("/nebula-settings");
     if (!allowed) router.replace("/messages");
-  }, [isNebula, pathname, router]);
+  }, [ready, isNebula, pathname, router]);
 
-  if (!isNebula) return null;
+  if (!ready || !isNebula) return null;
 
   return (
     <>

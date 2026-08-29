@@ -55,10 +55,15 @@ export default function NebulaSettingsPage() {
   const [notifications, setNotifications] = useState<Pref>("on");
   const [privacy, setPrivacy] = useState<Pref>("on");
 
-  // Режим Nebula выключен -> мессенджер
+  // Режим Nebula выключен (и localStorage уже прочитан) -> мессенджер.
+  // Без ready редирект срабатывал до загрузки localStorage и настройки
+  // просто не открывались — это и был баг.
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
+
   useEffect(() => {
-    if (isNebula === false) router.replace("/messages");
-  }, [isNebula, router]);
+    if (ready && isNebula === false) router.replace("/messages");
+  }, [ready, isNebula, router]);
 
   useEffect(() => {
     const token = getToken();
@@ -91,7 +96,7 @@ export default function NebulaSettingsPage() {
     ? (me.avatarUrl.startsWith("http") ? me.avatarUrl : mediaUrl(me.avatarUrl))
     : null;
 
-  if (!isNebula) return null;
+  if (!ready || !isNebula) return null;
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-[#17171b] text-gray-900 dark:text-white font-sans">
