@@ -126,6 +126,20 @@ export function NebulaSidebar() {
   const toggleSidebar = () => setExpanded((prev) => !prev);
   const handleLogout = () => { clearToken(); router.push("/login"); };
 
+  // Цвета иконок небула-орбиты (каждую иконку — в её цвет, чтобы не путаться)
+  const ORBIT_COLORS: Record<string, string> = {
+    messages: "#8b5cf6",
+    saved: "#fbbf24",
+    group: "#8b5cf6",
+    prism: "#22d3ee",
+    circle: "#ec4899",
+    profile: "#8b5cf6",
+    settings: "#94a3b8",
+    bug: "#fb923c",
+    support: "#22d3ee",
+    logout: "#ef4444",
+  };
+
   // ── Создание чатов (каждый тип — отдельная кнопка) ──
   const openSavedMessages = async () => {
     const token = getToken();
@@ -168,9 +182,12 @@ export function NebulaSidebar() {
     setWheelReady(false);
     setClosing(true);
     setHoveredIdx(null);
+    // Снапшот позиции, которую закрываем: если за время анимации (280мс) орбиту
+    // открыли ЗАНОВО, появится НОВЫЙ объект позиции — его не трогаем.
+    const snap = wheelPosRef.current;
     setTimeout(() => {
-      // если за время анимации орбиту открыли заново — не гасим её
-      if (!wheelPosRef.current) setWheelPos(null);
+      // 🚫 Если позиция не менялась (орбиту не открывали заново) — гасим её
+      if (wheelPosRef.current === snap) setWheelPos(null);
       setClosing(false);
     }, 280);
   }, []);
@@ -221,6 +238,7 @@ export function NebulaSidebar() {
       if (!el) return;
       const r = el.getBoundingClientRect();
       setHoveredIdx(null);
+      setClosing(false);
       setWheelPos({ x: r.left + r.width / 2 + ORBIT_ARC_OFFSET_X, y: r.top + r.height / 2 });
       try { navigator.vibrate?.(15); } catch {}
     };
@@ -324,12 +342,16 @@ export function NebulaSidebar() {
                         user.avatar_url ? (
                           <img src={user.avatar_url} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover" />
                         ) : (
-                          <span className={"font-bold " + (isActive ? "text-gray-900 dark:text-white" : "text-gray-800 dark:text-white/70")}>
+                          <span className={"font-bold " + (isActive ? "text-gray-900 dark:text-white" : "text-gray-700 dark:text-white/80")}>
                             {(user.display_name || "?")[0]?.toUpperCase()}
                           </span>
                         )
                       ) : item.icon ? (
-                        <item.icon size={isActive ? 26 : isOuter ? 19 : 21} className={isActive ? "text-gray-900 dark:text-white" : "text-gray-800 dark:text-white/70"} />
+                        <item.icon
+                          size={isActive ? 26 : isOuter ? 19 : 21}
+                          className={isActive ? "text-gray-900 dark:text-white" : "text-gray-800 dark:text-white/70"}
+                          style={!isActive ? { color: ORBIT_COLORS[item.key] } : undefined}
+                        />
                       ) : null}
                     </div>
                     {!!item.badge && item.badge > 0 && (
