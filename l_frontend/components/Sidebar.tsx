@@ -669,9 +669,12 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       const item = wheelItems[hoveredIdx];
         if (item) {
           if (item.href === "#logout") {
-            // 🆕 Открываем модалку смены аккаунта вместо мгновенного выхода
+            // 🆕 Открываем модалку смены аккаунта вместо мгновенного выхода.
+            // ⚠️ ВАЖНО: не делаем return — дуга обязана закрыться (анимация ниже),
+            // иначе её touch-обработчики остаются активными и перехватывают
+            // тапы по модалке (симптом: при выборе аккаунта открывается LayoutPicker
+            // и меняется раскладка орбита1 → орбита2).
             setShowOrbitSwitcher(true);
-            return;
           } else if (item.href === "#bug") {
             setShowBugModal(true);
           } else if (item.href === "#search") {

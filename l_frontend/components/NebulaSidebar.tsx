@@ -168,7 +168,11 @@ export function NebulaSidebar() {
     setWheelReady(false);
     setClosing(true);
     setHoveredIdx(null);
-    setTimeout(() => { setWheelPos(null); setClosing(false); }, 280);
+    setTimeout(() => {
+      // если за время анимации орбиту открыли заново — не гасим её
+      if (!wheelPosRef.current) setWheelPos(null);
+      setClosing(false);
+    }, 280);
   }, []);
 
   // Анимация разлёта пунктов из кнопки (двойной rAF, как в классике)
@@ -269,6 +273,7 @@ export function NebulaSidebar() {
           }}
           className={"md:hidden fixed z-[98] w-14 h-14 right-0 top-[calc(50%+8px)] -translate-y-1/2 rounded-l-full bg-paper dark:bg-[#171717]/90 backdrop-blur-sm border flex items-center justify-center shadow-lg shadow-gray-400/40 dark:shadow-black/50 transition-all duration-200 " + (wheelPos ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/20 scale-110" : "border-line dark:border-white/10 active:scale-95")}
           style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" } as React.CSSProperties}
+          onContextMenu={(e) => e.preventDefault()}
           aria-label={t("nav.navMenu")}
         >
           <Orbit size={22} className={"transition-all duration-300 " + (wheelPos ? "text-[#8b5cf6] rotate-[60deg]" : "text-gray-800 dark:text-white/80")} />
@@ -367,7 +372,7 @@ export function NebulaSidebar() {
 
   return (
     <>
-      <aside ref={sidebarRef} className={"hidden md:flex fixed top-0 left-0 h-screen z-50 shrink-0 overflow-y-auto flex-col bg-paper dark:bg-[#171717] transition-all duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-r border-line dark:border-white/5 " + (isDock ? "md:w-20 md:min-w-20 px-0 py-4 gap-2" : "md:w-64 md:min-w-64 p-5 gap-5")}>
+      <aside id="nebula-sidebar" ref={sidebarRef} className={"hidden md:flex fixed top-0 left-0 h-screen z-50 shrink-0 overflow-y-auto flex-col bg-paper dark:bg-[#171717] transition-all duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-r border-line dark:border-white/5 " + (isDock ? "md:w-20 md:min-w-20 px-0 py-4 gap-2" : "md:w-64 md:min-w-64 p-5 gap-5")}>
         <div className={"flex " + (isDock ? "justify-center" : "items-center gap-2")}>
           {isDock ? (
             /* Свёрнутый вид: гамбургер вместо лого */

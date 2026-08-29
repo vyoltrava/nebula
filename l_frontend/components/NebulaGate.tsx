@@ -14,10 +14,16 @@ import { useNebulaMode } from "@/lib/useNebula";
 import { NebulaSidebar } from "@/components/NebulaSidebar";
 
 const NEBULA_CSS = `
-/* Скрываем КЛАССИЧЕСКИЙ сайдбар (он рендерится как <aside> внутри .h-screen.flex)
-   и разделитель — на любом странице, независимо от порядка детей */
-html.nebula-mode .h-screen.flex > aside { display: none !important; }
-html.nebula-mode .h-screen.flex > .w-px { display: none !important; }
+/* Скрываем ЛЮБОЙ классический сайдбар (в т.ч. помеченный Zune-оболочкой)
+   в режиме Nebula — независимо от вложенности тем-оболочек.
+   Сайдбар самой Nebula исключён по id. */
+html.nebula-mode aside:not(#nebula-sidebar) { display: none !important; }
+html.nebula-mode [data-zune-sidebar] { display: none !important; }
+html.nebula-mode .h-screen.flex > aside,
+html.nebula-mode .h-screen > aside { display: none !important; }
+/* Разделитель классического каркаса */
+html.nebula-mode .h-screen.flex > .w-px,
+html.nebula-mode .h-screen > .w-px { display: none !important; }
 /* Отступ под фиксированный Nebula-сайдбар — на body, чтобы работал
    на всех страницах (включая /nebula-profile без .h-screen каркаса) */
 @media (min-width: 768px) {
@@ -42,18 +48,15 @@ export function NebulaGate() {
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
 
-  // Пометка <html> классом + инъекция CSS только на время режима
+  // Пометка <html> классом только на время режима.
+  // Сам CSS рендерится ниже через <style> — он живёт, пока смонтирован гейт
+  // (гейт лежит в корневом layout и не размонтируется при навигации),
+  // поэтому классический сайдбар больше не может «вернуться» из-за
+  // потерянной при навигации JS-инъекции в <head>.
   useEffect(() => {
     if (isNebula) {
       document.documentElement.classList.add("nebula-mode");
-      const style = document.createElement("style");
-      style.id = "nebula-mode-style";
-      style.textContent = NEBULA_CSS;
-      document.head.appendChild(style);
-      return () => {
-        document.documentElement.classList.remove("nebula-mode");
-        document.getElementById("nebula-mode-style")?.remove();
-      };
+      return () => document.documentElement.classList.remove("nebula-mode");
     }
   }, [isNebula]);
 
