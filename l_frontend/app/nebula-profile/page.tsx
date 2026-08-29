@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Settings, LogOut, Check, Pencil, SmilePlus, Sparkles,
-  X, Lock,
+  X, Lock, Users,
 } from "lucide-react";
 import { useNebulaMode } from "@/lib/useNebula";
 import { getToken, clearToken } from "@/lib/auth";
@@ -17,6 +17,7 @@ import { mediaUrl } from "@/lib/media";
 import { Avatar } from "@/components/Avatar";
 import { useAvatarUploader } from "@/components/AvatarUploader";
 import { AvatarCropper } from "@/components/AvatarCropper";
+import { NebulaCircleModal } from "@/components/NebulaCircleModal";
 
 type Me = {
   username?: string;
@@ -40,6 +41,7 @@ export default function NebulaProfilePage() {
   const [stickerPacks, setStickerPacks] = useState<any[]>([]);
   const [activePackTab, setActivePackTab] = useState(0);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [showCircle, setShowCircle] = useState(false);
 
   const {
     inputRef,
@@ -338,7 +340,14 @@ export default function NebulaProfilePage() {
         {/* Действия */}
         <div className="rounded-2xl bg-white dark:bg-[#1e1e23] border border-line dark:border-white/10 divide-y divide-line dark:divide-white/10 overflow-hidden">
           <button
-onClick={() => router.push("/nebula-settings")}
+            onClick={() => setShowCircle(true)}
+            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-left"
+          >
+            <Users size={20} className="text-[#8b5cf6] shrink-0" />
+            <span className="flex-1 text-sm font-medium">Круг друзей</span>
+          </button>
+          <button
+            onClick={() => router.push("/nebula-settings")}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-left"
           >
             <Settings size={20} className="text-gray-400 shrink-0" />
@@ -365,6 +374,7 @@ onClick={() => router.push("/nebula-settings")}
       </div>
 
       {/* __P3__ */}
+      {showCircle && <NebulaCircleModal onClose={() => setShowCircle(false)} />}
     </div>
   );
 }

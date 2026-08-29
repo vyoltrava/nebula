@@ -16,8 +16,12 @@ import { NebulaSidebar } from "@/components/NebulaSidebar";
 const NEBULA_CSS = `
 html.nebula-mode .h-screen.flex > div:first-child { display: none !important; }
 html.nebula-mode .h-screen.flex > .w-px { display: none !important; }
+html.nebula-mode .h-screen {
+  padding-left: var(--nebula-pad, 4rem) !important;
+  transition: padding-left 0.2s ease;
+}
 @media (min-width: 640px) {
-  html.nebula-mode .h-screen { padding-left: 4rem; }
+  html.nebula-mode .h-screen { padding-left: var(--nebula-pad, 4rem) !important; }
 }
 `;
 
@@ -52,6 +56,7 @@ export function NebulaGate() {
       pathname.startsWith("/messages") ||
       pathname.startsWith("/nebula-settings") ||
       pathname.startsWith("/nebula-profile") ||
+      pathname.startsWith("/nebula-user") ||
       pathname.startsWith("/settings") ||
       pathname.startsWith("/login");
     if (!allowed) router.replace("/messages");
