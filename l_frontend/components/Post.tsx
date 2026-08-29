@@ -897,7 +897,11 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               }`}
               title={disliked ? "Отменить дизлайк" : "Дизлайк"}
             >
-              <HeartCrack size={16} className={disliked ? "text-red-500 fill-red-500" : "text-gray-500 dark:text-gray-400"} />
+              <HeartCrack
+                size={16}
+                fill={disliked ? "currentColor" : "none"}
+                className={disliked ? "text-red-500" : "text-gray-500 dark:text-gray-400"}
+              />
               <span className="text-sm font-semibold">{dislikeCount}</span>
             </button>
           </div>
