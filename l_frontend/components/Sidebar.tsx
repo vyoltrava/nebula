@@ -22,6 +22,7 @@ import { useWebSocket } from "@/src/hooks/useWebSocket";
 import { setLikedCache } from "@/lib/postCache";
 import { useLastReadPost } from "@/src/hooks/useLastReadPost";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
+import { useNebulaMode } from "@/lib/useNebula";
 import type { MessageKey } from "@/lib/i18n";
 import { BrandIcon } from "@/components/BrandIcon"; 
 import { CommunityTabs } from "@/components/CommunityTabs";
@@ -297,6 +298,9 @@ export function Sidebar() {
   const pathname = usePathname();
   const router   = useRouter();
   const { t, locale } = useI18n();
+  // 🚫 Nebula: классический сайдбар НЕ должен срабатывать (жесты, орбита, смена аккаунта),
+  // его место занимает NebulaSidebar через NebulaGate.
+  const { isNebula } = useNebulaMode();
   const [user, setUser]               = useState<any>(() => getCachedUser());
   const [showNotifs, setShowNotifs]   = useState(false);
   const [notifs, setNotifs]           = useState<any[]>([]);
@@ -795,6 +799,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       t instanceof HTMLElement &&
       !!t.closest("input, textarea, select, [contenteditable='true'], [data-orbit-ignore]");
     const onDown = (e: MouseEvent | TouchEvent) => {
+      if (isNebula) return; // 🚫 Nebula — жесты классической орбиты не работают
       if (wheelOpen || isLongPressed.current || longPressTimer.current) return;
       const pt = "touches" in e ? e.touches[0] : (e as MouseEvent);
       if (!pt) return;
@@ -807,7 +812,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("touchstart", onDown);
     };
-  }, [layout, wheelOpen, startGestureAt]);
+  }, [layout, wheelOpen, startGestureAt, isNebula]);
 
   // 🆕 CTRL-ОРБИТА НА ПК (в любом виде сайдбара):
   //    зажал Ctrl → меню (полный круг, как вторая орбита) ОТКРЫВАЕТСЯ СРАЗУ у курсора;
