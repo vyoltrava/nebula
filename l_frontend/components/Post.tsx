@@ -5,7 +5,7 @@ import { STICKERS } from "@/lib/stickers";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, HeartCrack, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio } from "lucide-react";
+import { ThumbsUp, ThumbsDown, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
 import { safeFetch } from "@/lib/ban";
@@ -882,11 +882,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               title={liked ? "Отменить лайк" : "Лайк"}
             >
               <span className="text-sm font-semibold">{count}</span>
-              <Heart
-                size={16}
-                fill={liked ? "white" : "none"}
-                className={liked ? "text-[#8B5CF6]" : "text-gray-800 dark:text-white/70"}
-              />
+              <ThumbsUp size={16} fill={liked ? "currentColor" : "none"} />
             </button>
 
             {/* Разделитель */}
@@ -902,11 +898,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               }`}
               title={disliked ? "Отменить дизлайк" : "Дизлайк"}
             >
-              <HeartCrack
-                size={16}
-                fill={disliked ? "white" : "none"}
-                className={disliked ? "text-red-500" : "text-gray-800 dark:text-white/70"}
-              />
+              <ThumbsDown size={16} fill={disliked ? "currentColor" : "none"} />
               <span className="text-sm font-semibold">{dislikeCount}</span>
             </button>
           </div>
