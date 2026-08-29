@@ -820,6 +820,32 @@ appearance: {
   noData: "Нет данных",
 },
 
+nebula: {
+  title: "Настройки Nebula",
+  subtitle: "Все функции соцсети — в удобном виде мессенджера",
+  modeTitle: "Режим Nebula (только мессенджер)",
+  modeOn: "Сейчас включён",
+  turnOff: "Выключить",
+  secAppearance: "Внешний вид",
+  hintAppearance: "Тема, акцентный цвет, оформление",
+  secNotifications: "Уведомления",
+  hintNotifications: "Push о новых сообщениях",
+  secPermissions: "Доступы",
+  hintPermissions: "Камера, микрофон и разрешения",
+  secLivetext: "Живые сообщения",
+  hintLivetext: "Live-текст в чатах",
+  secLanguage: "Язык",
+  hintLanguage: "Язык интерфейса",
+  security: "Безопасность",
+  twoFa: "Двухфакторная аутентификация",
+  twoFaOn: "Включена",
+  twoFaOff: "Выключена",
+  disable2fa: "Отключить 2FA",
+  enable2fa: "Включить 2FA",
+  account: "Аккаунт",
+  profileLabel: "Профиль",
+},
+
 };
 
 

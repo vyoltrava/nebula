@@ -821,5 +821,31 @@ appearance: {
   noData: "Немає даних",
 },
 
+nebula: {
+  title: "Налаштування Nebula",
+  subtitle: "Усі функції соцмережі — у зручному вигляді месенджера",
+  modeTitle: "Режим Nebula (лише месенджер)",
+  modeOn: "Наразі увімкнено",
+  turnOff: "Вимкнути",
+  secAppearance: "Зовнішній вигляд",
+  hintAppearance: "Тема, акцентний колір, оформлення",
+  secNotifications: "Сповіщення",
+  hintNotifications: "Push про нові повідомлення",
+  secPermissions: "Доступи",
+  hintPermissions: "Камера, мікрофон і дозволи",
+  secLivetext: "Живі повідомлення",
+  hintLivetext: "Live-текст у чатах",
+  secLanguage: "Мова",
+  hintLanguage: "Мова інтерфейсу",
+  security: "Безпека",
+  twoFa: "Двофакторна автентифікація",
+  twoFaOn: "Увімкнена",
+  twoFaOff: "Вимкнена",
+  disable2fa: "Вимкнути 2FA",
+  enable2fa: "Увімкнути 2FA",
+  account: "Акаунт",
+  profileLabel: "Профіль",
+},
+
 };
 export type Dictionary = typeof uk;

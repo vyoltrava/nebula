@@ -88,8 +88,9 @@ export function AvatarCropper({ imageSrc, onCropComplete, onClose }: AvatarCropp
           crop={crop}
           zoom={zoom}
           aspect={1}
-          cropShape="round"
+          cropShape="rect"
           showGrid={false}
+          style={{ cropAreaStyle: { borderRadius: "16px", border: "2px solid #8b5cf6" } }}
           onCropChange={onCropChange}
           onZoomChange={onZoomChange}
           onCropComplete={onCropAreaComplete}

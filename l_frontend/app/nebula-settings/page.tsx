@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 /**
  * Nebula: настройки мессенджера - полный функционал основной системы,
@@ -148,7 +148,7 @@ export default function NebulaSettingsPage() {
         setBackupCodes(data.backup_codes || []);
         setSetupStep("backup");
         setSecurityStatus((prev: any) => ({ ...prev, two_factor_enabled: true }));
-      } else { alert(data.detail || "Неверный код"); }
+      } else { alert(data.detail || t("settings.invalidCode")); }
     } catch {}
     setLoading2FA(false);
   };
@@ -166,7 +166,7 @@ export default function NebulaSettingsPage() {
       if (res.ok) {
         setShowDisable2FA(false);
         setSecurityStatus((prev: any) => ({ ...prev, two_factor_enabled: false }));
-      } else { alert("Неверный код"); }
+      } else { alert(t("settings.invalidCode")); }
     } catch {}
     setLoading2FA(false);
   };
@@ -179,32 +179,62 @@ export default function NebulaSettingsPage() {
   const btnSecondary = "rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 text-gray-900 dark:text-white text-sm font-medium py-2.5 px-4 transition-colors disabled:opacity-50";
 
   const sections: { id: string; icon: any; color: string; title: string; hint: string }[] = [
-    { id: "appearance", icon: Sun, color: "text-amber-500", title: "Внешний вид", hint: "Тема, акцентный цвет, оформление" },
-    { id: "notifications", icon: Bell, color: "text-blue-500", title: "Уведомления", hint: "Push о новых сообщениях" },
-    { id: "permissions", icon: Lock, color: "text-emerald-500", title: "Доступы", hint: "Камера, микрофон и разрешения" },
-    { id: "livetext", icon: Zap, color: "text-yellow-500", title: "Живые сообщения", hint: "Live-текст в чатах" },
-    { id: "language", icon: Languages, color: "text-purple-500", title: "Язык", hint: "Язык интерфейса" },
+    { id: "appearance", icon: Sun, color: "text-amber-500", title: t("nebula.secAppearance"), hint: t("nebula.hintAppearance") },
+    { id: "notifications", icon: Bell, color: "text-blue-500", title: t("nebula.secNotifications"), hint: t("nebula.hintNotifications") },
+    { id: "permissions", icon: Lock, color: "text-emerald-500", title: t("nebula.secPermissions"), hint: t("nebula.hintPermissions") },
+    { id: "livetext", icon: Zap, color: "text-yellow-500", title: t("nebula.secLivetext"), hint: t("nebula.hintLivetext") },
+    { id: "language", icon: Languages, color: "text-purple-500", title: t("nebula.secLanguage"), hint: t("nebula.hintLanguage") },
   ];
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-[#17171b] text-gray-900 dark:text-white font-sans">
       <div className="fixed top-0 left-0 right-0 h-1 bg-purple-500 z-50" />
-      <div className="max-w-xl mx-auto px-4 pt-10 pb-16">
+      <div className="w-full px-4 md:px-10 pt-10 pb-16 max-w-none">
         <button onClick={() => router.push("/messages")} className="flex items-center gap-2 text-sm text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white mb-6 transition-colors">
-          <ArrowLeft size={16} />Назад к чатам
+          <ArrowLeft size={16} />{t("profile.backToChats")}
         </button>
         <h1 className="text-2xl font-bold mb-1 flex items-center gap-2">
-          <Sparkles size={20} className="text-purple-500" />Настройки Nebula
+          <Sparkles size={20} className="text-purple-500" />{t("nebula.title")}
         </h1>
-        <p className="text-sm text-gray-400 dark:text-white/30 mb-6">Все функции соцсети — в удобном виде мессенджера</p>
+        <p className="text-sm text-gray-400 dark:text-white/30 mb-6">{t("nebula.subtitle")}</p>
+
+        {!user && (
+          <div className="animate-pulse space-y-4" aria-busy="true">
+            <div className="rounded-2xl bg-white dark:bg-[#1e1e23] border border-line dark:border-white/10 p-4 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gray-200 dark:bg-white/10 shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3.5 w-56 rounded bg-gray-200 dark:bg-white/10" />
+                <div className="h-3 w-32 rounded bg-gray-100 dark:bg-white/5" />
+              </div>
+              <div className="h-9 w-24 rounded-xl bg-gray-200 dark:bg-white/10" />
+            </div>
+            <div className="rounded-2xl bg-white dark:bg-[#1e1e23] border border-line dark:border-white/10 p-2 space-y-2">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-3">
+                  <div className="w-9 h-9 rounded-lg bg-gray-200 dark:bg-white/10 shrink-0" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3.5 w-44 rounded bg-gray-200 dark:bg-white/10" />
+                    <div className="h-3 w-64 max-w-full rounded bg-gray-100 dark:bg-white/5" />
+                  </div>
+                  <div className="w-4 h-4 rounded bg-gray-100 dark:bg-white/5" />
+                </div>
+              ))}
+            </div>
+            <div className="rounded-2xl bg-white dark:bg-[#1e1e23] border border-line dark:border-white/10 p-5 space-y-3">
+              <div className="h-3.5 w-40 rounded bg-gray-200 dark:bg-white/10" />
+              <div className="h-10 w-full rounded-xl bg-gray-100 dark:bg-white/5" />
+              <div className="h-10 w-full rounded-xl bg-gray-100 dark:bg-white/5" />
+            </div>
+          </div>
+        )}
 
         <div className="rounded-2xl bg-white dark:bg-[#1e1e23] border border-line dark:border-white/10 p-4 mb-4 flex items-center gap-3">
           <Sparkles size={20} className="text-purple-500 shrink-0" />
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium">Режим Nebula (только мессенджер)</div>
-            <div className="text-xs text-gray-400 dark:text-white/30">Сейчас включён</div>
+            <div className="text-sm font-medium">{t("nebula.modeTitle")}</div>
+            <div className="text-xs text-gray-400 dark:text-white/30">{t("nebula.modeOn")}</div>
           </div>
-          <button onClick={() => { toggleNebula(); router.push("/"); }} className="rounded-xl bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium py-2 px-4 transition-colors">Выключить</button>
+          <button onClick={() => { toggleNebula(); router.push("/"); }} className="rounded-xl bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium py-2 px-4 transition-colors">{t("nebula.turnOff")}</button>
         </div>
 
         <div className="rounded-2xl bg-white dark:bg-[#1e1e23] border border-line dark:border-white/10 overflow-hidden mb-4">
@@ -237,26 +267,26 @@ export default function NebulaSettingsPage() {
 
         <div className="rounded-2xl bg-white dark:bg-[#1e1e23] border border-line dark:border-white/10 overflow-hidden mb-4">
           <div className="px-5 py-4 border-b border-line dark:border-white/10">
-            <div className="flex items-center gap-2"><ShieldCheck size={20} className="text-red-500" /><h2 className="text-sm font-bold">Безопасность</h2></div>
+            <div className="flex items-center gap-2"><ShieldCheck size={20} className="text-red-500" /><h2 className="text-sm font-bold">{t("nebula.security")}</h2></div>
           </div>
           <div className="px-5 py-4 border-b border-line dark:border-white/10">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center"><Lock size={18} className="text-red-500" /></div>
               <div className="flex-1">
-                <div className="text-sm font-medium">Двухфакторная аутентификация</div>
-                <div className="text-xs text-gray-400 dark:text-white/30">{securityStatus?.two_factor_enabled ? "Включена" : "Выключена"}</div>
+                <div className="text-sm font-medium">{t("nebula.twoFa")}</div>
+                <div className="text-xs text-gray-400 dark:text-white/30">{securityStatus?.two_factor_enabled ? t("nebula.twoFaOn") : t("nebula.twoFaOff")}</div>
               </div>
             </div>
             {securityStatus?.two_factor_enabled ? (
-              <button onClick={() => setShowDisable2FA(true)} className="rounded-xl bg-[#E74C3C]/10 hover:bg-[#E74C3C]/20 text-[#E74C3C] text-sm font-medium py-2 px-4 transition-colors">Отключить 2FA</button>
+              <button onClick={() => setShowDisable2FA(true)} className="rounded-xl bg-[#E74C3C]/10 hover:bg-[#E74C3C]/20 text-[#E74C3C] text-sm font-medium py-2 px-4 transition-colors">{t("nebula.disable2fa")}</button>
             ) : (
-              <button onClick={setup2FA} disabled={loading2FA} className="rounded-xl bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium py-2 px-4 transition-colors disabled:opacity-50">{loading2FA ? "Загрузка..." : "Включить 2FA"}</button>
+              <button onClick={setup2FA} disabled={loading2FA} className="rounded-xl bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium py-2 px-4 transition-colors disabled:opacity-50">{loading2FA ? t("common.loading") : t("nebula.enable2fa")}</button>
             )}
           </div>
           <div className="px-5 py-4 border-b border-line dark:border-white/10">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center"><KeyRound size={18} className="text-amber-500" /></div>
-              <div className="text-sm font-medium">Смена пароля</div>
+              <div className="text-sm font-medium">{t("settings.changePassword")}</div>
             </div>
             <form onSubmit={changePassword} className="space-y-3">
               <div>
@@ -299,11 +329,11 @@ export default function NebulaSettingsPage() {
         <div className="rounded-2xl bg-white dark:bg-[#1e1e23] border border-line dark:border-white/10 divide-y divide-line dark:divide-white/10 overflow-hidden">
           <button onClick={() => router.push("/nebula-profile")} className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-left">
             <User size={20} className="text-gray-400 shrink-0" />
-            <div className="flex-1 min-w-0"><div className="text-sm font-medium">Аккаунт</div><div className="text-xs text-gray-400 dark:text-white/30">{user?.username ? `@${user.username}` : "Профиль"}</div></div>
+            <div className="flex-1 min-w-0"><div className="text-sm font-medium">{t("nebula.account")}</div><div className="text-xs text-gray-400 dark:text-white/30">{user?.username ? `@${user.username}` : t("nebula.profileLabel")}</div></div>
             <ChevronRight size={16} className="text-gray-300 dark:text-white/20" />
           </button>
           <button onClick={logout} className="w-full flex items-center gap-3 px-5 py-4 text-[#E74C3C] hover:bg-[#E74C3C]/10 transition-colors text-left">
-            <LogOut size={20} className="shrink-0" /><span className="flex-1 text-sm font-medium">Выйти из аккаунта</span>
+            <LogOut size={20} className="shrink-0" /><span className="flex-1 text-sm font-medium">{t("profile.logout")}</span>
           </button>
         </div>
       </div>
