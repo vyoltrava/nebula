@@ -5,7 +5,7 @@ import { STICKERS } from "@/lib/stickers";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ThumbsUp, ThumbsDown, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio } from "lucide-react";
+import { Heart, HeartCrack, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
 import { safeFetch } from "@/lib/ban";
@@ -882,7 +882,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               title={liked ? "Отменить лайк" : "Лайк"}
             >
               <span className="text-sm font-semibold">{count}</span>
-              <ThumbsUp size={16} fill={liked ? "currentColor" : "none"} />
+              <Heart size={16} />
             </button>
 
             {/* Разделитель */}
@@ -898,7 +898,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               }`}
               title={disliked ? "Отменить дизлайк" : "Дизлайк"}
             >
-              <ThumbsDown size={16} fill={disliked ? "currentColor" : "none"} />
+              <HeartCrack size={16} />
               <span className="text-sm font-semibold">{dislikeCount}</span>
             </button>
           </div>
@@ -906,44 +906,44 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
 
             <button
               onClick={() => startReply(cleanUsername, author)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-500 dark:hover:text-[#e0e0e0]! transition-all"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-500 dark:hover:text-[#e0e0e0]! transition-all"
             >
-              <Reply size={16} />
+              <Reply size={13} />
             </button>
 
             {/* 🆕 ЕДИНАЯ КНОПКА РЕПОСТА И ЦИТАТЫ */}
             {currentUser && currentUser.id !== author_id && !is_repost && !is_quote && (
               <button
                 onClick={() => handleRepostOrQuote(id)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-line dark:border-white/20 text-gray-600 dark:text-white/70 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-500 dark:hover:bg-white/10 dark:hover:border-white/40 dark:hover:text-[#e0e0e0]! transition-all"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-line dark:border-white/20 text-gray-600 dark:text-white/70 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-500 dark:hover:bg-white/10 dark:hover:border-white/40 dark:hover:text-[#e0e0e0]! transition-all"
                 title={t("post.repostQuote")}
               >
-                <RefreshCw size={16} />
+                <RefreshCw size={13} />
               </button>
             )}
 
             {is_repost && currentUser?.id === author_id && (
               <button
                 onClick={() => handleCancelRepost(id)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-red-400/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 hover:border-red-400/50 transition-all"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-red-400/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 hover:border-red-400/50 transition-all"
               >
-                <RefreshCw size={16} />
-                <span className="text-sm font-semibold">{t("post.undo")}</span>
+                <RefreshCw size={13} />
+                <span className="text-[11px] font-semibold">{t("post.undo")}</span>
               </button>
             )}
 
             {canDelete && (
               <button
                 onClick={deletePost}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-red-400/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 hover:border-red-400/50 transition-all"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-red-400/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 hover:border-red-400/50 transition-all"
                 title={t("post.delete")}
               >
-                <Trash2 size={16} />
+                <Trash2 size={13} />
               </button>
             )}
             
             {views_count !== undefined && (
-              <span className="text-sm text-gray-500 dark:text-white/40 flex items-center gap-1">
+              <span className="text-[11px] text-gray-500 dark:text-white/40 flex items-center gap-1">
                 👁 {views_count}
               </span>
             )}
@@ -951,7 +951,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             {rCount > 0 && !isMainPost && ( 
               <button
                 onClick={loadReplies}
-                className="text-sm font-semibold text-[#8b5cf6] hover:text-[#a78bfa] underline underline-offset-4 transition-colors"
+                className="text-[11px] font-semibold text-[#8b5cf6] hover:text-[#a78bfa] underline underline-offset-4 transition-colors"
               >
                 {showReplies ? t("post.hideReplies") : t("post.replies", { n: rCount })}
               </button>
