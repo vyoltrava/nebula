@@ -847,5 +847,14 @@ nebula: {
   profileLabel: "Профіль",
 },
 
+circle: {
+  title: "Коло друзів",
+  count: "{n} підписок",
+  searchPh: "Пошук по колу...",
+  empty: "Ви поки ні на кого не підписані",
+  emptySearch: "Нікого не знайдено",
+  message: "Написати",
+},
+
 };
 export type Dictionary = typeof uk;

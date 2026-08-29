@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
-  ArrowLeft, MessageCircle, UserPlus, UserCheck, Shield, MoreVertical,
+  ArrowLeft, MessageCircle, UserPlus, UserCheck, MoreVertical,
   Copy, Settings as SettingsIcon, User as UserIcon,
 } from "lucide-react";
 import { useNebulaMode } from "@/lib/useNebula";
@@ -217,38 +217,33 @@ export default function NebulaUserPage() {
           <>
 
 
-            {/* ── БАННЕР ── */}
-            {user.cover_url ? (
-              <div className="relative w-full aspect-[21/9] max-h-[220px] md:max-h-[320px] overflow-hidden rounded-2xl">
-                <SmartImage src={user.cover_url} wrapperClassName="w-full h-full" alt="Cover" />
-              </div>
-            ) : (
-              <div className="w-full h-16 md:h-20 rounded-2xl bg-white dark:bg-white/[0.03] border border-line dark:border-white/10" />
-            )}
+            {/* ── ШАПКА: баннер фоном + аватар/имя/плашка по центру (без поля при отсутствии) ── */}
+            <div className="relative w-full overflow-hidden rounded-2xl border border-line dark:border-white/10">
+              {user.cover_url ? (
+                <div className="absolute inset-0">
+                  <SmartImage src={user.cover_url} wrapperClassName="w-full h-full" alt="Cover" />
+                  <div className="absolute inset-0 bg-black/40 pointer-events-none" />
+                </div>
+              ) : null}
 
-            {/* ── АВАТАР + ИНФА ── */}
-            <div className={`flex flex-col items-center md:flex-row md:items-start gap-4 md:gap-6 ${user.cover_url ? "-mt-12 md:-mt-16 relative z-10" : "mt-6"}`}>
-              <div className="relative shrink-0 w-32 h-32 rounded-xl">
-                <AvatarFrame user={user} availableBadges={availableBadges} size={128}>
-                  <Avatar src={user.avatar_url} name={user.display_name} id={user.id} size={128} />
-                </AvatarFrame>
-              </div>
-
-              <div className="flex-1 min-w-0 w-full text-center md:text-left">
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 md:gap-3 leading-tight">
+              <div className="relative z-10 pt-8 md:pt-10 pb-6 flex flex-col items-center">
+                <div className="relative shrink-0 w-32 h-32 rounded-xl">
+                  <AvatarFrame user={user} availableBadges={availableBadges} size={128}>
+                    <Avatar src={user.avatar_url} name={user.display_name} id={user.id} size={128} />
+                  </AvatarFrame>
+                </div>
+                <div className="mt-3 flex items-center gap-2 flex-wrap justify-center">
                   <h1
-                    className={`text-xl md:text-2xl font-black break-words ${glowStyle(user) ? "" : "text-gray-900 dark:text-white"}`}
+                    className={`text-2xl md:text-3xl font-black break-words ${glowStyle(user) ? "" : "text-gray-900 dark:text-white"}`}
                     style={glowStyle(user)}
                   >
                     {user.display_name}
                   </h1>
                   <RoleBadge user={user} activeCustomBadgeAssignment={customAssignment} size="md" />
                 </div>
-                <p className="text-sm text-gray-500 dark:text-white/40 mt-1">@{user.username}</p>
+                <div className="mt-1 text-sm text-gray-500 dark:text-white/40">@{user.username}</div>
                 {user.bio && (
-                  <div className="mt-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 p-4">
-                    <p className="text-sm text-gray-700 dark:text-white/80">{user.bio}</p>
-                  </div>
+                  <p className="mt-3 text-sm text-gray-600 dark:text-white/60 text-center max-w-md px-4">{user.bio}</p>
                 )}
               </div>
             </div>

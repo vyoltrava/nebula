@@ -1,15 +1,12 @@
 "use client";
 
-/**
- * 🌌 NebulaCircleModal — модалка "Круг друзей" (подписки пользователя).
- * Показывает список людей, на которых подписан текущий пользователь.
- * По клику на контакт открывается их страница профиля в стиле Nebula.
- */
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { X, UserPlus, Search, MessageCircle } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { Avatar } from "@/components/Avatar";
+import { RoleBadge } from "@/components/RoleBadge";
+import { useI18n } from "@/lib/i18n/LanguageProvider";
 
 type FollowedUser = {
   id: number;
@@ -20,10 +17,14 @@ type FollowedUser = {
   followers_count?: number;
   following_count?: number;
   posts_count?: number;
+  role?: { id?: number; color?: string; level?: number } | null;
+  selected_badge_id?: number | null;
+  custom_badge_url?: string | null;
 };
 
 export function NebulaCircleModal({ onClose }: { onClose: () => void }) {
   const router = useRouter();
+  const { t } = useI18n();
   const [following, setFollowing] = useState<FollowedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -31,7 +32,6 @@ export function NebulaCircleModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const token = getToken();
     if (!token) return;
-    // First get current user's username, then fetch their following list
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -56,9 +56,7 @@ export function NebulaCircleModal({ onClose }: { onClose: () => void }) {
   const goToProfile = (username: string) => {
     onClose();
     router.push(`/nebula-user/${username}`);
-  };
-
-  return (
+  };return (
     <>
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300]" onClick={onClose} />
       <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none">
@@ -69,13 +67,13 @@ export function NebulaCircleModal({ onClose }: { onClose: () => void }) {
                 <UserPlus size={18} className="text-[#8b5cf6]" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-gray-900 dark:text-white">Круг друзей</h3>
-                <p className="text-xs text-gray-500 dark:text-white/40">{following.length} подписок</p>
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">{t("circle.title")}</h3>
+                <p className="text-xs text-gray-500 dark:text-white/40">{t("circle.count", { n: following.length })}</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 text-gray-500 hover:text-gray-900 dark:text-white/50 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+              className="p-1.5 text-gray-500 hover:text-gray-900 dark:text-white/50 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
             >
               <X size={18} />
             </button>
@@ -86,16 +84,23 @@ export function NebulaCircleModal({ onClose }: { onClose: () => void }) {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Поиск по кругу..."
+                placeholder={t("circle.searchPh")}
                 className="w-full pl-9 pr-3 py-2 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-sm text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[#8b5cf6]/40"
               />
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-2">
             {loading ? (
-              <div className="flex flex-col items-center justify-center py-12 gap-3">
-                <div className="w-8 h-8 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
-                <p className="text-sm text-gray-500 dark:text-white/40">Загрузка...</p>
+              <div className="space-y-1 p-1" aria-busy="true">
+                {[0, 1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center gap-3 p-2.5 animate-pulse">
+                    <div className="w-10 h-10 rounded-xl bg-gray-200 dark:bg-white/10 shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-3.5 w-36 rounded bg-gray-200 dark:bg-white/10" />
+                      <div className="h-3 w-24 rounded bg-gray-100 dark:bg-white/5" />
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 gap-3">
@@ -103,7 +108,7 @@ export function NebulaCircleModal({ onClose }: { onClose: () => void }) {
                   <UserPlus size={24} className="text-gray-400 dark:text-white/20" />
                 </div>
                 <p className="text-sm text-gray-500 dark:text-white/40 text-center">
-                  {search ? "Никого не найдено" : "Вы пока ни на кого не подписаны"}
+                  {search ? t("circle.emptySearch") : t("circle.empty")}
                 </p>
               </div>
             ) : (
@@ -113,14 +118,17 @@ export function NebulaCircleModal({ onClose }: { onClose: () => void }) {
                     <button onClick={() => goToProfile(u.username)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
                       <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={40} />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{u.display_name}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{u.display_name}</p>
+                          <RoleBadge user={u} size="sm" />
+                        </div>
                         <p className="text-xs text-gray-500 dark:text-white/40 truncate">@{u.username}</p>
                       </div>
                     </button>
                     <button
                       onClick={() => { onClose(); router.push(`/messages?user=${u.username}`); }}
                       className="p-2 rounded-lg text-gray-400 hover:text-[#8b5cf6] hover:bg-[#8b5cf6]/10 transition-all opacity-0 group-hover:opacity-100"
-                      title="Написать"
+                      title={t("circle.message")}
                     >
                       <MessageCircle size={16} />
                     </button>

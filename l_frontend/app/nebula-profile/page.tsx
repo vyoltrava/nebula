@@ -210,30 +210,35 @@ export default function NebulaProfilePage() {
           </div>
         ) : (
         <>
-        {/* ── БАННЕР ── */}
-        {me.cover_url ? (
-          <div
-            className="relative w-full aspect-[21/9] max-h-[220px] md:max-h-[320px] overflow-hidden group cursor-pointer rounded-2xl"
-            onClick={() => setCoverMenu(!coverMenu)}
-          >
-            <SmartImage src={me.cover_url} wrapperClassName="w-full h-full" alt="Cover" />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-200 pointer-events-none" />
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-              <div className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center">
-                <ImageIcon size={24} className="text-white" />
-              </div>
+        {/* ── ШАПКА: баннер фоном + аватар/имя/плашка по центру ── */}
+        <div className="relative w-full overflow-hidden rounded-2xl border border-line dark:border-white/10">
+          {me.cover_url ? (
+            <div className="absolute inset-0">
+              <SmartImage src={me.cover_url} wrapperClassName="w-full h-full" alt="Cover" />
+              <div className="absolute inset-0 bg-black/40 pointer-events-none" />
             </div>
-            {coverMenu && (
-              <>
-                <div className="fixed inset-0 z-30" onClick={(e) => { e.stopPropagation(); setCoverMenu(false); }} />
-                <div className="absolute top-4 right-4 z-40 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl shadow-2xl overflow-hidden min-w-[180px]">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); coverInputRef.current?.click(); setCoverMenu(false); }}
-                    className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
-                  >
-                    <ImageIcon size={16} className="text-[#8b5cf6]" />
-                    {t("profile.changeCover")}
-                  </button>
+          ) : null}
+
+          <button
+            onClick={() => setCoverMenu(!coverMenu)}
+            className="absolute top-3 right-3 z-20 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white backdrop-blur-sm border border-white/25 transition-colors"
+            title={t("profile.changeCover")}
+          >
+            <ImageIcon size={15} />
+          </button>
+
+          {coverMenu && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={(e) => { e.stopPropagation(); setCoverMenu(false); }} />
+              <div className="absolute top-14 right-3 z-40 min-w-[170px] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl shadow-2xl overflow-hidden">
+                <button
+                  onClick={(e) => { e.stopPropagation(); coverInputRef.current?.click(); setCoverMenu(false); }}
+                  className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+                >
+                  <ImageIcon size={16} className="text-[#8b5cf6]" />
+                  {t("profile.changeCover")}
+                </button>
+                {me.cover_url && (
                   <button
                     onClick={(e) => { e.stopPropagation(); removeCover(); setCoverMenu(false); }}
                     className="w-full px-4 py-3 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
@@ -241,46 +246,25 @@ export default function NebulaProfilePage() {
                     <XIcon size={16} />
                     {t("profile.deleteCover")}
                   </button>
-                </div>
-              </>
-            )}
-          </div>
-        ) : (
-          <button
-            className="relative w-full h-16 md:h-20 rounded-2xl bg-white dark:bg-[#1e1e23] border border-dashed border-line dark:border-white/10 hover:bg-white/60 dark:hover:bg-white/[0.04] transition-colors cursor-pointer flex items-center justify-center gap-2 text-gray-500 dark:text-white/30 hover:text-gray-700 dark:hover:text-white/60 text-sm font-bold"
-            onClick={() => coverInputRef.current?.click()}
-          >
-            <ImageIcon size={18} />
-            {t("profile.addCover")}
-          </button>
-        )}
+                )}
+              </div>
+            </>
+          )}
 
-        {coverError && (
-          <div className="mt-2 rounded-xl bg-red-500/10 border border-red-500/30 px-3 py-2 flex items-center gap-2">
-            <AlertTriangle size={14} className="text-red-600 dark:text-red-400 shrink-0" />
-            <p className="text-xs font-semibold text-red-600 dark:text-red-300 flex-1">{coverError}</p>
-            <button onClick={() => setCoverError(null)} className="p-1 shrink-0 text-red-500 hover:text-red-400">
-              <XIcon size={14} />
-            </button>
-          </div>
-        )}
-
-        {/* ── АВАТАР + ИМЯ ── */}
-        <div className={`flex flex-col items-center md:flex-row md:items-start gap-4 md:gap-6 ${me.cover_url ? "-mt-12 md:-mt-16 relative z-10" : "mt-6"}`}>
-          <div className="relative shrink-0 w-32 h-32 rounded-xl group cursor-pointer" onClick={openFilePicker}>
-            <AvatarFrame user={me} availableBadges={availableBadges} size={128}>
-              <Avatar src={avatarUrl} name={displayName || "U"} id={me.id ?? 0} size={128} />
-            </AvatarFrame>
-            <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/30 transition-colors duration-200 flex items-center justify-center pointer-events-none">
-              <Camera size={26} className="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+          <div className="relative z-10 pt-8 md:pt-10 pb-6 flex flex-col items-center">
+            <div className="relative shrink-0 w-32 h-32 rounded-xl group cursor-pointer" onClick={openFilePicker}>
+              <AvatarFrame user={me} availableBadges={availableBadges} size={128}>
+                <Avatar src={avatarUrl} name={displayName || "U"} id={me.id ?? 0} size={128} />
+              </AvatarFrame>
+              <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/30 transition-colors duration-200 flex items-center justify-center pointer-events-none">
+                <Camera size={26} className="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+              </div>
+              <span className="sr-only">{t("profile.changeAvatar")}</span>
             </div>
-            <span className="sr-only">{t("profile.changeAvatar")}</span>
-          </div>
 
-          <div className="flex-1 min-w-0 w-full text-center md:text-left">
-            <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 md:gap-3 leading-tight">
+            <div className="mt-3 flex items-center gap-2 flex-wrap justify-center">
               <h1
-                className={`text-xl md:text-2xl font-black break-words ${glowStyle(me) ? "" : "text-gray-900 dark:text-white"}`}
+                className={`text-2xl md:text-3xl font-black break-words ${glowStyle(me) ? "" : "text-gray-900 dark:text-white"}`}
                 style={glowStyle(me)}
               >
                 {displayName || t("profile.fallbackName")}
@@ -295,12 +279,22 @@ export default function NebulaProfilePage() {
               </button>
             </div>
             {me?.username && (
-              <div className="mt-1 text-sm text-gray-400 dark:text-white/30">@{me.username}</div>
+              <div className="mt-1 text-sm text-gray-400 dark:text-white/40">@{me.username}</div>
             )}
             {!editing && me?.bio && (
-              <p className="mt-3 text-sm text-gray-500 dark:text-white/50 text-center md:text-left">{me.bio}</p>
+              <p className="mt-3 text-sm text-gray-500 dark:text-white/50 text-center max-w-md px-4">{me.bio}</p>
             )}
           </div>
+
+          {coverError && (
+            <div className="absolute bottom-3 left-3 right-3 z-20 rounded-xl bg-red-500/20 border border-red-500/40 px-3 py-2 flex items-center gap-2 backdrop-blur-sm">
+              <AlertTriangle size={14} className="text-red-300 shrink-0" />
+              <p className="text-xs font-semibold text-red-100 flex-1">{coverError}</p>
+              <button onClick={() => setCoverError(null)} className="p-1 shrink-0 text-red-200 hover:text-white">
+                <XIcon size={14} />
+              </button>
+            </div>
+          )}
         </div>
 
         {editing && (

@@ -848,4 +848,13 @@ nebula: {
   profileLabel: "Profile",
 },
 
+circle: {
+  title: "Friends circle",
+  count: "{n} following",
+  searchPh: "Search in circle...",
+  empty: "You are not following anyone yet",
+  emptySearch: "No one found",
+  message: "Message",
+},
+
 };
