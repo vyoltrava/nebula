@@ -5048,6 +5048,10 @@ def startup():
                 );
             """))
             conn.execute(text('ALTER TABLE message_reaction ADD COLUMN IF NOT EXISTS sticker_id INTEGER;'))
+            # 🆕 Реакции-стикеры: emoji может быть NULL. Старые таблицы (messagereaction,
+            # созданные ранними версиями модели) имеют NOT NULL на emoji — снимаем.
+            conn.execute(text('ALTER TABLE message_reaction ALTER COLUMN emoji DROP NOT NULL;'))
+            conn.execute(text('ALTER TABLE messagereaction ALTER COLUMN emoji DROP NOT NULL;'))
             
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS warning (
