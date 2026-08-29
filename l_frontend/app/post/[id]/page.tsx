@@ -10,9 +10,12 @@ import { MainPostSkeleton } from "@/components/Skeletons";
 import { useLastReadPost } from "@/src/hooks/useLastReadPost";
 import { getToken } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
+import { useNebulaMode } from "@/lib/useNebula";
+import { NebulaBlocked } from "@/components/NebulaBlocked";
 
 export default function PostPage() {
   const { t } = useI18n();
+  const { isNebula } = useNebulaMode();
   const { id } = useParams();
   const router = useRouter();
   const [post, setPost] = useState<any>(null);
@@ -71,6 +74,9 @@ useEffect(() => {
 
     load();
   }, [id]);
+
+  // Nebula: соцсеть заблокирована, показываем заглушку
+  if (isNebula) return <NebulaBlocked />;
 
   if (loading) {
     return (

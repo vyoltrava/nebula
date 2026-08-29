@@ -23,7 +23,9 @@ import {
   RefreshCw,
   ShieldAlert,
   Palette,
+  Sparkles,
 } from "lucide-react";
+import { useNebulaMode } from "@/lib/useNebula";
 import { PushSettings } from "@/components/PushSettings";
 import { DevicePermissionsSection } from "@/components/DevicePermissionsSection";
 import { LiveTextSettings } from "@/components/LiveTextSettings";
@@ -32,7 +34,7 @@ import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Button, IconButton } from "@/components/ui/Button";
 
-type View = "profile" | "appearance" | "notifications" | "permissions" | "messages" | "security";
+type View = "profile" | "appearance" | "notifications" | "permissions" | "messages" | "security" | "nebula";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
@@ -41,6 +43,8 @@ export default function SettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { t } = useI18n();
+
+  const { isNebula, toggleNebula } = useNebulaMode();
 
   const [view, setView] = useState<View>("profile");
 
@@ -307,6 +311,7 @@ async function activate2FA() {
     { id: "permissions", label: t("settings.permissions"), icon: Mic },
     { id: "messages", label: t("settings.liveMessages"), icon: Zap },
     { id: "security", label: t("settings.security"), icon: ShieldCheck },
+    { id: "nebula", label: "Nebula", icon: Sparkles },
   ];
 
   const labelCls = "block text-xs font-medium text-gray-500 dark:text-[#B9B8BD] mb-1.5";
@@ -507,6 +512,48 @@ async function activate2FA() {
               <div>
                 <h2 className="text-lg font-semibold mb-4">{t("settings.liveMessages")}</h2>
                 <LiveTextSettings />
+              </div>
+            )}
+
+            {/* ---------- NEBULA ---------- */}
+            {view === "nebula" && (
+              <div>
+                <h2 className="text-lg font-semibold mb-1">Режим Nebula</h2>
+                <p className="text-sm text-[#B9B8BD] mb-4 dark:text-white/60">
+                  Превращает соцсеть в чистый мессенджер: остаются только чаты
+                  (орбита) и настройки Nebula. Всё возвращается назад, когда
+                  режим выключен.
+                </p>
+                <div className="flex items-center justify-between gap-4 p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
+                  <div className="flex items-center gap-3">
+                    <Sparkles size={20} className="text-[#8b5cf6]" />
+                    <div>
+                      <div className="text-sm font-medium">
+                        Режим Nebula (только мессенджер)
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-white/40">
+                        {isNebula ? "Сейчас включён" : "Сейчас выключен"}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      toggleNebula();
+                      if (!isNebula) router.push("/messages");
+                    }}
+                    role="switch"
+                    aria-checked={isNebula}
+                    className={`w-12 h-7 rounded-full relative shrink-0 transition-colors ${
+                      isNebula ? "bg-[#8b5cf6]" : "bg-gray-300 dark:bg-white/15"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all ${
+                        isNebula ? "right-1" : "left-1"
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
             )}
 

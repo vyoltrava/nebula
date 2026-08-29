@@ -22,6 +22,8 @@ import { AvatarCropper } from "@/components/AvatarCropper";
 import { SmartImage } from "@/components/SmartImage";
 import { validateUpload, uploadErrorText, UPLOAD_RULES } from "@/lib/uploadRules";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
+import { useNebulaMode } from "@/lib/useNebula";
+import { NebulaBlocked } from "@/components/NebulaBlocked";
 
 
 export default function UserProfilePage() {
@@ -29,6 +31,7 @@ export default function UserProfilePage() {
   const userId = params?.id as string;
   const router = useRouter();
   const { t } = useI18n();
+  const { isNebula } = useNebulaMode();
   
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
@@ -452,6 +455,9 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       setModalLoading(false);
     }
   }
+
+  // Nebula: соцсеть заблокирована, показываем заглушку
+  if (isNebula) return <NebulaBlocked />;
 
   if (loading || !profile) {
     return (

@@ -7,6 +7,7 @@ import { GlobalPlayerProvider } from "@/components/GlobalPlayer";
 import { UnreadCountsProvider } from "@/lib/UnreadCountsContext";
 import SplashScreen from "@/components/SplashScreen";
 import { ShellSwitcherGate } from "@/components/ShellSwitcherGate";
+import { NebulaGate } from "@/components/NebulaGate";
 import {PermissionGate} from "@/components/PermissionGate";
 import PWARegister from "@/components/PWARegister";
 import InstallPrompt from "@/components/InstallPrompt";
@@ -101,6 +102,7 @@ export default function RootLayout({
         <InstallPrompt />
         <SplashScreen />
         <ShellSwitcherGate />
+        <NebulaGate />
         <NotificationPermissionPrompt />
         <WebSocketProvider>
             <UnreadCountsProvider>
