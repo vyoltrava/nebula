@@ -313,9 +313,11 @@ const handlePointerLeave = () => {
     const locked = (pack.min_level || 0) > userLevel;
     pack.stickers?.forEach((s: any) => {
       result.push({
-        type: s.type,
+        // 🆕 Бэкенд отдаёт type: "emoji" | "image". Приводим к внутреннему формату:
+        // "image" (картинка из стикер-пака) = стикер-реакция
+        type: s.type === 'image' ? 'sticker' : 'emoji',
         content: s.content,
-        stickerId: s.type === 'sticker' ? Number(s.id) : undefined,
+        stickerId: s.type === 'image' ? Number(s.id) : undefined,
         packName: pack.name,
         locked,
         minLevel: pack.min_level
@@ -3467,19 +3469,19 @@ style={{
             ) : (
               <div className="grid grid-cols-6 gap-1.5">
                 {stickerPacks[activePackTab].stickers.map((s: any) => {
-                  // ✅ Проверяем, выбрана ли эта реакция сейчас
-                  const isActive = quickReaction?.type === s.type && 
+                  // ✅ Проверяем, выбрана ли эта реакция сейчас (бэкенд: type "emoji" | "image")
+                  const isActive = quickReaction?.type === (s.type === 'image' ? 'sticker' : 'emoji') && 
                                    quickReaction?.content === s.content && 
-                                   quickReaction?.stickerId === (s.type === 'sticker' ? Number(s.id) : undefined);
+                                   quickReaction?.stickerId === (s.type === 'image' ? Number(s.id) : undefined);
                   
                   return (
                     <button
                       key={s.id}
                       onClick={() => {
                         saveQuickReaction({
-                          type: s.type,
+                          type: s.type === 'image' ? 'sticker' : 'emoji',
                           content: s.content,
-                          stickerId: s.type === 'sticker' ? Number(s.id) : undefined
+                          stickerId: s.type === 'image' ? Number(s.id) : undefined
                         });
                       }}
                       className={`aspect-square flex items-center justify-center rounded-xl transition-all ${
