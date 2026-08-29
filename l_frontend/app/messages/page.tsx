@@ -128,7 +128,12 @@ export default function MessagesPage() {
   }, [allChats, query]);
 
   // Nebula: поддержка ?create=prism (и ?create=group) — открытие
-  // окна создания из Nebula-оболочки
+  // окна создания из Nebula-оболочки.
+  // ДВА механизма:
+  // 1) параметр ?create=... при переходе с другой страницы (эффект на монтирование);
+  // 2) событие window "nebula-create" — если пользователь УЖЕ на /messages,
+  //    router.push("?create=...") не перемонтирует страницу (раньше модалка
+  //    не открывалась с орбиты Nebula, особенно на мобилке).
   useEffect(() => {
     if (typeof window === "undefined") return;
     const create = new URLSearchParams(window.location.search).get("create");
@@ -139,6 +144,16 @@ export default function MessagesPage() {
       setShowCreateGroup(true);
       window.history.replaceState({}, "", "/messages");
     }
+  }, []);
+
+  useEffect(() => {
+    const onNebulaCreate = (e: Event) => {
+      const kind = (e as CustomEvent).detail;
+      if (kind === "prism") setShowPrismModal(true);
+      else if (kind === "group") setShowCreateGroup(true);
+    };
+    window.addEventListener("nebula-create", onNebulaCreate);
+    return () => window.removeEventListener("nebula-create", onNebulaCreate);
   }, []);
 
   function getGlowColor(user: any): string | null {

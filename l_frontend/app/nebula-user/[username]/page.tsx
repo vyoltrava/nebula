@@ -277,20 +277,12 @@ export default function NebulaUserPage() {
                     {copiedName ? t("user.copied") : t("user.copyUsername")}
                   </button>
                   {isMine ? (
-                    <>
-                      <button
-                        onClick={() => { setMenuOpen(false); router.push("/nebula-profile"); }}
-                        className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
-                      >
-                        <UserIcon size={15} /> {t("user.myProfile")}
-                      </button>
-                      <button
-                        onClick={() => { setMenuOpen(false); router.push("/nebula-settings"); }}
-                        className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
-                      >
-                        <SettingsIcon size={15} /> {t("user.settings")}
-                      </button>
-                    </>
+                    <button
+                      onClick={() => { setMenuOpen(false); router.push("/nebula-settings"); }}
+                      className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
+                    >
+                      <SettingsIcon size={15} /> {t("user.settings")}
+                    </button>
                   ) : (
                     <>
                       <button
@@ -316,26 +308,34 @@ export default function NebulaUserPage() {
 
       <div className="w-full px-4 md:px-10 py-6">
         {loading ? (
-          <div className="animate-pulse max-w-2xl" aria-busy="true">
+          <div className="animate-pulse max-w-2xl mx-auto w-full" aria-busy="true">
+            {/* Шапка: баннер + аватар внахлёст, имя/юзернейм/био по центру */}
             <div className="rounded-2xl bg-white dark:bg-[#1e1e23] border border-line dark:border-white/10 overflow-hidden">
               <div className="h-28 md:h-48 bg-gray-200 dark:bg-white/10" />
-              <div className="px-4 pb-6 flex flex-col items-center">
-                <div className="w-32 h-32 rounded-2xl bg-gray-200 dark:bg-white/15 shrink-0 -mt-14 md:-mt-16 shadow-lg" />
-                <div className="mt-3 h-6 w-44 rounded bg-gray-200 dark:bg-white/10" />
+              <div className="pt-10 md:pt-14 pb-6 flex flex-col items-center">
+                <div className="w-32 h-32 rounded-xl bg-gray-200 dark:bg-white/15 shrink-0 -mt-14 md:-mt-16 shadow-lg" />
+                <div className="mt-3 flex items-center gap-2">
+                  <div className="h-6 w-44 rounded bg-gray-200 dark:bg-white/10" />
+                  <div className="h-4 w-4 rounded bg-gray-200 dark:bg-white/10" />
+                </div>
                 <div className="mt-2 h-3.5 w-32 rounded bg-gray-100 dark:bg-white/5" />
+                <div className="mt-3 h-3 w-64 max-w-md rounded bg-gray-100 dark:bg-white/5" />
               </div>
             </div>
+            {/* Статистика: 3 карточки по центру */}
             <div className="grid grid-cols-3 gap-3 mt-6">
               {[0, 1, 2].map((i) => (
-                <div key={i} className="rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 p-4 space-y-2">
+                <div key={i} className="rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 p-3 text-center space-y-2">
                   <div className="h-5 w-10 mx-auto rounded bg-gray-200 dark:bg-white/10" />
                   <div className="h-3 w-16 mx-auto rounded bg-gray-100 dark:bg-white/5" />
                 </div>
               ))}
             </div>
-            <div className="mt-6 rounded-2xl bg-white dark:bg-[#1e1e23] border border-line dark:border-white/10 p-5 space-y-3">
-              <div className="h-11 w-full rounded-xl bg-gray-200 dark:bg-white/10" />
-              <div className="h-11 w-full rounded-xl bg-gray-100 dark:bg-white/5" />
+            {/* Кнопки действий: строка по центру */}
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+              <div className="h-11 w-40 rounded-xl bg-[#8b5cf6]/70 dark:bg-[#8b5cf6]/50" />
+              <div className="h-11 w-36 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10" />
+              <div className="h-11 w-44 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10" />
             </div>
           </div>
         ) : !user ? (
@@ -526,7 +526,7 @@ export default function NebulaUserPage() {
                   onClick={() => setShowCircle(true)}
                   className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-left"
                 >
-                  <Users size={20} className="text-[#8b5cf6] shrink-0" />
+                  <Sparkles size={20} className="text-[#8b5cf6] shrink-0" />
                   <span className="flex-1 text-sm font-medium">{t("profile.circleFriends")}</span>
                 </button>
                 <button

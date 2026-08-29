@@ -176,8 +176,16 @@ export function NebulaSidebar() {
       }
     } catch (err) { console.error("Failed to open saved messages", err); }
   };
-  const openCreateGroup = () => router.push("/messages?create=group");
-  const openCreatePrism = () => router.push("/messages?create=prism");
+  // Если пользователь УЖЕ на /messages — router.push("?create=...") не перемонтирует
+  // страницу и модалка не откроется. В этом случае шлём window-событие "nebula-create".
+  const openCreateGroup = () => {
+    if (isMessagesPage) window.dispatchEvent(new CustomEvent("nebula-create", { detail: "group" }));
+    else router.push("/messages?create=group");
+  };
+  const openCreatePrism = () => {
+    if (isMessagesPage) window.dispatchEvent(new CustomEvent("nebula-create", { detail: "prism" }));
+    else router.push("/messages?create=prism");
+  };
 
   // ── Секретный чат: выбор собеседника из подписок → POST /api/chats/secret ──
   const openCreateSecret = async () => {
@@ -223,7 +231,10 @@ export function NebulaSidebar() {
     }
   };
 
-  // ── Кнопки ПК-сайдбара (те же на мобильной орбите) ──
+  // ── Кнопки мобильной орбиты ──
+  // Порядок важен: первые 5 — внутренний слой дуги (чаты, все рядом),
+  // остальные — внешний слой: Круг, Настройки, Баг+Поддержка (рядом),
+  // Выход и сразу под ним Профиль.
   const orbitItems: { key: string; icon: LucideIcon | null; label: string; badge: number; run: () => void }[] = [
     { key: "messages", icon: MessageCircle, label: t("nav.messages"), badge: counts.chats, run: () => router.push("/messages") },
     { key: "saved", icon: Bookmark, label: t("messages.saved"), badge: 0, run: openSavedMessages },
@@ -231,11 +242,11 @@ export function NebulaSidebar() {
     { key: "prism", icon: ShieldCheck, label: "PRISM Link", badge: 0, run: openCreatePrism },
     { key: "secret", icon: Lock, label: t("profile.secretChat"), badge: 0, run: openCreateSecret },
     { key: "circle", icon: Sparkles, label: t("nav.circle"), badge: 0, run: () => setShowCircle(true) },
-    { key: "profile", icon: null, label: t("nav.profile"), badge: 0, run: () => user && router.push(`/nebula-user/${user.username}`) },
     { key: "settings", icon: Settings, label: t("nav.settings"), badge: 0, run: () => router.push("/nebula-settings") },
     { key: "bug", icon: Bug, label: t("nav.reportProblem"), badge: 0, run: () => setShowBugModal(true) },
     { key: "support", icon: Headphones, label: t("nav.support"), badge: 0, run: () => router.push("/support") },
     { key: "logout", icon: LogOut, label: t("nav.logout"), badge: 0, run: handleLogout },
+    { key: "profile", icon: null, label: t("nav.profile"), badge: 0, run: () => user && router.push(`/nebula-user/${user.username}`) },
   ];
   const orbitItemsRef = useRef(orbitItems);
   useEffect(() => { orbitItemsRef.current = orbitItems; }, [orbitItems]);
