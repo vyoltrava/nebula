@@ -6,6 +6,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Heart, HeartCrack, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio } from "lucide-react";
+import { BsHeartbreak } from "react-icons/bs";
 import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
 import { safeFetch } from "@/lib/ban";
@@ -898,11 +899,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               }`}
               title={disliked ? "Отменить дизлайк" : "Дизлайк"}
             >
-              <HeartCrack
-                size={16}
-                fill={disliked ? "white" : "none"}
-                className={disliked ? "text-red-500" : ""}
-              />
+              <BsHeartbreak size={16} />
               <span className="text-sm font-semibold">{dislikeCount}</span>
             </button>
           </div>
