@@ -63,7 +63,6 @@ from models import (
 import logging
 from fastapi.responses import JSONResponse
 from performance import PerfMiddleware, get_perf_summary
-import sql_profiler
 import time
 import asyncio
 from fastapi import Response
