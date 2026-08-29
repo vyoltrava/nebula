@@ -5,8 +5,7 @@ import { STICKERS } from "@/lib/stickers";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio } from "lucide-react";
-import { BrokenHeart } from "./BrokenHeart";
+import { Heart, HeartCrack, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
 import { safeFetch } from "@/lib/ban";
@@ -889,20 +888,17 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             {/* Разделитель */}
             <div className="w-px self-stretch my-1.5 bg-line dark:bg-white/20" />
 
-            {/* Дизлайк */}
+            {/* Дизлайк: разбитое сердечко ближе к центру, счётчик справа */}
             <button
               onClick={toggleDislike}
-              className={`flex items-center gap-1 py-1.5 pl-2.5 pr-3 transition-all rounded-full ${
+              className={`flex items-center gap-1 py-1.5 pl-2.5 pr-3 transition-all ${
                 disliked
                   ? "bg-red-500 text-white"
-                  : "text-gray-800 dark:text-white/70 hover:bg-red-500/10 hover:text-red-500"
+                  : "text-gray-800 dark:text-white/70 hover:text-red-500"
               }`}
               title={disliked ? "Отменить дизлайк" : "Дизлайк"}
             >
-              <BrokenHeart
-                size={16}
-                className={disliked ? "fill-white text-red-500" : "fill-none text-gray-500 dark:text-gray-400"}
-              />
+              <HeartCrack size={16} fill={disliked ? "currentColor" : "none"} />
               <span className="text-sm font-semibold">{dislikeCount}</span>
             </button>
           </div>
