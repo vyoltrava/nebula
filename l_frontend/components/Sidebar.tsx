@@ -302,6 +302,12 @@ export function Sidebar() {
   // его место занимает NebulaSidebar через NebulaGate.
   const { isNebula } = useNebulaMode();
   const [user, setUser]               = useState<any>(() => getCachedUser());
+  // 🚫 Железобетонная проверка Nebula: берём и React-состояние, и класс DOM
+  //    («nebula-mode» вешает NebulaGate на <html>). Даже если стейт не успел
+  //    обновиться — класс уже на месте, поэтому классическая орбита/жесты
+  //    гарантированно отключатся в режиме Nebula.
+  const nebulaOff = isNebula ||
+    (typeof document !== "undefined" && document.documentElement.classList.contains("nebula-mode"));
   const [showNotifs, setShowNotifs]   = useState(false);
   const [notifs, setNotifs]           = useState<any[]>([]);
   const [showBugModal, setShowBugModal] = useState(false);
@@ -606,6 +612,9 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
   }, [innerItems.length, outerItems.length]);
 
   const openWheelAt = useCallback((cx?: number, cy?: number) => {
+    // 🚫 Nebula — классическая дуга не открывается (свежее чтение класса DOM,
+    //    не зависит от устаревшего стейта в deps)
+    if (typeof document !== "undefined" && document.documentElement.classList.contains("nebula-mode")) return;
     let centerX: number;
     let centerY: number;
     // 🆕 Свободное открытие (orbit2 / Ctrl): ПОЛНЫЙ КРУГ вокруг точки зажима
@@ -662,6 +671,10 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
   }, []);
 
   const closeWheel = useCallback((doAction: boolean) => {
+    // 🚫 Nebula — дополнительная защита: если режим включился во время открытой дуги,
+    //    просто схлопываем её без выполнения действий
+    const nebulaNow = typeof document !== "undefined" && document.documentElement.classList.contains("nebula-mode");
+    if (nebulaNow) { setWheelOpen(false); setWheelReady(false); setClosing(false); return; }
     // 🆕 Если тянул ВЛЕВО → router.back()
     if (pullingBack) {
       setPullingBack(false);
@@ -742,6 +755,8 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
   //   false (по умолчанию) — жест с КНОПКИ: дуга-полукруг от кнопки (как было);
   //   true — orbit2 / Ctrl: ПОЛНЫЙ КРУГ вокруг точки зажима.
   const startGestureAt = useCallback((px: number, py: number, centerAtPress = false) => {
+    // 🚫 Nebula — любой вход жеста классики блокируем
+    if (typeof document !== "undefined" && document.documentElement.classList.contains("nebula-mode")) return;
     startPos.current = { x: px, y: py };
     // 🆕 нашли элемент скролла ОДИН раз — дальше только лёгкий scrollBy
     scrollTargetRef.current = findScrollTarget();
@@ -799,7 +814,9 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       t instanceof HTMLElement &&
       !!t.closest("input, textarea, select, [contenteditable='true'], [data-orbit-ignore]");
     const onDown = (e: MouseEvent | TouchEvent) => {
-      if (isNebula) return; // 🚫 Nebula — жесты классической орбиты не работают
+      // 🚫 Nebula — жесты классической орбиты не работают (стейт + класс DOM)
+      const nebulaNow = typeof document !== "undefined" && document.documentElement.classList.contains("nebula-mode");
+      if (isNebula || nebulaNow) return;
       if (wheelOpen || isLongPressed.current || longPressTimer.current) return;
       const pt = "touches" in e ? e.touches[0] : (e as MouseEvent);
       if (!pt) return;
@@ -820,6 +837,8 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
   //    🔒 Не срабатывает над полями ввода и элементами с [data-orbit-ignore] (бары и пр.).
   useEffect(() => {
     if (isMobile) return;
+    // 🚫 Nebula — Ctrl-орбита классики не работает
+    const nebulaNow = () => typeof document !== "undefined" && document.documentElement.classList.contains("nebula-mode");
     const isExcludedUnderMouse = () => {
       const { x, y } = lastMouseRef.current;
       const el = document.elementFromPoint(x, y);
@@ -833,6 +852,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       if (e.key === "Escape" && isLongPressed.current) { closeWheel(false); return; }
       if (e.key !== "Control") return;
       if (e.repeat || wheelOpen || isLongPressed.current || longPressTimer.current) return;
+      if (nebulaNow()) return;    // 🚫 Nebula — отключаем Ctrl-орбиту
       if (isExcludedUnderMouse()) return;   // 🔒 над полем ввода/баром — не открываем
       // Открываем СРАЗУ (без таймера долгого зажатия) — полный круг у курсора
       const { x, y } = lastMouseRef.current;
@@ -858,6 +878,9 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
   }, [isMobile, wheelOpen, hoveredIdx, closeWheel, openWheelAt, findNearest]);
 
   useEffect(() => {
+    // 🚫 Nebula — глобальные обработчики жестов классики не вешаем вовсе
+    const nebulaNow = typeof document !== "undefined" && document.documentElement.classList.contains("nebula-mode");
+    if (isNebula || nebulaNow) return;
     const cancelTimer = () => {
       if (longPressTimer.current) {
         clearTimeout(longPressTimer.current);
@@ -984,7 +1007,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       document.removeEventListener("mousemove", onMouseMove);
       document.removeEventListener("mouseup", onMouseUp);
     };
-  }, [hoveredIdx, closeWheel, findNearest, router]);
+  }, [hoveredIdx, closeWheel, findNearest, router, isNebula]);
 
   // 🎯 ПЛАВНЫЙ скролл: rAF + сглаживание (нет дрожания, мягкое дотормаживание)
   useEffect(() => {
@@ -1410,6 +1433,8 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     <>
       {/* ═══════ МОБИЛКА / DESKTOP ORBIT / DESKTOP ORBIT2 ═══════ */}
       {/* orbit2 — без фиксированной кнопки: дуга открывается зажимом в любом месте */}
+      {/* 🚫 В режиме Nebula классическая орбита полностью отключена (в т.ч. кнопка вне <aside>) */}
+      {!nebulaOff && (
       <div className={layout === "orbit" ? "block" : layout === "orbit2" ? "hidden" : "md:hidden"}>
         {/* 🔥 КРУГИ НА ВОДЕ (Память ленты) */}
         {/* 🔥 МЯГКОЕ СВЕЧЕНИЕ (Сохраненный пост) */}
@@ -1456,13 +1481,15 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
           <Orbit size={22} className={`transition-all duration-300 ${wheelOpen ? "text-[#8b5cf6] rotate-[60deg]" : "text-gray-800 dark:text-white/80"}`} />
         </button>
       </div>
+      )}
 
       {/* 🆕 Дуга рендерится ВНЕ обёртки — доступна в любом виде сайдбара
           (Ctrl на ПК в classic/dock/orbit, свободный зажим в orbit2) */}
-      {renderWheel()}
+      {/* 🚫 В Nebula классическая дуга не рендерится */}
+      {!nebulaOff && renderWheel()}
 
 {/* 🆕 🔥 ТУЛТИП "ПРОДОЛЖИТЬ ЧТЕНИЕ" */}
-{showTooltip && showContinueButton && layout !== "orbit2" && (
+{!nebulaOff && showTooltip && showContinueButton && layout !== "orbit2" && (
   <div 
     className={`fixed z-[99] bg-[#8b5cf6] text-white text-xs font-bold px-3 py-2 rounded-lg shadow-xl whitespace-nowrap animate-bounce
       ${layout === "orbit" 
@@ -1487,7 +1514,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 )}
 
 {/* ═══════ DESKTOP ORBIT: плавающие кнопки слева от орбиты ═══════ */}
-{layout === "orbit" && !isMobile && (
+{!nebulaOff && layout === "orbit" && !isMobile && (
   <div className={`fixed right-[92px] ${orbitRowPos} z-[97] flex flex-row items-center gap-3`}>
 
 
