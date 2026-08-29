@@ -451,6 +451,7 @@ async function toggleDislike() {
       setLikedCache(id, !!data.liked);
     }
     
+    
     // 🔄 Глобальная синхронизация для других компонентов (профиль, лента)
     window.dispatchEvent(new CustomEvent("dislike-sync", { detail: { post_id: id, ...data } }));
     window.dispatchEvent(new CustomEvent("dislike-state-sync", { detail: { post_id: id, disliked: data.disliked } }));
@@ -890,16 +891,18 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             {/* Дизлайк: разбитое сердечко ближе к центру, счётчик справа */}
             <button
               onClick={toggleDislike}
-              className={`flex items-center gap-1 py-1.5 pl-2.5 pr-3 transition-all ${
+              className={`flex items-center gap-1 py-1.5 pl-2.5 pr-3 transition-all rounded-full ${
                 disliked
-                  ? "bg-red-500/15 text-red-500"
-                  : "text-gray-800 dark:text-white/70 hover:text-red-500"
+                  ? "bg-red-500 text-white"
+                  : "text-gray-800 dark:text-white/70 hover:bg-red-500/10 hover:text-red-500"
               }`}
               title={disliked ? "Отменить дизлайк" : "Дизлайк"}
             >
               <HeartCrack
                 size={16}
-                className={disliked ? "text-red-500 fill-pink-100 dark:fill-pink-500/20" : "text-gray-500 dark:text-gray-400"}
+                fill="white"
+                stroke="red"
+                strokeWidth={2}
               />
               <span className="text-sm font-semibold">{dislikeCount}</span>
             </button>
