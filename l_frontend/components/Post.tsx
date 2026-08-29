@@ -882,7 +882,10 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               title={liked ? "Отменить лайк" : "Лайк"}
             >
               <span className="text-sm font-semibold">{count}</span>
-              <Heart size={16} className="text-gray-800 dark:text-white/70" fill={liked ? "white" : "none"} />
+              <span className="relative inline-flex" style={{ width: 16, height: 16 }}>
+                {liked && <Heart size={16} fill="white" stroke="none" className="absolute inset-0" />}
+                <Heart size={16} className="text-gray-800 dark:text-white/70" />
+              </span>
             </button>
 
             {/* Разделитель */}
@@ -898,7 +901,10 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               }`}
               title={disliked ? "Отменить дизлайк" : "Дизлайк"}
             >
-              <HeartCrack size={16} className="text-gray-800 dark:text-white/70" fill={disliked ? "white" : "none"} />
+              <span className="relative inline-flex" style={{ width: 16, height: 16 }}>
+                {disliked && <HeartCrack size={16} fill="white" stroke="none" className="absolute inset-0" />}
+                <HeartCrack size={16} className="text-gray-800 dark:text-white/70" />
+              </span>
               <span className="text-sm font-semibold">{dislikeCount}</span>
             </button>
           </div>
