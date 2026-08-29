@@ -15,6 +15,7 @@ import Link from "next/link";
 import {
   Settings, LogOut, MessageCircle, ArrowLeft, Menu,
   Users, Bug, Headphones, Sparkles, Bookmark, ShieldCheck, Orbit,
+  Lock, Satellite, X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
@@ -26,6 +27,7 @@ import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { BrandIcon } from "@/components/BrandIcon";
 import { NebulaCircleModal } from "@/components/NebulaCircleModal";
+import { ensureKeyPair } from "@/lib/crypto";
 
 // 🪐 Константы ОРБИТЫ 1 (скопированы из классического Sidebar) — двухслойная дуга
 const ORBIT_INNER_RADIUS  = 135;
@@ -50,6 +52,10 @@ export function NebulaSidebar() {
   const [showBugModal, setShowBugModal] = useState(false);
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [showCircle, setShowCircle] = useState(false);
+  const [showSecretPicker, setShowSecretPicker] = useState(false);
+  const [secretContacts, setSecretContacts] = useState<any[]>([]);
+  const [secretContactsLoading, setSecretContactsLoading] = useState(false);
+  const [creatingSecret, setCreatingSecret] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [wheelPos, setWheelPos] = useState<{ x: number; y: number } | null>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
@@ -145,6 +151,8 @@ export function NebulaSidebar() {
     saved: "#fbbf24",
     group: "#8b5cf6",
     prism: "#22d3ee",
+    secret: "#10b981",
+    prisme: "#22d3ee",
     circle: "#ec4899",
     profile: "#8b5cf6",
     settings: "#94a3b8",
@@ -172,12 +180,58 @@ export function NebulaSidebar() {
   const openCreateGroup = () => router.push("/messages?create=group");
   const openCreatePrism = () => router.push("/messages?create=prism");
 
+  // ── Секретный чат: выбор собеседника из подписок → POST /api/chats/secret ──
+  const openCreateSecret = async () => {
+    const token = getToken();
+    if (!token || !user) return;
+    setShowSecretPicker(true);
+    setSecretContactsLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${user.id}/following`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setSecretContacts(res.ok ? await res.json() : []);
+    } catch {
+      setSecretContacts([]);
+    } finally {
+      setSecretContactsLoading(false);
+    }
+  };
+
+  const createSecretWith = async (otherUserId: number) => {
+    const token = getToken();
+    if (!token || creatingSecret) return;
+    setCreatingSecret(true);
+    try {
+      await ensureKeyPair(token, process.env.NEXT_PUBLIC_API_URL!);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/secret?other_user_id=${otherUserId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setShowSecretPicker(false);
+        refresh();
+        router.push(`/messages/${data.chat_id}`);
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(typeof err?.detail === "string" ? err.detail : t("profile.secretChatFailed"));
+      }
+    } catch {
+      alert(t("common.networkError"));
+    } finally {
+      setCreatingSecret(false);
+    }
+  };
+
   // ── Кнопки ПК-сайдбара (те же на мобильной орбите) ──
   const orbitItems: { key: string; icon: LucideIcon | null; label: string; badge: number; run: () => void }[] = [
     { key: "messages", icon: MessageCircle, label: t("nav.messages"), badge: counts.chats, run: () => router.push("/messages") },
     { key: "saved", icon: Bookmark, label: t("messages.saved"), badge: 0, run: openSavedMessages },
     { key: "group", icon: Users, label: t("messages.createGroup"), badge: 0, run: openCreateGroup },
     { key: "prism", icon: ShieldCheck, label: "PRISM Link", badge: 0, run: openCreatePrism },
+    { key: "secret", icon: Lock, label: t("profile.secretChat"), badge: 0, run: openCreateSecret },
+    { key: "prisme", icon: Satellite, label: "Призма", badge: 0, run: () => router.push("/prisme") },
     { key: "circle", icon: Sparkles, label: t("nav.circle"), badge: 0, run: () => setShowCircle(true) },
     { key: "profile", icon: null, label: t("nav.profile"), badge: 0, run: () => user && router.push(`/nebula-user/${user.username}`) },
     { key: "settings", icon: Settings, label: t("nav.settings"), badge: 0, run: () => router.push("/nebula-settings") },
@@ -394,6 +448,16 @@ export function NebulaSidebar() {
         {showAccountSwitcher && (
           <AccountSwitcher variant="orbit" isOpen={showAccountSwitcher} onClose={() => setShowAccountSwitcher(false)} />
         )}
+        {showSecretPicker && (
+          <SecretPickerModal
+            contacts={secretContacts}
+            loading={secretContactsLoading}
+            creating={creatingSecret}
+            onClose={() => setShowSecretPicker(false)}
+            onSelect={createSecretWith}
+            t={t}
+          />
+        )}
       </>
     );
   }
@@ -478,9 +542,21 @@ export function NebulaSidebar() {
             <Users size={18} className={iconClass + " text-[#8b5cf6]"} />
             <span className={textClass}>{t("messages.createGroup")}</span>
           </button>
-          <button onClick={openCreatePrism} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 last:border-none group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title="PRISM Link">
+          <button onClick={openCreatePrism} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title="PRISM Link">
             <ShieldCheck size={18} className={iconClass + " text-cyan-600 dark:text-cyan-400"} />
             <span className={textClass}>PRISM Link</span>
+          </button>
+          <button onClick={openCreateSecret} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title={t("profile.secretChat")}>
+            <Lock size={18} className={iconClass + " text-emerald-600 dark:text-emerald-400"} />
+            <span className={textClass}>{t("profile.secretChat")}</span>
+          </button>
+          <button onClick={() => router.push("/support")} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title={t("nav.supportChat")}>
+            <Headphones size={18} className={iconClass + " text-cyan-600 dark:text-cyan-400"} />
+            <span className={textClass}>{t("nav.supportChat")}</span>
+          </button>
+          <button onClick={() => router.push("/prisme")} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 last:border-none group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title="Призма">
+            <Satellite size={18} className={iconClass + " text-cyan-600 dark:text-cyan-400"} />
+            <span className={textClass}>Призма</span>
           </button>
         </nav>
 
@@ -505,7 +581,65 @@ export function NebulaSidebar() {
       {showBugModal && <BugReportModal onClose={() => setShowBugModal(false)} />}
       {showAccountSwitcher && (<AccountSwitcher variant="orbit" isOpen={showAccountSwitcher} onClose={() => setShowAccountSwitcher(false)} />)}
       {showCircle && <NebulaCircleModal onClose={() => setShowCircle(false)} />}
+      {showSecretPicker && (
+        <SecretPickerModal
+          contacts={secretContacts}
+          loading={secretContactsLoading}
+          creating={creatingSecret}
+          onClose={() => setShowSecretPicker(false)}
+          onSelect={createSecretWith}
+          t={t}
+        />
+      )}
     </>
+  );
+}
+
+// ── Модалка выбора собеседника для секретного чата ──
+function SecretPickerModal({
+  contacts, loading, creating, onClose, onSelect, t,
+}: {
+  contacts: any[];
+  loading: boolean;
+  creating: boolean;
+  onClose: () => void;
+  onSelect: (id: number) => void;
+  t: (k: any) => string;
+}) {
+  return (
+    <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-sm bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl max-h-[70vh] flex flex-col overflow-hidden pointer-events-auto">
+        <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between shrink-0">
+          <h3 className="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-2">
+            <Lock size={16} className="text-emerald-500" />
+            {t("profile.secretChat")}
+          </h3>
+          <button onClick={onClose} className="p-1 text-gray-500 dark:text-white/50 hover:text-gray-900 dark:hover:text-white transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="overflow-y-auto flex-1 p-2">
+          {loading && <p className="p-6 text-center text-sm text-gray-500 dark:text-white/40">{t("common.loading")}</p>}
+          {!loading && contacts.length === 0 && <p className="p-6 text-center text-sm text-gray-500 dark:text-white/40">{t("messages.nothingFound")}</p>}
+          {!loading && contacts.map((c) => (
+            <button
+              key={c.id}
+              disabled={creating}
+              onClick={() => onSelect(c.id)}
+              className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-left disabled:opacity-50"
+            >
+              <Avatar src={c.avatar_url} name={c.display_name} id={c.id} size={40} />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold truncate text-gray-900 dark:text-white">{c.display_name}</p>
+                <p className="text-xs text-gray-500 dark:text-white/40 truncate">@{c.username}</p>
+              </div>
+              <Lock size={16} className="text-emerald-500 shrink-0" />
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 

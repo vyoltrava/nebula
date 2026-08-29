@@ -336,6 +336,8 @@ export const ru: Dictionary = {
     settings: "Настройки",
     exitNebula: "Выйти из режима Nebula",
     logout: "Выйти из аккаунта",
+    token: "Токен аккаунта",
+    copyToken: "Скопировать токен",
 
   },
   tag: {

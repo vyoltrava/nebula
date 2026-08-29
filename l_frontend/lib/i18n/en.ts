@@ -89,6 +89,8 @@ export const en: Dictionary = {
     moderation: "Moderation",
     adminPanel: "Admin panel",
     logout: "Log out",
+    token: "Account token",
+    copyToken: "Copy token",
     login: "Log in",
     continueReading: "Continue reading",
     feedPlace: "Feed position",
@@ -227,6 +229,8 @@ export const en: Dictionary = {
     photoHint: "JPG, PNG, GIF or WebP, max 5 MB",
     loggingOut: "Logging out...",
     logout: "Log out",
+    token: "Account token",
+    copyToken: "Copy token",
     logoutAll: "Log out of all devices",
     logoutAllProgress: "Ending sessions...",
     displayName: "Display name",
@@ -338,6 +342,8 @@ export const en: Dictionary = {
     settings: "Settings",
     exitNebula: "Exit Nebula mode",
     logout: "Log out",
+    token: "Account token",
+    copyToken: "Copy token",
 
   },
   tag: {

@@ -336,6 +336,8 @@ export const uk = {
     settings: "Налаштування",
     exitNebula: "Вийти з режиму Nebula",
     logout: "Вийти з акаунта",
+    token: "Токен акаунту",
+    copyToken: "Копіювати токен",
 
   },
   tag: {

@@ -1,25 +1,35 @@
 "use client";
 
 /**
- * Nebula: страница профиля пользователя — баннер, аватар с анимированной
- * рамкой (AvatarFrame), бейджи и плашка роли как в классике. Полная ширина.
+ * 🌌 Nebula: ЕДИНАЯ страница профиля.
+ * - Чужой профиль: баннер, аватар с рамкой, роль, био, статистика, кнопки действий.
+ * - Свой профиль (isMine): + редактирование имени/био, смена аватара/обложки,
+ *   отображение токена активного аккаунта, компактная панель быстрых действий
+ *   (Круг друзей, Настройки, Выйти из Nebula, Выйти из аккаунта) справа.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import {
   ArrowLeft, MessageCircle, UserPlus, UserCheck, MoreVertical,
-  Copy, Settings as SettingsIcon, User as UserIcon,
+  Copy, Settings as SettingsIcon, Camera, Image as ImageIcon,
+  X as XIcon, Pencil, Check, Sparkles, Users, LogOut, Settings,
+  User as UserIcon, Lock, AlertTriangle,
 } from "lucide-react";
 import { useNebulaMode } from "@/lib/useNebula";
-import { getToken, getActiveAccount } from "@/lib/auth";
+import { getToken, clearToken, getActiveAccount } from "@/lib/auth";
+import { ensureKeyPair } from "@/lib/crypto";
 import { mediaUrl } from "@/lib/media";
 import { resolveNickColor } from "@/lib/nickGlow";
 import { Avatar } from "@/components/Avatar";
 import { AvatarFrame } from "@/components/AvatarFrame";
 import { RoleBadge } from "@/components/RoleBadge";
 import { SmartImage } from "@/components/SmartImage";
+import { useAvatarUploader } from "@/components/AvatarUploader";
+import { AvatarCropper } from "@/components/AvatarCropper";
+import { validateUpload, uploadErrorText, UPLOAD_RULES } from "@/lib/uploadRules";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
+import { NebulaCircleModal } from "@/components/NebulaCircleModal";
 
 type UserProfile = {
   id: number;
@@ -44,7 +54,7 @@ export default function NebulaUserPage() {
   const params = useParams();
   const username = String(params?.username ?? "");
   const router = useRouter();
-  const { isNebula } = useNebulaMode();
+  const { isNebula, toggleNebula } = useNebulaMode();
   const { t } = useI18n();
   const { resolvedTheme } = useTheme();
   const [ready, setReady] = useState(false);
@@ -55,6 +65,15 @@ export default function NebulaUserPage() {
   const [customAssignment, setCustomAssignment] = useState<any>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [copiedName, setCopiedName] = useState(false);
+  // 🆕 Единый профиль: редактирование своего (портировано из nebula-profile)
+  const [editing, setEditing] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [bio, setBio] = useState("");
+  const [saved, setSaved] = useState(false);
+  const [coverMenu, setCoverMenu] = useState(false);
+  const [coverError, setCoverError] = useState<string | null>(null);
+  const [showCircle, setShowCircle] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => setReady(true), []);
 
@@ -106,6 +125,94 @@ export default function NebulaUserPage() {
   const isMine = meAccount && meAccount.username === username;
 
   const startChat = () => { router.push(`/messages?user=${username}`); };
+
+  // 🆕 Единый профиль: аватар/обложка/имя/био для СВОЕГО профиля (портировано из nebula-profile)
+  const {
+    inputRef, openFilePicker, handleFileSelect, handleCropComplete,
+    cropperImage, setCropperImage,
+  } = useAvatarUploader((newUrl) => {
+    setUser((prev) => (prev ? { ...prev, avatar_url: newUrl } : prev));
+  }, "/api/me/avatar");
+
+  useEffect(() => {
+    if (user) { setDisplayName(user.display_name || ""); setBio(user.bio || ""); }
+  }, [user?.id]);
+
+  async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCoverError(null);
+    const localErr = await validateUpload(file, "banner");
+    if (localErr) { setCoverError(localErr); e.target.value = ""; return; }
+    const token = getToken();
+    if (!token) return;
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/cover`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setUser((prev) => (prev ? { ...prev, cover_url: data.cover_url } : prev));
+    } else {
+      setCoverError(await uploadErrorText(res));
+    }
+    e.target.value = "";
+  }
+
+  async function removeCover() {
+    const token = getToken();
+    if (!token) return;
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/cover`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) setUser((prev) => (prev ? { ...prev, cover_url: null } : prev));
+  }
+
+  const saveProfile = async () => {
+    const token = getToken();
+    if (!token) return;
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ display_name: displayName, bio }),
+    });
+    if (res.ok) {
+      setUser((prev) => (prev ? { ...prev, display_name: displayName, bio } : prev));
+      setEditing(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    }
+  };
+
+  const logout = () => { clearToken(); router.push("/login"); };
+
+  // 🆕 Секретный чат из меню профиля (Задача 2)
+  const startSecretChat = async () => {
+    setMenuOpen(false);
+    const token = getToken();
+    if (!token) { router.push("/login"); return; }
+    if (!user) return;
+    try {
+      await ensureKeyPair(token, process.env.NEXT_PUBLIC_API_URL!);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/secret?other_user_id=${user.id}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/messages/${data.chat_id}`);
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(typeof err?.detail === "string" ? err.detail : t("profile.secretChatFailed"));
+      }
+    } catch {
+      alert(t("common.networkError"));
+    }
+  };
 
   const copyUsername = () => {
     try { navigator.clipboard.writeText(`@${username}`); } catch {}
@@ -185,12 +292,20 @@ export default function NebulaUserPage() {
                       </button>
                     </>
                   ) : (
-                    <button
-                      onClick={() => { setMenuOpen(false); startChat(); }}
-                      className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
-                    >
-                      <MessageCircle size={15} /> {t("user.sendMessage")}
-                    </button>
+                    <>
+                      <button
+                        onClick={() => { setMenuOpen(false); startChat(); }}
+                        className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
+                      >
+                        <MessageCircle size={15} /> {t("user.sendMessage")}
+                      </button>
+                      <button
+                        onClick={startSecretChat}
+                        className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
+                      >
+                        <Lock size={15} className="text-emerald-500" /> {t("profile.secretChat")}
+                      </button>
+                    </>
                   )}
                 </div>
               </>
@@ -243,11 +358,55 @@ export default function NebulaUserPage() {
                 </div>
               ) : null}
 
+              {/* 🆕 Свой профиль: меню обложки */}
+              {isMine && (
+                <>
+                  <button
+                    onClick={() => setCoverMenu(!coverMenu)}
+                    className="absolute top-3 right-3 z-20 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white backdrop-blur-sm border border-white/25 transition-colors"
+                    title={t("profile.changeCover")}
+                  >
+                    <ImageIcon size={15} />
+                  </button>
+                  {coverMenu && (
+                    <>
+                      <div className="fixed inset-0 z-30" onClick={() => setCoverMenu(false)} />
+                      <div className="absolute top-14 right-3 z-40 min-w-[170px] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl shadow-2xl overflow-hidden">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); coverInputRef.current?.click(); setCoverMenu(false); }}
+                          className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+                        >
+                          <ImageIcon size={16} className="text-[#8b5cf6]" />
+                          {t("profile.changeCover")}
+                        </button>
+                        {user.cover_url && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); removeCover(); setCoverMenu(false); }}
+                            className="w-full px-4 py-3 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
+                          >
+                            <XIcon size={16} />
+                            {t("profile.deleteCover")}
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+
               <div className={`relative z-10 flex flex-col items-center ${hasCover ? "pt-10 md:pt-14 pb-6" : "py-10"}`}>
-                <div className="relative shrink-0 w-32 h-32 rounded-xl">
+                <div
+                  className={`relative shrink-0 w-32 h-32 rounded-xl ${isMine ? "group cursor-pointer" : ""}`}
+                  onClick={isMine ? openFilePicker : undefined}
+                >
                   <AvatarFrame user={user} availableBadges={availableBadges} size={128}>
                     <Avatar src={user.avatar_url} name={user.display_name} id={user.id} size={128} />
                   </AvatarFrame>
+                  {isMine && (
+                    <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/30 transition-colors duration-200 flex items-center justify-center pointer-events-none">
+                      <Camera size={26} className="text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    </div>
+                  )}
                 </div>
                 <div className="mt-3 flex items-center gap-2 flex-wrap justify-center">
                   <h1
@@ -257,15 +416,61 @@ export default function NebulaUserPage() {
                     {user.display_name}
                   </h1>
                   <RoleBadge user={user} activeCustomBadgeAssignment={customAssignment} size="md" />
+                  {isMine && (
+                    <button
+                      onClick={() => setEditing((v) => !v)}
+                      className="text-gray-400 hover:text-purple-500 transition-colors"
+                      title={t("profile.editProfile")}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  )}
                 </div>
                 <div className="mt-1 text-sm text-gray-500 dark:text-white/40">@{user.username}</div>
-                {user.bio && (
+                {!editing && user.bio && (
                   <p className="mt-3 text-sm text-gray-600 dark:text-white/60 text-center max-w-md px-4">{user.bio}</p>
                 )}
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 mt-6 max-w-2xl">
+            {/* 🆕 Свой профиль: форма редактирования имени/био */}
+            {isMine && editing && (
+              <div className="mt-5 max-w-xl mx-auto w-full space-y-3">
+                <input
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value.slice(0, 60))}
+                  placeholder={t("profile.namePlaceholder")}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-white/5 border border-line dark:border-white/10 text-sm focus:outline-none focus:border-purple-500/60"
+                />
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value.slice(0, 200))}
+                  placeholder={t("profile.bioPlaceholder")}
+                  rows={3}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-white/5 border border-line dark:border-white/10 text-sm resize-none focus:outline-none focus:border-purple-500/60"
+                />
+                <button
+                  onClick={saveProfile}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium py-2.5 px-6 transition-colors"
+                >
+                  <Check size={16} />
+                  {saved ? t("profile.saved") : t("profile.save")}
+                </button>
+              </div>
+            )}
+
+            {/* 🆕 Ошибка загрузки обложки */}
+            {isMine && coverError && (
+              <div className="mt-3 max-w-xl mx-auto w-full rounded-xl bg-red-500/20 border border-red-500/40 px-3 py-2 flex items-center gap-2">
+                <AlertTriangle size={14} className="text-red-600 dark:text-red-300 shrink-0" />
+                <p className="text-xs font-semibold text-red-600 dark:text-red-100 flex-1">{coverError}</p>
+                <button onClick={() => setCoverError(null)} className="p-1 shrink-0 text-red-600 dark:text-red-200 hover:text-red-800 dark:hover:text-white">
+                  <XIcon size={14} />
+                </button>
+              </div>
+            )}
+
+            <div className="grid grid-cols-3 gap-3 mt-6 max-w-2xl mx-auto w-full">
               <div className="rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 p-3 text-center">
                 <p className="text-lg font-bold text-gray-900 dark:text-white">{user.posts_count ?? 0}</p>
                 <p className="text-xs text-gray-500 dark:text-white/40">{t("user.posts")}</p>
@@ -280,19 +485,20 @@ export default function NebulaUserPage() {
               </div>
             </div>
 
-            <div className="mt-6 space-y-3 max-w-2xl">
+            {/* Действия: по центру, в одну строку с gap-2 */}
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2 max-w-2xl mx-auto w-full">
               {!isMine && (
                 <>
                   <button
                     onClick={startChat}
-                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#8b5cf6] hover:bg-purple-600 text-white text-sm font-medium py-3 transition-colors"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#8b5cf6] hover:bg-purple-600 text-white text-sm font-medium py-3 px-8 transition-colors"
                   >
                     <MessageCircle size={18} />
                     {t("user.sendMessage")}
                   </button>
                   <button
                     onClick={toggleFollow}
-                    className={`w-full flex items-center justify-center gap-2 rounded-xl text-sm font-medium py-3 transition-colors border ${
+                    className={`inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium py-3 px-8 transition-colors border ${
                       isFollowing
                         ? "border-line dark:border-white/10 text-gray-700 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5"
                         : "border-[#8b5cf6] text-[#8b5cf6] hover:bg-[#8b5cf6]/10"
@@ -301,12 +507,76 @@ export default function NebulaUserPage() {
                     {isFollowing ? <UserCheck size={18} /> : <UserPlus size={18} />}
                     {isFollowing ? t("user.unfollow") : t("user.follow")}
                   </button>
+                  <button
+                    onClick={startSecretChat}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 text-sm font-medium py-3 px-8 transition-colors"
+                    title={t("profile.secretChat")}
+                  >
+                    <Lock size={18} />
+                    {t("profile.secretChat")}
+                  </button>
                 </>
               )}
             </div>
+
+            {/* 🆕 Свой профиль: панель быстрых действий (портировано из nebula-profile) */}
+            {isMine && (
+              <div className="mt-6 max-w-2xl mx-auto w-full rounded-2xl bg-white dark:bg-[#1e1e23] border border-line dark:border-white/10 divide-y divide-line dark:divide-white/10 overflow-hidden">
+                <button
+                  onClick={() => setShowCircle(true)}
+                  className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-left"
+                >
+                  <Users size={20} className="text-[#8b5cf6] shrink-0" />
+                  <span className="flex-1 text-sm font-medium">{t("profile.circleFriends")}</span>
+                </button>
+                <button
+                  onClick={() => router.push("/nebula-settings")}
+                  className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-left"
+                >
+                  <Settings size={20} className="text-gray-400 shrink-0" />
+                  <span className="flex-1 text-sm font-medium">{t("profile.settings")}</span>
+                </button>
+                <button
+                  onClick={() => { toggleNebula(); router.push("/"); }}
+                  className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-left"
+                >
+                  <Sparkles size={20} className="text-purple-500 shrink-0" />
+                  <span className="flex-1 text-sm font-medium">{t("profile.exitNebula")}</span>
+                </button>
+                <button
+                  onClick={logout}
+                  className="w-full flex items-center gap-3 px-5 py-4 text-[#E74C3C] hover:bg-[#E74C3C]/10 transition-colors text-left"
+                >
+                  <LogOut size={20} className="shrink-0" />
+                  <span className="flex-1 text-sm font-medium">{t("profile.logout")}</span>
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
+
+      {/* 🆕 Скрытые инпуты загрузки (свой профиль) */}
+      {isMine && (
+        <>
+          <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept={UPLOAD_RULES.banner.types.join(",")}
+            className="hidden"
+            onChange={uploadCover}
+          />
+          {cropperImage ? (
+            <AvatarCropper
+              imageSrc={cropperImage}
+              onCropComplete={handleCropComplete}
+              onClose={() => setCropperImage(null)}
+            />
+          ) : null}
+          {showCircle && <NebulaCircleModal onClose={() => setShowCircle(false)} />}
+        </>
+      )}
     </div>
   );
 }
