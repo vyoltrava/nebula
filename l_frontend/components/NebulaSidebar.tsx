@@ -1,10 +1,4 @@
 "use client";
-/**
- * NebulaSidebar — sidebar for "messenger-only" mode.
- * Visually identical to the classic Sidebar: no icon backgrounds, border-b separators.
- * Slides out and pushes content. Account block at top with logout inside profile link.
- * Collapsed mode shows avatar instead of person icon.
- */
 import { useEffect, useState, useRef } from "react";
 import { useTheme } from "next-themes";
 import { resolveNickColor } from "@/lib/nickGlow";
@@ -29,7 +23,7 @@ export function NebulaSidebar() {
   const { resolvedTheme } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
-  const counts = useUnreadCounts();
+  const { counts, refresh } = useUnreadCounts();
 
   const [user, setUser] = useState<any>(null);
   const [ready, setReady] = useState(false);
@@ -60,8 +54,8 @@ export function NebulaSidebar() {
     if (!token) { router.replace("/login"); return; }
     const cached = getCachedUser();
     if (cached) { setUser(cached); setReady(true); return; }
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
-      headers: { Authorization: `Bearer ${token}` },
+    fetch(process.env.NEXT_PUBLIC_API_URL + "/api/me", {
+      headers: { Authorization: "Bearer " + token },
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => { if (data) { setUser(data); setCachedUser(data); } setReady(true); })
@@ -79,7 +73,17 @@ export function NebulaSidebar() {
     ? ({ filter: "drop-shadow(0 0 8px " + displayNickColor + ")" } as React.CSSProperties)
     : undefined;
 
-  // Mobile layout (requirement #5: same as classic)
+  // Derived values (must be declared before use)
+  const isMessagesPage = pathname?.startsWith("/messages") ?? false;
+  const isChatOpen = isMessagesPage && pathname !== "/messages";
+  const isDock = !expanded;
+  const iconClass = isDock ? "w-6 h-6 mx-auto shrink-0" : "w-[18px] h-[18px]";
+  const textClass = isDock ? "hidden" : "block";
+  const containerClass = isDock ? "justify-center px-0 py-3" : "items-center gap-3 px-4 py-3";
+  const handleLogout = () => { clearToken(); router.push("/login"); };
+  const toggleSidebar = () => setExpanded((prev) => !prev);
+
+  // Mobile layout (requirement #5: same structure as classic)
   if (isMobile) {
     return (
       <>
@@ -134,20 +138,7 @@ export function NebulaSidebar() {
         {showCircle && <NebulaCircleModal onClose={() => setShowCircle(false)} />}
       </>
     );
-  }
-
-    : undefined;
-
-  const isMessagesPage = pathname?.startsWith("/messages") ?? false;
-  const isChatOpen = isMessagesPage && pathname !== "/messages";
-  const isDock = !expanded;
-
-  const iconClass = isDock ? "w-6 h-6 mx-auto shrink-0" : "w-[18px] h-[18px]";
-  const textClass = isDock ? "hidden" : "block";
-  const containerClass = isDock ? "justify-center px-0 py-3" : "items-center gap-3 px-4 py-3";
-  const handleLogout = () => { clearToken(); router.push("/login"); };
-  const toggleSidebar = () => setExpanded((prev) => !prev);
-
+    }
 
   // Desktop layout
   const navItems = [
@@ -158,15 +149,11 @@ export function NebulaSidebar() {
 
   return (
     <>
-      <aside
-        ref={sidebarRef}
-        className={"hidden md:flex shrink-0 overflow-y-auto flex-col bg-paper dark:bg-[#171717] transition-all duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-r border-line dark:border-white/5 " + (isDock ? "md:w-20 md:min-w-20 px-0 py-4 gap-2" : "md:w-64 md:min-w-64 p-5 gap-5")}
-      >
-        {/* Top: Logo + collapse */}
+      <aside ref={sidebarRef} className={"hidden md:flex shrink-0 overflow-y-auto flex-col bg-paper dark:bg-[#171717] transition-all duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-r border-line dark:border-white/5 " + (isDock ? "md:w-20 md:min-w-20 px-0 py-4 gap-2" : "md:w-64 md:min-w-64 p-5 gap-5")}>
         <div className={"flex " + (isDock ? "justify-center" : "items-center gap-2")}>
           <BrandIcon className={isDock ? "w-8 h-8" : "w-9 h-9"} />
-          {!isDock && <h1 className="font-logo text-4xl text-[#3D1F6D] dark:text-[#8b5cf6]">trelod</h1>}
-          <button onClick={toggleSidebar} className={(isDock ? "mt-2" : "ml-auto") + " p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"} title={isDock ? "Expand" : "Collapse"}>
+                    {!isDock && <h1 className="font-logo text-4xl text-[#3D1F6D] dark:text-[#8b5cf6]">trelod</h1>}
+          <button onClick={toggleSidebar} className={(isDock ? "mt-2" : "ml-auto") + " p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"}>
             {isDock ? <ArrowLeft size={16} className="rotate-180" /> : <ArrowLeft size={16} />}
           </button>
         </div>
@@ -181,9 +168,7 @@ export function NebulaSidebar() {
                 </div>
                 {!isDock && (
                   <div className="leading-tight min-w-0 flex-1">
-                    <p className={"font-semibold text-sm truncate transition-all " + (nickGlowStyle ? "group-hover:opacity-80" : "text-gray-900 dark:text-white group-hover:text-[#8b5cf6]")} style={nickGlowStyle}>
-                      {user.display_name}
-                    </p>
+                    <p className={"font-semibold text-sm truncate transition-all " + (nickGlowStyle ? "group-hover:opacity-80" : "text-gray-900 dark:text-white group-hover:text-[#8b5cf6]")} style={nickGlowStyle}>{user.display_name}</p>
                     <p className="text-sm text-gray-500 dark:text-white/40 truncate">@{user.username}</p>
                   </div>
                 )}
@@ -198,13 +183,9 @@ export function NebulaSidebar() {
                   <LogOut size={10} />
                 </button>
               )}
-            </div>
+                        </div>
           </div>
-        )}
-
-import { BrandIcon } from "@/components/BrandIcon";
-import { NebulaCircleModal } from "@/components/NebulaCircleModal";
-
+        )}  {/* Account block at TOP (requirement #3) */}
 
         {/* Navigation */}
         <nav className="flex flex-col flex-1">
@@ -214,22 +195,13 @@ import { NebulaCircleModal } from "@/components/NebulaCircleModal";
               <span className={textClass}>Back to chats</span>
             </Link>
           )}
-
           {navItems.map(({ href, icon: Icon, label, badge, isCircle }) => {
             const active = pathname === href || (href === "/messages" && pathname?.startsWith("/messages"));
             return (
-              <button
-                key={href}
-                onClick={() => { if (isCircle) setShowCircle(true); else router.push(href); }}
-                className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 last:border-none group relative " + (active ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60")}
-              >
+              <button key={href} onClick={() => { if (isCircle) setShowCircle(true); else router.push(href); }} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 last:border-none group relative " + (active ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60")}>
                 <Icon size={18} className={iconClass + " " + (active ? "text-[#8b5cf6]" : "text-gray-700 dark:text-white/80 group-hover:text-gray-500 dark:group-hover:text-[#e0e0e0]!")} />
                 <span className={textClass}>{label}</span>
-                {badge > 0 && (
-                  <span className={(isDock ? "absolute top-2 right-2" : "ml-auto") + " bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm"}>
-                    {badge}
-                  </span>
-                )}
+                                {badge > 0 && (<span className={(isDock ? "absolute top-2 right-2" : "ml-auto") + " bg-[#8b5cf6] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-sm"}>{badge}</span>)}
               </button>
             );
           })}
@@ -239,37 +211,24 @@ import { NebulaCircleModal } from "@/components/NebulaCircleModal";
         <div className={"mt-auto pt-4 " + (isDock ? "flex flex-col items-center gap-3" : "")}>
           {!isDock && (
             <div className="px-4 flex items-center gap-2 mb-4">
-              <button onClick={() => setShowBugModal(true)} className="p-2.5 rounded-xl text-orange-400/80 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/10 transition-all" title={t("nav.reportProblem")}>
-                <Bug size={18} />
-              </button>
-              <button onClick={() => router.push("/support")} className="p-2.5 rounded-xl text-cyan-400/80 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-cyan-500/10 transition-all" title={t("nav.supportChat")}>
-                <Headphones size={18} />
-              </button>
+              <button onClick={() => setShowBugModal(true)} className="p-2.5 rounded-xl text-orange-400/80 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/10 transition-all" title={t("nav.reportProblem")}><Bug size={18} /></button>
+              <button onClick={() => router.push("/support")} className="p-2.5 rounded-xl text-cyan-400/80 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-cyan-500/10 transition-all" title={t("nav.supportChat")}><Headphones size={18} /></button>
             </div>
           )}
           {isDock && (
             <div className="flex flex-col items-center gap-2 mb-2">
-              <button onClick={() => setShowBugModal(true)} className="p-2 rounded-lg text-orange-400/80 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/10 transition-all shrink-0" title={t("nav.bugs")}>
-                <Bug size={20} className="shrink-0" />
-              </button>
-              <button onClick={() => router.push("/support")} className="p-2 rounded-lg text-cyan-400/80 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-cyan-500/10 transition-all shrink-0" title={t("nav.support")}>
-                <Headphones size={20} className="shrink-0" />
-              </button>
-              {user && (
-                <button onClick={handleLogout} className="p-2 rounded-lg text-gray-500 dark:text-white/40 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0" title={t("nav.logout")}>
-                  <LogOut size={20} className="shrink-0" />
-                </button>
-              )}
+              <button onClick={() => setShowBugModal(true)} className="p-2 rounded-lg text-orange-400/80 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/10 transition-all shrink-0" title={t("nav.bugs")}><Bug size={20} className="shrink-0" /></button>
+              <button onClick={() => router.push("/support")} className="p-2 rounded-lg text-cyan-400/80 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-cyan-500/10 transition-all shrink-0" title={t("nav.support")}><Headphones size={20} className="shrink-0" /></button>
+              {user && (<button onClick={handleLogout} className="p-2 rounded-lg text-gray-500 dark:text-white/40 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0" title={t("nav.logout")}><LogOut size={20} className="shrink-0" /></button>)}
             </div>
           )}
         </div>
       </aside>
 
       {showBugModal && <BugReportModal onClose={() => setShowBugModal(false)} />}
-      {showAccountSwitcher && (
-        <AccountSwitcher variant="orbit" isOpen={showAccountSwitcher} onClose={() => setShowAccountSwitcher(false)} />
-      )}
+      {showAccountSwitcher && (<AccountSwitcher variant="orbit" isOpen={showAccountSwitcher} onClose={() => setShowAccountSwitcher(false)} />)}
       {showCircle && <NebulaCircleModal onClose={() => setShowCircle(false)} />}
     </>
   );
 }
+
