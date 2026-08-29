@@ -7,7 +7,7 @@
  * Мобилка: тема ОРБИТЫ (как в классическом Sidebar) — плавающая кнопка
  *     у правого края, по тапу раскрывает дугу с кнопками ПК-сайдбара.
  */
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useTheme } from "next-themes";
 import { resolveNickColor } from "@/lib/nickGlow";
 import { usePathname, useRouter } from "next/navigation";
@@ -27,6 +27,23 @@ import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { BrandIcon } from "@/components/BrandIcon";
 import { NebulaCircleModal } from "@/components/NebulaCircleModal";
 
+// 🪐 Геометрия орбиты (мобилка Nebula) — пункты по кругу вокруг точки зажима
+const ORBIT_R = 120;
+function orbitPoint(cx: number, cy: number, i: number, n: number) {
+  const a = -Math.PI / 2 + (2 * Math.PI * i) / n;
+  return { x: cx + ORBIT_R * Math.cos(a), y: cy + ORBIT_R * Math.sin(a) };
+}
+function nearestOrbitIdx(cx: number, cy: number, n: number, x: number, y: number): number | null {
+  let best: number | null = null;
+  let bestD = Infinity;
+  for (let i = 0; i < n; i++) {
+    const p = orbitPoint(cx, cy, i, n);
+    const d = Math.hypot(p.x - x, p.y - y);
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  return bestD <= 64 ? best : null;
+}
+
 export function NebulaSidebar() {
   const { t } = useI18n();
   const { resolvedTheme } = useTheme();
@@ -41,8 +58,16 @@ export function NebulaSidebar() {
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [showCircle, setShowCircle] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [wheelOpen, setWheelOpen] = useState(false);
+  const [wheelPos, setWheelPos] = useState<{ x: number; y: number } | null>(null);
+  const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const sidebarRef = useRef<HTMLElement>(null);
+  const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressStartRef = useRef<{ x: number; y: number } | null>(null);
+  const wheelPosRef = useRef(wheelPos);
+  const hoveredIdxRef = useRef<number | null>(null);
+  const holdOpenedRef = useRef(false);
+  useEffect(() => { wheelPosRef.current = wheelPos; }, [wheelPos]);
+  useEffect(() => { hoveredIdxRef.current = hoveredIdx; }, [hoveredIdx]);
 
   // Reset state on mount
   useEffect(() => {
@@ -50,14 +75,15 @@ export function NebulaSidebar() {
     setShowBugModal(false);
     setShowAccountSwitcher(false);
     setShowCircle(false);
-    setWheelOpen(false);
+    setWheelPos(null);
+    setHoveredIdx(null);
   }, []);
 
   useEffect(() => {
     const check = () => {
       const m = window.innerWidth < 768;
       setIsMobile(m);
-      if (m) setWheelOpen(false);
+      if (m) { setWheelPos(null); setHoveredIdx(null); }
     };
     check();
     window.addEventListener("resize", check);
@@ -136,72 +162,101 @@ export function NebulaSidebar() {
     { key: "support", icon: Headphones, label: t("nav.support"), badge: 0, run: () => router.push("/support") },
     { key: "logout", icon: LogOut, label: t("nav.logout"), badge: 0, run: handleLogout },
   ];
+  const orbitItemsRef = useRef(orbitItems);
+  useEffect(() => { orbitItemsRef.current = orbitItems; }, [orbitItems]);
+
+  // Закрыть орбиту (сброс зажима)
+  const closeWheel = useCallback(() => {
+    if (pressTimerRef.current) { clearTimeout(pressTimerRef.current); pressTimerRef.current = null; }
+    pressStartRef.current = null;
+    setWheelPos(null);
+    setHoveredIdx(null);
+  }, []);
+
+  // Орбита/состояния сбрасываются при переходе на другую страницу
+  useEffect(() => { closeWheel(); }, [pathname, closeWheel]);
+
+  // Открытие орбиты от кнопки: центр колеса левее кнопки, по центру вертикали
+  const openWheelFromButton = () => {
+    const cy = (typeof window !== "undefined" ? window.innerHeight : 0) / 2 + 8;
+    const cx = (typeof window !== "undefined" ? window.innerWidth : 0) - 150;
+    setHoveredIdx(null);
+    setWheelPos({ x: cx, y: cy });
+    try { navigator.vibrate?.(15); } catch {}
+  };
   // ════════════════════════════════════════════════════════════════
   //  📱 МОБИЛКА — тема ОРБИТЫ (как в классическом Sidebar)
   // ════════════════════════════════════════════════════════════════
   if (isMobile) {
-    // Позиции дуги: полукруг слева от кнопки (кнопка у правого края, по центру вертикали)
-    const cx = typeof window !== "undefined" ? window.innerWidth - 28 : 0;
-    const cy = typeof window !== "undefined" ? window.innerHeight / 2 + 8 : 0;
-    const R = 135;
-    const n = orbitItems.length;
-    const pos = (i: number) => {
-      const a = (Math.PI / 2) + (Math.PI * i) / (n - 1); // 90° … 270° (левый полукруг)
-      return { x: cx + R * Math.cos(a), y: cy - R * Math.sin(a) };
-    };
-
     return (
       <>
-        {/* Верхняя панель */}
-        <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-paper dark:bg-[#171717] border-b border-line dark:border-white/10">
-          <div className="flex items-center justify-between px-4 h-14">
-            {isChatOpen ? (
-              <button onClick={() => router.push("/messages")} className="p-2 -ml-2 rounded-lg text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
-                <ArrowLeft size={20} />
-              </button>
-            ) : (
-              <div className="w-8" />
-            )}
-            <div className="flex items-center gap-2">
-              <BrandIcon className="w-7 h-7" />
-              <span className="font-logo text-2xl text-[#3D1F6D] dark:text-[#8b5cf6]">Nebula</span>
-            </div>
-            <button onClick={() => user && router.push(`/nebula-user/${user.username}`)} className="p-1 rounded-full">
-              {user?.avatar_url ? (
-                <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-[#8b5cf6]/20 flex items-center justify-center">
-                  <Sparkles size={16} className="text-[#8b5cf6]" />
-                </div>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {/* 🪐 Кнопка ОРБИТЫ у правого края (стиль классического Sidebar) */}
+        {/* 🪐 Кнопка ОРБИТЫ: ТАП — открыть/закрыть дугу, ЗАЖАТИЕ (~250мс) — раскрыть дугу
+            и выбрать пункт ведением пальца (отпускание = выбор) */}
         <button
-          onClick={() => setWheelOpen((v) => !v)}
-          className={"md:hidden fixed z-[98] w-14 h-14 right-0 top-[calc(50%+8px)] -translate-y-1/2 rounded-l-full bg-paper dark:bg-[#171717]/90 backdrop-blur-sm border flex items-center justify-center shadow-lg shadow-gray-400/40 dark:shadow-black/50 transition-all duration-200 " + (wheelOpen ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/20 scale-110" : "border-line dark:border-white/10 active:scale-95")}
+          onTouchStart={(e) => {
+            const t0 = e.touches[0];
+            if (!t0) return;
+            pressStartRef.current = { x: t0.clientX, y: t0.clientY };
+            holdOpenedRef.current = false;
+            if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+            pressTimerRef.current = setTimeout(() => {
+              holdOpenedRef.current = true;
+              openWheelFromButton();
+            }, 250);
+          }}
+          onTouchMove={(e) => {
+            const t0 = e.touches[0];
+            if (!t0) return;
+            if (wheelPosRef.current) {
+              // дуга раскрыта зажатием: ведение пальца подсвечивает пункт, прокрутка заблокирована
+              if (e.cancelable) e.preventDefault();
+              const n = orbitItemsRef.current.length;
+              setHoveredIdx(nearestOrbitIdx(wheelPosRef.current.x, wheelPosRef.current.y, n, t0.clientX, t0.clientY));
+            }
+          }}
+          onTouchEnd={() => {
+            if (pressTimerRef.current) { clearTimeout(pressTimerRef.current); pressTimerRef.current = null; }
+            pressStartRef.current = null;
+            if (wheelPosRef.current) {
+              // отпускание после зажима = выбор подсвеченного пункта
+              const idx = hoveredIdxRef.current;
+              const list = orbitItemsRef.current;
+              if (idx != null && list[idx]) list[idx].run();
+              closeWheel();
+            }
+          }}
+          onTouchCancel={() => {
+            if (pressTimerRef.current) { clearTimeout(pressTimerRef.current); pressTimerRef.current = null; }
+            pressStartRef.current = null;
+          }}
+          onClick={() => {
+            // после раскрытия зажатием клик подавляем (выбор уже произошёл по отпусканию)
+            if (holdOpenedRef.current) { holdOpenedRef.current = false; return; }
+            if (wheelPosRef.current) closeWheel();
+            else openWheelFromButton();
+          }}
+          className={"md:hidden fixed z-[98] w-14 h-14 right-0 top-[calc(50%+8px)] -translate-y-1/2 rounded-l-full bg-paper dark:bg-[#171717]/90 backdrop-blur-sm border flex items-center justify-center shadow-lg shadow-gray-400/40 dark:shadow-black/50 transition-all duration-200 " + (wheelPos ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/20 scale-110" : "border-line dark:border-white/10 active:scale-95")}
           style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" } as React.CSSProperties}
           aria-label="Меню Nebula"
         >
-          <Orbit size={22} className={"transition-all duration-300 " + (wheelOpen ? "text-[#8b5cf6] rotate-[60deg]" : "text-gray-800 dark:text-white/80")} />
+          <Orbit size={22} className={"transition-all duration-300 " + (wheelPos ? "text-[#8b5cf6] rotate-[60deg]" : "text-gray-800 dark:text-white/80")} />
         </button>
 
-        {/* 🪐 Дуга орбиты — те же кнопки, что и в ПК-сайдбаре */}
-        {wheelOpen && (
+        {/* 🪐 Орбита — те же кнопки, что и в ПК-сайдбаре; открыта в точке wheelPos */}
+        {wheelPos && (
           <>
-            <div className="md:hidden fixed inset-0 z-[96] bg-black/30" onClick={() => setWheelOpen(false)} />
+            <div className="md:hidden fixed inset-0 z-[96] bg-black/30" onClick={closeWheel} />
             <div className="md:hidden fixed inset-0 z-[99] pointer-events-none" style={{ touchAction: "none" }}>
               {orbitItems.map((item, i) => {
-                const p = pos(i);
+                const p = orbitPoint(wheelPos.x, wheelPos.y, i, orbitItems.length);
+                const active = hoveredIdx === i;
                 return (
-                  <button
+                  <div
                     key={item.key}
-                    onClick={() => { setWheelOpen(false); item.run(); }}
-                    className="absolute w-12 h-12 rounded-full bg-paper dark:bg-[#1a1a1f]/95 border border-line dark:border-white/15 shadow-lg shadow-gray-400/40 dark:shadow-black/40 flex items-center justify-center text-gray-800 dark:text-white/70 hover:border-[#8b5cf6]/50 hover:bg-[#8b5cf6]/20 hover:text-[#8b5cf6] transition-all pointer-events-auto"
-                    style={{ left: p.x, top: p.y, transform: "translate(-50%, -50%)" }}
-                    title={item.label}
+                    className={"absolute w-12 h-12 rounded-full flex items-center justify-center border shadow-lg shadow-gray-400/40 dark:shadow-black/40 transition-all duration-100 " + (active
+                      ? "bg-[#8b5cf6]/25 border-[#8b5cf6] text-[#8b5cf6] scale-110"
+                      : "bg-paper dark:bg-[#1a1a1f]/95 border-line dark:border-white/15 text-gray-800 dark:text-white/70")}
+                    style={{ left: p.x, top: p.y, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
                   >
                     {item.key === "profile" && user ? (
                       user.avatar_url ? (
@@ -217,9 +272,18 @@ export function NebulaSidebar() {
                         {item.badge > 9 ? "9+" : item.badge}
                       </span>
                     )}
-                  </button>
+                  </div>
                 );
               })}
+              {/* Подпись выбранного пункта */}
+              {hoveredIdx != null && orbitItems[hoveredIdx] && (
+                <div
+                  className="absolute -translate-x-1/2 px-2.5 py-1 rounded-full bg-paper dark:bg-[#1a1a1f]/95 border border-line dark:border-white/15 text-[11px] font-semibold text-gray-800 dark:text-white/80 whitespace-nowrap shadow-md"
+                  style={{ left: wheelPos.x, top: wheelPos.y + ORBIT_R + 18 }}
+                >
+                  {orbitItems[hoveredIdx].label}
+                </div>
+              )}
             </div>
           </>
         )}
@@ -281,12 +345,7 @@ export function NebulaSidebar() {
                   <LogOut size={18} />
                 </button>
               )}
-              {isDock && (
-                <button onClick={() => setShowAccountSwitcher(true)} className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" title={t("nav.logout")}>
-                  <LogOut size={10} />
-                </button>
-              )}
-                        </div>
+            </div>
           </div>
         )}  {/* Account block at TOP (requirement #3) */}
 

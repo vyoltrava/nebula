@@ -9,7 +9,7 @@
  *  - Нет постов, нет ленты — только профиль для общения
  */
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, MessageCircle, UserPlus, UserCheck, Shield, MoreVertical } from "lucide-react";
 import { useNebulaMode } from "@/lib/useNebula";
 import { getToken } from "@/lib/auth";
@@ -28,7 +28,9 @@ type UserProfile = {
   is_moderator?: boolean;
 };
 
-export default function NebulaUserPage({ params }: { params: { username: string } }) {
+export default function NebulaUserPage() {
+  const params = useParams();
+  const username = String(params?.username ?? "");
   const router = useRouter();
   const { isNebula } = useNebulaMode();
   const [ready, setReady] = useState(false);
@@ -45,7 +47,6 @@ export default function NebulaUserPage({ params }: { params: { username: string 
   useEffect(() => {
     const token = getToken();
     if (!token) { router.replace("/login"); return; }
-    const username = params.username;
     if (!username) return;
 
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${username}`, {
@@ -61,10 +62,10 @@ export default function NebulaUserPage({ params }: { params: { username: string 
       .then((r) => (r.ok ? r.json() : { following: false }))
       .then((data) => setIsFollowing(data.following))
       .catch(() => {});
-  }, [params.username, router]);
+  }, [username, router]);
 
   const startChat = () => {
-    router.push(`/messages?user=${params.username}`);
+    router.push(`/messages?user=${username}`);
   };
 
   const toggleFollow = async () => {
@@ -72,7 +73,7 @@ export default function NebulaUserPage({ params }: { params: { username: string 
     if (!token) return;
     const method = isFollowing ? "DELETE" : "POST";
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${params.username}/follow`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${username}/follow`, {
         method,
         headers: { Authorization: `Bearer ${token}` },
       });
