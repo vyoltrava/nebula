@@ -29,6 +29,21 @@ function extractFirstUrl(text: string): string | null {
   return m ? m[0].replace(/[.,;:!?)]+$/, "") : null;
 }
 
+// 📱 Компактное время для мобильной шапки поста:
+// если пост выложен сегодня — только HH:MM (без «сегодня в …»), иначе обычный timeAgo
+function shortPostTime(date: string | Date | undefined): string {
+  if (!date) return "";
+  let d: Date;
+  if (typeof date === "string" && !date.endsWith("Z") && !date.includes("+")) d = new Date(date + "Z");
+  else d = new Date(date);
+  if (isNaN(d.getTime())) return "";
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  }
+  return timeAgo(date);
+}
+
 function SmartMedia({ src, type, className }: { src: string; type?: string | null; className?: string }) {
   const [mediaKind, setMediaKind] = useState<"image" | "audio" | "video" | "loading">(() => {
     if (type === "audio") return "audio";
@@ -701,7 +716,8 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 flex-wrap text-sm min-w-0">
+            {/* Ник + бейджи + кнопки действий (эхо / жалоба / редактировать) — в одном ряду */}
+            <div className="flex items-center gap-1.5 flex-wrap text-sm min-w-0">
               <Link
                 href={`/${cleanUsername}`}
                 className={`font-bold transition-all ${
@@ -717,56 +733,52 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 is_banned={author_is_banned}
                 role={author_role}
               />
-              <span className="font-normal text-gray-600 dark:text-white/50 flex items-center gap-1.5">
-                {handle} {created_at ? `· ${timeAgo(created_at)}` : ""}
-                {isEdited && <span className="text-gray-500 dark:text-white/40 text-[10px] italic">{t("post.edited")}</span>}
-                
-                {/* Карандаш (Редактировать) */}
-                {canEdit && !is_repost && !editing && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditText(displayText);
-                      setEditing(true);
-                    }}
-                    className="text-gray-500 dark:text-white/30 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-1.5 -m-1.5 rounded-full hover:bg-blue-400/10 active:scale-95"
-                    title={currentUser?.id === author_id ? t("post.edit") : t("post.modEdit")}
-                  >
-                    <Pencil size={15} />
-                  </button>
-                )}
-                
-                {/* 🆕 Иконка Эхо (Рядом с карандашом) */}
+
+              {/* Иконка Эхо */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowEcho(true);
+                }}
+                className="text-gray-400 dark:text-white/30 hover:text-purple-600 dark:hover:text-purple-400 transition-colors p-1 -m-1 rounded-full hover:bg-purple-400/10 active:scale-95"
+                title={t("post.echo")}
+              >
+                <Radio size={15} />
+              </button>
+
+              {/* Жалоба на пост */}
+              {currentUser?.id !== author_id && !is_repost && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    setShowEcho(true);
+                    setShowReport(true);
                   }}
-                  className="text-gray-400 dark:text-white/30 hover:text-purple-600 dark:hover:text-purple-400 transition-colors p-1.5 -m-1.5 rounded-full hover:bg-purple-400/10 active:scale-95"
-                  title={t("post.echo")}
+                  className="text-gray-400 dark:text-white/30 hover:text-orange-600 dark:hover:text-orange-400 transition-colors p-1 -m-1 rounded-full hover:bg-orange-400/10 active:scale-95"
+                  title={t("post.report")}
                 >
-                  <Radio size={15} />
+                  <Flag size={15} />
                 </button>
+              )}
 
-                {/* 🆕 Жалоба на пост — вынесена к кнопке Эхо (в шапку поста) */}
-                {currentUser?.id !== author_id && !is_repost && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowReport(true);
-                    }}
-                    className="text-gray-400 dark:text-white/30 hover:text-orange-600 dark:hover:text-orange-400 transition-colors p-1.5 -m-1.5 rounded-full hover:bg-orange-400/10 active:scale-95"
-                    title={t("post.report")}
-                  >
-                    <Flag size={15} />
-                  </button>
-                )}
-              </span>
+              {/* Карандаш (Редактировать) */}
+              {canEdit && !is_repost && !editing && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditText(displayText);
+                    setEditing(true);
+                  }}
+                  className="text-gray-500 dark:text-white/30 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-1 -m-1 rounded-full hover:bg-blue-400/10 active:scale-95"
+                  title={currentUser?.id === author_id ? t("post.edit") : t("post.modEdit")}
+                >
+                  <Pencil size={15} />
+                </button>
+              )}
             </div>
             {currentUser?.id !== author_id && !is_repost && (
               <button
                 onClick={toggleFollow}
-                className={`text-xs font-bold px-3 py-1 rounded-full border transition-all shrink-0 ${
+                className={`text-[11px] sm:text-xs font-bold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border transition-all shrink-0 ${
                   following
                     ? "border-[#8b5cf6] bg-[#8b5cf6] text-white"
                     : "border-line dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white"
@@ -775,6 +787,20 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 {following ? t("post.following") : t("post.follow")}
               </button>
             )}
+          </div>
+
+          {/* Хэндл + дата — отдельной строкой под никами.
+              📱 На телефоне для сегодняшних постов показываем только время (без «сегодня в …»). */}
+          <div className="text-xs font-normal text-gray-600 dark:text-white/50 flex items-center gap-1.5 flex-wrap mt-0.5 leading-tight">
+            {handle}
+            {created_at && (
+              <>
+                <span>·</span>
+                <span className="hidden sm:inline">{timeAgo(created_at)}</span>
+                <span className="sm:hidden">{shortPostTime(created_at)}</span>
+              </>
+            )}
+            {isEdited && <span className="text-gray-500 dark:text-white/40 text-[10px] italic">{t("post.edited")}</span>}
           </div>
           
           {/* 🛡️ Предупреждение при модераторском редактировании чужого поста */}

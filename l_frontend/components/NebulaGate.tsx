@@ -14,14 +14,20 @@ import { useNebulaMode } from "@/lib/useNebula";
 import { NebulaSidebar } from "@/components/NebulaSidebar";
 
 const NEBULA_CSS = `
-html.nebula-mode .h-screen.flex > div:first-child { display: none !important; }
+/* Скрываем КЛАССИЧЕСКИЙ сайдбар (он рендерится как <aside> внутри .h-screen.flex)
+   и разделитель — на любом странице, независимо от порядка детей */
+html.nebula-mode .h-screen.flex > aside { display: none !important; }
 html.nebula-mode .h-screen.flex > .w-px { display: none !important; }
-html.nebula-mode .h-screen {
-  padding-left: var(--nebula-pad, 4rem) !important;
-  transition: padding-left 0.2s ease;
+/* Отступ под фиксированный Nebula-сайдбар — на body, чтобы работал
+   на всех страницах (включая /nebula-profile без .h-screen каркаса) */
+@media (min-width: 768px) {
+  html.nebula-mode body {
+    padding-left: var(--nebula-pad, 4rem) !important;
+    transition: padding-left 0.3s ease;
+  }
 }
-@media (min-width: 640px) {
-  html.nebula-mode .h-screen { padding-left: var(--nebula-pad, 4rem) !important; }
+@media (max-width: 767px) {
+  html.nebula-mode body { padding-left: 0 !important; }
 }
 `;
 
