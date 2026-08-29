@@ -1342,6 +1342,7 @@ def get_user_posts(
     identifier: str,
     cursor: Optional[int] = None,
     limit: int = 20,
+    viewer: Optional[User] = Depends(get_optional_user),
     session: Session = Depends(get_session),
 ):
     user = resolve_user(identifier, session)
@@ -1391,6 +1392,17 @@ def get_user_posts(
         .where(Dislike.post_id.in_(post_ids))
         .group_by(Dislike.post_id)
     ).all())
+
+    # 🆕 Загрузка лайков и дизлайков текущего пользователя (viewer)
+    liked_ids = set()
+    disliked_ids = set()
+    if viewer:
+        liked_ids = set(session.exec(
+            select(Like.post_id).where(Like.user_id == viewer.id, Like.post_id.in_(post_ids))
+        ).all())
+        disliked_ids = set(session.exec(
+            select(Dislike.post_id).where(Dislike.user_id == viewer.id, Dislike.post_id.in_(post_ids))
+        ).all())
 
     # 🆕 Массовая загрузка оригинальных постов для репостов
     repost_ids = list({p.repost_of_id for p in posts if p.repost_of_id})
@@ -1456,9 +1468,9 @@ def get_user_posts(
             "text": p.text,
             "media_url": p.media_url,
             "likes_count": likes_counts.get(p.id, 0),
-            "liked_by_me": False,
+            "liked_by_me": p.id in liked_ids,
             "dislikes_count": dislikes_counts.get(p.id, 0),
-            "disliked_by_me": False,
+            "disliked_by_me": p.id in disliked_ids,
             "replies_count": replies_counts.get(p.id, 0),
             "views_count": p.views_count or 0,
             "created_at": p.created_at.isoformat(),
@@ -8564,20 +8576,21 @@ def get_user_posts_by_username(
     username: str,
     cursor: Optional[int] = None,
     limit: int = 20,
+    viewer: Optional[User] = Depends(get_optional_user),
     session: Session = Depends(get_session),
 ):
     """Получить посты пользователя по username"""
     clean_username = username.lstrip("@").lower()
-    
+
     user = session.exec(
         select(User).where(func.lower(User.username) == clean_username)
     ).first()
-    
+
     if not user:
         raise HTTPException(404, "User not found")
-    
+
     # Используем ту же логику, что и get_user_posts
-    return get_user_posts(str(user.id), cursor, limit, session)
+    return get_user_posts(str(user.id), cursor, limit, viewer, session)
 
 
 @app.get("/api/users/by-username/{username}/followers")

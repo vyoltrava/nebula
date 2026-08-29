@@ -203,11 +203,11 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     window.addEventListener("like-sync", handlePostSync);
     window.addEventListener("dislike-sync", handlePostSync);
     
-    return () => {
+        return () => {
       window.removeEventListener("like-sync", handlePostSync);
       window.removeEventListener("dislike-sync", handlePostSync);
     };
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     loadBadges();

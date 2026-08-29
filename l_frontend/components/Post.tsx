@@ -213,16 +213,19 @@ export function Post({
     });
 
     useEffect(() => {
-      // Серверный false не перетирает кэш (API профиля багованный)
+      // При смене аккаунта / изменении liked_by_me синхронизируем локальный стейт
       if (liked_by_me === true) {
         setLiked(true);
         setLikedCache(id, true);
+      } else if (liked_by_me === false) {
+        setLiked(false);
+        setLikedCache(id, false);
       }
     }, [id, liked_by_me]);
 
     const [disliked, setDisliked] = useState<boolean>(disliked_by_me === true);
     useEffect(() => {
-      if (disliked_by_me === true) setDisliked(true);
+      setDisliked(disliked_by_me === true);
     }, [id, disliked_by_me]);
 
     const [dislikeCount, setDislikeCount] = useState(dislikes_count ?? 0);
@@ -889,12 +892,12 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               onClick={toggleDislike}
               className={`flex items-center gap-1 py-1.5 pl-2.5 pr-3 transition-all ${
                 disliked
-                  ? "bg-red-500 text-white"
+                  ? "bg-gray-100 dark:bg-white/10"
                   : "text-gray-800 dark:text-white/70 hover:text-red-500"
               }`}
               title={disliked ? "Отменить дизлайк" : "Дизлайк"}
             >
-              <HeartCrack size={16} fill={disliked ? "currentColor" : "none"} />
+              <HeartCrack size={16} className={disliked ? "text-red-500 fill-red-500" : "text-gray-500 dark:text-gray-400"} />
               <span className="text-sm font-semibold">{dislikeCount}</span>
             </button>
           </div>
