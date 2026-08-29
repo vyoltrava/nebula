@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, MessageCircle, UserPlus, UserCheck, Shield, MoreVertical, Copy, Settings, User } from "lucide-react";
 import { useNebulaMode } from "@/lib/useNebula";
+import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { getToken, getActiveAccount } from "@/lib/auth";
 import { Avatar } from "@/components/Avatar";
 
@@ -33,6 +34,7 @@ export default function NebulaUserPage() {
   const username = String(params?.username ?? "");
   const router = useRouter();
   const { isNebula } = useNebulaMode();
+  const { t } = useI18n();
   const [ready, setReady] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -106,7 +108,7 @@ export default function NebulaUserPage() {
           >
             <ArrowLeft size={20} />
           </button>
-          <span className="text-sm font-semibold text-gray-900 dark:text-white">Профиль</span>
+          <span className="text-sm font-semibold text-gray-900 dark:text-white">{t("user.profileTitle")}</span>
           <div className="relative">
             <button
               onClick={() => setMenuOpen((v) => !v)}
@@ -123,7 +125,7 @@ export default function NebulaUserPage() {
                     className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
                   >
                     <Copy size={15} />
-                    {copiedName ? "Скопировано!" : "Скопировать @username"}
+                    {copiedName ? t("user.copied") : t("user.copyUsername")}
                   </button>
                   {isMine ? (
                     <>
@@ -131,13 +133,13 @@ export default function NebulaUserPage() {
                         onClick={() => { setMenuOpen(false); router.push("/nebula-profile"); }}
                         className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
                       >
-                        <User size={15} /> Мой профиль
+                        <User size={15} /> {t("user.myProfile")}
                       </button>
                       <button
                         onClick={() => { setMenuOpen(false); router.push("/nebula-settings"); }}
                         className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
                       >
-                        <Settings size={15} /> Настройки
+                        <Settings size={15} /> {t("user.settings")}
                       </button>
                     </>
                   ) : (
@@ -145,7 +147,7 @@ export default function NebulaUserPage() {
                       onClick={() => { setMenuOpen(false); startChat(); }}
                       className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
                     >
-                      <MessageCircle size={15} /> Написать сообщение
+                      <MessageCircle size={15} /> {t("user.sendMessage")}
                     </button>
                   )}
                 </div>
@@ -159,13 +161,13 @@ export default function NebulaUserPage() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <div className="w-10 h-10 border-2 border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-gray-500 dark:text-white/40">Загрузка профиля...</p>
+            <p className="text-sm text-gray-500 dark:text-white/40">{t("user.loading")}</p>
           </div>
         ) : !user ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <p className="text-sm text-gray-500 dark:text-white/40">Пользователь не найден</p>
+            <p className="text-sm text-gray-500 dark:text-white/40">{t("user.notFound")}</p>
             <button onClick={() => router.push("/messages")} className="text-sm text-[#8b5cf6] font-semibold">
-              К чатам
+              {t("user.toChats")}
             </button>
           </div>
         ) : (
@@ -194,15 +196,15 @@ export default function NebulaUserPage() {
             <div className="grid grid-cols-3 gap-3 mb-6">
               <div className="rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 p-3 text-center">
                 <p className="text-lg font-bold text-gray-900 dark:text-white">{user.posts_count ?? 0}</p>
-                <p className="text-xs text-gray-500 dark:text-white/40">Постов</p>
+                <p className="text-xs text-gray-500 dark:text-white/40">{t("user.posts")}</p>
               </div>
               <div className="rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 p-3 text-center">
                 <p className="text-lg font-bold text-gray-900 dark:text-white">{user.followers_count ?? 0}</p>
-                <p className="text-xs text-gray-500 dark:text-white/40">Подписчиков</p>
+                <p className="text-xs text-gray-500 dark:text-white/40">{t("user.followers")}</p>
               </div>
               <div className="rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 p-3 text-center">
                 <p className="text-lg font-bold text-gray-900 dark:text-white">{user.following_count ?? 0}</p>
-                <p className="text-xs text-gray-500 dark:text-white/40">Подписок</p>
+                <p className="text-xs text-gray-500 dark:text-white/40">{t("user.following")}</p>
               </div>
             </div>
 
@@ -214,7 +216,7 @@ export default function NebulaUserPage() {
                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#8b5cf6] hover:bg-purple-600 text-white text-sm font-medium py-3 transition-colors"
               >
                 <MessageCircle size={18} />
-                Написать сообщение
+                {t("user.sendMessage")}
               </button>
 
               <button
@@ -226,7 +228,7 @@ export default function NebulaUserPage() {
                 }`}
               >
                 {isFollowing ? <UserCheck size={18} /> : <UserPlus size={18} />}
-                {isFollowing ? "Отписаться" : "Подписаться"}
+                {isFollowing ? t("user.unfollow") : t("user.follow")}
               </button>
               </>
               )}

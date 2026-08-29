@@ -323,6 +323,20 @@ export const uk = {
     ban: "Заблокувати",
     report: "Поскаржитися",
     loadMore: "Завантажити ще",
+
+    backToChats: "Назад до чатів",
+    fallbackName: "Користувач",
+    editProfile: "Редагувати профіль",
+    namePlaceholder: "Ім'я",
+    bioPlaceholder: "Про себе",
+    saved: "Збережено!",
+    save: "Зберегти",
+    nebulaMode: "Режим Nebula",
+    circleFriends: "Коло друзів",
+    settings: "Налаштування",
+    exitNebula: "Вийти з режиму Nebula",
+    logout: "Вийти з акаунта",
+
   },
   tag: {
     noPosts: "Дописів з цим тегом поки що немає",
@@ -775,6 +789,37 @@ community: {
   tabForumShort: "Форум",
 },
 
+
+user: {
+  profileTitle: "Профіль",
+  copied: "Скопійовано!",
+  copyUsername: "Копіювати @username",
+  myProfile: "Мій профіль",
+  settings: "Налаштування",
+  sendMessage: "Написати повідомлення",
+  loading: "Завантаження профілю...",
+  notFound: "Користувача не знайдено",
+  toChats: "До чатів",
+  posts: "Постів",
+  followers: "Підписників",
+  following: "Підписок",
+  follow: "Підписатись",
+  unfollow: "Відписатись",
+},
+appearance: {
+  quickReactionHint: "Подвійний тап по повідомленню ставить цю реакцію",
+  sticker: "Стікер",
+  emoji: "Емодзі",
+  emojiTab: "Емодзі",
+  chooseReaction: "Вибрати реакцію",
+  resetReaction: "Скинути реакцію",
+  clear: "Очистити",
+  loadingPacks: "Завантаження паків...",
+  packLocked: "Пак заблокований",
+  packLockedLevel: "Доступний з рівня",
+  noPacks: "Немає доступних паків",
+  noData: "Немає даних",
+},
 
 };
 export type Dictionary = typeof uk;

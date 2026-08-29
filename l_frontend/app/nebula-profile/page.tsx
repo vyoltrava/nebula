@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 /**
  * Nebula: окно своего профиля — аватар, имя, username,
@@ -11,6 +11,7 @@ import {
   ArrowLeft, Settings, LogOut, Check, Pencil, Sparkles, Users,
 } from "lucide-react";
 import { useNebulaMode } from "@/lib/useNebula";
+import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { getToken, clearToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { Avatar } from "@/components/Avatar";
@@ -28,6 +29,7 @@ type Me = {
 export default function NebulaProfilePage() {
   const router = useRouter();
   const { isNebula, toggleNebula } = useNebulaMode();
+  const { t } = useI18n();
   const [ready, setReady] = useState(false);
   const [me, setMe] = useState<Me | null>(null);
   const [displayName, setDisplayName] = useState("");
@@ -121,13 +123,13 @@ export default function NebulaProfilePage() {
           className="flex items-center gap-2 text-sm text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white mb-6 transition-colors"
         >
           <ArrowLeft size={16} />
-          азад к чатам
+          {t("profile.backToChats")}
         </button>
 
         <div className="flex flex-col items-center py-8 rounded-2xl bg-white dark:bg-[#1e1e23] border border-line dark:border-white/10 mb-6">
           <button
             onClick={openFilePicker}
-            title="Сменить аватар"
+            title={t("profile.changeAvatar")}
             className="rounded-full hover:ring-4 hover:ring-purple-500/25 transition-all"
           >
             {avatarUrl ? (
@@ -139,11 +141,11 @@ export default function NebulaProfilePage() {
             )}
           </button>
           <div className="mt-4 text-xl font-bold text-center flex items-center gap-2">
-            {displayName || "ользователь"}
+            {displayName || t("profile.fallbackName")}
             <button
               onClick={() => setEditing((v) => !v)}
               className="text-gray-400 hover:text-purple-500 transition-colors"
-              title="едактировать профиль"
+              title={t("profile.editProfile")}
             >
               <Pencil size={16} />
             </button>
@@ -160,13 +162,13 @@ export default function NebulaProfilePage() {
               <input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value.slice(0, 60))}
-                placeholder="мя"
+                placeholder={t("profile.namePlaceholder")}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-sm focus:outline-none focus:border-purple-500/60"
               />
               <textarea
                 value={bio}
                 onChange={(e) => setBio(e.target.value.slice(0, 200))}
-                placeholder="  себе"
+                placeholder={t("profile.bioPlaceholder")}
                 rows={3}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-sm resize-none focus:outline-none focus:border-purple-500/60"
               />
@@ -175,14 +177,14 @@ export default function NebulaProfilePage() {
                 className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium py-2.5 transition-colors"
               >
                 <Check size={16} />
-                {saved ? "Сохранено!" : "Сохранить"}
+                {saved ? t("profile.saved") : t("profile.save")}
               </button>
             </div>
           )}
 
           <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-purple-500/10 border border-purple-500/25 px-3 py-1 text-xs font-medium text-purple-500">
             <Sparkles size={12} />
-            ежим Nebula
+            {t("profile.nebulaMode")}
           </div>
         </div>
 
@@ -192,28 +194,28 @@ export default function NebulaProfilePage() {
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-left"
           >
             <Users size={20} className="text-[#8b5cf6] shrink-0" />
-            <span className="flex-1 text-sm font-medium">руг друзей</span>
+            <span className="flex-1 text-sm font-medium">{t("profile.circleFriends")}</span>
           </button>
           <button
             onClick={() => router.push("/nebula-settings")}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-left"
           >
             <Settings size={20} className="text-gray-400 shrink-0" />
-            <span className="flex-1 text-sm font-medium">астройки</span>
+            <span className="flex-1 text-sm font-medium">{t("profile.settings")}</span>
           </button>
           <button
             onClick={() => { toggleNebula(); router.push("/"); }}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-left"
           >
             <Sparkles size={20} className="text-purple-500 shrink-0" />
-            <span className="flex-1 text-sm font-medium">ыйти из режима Nebula</span>
+            <span className="flex-1 text-sm font-medium">{t("profile.exitNebula")}</span>
           </button>
           <button
             onClick={logout}
             className="w-full flex items-center gap-3 px-5 py-4 text-[#E74C3C] hover:bg-[#E74C3C]/10 transition-colors text-left"
           >
             <LogOut size={20} className="shrink-0" />
-            <span className="flex-1 text-sm font-medium">ыйти из аккаунта</span>
+            <span className="flex-1 text-sm font-medium">{t("profile.logout")}</span>
           </button>
         </div>
       </div>

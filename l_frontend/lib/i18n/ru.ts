@@ -323,6 +323,20 @@ export const ru: Dictionary = {
     ban: "Забанить",
     report: "Пожаловаться",
     loadMore: "Загрузить ещё",
+
+    backToChats: "Назад к чатам",
+    fallbackName: "Пользователь",
+    editProfile: "Редактировать профиль",
+    namePlaceholder: "Имя",
+    bioPlaceholder: "О себе",
+    saved: "Сохранено!",
+    save: "Сохранить",
+    nebulaMode: "Режим Nebula",
+    circleFriends: "Круг друзей",
+    settings: "Настройки",
+    exitNebula: "Выйти из режима Nebula",
+    logout: "Выйти из аккаунта",
+
   },
   tag: {
     noPosts: "Пока нет постов с этим тегом",
@@ -775,6 +789,37 @@ community: {
   tabForum: "Форум предложений",
   tabForumShort: "Форум",
 },
+user: {
+  profileTitle: "Профиль",
+  copied: "Скопировано!",
+  copyUsername: "Скопировать @username",
+  myProfile: "Мой профиль",
+  settings: "Настройки",
+  sendMessage: "Написать сообщение",
+  loading: "Загрузка профиля...",
+  notFound: "Пользователь не найден",
+  toChats: "К чатам",
+  posts: "Постов",
+  followers: "Подписчиков",
+  following: "Подписок",
+  follow: "Подписаться",
+  unfollow: "Отписаться",
+},
+appearance: {
+  quickReactionHint: "Двойной тап по сообщению ставит эту реакцию",
+  sticker: "Стикер",
+  emoji: "Эмодзи",
+  emojiTab: "Эмодзи",
+  chooseReaction: "Выбрать реакцию",
+  resetReaction: "Сбросить реакцию",
+  clear: "Очистить",
+  loadingPacks: "Загрузка паков...",
+  packLocked: "Пак заблокирован",
+  packLockedLevel: "Доступен с уровня",
+  noPacks: "Нет доступных паков",
+  noData: "Нет данных",
+},
+
 };
 
 

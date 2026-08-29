@@ -114,7 +114,7 @@ export function AppearanceSettings() {
           <SmilePlus size={18} className="text-amber-500 shrink-0" />
           <h3 className="text-sm font-bold text-gray-900 dark:text-white">{t("messages.quickReaction")}</h3>
         </div>
-        <p className="text-xs text-gray-500 dark:text-white/40 mb-3">войной тап по сообщению ставит эту реакцию</p>
+        <p className="text-xs text-gray-500 dark:text-white/40 mb-3">{t("appearance.quickReactionHint")}</p>
 
         <button type="button" onClick={() => { setActivePackTab(-1); setPickerOpen(true); }}
           className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors text-left">
@@ -122,10 +122,10 @@ export function AppearanceSettings() {
             {preview ? (
               <>
                 <span className="shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-white dark:bg-white/10 border border-line dark:border-white/10">{preview}</span>
-                <span className="truncate text-xs text-gray-500 dark:text-white/50">{quickReaction?.type === "sticker" ? "Стикер" : "модзи"}</span>
+                <span className="truncate text-xs text-gray-500 dark:text-white/50">{quickReaction?.type === "sticker" ? t("appearance.sticker") : t("appearance.emoji")}</span>
               </>
             ) : (
-              <span className="text-gray-500 dark:text-white/50">ыбрать реакцию</span>
+              <span className="text-gray-500 dark:text-white/50">{t("appearance.chooseReaction")}</span>
             )}
           </span>
           <ChevronDown size={14} className="text-gray-500 dark:text-white/40 shrink-0" />
@@ -133,7 +133,7 @@ export function AppearanceSettings() {
 
         {quickReaction && (
           <button type="button" onClick={() => clearReaction()} className="mt-2 text-xs text-red-500 hover:text-red-600 transition-colors">
-            Сбросить реакцию
+            {t("appearance.resetReaction")}
           </button>
         )}
       </div>
@@ -154,7 +154,7 @@ export function AppearanceSettings() {
                   <button type="button" onClick={() => setActivePackTab(-1)}
                     className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap shrink-0 transition-all ${
                       activePackTab === -1 ? "bg-[#8b5cf6] text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50 hover:bg-white/10"
-                    }`}>модзи</button>
+                    }`}>{t("appearance.emojiTab")}</button>
                   {stickerPacks.map((pack, i) => {
                     const locked = (pack.min_level || 0) > userLevel || !!pack.locked;
                     return (
@@ -183,18 +183,18 @@ export function AppearanceSettings() {
                       );
                     })}
                     <button type="button" onClick={() => { clearReaction(); setPickerOpen(false); }}
-                      className="text-[11px] font-medium text-red-500 rounded-xl hover:bg-red-500/10 transition-colors flex items-center justify-center">чистить</button>
+                      className="text-[11px] font-medium text-red-500 rounded-xl hover:bg-red-500/10 transition-colors flex items-center justify-center">{t("appearance.clear")}</button>
                   </div>
                 ) : stickerPacks.length === 0 ? (
-                  <div className="py-8 text-center text-sm text-gray-500 dark:text-white/40">агрузка паков...</div>
+                  <div className="py-8 text-center text-sm text-gray-500 dark:text-white/40">{t("appearance.loadingPacks")}</div>
                 ) : stickerPacks[activePackTab] ? (
                   ((stickerPacks[activePackTab].min_level || 0) > userLevel || stickerPacks[activePackTab].locked) ? (
                     <div className="flex flex-col items-center gap-2 py-8 text-center">
                       <div className="w-12 h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
                         <Lock size={18} className="text-yellow-600 dark:text-yellow-400" />
                       </div>
-                      <p className="text-sm font-bold text-gray-900 dark:text-white">ак заблокирован</p>
-                      <p className="text-[11px] text-gray-500 dark:text-white/40 max-w-[220px]">оступен с уровня {stickerPacks[activePackTab].min_level}.</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">{t("appearance.packLocked")}</p>
+                      <p className="text-[11px] text-gray-500 dark:text-white/40 max-w-[220px]">{t("appearance.packLockedLevel")} {stickerPacks[activePackTab].min_level}.</p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-6 gap-1.5">
@@ -207,7 +207,7 @@ export function AppearanceSettings() {
                           <button key={st.id} type="button" onClick={() => { saveReaction({ type, content, stickerId }); setPickerOpen(false); }}
                             className={`aspect-square flex items-center justify-center rounded-xl transition-all ${
                               isActive ? "ring-2 ring-[#8b5cf6] bg-[#8b5cf6]/20" : "hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90"
-                            }`} title={type === "emoji" ? "модзи" : "Стикер"}>
+                            }`} title={type === "emoji" ? t("appearance.emoji") : t("appearance.sticker")}>
                             {type === "emoji" ? (
                               <span className="text-2xl">{content}</span>
                             ) : (
@@ -220,7 +220,7 @@ export function AppearanceSettings() {
                   )
                 ) : (
                   <div className="py-8 text-center text-gray-600 dark:text-white/50 text-sm">
-                    {stickerPacks.length === 0 ? "ет доступных паков" : "ет данных"}
+                    {stickerPacks.length === 0 ? t("appearance.noPacks") : t("appearance.noData")}
                   </div>
                 )}
               </div>
