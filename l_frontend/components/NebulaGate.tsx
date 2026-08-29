@@ -50,7 +50,10 @@ export function NebulaGate() {
     if (!ready || !isNebula) return;
     const allowed =
       pathname.startsWith("/messages") ||
-      pathname.startsWith("/nebula-settings");
+      pathname.startsWith("/nebula-settings") ||
+      pathname.startsWith("/nebula-profile") ||
+      pathname.startsWith("/settings") ||
+      pathname.startsWith("/login");
     if (!allowed) router.replace("/messages");
   }, [ready, isNebula, pathname, router]);
 

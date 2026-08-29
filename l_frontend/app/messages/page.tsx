@@ -127,7 +127,21 @@ export default function MessagesPage() {
     });
   }, [allChats, query]);
 
-function getGlowColor(user: any): string | null {
+  // Nebula: поддержка ?create=prism (и ?create=group) — открытие
+  // окна создания из Nebula-оболочки
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const create = new URLSearchParams(window.location.search).get("create");
+    if (create === "prism") {
+      setShowPrismModal(true);
+      window.history.replaceState({}, "", "/messages");
+    } else if (create === "group") {
+      setShowCreateGroup(true);
+      window.history.replaceState({}, "", "/messages");
+    }
+  }, []);
+
+  function getGlowColor(user: any): string | null {
 if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   if (user?.is_admin) return "#fff";
   if (user?.is_moderator) return "#3b82f6";

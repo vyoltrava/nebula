@@ -48,6 +48,13 @@ export default function SettingsPage() {
 
   const [view, setView] = useState<View>("profile");
 
+  // Поддержка ?view=... (например, из Nebula-настроек: /settings?view=security)
+  useEffect(() => {
+    const v = new URLSearchParams(window.location.search).get("view");
+    const valid: View[] = ["profile", "appearance", "notifications", "permissions", "messages", "security", "nebula"];
+    if (v && valid.includes(v as View)) setView(v as View);
+  }, []);
+
   // Пароли
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -337,7 +344,7 @@ async function activate2FA() {
         {/* ===== Шапка ===== */}
         <header className="flex items-center gap-3 mb-6">
           <button
-            onClick={() => router.push("/")}
+            onClick={() => router.push(isNebula ? "/messages" : "/")}
             className="w-10 h-10 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-[#1E1E23] text-[#B9B8BD] hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-center transition-colors"
             aria-label={t("common.back")}
           >
