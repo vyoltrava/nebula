@@ -79,11 +79,24 @@ export function NebulaSidebar() {
     const check = () => {
       const m = window.innerWidth < 768;
       setIsMobile(m);
-      if (m) { setWheelPos(null); setHoveredIdx(null); }
+    };
+    // 🔄 Поворот экрана / изменение размеров: сбрасываем открытую орбиту,
+    //    иначе её координаты и кнопка перестают соответствовать новому вьюпорту
+    const reset = () => {
+      if (pressTimerRef.current) { clearTimeout(pressTimerRef.current); pressTimerRef.current = null; }
+      pressStartRef.current = null;
+      setWheelReady(false);
+      setClosing(false);
+      setWheelPos(null);
+      setHoveredIdx(null);
     };
     check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
+    window.addEventListener("resize", reset);
+    window.addEventListener("orientationchange", reset);
+    return () => {
+      window.removeEventListener("resize", reset);
+      window.removeEventListener("orientationchange", reset);
+    };
   }, []);
 
   // Отступ контента под сайдбар: dock = 5rem, expanded = 16rem (применяется на ПК через CSS gate)

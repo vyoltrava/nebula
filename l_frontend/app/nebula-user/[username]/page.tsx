@@ -10,9 +10,9 @@
  */
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, MessageCircle, UserPlus, UserCheck, Shield, MoreVertical } from "lucide-react";
+import { ArrowLeft, MessageCircle, UserPlus, UserCheck, Shield, MoreVertical, Copy, Settings, User } from "lucide-react";
 import { useNebulaMode } from "@/lib/useNebula";
-import { getToken } from "@/lib/auth";
+import { getToken, getActiveAccount } from "@/lib/auth";
 import { Avatar } from "@/components/Avatar";
 
 type UserProfile = {
@@ -62,10 +62,23 @@ export default function NebulaUserPage() {
       .then((r) => (r.ok ? r.json() : { following: false }))
       .then((data) => setIsFollowing(data.following))
       .catch(() => {});
-  }, [username, router]);
+     }, [username, router]);
+
+  // 🆕 На своём профиле кнопки «Подписаться/Написать» не показываем
+  const meAccount = getActiveAccount();
+  const isMine = meAccount && meAccount.username === username;
 
   const startChat = () => {
     router.push(`/messages?user=${username}`);
+  };
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [copiedName, setCopiedName] = useState(false);
+  const copyUsername = () => {
+    try { navigator.clipboard.writeText(`@${username}`); } catch {}
+    setCopiedName(true);
+    setTimeout(() => setCopiedName(false), 1500);
+    setMenuOpen(false);
   };
 
   const toggleFollow = async () => {
@@ -94,9 +107,51 @@ export default function NebulaUserPage() {
             <ArrowLeft size={20} />
           </button>
           <span className="text-sm font-semibold text-gray-900 dark:text-white">Профиль</span>
-          <button className="p-2 -mr-2 rounded-lg text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
-            <MoreVertical size={20} />
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="p-2 -mr-2 rounded-lg text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+            >
+              <MoreVertical size={20} />
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl shadow-2xl overflow-hidden">
+                  <button
+                    onClick={copyUsername}
+                    className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
+                  >
+                    <Copy size={15} />
+                    {copiedName ? "Скопировано!" : "Скопировать @username"}
+                  </button>
+                  {isMine ? (
+                    <>
+                      <button
+                        onClick={() => { setMenuOpen(false); router.push("/nebula-profile"); }}
+                        className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
+                      >
+                        <User size={15} /> Мой профиль
+                      </button>
+                      <button
+                        onClick={() => { setMenuOpen(false); router.push("/nebula-settings"); }}
+                        className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
+                      >
+                        <Settings size={15} /> Настройки
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => { setMenuOpen(false); startChat(); }}
+                      className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
+                    >
+                      <MessageCircle size={15} /> Написать сообщение
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -151,7 +206,9 @@ export default function NebulaUserPage() {
               </div>
             </div>
 
-            <div className="space-y-3">
+                        <div className="space-y-3">
+              {!isMine && (
+              <>
               <button
                 onClick={startChat}
                 className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#8b5cf6] hover:bg-purple-600 text-white text-sm font-medium py-3 transition-colors"
@@ -171,6 +228,8 @@ export default function NebulaUserPage() {
                 {isFollowing ? <UserCheck size={18} /> : <UserPlus size={18} />}
                 {isFollowing ? "Отписаться" : "Подписаться"}
               </button>
+              </>
+              )}
             </div>
           </>
         )}

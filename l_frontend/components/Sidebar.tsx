@@ -456,10 +456,38 @@ const continueConfig = lastReadPost
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
     const update = () => setIsMobile(mq.matches);
+    // 🔄 Поворот / resize: сбрасываем открытую орбиту — иначе координаты
+    // дуги и точка касания перестают соответствовать новому вьюпорту
+    const resetOrbit = () => {
+      update();
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
+      isLongPressed.current = false;
+      isDraggingRef.current = false;
+      setWheelOpen(false);
+      setWheelReady(false);
+      setClosing(false);
+      setHoveredIdx(null);
+      setFingerPos(null);
+      setPullingBack(false);
+      setScrollVelocity(0);
+      scrollVelocityRef.current = 0;
+      smoothVelocityRef.current = 0;
+      try { setBodySelectionLock(false); } catch {}
+    };
     update();
     mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
+    window.addEventListener("orientationchange", resetOrbit);
+    window.addEventListener("resize", resetOrbit);
+    return () => {
+      mq.removeEventListener("change", update);
+      window.removeEventListener("orientationchange", resetOrbit);
+      window.removeEventListener("resize", resetOrbit);
+    };
   }, []);
+
 
   const arcParamsRef = useRef({ start: 0, end: 0, offsetX: 0, offsetY: 0, fullCircle: false });
 
