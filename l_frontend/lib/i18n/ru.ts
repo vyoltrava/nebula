@@ -108,7 +108,8 @@ export const ru: Dictionary = {
     supportChat: "Чат поддержки",
     layoutSettings: "Настроить интерфейс",
     navMenu: "Меню навигации",
-    community: "Сообщество"
+    community: "Сообщество",
+    circle: "Круг"
   },
   notif: {
     empty: "Пока нет уведомлений",

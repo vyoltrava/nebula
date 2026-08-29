@@ -129,9 +129,9 @@ export function NebulaSidebar() {
     { key: "saved", icon: Bookmark, label: t("messages.saved"), badge: 0, run: openSavedMessages },
     { key: "group", icon: Users, label: t("messages.createGroup"), badge: 0, run: openCreateGroup },
     { key: "prism", icon: ShieldCheck, label: "PRISM Link", badge: 0, run: openCreatePrism },
-    { key: "circle", icon: Sparkles, label: "Circle", badge: 0, run: () => setShowCircle(true) },
-    { key: "profile", icon: null, label: "Profile", badge: 0, run: () => router.push("/nebula-profile") },
-    { key: "settings", icon: Settings, label: "Settings", badge: 0, run: () => router.push("/nebula-settings") },
+    { key: "circle", icon: Sparkles, label: t("nav.circle"), badge: 0, run: () => setShowCircle(true) },
+    { key: "profile", icon: null, label: t("nav.profile"), badge: 0, run: () => user && router.push(`/nebula-user/${user.username}`) },
+    { key: "settings", icon: Settings, label: t("nav.settings"), badge: 0, run: () => router.push("/nebula-settings") },
     { key: "bug", icon: Bug, label: t("nav.reportProblem"), badge: 0, run: () => setShowBugModal(true) },
     { key: "support", icon: Headphones, label: t("nav.support"), badge: 0, run: () => router.push("/support") },
     { key: "logout", icon: LogOut, label: t("nav.logout"), badge: 0, run: handleLogout },
@@ -166,7 +166,7 @@ export function NebulaSidebar() {
               <BrandIcon className="w-7 h-7" />
               <span className="font-logo text-2xl text-[#3D1F6D] dark:text-[#8b5cf6]">Nebula</span>
             </div>
-            <button onClick={() => router.push("/nebula-profile")} className="p-1 rounded-full">
+            <button onClick={() => user && router.push(`/nebula-user/${user.username}`)} className="p-1 rounded-full">
               {user?.avatar_url ? (
                 <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
               ) : (
@@ -236,8 +236,8 @@ export function NebulaSidebar() {
   // Desktop layout
   const navItems = [
     { href: "/messages", icon: MessageCircle, label: t("nav.messages"), badge: counts.chats, isCircle: false },
-    { href: "#circle", icon: Users, label: "Circle", badge: 0, isCircle: true },
-    { href: "/nebula-settings", icon: Settings, label: "Settings", badge: 0, isCircle: false },
+    { href: "#circle", icon: Users, label: t("nav.circle"), badge: 0, isCircle: true },
+    { href: "/nebula-settings", icon: Settings, label: t("nav.settings"), badge: 0, isCircle: false },
   ];
 
   return (
@@ -264,7 +264,8 @@ export function NebulaSidebar() {
         {user && (
           <div className={"flex flex-col " + (isDock ? "items-center gap-2 px-2" : "px-2")}>
             <div className={"flex " + (isDock ? "justify-center" : "items-center gap-3") + " px-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-all group w-full relative"}>
-              <Link href="/nebula-profile" className="flex items-center gap-3 flex-1 min-w-0">
+              {/* Как в классике: клик по нику/аватару открывает страницу профиля пользователя */}
+              <Link href={`/nebula-user/${user.username}`} className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="shrink-0" style={avatarGlowStyle}>
                   <Avatar src={user.avatar_url} name={user.display_name} id={user.id} />
                 </div>
@@ -308,37 +309,19 @@ export function NebulaSidebar() {
             );
           })}
 
-          {/* ── Создание чатов: каждый тип — отдельная кнопка (стиль расширенного классик-сайдбара) ── */}
-          {!isDock && (
-            <div className="pt-3">
-              <p className="px-4 pb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-white/25">Создать чат</p>
-              <button onClick={openSavedMessages} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title={t("messages.saved")}>
-                <Bookmark size={18} className={iconClass + " text-yellow-600 dark:text-yellow-400"} />
-                <span className={textClass}>{t("messages.saved")}</span>
-              </button>
-              <button onClick={openCreateGroup} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title={t("messages.createGroup")}>
-                <Users size={18} className={iconClass + " text-[#8b5cf6]"} />
-                <span className={textClass}>{t("messages.createGroup")}</span>
-              </button>
-              <button onClick={openCreatePrism} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 last:border-none group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title="PRISM Link">
-                <ShieldCheck size={18} className={iconClass + " text-cyan-600 dark:text-cyan-400"} />
-                <span className={textClass}>PRISM Link</span>
-              </button>
-            </div>
-          )}
-          {isDock && (
-            <>
-              <button onClick={openSavedMessages} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title={t("messages.saved")}>
-                <Bookmark size={18} className={iconClass + " text-yellow-600 dark:text-yellow-400"} />
-              </button>
-              <button onClick={openCreateGroup} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title={t("messages.createGroup")}>
-                <Users size={18} className={iconClass + " text-[#8b5cf6]"} />
-              </button>
-              <button onClick={openCreatePrism} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 last:border-none group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title="PRISM Link">
-                <ShieldCheck size={18} className={iconClass + " text-cyan-600 dark:text-cyan-400"} />
-              </button>
-            </>
-          )}
+          {/* ── Создание чатов: каждый тип — отдельная кнопка, единым потоком одна под другой ── */}
+          <button onClick={openSavedMessages} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title={t("messages.saved")}>
+            <Bookmark size={18} className={iconClass + " text-yellow-600 dark:text-yellow-400"} />
+            <span className={textClass}>{t("messages.saved")}</span>
+          </button>
+          <button onClick={openCreateGroup} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title={t("messages.createGroup")}>
+            <Users size={18} className={iconClass + " text-[#8b5cf6]"} />
+            <span className={textClass}>{t("messages.createGroup")}</span>
+          </button>
+          <button onClick={openCreatePrism} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 last:border-none group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title="PRISM Link">
+            <ShieldCheck size={18} className={iconClass + " text-cyan-600 dark:text-cyan-400"} />
+            <span className={textClass}>PRISM Link</span>
+          </button>
         </nav>
 
         {/* Footer */}

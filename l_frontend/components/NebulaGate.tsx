@@ -29,6 +29,8 @@ html.nebula-mode .h-screen.flex > .w-px { display: none !important; }
 @media (max-width: 767px) {
   html.nebula-mode body { padding-left: 0 !important; }
 }
+/* Прячем плавающую кнопку "+" из списка чатов — создание чатов живёт в Nebula-сайдбаре */
+html.nebula-mode div.fixed.top-4.right-4 { display: none !important; }
 `;
 
 export function NebulaGate() {

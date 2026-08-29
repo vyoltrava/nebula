@@ -108,7 +108,8 @@ export const uk = {
     supportChat: "Чат підтримки",
     layoutSettings: "Налаштувати інтерфейс",
     navMenu: "Меню навігації",
-    community: "Спільнота"
+    community: "Спільнота",
+    circle: "Коло"
   },
   notif: {
     empty: "Сповіщень поки що немає",

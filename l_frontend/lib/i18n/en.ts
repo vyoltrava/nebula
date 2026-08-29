@@ -110,7 +110,8 @@ export const en: Dictionary = {
     supportChat: "Support chat",
     layoutSettings: "Customize interface",
     navMenu: "Navigation menu",
-    community: "Community"
+    community: "Community",
+    circle: "Circle"
   },
   notif: {
     empty: "No notifications yet",
