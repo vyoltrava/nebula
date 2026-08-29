@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useNebulaMode } from "@/lib/useNebula";
 import { getToken, getActiveAccount } from "@/lib/auth";
+import { mediaUrl } from "@/lib/media";
 import { resolveNickColor } from "@/lib/nickGlow";
 import { Avatar } from "@/components/Avatar";
 import { AvatarFrame } from "@/components/AvatarFrame";
@@ -126,11 +127,16 @@ export default function NebulaUserPage() {
     } catch {}
   };
 
-  function glowStyle(u: UserProfile | null): React.CSSProperties | undefined {
+  const glowStyle = (u: UserProfile | null): React.CSSProperties | undefined => {
     const c = resolveNickColor(u?.role?.color || null, resolvedTheme);
     if (!c) return undefined;
     return { color: c, textShadow: `0 0 10px ${c}55` };
-  }
+  };
+
+  const coverSrc = user?.cover_url
+    ? user.cover_url.startsWith("http") ? user.cover_url : mediaUrl(user.cover_url)
+    : null;
+  const hasCover = !!coverSrc;
 
   if (!ready) return null;
 
@@ -196,14 +202,25 @@ export default function NebulaUserPage() {
       <div className="w-full px-4 md:px-10 py-6">
         {loading ? (
           <div className="animate-pulse max-w-2xl" aria-busy="true">
-            <div className="w-full h-28 md:h-48 rounded-2xl bg-gray-200 dark:bg-white/10" />
-            <div className="flex flex-col md:flex-row items-center gap-5 -mt-12 md:-mt-14 px-2">
-              <div className="w-28 h-28 rounded-2xl bg-gray-200 dark:bg-white/10 shrink-0" />
-              <div className="flex-1 space-y-2 w-full max-w-sm">
-                <div className="h-5 w-52 rounded bg-gray-200 dark:bg-white/10" />
-                <div className="h-3.5 w-32 rounded bg-gray-100 dark:bg-white/5" />
-                <div className="h-3 w-72 max-w-full rounded bg-gray-100 dark:bg-white/5" />
+            <div className="rounded-2xl bg-white dark:bg-[#1e1e23] border border-line dark:border-white/10 overflow-hidden">
+              <div className="h-28 md:h-48 bg-gray-200 dark:bg-white/10" />
+              <div className="px-4 pb-6 flex flex-col items-center">
+                <div className="w-32 h-32 rounded-2xl bg-gray-200 dark:bg-white/15 shrink-0 -mt-14 md:-mt-16 shadow-lg" />
+                <div className="mt-3 h-6 w-44 rounded bg-gray-200 dark:bg-white/10" />
+                <div className="mt-2 h-3.5 w-32 rounded bg-gray-100 dark:bg-white/5" />
               </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 mt-6">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 p-4 space-y-2">
+                  <div className="h-5 w-10 mx-auto rounded bg-gray-200 dark:bg-white/10" />
+                  <div className="h-3 w-16 mx-auto rounded bg-gray-100 dark:bg-white/5" />
+                </div>
+              ))}
+            </div>
+            <div className="mt-6 rounded-2xl bg-white dark:bg-[#1e1e23] border border-line dark:border-white/10 p-5 space-y-3">
+              <div className="h-11 w-full rounded-xl bg-gray-200 dark:bg-white/10" />
+              <div className="h-11 w-full rounded-xl bg-gray-100 dark:bg-white/5" />
             </div>
           </div>
         ) : !user ? (
@@ -218,15 +235,15 @@ export default function NebulaUserPage() {
 
 
             {/* ── ШАПКА: баннер фоном + аватар/имя/плашка по центру (без поля при отсутствии) ── */}
-            <div className="relative w-full overflow-hidden rounded-2xl border border-line dark:border-white/10">
-              {user.cover_url ? (
+            <div className={`relative w-full overflow-hidden rounded-2xl border border-line dark:border-white/10 ${hasCover ? "" : "bg-white dark:bg-[#1e1e23]"}`}>
+              {hasCover ? (
                 <div className="absolute inset-0">
-                  <SmartImage src={user.cover_url} wrapperClassName="w-full h-full" alt="Cover" />
+                  <SmartImage src={coverSrc} wrapperClassName="w-full h-full" alt="Cover" />
                   <div className="absolute inset-0 bg-black/40 pointer-events-none" />
                 </div>
               ) : null}
 
-              <div className="relative z-10 pt-8 md:pt-10 pb-6 flex flex-col items-center">
+              <div className={`relative z-10 flex flex-col items-center ${hasCover ? "pt-10 md:pt-14 pb-6" : "py-10"}`}>
                 <div className="relative shrink-0 w-32 h-32 rounded-xl">
                   <AvatarFrame user={user} availableBadges={availableBadges} size={128}>
                     <Avatar src={user.avatar_url} name={user.display_name} id={user.id} size={128} />

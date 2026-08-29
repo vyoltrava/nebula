@@ -166,6 +166,12 @@ export default function NebulaProfilePage() {
     ? me.avatar_url.startsWith("http") ? me.avatar_url : mediaUrl(me.avatar_url)
     : null;
 
+  const coverSrc = me?.cover_url
+    ? me.cover_url.startsWith("http") ? me.cover_url : mediaUrl(me.cover_url)
+    : null;
+
+  const hasCover = !!coverSrc;
+
   if (!ready || !isNebula) return null;
 
   return (
@@ -198,23 +204,32 @@ export default function NebulaProfilePage() {
 
         {!me ? (
           <div className="animate-pulse" aria-busy="true">
-            <div className="w-full h-24 md:h-40 rounded-2xl bg-gray-200 dark:bg-white/10" />
-            <div className="flex flex-col md:flex-row items-center gap-5 -mt-10 md:-mt-14 px-2">
-              <div className="w-28 h-28 rounded-2xl bg-gray-200 dark:bg-white/10 shrink-0" />
-              <div className="flex-1 space-y-2 w-full max-w-sm">
-                <div className="h-5 w-52 rounded bg-gray-200 dark:bg-white/10" />
-                <div className="h-3.5 w-32 rounded bg-gray-100 dark:bg-white/5" />
-                <div className="h-3 w-72 max-w-full rounded bg-gray-100 dark:bg-white/5" />
+            {/* шапка: фон-блок + аватар/имя по центру */}
+            <div className="rounded-2xl bg-white dark:bg-[#1e1e23] border border-line dark:border-white/10 overflow-hidden">
+              <div className="h-28 md:h-40 bg-gray-200 dark:bg-white/10" />
+              <div className="px-4 pb-6 flex flex-col items-center">
+                <div className="w-32 h-32 rounded-2xl bg-gray-200 dark:bg-white/15 shrink-0 -mt-14 md:-mt-16 shadow-lg" />
+                <div className="mt-3 h-6 w-40 rounded bg-gray-200 dark:bg-white/10" />
+                <div className="mt-2 h-3.5 w-32 rounded bg-gray-100 dark:bg-white/5" />
               </div>
+            </div>
+            {/* список действий */}
+            <div className="mt-6 rounded-2xl bg-white dark:bg-[#1e1e23] border border-line dark:border-white/10 divide-y divide-line dark:divide-white/10">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-3 px-5 py-4">
+                  <div className="w-5 h-5 rounded bg-gray-200 dark:bg-white/10" />
+                  <div className="h-4 w-44 rounded bg-gray-200 dark:bg-white/10" />
+                </div>
+              ))}
             </div>
           </div>
         ) : (
         <>
         {/* ── ШАПКА: баннер фоном + аватар/имя/плашка по центру ── */}
-        <div className="relative w-full overflow-hidden rounded-2xl border border-line dark:border-white/10">
-          {me.cover_url ? (
+        <div className={`relative w-full overflow-hidden rounded-2xl border border-line dark:border-white/10 ${hasCover ? "" : "bg-white dark:bg-[#1e1e23]"}`}>
+          {hasCover ? (
             <div className="absolute inset-0">
-              <SmartImage src={me.cover_url} wrapperClassName="w-full h-full" alt="Cover" />
+              <SmartImage src={coverSrc} wrapperClassName="w-full h-full" alt="Cover" />
               <div className="absolute inset-0 bg-black/40 pointer-events-none" />
             </div>
           ) : null}
@@ -251,7 +266,7 @@ export default function NebulaProfilePage() {
             </>
           )}
 
-          <div className="relative z-10 pt-8 md:pt-10 pb-6 flex flex-col items-center">
+          <div className={`relative z-10 flex flex-col items-center ${hasCover ? "pt-10 md:pt-14 pb-6" : "py-10"}`}>
             <div className="relative shrink-0 w-32 h-32 rounded-xl group cursor-pointer" onClick={openFilePicker}>
               <AvatarFrame user={me} availableBadges={availableBadges} size={128}>
                 <Avatar src={avatarUrl} name={displayName || "U"} id={me.id ?? 0} size={128} />
@@ -328,7 +343,7 @@ export default function NebulaProfilePage() {
         </div>
 
         {/* ── Действия ── */}
-        <div className="mt-6 max-w-2xl rounded-2xl bg-white dark:bg-[#1e1e23] border border-line dark:border-white/10 divide-y divide-line dark:divide-white/10 overflow-hidden">
+        <div className="mt-6 rounded-2xl bg-white dark:bg-[#1e1e23] border border-line dark:border-white/10 divide-y divide-line dark:divide-white/10 overflow-hidden">
           <button
             onClick={() => setShowCircle(true)}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-left"
