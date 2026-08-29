@@ -69,7 +69,9 @@ export function NebulaGate() {
       pathname.startsWith("/nebula-profile") ||
       pathname.startsWith("/nebula-user") ||
       pathname.startsWith("/settings") ||
-      pathname.startsWith("/login");
+      pathname.startsWith("/login") ||
+      pathname.startsWith("/prism") ||   // ✅ Prisme-чаты (/prisme и /prism/[id])
+      pathname.startsWith("/support");   // ✅ Чат поддержки
     if (!allowed) router.replace("/messages");
   }, [ready, isNebula, pathname, router]);
 

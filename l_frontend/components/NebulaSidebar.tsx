@@ -15,7 +15,7 @@ import Link from "next/link";
 import {
   Settings, LogOut, MessageCircle, ArrowLeft, Menu,
   Users, Bug, Headphones, Sparkles, Bookmark, ShieldCheck, Orbit,
-  Lock, Satellite, X,
+  Lock, X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
@@ -152,7 +152,6 @@ export function NebulaSidebar() {
     group: "#8b5cf6",
     prism: "#22d3ee",
     secret: "#10b981",
-    prisme: "#22d3ee",
     circle: "#ec4899",
     profile: "#8b5cf6",
     settings: "#94a3b8",
@@ -231,7 +230,6 @@ export function NebulaSidebar() {
     { key: "group", icon: Users, label: t("messages.createGroup"), badge: 0, run: openCreateGroup },
     { key: "prism", icon: ShieldCheck, label: "PRISM Link", badge: 0, run: openCreatePrism },
     { key: "secret", icon: Lock, label: t("profile.secretChat"), badge: 0, run: openCreateSecret },
-    { key: "prisme", icon: Satellite, label: "Призма", badge: 0, run: () => router.push("/prisme") },
     { key: "circle", icon: Sparkles, label: t("nav.circle"), badge: 0, run: () => setShowCircle(true) },
     { key: "profile", icon: null, label: t("nav.profile"), badge: 0, run: () => user && router.push(`/nebula-user/${user.username}`) },
     { key: "settings", icon: Settings, label: t("nav.settings"), badge: 0, run: () => router.push("/nebula-settings") },
@@ -546,17 +544,9 @@ export function NebulaSidebar() {
             <ShieldCheck size={18} className={iconClass + " text-cyan-600 dark:text-cyan-400"} />
             <span className={textClass}>PRISM Link</span>
           </button>
-          <button onClick={openCreateSecret} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title={t("profile.secretChat")}>
+          <button onClick={openCreateSecret} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 last:border-none group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title={t("profile.secretChat")}>
             <Lock size={18} className={iconClass + " text-emerald-600 dark:text-emerald-400"} />
             <span className={textClass}>{t("profile.secretChat")}</span>
-          </button>
-          <button onClick={() => router.push("/support")} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title={t("nav.supportChat")}>
-            <Headphones size={18} className={iconClass + " text-cyan-600 dark:text-cyan-400"} />
-            <span className={textClass}>{t("nav.supportChat")}</span>
-          </button>
-          <button onClick={() => router.push("/prisme")} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 last:border-none group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title="Призма">
-            <Satellite size={18} className={iconClass + " text-cyan-600 dark:text-cyan-400"} />
-            <span className={textClass}>Призма</span>
           </button>
         </nav>
 
