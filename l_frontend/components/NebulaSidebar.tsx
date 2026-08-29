@@ -27,11 +27,12 @@ import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { BrandIcon } from "@/components/BrandIcon";
 import { NebulaCircleModal } from "@/components/NebulaCircleModal";
 
-// 🪐 Геометрия орбиты (мобилка Nebula) — пункты по кругу вокруг точки зажима
-const ORBIT_R = 120;
+// 🪐 Геометрия орбиты (мобилка Nebula) — ДУГА (как Орбита 1 в классике):
+// полукруг слева от точки открытия, пункты идут сверху вниз по дуге
+const ORBIT_R = 135;
 function orbitPoint(cx: number, cy: number, i: number, n: number) {
-  const a = -Math.PI / 2 + (2 * Math.PI * i) / n;
-  return { x: cx + ORBIT_R * Math.cos(a), y: cy + ORBIT_R * Math.sin(a) };
+  const a = Math.PI / 2 + (Math.PI * i) / (n - 1); // 90° … 270° — левый полукруг
+  return { x: cx + ORBIT_R * Math.cos(a), y: cy - ORBIT_R * Math.sin(a) };
 }
 function nearestOrbitIdx(cx: number, cy: number, n: number, x: number, y: number): number | null {
   let best: number | null = null;
