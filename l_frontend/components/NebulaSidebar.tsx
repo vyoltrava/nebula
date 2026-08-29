@@ -27,23 +27,15 @@ import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { BrandIcon } from "@/components/BrandIcon";
 import { NebulaCircleModal } from "@/components/NebulaCircleModal";
 
-// 🪐 Геометрия орбиты (мобилка Nebula) — ДУГА (как Орбита 1 в классике):
-// полукруг слева от точки открытия, пункты идут сверху вниз по дуге
-const ORBIT_R = 135;
-function orbitPoint(cx: number, cy: number, i: number, n: number) {
-  const a = Math.PI / 2 + (Math.PI * i) / (n - 1); // 90° … 270° — левый полукруг
-  return { x: cx + ORBIT_R * Math.cos(a), y: cy - ORBIT_R * Math.sin(a) };
-}
-function nearestOrbitIdx(cx: number, cy: number, n: number, x: number, y: number): number | null {
-  let best: number | null = null;
-  let bestD = Infinity;
-  for (let i = 0; i < n; i++) {
-    const p = orbitPoint(cx, cy, i, n);
-    const d = Math.hypot(p.x - x, p.y - y);
-    if (d < bestD) { bestD = d; best = i; }
-  }
-  return bestD <= 64 ? best : null;
-}
+// 🪐 Константы ОРБИТЫ 1 (скопированы из классического Sidebar) — двухслойная дуга
+const ORBIT_INNER_RADIUS  = 135;
+const ORBIT_OUTER_RADIUS  = 215;
+const ORBIT_SNAP_RADIUS   = 48;
+const ORBIT_ARC_SPAN      = Math.PI / 2;
+const ORBIT_ARC_CENTER    = Math.PI;
+const ORBIT_ARC_START     = ORBIT_ARC_CENTER - ORBIT_ARC_SPAN;
+const ORBIT_ARC_END       = ORBIT_ARC_CENTER + ORBIT_ARC_SPAN;
+const ORBIT_ARC_OFFSET_X  = -40;
 
 export function NebulaSidebar() {
   const { t } = useI18n();
@@ -61,7 +53,10 @@ export function NebulaSidebar() {
   const [isMobile, setIsMobile] = useState(false);
   const [wheelPos, setWheelPos] = useState<{ x: number; y: number } | null>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [wheelReady, setWheelReady] = useState(false);
+  const [closing, setClosing] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
+  const orbitButtonRef = useRef<HTMLButtonElement>(null);
   const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pressStartRef = useRef<{ x: number; y: number } | null>(null);
   const wheelPosRef = useRef(wheelPos);
@@ -166,34 +161,79 @@ export function NebulaSidebar() {
   const orbitItemsRef = useRef(orbitItems);
   useEffect(() => { orbitItemsRef.current = orbitItems; }, [orbitItems]);
 
-  // Закрыть орбиту (сброс зажима)
+  // Закрыть орбиту (с анимацией схлопывания, как в классике) + сброс зажима
   const closeWheel = useCallback(() => {
     if (pressTimerRef.current) { clearTimeout(pressTimerRef.current); pressTimerRef.current = null; }
     pressStartRef.current = null;
-    setWheelPos(null);
+    setWheelReady(false);
+    setClosing(true);
     setHoveredIdx(null);
+    setTimeout(() => { setWheelPos(null); setClosing(false); }, 280);
   }, []);
 
-  // Орбита/состояния сбрасываются при переходе на другую страницу
-  useEffect(() => { closeWheel(); }, [pathname, closeWheel]);
+  // Анимация разлёта пунктов из кнопки (двойной rAF, как в классике)
+  useEffect(() => {
+    if (!wheelPos) { setWheelReady(false); return; }
+    const id = requestAnimationFrame(() => { requestAnimationFrame(() => setWheelReady(true)); });
+    return () => cancelAnimationFrame(id);
+  }, [wheelPos]);
 
-  // Открытие орбиты от кнопки: центр колеса левее кнопки, по центру вертикали
-  const openWheelFromButton = () => {
-    const cy = (typeof window !== "undefined" ? window.innerHeight : 0) / 2 + 8;
-    const cx = (typeof window !== "undefined" ? window.innerWidth : 0) - 150;
-    setHoveredIdx(null);
-    setWheelPos({ x: cx, y: cy });
-    try { navigator.vibrate?.(15); } catch {}
-  };
+  // Орбита/состояния сбрасываются при переходе на другую страницу
+  useEffect(() => { if (wheelPosRef.current) closeWheel(); }, [pathname, closeWheel]);
   // ════════════════════════════════════════════════════════════════
   //  📱 МОБИЛКА — тема ОРБИТЫ (как в классическом Sidebar)
   // ════════════════════════════════════════════════════════════════
   if (isMobile) {
+    // Двухслойная дуга: первые 5 пунктов — внутренний слой, остальные — внешний (как в классике)
+    const innerCount = Math.min(5, orbitItems.length);
+    const isInnerLayer = (gi: number) => gi < innerCount;
+
+    // Позиция пункта на дуге (формула из классического Sidebar)
+    const getIconPos = (gi: number) => {
+      if (!wheelPos) return { x: 0, y: 0 };
+      const inner = isInnerLayer(gi);
+      const localIdx = inner ? gi : gi - innerCount;
+      const n = inner ? innerCount : orbitItems.length - innerCount;
+      const radius = inner ? ORBIT_INNER_RADIUS : ORBIT_OUTER_RADIUS;
+      const step = (ORBIT_ARC_END - ORBIT_ARC_START) / Math.max(n - 1, 1);
+      const angle = ORBIT_ARC_START + localIdx * step;
+      return { x: wheelPos.x + radius * Math.cos(angle), y: wheelPos.y + radius * Math.sin(angle) };
+    };
+
+    const nearestIdx = (px: number, py: number): number | null => {
+      let minDist = Infinity;
+      let nearest: number | null = null;
+      for (let i = 0; i < orbitItems.length; i++) {
+        const p = getIconPos(i);
+        const d = Math.hypot(px - p.x, py - p.y);
+        if (d < minDist) { minDist = d; nearest = i; }
+      }
+      return minDist <= ORBIT_SNAP_RADIUS ? nearest : null;
+    };
+
+    // Открытие дуги от кнопки: центр = центр кнопки + сдвиг влево (как в классике)
+    const openWheel = () => {
+      const el = orbitButtonRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setHoveredIdx(null);
+      setWheelPos({ x: r.left + r.width / 2 + ORBIT_ARC_OFFSET_X, y: r.top + r.height / 2 });
+      try { navigator.vibrate?.(15); } catch {}
+    };
+
+    // Выбор подсвеченного пункта + схлопывание дуги
+    const commitSelection = () => {
+      const idx = hoveredIdxRef.current;
+      if (idx != null && orbitItems[idx]) orbitItems[idx].run();
+      closeWheel();
+    };
+
     return (
       <>
-        {/* 🪐 Кнопка ОРБИТЫ: ТАП — открыть/закрыть дугу, ЗАЖАТИЕ (~250мс) — раскрыть дугу
-            и выбрать пункт ведением пальца (отпускание = выбор) */}
+        {/* 🪐 Кнопка ОРБИТЫ 1 у правого края: ТАП — открыть/закрыть дугу,
+            ЗАЖАТИЕ (~250мс) — раскрыть дугу и выбрать пункт ведением пальца */}
         <button
+          ref={orbitButtonRef}
           onTouchStart={(e) => {
             const t0 = e.touches[0];
             if (!t0) return;
@@ -202,91 +242,111 @@ export function NebulaSidebar() {
             if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
             pressTimerRef.current = setTimeout(() => {
               holdOpenedRef.current = true;
-              openWheelFromButton();
+              openWheel();
             }, 250);
           }}
           onTouchMove={(e) => {
             const t0 = e.touches[0];
             if (!t0) return;
             if (wheelPosRef.current) {
-              // дуга раскрыта зажатием: ведение пальца подсвечивает пункт, прокрутка заблокирована
               if (e.cancelable) e.preventDefault();
-              const n = orbitItemsRef.current.length;
-              setHoveredIdx(nearestOrbitIdx(wheelPosRef.current.x, wheelPosRef.current.y, n, t0.clientX, t0.clientY));
+              setHoveredIdx(nearestIdx(t0.clientX, t0.clientY));
             }
           }}
           onTouchEnd={() => {
             if (pressTimerRef.current) { clearTimeout(pressTimerRef.current); pressTimerRef.current = null; }
             pressStartRef.current = null;
-            if (wheelPosRef.current) {
-              // отпускание после зажима = выбор подсвеченного пункта
-              const idx = hoveredIdxRef.current;
-              const list = orbitItemsRef.current;
-              if (idx != null && list[idx]) list[idx].run();
-              closeWheel();
-            }
+            if (wheelPosRef.current) commitSelection();
           }}
           onTouchCancel={() => {
             if (pressTimerRef.current) { clearTimeout(pressTimerRef.current); pressTimerRef.current = null; }
             pressStartRef.current = null;
           }}
           onClick={() => {
-            // после раскрытия зажатием клик подавляем (выбор уже произошёл по отпусканию)
             if (holdOpenedRef.current) { holdOpenedRef.current = false; return; }
             if (wheelPosRef.current) closeWheel();
-            else openWheelFromButton();
+            else openWheel();
           }}
           className={"md:hidden fixed z-[98] w-14 h-14 right-0 top-[calc(50%+8px)] -translate-y-1/2 rounded-l-full bg-paper dark:bg-[#171717]/90 backdrop-blur-sm border flex items-center justify-center shadow-lg shadow-gray-400/40 dark:shadow-black/50 transition-all duration-200 " + (wheelPos ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/20 scale-110" : "border-line dark:border-white/10 active:scale-95")}
           style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none" } as React.CSSProperties}
-          aria-label="Меню Nebula"
+          aria-label={t("nav.navMenu")}
         >
           <Orbit size={22} className={"transition-all duration-300 " + (wheelPos ? "text-[#8b5cf6] rotate-[60deg]" : "text-gray-800 dark:text-white/80")} />
         </button>
 
-        {/* 🪐 Орбита — те же кнопки, что и в ПК-сайдбаре; открыта в точке wheelPos */}
+        {/* 🪐 Дуга ОРБИТЫ 1 — рендер 1:1 из классического Sidebar */}
         {wheelPos && (
-          <>
-            <div className="md:hidden fixed inset-0 z-[96] bg-black/30" onClick={closeWheel} />
-            <div className="md:hidden fixed inset-0 z-[99] pointer-events-none" style={{ touchAction: "none" }}>
-              {orbitItems.map((item, i) => {
-                const p = orbitPoint(wheelPos.x, wheelPos.y, i, orbitItems.length);
-                const active = hoveredIdx === i;
-                return (
-                  <div
-                    key={item.key}
-                    className={"absolute w-12 h-12 rounded-full flex items-center justify-center border shadow-lg shadow-gray-400/40 dark:shadow-black/40 transition-all duration-100 " + (active
-                      ? "bg-[#8b5cf6]/25 border-[#8b5cf6] text-[#8b5cf6] scale-110"
-                      : "bg-paper dark:bg-[#1a1a1f]/95 border-line dark:border-white/15 text-gray-800 dark:text-white/70")}
-                    style={{ left: p.x, top: p.y, transform: "translate(-50%, -50%)", pointerEvents: "none" }}
-                  >
-                    {item.key === "profile" && user ? (
-                      user.avatar_url ? (
-                        <img src={user.avatar_url} alt="" className="absolute inset-0 w-full h-full rounded-full object-cover" />
-                      ) : (
-                        <span className="font-bold text-sm">{(user.display_name || "?")[0]?.toUpperCase()}</span>
-                      )
-                    ) : item.icon ? (
-                      <item.icon size={20} />
-                    ) : null}
+          <div
+            className="fixed inset-0 z-[100] pointer-events-none"
+            style={{ touchAction: "none", userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" } as React.CSSProperties}
+          >
+            {/* Затемнение под дугой */}
+            <div className="absolute inset-0 bg-black/30" />
+
+            {orbitItems.map((item, i) => {
+              const finalPos = getIconPos(i);
+              const isActive = i === hoveredIdx;
+              const isOuter = !isInnerLayer(i);
+              const x = (wheelReady && !closing) ? finalPos.x : wheelPos.x;
+              const y = (wheelReady && !closing) ? finalPos.y : wheelPos.y;
+
+              return (
+                <div
+                  key={`orbit-${item.key}`}
+                  className="absolute"
+                  style={{
+                    left: x,
+                    top: y,
+                    transform: `translate(-50%, -50%) scale(${closing ? 0 : isActive ? 1.35 : wheelReady ? 1 : 0})`,
+                    opacity: closing ? 0 : wheelReady ? (isActive ? 1 : 0.8) : 0,
+                    transition: "left 300ms cubic-bezier(0.34, 1.56, 0.64, 1), top 300ms cubic-bezier(0.34, 1.56, 0.64, 1), transform 200ms ease, opacity 200ms ease",
+                    transitionDelay: `${i * 25}ms`,
+                    zIndex: isActive ? 20 : 10,
+                  }}
+                >
+                  <div className="relative">
+                    <div
+                      className={
+                        "relative flex items-center justify-center rounded-full overflow-hidden transition-all duration-150 " +
+                        (isActive
+                          ? "w-14 h-14 bg-[#8b5cf6] shadow-[0_0_28px_rgba(139,92,246,0.55)]"
+                          : isOuter
+                            ? "w-11 h-11 bg-ivory/95 dark:bg-[#1a1a1f]/95 border border-line dark:border-white/15 shadow-lg shadow-gray-400/40 dark:shadow-black/40"
+                            : "w-12 h-12 bg-gray-100 dark:bg-[#22222a]/95 border border-line dark:border-white/20 shadow-lg shadow-gray-400/40 dark:shadow-black/40")
+                      }
+                    >
+                      {item.key === "profile" && user ? (
+                        user.avatar_url ? (
+                          <img src={user.avatar_url} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover" />
+                        ) : (
+                          <span className={"font-bold " + (isActive ? "text-gray-900 dark:text-white" : "text-gray-800 dark:text-white/70")}>
+                            {(user.display_name || "?")[0]?.toUpperCase()}
+                          </span>
+                        )
+                      ) : item.icon ? (
+                        <item.icon size={isActive ? 26 : isOuter ? 19 : 21} className={isActive ? "text-gray-900 dark:text-white" : "text-gray-800 dark:text-white/70"} />
+                      ) : null}
+                    </div>
                     {!!item.badge && item.badge > 0 && (
                       <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#8b5cf6] border-2 border-paper dark:border-[#171717] text-white text-[9px] font-bold flex items-center justify-center">
                         {item.badge > 9 ? "9+" : item.badge}
                       </span>
                     )}
                   </div>
-                );
-              })}
-              {/* Подпись выбранного пункта */}
-              {hoveredIdx != null && orbitItems[hoveredIdx] && (
-                <div
-                  className="absolute -translate-x-1/2 px-2.5 py-1 rounded-full bg-paper dark:bg-[#1a1a1f]/95 border border-line dark:border-white/15 text-[11px] font-semibold text-gray-800 dark:text-white/80 whitespace-nowrap shadow-md"
-                  style={{ left: wheelPos.x, top: wheelPos.y + ORBIT_R + 18 }}
-                >
-                  {orbitItems[hoveredIdx].label}
                 </div>
-              )}
-            </div>
-          </>
+              );
+            })}
+
+            {/* Пинг-кольцо вокруг активного пункта (как в классике) */}
+            {hoveredIdx !== null && (
+              <div
+                className="absolute w-16 h-16 rounded-full"
+                style={{ left: getIconPos(hoveredIdx).x, top: getIconPos(hoveredIdx).y, transform: "translate(-50%, -50%)", zIndex: 9 }}
+              >
+                <div className="w-full h-full rounded-full border-2 border-[#8b5cf6]/30 animate-ping" />
+              </div>
+            )}
+          </div>
         )}
 
         {showCircle && <NebulaCircleModal onClose={() => setShowCircle(false)} />}
