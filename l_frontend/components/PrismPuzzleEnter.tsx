@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { sanitizeSvg } from '@/lib/sanitize';
 
 interface PrismObject {
   id: string;
@@ -100,7 +101,7 @@ export function PrismPuzzleEnter({ chatId, onEnterSuccess }: PrismPuzzleEnterPro
       <div className="relative w-full aspect-[4/3] bg-gray-50 dark:bg-[#050714] rounded-lg overflow-hidden border border-cyan-500/30 mb-4 shadow-[0_0_30px_rgba(6,182,212,0.1)]">
         
         {/* Рендерим фоновые элементы из оригинального SVG (не интерактивные) */}
-        <div dangerouslySetInnerHTML={{ __html: landscape.svg }} className="absolute inset-0 opacity-50 pointer-events-none" />
+        <div dangerouslySetInnerHTML={{ __html: sanitizeSvg(landscape.svg) }} className="absolute inset-0 opacity-50 pointer-events-none" />
 
         {/* Рендерим ИНТЕРАКТИВНЫЕ объекты поверх */}
         <svg viewBox="0 0 800 600" className="absolute inset-0 w-full h-full">

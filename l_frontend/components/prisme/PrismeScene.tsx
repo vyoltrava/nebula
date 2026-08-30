@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
+import { sanitizeSvg } from "@/lib/sanitize";
 
 export interface PrismeSceneObject {
   id: number;
@@ -152,7 +153,7 @@ export function PrismeScene({
       <div
         className="w-full"
         style={{ aspectRatio: "1200 / 800" }}
-        dangerouslySetInnerHTML={{ __html: svg }}
+        dangerouslySetInnerHTML={{ __html: sanitizeSvg(svg) }}
       />
       {hint && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 pointer-events-none bg-[#0A0E27]/85 border border-[#00F5FF]/40 text-[#00F5FF] text-xs font-mono tracking-wide px-4 py-1.5 rounded-full shadow-[0_0_16px_rgba(0,245,255,0.2)]">

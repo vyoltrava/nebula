@@ -43,6 +43,7 @@ import base64
 
 from link_preview import router as lp_router
 from websocket_manager import manager
+from validators import validate_upload, check_size_before_read
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -241,13 +242,16 @@ def print_routes():
 
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+ENVIRONMENT = os.getenv("ENV", "development")
+
+# 🛡️ CORS: localhost только в development. В production — только доверенный origin.
+_cors_origins = [FRONTEND_URL]
+if ENVIRONMENT != "production":
+    _cors_origins.append("http://localhost:3000")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        FRONTEND_URL,
-    ],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -321,13 +325,18 @@ log = structlog.get_logger()
 # 🆕 Логируем все необработанные исключения
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    # 🛡️ Детали ошибки — только в лог (Sentry/логи), клиенту — общее сообщение
     logging.error(f"❌ Unhandled exception on {request.url.path}: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={"detail": str(exc)}
+        content={"detail": "Internal server error"}
     )
 
 app.add_middleware(PerfMiddleware)
+
+# 🚀 Сжатие ответов (JSON-фиды, списки постов/сообщений) — до 70-80% меньше трафика
+from fastapi.middleware.gzip import GZipMiddleware
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
 
 
 @app.get("/debug/perf")
@@ -393,8 +402,18 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 
-SECRET = os.getenv("SECRET_KEY", "nebula-super-secret-key-2026-minimum-32-chars")
+_raw_secret = os.getenv("SECRET_KEY")
+if not _raw_secret or len(_raw_secret) < 48 or _raw_secret.startswith("nebula-super-secret"):
+    raise RuntimeError(
+        "SECRET_KEY is required (min 48 chars, no default fallback allowed). "
+        "Generate with: python scripts/generate_secret.py  или  openssl rand -hex 48"
+    )
+SECRET = _raw_secret
 ALGORITHM = "HS256"
+
+# Типы токенов и время жизни
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
 
 # ============================================================
@@ -409,13 +428,78 @@ def check_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode(), hashed.encode())
 
 
-def create_token(user_id: int, token_version: int = 0) -> str:
+def create_token(user_id: int, token_version: int = 0, token_type: str = "access") -> str:
+    if token_type == "access":
+        exp = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    else:  # refresh
+        exp = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     payload = {
         "sub": str(user_id),
         "ver": token_version,
-        "exp": datetime.now(timezone.utc) + timedelta(days=7),
+        "type": token_type,
+        "exp": exp,
     }
     return jwt.encode(payload, SECRET, algorithm=ALGORITHM)
+
+
+def set_refresh_cookie(response: Response, user_id: int, token_version: int):
+    """Refresh-токен в httpOnly cookie — недоступен JS, не крадётся через XSS.
+    В production фронт и API на разных доменах → SameSite=None + Secure
+    (иначе браузер не отправит cookie на кросс-сайтовый /api/auth/refresh)."""
+    cross_site = os.getenv("ENV") == "production"
+    response.set_cookie(
+        key="refresh_token",
+        value=create_token(user_id, token_version, token_type="refresh"),
+        httponly=True,
+        secure=cross_site,
+        samesite="none" if cross_site else "strict",
+        path="/api/auth",
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+    )
+
+
+# ============================================================
+# 🔄 REFRESH / LOGOUT (httpOnly cookie)
+# ============================================================
+def _refresh_token_from(request: Request) -> Optional[str]:
+    auth = request.headers.get("authorization") or ""
+    if auth.startswith("Bearer refresh:"):
+        return auth.split(":", 1)[1]
+    return request.cookies.get("refresh_token")
+
+
+@app.post("/api/auth/refresh")
+@limiter.limit("30/minute")
+def refresh_access_token(request: Request, response: Response, session: Session = Depends(get_session)):
+    refresh_token = _refresh_token_from(request)
+    if not refresh_token:
+        raise HTTPException(401, "Refresh token required")
+
+    try:
+        payload = jwt.decode(refresh_token, SECRET, algorithms=[ALGORITHM])
+    except Exception:
+        raise HTTPException(401, "Invalid refresh token")
+
+    if payload.get("type") != "refresh":
+        raise HTTPException(401, "Invalid token type")
+
+    user = session.get(User, int(payload["sub"]))
+    if not user or user.is_banned:
+        raise HTTPException(401, "User not found")
+    if payload.get("ver", 0) != user.token_version:
+        raise HTTPException(401, "Session revoked")
+
+    set_refresh_cookie(response, user.id, user.token_version)
+    return {
+        "token": create_token(user.id, user.token_version, token_type="access"),
+        "user": user_out(user, session),
+    }
+
+
+@app.post("/api/auth/logout")
+def auth_logout(request: Request, response: Response):
+    response.delete_cookie("refresh_token", path="/api/auth")
+    return {"ok": True}
 
 from fastapi import BackgroundTasks  # ← добавь в импорты
 
@@ -971,7 +1055,9 @@ def update_profile(
 
 
 @app.post("/api/me/password")
+@limiter.limit("5/minute")
 def change_password(
+    request: Request,
     data: ChangePasswordIn,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
@@ -1039,6 +1125,13 @@ async def upload_avatar(
     content = await file.read()
     actual_size = len(content)
     print(f"  actual_size: {actual_size} bytes ({actual_size / (1024*1024):.2f} MB)")
+
+    # 🛡️ Magic bytes check: real file type, not client-declared extension
+    ok, verr = validate_upload(content[:16], file.filename, file.content_type,
+                               allowed_categories={"image"},
+                               allowed_exts={".jpg", ".jpeg", ".png", ".gif", ".webp"})
+    if not ok:
+        raise HTTPException(400, verr)
     
     if actual_size > 5 * 1024 * 1024:
         print(f"  ❌ File too large: {actual_size} bytes")
@@ -1094,10 +1187,25 @@ async def upload_cover(
     ext = os.path.splitext(file.filename)[1].lower()
     if ext not in {".jpg", ".jpeg", ".png", ".webp"}:
         raise HTTPException(400, f"Неверный формат: {ext}. GIF для обложки не поддерживается.")
-    
+
+    # 🛡️ Проверяем размер ДО чтения + magic bytes
+    err = check_size_before_read(file.headers, 10 * 1024 * 1024)
+    if err:
+        raise HTTPException(413, err)
+
+    err = check_size_before_read(file.headers, 10 * 1024 * 1024)
+    if err:
+        raise HTTPException(413, err)
+
     content = await file.read()
     if len(content) > 10 * 1024 * 1024:
         raise HTTPException(400, f"Файл слишком большой (максимум 10 МБ)")
+
+    ok, verr = validate_upload(content[:16], file.filename, file.content_type,
+                               allowed_categories={"image"},
+                               allowed_exts={".jpg", ".jpeg", ".png", ".webp"})
+    if not ok:
+        raise HTTPException(400, verr)
     
     # Удаляем старую обложку
     if user.cover_url and "cloudinary.com" in user.cover_url:
@@ -2694,6 +2802,10 @@ async def create_post(
         else:
             raise HTTPException(400, f"Неподдерживаемый формат файла: {ext} ({content_type})")
 
+        err = check_size_before_read(file.headers, 50 * 1024 * 1024)
+        if err:
+            raise HTTPException(413, err)
+
         content = await file.read()
         if len(content) > 50 * 1024 * 1024:  # 50 МБ для аудио/видео
             raise HTTPException(400, "Файл слишком большой (максимум 50 МБ)")
@@ -2854,6 +2966,10 @@ async def process_video_note(
     if ext not in ALLOWED_VIDEO_EXT:
         raise HTTPException(400, f"Неверный формат: {ext}")
     
+    err = check_size_before_read(file.headers, 50 * 1024 * 1024)
+    if err:
+        raise HTTPException(413, err)
+
     content = await file.read()
     if len(content) > 50 * 1024 * 1024:
         raise HTTPException(400, "Файл слишком большой (макс 50 МБ)")
@@ -4332,6 +4448,10 @@ async def admin_set_user_avatar(
     if ext not in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
         raise HTTPException(400, "Invalid image type")
     
+    err = check_size_before_read(file.headers, 5 * 1024 * 1024)
+    if err:
+        raise HTTPException(413, err)
+
     content = await file.read()
     if len(content) > 5 * 1024 * 1024:
         raise HTTPException(400, "File too large (max 5MB)")
@@ -5987,7 +6107,9 @@ def open_or_create_chat(
 # ---------- 2FA: НАСТРОЙКА ----------
 
 @app.post("/api/2fa/setup")
+@limiter.limit("5/minute")
 def setup_2fa(
+    request: Request,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
@@ -6027,7 +6149,9 @@ def setup_2fa(
 
 
 @app.post("/api/2fa/activate")
+@limiter.limit("5/minute")
 def activate_2fa(
+    request: Request,
     code: str = Form(...),
     backup_codes: str = Form(...),  # JSON массив кодов
     user: User = Depends(get_current_user),
@@ -6068,7 +6192,9 @@ def activate_2fa(
 
 
 @app.post("/api/2fa/disable")
+@limiter.limit("5/minute")
 def disable_2fa(
+    request: Request,
     code: str = Form(...),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
@@ -6203,7 +6329,8 @@ def login(request: Request, data: LoginIn, session: Session = Depends(get_sessio
     session.add(IPLog(user_id=user.id, ip_address=ip, user_agent=ua, action="login"))
     log_action(session, user.id, "login", ip_address=ip)
     session.commit()
-    
+
+    set_refresh_cookie(response, user.id, user.token_version)
     return {"token": create_token(user.id, user.token_version), "user": user_out(user, session)}
 
 
@@ -6211,6 +6338,7 @@ def login(request: Request, data: LoginIn, session: Session = Depends(get_sessio
 @limiter.limit("5/minute")
 def login_2fa(
     request: Request,
+    response: Response,
     user_id: int = Form(...),
     code: str = Form(...),
     session: Session = Depends(get_session),
@@ -6248,7 +6376,8 @@ def login_2fa(
     session.add(IPLog(user_id=user.id, ip_address=ip, user_agent=ua, action="login_2fa"))
     log_action(session, user.id, "login_2fa", ip_address=ip)
     session.commit()
-    
+
+    set_refresh_cookie(response, user.id, user.token_version)
     return {"token": create_token(user.id, user.token_version), "user": user_out(user, session)}
 
 
@@ -6295,7 +6424,9 @@ def get_my_public_key(
 
 
 @app.post("/api/keys/register")
+@limiter.limit("10/minute")
 def register_public_key(
+    request: Request,
     public_key: str = Form(...),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
@@ -6487,6 +6618,10 @@ async def upload_encrypted_media(
 
     if not chat.is_secret:
         raise HTTPException(400, "Шифрованное медиа только для секретных чатов")
+
+    err = check_size_before_read(file.headers, 50 * 1024 * 1024)
+    if err:
+        raise HTTPException(413, err)
 
     content = await file.read()
     if len(content) > 50 * 1024 * 1024:
@@ -7588,6 +7723,10 @@ async def upload_group_avatar(
     if ext not in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
         raise HTTPException(400, f"Неверный формат: {ext}. Поддерживаются: .jpg, .jpeg, .png, .gif, .webp")
     
+    err = check_size_before_read(file.headers, 5 * 1024 * 1024)
+    if err:
+        raise HTTPException(413, err)
+
     content = await file.read()
     if len(content) > 5 * 1024 * 1024:
         raise HTTPException(400, "Файл слишком большой (максимум 5 МБ)")
@@ -9634,6 +9773,10 @@ async def upload_prism_avatar(
     if not file.filename or not file.filename.lower().endswith('.png'):
         raise HTTPException(400, "Для Призмы требуется формат PNG (без сжатия)")
     
+    err = check_size_before_read(file.headers, 5 * 1024 * 1024)
+    if err:
+        raise HTTPException(413, err)
+
     content = await file.read()
     if len(content) > 5 * 1024 * 1024:
         raise HTTPException(400, "Файл слишком большой (макс 5 МБ)")
@@ -9826,6 +9969,10 @@ async def upload_custom_badge(
     if ext not in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
         raise HTTPException(400, f"Неверный формат: {ext}")
     
+    err = check_size_before_read(file.headers, 2 * 1024 * 1024)
+    if err:
+        raise HTTPException(413, err)
+
     content = await file.read()
     if len(content) > 2 * 1024 * 1024:
         raise HTTPException(400, "Файл слишком большой (макс 2 МБ)")

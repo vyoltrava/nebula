@@ -10,6 +10,7 @@ import { MessageSquare, Search, Lock, Users, Bookmark, ShieldCheck, X, Plus } fr
 import { getToken } from "@/lib/auth";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { socket } from "@/lib/websocket";
+import { sanitizeSvg } from "@/lib/sanitize";
 import { ChatListSkeleton } from "@/components/Skeletons";
 import { ChatPreview } from "@/components/ChatPreview";
 import { Pin, PinOff, MoreVertical, Trash2 } from "lucide-react";
@@ -818,7 +819,7 @@ const confirmPrismKey = async () => {
               {creationLandscape && (
                 <div className="p-4 space-y-4">
                   <div className="relative bg-gray-100 dark:bg-white/5 rounded-xl p-2 border border-cyan-500/30">
-                    <div dangerouslySetInnerHTML={{ __html: creationLandscape.svg }} className="absolute inset-0 opacity-60 pointer-events-none rounded-lg" />
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeSvg(creationLandscape.svg) }} className="absolute inset-0 opacity-60 pointer-events-none rounded-lg" />
                     <svg viewBox="0 0 800 600" className="relative w-full h-auto z-10">
                       {creationLandscape.objects.map(obj => {
                         const isSelected = selectedCreationObject === obj.id;

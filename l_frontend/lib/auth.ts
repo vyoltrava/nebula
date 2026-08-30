@@ -133,6 +133,49 @@ export function removeAccount(userId: number): void {
 
 
 
+// ============================================================
+// 🔄 REFRESH TOKEN (короткоживущий access + httpOnly refresh cookie)
+// ============================================================
+import { API_URL } from "./apiUrl";
+
+/**
+ * Обновляет access-токен через httpOnly refresh-cookie.
+ * Вызывается автоматически при 401 из apiFetch.
+ * Возвращает новый access-токен или null (сессия истекла).
+ */
+export async function refreshAccessToken(): Promise<string | null> {
+  const active = getActiveAccount();
+  try {
+    const res = await fetch(`${API_URL}/api/auth/refresh`, {
+      method: "POST",
+      credentials: "include", // отправляем httpOnly refresh_token cookie
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.token) return null;
+    if (active) {
+      // Обновляем токен активного аккаунта в списке
+      setToken(data.token, {
+        id: active.userId,
+        username: active.username,
+        display_name: active.displayName,
+        avatar_url: active.avatarUrl,
+      });
+    }
+    return data.token as string;
+  } catch {
+    return null;
+  }
+}
+
+// 🛡️ Миграция: удаляем легаси-ключ localStorage "token" (в нём мог лежать
+// токен другого аккаунта, и он жил 7 дней). Выполняется один раз при загрузке.
+if (isBrowser()) {
+  try {
+    if (localStorage.getItem("token")) localStorage.removeItem("token");
+  } catch { /* приватный режим — игнорируем */ }
+}
+
 // 🎯 9. Получить уровень пользователя (фоллбэк, если level не пришел с бэкенда)
 export function getUserLevel(user: any): number {
   // 1. Если уровень явно указан в объекте (бэкенд всегда его шлет в /api/me)

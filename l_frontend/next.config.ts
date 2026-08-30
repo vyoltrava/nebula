@@ -2,8 +2,22 @@ import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
 
+// 🛡️ CSP: connect-src только для доверенных API/WS-хостов (можно расширить через env)
+const apiHost = (() => {
+  try { return new URL(process.env.NEXT_PUBLIC_API_URL || "").host; } catch { return ""; }
+})();
+const connectSrc = [
+  "'self'",
+  apiHost ? `https://${apiHost}` : "https:",
+  apiHost ? `wss://${apiHost}` : "wss:",
+].join(" ");
+
 const nextConfig: NextConfig = {
   transpilePackages: ["@noble/curves", "@noble/ciphers"],
+  compiler: {
+    // 🚀 Убираем console.log/warn в production-бандле (console.error оставляем)
+    removeConsole: isDev ? false : { exclude: ["error"] },
+  },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
   },
@@ -55,7 +69,7 @@ const nextConfig: NextConfig = {
           // Content-Security-Policy. Настроен под Next.js (RSC + инлайновые стили).
           {
             key: "Content-Security-Policy",
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' ws: wss: https:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'",
+            value: `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src ${connectSrc}; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'`,
           },
         ],
       },

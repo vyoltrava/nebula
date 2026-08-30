@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getToken } from "@/lib/auth";
+import { sanitizeSvg } from "@/lib/sanitize";
 import { useWebSocket } from "@/src/hooks/useWebSocket";
 import { ArrowLeft, Send, ShieldCheck, Lock, Sparkles } from "lucide-react";
 
@@ -197,7 +198,7 @@ export default function PrismChatPage() {
             </div>
             
             <div className="relative bg-gray-100 dark:bg-white/5 rounded-2xl p-2 border border-cyan-500/30 shadow-[0_0_30px_rgba(34,211,238,0.1)]">
-              <div dangerouslySetInnerHTML={{ __html: landscape.svg }} className="absolute inset-0 opacity-60 pointer-events-none rounded-xl" />
+              <div dangerouslySetInnerHTML={{ __html: sanitizeSvg(landscape.svg) }} className="absolute inset-0 opacity-60 pointer-events-none rounded-xl" />
               
               <svg viewBox="0 0 800 600" className="relative w-full h-auto z-10">
                 {landscape.objects.map(obj => {

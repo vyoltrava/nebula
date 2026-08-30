@@ -46,7 +46,7 @@ export function initCryptoOnLogin(): Promise<boolean> {
       }
 
       const data = await res.json();
-      console.log("[CryptoInit] Keys registered:", data);
+      // 🛡️ Не логируем содержимое ответа (может содержать ключевые данные)
       return true;
     } catch (err) {
       console.error("[CryptoInit] Error:", err);

@@ -1,10 +1,10 @@
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 import { perfFetch } from "./perf";
-import { getToken } from '@/lib/auth';
+import { getToken, refreshAccessToken } from '@/lib/auth';
 import { queueable } from "@/lib/pwa/syncQueue";
 
 
-export async function apiFetch(url: string, options: RequestInit = {}) {
+export async function apiFetch(url: string, options: RequestInit = {}, _isRetry = false) {
   const token = getToken();
 
   // Мержим headers: не трогаем существующие, добавляем Authorization если есть токен
@@ -17,11 +17,21 @@ export async function apiFetch(url: string, options: RequestInit = {}) {
   // а при восстановлении сети отправит через фоновую синхронизацию.
   const method = (options.method || "GET").toUpperCase();
 
-  return perfFetch(url, queueable({
+  const res = await perfFetch(url, queueable({
     ...options,
     headers,
     method,
   }));
+
+  // 🔄 Access-токен истёк (30 мин) → пробуем обновить через refresh-cookie и повторить один раз
+  if (res.status === 401 && !_isRetry) {
+    const newToken = await refreshAccessToken();
+    if (newToken) {
+      return apiFetch(url, options, true);
+    }
+  }
+
+  return res;
 }
 
 // ============================================================
