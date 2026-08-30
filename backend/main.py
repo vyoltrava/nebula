@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Header, HTTPException, UploadFile, File, Form, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, Header, HTTPException, UploadFile, File, Form, Request, WebSocket, WebSocketDisconnect, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -56,7 +56,7 @@ from models import (
     IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead,
     PushSubscription, StickerPack, Sticker, MessageReaction, Theme, SystemSetting,
     RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge,
-    CustomBadge, CustomBadgeTemplate, CustomBadgeAssignment,
+    CustomBadge, CustomBadgeTemplate, CustomBadgeAssignment, SystemBadge,
     SuggestionCategory, SuggestionThread, SuggestionThreadComment, TeamStatistic, RoleHistory, Suggestion, SuggestionComment 
     
 )
@@ -727,7 +727,7 @@ def user_out(user: User, session: Session = None) -> dict:
                 except Exception:
                     role_data = None
 
-    return {
+    result = {
         "id": user.id,
         "username": user.username,
         "display_name": user.display_name,
@@ -745,13 +745,14 @@ def user_out(user: User, session: Session = None) -> dict:
         "two_fa_enabled": user.totp_enabled,  # 🆕
         "email_linked": bool(user.email),      # 🆕
         "selected_badge_id": user.selected_badge_id,
-        "custom_badge_url": user.custom_badge_url,  # 🆕 ДОБАВЬ ЭТУ СТРОКУ
+        "custom_badge_url": user.custom_badge_url,  # 🆕
 
     }
    
-    #  ДОБАВЬ ЭТОТ БЛОК:
+    #  Системная плашка (уровни 9-11) + активная кастомная плашка
     if session:
         result["active_custom_badge_assignment"] = get_active_custom_badge_for(user.id, session)
+        result["system_badge"] = get_system_badge_for(get_user_level(user, session), session)
     
     return result
 
@@ -10008,6 +10009,144 @@ def get_active_custom_badge_for(user_id: int, session: Session) -> Optional[dict
             # чтобы фронт (RoleBadge) получал все поля новой модели плашек
             return _assignment_out(a, session)
     return None
+
+# ============================================================
+# ⭐ СИСТЕМНЫЕ ПЛАШКИ (уровни 9-11: Developer / Founder / System)
+# ============================================================
+
+def _system_badge_out(b: SystemBadge) -> dict:
+    """Сериализация системной плашки"""
+    try:
+        anims = json.loads(b.animation_flags) if b.animation_flags else []
+    except Exception:
+        anims = []
+    return {
+        "level": b.level,
+        "name": b.name,
+        "text_content": b.text_content,
+        "text_color": b.text_color or "#ffffff",
+        "bg_type": b.bg_type,
+        "bg_color": b.bg_color,
+        "bg_gradient": b.bg_gradient,
+        "icon_url": b.icon_url,
+        "border_color": b.border_color,
+        "border_width": b.border_width,
+        "border_style": b.border_style,
+        "border_glow": b.border_glow,
+        "border_glow_intensity": b.border_glow_intensity,
+        "animation_flags": anims,
+        "animation_speed": b.animation_speed,
+        "shadow_enabled": b.shadow_enabled,
+        "shadow_blur": b.shadow_blur,
+        "shadow_offset_x": b.shadow_offset_x,
+        "shadow_offset_y": b.shadow_offset_y,
+        "shadow_color": b.shadow_color,
+        "inner_glow_enabled": b.inner_glow_enabled,
+        "inner_glow_intensity": b.inner_glow_intensity,
+        "specular_enabled": b.specular_enabled,
+        "metallic_enabled": b.metallic_enabled,
+        "is_active": b.is_active,
+        "updated_at": b.updated_at.isoformat() if b.updated_at else None,
+    }
+
+
+def get_system_badge_for(level: int, session: Session) -> Optional[dict]:
+    """Активная системная плашка для уровня (если задана)."""
+    if level not in (9, 10, 11):
+        return None
+    b = session.get(SystemBadge, level)
+    if not b or not b.is_active:
+        return None
+    return _system_badge_out(b)
+
+
+@app.get("/api/system-badges")
+def list_system_badges(
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Список всех системных плашек (levels 9-11)"""
+    _require_badge_admin(staff, session)
+    rows = session.exec(select(SystemBadge).order_by(SystemBadge.level)).all()
+    return [_system_badge_out(b) for b in rows]
+
+
+@app.put("/api/system-badges/{level}")
+def upsert_system_badge(
+    level: int,
+    data: dict = Body(...),
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Создать/обновить системную плашку для уровня 9-11"""
+    lvl_req = _require_badge_admin(staff, session)
+    if level not in (9, 10, 11):
+        raise HTTPException(400, "Уровень должен быть 9, 10 или 11")
+    # Менять плашку уровня 11 может только уровень 11+ (в т.ч. 10 → нет)
+    if level == 11 and lvl_req < 11:
+        raise HTTPException(403, "Менять плашку System (level 11) может только level 11+")
+    if level == 10 and lvl_req < 10:
+        raise HTTPException(403, "Менять плашку Founder (level 10) может только level 10+")
+
+    b = session.get(SystemBadge, level)
+    if not b:
+        b = SystemBadge(level=level, name=data.get("name") or "Level")
+        session.add(b)
+
+    field_map = {
+        "name": "name",
+        "text_content": "text_content",
+        "text_color": "text_color",
+        "bg_type": "bg_type",
+        "bg_color": "bg_color",
+        "bg_gradient": "bg_gradient",
+        "icon_url": "icon_url",
+        "border_color": "border_color",
+        "border_width": "border_width",
+        "border_style": "border_style",
+        "border_glow": "border_glow",
+        "border_glow_intensity": "border_glow_intensity",
+        "animation_flags": "animation_flags",
+        "animation_speed": "animation_speed",
+        "shadow_enabled": "shadow_enabled",
+        "shadow_blur": "shadow_blur",
+        "shadow_offset_x": "shadow_offset_x",
+        "shadow_offset_y": "shadow_offset_y",
+        "shadow_color": "shadow_color",
+        "inner_glow_enabled": "inner_glow_enabled",
+        "inner_glow_intensity": "inner_glow_intensity",
+        "specular_enabled": "specular_enabled",
+        "metallic_enabled": "metallic_enabled",
+        "is_active": "is_active",
+    }
+    for src, dst in field_map.items():
+        if src in data:
+            setattr(b, dst, data[src])
+    # animation_flags храним как JSON-строку
+    if "animation_flags" in data and isinstance(data["animation_flags"], list):
+        b.animation_flags = json.dumps(data["animation_flags"])
+    b.updated_at = datetime.now(timezone.utc)
+    session.commit()
+    session.refresh(b)
+    return _system_badge_out(b)
+
+
+@app.delete("/api/system-badges/{level}")
+def delete_system_badge(
+    level: int,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Удалить системную плашку (сбросить на дефолт)"""
+    lvl_req = _require_badge_admin(staff, session)
+    if level in (10, 11) and lvl_req < level:
+        raise HTTPException(403, f"Сбросить плашку уровня {level} может только level {level}+")
+    b = session.get(SystemBadge, level)
+    if b:
+        session.delete(b)
+        session.commit()
+    return {"ok": True}
+
 
 # ============================================================
 # 📊 СТАТИСТИКА КОМАНДЫ

@@ -641,7 +641,7 @@ export const uk = {
     measureShort: "Міра",
     description: "Опис",
     violations: "Типові порушення",
-    founders: "Founder",
+    founders: "Засновники та розробники",
     founderName: "Founder", // 🆕 название плашки основателя (всегда на английском)
     foundersHint: "Люди, які створили платформу і відповідають за її технічний розвиток.",
     admin: "Адміністрація та Модерація",

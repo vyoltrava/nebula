@@ -589,6 +589,46 @@ class CustomBadgeAssignment(SQLModel, table=True):
         return False
 
 
+class SystemBadge(SQLModel, table=True):
+    """Системная плашка (уровни 9-11: Developer / Founder / System).
+    Одна плашка на уровень — кастомизируется админом в окне бейджей."""
+    __tablename__ = "system_badge"
+
+    level: int = Field(primary_key=True)               # 9, 10, 11
+    name: str = Field(max_length=80)                    # Название плашки
+    text_content: Optional[str] = None                  # Текст на плашке
+    text_color: Optional[str] = Field(default="#ffffff")
+
+    # === Визуальные настройки ===
+    bg_type: str = Field(default="solid")              # solid | gradient
+    bg_color: Optional[str] = None
+    bg_gradient: Optional[str] = None
+    icon_url: Optional[str] = None                     # иконка (например /role-icon.svg)
+
+    border_color: Optional[str] = None
+    border_width: Optional[int] = None
+    border_style: Optional[str] = None
+    border_glow: bool = Field(default=False)
+    border_glow_intensity: Optional[int] = None
+
+    animation_flags: Optional[str] = None             # JSON массив анимаций
+    animation_speed: Optional[str] = None
+
+    shadow_enabled: bool = Field(default=True)
+    shadow_blur: Optional[int] = None
+    shadow_offset_x: Optional[int] = None
+    shadow_offset_y: Optional[int] = None
+    shadow_color: Optional[str] = None
+    inner_glow_enabled: bool = Field(default=False)
+    inner_glow_intensity: Optional[int] = None
+    specular_enabled: bool = Field(default=False)
+    metallic_enabled: bool = Field(default=False)
+
+    is_active: bool = Field(default=True)              # Активна ли плашка
+    created_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
 # ============================================================
 # ✨ PRISME CHAT — система "выбора объекта как ключа доступа"
 # ============================================================

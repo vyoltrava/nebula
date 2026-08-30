@@ -643,7 +643,7 @@ export const en: Dictionary = {
     measureShort: "Measure",
     description: "Description",
     violations: "Typical violations",
-    founders: "Founder",
+    founders: "Founders and Developers",
     founderName: "Founder", // 🆕 название плашки основателя (всегда на английском)
     foundersHint: "People who created the platform and are responsible for its technical development.",
     admin: "Administration and Moderation",

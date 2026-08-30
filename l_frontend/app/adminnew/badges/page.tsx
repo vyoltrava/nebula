@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getToken, getUserLevel } from "@/lib/auth";
-import { Plus, Shield, Gift, List, Sparkles, ArrowLeft } from "lucide-react";
+import { Plus, Shield, Gift, List, Sparkles, ArrowLeft, Crown } from "lucide-react";
 import { Button } from "@/components/ui/Button"; // ← ИМПОРТ КНОПКИ
 import { CustomBadgeForm } from "@/components/admin/badges/CustomBadgeForm";
 import { CustomBadgeAssignForm } from "@/components/admin/badges/CustomBadgeAssignForm";
@@ -213,6 +213,16 @@ export default function BadgesAdminPage() {
           </button>
           <button onClick={() => setActiveTab("assigned")} className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${activeTab === "assigned" ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" : "text-gray-400 hover:text-gray-300"}`}>
             <Sparkles className="inline mr-2" size={16} /> Выданные плашки
+          </button>
+        </div>
+
+        {/* Кнопка перехода к системным плашкам (level 9-11) */ }
+        <div className="mb-6">
+          <button
+            onClick={() => router.push("/admin/badges/system")}
+            className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg text-sm font-medium text-purple-400 transition-colors flex items-center gap-2"
+          >
+            <Crown size={16} /> Системные плашки (level 9–11)
           </button>
         </div>
 
