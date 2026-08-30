@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
-import { getToken, clearToken } from "@/lib/auth";
+import { getToken } from "@/lib/auth";
 import { AccountSwitcher } from "@/components/AccountSwitcher";
 import { BugReportModal } from "@/components/BugReportModal";
 import { getCachedUser, setCachedUser } from "@/lib/authCache";
@@ -153,7 +153,8 @@ export function NebulaSidebar() {
       return next;
     });
   };
-  const handleLogout = () => { clearToken(); router.push("/login"); };
+  // 🆕 Кнопки "Выход" открывают модалку смены аккаунта (как в классическом Sidebar):
+  // список аккаунтов + кнопка "Выход". Само действие выхода — внутри AccountSwitcher.
 
   // Цвета иконок небула-орбиты (каждую иконку — в её цвет, чтобы не путаться)
   const ORBIT_COLORS: Record<string, string> = {
@@ -253,7 +254,7 @@ export function NebulaSidebar() {
     { key: "prism", icon: ShieldCheck, label: "PRISM Link", badge: 0, run: openCreatePrism },
     { key: "secret", icon: Lock, label: t("profile.secretChat"), badge: 0, run: openCreateSecret },
     { key: "profile", icon: null, label: t("nav.profile"), badge: 0, run: () => user && router.push(`/nebula-user/${user.username}`) },
-    { key: "logout", icon: LogOut, label: t("nav.logout"), badge: 0, run: handleLogout },
+    { key: "logout", icon: LogOut, label: t("nav.logout"), badge: 0, run: () => setShowAccountSwitcher(true) },
     { key: "bug", icon: Bug, label: t("nav.reportProblem"), badge: 0, run: () => setShowBugModal(true) },
     { key: "support", icon: Headphones, label: t("nav.support"), badge: 0, run: () => router.push("/support") },
     { key: "settings", icon: Settings, label: t("nav.settings"), badge: 0, run: () => router.push("/nebula-settings") },
@@ -584,7 +585,7 @@ export function NebulaSidebar() {
             <div className="flex flex-col items-center gap-2 mb-2">
               <button onClick={() => setShowBugModal(true)} className="p-2 rounded-lg text-orange-400/80 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/10 transition-all shrink-0" title={t("nav.bugs")}><Bug size={20} className="shrink-0" /></button>
               <button onClick={() => router.push("/support")} className="p-2 rounded-lg text-cyan-400/80 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-cyan-500/10 transition-all shrink-0" title={t("nav.support")}><Headphones size={20} className="shrink-0" /></button>
-              {user && (<button onClick={handleLogout} className="p-2 rounded-lg text-gray-500 dark:text-white/40 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0" title={t("nav.logout")}><LogOut size={20} className="shrink-0" /></button>)}
+              {user && (<button onClick={() => setShowAccountSwitcher(true)} className="p-2 rounded-lg text-gray-500 dark:text-white/40 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 transition-all shrink-0" title={t("nav.logout")}><LogOut size={20} className="shrink-0" /></button>)}
             </div>
           )}
         </div>
