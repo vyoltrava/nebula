@@ -42,9 +42,9 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
-      { url: "/pwa/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/pwa/icon-192.png?v=2", sizes: "192x192", type: "image/png" },
     ],
-    apple: "/apple-touch-icon.png",
+    apple: "/apple-touch-icon.png?v=2",
   },
   // Полный манифест лежит в public/manifest.json (иконки генерирует scripts/generate-icons.mjs)
   manifest: "/manifest.json",
