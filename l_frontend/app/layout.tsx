@@ -11,6 +11,7 @@ import { NebulaGate } from "@/components/NebulaGate";
 import {PermissionGate} from "@/components/PermissionGate";
 import PWARegister from "@/components/PWARegister";
 import InstallPrompt from "@/components/InstallPrompt";
+import ConnectionStatus from "@/components/ConnectionStatus";
 import { NotificationPermissionPrompt } from "@/components/NotificationPermissionPrompt";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
@@ -34,13 +35,19 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  applicationName: "trelod",
   title: "trelod",
   description: "Социальная сеть",
+  keywords: ["trelod", "nebula", "социальная сеть", "мессенджер"],
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/pwa/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
     apple: "/apple-touch-icon.png",
   },
-  manifest: "/site.webmanifest",
+  // Полный манифест лежит в public/manifest.json (иконки генерирует scripts/generate-icons.mjs)
+  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -51,6 +58,7 @@ export const metadata: Metadata = {
   },
   other: {
     "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-title": "trelod",
   },
 };
 
@@ -100,6 +108,7 @@ export default function RootLayout({
         <GlobalPlayerProvider>
         <PWARegister />
         <InstallPrompt />
+        <ConnectionStatus />
         <SplashScreen />
         <ShellSwitcherGate />
         <NebulaGate />

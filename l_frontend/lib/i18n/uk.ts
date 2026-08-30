@@ -473,6 +473,12 @@ export const uk = {
   },
   pwa: {
     install: "Встановити додаток",
+    updateAvailable: "Доступна нова версія",
+    updateNow: "Оновити зараз",
+    updateLater: "Пізніше",
+    online: "В мережі",
+    offline: "Немає з'єднання",
+    syncing: "Синхронізація…",
   },
   perm: {
     title: "Доступ до мікрофона та камери",

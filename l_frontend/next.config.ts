@@ -52,13 +52,43 @@ const nextConfig: NextConfig = {
             key: "Permissions-Policy",
             value: "camera=self, microphone=self, geolocation=()", // камера и микрофон разрешены на своём домене
           },
-          // ⚠️ Content-Security-Policy (CSP) часто ломает внешние скрипты/шрифты/картинки.
-          // Раскомментируйте и настройте его под себя, если используете внешние ресурсы (аналитика, шрифты Google и т.д.)
-          // {
-          //   key: "Content-Security-Policy",
-          //   value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;",
-          // },
+          // Content-Security-Policy. Настроен под Next.js (RSC + инлайновые стили).
+          {
+            key: "Content-Security-Policy",
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' blob: https:; connect-src 'self' ws: wss: https:; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'",
+          },
         ],
+      },
+      // SW всегда должен проверять обновления — не кэшируем на HTTP-уровне
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+      // Манифест — свежий, но без жёсткого no-store
+      {
+        source: "/manifest.json",
+        headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
+      },
+      // Иконки PWA и offline-страница — кэшируем надолго
+      {
+        source: "/pwa/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
+        source: "/apple-touch-icon.png",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
+        source: "/offline.html",
+        headers: [{ key: "Cache-Control", value: "public, max-age=86400" }],
+      },
+      // Собранная статика Next.js — хэшированные имена, кэшируем навсегда
+      {
+        source: "/_next/static/(.*)",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
     ];
   },

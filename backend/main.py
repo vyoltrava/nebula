@@ -355,6 +355,31 @@ async def ip_block_middleware(request: Request, call_next):
     return await call_next(request)
 
 
+@app.middleware("http")
+async def pwa_headers_middleware(request: Request, call_next):
+    """
+    PWA/безопасность: единые заголовки для ответов API и статики,
+    корректный Cache-Control для uploads (immutable) и динамического API.
+    Офлайн-кэширование на стороне SW; здесь не мешаем свежести данных.
+    """
+    response = await call_next(request)
+    path = request.url.path
+
+    # Заголовки безопасности (для случаев, когда бэкенд отвечает напрямую)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(self), microphone=(self), geolocation=()"
+
+    if path == "/uploads" or path.startswith("/uploads/"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif path.startswith("/api/") and request.method in ("GET", "HEAD"):
+        # Динамические данные — не кэшируем на HTTP-уровне (кэш управляется SW,
+        # чтобы приложение всегда могло показать свежие данные при сети).
+        response.headers["Cache-Control"] = "no-store"
+
+    return response
+
+
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
     return JSONResponse(
@@ -870,6 +895,20 @@ class ChangePasswordIn(BaseModel):
 @app.get("/health")
 def health_check():
     return {"status": "ok", "service": "nebula-api"}
+
+# PWA: версия приложения/SW — клиент опрашивает перед принудительным update(),
+# чтобы не дёргать сеть вхолостую и показывать актуальный баннер обновления.
+@app.get("/api/pwa/version")
+def pwa_version():
+    return {
+        "service": "nebula-api",
+        "version": "2.0.0",
+        "manifest": "/manifest.json",
+        "sw": "/sw.js",
+        "offline_page": "/offline.html",
+        "periodic_sync_tag": "nebula-periodic-update",
+        "last_updated": "2026-08-30",
+    }
 
 @app.post("/api/register")
 @limiter.limit("5/minute")

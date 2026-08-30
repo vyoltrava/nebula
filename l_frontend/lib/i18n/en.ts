@@ -475,6 +475,12 @@ export const en: Dictionary = {
   },
   pwa: {
     install: "Install app",
+    updateAvailable: "New version available",
+    updateNow: "Update now",
+    updateLater: "Later",
+    online: "Online",
+    offline: "No connection",
+    syncing: "Syncing…",
   },
   perm: {
     title: "Microphone and camera access",

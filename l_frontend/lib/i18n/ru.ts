@@ -473,6 +473,12 @@ export const ru: Dictionary = {
   },
   pwa: {
     install: "Установить приложение",
+    updateAvailable: "Доступна новая версия",
+    updateNow: "Обновить сейчас",
+    updateLater: "Позже",
+    online: "В сети",
+    offline: "Нет соединения",
+    syncing: "Синхронизация…",
   },
   perm: {
     title: "Доступ к микрофону и камере",

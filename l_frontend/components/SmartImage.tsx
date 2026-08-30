@@ -25,6 +25,9 @@ export function SmartImage({ src, alt = "", wrapperClassName = "", imgClassName 
           key={attempt}
           src={src}
           alt={alt}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
           onLoad={() => setStatus("ok")}
           onError={() => setStatus("error")}
           className={`${imgClassName} transition-opacity duration-300 ${status === "ok" ? "opacity-100" : "opacity-0"}`}

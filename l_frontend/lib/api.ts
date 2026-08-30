@@ -1,21 +1,27 @@
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 import { perfFetch } from "./perf";
 import { getToken } from '@/lib/auth';
+import { queueable } from "@/lib/pwa/syncQueue";
 
 
 export async function apiFetch(url: string, options: RequestInit = {}) {
   const token = getToken();
-  
+
   // Мержим headers: не трогаем существующие, добавляем Authorization если есть токен
   const headers = {
     ...(options.headers || {}),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 
-  return perfFetch(url, {
+  // Мутации помечаем как «ставимые в очередь» — SW при офлайне сложит их,
+  // а при восстановлении сети отправит через фоновую синхронизацию.
+  const method = (options.method || "GET").toUpperCase();
+
+  return perfFetch(url, queueable({
     ...options,
     headers,
-  });
+    method,
+  }));
 }
 
 // ============================================================
