@@ -486,12 +486,13 @@ def refresh_access_token(request: Request, response: Response, session: Session 
     user = session.get(User, int(payload["sub"]))
     if not user or user.is_banned:
         raise HTTPException(401, "User not found")
-    if payload.get("ver", 0) != user.token_version:
+    user_token_version = getattr(user, 'token_version', 0)
+    if payload.get("ver", 0) != user_token_version:
         raise HTTPException(401, "Session revoked")
 
-    set_refresh_cookie(response, user.id, user.token_version)
+    set_refresh_cookie(response, user.id, user_token_version)
     return {
-        "token": create_token(user.id, user.token_version, token_type="access"),
+        "token": create_token(user.id, user_token_version, token_type="access"),
         "user": user_out(user, session),
     }
 
@@ -518,7 +519,8 @@ def get_current_user(
     user = session.get(User, int(payload["sub"]))
     if not user:
         raise HTTPException(401, "User not found")
-    if payload.get("ver", 0) != user.token_version:
+    user_token_version = getattr(user, 'token_version', 0)
+    if payload.get("ver", 0) != user_token_version:
         raise HTTPException(401, "Session revoked")
     if user.is_banned:
         raise HTTPException(403, "Account banned")
@@ -1124,7 +1126,8 @@ def register(request: Request, data: RegisterIn, session: Session = Depends(get_
     ip = get_client_ip(request)
     session.add(IPLog(user_id=user.id, ip_address=ip, user_agent=request.headers.get("user-agent"), action="register"))
     session.commit()
-    return {"token": create_token(user.id, user.token_version), "user": user_out(user, session)}
+    user_token_version = getattr(user, 'token_version', 0)
+    return {"token": create_token(user.id, user_token_version), "user": user_out(user, session)}
 
 
 
@@ -1133,7 +1136,7 @@ def logout_all(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    user.token_version += 1  # все старые токены становятся невалидными
+    user.token_version = getattr(user, "token_version", 0) + 1  # все старые токены становятся невалидными
     session.add(user)
     session.commit()
     return {"ok": True}
@@ -6011,8 +6014,9 @@ def login(request: Request, data: LoginIn, session: Session = Depends(get_sessio
     log_action(session, user.id, "login", ip_address=ip)
     session.commit()
 
-    set_refresh_cookie(response, user.id, user.token_version)
-    return {"token": create_token(user.id, user.token_version), "user": user_out(user, session)}
+    _tv = getattr(user, "token_version", 0) or 0
+    set_refresh_cookie(response, user.id, _tv)
+    return {"token": create_token(user.id, _tv), "user": user_out(user, session)}
 
 
 @app.post("/api/login/2fa")
@@ -6058,8 +6062,9 @@ def login_2fa(
     log_action(session, user.id, "login_2fa", ip_address=ip)
     session.commit()
 
-    set_refresh_cookie(response, user.id, user.token_version)
-    return {"token": create_token(user.id, user.token_version), "user": user_out(user, session)}
+    _tv = getattr(user, "token_version", 0) or 0
+    set_refresh_cookie(response, user.id, _tv)
+    return {"token": create_token(user.id, _tv), "user": user_out(user, session)}
 
 
 
