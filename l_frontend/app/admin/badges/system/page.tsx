@@ -3,51 +3,87 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { getToken } from "@/lib/auth";
-import { Trash2, Edit2, X, Crown, ShieldCheck, Info, Sparkles, Plus } from "lucide-react";
+import { Trash2, Edit2, X, Crown, ShieldCheck, Info, Sparkles, Plus, User, ChevronUp } from "lucide-react";
 import { Button, IconButton } from "@/components/ui/Button";
 
-// Дополнительные плашки создаются ТОЛЬКО на уровнях 9-11.
-// Системные плашки (Developer/Founder/System) редактируются отдельно и здесь не трогаются.
+// === Доп. роли уровней 9-11 (высшая каста). Это настоящие роли: цвет подсвечивает ник, права выдаются системой ролей ===
 const LEVELS = [9, 10, 11] as const;
-const LEVEL_META: Record<number, { label: string; color: string }> = {
-  9: { label: "Developer", color: "#3b82f6" },
-  10: { label: "Founder", color: "#fbbf24" },
-  11: { label: "System", color: "#8b5cf6" },
+const LEVEL_META: Record<number, { label: string; color: string; desc: string }> = {
+  9: { label: "Developer", color: "#3b82f6", desc: "Разработка и технический доступ" },
+  10: { label: "Founder", color: "#fbbf24", desc: "Глава проекта / владелец" },
+  11: { label: "System", color: "#8b5cf6", desc: "Системный / официальный аккаунт" },
 };
 
-interface BadgeData {
+const PERMISSION_META: Record<string, { icon: string; category: "content" | "users" | "chats" | "system" }> = {
+  delete_posts:         { icon: "🗑️", category: "content" },
+  edit_posts:           { icon: "✏️", category: "content" },
+  remove_avatars:       { icon: "🖼️", category: "content" },
+  manage_stickers:      { icon: "🎨", category: "content" },
+  manage_announcements: { icon: "📢", category: "content" },
+  ban_users:            { icon: "🚫", category: "users" },
+  warn_users:           { icon: "⚠️", category: "users" },
+  delete_users:         { icon: "☠️", category: "users" },
+  assign_moderator:     { icon: "👮", category: "users" },
+  assign_roles:         { icon: "🎭", category: "users" },
+  pin_messages:         { icon: "📌", category: "chats" },
+  manage_groups:        { icon: "👥", category: "chats" },
+  support_access:       { icon: "🎧", category: "chats" },
+  manage_roles:         { icon: "🎭", category: "system" },
+  manage_users:         { icon: "⚙️", category: "system" },
+  manage_reports:       { icon: "🚩", category: "system" },
+  tech_access:          { icon: "🔧", category: "system" },
+  manage_team_stats:    { icon: "📊", category: "system" },
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  content: "📝 Контент",
+  users: "👥 Пользователи",
+  chats: "💬 Чаты и группы",
+  system: "⚙️ Система",
+};
+
+interface RoleData {
   id: number;
   name: string;
+  color: string;
+  level?: number;
   description?: string | null;
-  icon_url?: string | null;
-  text_content?: string | null;
-  text_color?: string | null;
-  bg_color?: string | null;
-  bg_gradient?: string | null;
-  bg_type?: string | null;
-  border_color?: string | null;
-  border_width?: number | null;
-  priority?: number | null;
-  is_active?: boolean;
+  is_staff?: boolean;
+  permissions?: string[];
 }
 
-export default function SystemBadgeAdminPage() {
+export default function EliteRolesPage() {
   const router = useRouter();
   const [me, setMe] = useState<any>(null);
-  const [badges, setBadges] = useState<BadgeData[]>([]);
+  const [roles, setRoles] = useState<RoleData[]>([]);
+  const [availablePermissions, setAvailablePermissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Форма создания/редактирования
+  // Форма создания/редактирования роли
   const [showForm, setShowForm] = useState(false);
-  const [editingBadge, setEditingBadge] = useState<BadgeData | null>(null);
+  const [editingRole, setEditingRole] = useState<RoleData | null>(null);
   const [name, setName] = useState("");
-  const [textContent, setTextContent] = useState("");
   const [color, setColor] = useState("#8b5cf6");
-  const [textColor, setTextColor] = useState("#ffffff");
   const [level, setLevel] = useState<number>(9);
+  const [description, setDescription] = useState("");
+  const [isStaff, setIsStaff] = useState(true);
+  const [permissions, setPermissions] = useState<string[]>([]);
+
+  // Выдача роли пользователю
+  const [showAssign, setShowAssign] = useState(false);
+  const [assignQuery, setAssignQuery] = useState("");
+  const [assignResults, setAssignResults] = useState<any[]>([]);
+  const [assignTarget, setAssignTarget] = useState<any>(null);
+  const [assignRoleId, setAssignRoleId] = useState<number | null>(null);
+  const [assignSaving, setAssignSaving] = useState(false);
 
   const myLevel = me?.is_admin ? 11 : me?.is_moderator ? 9 : me?.role?.level || 1;
+  const canEditLevel = (lvl: number) => {
+    if (lvl >= 11) return myLevel >= 11;
+    if (lvl >= 10) return myLevel >= 10;
+    return myLevel >= 9;
+  };
 
   async function load() {
     const token = getToken();
@@ -61,14 +97,25 @@ export default function SystemBadgeAdminPage() {
       setMe(meData);
       if (myLevelOf(meData) < 9) { router.push("/"); return; }
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/custom-badges`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/roles`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
-        const data: BadgeData[] = await res.json();
-        // только дополнительные плашки уровней 9-11
-        setBadges(data.filter(b => LEVELS.includes((b.priority ?? 0) as 9 | 10 | 11)));
+        const data: RoleData[] = await res.json();
+        setRoles(data.filter(r => LEVELS.includes((r.level ?? 0) as 9 | 10 | 11)));
       }
+
+      try {
+        const permsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/permissions`);
+        if (permsRes.ok) {
+          const permsData = await permsRes.json();
+          setAvailablePermissions(permsData.map((p: any) => ({
+            ...p,
+            icon: PERMISSION_META[p.id]?.icon || "🔑",
+            category: PERMISSION_META[p.id]?.category || p.category || "system",
+          })));
+        }
+      } catch { /* fallback: права останутся пустыми */ }
     } catch {
       router.push("/");
     } finally {
@@ -82,59 +129,62 @@ export default function SystemBadgeAdminPage() {
 
   useEffect(() => { load(); }, []);
 
-  function openForm(badge?: BadgeData) {
-    if (badge) {
-      setEditingBadge(badge);
-      setName(badge.name);
-      setTextContent(badge.text_content || badge.name);
-      setColor(badge.bg_color || "#8b5cf6");
-      setTextColor(badge.text_color || "#ffffff");
-      setLevel(badge.priority ?? 9);
+  function togglePermission(permId: string) {
+    setPermissions(prev => prev.includes(permId) ? prev.filter(p => p !== permId) : [...prev, permId]);
+  }
+
+  function openForm(role?: RoleData) {
+    if (role) {
+      setEditingRole(role);
+      setName(role.name);
+      setColor(role.color);
+      setLevel(role.level ?? 9);
+      setDescription(role.description || "");
+      setIsStaff(role.is_staff ?? true);
+      setPermissions(role.permissions || []);
     } else {
-      setEditingBadge(null);
+      setEditingRole(null);
       setName("");
-      setTextContent("");
       setColor("#8b5cf6");
-      setTextColor("#ffffff");
       setLevel(9);
+      setDescription("");
+      setIsStaff(true);
+      setPermissions([]);
     }
     setShowForm(true);
   }
 
-  async function saveBadge(e: React.FormEvent) {
+  async function saveRole(e: React.FormEvent) {
     e.preventDefault();
     const token = getToken();
     if (!token) return;
     if (level > myLevel) {
-      alert(`Вы не можете создавать плашки уровня выше ${myLevel}.`);
+      alert(`Вы не можете создавать роли уровня выше ${myLevel}.`);
       return;
     }
     setSaving(true);
-    const payload = {
-      name: name.trim(),
-      text_content: textContent.trim() || name.trim(),
-      text_color: textColor,
-      bg_type: "solid",
-      bg_color: color,
-      border_color: color,
-      border_width: 2,
-      priority: level,   // уровень 9/10/11 хранится в priority
-      is_active: true,
-    };
+    const form = new FormData();
+    form.append("name", name);
+    form.append("color", color);
+    form.append("level", String(level));
+    form.append("description", description);
+    form.append("is_staff", String(isStaff));
+    form.append("permissions", JSON.stringify(permissions));
+
     try {
       const res = await fetch(
-        editingBadge
-          ? `${process.env.NEXT_PUBLIC_API_URL}/api/custom-badges/${editingBadge.id}`
-          : `${process.env.NEXT_PUBLIC_API_URL}/api/custom-badges`,
+        editingRole
+          ? `${process.env.NEXT_PUBLIC_API_URL}/api/roles/${editingRole.id}`
+          : `${process.env.NEXT_PUBLIC_API_URL}/api/roles`,
         {
-          method: editingBadge ? "PUT" : "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-          body: JSON.stringify(payload),
+          method: editingRole ? "PATCH" : "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
         }
       );
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        alert(data?.detail || "Ошибка сохранения");
+        alert(data?.detail || "Ошибка сохранения роли");
         return;
       }
       setShowForm(false);
@@ -146,12 +196,12 @@ export default function SystemBadgeAdminPage() {
     }
   }
 
-  async function deleteBadge(id: number) {
-    if (!confirm("Удалить плашку? Она исчезнет у всех пользователей.")) return;
+  async function deleteRole(roleId: number) {
+    if (!confirm("Удалить роль? Она исчезнет у всех пользователей этой роли.")) return;
     const token = getToken();
     if (!token) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/custom-badges/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/roles/${roleId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -166,39 +216,8 @@ export default function SystemBadgeAdminPage() {
     }
   }
 
-  const badgeStyle = (b: BadgeData): React.CSSProperties => ({
-    backgroundColor: b.bg_type === "gradient" ? undefined : (b.bg_color || "#8b5cf6"),
-    backgroundImage: b.bg_type === "gradient" ? b.bg_gradient || undefined : undefined,
-    color: b.text_color || "#ffffff",
-    border: `${b.border_width ?? 2}px solid ${b.border_color || b.bg_color || "#8b5cf6"}`,
-  });
-
-  // === Выдача плашки пользователю ===
-  const [showAssign, setShowAssign] = useState(false);
-  const [assignQuery, setAssignQuery] = useState("");
-  const [assignResults, setAssignResults] = useState<any[]>([]);
-  const [assignTarget, setAssignTarget] = useState<any>(null);
-  const [assignBadgeId, setAssignBadgeId] = useState<number | null>(null);
-  const [assignSaving, setAssignSaving] = useState(false);
-
-  // === Выдача прав (роль) ===
-  const [assignableRoles, setAssignableRoles] = useState<any[]>([]);
-  const [assignRoleId, setAssignRoleId] = useState<number | null>(null);
-
-  // === Выданные плашки / снятие ===
-  const [activeTab, setActiveTab] = useState<"badges" | "issued">("badges");
-  const [assignments, setAssignments] = useState<any[]>([]);
-  const [assignmentsLoading, setAssignmentsLoading] = useState(false);
-
-  // Загружаем assignable-роли при открытии окна выдачи
-  useEffect(() => {
-    if (!showAssign) return;
-    const token = getToken();
-    if (!token) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/roles/assignable`, {
-      headers: { Authorization: `Bearer ${token}` },
-    }).then(r => r.ok ? r.json() : []).then(setAssignableRoles).catch(() => {});
-  }, [showAssign]);
+  // === Выдача роли пользователю (система ролей) ===
+  const [assignableRoles, setAssignableRoles] = useState<RoleData[]>([]);
 
   useEffect(() => {
     if (!assignQuery.trim()) { setAssignResults([]); return; }
@@ -216,124 +235,31 @@ export default function SystemBadgeAdminPage() {
     return () => clearTimeout(t);
   }, [assignQuery]);
 
-  async function assignBadgeToUser() {
-    if (!assignTarget || (!assignBadgeId && !assignRoleId)) return;
+  async function assignRoleToUser() {
+    if (!assignTarget || !assignRoleId) return;
     setAssignSaving(true);
     const token = getToken();
-    try {
-      // 1. Выдать плашку (если выбрана)
-      if (assignBadgeId) {
-        const form = new FormData();
-        form.append("user_id", String(assignTarget.id));
-        form.append("badge_id", String(assignBadgeId));
-        form.append("priority", String(badges.find(b => b.id === assignBadgeId)?.priority ?? 9));
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/custom-badge-assignments`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: form,
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => null);
-          alert(data?.detail || "Ошибка выдачи плашки");
-          return;
-        }
-      }
-
-      // 2. Выдать права (роль) — если выбрана
-      if (assignRoleId) {
-        const form2 = new FormData();
-        form2.append("role_id", String(assignRoleId));
-        const res2 = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${assignTarget.id}/role`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: form2,
-        });
-        if (!res2.ok) {
-          const data = await res2.json().catch(() => null);
-          alert(data?.detail || "Ошибка выдачи роли");
-          return;
-        }
-      }
-
-      setShowAssign(false);
-      setAssignTarget(null);
-      setAssignQuery("");
-      setAssignBadgeId(null);
-      setAssignRoleId(null);
-      if (activeTab === "issued") loadAssignments();
-    } catch {
-      alert("Ошибка сети");
-    } finally {
-      setAssignSaving(false);
-    }
-  }
-
-  // === Загрузка выданных плашек ===
-  async function loadAssignments() {
-    const token = getToken();
-    if (!token) return;
-    setAssignmentsLoading(true);
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/custom-badge-assignments`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data: any[] = await res.json();
-        // только выдачи наших доп. плашек 9-11
-        const ourIds = new Set(badges.map(b => b.id));
-        setAssignments(data.filter(a => ourIds.has(a.badge_id)));
-      }
-    } finally {
-      setAssignmentsLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (activeTab === "issued") loadAssignments();
-  }, [activeTab, badges]);
-
-  // === Снятие плашки ===
-  async function revokeAssignment(assignId: number) {
-    if (!confirm("Снять плашку у пользователя?")) return;
-    const token = getToken();
-    if (!token) return;
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/custom-badge-assignments/${assignId}/revoke`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        alert(data?.detail || "Ошибка снятия плашки");
-        return;
-      }
-      loadAssignments();
-    } catch {
-      alert("Ошибка сети");
-    }
-  }
-
-  // === Снятие прав (роли) ===
-  async function revokeRole(userId: number) {
-    if (!confirm("Снять роль у пользователя?")) return;
-    const token = getToken();
-    if (!token) return;
     const form = new FormData();
-    // role_id не передаём = снять роль
+    form.append("role_id", String(assignRoleId));
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/role`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${assignTarget.id}/role`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: form,
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        alert(data?.detail || "Ошибка снятия роли");
+        alert(data?.detail || "Ошибка выдачи роли");
         return;
       }
-      load();
+      setShowAssign(false);
+      setAssignTarget(null);
+      setAssignQuery("");
+      setAssignRoleId(null);
     } catch {
       alert("Ошибка сети");
+    } finally {
+      setAssignSaving(false);
     }
   }
 
@@ -353,15 +279,15 @@ export default function SystemBadgeAdminPage() {
             <div className="flex items-center gap-3">
               <Crown size={24} className="text-[#fbbf24]" />
               <div>
-                <h1 className="text-2xl font-black text-gray-900 dark:text-white">Дополнительные плашки</h1>
+                <h1 className="text-2xl font-black text-gray-900 dark:text-white">Роли высшей касты (9–11)</h1>
                 <p className="text-xs text-gray-600 dark:text-white/50 mt-0.5">
-                  Уровни 9–11 • Ваш уровень: <span className="font-bold">{myLevel}</span>
+                  Ваш уровень: <span className="font-bold">{myLevel}</span>
                 </p>
               </div>
             </div>
             <div className="flex gap-2">
-              <Button icon={Plus} onClick={() => openForm()}>Создать плашку</Button>
-              <Button variant="secondary" icon={Sparkles} onClick={() => setShowAssign(true)}>Выдать</Button>
+              <Button icon={Plus} onClick={() => openForm()}>Создать роль</Button>
+              <Button variant="secondary" icon={User} onClick={() => setShowAssign(true)}>Выдать роль</Button>
             </div>
           </div>
         </div>
@@ -370,12 +296,12 @@ export default function SystemBadgeAdminPage() {
           <div className="bg-[#fbbf24]/10 border border-[#fbbf24]/30 rounded-xl p-4 flex gap-3">
             <Info size={20} className="text-[#fbbf24] shrink-0 mt-0.5" />
             <div className="text-sm text-gray-800 dark:text-white/80 space-y-1">
-              <p className="font-bold text-gray-900 dark:text-white">Дополнительные плашки уровней 9–11</p>
-              <p>Это не системные плашки (Developer / Founder / System) — они настраиваются отдельно. Здесь создаются доп. плашки, например «Младший разработчик» с уровнем 9, которые визуально отличаются и выдаются конкретным пользователям.</p>
+              <p className="font-bold text-gray-900 dark:text-white">Это полноценные роли уровней 9–11</p>
+              <p>Создаются через систему ролей: <strong>цвет роли подсвечивает ник</strong>, права работают во всём приложении. Выдача — через «Выдать роль» (та же система, что в управлении ролями).</p>
               <div className="flex flex-wrap gap-2 mt-2 text-xs">
                 {LEVELS.map(l => (
                   <span key={l} className="px-2 py-0.5 rounded border" style={{ color: LEVEL_META[l].color, borderColor: `${LEVEL_META[l].color}40`, background: `${LEVEL_META[l].color}15` }}>
-                    {LEVEL_META[l].label}: {l}
+                    {LEVEL_META[l].label}: {l} — {LEVEL_META[l].desc}
                   </span>
                 ))}
               </div>
@@ -383,90 +309,63 @@ export default function SystemBadgeAdminPage() {
           </div>
         </div>
 
-        {/* ВКЛАДКИ */}
-        <div className="flex gap-1 px-4 pt-4 bg-ivory dark:bg-[#18181b]">
-          <button onClick={() => setActiveTab("badges")}
-            className={`px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 transition-all ${activeTab === "badges" ? "border-[#8b5cf6] text-[#8b5cf6]" : "border-transparent text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white"}`}>
-            Плашки {badges.length > 0 && <span className="text-[10px] ml-1 text-gray-500">({badges.length})</span>}
-          </button>
-          <button onClick={() => setActiveTab("issued")}
-            className={`px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 transition-all ${activeTab === "issued" ? "border-[#8b5cf6] text-[#8b5cf6]" : "border-transparent text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white"}`}>
-            Выданные {assignments.length > 0 && <span className="text-[10px] ml-1 text-gray-500">({assignments.length})</span>}
-          </button>
-        </div>
-
-        {activeTab === "badges" && (
         <div className="p-4 space-y-3">
           {loading && <p className="text-center text-gray-500 dark:text-white/40 py-8 animate-pulse">Загрузка...</p>}
-          {!loading && badges.length === 0 && (
+          {!loading && roles.length === 0 && (
             <div className="text-center py-12">
               <Crown size={48} className="mx-auto text-gray-300 dark:text-white/10 mb-3" />
-              <p className="text-gray-500 dark:text-white/40 text-sm">Дополнительных плашек пока нет. Нажмите «Создать плашку».</p>
+              <p className="text-gray-500 dark:text-white/40 text-sm">Ролей 9–11 пока нет. Нажмите «Создать роль».</p>
             </div>
           )}
-          {badges.map(b => {
-            const lvl = b.priority ?? 9;
+          {roles.map(role => {
+            const lvl = role.level ?? 9;
             const meta = LEVEL_META[lvl] || LEVEL_META[9];
             return (
-              <div key={b.id} className="bg-paper dark:bg-[#171717] border border-line dark:border-white/10 rounded-xl p-4 hover:bg-white/[0.07] transition-colors">
+              <div key={role.id} className="bg-paper dark:bg-[#171717] border border-line dark:border-white/10 rounded-xl p-4 hover:bg-white/[0.07] transition-colors">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3 flex-wrap flex-1">
-                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-white text-sm font-black uppercase tracking-widest shadow-lg border" style={badgeStyle(b)}>
-                      {b.text_content || b.name}
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-white text-sm font-black uppercase tracking-widest shadow-lg border"
+                      style={{ backgroundColor: role.color, borderColor: `${role.color}80`, boxShadow: `0 4px 14px 0 ${role.color}40` }}>
+                      {role.name}
                       <span className="border-l border-white/30 pl-2 text-[10px] font-mono opacity-90">Lvl {lvl}</span>
                     </span>
-                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-bold border" style={{ color: meta.color, borderColor: `${meta.color}40`, backgroundColor: `${meta.color}10` }}>
-                      <ShieldCheck size={12} /> уровень {lvl}
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-bold border"
+                      style={{ color: meta.color, borderColor: `${meta.color}40`, backgroundColor: `${meta.color}10` }}>
+                      <ChevronUp size={12} /> {lvl}
                     </div>
-                    {b.description && <p className="text-xs text-gray-600 dark:text-white/60 italic hidden md:block">"{b.description}"</p>}
+                    {role.description && <p className="text-xs text-gray-600 dark:text-white/60 italic hidden md:block">"{role.description}"</p>}
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <IconButton icon={Edit2} variant="secondary" size="iconSm" onClick={() => openForm(b)} title="Редактировать" />
-                    <IconButton icon={Trash2} variant="danger" size="iconSm" onClick={() => deleteBadge(b.id)} title="Удалить" />
+                    <IconButton icon={Edit2} variant="secondary" size="iconSm" disabled={!canEditLevel(lvl)} onClick={() => openForm(role)} title="Редактировать" />
+                    <IconButton icon={Trash2} variant="danger" size="iconSm" disabled={!canEditLevel(lvl)} onClick={() => deleteRole(role.id)} title="Удалить" />
                   </div>
                 </div>
+
+                {role.permissions && role.permissions.length > 0 && (
+                  <div className="mt-3 flex gap-1.5 flex-wrap">
+                    {role.permissions.map(perm => {
+                      const metaP = PERMISSION_META[perm];
+                      const categoryColor = {
+                        content: "border-orange-400/30 bg-orange-500/10 text-orange-600 dark:text-orange-300",
+                        users: "border-red-400/30 bg-red-500/10 text-red-600 dark:text-red-300",
+                        chats: "border-blue-400/30 bg-blue-500/10 text-blue-600 dark:text-blue-300",
+                        system: "border-purple-400/30 bg-purple-500/10 text-purple-600 dark:text-purple-300",
+                      }[metaP?.category || "system"];
+                      return (
+                        <span key={perm} className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-xs ${categoryColor}`}>
+                          <span>{metaP?.icon || "🔑"}</span>
+                          <span>{perm}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
-        )}
 
-        {/* ВКЛАДКА: ВЫДАННЫЕ ПЛАШКИ */}
-        {activeTab === "issued" && (
-          <div className="p-4 space-y-3">
-            {assignmentsLoading && <p className="text-center text-gray-500 dark:text-white/40 py-8 animate-pulse">Загрузка...</p>}
-            {!assignmentsLoading && assignments.length === 0 && (
-              <div className="text-center py-12">
-                <Sparkles size={48} className="mx-auto text-gray-300 dark:text-white/10 mb-3" />
-                <p className="text-gray-500 dark:text-white/40 text-sm">Выданных плашек пока нет.</p>
-              </div>
-            )}
-            {assignments.map(a => (
-              <div key={a.id} className="bg-paper dark:bg-[#171717] border border-line dark:border-white/10 rounded-xl p-4 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  {a.user_avatar ? <img src={a.user_avatar} className="w-9 h-9 rounded-full object-cover" /> : <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-white/10" />}
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{a.user_display_name || a.user_username || `ID ${a.user_id}`}</p>
-                    <p className="text-xs text-gray-500 dark:text-white/40">@{a.user_username || a.user_id}</p>
-                  </div>
-                  {a.badge && (
-                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-white text-xs font-black uppercase tracking-widest shadow border shrink-0" style={badgeStyle(a.badge)}>
-                      {a.badge.text_content || a.badge.name}
-                    </span>
-                  )}
-                  <span className={`px-2 py-0.5 rounded text-xs shrink-0 ${a.is_active ? "bg-green-500/20 text-green-600 dark:text-green-400" : "bg-gray-500/20 text-gray-400"}`}>
-                    {a.is_active ? "Активна" : "Снята"}
-                  </span>
-                </div>
-                {a.is_active && (
-                  <IconButton icon={X} variant="danger" size="iconSm" onClick={() => revokeAssignment(a.id)} title="Снять плашку" />
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* МОДАЛКА СОЗДАНИЯ/РЕДАКТИРОВАНИЯ ПЛАШКИ — как «Создать роль» */}
+        {/* МОДАЛКА СОЗДАНИЯ/РЕДАКТИРОВАНИЯ РОЛИ 9-11 */}
         {showForm && (
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200] animate-in fade-in duration-200" onClick={() => !saving && setShowForm(false)} />
@@ -474,26 +373,19 @@ export default function SystemBadgeAdminPage() {
               <div className="w-full max-w-lg border border-line dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-black text-gray-900 dark:text-white">
-                    {editingBadge ? "Редактировать плашку" : "Создать плашку"}
+                    {editingRole ? "Редактировать роль" : "Создать роль"}
                   </h2>
                   <IconButton icon={X} size="iconSm" onClick={() => !saving && setShowForm(false)} />
                 </div>
-                <form onSubmit={saveBadge} className="space-y-5">
+                <form onSubmit={saveRole} className="space-y-5">
                   <div>
-                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Название плашки</label>
-                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Например: Младший разработчик, Chapter Lead, 2nd Founder" required
-                      className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] transition-colors" />
+                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Название роли</label>
+                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Например: Младший разработчик, 2nd Founder" required
+                      className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]" />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Текст на плашке</label>
-                    <input value={textContent} onChange={(e) => setTextContent(e.target.value)} maxLength={40} placeholder="Что видно пользователям (по умолчанию — название)"
-                      className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] transition-colors" />
-                    <span className="text-xs text-gray-500 dark:text-white/40 mt-1 block">{textContent.length}/40</span>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Цвет плашки</label>
+                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Цвет плашки и подсветки ника</label>
                     <div className="flex items-center gap-3">
                       <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-16 h-10 rounded-lg border border-line dark:border-white/20 cursor-pointer bg-transparent" />
                       <input type="text" value={color} onChange={(e) => setColor(e.target.value)} className="flex-1 border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:border-[#8b5cf6]" />
@@ -501,11 +393,9 @@ export default function SystemBadgeAdminPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Цвет текста</label>
-                    <div className="flex items-center gap-3">
-                      <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="w-16 h-10 rounded-lg border border-line dark:border-white/20 cursor-pointer bg-transparent" />
-                      <input type="text" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="flex-1 border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:border-[#8b5cf6]" />
-                    </div>
+                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Описание роли</label>
+                    <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Чем занимается носитель этой роли?"
+                      className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] resize-none" />
                   </div>
 
                   <div>
@@ -515,33 +405,46 @@ export default function SystemBadgeAdminPage() {
                         {level} / 11
                       </span>
                     </div>
-                    <input type="range" min={9} max={11} value={level} onChange={(e) => setLevel(Number(e.target.value))}
-                      className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-[#8b5cf6] bg-gray-100 dark:bg-white/10" />
-                    <div className="flex justify-between text-[10px] text-gray-500 dark:text-white/40 mt-1 font-mono">
-                      <span>9 {LEVEL_META[9].label}</span>
-                      <span>10 {LEVEL_META[10].label}</span>
-                      <span>11 {LEVEL_META[11].label}</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      {LEVELS.map(l => (
+                        <button key={l} type="button" onClick={() => setLevel(l)} disabled={!canEditLevel(l)}
+                          className={`py-2 px-3 rounded-lg text-sm font-bold border transition-all disabled:opacity-40 ${level === l ? "text-white" : "text-gray-700 dark:text-white/70 border-line dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5"}`}
+                          style={level === l ? { backgroundColor: LEVEL_META[l].color, borderColor: LEVEL_META[l].color } : undefined}>
+                          {LEVEL_META[l].label} ({l})
+                        </button>
+                      ))}
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-white/40 mt-2">
-                      Плашка уровня <strong>{level}</strong> ({LEVEL_META[level]?.label}) — для сотрудников команды этого уровня.
-                    </p>
+                    <p className="text-xs text-gray-500 dark:text-white/40 mt-2">{LEVEL_META[level]?.desc}</p>
                   </div>
 
                   <div>
-                    <p className="text-xs text-gray-600 dark:text-white/50 mb-2">Предпросмотр:</p>
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
-                      <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-black uppercase tracking-widest shadow-lg border"
-                        style={{ backgroundColor: color, color: textColor, border: `2px solid ${color}` }}>
-                        {textContent || name || "Плашка"}
-                        <span className="border-l border-white/30 pl-2 text-[10px] font-mono opacity-90">Lvl {level}</span>
-                      </span>
-                      <span className="text-xs text-gray-500 dark:text-white/40">Так плашку увидят пользователи</span>
+                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Права роли</label>
+                    <div className="max-h-56 overflow-y-auto space-y-3 border border-line dark:border-white/10 rounded-lg p-3">
+                      {(["content", "users", "chats", "system"] as const).map(cat => {
+                        const group = availablePermissions.filter(p => p.category === cat);
+                        if (group.length === 0) return null;
+                        return (
+                          <div key={cat} className="space-y-1.5">
+                            <h4 className="text-xs font-black text-gray-600 dark:text-white/50 uppercase tracking-wider px-1">{CATEGORY_LABELS[cat]}</h4>
+                            {group.map(perm => (
+                              <label key={perm.id} className={`flex items-center gap-3 cursor-pointer p-2 rounded-lg border transition-all ${permissions.includes(perm.id) ? "border-[#8b5cf6] bg-purple-500/10" : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10"}`}>
+                                <input type="checkbox" checked={permissions.includes(perm.id)} onChange={() => togglePermission(perm.id)} className="w-4 h-4 rounded border-line dark:border-white/30 bg-gray-100 dark:bg-white/5 text-purple-500 focus:ring-purple-500" />
+                                <span className="text-base">{perm.icon}</span>
+                                <span className="text-sm text-gray-800 dark:text-white/90 font-semibold flex-1">{perm.label || perm.id}</span>
+                              </label>
+                            ))}
+                          </div>
+                        );
+                      })}
+                      {availablePermissions.length === 0 && (
+                        <p className="text-xs text-gray-500 dark:text-white/40 text-center py-4">Права не загружены</p>
+                      )}
                     </div>
                   </div>
 
                   <div className="flex gap-3 pt-2">
                     <Button type="submit" loading={saving} disabled={saving} className="flex-1">
-                      {saving ? "Сохранение..." : editingBadge ? "Сохранить" : "Создать"}
+                      {saving ? "Сохранение..." : editingRole ? "Сохранить" : "Создать"}
                     </Button>
                     <Button variant="secondary" onClick={() => !saving && setShowForm(false)} disabled={saving} className="flex-1">
                       Отмена
@@ -553,7 +456,7 @@ export default function SystemBadgeAdminPage() {
           </>
         )}
 
-        {/* МОДАЛКА ВЫДАЧИ ПЛАШКИ ПОЛЬЗОВАТЕЛЮ */}
+        {/* МОДАЛКА ВЫДАЧИ РОЛИ ПОЛЬЗОВАТЕЛЮ */}
         {showAssign && (
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200] animate-in fade-in duration-200" onClick={() => !assignSaving && setShowAssign(false)} />
@@ -561,7 +464,7 @@ export default function SystemBadgeAdminPage() {
               <div className="w-full max-w-md border border-line dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
-                    <Crown size={18} className="text-[#fbbf24]" /> Выдать плашку
+                    <Crown size={18} className="text-[#fbbf24]" /> Выдать роль
                   </h2>
                   <IconButton icon={X} size="iconSm" onClick={() => !assignSaving && setShowAssign(false)} />
                 </div>
@@ -599,35 +502,21 @@ export default function SystemBadgeAdminPage() {
                   )}
 
                   <div>
-                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Плашка</label>
-                    <select value={assignBadgeId ?? ""} onChange={(e) => setAssignBadgeId(e.target.value ? Number(e.target.value) : null)}
-                      className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]">
-                      <option value="">— Без плашки —</option>
-                      {badges.map(b => (
-                        <option key={b.id} value={b.id}>{b.name} (lvl {b.priority ?? 9})</option>
-                      ))}
-                    </select>
-                    {badges.length === 0 && (
-                      <p className="text-xs text-amber-500 mt-1.5">Сначала создайте дополнительную плашку — кнопка «Создать плашку».</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Права / Роль</label>
+                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Роль (9–11)</label>
                     <select value={assignRoleId ?? ""} onChange={(e) => setAssignRoleId(e.target.value ? Number(e.target.value) : null)}
                       className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]">
-                      <option value="">— Не менять роль —</option>
+                      <option value="">— Выберите роль —</option>
                       {assignableRoles.map(r => (
-                        <option key={r.id} value={r.id}>{r.name} (lvl {r.level})</option>
+                        <option key={r.id} value={r.id}>{r.name} (lvl {r.level ?? 9})</option>
                       ))}
                     </select>
                     <p className="text-xs text-gray-500 dark:text-white/40 mt-1.5">
-                      Можно выдать только плашку, только роль, или и то и другое сразу.
+                      Роль выдаётся через систему ролей — подсветка ника и права применятся автоматически.
                     </p>
                   </div>
 
                   <div className="flex gap-3 pt-2">
-                    <Button onClick={assignBadgeToUser} loading={assignSaving} disabled={!assignTarget || (!assignBadgeId && !assignRoleId) || assignSaving} className="flex-1">
+                    <Button onClick={assignRoleToUser} loading={assignSaving} disabled={!assignTarget || !assignRoleId || assignSaving} className="flex-1">
                       Выдать
                     </Button>
                     <Button variant="secondary" onClick={() => !assignSaving && setShowAssign(false)} disabled={assignSaving} className="flex-1">
@@ -644,3 +533,4 @@ export default function SystemBadgeAdminPage() {
     </div>
   );
 }
+
