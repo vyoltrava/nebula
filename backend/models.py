@@ -112,7 +112,7 @@ class PaymentPurchase(SQLModel, table=True):
     provider_id: Optional[str] = Field(default=None)   # ID транзакции у провайдера
     subscription_id: Optional[str] = Field(default=None)
     expires_at: Optional[datetime] = None              # когда истекает (для подписок)
-    metadata: Optional[str] = Field(default=None)      # JSON (previous_role_id, период и т.п.)
+    meta_json: Optional[str] = Field(default=None)      # JSON (previous_role_id, период и т.п.)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
 

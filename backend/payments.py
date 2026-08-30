@@ -76,12 +76,12 @@ def _assign_role(session: Session, purchase: PaymentPurchase):
     if not user:
         return
     try:
-        meta = json.loads(purchase.metadata) if purchase.metadata else {}
+        meta = json.loads(purchase.meta_json) if purchase.meta_json else {}
     except Exception:  # noqa: BLE001
         meta = {}
     if "previous_role_id" not in meta:
         meta["previous_role_id"] = user.role_id
-        purchase.metadata = json.dumps(meta)
+        purchase.meta_json = json.dumps(meta)
         session.add(purchase)
     user.role_id = purchase.role_id
     session.add(user)
@@ -98,7 +98,7 @@ def _revoke_role(session: Session, purchase: PaymentPurchase):
         return
     prev = None
     try:
-        prev = (json.loads(purchase.metadata) or {}).get("previous_role_id")
+        prev = (json.loads(purchase.meta_json) or {}).get("previous_role_id")
     except Exception:  # noqa: BLE001
         prev = None
     user.role_id = prev if isinstance(prev, int) else None
@@ -291,7 +291,7 @@ def create_payment_endpoint(data: dict, current: User = Depends(get_current_user
         result = create_payment(role, purchase, current)
     except Exception as e:  # noqa: BLE001
         purchase.status = "failed"
-        purchase.metadata = json.dumps({"error": str(e)[:300]})
+        purchase.meta_json = json.dumps({"error": str(e)[:300]})
         session.add(purchase)
         session.commit()
         raise HTTPException(502, f"Payment provider error: {e}")
