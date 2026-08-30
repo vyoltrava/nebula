@@ -3102,6 +3102,7 @@ def list_roles(session: Session = Depends(get_session)):
             "level": r.level,
             "description": r.description or "",
             "is_staff": r.is_staff,
+            "show_in_payments": r.show_in_payments,
             "position": r.position or 0,
             "category_id": r.category_id,
             "permissions": json.loads(r.permissions),
@@ -3116,6 +3117,7 @@ def create_role(
     level: int = Form(1),
     description: Optional[str] = Form(None),
     is_staff: bool = Form(False),
+    show_in_payments: bool = Form(False),
     permissions: str = Form("[]"),
     category_id: Optional[int] = Form(None),
     staff: User = Depends(require_staff),
@@ -3139,6 +3141,7 @@ def create_role(
     role = Role(
         name=name, color=color, level=level,
         description=description, is_staff=is_staff,
+        show_in_payments=show_in_payments,
         position=position, permissions=permissions,
         category_id=category_id,
     )
@@ -3149,6 +3152,7 @@ def create_role(
     return {
         "id": role.id, "name": role.name, "color": role.color, "level": role.level,
         "description": role.description, "is_staff": role.is_staff,
+        "show_in_payments": role.show_in_payments,
         "position": role.position, "permissions": json.loads(role.permissions),
     }
 
@@ -3161,6 +3165,7 @@ def update_role(
     level: Optional[int] = Form(None),
     description: Optional[str] = Form(None),
     is_staff: Optional[bool] = Form(None),
+    show_in_payments: Optional[bool] = Form(None),
     permissions: Optional[str] = Form(None),
     category_id: Optional[int] = Form(None),
     staff: User = Depends(require_staff),
@@ -3193,6 +3198,8 @@ def update_role(
             staff_roles = session.exec(select(Role).where(Role.is_staff == True)).all()
             role.position = max([r.position for r in staff_roles], default=0) + 1
         role.is_staff = is_staff
+    if show_in_payments is not None:
+        role.show_in_payments = show_in_payments
     if permissions:
         role.permissions = permissions
     if category_id is not None:
@@ -3204,6 +3211,7 @@ def update_role(
     return {
         "id": role.id, "name": role.name, "color": role.color, "level": role.level,
         "description": role.description, "is_staff": role.is_staff,
+        "show_in_payments": role.show_in_payments,
         "position": role.position, "permissions": json.loads(role.permissions),
     }
 
@@ -7935,7 +7943,9 @@ def get_team(session: Session = Depends(get_session)):
 
         if u.role_id:
             role = roles.get(u.role_id)  # ← из словаря, не из БД
-            if role:
+            # В окне команды показываем только staff-роли: спец. плашки
+            # (в т.ч. купленные) не отображаются в составе команды.
+            if role and role.is_staff:
                 member_data["role"] = {"id": role.id, "name": role.name, "color": role.color}
 
         if level == 11:

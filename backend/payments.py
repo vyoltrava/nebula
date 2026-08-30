@@ -148,7 +148,13 @@ def set_system_status(data: dict, admin: User = Depends(require_admin),
 @router.get("/roles")
 def list_payment_roles(admin: User = Depends(require_admin),
                        session: Session = Depends(get_session)):
-    rows = session.exec(select(PaymentRole)).all()
+    """Только роли с флагом show_in_payments (как is_staff → правила)."""
+    flagged_ids = set(
+        r.id for r in session.exec(
+            select(Role).where(Role.show_in_payments == True)  # noqa: E712
+        ).all()
+    )
+    rows = [r for r in session.exec(select(PaymentRole)).all() if r.role_id in flagged_ids]
     return [_role_out(r) for r in rows]
 
 

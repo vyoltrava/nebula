@@ -24,6 +24,7 @@ import {
   ShieldAlert,
   Palette,
   Sparkles,
+  CreditCard,
 } from "lucide-react";
 import { useNebulaMode } from "@/lib/useNebula";
 import { PushSettings } from "@/components/PushSettings";
@@ -35,7 +36,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PaymentShop } from "@/components/payments/PaymentShop";
 import { Button, IconButton } from "@/components/ui/Button";
 
-type View = "profile" | "appearance" | "notifications" | "permissions" | "messages" | "security" | "nebula";
+type View = "profile" | "payments" | "appearance" | "notifications" | "permissions" | "messages" | "security" | "nebula";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
@@ -52,7 +53,7 @@ export default function SettingsPage() {
   // Поддержка ?view=... (например, из Nebula-настроек: /settings?view=security)
   useEffect(() => {
     const v = new URLSearchParams(window.location.search).get("view");
-    const valid: View[] = ["profile", "appearance", "notifications", "permissions", "messages", "security", "nebula"];
+    const valid: View[] = ["profile", "payments", "appearance", "notifications", "permissions", "messages", "security", "nebula"];
     if (v && valid.includes(v as View)) setView(v as View);
   }, []);
 
@@ -314,6 +315,7 @@ async function activate2FA() {
 
   const nav: { id: View; label: string; icon: any }[] = [
     { id: "profile", label: t("settings.profile"), icon: User },
+    { id: "payments", label: t("settings.payments"), icon: CreditCard },
     { id: "appearance", label: t("settings.appearance"), icon: Palette },
     { id: "notifications", label: t("settings.notifications"), icon: Bell },
     { id: "permissions", label: t("settings.permissions"), icon: Mic },
@@ -414,7 +416,6 @@ async function activate2FA() {
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold">{t("settings.profile")}</h2>
                 <LanguageSwitcher />
-                <PaymentShop />
 
                 {/* Аватар */}
                 <div className="flex items-center gap-4">
@@ -485,6 +486,14 @@ async function activate2FA() {
                     {t("common.cancel")}
                   </Button>
                 </div>
+              </div>
+            )}
+
+            {/* ---------- ОПЛАТА ---------- */}
+            {view === "payments" && (
+              <div>
+                <h2 className="text-lg font-semibold mb-4">{t("settings.payments")}</h2>
+                <PaymentShop />
               </div>
             )}
 

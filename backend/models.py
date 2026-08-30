@@ -241,6 +241,7 @@ class Role(SQLModel, table=True):
     level: int = Field(default=1)
     description: Optional[str] = None      # 🆕 чем занимается роль
     is_staff: bool = Field(default=False)  # 🆕 показывать ли в правилах
+    show_in_payments: bool = Field(default=False)  # 💳 показывать в системе оплаты
     position: int = Field(default=0)       # 🆕 порядок отображения
     category_id: Optional[int] = Field(default=None, foreign_key="rolecategory.id")
     permissions: str = "[]"

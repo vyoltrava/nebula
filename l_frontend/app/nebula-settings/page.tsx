@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft, Sparkles, Sun, Bell, ShieldCheck, ChevronRight,
   KeyRound, Lock, Zap, Languages, User, LogOut, Eye, EyeOff,
-  AlertCircle, CheckCircle2, Copy, ShieldAlert, X,
+  AlertCircle, CheckCircle2, Copy, ShieldAlert, X, CreditCard,
 } from "lucide-react";
 import { useNebulaMode } from "@/lib/useNebula";
 import { getToken, clearToken } from "@/lib/auth";
@@ -21,6 +21,7 @@ import { AppearanceSettings } from "@/components/AppearanceSettings";
 import { PushSettings } from "@/components/PushSettings";
 import { DevicePermissionsSection } from "@/components/DevicePermissionsSection";
 import { LiveTextSettings } from "@/components/LiveTextSettings";
+import { PaymentShop } from "@/components/payments/PaymentShop";
 
 export default function NebulaSettingsPage() {
   const router = useRouter();
@@ -184,6 +185,7 @@ export default function NebulaSettingsPage() {
     { id: "permissions", icon: Lock, color: "text-emerald-500", title: t("nebula.secPermissions"), hint: t("nebula.hintPermissions") },
     { id: "livetext", icon: Zap, color: "text-yellow-500", title: t("nebula.secLivetext"), hint: t("nebula.hintLivetext") },
     { id: "language", icon: Languages, color: "text-purple-500", title: t("nebula.secLanguage"), hint: t("nebula.hintLanguage") },
+    { id: "payments", icon: CreditCard, color: "text-violet-500", title: t("nebula.secPayments"), hint: t("nebula.hintPayments") },
   ];
 
   return (
@@ -258,6 +260,7 @@ export default function NebulaSettingsPage() {
                     {s.id === "permissions" && <DevicePermissionsSection />}
                     {s.id === "livetext" && <LiveTextSettings />}
                     {s.id === "language" && <LanguageSwitcher />}
+                    {s.id === "payments" && <PaymentShop />}
                   </div>
                 )}
               </div>

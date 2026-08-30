@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getToken } from "@/lib/auth";
-import { CreditCard, Save, Trash2, Plus, X, Eye, Loader2, BarChart3 } from "lucide-react";
+import { CreditCard, Save, Trash2, Plus, X, Eye, Loader2, BarChart3, ArrowLeft, Info } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-interface SysRole { id: number; name: string; color: string; }
+interface SysRole { id: number; name: string; color: string; show_in_payments?: boolean; }
 interface PaymentRole {
   id: number; roleId: number; roleName: string; isActive: boolean;
   price: number; currency: string; period: string; trialDays: number;
@@ -140,9 +140,15 @@ export default function AdminPaymentsPage() {
 
   const editingRole = sysRoles.find(r => r.id === editing);
   const pr = editing ? paymentRoles.find(p => p.roleId === editing) : null;
+  // Показываем только роли с флагом "Показывать в системе оплаты" (как is_staff → правила)
+  const visibleRoles = sysRoles.filter(r => r.show_in_payments);
 
   return (
     <div className="min-h-screen bg-ivory dark:bg-[#18181b] p-4 md:p-8 max-w-4xl mx-auto">
+      <button onClick={() => router.push("/adminnew")}
+        className="mb-4 flex items-center gap-1.5 text-sm text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white transition-colors">
+        <ArrowLeft size={16} /> Назад
+      </button>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold flex items-center gap-2 text-gray-900 dark:text-white">
           <CreditCard className="w-6 h-6 text-violet-500" /> Управление оплатой плашек
@@ -162,8 +168,18 @@ export default function AdminPaymentsPage() {
       )}
       {msg && <div className="mb-4 p-3 rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-300 text-sm">{msg}</div>}
 
+      {visibleRoles.length === 0 && (
+        <div className="mb-4 flex items-start gap-2 p-4 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-300 text-sm">
+          <Info size={16} className="shrink-0 mt-0.5" />
+          <span>
+            Пока нет ролей для продажи. Откройте <b>Админка → Роли</b>, создайте или отредактируйте роль
+            и включите флаг «Показывать в системе оплаты» — после этого роль появится здесь.
+          </span>
+        </div>
+      )}
+
       <div className="space-y-2">
-        {sysRoles.map(role => {
+        {visibleRoles.map(role => {
           const p = paymentRoles.find(x => x.roleId === role.id);
           const active = p?.isActive ?? false;
           return (

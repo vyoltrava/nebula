@@ -1,7 +1,8 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { getToken } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { CreditCard, Loader2, X, Check, AlertTriangle, ShieldCheck } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -13,15 +14,19 @@ interface ShopRole {
   isRecurring: boolean; paymentProvider: string;
 }
 
-const PERIOD_LABEL: Record<string, string> = {
-  once: "навсегда", monthly: "в месяц", yearly: "в год",
-};
-
 export function PaymentShop({ onPurchased }: { onPurchased?: () => void }) {
+  const { t } = useI18n();
   const [state, setState] = useState<{ loading: boolean; enabled: boolean; roles: ShopRole[] }>(
     { loading: true, enabled: true, roles: [] },
   );
   const [selected, setSelected] = useState<ShopRole | null>(null);
+  const [pending, setPending] = useState(false);
+
+  const periodLabel = useCallback(
+    (p: string) =>
+      p === "once" ? t("payment.periodOnce") : p === "monthly" ? t("payment.periodMonthly") : p === "yearly" ? t("payment.periodYearly") : p,
+    [t],
+  );
 
   const load = useCallback(async () => {
     try {
@@ -50,8 +55,13 @@ export function PaymentShop({ onPurchased }: { onPurchased?: () => void }) {
   return (
     <div>
       <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2 mb-3">
-        <CreditCard className="w-5 h-5 text-violet-500" /> Доступные плашки
+        <CreditCard className="w-5 h-5 text-violet-500" /> {t("payment.title")}
       </h3>
+      {pending && (
+        <div className="mb-3 flex items-start gap-2 p-3 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 text-sm">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /> {t("payment.manualPending")}
+        </div>
+      )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {state.roles.map(role => (
           <div key={role.roleId}
@@ -59,9 +69,7 @@ export function PaymentShop({ onPurchased }: { onPurchased?: () => void }) {
             <div className="font-semibold text-gray-900 dark:text-white">{role.roleName}</div>
             <div className="mt-1">
               <span className="text-2xl font-extrabold text-violet-500">{role.price} {role.currency}</span>
-              <span className="text-xs text-gray-500 dark:text-white/50 ml-1">
-                / {PERIOD_LABEL[role.period] || role.period}
-              </span>
+              <span className="text-xs text-gray-500 dark:text-white/50 ml-1">/ {periodLabel(role.period)}</span>
             </div>
             {role.description && (
               <p className="text-sm text-gray-500 dark:text-white/60 mt-1">{role.description}</p>
@@ -75,29 +83,33 @@ export function PaymentShop({ onPurchased }: { onPurchased?: () => void }) {
             </ul>
             {role.trialDays > 0 && (
               <div className="text-xs text-green-600 dark:text-green-400 mt-2">
-                🎁 {role.trialDays} дней бесплатно
+                {t("payment.trialFree").replace("{n}", String(role.trialDays))}
               </div>
             )}
             <button onClick={() => setSelected(role)}
               className="mt-3 w-full py-2 rounded-xl bg-violet-500 text-white font-semibold hover:bg-violet-600 transition">
-              💳 Купить
+              {t("payment.buy")}
             </button>
           </div>
         ))}
       </div>
 
       {selected && (
-        <PaymentModal role={selected}
+        <PaymentModal role={selected} periodLabel={periodLabel}
           onClose={() => setSelected(null)}
-          onSuccess={() => { setSelected(null); load(); onPurchased?.(); }} />
+          onSuccess={() => { setSelected(null); load(); onPurchased?.(); }}
+          onManualPending={() => setPending(true)} />
       )}
     </div>
   );
 }
 
-function PaymentModal({ role, onClose, onSuccess }: {
-  role: ShopRole; onClose: () => void; onSuccess: () => void;
+function PaymentModal({ role, periodLabel, onClose, onSuccess, onManualPending }: {
+  role: ShopRole;
+  periodLabel: (p: string) => string;
+  onClose: () => void; onSuccess: () => void; onManualPending: () => void;
 }) {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -112,7 +124,7 @@ function PaymentModal({ role, onClose, onSuccess }: {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.detail || "Не удалось создать платеж");
+        setError(data.detail || t("payment.payError"));
         return;
       }
       if (data.url) {
@@ -121,11 +133,12 @@ function PaymentModal({ role, onClose, onSuccess }: {
         return;
       }
       if (data.provider === "manual" || (!data.url && !data.clientSecret)) {
-        // Ручной режим — платеж ждет подтверждения админа
+        // Ручной режим — платёж ждёт подтверждения админа
+        onManualPending();
         onSuccess();
       }
     } catch {
-      setError("Ошибка сети. Попробуйте позже.");
+      setError(t("payment.networkError"));
     } finally {
       setLoading(false);
     }
@@ -141,7 +154,7 @@ function PaymentModal({ role, onClose, onSuccess }: {
           <X className="w-5 h-5" />
         </button>
 
-        <h2 className="text-lg font-bold text-gray-900 dark:text-white">Покупка плашки</h2>
+        <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t("payment.purchaseTitle")}</h2>
 
         <div className="mt-4 rounded-2xl bg-black/5 dark:bg-white/5 p-4">
           <div className="font-semibold text-gray-900 dark:text-white">{role.roleName}</div>
@@ -150,14 +163,10 @@ function PaymentModal({ role, onClose, onSuccess }: {
           )}
           <div className="mt-2 flex items-baseline gap-1">
             <span className="text-2xl font-extrabold text-violet-500">{role.price} {role.currency}</span>
-            <span className="text-xs text-gray-500">
-              / {PERIOD_LABEL[role.period] || role.period}
-            </span>
+            <span className="text-xs text-gray-500 dark:text-white/50">/ {periodLabel(role.period)}</span>
           </div>
           {role.isRecurring && (
-            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-              🔄 Автопродление — подписка
-            </p>
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{t("payment.autoRenew")}</p>
           )}
         </div>
 
@@ -169,15 +178,14 @@ function PaymentModal({ role, onClose, onSuccess }: {
 
         <button onClick={pay} disabled={loading}
           className="mt-4 w-full py-3 rounded-xl bg-violet-500 text-white font-semibold hover:bg-violet-600 disabled:opacity-50 flex items-center justify-center gap-2 transition">
-          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "💳 Оплатить"}
+          {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> {t("payment.processing")}</> : t("payment.pay")}
         </button>
 
         <p className="mt-3 text-xs text-gray-400 dark:text-white/40 flex items-center justify-center gap-1.5">
           <ShieldCheck className="w-3.5 h-3.5" />
-          Безопасный платеж через {role.paymentProvider === "manual" ? "администрацию" : role.paymentProvider}
+          {t("payment.secureVia")} {role.paymentProvider === "manual" ? t("payment.manualAdmin") : role.paymentProvider}
         </p>
       </div>
     </div>
   );
 }
-

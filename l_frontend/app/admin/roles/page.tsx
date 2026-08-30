@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { getToken } from "@/lib/auth";
-import { Palette, Plus, Trash2, Edit2, X, ShieldCheck, AlertTriangle, Info, ChevronUp, Crown, Sparkles, User, FolderOpen, Settings } from "lucide-react";
+import { Palette, Plus, Trash2, Edit2, X, ShieldCheck, AlertTriangle, Info, ChevronUp, Crown, Sparkles, User, FolderOpen, Settings, CreditCard } from "lucide-react";
 import { Button, IconButton } from "@/components/ui/Button";
 
 // Категории прав с иконками и fallback
@@ -109,6 +109,7 @@ export default function RolesPage() {
   const [level, setLevel] = useState(1);
   const [description, setDescription] = useState("");
   const [isStaff, setIsStaff] = useState(false);
+  const [showInPayments, setShowInPayments] = useState(false);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
@@ -188,6 +189,7 @@ export default function RolesPage() {
       setLevel(role.level || 1);
       setDescription(role.description || "");
       setIsStaff(role.is_staff || false);
+      setShowInPayments(role.show_in_payments || false);
       setPermissions(role.permissions || []);
       setCategoryId(role.category_id ?? null);
     } else {
@@ -197,6 +199,7 @@ export default function RolesPage() {
       setLevel(1);
       setDescription("");
       setIsStaff(false);
+      setShowInPayments(false);
       setPermissions([]);
       setCategoryId(null);
     }
@@ -228,6 +231,7 @@ export default function RolesPage() {
     form.append("level", String(level));
     form.append("description", description);
     form.append("is_staff", String(isStaff));
+    form.append("show_in_payments", String(showInPayments));
     form.append("permissions", JSON.stringify(permissions));
     if (categoryId !== null) form.append("category_id", String(categoryId));
 
@@ -704,6 +708,20 @@ export default function RolesPage() {
                     <label htmlFor="is_staff" className="text-sm text-gray-800 dark:text-white/90 font-semibold cursor-pointer flex items-center gap-2">
                       <Crown size={14} className="text-[#8b5cf6]" />
                       Показывать в правилах (/rules → "Команда trelod")
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
+                    <input
+                      type="checkbox"
+                      id="show_in_payments"
+                      checked={showInPayments}
+                      onChange={(e) => setShowInPayments(e.target.checked)}
+                      className="w-4 h-4 rounded border-line dark:border-white/30 bg-gray-100 dark:bg-white/5 text-purple-500 focus:ring-purple-500"
+                    />
+                    <label htmlFor="show_in_payments" className="text-sm text-gray-800 dark:text-white/90 font-semibold cursor-pointer flex items-center gap-2">
+                      <CreditCard size={14} className="text-violet-500" />
+                      Показывать в системе оплаты (админка → Оплата)
                     </label>
                   </div>
 
