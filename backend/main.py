@@ -650,7 +650,7 @@ def can_moderate(actor: User, target: User, session: Session) -> bool:
 def max_level_for(actor: User, session: Session) -> int:
     """Максимальный уровень роли, которую может создавать/редактировать пользователь"""
     if actor.is_admin:
-        return 8
+        return 11
     actor_lvl = get_user_level(actor, session)
     return actor_lvl - 1
 

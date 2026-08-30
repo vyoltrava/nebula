@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { getToken } from "@/lib/auth";
 import {
   Users, BarChart3, Bug, Globe, Activity, Flag,
-  MessageSquare, SmilePlus, Palette, Headphones, Shield, Crown, Wrench, ArrowLeft
+  MessageSquare, SmilePlus, Palette, Headphones, Shield, Wrench, ArrowLeft
 } from "lucide-react";
 
 import { UsersSection } from "@/components/admin/section/UsersSection";
@@ -123,17 +123,17 @@ export default function AdminPage() {
             <div className="flex items-center gap-1 shrink-0">
               {canRoles && (
                 <Link href="/admin/roles" className={iconBtnClass} title="Роли">
-                  <Crown size={20} />
+                  <Palette size={20} />
                 </Link>
               )}
               {(me?.level ?? 0) >= 9 && (
                 <Link href="/adminnew/badges" className={iconBtnClass} title="Кастомные плашки">
-                  <Palette size={20} />
+                  <Shield size={20} />
                 </Link>
               )}
               {(me.is_admin || (me.permissions || []).includes("manage_team_stats")) && (
                 <Link href="/stat" className={iconBtnClass} title="Команда">
-                  <Shield size={20} />
+                  <BarChart3 size={20} />
                 </Link>
               )}
               

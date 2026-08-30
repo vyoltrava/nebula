@@ -506,11 +506,10 @@ export default function RolesPage() {
                     }}
                   >
                     {role.level === 8 && (
-                      <img
+                        <img
                         src="/role-icon.svg"
                         alt=""
                         className="w-4 h-4 shrink-0"
-                        style={{ filter: "drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000)" }}
                       />
                     )}
                     {role.name}
@@ -792,11 +791,10 @@ export default function RolesPage() {
                         }}
                       >
                         {level === 8 && (
-                          <img
+                            <img
                             src="/role-icon.svg"
                             alt=""
                             className="w-4 h-4 shrink-0"
-                            style={{ filter: "drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000)" }}
                           />
                         )}
                         {name || "Название"}
