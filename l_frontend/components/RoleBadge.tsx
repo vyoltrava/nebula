@@ -221,7 +221,6 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
           src="/role-icon.svg"
           alt=""
           className={`relative z-10 ${size === "sm" ? "w-3.5 h-3.5" : "w-4 h-4 md:w-5 md:h-5"}`}
-          style={{ filter: "drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 1px 0 #000) drop-shadow(0 -1px 0 #000)" }}
         />
         <span className="relative z-10">{user.role.name}</span>
       </span>
