@@ -5200,7 +5200,7 @@ def startup():
     with engine.connect() as conn:
         try:
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_sticker_pack ON sticker(pack_id, "order");'))
-            conn.execute(text('CREATE UNIQUE INDEX IF NOT EXISTS idx_reaction_unique ON message_reaction(message_id, user_id, COALESCE(sticker_id, 0), COALESCE(emoji, ''));'))
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS idx_reaction_unique ON message_reaction(message_id, user_id, COALESCE(sticker_id, 0), COALESCE(emoji, ''));"))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_reaction_message ON message_reaction(message_id);'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_lastreadpost_user ON lastreadpost(user_id);'))
             conn.execute(text('CREATE INDEX IF NOT EXISTS idx_chat_is_prism ON chat(is_prism);'))
