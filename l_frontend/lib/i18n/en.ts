@@ -643,7 +643,7 @@ export const en: Dictionary = {
     measureShort: "Measure",
     description: "Description",
     violations: "Typical violations",
-    founders: "Founders and Development",
+    founders: "Founder",
     foundersHint: "People who created the platform and are responsible for its technical development.",
     admin: "Administration and Moderation",
     adminHint: "The team that maintains order, helps users, and supports the community atmosphere.",
