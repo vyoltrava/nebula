@@ -1,5 +1,15 @@
+import { getActiveAccountId } from "./auth";
+
+// 🆕 Лайки/закладки завязаны на текущего зрителя, поэтому и localStorage-ключ
+// неймспейсим по активному аккаунту (иначе данные перетекали между аккаунтами).
 const LIKED_KEY = "nebula_liked_posts";
 const BOOKMARKED_KEY = "nebula_bookmarked_posts";
+
+function scopedKey(base: string): string | null {
+  const acc = getActiveAccountId();
+  if (acc == null) return null;
+  return `${base}_${acc}`;
+}
 
 function readSet(key: string): Set<number> {
   try {
@@ -17,21 +27,27 @@ function writeSet(key: string, set: Set<number>) {
 }
 
 export function isLikedCached(postId: number): boolean {
-  return readSet(LIKED_KEY).has(postId);
+  const key = scopedKey(LIKED_KEY);
+  return key ? readSet(key).has(postId) : false;
 }
 
 export function setLikedCache(postId: number, liked: boolean) {
-  const set = readSet(LIKED_KEY);
+  const key = scopedKey(LIKED_KEY);
+  if (!key) return;
+  const set = readSet(key);
   liked ? set.add(postId) : set.delete(postId);
-  writeSet(LIKED_KEY, set);
+  writeSet(key, set);
 }
 
 export function isBookmarkedCached(postId: number): boolean {
-  return readSet(BOOKMARKED_KEY).has(postId);
+  const key = scopedKey(BOOKMARKED_KEY);
+  return key ? readSet(key).has(postId) : false;
 }
 
 export function setBookmarkedCache(postId: number, bookmarked: boolean) {
-  const set = readSet(BOOKMARKED_KEY);
+  const key = scopedKey(BOOKMARKED_KEY);
+  if (!key) return;
+  const set = readSet(key);
   bookmarked ? set.add(postId) : set.delete(postId);
-  writeSet(BOOKMARKED_KEY, set);
+  writeSet(key, set);
 }
