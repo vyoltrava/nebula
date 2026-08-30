@@ -485,7 +485,7 @@ export function NebulaSidebar() {
   // Desktop layout
   const navItems = [
     { href: "/messages", icon: MessageCircle, label: t("nav.messages"), badge: counts.chats, isCircle: false },
-    { href: "#circle", icon: Users, label: t("nav.circle"), badge: 0, isCircle: true },
+    { href: "#circle", icon: Sparkles, label: t("nav.circle"), badge: 0, isCircle: true },
     { href: "/nebula-settings", icon: Settings, label: t("nav.settings"), badge: 0, isCircle: false },
   ];
 
