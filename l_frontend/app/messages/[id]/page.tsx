@@ -29,7 +29,13 @@ import { isPushSubscribed } from "@/lib/push";
 import { pinMessage, unpinMessage, getPinnedMessages } from "@/lib/api";
 import type { PinnedMessage } from "@/lib/types";
 import { EncryptedMediaPlayer } from "@/components/EncryptedMediaPlayer";
-import { MarkdownRenderer } from "@/components/MarkdownRenderer";
+import dynamic from "next/dynamic";
+
+// 🚀 react-markdown тяжёлый — ленивая загрузка
+const MarkdownRenderer = dynamic(() => import("@/components/MarkdownRenderer").then(m => m.MarkdownRenderer), {
+  ssr: false,
+  loading: () => <div className="editor-loading animate-pulse text-sm opacity-50">📝 …</div>,
+});
 import { RichEditor, RichEditorHandle } from "@/components/RichEditor";
 import { useDraft } from "@/src/hooks/useDraft";
 import { useI18n } from "@/lib/i18n/LanguageProvider";

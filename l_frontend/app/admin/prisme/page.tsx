@@ -3,7 +3,14 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, RefreshCw, Plus, Database, Inbox } from "lucide-react";
 import { getToken } from "@/lib/auth";
-import { PrismeScene, PrismeSceneObject } from "@/components/prisme/PrismeScene";
+import dynamic from "next/dynamic";
+import type { PrismeSceneObject } from "@/components/prisme/PrismeScene";
+
+// 🚀 3D/WebGL-сцена — ленивая загрузка
+const PrismeScene = dynamic(() => import("@/components/prisme/PrismeScene").then(m => m.PrismeScene), {
+  ssr: false,
+  loading: () => <div className="p-8 text-center text-sm opacity-60">🎨 Загрузка сцены…</div>,
+});
 import { StatDisplay, Terminal, PrismeTitle, errMsg } from "@/components/prisme/Retro";
 import "@/components/prisme/prisme.css";
 

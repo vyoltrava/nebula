@@ -26,7 +26,13 @@ import { AvatarFrame } from "@/components/AvatarFrame";
 import { RoleBadge } from "@/components/RoleBadge";
 import { SmartImage } from "@/components/SmartImage";
 import { useAvatarUploader } from "@/components/AvatarUploader";
-import { AvatarCropper } from "@/components/AvatarCropper";
+import dynamic from "next/dynamic";
+
+// 🚀 react-easy-crop — грузим только при открытии кроппера
+const AvatarCropper = dynamic(() => import("@/components/AvatarCropper").then(m => m.AvatarCropper), {
+  ssr: false,
+  loading: () => <div className="cropper-placeholder p-6 text-center text-sm opacity-60">✂️ Загрузка редактора…</div>,
+});
 import { validateUpload, uploadErrorText, UPLOAD_RULES } from "@/lib/uploadRules";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { NebulaCircleModal } from "@/components/NebulaCircleModal";

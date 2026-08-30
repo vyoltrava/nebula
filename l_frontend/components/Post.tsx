@@ -21,7 +21,13 @@ import { timeAgo } from "@/lib/time";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import LinkPreview from "@/components/LinkPreview";
 import { EchoModal } from "@/components/EchoModal"; // Импортируем модалку
-import { MarkdownRenderer } from "@/components/MarkdownRenderer";
+import dynamic from "next/dynamic";
+
+// 🚀 react-markdown тяжёлый — ленивая загрузка
+const MarkdownRenderer = dynamic(() => import("@/components/MarkdownRenderer").then(m => m.MarkdownRenderer), {
+  ssr: false,
+  loading: () => <div className="editor-loading animate-pulse text-sm opacity-50">📝 …</div>,
+});
 
 
 function extractFirstUrl(text: string): string | null {

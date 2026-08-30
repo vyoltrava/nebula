@@ -1,8 +1,13 @@
 // components/MessageBubble.tsx
 "use client";
 import React, { memo } from 'react';
+import dynamic from 'next/dynamic';
 import { Avatar } from './Avatar';
-import { MarkdownRenderer } from './MarkdownRenderer';
+// 🚀 react-markdown тяжёлый — ленивая загрузка
+const MarkdownRenderer = dynamic(() => import('./MarkdownRenderer').then(m => m.MarkdownRenderer), {
+  ssr: false,
+  loading: () => <div className="editor-loading animate-pulse text-sm opacity-50">📝 …</div>,
+});
 import { VideoPlayer } from './VideoPlayer';
 import { AudioPlayer } from './AudioPlayer';
 import { VideoNotePlayer } from './VideoNotePlayer';

@@ -1,5 +1,6 @@
 // components/SmartImage.tsx
 "use client";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { ImageOff } from "lucide-react";
 import { Shimmer } from "@/components/Skeletons";
@@ -21,17 +22,31 @@ export function SmartImage({ src, alt = "", wrapperClassName = "", imgClassName 
   return (
     <div className={`relative overflow-hidden bg-gray-100 dark:bg-white/5 ${wrapperClassName}`}>
       {status !== "error" && src && (
-        <img
-          key={attempt}
-          src={src}
-          alt={alt}
-          loading="lazy"
-          decoding="async"
-          referrerPolicy="no-referrer"
-          onLoad={() => setStatus("ok")}
-          onError={() => setStatus("error")}
-          className={`${imgClassName} transition-opacity duration-300 ${status === "ok" ? "opacity-100" : "opacity-0"}`}
-        />
+        src.startsWith("blob:") || src.startsWith("data:") ? (
+          // Blob/data-URI нельзя оптимизировать через next/image — оставляем <img>
+          <img
+            key={attempt}
+            src={src}
+            alt={alt}
+            loading="lazy"
+            decoding="async"
+            referrerPolicy="no-referrer"
+            onLoad={() => setStatus("ok")}
+            onError={() => setStatus("error")}
+            className={`${imgClassName} transition-opacity duration-300 ${status === "ok" ? "opacity-100" : "opacity-0"}`}
+          />
+        ) : (
+          <Image
+            key={attempt}
+            src={src}
+            alt={alt}
+            fill
+            sizes="(max-width: 768px) 100vw, 400px"
+            onLoad={() => setStatus("ok")}
+            onError={() => setStatus("error")}
+            className={`${imgClassName} transition-opacity duration-300 ${status === "ok" ? "opacity-100" : "opacity-0"}`}
+          />
+        )
       )}
 
       {status === "loading" && src && <Shimmer />}

@@ -18,8 +18,14 @@ import { isOnline } from "@/lib/online";
 import { getCachedUser } from "@/lib/authCache";
 import { ProfileSkeleton, PostSkeleton } from "@/components/Skeletons";
 import { useAvatarUploader } from "@/components/AvatarUploader";
-import { AvatarCropper } from "@/components/AvatarCropper";
+import dynamic from "next/dynamic";
 import { SmartImage } from "@/components/SmartImage";
+
+// 🚀 Тяжёлые компоненты грузим только при необходимости
+const AvatarCropper = dynamic(() => import("@/components/AvatarCropper").then(m => m.AvatarCropper), {
+  ssr: false,
+  loading: () => <div className="cropper-placeholder p-6 text-center text-sm opacity-60">✂️ Загрузка редактора…</div>,
+});
 import { validateUpload, uploadErrorText, UPLOAD_RULES } from "@/lib/uploadRules";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { useNebulaMode } from "@/lib/useNebula";

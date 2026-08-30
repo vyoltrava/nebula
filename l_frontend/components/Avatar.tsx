@@ -1,3 +1,5 @@
+import Image from "next/image";
+import { useState, useEffect } from "react";
 import { mediaUrl } from "@/lib/media";
 
 export function Avatar({
@@ -14,6 +16,10 @@ export function Avatar({
   className?: string;
   online?: boolean;
 }) {
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => setImgError(false), [src]);
+
   // Онлайн-индикатор: грань по скруглённому углу аватарки (как у rounded-xl)
   const cornerR = 12; // радиус совпадает со скруглением аватарки (rounded-xl)
   const arm = Math.max(14, Math.round(size * 0.24)); // длина линии вдоль граней
@@ -33,21 +39,26 @@ export function Avatar({
         className="w-full h-full rounded-xl overflow-hidden bg-transparent"
         style={{ width: size, height: size }}
       >
-        {imageUrl ? (
-          <img
+        {imageUrl && !imgError ? (
+          <Image
             src={imageUrl}
             alt={name}
+            width={size}
+            height={size}
+            sizes={`${size}px`}
             className="w-full h-full object-cover"
-            onError={(e) => {
-              // Если картинка не загрузилась — показываем заглушку с тёмным фоном
-              e.currentTarget.style.display = 'none';
-              e.currentTarget.parentElement!.innerHTML = `
-                <div class="w-full h-full flex items-center justify-center bg-[#1a1a1a] select-none">
-                  <img src="/default-avatar.svg" alt="" class="opacity-60" style="width: ${size * 0.55}px; height: ${size * 0.55}px;" />
-                </div>
-              `;
-            }}
+            onError={() => setImgError(true)}
+            loading={size > 100 ? "eager" : "lazy"}
           />
+        ) : imgError ? (
+          <div className="w-full h-full flex items-center justify-center bg-[#1a1a1a] select-none">
+            <img
+              src="/default-avatar.svg"
+              alt=""
+              className="opacity-60"
+              style={{ width: size * 0.55, height: size * 0.55 }}
+            />
+          </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-[#1a1a1a] select-none">
             <img

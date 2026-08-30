@@ -1,7 +1,13 @@
 "use client";
 import { useState, useRef } from "react";
-import { AvatarCropper } from "./AvatarCropper";
+import dynamic from "next/dynamic";
 import { getToken } from "@/lib/auth";
+
+// 🚀 react-easy-crop — тяжёлая библиотека: грузим только при открытии кроппера
+const AvatarCropper = dynamic(() => import("./AvatarCropper").then(m => m.AvatarCropper), {
+  ssr: false,
+  loading: () => <div className="cropper-placeholder p-6 text-center text-sm opacity-60">✂️ Загрузка редактора…</div>,
+});
 
 interface AvatarUploaderProps {
   currentAvatar?: string | null;

@@ -14,6 +14,18 @@ const connectSrc = [
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@noble/curves", "@noble/ciphers"],
+  // 🖼 Оптимизация изображений: разрешаем внешние источники (аватары Cloudinary/Google,
+  // медиа с backend). '*' внизу — чтобы не сломать кастомные домены медиа-хранилища.
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "res.cloudinary.com", pathname: "/**" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com", pathname: "/**" },
+      { protocol: "https", hostname: "lh4.googleusercontent.com", pathname: "/**" },
+      { protocol: "https", hostname: "lh5.googleusercontent.com", pathname: "/**" },
+      { protocol: "https", hostname: "lh6.googleusercontent.com", pathname: "/**" },
+      { protocol: "https", hostname: "**" },
+    ],
+  },
   compiler: {
     // 🚀 Убираем console.log/warn в production-бандле (console.error оставляем)
     removeConsole: isDev ? false : { exclude: ["error"] },
