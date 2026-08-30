@@ -7929,10 +7929,12 @@ def get_team(session: Session = Depends(get_session)):
     for u in users:
         level = get_user_level(u, session)
 
-        # Показываем участника только если его роль отмечена is_staff.
-        # Спец. плашки (не-staff роли, в т.ч. купленные) не выводятся в окне команды.
         u_role = roles.get(u.role_id) if u.role_id else None
-        if not u_role or not u_role.is_staff:
+        # Уровни 9-11 (Developer/Founder/System) отображаются всегда.
+        # Остальные — только если их роль отмечена is_staff
+        # (спец. плашки, в т.ч. купленные, в окне команды не показываются).
+        is_top_level = level in (9, 10, 11)
+        if not is_top_level and (not u_role or not u_role.is_staff):
             continue
 
         member_data = {
@@ -7949,9 +7951,7 @@ def get_team(session: Session = Depends(get_session)):
 
         if u.role_id:
             role = roles.get(u.role_id)  # ← из словаря, не из БД
-            # В окне команды показываем только staff-роли: спец. плашки
-            # (в т.ч. купленные) не отображаются в составе команды.
-            if role and role.is_staff:
+            if role:
                 member_data["role"] = {"id": role.id, "name": role.name, "color": role.color}
 
         if level == 11:
