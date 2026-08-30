@@ -7929,6 +7929,12 @@ def get_team(session: Session = Depends(get_session)):
     for u in users:
         level = get_user_level(u, session)
 
+        # Показываем участника только если его роль отмечена is_staff.
+        # Спец. плашки (не-staff роли, в т.ч. купленные) не выводятся в окне команды.
+        u_role = roles.get(u.role_id) if u.role_id else None
+        if not u_role or not u_role.is_staff:
+            continue
+
         member_data = {
             "id": u.id,
             "username": u.username,

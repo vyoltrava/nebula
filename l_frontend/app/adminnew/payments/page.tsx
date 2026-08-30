@@ -38,6 +38,28 @@ function formFrom(pr: PaymentRole): FormState {
   };
 }
 
+interface Purchase {
+  id: number; userId: number; roleId: number; amount: number; currency: string;
+  status: string; provider: string; createdAt: string | null;
+}
+interface Stats {
+  totalRevenue: number; totalPurchases: number; totalBuyers: number;
+  activeSubscriptions: number; recent: Purchase[];
+}
+
+const statusBadge = (s: string) => {
+  const map: Record<string, string> = {
+    success: "bg-emerald-500/10 text-emerald-500",
+    pending: "bg-amber-500/10 text-amber-500",
+    failed: "bg-red-500/10 text-red-500",
+    refunded: "bg-gray-500/10 text-gray-500 dark:text-white/50",
+  };
+  const label: Record<string, string> = {
+    success: "✅ Оплачен", pending: "⏳ Ожидает", failed: "❌ Ошибка", refunded: "↩️ Возврат",
+  };
+  return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[s] || map.pending}`}>{label[s] || s}</span>;
+};
+
 export default function AdminPaymentsPage() {
   const router = useRouter();
   const [allowed, setAllowed] = useState<boolean | null>(null);
@@ -50,6 +72,34 @@ export default function AdminPaymentsPage() {
   const [saving, setSaving] = useState(false);
   const [systemEnabled, setSystemEnabled] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  const loadStats = useCallback(async () => {
+    try {
+      const r = await fetch(`${API}/api/payments/stats`, { headers: authHeaders() });
+      if (r.ok) setStats(await r.json());
+    } catch (e) { console.error(e); }
+  }, []);
+
+  const confirmPayment = async (id: number) => {
+    setBusyId(id);
+    try {
+      const r = await fetch(`${API}/api/payments/manual-confirm/${id}`, { method: "POST", headers: authHeaders() });
+      if (r.ok) { setMsg("✅ Платёж подтверждён, роль выдана"); await Promise.all([loadStats(), load()]); }
+      else setMsg("❌ Не удалось подтвердить платёж");
+    } finally { setBusyId(null); setTimeout(() => setMsg(null), 3000); }
+  };
+
+  const refundPayment = async (id: number) => {
+    if (!confirm("Вернуть платёж и снять роль?")) return;
+    setBusyId(id);
+    try {
+      const r = await fetch(`${API}/api/payments/refund/${id}`, { method: "POST", headers: authHeaders() });
+      if (r.ok) { setMsg("↩️ Возврат выполнен, роль снята"); await Promise.all([loadStats(), load()]); }
+      else setMsg("❌ Не удалось выполнить возврат");
+    } finally { setBusyId(null); setTimeout(() => setMsg(null), 3000); }
+  };
 
   const authHeaders = () => ({ Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" });
 
@@ -75,6 +125,7 @@ export default function AdminPaymentsPage() {
         if (!me.is_admin) { router.push("/"); return; }
         setAllowed(true);
         load();
+        loadStats();
       })
       .catch(() => router.push("/login"));
   }, [router, load]);
@@ -348,6 +399,72 @@ export default function AdminPaymentsPage() {
           );
         })}
       </div>
+
+      {/* ---- Статистика и платежи ---- */}
+      {stats && (
+        <div className="mt-8">
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-violet-500" /> Статистика
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+            {[
+              { label: "Выручка (USD)", value: `$${stats.totalRevenue.toFixed(2)}` },
+              { label: "Покупок", value: stats.totalPurchases },
+              { label: "Покупателей", value: stats.totalBuyers },
+              { label: "Активных подписок", value: stats.activeSubscriptions },
+            ].map(s => (
+              <div key={s.label} className="p-4 rounded-2xl bg-black/[0.03] dark:bg-white/[0.04]">
+                <div className="text-2xl font-extrabold text-violet-500">{s.value}</div>
+                <div className="text-xs text-gray-500 dark:text-white/50 mt-1">{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <h3 className="text-sm font-bold text-gray-900 dark:text-white mt-6 mb-2">Последние платежи</h3>
+          <div className="rounded-2xl border border-black/5 dark:border-white/10 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-black/[0.03] dark:bg-white/[0.04] text-gray-500 dark:text-white/50">
+                <tr>
+                  <th className="text-left px-4 py-2 font-medium">ID</th>
+                  <th className="text-left px-4 py-2 font-medium">Сумма</th>
+                  <th className="text-left px-4 py-2 font-medium">Провайдер</th>
+                  <th className="text-left px-4 py-2 font-medium">Статус</th>
+                  <th className="text-left px-4 py-2 font-medium">Дата</th>
+                  <th className="text-right px-4 py-2 font-medium">Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.recent.map(p => (
+                  <tr key={p.id} className="border-t border-black/5 dark:border-white/10">
+                    <td className="px-4 py-2 text-gray-500 dark:text-white/50">#{p.id} → роль {p.roleId}</td>
+                    <td className="px-4 py-2 font-semibold text-gray-900 dark:text-white">{p.amount} {p.currency}</td>
+                    <td className="px-4 py-2 text-gray-500 dark:text-white/50">{p.provider}</td>
+                    <td className="px-4 py-2">{statusBadge(p.status)}</td>
+                    <td className="px-4 py-2 text-gray-500 dark:text-white/50">{p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "—"}</td>
+                    <td className="px-4 py-2 text-right whitespace-nowrap">
+                      {p.status === "pending" && (
+                        <button onClick={() => confirmPayment(p.id)} disabled={busyId === p.id}
+                          className="px-3 py-1 rounded-lg bg-emerald-500 text-white text-xs font-medium hover:bg-emerald-600 disabled:opacity-50">
+                          {busyId === p.id ? "..." : "Подтвердить"}
+                        </button>
+                      )}
+                      {p.status === "success" && (
+                        <button onClick={() => refundPayment(p.id)} disabled={busyId === p.id}
+                          className="px-3 py-1 rounded-lg bg-red-500/10 text-red-500 text-xs font-medium hover:bg-red-500/20 disabled:opacity-50">
+                          Возврат
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {stats.recent.length === 0 && (
+                  <tr><td colSpan={6} className="px-4 py-6 text-center text-gray-400">Платежей пока нет</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <p className="mt-6 text-xs text-gray-400 dark:text-white/30 flex items-center gap-1.5">
         <BarChart3 className="w-3.5 h-3.5" />
