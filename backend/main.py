@@ -5969,7 +5969,7 @@ def regenerate_backup_codes(
 
 @app.post("/api/login")
 @limiter.limit("5/minute")
-def login(request: Request, data: LoginIn, session: Session = Depends(get_session)):
+def login(request: Request, response: Response, data: LoginIn, session: Session = Depends(get_session)):
     # 🛡️ 1. ЗАЩИТА ОТ БРУТФОРСА ПО USERNAME
     fail_key = f"failed_login:{data.username.lower()}"
     fail_count = redis_client.get(fail_key)
