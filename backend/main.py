@@ -11076,9 +11076,15 @@ def delete_custom_badge(
         raise HTTPException(404, "Плашка не найдена")
 
     assignments = session.exec(select(CustomBadgeAssignment).where(CustomBadgeAssignment.badge_id == badge_id)).all()
+    # сначала снимаем (деактивируем) плашку у всех, кому она выдана —
+    # она мгновенно исчезает из профилей, затем удаляем физически
+    for a in assignments:
+        a.is_active = False
+        session.add(a)
+    session.commit()
+
     for a in assignments:
         session.delete(a)
-        
     session.delete(badge)
     
     # ✅ ИСПРАВЛЕНО: передаем реальный request в get_client_ip

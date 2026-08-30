@@ -181,6 +181,25 @@ export default function SystemBadgeAdminPage() {
   const [assignBadgeId, setAssignBadgeId] = useState<number | null>(null);
   const [assignSaving, setAssignSaving] = useState(false);
 
+  // === Выдача прав (роль) ===
+  const [assignableRoles, setAssignableRoles] = useState<any[]>([]);
+  const [assignRoleId, setAssignRoleId] = useState<number | null>(null);
+
+  // === Выданные плашки / снятие ===
+  const [activeTab, setActiveTab] = useState<"badges" | "issued">("badges");
+  const [assignments, setAssignments] = useState<any[]>([]);
+  const [assignmentsLoading, setAssignmentsLoading] = useState(false);
+
+  // Загружаем assignable-роли при открытии окна выдачи
+  useEffect(() => {
+    if (!showAssign) return;
+    const token = getToken();
+    if (!token) return;
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/roles/assignable`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(r => r.ok ? r.json() : []).then(setAssignableRoles).catch(() => {});
+  }, [showAssign]);
+
   useEffect(() => {
     if (!assignQuery.trim()) { setAssignResults([]); return; }
     const t = setTimeout(async () => {
@@ -198,32 +217,123 @@ export default function SystemBadgeAdminPage() {
   }, [assignQuery]);
 
   async function assignBadgeToUser() {
-    if (!assignTarget || !assignBadgeId) return;
+    if (!assignTarget || (!assignBadgeId && !assignRoleId)) return;
     setAssignSaving(true);
     const token = getToken();
-    const form = new FormData();
-    form.append("user_id", String(assignTarget.id));
-    form.append("badge_id", String(assignBadgeId));
-    form.append("priority", String(badges.find(b => b.id === assignBadgeId)?.priority ?? 9));
+    try {
+      // 1. Выдать плашку (если выбрана)
+      if (assignBadgeId) {
+        const form = new FormData();
+        form.append("user_id", String(assignTarget.id));
+        form.append("badge_id", String(assignBadgeId));
+        form.append("priority", String(badges.find(b => b.id === assignBadgeId)?.priority ?? 9));
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/custom-badge-assignments`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form,
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          alert(data?.detail || "Ошибка выдачи плашки");
+          return;
+        }
+      }
+
+      // 2. Выдать права (роль) — если выбрана
+      if (assignRoleId) {
+        const form2 = new FormData();
+        form2.append("role_id", String(assignRoleId));
+        const res2 = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${assignTarget.id}/role`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: form2,
+        });
+        if (!res2.ok) {
+          const data = await res2.json().catch(() => null);
+          alert(data?.detail || "Ошибка выдачи роли");
+          return;
+        }
+      }
+
+      setShowAssign(false);
+      setAssignTarget(null);
+      setAssignQuery("");
+      setAssignBadgeId(null);
+      setAssignRoleId(null);
+      if (activeTab === "issued") loadAssignments();
+    } catch {
+      alert("Ошибка сети");
+    } finally {
+      setAssignSaving(false);
+    }
+  }
+
+  // === Загрузка выданных плашек ===
+  async function loadAssignments() {
+    const token = getToken();
+    if (!token) return;
+    setAssignmentsLoading(true);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/custom-badge-assignments`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data: any[] = await res.json();
+        // только выдачи наших доп. плашек 9-11
+        const ourIds = new Set(badges.map(b => b.id));
+        setAssignments(data.filter(a => ourIds.has(a.badge_id)));
+      }
+    } finally {
+      setAssignmentsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === "issued") loadAssignments();
+  }, [activeTab, badges]);
+
+  // === Снятие плашки ===
+  async function revokeAssignment(assignId: number) {
+    if (!confirm("Снять плашку у пользователя?")) return;
+    const token = getToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/custom-badge-assignments/${assignId}/revoke`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        alert(data?.detail || "Ошибка снятия плашки");
+        return;
+      }
+      loadAssignments();
+    } catch {
+      alert("Ошибка сети");
+    }
+  }
+
+  // === Снятие прав (роли) ===
+  async function revokeRole(userId: number) {
+    if (!confirm("Снять роль у пользователя?")) return;
+    const token = getToken();
+    if (!token) return;
+    const form = new FormData();
+    // role_id не передаём = снять роль
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}/role`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: form,
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        alert(data?.detail || "Ошибка выдачи");
+        alert(data?.detail || "Ошибка снятия роли");
         return;
       }
-      setShowAssign(false);
-      setAssignTarget(null);
-      setAssignQuery("");
-      setAssignBadgeId(null);
+      load();
     } catch {
       alert("Ошибка сети");
-    } finally {
-      setAssignSaving(false);
     }
   }
 
@@ -273,6 +383,19 @@ export default function SystemBadgeAdminPage() {
           </div>
         </div>
 
+        {/* ВКЛАДКИ */}
+        <div className="flex gap-1 px-4 pt-4 bg-ivory dark:bg-[#18181b]">
+          <button onClick={() => setActiveTab("badges")}
+            className={`px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 transition-all ${activeTab === "badges" ? "border-[#8b5cf6] text-[#8b5cf6]" : "border-transparent text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white"}`}>
+            Плашки {badges.length > 0 && <span className="text-[10px] ml-1 text-gray-500">({badges.length})</span>}
+          </button>
+          <button onClick={() => setActiveTab("issued")}
+            className={`px-4 py-2 text-sm font-bold rounded-t-lg border-b-2 transition-all ${activeTab === "issued" ? "border-[#8b5cf6] text-[#8b5cf6]" : "border-transparent text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white"}`}>
+            Выданные {assignments.length > 0 && <span className="text-[10px] ml-1 text-gray-500">({assignments.length})</span>}
+          </button>
+        </div>
+
+        {activeTab === "badges" && (
         <div className="p-4 space-y-3">
           {loading && <p className="text-center text-gray-500 dark:text-white/40 py-8 animate-pulse">Загрузка...</p>}
           {!loading && badges.length === 0 && (
@@ -306,6 +429,42 @@ export default function SystemBadgeAdminPage() {
             );
           })}
         </div>
+        )}
+
+        {/* ВКЛАДКА: ВЫДАННЫЕ ПЛАШКИ */}
+        {activeTab === "issued" && (
+          <div className="p-4 space-y-3">
+            {assignmentsLoading && <p className="text-center text-gray-500 dark:text-white/40 py-8 animate-pulse">Загрузка...</p>}
+            {!assignmentsLoading && assignments.length === 0 && (
+              <div className="text-center py-12">
+                <Sparkles size={48} className="mx-auto text-gray-300 dark:text-white/10 mb-3" />
+                <p className="text-gray-500 dark:text-white/40 text-sm">Выданных плашек пока нет.</p>
+              </div>
+            )}
+            {assignments.map(a => (
+              <div key={a.id} className="bg-paper dark:bg-[#171717] border border-line dark:border-white/10 rounded-xl p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  {a.user_avatar ? <img src={a.user_avatar} className="w-9 h-9 rounded-full object-cover" /> : <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-white/10" />}
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{a.user_display_name || a.user_username || `ID ${a.user_id}`}</p>
+                    <p className="text-xs text-gray-500 dark:text-white/40">@{a.user_username || a.user_id}</p>
+                  </div>
+                  {a.badge && (
+                    <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-white text-xs font-black uppercase tracking-widest shadow border shrink-0" style={badgeStyle(a.badge)}>
+                      {a.badge.text_content || a.badge.name}
+                    </span>
+                  )}
+                  <span className={`px-2 py-0.5 rounded text-xs shrink-0 ${a.is_active ? "bg-green-500/20 text-green-600 dark:text-green-400" : "bg-gray-500/20 text-gray-400"}`}>
+                    {a.is_active ? "Активна" : "Снята"}
+                  </span>
+                </div>
+                {a.is_active && (
+                  <IconButton icon={X} variant="danger" size="iconSm" onClick={() => revokeAssignment(a.id)} title="Снять плашку" />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* МОДАЛКА СОЗДАНИЯ/РЕДАКТИРОВАНИЯ ПЛАШКИ — как «Создать роль» */}
         {showForm && (
@@ -443,7 +602,7 @@ export default function SystemBadgeAdminPage() {
                     <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Плашка</label>
                     <select value={assignBadgeId ?? ""} onChange={(e) => setAssignBadgeId(e.target.value ? Number(e.target.value) : null)}
                       className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]">
-                      <option value="">— Выберите плашку —</option>
+                      <option value="">— Без плашки —</option>
                       {badges.map(b => (
                         <option key={b.id} value={b.id}>{b.name} (lvl {b.priority ?? 9})</option>
                       ))}
@@ -453,8 +612,22 @@ export default function SystemBadgeAdminPage() {
                     )}
                   </div>
 
+                  <div>
+                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Права / Роль</label>
+                    <select value={assignRoleId ?? ""} onChange={(e) => setAssignRoleId(e.target.value ? Number(e.target.value) : null)}
+                      className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]">
+                      <option value="">— Не менять роль —</option>
+                      {assignableRoles.map(r => (
+                        <option key={r.id} value={r.id}>{r.name} (lvl {r.level})</option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 dark:text-white/40 mt-1.5">
+                      Можно выдать только плашку, только роль, или и то и другое сразу.
+                    </p>
+                  </div>
+
                   <div className="flex gap-3 pt-2">
-                    <Button onClick={assignBadgeToUser} loading={assignSaving} disabled={!assignTarget || !assignBadgeId || assignSaving} className="flex-1">
+                    <Button onClick={assignBadgeToUser} loading={assignSaving} disabled={!assignTarget || (!assignBadgeId && !assignRoleId) || assignSaving} className="flex-1">
                       Выдать
                     </Button>
                     <Button variant="secondary" onClick={() => !assignSaving && setShowAssign(false)} disabled={assignSaving} className="flex-1">
