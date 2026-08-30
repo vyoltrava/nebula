@@ -310,6 +310,7 @@ export function Sidebar() {
     (typeof document !== "undefined" && document.documentElement.classList.contains("nebula-mode"));
   const [showNotifs, setShowNotifs]   = useState(false);
   const [notifs, setNotifs]           = useState<any[]>([]);
+  const [notifsLoading, setNotifsLoading] = useState(false);
   const [showBugModal, setShowBugModal] = useState(false);
   const [showSearch, setShowSearch]     = useState(false);
   // ════════════════════════════════════════════════════════════════
@@ -573,13 +574,18 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     return () => controller.abort();
   }, []);
 
-  async function loadNotifications() {
+  function loadNotifications() {
+    setShowNotifs(true); // открываем модалку сразу, данные грузятся в фоне
     const token = getToken();
     if (!token) return;
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
+    setNotifsLoading(true);
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
       headers: { Authorization: `Bearer ${token}` },
-    });
-    if (res.ok) { setNotifs(await res.json()); setShowNotifs(true); }
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data) => setNotifs(data))
+      .catch(() => {})
+      .finally(() => setNotifsLoading(false));
   }
 
   async function markRead(id: number) {
@@ -1606,7 +1612,12 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
               </div>
             </div>
             <div className="overflow-y-auto flex-1">
-              {notifs.length === 0 && (
+              {notifsLoading && notifs.length === 0 ? (
+                <div className="p-8 text-center">
+                  <Bell size={32} className="text-gray-300 dark:text-white/10 mx-auto mb-3 animate-pulse" />
+                  <p className="text-sm text-gray-400 dark:text-white/40">…</p>
+                </div>
+              ) : notifs.length === 0 && (
                 <div className="p-8 text-center">
                   <Bell size={32} className="text-gray-500 dark:text-white/20 mx-auto mb-3" />
                   <p className="text-sm text-gray-600 dark:text-white/50">{t("notif.empty")}</p>
