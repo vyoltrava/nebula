@@ -57,7 +57,18 @@ export function AccountSwitcher({
             <div className="max-h-60 overflow-y-auto p-2 space-y-1">
               {accounts.map((acc) => (
                 <div key={acc.userId} className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors group">
-                  <button onClick={() => { switchAccount(acc.userId); onClose?.(); }} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                                    <button
+                    onClick={async () => {
+                      try {
+                        await switchAccount(acc.userId);
+                      } catch {
+                        // refresh упал — fallback на обычное переключение
+                        localStorage.setItem("trelod_active_v1", String(acc.userId));
+                      }
+                      onClose?.();
+                    }}
+                    className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                  >
                     <Avatar src={acc.avatarUrl} name={acc.displayName} id={acc.userId} size={36} />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{acc.displayName}</p>

@@ -104,13 +104,19 @@ export function clearToken() {
   clearAllSessionKeys();
 }
 
-// 🎯 7. Переключение аккаунта (перезагрузка для чистоты состояния)
-export function switchAccount(userId: number): void {
+/**
+ * 🎯 7. Переключение аккаунта.
+ * Синхронно: ставим active id, асинхронно — refresh токена для нужного
+ * пользователя (чтобы httpOnly cookie не выдал чужой refresh). Потом — редирект.
+ */
+export async function switchAccount(userId: number): Promise<void> {
   const list = getAccountsList();
   if (!list.some((a) => a.userId === userId)) return;
-  
+
   localStorage.setItem(ACTIVE_KEY, String(userId));
-  window.location.href = "/"; // Надежная перезагрузка с новым токеном
+  // Принудительно подхватываем токен для активного аккаунта (важно при 2FA).
+  await refreshAccessToken();
+  window.location.href = "/";
 }
 
 // 🎯 8. Удаление аккаунта из списка
@@ -146,9 +152,16 @@ import { API_URL } from "./apiUrl";
 export async function refreshAccessToken(): Promise<string | null> {
   const active = getActiveAccount();
   try {
+    const headers: HeadersInit = {};
+    // 🎯 Привязываем refresh к активному аккаунту, чтобы httpOnly cookie
+    // (общий для всех аккаунтов) не выдал токен чужого пользователя.
+    if (active) {
+      headers["x-user-id"] = String(active.userId);
+    }
     const res = await fetch(`${API_URL}/api/auth/refresh`, {
       method: "POST",
       credentials: "include", // отправляем httpOnly refresh_token cookie
+      headers,
     });
     if (!res.ok) return null;
     const data = await res.json();

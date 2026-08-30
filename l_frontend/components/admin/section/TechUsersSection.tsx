@@ -495,6 +495,39 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                 </div>
               )}
             </div>
+            {/* 🆕 История смены ников (в детальной стате пользователя) */}
+            {selectedUser.nick_history && selectedUser.nick_history.length > 0 && (
+              <div className="border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-4 sm:p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <History size={18} className="text-emerald-500" />
+                  <h3 className="font-bold text-gray-900 dark:text-white">История смены ников</h3>
+                </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {selectedUser.nick_history.map((log: any) => (
+                    <div key={log.changed_at} className="flex items-center justify-between p-2 rounded-lg bg-gray-100 dark:bg-white/5 text-sm">
+                      <div className="flex items-center gap-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${log.field === "username" ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" : "bg-purple-500/20 text-purple-600 dark:text-purple-400"}`}>{log.field === "username" ? "@username" : "имя"}</span>
+                        <span className="line-through opacity-50 text-gray-500 dark:text-white/40">{log.old_value}</span>
+                        <span className="text-gray-500 dark:text-white/40">→</span>
+                        <span className="font-semibold">{log.new_value}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {log.changed_by && (
+                          <>
+                            <Link href={`/user/${log.changed_by.id}`} className="flex items-center gap-1 group">
+                              <Avatar src={log.changed_by.avatar_url} name={log.changed_by.display_name} id={log.changed_by.id} size={20} />
+                              <span className="text-xs text-gray-600 dark:text-white/60 group-hover:text-[#8b5cf6] truncate">{log.changed_by.display_name || log.changed_by.username}</span>
+                            </Link>
+                          </>
+                        )}
+                        <span className="text-gray-500 dark:text-white/40 text-xs">{new Date(log.changed_at).toLocaleString("ru-RU")}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {me.permissions?.includes("delete_users") && (
               <div className="border border-red-400/30 rounded-xl bg-red-500/5 p-4 sm:p-5">
                 <div className="flex items-center gap-2 mb-3">

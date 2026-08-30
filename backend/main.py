@@ -470,7 +470,14 @@ def _refresh_token_from(request: Request) -> Optional[str]:
 
 @app.post("/api/auth/refresh")
 @limiter.limit("30/minute")
-def refresh_access_token(request: Request, response: Response, session: Session = Depends(get_session)):
+def refresh_access_token(
+    request: Request,
+    response: Response,
+    session: Session = Depends(get_session),
+    # 🎯 Привязываем refresh к конкретному пользователю чтобы не выдавать
+    # токен чужого аккаунта при переключении между аккаунтами.
+            requested_user_id: Optional[int] = Header(default=None, alias="X-User-Id"),
+):
     refresh_token = _refresh_token_from(request)
     if not refresh_token:
         raise HTTPException(401, "Refresh token required")
@@ -483,7 +490,12 @@ def refresh_access_token(request: Request, response: Response, session: Session 
     if payload.get("type") != "refresh":
         raise HTTPException(401, "Invalid token type")
 
-    user = session.get(User, int(payload["sub"]))
+    token_sub = int(payload["sub"])
+    # 🎯 Если клиент просит refresh для другого пользователя — отказ (protect multi-account).
+    if requested_user_id is not None and requested_user_id != token_sub:
+        raise HTTPException(401, "Refresh token does not match requested user")
+
+    user = session.get(User, token_sub)
     if not user or user.is_banned:
         raise HTTPException(401, "User not found")
     user_token_version = getattr(user, 'token_version', 0)
@@ -10198,9 +10210,9 @@ def get_team_statistics(
         
         role_history = session.exec(select(RoleHistory).where(RoleHistory.user_id == user_id).order_by(RoleHistory.changed_at.desc())).all()
         actions = session.exec(select(TeamStatistic).where(TeamStatistic.user_id == user_id).order_by(TeamStatistic.created_at.desc()).limit(50)).all()
-
+        nick_history = session.exec(select(NickHistory).where(NickHistory.user_id == user_id).order_by(NickHistory.changed_at.desc())).all()
         actor_ids = {h.changed_by for h in role_history if h.changed_by}
-        actors = {}
+        actor_ids = {h.changed_by for h in role_history if h.changed_by} | {h.changed_by for h in nick_history if h.changed_by}
         if actor_ids:
             for u in session.exec(select(User).where(User.id.in_(actor_ids))).all():
                 actors[u.id] = u
@@ -10218,6 +10230,18 @@ def get_team_statistics(
                     "avatar_url": actors[h.changed_by].avatar_url,
                 } if h.changed_by in actors else None,
             } for h in role_history],
+            "nick_history": [{
+                "field": h.field,
+                "old_value": h.old_value,
+                "new_value": h.new_value,
+                "changed_at": h.changed_at.isoformat(),
+                "changed_by": {
+                    "id": actors[h.changed_by].id,
+                    "username": actors[h.changed_by].username,
+                    "display_name": actors[h.changed_by].display_name,
+                    "avatar_url": actors[h.changed_by].avatar_url,
+                } if h.changed_by in actors else None,
+            } for h in nick_history],
             "actions": [{"action_type": a.action_type, "target_type": a.target_type, "target_id": a.target_id, "created_at": a.created_at.isoformat()} for a in actions],
             "total_actions": session.exec(select(func.count(TeamStatistic.id)).where(TeamStatistic.user_id == user_id)).one() or 0,
         }
