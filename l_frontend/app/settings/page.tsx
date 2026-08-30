@@ -340,7 +340,7 @@ async function activate2FA() {
       className="min-h-screen bg-gray-100 dark:bg-[#1C1C1F] text-gray-900 dark:text-white"
       style={{ fontFamily: "'Inter', -apple-system, system-ui, sans-serif" }}
     >
-      <div className="max-w-2xl mx-auto px-4 py-4 lg:py-6">
+      <div className="max-w-2xl md:max-w-4xl mx-auto px-4 py-4 lg:py-6">
         {/* ===== Шапка ===== */}
         <header className="flex items-center gap-3 mb-6">
           <button

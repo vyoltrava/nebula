@@ -59,6 +59,19 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
     }
   }, [isMinimized, hasRecording]);
 
+  // 🔄 При переходе в предпросмотр: сбрасываем stream со старого <video>,
+  // иначе React может переиспользовать DOM-узел и камера продолжит идти в превью
+  useEffect(() => {
+    if (hasRecording && videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    // 🔁 При возврате к камере — возвращаем stream на живой элемент
+    if (!hasRecording && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [hasRecording]);
+
   async function startCamera(mode: "user" | "environment") {
     try {
       if (streamRef.current) {
@@ -363,6 +376,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
           <div className="relative w-full h-full rounded-[28px] overflow-hidden bg-black ring-1 ring-white/10 shadow-[0_0_60px_rgba(139,92,246,0.25)]">
             {hasRecording && recordedUrl ? (
               <video
+                key="preview"
                 ref={previewRef}
                 src={recordedUrl}
                 autoPlay loop playsInline muted
@@ -371,6 +385,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
               />
             ) : (
               <video
+                key="camera"
                 ref={videoRef}
                 autoPlay playsInline muted
                 className="w-full h-full object-cover"
