@@ -644,6 +644,7 @@ export const en: Dictionary = {
     description: "Description",
     violations: "Typical violations",
     founders: "Founder",
+    founderName: "Founder", // 🆕 название плашки основателя (всегда на английском)
     foundersHint: "People who created the platform and are responsible for its technical development.",
     admin: "Administration and Moderation",
     adminHint: "The team that maintains order, helps users, and supports the community atmosphere.",

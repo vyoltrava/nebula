@@ -99,7 +99,7 @@ export default function RulesPage() {
   const specialRoles = [
     {
       id: "founder",
-      name: t("rules.founders"), // Используем ключ из твоего словаря
+      name: t("rules.founderName"), // 🆕 Отдельный ключ: название плашки (= "Founder" везде)
       color: "#ffffff",
       textColor: "#000000",
       description: t("rules.founderDesc")
