@@ -27,12 +27,13 @@ const PERMISSION_META: Record<string, { icon: string; category: "content" | "use
   assign_roles:         { icon: "🎭", category: "users" },
   pin_messages:         { icon: "📌", category: "chats" },
   manage_groups:        { icon: "👥", category: "chats" },
-  support_access:       { icon: "🎧", category: "chats" },
+  manage_support:       { icon: "🎧", category: "chats" },
   manage_roles:         { icon: "🎭", category: "system" },
   manage_users:         { icon: "⚙️", category: "system" },
   manage_reports:       { icon: "🚩", category: "system" },
   tech_access:          { icon: "🔧", category: "system" },
   manage_team_stats:    { icon: "📊", category: "system" },
+  manage_suggestions:   { icon: "💡", category: "content" },
 };
 
 const CATEGORY_LABELS: Record<string, string> = {

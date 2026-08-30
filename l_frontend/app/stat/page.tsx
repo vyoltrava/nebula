@@ -551,13 +551,20 @@ export default function StatPage() {
                   <h4 className="text-gray-900 dark:text-white font-bold mb-4 flex items-center gap-2"><Settings size={18} /> История ролей</h4>
                   <div className="space-y-2">
                     {memberStats.role_history.map((role: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/5">
-                        <div className="flex items-center gap-3">
+                      <div key={idx} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/5">
+                        <div className="flex items-center gap-3 flex-wrap">
                           <span className="text-gray-500 dark:text-white/40 text-sm">{role.old_role || "—"}</span>
                           <ArrowRight size={16} className="text-gray-500 dark:text-white/40" />
                           <span className="text-purple-600 dark:text-purple-400 text-sm font-bold">{role.new_role || "—"}</span>
                         </div>
-                        <p className="text-gray-500 dark:text-white/40 text-xs">{fmtDate(role.changed_at)}</p>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          {role.changed_by && (
+                            <Link href={`/user/${role.changed_by.id}`} className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-white/60 hover:text-[#8b5cf6] transition-colors" title={`Выдал: ${role.changed_by.display_name || role.changed_by.username}`}>
+                              <Users size={12} /> {role.changed_by.display_name || role.changed_by.username}
+                            </Link>
+                          )}
+                          <p className="text-gray-500 dark:text-white/40 text-xs">{fmtDate(role.changed_at)}</p>
+                        </div>
                       </div>
                     ))}
                   </div>

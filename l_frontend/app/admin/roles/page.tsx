@@ -30,9 +30,10 @@ const PERMISSION_META: Record<string, { icon: string; category: "content" | "use
   manage_users:         { icon: "⚙️", category: "system" },
   manage_reports:       { icon: "🚩", category: "system" },
   tech_access:          { icon: "🔧", category: "system" },
-  support_access:       { icon: "🎧", category: "chats" }, // 🆕 Право на чат поддержки
+  manage_support:       { icon: "🎧", category: "chats" }, // 🆕 Право на чат поддержки
   assign_roles:         { icon: "🎭", category: "users" },
   manage_team_stats:    { icon: "📊", category: "system" }, // 🆕 ДОБАВЛЕНО
+  manage_suggestions:   { icon: "💡", category: "content" },
 
 };
 

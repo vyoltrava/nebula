@@ -58,7 +58,7 @@ from models import (
     PushSubscription, StickerPack, Sticker, MessageReaction, Theme, SystemSetting,
     RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge,
     CustomBadge, CustomBadgeTemplate, CustomBadgeAssignment, SystemBadge,
-    SuggestionCategory, SuggestionThread, SuggestionThreadComment, TeamStatistic, RoleHistory, Suggestion, SuggestionComment 
+    SuggestionCategory, SuggestionThread, SuggestionThreadComment, TeamStatistic, RoleHistory, NickHistory, Suggestion, SuggestionComment 
     
 )
 import logging
@@ -676,6 +676,68 @@ ALL_PERMISSIONS = [
 ]
 
 MODERATOR_PERMISSIONS = ALL_PERMISSIONS.copy()
+# ============================================================
+# 📋 РЕЕСТР ПРАВ (ЕДИНЫЙ ИСТОЧНИК ПРАВДЫ)
+# label + категория используются для /api/permissions (UI),
+# set(VALID_PERMISSIONS) — для валидации прав при создании/правке ролей.
+# ============================================================
+PERMISSION_LABELS: dict = {
+    # === Контент ===
+    "delete_posts":         ("Удалять посты", "content"),
+    "edit_posts":           ("Редактировать чужие посты", "content"),
+    "remove_avatars":       ("Удалять аватарки", "content"),
+    "manage_stickers":      ("Управлять стикер-паками", "content"),
+    "manage_announcements": ("Публиковать объявления", "content"),
+    "manage_suggestions":   ("Управлять форумом предложений", "content"),
+    # === Пользователи ===
+    "ban_users":            ("Банить пользователей", "users"),
+    "warn_users":           ("Выдавать предупреждения", "users"),
+    "delete_users":         ("Удалять пользователей", "users"),
+    "assign_moderator":     ("Назначать разработчиков", "users"),
+    "assign_roles":         ("Назначать роли своего отдела", "users"),
+    # === Чаты и группы ===
+    "pin_messages":         ("Закреплять сообщения везде", "chats"),
+    "manage_groups":        ("Администрировать любые группы", "chats"),
+    "manage_support":       ("Чат поддержки", "chats"),
+    # === Система ===
+    "manage_roles":         ("Управлять ролями", "system"),
+    "manage_users":         ("Доступ к панели управления", "system"),
+    "manage_reports":       ("Управление жалобами", "system"),
+    "tech_access":          ("Технический доступ", "system"),
+    "manage_team_stats":    ("Статистика команды и предложения", "system"),
+}
+
+VALID_PERMISSIONS = set(ALL_PERMISSIONS)
+
+
+def parse_and_validate_permissions(raw: Optional[str]) -> list:
+    """Парсит JSON-строку прав и возвращает валидный дедуплицированный список.
+
+    Кидает 400 при невалидном JSON или неизвестном праве — защита от
+    опечаток и «мёртвых» прав, которые сервер никогда не проверяет.
+    """
+    cleaned = (raw or "").strip()
+    if not cleaned:
+        return []
+    try:
+        perms = json.loads(cleaned)
+    except Exception:
+        raise HTTPException(400, "permissions: невалидный JSON-массив")
+    if not isinstance(perms, list):
+        raise HTTPException(400, "permissions: ожидается массив строк")
+
+    perms = [str(p).strip() for p in perms if str(p).strip()]
+    invalid = sorted({p for p in perms if p not in VALID_PERMISSIONS})
+    if invalid:
+        raise HTTPException(400, f"Неизвестные права: {', '.join(invalid)}")
+
+    seen = set()
+    result = []
+    for p in perms:
+        if p not in seen:
+            seen.add(p)
+            result.append(p)
+    return result
 
 
 def require_staff(
@@ -1153,10 +1215,18 @@ def update_profile(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
+    old_name = user.display_name
     user.display_name = data.display_name
     if data.bio is not None:
         user.bio = data.bio.strip()[:500] if data.bio.strip() else None
     session.add(user)
+    session.add(NickHistory(
+        user_id=user.id,
+        field="display_name",
+        old_value=old_name or "",
+        new_value=data.display_name or "",
+        changed_by=user.id,  # сам себе
+    ))
     session.commit()
     session.refresh(user)
     return user_out(user, session)
@@ -3194,33 +3264,8 @@ def set_shell_switcher_enabled(
 @app.get("/api/permissions")
 def list_permissions():
     return [
-        # === Модерация контента ===
-        {"id": "delete_posts", "label": "Удалять посты", "category": "content"},
-        {"id": "edit_posts", "label": "Редактировать чужие посты", "category": "content"},
-        {"id": "remove_avatars", "label": "Удалять аватарки", "category": "content"},
-        {"id": "manage_stickers", "label": "Управлять стикер-паками", "category": "content"},
-        {"id": "manage_announcements", "label": "Публиковать объявления", "category": "content"},
-        
-        # === Модерация пользователей ===
-        {"id": "ban_users", "label": "Банить пользователей", "category": "users"},
-        {"id": "warn_users", "label": "Выдавать предупреждения", "category": "users"},
-        {"id": "delete_users", "label": "Удалять пользователей", "category": "users"},
-        {"id": "assign_moderator", "label": "Назначать разработчиков", "category": "users"},
-        {"id": "assign_roles", "label": "Назначать роли своего отдела", "category": "users"},
-        
-        # === Чаты и группы ===
-        {"id": "pin_messages", "label": "Закреплять сообщения везде", "category": "chats"},
-        {"id": "manage_groups", "label": "Администрировать любые группы", "category": "chats"},
-        {"id": "manage_support", "label": "Чат поддержки", "category": "chats"},
-        
-        # === Система ===
-        {"id": "manage_roles", "label": "Управлять ролями", "category": "system"},
-        {"id": "manage_users", "label": "Доступ к панели управления", "category": "system"},
-        {"id": "manage_reports", "label": "Управление жалобами", "category": "system"},
-        {"id": "tech_access", "label": "Технический доступ", "category": "system"},
-        {"id": "manage_team_stats", "label": "Статистика команды и предложения", "category": "system"},
-        {"id": "manage_suggestions", "label": "Управлять форумом предложений", "category": "content"}, 
-
+        {"id": perm_id, "label": label, "category": cat}
+        for perm_id, (label, cat) in PERMISSION_LABELS.items()
     ]
 
 
@@ -3373,7 +3418,7 @@ def create_role(
         name=name, color=color, level=level,
         description=description, is_staff=is_staff,
         show_in_payments=show_in_payments,
-        position=position, permissions=permissions,
+        position=position, permissions=json.dumps(parse_and_validate_permissions(permissions)),
         category_id=category_id,
     )
     session.add(role)
@@ -3431,8 +3476,8 @@ def update_role(
         role.is_staff = is_staff
     if show_in_payments is not None:
         role.show_in_payments = show_in_payments
-    if permissions:
-        role.permissions = permissions
+    if permissions is not None:
+        role.permissions = json.dumps(parse_and_validate_permissions(permissions))
     if category_id is not None:
         role.category_id = category_id if category_id > 0 else None
     session.add(role)
@@ -3589,9 +3634,19 @@ def assign_role(
         if not can_manage and target.role_id and target.role_id not in allowed_ids:
             raise HTTPException(403, "Недостаточно прав, чтобы снять эту роль")
 
+    old_role_id = target.role_id
     target.role_id = role_id
     session.add(target)
     session.commit()
+
+    session.add(RoleHistory(
+        user_id=target.id,
+        old_role_id=old_role_id,
+        new_role_id=role_id,
+        changed_by=staff.id,
+    ))
+    session.commit()
+
     return {"ok": True}
 
 
@@ -4486,13 +4541,30 @@ def admin_edit_user_technical(
         ).first()
         if existing:
             raise HTTPException(400, "Username уже занят")
+        if username != target.username:
+            session.add(NickHistory(
+                user_id=target.id,
+                field="username",
+                old_value=target.username or "",
+                new_value=username,
+                changed_by=staff.id,
+            ))
         target.username = username
     
     # Смена display_name
     if display_name:
         if len(display_name.strip()) < 1 or len(display_name.strip()) > 50:
             raise HTTPException(400, "Display name: 1-50 символов")
-        target.display_name = display_name.strip()
+        display_name = display_name.strip()
+        if display_name != target.display_name:
+            session.add(NickHistory(
+                user_id=target.id,
+                field="display_name",
+                old_value=target.display_name or "",
+                new_value=display_name,
+                changed_by=staff.id,
+            ))
+        target.display_name = display_name
     
     # Смена пароля (без проверки старого — это техпанель)
     if new_password:
@@ -4547,6 +4619,56 @@ def admin_reset_2fa(
     session.commit()
     
     return {"ok": True, "username": target.username}
+
+
+@app.get("/api/admin/nick-history")
+def admin_nick_history(
+    limit: int = 100,
+    user_id: Optional[int] = None,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Лог смены ников всех пользователей (для окна техников).
+
+    Опционально фильтр по user_id (чей ник менялся). Права: tech_access.
+    """
+    if not has_permission(staff, "tech_access", session):
+        raise HTTPException(403, "Нет права: tech_access")
+
+    query = select(NickHistory).order_by(NickHistory.changed_at.desc()).limit(limit)
+    if user_id:
+        query = query.where(NickHistory.user_id == user_id)
+    rows = session.exec(query).all()
+
+    user_ids = {r.user_id for r in rows} | {r.changed_by for r in rows}
+    users = {}
+    for u in session.exec(select(User).where(User.id.in_(user_ids))).all():
+        users[u.id] = u
+
+    result = []
+    for r in rows:
+        target = users.get(r.user_id)
+        actor = users.get(r.changed_by)
+        result.append({
+            "id": r.id,
+            "field": r.field,
+            "old_value": r.old_value,
+            "new_value": r.new_value,
+            "changed_at": r.changed_at.isoformat() if r.changed_at else None,
+            "user": {
+                "id": target.id,
+                "username": target.username,
+                "display_name": target.display_name,
+                "avatar_url": target.avatar_url,
+            } if target else None,
+            "changed_by": {
+                "id": actor.id,
+                "username": actor.username,
+                "display_name": actor.display_name,
+                "avatar_url": actor.avatar_url,
+            } if actor else None,
+        })
+    return result
 
 
 @app.post("/api/admin/users/{user_id}/avatar/set")
@@ -10076,10 +10198,26 @@ def get_team_statistics(
         
         role_history = session.exec(select(RoleHistory).where(RoleHistory.user_id == user_id).order_by(RoleHistory.changed_at.desc())).all()
         actions = session.exec(select(TeamStatistic).where(TeamStatistic.user_id == user_id).order_by(TeamStatistic.created_at.desc()).limit(50)).all()
-        
+
+        actor_ids = {h.changed_by for h in role_history if h.changed_by}
+        actors = {}
+        if actor_ids:
+            for u in session.exec(select(User).where(User.id.in_(actor_ids))).all():
+                actors[u.id] = u
+
         return {
             "user": user_out(target, session),
-            "role_history": [{"old_role": session.get(Role, h.old_role_id).name if h.old_role_id else None, "new_role": session.get(Role, h.new_role_id).name if h.new_role_id else None, "changed_at": h.changed_at.isoformat()} for h in role_history],
+            "role_history": [{
+                "old_role": session.get(Role, h.old_role_id).name if h.old_role_id else None,
+                "new_role": session.get(Role, h.new_role_id).name if h.new_role_id else None,
+                "changed_at": h.changed_at.isoformat(),
+                "changed_by": {
+                    "id": actors[h.changed_by].id,
+                    "username": actors[h.changed_by].username,
+                    "display_name": actors[h.changed_by].display_name,
+                    "avatar_url": actors[h.changed_by].avatar_url,
+                } if h.changed_by in actors else None,
+            } for h in role_history],
             "actions": [{"action_type": a.action_type, "target_type": a.target_type, "target_id": a.target_id, "created_at": a.created_at.isoformat()} for a in actions],
             "total_actions": session.exec(select(func.count(TeamStatistic.id)).where(TeamStatistic.user_id == user_id)).one() or 0,
         }

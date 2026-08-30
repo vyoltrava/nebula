@@ -549,6 +549,18 @@ class RoleHistory(SQLModel, table=True):
     changed_by: int = Field(foreign_key="user.id", ondelete="CASCADE")
     changed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+
+class NickHistory(SQLModel, table=True):
+    """История смены ника (username / display_name)"""
+    __tablename__ = "nick_history"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", ondelete="CASCADE")
+    field: str = Field(default="display_name")  # username | display_name
+    old_value: str = Field(default="")
+    new_value: str = Field(default="")
+    changed_by: int = Field(foreign_key="user.id", ondelete="CASCADE")
+    changed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 # ============================================================
 # 🏷️ КАСТОМНЫЕ ПЛАШКИ (BADGES 2.0)
 # ============================================================

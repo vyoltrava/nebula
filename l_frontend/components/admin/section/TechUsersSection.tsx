@@ -8,7 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
 import {
   Users, Search, Upload, Save, Ban, ShieldCheck, RefreshCw,
-  Trash2, AlertTriangle, Lock, History,
+  Trash2, AlertTriangle, Lock, History, Tag,
 } from "lucide-react";
 import { Button, IconButton } from "@/components/ui/Button";
 
@@ -71,6 +71,28 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
 
   useEffect(() => { loadUsers(); }, []);
   useEffect(() => { if (selectedUser) loadIpHistory(selectedUser.id); }, [selectedUser]);
+
+  const [viewMode, setViewMode] = useState<"users" | "nicks">("users");
+  const [nickLogs, setNickLogs] = useState<any[]>([]);
+  const [nickLoading, setNickLoading] = useState(false);
+
+  async function loadNickLogs() {
+    const token = getToken();
+    if (!token) return;
+    setNickLoading(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/nick-history?limit=200`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setNickLogs(await res.json());
+    } catch (err) {
+      console.error("load nick logs error:", err);
+    } finally {
+      setNickLoading(false);
+    }
+  }
+
+  useEffect(() => { if (viewMode === "nicks") loadNickLogs(); }, [viewMode]);
 
   function selectUser(user: any) {
     setSelectedUser(user);
@@ -208,7 +230,79 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   });
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="space-y-4">
+      {/* Переключатель режима */}
+      <div className="flex gap-2 flex-wrap">
+        <button onClick={() => setViewMode("users")} className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold transition-all ${viewMode === "users" ? "bg-[#8b5cf6] border-[#8b5cf6] text-white" : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10"}`}>
+          <Users size={16} /> Пользователи
+        </button>
+        <button onClick={() => setViewMode("nicks")} className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold transition-all ${viewMode === "nicks" ? "bg-[#8b5cf6] border-[#8b5cf6] text-white" : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10"}`}>
+          <Tag size={16} /> Смена ников
+        </button>
+      </div>
+
+      {viewMode === "nicks" ? (
+        <div className="border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden">
+          <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <History size={18} className="text-[#8b5cf6]" />
+              <h3 className="font-bold text-gray-900 dark:text-white">История смены ников (все пользователи)</h3>
+            </div>
+            <button onClick={loadNickLogs} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white"><RefreshCw size={16} /></button>
+          </div>
+          {nickLoading ? (
+            <p className="p-8 text-center text-gray-600 dark:text-white/50">Загрузка...</p>
+          ) : nickLogs.length === 0 ? (
+            <p className="p-12 text-center text-gray-600 dark:text-white/50">Логов пока нет</p>
+          ) : (
+            <div className="max-h-[70vh] overflow-y-auto divide-y divide-line dark:divide-white/5">
+              {nickLogs.map((log) => (
+                <div key={log.id} className="p-3 sm:p-4 flex items-center gap-4">
+                  {/* Кому изменили */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    {log.user ? (
+                      <Link href={`/user/${log.user.id}`} className="flex items-center gap-2 min-w-0 group">
+                        <Avatar src={log.user.avatar_url} name={log.user.display_name} id={log.user.id} size={32} />
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-gray-900 dark:text-white truncate group-hover:text-[#8b5cf6]">{log.user.display_name || log.user.username}</p>
+                          <p className="text-[10px] text-gray-500 dark:text-white/40 truncate">@{log.user.username}</p>
+                        </div>
+                      </Link>
+                    ) : <span className="text-gray-500 dark:text-white/40 text-sm">Удалён</span>}
+                  </div>
+
+                  {/* Стрелка */}
+                  <span className="text-gray-500 dark:text-white/40 shrink-0 text-xs">→</span>
+
+                  {/* Кто изменил */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[10px] text-gray-500 dark:text-white/40 shrink-0">выдал</span>
+                    {log.changed_by ? (
+                      <Link href={`/user/${log.changed_by.id}`} className="flex items-center gap-2 min-w-0 group">
+                        <Avatar src={log.changed_by.avatar_url} name={log.changed_by.display_name} id={log.changed_by.id} size={24} />
+                        <span className="text-sm text-gray-700 dark:text-white/70 truncate group-hover:text-[#8b5cf6]">{log.changed_by.display_name || log.changed_by.username}</span>
+                      </Link>
+                    ) : <span className="text-gray-500 dark:text-white/40 text-sm">Система</span>}
+                  </div>
+
+                  {/* Само изменение */}
+                  <div className="flex-1 min-w-0 text-right sm:text-left">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${log.field === "username" ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" : "bg-purple-500/20 text-purple-600 dark:text-purple-400"}`}>{log.field === "username" ? "@username" : "имя"}</span>
+                    <div className="text-xs text-gray-600 dark:text-white/60 mt-0.5 truncate">
+                      <span className="line-through opacity-50">{log.old_value}</span>
+                      <span className="mx-1">→</span>
+                      <span className="font-semibold">{log.new_value}</span>
+                    </div>
+                  </div>
+
+                  <span className="text-gray-500 dark:text-white/40 text-xs shrink-0">{new Date(log.changed_at).toLocaleString("ru-RU")}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Список пользователей */}
       <div className="lg:col-span-1 border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden flex flex-col max-h-[75vh]">
         <div className="p-3 border-b border-line dark:border-white/10">
@@ -432,6 +526,8 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
           </div>
         )}
       </div>
+        </div>
+      )} 
     </div>
   );
 }
