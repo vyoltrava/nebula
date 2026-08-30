@@ -9998,7 +9998,7 @@ def get_active_custom_badge_for(user_id: int, session: Session) -> Optional[dict
         select(CustomBadgeAssignment).where(
             CustomBadgeAssignment.user_id == user_id,
             CustomBadgeAssignment.is_active == True,  # noqa: E712
-        ).order_by(CustomBadgeAssignment.priority.desc(), CustomBadgeAssignment.id.desc())
+                ).order_by(CustomBadgeAssignment.override_priority.desc(), CustomBadgeAssignment.id.desc())
     ).all()
     for a in assigns:
         if a.expires_at and a.expires_at < now:
