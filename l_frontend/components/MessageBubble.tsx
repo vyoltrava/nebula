@@ -99,7 +99,13 @@ export const MessageBubble = memo(function MessageBubble({
             (isMine ? "bg-cyan-600 text-white border-l-4 border-cyan-600 dark:border-cyan-400" : "bg-cyan-950/40 text-white border-l-4 border-cyan-600 dark:border-cyan-400") : (isMine ? (isSecret ? "bg-emerald-600 text-white" : "bg-[#8b5cf6] text-white") : "bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white border border-line dark:border-white/15")}`}`}>            
             
             {/* Медиа контент */}
-            {msg.media_url && isEncryptedMedia ? (
+            {msg.is_temp && msg.is_uploading && !msg.media_url ? (
+              /* 🆕 Плейсхолдер с анимацией загрузки (медиа ещё отправляется) */
+              <div className="w-44 h-44 rounded-2xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 flex flex-col items-center justify-center gap-2.5">
+                <span className="w-9 h-9 border-[3px] border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
+                <span className="text-[11px] font-medium text-gray-500 dark:text-white/40">Загрузка…</span>
+              </div>
+            ) : msg.media_url && isEncryptedMedia ? (
               msg.media_url === "temp_encrypted_media" ? (
                 <div className="w-56 h-56 rounded-2xl bg-gray-100 dark:bg-white/5 animate-pulse flex items-center justify-center">
                   <Lock size={20} className="text-gray-500 dark:text-white/30" />

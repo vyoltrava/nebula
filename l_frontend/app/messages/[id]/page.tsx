@@ -894,7 +894,10 @@ async function loadChatInfo() {
 }
 
   async function loadMessages() {
-    setLoadingMessages(true);
+    // 🆕 Скелетон показываем только при первой загрузке (когда сообщений ещё нет).
+    // Иначе фоновые обновления (закрепления, правки, реконнекты) выглядят как
+    // "чат обновился с нуля".
+    setLoadingMessages(messages.length === 0);
     const token = getToken();
     if (!token) {
       setLoadingMessages(false);
@@ -1155,6 +1158,28 @@ for (const msg of messagesToSend) {
         // Обычное сообщение
                     // Обычное сообщение
                     else {
+                        // 🆕 Временное сообщение-плейсхолдер с анимацией загрузки для медиа
+                        const mediaTempId = tempId + 1;
+                        if (msg.file) {
+                            let upType: string = "image";
+                            if (msg.file.type.startsWith("video/")) upType = "video";
+                            if (msg.file.type.startsWith("audio/")) upType = "audio";
+                            if (msg.file.name.endsWith(".gif")) upType = "gif";
+                            setMessages((prev) => [...prev, {
+                                id: mediaTempId,
+                                sender_id: currentUser?.id,
+                                sender_name: currentUser?.display_name,
+                                sender_avatar: currentUser?.avatar_url,
+                                text: msg.text || null,
+                                media_url: null,
+                                media_type: upType,
+                                is_uploading: true,
+                                read: false,
+                                created_at: new Date().toISOString(),
+                                is_temp: true,
+                            }]);
+                        }
+
                         const form = new FormData();
                         if (msg.text) form.append("text", msg.text);
                         if (msg.file) form.append("file", msg.file);
@@ -1176,7 +1201,7 @@ for (const msg of messagesToSend) {
                             const err = await res.json().catch(() => null);
                             console.error("❌ Send message failed:", res.status, err);
                             alert(err?.detail || `Ошибка отправки (${res.status})`);
-                            setMessages((prev) => prev.filter((m) => m.id !== tempId));
+                            setMessages((prev) => prev.filter((m) => m.id !== tempId && m.id !== mediaTempId));
                             return;
                         }
 
@@ -1198,7 +1223,7 @@ for (const msg of messagesToSend) {
                                     is_temp: false,
                                 };
 
-                                const withoutTemp = prev.filter((m) => !(m.id === tempId && m.is_temp));
+                                const withoutTemp = prev.filter((m) => !(m.id === tempId && m.is_temp) && !(m.id === mediaTempId && m.is_temp));
 
                                 if (withoutTemp.some((m) => m.id === real.id)) {
                                     return withoutTemp;
@@ -1881,7 +1906,8 @@ useWebSocket("new_message", (data: any) => {
       if (data.text && m.text !== data.text) return false;
       
       // Если есть медиа, типы должны совпадать
-      if (data.media_url && m.media_url !== data.media_url) return false; 
+      // 🆕 Для временного сообщения "загрузка…" media_url ещё null — не считаем это несовпадением
+      if (data.media_url && m.media_url && m.media_url !== data.media_url) return false; 
       // Для зашифрованных медиа URL может быть разным, проверяем тип
       if (data.is_encrypted_media && m.is_encrypted_media) return true;
 
@@ -3289,6 +3315,22 @@ style={{
             alert(err.detail || t("messages.videoEncryptFailed"));
           }
         } else {
+          // 🆕 Мгновенный плейсхолдер "загрузка…" пока видеокружок уходит на сервер
+          const tempVnId = Date.now();
+          setMessages((prev) => [...prev, {
+            id: tempVnId,
+            sender_id: currentUser?.id,
+            sender_name: currentUser?.display_name,
+            sender_avatar: currentUser?.avatar_url,
+            text: null,
+            media_url: null,
+            media_type: "video_note",
+            is_uploading: true,
+            read: false,
+            created_at: new Date().toISOString(),
+            is_temp: true,
+          }]);
+
           const form = new FormData();
           form.append("file", file);
           form.append("media_type", "video_note");
@@ -3300,8 +3342,18 @@ style={{
             body: form,
           });
           if (!res.ok) {
+            setMessages((prev) => prev.filter((m) => m.id !== tempVnId));
             const err = await res.json().catch(() => ({ detail: t("common.error") }));
             alert(err.detail || "Не удалось отправить видеосообщение");
+          } else {
+            const saved = await res.json().catch(() => null);
+            setMessages((prev) => {
+              const without = prev.filter((m) => m.id !== tempVnId);
+              if (saved && saved.id && !without.some((m) => m.id === saved.id)) {
+                return [...without, saved];
+              }
+              return without;
+            });
           }
         }
       } catch (err) {

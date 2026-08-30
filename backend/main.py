@@ -10004,11 +10004,9 @@ def get_active_custom_badge_for(user_id: int, session: Session) -> Optional[dict
             continue
         badge = session.get(CustomBadge, a.badge_id) if a.badge_id else None
         if badge and badge.is_active:
-            data = get_custom_badge_out(badge)
-            data["priority"] = a.priority
-            data["expires_at"] = a.expires_at.isoformat() if a.expires_at else None
-            data["assignment_id"] = a.id
-            return data
+            # 🆕 Отдаём в формате assignment (badge, is_active, override_priority...),
+            # чтобы фронт (RoleBadge) получал все поля новой модели плашек
+            return _assignment_out(a, session)
     return None
 
 # ============================================================

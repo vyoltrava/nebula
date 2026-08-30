@@ -73,7 +73,11 @@ export function NebulaSidebar() {
 
   // Reset state on mount
   useEffect(() => {
-    setExpanded(true);
+    // 🆕 Положение сайдбара (свёрнут/развёрнут) сохраняется на ПК между сессиями
+    try {
+      const saved = localStorage.getItem("nebula_sidebar_expanded");
+      if (saved !== null) setExpanded(saved === "1");
+    } catch {}
     setShowBugModal(false);
     setShowAccountSwitcher(false);
     setShowCircle(false);
@@ -142,7 +146,13 @@ export function NebulaSidebar() {
   const iconClass = isDock ? "w-6 h-6 mx-auto shrink-0" : "w-[18px] h-[18px]";
   const textClass = isDock ? "hidden" : "block";
   const containerClass = isDock ? "justify-center px-0 py-3" : "items-center gap-3 px-4 py-3";
-  const toggleSidebar = () => setExpanded((prev) => !prev);
+  const toggleSidebar = () => {
+    setExpanded((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("nebula_sidebar_expanded", next ? "1" : "0"); } catch {}
+      return next;
+    });
+  };
   const handleLogout = () => { clearToken(); router.push("/login"); };
 
   // Цвета иконок небула-орбиты (каждую иконку — в её цвет, чтобы не путаться)

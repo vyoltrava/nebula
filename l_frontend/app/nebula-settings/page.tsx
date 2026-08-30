@@ -189,7 +189,7 @@ export default function NebulaSettingsPage() {
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-[#17171b] text-gray-900 dark:text-white font-sans">
       <div className="fixed top-0 left-0 right-0 h-1 bg-purple-500 z-50" />
-      <div className="w-full max-w-lg mx-auto px-4 pt-6 pb-12">
+      <div className="w-full max-w-lg md:max-w-3xl mx-auto px-4 pt-6 pb-12">
         <button onClick={() => router.push("/messages")} className="flex items-center gap-2 text-sm text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white mb-6 transition-colors">
           <ArrowLeft size={16} />{t("profile.backToChats")}
         </button>

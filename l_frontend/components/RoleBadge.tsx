@@ -46,10 +46,12 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
     } else if (badge.bg_type === "gradient") {
       bgStyle.backgroundImage = badge.bg_gradient || `linear-gradient(135deg, ${badge.bg_color || "#3b82f6"}, #8b5cf6)`;
     } else if (badge.bg_type === "image" && badge.bg_image_url) {
+      const mode = badge.bg_image_mode || "cover";
       bgStyle.backgroundImage = `url('${badge.bg_image_url}')`; // Кавычки внутри url() обязательны!
-      bgStyle.backgroundSize = badge.bg_image_mode || "cover";
+      // 🆕 "tile" — невалидное значение background-size: для плитки нужен auto + repeat
+      bgStyle.backgroundSize = mode === "tile" ? "auto" : mode;
       bgStyle.backgroundPosition = "center";
-      bgStyle.backgroundRepeat = badge.bg_image_mode === "tile" ? "repeat" : "no-repeat";
+      bgStyle.backgroundRepeat = mode === "tile" ? "repeat" : "no-repeat";
       // ВАЖНО: fallback цвет, если картинка прозрачная или не загрузилась
       bgStyle.backgroundColor = badge.bg_color || "#1a1a1a"; 
     }
@@ -89,10 +91,29 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
       bgStyle.filter = `drop-shadow(0 0 ${badge.border_glow_intensity || 5}px ${badge.border_color})`;
     }
 
+    // 6. 🆕 ЭФФЕКТЫ / АНИМАЦИИ (animation_flags — JSON массив, e.g. ["pulse","float","shimmer"])
+    let anims: string[] = [];
+    if (Array.isArray(badge.animation_flags)) anims = badge.animation_flags;
+    else if (typeof badge.animation_flags === "string" && badge.animation_flags) {
+      try { anims = JSON.parse(badge.animation_flags); } catch { anims = []; }
+    }
+    const animClasses = anims
+      .map((a) => {
+        switch (a) {
+          case "pulse": return "animate-pulse";
+          case "shimmer": return "animate-shimmer";
+          case "glow": return "animate-founder-glow";
+          case "float": return "animate-bounce";
+          default: return "";
+        }
+      })
+      .filter(Boolean)
+      .join(" ");
+
     return (
       <span
         // Убрали text-gray-900 dark:text-white отсюда, чтобы цвет текста контролировался ТОЛЬКО через style
-        className={`inline-flex items-center gap-1.5 ${sizeClasses[size]} rounded-md font-bold uppercase tracking-wider shrink-0 relative overflow-hidden`}
+        className={`inline-flex items-center gap-1.5 ${sizeClasses[size]} rounded-md font-bold uppercase tracking-wider shrink-0 relative overflow-hidden ${animClasses}`}
         style={{
           ...bgStyle,
           color: badge.text_color || "#ffffff", // 🎯 ЯВНОЕ применение цвета текста из БД

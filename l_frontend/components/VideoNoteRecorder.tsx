@@ -365,7 +365,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
               <video
                 ref={previewRef}
                 src={recordedUrl}
-                autoPlay loop playsInline
+                autoPlay loop playsInline muted
                 className="w-full h-full object-cover"
                 style={{ transform: isMirrored ? "scaleX(-1)" : "none" }}
               />
