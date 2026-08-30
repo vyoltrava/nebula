@@ -23,10 +23,11 @@ export async function apiFetch(url: string, options: RequestInit = {}, _isRetry 
     method,
   }));
 
-  // 🔄 Access-токен истёк (30 мин) → пробуем обновить через refresh-cookie и повторить один раз
+  // 🔄 Access-токен истёк (30 мин) → пробуем обновить через refresh и повторить один раз
   if (res.status === 401 && !_isRetry) {
-    const newToken = await refreshAccessToken();
-    if (newToken) {
+    const { token: newToken, unreachable } = await refreshAccessToken();
+    // При сетевом сбое (unreachable) — не считаем сессию мёртвой, просто не ретраим
+    if (newToken && !unreachable) {
       return apiFetch(url, options, true);
     }
   }

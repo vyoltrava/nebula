@@ -81,7 +81,7 @@ export default function LoginPage() {
       }
 
       // 🔥 ШАГ 3: Сохраняем и токен, и пользователя в мульти-аккаунт менеджер
-      setToken(token, userData);
+      setToken(token, userData, { refreshToken: data.refresh_token });
       sessionStorage.setItem("justLoggedIn", "1");
       router.push("/");
       
@@ -123,7 +123,7 @@ export default function LoginPage() {
       
       if (meRes.ok) {
         const userData = await meRes.json();
-        setToken(token, userData);
+        setToken(token, userData, { refreshToken: data.refresh_token });
         sessionStorage.setItem("justLoggedIn", "1");
         router.push("/");
       } else {

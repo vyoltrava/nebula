@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { getToken } from "@/lib/auth";
+import { getToken, clearToken } from "@/lib/auth";
+import { apiFetch } from "@/lib/apiFetch";
 
 // Страницы, которые доступны без авторизации
 const PUBLIC_PATHS = ["/login", "/register"];
@@ -15,12 +16,36 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     const token = getToken();
     const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
-    if (!token && !isPublic) {
+        if (!token && !isPublic) {
       // Нет токена и страница защищённая — на логин
       router.replace("/login");
-    } else if (token && isPublic) {
-      // Есть токен и страница логина — на главную
+      return;
+    }
+
+    // Если есть токен и страница публична — на главную
+    if (token && isPublic) {
       router.replace("/");
+      return;
+    }
+
+    // Если токен есть — проверяем его валидность через /api/me
+    if (token && !isPublic) {
+      apiFetch("/api/me")
+        .then((res) => {
+          if (!res.ok) {
+            // Токен недействителен (истёк, отозван, 2FA) — выходим
+            clearToken();
+            router.replace("/login");
+          } else {
+            setChecked(true);
+          }
+        })
+        .catch(() => {
+          // Сетевая/серверная ошибка (напр. рестарт Render / офлайн) —
+          // НЕ сносим аккаунт: даём приложению открыться, при восстановлении
+          // сети /api/me пройдёт. Иначе аккаунт удалялся бы просто из-за дауна.
+          setChecked(true);
+        });
     } else {
       setChecked(true);
     }

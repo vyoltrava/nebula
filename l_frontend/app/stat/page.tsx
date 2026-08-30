@@ -548,7 +548,7 @@ export default function StatPage() {
               </div>
               {memberStats.role_history?.length > 0 && (
                 <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10">
-                  <h4 className="text-gray-900 dark:text-white font-bold mb-4 flex items-center gap-2"><Settings size={18} /> История ролей</h4>
+                  <h4 className="text-gray-900 dark:text-white font-bold mb-4 flex items-center gap-2"><Settings size={18} /> История выдачи роли</h4>
                   <div className="space-y-2">
                     {memberStats.role_history.map((role: any, idx: number) => (
                       <div key={idx} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/5">

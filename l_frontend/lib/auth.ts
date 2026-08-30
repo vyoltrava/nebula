@@ -12,6 +12,7 @@ export interface StoredAccount {
   displayName: string;
   avatarUrl: string | null;
   token: string;
+  refreshToken?: string;
   addedAt: number;
 }
 
@@ -59,8 +60,9 @@ export function getToken(): string | null {
 
 // 🎯 5. setToken теперь сохраняет аккаунт в общий список!
 export function setToken(
-  token: string, 
-  user?: { id: number; username: string; display_name: string; avatar_url?: string | null }
+  token: string,
+  user?: { id: number; username: string; display_name: string; avatar_url?: string | null },
+  opts?: { refreshToken?: string }
 ) {
   if (!user) {
     // Fallback для старых вызовов, если user не передан
@@ -76,6 +78,7 @@ export function setToken(
     displayName: user.display_name,
     avatarUrl: user.avatar_url || null,
     token,
+    refreshToken: opts?.refreshToken || undefined,
     addedAt: Date.now(),
   });
 
@@ -149,35 +152,46 @@ import { API_URL } from "./apiUrl";
  * Вызывается автоматически при 401 из apiFetch.
  * Возвращает новый access-токен или null (сессия истекла).
  */
-export async function refreshAccessToken(): Promise<string | null> {
+export async function refreshAccessToken(): Promise<{ token: string | null; unreachable: boolean }> {
   const active = getActiveAccount();
   try {
     const headers: HeadersInit = {};
-    // 🎯 Привязываем refresh к активному аккаунту, чтобы httpOnly cookie
-    // (общий для всех аккаунтов) не выдал токен чужого пользователя.
+    // 🔑 Привязываем refresh к активному аккаунту: httpOnly cookie (общая на все
+    // аккаунты) не должна выдавать токен чужого пользователя, поэтому при
+    // наличии per-account refresh-токена шлём его явно в Authorization.
+    // Бэкенд принимает "Authorization: Bearer refresh:<token>".
     if (active) {
       headers["x-user-id"] = String(active.userId);
+      if (active.refreshToken) {
+        headers["Authorization"] = `Bearer refresh:${active.refreshToken}`;
+      }
     }
     const res = await fetch(`${API_URL}/api/auth/refresh`, {
       method: "POST",
-      credentials: "include", // отправляем httpOnly refresh_token cookie
+      credentials: "include", // отправляем httpOnly refresh_token cookie как fallback
       headers,
     });
-    if (!res.ok) return null;
+    if (!res.ok) return { token: null, unreachable: false };
     const data = await res.json();
-    if (!data.token) return null;
+    if (!data.token) return { token: null, unreachable: false };
     if (active) {
-      // Обновляем токен активного аккаунта в списке
-      setToken(data.token, {
-        id: active.userId,
-        username: active.username,
-        display_name: active.displayName,
-        avatar_url: active.avatarUrl,
-      });
+      // Обновляем токены активного аккаунта в списке (access + refresh при ротации)
+      setToken(
+        data.token,
+        {
+          id: active.userId,
+          username: active.username,
+          display_name: active.displayName,
+          avatar_url: active.avatarUrl,
+        },
+        { refreshToken: data.refresh_token || undefined }
+      );
     }
-    return data.token as string;
+    return { token: data.token as string, unreachable: false };
   } catch {
-    return null;
+    // Сетевой/серверный сбой (напр. рестарт Render) — сервер недоступен.
+    // НЕ считаем сессию мёртвой, чтобы не удалять аккаунт у пользователя.
+    return { token: null, unreachable: true };
   }
 }
 

@@ -442,20 +442,24 @@ def create_token(user_id: int, token_version: int = 0, token_type: str = "access
     return jwt.encode(payload, SECRET, algorithm=ALGORITHM)
 
 
-def set_refresh_cookie(response: Response, user_id: int, token_version: int):
+def set_refresh_cookie(response: Response, user_id: int, token_version: int) -> str:
     """Refresh-токен в httpOnly cookie — недоступен JS, не крадётся через XSS.
     В production фронт и API на разных доменах → SameSite=None + Secure
-    (иначе браузер не отправит cookie на кросс-сайтовый /api/auth/refresh)."""
+    (иначе браузер не отправит cookie на кросс-сайтовый /api/auth/refresh).
+    Возвращает само значение refresh-токена, чтобы его можно было продублировать
+    в теле ответа (для мультиаккаунтного хранилища на фронте)."""
+    value = create_token(user_id, token_version, token_type="refresh")
     cross_site = os.getenv("ENV") == "production"
     response.set_cookie(
         key="refresh_token",
-        value=create_token(user_id, token_version, token_type="refresh"),
+        value=value,
         httponly=True,
         secure=cross_site,
         samesite="none" if cross_site else "strict",
         path="/api/auth",
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
     )
+    return value
 
 
 # ============================================================
@@ -502,9 +506,10 @@ def refresh_access_token(
     if payload.get("ver", 0) != user_token_version:
         raise HTTPException(401, "Session revoked")
 
-    set_refresh_cookie(response, user.id, user_token_version)
+    _refresh = set_refresh_cookie(response, user.id, user_token_version)
     return {
         "token": create_token(user.id, user_token_version, token_type="access"),
+        "refresh_token": _refresh,
         "user": user_out(user, session),
     }
 
@@ -6149,8 +6154,8 @@ def login(request: Request, response: Response, data: LoginIn, session: Session 
     session.commit()
 
     _tv = getattr(user, "token_version", 0) or 0
-    set_refresh_cookie(response, user.id, _tv)
-    return {"token": create_token(user.id, _tv), "user": user_out(user, session)}
+    _refresh = set_refresh_cookie(response, user.id, _tv)
+    return {"token": create_token(user.id, _tv), "refresh_token": _refresh, "user": user_out(user, session)}
 
 
 @app.post("/api/login/2fa")
@@ -6197,8 +6202,8 @@ def login_2fa(
     session.commit()
 
     _tv = getattr(user, "token_version", 0) or 0
-    set_refresh_cookie(response, user.id, _tv)
-    return {"token": create_token(user.id, _tv), "user": user_out(user, session)}
+    _refresh = set_refresh_cookie(response, user.id, _tv)
+    return {"token": create_token(user.id, _tv), "refresh_token": _refresh, "user": user_out(user, session)}
 
 
 
@@ -10213,6 +10218,7 @@ def get_team_statistics(
         nick_history = session.exec(select(NickHistory).where(NickHistory.user_id == user_id).order_by(NickHistory.changed_at.desc())).all()
         actor_ids = {h.changed_by for h in role_history if h.changed_by}
         actor_ids = {h.changed_by for h in role_history if h.changed_by} | {h.changed_by for h in nick_history if h.changed_by}
+        actors: dict = {}
         if actor_ids:
             for u in session.exec(select(User).where(User.id.in_(actor_ids))).all():
                 actors[u.id] = u
