@@ -68,6 +68,54 @@ class SystemSetting(SQLModel, table=True):
     value: str = Field(default="")
     updated_at: datetime = Field(default_factory=utcnow)
 
+
+# ============================================================
+# 💳 ПЛАТЕЖНАЯ СИСТЕМА — продажа плашек/ролей
+# "Платёжный слой": можно навесить оплату на ЛЮБУЮ роль.
+# (модели: PaymentRole, PaymentPurchase)
+# ============================================================
+
+class PaymentRole(SQLModel, table=True):
+    """Настройка продажи конкретной роли. Одна запись на роль.
+
+    Поля JSON хранятся строками (SQLModel/sqlite-совместимо):
+      features   — список строк ["VIP чат", "Скидка 20%"]
+      provider_data — dict для провайдера (price_id у Stripe и т.п.)
+    """
+    id: int = Field(default=None, primary_key=True)
+    role_id: int = Field(unique=True, index=True)      # ID роли из таблицы role
+    role_name: str = Field(default="")                 # человекочитаемое имя (копия из Role)
+    is_active: bool = Field(default=False)             # включена ли продажа
+    price: float = Field(default=0.0)                  # цена в основной валюте
+    currency: str = Field(default="USD")
+    period: str = Field(default="once")                # once | monthly | yearly
+    trial_days: int = Field(default=0)                 # пробный период (для подписок)
+    description: Optional[str] = None                  # что даёт плашка
+    features: str = Field(default="[]")                # JSON-массив строк
+    is_recurring: bool = Field(default=False)          # подписка или разовая
+    payment_provider: str = Field(default="stripe")    # stripe | manual
+    provider_data: Optional[str] = Field(default=None) # JSON (например price_id)
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
+class PaymentPurchase(SQLModel, table=True):
+    """Запись о покупке плашки/роли."""
+    id: int = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    role_id: int = Field(index=True)
+    payment_role_id: int = Field(foreign_key="paymentrole.id", index=True)
+    amount: float = Field(default=0.0)
+    currency: str = Field(default="USD")
+    status: str = Field(default="pending")             # pending | success | failed | refunded | expired
+    provider: str = Field(default="stripe")
+    provider_id: Optional[str] = Field(default=None)   # ID транзакции у провайдера
+    subscription_id: Optional[str] = Field(default=None)
+    expires_at: Optional[datetime] = None              # когда истекает (для подписок)
+    metadata: Optional[str] = Field(default=None)      # JSON (previous_role_id, период и т.п.)
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
+
 class Post(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     author_id: int = Field(foreign_key="user.id", index=True)

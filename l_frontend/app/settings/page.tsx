@@ -32,6 +32,7 @@ import { LiveTextSettings } from "@/components/LiveTextSettings";
 import { AppearanceSettings } from "@/components/AppearanceSettings";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { PaymentShop } from "@/components/payments/PaymentShop";
 import { Button, IconButton } from "@/components/ui/Button";
 
 type View = "profile" | "appearance" | "notifications" | "permissions" | "messages" | "security" | "nebula";
@@ -413,6 +414,7 @@ async function activate2FA() {
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold">{t("settings.profile")}</h2>
                 <LanguageSwitcher />
+                <PaymentShop />
 
                 {/* Аватар */}
                 <div className="flex items-center gap-4">

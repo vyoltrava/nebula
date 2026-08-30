@@ -11375,3 +11375,10 @@ def extend_assignment(
 from prisma import router as prisma_router
 
 app.include_router(prisma_router, prefix="/api")
+
+# ============================================================
+# 💳 ПЛАТЁЖНЫЙ СЛОЙ — регистрация роутера (модуль payments.py)
+# ============================================================
+from payments import router as payments_router
+
+app.include_router(payments_router, prefix="/api")
