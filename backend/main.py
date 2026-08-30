@@ -9997,7 +9997,7 @@ def get_active_custom_badge_for(user_id: int, session: Session) -> Optional[dict
     assigns = session.exec(
         select(CustomBadgeAssignment).where(
             CustomBadgeAssignment.user_id == user_id,
-            CustomBadgeAssignment.revoked == False,  # noqa: E712
+            CustomBadgeAssignment.is_active == True,  # noqa: E712
         ).order_by(CustomBadgeAssignment.priority.desc(), CustomBadgeAssignment.id.desc())
     ).all()
     for a in assigns:
