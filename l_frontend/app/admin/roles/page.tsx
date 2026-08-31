@@ -407,9 +407,17 @@ export default function RolesPage() {
                 </p>
               </div>
             </div>
-            <Button icon={Plus} onClick={() => openForm()}>
-              Создать роль
-            </Button>
+            <div className="flex gap-2">
+              {/* 🔗 Кнопка-ссылка в окно ролей высшей касты (9-11) — доступ по праву manage_roles */}
+              {(me?.is_admin || me?.permissions?.includes("manage_roles")) && (
+                <Button variant="secondary" icon={Crown} onClick={() => router.push("/admin/badges/system")}>
+                  Роли 9–11
+                </Button>
+              )}
+              <Button icon={Plus} onClick={() => openForm()}>
+                Создать роль
+              </Button>
+            </div>
           </div>
         </div>
         {/* 🗂️ Р’РљР›РђР”РљР ГРУПП */}

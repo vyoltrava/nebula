@@ -140,7 +140,36 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
   }
 
   // ═══════════════════════════════════════════
-  // 🟡 2. FOUNDER (Level 10 / is_admin)
+  // ⭐ 2. КАСТОМНЫЕ РОЛИ (Levels 8-11: Owner, Staff и т.д.)
+  // Выданная роль перекрывает Founder/Developer — иначе её не видно у is_admin.
+  // Рендер по цвету и названию самой роли.
+  // ═══════════════════════════════════════════
+  if (user.role && user.role.level >= 8) {
+    const color = user.role.color || "#f59e0b";
+    return (
+      <span
+        className={`badge-special-dept inline-flex items-center gap-1.5 ${sizeClasses[size]} rounded-md font-black uppercase tracking-widest shrink-0 border-2 text-white relative overflow-hidden ${showAnimation ? "animate-special-glow" : ""}`}
+        style={{
+          background: `linear-gradient(135deg, ${color} 0%, ${color}dd 50%, ${color}bb 100%)`,
+          borderColor: color,
+          boxShadow: `0 4px 14px 0 ${color}60, inset 0 1px 0 rgba(255,255,255,0.2)`,
+        }}
+      >
+        {showAnimation && mounted && (
+          <div className="absolute inset-0 animate-gradient-shift" style={{ background: `linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)` }} />
+        )}
+        <img
+          src="/role-icon.svg"
+          alt=""
+          className={`relative z-10 ${size === "sm" ? "w-3.5 h-3.5" : "w-4 h-4 md:w-5 md:h-5"}`}
+        />
+        <span className="relative z-10">{user.role.name}</span>
+      </span>
+    );
+  }
+
+  // ═══════════════════════════════════════════
+  // 🟡 3. FOUNDER (Level 10 / is_admin)
   // ═══════════════════════════════════════════
   if (user.is_admin) {
     // 🌗 Инверсия по теме: dark — белая плашка с чёрным текстом,
@@ -206,34 +235,6 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
         <span className="relative z-10 bg-clip-text text-transparent bg-gradient-to-b from-white to-zinc-400">
           Official
         </span>
-      </span>
-    );
-  }
-
-  // ═══════════════════════════════════════════
-  // ⭐ 5. КАСТОМНЫЕ РОЛИ (Levels 8-11: Спец отдел, Owner, Staff и т.д.)
-  // Рендер по цвету и названию самой роли — как задумано в системе ролей.
-  // ═══════════════════════════════════════════
-  if (user.role && user.role.level >= 8) {
-    const color = user.role.color || "#f59e0b";
-    return (
-      <span
-                className={`badge-special-dept inline-flex items-center gap-1.5 ${sizeClasses[size]} rounded-md font-black uppercase tracking-widest shrink-0 border-2 text-white relative overflow-hidden ${showAnimation ? "animate-special-glow" : ""}`}
-        style={{
-          background: `linear-gradient(135deg, ${color} 0%, ${color}dd 50%, ${color}bb 100%)`,
-          borderColor: color,
-          boxShadow: `0 4px 14px 0 ${color}60, inset 0 1px 0 rgba(255,255,255,0.2)`,
-        }}
-      >
-        {showAnimation && mounted && (
-          <div className="absolute inset-0 animate-gradient-shift" style={{ background: `linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)` }} />
-        )}
-        <img
-          src="/role-icon.svg"
-          alt=""
-          className={`relative z-10 ${size === "sm" ? "w-3.5 h-3.5" : "w-4 h-4 md:w-5 md:h-5"}`}
-        />
-        <span className="relative z-10">{user.role.name}</span>
       </span>
     );
   }

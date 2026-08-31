@@ -3695,6 +3695,20 @@ def delete_role(
     for u in users:
         u.role_id = None
         session.add(u)
+
+    # 🆕 Чистим историю ролей, иначе FK violation (в проде constraint без ON DELETE SET NULL)
+    hist = session.exec(
+        select(RoleHistory).where(
+            (RoleHistory.old_role_id == role_id) | (RoleHistory.new_role_id == role_id)
+        )
+    ).all()
+    for h in hist:
+        if h.old_role_id == role_id:
+            h.old_role_id = None
+        if h.new_role_id == role_id:
+            h.new_role_id = None
+        session.add(h)
+
     session.delete(role)
     session.commit()
     invalidate_role_cache()
