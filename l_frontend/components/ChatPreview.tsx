@@ -22,8 +22,8 @@ const PATTERNS: { type: Token["type"]; re: RegExp }[] = [
   { type: "code", re: /`([^`\n]+)`/ },
   { type: "italic", re: /\*([^*\n]+)\*/ },
   { type: "link", re: /\[([^\]\n]+)\]\([^)\s]+\)/ },
-  { type: "mention", re: /@([\wа-яёА-ЯЁ]+)/ },
-  { type: "tag", re: /#([\wа-яёА-ЯЁ]+)/ },
+  { type: "mention", re: /@([\wа-яёА-ߨ]+)/ },
+  { type: "tag", re: /#([\wа-яёА-ߨ]+)/ },
 ];
 
 function replaceStickers(text: string): string {

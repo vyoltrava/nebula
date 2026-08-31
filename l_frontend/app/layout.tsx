@@ -17,6 +17,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { ThemeModeProvider } from "@/components/ThemeModeProvider";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
+import { AuthProvider } from "@/lib/AuthProvider";
 import { ZuneThemeProvider } from "@/themes/zune";
 import "@/themes/zune/styles/index.css";
 import { IosThemeProvider } from "@/themes/ios";
@@ -100,6 +101,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: zuneNoFlashScript }} />
         <script dangerouslySetInnerHTML={{ __html: iosNoFlashScript }} />
         <ThemeModeProvider>
+        <AuthProvider>
         <ZuneThemeProvider>
         <IosThemeProvider>
         <ThemeProvider>
@@ -125,6 +127,7 @@ export default function RootLayout({
         </ThemeProvider>
         </IosThemeProvider>
         </ZuneThemeProvider>
+        </AuthProvider>
         </ThemeModeProvider>
       </body>
     </html>

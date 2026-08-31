@@ -518,8 +518,32 @@ def refresh_access_token(
 def auth_logout(request: Request, response: Response):
     response.delete_cookie("refresh_token", path="/api/auth")
     return {"ok": True}
+@app.get("/api/auth/validate")
+def auth_validate(request: Request, session: Session = Depends(get_session)):
+    """Быстрая проверка сессии для AuthProvider: подтверждает access-токен.
+    Токен передаётся в Authorization; refresh-cookie не принимается (только
+    диагностически сообщает, живёт ли refresh-сессия)."""
+    auth = request.headers.get("authorization") or ""
+    if not auth.startswith("Bearer "):
+        raise HTTPException(401, "No token")
+    token = auth.split(" ", 1)[1]
+    try:
+        payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
+    except Exception:
+        raise HTTPException(401, "Invalid token")
+    if payload.get("type") not in ("access", "refresh"):
+        raise HTTPException(401, "Invalid token type")
+    try:
+        user_id = int(payload.get("sub"))
+    except (TypeError, ValueError):
+        raise HTTPException(401, "Invalid token")
+    user = session.get(User, user_id)
+    if not user or user.is_banned:
+        raise HTTPException(401, "Invalid user")
+    if payload.get("ver", 0) != getattr(user, "token_version", 0):
+        raise HTTPException(401, "Session revoked")
+    return {"valid": True, "user": {"id": user.id, "username": user.username, "display_name": user.display_name}}
 
-from fastapi import BackgroundTasks  # ← добавь в импорты
 
 def get_current_user(
     authorization: str = Header(default=None),

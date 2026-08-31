@@ -5,7 +5,7 @@ import { STICKERS } from "@/lib/stickers";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, HeartCrack, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio } from "lucide-react";
+import { Heart, HeartCrack, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio, Eye } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
 import { safeFetch } from "@/lib/ban";
@@ -20,13 +20,13 @@ import { getCachedUser } from "@/lib/authCache";
 import { timeAgo } from "@/lib/time";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import LinkPreview from "@/components/LinkPreview";
-import { EchoModal } from "@/components/EchoModal"; // РРјРїРѕСЂС‚РёСЂСѓРµРј модалку
+import { EchoModal } from "@/components/EchoModal"; // РРјРїРѕСЂС‚РёСЂСѓеРј модалку
 import dynamic from "next/dynamic";
 
-// рџљЂ react-markdown тяжёлый вЂ” ленивая загрузка
+// 🚀 react-markdown тяжёлый — ленивая загрузка
 const MarkdownRenderer = dynamic(() => import("@/components/MarkdownRenderer").then(m => m.MarkdownRenderer), {
   ssr: false,
-  loading: () => <div className="editor-loading animate-pulse text-sm opacity-50">рџ“ќ вЂ¦</div>,
+  loading: () => <div className="editor-loading animate-pulse text-sm opacity-50">📝 …</div>,
 });
 
 
@@ -35,8 +35,8 @@ function extractFirstUrl(text: string): string | null {
   return m ? m[0].replace(/[.,;:!?)]+$/, "") : null;
 }
 
-// рџ“± Компактное время для мобильной шапки поста:
-// если пост выложен сегодня вЂ” только HH:MM (без «сегодня в вЂ¦В»), иначе обычный timeAgo
+// 📱 Компактное время для мобильной шапки поста:
+// если пост выложен сегодня — только HH:MM (без «сегодня в …»), иначе обычный timeAgo
 function shortPostTime(date: string | Date | undefined): string {
   if (!date) return "";
   let d: Date;
@@ -116,7 +116,7 @@ function AuthorBadges({ is_admin, is_moderator, is_banned, role }: {
   );
 }
 
-// рџ†• РРЅР»Р°Р№РЅ-редактор поста вЂ” «лист тетради» на пожелтевшей бумаге.
+// 🆕 РнлаР№н-редактор поста — «лист тетради» на пожелтевшей бумаге.
 // Рендерится прямо внутри карточки поста на месте текста (никаких модалок).
 function InlinePostEditor({
   value,
@@ -291,7 +291,7 @@ useEffect(() => {
     return;
   }
   
-  // Для ленты вЂ” IntersectionObserver (view только когда пост реально виден)
+  // Для ленты — IntersectionObserver (view только когда пост реально виден)
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
@@ -317,7 +317,7 @@ useEffect(() => {
   const handler = (e: Event) => {
     const d = (e as CustomEvent).detail;
     if (d.post_id === id) {
-      // рџ›ЎпёЏ Защита от отрицательных значений и undefined
+      // 🛡️ Защита от отрицательных значений и undefined
       setCount(Math.max(0, d.likes_count ?? 0));
       if (d.dislikes_count !== undefined) setDislikeCount(Math.max(0, d.dislikes_count));
       if (d.liked !== undefined) setLiked(!!d.liked);
@@ -403,7 +403,7 @@ async function toggleLike() {
   const next = !liked;
   setLiked(next);
   setCount((c) => Math.max(0, next ? (c ?? 0) + 1 : (c ?? 0) - 1));
-  setLikedCache(id, next); // в†ђ Р РђРЎРљРћРњРњР•РќРўРР РћР’РђРўР¬, пишем сразу
+  setLikedCache(id, next); // ← РРђРЎРљРћРњРњР•РќРўРРРћР’РђРўЬ, пишем сразу
   // Взаимное исключение: при лайке снимаем дизлайк
   if (next && disliked) {
     setDisliked(false);
@@ -423,7 +423,7 @@ async function toggleLike() {
     if (data.disliked !== undefined) setDisliked(!!data.disliked);
     setLikedCache(id, data.liked);
     
-    // рџ”„ Глобальная синхронизация для других компонентов (профиль, лента)
+    // 🔄 Глобальная синхронизация для других компонентов (профиль, лента)
     window.dispatchEvent(new CustomEvent("like-sync", { detail: { post_id: id, ...data } }));
     window.dispatchEvent(new CustomEvent("like-state-sync", { detail: { post_id: id, liked: data.liked } }));
     if (data.disliked !== undefined) {
@@ -473,7 +473,7 @@ async function toggleDislike() {
     }
     
     
-    // рџ”„ Глобальная синхронизация для других компонентов (профиль, лента)
+    // 🔄 Глобальная синхронизация для других компонентов (профиль, лента)
     window.dispatchEvent(new CustomEvent("dislike-sync", { detail: { post_id: id, ...data } }));
     window.dispatchEvent(new CustomEvent("dislike-state-sync", { detail: { post_id: id, disliked: data.disliked } }));
     if (data.liked !== undefined) {
@@ -645,7 +645,7 @@ async function toggleDislike() {
     }
   }
 
-  // рџ†• Р•Р”РРќРђРЇ Р¤РЈРќРљР¦РРЇ ДЛЯ РЕПОСТА Р Р¦РРўРђРўР«
+  // 🆕 Р•Р”РРќРђРЇ ФРЈРќРљЦРРЇ ДЛЯ РЕПОСТА Р ЦРРўРђРўЫ
   async function handleRepostOrQuote(postId: number) {
     const token = getToken();
     if (!token) { router.push("/login"); return; }
@@ -722,7 +722,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            {/* Ник + бейджи + кнопки действий (эхо / жалоба / редактировать) вЂ” в одном ряду */}
+            {/* Ник + бейджи + кнопки действий (эхо / жалоба / редактировать) — в одном ряду */}
             <div className="flex items-center gap-1.5 flex-wrap text-sm min-w-0">
               <Link
                 href={`/${cleanUsername}`}
@@ -740,7 +740,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 role={author_role}
               />
 
-              {/* РРєРѕРЅРєР° Эхо */}
+              {/* РРєРѕнРєа Эхо */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -795,13 +795,13 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             )}
           </div>
 
-          {/* Хэндл + дата вЂ” отдельной строкой под никами.
-              рџ“± На телефоне для сегодняшних постов показываем только время (без «сегодня в вЂ¦В»). */}
+          {/* Хэндл + дата — отдельной строкой под никами.
+              📱 На телефоне для сегодняшних постов показываем только время (без «сегодня в …»). */}
           <div className="text-xs font-normal text-gray-600 dark:text-white/50 flex items-center gap-1.5 flex-wrap mt-0.5 leading-tight">
             {handle}
             {created_at && (
               <>
-                <span>В·</span>
+                <span>·</span>
                 <span className="hidden sm:inline">{timeAgo(created_at)}</span>
                 <span className="sm:hidden">{shortPostTime(created_at)}</span>
               </>
@@ -809,7 +809,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             {isEdited && <span className="text-gray-500 dark:text-white/40 text-[10px] italic">{t("post.edited")}</span>}
           </div>
           
-          {/* рџ›ЎпёЏ Предупреждение при модераторском редактировании чужого поста */}
+          {/* 🛡️ Предупреждение при модераторском редактировании чужого поста */}
           {editing && currentUser?.id !== author_id && (
             <div className="mt-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-300 text-xs">
               {t("post.modEditWarn")}
@@ -879,7 +879,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             </>
           )}
 
-          {/* вњЌпёЏ Режим редактирования: вместо действий вЂ” «Сохранить» (сургуч) и «Отмена» (металл) */}
+          {/* ✍️ Режим редактирования: вместо действий — «Сохранить» (сургуч) и «Отмена» (металл) */}
           {editing ? (
             <div className="flex items-center gap-3 mt-3 flex-wrap">
               <button
@@ -897,7 +897,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 {t("common.cancel")}
               </button>
               <span className="text-xs text-gray-500 dark:text-white/40">
-                {t("post.ctrlEnter")} В· {t("post.chars", { n: editText.length })}
+                {t("post.ctrlEnter")} · {t("post.chars", { n: editText.length })}
               </span>
             </div>
           ) : (
@@ -943,7 +943,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               <Reply size={13} />
             </button>
 
-            {/* рџ†• Р•Р”РРќРђРЇ КНОПКА РЕПОСТА Р Р¦РРўРђРўР« */}
+            {/* 🆕 Р•Р”РРќРђРЇ КНОПКА РЕПОСТА Р ЦРРўРђРўЫ */}
             {currentUser && currentUser.id !== author_id && !is_repost && !is_quote && (
               <button
                 onClick={() => handleRepostOrQuote(id)}
@@ -976,7 +976,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             
             {views_count !== undefined && (
               <span className="text-[11px] text-gray-500 dark:text-white/40 flex items-center gap-1">
-                рџ‘Ѓ {views_count}
+                <Eye size={12} /> {views_count}
               </span>
             )}
 
@@ -1020,7 +1020,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 }}
                 className="border border-line dark:border-white/20 text-gray-600 dark:text-white/60 rounded-lg px-3 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
               >
-                вњ•
+                ✕
               </button>
             </div>
           )}
@@ -1064,7 +1064,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
         </div>
       </div>
 
-      {/* рџ”Љ ЭХО-МОДАЛКА (Открывается по клику на иконку Radio) */}
+      {/* 🔊 ЭХО-МОДАЛКА (Открывается по клику на иконку Radio) */}
       {showEcho && <EchoModal postId={id} onClose={() => setShowEcho(false)} />}
 
       {showReport && (
@@ -1079,7 +1079,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
   );
 }
 
-// рџ†• Компонент отдельного ответа (рекурсивный)
+// 🆕 Компонент отдельного ответа (рекурсивный)
 function ReplyItem({
   reply,
   allReplies,
@@ -1245,7 +1245,7 @@ function ReplyItem({
                 }}
                 className="border border-line dark:border-white/20 text-gray-600 dark:text-white/60 rounded-lg px-2.5 hover:bg-gray-100 dark:hover:bg-white/10 transition-all text-sm"
               >
-                вњ•
+                ✕
               </button>
             </div>
           )}

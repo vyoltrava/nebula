@@ -106,12 +106,18 @@ export default function NotificationsPage() {
   }
 
   const icons: Record<string, React.ReactNode> = {
-    like: <Heart size={16} className="text-pink-600 dark:text-pink-400" fill="currentColor" />,
-    reply: <MessageCircle size={16} className="text-blue-600 dark:text-blue-400" />,
-    follow: <UserPlus size={16} className="text-purple-600 dark:text-purple-400" />,
-    mention: <AtSign size={16} className="text-yellow-600 dark:text-yellow-400" />,
-    message: <MessageSquare size={16} className="text-green-600 dark:text-green-400" />,
+    like: <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-pink-500 flex items-center justify-center shrink-0 shadow-sm"><Heart size={11} className="text-white" fill="currentColor" /></span>,
+    reply: <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-500 flex items-center justify-center shrink-0 shadow-sm"><MessageCircle size={11} className="text-white" /></span>,
+    follow: <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-purple-500 flex items-center justify-center shrink-0 shadow-sm"><UserPlus size={11} className="text-white" /></span>,
+    mention: <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-yellow-500 flex items-center justify-center shrink-0 shadow-sm"><AtSign size={11} className="text-white" /></span>,
+    message: <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-green-500 flex items-center justify-center shrink-0 shadow-sm"><MessageSquare size={11} className="text-white" /></span>,
   };
+
+  const fallbackIcon = (
+    <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gray-400 dark:bg-white/30 flex items-center justify-center shrink-0 shadow-sm">
+      <Bell size={11} className="text-white" />
+    </span>
+  );
 
   const notifKeys: Record<string, MessageKey> = {
     like: "notif.like",
@@ -220,10 +226,8 @@ export default function NotificationsPage() {
                         <span className="text-[11px] sm:text-sm text-gray-600 dark:text-white/60 truncate">
                           {t(notifKeys[n.type] ?? "notif.fallback")}
                         </span>
-                        <span className={`p-0.5 sm:p-1 rounded-full shrink-0 ${
-                          !n.read ? "bg-gray-100 dark:bg-white/10" : "bg-gray-100 dark:bg-white/5"
-                        }`}>
-                          {icons[n.type as keyof typeof icons] || <Bell size={11} className="sm:w-3 sm:h-3" />}
+                        <span className="shrink-0">
+                          {icons[n.type as keyof typeof icons] || fallbackIcon}
                         </span>
                       </div>
                       
@@ -232,14 +236,14 @@ export default function NotificationsPage() {
                           {timeAgo(n.created_at, t, locale)}
                         </p>
 
-                        {/* Подсказка куда ведёт вЂ” только на sm+ */}
+                        {/* Подсказка куда ведёт — только на sm+ */}
                         <p className="hidden sm:block text-xs text-[#8b5cf6]/80 font-medium truncate">
-                          в†’ {link === "/messages" ? t("notif.openMessages") : t("notif.goToProfile")}
+                          → {link === "/messages" ? t("notif.openMessages") : t("notif.goToProfile")}
                         </p>
                       </div>
                     </div>
 
-                    {/* РРЅРґРёРєР°С‚РѕСЂ непрочитанного */}
+                    {/* Индикатор непрочитанного */}
                     {!n.read && (
                       <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#8b5cf6] shrink-0 mt-3 shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
                     )}

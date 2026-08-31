@@ -3,10 +3,10 @@
 import React, { memo } from 'react';
 import dynamic from 'next/dynamic';
 import { Avatar } from './Avatar';
-// рџљЂ react-markdown тяжёлый вЂ” ленивая загрузка
+// 🚀 react-markdown тяжёлый — ленивая загрузка
 const MarkdownRenderer = dynamic(() => import('./MarkdownRenderer').then(m => m.MarkdownRenderer), {
   ssr: false,
-  loading: () => <div className="editor-loading animate-pulse text-sm opacity-50">рџ“ќ вЂ¦</div>,
+  loading: () => <div className="editor-loading animate-pulse text-sm opacity-50">📝 …</div>,
 });
 import { VideoPlayer } from './VideoPlayer';
 import { AudioPlayer } from './AudioPlayer';
@@ -65,8 +65,8 @@ export const MessageBubble = memo(function MessageBubble({
 
   const isVideoNote = !!msg.media_url && msg.media_type === "video_note";
   const isAudio = !!msg.media_url && msg.media_type === "audio";
-  const isSticker = !!msg.media_url && msg.media_type === "sticker"; // рџ†• Добавлено для стикеров
-  const isForwarded = !!msg.forwarded_from_id; // вњ… РРЎРџР РђР’Р›Р•РќРћ: добавлена отсутствующая переменная
+  const isSticker = !!msg.media_url && msg.media_type === "sticker"; // 🆕 Добавлено для стикеров
+  const isForwarded = !!msg.forwarded_from_id; // ✅ РРЎРџРРђР’Р›Р•РќРћ: добавлена отсутствующая переменная
   const isEncryptedMedia = !!msg.is_encrypted_media || msg.ciphertext === "[encrypted_media]";
 
   return (
@@ -105,7 +105,7 @@ export const MessageBubble = memo(function MessageBubble({
             
             {/* Медиа контент */}
             {msg.is_temp && msg.is_uploading && !msg.media_url ? (
-              /* рџ†• Плейсхолдер с анимацией загрузки (медиа ещё отправляется) */
+              /* 🆕 Плейсхолдер с анимацией загрузки (медиа ещё отправляется) */
               <div className="w-44 h-44 rounded-2xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 flex flex-col items-center justify-center gap-2.5">
                 <span className="w-9 h-9 border-[3px] border-[#8b5cf6] border-t-transparent rounded-full animate-spin" />
                 <span className="text-[11px] font-medium text-gray-500 dark:text-white/40">Загрузка…</span>
@@ -124,10 +124,10 @@ export const MessageBubble = memo(function MessageBubble({
                   <img src={mediaUrl(msg.media_url)} alt="" className={getMediaClasses(msg.media_type)} />
                 )}
                 {msg.media_url && msg.media_type === "video" && <VideoPlayer src={msg.media_url} className={getMediaClasses("video")} />}
-                {msg.media_url && msg.media_type === "audio" && <AudioPlayer src={mediaUrl(msg.media_url)} trackId={msg.id} title={`${msg.sender_name} В· ${formatChatTime(msg.created_at)}`} />}
-                {msg.media_url && msg.media_type === "video_note" && <VideoNotePlayer src={mediaUrl(msg.media_url)} trackId={msg.id} title={`${msg.sender_name} В· ${formatChatTime(msg.created_at)}`} />}
+                {msg.media_url && msg.media_type === "audio" && <AudioPlayer src={mediaUrl(msg.media_url)} trackId={msg.id} title={`${msg.sender_name} · ${formatChatTime(msg.created_at)}`} />}
+                {msg.media_url && msg.media_type === "video_note" && <VideoNotePlayer src={mediaUrl(msg.media_url)} trackId={msg.id} title={`${msg.sender_name} · ${formatChatTime(msg.created_at)}`} />}
 
-                {/* рџ†• Рендер стикеров как сообщений */}
+                {/* 🆕 Рендер стикеров как сообщений */}
                 {isSticker && (
                   <img 
                     src={mediaUrl(msg.media_url)} 
@@ -138,7 +138,7 @@ export const MessageBubble = memo(function MessageBubble({
               </>
             )}
 
-            {/* рџ†• Р¦РРўРђРўРђ (ответ на сообщение) */}
+            {/* 🆕 ЦРРўРђРўРђ (ответ на сообщение) */}
             {msg.reply_preview && (
               <button
                 onClick={(e) => {
@@ -160,7 +160,7 @@ export const MessageBubble = memo(function MessageBubble({
                   {msg.reply_preview.sender_name}
                 </p>
                 <p className={`text-[11px] truncate ${isMine ? "text-gray-800 dark:text-white/70" : "text-gray-600 dark:text-white/50"}`}>
-                  {msg.reply_preview.text || "рџ“Ћ Вложение"}
+                  {msg.reply_preview.text || "📎 Вложение"}
                 </p>
               </button>
             )}
@@ -178,7 +178,7 @@ export const MessageBubble = memo(function MessageBubble({
             )}
           </div>
 
-          {/* рџ†• Р Р•РђРљР¦РР */}
+          {/* 🆕 РР•РђРљЦРР */}
           {!isEditing && !isSelectMode && msg.reactions?.length > 0 && (
             <div className={`flex flex-wrap gap-1 mt-1.5 ${isMine ? "justify-end" : "justify-start"}`}>
               {msg.reactions.map((r: any) => (
@@ -192,7 +192,7 @@ export const MessageBubble = memo(function MessageBubble({
                   }`}
                 >
                   {r.type === "sticker" ? (
-                    /* вњ… РРЎРџР РђР’Р›Р•РќРћ: убран невалидный JS-комментарий изнутри JSX */
+                    /* ✅ РРЎРџРРђР’Р›Р•РќРћ: убран невалидный JS-комментарий изнутри JSX */
                     <img src={mediaUrl(r.content)} alt="" className="w-5 h-5 object-contain" />
                   ) : (
                     <span>{r.emoji}</span>

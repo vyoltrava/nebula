@@ -7,11 +7,11 @@ import { getToken } from "@/lib/auth";
 import { Flag, CheckCircle, XCircle, Trash2, Ban } from "lucide-react";
 
 const REASON_LABELS: Record<string, string> = {
-  spam: "рџ“ў Спам",
+  spam: "📢 Спам",
   insult: "рџЎ Оскорбление",
-  nsfw: "рџ”ћ Контент 18+",
-  rules_violation: "вљ пёЏ Нарушение правил",
-  other: "вќ“ Другое",
+  nsfw: "🔞 Контент 18+",
+  rules_violation: "⚠️ Нарушение правил",
+  other: "❓ Другое",
 };
 
 export default function ReportsPage() {
@@ -100,7 +100,7 @@ export default function ReportsPage() {
               href="/admin"
               className="text-sm text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
-              в†ђ Назад в админку
+              ← Назад в админку
             </Link>
           </div>
 
@@ -116,9 +116,9 @@ export default function ReportsPage() {
                     : "border-line dark:border-white/20 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"
                 }`}
               >
-                {f === "pending" && "вЏі Новые"}
-                {f === "resolved" && "вњ… Обработанные"}
-                {f === "rejected" && "вќЊ Отклонённые"}
+                {f === "pending" && "⏳ Новые"}
+                {f === "resolved" && "✅ Обработанные"}
+                {f === "rejected" && "❌ Отклонённые"}
                 {f === "all" && "Все"}
               </button>
             ))}
@@ -214,7 +214,7 @@ export default function ReportsPage() {
                   )}
                 </div>
 
-                {/* Действия вЂ” только для pending */}
+                {/* Действия — только для pending */}
                 {r.status === "pending" && (
                   <div className="flex flex-col gap-2">
                     {r.target?.type === "post" && (

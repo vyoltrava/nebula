@@ -102,7 +102,7 @@ export default function InstallPrompt() {
           </div>
           <p className="text-sm text-gray-300">
             Откройте меню <b>«Поделиться»</b> в Safari и выберите <b>«На экран
-            «Домой»»</b> / “Add to Home Screen”.
+            «Домо黻</b> / “Add to Home Screen”.
           </p>
           <button
             onClick={dismissIos}

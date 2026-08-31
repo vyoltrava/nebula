@@ -55,7 +55,7 @@ export default function UpdatesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // рџ†• Прочитанные посты
+  // 🆕 Прочитанные посты
   const [readIds, setReadIds] = useState<Set<number>>(new Set());
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const postsRef = useRef<HTMLDivElement>(null);
@@ -83,7 +83,7 @@ export default function UpdatesPage() {
       if (res.ok) {
         const data = await res.json();
         setUpdates(data);
-        // Если бэкенд возвращает is_read вЂ” собираем прочитанные
+        // Если бэкенд возвращает is_read — собираем прочитанные
         const read = new Set<number>(
           data.filter((u: any) => u.is_read).map((u: any) => u.id)
         );
@@ -105,7 +105,7 @@ export default function UpdatesPage() {
 
     // Оптимистично обновляем UI
     setReadIds((prev) => new Set(prev).add(id));
-    refresh(); // рџ†• Гасим бейдж в сайдбаре сразу
+    refresh(); // 🆕 Гасим бейдж в сайдбаре сразу
 
     try {
       await fetch(`${API_URL}/api/updates/${id}/read`, {
@@ -124,7 +124,7 @@ export default function UpdatesPage() {
     if (unread.length === 0) return;
 
     setReadIds(new Set(updates.map((u) => u.id)));
-    refresh(); // рџ†• Гасим бейдж в сайдбаре сразу
+    refresh(); // 🆕 Гасим бейдж в сайдбаре сразу
 
     try {
       await fetch(`${API_URL}/api/updates/read-all`, {
@@ -141,11 +141,11 @@ export default function UpdatesPage() {
       setExpandedId(null);
     } else {
       setExpandedId(id);
-      markRead(id); // рџ†• Отмечаем прочитанным СРАЗУ при открытии, а не при закрытии
+      markRead(id); // 🆕 Отмечаем прочитанным СРАЗУ при открытии, а не при закрытии
     }
   }
 
-  // рџ†• Клик вне поста вЂ” просто сворачиваем (без повторного markRead)
+  // 🆕 Клик вне поста — просто сворачиваем (без повторного markRead)
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (postsRef.current && !postsRef.current.contains(e.target as Node)) {
@@ -311,7 +311,7 @@ export default function UpdatesPage() {
                           })}
                         </span>
 
-                        {/* РРЅРґРёРєР°С‚РѕСЂ непрочитанного */}
+                        {/* РРЅРґРёРєаС‚РѕСЂ непрочитанного */}
                         {!read && (
                           <span className="ml-auto w-2 h-2 rounded-full bg-[#8b5cf6] shadow-[0_0_6px_rgba(139,92,246,0.6)]" />
                         )}

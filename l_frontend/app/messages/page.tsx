@@ -173,11 +173,11 @@ export default function MessagesPage() {
     });
   }, [allChats, query]);
 
-  // Nebula: поддержка ?create=prism (и ?create=group) вЂ” открытие
+  // Nebula: поддержка ?create=prism (и ?create=group) — открытие
   // окна создания из Nebula-оболочки.
   // ДВА механизма:
   // 1) параметр ?create=... при переходе с другой страницы (эффект на монтирование);
-  // 2) событие window "nebula-create" вЂ” если пользователь УЖЕ на /messages,
+  // 2) событие window "nebula-create" — если пользователь УЖЕ на /messages,
   //    router.push("?create=...") не перемонтирует страницу (раньше модалка
   //    не открывалась с орбиты Nebula, особенно на мобилке).
   useEffect(() => {
@@ -278,8 +278,8 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     const start = Math.max(0, idx - 20);
     const end = Math.min(text.length, idx + q.length + 40);
     let s = text.slice(start, end);
-    if (start > 0) s = "вЂ¦" + s;
-    if (end < text.length) s = s + "вЂ¦";
+    if (start > 0) s = "…" + s;
+    if (end < text.length) s = s + "…";
     return s;
   }
 
@@ -406,7 +406,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
 const initiatePrism = async () => {
   // Старый флоу POST /api/chats/prism мёртв: бэкенд требует shard1_encrypted /
   // shard2_genesis / avatar_url, а confirmPrismKey стучится в несуществующий
-  // /prism-key. Отсюда была ошибка "Ошибка: [object Object],..." вЂ” массив
+  // /prism-key. Отсюда была ошибка "Ошибка: [object Object],..." — массив
   // валидации 422 из трёх объектов, склеенный в строку.
   // Новая система Prisme Chat живёт на /prisme: пользователь выбирает
   // свободный объект-ключ, и чат создаётся корректно.
@@ -458,15 +458,15 @@ const confirmPrismKey = async () => {
         
         {/* ШАПКА - только иконка и поиск */}
         <div className="p-4 md:p-6 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
-          {/* mr-12/md:mr-14 вЂ” резервируем место под fixed-кнопку "+", чтобы поиск не заезжал на неё */}
+          {/* mr-12/md:mr-14 — резервируем место под fixed-кнопку "+", чтобы поиск не заезжал на неё */}
           <div className="flex items-center gap-3 md:gap-4 mr-12 md:mr-14">
             
-            {/* РРєРѕРЅРєР° */}
+            {/* РРєРѕРЅРєа */}
             <div className="flex items-center gap-3 shrink-0">
               <MessageSquare size={24} className="text-[#8b5cf6]" />
             </div>
 
-            {/* Поиск вЂ” тянется от иконки до кнопки "+" на любой ширине */}
+            {/* Поиск — тянется от иконки до кнопки "+" на любой ширине */}
             <div className="relative flex-1 min-w-0">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
               <input
@@ -491,8 +491,8 @@ const confirmPrismKey = async () => {
               <span className="text-gray-800 dark:text-white/80">
                 Найдено <span className="font-bold text-gray-900 dark:text-white">{sortedChats.length}</span>
               </span>
-              {nameMatches > 0 && <span className="text-[#a78bfa]">В· {nameMatches} по имени</span>}
-              {textMatches > 0 && <span className="text-[#a78bfa]">В· {textMatches} в сообщениях</span>}
+              {nameMatches > 0 && <span className="text-[#a78bfa]">· {nameMatches} по имени</span>}
+              {textMatches > 0 && <span className="text-[#a78bfa]">· {textMatches} в сообщениях</span>}
             </div>
           </div>
         )}
@@ -632,7 +632,7 @@ const confirmPrismKey = async () => {
                     )}
                   </div>
                   
-                  {/* ТЕКСТ ПОСЛЕДНЕГО РЎРћРћР‘Р©Р•РќРРЇ */}
+                  {/* ТЕКСТ ПОСЛЕДНЕГО РЎРћРћР‘ЩР•РќРРЇ */}
                   {chatDrafts[String(chat.id)] ? (
                     <p className="text-sm truncate text-[#8b5cf6] dark:text-[#a78bfa] mt-0.5 flex items-center gap-1.5">
                       <span className="inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#8b5cf6] dark:text-[#a78bfa] text-[10px] font-bold uppercase tracking-wide">
@@ -792,8 +792,8 @@ const confirmPrismKey = async () => {
         />
       )}
 
-      {/* МОДАЛКА РџР РР—РњР« */}
-      {/* МОДАЛКА РџР РР—РњР« */}
+      {/* МОДАЛКА РџРРР—РњЫ */}
+      {/* МОДАЛКА РџРРР—РњЫ */}
       {showPrismModal && (
         <>
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[2000]" onClick={() => { setShowPrismModal(false); setCreationLandscape(null); setSelectedCreationObject(null); }} />
@@ -808,7 +808,7 @@ const confirmPrismKey = async () => {
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-gray-900 dark:text-white tracking-wide">
-                      {creationLandscape ? "Р’Р«Р‘Р•Р РРўР• КЛЮЧ" : "INITIATE PRISM"}
+                      {creationLandscape ? "Р’ЫР‘Р•РРРўР• КЛЮЧ" : "INITIATE PRISM"}
                     </h3>
                     <p className="text-[10px] text-cyan-400/70 uppercase tracking-widest">
                       {creationLandscape ? "Запомните этот объект для входа" : "Бесшовное E2E шифрование"}

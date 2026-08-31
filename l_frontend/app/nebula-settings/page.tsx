@@ -380,7 +380,7 @@ export default function NebulaSettingsPage() {
                 <div className="grid grid-cols-2 gap-2">{backupCodes.map((code) => (<div key={code} className="bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 rounded-lg px-3 py-2 text-center text-sm font-mono tracking-wider select-all">{code}</div>))}</div>
                 <div className="flex gap-2">
                   <Button icon={Copy} className="flex-1" onClick={async () => { try { await navigator.clipboard.writeText(backupCodes.join("\n")); alert(t("settings.codesCopiedLong")); } catch { const textarea = document.createElement("textarea"); textarea.value = backupCodes.join("\n"); document.body.appendChild(textarea); textarea.select(); document.execCommand("copy"); document.body.removeChild(textarea); alert(t("settings.codesCopied")); } }}>{t("settings.copyAll")}</Button>
-                  <Button variant="success" className="flex-1" onClick={() => { if (confirm(t("settings.savedCodesConfirm"))) setShow2FASetup(false); }}>вњ“ {t("settings.iSaved")}</Button>
+                  <Button variant="success" className="flex-1" onClick={() => { if (confirm(t("settings.savedCodesConfirm"))) setShow2FASetup(false); }}>✓ {t("settings.iSaved")}</Button>
                 </div>
                 <p className="text-[10px] text-gray-500 dark:text-white/30 text-center">{t("settings.iSavedHint")}</p>
               </div>

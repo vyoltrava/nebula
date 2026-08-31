@@ -256,7 +256,7 @@ async function activate2FA() {
       body: form,
     });
     if (res.ok) {
-      // вњ… НЕ закрываем модалку вЂ” переходим к показу кодов
+      // ✅ НЕ закрываем модалку — переходим к показу кодов
       setSetupStep("backup");
       setVerifyCode("");
       fetchSecurityStatus();
@@ -411,7 +411,7 @@ async function activate2FA() {
 
           {/* ===== Контент ===== */}
           <section className="bg-gray-100 dark:bg-[#1E1E23] border border-line dark:border-white/10 rounded-xl p-5 sm:p-6">
-            {/* ---------- РџР РћР¤РР›Р¬ ---------- */}
+            {/* ---------- РџРРћФРР›Ь ---------- */}
             {view === "profile" && (
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold">{t("settings.profile")}</h2>
@@ -517,7 +517,7 @@ async function activate2FA() {
               </div>
             )}
 
-            {/* ---------- Р РђР—Р Р•РЁР•РќРРЇ ---------- */}
+            {/* ---------- РРђР—РР•РЁР•РќРРЇ ---------- */}
             {view === "permissions" && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">{t("settings.permissions")}</h2>
@@ -525,7 +525,7 @@ async function activate2FA() {
               </div>
             )}
 
-            {/* ---------- Р–РР’Р«Р• РЎРћРћР‘Р©Р•РќРРЇ ---------- */}
+            {/* ---------- Р–РР’ЫР• РЎРћРћР‘ЩР•РќРРЇ ---------- */}
             {view === "messages" && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">{t("settings.liveMessages")}</h2>
@@ -536,21 +536,19 @@ async function activate2FA() {
             {/* ---------- NEBULA ---------- */}
             {view === "nebula" && (
               <div>
-                <h2 className="text-lg font-semibold mb-1">Режим Nebula</h2>
+                <h2 className="text-lg font-semibold mb-1">{t("settings.nebulaTitle")}</h2>
                 <p className="text-sm text-[#B9B8BD] mb-4 dark:text-white/60">
-                  Превращает соцсеть в чистый мессенджер: остаются только чаты
-                  (орбита) и настройки Nebula. Всё возвращается назад, когда
-                  режим выключен.
+                  {t("settings.nebulaDesc")}
                 </p>
                 <div className="flex items-center justify-between gap-4 p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                   <div className="flex items-center gap-3">
                     <Sparkles size={20} className="text-[#8b5cf6]" />
                     <div>
                       <div className="text-sm font-medium">
-                        Режим Nebula (только мессенджер)
+                        {t("settings.nebulaToggle")}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-white/40">
-                        {isNebula ? "Сейчас включён" : "Сейчас выключен"}
+                        {isNebula ? t("settings.nebulaOn") : t("settings.nebulaOff")}
                       </div>
                     </div>
                   </div>
@@ -815,12 +813,12 @@ async function activate2FA() {
             disabled={loading2FA}
             className="w-full text-sm text-[#B9B8BD] hover:text-gray-900 dark:hover:text-white transition-colors disabled:opacity-40"
           >
-            в†ђ {t("common.back")}
+            ← {t("common.back")}
           </button>
         </div>
       )}
 
-      {/* рџ†• ШАГ 3: ПОКАЗ РЕЗЕРВНЫХ КОДОВ вЂ” Р’РќРЈРўР Р РњРћР”РђР›РљР */}
+      {/* 🆕 ШАГ 3: ПОКАЗ РЕЗЕРВНЫХ КОДОВ — Р’РќРЈРўРР РњРћР”РђР›РљР */}
       {setupStep === "backup" && (
         <div className="space-y-4">
           <div className="flex items-center gap-2 mb-2">
@@ -883,7 +881,7 @@ async function activate2FA() {
                 }
               }}
             >
-              вњ“ {t("settings.iSaved")}
+              ✓ {t("settings.iSaved")}
             </Button>
           </div>
 

@@ -33,7 +33,7 @@ export default function AdminStickersPage() {
   const [emojiInputs, setEmojiInputs] = useState<Record<number, string>>({});
   const fileRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
-  // рџ†• Состояния для нового редактора пака
+  // 🆕 Состояния для нового редактора пака
   const [selectedEmojis, setSelectedEmojis] = useState<string[]>([]);
   const [emojiSearch, setEmojiSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("emotions");
@@ -86,7 +86,7 @@ export default function AdminStickersPage() {
         const data = await res.json();
         const packId = editingPack.id || data.id;
 
-        // рџ†• Если выбраны эмодзи вЂ” добавляем их в пак
+        // 🆕 Если выбраны эмодзи — добавляем их в пак
         if (selectedEmojis.length > 0 && packId) {
           const emojiForm = new FormData();
           emojiForm.append("emojis", JSON.stringify(selectedEmojis));
@@ -184,7 +184,7 @@ export default function AdminStickersPage() {
     loadPacks();
   }
 
-  // рџ†• Фильтрация эмодзи
+  // 🆕 Фильтрация эмодзи
   const filteredStickers = emojiSearch.trim()
     ? STICKERS.filter(s =>
         s.emoji.includes(emojiSearch) ||
@@ -279,12 +279,12 @@ export default function AdminStickersPage() {
                       onClick={() => deleteSticker(s.id)}
                       className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      Г—
+                      ×
                     </button>
                   </div>
                 ))}
                 {pack.stickers.length === 0 && (
-                  <p className="text-[11px] text-gray-500 dark:text-white/30">Пак пуст вЂ” добавь стикеры ниже в†“</p>
+                  <p className="text-[11px] text-gray-500 dark:text-white/30">Пак пуст — добавь стикеры ниже ↓</p>
                 )}
               </div>
 
@@ -311,7 +311,7 @@ export default function AdminStickersPage() {
                     value={emojiInputs[pack.id] || ""}
                     onChange={(e) => setEmojiInputs(prev => ({ ...prev, [pack.id]: e.target.value }))}
                     onKeyDown={(e) => { if (e.key === "Enter") addEmoji(pack.id); }}
-                    placeholder="Вставь эмодзи: рџ’Ђ рџ—ї рџ”Ґ (можно несколько через пробел)"
+                    placeholder="Вставь эмодзи: 💀 🗿 рџ”Ґ (можно несколько через пробел)"
                     className="flex-1 px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400"
                   />
                   <button onClick={() => addEmoji(pack.id)} className="px-3 py-2 rounded-lg bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-xs font-bold hover:bg-yellow-500/30">
@@ -323,11 +323,11 @@ export default function AdminStickersPage() {
           ))}
 
           {packs.length === 0 && (
-            <p className="text-center text-gray-500 dark:text-white/40 py-16">Паков пока нет вЂ” создай первый!</p>
+            <p className="text-center text-gray-500 dark:text-white/40 py-16">Паков пока нет — создай первый!</p>
           )}
         </div>
 
-        {/* рџ†• УЛУЧШЕННЫЙ РЕДАКТОР ПАКА */}
+        {/* 🆕 УЛУЧШЕННЫЙ РЕДАКТОР ПАКА */}
         {showPackEditor && editingPack && (
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => !savingPack && setShowPackEditor(false)} />
@@ -364,7 +364,7 @@ export default function AdminStickersPage() {
                     </div>
                   </div>
 
-                  {/* рџ†• ВЫБОР Р­РњРћР”Р—Р РР— Р‘РР‘Р›РРћРўР•РљР */}
+                  {/* 🆕 ВЫБОР ЭРњРћР”Р—Р РР— Р‘РР‘Р›РРћРўР•РљР */}
                   <div className="border border-line dark:border-white/10 rounded-xl p-3 bg-white/[0.02]">
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-xs font-bold text-gray-600 dark:text-white/60">

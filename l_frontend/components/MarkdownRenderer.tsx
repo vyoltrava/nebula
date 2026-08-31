@@ -18,8 +18,8 @@ function preprocessText(text: string): string {
     return sticker ? sticker.emoji : match;
   });
   processed = processed.replace(/\|\|(.*?)\|\|/g, '<span class="md-spoiler">$1</span>');
-  processed = processed.replace(/@([\wа-яёА-ЯЁ]+)/g, "[@$1](/mention/$1)");
-  processed = processed.replace(/#([\wа-яёА-ЯЁ]+)/g, "[#$1](/tag/$1)");
+  processed = processed.replace(/@([\wа-яёА-ߨ]+)/g, "[@$1](/mention/$1)");
+  processed = processed.replace(/#([\wа-яёА-ߨ]+)/g, "[#$1](/tag/$1)");
   return processed;
 }
 

@@ -17,9 +17,9 @@ const PAGE_SIZE = 10;
 type TabMode = "users" | "team";
 type SortField = "username" | "level" | "created_at" | "last_seen" | "posts_count" | "messages_count" | "likes_given" | "likes_received" | "visits_count" | "kpi";
 
-function fmtDate(iso?: string | null) { return iso ? new Date(iso).toLocaleDateString("ru-RU") : "вЂ”"; }
+function fmtDate(iso?: string | null) { return iso ? new Date(iso).toLocaleDateString("ru-RU") : "—"; }
 function fmtLastSeen(iso?: string | null) {
-  if (!iso) return "вЂ”";
+  if (!iso) return "—";
   const d = new Date(iso), now = new Date();
   const time = d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
   if (d.toDateString() === now.toDateString()) return `Сегодня ${time}`;
@@ -198,7 +198,7 @@ export default function StatPage() {
 
   const th = (field: SortField, label: string) => (
     <th className="text-left p-3 text-gray-600 dark:text-white/50 font-bold text-xs uppercase cursor-pointer hover:text-gray-900 dark:hover:text-white select-none whitespace-nowrap" onClick={() => handleSort(field)}>
-      {label} {sortField === field && (sortOrder === "asc" ? "в†‘" : "в†“")}
+      {label} {sortField === field && (sortOrder === "asc" ? "↑" : "↓")}
     </th>
   );
 
@@ -226,7 +226,7 @@ export default function StatPage() {
           </div>
         </div>
 
-        {/* ========== ВКЛАДКА: РџРћР›Р¬Р—РћР’РђРўР•Р›Р ========== */}
+        {/* ========== ВКЛАДКА: РџРћР›ЬР—РћР’РђРўР•Р›Р ========== */}
         {activeTab === "users" && overview && (
           <div className="space-y-6">
             {/* ОБЗОР */}
@@ -250,7 +250,7 @@ export default function StatPage() {
                   <p className="text-gray-600 dark:text-white/50 text-xs mb-1">Регистрации сегодня</p>
                   <p className="text-2xl font-black text-gray-900 dark:text-white">{overview.reg_today}</p>
                   <p className={`text-xs mt-2 font-bold ${overview.reg_today - overview.reg_yesterday >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                    {overview.reg_today - overview.reg_yesterday >= 0 ? "в†‘ +" : "в†“ "}{overview.reg_today - overview.reg_yesterday} к вчера
+                    {overview.reg_today - overview.reg_yesterday >= 0 ? "↑ +" : "↓ "}{overview.reg_today - overview.reg_yesterday} к вчера
                   </p>
                   <p className="text-[10px] text-gray-500 dark:text-white/40 mt-1">Онлайн сейчас: {overview.online}</p>
                 </div>
@@ -263,7 +263,7 @@ export default function StatPage() {
                   <p className="text-[10px] text-gray-500 dark:text-white/40 mt-2">Средняя оценка активности</p>
                 </div>
                 <div className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl p-4">
-                  <p className="text-gray-600 dark:text-white/50 text-xs mb-3">РСЃРїРѕР»СЊР·РѕРІР°РЅРёРµ фич</p>
+                  <p className="text-gray-600 dark:text-white/50 text-xs mb-3">РСЃРїРѕлСЊзРѕРІаРЅРёе фич</p>
                   <div className="flex items-end gap-3 h-14">
                     {[
                       { v: overview.total_posts, l: "Посты", c: "#8b5cf6" },
@@ -283,7 +283,7 @@ export default function StatPage() {
               </div>
             </div>
 
-            {/* Р¤РР›Р¬РўР Р« */}
+            {/* ФРР›ЬРўРЫ */}
             <div className="flex gap-3 items-center p-4 bg-gray-100 dark:bg-white/5 rounded-xl border border-line dark:border-white/10 flex-wrap relative">
               <div className="flex-1 min-w-[200px] relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" size={18} />
@@ -324,7 +324,7 @@ export default function StatPage() {
               </div>
             </div>
 
-            {/* РўРђР‘Р›РР¦Рђ */}
+            {/* РўРђР‘Р›РЦРђ */}
             <div className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl overflow-x-auto">
               <table className="w-full text-sm border-collapse min-w-[900px]">
                 <thead>
@@ -379,7 +379,7 @@ export default function StatPage() {
                           <td className="p-3">
                             {cat ? (
                               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold" style={{ background: `${cat.color}20`, color: cat.color }}>{cat.name}</span>
-                            ) : <span className="text-gray-500 dark:text-white/30">вЂ”</span>}
+                            ) : <span className="text-gray-500 dark:text-white/30">—</span>}
                           </td>
                         )}
                         <td className="p-3 text-right relative">
@@ -416,7 +416,7 @@ export default function StatPage() {
               {filtered.length === 0 && <p className="text-center text-gray-500 dark:text-white/40 py-12">Никого не нашли</p>}
             </div>
 
-            {/* РџРђР“РРќРђР¦РРЇ */}
+            {/* РџРђР“РРќРђЦРРЇ */}
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-1">
                 <button disabled={page === 1} onClick={() => setPage(1)} className="p-2 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 disabled:opacity-30 hover:bg-gray-100 dark:hover:bg-white/10"><ChevronsLeft size={16} /></button>
@@ -553,9 +553,9 @@ export default function StatPage() {
                     {memberStats.role_history.map((role: any, idx: number) => (
                       <div key={idx} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/5">
                         <div className="flex items-center gap-3 flex-wrap">
-                          <span className="text-gray-500 dark:text-white/40 text-sm">{role.old_role || "вЂ”"}</span>
+                          <span className="text-gray-500 dark:text-white/40 text-sm">{role.old_role || "—"}</span>
                           <ArrowRight size={16} className="text-gray-500 dark:text-white/40" />
-                          <span className="text-purple-600 dark:text-purple-400 text-sm font-bold">{role.new_role || "вЂ”"}</span>
+                          <span className="text-purple-600 dark:text-purple-400 text-sm font-bold">{role.new_role || "—"}</span>
                         </div>
                         <div className="flex items-center gap-3 flex-wrap">
                           {role.changed_by && (

@@ -114,7 +114,7 @@ export default function AdminChatsPage() {
               />
             </div>
             <p className="text-xs text-gray-500 dark:text-white/40 mt-2">
-              Всего: {chats.length} В· Показано: {filtered.length}
+              Всего: {chats.length} · Показано: {filtered.length}
             </p>
           </div>
           <div className="flex-1 overflow-y-auto">
@@ -141,7 +141,7 @@ export default function AdminChatsPage() {
                   </p>
                   <p className="text-[11px] text-gray-500 dark:text-white/40 truncate">
                     {c.is_group ? `${c.members_count} участников` : "Личный чат"}
-                    {c.last_message && ` В· ${c.last_message.text?.slice(0, 25) || "рџ“Ћ"}`}
+                    {c.last_message && ` · ${c.last_message.text?.slice(0, 25) || "📎"}`}
                   </p>
                 </div>
               </button>
@@ -152,7 +152,7 @@ export default function AdminChatsPage() {
           </div>
         </div>
 
-        {/* РЎРћРћР‘Р©Р•РќРРЇ */}
+        {/* РЎРћРћР‘ЩР•РќРРЇ */}
         <div className={`flex-1 flex flex-col ${activeChat ? "flex" : "hidden md:flex"}`}>
           {!activeChat ? (
             <div className="flex-1 flex items-center justify-center">
@@ -183,7 +183,7 @@ export default function AdminChatsPage() {
                     <Avatar src={m.sender_avatar} name={m.sender_name} id={m.sender_id} size={32} />
                     <div className="flex-1 min-w-0">
                       <p className="text-[11px] text-gray-600 dark:text-white/50">
-                        <span className="font-bold text-gray-800 dark:text-white/80">{m.sender_name}</span> В·{" "}
+                        <span className="font-bold text-gray-800 dark:text-white/80">{m.sender_name}</span> ·{" "}
                         {new Date(m.created_at).toLocaleString("ru-RU", {
                           day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
                         })}
@@ -197,7 +197,7 @@ export default function AdminChatsPage() {
                         ) : m.media_type === "audio" ? (
                           <audio src={mediaUrl(m.media_url)} controls className="max-w-[220px]" />
                         ) : (
-                          m.text || "рџ“Ћ Вложение"
+                          m.text || "📎 Вложение"
                         )}
                       </div>
                     </div>

@@ -222,7 +222,7 @@ export function CreatePost() {
       <div className="flex gap-3">
         <Avatar src={user?.avatar_url} name={user?.display_name || "?"} id={user?.id} />
         <div className="flex-1">
- {/* вњ… ПОЛЕ ВВОДА (только RichEditor внутри рамки) */}
+ {/* ✅ ПОЛЕ ВВОДА (только RichEditor внутри рамки) */}
 <div className="chat-input-shell rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] transition-all">
   <RichEditor
     ref={editorRef}
@@ -233,7 +233,7 @@ export function CreatePost() {
   />
 </div>
 
-{/* вњ… ПРЕВЬЮ Р РљРќРћРџРљР ВЫНЕСЕНЫ НАРУЖУ (ниже поля ввода) */}
+{/* ✅ ПРЕВЬЮ Р РљРќРћРџРљР ВЫНЕСЕНЫ НАРУЖУ (ниже поля ввода) */}
 {preview && file && (
   <div className="relative mt-2 max-w-full">
     {file.type.startsWith("audio/") ? (

@@ -19,7 +19,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { t } = useI18n();
 
-  // рџ”Ґ РРЎРџР РђР’Р›Р•РќРћ: храним user_id, а не temp_token
+  // рџ”Ґ РРЎРџРРђР’Р›Р•РќРћ: храним user_id, а не temp_token
   const [requires2FA, setRequires2FA] = useState(false);
   const [tempUserId, setTempUserId] = useState<number | null>(null);
   const [twoFACode, setTwoFACode] = useState("");
@@ -66,7 +66,7 @@ export default function LoginPage() {
       // рџ”Ґ ШАГ 1: Получаем токен
       const token = data.token;
 
-      // рџ”Ґ ШАГ 2: Если бэкенд сразу отдал user, используем его. РРЅР°С‡Рµ запрашиваем /api/me
+      // рџ”Ґ ШАГ 2: Если бэкенд сразу отдал user, используем его. РРЅаС‡е запрашиваем /api/me
       let userData = data.user;
       if (!userData) {
         const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {

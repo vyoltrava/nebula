@@ -1,6 +1,14 @@
 import { socket } from "@/lib/websocket";
 import { clearCachedUser } from "./authCache";
 import { clearAllSessionKeys } from "@/lib/secureSessionKeys";
+import { setAuthHint, clearAuthHint } from "@/lib/cookieManager";
+
+/** Синхронизирует cookie-подсказку с активным аккаунтом (для SSR/middleware). */
+function syncAuthHint(): void {
+  const active = getActiveAccount();
+  if (active) setAuthHint(active.userId);
+  else clearAuthHint();
+}
 
 const ACCOUNTS_KEY = "trelod_accounts_v1";
 const ACTIVE_KEY = "trelod_active_v1";
@@ -90,7 +98,8 @@ export function setToken(
 
   saveAccountsList(list);
   localStorage.setItem(ACTIVE_KEY, String(user.id));
-  
+  setAuthHint(user.id); // cookie-подсказка для middleware/SSR (анти-мерцание)
+
   socket.connect(token);
 }
 
@@ -105,6 +114,7 @@ export function clearToken() {
   clearCachedUser();
   socket.disconnect();
   clearAllSessionKeys();
+  syncAuthHint();
 }
 
 /**
@@ -117,6 +127,7 @@ export async function switchAccount(userId: number): Promise<void> {
   if (!list.some((a) => a.userId === userId)) return;
 
   localStorage.setItem(ACTIVE_KEY, String(userId));
+  setAuthHint(userId); // подсказка сразу, refresh подтянет валидный токен
   // Принудительно подхватываем токен для активного аккаунта (важно при 2FA).
   await refreshAccessToken();
   window.location.href = "/";
@@ -136,6 +147,7 @@ export function removeAccount(userId: number): void {
       socket.disconnect();
       clearAllSessionKeys();
     }
+    syncAuthHint();
   }
 }
 

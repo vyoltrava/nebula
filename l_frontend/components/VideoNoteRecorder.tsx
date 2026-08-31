@@ -36,7 +36,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
   const recordedBlobRef = useRef<Blob | null>(null);
 
-  // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ камеры
+  // РРЅРёС†РёалРёзаС†РёСЏ камеры
   useEffect(() => {
     startCamera(facingMode);
     return () => {
@@ -48,7 +48,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   }, []);
 
 
-    // рџ”„ Р¤РРљРЎ ЧЁРНОГО ЭКРАНА: при сворачивании/разворачивании/выходе из предпросмотра
+    // 🔄 ФРРљРЎ ЧЁРНОГО ЭКРАНА: при сворачивании/разворачивании/выходе из предпросмотра
   // <video> пересоздаётся, а стрим оставался на уничтоженном элементе.
   // Эффект повторно вешает стрим на живой элемент.
   useEffect(() => {
@@ -59,13 +59,13 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
     }
   }, [isMinimized, hasRecording]);
 
-  // рџ”„ При переходе в предпросмотр: сбрасываем stream со старого <video>,
+  // 🔄 При переходе в предпросмотр: сбрасываем stream со старого <video>,
   // иначе React может переиспользовать DOM-узел и камера продолжит идти в превью
   useEffect(() => {
     if (hasRecording && videoRef.current) {
       videoRef.current.srcObject = null;
     }
-    // рџ”Ѓ При возврате к камере вЂ” возвращаем stream на живой элемент
+    // 🔁 При возврате к камере — возвращаем stream на живой элемент
     if (!hasRecording && videoRef.current && streamRef.current) {
       videoRef.current.srcObject = streamRef.current;
       videoRef.current.play().catch(() => {});
@@ -144,7 +144,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
     timerRef.current = setInterval(() => {
       setSeconds((s) => {
         if (s + 1 >= maxDuration) {
-          // Авто-стоп в†’ сразу отправляем (как в TG)
+          // Авто-стоп → сразу отправляем (как в TG)
           autoSend();
           return maxDuration;
         }
@@ -160,7 +160,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   }
 
   function autoSend() {
-    // Останавливаем запись, но флаг cancel не ставим в†’ onstop создаст blob
+    // Останавливаем запись, но флаг cancel не ставим → onstop создаст blob
     // Затем сразу отправляем
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.stop();
@@ -247,7 +247,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   const glassBtn =
     "flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-line dark:border-white/15 text-gray-800 dark:text-white/85 hover:bg-white/15 hover:text-gray-900 dark:hover:text-white active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all";
 
-  // ===================== СВЁРНУТЫЙ Р Р•Р–РРњ (ORB) =====================
+  // ===================== СВЁРНУТЫЙ РР•Р–РРњ (ORB) =====================
   if (isMinimized) {
     const orbSize = 72; // мобила
     return (
@@ -286,10 +286,10 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
             <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-red-500 border-2 border-[#0a0a0a] animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
           )}
 
-          {/* Готово вЂ” галочка */}
+          {/* Готово — галочка */}
           {hasRecording && !isRecording && (
             <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-[#0a0a0a] flex items-center justify-center">
-              <span className="text-[8px] text-gray-900 dark:text-white font-black">вњ“</span>
+              <span className="text-[8px] text-gray-900 dark:text-white font-black">✓</span>
             </span>
           )}
         </div>
@@ -344,8 +344,8 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
     );
   }
 
-  // ===================== ПОЛНОЭКРАННЫЙ Р Р•Р–РРњ =====================
-  // Квадрат адаптивный: min(92vw, 92vh, 480px) вЂ” всегда квадрат на любом экране
+  // ===================== ПОЛНОЭКРАННЫЙ РР•Р–РРњ =====================
+  // Квадрат адаптивный: min(92vw, 92vh, 480px) — всегда квадрат на любом экране
   const squareSize = "min(92vw, 82vh, 480px)";
 
   return (
@@ -358,7 +358,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
           {isRecording && (
             <div className="absolute -inset-3 sm:-inset-4 pointer-events-none">
               <ProgressRing size={0} stroke={0} />
-              {/* РСЃРїРѕР»СЊР·СѓРµРј отдельный SVG на весь контейнер */}
+              {/* РСЃРїРѕлСЊзСѓеРј отдельный SVG на весь контейнер */}
               <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" style={{ transform: "rotate(-90deg)", filter: "drop-shadow(0 0 8px #8b5cf6)" }}>
                 <rect x="2" y="2" width="96" height="96" rx="20" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
                 <rect
@@ -499,8 +499,8 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
           {hasRecording
             ? "Пересмотри и отправь, либо перезапиши"
             : isRecording
-            ? "Можно свернуть в орб вЂ” чат останется доступен"
-            : "Видео-кружок В· лимит " + formatTime(maxDuration)}
+            ? "Можно свернуть в орб — чат останется доступен"
+            : "Видео-кружок · лимит " + formatTime(maxDuration)}
         </p>
       </div>
     </div>

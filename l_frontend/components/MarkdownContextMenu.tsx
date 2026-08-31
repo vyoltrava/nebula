@@ -41,7 +41,7 @@ export function MarkdownContextMenu({ x, y, onClose, onAction }: MarkdownContext
     let finalY = y - h - 8;
     if (finalY < PAD) finalY = PAD;
 
-    // По X вЂ” центрируем относительно курсора, но не вылетаем за края
+    // По X — центрируем относительно курсора, но не вылетаем за края
     let finalX = x - w / 2;
     if (finalX < PAD) finalX = PAD;
     if (finalX + w > vw - PAD) finalX = vw - w - PAD;

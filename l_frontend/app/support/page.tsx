@@ -77,7 +77,7 @@ export default function SupportPage() {
     } catch {}
   }, []);
 
-  // === ЗАГРУЗКА РЎРћРћР‘Р©Р•РќРР™ ===
+  // === ЗАГРУЗКА РЎРћРћР‘ЩР•РќРР™ ===
   const loadMessages = useCallback(async (ticketId: number) => {
     const token = getToken();
     if (!token) return;
@@ -108,7 +108,7 @@ export default function SupportPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // === WEBSOCKET вЂ” МГНОВЕННЫЕ РћР‘РќРћР’Р›Р•РќРРЇ ===
+  // === WEBSOCKET — МГНОВЕННЫЕ РћР‘РќРћР’Р›Р•РќРРЇ ===
   useWebSocket("support_new_message", (data: any) => {
     const currentActiveId = activeIdRef.current;
     
@@ -119,7 +119,7 @@ export default function SupportPage() {
           ...t,
           updated_at: data.message.created_at,
           last_message: {
-            text: data.message.text || (data.message.media_url ? "рџ“· Фото" : ""),
+            text: data.message.text || (data.message.media_url ? "📷 Фото" : ""),
             is_mine: data.message.sender_id === myId,
             created_at: data.message.created_at,
           },
@@ -128,7 +128,7 @@ export default function SupportPage() {
       return t;
     }));
 
-    // Если это активная заявка вЂ” добавляем сообщение в чат
+    // Если это активная заявка — добавляем сообщение в чат
     if (data.ticket_id === currentActiveId) {
       setMessages(prev => {
         // Не дублируем (optimistic update мог уже добавить)
@@ -193,7 +193,7 @@ export default function SupportPage() {
     }
   }
 
-   // === ОТПРАВКА РЎРћРћР‘Р©Р•РќРРЇ (OPTIMISTIC) ===
+   // === ОТПРАВКА РЎРћРћР‘ЩР•РќРРЇ (OPTIMISTIC) ===
   async function sendMessage() {
     if ((!input.trim() && !file) || !activeId || sending) return;
     setSending(true);
@@ -221,7 +221,7 @@ export default function SupportPage() {
     const form = new FormData();
     form.append("ticket_id", String(activeId));
     
-    // вњ… РРЎРџР РђР’Р›Р•РќРР• 1: ВСЕГДА отправляем text, даже если он пустой (FastAPI требует наличие поля)
+    // ✅ РРЎРџРРђР’Р›Р•РќРР• 1: ВСЕГДА отправляем text, даже если он пустой (FastAPI требует наличие поля)
     form.append("text", savedInput.trim() || ""); 
     
     if (savedFile) form.append("file", savedFile);
@@ -255,7 +255,7 @@ export default function SupportPage() {
           }));
         
       } else {
-        // вњ… РРЎРџР РђР’Р›Р•РќРР• 2: Читаем и показываем реальную ошибку от бэкенда
+        // ✅ РРЎРџРРђР’Р›Р•РќРР• 2: Читаем и показываем реальную ошибку от бэкенда
         const errData = await res.json().catch(() => ({}));
         console.error("Server Error Detail:", errData);
         alert(errData.detail || t("support.sendFailed"));
@@ -407,7 +407,7 @@ export default function SupportPage() {
                       <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
                         isMine ? "bg-[#8b5cf6] text-white rounded-br-md" : "bg-gray-100 dark:bg-white/10 text-white rounded-bl-md"
                       }`}>
-                        {!isMine && <p className="text-[10px] text-[#a78bfa] font-bold mb-1">рџ›ЎпёЏ {m.sender_name}</p>}
+                        {!isMine && <p className="text-[10px] text-[#a78bfa] font-bold mb-1">🛡️ {m.sender_name}</p>}
                         {m.text && <p className="text-sm whitespace-pre-wrap break-words">{m.text}</p>}
                         {m.media_url && m.media_type === "image" && (
                           <img src={m.media_url} alt="" className="mt-2 rounded-lg max-w-full max-h-60 object-contain" />

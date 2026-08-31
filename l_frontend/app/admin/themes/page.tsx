@@ -194,7 +194,7 @@ export default function AdminThemesPage() {
     // Перезагружаем список
     await loadThemes();
     
-    // Если удалили активную вЂ” сбрасываем
+    // Если удалили активную — сбрасываем
     if (previewTheme?.id === t.id) {
       setPreviewTheme(null);
       setTheme(null);
@@ -257,7 +257,7 @@ export default function AdminThemesPage() {
                   Темы включены для всех пользователей
                 </p>
                 <p className="text-[11px] text-gray-500 dark:text-white/40">
-                  {globalEnabled ? "Анимированные фоны отображаются на сайте" : "Фон выключен для всех вЂ” чистый чёрный"}
+                  {globalEnabled ? "Анимированные фоны отображаются на сайте" : "Фон выключен для всех — чистый чёрный"}
                 </p>
               </div>
             </div>
@@ -402,7 +402,7 @@ function ThemeCard({
               : "bg-gray-100 dark:bg-white/5 text-white/70 hover:bg-[#8b5cf6]/20 hover:text-[#8b5cf6]"
           }`}
         >
-          {theme.is_default ? "вњ“ По умолчанию" : "Сделать по умолчанию"}
+          {theme.is_default ? "✓ По умолчанию" : "Сделать по умолчанию"}
         </button>
       </div>
     </div>
@@ -577,7 +577,7 @@ function ThemeEditor({
                         onClick={() => removeColor(i)}
                         className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                       >
-                        Г—
+                        ×
                       </button>
                     )}
                   </div>
@@ -653,7 +653,7 @@ function ThemeEditor({
   );
 }
 
-// ============ РЈРќРР’Р•Р РЎРђР›Р¬РќР«Р™ СЛАЙДЕР ============
+// ============ РЈРќРР’Р•РРЎРђР›ЬРќЫР™ СЛАЙДЕР ============
 function SliderRow({
   label, value, min, max, step, unit, hint, onChange, format,
 }: {

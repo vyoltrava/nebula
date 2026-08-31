@@ -27,7 +27,7 @@ export function CommunityTabs() {
 
   return (
     <div className="sticky top-0 z-20 -mx-4 px-4 py-2 mb-6 bg-paper dark:bg-[#171717]/90 backdrop-blur-md flex items-center gap-1 sm:static sm:z-auto sm:mx-0 sm:px-0 sm:py-0 sm:mb-8 sm:bg-transparent sm:backdrop-blur-none">
-      {/* Назад вЂ” чисто стрелка */}
+      {/* Назад — чисто стрелка */}
       <Link
         href="/"
         title={t("common.back")}
@@ -36,7 +36,7 @@ export function CommunityTabs() {
         <ArrowLeft size={20} />
       </Link>
 
-      {/* Табы без пузыря: на мобиле вЂ” на всю ширину, на десктопе вЂ” компакт */}
+      {/* Табы без пузыря: на мобиле — на всю ширину, на десктопе — компакт */}
       <div className="flex flex-1 gap-1 min-w-0">
         {tabs.map((tab) => (
           <Link
@@ -49,7 +49,7 @@ export function CommunityTabs() {
             }`}
           >
             <tab.icon size={16} className={`shrink-0 ${tab.active ? "text-[#8b5cf6]" : ""}`} />
-            {/* Мобила вЂ” короткая подпись, десктоп вЂ” полная */}
+            {/* Мобила — короткая подпись, десктоп — полная */}
             <span className="truncate sm:hidden">{tab.short}</span>
             <span className="hidden sm:inline truncate">{tab.label}</span>
           </Link>

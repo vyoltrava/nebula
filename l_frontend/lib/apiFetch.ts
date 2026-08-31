@@ -21,6 +21,7 @@ export async function apiFetch(
   const doFetch = (token: string | null) =>
     fetch(url, {
       ...rest,
+      credentials: "include", // httpOnly refresh-cookie уходит с запросом автоматически
       headers: {
         ...(rest.headers || {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

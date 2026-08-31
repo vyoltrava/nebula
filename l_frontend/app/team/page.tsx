@@ -116,7 +116,7 @@ export default function TeamPage() {
             const Icon = g.icon;
             return (
               <section key={g.key} className="space-y-4">
-                {/* Заголовок отдела вЂ” единый фиолетовый полупрозрачный стиль без свечения */}
+                {/* Заголовок отдела — единый фиолетовый полупрозрачный стиль без свечения */}
                 <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#8b5cf6]/10 border border-[#8b5cf6]/20">
                   <div className="text-[#8b5cf6]">
                     <Icon size={20} />
@@ -164,8 +164,8 @@ export default function TeamPage() {
 
                         <div className="flex-1 min-w-0 relative">
                           {/* Никнейм с glow.
-                              рџђћ FIX: белый ник (#ffffff у Founder) в светлой теме
-                              был невидим вЂ” для него добавляем класс team-nick-on-light,
+                              🐞 FIX: белый ник (#ffffff у Founder) в светлой теме
+                              был невидим — для него добавляем класс team-nick-on-light,
                               который в light-теме красит ник в чёрный (см. globals.css).
                               Fallback-белый цвет убран: обычные участники наследуют
                               цвет темы (--text). */}
@@ -186,7 +186,7 @@ export default function TeamPage() {
                           </p>
                           <p className="text-sm text-gray-600 dark:text-white/50 truncate">@{m.username}</p>
 
-                          {/* Только плашка роли вЂ” без текстовых бейджей уровней */}
+                          {/* Только плашка роли — без текстовых бейджей уровней */}
                           {/* Плашки статусов и ролей */}
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {m.is_system && (
@@ -196,10 +196,10 @@ export default function TeamPage() {
                             )}
                             
                             {m.is_admin && (
-                              /* рџЊ— Плашка Founder инвертируется по теме приложения,
+                              /* 🌗 Плашка Founder инвертируется по теме приложения,
                                  как в components/RoleBadge.tsx:
-                                 dark  вЂ” белая плашка, текст внутри чёрный;
-                                 light вЂ” чёрная плашка, текст белый (как было). */
+                                 dark  — белая плашка, текст внутри чёрный;
+                                 light — чёрная плашка, текст белый (как было). */
                               <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-black text-white dark:bg-white dark:text-black shadow-[0_0_8px_rgba(0,0,0,0.4)] dark:shadow-[0_0_8px_rgba(255,255,255,0.35)]">
                                 FOUNDER
                               </span>

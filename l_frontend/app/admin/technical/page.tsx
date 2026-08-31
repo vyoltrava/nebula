@@ -427,7 +427,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
               <Settings size={24} className="text-[#8b5cf6]" />
               <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white">Техническая панель</h1>
             </div>
-            <Link href="/admin" className="text-sm text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white transition-colors">в†ђ Назад в админку</Link>
+            <Link href="/admin" className="text-sm text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white transition-colors">← Назад в админку</Link>
           </div>
 
           <div className="flex gap-2 mt-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -623,30 +623,30 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                           {selectedUser.role && !selectedUser.is_admin && !selectedUser.is_moderator && <span className="px-2 py-0.5 rounded text-white text-[10px] font-black uppercase" style={{ backgroundColor: selectedUser.role.color }}>{selectedUser.role.name}</span>}
                           {selectedUser.is_banned && <span className="px-2 py-0.5 rounded bg-red-500 text-white text-[10px] font-black uppercase">BANNED</span>}
                         </div>
-                        <p className="text-gray-600 dark:text-white/50 text-sm mb-3">@{selectedUser.username} В· ID #{selectedUser.id}</p>
+                        <p className="text-gray-600 dark:text-white/50 text-sm mb-3">@{selectedUser.username} · ID #{selectedUser.id}</p>
 
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                           <div className="border border-line dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
                             <p className="text-gray-500 dark:text-white/40 text-xs">Постов</p>
-                            <p className="text-gray-900 dark:text-white font-bold text-lg">{selectedUser.posts_count ?? "вЂ”"}</p>
+                            <p className="text-gray-900 dark:text-white font-bold text-lg">{selectedUser.posts_count ?? "—"}</p>
                           </div>
                           <div className="border border-line dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
                             <p className="text-gray-500 dark:text-white/40 text-xs">Подписчиков</p>
-                            <p className="text-gray-900 dark:text-white font-bold text-lg">{selectedUser.followers_count ?? "вЂ”"}</p>
+                            <p className="text-gray-900 dark:text-white font-bold text-lg">{selectedUser.followers_count ?? "—"}</p>
                           </div>
                           <div className="border border-line dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
                             <p className="text-gray-500 dark:text-white/40 text-xs">Регистрация</p>
-                            <p className="text-gray-900 dark:text-white font-bold text-xs">{selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString("ru-RU") : "вЂ”"}</p>
+                            <p className="text-gray-900 dark:text-white font-bold text-xs">{selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString("ru-RU") : "—"}</p>
                           </div>
                           <div className="border border-line dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
                             <p className="text-gray-500 dark:text-white/40 text-xs">Последний IP</p>
-                            <p className="text-gray-900 dark:text-white font-bold text-xs font-mono truncate">{selectedUser.last_ip || "вЂ”"}</p>
+                            <p className="text-gray-900 dark:text-white font-bold text-xs font-mono truncate">{selectedUser.last_ip || "—"}</p>
                           </div>
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-2 mt-4">
                           <Link href={`/user/${selectedUser.id}`} className="px-4 py-2 rounded-lg border border-[#8b5cf6] text-[#8b5cf6] hover:bg-[#8b5cf6]/10 text-sm font-bold text-center">
-                            Открыть профиль в†’
+                            Открыть профиль →
                           </Link>
                           {selectedUser.last_ip && (
                             <Button
@@ -720,7 +720,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                           ) : (
                             <div className="space-y-2">
                               <p className="text-xs text-amber-300/90 leading-snug">
-                                вљ пёЏ Пользователю придётся заново настроить 2FA. Он сможет войти по паролю.
+                                ⚠️ Пользователю придётся заново настроить 2FA. Он сможет войти по паролю.
                                 {selectedUser.id === me?.id && (
                                   <span className="block mt-1 font-bold text-amber-200">
                                     Вы сбрасываете 2FA сами себе.
@@ -850,7 +850,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                 <Lock size={18} className="text-red-600 dark:text-red-400" />
                 <h3 className="font-bold text-gray-900 dark:text-white">Заблокировать IP</h3>
                 {blockIpTarget && (
-                  <span className="ml-2 text-xs text-red-600 dark:text-red-400 font-mono">в†ђ из истории: {blockIpTarget}</span>
+                  <span className="ml-2 text-xs text-red-600 dark:text-red-400 font-mono">← из истории: {blockIpTarget}</span>
                 )}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
@@ -970,7 +970,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <span className={`text-xs font-black uppercase ${cfg.color}`}>{cfg.label}</span>
-                          {log.target_type && <span className="text-gray-500 dark:text-white/40 text-xs">в†’ {log.target_type} #{log.target_id}</span>}
+                          {log.target_type && <span className="text-gray-500 dark:text-white/40 text-xs">→ {log.target_type} #{log.target_id}</span>}
                           {log.ip_address && <span className="text-gray-500 dark:text-white/30 text-xs font-mono">IP: {log.ip_address}</span>}
                         </div>
                         <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-white/60 flex-wrap">
@@ -1066,7 +1066,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   <div className="flex-1 min-w-0">
                     <h2 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white">{selectedBug.title}</h2>
                     <p className="text-sm text-gray-600 dark:text-white/50 mt-1">
-                      ID #{selectedBug.id} В· От:{" "}
+                      ID #{selectedBug.id} · От:{" "}
                       {selectedBug.reporter ? (
                         <Link href={`/user/${selectedBug.reporter.id}`} className="text-[#8b5cf6] hover:underline" onClick={(e) => e.stopPropagation()}>
                           @{selectedBug.reporter.username}

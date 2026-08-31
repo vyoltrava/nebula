@@ -9,42 +9,42 @@ import { Button, IconButton } from "@/components/ui/Button";
 // Категории прав с иконками и fallback
 const PERMISSION_META: Record<string, { icon: string; category: "content" | "users" | "chats" | "system" }> = {
   // Контент
-  delete_posts:         { icon: "рџ—‘пёЏ", category: "content" },
-  edit_posts:           { icon: "вњЏпёЏ", category: "content" },
-  remove_avatars:       { icon: "рџ–јпёЏ", category: "content" },
-  manage_stickers:      { icon: "рџЋЁ", category: "content" },
-  manage_announcements: { icon: "рџ“ў", category: "content" },
+  delete_posts:         { icon: "🗑️", category: "content" },
+  edit_posts:           { icon: "✏️", category: "content" },
+  remove_avatars:       { icon: "🖼️", category: "content" },
+  manage_stickers:      { icon: "🎨", category: "content" },
+  manage_announcements: { icon: "📢", category: "content" },
   
   // Пользователи
-  ban_users:            { icon: "рџљ«", category: "users" },
-  warn_users:           { icon: "вљ пёЏ", category: "users" },
+  ban_users:            { icon: "🚫", category: "users" },
+  warn_users:           { icon: "⚠️", category: "users" },
   delete_users:         { icon: "в пёЏ", category: "users" },
-  assign_moderator:     { icon: "рџ‘®", category: "users" },
+  assign_moderator:     { icon: "👮", category: "users" },
   
   // Чаты
-  pin_messages:         { icon: "рџ“Њ", category: "chats" },
+  pin_messages:         { icon: "📌", category: "chats" },
   manage_groups:        { icon: "рџ‘Ґ", category: "chats" },
   
   // Система
-  manage_roles:         { icon: "рџЋ­", category: "system" },
-  manage_users:         { icon: "вљ™пёЏ", category: "system" },
-  manage_reports:       { icon: "рџљ©", category: "system" },
-  tech_access:          { icon: "рџ”§", category: "system" },
-  manage_support:       { icon: "рџЋ§", category: "chats" }, // рџ†• Право на чат поддержки
-  assign_roles:         { icon: "рџЋ­", category: "users" },
-  manage_team_stats:    { icon: "рџ“Љ", category: "system" }, // рџ†• ДОБАВЛЕНО
-  manage_suggestions:   { icon: "рџ’Ў", category: "content" },
+  manage_roles:         { icon: "🎭", category: "system" },
+  manage_users:         { icon: "⚙️", category: "system" },
+  manage_reports:       { icon: "🚩", category: "system" },
+  tech_access:          { icon: "🔧", category: "system" },
+  manage_support:       { icon: "🎧", category: "chats" }, // 🆕 Право на чат поддержки
+  assign_roles:         { icon: "🎭", category: "users" },
+  manage_team_stats:    { icon: "📊", category: "system" }, // 🆕 ДОБАВЛЕНО
+  manage_suggestions:   { icon: "💡", category: "content" },
 
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
-  content: "рџ“ќ Контент",
+  content: "📝 Контент",
   users: "рџ‘Ґ Пользователи",
-  chats: "рџ’¬ Чаты и группы",
-  system: "вљ™пёЏ Система",
+  chats: "💬 Чаты и группы",
+  system: "⚙️ Система",
 };
 
-// рџ†• Умная система описания уровней
+// 🆕 Умная система описания уровней
 const LEVEL_DESCRIPTIONS: Record<number, { title: string; desc: string; bestFor: string }> = {
   1: { 
     title: "Базовый / Почетный", 
@@ -141,7 +141,7 @@ export default function RolesPage() {
       
       const meData = await meRes.json();
 
-            // рџ†• Загружаем список прав с бэкенда
+            // 🆕 Загружаем список прав с бэкенда
       try {
         const permsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/permissions`);
         if (permsRes.ok) {
@@ -149,7 +149,7 @@ export default function RolesPage() {
           // Обогащаем права из бэка нашими мета-данными
           const enriched = permsData.map((p: any) => ({
             ...p,
-            icon: PERMISSION_META[p.id]?.icon || "рџ”‘",
+            icon: PERMISSION_META[p.id]?.icon || "🔑",
             category: PERMISSION_META[p.id]?.category || p.category || "system",
           }));
           setAvailablePermissions(enriched);
@@ -402,7 +402,7 @@ export default function RolesPage() {
                 <p className="text-xs text-gray-600 dark:text-white/50 mt-0.5">
                   Ваш уровень: <span className="font-bold" style={{ color: getLevelColor(myLevel) }}>{myLevel}</span> 
                   {!me?.is_admin && (
-                    <> вЂў Макс. доступный для назначения: <span className="font-bold" style={{ color: getLevelColor(maxAssignableLevel) }}>{maxAssignableLevel}</span></>
+                    <> • Макс. доступный для назначения: <span className="font-bold" style={{ color: getLevelColor(maxAssignableLevel) }}>{maxAssignableLevel}</span></>
                   )}
                 </p>
               </div>
@@ -412,7 +412,7 @@ export default function RolesPage() {
             </Button>
           </div>
         </div>
-        {/* рџ—‚пёЏ Р’РљР›РђР”РљР ГРУПП */}
+        {/* 🗂️ Р’РљР›РђР”РљР ГРУПП */}
         <div className="px-6 pt-3 pb-0 border-b border-line dark:border-white/10 bg-paper dark:bg-[#171717]/40 flex items-center gap-1 overflow-x-auto">
           <button
             onClick={() => setActiveTab("all")}
@@ -454,7 +454,7 @@ export default function RolesPage() {
               <p className="font-bold text-gray-900 dark:text-white">Система иерархии</p>
               <p>Пользователь <strong>не может</strong> применять санкции к тем, чей уровень <strong>равен или выше</strong> его собственного.</p>
               <p className="text-xs text-gray-600 dark:text-white/60 mt-2">
-                <strong>Галочка "Показывать в правилах"</strong> вЂ” роль появится на странице /rules в секции "Команда trelod".
+                <strong>Галочка "Показывать в правилах"</strong> — роль появится на странице /rules в секции "Команда trelod".
               </p>
               <div className="flex flex-wrap gap-2 mt-2 text-xs">
                 <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white border border-line dark:border-white/20">Founder: 10</span>
@@ -596,7 +596,7 @@ export default function RolesPage() {
                         key={perm}
                         className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-xs ${categoryColor}`}
                       >
-                        <span>{meta?.icon || "рџ”‘"}</span>
+                        <span>{meta?.icon || "🔑"}</span>
                         <span>{permInfo?.label || perm}</span>
                       </span>
                     );
@@ -708,7 +708,7 @@ export default function RolesPage() {
                     />
                     <label htmlFor="is_staff" className="text-sm text-gray-800 dark:text-white/90 font-semibold cursor-pointer flex items-center gap-2">
                       <Crown size={14} className="text-[#8b5cf6]" />
-                      Показывать в правилах (/rules в†’ "Команда trelod")
+                      Показывать в правилах (/rules → "Команда trelod")
                     </label>
                   </div>
 
@@ -722,7 +722,7 @@ export default function RolesPage() {
                     />
                     <label htmlFor="show_in_payments" className="text-sm text-gray-800 dark:text-white/90 font-semibold cursor-pointer flex items-center gap-2">
                       <CreditCard size={14} className="text-violet-500" />
-                      Показывать в системе оплаты (админка в†’ Оплата)
+                      Показывать в системе оплаты (админка → Оплата)
                     </label>
                   </div>
 
@@ -758,7 +758,7 @@ export default function RolesPage() {
                       <span>{maxAssignableLevel}</span>
                     </div>
 
-                    {/* рџ†• Умный блок описания уровня */}
+                    {/* 🆕 Умный блок описания уровня */}
                     <div className="mt-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 space-y-2">
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-600 dark:text-white/50">Статус:</span>
@@ -772,7 +772,7 @@ export default function RolesPage() {
                       <div className="flex items-center gap-2 pt-1 border-t border-line dark:border-white/10">
                         <User size={12} className="text-gray-500 dark:text-white/40" />
                         <p className="text-xs text-gray-600 dark:text-white/50">
-                          РРґРµР°Р»СЊРЅРѕ для: <span className="text-gray-800 dark:text-white/80 font-semibold">{LEVEL_DESCRIPTIONS[level]?.bestFor}</span>
+                          РРґеалСЊРЅРѕ для: <span className="text-gray-800 dark:text-white/80 font-semibold">{LEVEL_DESCRIPTIONS[level]?.bestFor}</span>
                         </p>
                       </div>
                       {level >= 4 && (
@@ -910,7 +910,7 @@ export default function RolesPage() {
           </>
         )}
 
-        {/* рџ—‚пёЏ МОДАЛКА РЈРџР РђР’Р›Р•РќРРЇ Р“Р РЈРџРџРђРњР */}
+        {/* 🗂️ МОДАЛКА РЈРџРРђР’Р›Р•РќРРЇ Р“РРЈРџРџРђРњР */}
         {showCatManager && (
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200]" onClick={() => !catSaving && setShowCatManager(false)} />
