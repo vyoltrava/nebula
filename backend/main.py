@@ -4366,35 +4366,49 @@ def admin_get_post_reaction_packs(
 ):
     if not has_permission(user, "manage_stickers", session):
         raise HTTPException(403, "Нет права: manage_stickers")
-    enabled_ids = set(get_post_reaction_pack_ids(session))
+    cfg = get_post_reaction_config(session)
     packs = session.exec(select(StickerPack).order_by(StickerPack.id)).all()
-    return [{
-        "id": p.id,
-        "name": p.name,
-        "is_active": p.is_active,
-        "enabled": p.id in enabled_ids,
-        "stickers_count": session.exec(
-            select(func.count(Sticker.id)).where(Sticker.pack_id == p.id)
-        ).one(),
-    } for p in packs]
+    result = []
+    for p in packs:
+        stickers = session.exec(
+            select(Sticker).where(Sticker.pack_id == p.id).order_by(Sticker.order)
+        ).all()
+        allowed = cfg.get(str(p.id))
+        result.append({
+            "id": p.id,
+            "name": p.name,
+            "is_active": p.is_active,
+            "stickers": [{
+                "id": s.id,
+                "type": s.type,
+                "content": s.content,
+            } for s in stickers],
+            # какие реакции пака разрешены на постах (None = пак не включён)
+            "selected": allowed if isinstance(allowed, list) else None,
+        })
+    return result
 
 
 @app.put("/api/admin/post-reaction-packs")
 def admin_set_post_reaction_packs(
-    pack_ids: str = Form(...),  # JSON массив id паков
+    config: str = Form(...),  # JSON: {pack_id: [sticker_id, ...]}
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
     if not has_permission(user, "manage_stickers", session):
         raise HTTPException(403, "Нет права: manage_stickers")
     try:
-        ids = json.loads(pack_ids)
-        if not isinstance(ids, list):
+        cfg = json.loads(config)
+        if not isinstance(cfg, dict):
             raise ValueError
+        clean = {}
+        for pid, ids in cfg.items():
+            if isinstance(ids, list) and ids:
+                clean[str(int(pid))] = [int(i) for i in ids]
     except Exception:
-        raise HTTPException(400, "pack_ids должен быть JSON массивом")
-    set_post_reaction_pack_ids(session, [int(i) for i in ids])
-    return {"ok": True, "pack_ids": get_post_reaction_pack_ids(session)}
+        raise HTTPException(400, "config должен быть JSON объектом {pack_id: [sticker_id, ...]}")
+    set_post_reaction_config(session, clean)
+    return {"ok": True, "config": get_post_reaction_config(session)}
 
 
 @app.get("/api/admin/chats")
@@ -5607,26 +5621,39 @@ def get_sticker_packs(
 POST_REACTION_SETTING_KEY = "post_reaction_packs"
 
 
-def get_post_reaction_pack_ids(session: Session) -> list:
-    """ID паков, включённых админом для реакций на посты"""
+def get_post_reaction_config(session: Session) -> dict:
+    """Конфиг реакций на посты: {pack_id: [sticker_id, ...]} — какие конкретно реакции из пака доступны"""
     row = session.get(SystemSetting, POST_REACTION_SETTING_KEY)
     if not row or not row.value:
-        return []
+        return {}
     try:
         data = json.loads(row.value)
-        return data if isinstance(data, list) else []
+        if isinstance(data, list):
+            # legacy-формат (список pack_id целиком) — считаем что весь пак разрешён
+            return {str(int(pid)): None for pid in data if str(pid).lstrip("-").isdigit()}
+        return data if isinstance(data, dict) else {}
     except Exception:
-        return []
+        return {}
 
 
-def set_post_reaction_pack_ids(session: Session, pack_ids: list):
+def set_post_reaction_config(session: Session, cfg: dict):
     row = session.get(SystemSetting, POST_REACTION_SETTING_KEY)
     if row:
-        row.value = json.dumps(pack_ids)
+        row.value = json.dumps(cfg)
         row.updated_at = datetime.now(timezone.utc)
     else:
-        session.add(SystemSetting(key=POST_REACTION_SETTING_KEY, value=json.dumps(pack_ids)))
+        session.add(SystemSetting(key=POST_REACTION_SETTING_KEY, value=json.dumps(cfg)))
     session.commit()
+
+
+def is_sticker_allowed_for_posts(session: Session, sticker: "Sticker") -> bool:
+    cfg = get_post_reaction_config(session)
+    allowed = cfg.get(str(sticker.pack_id))
+    if allowed is None:
+        return False  # пак не включён
+    if isinstance(allowed, list):
+        return sticker.id in allowed
+    return False
 
 
 @app.get("/api/post-reactions")
@@ -5634,9 +5661,9 @@ def get_post_reactions_config(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Паки, включённые админом для реакций на посты (с учётом уровня юзера)"""
-    enabled_ids = set(get_post_reaction_pack_ids(session))
-    if not enabled_ids:
+    """Паки + конкретные реакции, включённые админом для постов (с учётом уровня юзера)"""
+    cfg = get_post_reaction_config(session)
+    if not cfg:
         return []
     packs = session.exec(
         select(StickerPack).where(StickerPack.is_active == True).order_by(StickerPack.id)
@@ -5645,12 +5672,17 @@ def get_post_reactions_config(
 
     result = []
     for p in packs:
-        if p.id not in enabled_ids:
+        allowed = cfg.get(str(p.id))
+        if not allowed:
             continue
         locked = (user_level < p.min_level) and not user.is_admin
         stickers = session.exec(
-            select(Sticker).where(Sticker.pack_id == p.id).order_by(Sticker.order)
+            select(Sticker)
+            .where(Sticker.pack_id == p.id, Sticker.id.in_([int(i) for i in allowed]))
+            .order_by(Sticker.order)
         ).all()
+        if not stickers:
+            continue
         result.append({
             "id": p.id,
             "name": p.name,
@@ -5731,14 +5763,13 @@ async def toggle_post_reaction(
     if not post:
         raise HTTPException(404, "Пост не найден")
 
-    # Валидация стикера: должен принадлежать паку, включённому для постов
+    # Валидация стикера: должен быть разрешён админом для постов
     sticker_obj = None
     if sticker_id:
         sticker_obj = session.get(Sticker, sticker_id)
         if not sticker_obj:
             raise HTTPException(404, "Стикер не найден")
-        enabled_ids = set(get_post_reaction_pack_ids(session))
-        if sticker_obj.pack_id not in enabled_ids:
+        if not is_sticker_allowed_for_posts(session, sticker_obj):
             raise HTTPException(403, "🔒 Эта реакция недоступна для постов")
         pack = session.get(StickerPack, sticker_obj.pack_id)
         user_level = get_user_level(user, session)

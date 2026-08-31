@@ -986,46 +986,44 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             </div>
           ) : (
           <div className="flex items-center gap-3 mt-3 flex-wrap">
-          <div className="flex items-center rounded-full border border-line dark:border-white/20 overflow-hidden hover:bg-gray-100 dark:hover:bg-white/10">
-            {/* 🆕 ЕДИНАЯ КНОПКА РЕАКЦИИ: клик — поставить/снять свою; удержание или правый клик — пикер */}
-            <button
-              onClick={(e) => { e.stopPropagation(); handleReactionButton(); }}
-              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); openReactionPicker(); }}
-              onTouchStart={(e) => { e.stopPropagation(); startReactionLongPress(); }}
-              onTouchEnd={cancelReactionLongPress}
-              onTouchMove={cancelReactionLongPress}
-              className={`flex items-center gap-1 py-1 pl-2.5 pr-2 transition-all ${
-                myReaction
-                  ? "bg-[#8B5CF6] text-white"
-                  : "text-gray-800 dark:text-white/70 hover:text-[#8b5cf6]"
-              }`}
-              title="Удерживайте или нажмите правой кнопкой для выбора реакции"
-            >
-              {myReaction ? (
-                myReaction.type === "sticker" ? (
-                  <img src={myReaction.content} alt="" className="w-4 h-4 object-contain" />
+            {/* 🆕 ЕДИНАЯ КНОПКА РЕАКЦИИ — круг, иконка ровно по центру, на 20% крупнее остальных кнопок
+                Клик — поставить/снять свою; удержание или правый клик — пикер */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={(e) => { e.stopPropagation(); handleReactionButton(); }}
+                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); openReactionPicker(); }}
+                onTouchStart={(e) => { e.stopPropagation(); startReactionLongPress(); }}
+                onTouchEnd={cancelReactionLongPress}
+                onTouchMove={cancelReactionLongPress}
+                className={`w-[28px] h-[28px] rounded-full border border-line dark:border-white/20 flex items-center justify-center transition-all active:scale-90 ${
+                  myReaction
+                    ? "bg-[#8B5CF6] border-[#8B5CF6] text-white"
+                    : "text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-[#8b5cf6]"
+                }`}
+                title="Удерживайте или нажмите правой кнопкой для выбора реакции"
+              >
+                {myReaction ? (
+                  myReaction.type === "sticker" ? (
+                    <img src={myReaction.content} alt="" className="w-[16px] h-[16px] object-contain" />
+                  ) : (
+                    <span className="text-[14px] leading-none">{myReaction.content}</span>
+                  )
                 ) : (
-                  <span className="text-[13px] leading-none">{myReaction.content}</span>
-                )
-              ) : (
-                <Smile size={13} />
-              )}
-            </button>
+                  <Smile size={14} className="shrink-0" />
+                )}
+              </button>
 
-            {/* Общий счётчик всех реакций */}
-            {totalReactions > 0 && (
-              <>
-                <div className="w-px self-stretch my-1.5 bg-line dark:bg-white/20" />
+              {/* Общий счётчик всех реакций */}
+              {totalReactions > 0 && (
                 <button
                   onClick={(e) => { e.stopPropagation(); openReactionPicker(); }}
-                  className="py-1 px-2.5 text-xs font-semibold leading-none text-gray-800 dark:text-white/70 transition-all"
+                  className="text-xs font-semibold leading-none text-gray-800 dark:text-white/70 transition-all"
                   title="Все реакции"
                 >
                   {totalReactions}
                 </button>
-              </>
-            )}
-          </div>
+              )}
+            </div>
             <BookmarkButton postId={id} initial={bookmarked} />
 
             <button

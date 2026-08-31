@@ -47,6 +47,10 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
   const [showReactionConfig, setShowReactionConfig] = useState(false);
   const [reactionPacks, setReactionPacks] = useState<any[]>([]);
   const [savingReactionPacks, setSavingReactionPacks] = useState(false);
+  const [reactionStep, setReactionStep] = useState<"packs" | "stickers">("packs");
+  const [activeReactionPackId, setActiveReactionPackId] = useState<number | null>(null);
+  // локальный конфиг: {pack_id: [sticker_id, ...] | null} — null = пак не включён
+  const [reactionCfg, setReactionCfg] = useState<Record<string, number[] | null>>({});
 
   // === ЗНАЧКИ (BADGES) ===
   const [badges, setBadges] = useState<any[]>([]);
@@ -77,16 +81,19 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
     if (reactionsRes.ok) setReactionPacks(await reactionsRes.json());
   }
 
-  // 🆕 Сохранить, какие паки доступны в реакциях на посты
+  // 🆕 Сохранить конфиг реакций на посты {pack_id: [sticker_id, ...]}
   async function saveReactionPacks() {
     const token = getToken();
     setSavingReactionPacks(true);
     try {
-      const enabledIds = reactionPacks.filter((p) => p.enabled).map((p) => p.id);
+      const config: Record<string, number[]> = {};
+      Object.entries(reactionCfg).forEach(([pid, ids]) => {
+        if (Array.isArray(ids) && ids.length > 0) config[pid] = ids;
+      });
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/post-reaction-packs`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}` },
-        body: (() => { const f = new FormData(); f.append("pack_ids", JSON.stringify(enabledIds)); return f; })(),
+        body: (() => { const f = new FormData(); f.append("config", JSON.stringify(config)); return f; })(),
       });
       if (res.ok) {
         setShowReactionConfig(false);
@@ -102,8 +109,42 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
     }
   }
 
-  function toggleReactionPack(id: number) {
-    setReactionPacks((prev) => prev.map((p) => (p.id === id ? { ...p, enabled: !p.enabled } : p)));
+  function openReactionPackEditor(packId: number) {
+    const pack = reactionPacks.find((p) => p.id === packId);
+    if (!pack) return;
+    setReactionCfg((prev) => ({
+      ...prev,
+      [String(packId)]: pack.selected ? [...pack.selected] : (prev[String(packId)] ?? []),
+    }));
+    setActiveReactionPackId(packId);
+    setReactionStep("stickers");
+  }
+
+  function toggleStickerSelection(stickerId: number) {
+    if (activeReactionPackId == null) return;
+    const key = String(activeReactionPackId);
+    setReactionCfg((prev) => {
+      const cur = prev[key] ?? [];
+      return {
+        ...prev,
+        [key]: cur.includes(stickerId) ? cur.filter((i) => i !== stickerId) : [...cur, stickerId],
+      };
+    });
+  }
+
+  function togglePackEnabled(packId: number) {
+    const key = String(packId);
+    setReactionCfg((prev) => {
+      const next = { ...prev };
+      if (next[key] === null || next[key] === undefined) {
+        // включаем пак: если ранее был выбор — возвращаем его, иначе пустой (выберут реакции)
+        const pack = reactionPacks.find((p) => p.id === packId);
+        next[key] = pack?.selected ? [...pack.selected] : [];
+      } else {
+        next[key] = null; // выключаем пак целиком
+      }
+      return next;
+    });
   }
 
   async function uploadStockBadges() {
@@ -800,11 +841,24 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
           <div className="fixed inset-0 z-[401] flex items-center justify-center p-4 pointer-events-none">
             <div className="w-full max-w-md max-h-[80vh] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
               <div className="shrink-0 p-4 pb-3 border-b border-line dark:border-white/10 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">Реакции на посты</p>
-                  <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">
-                    Выберите паки, смайлики которых пользователи смогут ставить на посты (по одной реакции на юзера)
-                  </p>
+                <div className="min-w-0">
+                  {reactionStep === "packs" ? (
+                    <>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">Реакции на посты</p>
+                      <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">
+                        Включите пак и выберите, какие конкретно реакции из него будут доступны юзерам
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                        {reactionPacks.find((p) => p.id === activeReactionPackId)?.name}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">
+                        Выбрано: {(reactionCfg[String(activeReactionPackId)] || []).length}
+                      </p>
+                    </>
+                  )}
                 </div>
                 <button onClick={() => setShowReactionConfig(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                   <X size={16} />
@@ -812,31 +866,88 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 min-h-0 space-y-2">
-                {reactionPacks.length === 0 ? (
-                  <p className="text-sm text-gray-500 dark:text-white/40 text-center py-6">Паков пока нет</p>
+                {reactionStep === "packs" ? (
+                  reactionPacks.length === 0 ? (
+                    <p className="text-sm text-gray-500 dark:text-white/40 text-center py-6">Паков пока нет</p>
+                  ) : (
+                    reactionPacks.map((p) => {
+                      const key = String(p.id);
+                      const local = reactionCfg[key];
+                      const isEnabled = Array.isArray(local) && local.length > 0;
+                      const count = Array.isArray(local) ? local.length : 0;
+                      return (
+                        <div key={p.id} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
+                          <button onClick={() => openReactionPackEditor(p.id)} className="min-w-0 text-left flex-1" title="Выбрать реакции из пака">
+                            <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                              {p.name}
+                              {!p.is_active && <span className="ml-2 text-[10px] font-bold text-red-500">пак выключен</span>}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-white/40">
+                              {isEnabled ? `разрешено реакций: ${count} — нажмите, чтобы изменить` : "нажмите, чтобы включить и выбрать реакции"}
+                            </p>
+                          </button>
+                          <div className="shrink-0 flex items-center gap-2">
+                            {isEnabled && (
+                              <button onClick={() => openReactionPackEditor(p.id)} className="text-[11px] font-bold text-[#8b5cf6] hover:text-[#7c3aed]">
+                                Изменить
+                              </button>
+                            )}
+                            <button
+                              onClick={() => togglePackEnabled(p.id)}
+                              className={`w-11 h-6 rounded-full relative transition-colors ${isEnabled ? "bg-[#8b5cf6]" : "bg-gray-300 dark:bg-white/20"}`}
+                              title={isEnabled ? "Выключить пак для постов" : "Включить пак для постов"}
+                            >
+                              <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${isEnabled ? "left-[22px]" : "left-0.5"}`} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )
                 ) : (
-                  reactionPacks.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
-                          {p.name}
-                          {!p.is_active && <span className="ml-2 text-[10px] font-bold text-red-500">пак выключен</span>}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-white/40">{p.stickers_count} реакций в паке</p>
+                  (() => {
+                    const pack = reactionPacks.find((p) => p.id === activeReactionPackId);
+                    const sel = reactionCfg[String(activeReactionPackId)] || [];
+                    if (!pack) return null;
+                    return (
+                      <div className="grid grid-cols-5 gap-2">
+                        {(pack.stickers || []).map((st: any) => {
+                          const isSel = sel.includes(st.id);
+                          return (
+                            <button
+                              key={st.id}
+                              onClick={() => toggleStickerSelection(st.id)}
+                              className={`relative aspect-square flex items-center justify-center rounded-xl transition-all active:scale-90 ${
+                                isSel ? "ring-2 ring-[#8b5cf6] bg-[#8b5cf6]/20" : "hover:bg-gray-100 dark:hover:bg-white/10 opacity-70"
+                              }`}
+                              title={isSel ? "Убрать из реакций постов" : "Разрешить на постах"}
+                            >
+                              {st.type === "emoji" ? (
+                                <span className="text-2xl">{st.content}</span>
+                              ) : (
+                                <img src={st.content} alt="" className="w-10 h-10 object-contain" />
+                              )}
+                              {isSel && (
+                                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#8b5cf6] text-white text-[9px] font-bold flex items-center justify-center">✓</span>
+                              )}
+                            </button>
+                          );
+                        })}
+                        {(pack.stickers || []).length === 0 && (
+                          <p className="col-span-5 text-sm text-gray-500 dark:text-white/40 text-center py-6">В паке нет стикеров</p>
+                        )}
                       </div>
-                      <button
-                        onClick={() => toggleReactionPack(p.id)}
-                        className={`shrink-0 w-11 h-6 rounded-full relative transition-colors ${p.enabled ? "bg-[#8b5cf6]" : "bg-gray-300 dark:bg-white/20"}`}
-                        title={p.enabled ? "Выключить для постов" : "Включить для постов"}
-                      >
-                        <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${p.enabled ? "left-[22px]" : "left-0.5"}`} />
-                      </button>
-                    </div>
-                  ))
+                    );
+                  })()
                 )}
               </div>
 
               <div className="shrink-0 p-4 pt-3 border-t border-line dark:border-white/10 flex gap-2">
+                {reactionStep === "stickers" && (
+                  <button onClick={() => setReactionStep("packs")} className="px-4 py-2.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm font-bold hover:bg-gray-200 dark:hover:bg-white/10 transition-colors">
+                    ← Паки
+                  </button>
+                )}
                 <button onClick={() => setShowReactionConfig(false)} className="flex-1 px-4 py-2.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm font-bold hover:bg-gray-200 dark:hover:bg-white/10 transition-colors">
                   Отмена
                 </button>
