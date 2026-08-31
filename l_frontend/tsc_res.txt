@@ -1,3 +1,0 @@
-app/recommendations/[userId]/page.tsx(115,9): error TS2322: Type '(key: "messages.online" | "messages.search" | "messages.nothingFound" | "messages.noDialogs" | "messages.tryAnother" | "messages.startHint" | "messages.members" | "messages.startChat" | ... 795 more ... | "circle.emptySearch", params?: Record<...> | undefined) => string' is not assignable to type '(key: string, vars?: Record<string, unknown> | undefined) => string'.
-  Types of parameters 'key' and 'key' are incompatible.
-    Type 'string' is not assignable to type '"messages.online" | "messages.search" | "messages.nothingFound" | "messages.noDialogs" | "messages.tryAnother" | "messages.startHint" | "messages.members" | "messages.startChat" | ... 795 more ... | "circle.emptySearch"'.

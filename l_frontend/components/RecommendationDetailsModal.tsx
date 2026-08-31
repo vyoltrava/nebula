@@ -5,6 +5,7 @@ import { Progress, MetricBar } from "@/components/ui/progress";
 import { CloseButton } from "@/components/ui/CloseButton";
 import { Avatar } from "@/components/Avatar";
 import { Recommendation } from "@/app/recommendations/[userId]/page";
+import type { MessageKey } from "@/lib/i18n";
 
 export function RecommendationDetailsModal({
   rec,
@@ -15,7 +16,7 @@ export function RecommendationDetailsModal({
   rec: Recommendation | null;
   open: boolean;
   onClose: () => void;
-  t: (key: string, vars?: Record<string, unknown>) => string;
+  t: (key: MessageKey, params?: Record<string, string | number>) => string;
 }) {
   if (!rec) return null;
   const { user, similarity } = rec;
@@ -55,14 +56,26 @@ export function RecommendationDetailsModal({
         {/* Метрики */}
         <div className="space-y-3 mb-6">
           <h3 className="font-semibold">{t("recommendations.analysisTitle")}</h3>
-          {Object.entries(metrics).map(([key, value]) => (
-            <MetricBar
-              key={key}
-              label={t(`recommendations.metric_${key}`)}
-              value={value}
-              color={colors[key] || "#8b5cf6"}
-            />
-          ))}
+          {Object.entries(metrics).map(([key, value]) => {
+            const label = {
+              subscriptions: t("recommendations.metric_subscriptions"),
+              audience: t("recommendations.metric_audience"),
+              interests: t("recommendations.metric_interests"),
+              activity: t("recommendations.metric_activity"),
+              engagement: t("recommendations.metric_engagement"),
+              language: t("recommendations.metric_language"),
+              roles: t("recommendations.metric_roles"),
+              time: t("recommendations.metric_time"),
+            }[key] ?? key;
+            return (
+              <MetricBar
+                key={key}
+                label={label}
+                value={value}
+                color={colors[key] || "#8b5cf6"}
+              />
+            );
+          })}
         </div>
 
         {/* Общие интересы */}
