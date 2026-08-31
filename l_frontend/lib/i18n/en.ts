@@ -354,6 +354,7 @@ export const en: Dictionary = {
     startHint: 'Click "Write" in the user profile to start a chat',
     members: "{n} members",
     startChat: "Start a chat",
+    draft: "Draft",
     pin: "Pin",
     unpin: "Unpin",
     deleteChatConfirm: 'Delete chat "{name}"? All messages will be permanently deleted.',

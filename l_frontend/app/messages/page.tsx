@@ -113,24 +113,28 @@ export default function MessagesPage() {
   const router = useRouter();
   const { refresh } = useUnreadCounts();
 
-  // рџ“ќ Р§РµСЂРЅРѕРІРёРєРё С‡Р°С‚РѕРІ (localStorage: draft_chat_{id} вЂ” РїРёС€СѓС‚СЃСЏ useDraft РІ С‡Р°С‚Рµ)
-  const [chatDrafts, setChatDrafts] = useState<Record<string, boolean>>({});
-  const readChatDrafts = useCallback(() => {
-    const map: Record<string, boolean> = {};
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith("draft_chat_") && (localStorage.getItem(k) || "").trim()) {
-          map[k.slice("draft_chat_".length)] = true;
+  // ✏️ Черновики чатов из БД (sync через /api/chat-drafts, пишутся useDraft в чате)
+  const [chatDrafts, setChatDrafts] = useState<Record<string, string>>({});
+  const loadChatDrafts = useCallback(() => {
+    const token = getToken();
+    if (!token) return;
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/chat-drafts`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows) => {
+        const map: Record<string, string> = {};
+        for (const d of rows || []) {
+          if (d.text && d.text.trim()) map[String(d.chat_id)] = d.text;
         }
-      }
-    } catch {}
-    setChatDrafts(map);
+        setChatDrafts(map);
+      })
+      .catch(() => {});
   }, []);
   useEffect(() => {
-    readChatDrafts();
+    loadChatDrafts();
     const onWake = () => {
-      if (document.visibilityState === "visible") readChatDrafts();
+      if (document.visibilityState === "visible") loadChatDrafts();
     };
     window.addEventListener("focus", onWake);
     window.addEventListener("drafts-changed", onWake);
@@ -138,7 +142,7 @@ export default function MessagesPage() {
       window.removeEventListener("focus", onWake);
       window.removeEventListener("drafts-changed", onWake);
     };
-  }, [readChatDrafts]);
+  }, [loadChatDrafts]);
   const [activeChatMenu, setActiveChatMenu] = useState<number | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
   const [pinningChat, setPinningChat] = useState<number | null>(null);
@@ -615,20 +619,16 @@ const confirmPrismKey = async () => {
                   </div>
                   
                   {/* РўР•РљРЎРў РџРћРЎР›Р•Р”РќР•Р“Рћ РЎРћРћР‘Р©Р•РќРРЇ */}
-                  {chat.last_message ? (
-                    <div className="mt-0.5">
-                      <p className={`text-sm truncate ${chat.unread_count > 0 ? "text-gray-900 dark:text-white" : "text-gray-600 dark:text-white/50"}`}>
-                        {chatDrafts[chat.id] && (
-                          <span className="inline-flex items-center gap-1 mr-1.5 px-1.5 py-0.5 rounded bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#8b5cf6] text-[10px] font-bold uppercase tracking-wide align-middle">
-                            <Pencil size={9} /> Р§РµСЂРЅРѕРІРёРє
-                          </span>
-                        )}
-                        <ChatPreview text={chat.last_message.text} query={query.trim()} />
-                      </p>
-                    </div>
-                  ) : chatDrafts[chat.id] ? (
-                    <p className="text-sm text-[#8b5cf6] dark:text-[#a78bfa] mt-0.5 flex items-center gap-1 font-semibold">
-                      <Pencil size={12} /> Р§РµСЂРЅРѕРІРёРє
+                  {chatDrafts[String(chat.id)] ? (
+                    <p className="text-sm truncate text-[#8b5cf6] dark:text-[#a78bfa] mt-0.5 flex items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#8b5cf6] dark:text-[#a78bfa] text-[10px] font-bold uppercase tracking-wide">
+                        <Pencil size={9} /> {t("messages.draft")}
+                      </span>
+                      <span className="truncate">{chatDrafts[String(chat.id)]}</span>
+                    </p>
+                  ) : chat.last_message ? (
+                    <p className={`text-sm truncate ${chat.unread_count > 0 ? "text-gray-900 dark:text-white" : "text-gray-600 dark:text-white/50"}`}>
+                      <ChatPreview text={chat.last_message.text} query={query.trim()} />
                     </p>
                   ) : (
                     <p className="text-sm text-gray-500 dark:text-white/40 mt-0.5">

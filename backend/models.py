@@ -374,6 +374,17 @@ class Draft(SQLModel, table=True):
     updated_at: Optional[datetime] = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class ChatDraft(SQLModel, table=True):
+    """Черновик сообщения в чате — синхронизируется между устройствами."""
+    __tablename__ = "chatdraft"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    chat_id: int = Field(foreign_key="chat.id", index=True)
+    text: str = Field(default="")
+    updated_at: datetime = Field(default_factory=utcnow)
+    __table_args__ = (UniqueConstraint("user_id", "chat_id", name="uq_user_chat_draft"),)
+
+
 class UpdateRead(SQLModel, table=True):
     """Таблица для отслеживания прочитанных обновлений"""
     __tablename__ = "updateread"

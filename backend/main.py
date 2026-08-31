@@ -58,7 +58,7 @@ from models import (
     PushSubscription, StickerPack, Sticker, MessageReaction, Theme, SystemSetting,
     RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge,
     CustomBadge, CustomBadgeTemplate, CustomBadgeAssignment, SystemBadge,
-    SuggestionCategory, SuggestionThread, SuggestionThreadComment, TeamStatistic, RoleHistory, NickHistory, Suggestion, SuggestionComment 
+    SuggestionCategory, SuggestionThread, SuggestionThreadComment, TeamStatistic, RoleHistory, NickHistory, Suggestion, SuggestionComment, ChatDraft 
     
 )
 import logging
@@ -2588,6 +2588,70 @@ async def toggle_dislike(
         "likes_count": cnt,
     }
 
+
+# ============================================================
+# ✏️ ЧЕРНОВИКИ СООБЩЕНИЙ В ЧАТАХ (синхронизация между устройствами)
+# ============================================================
+
+class ChatDraftIn(BaseModel):
+    text: str = ""
+
+@app.get("/api/chat-drafts")
+def get_my_chat_drafts(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    rows = session.exec(
+        select(ChatDraft).where(ChatDraft.user_id == user.id)
+    ).all()
+    return [
+        {"chat_id": d.chat_id, "text": d.text, "updated_at": d.updated_at}
+        for d in rows
+    ]
+
+@app.put("/api/chat-drafts/{chat_id}")
+def put_chat_draft(
+    chat_id: int,
+    body: ChatDraftIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    text = (body.text or "").strip()
+    row = session.exec(
+        select(ChatDraft).where(
+            ChatDraft.user_id == user.id, ChatDraft.chat_id == chat_id
+        )
+    ).first()
+    if not text:
+        # пустой текст = черновик стёрт
+        if row:
+            session.delete(row)
+            session.commit()
+        return {"ok": True, "cleared": True}
+    if row:
+        row.text = text
+        row.updated_at = utcnow()
+    else:
+        row = ChatDraft(user_id=user.id, chat_id=chat_id, text=text)
+        session.add(row)
+    session.commit()
+    return {"ok": True, "cleared": False}
+
+@app.delete("/api/chat-drafts/{chat_id}")
+def delete_chat_draft(
+    chat_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    row = session.exec(
+        select(ChatDraft).where(
+            ChatDraft.user_id == user.id, ChatDraft.chat_id == chat_id
+        )
+    ).first()
+    if row:
+        session.delete(row)
+        session.commit()
+    return {"ok": True}
 
 @app.get("/api/counts")
 def get_all_counts(
