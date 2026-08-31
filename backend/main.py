@@ -2596,11 +2596,20 @@ async def toggle_dislike(
 class ChatDraftIn(BaseModel):
     text: str = ""
 
+def _ensure_chatdraft_table(session: Session):
+    """Самовосстановление: если таблицы chatdraft нет (миграция не прошла) — создать."""
+    try:
+        session.exec(select(ChatDraft).limit(1))
+    except Exception:
+        ChatDraft.__table__.create(session.get_bind(), checkfirst=True)
+        session.rollback()
+
 @app.get("/api/chat-drafts")
 def get_my_chat_drafts(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
+    _ensure_chatdraft_table(session)
     rows = session.exec(
         select(ChatDraft).where(ChatDraft.user_id == user.id)
     ).all()
@@ -2611,12 +2620,15 @@ def get_my_chat_drafts(
 
 @app.put("/api/chat-drafts/{chat_id}")
 def put_chat_draft(
-    chat_id: int,
+    chat_id: str,
     body: ChatDraftIn,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
+    _ensure_chatdraft_table(session)
     text = (body.text or "").strip()
+    if len(chat_id) > 64 or len(text) > 20000:
+        raise HTTPException(status_code=422, detail="Draft too long")
     row = session.exec(
         select(ChatDraft).where(
             ChatDraft.user_id == user.id, ChatDraft.chat_id == chat_id
@@ -2639,10 +2651,11 @@ def put_chat_draft(
 
 @app.delete("/api/chat-drafts/{chat_id}")
 def delete_chat_draft(
-    chat_id: int,
+    chat_id: str,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
+    _ensure_chatdraft_table(session)
     row = session.exec(
         select(ChatDraft).where(
             ChatDraft.user_id == user.id, ChatDraft.chat_id == chat_id

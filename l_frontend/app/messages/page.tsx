@@ -113,21 +113,35 @@ export default function MessagesPage() {
   const router = useRouter();
   const { refresh } = useUnreadCounts();
 
-  // ✏️ Черновики чатов из БД (sync через /api/chat-drafts, пишутся useDraft в чате)
+  // ✏️ Черновики чатов: из БД (/api/chat-drafts) + fallback на localStorage (офлайн)
   const [chatDrafts, setChatDrafts] = useState<Record<string, string>>({});
   const loadChatDrafts = useCallback(() => {
+    const localMap: Record<string, string> = {};
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("draft_chat_")) {
+          const v = localStorage.getItem(k) || "";
+          if (v.trim()) localMap[k.slice("draft_chat_".length)] = v;
+        }
+      }
+    } catch { /* ignore */ }
+    // сразу показываем локальные (мгновенно, работает офлайн)
+    setChatDrafts(localMap);
     const token = getToken();
     if (!token) return;
     fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/chat-drafts`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((r) => (r.ok ? r.json() : []))
+      .then((r) => (r.ok ? r.json() : null))
       .then((rows) => {
+        if (!rows) return; // сервер недоступен — остаёмся на localStorage
         const map: Record<string, string> = {};
         for (const d of rows || []) {
           if (d.text && d.text.trim()) map[String(d.chat_id)] = d.text;
         }
-        setChatDrafts(map);
+        // merge: локальные значения приоритетнее (свежее)
+        setChatDrafts({ ...map, ...localMap });
       })
       .catch(() => {});
   }, []);

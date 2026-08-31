@@ -375,12 +375,12 @@ class Draft(SQLModel, table=True):
 
 
 class ChatDraft(SQLModel, table=True):
-    """Черновик сообщения в чате — синхронизируется между устройствами."""
+    """Черновик текста: чата (chat_id = "{id}") или создания поста (chat_id = "post")."""
     __tablename__ = "chatdraft"
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
-    chat_id: int = Field(foreign_key="chat.id", index=True)
-    text: str = Field(default="")
+    chat_id: str = Field(index=True, max_length=64)   # "{chat_id}" для чата, "post" — черновик поста
+    text: str = Field(default="", max_length=20000)
     updated_at: datetime = Field(default_factory=utcnow)
     __table_args__ = (UniqueConstraint("user_id", "chat_id", name="uq_user_chat_draft"),)
 
