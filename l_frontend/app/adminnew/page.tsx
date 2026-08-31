@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { getToken } from "@/lib/auth";
 import {
   Users, BarChart3, Bug, Globe, Activity, Flag,
-  MessageSquare, SmilePlus, Palette, Headphones, Shield, Wrench, ArrowLeft, CreditCard
+  MessageSquare, SmilePlus, Palette, Headphones, Shield, Wrench, ArrowLeft, CreditCard, Crown
 } from "lucide-react";
 
 import { UsersSection } from "@/components/admin/section/UsersSection";
@@ -129,6 +129,11 @@ export default function AdminPage() {
               {(me?.level ?? 0) >= 9 && (
                 <Link href="/adminnew/badges" className={iconBtnClass} title="Кастомные плашки">
                   <Shield size={20} />
+                </Link>
+              )}
+              {(me?.level ?? 0) >= 9 && (
+                <Link href="/owner-panel" className={iconBtnClass} title="Панель владельца">
+                  <Crown size={20} />
                 </Link>
               )}
               {me.is_admin && (
