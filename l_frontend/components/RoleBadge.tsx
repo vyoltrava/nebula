@@ -211,9 +211,10 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
   }
 
   // ═══════════════════════════════════════════
-  // ⭐ 5. СПЕЦ ОТДЕЛ (Level 8)
+  // ⭐ 5. КАСТОМНЫЕ РОЛИ (Levels 8-11: Спец отдел, Owner, Staff и т.д.)
+  // Рендер по цвету и названию самой роли — как задумано в системе ролей.
   // ═══════════════════════════════════════════
-  if (user.role && user.role.level === 8) {
+  if (user.role && user.role.level >= 8) {
     const color = user.role.color || "#f59e0b";
     return (
       <span
