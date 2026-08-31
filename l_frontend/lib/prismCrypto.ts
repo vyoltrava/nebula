@@ -34,7 +34,8 @@ const xorBytes = (a: Uint8Array, b: Uint8Array): Uint8Array => {
 };
 
 export function generatePrismKey(): Uint8Array {
-  return window.crypto.getRandomValues(new Uint8Array(16));
+  // ✅ 32-байтовый ключ (AES-256-GCM), чтобы совпадать с размером shards 1&2
+  return window.crypto.getRandomValues(new Uint8Array(32));
 }
 
 export function splitKeyIntoShards(key: Uint8Array): {

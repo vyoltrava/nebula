@@ -57,8 +57,20 @@ export function SystemBadgeForm({ badge, level, onClose, onSuccess }: Props) {
 
   const [shadowEnabled, setShadowEnabled] = useState(badge?.shadow_enabled ?? true);
   const [innerGlowEnabled, setInnerGlowEnabled] = useState(badge?.inner_glow_enabled ?? false);
-    const [metallicEnabled, setMetallicEnabled] = useState(badge?.metallic_enabled ?? false);
+  const [metallicEnabled, setMetallicEnabled] = useState(badge?.metallic_enabled ?? false);
   const [specularEnabled, setSpecularEnabled] = useState(badge?.specular_enabled ?? false);
+  // 🆕 Авто-подбор эффектов под выбранный цвет фона
+  const [autoSync, setAutoSync] = useState(badge?.auto_sync ?? true);
+
+  const syncEffectsToColor = (color: string) => {
+    if (!autoSync) return;
+    setBorderColor(color);
+    setBorderGlow(true);
+    setBorderGlowIntensity(70);
+    setBorderWidth((w: number) => (w > 0 ? w : 2));
+    setShadowEnabled(true);
+    setInnerGlowEnabled(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -199,9 +211,14 @@ export function SystemBadgeForm({ badge, level, onClose, onSuccess }: Props) {
             <div>
               <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">Цвет фона</label>
               <div className="flex gap-2">
-                <input type="color" value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="w-12 h-10 rounded border border-line dark:border-white/10 cursor-pointer p-0.5" />
-                <input value={bgColor} onChange={(e) => setBgColor(e.target.value)} className="flex-1 bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500/50" placeholder="#3b82f6" />
-              </div>
+                <input type="color" value={bgColor} onChange={(e) => { setBgColor(e.target.value); syncEffectsToColor(e.target.value); }} className="w-12 h-10 rounded border border-line dark:border-white/10 cursor-pointer p-0.5" />
+                <input value={bgColor} onChange={(e) => { setBgColor(e.target.value); syncEffectsToColor(e.target.value); }} className="flex-1 bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500/50" placeholder="#3b82f6" />
+
+              {/* Авто-подбор эффектов под цвет */}
+              <label className="flex items-center gap-2 mt-2 text-xs text-gray-600 dark:text-white/60 cursor-pointer">
+                <input type="checkbox" checked={autoSync} onChange={(e) => setAutoSync(e.target.checked)} className="w-4 h-4 rounded border-line dark:border-white/30 accent-blue-500" />
+                Автоматически подбирать обводку, свечение и тени под этот цвет
+              </label>              </div>
                         </div>
           )}
 

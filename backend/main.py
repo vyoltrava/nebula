@@ -4998,8 +4998,9 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
     last_message_data = None
     if last_msg:
         sender = users_map.get(last_msg.sender_id)
-        if chat.is_secret:
-            last_message_data = {"text": "🔒 Секретное сообщение", "is_encrypted": True,
+        if chat.is_secret or getattr(chat, "is_prism", False):
+            enc_label = "🔒 Секретное сообщение" if chat.is_secret else "🔐 Prism-сообщение"
+            last_message_data = {"text": enc_label, "is_encrypted": True,
                                    "sender_id": last_msg.sender_id,
                                    "created_at": last_msg.created_at.isoformat()}
         else:
@@ -5140,8 +5141,9 @@ class CreateGroupIn(BaseModel):
 class CreatePrismChatIn(BaseModel):
     other_user_id: int
     shard1_encrypted: str  
-    shard2_genesis: str    
-    avatar_url: str   
+    shard2_genesis: str   
+    avatar_url: Optional[str] = None
+   
 
 
 @app.post("/api/chats/group")
@@ -7114,11 +7116,13 @@ async def send_message_v2(
             except Exception as e:
                 raise HTTPException(400, f"Upload failed: {str(e)}")
 
-    if chat.is_secret:
+        is_encrypted_chat = chat.is_secret or getattr(chat, "is_prism", False)
+
+    if is_encrypted_chat:
         if not ciphertext.strip() and not media_url:
             raise HTTPException(400, "Пустое сообщение")
         if text.strip():
-            raise HTTPException(400, "В секретных чатах нельзя отправлять plain text")
+            raise HTTPException(400, "В зашифрованных чатах нельзя отправлять plain text")
     else:
         if not text.strip() and not media_url:
             raise HTTPException(400, "Пустое сообщение")
@@ -10070,6 +10074,122 @@ async def upload_prism_avatar(
 
 
 # ============================================================
+# ✨ PRISM — E2E endpoints (landscape + enter)
+# ============================================================
+@app.get("/api/chats/{chat_id}/prism-landscape")
+async def prism_landscape(
+    chat_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Возвращает shard2 (из genesis-сообщения) и stатус anchor для реконструкции ключа.
+
+    Flow на клиенте:
+      1. Получить shard2 отсюда
+      2. shard3 — из локального хранилища (prismStorage)
+      3. shard1 — расшифровать prism_anchor пользователя PIN-ом (клиент)
+      4. reconstructKey(shard1, shard2, shard3) → 16-байтовый master key
+      5. generatePrismPuzzleSVG(masterKey) → паззл
+    """
+    chat = session.get(Chat, chat_id)
+    if not chat or not getattr(chat, "is_prism", False):
+        raise HTTPException(404, "Prism-чат не найден")
+
+    member = session.exec(
+        select(ChatMember).where(
+            ChatMember.chat_id == chat_id, ChatMember.user_id == user.id
+        )
+    ).first()
+    if not member:
+        raise HTTPException(403, "Вы не участник этого чата")
+
+    # Извлекаем shard2_genesis из genesis-сообщения
+    genesis_msg = session.exec(
+        select(Message)
+        .where(
+            Message.chat_id == chat_id,
+            Message.media_type == "system",
+            Message.text != None,
+        )
+        .order_by(Message.id)
+        .limit(1)
+    ).first()
+
+    shard2 = None
+    genesis_type = None
+    if genesis_msg and genesis_msg.text:
+        text = genesis_msg.text
+        if text.startswith("__PRISM_GENESIS__:"):
+            shard2 = text[len("__PRISM_GENESIS__:"):]
+            genesis_type = "prism"
+        elif text.startswith("__PRISME_GENESIS__:"):
+            genesis_type = "prisme"
+
+    # Находим собеседника
+    other_member = session.exec(
+        select(ChatMember).where(
+            ChatMember.chat_id == chat_id, ChatMember.user_id != user.id
+        )
+    ).first()
+    other = None
+    if other_member:
+        other_user = session.get(User, other_member.user_id)
+        if other_user:
+            other = {
+                "id": other_user.id,
+                "username": other_user.username,
+                "display_name": other_user.display_name,
+                "avatar_url": other_user.avatar_url,
+            }
+
+        return {
+        "chat_id": chat_id,
+        "genesis_type": genesis_type,
+        "shard2": shard2,
+        "has_anchor": bool(user.prism_anchor),
+        "prism_anchor": user.prism_anchor,
+        "other": other,
+    }
+
+
+@app.post("/api/chats/{chat_id}/prism-enter")
+async def prism_enter(
+    chat_id: int,
+    object_id: int = Form(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Подтверждение выбора объекта-ключа пользователем.
+
+    object_id — идентификатор выбранного объекта паззла (0-99 для shard-based,
+    или реальный PrismeObject.id).
+    Сервер проверяет членство и (при возможности) объект.
+    Визуальная верификация паззла происходит на клиенте.
+    """
+    chat = session.get(Chat, chat_id)
+    if not chat or not getattr(chat, "is_prism", False):
+        raise HTTPException(404, "Prism-чат не найден")
+
+    member = session.exec(
+        select(ChatMember).where(
+            ChatMember.chat_id == chat_id, ChatMember.user_id == user.id
+        )
+    ).first()
+    if not member:
+        raise HTTPException(403, "Вы не участник этого чата")
+
+    # Проверяем, что объект существует и привязан к чату (Prisme-объекты)
+    from models import PrismeObject
+    prisme_obj = session.get(PrismeObject, object_id)
+    if prisme_obj and prisme_obj.chat_id == chat_id:
+        return {"ok": True, "slot": prisme_obj.slot, "kind": prisme_obj.kind}
+
+    # Для shard-based Prism-чатов: object_id — индекс пазлового объекта (0-99).
+    # Сервер не может проверить без master key, подтверждаем членство.
+    return {"ok": True, "object_id": object_id}
+
+
+# ============================================================
 # 🏅 ЗНАЧКИ (BADGES)
 # ============================================================
 from models import Badge  # убедись, что Badge импортирован в main.py
@@ -10447,16 +10567,14 @@ def _require_badge_admin(user: User, session: Session) -> int:
 
 
 def _can_grant_to(target: User, lvl: int, session: Session) -> int:
-    """Проверка кому можно дать плашку: 9 → до 8, 10 → до 9, 11 → до 10."""
+    """Проверка кому можно дать плашку.
+
+    Согласуется с assign_custom_badge: Founder (>=10) и System (@trelod)
+    могут выдать кому угодно (включая @trelod); уровень 9 — только до своего.
+    """
     target_lvl = get_user_level(target, session)
-    if target.username == "trelod":
-        raise HTTPException(403, "Нельзя выдать плашку @trelod")
     if lvl == 9 and target_lvl >= 9:
         raise HTTPException(403, "С 9 уровня можно выдавать плашки только до 8 уровня")
-    if lvl == 10 and target_lvl >= 10:
-        raise HTTPException(403, "С 10 уровня можно выдавать плашки только до 9 уровня")
-    if lvl == 11 and target_lvl >= 11:
-        raise HTTPException(403, "Нельзя выдать плашку пользователю 11 уровня")
     return target_lvl
 
 
@@ -11703,14 +11821,25 @@ def assign_custom_badge(
     if not badge:
         raise HTTPException(404, "Плашка не найдена")
 
-    if staff.id != target.id:
-            staff_level = get_user_level(staff, session)
-            target_level = get_user_level(target, session)
-            
-            if staff_level == 9 and target_level > 9:
-                raise HTTPException(403, "Уровень 9 не может выдавать плашки пользователям уровня 10+")
-            if staff_level == 10 and target_level > 10:
-                raise HTTPException(403, "Уровень 10 не может выдавать плашки пользователям уровня 11 (System)")
+    staff_level = get_user_level(staff, session)
+    target_level = get_user_level(target, session)
+    is_self = staff.id == target.id
+
+    # Founder (уровень 10+) может выдать ЛЮБУЮ плашку ЛЮБОМУ и самому себе
+    # (в т.ч. подменить собственную плашку) — обход строгой иерархии.
+    founder_override = staff_level >= 10
+
+    if not is_self and not founder_override:
+        # Обычный админ плашек (уровень 9) не может выдавать уровень выше своего.
+        if target_level > staff_level:
+            raise HTTPException(
+                403,
+                f"Уровень {staff_level} не может выдавать плашки пользователям уровня {target_level}+",
+            )
+
+    if is_self:
+        # Самовыдача всегда разрешена: позволяет подменить собственную плашку.
+        override_priority = True
 
     now = datetime.now(timezone.utc)
     expiry: Optional[datetime] = None

@@ -21,6 +21,11 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
 
   if (!user) return null;
 
+  // 🆕 Если проп не передан, берём активную кастомную плашку из объекта пользователя,
+  // чтобы glow/анимации работали везде (посты, чаты, профиль), а не только там,
+  // где компонент вызывают с явным prop.
+  const assignment = activeCustomBadgeAssignment ?? user.active_custom_badge_assignment;
+
   const sizeClasses = {
     sm: "px-1.5 py-0.5 text-[8px] md:text-[9px]",
     md: "px-2 py-0.5 md:px-2.5 md:py-1 text-[9px] md:text-[10px]",
@@ -32,11 +37,11 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
   // ═══════════════════════════════════════════
   // 🏆 1. ПРИОРИТЕТ: КАСТОМНАЯ ПЛАШКА (ИЗ АДМИНКИ)
   // ═══════════════════════════════════════════
-  const isCustomActive = activeCustomBadgeAssignment?.is_active && 
-    (!activeCustomBadgeAssignment.expires_at || new Date(activeCustomBadgeAssignment.expires_at) > new Date());
+  const isCustomActive = assignment?.is_active && 
+    (!assignment.expires_at || new Date(assignment.expires_at) > new Date());
 
-  if (isCustomActive && activeCustomBadgeAssignment?.override_priority) {
-    const badge = activeCustomBadgeAssignment.badge;
+  if (isCustomActive && assignment?.override_priority) {
+    const badge = assignment.badge;
     
     // 1. Базовый фон (БЕЗОПАСНАЯ инициализация)
     const bgStyle: React.CSSProperties = {};

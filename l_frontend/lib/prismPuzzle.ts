@@ -1,5 +1,8 @@
 // lib/prismPuzzle.ts
 
+// Шифрование/расшифровка AES-256-GCM через crypto.ts
+import { encryptMessage, decryptMessage } from "./crypto";
+
 interface PrismObject {
   id: number;
   type: 'star' | 'circle' | 'triangle' | 'diamond' | 'hexagon' | 'moon' | 'sun' | 'lightning';
@@ -119,34 +122,5 @@ export function verifyObjectSelection(
   return obj.x.toFixed(2) === x && obj.y.toFixed(2) === y && obj.color === color;
 }
 
-// Шифрование сообщения мастер-ключом
-export function encryptMessage(plaintext: string, masterKey: Uint8Array): string {
-  // Простое XOR шифрование для демонстрации
-  const encoder = new TextEncoder();
-  const data = encoder.encode(plaintext);
-  const encrypted = new Uint8Array(data.length);
-  
-  for (let i = 0; i < data.length; i++) {
-    encrypted[i] = data[i] ^ masterKey[i % masterKey.length];
-  }
-  
-  return btoa(String.fromCharCode(...encrypted));
-}
-
-// Расшифровка сообщения мастер-ключом
-export function decryptMessage(ciphertext: string, masterKey: Uint8Array): string {
-  try {
-    const encrypted = Uint8Array.from(atob(ciphertext), c => c.charCodeAt(0));
-    const decrypted = new Uint8Array(encrypted.length);
-    
-    for (let i = 0; i < encrypted.length; i++) {
-      decrypted[i] = encrypted[i] ^ masterKey[i % masterKey.length];
-    }
-    
-    const decoder = new TextDecoder();
-    return decoder.decode(decrypted);
-  } catch (e) {
-    console.error('Decryption failed:', e);
-    return '[Ошибка расшифровки]';
-  }
-}
+// Шифрование сообщения мастер-ключом (AES-256-GCM, тот же формат что и crypto.ts)
+export { encryptMessage, decryptMessage };

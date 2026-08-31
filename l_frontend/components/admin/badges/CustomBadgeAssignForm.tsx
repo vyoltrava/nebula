@@ -176,6 +176,31 @@ export function CustomBadgeAssignForm({ badge, badges, onClose, onSuccess }: Ass
         {userId && searchResults.length === 0 && (
           <div className="mt-1 text-xs text-gray-500">Выбран ID: {userId}</div>
         )}
+
+        {/* 🆕 Быстрая самовыдача плашки */}
+        <button
+          type="button"
+          onClick={async () => {
+            const token = getToken();
+            if (!token) return;
+            try {
+              const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/me`, {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (res.ok) {
+                const me = await res.json();
+                setUserId(String(me.id));
+                setSearchQuery(`${me.display_name || ""} (@${me.username})`);
+                setSearchResults([]);
+              }
+            } catch (e) {
+              console.error(e);
+            }
+          }}
+          className="w-full mt-2 text-xs text-center py-1.5 rounded-lg border border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 transition-colors"
+        >
+          ✨ Выдать себе (текущий аккаунт)
+        </button>
       </div>
 
       <div>

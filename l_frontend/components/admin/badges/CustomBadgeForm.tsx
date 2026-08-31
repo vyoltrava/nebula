@@ -100,6 +100,18 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
   const [priority, setPriority] = useState(badge?.priority ?? 0);
   const [isActive, setIsActive] = useState(badge?.is_active ?? true);
 
+  // 🆕 Авто-подбор эффектов под выбранный цвет фона
+  const [autoSync, setAutoSync] = useState(true);
+
+  const syncEffectsToColor = (color: string) => {
+    if (!autoSync) return;
+    setBorderColor(color);
+    setBorderGlow(true);
+    setBorderGlowIntensity((v: number | null) => (v && v > 0 ? v : 70));
+    setShadowEnabled(true);
+    setInnerGlowEnabled(true);
+  };
+
   const toggleAnimation = (flag: string) => {
     setAnimationFlags(prev =>
       prev.includes(flag) ? prev.filter(f => f !== flag) : [...prev, flag]
@@ -466,16 +478,21 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                           <input
                             type="color"
                             value={bgColor}
-                            onChange={(e) => setBgColor(e.target.value)}
+                            onChange={(e) => { setBgColor(e.target.value); syncEffectsToColor(e.target.value); }}
                             className="h-10 w-10 rounded cursor-pointer bg-transparent border-0 p-0"
                           />
                           <input
                             type="text"
                             value={bgColor}
-                            onChange={(e) => setBgColor(e.target.value)}
+                            onChange={(e) => { setBgColor(e.target.value); syncEffectsToColor(e.target.value); }}
                             className="flex-1 bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-gray-900 dark:text-white"
                           />
                         </div>
+                        {/* 🆕 Авто-подбор эффектов под цвет */}
+                        <label className="flex items-center gap-2 mt-2 text-xs text-gray-500 cursor-pointer">
+                          <input type="checkbox" checked={autoSync} onChange={(e) => setAutoSync(e.target.checked)} className="w-4 h-4 rounded accent-blue-500" />
+                          Автоматически подбирать обводку, свечение и тени под этот цвет
+                        </label>
                       </label>
                       <div className="pt-2">
                         <span className="text-xs text-gray-500 mb-2 block">Быстрые пресеты:</span>

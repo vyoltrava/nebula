@@ -429,7 +429,7 @@ const confirmPrismKey = async () => {
   formData.append("object_id", selectedCreationObject);
 
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${creationLandscape.chat_id}/prism-key`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${creationLandscape.chat_id}/prism-enter`, {
       method: "POST",
       headers: { "Authorization": `Bearer ${token}` },
       body: formData,

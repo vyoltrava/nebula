@@ -7,6 +7,8 @@ import { getToken } from "@/lib/auth";
 import { errMsg } from "@/lib/apiError";
 import { Terminal } from "@/components/prisme/Retro";
 import LinkPreview from "@/components/LinkPreview";
+import { encryptMessage, decryptMessage } from "@/lib/crypto";
+import { storeSessionKey, loadSessionKey } from "@/lib/secureSessionKeys";
 import "@/components/prisme/prisme.css";
 
 interface Msg {
@@ -30,6 +32,48 @@ interface ChatInfo {
 const isService = (m: Msg) =>
   m.media_type === "system" ||
   (!!m.text && (m.text.startsWith("__PRISM_GENESIS__") || m.text.startsWith("__PRISME_GENESIS__")));
+
+/**
+ * Prisme-чаты (is_prism=True) требуют E2E: бэкенд принимает только ciphertext.
+ * У Prisme-чатов нет shard-а anchor (нет PIN/prism_anchor), поэтому общий ключ
+ * детерминированно выводится из genesis-сообщения `__PRISME_GENESIS__:{slot}:{kind}`,
+ * которое оба участника могут прочитать → оба получают один и тот же AES-ключ.
+ * Ключ держится в RAM через secureSessionKeys и расшифровывается только на клиенте.
+ */
+async function derivePrismeKey(chatId: string): Promise<Uint8Array | null> {
+  const cid = Number(chatId);
+  const existing = loadSessionKey(cid);
+  if (existing) return existing;
+
+  try {
+    const token = getToken();
+    if (!token) return null;
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const arr: Msg[] = Array.isArray(data) ? data : (data.messages ?? []);
+    const genesis = arr.find(
+      (m) =>
+        m.media_type === "system" && !!m.text && m.text.includes("__PRISME_GENESIS__"),
+    );
+    if (!genesis?.text) return null;
+
+    // Детерминированный 32-байтовый ключ из общих данных chat_id + genesis
+    const material = `prisme_e2ee::${chatId}::${genesis.text}`;
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(material),
+    );
+    const key = new Uint8Array(digest);
+    storeSessionKey(cid, key);
+    return key;
+  } catch {
+    return null;
+  }
+}
 
 const URL_SPLIT = /(https?:\/\/[^\s<>"']+)/gi;
 
@@ -70,6 +114,7 @@ export default function PrismeRoomPage() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [keyReady, setKeyReady] = useState(false);
 
   const feedEndRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -112,6 +157,9 @@ export default function PrismeRoomPage() {
       setInfo(await chatRes.json());
       const arr = await fetchMsgs();
       if (arr) setMsgs(arr);
+      // Для is_prism-чатов готовим E2E-ключ (детерминированный на клиенте)
+      const key = await derivePrismeKey(chatId);
+      setKeyReady(!!key);
       // отметка о прочтении — не критично
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/read`, {
         method: "POST", headers,
@@ -143,10 +191,18 @@ export default function PrismeRoomPage() {
   const send = async () => {
     const body = text.trim();
     if (!body || sending) return;
+    const cid = Number(chatId);
+    const sk = loadSessionKey(cid);
+    if (!sk) {
+      setError("E2E-ключ не готов. Обновите страницу.");
+      return;
+    }
     setSending(true);
     try {
       const form = new FormData();
-      form.append("text", body);
+      // E2E: шифруем текст AES-256-GCM, отправляем только ciphertext
+      form.append("ciphertext", encryptMessage(body, sk));
+      form.append("text", "");
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`,
         { method: "POST", headers: authHeaders(), body: form },
@@ -173,6 +229,19 @@ export default function PrismeRoomPage() {
       return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
     } catch {
       return "";
+    }
+  };
+
+  // Расшифровка входящего сообщения (E2E)
+  const decryptMsg = (m: Msg): string => {
+    if (m.text && !m.ciphertext) return m.text;
+    if (!m.ciphertext) return "";
+    const sk = loadSessionKey(Number(chatId));
+    if (!sk) return "[Зашифровано]";
+    try {
+      return decryptMessage(m.ciphertext, sk);
+    } catch {
+      return "[Ошибка расшифровки]";
     }
   };
 
@@ -239,7 +308,7 @@ export default function PrismeRoomPage() {
 
           {msgs.map((m) => {
             const mine = myId != null && m.sender_id === myId;
-            const body = m.text || "";
+            const body = decryptMsg(m);
             return (
               <div key={m.id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
                 {!mine && (
@@ -288,7 +357,7 @@ export default function PrismeRoomPage() {
           <button
             className="prv-sendbtn"
             onClick={send}
-            disabled={sending || !text.trim()}
+            disabled={sending || !text.trim() || !keyReady}
             aria-label="Отправить"
             title="Отправить (Enter)"
           >
