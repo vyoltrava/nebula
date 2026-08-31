@@ -53,3 +53,19 @@ export function useI18n() {
   if (!ctx) throw new Error("useI18n must be used inside LanguageProvider");
   return ctx;
 }
+
+/* Безопасная версия: не бросает исключение, если провайдера нет
+   (например, при prerender системных страниц вроде /_not-found) —
+   использует локаль по умолчанию. */
+export function useI18nSafe() {
+  const ctx = useContext(I18nContext);
+  return (
+    ctx ?? {
+      locale: DEFAULT_LOCALE,
+      setLocale: () => {},
+      t: (key: MessageKey, params?: Record<string, string | number>) =>
+        translate(DEFAULT_LOCALE, key, params),
+      locales: LOCALES,
+    }
+  );
+}

@@ -12,7 +12,7 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { Home, Compass, Bell, Bookmark, MessageCircle, Sparkles } from "lucide-react";
-import { useI18n } from "@/lib/i18n/LanguageProvider";
+import { useI18nSafe } from "@/lib/i18n/LanguageProvider";
 
 const FLAG = "nebula_orbit_intro_v1";
 
@@ -23,7 +23,7 @@ export function orbitIntroReset() {
 }
 
 export default function OrbitOnboarding() {
-  const { t } = useI18n();
+  const { t } = useI18nSafe();
   const [visible, setVisible] = useState(false);
   const [stage, setStage] = useState<0 | 1 | 2>(0); // 0 = скрыто, 1 = скелетный бар, 2 = орбита
   const [closing, setClosing] = useState(false);
