@@ -344,7 +344,7 @@ export function CreatePost() {
     <button
       onClick={submit}
       disabled={!text.trim() && !file}
-      className="bg-[#8b5cf6] text-white font-medium rounded-lg px-5 py-2 transition-all hover:bg-[#7c3aed] disabled:opacity-40 disabled:cursor-not-allowed"
+      className="bg-[#8b5cf6] text-white font-medium rounded-lg px-3.5 py-1.5 text-sm sm:px-5 sm:py-2 sm:text-base transition-all hover:bg-[#7c3aed] disabled:opacity-40 disabled:cursor-not-allowed"
     >
       {t("compose.publish")}
     </button>
