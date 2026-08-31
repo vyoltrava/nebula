@@ -10,7 +10,7 @@ import {
 } from "@/lib/shellSwitcher";
 import {
   Palette, Plus, Edit3, Trash2, Eye, Check, X,
-  Sparkles, Lock, Globe, Zap, Layers,
+  Sparkles, Lock, Globe, Zap, Layers, Orbit,
 } from "lucide-react";
 
 /* ============================================================
@@ -332,6 +332,14 @@ export function ThemesSection({ me }: { me: any }) {
           >
             <Plus size={16} />
             Новая тема
+          </button>
+          <button
+            onClick={() => window.dispatchEvent(new Event("orbit-intro-show"))}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#8b5cf6]/50 text-[#8b5cf6] text-sm font-bold hover:bg-[#8b5cf6]/10 transition-all shrink-0"
+            title="Показать обучающую анимацию орбиты"
+          >
+            <Orbit size={16} />
+            Обучение орбите
           </button>
         </div>
 

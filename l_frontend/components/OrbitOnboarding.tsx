@@ -11,7 +11,7 @@
  * и перезагрузить страницу (или вызвать orbitIntroReset()).
  */
 import { useCallback, useEffect, useState } from "react";
-import { Home, Compass, Bell, Bookmark, MessageCircle, Sparkles } from "lucide-react";
+import { Home, Compass, Bell, Bookmark, MessageCircle, Orbit } from "lucide-react";
 import { useI18nSafe } from "@/lib/i18n/LanguageProvider";
 
 const FLAG = "nebula_orbit_intro_v1";
@@ -52,6 +52,17 @@ export default function OrbitOnboarding() {
     return () => window.clearTimeout(id);
   }, [stage]);
 
+  // Запуск из админки (кнопка «Показать обучение орбите»)
+  useEffect(() => {
+    const show = () => {
+      setVisible(true);
+      setStage(1);
+      setClosing(false);
+    };
+    window.addEventListener("orbit-intro-show", show);
+    return () => window.removeEventListener("orbit-intro-show", show);
+  }, []);
+
   const finish = useCallback(() => {
     setClosing(true);
     try {
@@ -68,13 +79,13 @@ export default function OrbitOnboarding() {
   };
   const onPointerUp = () => setPressed(false);
 
-  // Пункты скелетного бара и узлы дуги (смещения от центра, радиус ~110px)
+  // Пункты скелетного бара и узлы дуги (на полуокружности r=100 над кнопкой)
   const items = [
-    { Icon: Home, x: -110, y: -55 },
-    { Icon: Compass, x: -95, y: -95 },
-    { Icon: Bell, x: 0, y: -115 },
-    { Icon: Bookmark, x: 95, y: -95 },
-    { Icon: MessageCircle, x: 110, y: -55 },
+    { Icon: Home, x: -87, y: -50 },
+    { Icon: Compass, x: -50, y: -87 },
+    { Icon: Bell, x: 0, y: -100 },
+    { Icon: Bookmark, x: 50, y: -87 },
+    { Icon: MessageCircle, x: 87, y: -50 },
   ];
   const isOrbit = stage === 2;
 
@@ -136,7 +147,7 @@ export default function OrbitOnboarding() {
             }}
           >
             <path
-              d="M 90 240 A 140 140 0 0 1 310 240"
+              d="M 100 240 A 100 100 0 0 1 300 240"
               stroke="rgba(139,92,246,0.45)"
               strokeWidth="2"
               strokeDasharray="6 6"
@@ -144,29 +155,32 @@ export default function OrbitOnboarding() {
               style={{ opacity: pressed ? 1 : 0, transition: "opacity 200ms ease" }}
             />
             <line
-              x1="200" y1="240" x2="200" y2="180"
+              x1="200" y1="240" x2="200" y2="145"
               stroke="rgba(139,92,246,0.6)"
               strokeWidth="2"
               style={{ opacity: pressed ? 1 : 0, transition: "opacity 200ms ease" }}
             />
           </svg>
 
-          {/* Центральная кнопка-якорь (пульсирует в сцене 2) */}
+          {/* Центральная кнопка-якорь — как кнопка вызова реальной орбиты */}
           <button
             type="button"
             onPointerDown={onPointerDown}
             onPointerUp={onPointerUp}
             onPointerLeave={onPointerUp}
-            className="absolute bottom-[26px] left-1/2 flex h-14 w-14 items-center justify-center rounded-full bg-[#8b5cf6] text-white shadow-xl shadow-[#8b5cf6]/40"
+            className={"absolute bottom-[26px] left-1/2 flex h-14 w-14 items-center justify-center border bg-paper dark:bg-[#171717]/90 backdrop-blur-sm shadow-lg shadow-gray-400/40 dark:shadow-black/50 transition-all duration-300 " +
+              (pressed
+                ? "rounded-full border-[#8b5cf6]/50 bg-[#8b5cf6]/20 scale-110"
+                : "rounded-full border-line dark:border-white/10")}
             style={{
               opacity: isOrbit ? 1 : 0,
-              transform: `translateX(-50%) scale(${isOrbit ? (pressed ? 0.9 : 1) : 0.6})`,
+              transform: `translateX(-50%) scale(${isOrbit ? (pressed ? 0.95 : 1) : 0.6})`,
               transition: "opacity 300ms ease 150ms, transform 300ms cubic-bezier(.2,.8,.3,1.2) 150ms",
             }}
             aria-label={t("onboarding.title")}
           >
-            <span className="absolute inset-0 rounded-full bg-[#8b5cf6]/50" style={{ animation: "obPulse 1.8s ease-in-out infinite" }} />
-            <Sparkles size={22} className="relative" />
+            <span className="absolute inset-0 rounded-full bg-[#8b5cf6]/30" style={{ animation: "obPulse 1.8s ease-in-out infinite" }} />
+            <Orbit size={22} className={"relative transition-all duration-300 " + (pressed ? "text-[#8b5cf6] rotate-[60deg]" : "text-gray-800 dark:text-white/80")} />
           </button>
 
           {/* Кнопки дуги (каскад при удержании) */}
