@@ -971,3 +971,13 @@ body.ios-theme .post-edit-cancel:active {
   0%, 100% { transform: scale(1); opacity: 0.55; }
   50% { transform: scale(1.45); opacity: 0; }
 }
+
+/* Стрелка-подсказка после onboarding: взгляд → на реальную кнопку орбиты */
+@keyframes obArrow {
+  0%, 100% { transform: translateY(-50%) translateX(0); opacity: 0.6; }
+  50% { transform: translateY(-50%) translateX(10px); opacity: 1; }
+}
+@keyframes obRing {
+  0% { transform: translateY(-50%) scale(0.7); opacity: 0.9; }
+  100% { transform: translateY(-50%) scale(1.5); opacity: 0; }
+}

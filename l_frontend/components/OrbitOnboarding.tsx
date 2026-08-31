@@ -11,7 +11,7 @@
  * и перезагрузить страницу (или вызвать orbitIntroReset()).
  */
 import { useCallback, useEffect, useState } from "react";
-import { Home, Compass, Bell, Bookmark, MessageCircle, Orbit } from "lucide-react";
+import { Home, Compass, Bell, Bookmark, MessageCircle, Orbit, ChevronRight } from "lucide-react";
 import { useI18nSafe } from "@/lib/i18n/LanguageProvider";
 
 const FLAG = "nebula_orbit_intro_v1";
@@ -29,6 +29,7 @@ export default function OrbitOnboarding() {
   const [closing, setClosing] = useState(false);
   const [pressed, setPressed] = useState(false);
   const [tried, setTried] = useState(false);
+  const [showArrow, setShowArrow] = useState(false);
 
   useEffect(() => {
     try {
@@ -68,10 +69,39 @@ export default function OrbitOnboarding() {
     try {
       localStorage.setItem(FLAG, "1");
     } catch {}
-    window.setTimeout(() => setVisible(false), 350);
+    window.setTimeout(() => {
+      setVisible(false);
+      // На телефоне после закрытия — стрелка, переводящая взгляд на реальную кнопку орбиты
+      if (window.matchMedia("(max-width: 767px)").matches) setShowArrow(true);
+    }, 350);
   }, []);
 
-  if (!visible) return null;
+  // Стрелка-подсказка исчезает сама через 4с
+  useEffect(() => {
+    if (!showArrow) return;
+    const id = window.setTimeout(() => setShowArrow(false), 4000);
+    return () => window.clearTimeout(id);
+  }, [showArrow]);
+
+  if (!visible) {
+    // После закрытия на телефоне: стрелка + пульсирующее кольцо переводят
+    // взгляд на реальную кнопку орбиты (правый край, середина экрана)
+    if (!showArrow) return null;
+    return (
+      <div className="fixed inset-0 z-[9998] pointer-events-none" data-orbit-ignore>
+        <div
+          className="absolute right-1 top-1/2 -translate-y-1/2 w-16 h-16 rounded-full border-2 border-[#8b5cf6]"
+          style={{ animation: "obRing 1.2s ease-out infinite" }}
+        />
+        <div
+          className="absolute right-[72px] top-1/2 -translate-y-1/2 text-[#8b5cf6]"
+          style={{ animation: "obArrow 1.2s ease-in-out infinite" }}
+        >
+          <ChevronRight size={36} strokeWidth={3} />
+        </div>
+      </div>
+    );
+  }
 
   const onPointerDown = () => {
     setPressed(true);
@@ -183,13 +213,13 @@ export default function OrbitOnboarding() {
             <Orbit size={22} className={"relative transition-all duration-300 " + (pressed ? "text-[#8b5cf6] rotate-[60deg]" : "text-gray-800 dark:text-white/80")} />
           </button>
 
-          {/* Кнопки дуги (каскад при удержании) */}
+          {/* Кнопки дуги (каскад при удержании) — над кнопкой орбиты */}
           {items.map(({ Icon, x, y }, i) => (
             <div
               key={i}
-              className="pointer-events-none absolute bottom-[40px] left-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white shadow-lg backdrop-blur"
+              className="pointer-events-none absolute bottom-[54px] left-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-white shadow-lg backdrop-blur"
               style={{
-                transform: `translate(calc(-50% + ${x}px), ${-y + (pressed ? 0 : 10)}px) scale(${isOrbit && pressed ? 1 : 0})`,
+                transform: `translate(calc(-50% + ${x}px), calc(${y}px - 50%)) scale(${isOrbit && pressed ? 1 : 0})`,
                 opacity: isOrbit && pressed ? 1 : 0,
                 transition: `transform 260ms cubic-bezier(.2,.8,.3,1.15) ${i * 45}ms, opacity 200ms ${i * 45}ms`,
               }}
