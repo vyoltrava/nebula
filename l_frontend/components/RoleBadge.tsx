@@ -139,12 +139,6 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
     return renderBadgePlate(assignment.badge);
   }
 
-  // 1b. СИСТЕМНАЯ ПЛАШКА уровня 9-11 (редактируется в /admin/badges/system).
-  // Отрисовываем её вместо захардкоженных Founder/Developer/System.
-  if (user.system_badge && user.system_badge.is_active !== false) {
-    return renderBadgePlate(user.system_badge);
-  }
-
   // ═══════════════════════════════════════════
   // 🟡 2. FOUNDER (Level 10 / is_admin)
   // ═══════════════════════════════════════════
