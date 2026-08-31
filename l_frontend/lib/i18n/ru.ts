@@ -312,6 +312,7 @@ export const ru: Dictionary = {
     noFollowers: "Пока нет подписчиков",
     noFollowing: "Пока ни на кого не подписан",
     write: "Написать",
+    similar: "Похожие аккаунты",
     changeCover: "Сменить обложку",
     deleteCover: "Удалить",
     addCover: "Добавить обложку",

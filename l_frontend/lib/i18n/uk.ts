@@ -312,6 +312,7 @@ export const uk = {
     noFollowers: "Підписників поки що немає",
     noFollowing: "Поки що ні на кого не підписаний",
     write: "Написати",
+    similar: "Схожі акаунти",
     changeCover: "Змінити обкладинку",
     deleteCover: "Видалити",
     addCover: "Додати обкладинку",

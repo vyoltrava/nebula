@@ -1,7 +1,7 @@
 "use client";
 import { useTheme } from "next-themes";
 import { resolveNickColor } from "@/lib/nickGlow";
-import { Upload , Check, Ban, X, MessageSquare, Flag, Lock, Camera, Image as ImageIcon, X as XIcon, AlertTriangle } from "lucide-react";
+import { Upload , Check, Ban, X, MessageSquare, Flag, Lock, Camera, Image as ImageIcon, X as XIcon, AlertTriangle, Network } from "lucide-react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -680,6 +680,9 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                       <button onClick={startChat} className="flex items-center justify-center p-2 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:hover:text-white transition-all" title={t("profile.write")}>
                         <MessageSquare size={18} />
                       </button>
+                      <Link href={`/recommendations/${profile.id}`} className="flex items-center justify-center p-2 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:hover:text-white transition-all" title={t("profile.similar")}>
+                        <Network size={18} />
+                      </Link>
                       <button
                         onClick={async () => {
                           const token = getToken();
@@ -731,6 +734,9 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                     <button onClick={startChat} className="p-2.5 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:hover:text-white transition-all" title={t("profile.write")}>
                       <MessageSquare size={18} />
                     </button>
+                    <Link href={`/recommendations/${profile.id}`} className="p-2.5 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:hover:text-white transition-all" title={t("profile.similar")}>
+                      <Network size={18} />
+                    </Link>
                     <button
                       onClick={async () => {
                         const token = getToken();

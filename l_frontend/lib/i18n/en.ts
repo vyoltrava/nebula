@@ -315,6 +315,7 @@ export const en: Dictionary = {
     noFollowers: "No followers yet",
     noFollowing: "Not following anyone yet",
     write: "Write",
+    similar: "Similar accounts",
     changeCover: "Change cover",
     deleteCover: "Delete",
     addCover: "Add cover",

@@ -1,6 +1,7 @@
 ﻿"use client";
 import { useEffect, useMemo, useState } from "react";
 import { getToken } from "@/lib/auth";
+import { getCookie, setCookie } from "@/lib/cookieManager";
 import { Avatar } from "@/components/Avatar";
 import { StatSkeleton } from "@/components/Skeletons";
 import { useRouter } from "next/navigation";
@@ -13,6 +14,29 @@ import {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const PAGE_SIZE = 10;
+
+// 🍪 Кукизация UI-состояния: вкладка, фильтры, колонки, сортировка и страница
+// восстанавливаются синхронно из куки при загрузке — без «сброса» и мерцания.
+const STAT_UI_COOKIE = "nebula_stat_ui";
+
+function loadStatUI(): Record<string, unknown> {
+  try {
+    const raw = getCookie(STAT_UI_COOKIE);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return typeof parsed === "object" && parsed !== null ? parsed : {};
+  } catch {
+    return {}; // кука повреждена — стартуем с дефолтов
+  }
+}
+
+function saveStatUI(patch: Record<string, unknown>): void {
+  try {
+    setCookie(STAT_UI_COOKIE, JSON.stringify({ ...loadStatUI(), ...patch }), { days: 30 });
+  } catch { /* ignore */ }
+}
+
+const statUI = loadStatUI();
 
 type TabMode = "users" | "team";
 type SortField = "username" | "level" | "created_at" | "last_seen" | "posts_count" | "messages_count" | "likes_given" | "likes_received" | "visits_count" | "kpi";
@@ -75,7 +99,10 @@ const ALL_COLUMNS = [
 
 export default function StatPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<TabMode>("users");
+  const [activeTab, setActiveTabState] = useState<TabMode>(
+    statUI.tab === "team" ? "team" : "users"
+  );
+  const setActiveTab = (t: TabMode) => { setActiveTabState(t); saveStatUI({ tab: t }); };
   const [me, setMe] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -84,13 +111,32 @@ export default function StatPage() {
   const [overview, setOverview] = useState<any>(null);
   const [roles, setRoles] = useState<any[]>([]);
   const [cats, setCats] = useState<any[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [activityFilter, setActivityFilter] = useState("all");
-  const [sortField, setSortField] = useState<SortField>("created_at");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [page, setPage] = useState(1);
-  const [visibleCols, setVisibleCols] = useState<Record<string, boolean>>(Object.fromEntries(ALL_COLUMNS.map(c => [c.id, true])));
+  const [searchQuery, setSearchQueryState] = useState(typeof statUI.q === "string" ? statUI.q : "");
+  const setSearchQuery = (v: string) => { setSearchQueryState(v); saveStatUI({ q: v }); };
+  const [roleFilter, setRoleFilterState] = useState(typeof statUI.role === "string" ? statUI.role : "all");
+  const [activityFilter, setActivityFilterState] = useState(typeof statUI.activity === "string" ? statUI.activity : "all");
+  const [sortField, setSortFieldState] = useState<SortField>(
+    (["username","level","created_at","last_seen","posts_count","messages_count","likes_given","likes_received","visits_count","kpi"] as const).includes(statUI.sort as any) ? (statUI.sort as SortField) : "created_at"
+  );
+  const [sortOrder, setSortOrderState] = useState<"asc" | "desc">(statUI.order === "asc" ? "asc" : "desc");
+  const setSort = (field: SortField) => {
+    if (field === sortField) {
+      const next = sortOrder === "asc" ? "desc" : "asc";
+      setSortOrderState(next); saveStatUI({ order: next });
+    } else {
+      setSortFieldState(field); saveStatUI({ sort: field });
+    }
+  };
+  const setRoleFilter = (v: string) => { setRoleFilterState(v); saveStatUI({ role: v }); };
+  const setActivityFilter = (v: string) => { setActivityFilterState(v); saveStatUI({ activity: v }); };
+  const [page, setPageState] = useState(typeof statUI.page === "number" && statUI.page > 0 ? statUI.page : 1);
+  const setPage = (p: number) => { setPageState(p); saveStatUI({ page: p }); };
+  const [visibleCols, setVisibleColsState] = useState<Record<string, boolean>>(
+    typeof statUI.cols === "object" && statUI.cols !== null
+      ? { ...Object.fromEntries(ALL_COLUMNS.map(c => [c.id, true])), ...(statUI.cols as Record<string, boolean>) }
+      : Object.fromEntries(ALL_COLUMNS.map(c => [c.id, true]))
+  );
+  const setVisibleCols = (v: Record<string, boolean>) => { setVisibleColsState(v); saveStatUI({ cols: v }); };
   const [showColsMenu, setShowColsMenu] = useState(false);
   const [menuUserId, setMenuUserId] = useState<number | null>(null);
 
@@ -153,8 +199,8 @@ export default function StatPage() {
   }
 
   function handleSort(field: SortField) {
-    if (sortField === field) setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    else { setSortField(field); setSortOrder("desc"); }
+    if (sortField === field) setSort(field);
+    else { setSort(field); }
   }
 
   const filtered = useMemo(() => {
