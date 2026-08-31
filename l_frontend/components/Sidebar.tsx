@@ -549,7 +549,6 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     { href: "/bookmarks", icon: Bookmark,  label: t("nav.bookmarks") },
     { href: "/updates",    icon: Satellite,    label: t("nav.community") },  
     { href: "/rules",     icon: Shield,    label: t("nav.rules") },
-    { href: "/settings",  icon: Settings,  label: t("nav.settings") },
   ];
 
   useEffect(() => { refresh(); }, [pathname]);
@@ -1193,6 +1192,15 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
             </span>
           )}
         </button>
+
+        {/* Настройки — сразу над Админ-панелью */}
+        <Link href="/settings"
+          className={`flex ${containerClass} font-medium transition-all border-b border-line dark:border-white/5 group ${
+            pathname === "/settings" ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"
+          }`}>
+          <Settings size={18} className={`${iconClass} ${pathname === "/settings" ? "text-[#8b5cf6]" : "text-gray-700 dark:text-white/80 group-hover:text-gray-500 dark:group-hover:text-[#e0e0e0]!"}`} />
+          <span className={textClass}>{t("nav.settings")}</span>
+        </Link>
 
         {hasAdminAccess && !isDock && (
           <Link href="/adminnew"
