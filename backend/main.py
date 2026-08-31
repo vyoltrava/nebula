@@ -51,6 +51,7 @@ from starlette.responses import JSONResponse
 from cloudinary_config import UPLOAD_FOLDER
 from datetime import datetime, timedelta, timezone
 from database import init_db, get_session, engine
+from models import utcnow
 from models import (
     User, Post, Like, Dislike, Follow, Notification, Tag, PostTag, Role,
     Chat, ChatMember, Message, Report, UserKey, ChatSessionKey,
