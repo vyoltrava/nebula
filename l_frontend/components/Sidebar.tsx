@@ -864,12 +864,15 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     };
   }, [layout, wheelOpen, startGestureAt, isNebula]);
 
-  // 🆕 CTRL-ОРБИТА НА ПК (в любом виде сайдбара):
+  // 🆕 CTRL-ОРБИТА НА ПК (только для вида «Орбита 2»):
   //    зажал Ctrl → меню (полный круг, как вторая орбита) ОТКРЫВАЕТСЯ СРАЗУ у курсора;
   //    просто кликаешь по пункту — выбираешь; отпустил Ctrl / Esc — закрылось.
   //    🔒 Не срабатывает над полями ввода и элементами с [data-orbit-ignore] (бары и пр.).
   useEffect(() => {
     if (isMobile) return;
+    // 🎛 Ctrl-орбита имеет смысл только для «Орбиты 2» (свободная орбита);
+    //    в остальных видах (классика, док) Ctrl не должен ничего открывать
+    if (layout !== "orbit2") return;
     // 🚫 Nebula — Ctrl-орбита классики не работает
     const nebulaNow = () => typeof document !== "undefined" && document.documentElement.classList.contains("nebula-mode");
     const isExcludedUnderMouse = () => {
@@ -908,7 +911,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [isMobile, wheelOpen, hoveredIdx, closeWheel, openWheelAt, findNearest]);
+  }, [isMobile, layout, wheelOpen, hoveredIdx, closeWheel, openWheelAt, findNearest]);
 
   useEffect(() => {
     // 🚫 Nebula — глобальные обработчики жестов классики не вешаем вовсе
