@@ -851,6 +851,8 @@ user: {
 },
 appearance: {
   quickReactionHint: "Двойной тап по сообщению ставит эту реакцию",
+  quickPostReaction: "Быстрая реакция на посты",
+  quickPostReactionHint: "Одиночный клик по кнопке реакции поста ставит эту реакцию (только паки, разрешённые для постов)",
   sticker: "Стикер",
   emoji: "Эмодзи",
   emojiTab: "Эмодзи",

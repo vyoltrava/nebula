@@ -11,7 +11,7 @@ import { ChevronDown, Monitor, Moon, SmilePlus, Sun, X, Lock } from "lucide-reac
 import type { LucideIcon } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
-import { useQuickReaction } from "@/lib/useQuickReaction";
+import { useQuickReaction, useQuickPostReaction } from "@/lib/useQuickReaction";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 
@@ -39,6 +39,13 @@ export function AppearanceSettings() {
   const packsFetchedRef = useRef(false);
   const [userLevel, setUserLevel] = useState(0);
 
+  // 🆕 Быстрая реакция на ПОСТЫ (только реакции, разрешённые админом для постов)
+  const { reaction: quickPostReaction, save: savePostReaction, clear: clearPostReaction } = useQuickPostReaction();
+  const [postPickerOpen, setPostPickerOpen] = useState(false);
+  const [postPacks, setPostPacks] = useState<StickerPack[]>([]);
+  const [postPackTab, setPostPackTab] = useState(0);
+  const postPacksFetchedRef = useRef(false);
+
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
@@ -58,6 +65,19 @@ export function AppearanceSettings() {
       if (me?.level != null) setUserLevel(Number(me.level) || 0);
     });
   }, [pickerOpen]);
+
+  useEffect(() => {
+    if (!postPickerOpen || postPacksFetchedRef.current) return;
+    postPacksFetchedRef.current = true;
+    const token = getToken();
+    if (!token) return;
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/post-reactions`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setPostPacks(Array.isArray(data) ? data : []))
+      .catch(() => setPostPacks([]));
+  }, [postPickerOpen]);
 
   const modes: { id: Mode; label: string; icon: LucideIcon }[] = [
     { id: "light", label: t("settings.themeLight"), icon: Sun },
@@ -229,7 +249,112 @@ export function AppearanceSettings() {
         </>
       )}
 
+      {/* 🆕 БЫСТРАЯ РЕАКЦИЯ НА ПОСТЫ */}
+      <div className="rounded-xl border border-gray-200 dark:border-white/10 bg-ivory dark:bg-white/[0.03] p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <SmilePlus size={18} className="text-[#8b5cf6] shrink-0" />
+          <h3 className="text-sm font-bold text-gray-900 dark:text-white">{t("appearance.quickPostReaction")}</h3>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-white/40 mb-3">{t("appearance.quickPostReactionHint")}</p>
+
+        <button type="button" onClick={() => { setPostPackTab(0); setPostPickerOpen(true); }}
+          className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors text-left">
+          <span className="text-sm text-gray-900 dark:text-white flex items-center gap-3 min-w-0">
+            {quickPostReaction ? (
+              <>
+                <span className="shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-white dark:bg-white/10 border border-line dark:border-white/10">
+                  {quickPostReaction.type === "emoji" ? (
+                    <span className="text-2xl leading-none">{quickPostReaction.content}</span>
+                  ) : (
+                    <img src={reactionSrc(quickPostReaction.content)} alt="" className="w-8 h-8 object-contain rounded-md"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                  )}
+                </span>
+                <span className="truncate text-xs text-gray-500 dark:text-white/50">{quickPostReaction.type === "sticker" ? t("appearance.sticker") : t("appearance.emoji")}</span>
+              </>
+            ) : (
+              <span className="text-gray-500 dark:text-white/50">{t("appearance.chooseReaction")}</span>
+            )}
+          </span>
+          <ChevronDown size={14} className="text-gray-500 dark:text-white/40 shrink-0" />
+        </button>
+
+        {quickPostReaction && (
+          <button type="button" onClick={() => clearPostReaction()} className="mt-2 text-xs text-red-500 hover:text-red-600 transition-colors">
+            {t("appearance.resetReaction")}
+          </button>
+        )}
+      </div>
+
       <p className="text-xs text-gray-500 dark:text-white/40">{t("settings.appearanceHint")}</p>
+
+      {postPickerOpen && (
+        <>
+          <div className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-sm" onClick={() => setPostPickerOpen(false)} />
+          <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none">
+            <div className="w-full max-w-sm max-h-[80vh] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
+              <div className="shrink-0 p-3 pb-2 border-b border-line dark:border-white/10">
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <p className="text-xs font-bold text-gray-600 dark:text-white/60">{t("appearance.quickPostReaction")}</p>
+                  <button type="button" onClick={() => setPostPickerOpen(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                    <X size={14} />
+                  </button>
+                </div>
+                {/* Вкладки паков — только паки, разрешённые для постов */}
+                <div className="flex gap-1 overflow-x-auto scrollbar-hide pb-1">
+                  {postPacks.map((pack, i) => (
+                    <button key={pack.id ?? i} type="button" onClick={() => setPostPackTab(i)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap shrink-0 transition-all ${
+                        postPackTab === i ? "bg-[#8b5cf6] text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50"
+                      }`}>
+                      {pack.locked && <Lock size={10} className="text-yellow-600 dark:text-yellow-400" />}
+                      {pack.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-3 min-h-0">
+                {postPacks.length === 0 ? (
+                  <div className="py-8 text-center text-sm text-gray-500 dark:text-white/40">{t("appearance.noPacks")}</div>
+                ) : postPacks[postPackTab] ? (
+                  postPacks[postPackTab].locked ? (
+                    <div className="flex flex-col items-center gap-2 py-8 text-center">
+                      <div className="w-12 h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
+                        <Lock size={18} className="text-yellow-600 dark:text-yellow-400" />
+                      </div>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">{t("appearance.packLocked")}</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-6 gap-1.5">
+                      {(postPacks[postPackTab].stickers || []).map((st: Sticker) => {
+                        const type = st.type === "image" ? "sticker" : "emoji";
+                        const content = st.content || "";
+                        const stickerId = type === "sticker" ? Number(st.id) : undefined;
+                        const isActive = quickPostReaction?.type === type && quickPostReaction?.content === content && quickPostReaction?.stickerId === stickerId;
+                        return (
+                          <button key={st.id} type="button" onClick={() => { savePostReaction({ type, content, stickerId }); setPostPickerOpen(false); }}
+                            className={`aspect-square flex items-center justify-center rounded-xl transition-all ${
+                              isActive ? "ring-2 ring-[#8b5cf6] bg-[#8b5cf6]/20" : "hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90"
+                            }`} title={type === "emoji" ? t("appearance.emoji") : t("appearance.sticker")}>
+                            {type === "emoji" ? (
+                              <span className="text-2xl">{content}</span>
+                            ) : (
+                              <img src={reactionSrc(content)} alt="" className="w-10 h-10 object-contain" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )
+                ) : (
+                  <div className="py-8 text-center text-gray-600 dark:text-white/50 text-sm">{t("appearance.noData")}</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

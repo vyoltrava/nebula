@@ -1,0 +1,183 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844" width="390" height="844">
+  <!-- Mockup: РіР»Р°РІРЅР°СЏ СЃС‚СЂР°РЅРёС†Р° Nebula РЅР° С‚РµР»РµС„РѕРЅРµ. Р’СЃРµ С‚РёРїС‹ РїРѕСЃС‚РѕРІ + РѕСЂР±РёС‚Р°. -->
+  <defs>
+    <linearGradient id="imgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#c4b5fd"/><stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="vidGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#93c5fd"/><stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <radialGradient id="bgGlow" cx="50%" cy="0%" r="120%">
+      <stop offset="0%" stop-color="#faf9ff"/><stop offset="100%" stop-color="#f1eefe"/>
+    </radialGradient>
+  </defs>
+
+  <!-- РєРѕСЂРїСѓСЃ С‚РµР»РµС„РѕРЅР° -->
+  <rect width="390" height="844" rx="44" fill="url(#bgGlow)"/>
+  <rect width="390" height="844" rx="44" fill="none" stroke="#111" stroke-width="8"/>
+  <rect x="145" y="12" width="100" height="22" rx="11" fill="#111"/>
+  <text x="30" y="34" font-size="12" font-weight="700" fill="#111">9:41</text>
+  <rect x="324" y="24" width="18" height="10" rx="2" fill="none" stroke="#111"/>
+  <rect x="326" y="26" width="12" height="6" rx="1" fill="#111"/>
+
+  <!-- С€Р°РїРєР° -->
+  <text x="195" y="62" text-anchor="middle" font-size="17" font-weight="800" fill="#111">Nebula</text>
+  <circle cx="356" cy="58" r="13" fill="none" stroke="#111" stroke-width="1.6"/>
+  <circle cx="352" cy="58" r="5" fill="none" stroke="#111" stroke-width="1.4"/>
+  <circle cx="361" cy="63" r="5" fill="none" stroke="#111" stroke-width="1.4"/>
+
+  <!-- РџРћРЎРў 1: С‚РµРєСЃС‚РѕРІС‹Р№ -->
+  <g>
+    <rect x="12" y="84" width="366" height="132" rx="16" fill="#fff" stroke="#ece9fb"/>
+    <circle cx="40" cy="110" r="16" fill="#8b5cf6"/>
+    <circle cx="35" cy="106" r="5" fill="rgba(255,255,255,0.85)"/>
+    <path d="M 29 122 a 11 11 0 0 1 22 0" fill="rgba(255,255,255,0.85)"/>
+    <text x="64" y="107" font-size="13" font-weight="700" fill="#111">РђРЅСЏ РљРѕРІР°Р»С‘РІР°</text>
+    <text x="64" y="121" font-size="10" fill="#9ca3af">@anya В· 2 С‡</text>
+    <text x="28" y="146" font-size="12" fill="#374151">РљС‚Рѕ РµС‰С‘ РЅРµ РІРёРґРµР» РЅРѕРІРѕРµ РѕР±РЅРѕРІР»РµРЅРёРµ Р»РµРЅС‚С‹?</text>
+    <text x="28" y="162" font-size="12" fill="#374151">РќР°РєРѕРЅРµС†-С‚Рѕ РІСЃС‘ Р»РµС‚Р°РµС‚ рџљЂ</text>
+    <rect x="28" y="174" width="54" height="16" rx="8" fill="#f3efff"/>
+    <text x="55" y="185" text-anchor="middle" font-size="10" fill="#8b5cf6">#update</text>
+    <path d="M 28 196 c -3 -4 -9 -2 -9 3 c 0 4 5 7 9 10 c 4 -3 9 -6 9 -10 c 0 -5 -6 -7 -9 -3 Z" fill="none" stroke="#9ca3af" stroke-width="1.6"/>
+    <text x="42" y="206" font-size="11" fill="#9ca3af">128</text>
+    <path d="M 80 195 h 14 a 3 3 0 0 1 3 3 v 8 a 3 3 0 0 1 -3 3 h -8 l -5 4 v -4 h -1 a 3 3 0 0 1 -3 -3 v -8 a 3 3 0 0 1 3 -3 Z" fill="none" stroke="#9ca3af" stroke-width="1.6"/>
+    <text x="102" y="206" font-size="11" fill="#9ca3af">24</text>
+    <path d="M 132 208 v -8 a 4 4 0 0 1 4 -4 h 12 m 0 0 l -4 -4 m 4 4 l -4 4 M 160 196 v 8 a 4 4 0 0 1 -4 4 h -12 m 0 0 l 4 4 m -4 -4 l 4 -4" fill="none" stroke="#9ca3af" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M 186 202 q 8 -8 16 0 q -8 8 -16 0 Z" fill="none" stroke="#9ca3af" stroke-width="1.5"/>
+    <circle cx="194" cy="202" r="2" fill="#9ca3af"/>
+  </g>
+
+  <!-- РџРћРЎРў 2: РёР·РѕР±СЂР°Р¶РµРЅРёРµ -->
+  <g>
+    <rect x="12" y="228" width="366" height="198" rx="16" fill="#fff" stroke="#ece9fb"/>
+    <circle cx="40" cy="254" r="16" fill="#f59e0b"/>
+    <circle cx="35" cy="250" r="5" fill="rgba(255,255,255,0.85)"/>
+    <path d="M 29 266 a 11 11 0 0 1 22 0" fill="rgba(255,255,255,0.85)"/>
+    <text x="64" y="251" font-size="13" font-weight="700" fill="#111">Max Photo</text>
+    <text x="64" y="265" font-size="10" fill="#9ca3af">@maxp В· 3 С‡</text>
+    <rect x="24" y="278" width="342" height="100" rx="10" fill="url(#imgGrad)"/>
+    <circle cx="173" cy="328" r="14" fill="rgba(255,255,255,0.35)"/>
+    <circle cx="217" cy="328" r="14" fill="rgba(255,255,255,0.35)"/>
+    <circle cx="195" cy="328" r="14" fill="rgba(255,255,255,0.7)"/>
+    <path d="M 28 392 c -3 -4 -9 -2 -9 3 c 0 4 5 7 9 10 c 4 -3 9 -6 9 -10 c 0 -5 -6 -7 -9 -3 Z" fill="none" stroke="#9ca3af" stroke-width="1.6"/>
+    <text x="42" y="402" font-size="11" fill="#9ca3af">342</text>
+    <path d="M 80 391 h 14 a 3 3 0 0 1 3 3 v 8 a 3 3 0 0 1 -3 3 h -8 l -5 4 v -4 h -1 a 3 3 0 0 1 -3 -3 v -8 a 3 3 0 0 1 3 -3 Z" fill="none" stroke="#9ca3af" stroke-width="1.6"/>
+    <text x="102" y="402" font-size="11" fill="#9ca3af">51</text>
+    <path d="M 132 404 v -8 a 4 4 0 0 1 4 -4 h 12 m 0 0 l -4 -4 m 4 4 l -4 4 M 160 392 v 8 a 4 4 0 0 1 -4 4 h -12 m 0 0 l 4 4 m -4 -4 l 4 -4" fill="none" stroke="#9ca3af" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M 186 398 q 8 -8 16 0 q -8 8 -16 0 Z" fill="none" stroke="#9ca3af" stroke-width="1.5"/>
+    <circle cx="194" cy="398" r="2" fill="#9ca3af"/>
+  </g>
+
+
+  <!-- РџРћРЎРў 3: РІРёРґРµРѕ -->
+  <g>
+    <rect x="12" y="438" width="366" height="182" rx="16" fill="#fff" stroke="#ece9fb"/>
+    <circle cx="40" cy="464" r="16" fill="#10b981"/>
+    <circle cx="35" cy="460" r="5" fill="rgba(255,255,255,0.85)"/>
+    <path d="M 29 476 a 11 11 0 0 1 22 0" fill="rgba(255,255,255,0.85)"/>
+    <text x="64" y="461" font-size="13" font-weight="700" fill="#111">Nika</text>
+    <text x="64" y="475" font-size="10" fill="#9ca3af">@nika В· 5 С‡</text>
+    <rect x="24" y="488" width="342" height="84" rx="10" fill="url(#vidGrad)"/>
+    <circle cx="195" cy="530" r="18" fill="rgba(0,0,0,0.35)"/>
+    <path d="M 189 521 L 204 530 L 189 539 Z" fill="#fff"/>
+    <rect x="24" y="560" width="342" height="3" rx="1.5" fill="rgba(255,255,255,0.4)"/>
+    <rect x="24" y="560" width="90" height="3" rx="1.5" fill="#8b5cf6"/>
+    <path d="M 28 586 c -3 -4 -9 -2 -9 3 c 0 4 5 7 9 10 c 4 -3 9 -6 9 -10 c 0 -5 -6 -7 -9 -3 Z" fill="none" stroke="#9ca3af" stroke-width="1.6"/>
+    <text x="42" y="596" font-size="11" fill="#9ca3af">87</text>
+    <path d="M 80 585 h 14 a 3 3 0 0 1 3 3 v 8 a 3 3 0 0 1 -3 3 h -8 l -5 4 v -4 h -1 a 3 3 0 0 1 -3 -3 v -8 a 3 3 0 0 1 3 -3 Z" fill="none" stroke="#9ca3af" stroke-width="1.6"/>
+    <text x="102" y="596" font-size="11" fill="#9ca3af">9</text>
+    <path d="M 132 598 v -8 a 4 4 0 0 1 4 -4 h 12 m 0 0 l -4 -4 m 4 4 l -4 4 M 160 586 v 8 a 4 4 0 0 1 -4 4 h -12 m 0 0 l 4 4 m -4 -4 l 4 -4" fill="none" stroke="#9ca3af" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M 186 592 q 8 -8 16 0 q -8 8 -16 0 Z" fill="none" stroke="#9ca3af" stroke-width="1.5"/>
+    <circle cx="194" cy="592" r="2" fill="#9ca3af"/>
+  </g>
+
+  <!-- РџРћРЎРў 4: РІРѕР№СЃ -->
+  <g>
+    <rect x="12" y="632" width="366" height="92" rx="16" fill="#fff" stroke="#ece9fb"/>
+    <circle cx="40" cy="658" r="16" fill="#ef4444"/>
+    <circle cx="35" cy="654" r="5" fill="rgba(255,255,255,0.85)"/>
+    <path d="M 29 670 a 11 11 0 0 1 22 0" fill="rgba(255,255,255,0.85)"/>
+    <text x="64" y="655" font-size="13" font-weight="700" fill="#111">Р”РµРЅ</text>
+    <text x="64" y="669" font-size="10" fill="#9ca3af">@den В· 6 С‡</text>
+    <rect x="24" y="682" width="294" height="30" rx="15" fill="#f3efff"/>
+    <path d="M 36 690 L 36 704 M 41 686 L 41 708" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round"/>
+    <rect x="56"  y="693" width="3" height="8"  rx="1.5" fill="#8b5cf6"/>
+    <rect x="68"  y="690" width="3" height="14" rx="1.5" fill="#8b5cf6"/>
+    <rect x="80"  y="692" width="3" height="10" rx="1.5" fill="#8b5cf6"/>
+    <rect x="92"  y="688" width="3" height="18" rx="1.5" fill="#8b5cf6"/>
+    <rect x="104" y="691" width="3" height="12" rx="1.5" fill="#8b5cf6"/>
+    <rect x="116" y="689" width="3" height="16" rx="1.5" fill="#8b5cf6"/>
+    <rect x="128" y="693" width="3" height="9"  rx="1.5" fill="#8b5cf6"/>
+    <rect x="140" y="690" width="3" height="13" rx="1.5" fill="#8b5cf6"/>
+    <rect x="152" y="688" width="3" height="17" rx="1.5" fill="#d8cdfb"/>
+    <rect x="164" y="691" width="3" height="11" rx="1.5" fill="#d8cdfb"/>
+    <rect x="176" y="693" width="3" height="8"  rx="1.5" fill="#d8cdfb"/>
+    <rect x="188" y="689" width="3" height="15" rx="1.5" fill="#d8cdfb"/>
+    <rect x="200" y="692" width="3" height="10" rx="1.5" fill="#d8cdfb"/>
+    <text x="328" y="701" font-size="10" fill="#8b5cf6" font-weight="700">0:42</text>
+    <path d="M 28 716 c -3 -4 -9 -2 -9 3 c 0 4 5 7 9 10 c 4 -3 9 -6 9 -10 c 0 -5 -6 -7 -9 -3 Z" fill="none" stroke="#9ca3af" stroke-width="1.6"/>
+    <text x="42" y="726" font-size="11" fill="#9ca3af">45</text>
+    <path d="M 80 715 h 14 a 3 3 0 0 1 3 3 v 8 a 3 3 0 0 1 -3 3 h -8 l -5 4 v -4 h -1 a 3 3 0 0 1 -3 -3 v -8 a 3 3 0 0 1 3 -3 Z" fill="none" stroke="#9ca3af" stroke-width="1.6"/>
+    <text x="102" y="726" font-size="11" fill="#9ca3af">6</text>
+    <path d="M 132 728 v -8 a 4 4 0 0 1 4 -4 h 12 m 0 0 l -4 -4 m 4 4 l -4 4 M 160 716 v 8 a 4 4 0 0 1 -4 4 h -12 m 0 0 l 4 4 m -4 -4 l 4 -4" fill="none" stroke="#9ca3af" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M 186 722 q 8 -8 16 0 q -8 8 -16 0 Z" fill="none" stroke="#9ca3af" stroke-width="1.5"/>
+    <circle cx="194" cy="722" r="2" fill="#9ca3af"/>
+  </g>
+
+
+  <!-- РџРћРЎРў 5: СЂРµРїРѕСЃС‚ -->
+  <g>
+    <rect x="12" y="736" width="366" height="150" rx="16" fill="#fff" stroke="#ece9fb"/>
+    <circle cx="40" cy="762" r="16" fill="#06b6d4"/>
+    <circle cx="35" cy="758" r="5" fill="rgba(255,255,255,0.85)"/>
+    <path d="M 29 774 a 11 11 0 0 1 22 0" fill="rgba(255,255,255,0.85)"/>
+    <text x="64" y="759" font-size="13" font-weight="700" fill="#111">Р›РёР·Р°</text>
+    <text x="64" y="773" font-size="10" fill="#9ca3af">@liza В· 8 С‡</text>
+    <text x="28" y="794" font-size="11" fill="#6b7280">рџ”Ѓ Р›РёР·Р° РїРѕРґРµР»РёР»Р°СЃСЊ РїРѕСЃС‚РѕРј РђРЅРё</text>
+    <rect x="24" y="802" width="342" height="70" rx="10" fill="#faf9ff" stroke="#ece9fb"/>
+    <circle cx="42" cy="820" r="9" fill="#8b5cf6" opacity="0.8"/>
+    <text x="58" y="818" font-size="11" font-weight="700" fill="#111">РђРЅСЏ РљРѕРІР°Р»С‘РІР°</text>
+    <text x="58" y="833" font-size="10.5" fill="#6b7280">Р›СѓС‡С€РёР№ Р·Р°РїСѓСЃРє Р·Р° РґРѕР»РіРѕРµ РІСЂРµРјСЏвЂ¦</text>
+    <path d="M 28 866 c -3 -4 -9 -2 -9 3 c 0 4 5 7 9 10 c 4 -3 9 -6 9 -10 c 0 -5 -6 -7 -9 -3 Z" fill="none" stroke="#9ca3af" stroke-width="1.6"/>
+    <text x="42" y="876" font-size="11" fill="#9ca3af">19</text>
+    <path d="M 80 865 h 14 a 3 3 0 0 1 3 3 v 8 a 3 3 0 0 1 -3 3 h -8 l -5 4 v -4 h -1 a 3 3 0 0 1 -3 -3 v -8 a 3 3 0 0 1 3 -3 Z" fill="none" stroke="#9ca3af" stroke-width="1.6"/>
+    <text x="102" y="876" font-size="11" fill="#9ca3af">2</text>
+    <path d="M 132 878 v -8 a 4 4 0 0 1 4 -4 h 12 m 0 0 l -4 -4 m 4 4 l -4 4 M 160 866 v 8 a 4 4 0 0 1 -4 4 h -12 m 0 0 l 4 4 m -4 -4 l 4 -4" fill="none" stroke="#9ca3af" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M 186 872 q 8 -8 16 0 q -8 8 -16 0 Z" fill="none" stroke="#9ca3af" stroke-width="1.5"/>
+    <circle cx="194" cy="872" r="2" fill="#9ca3af"/>
+  </g>
+
+  <!-- РљРЅРѕРїРєР° РѕСЂР±РёС‚С‹ (РїСЂР°РІС‹Р№ РєСЂР°Р№) СЃ СЂР°СЃРєСЂС‹С‚РѕР№ РґСѓРіРѕР№ РІРІРµСЂС… -->
+  <g>
+    <path d="M 362 372 A 96 96 0 0 0 266 276" fill="none" stroke="rgba(139,92,246,0.5)" stroke-width="2" stroke-dasharray="5 5"/>
+    <circle cx="182" cy="372" r="19" fill="#fff" stroke="#e5dcfb"/>
+    <circle cx="182" cy="372" r="5" fill="#8b5cf6" opacity="0.75"/>
+    <text x="182" y="403" text-anchor="middle" font-size="9" fill="#6b7280">Р”РѕРј</text>
+    <circle cx="224.1" cy="304.1" r="19" fill="#fff" stroke="#e5dcfb"/>
+    <circle cx="224.1" cy="304.1" r="5" fill="#8b5cf6" opacity="0.75"/>
+    <text x="224" y="335" text-anchor="middle" font-size="9" fill="#6b7280">Р§Р°С‚С‹</text>
+    <circle cx="362" cy="276" r="19" fill="#fff" stroke="#e5dcfb"/>
+    <circle cx="362" cy="276" r="5" fill="#8b5cf6" opacity="0.75"/>
+    <text x="362" y="307" text-anchor="middle" font-size="9" fill="#6b7280">РЈРІРµРґ.</text>
+    <rect x="344" y="344" width="52" height="56" rx="28" fill="#fff" stroke="#e5dcfb"/>
+    <circle cx="370" cy="372" r="11" fill="none" stroke="#8b5cf6" stroke-width="1.8" stroke-dasharray="40 12"/>
+    <circle cx="370" cy="361" r="3" fill="#8b5cf6"/>
+    <circle cx="378" cy="379" r="2.4" fill="#8b5cf6" opacity="0.7"/>
+    <circle cx="362" cy="379" r="2.4" fill="#8b5cf6" opacity="0.7"/>
+  </g>
+
+  <!-- РЅРёР¶РЅРёР№ СЃРєРµР»РµС‚РѕРЅ-Р±Р°СЂ -->
+  <g>
+    <rect x="12" y="766" width="366" height="62" rx="18" fill="#fff" stroke="#ece9fb"/>
+    <circle cx="52"  cy="796" r="11" fill="#8b5cf6"/>
+    <rect x="44"  y="812" width="16" height="4" rx="2" fill="#eceaf6"/>
+    <circle cx="124" cy="796" r="11" fill="#eceaf6"/>
+    <rect x="116" y="812" width="16" height="4" rx="2" fill="#eceaf6"/>
+    <circle cx="196" cy="796" r="11" fill="#eceaf6"/>
+    <rect x="188" y="812" width="16" height="4" rx="2" fill="#eceaf6"/>
+    <circle cx="268" cy="796" r="11" fill="#eceaf6"/>
+    <rect x="260" y="812" width="16" height="4" rx="2" fill="#eceaf6"/>
+    <circle cx="340" cy="796" r="11" fill="#eceaf6"/>
+    <rect x="332" y="812" width="16" height="4" rx="2" fill="#eceaf6"/>
+  </g>
+</svg>

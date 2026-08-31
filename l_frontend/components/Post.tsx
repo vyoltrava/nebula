@@ -5,7 +5,7 @@ import { STICKERS } from "@/lib/stickers";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, HeartCrack, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio, Eye } from "lucide-react";
+import { Heart, HeartCrack, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio, Eye, Smile, X, Lock } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
 import { safeFetch } from "@/lib/ban";
@@ -20,7 +20,8 @@ import { getCachedUser } from "@/lib/authCache";
 import { timeAgo } from "@/lib/time";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import LinkPreview from "@/components/LinkPreview";
-import { EchoModal } from "@/components/EchoModal"; // РРјРїРѕСЂС‚РёСЂСѓеРј модалку
+import { EchoModal } from "@/components/EchoModal";
+import { useQuickPostReaction } from "@/lib/useQuickReaction";
 import dynamic from "next/dynamic";
 
 // 🚀 react-markdown тяжёлый — ленивая загрузка
@@ -273,6 +274,14 @@ export function Post({
     const [isEdited, setIsEdited] = useState(false);
     const [savingEdit, setSavingEdit] = useState(false);
     const [showEcho, setShowEcho] = useState(false); // Состояние для Эхо
+    // 🆕 Реакции на посты (одна реакция на юзера)
+    const [postReactions, setPostReactions] = useState<any[]>([]);
+    const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
+    const [reactionPacks, setReactionPacks] = useState<any[]>([]);
+    const [reactionPackTab, setReactionPackTab] = useState(0);
+    const reactionPacksFetchedRef = useRef(false);
+    const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const { reaction: quickPostReaction } = useQuickPostReaction();
     const router = useRouter();
     const { t } = useI18n();
 
@@ -389,6 +398,81 @@ useEffect(() => {
       window.addEventListener("dislike-state-sync", handler);
       return () => window.removeEventListener("dislike-state-sync", handler);
     }, [id]);
+
+  // ===== 🆕 РЕАКЦИИ НА ПОСТЫ =====
+  async function loadPostReactions() {
+    try {
+      const token = getToken();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/reactions`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPostReactions(Array.isArray(data.reactions) ? data.reactions : []);
+      }
+    } catch {}
+  }
+
+  useEffect(() => { loadPostReactions(); }, [id]);
+
+  async function loadReactionPacks() {
+    if (reactionPacksFetchedRef.current) return;
+    reactionPacksFetchedRef.current = true;
+    try {
+      const token = getToken();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/post-reactions`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) setReactionPacks(await res.json());
+    } catch {}
+  }
+
+  function openReactionPicker() {
+    loadReactionPacks();
+    setReactionPickerOpen(true);
+  }
+
+  const myReaction = postReactions.find((r) => r.mine) || null;
+  const totalReactions = postReactions.reduce((acc, r) => acc + (r.count || 0), 0);
+
+  async function togglePostReaction(r: { type: string; content: string; sticker_id?: number | null }) {
+    const token = getToken();
+    if (!token) { router.push("/login"); return; }
+    const form = new FormData();
+    if (r.type === "sticker" && r.sticker_id) form.append("sticker_id", String(r.sticker_id));
+    else if (r.type === "emoji") form.append("emoji", r.content);
+    try {
+      const res = await safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/reactions`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPostReactions(Array.isArray(data.reactions) ? data.reactions : []);
+      }
+    } catch {}
+  }
+
+  // Одиночный клик по кнопке реакции:
+  // есть своя реакция → снять её; нет своей, но выбрана быстрая → поставить быструю; иначе открыть пикер
+  function handleReactionButton() {
+    if (!getToken()) { router.push("/login"); return; }
+    if (myReaction) {
+      togglePostReaction({ type: myReaction.type, content: myReaction.content, sticker_id: myReaction.sticker_id });
+    } else if (quickPostReaction) {
+      togglePostReaction({ type: quickPostReaction.type, content: quickPostReaction.content, sticker_id: quickPostReaction.stickerId ?? null });
+    } else {
+      openReactionPicker();
+    }
+  }
+
+  function startReactionLongPress() {
+    longPressTimerRef.current = setTimeout(openReactionPicker, 500);
+  }
+  function cancelReactionLongPress() {
+    if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); longPressTimerRef.current = null; }
+  }
 
 // Было:
 // setCount((c) => (next ? c + 1 : c - 1));
@@ -903,36 +987,44 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
           ) : (
           <div className="flex items-center gap-3 mt-3 flex-wrap">
           <div className="flex items-center rounded-full border border-line dark:border-white/20 overflow-hidden hover:bg-gray-100 dark:hover:bg-white/10">
-            {/* Лайк: счётчик слева, сердечко ближе к центру */}
+            {/* 🆕 ЕДИНАЯ КНОПКА РЕАКЦИИ: клик — поставить/снять свою; удержание или правый клик — пикер */}
             <button
-              onClick={toggleLike}
-              className={`flex items-center gap-1 py-1 pl-2.5 pr-1.5 transition-all ${
-                liked
+              onClick={(e) => { e.stopPropagation(); handleReactionButton(); }}
+              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); openReactionPicker(); }}
+              onTouchStart={(e) => { e.stopPropagation(); startReactionLongPress(); }}
+              onTouchEnd={cancelReactionLongPress}
+              onTouchMove={cancelReactionLongPress}
+              className={`flex items-center gap-1 py-1 pl-2.5 pr-2 transition-all ${
+                myReaction
                   ? "bg-[#8B5CF6] text-white"
-                  : "text-gray-800 dark:text-white/70 hover:text-pink-500"
+                  : "text-gray-800 dark:text-white/70 hover:text-[#8b5cf6]"
               }`}
-              title={liked ? "Отменить лайк" : "Лайк"}
+              title="Удерживайте или нажмите правой кнопкой для выбора реакции"
             >
-              <span className="text-xs font-semibold leading-none">{count}</span>
-              <Heart size={13} />
+              {myReaction ? (
+                myReaction.type === "sticker" ? (
+                  <img src={myReaction.content} alt="" className="w-4 h-4 object-contain" />
+                ) : (
+                  <span className="text-[13px] leading-none">{myReaction.content}</span>
+                )
+              ) : (
+                <Smile size={13} />
+              )}
             </button>
 
-            {/* Разделитель */}
-            <div className="w-px self-stretch my-1.5 bg-line dark:bg-white/20" />
-
-            {/* Дизлайк: разбитое сердечко ближе к центру, счётчик справа */}
-            <button
-              onClick={toggleDislike}
-              className={`flex items-center gap-1 py-1 pl-1.5 pr-2.5 transition-all ${
-                disliked
-                  ? "bg-red-500 text-white"
-                  : "text-gray-800 dark:text-white/70 hover:text-red-500"
-              }`}
-              title={disliked ? "Отменить дизлайк" : "Дизлайк"}
-            >
-              <HeartCrack size={13} />
-              <span className="text-xs font-semibold leading-none">{dislikeCount}</span>
-            </button>
+            {/* Общий счётчик всех реакций */}
+            {totalReactions > 0 && (
+              <>
+                <div className="w-px self-stretch my-1.5 bg-line dark:bg-white/20" />
+                <button
+                  onClick={(e) => { e.stopPropagation(); openReactionPicker(); }}
+                  className="py-1 px-2.5 text-xs font-semibold leading-none text-gray-800 dark:text-white/70 transition-all"
+                  title="Все реакции"
+                >
+                  {totalReactions}
+                </button>
+              </>
+            )}
           </div>
             <BookmarkButton postId={id} initial={bookmarked} />
 
@@ -1066,6 +1158,95 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
 
       {/* 🔊 ЭХО-МОДАЛКА (Открывается по клику на иконку Radio) */}
       {showEcho && <EchoModal postId={id} onClose={() => setShowEcho(false)} />}
+
+      {/* 🆕 ПИКЕР РЕАКЦИЙ НА ПОСТ (удержание / правый клик) */}
+      {reactionPickerOpen && (
+        <>
+          <div className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm" onClick={() => setReactionPickerOpen(false)} />
+          <div className="fixed inset-0 z-[261] flex items-center justify-center p-4 pointer-events-none">
+            <div className="w-full max-w-sm max-h-[80vh] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
+              <div className="shrink-0 p-3 pb-2 border-b border-line dark:border-white/10">
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <p className="text-xs font-bold text-gray-600 dark:text-white/60">Выбрать реакцию</p>
+                  <button onClick={() => setReactionPickerOpen(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                    <X size={14} />
+                  </button>
+                </div>
+                {/* Вкладки паков */}
+                <div className="flex gap-1 overflow-x-auto scrollbar-hide pb-1">
+                  {reactionPacks.map((pack, i) => (
+                    <button
+                      key={pack.id ?? i}
+                      onClick={() => setReactionPackTab(i)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap shrink-0 transition-all ${
+                        reactionPackTab === i ? "bg-[#8b5cf6] text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50"
+                      }`}
+                    >
+                      {pack.locked && <Lock size={10} className="text-yellow-600 dark:text-yellow-400" />}
+                      {pack.name}
+                    </button>
+                  ))}
+                  {reactionPacks.length === 0 && (
+                    <span className="text-[11px] text-gray-500 dark:text-white/40 px-1 py-1.5">Реакции недоступны</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-3 min-h-0">
+                {reactionPacks[reactionPackTab] ? (
+                  reactionPacks[reactionPackTab].locked ? (
+                    <div className="flex flex-col items-center gap-2 py-8 text-center">
+                      <div className="w-12 h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
+                        <Lock size={18} className="text-yellow-600 dark:text-yellow-400" />
+                      </div>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">Пак недоступен</p>
+                      <p className="text-[11px] text-gray-500 dark:text-white/40">Реакции из этого пака откроются с ростом уровня.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-5 gap-2">
+                      {(reactionPacks[reactionPackTab].stickers || []).map((st: any) => {
+                        const type = st.type === "image" ? "sticker" : "emoji";
+                        const countEntry = postReactions.find((r) =>
+                          type === "sticker" ? r.sticker_id === Number(st.id) : r.type === "emoji" && r.content === st.content
+                        );
+                        const isMine = !!countEntry?.mine;
+                        return (
+                          <button
+                            key={st.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              togglePostReaction({ type, content: st.content, sticker_id: type === "sticker" ? Number(st.id) : null });
+                              setReactionPickerOpen(false);
+                            }}
+                            className={`relative aspect-square flex items-center justify-center rounded-xl transition-all active:scale-90 ${
+                              isMine ? "ring-2 ring-[#8b5cf6] bg-[#8b5cf6]/20" : "hover:bg-gray-100 dark:hover:bg-white/10"
+                            }`}
+                          >
+                            {type === "emoji" ? (
+                              <span className="text-2xl">{st.content}</span>
+                            ) : (
+                              <img src={st.content} alt="" className="w-10 h-10 object-contain" />
+                            )}
+                            {(countEntry?.count ?? 0) > 0 && (
+                              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[9px] font-bold flex items-center justify-center">
+                                {countEntry.count}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )
+                ) : (
+                  <div className="py-8 text-center text-sm text-gray-600 dark:text-white/50">
+                    {reactionPacks.length === 0 ? "Админ ещё не настроил реакции для постов" : "Выберите пак"}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {showReport && (
         <ReportModal

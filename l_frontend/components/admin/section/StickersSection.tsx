@@ -4,7 +4,7 @@ import { getToken } from "@/lib/auth";
 import { STICKERS } from "@/lib/stickers";
 import { UserSearchField } from "@/components/UserSearchField";
 import { 
-  SmilePlus, Plus, Edit3, Trash2, X, Globe, Lock, Loader2, 
+  SmilePlus, Plus, Edit3, Trash2, X, Globe, Lock, Loader2, Smile,
   FolderOpen, Upload, Image as ImageIcon, Sparkles, Palette 
 } from "lucide-react";
 import { Button, IconButton } from "@/components/ui/Button";
@@ -43,6 +43,11 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
   const modalFileRef = useRef<HTMLInputElement | null>(null);
   const modalFolderRef = useRef<HTMLInputElement | null>(null);
 
+  // === 🆕 РЕАКЦИИ НА ПОСТЫ (админ-конфиг) ===
+  const [showReactionConfig, setShowReactionConfig] = useState(false);
+  const [reactionPacks, setReactionPacks] = useState<any[]>([]);
+  const [savingReactionPacks, setSavingReactionPacks] = useState(false);
+
   // === ЗНАЧКИ (BADGES) ===
   const [badges, setBadges] = useState<any[]>([]);
   const [showBadgeEditor, setShowBadgeEditor] = useState(false);
@@ -62,12 +67,43 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
 
   async function loadData() {
     const token = getToken();
-    const [packsRes, badgesRes] = await Promise.all([
+    const [packsRes, badgesRes, reactionsRes] = await Promise.all([
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/sticker-packs`, { headers: { Authorization: `Bearer ${token}` } }),
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/badges`, { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/post-reaction-packs`, { headers: { Authorization: `Bearer ${token}` } }),
     ]);
     if (packsRes.ok) setPacks(await packsRes.json());
     if (badgesRes.ok) setBadges(await badgesRes.json());
+    if (reactionsRes.ok) setReactionPacks(await reactionsRes.json());
+  }
+
+  // 🆕 Сохранить, какие паки доступны в реакциях на посты
+  async function saveReactionPacks() {
+    const token = getToken();
+    setSavingReactionPacks(true);
+    try {
+      const enabledIds = reactionPacks.filter((p) => p.enabled).map((p) => p.id);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/post-reaction-packs`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+        body: (() => { const f = new FormData(); f.append("pack_ids", JSON.stringify(enabledIds)); return f; })(),
+      });
+      if (res.ok) {
+        setShowReactionConfig(false);
+        loadData();
+      } else {
+        const err = await res.json().catch(() => null);
+        alert(err?.detail || "Ошибка сохранения");
+      }
+    } catch {
+      alert("Ошибка сети");
+    } finally {
+      setSavingReactionPacks(false);
+    }
+  }
+
+  function toggleReactionPack(id: number) {
+    setReactionPacks((prev) => prev.map((p) => (p.id === id ? { ...p, enabled: !p.enabled } : p)));
   }
 
   async function uploadStockBadges() {
@@ -320,7 +356,10 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
       {/* ==================== ВКЛАДКА СТИКЕРОВ ==================== */}
       {activeTab === "stickers" && (
         <div className="space-y-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <button onClick={() => { loadData(); setShowReactionConfig(true); }} className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#8b5cf6] text-[#8b5cf6] text-sm font-bold hover:bg-[#8b5cf6]/10">
+              <Smile size={16} /> Реакции на посты
+            </button>
             <button onClick={() => {
               setEditingPack({ id: null, name: "", min_level: 1, is_active: true });
               setSelectedEmojis([]); setPendingFiles([]); setPendingFileUrls([]);
@@ -748,6 +787,62 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                 <Button loading={uploadingStock} onClick={uploadStockBadges} disabled={uploadingStock || !stockBadgeName.trim() || stockFiles.length === 0} className="flex-1">
                   {uploadingStock ? "" : "Загрузить"}
                 </Button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 🆕 МОДАЛКА: РЕАКЦИИ НА ПОСТЫ */}
+      {showReactionConfig && (
+        <>
+          <div className="fixed inset-0 z-[400] bg-black/60 backdrop-blur-sm" onClick={() => setShowReactionConfig(false)} />
+          <div className="fixed inset-0 z-[401] flex items-center justify-center p-4 pointer-events-none">
+            <div className="w-full max-w-md max-h-[80vh] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
+              <div className="shrink-0 p-4 pb-3 border-b border-line dark:border-white/10 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">Реакции на посты</p>
+                  <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">
+                    Выберите паки, смайлики которых пользователи смогут ставить на посты (по одной реакции на юзера)
+                  </p>
+                </div>
+                <button onClick={() => setShowReactionConfig(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 min-h-0 space-y-2">
+                {reactionPacks.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-white/40 text-center py-6">Паков пока нет</p>
+                ) : (
+                  reactionPacks.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between gap-3 p-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
+                          {p.name}
+                          {!p.is_active && <span className="ml-2 text-[10px] font-bold text-red-500">пак выключен</span>}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-white/40">{p.stickers_count} реакций в паке</p>
+                      </div>
+                      <button
+                        onClick={() => toggleReactionPack(p.id)}
+                        className={`shrink-0 w-11 h-6 rounded-full relative transition-colors ${p.enabled ? "bg-[#8b5cf6]" : "bg-gray-300 dark:bg-white/20"}`}
+                        title={p.enabled ? "Выключить для постов" : "Включить для постов"}
+                      >
+                        <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${p.enabled ? "left-[22px]" : "left-0.5"}`} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="shrink-0 p-4 pt-3 border-t border-line dark:border-white/10 flex gap-2">
+                <button onClick={() => setShowReactionConfig(false)} className="flex-1 px-4 py-2.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm font-bold hover:bg-gray-200 dark:hover:bg-white/10 transition-colors">
+                  Отмена
+                </button>
+                <button onClick={saveReactionPacks} disabled={savingReactionPacks} className="flex-1 px-4 py-2.5 rounded-lg bg-[#8b5cf6] text-white text-sm font-bold hover:bg-[#7c3aed] disabled:opacity-50 transition-colors flex items-center justify-center gap-2">
+                  {savingReactionPacks && <Loader2 size={14} className="animate-spin" />} Сохранить
+                </button>
               </div>
             </div>
           </div>

@@ -7,6 +7,15 @@ export type QuickReaction = { type: "emoji" | "sticker"; content: string; sticke
 export const EMOJIS = ["❤️", "👍", "😂", "😮", "😢", "🔥", "👏", "🎉", "✅", "❤️‍🔥"];
 
 const keyForUser = (id: number | null) => `quick_reaction_${id ?? 0}`;
+const postKeyForUser = (id: number | null) => `quick_post_reaction_${id ?? 0}`;
+
+function readKey(key: string): QuickReaction | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw) as QuickReaction;
+  } catch {}
+  return null;
+}
 
 function readReaction(uid: number | null): QuickReaction | null {
   try {
@@ -22,38 +31,48 @@ function readReaction(uid: number | null): QuickReaction | null {
   return null;
 }
 
-export function useQuickReaction() {
-  const [reaction, setReaction] = useState<QuickReaction | null>(() => {
-    if (typeof window === 'undefined') return null;
-    return readReaction(getActiveAccount()?.userId ?? null);
-  });
+function makeQuickReactionHook(storageKeyFor: (uid: number | null) => string) {
+  return function useQuickReactionStore() {
+    const [reaction, setReaction] = useState<QuickReaction | null>(() => {
+      if (typeof window === 'undefined') return null;
+      return readKey(storageKeyFor(getActiveAccount()?.userId ?? null));
+    });
 
-  const reload = useCallback(() => {
-    const uid = getActiveAccount()?.userId ?? null;
-    setReaction(readReaction(uid));
-  }, []);
+    const reload = useCallback(() => {
+      const uid = getActiveAccount()?.userId ?? null;
+      setReaction(readKey(storageKeyFor(uid)));
+    }, []);
 
-  useEffect(() => {
-    const onAccounts = () => reload();
-    window.addEventListener("accounts-changed", onAccounts);
-    window.addEventListener("storage", onAccounts);
-    return () => {
-      window.removeEventListener("accounts-changed", onAccounts);
-      window.removeEventListener("storage", onAccounts);
+    useEffect(() => {
+      const onAccounts = () => reload();
+      window.addEventListener("accounts-changed", onAccounts);
+      window.addEventListener("storage", onAccounts);
+      return () => {
+        window.removeEventListener("accounts-changed", onAccounts);
+        window.removeEventListener("storage", onAccounts);
+      };
+    }, [reload]);
+
+    const save = (r: QuickReaction) => {
+      const uid = getActiveAccount()?.userId ?? null;
+      setReaction(r);
+      try { localStorage.setItem(storageKeyFor(uid), JSON.stringify(r)); } catch {}
     };
-  }, [reload]);
 
-  const save = (r: QuickReaction) => {
-    const uid = getActiveAccount()?.userId ?? null;
-    setReaction(r);
-    try { localStorage.setItem(keyForUser(uid), JSON.stringify(r)); } catch {}
+    const clear = () => {
+      const uid = getActiveAccount()?.userId ?? null;
+      setReaction(null);
+      try { localStorage.removeItem(storageKeyFor(uid)); } catch {}
+    };
+
+    return { reaction, save, clear, EMOJIS };
   };
+}
 
-  const clear = () => {
-    const uid = getActiveAccount()?.userId ?? null;
-    setReaction(null);
-    try { localStorage.removeItem(keyForUser(uid)); } catch {}
-  };
+export function useQuickReaction() {
+  return makeQuickReactionHook(keyForUser)();
+}
 
-  return { reaction, save, clear, EMOJIS };
+export function useQuickPostReaction() {
+  return makeQuickReactionHook(postKeyForUser)();
 }

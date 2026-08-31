@@ -437,6 +437,18 @@ class MessageReaction(SQLModel, table=True):
 
 
 
+class PostReaction(SQLModel, table=True):
+    """Реакция на пост (стикер или эмодзи). Одна реакция на пользователя на пост."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    post_id: int = Field(foreign_key="post.id")
+    user_id: int = Field(foreign_key="user.id")
+    sticker_id: Optional[int] = Field(default=None, foreign_key="sticker.id")
+    emoji: Optional[str] = Field(default=None, max_length=16)  # fallback
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+
+
 class LastReadPost(SQLModel, table=True):
     """Один последний читаемый пост на пользователя (вместо прогресса скролла)"""
     __tablename__ = "lastreadpost"

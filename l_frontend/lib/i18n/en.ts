@@ -853,6 +853,8 @@ user: {
 },
 appearance: {
   quickReactionHint: "Double-tap a message to send this reaction",
+  quickPostReaction: "Quick post reaction",
+  quickPostReactionHint: "Single click on the post reaction button sets this reaction (only post-enabled packs)",
   sticker: "Sticker",
   emoji: "Emoji",
   emojiTab: "Emoji",

@@ -55,7 +55,7 @@ from models import (
     User, Post, Like, Dislike, Follow, Notification, Tag, PostTag, Role,
     Chat, ChatMember, Message, Report, UserKey, ChatSessionKey,
     IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead,
-    PushSubscription, StickerPack, Sticker, MessageReaction, Theme, SystemSetting,
+    PushSubscription, StickerPack, Sticker, MessageReaction, PostReaction, Theme, SystemSetting,
     RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge,
     CustomBadge, CustomBadgeTemplate, CustomBadgeAssignment, SystemBadge,
     SuggestionCategory, SuggestionThread, SuggestionThreadComment, TeamStatistic, RoleHistory, NickHistory, Suggestion, SuggestionComment, ChatDraft 
@@ -644,6 +644,7 @@ async def cascade_delete_post(post_id: int, session: Session):
 
     # 2. Массовые DELETE (ОПТИМИЗАЦИЯ 1)
     session.exec(delete(Like).where(Like.post_id.in_(id_list)))
+    session.exec(delete(PostReaction).where(PostReaction.post_id.in_(id_list)))
     session.exec(delete(Dislike).where(Dislike.post_id.in_(id_list)))
     session.exec(delete(PostTag).where(PostTag.post_id.in_(id_list)))
     session.exec(delete(Notification).where(Notification.post_id.in_(id_list)))
@@ -4356,6 +4357,46 @@ def admin_reorder_stickers(
 # ============================================================
 # 💬 АДМИНКА: МОДЕРАЦИЯ ЧАТОВ (право manage_groups)
 # ============================================================
+# ---------- АДМИНКА: настройка реакций на посты ----------
+
+@app.get("/api/admin/post-reaction-packs")
+def admin_get_post_reaction_packs(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    if not has_permission(user, "manage_stickers", session):
+        raise HTTPException(403, "Нет права: manage_stickers")
+    enabled_ids = set(get_post_reaction_pack_ids(session))
+    packs = session.exec(select(StickerPack).order_by(StickerPack.id)).all()
+    return [{
+        "id": p.id,
+        "name": p.name,
+        "is_active": p.is_active,
+        "enabled": p.id in enabled_ids,
+        "stickers_count": session.exec(
+            select(func.count(Sticker.id)).where(Sticker.pack_id == p.id)
+        ).one(),
+    } for p in packs]
+
+
+@app.put("/api/admin/post-reaction-packs")
+def admin_set_post_reaction_packs(
+    pack_ids: str = Form(...),  # JSON массив id паков
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    if not has_permission(user, "manage_stickers", session):
+        raise HTTPException(403, "Нет права: manage_stickers")
+    try:
+        ids = json.loads(pack_ids)
+        if not isinstance(ids, list):
+            raise ValueError
+    except Exception:
+        raise HTTPException(400, "pack_ids должен быть JSON массивом")
+    set_post_reaction_pack_ids(session, [int(i) for i in ids])
+    return {"ok": True, "pack_ids": get_post_reaction_pack_ids(session)}
+
+
 @app.get("/api/admin/chats")
 def admin_list_chats(
     staff: User = Depends(require_staff),
@@ -5557,6 +5598,188 @@ def get_sticker_packs(
         })
     
     return result
+
+
+# ============================================================
+# 😀 РЕАКЦИИ НА ПОСТЫ (одна реакция на пользователя на пост)
+# ============================================================
+
+POST_REACTION_SETTING_KEY = "post_reaction_packs"
+
+
+def get_post_reaction_pack_ids(session: Session) -> list:
+    """ID паков, включённых админом для реакций на посты"""
+    row = session.get(SystemSetting, POST_REACTION_SETTING_KEY)
+    if not row or not row.value:
+        return []
+    try:
+        data = json.loads(row.value)
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def set_post_reaction_pack_ids(session: Session, pack_ids: list):
+    row = session.get(SystemSetting, POST_REACTION_SETTING_KEY)
+    if row:
+        row.value = json.dumps(pack_ids)
+        row.updated_at = datetime.now(timezone.utc)
+    else:
+        session.add(SystemSetting(key=POST_REACTION_SETTING_KEY, value=json.dumps(pack_ids)))
+    session.commit()
+
+
+@app.get("/api/post-reactions")
+def get_post_reactions_config(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Паки, включённые админом для реакций на посты (с учётом уровня юзера)"""
+    enabled_ids = set(get_post_reaction_pack_ids(session))
+    if not enabled_ids:
+        return []
+    packs = session.exec(
+        select(StickerPack).where(StickerPack.is_active == True).order_by(StickerPack.id)
+    ).all()
+    user_level = get_user_level(user, session)
+
+    result = []
+    for p in packs:
+        if p.id not in enabled_ids:
+            continue
+        locked = (user_level < p.min_level) and not user.is_admin
+        stickers = session.exec(
+            select(Sticker).where(Sticker.pack_id == p.id).order_by(Sticker.order)
+        ).all()
+        result.append({
+            "id": p.id,
+            "name": p.name,
+            "locked": locked,
+            "stickers": [{
+                "id": s.id,
+                "type": s.type,
+                "content": s.content,
+            } for s in stickers],
+        })
+    return result
+
+
+@app.get("/api/posts/{post_id}/reactions")
+def get_post_reactions(
+    post_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Реакции поста с агрегацией и флагом 'моя'"""
+    return {"reactions": build_post_reactions_map(session, [post_id], user.id).get(post_id, [])}
+
+
+def build_post_reactions_map(session: Session, post_ids: list, current_user_id: int) -> dict:
+    """Массово собирает реакции на посты: {post_id: [{type, content, count, mine}]}"""
+    if not post_ids:
+        return {}
+
+    rows = session.exec(
+        select(PostReaction).where(PostReaction.post_id.in_(post_ids))
+    ).all()
+
+    sticker_ids = [r.sticker_id for r in rows if r.sticker_id]
+    stickers_map = {}
+    if sticker_ids:
+        for s in session.exec(select(Sticker).where(Sticker.id.in_(sticker_ids))).all():
+            stickers_map[s.id] = s
+
+    grouped: dict = {}
+    for r in rows:
+        grouped.setdefault(r.post_id, {})
+        if r.sticker_id:
+            key = f"sticker_{r.sticker_id}"
+            sticker = stickers_map.get(r.sticker_id)
+            if not sticker:
+                continue
+            content = sticker.content
+            rtype = "sticker" if sticker.type == "image" else "emoji"
+        else:
+            if not r.emoji:
+                continue
+            key = f"emoji_{r.emoji}"
+            content = r.emoji
+            rtype = "emoji"
+
+        entry = grouped[r.post_id].setdefault(key, {"type": rtype, "content": content, "count": 0, "mine": False, "sticker_id": r.sticker_id})
+        entry["count"] += 1
+        if r.user_id == current_user_id:
+            entry["mine"] = True
+
+    result = {}
+    for pid, reactions in grouped.items():
+        result[pid] = sorted(reactions.values(), key=lambda x: -x["count"])
+    return result
+
+
+@app.post("/api/posts/{post_id}/reactions")
+async def toggle_post_reaction(
+    post_id: int,
+    sticker_id: int = Form(None),
+    emoji: str = Form(None),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Toggle реакции на пост. У пользователя ТОЛЬКО ОДНА реакция на пост:
+    клик по другой реакции — заменяет, по той же — снимает."""
+    post = session.get(Post, post_id)
+    if not post:
+        raise HTTPException(404, "Пост не найден")
+
+    # Валидация стикера: должен принадлежать паку, включённому для постов
+    sticker_obj = None
+    if sticker_id:
+        sticker_obj = session.get(Sticker, sticker_id)
+        if not sticker_obj:
+            raise HTTPException(404, "Стикер не найден")
+        enabled_ids = set(get_post_reaction_pack_ids(session))
+        if sticker_obj.pack_id not in enabled_ids:
+            raise HTTPException(403, "🔒 Эта реакция недоступна для постов")
+        pack = session.get(StickerPack, sticker_obj.pack_id)
+        user_level = get_user_level(user, session)
+        if not pack.is_active or (user_level < pack.min_level and not user.is_admin):
+            raise HTTPException(403, "🔒 Стикер недоступен")
+    elif not emoji:
+        raise HTTPException(400, "Укажите sticker_id или emoji")
+
+    # Одна реакция на пользователя на пост: снимаем предыдущую, если она другая
+    existing = session.exec(select(PostReaction).where(
+        PostReaction.post_id == post_id,
+        PostReaction.user_id == user.id,
+    )).first()
+
+    if existing:
+        same = (
+            (sticker_obj and existing.sticker_id == sticker_id)
+            or (not sticker_obj and existing.sticker_id is None and existing.emoji == emoji)
+        )
+        session.delete(existing)
+        session.commit()
+        if not same:
+            # Заменяем реакцию
+            session.add(PostReaction(
+                post_id=post_id,
+                user_id=user.id,
+                sticker_id=sticker_id if sticker_obj else None,
+                emoji=emoji if not sticker_obj else None,
+            ))
+            session.commit()
+    else:
+        session.add(PostReaction(
+            post_id=post_id,
+            user_id=user.id,
+            sticker_id=sticker_id if sticker_obj else None,
+            emoji=emoji if not sticker_obj else None,
+        ))
+        session.commit()
+
+    reactions = build_post_reactions_map(session, [post_id], user.id).get(post_id, [])
+    return {"ok": True, "reactions": reactions}
 
 
 @app.post("/api/chats/{chat_id}/messages/{message_id}/reactions")
