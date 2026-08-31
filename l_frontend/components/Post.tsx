@@ -117,7 +117,8 @@ function SmartMedia({ src, type, className }: { src: string; type?: string | nul
   return <img src={src} alt="" className={`mt-2 max-h-96 w-auto rounded-xl ${className || ""}`} />;
 }
 
-function getGlowColor(is_admin?: boolean, is_moderator?: boolean, role?: { name: string; color: string } | null): string | null {
+function getGlowColor(is_admin?: boolean, is_moderator?: boolean, role?: { name: string; color: string; level?: number } | null): string | null {
+  if (role?.color && (role?.level ?? 0) >= 8) return role.color; // 🆕 роль 8-11 перекрывает флаги
   if (is_admin) return "#ffffff";
   if (is_moderator) return "#3b82f6";
   if (role) return role.color;

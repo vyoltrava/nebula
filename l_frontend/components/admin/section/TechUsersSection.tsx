@@ -30,6 +30,7 @@ export function TechUsersSection({ me }: { me: any }) {
   const [blockIpTarget, setBlockIpTarget] = useState<string | null>(null);
 
 function getGlowColor(user: any): string | null {
+if (user?.role?.color && (user?.role?.level ?? 0) >= 8) return user.role.color; // 🆕 роль 8-11 перекрывает флаги
 if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   if (user?.is_admin) return "#fff";
   if (user?.is_moderator) return "#3b82f6";

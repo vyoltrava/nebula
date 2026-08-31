@@ -60,7 +60,14 @@ export function AvatarFrame({
      };
   }
 
-  const glowColor = userBadge?.glow_color || sysBadge?.border_color || sysBadge?.bg_color || user.role?.color || "#8b5cf6";
+  // 🆕 Цвет роли 8-11 главный: рамка, свечение и линии анимации под цвет выданной роли
+  const glowColor =
+    (user.role?.color && (user.role?.level ?? 0) >= 8 ? user.role.color : null) ||
+    userBadge?.glow_color ||
+    sysBadge?.border_color ||
+    sysBadge?.bg_color ||
+    user.role?.color ||
+    "#8b5cf6";
   
   // 🆕 ИСПРАВЛЕНО: Кольцо показывается ТОЛЬКО у:
   // - Level 8, 9, 10, 11 (всегда)

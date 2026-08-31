@@ -1115,11 +1115,12 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     quote: "notif.quote",
   };
 
-  const glow = user
-    ? user.is_admin ? "#ffffff"
+  const glow = !user
+    ? null
+    : (user.role?.color && (user.role?.level ?? 0) >= 8 ? user.role.color : null) // 🆕 роль 8-11 перекрывает флаги
+    ?? (user.is_admin ? "#ffffff"
     : user.is_moderator ? "#3b82f6"
-    : user.role?.color ?? null
-    : null;
+    : user.role?.color ?? null);
 
   // 🌗 Цвет ника и свечения с учётом темы:
   //  dark — цвет роли как есть (#ffffff у Founder светится белым),

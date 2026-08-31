@@ -129,7 +129,8 @@ export function NebulaSidebar() {
   }, [router]);
 
   const glow = user
-    ? user.is_admin ? "#ffffff" : user.is_moderator ? "#3b82f6" : user.role?.color ?? null
+    ? (user.role?.color && (user.role?.level ?? 0) >= 8 ? user.role.color : null) // 🆕 роль 8-11 перекрывает флаги
+    ?? (user.is_admin ? "#ffffff" : user.is_moderator ? "#3b82f6" : user.role?.color ?? null)
     : null;
   const displayNickColor = resolveNickColor(glow, resolvedTheme);
   const nickGlowStyle = displayNickColor

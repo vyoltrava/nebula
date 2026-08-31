@@ -72,6 +72,8 @@ export function nickGlowStyle(
 /** Стандартный цвет роли из объекта пользователя */
 export function roleColorOf(user: any): string | null {
   if (!user) return null;
+  // 🆕 Выданная роль 8-11 перекрывает Founder/Developer — цвет ника под плашку роли
+  if (user.role?.color && (user.role?.level ?? 0) >= 8) return user.role.color;
   if (user.is_admin) return "#ffffff";
   if (user.is_moderator) return "#3b82f6";
   return user.role?.color ?? null;
