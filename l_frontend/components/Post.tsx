@@ -906,7 +906,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             {/* Лайк: счётчик слева, сердечко ближе к центру */}
             <button
               onClick={toggleLike}
-              className={`flex items-center gap-1 py-0.5 pl-2.5 pr-1.5 transition-all ${
+              className={`flex items-center gap-1 py-1 pl-2.5 pr-1.5 transition-all ${
                 liked
                   ? "bg-[#8B5CF6] text-white"
                   : "text-gray-800 dark:text-white/70 hover:text-pink-500"
@@ -923,7 +923,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             {/* Дизлайк: разбитое сердечко ближе к центру, счётчик справа */}
             <button
               onClick={toggleDislike}
-              className={`flex items-center gap-1 py-0.5 pl-1.5 pr-2.5 transition-all ${
+              className={`flex items-center gap-1 py-1 pl-1.5 pr-2.5 transition-all ${
                 disliked
                   ? "bg-red-500 text-white"
                   : "text-gray-800 dark:text-white/70 hover:text-red-500"
