@@ -59,19 +59,27 @@ class PerfMiddleware(BaseHTTPMiddleware):
         response.headers["X-Request-Id"] = request_id
         response.headers["X-Process-Time-Ms"] = f"{ms:.1f}"
 
-        if ms >= SLOW_MS:
+        status = response.status_code
+        # 🛡 Ошибки авторизации/прав/сервера — всегда в лог, чтобы было видно
+        # всплески 401/403 (протухшие токены, отозванные сессии, многокаунт).
+        if status in (401, 403):
             logger.warning(
-                "[PERF] SLOW %s %s %.1fms",
-                request.method,
-                path,
-                ms,
+                "[AUTH] %s %s -> %s req=%s %.1fms",
+                request.method, path, status, request_id, ms,
+            )
+        elif status >= 500:
+            logger.error(
+                "[HTTP%d] %s %s req=%s %.1fms",
+                status, request.method, path, request_id, ms,
+            )
+        elif ms >= SLOW_MS:
+            logger.warning(
+                "[PERF] SLOW %s %s %.1fms req=%s",
+                request.method, path, ms, request_id,
             )
         else:
             logger.info(
-                "[PERF] %s %s %.1fms",
-                request.method,
-                path,
-                ms,
+                "[PERF] %s %s %.1fms", request.method, path, ms,
             )
 
         return response

@@ -8,6 +8,7 @@ import { Avatar } from "@/components/Avatar";
 import { NotificationsSkeleton } from "@/components/Skeletons";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import type { MessageKey } from "@/lib/i18n";
+import { getNotifsCache, setNotifsCache, invalidateNotifsCache } from "@/lib/notifsCache";
 
 import { 
   Heart, MessageCircle, UserPlus, AtSign, MessageSquare, 
@@ -40,12 +41,35 @@ export default function NotificationsPage() {
       router.push("/login");
       return;
     }
+
+    const cached = getNotifsCache();
+    if (cached) {
+      setNotifs(cached);
+      setLoading(false);
+      // Фоновое обновление — список остаётся на экране, данные не протухают
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setNotifs(data);
+            setNotifsCache(data);
+          }
+        })
+        .catch(() => {});
+      return;
+    }
+
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        setNotifs(data || []);
+        if (Array.isArray(data)) {
+          setNotifs(data);
+          setNotifsCache(data);
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -62,6 +86,7 @@ export default function NotificationsPage() {
       setNotifs((prev) =>
         prev.map((n) => (n.id === id ? { ...n, read: true } : n))
       );
+      invalidateNotifsCache();
     } catch (e) {
       console.error("Ошибка отметки:", e);
     }
@@ -76,6 +101,7 @@ export default function NotificationsPage() {
     
     // Мгновенно обновляем UI
     setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+    invalidateNotifsCache();
     
     // Параллельно отправляем на сервер
     await Promise.allSettled(

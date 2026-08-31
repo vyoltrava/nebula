@@ -26,6 +26,7 @@ import { useNebulaMode } from "@/lib/useNebula";
 import type { MessageKey } from "@/lib/i18n";
 import { BrandIcon } from "@/components/BrandIcon"; 
 import { CommunityTabs } from "@/components/CommunityTabs";
+import { getNotifsCache, setNotifsCache, invalidateNotifsCache } from "@/lib/notifsCache";
 
 
 // ════════════════════════════════════════════════════════════════
@@ -577,12 +578,24 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     setShowNotifs(true); // открываем модалку сразу, данные грузятся в фоне
     const token = getToken();
     if (!token) return;
-    setNotifsLoading(true);
+    // Мгновенно показываем закешированный список, если он свежий
+    const cached = getNotifsCache();
+    if (cached) {
+      setNotifs(cached);
+      setNotifsLoading(false);
+    } else {
+      setNotifsLoading(true);
+    }
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => (res.ok ? res.json() : Promise.reject()))
-      .then((data) => setNotifs(data))
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setNotifs(data);
+          setNotifsCache(data);
+        }
+      })
       .catch(() => {})
       .finally(() => setNotifsLoading(false));
   }
@@ -594,6 +607,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       method: "POST", headers: { Authorization: `Bearer ${token}` },
     });
     setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    invalidateNotifsCache();
     refresh();
   }
 
@@ -604,6 +618,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       method: "POST", headers: { Authorization: `Bearer ${token}` },
     });
     setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
+    invalidateNotifsCache();
     refresh();
   }
 

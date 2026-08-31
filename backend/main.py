@@ -219,15 +219,38 @@ async def get_current_user_optional(authorization: str = Header(None), session: 
     token = authorization.split(" ")[1]
     try:
         payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
-        user_id = payload.get("sub")
+        user_id = _jwt_sub(payload)
         if not user_id: return None
-        return session.get(User, int(user_id))
+        return session.get(User, user_id)
     except:
         return None
 
 # ============================================================
 # 🚀 СОЗДАЁМ ПРИЛОЖЕНИЕ
 # ============================================================
+
+# 🛡 ЛОГИРОВАНИЕ: обязательная настройка корневого логгера.
+# Без basicConfig INFO-сообщения perf-логгера молча дропались (в корневом
+# логгере default=WARNING, а real handler'а нет → печаталось только WARNING+
+# через lastResort). Формат: время · уровень · [request_id] · сообщение.
+import logging as _logging
+_logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO"),
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+_logging.captureWarnings(True)
+
+
+def _jwt_sub(payload) -> Optional[int]:
+    """Безопасно достаёт user id из JWT-пейлоада. Нечисловой/отсутствующий sub → None
+    (раньше int(...) кидал ValueError вне try и ронял запрос в 500 вместо 401)."""
+    raw = payload.get("sub") if isinstance(payload, dict) else None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return None
+
 
 app = FastAPI(title="Nebula API")
 app.include_router(lp_router, prefix="/api")
@@ -495,7 +518,9 @@ def refresh_access_token(
     if payload.get("type") != "refresh":
         raise HTTPException(401, "Invalid token type")
 
-    token_sub = int(payload["sub"])
+    token_sub = _jwt_sub(payload)
+    if token_sub is None:
+        raise HTTPException(401, "Invalid refresh token")
     # 🎯 Если клиент просит refresh для другого пользователя — отказ (protect multi-account).
     if requested_user_id is not None and requested_user_id != token_sub:
         raise HTTPException(401, "Refresh token does not match requested user")
@@ -534,9 +559,8 @@ def auth_validate(request: Request, session: Session = Depends(get_session)):
         raise HTTPException(401, "Invalid token")
     if payload.get("type") not in ("access", "refresh"):
         raise HTTPException(401, "Invalid token type")
-    try:
-        user_id = int(payload.get("sub"))
-    except (TypeError, ValueError):
+    user_id = _jwt_sub(payload)
+    if user_id is None:
         raise HTTPException(401, "Invalid token")
     user = session.get(User, user_id)
     if not user or user.is_banned:
@@ -558,7 +582,10 @@ def get_current_user(
         payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
     except Exception:
         raise HTTPException(401, "Invalid token")
-    user = session.get(User, int(payload["sub"]))
+    user_id = _jwt_sub(payload)
+    if user_id is None:
+        raise HTTPException(401, "Invalid token")
+    user = session.get(User, user_id)
     if not user:
         raise HTTPException(401, "User not found")
     user_token_version = getattr(user, 'token_version', 0)
@@ -612,7 +639,10 @@ def get_optional_user(
     except Exception:
         return None
 
-    user = session.get(User, int(payload["sub"]))
+    user_id = _jwt_sub(payload)
+    if user_id is None:
+        return None
+    user = session.get(User, user_id)
     if not user or user.is_banned:
         return None
 
@@ -8135,12 +8165,35 @@ def get_notifications(
     if not notifs:
         return []
 
-    actor_ids = list({n.actor_id for n in notifs})
-    actors = {
-        u.id: u for u in session.exec(
+    actor_ids = list({n.actor_id for n in notifs if n.actor_id})
+    actors = {}
+    if actor_ids:
+        actors = {u.id: u for u in session.exec(
             select(User).where(User.id.in_(actor_ids))
-        ).all()
-    }
+        ).all()}
+
+    # 🚀 Оптимизация N+1: прогреваем кэш ролей одним запросом, чтобы
+    # лёгкий сериализатор актора не делал запросов на каждое уведомление.
+    role_ids = {u.role_id for u in actors.values() if u.role_id}
+    if role_ids:
+        _now = time.time()
+        for r in session.exec(select(Role).where(Role.id.in_(role_ids))).all():
+            _role_cache[r.id] = (_now, r)
+
+    def _actor_light(a: "User") -> dict:
+        # Только те поля, что реально нужны фронту (аватар/имя/id) + роль
+        # из кэша. Без permissions/badges/level/2FA — они тут не нужны.
+        role = get_author_role(a, session)
+        return {
+            "id": a.id,
+            "username": a.username,
+            "display_name": a.display_name,
+            "avatar_url": a.avatar_url,
+            "is_admin": a.is_admin,
+            "is_moderator": a.is_moderator,
+            "is_banned": a.is_banned,
+            "role": role,
+        }
 
     result = []
     for n in notifs:
@@ -8148,7 +8201,7 @@ def get_notifications(
         result.append({
             "id": n.id,
             "type": n.type,
-            "actor": user_out(actor, session) if actor else None,
+            "actor": _actor_light(actor) if actor else None,
             "post_id": n.post_id,
             "read": n.read,
             "created_at": n.created_at.isoformat(),
