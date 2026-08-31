@@ -40,9 +40,8 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
   const isCustomActive = assignment?.is_active && 
     (!assignment.expires_at || new Date(assignment.expires_at) > new Date());
 
-  if (isCustomActive && assignment?.override_priority) {
-    const badge = assignment.badge;
-    
+  // Хелпер: рендер плашки по данным badge (общий для кастомных и системных плашек)
+  const renderBadgePlate = (badge: any) => {
     // 1. Базовый фон (БЕЗОПАСНАЯ инициализация)
     const bgStyle: React.CSSProperties = {};
 
@@ -53,12 +52,14 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
     } else if (badge.bg_type === "image" && badge.bg_image_url) {
       const mode = badge.bg_image_mode || "cover";
       bgStyle.backgroundImage = `url('${badge.bg_image_url}')`; // Кавычки внутри url() обязательны!
-      // 🆕 "tile" — невалидное значение background-size: для плитки нужен auto + repeat
       bgStyle.backgroundSize = mode === "tile" ? "auto" : mode;
       bgStyle.backgroundPosition = "center";
       bgStyle.backgroundRepeat = mode === "tile" ? "repeat" : "no-repeat";
-      // ВАЖНО: fallback цвет, если картинка прозрачная или не загрузилась
-      bgStyle.backgroundColor = badge.bg_color || "#1a1a1a"; 
+      bgStyle.backgroundColor = badge.bg_color || "#1a1a1a";
+    } else if (!badge.bg_type) {
+      // Системные плашки: если bg_type не задан — используем градиент или цвет
+      if (badge.bg_gradient) bgStyle.backgroundImage = badge.bg_gradient;
+      else bgStyle.backgroundColor = badge.bg_color || "#3b82f6";
     }
 
     // 2. Эффекты (БЕЗОПАСНАЯ конкатенация)
@@ -77,10 +78,10 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
       shadows.push(`${badge.shadow_offset_x || 0}px ${badge.shadow_offset_y || 0}px ${badge.shadow_blur || 4}px ${badge.shadow_color || "rgba(0,0,0,0.5)"}`);
     }
     if (badge.inner_glow_enabled) {
-      shadows.push(`inset 0 0 15px rgba(255, 255, 255, 0.3)`);
+      shadows.push(`inset 0 0 15px rgba(255,255,255,0.3)`);
     }
     if (badge.specular_enabled) {
-      shadows.push(`inset 0 4px 6px rgba(255, 255, 255, 0.6)`);
+      shadows.push(`inset 0 4px 6px rgba(255,255,255,0.6)`);
     }
     if (shadows.length > 0) {
       bgStyle.boxShadow = shadows.join(", ");
@@ -96,14 +97,14 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
       bgStyle.filter = `drop-shadow(0 0 ${badge.border_glow_intensity || 5}px ${badge.border_color})`;
     }
 
-    // 6. 🆕 ЭФФЕКТЫ / АНИМАЦИИ (animation_flags — JSON массив, e.g. ["pulse","float","shimmer"])
+    // 6. Анимации (animation_flags - JSON массив)
     let anims: string[] = [];
     if (Array.isArray(badge.animation_flags)) anims = badge.animation_flags;
     else if (typeof badge.animation_flags === "string" && badge.animation_flags) {
       try { anims = JSON.parse(badge.animation_flags); } catch { anims = []; }
     }
     const animClasses = anims
-      .map((a) => {
+      .map((a: string) => {
         switch (a) {
           case "pulse": return "animate-pulse";
           case "shimmer": return "animate-shimmer";
@@ -117,11 +118,10 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
 
     return (
       <span
-        // Убрали text-gray-900 dark:text-white отсюда, чтобы цвет текста контролировался ТОЛЬКО через style
         className={`inline-flex items-center gap-1.5 ${sizeClasses[size]} rounded-md font-bold uppercase tracking-wider shrink-0 relative overflow-hidden ${animClasses}`}
         style={{
           ...bgStyle,
-          color: badge.text_color || "#ffffff", // 🎯 ЯВНОЕ применение цвета текста из БД
+          color: badge.text_color || "#ffffff",
         }}
       >
         {badge.icon_url && (
@@ -132,6 +132,17 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
         </span>
       </span>
     );
+  };
+
+  // 1. ПРИОРИТЕТ: КАСТОМНАЯ ПЛАШКА (из админки / самовыдача)
+  if (isCustomActive && assignment?.override_priority) {
+    return renderBadgePlate(assignment.badge);
+  }
+
+  // 1b. СИСТЕМНАЯ ПЛАШКА уровня 9-11 (редактируется в /admin/badges/system).
+  // Отрисовываем её вместо захардкоженных Founder/Developer/System.
+  if (user.system_badge && user.system_badge.is_active !== false) {
+    return renderBadgePlate(user.system_badge);
   }
 
   // ═══════════════════════════════════════════

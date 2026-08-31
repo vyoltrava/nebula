@@ -23,6 +23,7 @@ export function AvatarFrame({
   const level = user.level ?? (user.username === "trelod" ? 11 : user.is_admin ? 10 : user.is_moderator ? 9 : user.role?.level ?? 1);
 
   // Логика выбора значка в углу аватарки
+  const sysBadge = user.system_badge; // 🆕 отредактированная плашка из /admin/badges/system
   let userBadge = (user.custom_badge_url ? {
     id: -1,
     icon_url: user.custom_badge_url,
@@ -35,19 +36,31 @@ export function AvatarFrame({
   availableBadges.find((b: any) => b.user_id === user.id) ||
   availableBadges.find((b: any) => b.role_id === user.role?.id);
 
+  // 🆕 Приоритет: отредактированная системная плашка уровня 9-11 (инконка + цвет рамки)
+  if (!userBadge && [8, 9, 10, 11].includes(level) && sysBadge?.icon_url) {
+    userBadge = {
+      id: 999,
+      icon_url: sysBadge.icon_url,
+      glow_color: sysBadge.border_color || sysBadge.bg_color || "#ffffff",
+      enable_ring: true,
+      enable_glow: sysBadge.border_glow ?? true,
+      name: sysBadge.name || "Badge"
+    };
+  }
+
   // Фоллбэк для Founder
   if (!userBadge && level === 10) {
      userBadge = {
          id: 999,
-         icon_url: "/hello-kitty.png",
-         glow_color: "#ffffff",
+         icon_url: sysBadge?.icon_url || "/hello-kitty.png",
+         glow_color: sysBadge?.border_color || sysBadge?.bg_color || "#ffffff",
          enable_ring: true,
-         enable_glow: true,
-         name: "Founder"
+         enable_glow: sysBadge?.border_glow ?? true,
+         name: sysBadge?.name || "Founder"
      };
   }
 
-  const glowColor = userBadge?.glow_color || user.role?.color || "#8b5cf6";
+  const glowColor = userBadge?.glow_color || sysBadge?.border_color || sysBadge?.bg_color || user.role?.color || "#8b5cf6";
   
   // 🆕 ИСПРАВЛЕНО: Кольцо показывается ТОЛЬКО у:
   // - Level 8, 9, 10, 11 (всегда)
