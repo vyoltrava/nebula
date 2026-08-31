@@ -62,9 +62,9 @@ export default function AdminPage() {
     load();
   }, []);
 
-  // вњ… Р¤РёР»СЊС‚СЂР°С†РёСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№
+  // вњ… Фильтрация пользователей
   const filteredUsers = users.filter((u) => {
-    // РџРѕРёСЃРє РїРѕ РЅРёРєСѓ РёР»Рё display_name
+    // Поиск по нику или display_name
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const matchesSearch = 
@@ -73,18 +73,18 @@ export default function AdminPage() {
       if (!matchesSearch) return false;
     }
 
-    // Р¤РёР»СЊС‚СЂ РїРѕ С‚РёРїСѓ
+    // Фильтр по типу
     if (filterType === "team") {
-      // РљРѕРјР°РЅРґР°: Р°РґРјРёРЅС‹, РјРѕРґРµСЂР°С‚РѕСЂС‹, РёР»Рё СѓСЂРѕРІРµРЅСЊ >= 3
+      // Команда: админы, модераторы, или уровень >= 3
       const isTeam = u.is_admin || u.is_moderator || (u.level ?? 1) >= 3;
       if (!isTeam) return false;
     } else if (filterType === "users") {
-      // РћР±С‹С‡РЅС‹Рµ РїРѕР»СЊР·РѕРІР°С‚РµР»Рё: РЅРµ Р°РґРјРёРЅ, РЅРµ РјРѕРґРµСЂР°С‚РѕСЂ, СѓСЂРѕРІРµРЅСЊ < 3
+      // Обычные пользователи: не админ, не модератор, уровень < 3
       const isRegularUser = !u.is_admin && !u.is_moderator && (u.level ?? 1) < 3;
       if (!isRegularUser) return false;
     }
 
-    // Р¤РёР»СЊС‚СЂ РїРѕ СЂРѕР»Рё
+    // Фильтр по роли
     if (selectedRoleId !== null) {
       if (!u.role || u.role.id !== selectedRoleId) return false;
     }
@@ -110,7 +110,7 @@ export default function AdminPage() {
 
   async function issueWarn() {
     if (!warnTarget || warnReason.trim().length < 3) {
-      alert("РџСЂРёС‡РёРЅР°: РјРёРЅРёРјСѓРј 3 СЃРёРјРІРѕР»Р°");
+      alert("Причина: минимум 3 символа");
       return;
     }
     const token = getToken();
@@ -127,7 +127,7 @@ export default function AdminPage() {
       load();
     } else {
       const d = await res.json().catch(() => null);
-      alert(d?.detail || "РќРµ СѓРґР°Р»РѕСЃСЊ РІС‹РґР°С‚СЊ РІР°СЂРЅ");
+      alert(d?.detail || "Не удалось выдать варн");
     }
   }
 
@@ -142,9 +142,9 @@ export default function AdminPage() {
   }
 
 
-  // вњ… РРЎРџР РђР’Р›Р•РќРћ: РёСЃРїРѕР»СЊР·СѓРµРј userId (С‡РёСЃР»РѕРІРѕР№ ID)
+  // вњ… РРЎРџР РђР’Р›Р•РќРћ: используем userId (числовой ID)
   async function deleteAllPosts(userId: number) {
-    if (!confirm("РЈРґР°Р»РёС‚СЊ Р’РЎР• РїРѕСЃС‚С‹ СЌС‚РѕРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ? Р­С‚Рѕ РґРµР№СЃС‚РІРёРµ РЅРµР»СЊР·СЏ РѕС‚РјРµРЅРёС‚СЊ!")) return;
+    if (!confirm("Удалить ВСЕ посты этого пользователя? Это действие нельзя отменить!")) return;
     const token = getToken();
     if (!token) return;
     
@@ -155,25 +155,25 @@ export default function AdminPage() {
     
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      alert(data?.detail || "РќРµС‚ РїСЂР°РІ");
+      alert(data?.detail || "Нет прав");
       return;
     }
     const data = await res.json();
-    alert(`РЈРґР°Р»РµРЅРѕ РїРѕСЃС‚РѕРІ: ${data.deleted_count}`);
+    alert(`Удалено постов: ${data.deleted_count}`);
     load();
   }
 
-  // вњ… РРЎРџР РђР’Р›Р•РќРћ + РїСЂРѕРІРµСЂРєР° РёРµСЂР°СЂС…РёРё
+  // вњ… РРЎРџР РђР’Р›Р•РќРћ + проверка иерархии
   async function toggleBan(userId: number, target: any) {
     const token = getToken();
     if (!token) return;
 
-    // рџ›ЎпёЏ РљР»РёРµРЅС‚СЃРєР°СЏ РїСЂРѕРІРµСЂРєР° РёРµСЂР°СЂС…РёРё
+    // рџ›ЎпёЏ Клиентская проверка иерархии
     const myLevel = me?.level ?? 1;
     const targetLevel = target?.level ?? 1;
     
     if (targetLevel >= myLevel && !me?.is_admin) {
-      alert(`рџ›ЎпёЏ РРјРјСѓРЅРёС‚РµС‚: СѓСЂРѕРІРµРЅСЊ С†РµР»Рё (${targetLevel}) в‰Ґ РІР°С€РµРіРѕ (${myLevel}). Р’С‹ РЅРµ РјРѕР¶РµС‚Рµ Р·Р°Р±Р°РЅРёС‚СЊ СЌС‚РѕРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.`);
+      alert(`рџ›ЎпёЏ РРјРјСѓРЅРёС‚РµС‚: уровень цели (${targetLevel}) в‰Ґ вашего (${myLevel}). Вы не можете забанить этого пользователя.`);
       return;
     }
 
@@ -184,7 +184,7 @@ export default function AdminPage() {
     
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      alert(data?.detail || "РќРµС‚ РїСЂР°РІ");
+      alert(data?.detail || "Нет прав");
       return;
     }
     load();
@@ -202,7 +202,7 @@ export default function AdminPage() {
     
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      alert(data?.detail || "РќРµС‚ РїСЂР°РІ");
+      alert(data?.detail || "Нет прав");
       return;
     }
     load();
@@ -220,7 +220,7 @@ export default function AdminPage() {
     
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      alert(data?.detail || "РќРµС‚ РїСЂР°РІ");
+      alert(data?.detail || "Нет прав");
       return;
     }
     load();
@@ -242,25 +242,25 @@ export default function AdminPage() {
     
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      alert(data?.detail || "РќРµС‚ РїСЂР°РІ");
+      alert(data?.detail || "Нет прав");
       return;
     }
     load();
   }
 
-  if (!me) return <div className="p-8 text-gray-600 dark:text-white/60">Р—Р°РіСЂСѓР·РєР°...</div>;
+  if (!me) return <div className="p-8 text-gray-600 dark:text-white/60">Загрузка...</div>;
 
   return (
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
       <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10">
-        {/* РЁР°РїРєР° */}
+        {/* Шапка */}
         <div className="p-6 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3 flex-wrap">
               <Shield size={24} className="text-[#8b5cf6]" />
-              <h1 className="text-2xl font-black text-gray-900 dark:text-white">РџР°РЅРµР»СЊ СѓРїСЂР°РІР»РµРЅРёСЏ</h1>
+              <h1 className="text-2xl font-black text-gray-900 dark:text-white">Панель управления</h1>
 
               {!me.is_admin && me.is_moderator && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#3b82f6] text-white text-xs font-black uppercase">
@@ -268,9 +268,9 @@ export default function AdminPage() {
                 </span>
               )}
               
-              {/* рџ†• Р’Р°С€ СѓСЂРѕРІРµРЅСЊ */}
+              {/* рџ†• Ваш уровень */}
               <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/60 text-xs font-mono">
-                РЈСЂРѕРІРµРЅСЊ: {me.level ?? 1}
+                Уровень: {me.level ?? 1}
               </span>
             </div>
 
@@ -284,18 +284,18 @@ export default function AdminPage() {
                   className="flex items-center gap-2 px-4 py-2 rounded-lg border border-yellow-400/50 bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-sm font-bold hover:bg-yellow-500/30 transition-all"
                 >
                   <SmilePlus size={16} />
-                  РЎС‚РёРєРµСЂС‹
+                  Стикеры
                 </Link>
               )}
 
-              {/* рџ†• РљРћРќРЎРўР РЈРљРўРћР  РўР•Рњ */}
+              {/* рџ†• КОНСТРУКТОР ТЕМ */}
               {me.is_admin && (
                 <Link
                   href="/admin/themes"
                   className="flex items-center gap-2 px-4 py-2 rounded-lg border border-emerald-400/50 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-bold hover:shadow-lg hover:shadow-purple-500/30 transition-all"
                 >
                   <Palette size={16} />
-                  РўРµРјС‹
+                  Темы
                 </Link>
               )}
 
@@ -305,7 +305,7 @@ export default function AdminPage() {
                   className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#8b5cf6] bg-[#8b5cf6] text-white text-sm font-bold transition-all"
                 >
                   <Palette size={16} />
-                  Р РѕР»Рё
+                  Роли
                 </Link>
               )}
 
@@ -315,7 +315,7 @@ export default function AdminPage() {
                   className="flex items-center gap-2 px-4 py-2 rounded-lg border border-red-400/50 bg-[#ef4444] text-gray-900 dark:text-white text-sm font-bold hover:shadow-lg hover:shadow-red-500/30 transition-all"
                 >
                   <Flag size={16} />
-                  Р–Р°Р»РѕР±С‹
+                  Жалобы
                 </Link>
               )}
 
@@ -325,32 +325,32 @@ export default function AdminPage() {
                   className="flex items-center gap-2 px-4 py-2 rounded-lg border border-cyan-400/50 bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 text-sm font-bold hover:bg-cyan-500/30 transition-all"
                 >
                   <MessageSquare size={16} />
-                  РњРѕРґРµСЂР°С†РёСЏ С‡Р°С‚РѕРІ
+                  Модерация чатов
                 </Link>
               )}
             </div>
           </div>
           <p className="text-gray-600 dark:text-white/50 text-sm mt-2">
             {me.is_admin
-              ? "РџРѕР»РЅС‹Р№ РґРѕСЃС‚СѓРї: РІСЃРµ РїСЂР°РІР°"
-              : `РџСЂР°РІР°: ${me.permissions?.map((p: string) => p).join(", ") || "РЅРµС‚"}`}
+              ? "Полный доступ: все права"
+              : `Права: ${me.permissions?.map((p: string) => p).join(", ") || "нет"}`}
           </p>
           <p className="text-gray-500 dark:text-white/40 text-xs mt-1">
-            Р’СЃРµРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№: {users.length} вЂў Р РѕР»РµР№: {roles.length}
+            Всего пользователей: {users.length} вЂў Ролей: {roles.length}
           </p>
         </div>
 
-        {/* рџ†• Р¤РёР»СЊС‚СЂС‹ Рё РїРѕРёСЃРє */}
+        {/* рџ†• Фильтры и поиск */}
         <div className="p-4 border-b border-line dark:border-white/10 bg-ivory dark:bg-[#1a1a1a]/50">
           <div className="flex flex-col gap-3">
-            {/* РџРѕРёСЃРє */}
+            {/* Поиск */}
             <div className="relative">
               <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="РџРѕРёСЃРє РїРѕ РЅРёРєСѓ РёР»Рё РёРјРµРЅРё..."
+                placeholder="Поиск по нику или имени..."
                 className="w-full pl-10 pr-10 py-2.5 border border-line dark:border-white/15 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] transition-all"
               />
               {searchQuery && (
@@ -363,7 +363,7 @@ export default function AdminPage() {
               )}
             </div>
 
-            {/* РљРЅРѕРїРєРё С„РёР»СЊС‚СЂРѕРІ */}
+            {/* Кнопки фильтров */}
             <div className="flex gap-2 flex-wrap">
               <button
                 onClick={() => {
@@ -377,7 +377,7 @@ export default function AdminPage() {
                 }`}
               >
                 <Users size={16} />
-                Р’СЃРµ ({users.length})
+                Все ({users.length})
               </button>
 
               <button
@@ -392,7 +392,7 @@ export default function AdminPage() {
                 }`}
               >
                 <ShieldCheck size={16} />
-                РљРѕРјР°РЅРґР°
+                Команда
               </button>
 
               <button
@@ -407,10 +407,10 @@ export default function AdminPage() {
                 }`}
               >
                 <Filter size={16} />
-                РћР±С‹С‡РЅС‹Рµ
+                Обычные
               </button>
 
-              {/* Р¤РёР»СЊС‚СЂ РїРѕ СЂРѕР»СЏРј */}
+              {/* Фильтр по ролям */}
               <select
                 value={selectedRoleId ?? ""}
                 onChange={(e) => {
@@ -419,7 +419,7 @@ export default function AdminPage() {
                 }}
                 className="px-4 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm font-bold focus:outline-none focus:border-[#8b5cf6] transition-all cursor-pointer"
               >
-                <option value="" className="bg-gray-900">Р’СЃРµ СЂРѕР»Рё</option>
+                <option value="" className="bg-gray-900">Все роли</option>
                 {roles.map((r) => (
                   <option key={r.id} value={r.id} className="bg-gray-900">
                     {r.name} (Lvl {r.level ?? 1})
@@ -428,10 +428,10 @@ export default function AdminPage() {
               </select>
             </div>
 
-            {/* РРЅРґРёРєР°С‚РѕСЂ Р°РєС‚РёРІРЅС‹С… С„РёР»СЊС‚СЂРѕРІ */}
+            {/* РРЅРґРёРєР°С‚РѕСЂ активных фильтров */}
             {(searchQuery || filterType !== "all" || selectedRoleId) && (
               <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-white/60">
-                <span>РќР°Р№РґРµРЅРѕ: <span className="font-bold text-gray-900 dark:text-white">{filteredUsers.length}</span></span>
+                <span>Найдено: <span className="font-bold text-gray-900 dark:text-white">{filteredUsers.length}</span></span>
                 {(searchQuery || filterType !== "all" || selectedRoleId) && (
                   <button
                     onClick={() => {
@@ -441,7 +441,7 @@ export default function AdminPage() {
                     }}
                     className="text-[#8b5cf6] hover:text-[#7c3aed] font-bold transition-colors"
                   >
-                    РЎР±СЂРѕСЃРёС‚СЊ С„РёР»СЊС‚СЂС‹
+                    Сбросить фильтры
                   </button>
                 )}
               </div>
@@ -449,17 +449,17 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* РЎРїРёСЃРѕРє РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ */}
+        {/* Список пользователей */}
         <div className="p-4 space-y-3">
           {filteredUsers.length === 0 && (
             <p className="p-8 text-center text-gray-600 dark:text-white/50">
-              {users.length === 0 ? "РџРѕР»СЊР·РѕРІР°С‚РµР»Рё РЅРµ РЅР°Р№РґРµРЅС‹" : "РќРµС‚ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РїРѕ Р·Р°РґР°РЅРЅС‹Рј С„РёР»СЊС‚СЂР°Рј"}
+              {users.length === 0 ? "Пользователи не найдены" : "Нет пользователей по заданным фильтрам"}
             </p>
           )}
           {filteredUsers.map((u) => {
             const myLevel = me?.level ?? 1;
             const targetLevel = u.level ?? 1;
-            // рџ›ЎпёЏ РњРѕР¶РЅРѕ Р»Рё РїСЂРёРјРµРЅСЏС‚СЊ СЃР°РЅРєС†РёРё (СѓСЂРѕРІРµРЅСЊ С†РµР»Рё СЃС‚СЂРѕРіРѕ РЅРёР¶Рµ)
+            // рџ›ЎпёЏ Можно ли применять санкции (уровень цели строго ниже)
             const canSanction = myLevel > targetLevel || me?.is_admin;
             
             return (
@@ -520,14 +520,14 @@ export default function AdminPage() {
                       <span className="text-gray-500 dark:text-white/40 text-sm">@{u.username}</span>
                     </div>
                     <p className="text-gray-500 dark:text-white/40 text-xs mt-1">
-                      ID: {u.id} вЂў РЈСЂРѕРІРµРЅСЊ: <span className="text-gray-600 dark:text-white/60 font-mono">{targetLevel}</span> вЂў Р РµРіРёСЃС‚СЂР°С†РёСЏ: {new Date(u.created_at).toLocaleDateString("ru-RU")}
+                      ID: {u.id} вЂў Уровень: <span className="text-gray-600 dark:text-white/60 font-mono">{targetLevel}</span> вЂў Регистрация: {new Date(u.created_at).toLocaleDateString("ru-RU")}
                     </p>
                   </div>
 
                   <div className="flex gap-2 flex-wrap items-center">
 
                     {u.warnings_count > 0 && (
-                      <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-500/15 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400 text-xs font-bold" title="РђРєС‚РёРІРЅС‹Рµ РІР°СЂРЅС‹">
+                      <span className="flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-500/15 border border-yellow-500/30 text-yellow-600 dark:text-yellow-400 text-xs font-bold" title="Активные варны">
                         <AlertTriangle size={12} /> {u.warnings_count}
                       </span>
                     )}
@@ -537,11 +537,11 @@ export default function AdminPage() {
                         className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-yellow-400/30 text-yellow-600 dark:text-yellow-400 text-xs font-bold hover:bg-yellow-500/10 transition-all"
                       >
                         <AlertTriangle size={12} />
-                        Р’Р°СЂРЅС‹
+                        Варны
                       </button>
                     )}
 
-                    {/* рџ›ЎпёЏ РљРЅРѕРїРєР° Р±Р°РЅР° СЃ Р·Р°С‰РёС‚РѕР№ РёРµСЂР°СЂС…РёРё */}
+                    {/* рџ›ЎпёЏ Кнопка бана с защитой иерархии */}
                     {can("ban_users") && !u.is_admin && u.id !== me.id && (
                       canSanction ? (
                         <button
@@ -551,15 +551,15 @@ export default function AdminPage() {
                               ? "border-green-400/30 text-green-600 dark:text-green-400 hover:bg-green-500/10"
                               : "border-red-400/30 text-red-600 dark:text-red-400 hover:bg-red-500/10"
                           }`}
-                          title={u.is_banned ? "Р Р°Р·Р±Р°РЅРёС‚СЊ" : `Р—Р°Р±Р°РЅРёС‚СЊ (РІР°С€ ${myLevel} > С†РµР»СЊ ${targetLevel})`}
+                          title={u.is_banned ? "Разбанить" : `Забанить (ваш ${myLevel} > цель ${targetLevel})`}
                         >
                           <Ban size={12} />
-                          {u.is_banned ? "Р Р°Р·Р±Р°РЅРёС‚СЊ" : "Р—Р°Р±Р°РЅРёС‚СЊ"}
+                          {u.is_banned ? "Разбанить" : "Забанить"}
                         </button>
                       ) : (
                         <div
                           className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-line dark:border-white/10 text-gray-500 dark:text-white/30 text-xs font-bold cursor-not-allowed"
-                          title={`РРјРјСѓРЅРёС‚РµС‚: СѓСЂРѕРІРµРЅСЊ С†РµР»Рё (${targetLevel}) в‰Ґ РІР°С€РµРіРѕ (${myLevel})`}
+                          title={`РРјРјСѓРЅРёС‚РµС‚: уровень цели (${targetLevel}) в‰Ґ вашего (${myLevel})`}
                         >
                           <Shield size={12} />
                           РРјРјСѓРЅРёС‚РµС‚
@@ -571,10 +571,10 @@ export default function AdminPage() {
                       <button
                         onClick={() => removeAvatar(u.id)}
                         className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-orange-400/30 text-orange-600 dark:text-orange-400 text-xs font-bold hover:bg-orange-500/10 transition-all"
-                        title="РЈРґР°Р»РёС‚СЊ Р°РІР°С‚Р°СЂРєСѓ"
+                        title="Удалить аватарку"
                       >
                         <ImageOff size={12} />
-                        РђРІР°С‚Р°СЂ
+                        Аватар
                       </button>
                     )}
 
@@ -582,10 +582,10 @@ export default function AdminPage() {
                       <button
                         onClick={() => deleteAllPosts(u.id)}
                         className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-400/30 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-500/10 transition-all"
-                        title="РЈРґР°Р»РёС‚СЊ РІСЃРµ РїРѕСЃС‚С‹ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ"
+                        title="Удалить все посты пользователя"
                       >
                         <Trash2 size={12} />
-                        РЈРґР°Р»РёС‚СЊ РїРѕСЃС‚С‹
+                        Удалить посты
                       </button>
                     )}
 
@@ -599,7 +599,7 @@ export default function AdminPage() {
                         }`}
                       >
                         <UserCheck size={12} />
-                        {u.is_moderator ? "РЎРЅСЏС‚СЊ СЂР°Р·СЂР°Р±РѕС‚С‡РёРєР°" : "Р’ СЂР°Р·СЂР°Р±РѕС‚С‡РёРєР°"}
+                        {u.is_moderator ? "Снять разработчика" : "В разработчика"}
                       </button>
                     )}
 
@@ -610,11 +610,11 @@ export default function AdminPage() {
       onChange={(roleId: number | null) => assignRole(u.id, roleId)}
     >
       <Listbox.Button className="px-3 py-1.5 rounded-lg border border-line dark:border-white/20 bg-gray-100 dark:bg-white/5 text-blue-600 dark:text-blue-400 text-xs font-bold focus:outline-none focus:border-[#8b5cf6] cursor-pointer max-w-[120px] truncate whitespace-nowrap">
-        {u.role?.name || "Р‘РµР· СЂРѕР»Рё"}
+        {u.role?.name || "Без роли"}
       </Listbox.Button>
 
       <Listbox.Options className="absolute right-0 z-50 mt-1 w-48 overflow-auto rounded-lg bg-gray-900 border border-line dark:border-white/10 shadow-xl focus:outline-none">
-        {/* РћРїС†РёСЏ "Р‘РµР· СЂРѕР»Рё" */}
+        {/* Опция "Без роли" */}
         <Listbox.Option
           value={null}
           className={({ active }) =>
@@ -623,10 +623,10 @@ export default function AdminPage() {
             }`
           }
         >
-          Р‘РµР· СЂРѕР»Рё
+          Без роли
         </Listbox.Option>
 
-        {/* Р”РѕСЃС‚СѓРїРЅС‹Рµ СЂРѕР»Рё */}
+        {/* Доступные роли */}
         {roles
           .filter((r) => (r.level ?? 1) < myLevel || me?.is_admin)
           .map((r) => (
@@ -649,7 +649,7 @@ export default function AdminPage() {
                     <Link
                       href={`/user/${u.id}`}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-line dark:border-white/20 text-gray-600 dark:text-white/60 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white transition-all"
-                      title="РћС‚РєСЂС‹С‚СЊ РїСЂРѕС„РёР»СЊ"
+                      title="Открыть профиль"
                     >
                       <ExternalLink size={12} />
                     </Link>
@@ -660,7 +660,7 @@ export default function AdminPage() {
           })}
         </div>
 
-        {/* вљ пёЏ РњРћР”РђР›РљРђ Р’РђР РќРћР’ */}
+        {/* вљ пёЏ МОДАЛКА ВАРНОВ */}
         {warnTarget && (
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200]" onClick={() => setWarnTarget(null)} />
@@ -669,7 +669,7 @@ export default function AdminPage() {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
                     <AlertTriangle className="text-yellow-600 dark:text-yellow-400" size={18} />
-                    Р’Р°СЂРЅС‹: {warnTarget.display_name}
+                    Варны: {warnTarget.display_name}
                   </h2>
                   <button onClick={() => setWarnTarget(null)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white p-1">
                     <X size={18} />
@@ -677,11 +677,11 @@ export default function AdminPage() {
                 </div>
 
                 <div className="mb-4 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
-                  <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Р’С‹РґР°С‚СЊ РїСЂРµРґСѓРїСЂРµР¶РґРµРЅРёРµ</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Выдать предупреждение</label>
                   <textarea
                     value={warnReason}
                     onChange={(e) => setWarnReason(e.target.value)}
-                    placeholder="РџСЂРёС‡РёРЅР° (СЃРїР°Рј, РѕСЃРєРѕСЂР±Р»РµРЅРёСЏ...)"
+                    placeholder="Причина (спам, оскорбления...)"
                     rows={2}
                     className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400 resize-none"
                   />
@@ -689,14 +689,14 @@ export default function AdminPage() {
                     onClick={issueWarn}
                     className="mt-2 w-full py-2 rounded-lg bg-yellow-500 text-black text-sm font-bold hover:bg-yellow-600 dark:hover:bg-yellow-400 transition-all"
                   >
-                    Р’С‹РґР°С‚СЊ РІР°СЂРЅ
+                    Выдать варн
                   </button>
                 </div>
 
                 <div className="space-y-2">
-                  {warnLoading && <p className="text-sm text-gray-500 dark:text-white/40 text-center py-3">Р—Р°РіСЂСѓР·РєР°...</p>}
+                  {warnLoading && <p className="text-sm text-gray-500 dark:text-white/40 text-center py-3">Загрузка...</p>}
                   {!warnLoading && warnList.length === 0 && (
-                    <p className="text-sm text-gray-500 dark:text-white/40 text-center py-3">Р’Р°СЂРЅРѕРІ РЅРµС‚</p>
+                    <p className="text-sm text-gray-500 dark:text-white/40 text-center py-3">Варнов нет</p>
                   )}
                   {warnList.map((w: any) => (
                     <div key={w.id} className={`p-3 rounded-xl border ${w.active ? "border-yellow-500/30 bg-yellow-500/5" : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 opacity-60"}`}>
@@ -707,13 +707,13 @@ export default function AdminPage() {
                             onClick={() => revokeWarn(w.id)}
                             className="shrink-0 px-2 py-1 rounded-lg border border-green-400/30 text-green-600 dark:text-green-400 text-[10px] font-bold hover:bg-green-500/10"
                           >
-                            РЎРЅСЏС‚СЊ
+                            Снять
                           </button>
                         )}
                       </div>
                       <p className="text-[10px] text-gray-500 dark:text-white/40 mt-1.5">
-                        {w.issuer ? `Р’С‹РґР°Р»: ${w.issuer.display_name}` : "РЎРёСЃС‚РµРјР°"} В· {new Date(w.created_at).toLocaleDateString("ru-RU")}
-                        {!w.active && " В· СЃРЅСЏС‚"}
+                        {w.issuer ? `Выдал: ${w.issuer.display_name}` : "Система"} В· {new Date(w.created_at).toLocaleDateString("ru-RU")}
+                        {!w.active && " В· снят"}
                       </p>
                     </div>
                   ))}

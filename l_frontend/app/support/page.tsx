@@ -44,10 +44,10 @@ export default function SupportPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const activeIdRef = useRef<number | null>(null);
 
-  // Р”РµСЂР¶РёРј ref РІ СЃРёРЅРєРµ СЃРѕ state РґР»СЏ WebSocket callback
+  // Держим ref в синке со state для WebSocket callback
   useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
 
-  // РџРѕР»СѓС‡Р°РµРј СЃРІРѕР№ ID РїСЂРё РјРѕРЅС‚РёСЂРѕРІР°РЅРёРё
+  // Получаем свой ID при монтировании
   useEffect(() => {
     (async () => {
       const token = getToken();
@@ -62,7 +62,7 @@ export default function SupportPage() {
     })();
   }, []);
 
-  // === Р—РђР“Р РЈР—РљРђ РЎРџРРЎРљРђ Р—РђРЇР’РћРљ ===
+  // === ЗАГРУЗКА РЎРџРРЎРљРђ ЗАЯВОК ===
   const loadTickets = useCallback(async () => {
     const token = getToken();
     if (!token) return;
@@ -77,7 +77,7 @@ export default function SupportPage() {
     } catch {}
   }, []);
 
-  // === Р—РђР“Р РЈР—РљРђ РЎРћРћР‘Р©Р•РќРР™ ===
+  // === ЗАГРУЗКА РЎРћРћР‘Р©Р•РќРР™ ===
   const loadMessages = useCallback(async (ticketId: number) => {
     const token = getToken();
     if (!token) return;
@@ -99,7 +99,7 @@ export default function SupportPage() {
   useEffect(() => { loadTickets(); }, [loadTickets]);
   useEffect(() => {
     if (activeId) {
-      setMessages([]); // РѕС‡РёС‰Р°РµРј РїСЂРё РїРµСЂРµРєР»СЋС‡РµРЅРёРё
+      setMessages([]); // очищаем при переключении
       loadMessages(activeId);
     }
   }, [activeId, loadMessages]);
@@ -108,18 +108,18 @@ export default function SupportPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // === WEBSOCKET вЂ” РњР“РќРћР’Р•РќРќР«Р• РћР‘РќРћР’Р›Р•РќРРЇ ===
+  // === WEBSOCKET вЂ” МГНОВЕННЫЕ РћР‘РќРћР’Р›Р•РќРРЇ ===
   useWebSocket("support_new_message", (data: any) => {
     const currentActiveId = activeIdRef.current;
     
-    // РћР±РЅРѕРІР»СЏРµРј СЃРїРёСЃРѕРє Р·Р°СЏРІРѕРє (РїСЂРµРІСЊСЋ РїРѕСЃР»РµРґРЅРµРіРѕ СЃРѕРѕР±С‰РµРЅРёСЏ)
+    // Обновляем список заявок (превью последнего сообщения)
     setTickets(prev => prev.map(t => {
       if (t.id === data.ticket_id) {
         return {
           ...t,
           updated_at: data.message.created_at,
           last_message: {
-            text: data.message.text || (data.message.media_url ? "рџ“· Р¤РѕС‚Рѕ" : ""),
+            text: data.message.text || (data.message.media_url ? "рџ“· Фото" : ""),
             is_mine: data.message.sender_id === myId,
             created_at: data.message.created_at,
           },
@@ -128,12 +128,12 @@ export default function SupportPage() {
       return t;
     }));
 
-    // Р•СЃР»Рё СЌС‚Рѕ Р°РєС‚РёРІРЅР°СЏ Р·Р°СЏРІРєР° вЂ” РґРѕР±Р°РІР»СЏРµРј СЃРѕРѕР±С‰РµРЅРёРµ РІ С‡Р°С‚
+    // Если это активная заявка вЂ” добавляем сообщение в чат
     if (data.ticket_id === currentActiveId) {
       setMessages(prev => {
-        // РќРµ РґСѓР±Р»РёСЂСѓРµРј (optimistic update РјРѕРі СѓР¶Рµ РґРѕР±Р°РІРёС‚СЊ)
+        // Не дублируем (optimistic update мог уже добавить)
         if (prev.some(m => m.id === data.message.id)) return prev;
-        // РЈР±РёСЂР°РµРј temp СЃРѕРѕР±С‰РµРЅРёРµ СЃ С‚Р°РєРёРј Р¶Рµ С‚РµРєСЃС‚РѕРј РµСЃР»Рё РµСЃС‚СЊ
+        // Убираем temp сообщение с таким же текстом если есть
         const filtered = prev.filter(m => m.id > 0 || (m.text !== data.message.text));
         return [...filtered, data.message];
       });
@@ -143,12 +143,12 @@ export default function SupportPage() {
   useWebSocket("support_ticket_closed", (data: any) => {
     const currentActiveId = activeIdRef.current;
 
-    // РћР±РЅРѕРІР»СЏРµРј СЃС‚Р°С‚СѓСЃ РІ СЃРїРёСЃРєРµ
+    // Обновляем статус в списке
     setTickets(prev => prev.map(t =>
       t.id === data.ticket_id ? { ...t, status: "closed" } : t
     ));
 
-    // РЎРёСЃС‚РµРјРЅРѕРµ СЃРѕРѕР±С‰РµРЅРёРµ РІ С‡Р°С‚Рµ
+    // Системное сообщение в чате
     if (data.ticket_id === currentActiveId) {
       setMessages(prev => [...prev, {
         id: Date.now(),
@@ -163,7 +163,7 @@ export default function SupportPage() {
     }
   });
 
-  // === РЎРћР—Р”РђРќРР• РќРћР’РћР™ Р—РђРЇР’РљР ===
+  // === РЎРћР—Р”РђРќРР• НОВОЙ Р—РђРЇР’РљР ===
   async function createTicket() {
     if (creating || (!newText.trim() && !file)) return;
     setCreating(true);
@@ -193,12 +193,12 @@ export default function SupportPage() {
     }
   }
 
-   // === РћРўРџР РђР’РљРђ РЎРћРћР‘Р©Р•РќРРЇ (OPTIMISTIC) ===
+   // === ОТПРАВКА РЎРћРћР‘Р©Р•РќРРЇ (OPTIMISTIC) ===
   async function sendMessage() {
     if ((!input.trim() && !file) || !activeId || sending) return;
     setSending(true);
 
-    const tempId = -Date.now(); // РѕС‚СЂРёС†Р°С‚РµР»СЊРЅС‹Р№ ID РґР»СЏ temp
+    const tempId = -Date.now(); // отрицательный ID для temp
     const tempMsg: Message = {
       id: tempId,
       sender_id: myId || -1,
@@ -221,7 +221,7 @@ export default function SupportPage() {
     const form = new FormData();
     form.append("ticket_id", String(activeId));
     
-    // вњ… РРЎРџР РђР’Р›Р•РќРР• 1: Р’РЎР•Р“Р”Рђ РѕС‚РїСЂР°РІР»СЏРµРј text, РґР°Р¶Рµ РµСЃР»Рё РѕРЅ РїСѓСЃС‚РѕР№ (FastAPI С‚СЂРµР±СѓРµС‚ РЅР°Р»РёС‡РёРµ РїРѕР»СЏ)
+    // вњ… РРЎРџР РђР’Р›Р•РќРР• 1: ВСЕГДА отправляем text, даже если он пустой (FastAPI требует наличие поля)
     form.append("text", savedInput.trim() || ""); 
     
     if (savedFile) form.append("file", savedFile);
@@ -235,10 +235,10 @@ export default function SupportPage() {
       
         if (res.ok) {
           const data = await res.json();
-          // Р—Р°РјРµРЅСЏРµРј temp РЅР° СЂРµР°Р»СЊРЅРѕРµ СЃРѕРѕР±С‰РµРЅРёРµ
+          // Заменяем temp на реальное сообщение
           setMessages(prev => prev.map(m => m.id === tempId ? data.message : m));
           
-          // РћР±РЅРѕРІР»СЏРµРј СЃРїРёСЃРѕРє Р·Р°СЏРІРѕРє (Р—Р°РјРµРЅРёР»Рё t РЅР° ticket РІРЅСѓС‚СЂРё map)
+          // Обновляем список заявок (Заменили t на ticket внутри map)
           setTickets(prev => prev.map(ticket => {
             if (ticket.id === activeId) {
               return {
@@ -255,12 +255,12 @@ export default function SupportPage() {
           }));
         
       } else {
-        // вњ… РРЎРџР РђР’Р›Р•РќРР• 2: Р§РёС‚Р°РµРј Рё РїРѕРєР°Р·С‹РІР°РµРј СЂРµР°Р»СЊРЅСѓСЋ РѕС€РёР±РєСѓ РѕС‚ Р±СЌРєРµРЅРґР°
+        // вњ… РРЎРџР РђР’Р›Р•РќРР• 2: Читаем и показываем реальную ошибку от бэкенда
         const errData = await res.json().catch(() => ({}));
         console.error("Server Error Detail:", errData);
         alert(errData.detail || t("support.sendFailed"));
         
-        // РћС‚РєР°С‚ (rollback)
+        // Откат (rollback)
         setMessages(prev => prev.filter(m => m.id !== tempId));
         setInput(savedInput);
         setFile(savedFile);
@@ -270,7 +270,7 @@ export default function SupportPage() {
       console.error("Network Error:", error);
       alert(t("support.network"));
       
-      // РћС‚РєР°С‚ (rollback)
+      // Откат (rollback)
       setMessages(prev => prev.filter(m => m.id !== tempId));
       setInput(savedInput);
       setFile(savedFile);
@@ -297,7 +297,7 @@ export default function SupportPage() {
 
       <main className="flex-1 flex overflow-hidden">
         
-        {/* Р›Р•Р’РђРЇ РљРћР›РћРќРљРђ: РЎРџРРЎРћРљ Р—РђРЇР’РћРљ */}
+        {/* ЛЕВАЯ КОЛОНКА: РЎРџРРЎРћРљ ЗАЯВОК */}
         <div className={`w-full md:w-80 lg:w-96 border-r border-line dark:border-white/10 flex flex-col bg-white/[0.02] ${activeId ? "hidden md:flex" : "flex"}`}>
           <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -366,7 +366,7 @@ export default function SupportPage() {
           </div>
         </div>
 
-        {/* РџР РђР’РђРЇ РљРћР›РћРќРљРђ: Р§РђРў */}
+        {/* ПРАВАЯ КОЛОНКА: ЧАТ */}
         <div className={`flex-1 flex flex-col bg-ivory dark:bg-[#18181b] ${activeId ? "flex" : "hidden md:flex"}`}>
           {!activeId ? (
             <div className="flex-1 flex items-center justify-center">
@@ -441,7 +441,7 @@ export default function SupportPage() {
                     </button>
                     <input value={input} onChange={e => setInput(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                      placeholder="РќР°РїРёСЃР°С‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ..." disabled={sending}
+                      placeholder="Написать сообщение..." disabled={sending}
                       className="flex-1 px-4 py-2.5 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-[#8b5cf6]" />
                     <button onClick={sendMessage} disabled={(!input.trim() && !file) || sending}
                       className="p-2.5 rounded-xl bg-[#8b5cf6] text-white hover:bg-[#7c3aed] disabled:opacity-40 shrink-0">
@@ -452,7 +452,7 @@ export default function SupportPage() {
               ) : (
                 <div className="p-4 border-t border-line dark:border-white/10 text-center">
                   <p className="text-gray-500 dark:text-white/30 text-sm flex items-center justify-center gap-2">
-                    <Clock size={14} /> Р­С‚Р° Р·Р°СЏРІРєР° Р·Р°РєСЂС‹С‚Р°
+                    <Clock size={14} /> Эта заявка закрыта
                   </p>
                 </div>
               )}

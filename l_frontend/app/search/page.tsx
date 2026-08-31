@@ -48,18 +48,18 @@ function SearchContent() {
         setResults(await response.json());
       }
     } catch (error) {
-      console.error("РћС€РёР±РєР° РїРѕРёСЃРєР°:", error);
+      console.error("Ошибка поиска:", error);
     } finally {
       setLoading(false);
     }
   }
 
-  // РђРІС‚РѕС„РѕРєСѓСЃ РїСЂРё Р·Р°РіСЂСѓР·РєРµ
+  // Автофокус при загрузке
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // Debounce РїРѕРёСЃРє РїРѕ РјРµСЂРµ РІРІРѕРґР°
+  // Debounce поиск по мере ввода
   useEffect(() => {
     const trimmed = query.trim();
     if (!trimmed) {
@@ -71,7 +71,7 @@ function SearchContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  // РћР±РЅРѕРІР»СЏРµРј URL РїСЂРё РёР·РјРµРЅРµРЅРёРё Р·Р°РїСЂРѕСЃР° (Р±РµР· РїРµСЂРµР·Р°РіСЂСѓР·РєРё)
+  // Обновляем URL при изменении запроса (без перезагрузки)
   useEffect(() => {
     const trimmed = query.trim();
     const current = searchParams.get("q") || "";
@@ -82,7 +82,7 @@ function SearchContent() {
     }
   }, [query, searchParams, router]);
 
-  // РџРѕРёСЃРє РїСЂРё РїРµСЂРІРѕРј Р·Р°С…РѕРґРµ СЃ ?q=...
+  // Поиск при первом заходе с ?q=...
   useEffect(() => {
     if (initialQuery) doSearch(initialQuery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,7 +97,7 @@ function SearchContent() {
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
       <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10">
-        {/* РЁР°РїРєР° РїРѕРёСЃРєР° */}
+        {/* Шапка поиска */}
         <div className="p-4 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
           <div className="flex gap-2 mb-3">
             <div className="flex-1 flex items-center gap-2 border border-line dark:border-white/15 rounded-full px-4 py-2.5 bg-gray-100 dark:bg-white/5 focus-within:border-[#8b5cf6] transition-all">
@@ -120,7 +120,7 @@ function SearchContent() {
             </div>
           </div>
 
-          {/* Р’РєР»Р°РґРєРё */}
+          {/* Вкладки */}
           {results && totalCount > 0 && (
             <div className="flex gap-1 overflow-x-auto scrollbar-hide -mx-1 px-1">
               {[
@@ -148,15 +148,15 @@ function SearchContent() {
           )}
         </div>
 
-        {/* РЎРѕСЃС‚РѕСЏРЅРёСЏ Р·Р°РіСЂСѓР·РєРё */}
+        {/* Состояния загрузки */}
         {loading && (
           <SearchResultsSkeleton />
         )}
 
-        {/* Р РµР·СѓР»СЊС‚Р°С‚С‹ */}
+        {/* Результаты */}
         {!loading && results && (
           <>
-            {/* Р›СЋРґРё */}
+            {/* Люди */}
             {(activeTab === "all" || activeTab === "users") && filteredUsers.length > 0 && (
               <section className="p-4 border-b border-line dark:border-white/10">
                 <h2 className="font-black mb-3 text-gray-900 dark:text-white flex items-center gap-2">
@@ -184,7 +184,7 @@ function SearchContent() {
               </section>
             )}
 
-            {/* РџРѕСЃС‚С‹ */}
+            {/* Посты */}
             {(activeTab === "all" || activeTab === "posts") && filteredPosts.length > 0 && (
               <section>
                 <h2 className="font-black p-4 pb-0 text-gray-900 dark:text-white flex items-center gap-2">
@@ -198,7 +198,7 @@ function SearchContent() {
               </section>
             )}
 
-            {/* РќРёС‡РµРіРѕ РЅРµ РЅР°Р№РґРµРЅРѕ */}
+            {/* Ничего не найдено */}
             {totalCount === 0 && (
               <div className="p-12 text-center">
                 <SearchIcon size={48} className="text-gray-500 dark:text-white/20 mx-auto mb-3" />
@@ -209,7 +209,7 @@ function SearchContent() {
           </>
         )}
 
-        {/* РџСѓСЃС‚РѕРµ СЃРѕСЃС‚РѕСЏРЅРёРµ */}
+        {/* Пустое состояние */}
         {!loading && !results && (
           <div className="p-12 text-center">
             <SearchIcon size={48} className="text-gray-500 dark:text-white/20 mx-auto mb-3" />

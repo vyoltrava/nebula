@@ -14,7 +14,7 @@ import {
   CheckCheck, Bell, ArrowLeft 
 } from "lucide-react";
 
-// РћС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕРµ РІСЂРµРјСЏ
+// Относительное время
 function timeAgo(dateStr: string, t: (key: MessageKey, params?: Record<string, string | number>) => string, locale: string): string {
   const date = new Date(dateStr);
   const now = new Date();
@@ -63,7 +63,7 @@ export default function NotificationsPage() {
         prev.map((n) => (n.id === id ? { ...n, read: true } : n))
       );
     } catch (e) {
-      console.error("РћС€РёР±РєР° РѕС‚РјРµС‚РєРё:", e);
+      console.error("Ошибка отметки:", e);
     }
   }
 
@@ -74,10 +74,10 @@ export default function NotificationsPage() {
     
     const unread = notifs.filter((n) => !n.read);
     
-    // РњРіРЅРѕРІРµРЅРЅРѕ РѕР±РЅРѕРІР»СЏРµРј UI
+    // Мгновенно обновляем UI
     setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
     
-    // РџР°СЂР°Р»Р»РµР»СЊРЅРѕ РѕС‚РїСЂР°РІР»СЏРµРј РЅР° СЃРµСЂРІРµСЂ
+    // Параллельно отправляем на сервер
     await Promise.allSettled(
       unread.map((n) =>
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/${n.id}/read`, {
@@ -128,7 +128,7 @@ export default function NotificationsPage() {
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
       <main className="flex-1 overflow-y-auto overflow-x-hidden border-x border-line dark:border-white/10 md:border-x-0">
-        {/* РЁР°РїРєР° */}
+        {/* Шапка */}
         <div className="p-3 sm:p-4 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
           <div className="flex items-center justify-between gap-2 sm:gap-3">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -167,7 +167,7 @@ export default function NotificationsPage() {
           </div>
         </div>
 
-        {/* РљРѕРЅС‚РµРЅС‚ */}
+        {/* Контент */}
         <div className="max-w-3xl mx-auto">
           {loading && <NotificationsSkeleton />}
 
@@ -201,7 +201,7 @@ export default function NotificationsPage() {
                         : "hover:bg-gray-100 dark:hover:bg-white/5"
                     }`}
                   >
-                    {/* РђРІР°С‚Р°СЂРєР° */}
+                    {/* Аватарка */}
                     <div className="shrink-0 mt-0.5">
                       <Avatar
                         src={n.actor?.avatar_url}
@@ -211,7 +211,7 @@ export default function NotificationsPage() {
                       />
                     </div>
 
-                    {/* РљРѕРЅС‚РµРЅС‚ */}
+                    {/* Контент */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                         <span className="font-bold text-[13px] sm:text-sm text-gray-900 dark:text-white truncate group-hover:text-[#a78bfa] transition-colors max-w-[40%] sm:max-w-none">
@@ -232,14 +232,14 @@ export default function NotificationsPage() {
                           {timeAgo(n.created_at, t, locale)}
                         </p>
 
-                        {/* РџРѕРґСЃРєР°Р·РєР° РєСѓРґР° РІРµРґС‘С‚ вЂ” С‚РѕР»СЊРєРѕ РЅР° sm+ */}
+                        {/* Подсказка куда ведёт вЂ” только на sm+ */}
                         <p className="hidden sm:block text-xs text-[#8b5cf6]/80 font-medium truncate">
                           в†’ {link === "/messages" ? t("notif.openMessages") : t("notif.goToProfile")}
                         </p>
                       </div>
                     </div>
 
-                    {/* РРЅРґРёРєР°С‚РѕСЂ РЅРµРїСЂРѕС‡РёС‚Р°РЅРЅРѕРіРѕ */}
+                    {/* РРЅРґРёРєР°С‚РѕСЂ непрочитанного */}
                     {!n.read && (
                       <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#8b5cf6] shrink-0 mt-3 shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
                     )}

@@ -22,8 +22,8 @@ function fmtLastSeen(iso?: string | null) {
   if (!iso) return "вЂ”";
   const d = new Date(iso), now = new Date();
   const time = d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
-  if (d.toDateString() === now.toDateString()) return `РЎРµРіРѕРґРЅСЏ ${time}`;
-  if (d.toDateString() === new Date(now.getTime() - 86400000).toDateString()) return `Р’С‡РµСЂР° ${time}`;
+  if (d.toDateString() === now.toDateString()) return `Сегодня ${time}`;
+  if (d.toDateString() === new Date(now.getTime() - 86400000).toDateString()) return `Вчера ${time}`;
   return d.toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "2-digit" }) + " " + time;
 }
 
@@ -64,13 +64,13 @@ function pageList(total: number, current: number): number[] {
 }
 
 const ALL_COLUMNS = [
-  { id: "posts_count", label: "РџРѕСЃС‚С‹" },
-  { id: "messages_count", label: "РЎРѕРѕР±С‰РµРЅРёСЏ" },
-  { id: "likes_given", label: "Р›Р°Р№РєРё РїРѕСЃС‚Р°РІР»РµРЅРѕ" },
-  { id: "likes_received", label: "Р›Р°Р№РєРё РїРѕР»СѓС‡РµРЅРѕ" },
-  { id: "visits_count", label: "Р’РёР·РёС‚С‹" },
+  { id: "posts_count", label: "Посты" },
+  { id: "messages_count", label: "Сообщения" },
+  { id: "likes_given", label: "Лайки поставлено" },
+  { id: "likes_received", label: "Лайки получено" },
+  { id: "visits_count", label: "Визиты" },
   { id: "kpi", label: "KPI" },
-  { id: "group", label: "Р“СЂСѓРїРїР°" },
+  { id: "group", label: "Группа" },
 ];
 
 export default function StatPage() {
@@ -146,7 +146,7 @@ export default function StatPage() {
   }
 
   async function toggleBan(u: any) {
-    if (!confirm(u.is_banned ? `Р Р°Р·Р±Р°РЅРёС‚СЊ @${u.username}?` : `Р—Р°Р±Р°РЅРёС‚СЊ @${u.username}?`)) return;
+    if (!confirm(u.is_banned ? `Разбанить @${u.username}?` : `Забанить @${u.username}?`)) return;
     const token = getToken();
     const res = await fetch(`${API_URL}/api/admin/users/${u.id}/ban`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
     if (res.ok) loadData();
@@ -207,68 +207,68 @@ export default function StatPage() {
   return (
     <div className="min-h-screen bg-paper dark:bg-[#171717]">
       <div className="max-w-7xl mx-auto px-4 py-10">
-        {/* РЁР°РїРєР° */}
+        {/* Шапка */}
         <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
           <div className="flex items-center gap-4">
             <Link href="/" className="p-2 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10"><ArrowLeft size={20} /></Link>
             <div>
-              <h1 className="text-3xl font-black text-gray-900 dark:text-white">РџР°РЅРµР»СЊ РєРѕРјР°РЅРґС‹</h1>
-              <p className="text-gray-600 dark:text-white/50 text-sm mt-1">РЎС‚Р°С‚РёСЃС‚РёРєР° Рё СѓРїСЂР°РІР»РµРЅРёРµ РїСЂРѕРµРєС‚РѕРј</p>
+              <h1 className="text-3xl font-black text-gray-900 dark:text-white">Панель команды</h1>
+              <p className="text-gray-600 dark:text-white/50 text-sm mt-1">Статистика и управление проектом</p>
             </div>
           </div>
           <div className="flex gap-2">
             <button onClick={() => setActiveTab("users")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === "users" ? "bg-purple-500 text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/10"}`}>
-              <Users size={16} /> РџРѕР»СЊР·РѕРІР°С‚РµР»Рё
+              <Users size={16} /> Пользователи
             </button>
             <button onClick={() => setActiveTab("team")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === "team" ? "bg-purple-500 text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/10"}`}>
-              <Shield size={16} /> РљРѕРјР°РЅРґР°
+              <Shield size={16} /> Команда
             </button>
           </div>
         </div>
 
-        {/* ========== Р’РљР›РђР”РљРђ: РџРћР›Р¬Р—РћР’РђРўР•Р›Р ========== */}
+        {/* ========== ВКЛАДКА: РџРћР›Р¬Р—РћР’РђРўР•Р›Р ========== */}
         {activeTab === "users" && overview && (
           <div className="space-y-6">
-            {/* РћР‘Р—РћР  */}
+            {/* ОБЗОР */}
             <div>
-              <h2 className="text-xs font-black uppercase text-gray-600 dark:text-white/50 mb-3">РћР±С‰РёРµ РїРѕРєР°Р·Р°С‚РµР»Рё</h2>
+              <h2 className="text-xs font-black uppercase text-gray-600 dark:text-white/50 mb-3">Общие показатели</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
                 <div className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl p-4">
-                  <p className="text-gray-600 dark:text-white/50 text-xs mb-1">Р’СЃРµРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№</p>
+                  <p className="text-gray-600 dark:text-white/50 text-xs mb-1">Всего пользователей</p>
                   <p className="text-2xl font-black text-gray-900 dark:text-white mb-3">{overview.total_users}</p>
                   <MiniBars data={overview.reg_series.map((r: any) => r.count)} />
                 </div>
                 <div className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl p-4">
-                  <p className="text-gray-600 dark:text-white/50 text-xs mb-1 flex items-center gap-1"><Activity size={12} /> РђРєС‚РёРІРЅС‹Рµ (MAU/DAU)</p>
+                  <p className="text-gray-600 dark:text-white/50 text-xs mb-1 flex items-center gap-1"><Activity size={12} /> Активные (MAU/DAU)</p>
                   <div className="flex gap-4 mb-3">
-                    <div><p className="text-xl font-black text-gray-900 dark:text-white">{overview.mau}</p><p className="text-[10px] text-gray-500 dark:text-white/40">РјРµСЃСЏС†</p></div>
-                    <div><p className="text-xl font-black text-green-600 dark:text-green-400">{overview.dau}</p><p className="text-[10px] text-gray-500 dark:text-white/40">РґРµРЅСЊ</p></div>
+                    <div><p className="text-xl font-black text-gray-900 dark:text-white">{overview.mau}</p><p className="text-[10px] text-gray-500 dark:text-white/40">месяц</p></div>
+                    <div><p className="text-xl font-black text-green-600 dark:text-green-400">{overview.dau}</p><p className="text-[10px] text-gray-500 dark:text-white/40">день</p></div>
                   </div>
                   <MiniBars data={overview.post_series.map((r: any) => r.count)} color="#22c55e" />
                 </div>
                 <div className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl p-4">
-                  <p className="text-gray-600 dark:text-white/50 text-xs mb-1">Р РµРіРёСЃС‚СЂР°С†РёРё СЃРµРіРѕРґРЅСЏ</p>
+                  <p className="text-gray-600 dark:text-white/50 text-xs mb-1">Регистрации сегодня</p>
                   <p className="text-2xl font-black text-gray-900 dark:text-white">{overview.reg_today}</p>
                   <p className={`text-xs mt-2 font-bold ${overview.reg_today - overview.reg_yesterday >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                    {overview.reg_today - overview.reg_yesterday >= 0 ? "в†‘ +" : "в†“ "}{overview.reg_today - overview.reg_yesterday} Рє РІС‡РµСЂР°
+                    {overview.reg_today - overview.reg_yesterday >= 0 ? "в†‘ +" : "в†“ "}{overview.reg_today - overview.reg_yesterday} к вчера
                   </p>
-                  <p className="text-[10px] text-gray-500 dark:text-white/40 mt-1">РћРЅР»Р°Р№РЅ СЃРµР№С‡Р°СЃ: {overview.online}</p>
+                  <p className="text-[10px] text-gray-500 dark:text-white/40 mt-1">Онлайн сейчас: {overview.online}</p>
                 </div>
                 <div className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl p-4">
-                  <p className="text-gray-600 dark:text-white/50 text-xs mb-1">Р—Р°РіР°Р»СЊРЅРёР№ KPI</p>
+                  <p className="text-gray-600 dark:text-white/50 text-xs mb-1">Загальний KPI</p>
                   <p className="text-2xl font-black text-gray-900 dark:text-white mb-3">{avgKpi}</p>
                   <div className="h-1.5 rounded-full bg-gray-100 dark:bg-white/10 overflow-hidden">
                     <div className="h-full rounded-full bg-purple-500" style={{ width: `${avgKpi}%` }} />
                   </div>
-                  <p className="text-[10px] text-gray-500 dark:text-white/40 mt-2">РЎСЂРµРґРЅСЏСЏ РѕС†РµРЅРєР° Р°РєС‚РёРІРЅРѕСЃС‚Рё</p>
+                  <p className="text-[10px] text-gray-500 dark:text-white/40 mt-2">Средняя оценка активности</p>
                 </div>
                 <div className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl p-4">
-                  <p className="text-gray-600 dark:text-white/50 text-xs mb-3">РСЃРїРѕР»СЊР·РѕРІР°РЅРёРµ С„РёС‡</p>
+                  <p className="text-gray-600 dark:text-white/50 text-xs mb-3">РСЃРїРѕР»СЊР·РѕРІР°РЅРёРµ фич</p>
                   <div className="flex items-end gap-3 h-14">
                     {[
-                      { v: overview.total_posts, l: "РџРѕСЃС‚С‹", c: "#8b5cf6" },
-                      { v: overview.total_messages, l: "РЎРѕРѕР±С‰.", c: "#22c55e" },
-                      { v: overview.total_likes, l: "Р›Р°Р№РєРё", c: "#f59e0b" },
+                      { v: overview.total_posts, l: "Посты", c: "#8b5cf6" },
+                      { v: overview.total_messages, l: "Сообщ.", c: "#22c55e" },
+                      { v: overview.total_likes, l: "Лайки", c: "#f59e0b" },
                     ].map((f) => {
                       const max = Math.max(overview.total_posts, overview.total_messages, overview.total_likes, 1);
                       return (
@@ -287,28 +287,28 @@ export default function StatPage() {
             <div className="flex gap-3 items-center p-4 bg-gray-100 dark:bg-white/5 rounded-xl border border-line dark:border-white/10 flex-wrap relative">
               <div className="flex-1 min-w-[200px] relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" size={18} />
-                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="РџРѕРёСЃРє РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№..."
+                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Поиск пользователей..."
                   className="w-full pl-10 pr-4 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/10 text-gray-900 dark:text-white focus:border-purple-500 outline-none" />
               </div>
               <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
                 className="px-3 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/10 text-gray-900 dark:text-white text-sm outline-none">
-                <option value="all">Р’СЃРµ СЂРѕР»Рё</option>
+                <option value="all">Все роли</option>
                 <option value="admin">Founder</option>
-                <option value="moderator">РњРѕРґРµСЂР°С‚РѕСЂС‹</option>
-                <option value="staff">РЎ СЂРѕР»СЊСЋ</option>
-                <option value="norole">Р‘РµР· СЂРѕР»Рё</option>
+                <option value="moderator">Модераторы</option>
+                <option value="staff">С ролью</option>
+                <option value="norole">Без роли</option>
               </select>
               <select value={activityFilter} onChange={(e) => setActivityFilter(e.target.value)}
                 className="px-3 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/10 text-gray-900 dark:text-white text-sm outline-none">
-                <option value="all">Р›СЋР±Р°СЏ Р°РєС‚РёРІРЅРѕСЃС‚СЊ</option>
-                <option value="online">РћРЅР»Р°Р№РЅ СЃРµР№С‡Р°СЃ</option>
-                <option value="today">Р‘С‹Р»Рё СЃРµРіРѕРґРЅСЏ</option>
-                <option value="week">РђРєС‚РёРІРЅС‹ Р·Р° 7 РґРЅРµР№</option>
-                <option value="dormant">РЎРїСЏС‚ 30+ РґРЅРµР№</option>
+                <option value="all">Любая активность</option>
+                <option value="online">Онлайн сейчас</option>
+                <option value="today">Были сегодня</option>
+                <option value="week">Активны за 7 дней</option>
+                <option value="dormant">Спят 30+ дней</option>
               </select>
               <div className="relative">
                 <button onClick={() => setShowColsMenu(!showColsMenu)} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/10 text-gray-800 dark:text-white/70 text-sm hover:text-gray-900 dark:hover:text-white">
-                  РљРѕР»РѕРЅРєРё <ChevronDown size={14} />
+                  Колонки <ChevronDown size={14} />
                 </button>
                 {showColsMenu && (
                   <div className="absolute right-0 top-11 z-50 w-48 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl p-2 space-y-1">
@@ -330,24 +330,24 @@ export default function StatPage() {
                 <thead>
                   <tr className="border-b border-line dark:border-white/10 bg-gray-100 dark:bg-white/5">
                     <th className="text-left p-3 text-gray-600 dark:text-white/50 font-bold text-xs uppercase">#</th>
-                    {th("username", "РђРІР°С‚Р°СЂ + РёРјСЏ")}
-                    {th("level", "Р РѕР»СЊ")}
-                    {th("created_at", "Р РµРіРёСЃС‚СЂР°С†РёСЏ")}
-                    {th("last_seen", "РђРєС‚РёРІРЅРѕСЃС‚СЊ")}
-                    {visibleCols.posts_count && th("posts_count", "РџРѕСЃС‚С‹")}
-                    {visibleCols.messages_count && th("messages_count", "РЎРѕРѕР±С‰РµРЅРёСЏ")}
-                    {visibleCols.likes_given && th("likes_given", "Р›Р°Р№РєРё РїРѕСЃС‚.")}
-                    {visibleCols.likes_received && th("likes_received", "Р›Р°Р№РєРё РїРѕР»СѓС‡.")}
-                    {visibleCols.visits_count && th("visits_count", "Р’РёР·РёС‚С‹")}
+                    {th("username", "Аватар + имя")}
+                    {th("level", "Роль")}
+                    {th("created_at", "Регистрация")}
+                    {th("last_seen", "Активность")}
+                    {visibleCols.posts_count && th("posts_count", "Посты")}
+                    {visibleCols.messages_count && th("messages_count", "Сообщения")}
+                    {visibleCols.likes_given && th("likes_given", "Лайки пост.")}
+                    {visibleCols.likes_received && th("likes_received", "Лайки получ.")}
+                    {visibleCols.visits_count && th("visits_count", "Визиты")}
                     {visibleCols.kpi && th("kpi", "KPI")}
-                    {visibleCols.group && <th className="text-left p-3 text-gray-600 dark:text-white/50 font-bold text-xs uppercase">Р“СЂСѓРїРїР°</th>}
-                    <th className="text-right p-3 text-gray-600 dark:text-white/50 font-bold text-xs uppercase">Р”РµР№СЃС‚РІРёСЏ</th>
+                    {visibleCols.group && <th className="text-left p-3 text-gray-600 dark:text-white/50 font-bold text-xs uppercase">Группа</th>}
+                    <th className="text-right p-3 text-gray-600 dark:text-white/50 font-bold text-xs uppercase">Действия</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line dark:divide-white/5">
                   {paged.map((u, i) => {
                     const cat = catByRoleId(u.role?.id);
-                    const roleName = u.is_admin ? "Founder" : u.is_moderator ? "РњРѕРґРµСЂР°С‚РѕСЂ" : u.role?.name || "РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ";
+                    const roleName = u.is_admin ? "Founder" : u.is_moderator ? "Модератор" : u.role?.name || "Пользователь";
                     const roleColor = u.is_admin ? "#ffffff" : u.is_moderator ? "#3b82f6" : u.role?.color || "#6b7280";
                     return (
                       <tr key={u.id} className="hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
@@ -392,16 +392,16 @@ export default function StatPage() {
                               <div className="fixed inset-0 z-40" onClick={() => setMenuUserId(null)} />
                               <div className="absolute right-4 top-12 z-50 w-44 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl p-1.5 space-y-0.5 text-left">
                                 <button onClick={() => router.push(`/profile/${u.username}`)} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/5">
-                                  <ExternalLink size={14} /> РџСЂРѕС„РёР»СЊ
+                                  <ExternalLink size={14} /> Профиль
                                 </button>
                                 <button onClick={() => { setMenuUserId(null); setSelectedMember({ user: u, role: u.role, level: u.level }); loadMemberStats(u.id); }}
                                   className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/5">
-                                  <BarChart3 size={14} /> РЎС‚Р°С‚РёСЃС‚РёРєР°
+                                  <BarChart3 size={14} /> Статистика
                                 </button>
                                 {canBan && (
                                   <button onClick={() => { setMenuUserId(null); toggleBan(u); }}
                                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${u.is_banned ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"} hover:bg-gray-100 dark:hover:bg-white/5`}>
-                                    <Ban size={14} /> {u.is_banned ? "Р Р°Р·Р±Р°РЅРёС‚СЊ" : "Р—Р°Р±Р°РЅРёС‚СЊ"}
+                                    <Ban size={14} /> {u.is_banned ? "Разбанить" : "Забанить"}
                                   </button>
                                 )}
                               </div>
@@ -413,7 +413,7 @@ export default function StatPage() {
                   })}
                 </tbody>
               </table>
-              {filtered.length === 0 && <p className="text-center text-gray-500 dark:text-white/40 py-12">РќРёРєРѕРіРѕ РЅРµ РЅР°С€Р»Рё</p>}
+              {filtered.length === 0 && <p className="text-center text-gray-500 dark:text-white/40 py-12">Никого не нашли</p>}
             </div>
 
             {/* РџРђР“РРќРђР¦РРЇ */}
@@ -434,14 +434,14 @@ export default function StatPage() {
           </div>
         )}
 
-        {/* ========== Р’РљР›РђР”РљРђ: РљРћРњРђРќР”Рђ ========== */}
+        {/* ========== ВКЛАДКА: КОМАНДА ========== */}
         {activeTab === "team" && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase"> РљРѕРјР°РЅРґР°</h2>
+            <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase"> Команда</h2>
             {teamGroups.length === 0 ? (
               <div className="text-center py-16 border border-line dark:border-white/10 rounded-2xl bg-gray-100 dark:bg-white/5">
                 <Shield size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
-                <p className="text-gray-600 dark:text-white/50 text-lg">РљРѕРјР°РЅРґР° РїСЂРѕРµРєС‚Р° РїСѓСЃС‚Р°</p>
+                <p className="text-gray-600 dark:text-white/50 text-lg">Команда проекта пуста</p>
               </div>
             ) : (
               teamGroups.map((group) => (
@@ -449,7 +449,7 @@ export default function StatPage() {
                   <div className="flex items-center gap-3 pb-2 border-b border-line dark:border-white/10">
                     <div className="w-1 h-6 rounded-full" style={{ backgroundColor: group.color }} />
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white uppercase tracking-wide">{group.name}</h3>
-                    <span className="text-xs text-gray-500 dark:text-white/40 bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-full">{group.members.length} С‡РµР».</span>
+                    <span className="text-xs text-gray-500 dark:text-white/40 bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-full">{group.members.length} чел.</span>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {group.members.map((member: any) => (
@@ -472,17 +472,17 @@ export default function StatPage() {
                         )}
                         <div className="space-y-2 text-xs">
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-600 dark:text-white/50">Р”РµР№СЃС‚РІРёР№:</span>
+                            <span className="text-gray-600 dark:text-white/50">Действий:</span>
                             <span className="text-gray-900 dark:text-white font-bold">{member.actions_count || 0}</span>
                           </div>
                           <div className="flex items-center justify-between">
-                            <span className="text-gray-600 dark:text-white/50">Р‘С‹Р»(Р°):</span>
+                            <span className="text-gray-600 dark:text-white/50">Был(а):</span>
                             <span className="text-gray-600 dark:text-white/60">{fmtLastSeen(member.user.last_seen)}</span>
                           </div>
                         </div>
                         <div className="mt-3 pt-3 border-t border-line dark:border-white/10">
                           <div className="w-full flex items-center justify-center gap-2 py-1.5 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 text-xs font-bold group-hover:bg-purple-500/20 group-hover:text-purple-600 dark:group-hover:text-purple-300 transition-all">
-                            <BarChart3 size={14} /> Р”РµС‚Р°Р»СЊРЅР°СЏ СЃС‚Р°С‚РёСЃС‚РёРєР°
+                            <BarChart3 size={14} /> Детальная статистика
                           </div>
                         </div>
                       </div>
@@ -495,7 +495,7 @@ export default function StatPage() {
         )}
       </div>
 
-      {/* РњРѕРґР°Р»РєР° РґРµС‚Р°Р»СЊРЅРѕР№ СЃС‚Р°С‚РёСЃС‚РёРєРё */}
+      {/* Модалка детальной статистики */}
       {selectedMember && memberStats && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[400] flex items-center justify-center p-4">
           <div className="w-full max-w-5xl bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl max-h-[90vh] overflow-y-auto">
@@ -504,7 +504,7 @@ export default function StatPage() {
                 <Avatar src={selectedMember.user.avatar_url} name={selectedMember.user.display_name} id={selectedMember.user.id} size={40} />
                 <div>
                   <h3 className="text-lg font-black text-gray-900 dark:text-white">{selectedMember.user.display_name}</h3>
-                  <p className="text-sm text-gray-600 dark:text-white/50">{selectedMember.role?.name || "Р‘РµР· СЂРѕР»Рё"}</p>
+                  <p className="text-sm text-gray-600 dark:text-white/50">{selectedMember.role?.name || "Без роли"}</p>
                 </div>
               </div>
               <button onClick={() => { setSelectedMember(null); setMemberStats(null); }} className="p-2 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10">
@@ -514,15 +514,15 @@ export default function StatPage() {
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10">
-                  <p className="text-gray-500 dark:text-white/40 text-xs mb-1">Р’СЃРµРіРѕ РґРµР№СЃС‚РІРёР№</p>
+                  <p className="text-gray-500 dark:text-white/40 text-xs mb-1">Всего действий</p>
                   <p className="text-2xl font-black text-gray-900 dark:text-white">{memberStats.total_actions || 0}</p>
                 </div>
                 <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10">
-                  <p className="text-gray-500 dark:text-white/40 text-xs mb-1">РЈСЂРѕРІРµРЅСЊ</p>
+                  <p className="text-gray-500 dark:text-white/40 text-xs mb-1">Уровень</p>
                   <p className="text-2xl font-black text-purple-600 dark:text-purple-400">Lvl {selectedMember.role?.level || selectedMember.level || 1}</p>
                 </div>
                 <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10">
-                  <p className="text-gray-500 dark:text-white/40 text-xs mb-1">РџРѕСЃР»РµРґРЅРёР№ РІС…РѕРґ</p>
+                  <p className="text-gray-500 dark:text-white/40 text-xs mb-1">Последний вход</p>
                   <p className="text-lg font-bold text-gray-900 dark:text-white">{fmtLastSeen(selectedMember.user.last_seen)}</p>
                 </div>
                 <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10">
@@ -531,7 +531,7 @@ export default function StatPage() {
                 </div>
               </div>
               <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10">
-                <h4 className="text-gray-900 dark:text-white font-bold mb-4 flex items-center gap-2"><Clock size={18} /> РСЃС‚РѕСЂРёСЏ РґРµР№СЃС‚РІРёР№</h4>
+                <h4 className="text-gray-900 dark:text-white font-bold mb-4 flex items-center gap-2"><Clock size={18} /> РСЃС‚РѕСЂРёСЏ действий</h4>
                 {memberStats.actions?.length > 0 ? (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {memberStats.actions.map((action: any, idx: number) => (
@@ -544,11 +544,11 @@ export default function StatPage() {
                       </div>
                     ))}
                   </div>
-                ) : <p className="text-gray-500 dark:text-white/40 text-sm text-center py-8">РќРµС‚ Р·Р°РїРёСЃРµР№</p>}
+                ) : <p className="text-gray-500 dark:text-white/40 text-sm text-center py-8">Нет записей</p>}
               </div>
               {memberStats.role_history?.length > 0 && (
                 <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10">
-                  <h4 className="text-gray-900 dark:text-white font-bold mb-4 flex items-center gap-2"><Settings size={18} /> РСЃС‚РѕСЂРёСЏ РІС‹РґР°С‡Рё СЂРѕР»Рё</h4>
+                  <h4 className="text-gray-900 dark:text-white font-bold mb-4 flex items-center gap-2"><Settings size={18} /> РСЃС‚РѕСЂРёСЏ выдачи роли</h4>
                   <div className="space-y-2">
                     {memberStats.role_history.map((role: any, idx: number) => (
                       <div key={idx} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/5">
@@ -559,7 +559,7 @@ export default function StatPage() {
                         </div>
                         <div className="flex items-center gap-3 flex-wrap">
                           {role.changed_by && (
-                            <Link href={`/user/${role.changed_by.id}`} className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-white/60 hover:text-[#8b5cf6] transition-colors" title={`Р’С‹РґР°Р»: ${role.changed_by.display_name || role.changed_by.username}`}>
+                            <Link href={`/user/${role.changed_by.id}`} className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-white/60 hover:text-[#8b5cf6] transition-colors" title={`Выдал: ${role.changed_by.display_name || role.changed_by.username}`}>
                               <Users size={12} /> {role.changed_by.display_name || role.changed_by.username}
                             </Link>
                           )}

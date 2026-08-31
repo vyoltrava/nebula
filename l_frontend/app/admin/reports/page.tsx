@@ -7,11 +7,11 @@ import { getToken } from "@/lib/auth";
 import { Flag, CheckCircle, XCircle, Trash2, Ban } from "lucide-react";
 
 const REASON_LABELS: Record<string, string> = {
-  spam: "рџ“ў РЎРїР°Рј",
-  insult: "рџЎ РћСЃРєРѕСЂР±Р»РµРЅРёРµ",
-  nsfw: "рџ”ћ РљРѕРЅС‚РµРЅС‚ 18+",
-  rules_violation: "вљ пёЏ РќР°СЂСѓС€РµРЅРёРµ РїСЂР°РІРёР»",
-  other: "вќ“ Р”СЂСѓРіРѕРµ",
+  spam: "рџ“ў Спам",
+  insult: "рџЎ Оскорбление",
+  nsfw: "рџ”ћ Контент 18+",
+  rules_violation: "вљ пёЏ Нарушение правил",
+  other: "вќ“ Другое",
 };
 
 export default function ReportsPage() {
@@ -50,9 +50,9 @@ export default function ReportsPage() {
 
   async function resolveReport(reportId: number, action: string) {
     const confirmMsg = {
-      delete_post: "РЈРґР°Р»РёС‚СЊ РїРѕСЃС‚ Рё Р·Р°РєСЂС‹С‚СЊ Р¶Р°Р»РѕР±Сѓ?",
-      ban_user: "Р—Р°Р±Р°РЅРёС‚СЊ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ Рё Р·Р°РєСЂС‹С‚СЊ Р¶Р°Р»РѕР±Сѓ?",
-      ignore: "Р—Р°РєСЂС‹С‚СЊ Р¶Р°Р»РѕР±Сѓ Р±РµР· РґРµР№СЃС‚РІРёР№?",
+      delete_post: "Удалить пост и закрыть жалобу?",
+      ban_user: "Забанить пользователя и закрыть жалобу?",
+      ignore: "Закрыть жалобу без действий?",
     }[action];
 
     if (!confirm(confirmMsg)) return;
@@ -72,7 +72,7 @@ export default function ReportsPage() {
   }
 
   async function rejectReport(reportId: number) {
-    if (!confirm("РћС‚РєР»РѕРЅРёС‚СЊ Р¶Р°Р»РѕР±Сѓ?")) return;
+    if (!confirm("Отклонить жалобу?")) return;
     const token = getToken();
     if (!token) return;
 
@@ -83,7 +83,7 @@ export default function ReportsPage() {
     load();
   }
 
-  if (!me) return <div className="p-8 text-gray-600 dark:text-white/60">Р—Р°РіСЂСѓР·РєР°...</div>;
+  if (!me) return <div className="p-8 text-gray-600 dark:text-white/60">Загрузка...</div>;
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -94,17 +94,17 @@ export default function ReportsPage() {
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <Flag size={24} className="text-red-600 dark:text-red-400" />
-              <h1 className="text-2xl font-black text-gray-900 dark:text-white">Р–Р°Р»РѕР±С‹</h1>
+              <h1 className="text-2xl font-black text-gray-900 dark:text-white">Жалобы</h1>
             </div>
             <Link
               href="/admin"
               className="text-sm text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
-              в†ђ РќР°Р·Р°Рґ РІ Р°РґРјРёРЅРєСѓ
+              в†ђ Назад в админку
             </Link>
           </div>
 
-          {/* Р¤РёР»СЊС‚СЂС‹ */}
+          {/* Фильтры */}
           <div className="flex gap-2 mt-4 flex-wrap">
             {(["pending", "resolved", "rejected", "all"] as const).map((f) => (
               <button
@@ -116,10 +116,10 @@ export default function ReportsPage() {
                     : "border-line dark:border-white/20 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"
                 }`}
               >
-                {f === "pending" && "вЏі РќРѕРІС‹Рµ"}
-                {f === "resolved" && "вњ… РћР±СЂР°Р±РѕС‚Р°РЅРЅС‹Рµ"}
-                {f === "rejected" && "вќЊ РћС‚РєР»РѕРЅС‘РЅРЅС‹Рµ"}
-                {f === "all" && "Р’СЃРµ"}
+                {f === "pending" && "вЏі Новые"}
+                {f === "resolved" && "вњ… Обработанные"}
+                {f === "rejected" && "вќЊ Отклонённые"}
+                {f === "all" && "Все"}
               </button>
             ))}
           </div>
@@ -127,7 +127,7 @@ export default function ReportsPage() {
 
         <div className="p-4 space-y-3">
           {reports.length === 0 && (
-            <p className="p-8 text-center text-gray-600 dark:text-white/50">РќРµС‚ Р¶Р°Р»РѕР±</p>
+            <p className="p-8 text-center text-gray-600 dark:text-white/50">Нет жалоб</p>
           )}
 
           {reports.map((r) => (
@@ -142,7 +142,7 @@ export default function ReportsPage() {
               }`}
             >
               <div className="flex items-start gap-4">
-                {/* РљС‚Рѕ РїРѕР¶Р°Р»РѕРІР°Р»СЃСЏ */}
+                {/* Кто пожаловался */}
                 {r.reporter && (
                   <Avatar
                     src={r.reporter.avatar_url}
@@ -153,22 +153,22 @@ export default function ReportsPage() {
                 )}
 
                 <div className="flex-1 min-w-0">
-                  {/* РРЅС„Рѕ Рѕ Р¶Р°Р»РѕР±Рµ */}
+                  {/* РРЅС„Рѕ о жалобе */}
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold text-gray-900 dark:text-white">
                       {r.reporter?.display_name || "Unknown"}
                     </span>
-                    <span className="text-gray-600 dark:text-white/50 text-sm">РїРѕР¶Р°Р»РѕРІР°Р»СЃСЏ РЅР°</span>
+                    <span className="text-gray-600 dark:text-white/50 text-sm">пожаловался на</span>
                     {r.target?.type === "post" ? (
-                      <span className="text-[#8b5cf6] font-bold">РїРѕСЃС‚</span>
+                      <span className="text-[#8b5cf6] font-bold">пост</span>
                     ) : (
                       <span className="text-[#8b5cf6] font-bold">
-                        РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ {r.target?.display_name}
+                        пользователя {r.target?.display_name}
                       </span>
                     )}
                   </div>
 
-                  {/* РџСЂРёС‡РёРЅР° */}
+                  {/* Причина */}
                   <div className="mt-2 flex items-center gap-2 flex-wrap">
                     <span className="px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/10 text-xs font-bold text-gray-800 dark:text-white/80">
                       {REASON_LABELS[r.reason] || r.reason}
@@ -178,21 +178,21 @@ export default function ReportsPage() {
                     </span>
                   </div>
 
-                  {/* РљРѕРјРјРµРЅС‚Р°СЂРёР№ */}
+                  {/* Комментарий */}
                   {r.comment && (
                     <p className="mt-2 text-sm text-gray-800 dark:text-white/70 italic">
                       "{r.comment}"
                     </p>
                   )}
 
-                  {/* Р¦РµР»СЊ Р¶Р°Р»РѕР±С‹ */}
+                  {/* Цель жалобы */}
                   {r.target?.type === "post" && (
                     <div className="mt-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                       <p className="text-sm text-gray-800 dark:text-white/80 line-clamp-3">
                         {r.target.text}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-white/40 mt-1">
-                        РђРІС‚РѕСЂ: {r.target.author_name}
+                        Автор: {r.target.author_name}
                       </p>
                     </div>
                   )}
@@ -214,7 +214,7 @@ export default function ReportsPage() {
                   )}
                 </div>
 
-                {/* Р”РµР№СЃС‚РІРёСЏ вЂ” С‚РѕР»СЊРєРѕ РґР»СЏ pending */}
+                {/* Действия вЂ” только для pending */}
                 {r.status === "pending" && (
                   <div className="flex flex-col gap-2">
                     {r.target?.type === "post" && (
@@ -223,7 +223,7 @@ export default function ReportsPage() {
                         className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-400/30 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-500/10 transition-all"
                       >
                         <Trash2 size={12} />
-                        РЈРґР°Р»РёС‚СЊ РїРѕСЃС‚
+                        Удалить пост
                       </button>
                     )}
                     <button
@@ -231,36 +231,36 @@ export default function ReportsPage() {
                       className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-400/30 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-500/10 transition-all"
                     >
                       <Ban size={12} />
-                      Р—Р°Р±Р°РЅРёС‚СЊ
+                      Забанить
                     </button>
                     <button
                       onClick={() => resolveReport(r.id, "ignore")}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-green-400/30 text-green-600 dark:text-green-400 text-xs font-bold hover:bg-green-500/10 transition-all"
                     >
                       <CheckCircle size={12} />
-                      Р—Р°РєСЂС‹С‚СЊ
+                      Закрыть
                     </button>
                     <button
                       onClick={() => rejectReport(r.id)}
                       className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-line dark:border-white/20 text-gray-600 dark:text-white/60 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
                     >
                       <XCircle size={12} />
-                      РћС‚РєР»РѕРЅРёС‚СЊ
+                      Отклонить
                     </button>
                   </div>
                 )}
 
-                {/* РЎС‚Р°С‚СѓСЃС‹ РґР»СЏ РѕР±СЂР°Р±РѕС‚Р°РЅРЅС‹С… */}
+                {/* Статусы для обработанных */}
                 {r.status === "resolved" && (
                   <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green-500/20 text-green-600 dark:text-green-400 text-xs font-bold">
                     <CheckCircle size={12} />
-                    РћР±СЂР°Р±РѕС‚Р°РЅР°
+                    Обработана
                   </span>
                 )}
                 {r.status === "rejected" && (
                   <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/60 text-xs font-bold">
                     <XCircle size={12} />
-                    РћС‚РєР»РѕРЅРµРЅР°
+                    Отклонена
                   </span>
                 )}
               </div>

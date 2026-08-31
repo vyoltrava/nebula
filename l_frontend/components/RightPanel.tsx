@@ -101,7 +101,7 @@ export function RightPanel() {
         </div>
       </section>
 
-      {/* РљРЅРѕРїРєР° РєРѕРјР°РЅРґС‹ РїСЂРѕРµРєС‚Р° вЂ” РІ СЃР°РјРѕРј РЅРёР·Сѓ РїСЂР°РІРѕР№ РїР°РЅРµР»Рё */}
+      {/* Кнопка команды проекта вЂ” в самом низу правой панели */}
       <Link
         href="/team"
         className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl border border-line dark:border-white/15 bg-gradient-to-r from-white/5 to-white/10 text-gray-900 dark:text-white hover:from-[#8b5cf6]/20 hover:to-[#8b5cf6]/10 hover:border-[#8b5cf6]/50 transition-all font-semibold text-sm"

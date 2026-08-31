@@ -37,11 +37,11 @@ export function MarkdownContextMenu({ x, y, onClose, onAction }: MarkdownContext
     const vw = window.visualViewport?.width || window.innerWidth;
     const vh = window.visualViewport?.height || window.innerHeight;
 
-    // Р’РЎР•Р“Р”Рђ РЅР°Рґ РєСѓСЂСЃРѕСЂРѕРј
+    // ВСЕГДА над курсором
     let finalY = y - h - 8;
     if (finalY < PAD) finalY = PAD;
 
-    // РџРѕ X вЂ” С†РµРЅС‚СЂРёСЂСѓРµРј РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ РєСѓСЂСЃРѕСЂР°, РЅРѕ РЅРµ РІС‹Р»РµС‚Р°РµРј Р·Р° РєСЂР°СЏ
+    // По X вЂ” центрируем относительно курсора, но не вылетаем за края
     let finalX = x - w / 2;
     if (finalX < PAD) finalX = PAD;
     if (finalX + w > vw - PAD) finalX = vw - w - PAD;
@@ -70,13 +70,13 @@ export function MarkdownContextMenu({ x, y, onClose, onAction }: MarkdownContext
         className="fixed z-[301] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl shadow-2xl px-1.5 py-1 flex items-center gap-0.5"
         style={{ left: pos.x, top: pos.y }}
       >
-        {btn(Bold, "Р–РёСЂРЅС‹Р№", "bold")}
-        {btn(Italic, "РљСѓСЂСЃРёРІ", "italic")}
+        {btn(Bold, "Жирный", "bold")}
+        {btn(Italic, "Курсив", "italic")}
         {sep}
-        {btn(Code, "РљРѕРґ", "code")}
-        {btn(Link2, "РЎСЃС‹Р»РєР°", "link")}
+        {btn(Code, "Код", "code")}
+        {btn(Link2, "Ссылка", "link")}
         {sep}
-        {btn(Eye, "РЎРїРѕР№Р»РµСЂ", "spoiler")}
+        {btn(Eye, "Спойлер", "spoiler")}
       </div>
     </>
   );

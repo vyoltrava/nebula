@@ -222,7 +222,7 @@ export function CreatePost() {
       <div className="flex gap-3">
         <Avatar src={user?.avatar_url} name={user?.display_name || "?"} id={user?.id} />
         <div className="flex-1">
- {/* вњ… РџРћР›Р• Р’Р’РћР”Рђ (С‚РѕР»СЊРєРѕ RichEditor РІРЅСѓС‚СЂРё СЂР°РјРєРё) */}
+ {/* вњ… ПОЛЕ ВВОДА (только RichEditor внутри рамки) */}
 <div className="chat-input-shell rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] transition-all">
   <RichEditor
     ref={editorRef}
@@ -233,7 +233,7 @@ export function CreatePost() {
   />
 </div>
 
-{/* вњ… РџР Р•Р’Р¬Р® Р РљРќРћРџРљР Р’Р«РќР•РЎР•РќР« РќРђР РЈР–РЈ (РЅРёР¶Рµ РїРѕР»СЏ РІРІРѕРґР°) */}
+{/* вњ… ПРЕВЬЮ Р РљРќРћРџРљР ВЫНЕСЕНЫ НАРУЖУ (ниже поля ввода) */}
 {preview && file && (
   <div className="relative mt-2 max-w-full">
     {file.type.startsWith("audio/") ? (
@@ -324,7 +324,7 @@ export function CreatePost() {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowStickers(false)} />
           <div className="absolute top-full left-0 mt-2 p-3 border border-line dark:border-white/20 rounded-xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl z-50 w-64 max-h-72 overflow-y-auto">
-            <p className="text-xs font-bold text-gray-600 dark:text-white/60 mb-2 uppercase tracking-wider sticky top-0 bg-ivory dark:bg-[#1f1f23]/95 pb-1">РЎС‚РёРєРµСЂС‹</p>
+            <p className="text-xs font-bold text-gray-600 dark:text-white/60 mb-2 uppercase tracking-wider sticky top-0 bg-ivory dark:bg-[#1f1f23]/95 pb-1">Стикеры</p>
             <div className="grid grid-cols-5 gap-1">
               {STICKERS.map((s) => (
                 <button

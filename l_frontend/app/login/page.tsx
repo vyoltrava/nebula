@@ -19,7 +19,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { t } = useI18n();
 
-  // рџ”Ґ РРЎРџР РђР’Р›Р•РќРћ: С…СЂР°РЅРёРј user_id, Р° РЅРµ temp_token
+  // рџ”Ґ РРЎРџР РђР’Р›Р•РќРћ: храним user_id, а не temp_token
   const [requires2FA, setRequires2FA] = useState(false);
   const [tempUserId, setTempUserId] = useState<number | null>(null);
   const [twoFACode, setTwoFACode] = useState("");
@@ -63,10 +63,10 @@ export default function LoginPage() {
         return;
       }
 
-      // рџ”Ґ РЁРђР“ 1: РџРѕР»СѓС‡Р°РµРј С‚РѕРєРµРЅ
+      // рџ”Ґ ШАГ 1: Получаем токен
       const token = data.token;
 
-      // рџ”Ґ РЁРђР“ 2: Р•СЃР»Рё Р±СЌРєРµРЅРґ СЃСЂР°Р·Сѓ РѕС‚РґР°Р» user, РёСЃРїРѕР»СЊР·СѓРµРј РµРіРѕ. РРЅР°С‡Рµ Р·Р°РїСЂР°С€РёРІР°РµРј /api/me
+      // рџ”Ґ ШАГ 2: Если бэкенд сразу отдал user, используем его. РРЅР°С‡Рµ запрашиваем /api/me
       let userData = data.user;
       if (!userData) {
         const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
@@ -75,12 +75,12 @@ export default function LoginPage() {
         if (meRes.ok) {
           userData = await meRes.json();
         } else {
-          setError("РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ РґР°РЅРЅС‹Рµ РїСЂРѕС„РёР»СЏ");
+          setError("Не удалось получить данные профиля");
           return;
         }
       }
 
-      // рџ”Ґ РЁРђР“ 3: РЎРѕС…СЂР°РЅСЏРµРј Рё С‚РѕРєРµРЅ, Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РІ РјСѓР»СЊС‚Рё-Р°РєРєР°СѓРЅС‚ РјРµРЅРµРґР¶РµСЂ
+      // рџ”Ґ ШАГ 3: Сохраняем и токен, и пользователя в мульти-аккаунт менеджер
       setToken(token, userData, { refreshToken: data.refresh_token });
       sessionStorage.setItem("justLoggedIn", "1");
       router.push("/");
@@ -116,7 +116,7 @@ export default function LoginPage() {
       const data = await res.json();
       const token = data.token;
 
-      // рџ”Ґ Р”Р»СЏ 2FA С‚РѕР¶Рµ Р·Р°РїСЂР°С€РёРІР°РµРј /api/me, С‡С‚РѕР±С‹ РіР°СЂР°РЅС‚РёСЂРѕРІР°РЅРЅРѕ РїРѕР»СѓС‡РёС‚СЊ Р°РєС‚СѓР°Р»СЊРЅС‹Рµ РґР°РЅРЅС‹Рµ
+      // рџ”Ґ Для 2FA тоже запрашиваем /api/me, чтобы гарантированно получить актуальные данные
       const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -127,7 +127,7 @@ export default function LoginPage() {
         sessionStorage.setItem("justLoggedIn", "1");
         router.push("/");
       } else {
-        setError("РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ РґР°РЅРЅС‹Рµ РїСЂРѕС„РёР»СЏ РїРѕСЃР»Рµ 2FA");
+        setError("Не удалось получить данные профиля после 2FA");
       }
     } catch {
       setError(t("login.serverErrorShort"));
@@ -138,7 +138,7 @@ export default function LoginPage() {
 
   function cancel2FA() {
     setRequires2FA(false);
-    setTempUserId(null); // РћС‡РёС‰Р°РµРј ID
+    setTempUserId(null); // Очищаем ID
     setTwoFACode("");
     setError("");
   }
@@ -261,7 +261,7 @@ export default function LoginPage() {
               </Button>
             </form>
             
-            {/* Р“Р°СЂРјРѕРЅРёС‡РЅС‹Р№ С„СѓС‚РµСЂ СЃ РїРµСЂРµРєР»СЋС‡Р°С‚РµР»РµРј СЏР·С‹РєР° */}
+            {/* Гармоничный футер с переключателем языка */}
             <div className="mt-6 pt-4 border-t border-line dark:border-white/10 flex justify-center">
               <LanguageSwitcher variant="compact" />
             </div>

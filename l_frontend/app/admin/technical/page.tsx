@@ -16,28 +16,28 @@ import {
 import { Button, IconButton } from "@/components/ui/Button";
 
 const BUG_STATUS_CONFIG = {
-  new: { label: "РќРѕРІС‹Р№", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10", border: "border-blue-400/30", icon: AlertCircle },
-  in_progress: { label: "Р’ РѕР±СЂР°Р±РѕС‚РєРµ", color: "text-yellow-600 dark:text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-400/30", icon: Clock },
-  resolved: { label: "Р РµС€РµРЅРѕ", color: "text-green-600 dark:text-green-400", bg: "bg-green-500/10", border: "border-green-400/30", icon: CheckCircle },
-  rejected: { label: "РћС‚РєР»РѕРЅРµРЅРѕ", color: "text-red-600 dark:text-red-400", bg: "bg-red-500/10", border: "border-red-400/30", icon: XCircle },
+  new: { label: "Новый", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10", border: "border-blue-400/30", icon: AlertCircle },
+  in_progress: { label: "В обработке", color: "text-yellow-600 dark:text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-400/30", icon: Clock },
+  resolved: { label: "Решено", color: "text-green-600 dark:text-green-400", bg: "bg-green-500/10", border: "border-green-400/30", icon: CheckCircle },
+  rejected: { label: "Отклонено", color: "text-red-600 dark:text-red-400", bg: "bg-red-500/10", border: "border-red-400/30", icon: XCircle },
 };
 
 const BUG_PRIORITY_CONFIG = {
-  low: { label: "РќРёР·РєРёР№", color: "text-green-600 dark:text-green-400" },
-  medium: { label: "РЎСЂРµРґРЅРёР№", color: "text-yellow-600 dark:text-yellow-400" },
-  high: { label: "Р’С‹СЃРѕРєРёР№", color: "text-orange-600 dark:text-orange-400" },
-  critical: { label: "РљСЂРёС‚РёС‡РµСЃРєРёР№", color: "text-red-600 dark:text-red-400" },
+  low: { label: "Низкий", color: "text-green-600 dark:text-green-400" },
+  medium: { label: "Средний", color: "text-yellow-600 dark:text-yellow-400" },
+  high: { label: "Высокий", color: "text-orange-600 dark:text-orange-400" },
+  critical: { label: "Критический", color: "text-red-600 dark:text-red-400" },
 };
 
 const ACTION_LABELS: Record<string, { label: string; color: string }> = {
-  login: { label: "Р’С…РѕРґ", color: "text-blue-600 dark:text-blue-400" },
-  register: { label: "Р РµРіРёСЃС‚СЂР°С†РёСЏ", color: "text-green-600 dark:text-green-400" },
-  ban_user: { label: "Р‘Р°РЅ", color: "text-red-600 dark:text-red-400" },
-  unban_user: { label: "Р Р°Р·Р±Р°РЅ", color: "text-green-600 dark:text-green-400" },
-  delete_user: { label: "РЈРґР°Р»РµРЅРёРµ Р°РєРєР°СѓРЅС‚Р°", color: "text-red-600 dark:text-red-400" },
-  delete_post: { label: "РЈРґР°Р»РµРЅРёРµ РїРѕСЃС‚Р°", color: "text-orange-600 dark:text-orange-400" },
-  block_ip: { label: "Р‘Р»РѕРє IP", color: "text-red-600 dark:text-red-400" },
-  unblock_ip: { label: "Р Р°Р·Р±Р»РѕРє IP", color: "text-green-600 dark:text-green-400" },
+  login: { label: "Вход", color: "text-blue-600 dark:text-blue-400" },
+  register: { label: "Регистрация", color: "text-green-600 dark:text-green-400" },
+  ban_user: { label: "Бан", color: "text-red-600 dark:text-red-400" },
+  unban_user: { label: "Разбан", color: "text-green-600 dark:text-green-400" },
+  delete_user: { label: "Удаление аккаунта", color: "text-red-600 dark:text-red-400" },
+  delete_post: { label: "Удаление поста", color: "text-orange-600 dark:text-orange-400" },
+  block_ip: { label: "Блок IP", color: "text-red-600 dark:text-red-400" },
+  unblock_ip: { label: "Разблок IP", color: "text-green-600 dark:text-green-400" },
 };
 
 export default function TechnicalPage() {
@@ -218,14 +218,14 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setSaveMsg({ text: data?.detail ?? "РћС€РёР±РєР° СЃРѕС…СЂР°РЅРµРЅРёСЏ", type: "err" });
+        setSaveMsg({ text: data?.detail ?? "Ошибка сохранения", type: "err" });
       } else {
-        setSaveMsg({ text: "РЎРѕС…СЂР°РЅРµРЅРѕ!", type: "ok" });
+        setSaveMsg({ text: "Сохранено!", type: "ok" });
         setTimeout(() => setSaveMsg(null), 2000);
         load();
       }
     } catch {
-      setSaveMsg({ text: "РћС€РёР±РєР° СЃРµС‚Рё", type: "err" });
+      setSaveMsg({ text: "Ошибка сети", type: "err" });
     } finally {
       setSaving(false);
     }
@@ -248,10 +248,10 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       );
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setSaveMsg({ text: data?.detail ?? "РћС€РёР±РєР° СЃР±СЂРѕСЃР° 2FA", type: "err" });
+        setSaveMsg({ text: data?.detail ?? "Ошибка сброса 2FA", type: "err" });
       } else {
         setSaveMsg({
-          text: `2FA РґР»СЏ @${selectedUser.username} СѓСЃРїРµС€РЅРѕ СЃР±СЂРѕС€РµРЅР°!`,
+          text: `2FA для @${selectedUser.username} успешно сброшена!`,
           type: "ok",
         });
         setTimeout(() => setSaveMsg(null), 3000);
@@ -259,7 +259,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
         load();
       }
     } catch {
-      setSaveMsg({ text: "РћС€РёР±РєР° СЃРµС‚Рё", type: "err" });
+      setSaveMsg({ text: "Ошибка сети", type: "err" });
     } finally {
       setResetting2FA(false);
     }
@@ -268,7 +268,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   async function deleteUser() {
     if (!selectedUser) return;
     if (deleteConfirm !== selectedUser.username) {
-      setSaveMsg({ text: "Р’РІРµРґРёС‚Рµ username С‚РѕС‡РЅРѕ РґР»СЏ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ", type: "err" });
+      setSaveMsg({ text: "Введите username точно для подтверждения", type: "err" });
       return;
     }
     setDeleting(true);
@@ -283,16 +283,16 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setSaveMsg({ text: data?.detail ?? "РћС€РёР±РєР° СѓРґР°Р»РµРЅРёСЏ", type: "err" });
+        setSaveMsg({ text: data?.detail ?? "Ошибка удаления", type: "err" });
       } else {
         const data = await res.json();
-        alert(`РђРєРєР°СѓРЅС‚ @${data.deleted_username} СѓРґР°Р»С‘РЅ. РџРѕСЃС‚РѕРІ: ${data.deleted_posts}`);
+        alert(`Аккаунт @${data.deleted_username} удалён. Постов: ${data.deleted_posts}`);
         setSelectedUser(null);
         setDeleteConfirm("");
         load();
       }
     } catch {
-      setSaveMsg({ text: "РћС€РёР±РєР° СЃРµС‚Рё", type: "err" });
+      setSaveMsg({ text: "Ошибка сети", type: "err" });
     } finally {
       setDeleting(false);
     }
@@ -311,12 +311,12 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       body: form,
     });
     if (res.ok) {
-      setSaveMsg({ text: "РђРІР°С‚Р°СЂРєР° РѕР±РЅРѕРІР»РµРЅР°!", type: "ok" });
+      setSaveMsg({ text: "Аватарка обновлена!", type: "ok" });
       setTimeout(() => setSaveMsg(null), 2000);
       load();
     } else {
       const data = await res.json().catch(() => null);
-      setSaveMsg({ text: data?.detail ?? "РћС€РёР±РєР° Р·Р°РіСЂСѓР·РєРё", type: "err" });
+      setSaveMsg({ text: data?.detail ?? "Ошибка загрузки", type: "err" });
     }
   }
 
@@ -333,12 +333,12 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     if (res.ok) { loadBugs(); setSelectedBug(null); }
     else {
       const data = await res.json().catch(() => null);
-      alert(data?.detail ?? "РћС€РёР±РєР°");
+      alert(data?.detail ?? "Ошибка");
     }
   }
 
   async function deleteBug(bugId: number) {
-    if (!confirm("РЈРґР°Р»РёС‚СЊ Р±Р°Рі-СЂРµРїРѕСЂС‚?")) return;
+    if (!confirm("Удалить баг-репорт?")) return;
     const token = getToken();
     if (!token) return;
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/bugs/${bugId}`, {
@@ -368,12 +368,12 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       loadIpBlocks();
     } else {
       const data = await res.json().catch(() => null);
-      alert(data?.detail ?? "РћС€РёР±РєР° Р±Р»РѕРєРёСЂРѕРІРєРё");
+      alert(data?.detail ?? "Ошибка блокировки");
     }
   }
 
   async function deleteIpBlock(blockId: number) {
-    if (!confirm("Р Р°Р·Р±Р»РѕРєРёСЂРѕРІР°С‚СЊ IP?")) return;
+    if (!confirm("Разблокировать IP?")) return;
     const token = getToken();
     if (!token) return;
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/ip-blocks/${blockId}`, {
@@ -384,7 +384,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   }
 
   async function clearLogs() {
-    if (!confirm("РЈРґР°Р»РёС‚СЊ Р’РЎР• Р»РѕРіРё? Р­С‚Рѕ РґРµР№СЃС‚РІРёРµ С‚РѕР»СЊРєРѕ РґР»СЏ Founder.")) return;
+    if (!confirm("Удалить ВСЕ логи? Это действие только для Founder.")) return;
     const token = getToken();
     if (!token) return;
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/logs`, {
@@ -393,11 +393,11 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     });
     if (res.ok) {
       const d = await res.json();
-      alert(`РЈРґР°Р»РµРЅРѕ Р·Р°РїРёСЃРµР№: ${d.deleted}`);
+      alert(`Удалено записей: ${d.deleted}`);
       loadLogs();
     } else {
       const d = await res.json().catch(() => null);
-      alert(d?.detail ?? "РќРµС‚ РїСЂР°РІ");
+      alert(d?.detail ?? "Нет прав");
     }
   }
 
@@ -414,7 +414,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     rejected: bugs.filter((b) => b.status === "rejected").length,
   };
 
-  if (!me) return <div className="p-8 text-gray-600 dark:text-white/60">Р—Р°РіСЂСѓР·РєР°...</div>;
+  if (!me) return <div className="p-8 text-gray-600 dark:text-white/60">Загрузка...</div>;
 
   return (
     <div className="h-screen flex overflow-hidden">
@@ -425,18 +425,18 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <Settings size={24} className="text-[#8b5cf6]" />
-              <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white">РўРµС…РЅРёС‡РµСЃРєР°СЏ РїР°РЅРµР»СЊ</h1>
+              <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white">Техническая панель</h1>
             </div>
-            <Link href="/admin" className="text-sm text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white transition-colors">в†ђ РќР°Р·Р°Рґ РІ Р°РґРјРёРЅРєСѓ</Link>
+            <Link href="/admin" className="text-sm text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white transition-colors">в†ђ Назад в админку</Link>
           </div>
 
           <div className="flex gap-2 mt-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {([
-              ["stats", BarChart3, "РЎС‚Р°С‚РёСЃС‚РёРєР°", "#8b5cf6"],
-              ["users", Users, "РџРѕР»СЊР·РѕРІР°С‚РµР»Рё", "#8b5cf6"],
-              ["ip", Globe, "IP Р±Р»РѕРєРё", "#ef4444"],
-              ["logs", Activity, "Р›РѕРіРё", "#3b82f6"],
-              ["bugs", Bug, "Р‘Р°Рі-С‚СЂРµРєРµСЂ", "#f59e0b"],
+              ["stats", BarChart3, "Статистика", "#8b5cf6"],
+              ["users", Users, "Пользователи", "#8b5cf6"],
+              ["ip", Globe, "IP блоки", "#ef4444"],
+              ["logs", Activity, "Логи", "#3b82f6"],
+              ["bugs", Bug, "Баг-трекер", "#f59e0b"],
             ] as const).map(([key, Icon, label, color]) => {
               const count = key === "bugs" ? bugCounts.new : 0;
               return (
@@ -466,10 +466,10 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
           <div className="p-4 sm:p-6 space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                ["РџРѕР»СЊР·РѕРІР°С‚РµР»РµР№", stats.total_users, Users],
-                ["РџРѕСЃС‚РѕРІ", stats.total_posts, FileText],
-                ["Р›Р°Р№РєРѕРІ", stats.total_likes, TrendingUp],
-                ["Р§Р°С‚РѕРІ", stats.total_chats, Wifi],
+                ["Пользователей", stats.total_users, Users],
+                ["Постов", stats.total_posts, FileText],
+                ["Лайков", stats.total_likes, TrendingUp],
+                ["Чатов", stats.total_chats, Wifi],
               ].map(([label, val, Icon]: any) => (
                 <div key={label} className="border border-line dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
                   <div className="flex items-center justify-between mb-2">
@@ -485,7 +485,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
               <div className="border border-line dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
                 <div className="flex items-center gap-2 mb-4">
                   <Crown size={18} className="text-[#8b5cf6]" />
-                  <h2 className="font-bold text-gray-900 dark:text-white">РўРѕРї РїРѕ РїРѕРґРїРёСЃС‡РёРєР°Рј</h2>
+                  <h2 className="font-bold text-gray-900 dark:text-white">Топ по подписчикам</h2>
                 </div>
                 <div className="space-y-2">
                   {stats.top_followers.map((u: any, i: number) => (
@@ -505,7 +505,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
               <div className="border border-line dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
                 <div className="flex items-center gap-2 mb-4">
                   <TrendingUp size={18} className="text-[#8b5cf6]" />
-                  <h2 className="font-bold text-gray-900 dark:text-white">РўРѕРї РїРѕ РїРѕСЃС‚Р°Рј</h2>
+                  <h2 className="font-bold text-gray-900 dark:text-white">Топ по постам</h2>
                 </div>
                 <div className="space-y-2">
                   {stats.top_posts.map((u: any, i: number) => (
@@ -524,15 +524,15 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
             </div>
 
             <div className="border border-line dark:border-white/10 rounded-xl p-5 bg-gray-100 dark:bg-white/5">
-              <h2 className="font-bold text-gray-900 dark:text-white mb-4">РџРѕСЃР»РµРґРЅРёРµ СЂРµРіРёСЃС‚СЂР°С†РёРё</h2>
+              <h2 className="font-bold text-gray-900 dark:text-white mb-4">Последние регистрации</h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-line dark:border-white/10">
-                      <th className="text-left p-3 text-gray-600 dark:text-white/50">РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ</th>
+                      <th className="text-left p-3 text-gray-600 dark:text-white/50">Пользователь</th>
                       <th className="text-left p-3 text-gray-600 dark:text-white/50">Username</th>
-                      <th className="text-left p-3 text-gray-600 dark:text-white/50">Р”Р°С‚Р°</th>
-                      <th className="text-left p-3 text-gray-600 dark:text-white/50">РЎС‚Р°С‚СѓСЃ</th>
+                      <th className="text-left p-3 text-gray-600 dark:text-white/50">Дата</th>
+                      <th className="text-left p-3 text-gray-600 dark:text-white/50">Статус</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -548,9 +548,9 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                         <td className="p-3 text-gray-600 dark:text-white/60">{new Date(u.created_at).toLocaleString("ru-RU")}</td>
                         <td className="p-3">
                           {u.is_banned ? (
-                            <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold">Р—Р°Р±Р°РЅРµРЅ</span>
+                            <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold">Забанен</span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded bg-green-500/20 text-green-600 dark:text-green-400 text-xs font-bold">РђРєС‚РёРІРµРЅ</span>
+                            <span className="px-2 py-0.5 rounded bg-green-500/20 text-green-600 dark:text-green-400 text-xs font-bold">Активен</span>
                           )}
                         </td>
                       </tr>
@@ -571,7 +571,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   <input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="РџРѕРёСЃРє РїРѕ РёРјРµРЅРё РёР»Рё @"
+                    placeholder="Поиск по имени или @"
                     className="flex-1 bg-transparent focus:outline-none text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 text-sm"
                   />
                 </div>
@@ -601,7 +601,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
               {!selectedUser ? (
                 <div className="border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-12 text-center">
                   <Users size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
-                  <p className="text-gray-600 dark:text-white/50">Р’С‹Р±РµСЂРё РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ</p>
+                  <p className="text-gray-600 dark:text-white/50">Выбери пользователя</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -610,7 +610,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                       <div className="text-center">
                         <Avatar src={selectedUser.avatar_url} name={selectedUser.display_name} id={selectedUser.id} size={96} />
                         <label className="mt-3 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-800 dark:text-white/70 text-xs font-semibold hover:bg-gray-100 dark:hover:bg-white/10 cursor-pointer">
-                          <Upload size={12} /> РЎРјРµРЅРёС‚СЊ
+                          <Upload size={12} /> Сменить
                           <input type="file" accept="image/*" className="hidden" onChange={uploadAvatar} />
                         </label>
                       </div>
@@ -627,26 +627,26 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
 
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                           <div className="border border-line dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
-                            <p className="text-gray-500 dark:text-white/40 text-xs">РџРѕСЃС‚РѕРІ</p>
+                            <p className="text-gray-500 dark:text-white/40 text-xs">Постов</p>
                             <p className="text-gray-900 dark:text-white font-bold text-lg">{selectedUser.posts_count ?? "вЂ”"}</p>
                           </div>
                           <div className="border border-line dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
-                            <p className="text-gray-500 dark:text-white/40 text-xs">РџРѕРґРїРёСЃС‡РёРєРѕРІ</p>
+                            <p className="text-gray-500 dark:text-white/40 text-xs">Подписчиков</p>
                             <p className="text-gray-900 dark:text-white font-bold text-lg">{selectedUser.followers_count ?? "вЂ”"}</p>
                           </div>
                           <div className="border border-line dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
-                            <p className="text-gray-500 dark:text-white/40 text-xs">Р РµРіРёСЃС‚СЂР°С†РёСЏ</p>
+                            <p className="text-gray-500 dark:text-white/40 text-xs">Регистрация</p>
                             <p className="text-gray-900 dark:text-white font-bold text-xs">{selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleDateString("ru-RU") : "вЂ”"}</p>
                           </div>
                           <div className="border border-line dark:border-white/10 rounded-lg p-3 bg-gray-100 dark:bg-white/5">
-                            <p className="text-gray-500 dark:text-white/40 text-xs">РџРѕСЃР»РµРґРЅРёР№ IP</p>
+                            <p className="text-gray-500 dark:text-white/40 text-xs">Последний IP</p>
                             <p className="text-gray-900 dark:text-white font-bold text-xs font-mono truncate">{selectedUser.last_ip || "вЂ”"}</p>
                           </div>
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-2 mt-4">
                           <Link href={`/user/${selectedUser.id}`} className="px-4 py-2 rounded-lg border border-[#8b5cf6] text-[#8b5cf6] hover:bg-[#8b5cf6]/10 text-sm font-bold text-center">
-                            РћС‚РєСЂС‹С‚СЊ РїСЂРѕС„РёР»СЊ в†’
+                            Открыть профиль в†’
                           </Link>
                           {selectedUser.last_ip && (
                             <Button
@@ -657,7 +657,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                                 setActiveTab("ip");
                               }}
                             >
-                              Р—Р°Р±Р»РѕРєРёСЂРѕРІР°С‚СЊ IP
+                              Заблокировать IP
                             </Button>
                           )}
                         </div>
@@ -670,12 +670,12 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                         <input value={editUsername} onChange={(e) => setEditUsername(e.target.value)} className="w-full border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]" />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-800 dark:text-white/70 mb-1">РћС‚РѕР±СЂР°Р¶Р°РµРјРѕРµ РёРјСЏ</label>
+                        <label className="block text-sm font-semibold text-gray-800 dark:text-white/70 mb-1">Отображаемое имя</label>
                         <input value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} className="w-full border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]" />
                       </div>
                       <div>
                         <label className="block text-sm font-semibold text-gray-800 dark:text-white/70 mb-1">
-                          РќРѕРІС‹Р№ РїР°СЂРѕР»СЊ <span className="text-gray-500 dark:text-white/40">(РїСѓСЃС‚Рѕ = РЅРµ РјРµРЅСЏС‚СЊ)</span>
+                          Новый пароль <span className="text-gray-500 dark:text-white/40">(пусто = не менять)</span>
                         </label>
                         <input
                           type="password"
@@ -701,7 +701,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                                 : "bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/40 border border-line dark:border-white/10"
                             }`}
                           >
-                            {selectedUser.two_fa_enabled ? "Р’РєР»СЋС‡РµРЅР°" : "Р’С‹РєР»СЋС‡РµРЅР°"}
+                            {selectedUser.two_fa_enabled ? "Включена" : "Выключена"}
                           </span>
                         </div>
 
@@ -715,15 +715,15 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                               onClick={() => setShowReset2FAConfirm(true)}
                               disabled={resetting2FA}
                             >
-                              РЎР±СЂРѕСЃРёС‚СЊ 2FA
+                              Сбросить 2FA
                             </Button>
                           ) : (
                             <div className="space-y-2">
                               <p className="text-xs text-amber-300/90 leading-snug">
-                                вљ пёЏ РџРѕР»СЊР·РѕРІР°С‚РµР»СЋ РїСЂРёРґС‘С‚СЃСЏ Р·Р°РЅРѕРІРѕ РЅР°СЃС‚СЂРѕРёС‚СЊ 2FA. РћРЅ СЃРјРѕР¶РµС‚ РІРѕР№С‚Рё РїРѕ РїР°СЂРѕР»СЋ.
+                                вљ пёЏ Пользователю придётся заново настроить 2FA. Он сможет войти по паролю.
                                 {selectedUser.id === me?.id && (
                                   <span className="block mt-1 font-bold text-amber-200">
-                                    Р’С‹ СЃР±СЂР°СЃС‹РІР°РµС‚Рµ 2FA СЃР°РјРё СЃРµР±Рµ.
+                                    Вы сбрасываете 2FA сами себе.
                                   </span>
                                 )}
                               </p>
@@ -736,7 +736,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                                   disabled={resetting2FA}
                                   className="flex-1"
                                 >
-                                  {resetting2FA ? "РЎР±СЂРѕСЃ..." : "РџРѕРґС‚РІРµСЂРґРёС‚СЊ"}
+                                  {resetting2FA ? "Сброс..." : "Подтвердить"}
                                 </Button>
                                 <Button
                                   variant="secondary"
@@ -745,14 +745,14 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                                   disabled={resetting2FA}
                                   className="flex-1"
                                 >
-                                  РћС‚РјРµРЅР°
+                                  Отмена
                                 </Button>
                               </div>
                             </div>
                           )
                         ) : (
                           <p className="text-xs text-gray-500 dark:text-white/40">
-                            2FA РЅРµ РЅР°СЃС‚СЂРѕРµРЅР°. РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РІС…РѕРґРёС‚ С‚РѕР»СЊРєРѕ РїРѕ РїР°СЂРѕР»СЋ.
+                            2FA не настроена. Пользователь входит только по паролю.
                           </p>
                         )}
                       </div>
@@ -776,7 +776,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                         disabled={saving}
                         className="w-full"
                       >
-                        {saving ? "РЎРѕС…СЂР°РЅРµРЅРёРµ..." : "РЎРѕС…СЂР°РЅРёС‚СЊ"}
+                        {saving ? "Сохранение..." : "Сохранить"}
                       </Button>
                     </div>
                   </div>
@@ -784,10 +784,10 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   <div className="border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 p-4 sm:p-5">
                     <div className="flex items-center gap-2 mb-4">
                       <History size={18} className="text-[#8b5cf6]" />
-                      <h3 className="font-bold text-gray-900 dark:text-white">РСЃС‚РѕСЂРёСЏ IP-Р°РґСЂРµСЃРѕРІ</h3>
+                      <h3 className="font-bold text-gray-900 dark:text-white">РСЃС‚РѕСЂРёСЏ IP-адресов</h3>
                     </div>
                     {ipHistory.length === 0 ? (
-                      <p className="text-gray-600 dark:text-white/50 text-sm">РСЃС‚РѕСЂРёСЏ РїСѓСЃС‚Р°</p>
+                      <p className="text-gray-600 dark:text-white/50 text-sm">РСЃС‚РѕСЂРёСЏ пуста</p>
                     ) : (
                       <div className="space-y-2 max-h-64 overflow-y-auto">
                         {ipHistory.map((log) => (
@@ -803,7 +803,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                                 size="iconSm"
                                 icon={Lock}
                                 onClick={() => { setBlockIpTarget(log.ip_address); setActiveTab("ip"); }}
-                                title="Р—Р°Р±Р»РѕРєРёСЂРѕРІР°С‚СЊ СЌС‚РѕС‚ IP"
+                                title="Заблокировать этот IP"
                               />
                             </div>
                           </div>
@@ -816,13 +816,13 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                     <div className="border border-red-400/30 rounded-xl bg-red-500/5 p-4 sm:p-5">
                       <div className="flex items-center gap-2 mb-3">
                         <AlertTriangle size={18} className="text-red-600 dark:text-red-400" />
-                        <h3 className="font-bold text-red-600 dark:text-red-400">РћРїР°СЃРЅР°СЏ Р·РѕРЅР°</h3>
+                        <h3 className="font-bold text-red-600 dark:text-red-400">Опасная зона</h3>
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-white/60 mb-3">РЈРґР°Р»РµРЅРёРµ РЅРµРѕР±СЂР°С‚РёРјРѕ.</p>
+                      <p className="text-sm text-gray-600 dark:text-white/60 mb-3">Удаление необратимо.</p>
                       <input
                         value={deleteConfirm}
                         onChange={(e) => setDeleteConfirm(e.target.value.replace(/^@/, ""))}
-                        placeholder={`Р’РІРµРґРёС‚Рµ ${selectedUser.username}`}
+                        placeholder={`Введите ${selectedUser.username}`}
                         className="w-full border border-red-400/30 rounded-lg px-3 py-2 bg-red-500/5 text-white focus:outline-none focus:border-red-600 dark:focus:border-red-400 mb-3"
                       />
                       <Button
@@ -833,7 +833,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                         disabled={deleting || deleteConfirm !== selectedUser.username}
                         className="w-full"
                       >
-                        {deleting ? "РЈРґР°Р»РµРЅРёРµ..." : "РЈРґР°Р»РёС‚СЊ Р°РєРєР°СѓРЅС‚"}
+                        {deleting ? "Удаление..." : "Удалить аккаунт"}
                       </Button>
                     </div>
                   )}
@@ -848,29 +848,29 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
             <div className="border border-red-400/30 rounded-xl bg-red-500/5 p-4 sm:p-5">
               <div className="flex items-center gap-2 mb-4 flex-wrap">
                 <Lock size={18} className="text-red-600 dark:text-red-400" />
-                <h3 className="font-bold text-gray-900 dark:text-white">Р—Р°Р±Р»РѕРєРёСЂРѕРІР°С‚СЊ IP</h3>
+                <h3 className="font-bold text-gray-900 dark:text-white">Заблокировать IP</h3>
                 {blockIpTarget && (
-                  <span className="ml-2 text-xs text-red-600 dark:text-red-400 font-mono">в†ђ РёР· РёСЃС‚РѕСЂРёРё: {blockIpTarget}</span>
+                  <span className="ml-2 text-xs text-red-600 dark:text-red-400 font-mono">в†ђ из истории: {blockIpTarget}</span>
                 )}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                 <input
                   value={blockIpTarget || newBlockIp}
                   onChange={(e) => { setNewBlockIp(e.target.value); setBlockIpTarget(null); }}
-                  placeholder="IP Р°РґСЂРµСЃ (РЅР°РїСЂ. 192.168.1.1)"
+                  placeholder="IP адрес (напр. 192.168.1.1)"
                   className="border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white font-mono focus:outline-none focus:border-red-600 dark:focus:border-red-400"
                 />
                 <input
                   value={newBlockReason}
                   onChange={(e) => setNewBlockReason(e.target.value)}
-                  placeholder="РџСЂРёС‡РёРЅР° (РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ)"
+                  placeholder="Причина (опционально)"
                   className="border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-red-600 dark:focus:border-red-400"
                 />
                 <input
                   type="number"
                   value={newBlockHours}
                   onChange={(e) => setNewBlockHours(e.target.value ? Number(e.target.value) : "")}
-                  placeholder="Р§Р°СЃРѕРІ (РїСѓСЃС‚Рѕ = РЅР°РІСЃРµРіРґР°)"
+                  placeholder="Часов (пусто = навсегда)"
                   className="border border-line dark:border-white/10 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-red-600 dark:focus:border-red-400"
                 />
                 <Button
@@ -878,18 +878,18 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   onClick={() => createIpBlock(blockIpTarget || newBlockIp, newBlockReason, newBlockHours)}
                   disabled={!(blockIpTarget || newBlockIp)}
                 >
-                  Р—Р°Р±Р»РѕРєРёСЂРѕРІР°С‚СЊ
+                  Заблокировать
                 </Button>
               </div>
             </div>
 
             <div className="border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden">
               <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between">
-                <h3 className="font-bold text-gray-900 dark:text-white">Р—Р°Р±Р»РѕРєРёСЂРѕРІР°РЅРЅС‹Рµ IP ({ipBlocks.length})</h3>
+                <h3 className="font-bold text-gray-900 dark:text-white">Заблокированные IP ({ipBlocks.length})</h3>
                 <IconButton icon={RefreshCw} size="iconSm" onClick={loadIpBlocks} />
               </div>
               {ipBlocks.length === 0 ? (
-                <p className="p-8 text-center text-gray-600 dark:text-white/50">РќРµС‚ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅРЅС‹С… IP</p>
+                <p className="p-8 text-center text-gray-600 dark:text-white/50">Нет заблокированных IP</p>
               ) : (
                 <div className="divide-y divide-line dark:divide-white/5">
                   {ipBlocks.map((b) => (
@@ -900,14 +900,14 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                       <div className="flex-1 min-w-0">
                         <p className="font-mono text-gray-900 dark:text-white font-bold">{b.ip_address}</p>
                         <div className="flex items-center gap-3 text-xs text-gray-600 dark:text-white/50 flex-wrap mt-1">
-                          {b.reason && <span>РџСЂРёС‡РёРЅР°: {b.reason}</span>}
-                          <span>Р—Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ: {new Date(b.created_at).toLocaleString("ru-RU")}</span>
+                          {b.reason && <span>Причина: {b.reason}</span>}
+                          <span>Заблокирован: {new Date(b.created_at).toLocaleString("ru-RU")}</span>
                           {b.expires_at ? (
-                            <span className="text-yellow-600 dark:text-yellow-400">Р”Рѕ: {new Date(b.expires_at).toLocaleString("ru-RU")}</span>
+                            <span className="text-yellow-600 dark:text-yellow-400">До: {new Date(b.expires_at).toLocaleString("ru-RU")}</span>
                           ) : (
-                            <span className="text-red-600 dark:text-red-400 font-bold">РќРђР’РЎР•Р“Р”Рђ</span>
+                            <span className="text-red-600 dark:text-red-400 font-bold">НАВСЕГДА</span>
                           )}
-                          {b.blocked_by && <span>РљРµРј: {b.blocked_by.display_name}</span>}
+                          {b.blocked_by && <span>Кем: {b.blocked_by.display_name}</span>}
                         </div>
                       </div>
                       <IconButton
@@ -915,7 +915,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                         size="iconSm"
                         icon={Trash2}
                         onClick={() => deleteIpBlock(b.id)}
-                        title="Р Р°Р·Р±Р»РѕРєРёСЂРѕРІР°С‚СЊ"
+                        title="Разблокировать"
                       />
                     </div>
                   ))}
@@ -937,14 +937,14 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                       logsFilter === act ? "bg-[#3b82f6] border-[#3b82f6] text-white" : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-white/70 hover:bg-gray-100 dark:hover:bg-white/10"
                     }`}
                   >
-                    {act ? (ACTION_LABELS[act]?.label || act) : "Р’СЃРµ"}
+                    {act ? (ACTION_LABELS[act]?.label || act) : "Все"}
                   </button>
                 ))}
               </div>
               <div className="flex gap-2">
                 {me.is_admin && (
                   <Button variant="danger" size="sm" onClick={clearLogs}>
-                    РћС‡РёСЃС‚РёС‚СЊ Р»РѕРіРё
+                    Очистить логи
                   </Button>
                 )}
                 <IconButton icon={RefreshCw} size="iconSm" onClick={loadLogs} />
@@ -952,11 +952,11 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
             </div>
 
             {logsLoading ? (
-              <p className="p-8 text-center text-gray-600 dark:text-white/50">Р—Р°РіСЂСѓР·РєР°...</p>
+              <p className="p-8 text-center text-gray-600 dark:text-white/50">Загрузка...</p>
             ) : logs.length === 0 ? (
               <div className="p-12 text-center border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5">
                 <Activity size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
-                <p className="text-gray-600 dark:text-white/50">Р›РѕРіРѕРІ РїРѕРєР° РЅРµС‚</p>
+                <p className="text-gray-600 dark:text-white/50">Логов пока нет</p>
               </div>
             ) : (
               <div className="border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 overflow-hidden">
@@ -977,7 +977,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                           <span>{new Date(log.created_at).toLocaleString("ru-RU")}</span>
                           {log.actor && (
                             <span>
-                              РћС‚: <span className="text-gray-800 dark:text-white/80">{log.actor.display_name}</span>
+                              От: <span className="text-gray-800 dark:text-white/80">{log.actor.display_name}</span>
                             </span>
                           )}
                           {log.details && (
@@ -1018,11 +1018,11 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
             </div>
 
             {bugsLoading ? (
-              <p className="p-12 text-center text-gray-600 dark:text-white/50">Р—Р°РіСЂСѓР·РєР°...</p>
+              <p className="p-12 text-center text-gray-600 dark:text-white/50">Загрузка...</p>
             ) : bugs.length === 0 ? (
               <div className="p-12 text-center border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5">
                 <Bug size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
-                <p className="text-gray-600 dark:text-white/60">РћР±СЂР°С‰РµРЅРёР№ РїРѕРєР° РЅРµС‚</p>
+                <p className="text-gray-600 dark:text-white/60">Обращений пока нет</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -1044,7 +1044,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                           </div>
                           <p className="text-sm text-gray-600 dark:text-white/60 line-clamp-2">{bug.description}</p>
                           <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 dark:text-white/40 flex-wrap">
-                            <span>РћС‚: <span className="text-gray-800 dark:text-white/70">{bug.reporter?.display_name}</span></span>
+                            <span>От: <span className="text-gray-800 dark:text-white/70">{bug.reporter?.display_name}</span></span>
                             <span>{new Date(bug.created_at).toLocaleString("ru-RU")}</span>
                           </div>
                         </div>
@@ -1066,18 +1066,18 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   <div className="flex-1 min-w-0">
                     <h2 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white">{selectedBug.title}</h2>
                     <p className="text-sm text-gray-600 dark:text-white/50 mt-1">
-                      ID #{selectedBug.id} В· РћС‚:{" "}
+                      ID #{selectedBug.id} В· От:{" "}
                       {selectedBug.reporter ? (
                         <Link href={`/user/${selectedBug.reporter.id}`} className="text-[#8b5cf6] hover:underline" onClick={(e) => e.stopPropagation()}>
                           @{selectedBug.reporter.username}
                         </Link>
-                      ) : "РЅРµРёР·РІРµСЃС‚РµРЅ"}
+                      ) : "неизвестен"}
                     </p>
                   </div>
                   <IconButton icon={X} size="iconSm" onClick={() => setSelectedBug(null)} />
                 </div>
                 <p className="text-gray-800 dark:text-white/90 whitespace-pre-wrap bg-gray-100 dark:bg-white/5 p-4 rounded-lg border border-line dark:border-white/10 mb-6">{selectedBug.description}</p>
-                <h3 className="text-sm font-bold text-gray-800 dark:text-white/80 mb-3">РЎРјРµРЅРёС‚СЊ СЃС‚Р°С‚СѓСЃ:</h3>
+                <h3 className="text-sm font-bold text-gray-800 dark:text-white/80 mb-3">Сменить статус:</h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
                   {Object.entries(BUG_STATUS_CONFIG).map(([key, config]) => {
                     const StatusIcon = config.icon;
@@ -1095,9 +1095,9 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                 </div>
                 <div className="flex gap-3 pt-2 border-t border-line dark:border-white/10">
                   <Button variant="danger" icon={Trash2} onClick={() => deleteBug(selectedBug.id)}>
-                    РЈРґР°Р»РёС‚СЊ
+                    Удалить
                   </Button>
-                  <Button variant="secondary" className="flex-1" onClick={() => setSelectedBug(null)}>Р—Р°РєСЂС‹С‚СЊ</Button>
+                  <Button variant="secondary" className="flex-1" onClick={() => setSelectedBug(null)}>Закрыть</Button>
                 </div>
               </div>
             </div>
