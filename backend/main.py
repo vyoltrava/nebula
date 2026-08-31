@@ -3808,14 +3808,19 @@ def assign_role(
     if target.id != staff.id:
         check_sanction_rights(staff, target, session, "изменять роль этого пользователя")
 
-    allowed_ids = {r.id for r in assignable_roles_for(staff, session)}
-    if role_id:
-        if role_id not in allowed_ids:
-            raise HTTPException(403, "Эту роль назначить нельзя: уровень или чужой отдел")
-    else:
-        # Снятие роли: лидер может снять только ту, которую сам мог выдать
-        if not can_manage and target.role_id and target.role_id not in allowed_ids:
-            raise HTTPException(403, "Недостаточно прав, чтобы снять эту роль")
+    # 🆕 Founder (уровень 10+) может надеть на себя ЛЮБУЮ роль (обход иерархии отделов/уровней)
+    is_self = target.id == staff.id
+    self_founder = is_self and get_user_level(staff, session) >= 10
+
+    if not self_founder:
+        allowed_ids = {r.id for r in assignable_roles_for(staff, session)}
+        if role_id:
+            if role_id not in allowed_ids:
+                raise HTTPException(403, "Эту роль назначить нельзя: уровень или чужой отдел")
+        else:
+            # Снятие роли: лидер может снять только ту, которую сам мог выдать
+            if not can_manage and target.role_id and target.role_id not in allowed_ids:
+                raise HTTPException(403, "Недостаточно прав, чтобы снять эту роль")
 
     old_role_id = target.role_id
     target.role_id = role_id
