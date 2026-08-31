@@ -7,8 +7,8 @@ import Link from "next/link";
 import {
   Home, Bell, Settings, LogOut, Heart, MessageCircle, UserPlus,
   AtSign, X, Shield, ShieldCheck, MessageSquare, Palette,
-  Bug, Orbit, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft, 
-  ChevronRight, History, BookOpen, Headphones, Satellite
+  Bug, Orbit, Search, Megaphone, Bookmark, ShieldAlert, Wrench, RefreshCw, Quote, ChevronLeft,
+  ChevronRight, History, BookOpen, Headphones, Satellite, Crown
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { UserRowSkeleton } from "@/components/Skeletons";
@@ -533,6 +533,9 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       icon: user?.is_admin ? ShieldAlert : user?.is_moderator ? ShieldCheck : Shield,
       label: user?.is_admin ? t("nav.admin") : user?.is_moderator ? t("nav.moderation") : t("nav.adminPanel"),
     });
+  }
+  if (user?.permissions?.includes("access_owner_panel")) {
+    outerItems.push({ href: "/owner-panel", icon: Crown, label: t("nav.ownerPanel") });
   }
   if (user) {
     outerItems.push({ href: "#logout", icon: LogOut, label: t("nav.logout") });

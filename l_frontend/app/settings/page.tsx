@@ -25,6 +25,7 @@ import {
   Palette,
   Sparkles,
   CreditCard,
+  ShoppingBag,
 } from "lucide-react";
 import { useNebulaMode } from "@/lib/useNebula";
 import { PushSettings } from "@/components/PushSettings";
@@ -34,9 +35,10 @@ import { AppearanceSettings } from "@/components/AppearanceSettings";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PaymentShop } from "@/components/payments/PaymentShop";
+import { ShopSettings } from "@/components/settings/ShopSettings";
 import { Button, IconButton } from "@/components/ui/Button";
 
-type View = "profile" | "payments" | "appearance" | "notifications" | "permissions" | "messages" | "security" | "nebula";
+type View = "profile" | "payments" | "appearance" | "notifications" | "permissions" | "messages" | "security" | "nebula" | "shop";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
@@ -53,7 +55,7 @@ export default function SettingsPage() {
   // Поддержка ?view=... (например, из Nebula-настроек: /settings?view=security)
   useEffect(() => {
     const v = new URLSearchParams(window.location.search).get("view");
-    const valid: View[] = ["profile", "payments", "appearance", "notifications", "permissions", "messages", "security", "nebula"];
+    const valid: View[] = ["profile", "payments", "appearance", "notifications", "permissions", "messages", "security", "nebula", "shop"];
     if (v && valid.includes(v as View)) setView(v as View);
   }, []);
 
@@ -321,6 +323,7 @@ async function activate2FA() {
     { id: "permissions", label: t("settings.permissions"), icon: Mic },
     { id: "messages", label: t("settings.liveMessages"), icon: Zap },
     { id: "security", label: t("settings.security"), icon: ShieldCheck },
+    { id: "shop", label: t("settings.shop"), icon: ShoppingBag },
     { id: "nebula", label: "Nebula", icon: Sparkles },
   ];
 
@@ -494,6 +497,13 @@ async function activate2FA() {
               <div>
                 <h2 className="text-lg font-semibold mb-4">{t("settings.payments")}</h2>
                 <PaymentShop />
+              </div>
+            )}
+
+            {/* ---------- МАГАЗИН ---------- */}
+            {view === "shop" && (
+              <div>
+                <ShopSettings />
               </div>
             )}
 

@@ -96,6 +96,7 @@ export const en: Dictionary = {
     admin: "Admin",
     moderation: "Moderation",
     adminPanel: "Admin panel",
+    ownerPanel: "Owner panel",
     logout: "Log out",
     login: "Log in",
     continueReading: "Continue reading",
@@ -220,6 +221,7 @@ export const en: Dictionary = {
   },
   settings: {
     title: "Settings",
+    shop: "Shop",
     appearance: "Appearance",
     appearanceHint: "Choose a light, dark, or system color theme. Animated backgrounds work with any theme.",
     themeLight: "Light",

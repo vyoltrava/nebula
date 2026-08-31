@@ -94,6 +94,7 @@ export const uk = {
     admin: "Адмінка",
     moderation: "Модерація",
     adminPanel: "Панель адміністратора",
+    ownerPanel: "Панель владельца",
     logout: "Вийти",
     login: "Увійти",
     continueReading: "Продовжити читання",
@@ -218,6 +219,7 @@ export const uk = {
   },
   settings: {
     title: "Налаштування",
+    shop: "Магазин",
     appearance: "Зовнішній вигляд",
     appearanceHint: "Виберіть світлу, темну або системну колірну тему. Анімовані фони працюють з будь-якою темою.",
     themeLight: "Світла",

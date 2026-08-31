@@ -41,6 +41,9 @@ class User(SQLModel, table=True):
 
     prism_anchor: Optional[str] = Field(default=None) 
 
+    # 💰 Баланс кредитов (для покупки премиум-юзернеймов за CREDITS)
+    credits: int = Field(default=0) 
+
 
 
 # ============================================================
@@ -778,3 +781,47 @@ class PrismeStat(SQLModel, table=True):
     scene_id: int = Field(foreign_key="prisme_scene.id", index=True)
     key: str = Field(default="chats_created", index=True)   # chats_created | requests_total | assignments
     value: int = Field(default=0)
+
+
+# ============================================================
+# 👑 ПРЕМИУМ-ЮЗЕРНЕЙМЫ (@username) — продажа ников
+# ============================================================
+
+class PremiumUsername(SQLModel, table=True):
+    """Премиум-юзернейм, который можно продать/купить.
+
+    JSON-поля (price_history, analytics) хранятся строками для
+    совместимости с SQLite/SQLModel (как в остальных моделях).
+    """
+    __tablename__ = "premium_usernames"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    username: str = Field(max_length=50, unique=True, index=True)
+
+    # 📦 Статус продажи
+    is_available: bool = Field(default=True)   # свободен для покупки
+    price: Optional[int] = Field(default=None) # цена (в единицах currency)
+    currency: str = Field(default="USD")       # USD | EUR | CREDITS
+    category: Optional[str] = Field(default=None)  # short | vip | branded ...
+
+    # Кто выставил (админ)
+    created_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=utcnow)
+
+    # Покупка
+    purchased_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    purchased_at: Optional[datetime] = None
+    purchase_price: Optional[int] = Field(default=None)   # цена продажи
+
+    # История цен (JSON-строка: [{price, date, changed_by}])
+    price_history: str = Field(default="[]")
+
+    # Статус
+    is_active: bool = Field(default=True)      # отключить может админ (soft-delete)
+    is_reserved: bool = Field(default=False)   # зарезервирован для VIP
+    reserved_for: Optional[int] = Field(default=None, foreign_key="user.id")
+    reserved_until: Optional[datetime] = None
+
+    # Метаданные
+    views_count: int = Field(default=0)
+    analytics: str = Field(default="{}")       # {views_by_day: {}, clicks: 0}

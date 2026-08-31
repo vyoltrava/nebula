@@ -94,6 +94,7 @@ export const ru: Dictionary = {
     admin: "Админка",
     moderation: "Модерация",
     adminPanel: "Админ панель",
+    ownerPanel: "Панель владельца",
     logout: "Выйти",
     login: "Войти",
     continueReading: "Продолжить чтение",
@@ -218,6 +219,7 @@ export const ru: Dictionary = {
   },
   settings: {
     title: "Настройки",
+    shop: "Магазин",
     appearance: "Внешний вид",
     appearanceHint: "Выберите светлую, тёмную или системную цветовую тему. Анимированные фоны работают с любой темой.",
     themeLight: "Светлая",

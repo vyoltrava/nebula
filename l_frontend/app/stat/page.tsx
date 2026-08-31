@@ -9,8 +9,9 @@ import Link from "next/link";
 import {
   Users, Shield, Search, ArrowLeft, X, BarChart3, Clock, Settings,
   ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  Ban, ExternalLink, MoreHorizontal, Activity,
+  Ban, ExternalLink, MoreHorizontal, Activity, AtSign,
 } from "lucide-react";
+import PremiumUsernamesTab from "@/components/stat/PremiumUsernamesTab";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const PAGE_SIZE = 10;
@@ -38,7 +39,7 @@ function saveStatUI(patch: Record<string, unknown>): void {
 
 const statUI = loadStatUI();
 
-type TabMode = "users" | "team";
+type TabMode = "users" | "team" | "premium";
 type SortField = "username" | "level" | "created_at" | "last_seen" | "posts_count" | "messages_count" | "likes_given" | "likes_received" | "visits_count" | "kpi";
 
 function fmtDate(iso?: string | null) { return iso ? new Date(iso).toLocaleDateString("ru-RU") : "—"; }
@@ -269,6 +270,9 @@ export default function StatPage() {
             <button onClick={() => setActiveTab("team")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === "team" ? "bg-purple-500 text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/10"}`}>
               <Shield size={16} /> Команда
             </button>
+            <button onClick={() => setActiveTab("premium")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === "premium" ? "bg-purple-500 text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/10"}`}>
+              <AtSign size={16} /> Премиум @
+            </button>
           </div>
         </div>
 
@@ -479,6 +483,9 @@ export default function StatPage() {
             )}
           </div>
         )}
+
+        {/* ========== ВКЛАДКА: ПРЕМИУМ @username ========== */}
+        {activeTab === "premium" && <PremiumUsernamesTab />}
 
         {/* ========== ВКЛАДКА: КОМАНДА ========== */}
         {activeTab === "team" && (

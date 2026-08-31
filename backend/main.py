@@ -59,7 +59,7 @@ from models import (
     PushSubscription, StickerPack, Sticker, MessageReaction, PostReaction, Theme, SystemSetting,
     RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge,
     CustomBadge, CustomBadgeTemplate, CustomBadgeAssignment, SystemBadge,
-    SuggestionCategory, SuggestionThread, SuggestionThreadComment, TeamStatistic, RoleHistory, NickHistory, Suggestion, SuggestionComment, ChatDraft 
+    SuggestionCategory, SuggestionThread, SuggestionThreadComment, TeamStatistic, RoleHistory, NickHistory, Suggestion, SuggestionComment, ChatDraft, PremiumUsername, PaymentPurchase, PaymentRole
     
 )
 import logging
@@ -746,6 +746,8 @@ ALL_PERMISSIONS = [
     "assign_roles",  
     "manage_team_stats",
     "manage_suggestions", 
+    "manage_usernames",          # 🆕 Управление премиум-юзернеймами (@)
+    "access_owner_panel",        # 🆕 Доступ к панели владельца/фаундера
 ]
 
 MODERATOR_PERMISSIONS = ALL_PERMISSIONS.copy()
@@ -778,6 +780,8 @@ PERMISSION_LABELS: dict = {
     "manage_reports":       ("Управление жалобами", "system"),
     "tech_access":          ("Технический доступ", "system"),
     "manage_team_stats":    ("Статистика команды и предложения", "system"),
+    "manage_usernames":     ("Управление премиум-юзернеймами (@)", "system"),
+    "access_owner_panel":   ("Доступ к панели владельца/фаундера", "system"),
 }
 
 VALID_PERMISSIONS = set(ALL_PERMISSIONS)
@@ -1242,6 +1246,19 @@ def register(request: Request, data: RegisterIn, session: Session = Depends(get_
     username = data.username.strip().lower()
     if not re.match(r"^[a-z0-9_]{3,30}$", username):
         raise HTTPException(400, "Username: 3-30 символов, только латиница, цифры и _")
+    # 🚫 Запрещённые / служебные юзернеймы
+    forbidden = ["admin", "support", "moderator", "system", "root", "owner", "founder", "trelod", "mod", "staff", "official"]
+    if username in forbidden:
+        raise HTTPException(400, "This username is reserved")
+    # 👑 Проверка на премиум-юзернейм (нельзя занять, только купить в магазине)
+    premium = session.exec(
+        select(PremiumUsername).where(
+            func.lower(PremiumUsername.username) == username,
+            PremiumUsername.is_active == True,  # noqa: E712
+        )
+    ).first()
+    if premium:
+        raise HTTPException(400, f"Username @{username} is premium. Buy it in the shop!")
     existing = session.exec(
         select(User).where(func.lower(User.username) == username)
     ).first()
@@ -11965,4 +11982,459 @@ async def get_recommendations_centrality(
     }
     redis_client.setex(cache_key, 3600, json.dumps(payload, default=str))  # 1 час
     return payload
+
+
+# ============================================================
+# 👑 ПРЕМИУМ-ЮЗЕРНЕЙМЫ (@) — ПРОДАЖА НИКОВ
+# ============================================================
+
+# --- Схемы ---
+class PremiumUsernameCreate(BaseModel):
+    username: str
+    price: Optional[int] = None
+    currency: str = "USD"
+    category: Optional[str] = None
+    is_reserved: bool = False
+    reserved_for: Optional[int] = None
+    reserved_until: Optional[datetime] = None
+
+
+class PremiumUsernameUpdate(BaseModel):
+    price: Optional[int] = None
+    category: Optional[str] = None
+    is_available: Optional[bool] = None
+    is_reserved: Optional[bool] = None
+    reserved_for: Optional[int] = None
+    reserved_until: Optional[datetime] = None
+
+
+def _serialize_premium(item: PremiumUsername) -> dict:
+    """Сериализация премиум-юзернейма для API."""
+    return {
+        "id": item.id,
+        "username": item.username,
+        "price": item.price,
+        "currency": item.currency,
+        "category": item.category,
+        "is_available": item.is_available,
+        "is_reserved": item.is_reserved,
+        "reserved_for": item.reserved_for,
+        "reserved_until": item.reserved_until.isoformat() if item.reserved_until else None,
+        "is_active": item.is_active,
+        "views_count": item.views_count,
+        "purchased_by": item.purchased_by,
+        "purchased_at": item.purchased_at.isoformat() if item.purchased_at else None,
+        "purchase_price": item.purchase_price,
+        "created_at": item.created_at.isoformat() if item.created_at else None,
+    }
+
+
+# --- 💡 Статус магазина (глобальный переключатель) ---
+SHOP_ENABLED_KEY = "premium_shop_enabled"
+
+
+def _get_shop_enabled(session: Session) -> bool:
+    setting = session.get(SystemSetting, SHOP_ENABLED_KEY)
+    return setting is not None and setting.value.lower() in ("1", "true", "yes", "on")
+
+
+def _shop_setting_exists(session: Session) -> bool:
+    """True, если переключатель магазина хоть раз явно меняли админом."""
+    return session.get(SystemSetting, SHOP_ENABLED_KEY) is not None
+
+
+def _shop_effectively_enabled(session: Session) -> bool:
+    """Явная настройка имеет приоритет; если её ни разу не меняли —
+    магазин считается открытым при наличии активных лотов."""
+    if _shop_setting_exists(session):
+        return _get_shop_enabled(session)
+    any_active = session.exec(
+        select(PremiumUsername).where(PremiumUsername.is_active == True).limit(1)  # noqa: E712
+    ).first()
+    return any_active is not None
+
+
+@app.get("/api/premium/shop-status")
+def get_shop_status(session: Session = Depends(get_session)):
+    """Публичный статус магазина (включён/выключен)."""
+    enabled = _shop_effectively_enabled(session)
+    return {"enabled": enabled}
+
+
+def _parse_enabled(request: Request) -> bool:
+    """Параметр `enabled` из query (?enabled=false) или из form-data."""
+    qv = request.query_params.get("enabled")
+    if qv is not None:
+        return qv.lower() in ("1", "true", "yes", "on")
+    return True
+
+
+@app.post("/api/admin/premium/shop")
+def set_shop_status(
+    request: Request,
+    enabled_form: bool = Form(True),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Включить/выключить магазин (право manage_usernames)."""
+    if not has_permission(user, "manage_usernames", session):
+        raise HTTPException(403, "Нет права: manage_usernames")
+    enabled = _parse_enabled(request) if request.query_params.get("enabled") is not None else enabled_form
+    setting = session.get(SystemSetting, SHOP_ENABLED_KEY)
+    if setting is None:
+        setting = SystemSetting(key=SHOP_ENABLED_KEY, value="true" if enabled else "false")
+    else:
+        setting.value = "true" if enabled else "false"
+    session.add(setting)
+    log_action(session, user.id, "toggle_premium_shop", details={"enabled": enabled})
+    session.commit()
+    return {"enabled": enabled}
+
+
+# --- 🔧 Админские эндпоинты ---
+
+@app.get("/api/admin/premium-usernames")
+def get_premium_usernames_admin(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Полный список (включая проданные/неактивные). Право manage_usernames."""
+    if not has_permission(user, "manage_usernames", session):
+        raise HTTPException(403, "Нет права: manage_usernames")
+    items = session.exec(
+        select(PremiumUsername).order_by(PremiumUsername.created_at.desc())
+    ).all()
+    return [_serialize_premium(i) for i in items]
+
+
+@app.post("/api/admin/premium-usernames")
+def create_premium_username(
+    data: PremiumUsernameCreate,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Создать премиум-юзернейм. Право manage_usernames."""
+    if not has_permission(user, "manage_usernames", session):
+        raise HTTPException(403, "Нет права: manage_usernames")
+
+    username = data.username.strip().lower()
+    if not re.match(r"^[a-z0-9_]{3,30}$", username):
+        raise HTTPException(400, "Username: 3-30 символов, только латиница, цифры и _")
+
+    existing = session.exec(
+        select(PremiumUsername).where(func.lower(PremiumUsername.username) == username)
+    ).first()
+    if existing:
+        raise HTTPException(400, "Username already in premium list")
+
+    taken = session.exec(
+        select(User).where(func.lower(User.username) == username)
+    ).first()
+    if taken:
+        raise HTTPException(400, f"Username @{username} is already taken by user {taken.display_name}")
+
+    reserved_for = data.reserved_for
+    if data.is_reserved and reserved_for is not None:
+        target = session.get(User, reserved_for)
+        if target is None:
+            raise HTTPException(400, "Пользователь для резерва не найден")
+
+    item = PremiumUsername(
+        username=username,
+        price=data.price,
+        currency=(data.currency or "USD").upper(),
+        category=data.category,
+        created_by=user.id,
+        is_reserved=data.is_reserved,
+        reserved_for=reserved_for,
+        reserved_until=data.reserved_until,
+        price_history=json.dumps([{
+            "price": data.price,
+            "date": utcnow().isoformat(),
+            "changed_by": user.id,
+        }], default=str),
+    )
+    session.add(item)
+    log_action(
+        session, user.id, "create_premium_username",
+        target_type="premium_username", details={"username": username, "price": data.price},
+    )
+    session.commit()
+    session.refresh(item)
+    return _serialize_premium(item)
+
+
+@app.put("/api/admin/premium-usernames/{username_id}")
+def update_premium_username(
+    username_id: int,
+    data: PremiumUsernameUpdate,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Обновить цену/категорию/статус. Право manage_usernames."""
+    if not has_permission(user, "manage_usernames", session):
+        raise HTTPException(403, "Нет права: manage_usernames")
+    item = session.get(PremiumUsername, username_id)
+    if not item:
+        raise HTTPException(404, "Not found")
+
+    if data.price is not None:
+        try:
+            history = json.loads(item.price_history or "[]")
+        except Exception:
+            history = []
+        history.append({"price": data.price, "date": utcnow().isoformat(), "changed_by": user.id})
+        item.price_history = json.dumps(history, default=str)
+        item.price = data.price
+
+    if data.category is not None:
+        item.category = data.category
+    if data.is_available is not None:
+        item.is_available = data.is_available
+    if data.is_reserved is not None:
+        item.is_reserved = data.is_reserved
+        item.reserved_for = data.reserved_for
+        item.reserved_until = data.reserved_until
+
+    session.add(item)
+    log_action(session, user.id, "update_premium_username",
+               target_type="premium_username", details={"username": item.username})
+    session.commit()
+    return _serialize_premium(item)
+
+
+@app.delete("/api/admin/premium-usernames/{username_id}")
+def delete_premium_username(
+    username_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Мягкое удаление (is_active=False). Право manage_usernames."""
+    if not has_permission(user, "manage_usernames", session):
+        raise HTTPException(403, "Нет права: manage_usernames")
+    item = session.get(PremiumUsername, username_id)
+    if not item:
+        raise HTTPException(404, "Not found")
+    item.is_active = False
+    session.add(item)
+    log_action(session, user.id, "delete_premium_username",
+               target_type="premium_username", details={"username": item.username})
+    session.commit()
+    return {"status": "deleted"}
+
+
+# --- 🌍 Публичные эндпоинты ---
+
+@app.get("/api/premium-usernames")
+def get_premium_usernames(
+    limit: int = 50,
+    offset: int = 0,
+    category: Optional[str] = None,
+    min_price: Optional[int] = None,
+    max_price: Optional[int] = None,
+    session: Session = Depends(get_session),
+):
+    """Список доступных для покупки юзернеймов (только если магазин включён)."""
+    if not _shop_effectively_enabled(session):
+        return {"enabled": False, "total": 0, "items": []}
+
+    query = select(PremiumUsername).where(
+        PremiumUsername.is_available == True,   # noqa: E712
+        PremiumUsername.is_active == True,      # noqa: E712
+        PremiumUsername.is_reserved == False,   # noqa: E712
+    )
+    if category:
+        query = query.where(func.lower(PremiumUsername.category) == category.lower())
+    if min_price is not None:
+        query = query.where(PremiumUsername.price >= min_price)
+    if max_price is not None:
+        query = query.where(PremiumUsername.price <= max_price)
+
+    total = session.exec(query).all()
+    total_count = len(total)
+    if limit and limit > 0:
+        query = query.limit(limit).offset(offset or 0)
+    items = session.exec(query).all()
+
+    return {
+        "enabled": True,
+        "total": total_count,
+        "items": [
+            {
+                "id": i.id,
+                "username": i.username,
+                "price": i.price,
+                "currency": i.currency,
+                "category": i.category,
+                "views": i.views_count,
+            }
+            for i in items
+        ],
+    }
+
+
+@app.post("/api/premium-usernames/{username_id}/purchase")
+def purchase_premium_username(
+    username_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Покупка премиум-юзернейма."""
+    if not _shop_effectively_enabled(session):
+        raise HTTPException(403, "Магазин выключен")
+    item = session.get(PremiumUsername, username_id)
+    if not item:
+        raise HTTPException(404, "Username not found")
+    if not item.is_active or not item.is_available:
+        raise HTTPException(400, "Username is not available")
+    if item.is_reserved and item.reserved_for and item.reserved_for != user.id:
+        raise HTTPException(403, "Этот юзернейм зарезервирован за другим пользователем")
+
+    price = item.price or 0
+    currency = item.currency.upper()
+
+    if currency == "CREDITS" and price > 0:
+        if user.credits < price:
+            raise HTTPException(402, "Недостаточно кредитов")
+        user.credits -= price
+
+    # Проверка, что ник не занят
+    taken = session.exec(
+        select(User).where(func.lower(User.username) == item.username)
+    ).first()
+    if taken and taken.id != user.id:
+        raise HTTPException(400, "Этот юзернейм уже занят")
+
+    old_username = user.username
+    user.username = item.username
+    session.add(user)
+    session.add(NickHistory(
+        user_id=user.id,
+        field="username",
+        old_value=old_username or "",
+        new_value=item.username,
+        changed_by=user.id,
+    ))
+
+    # Фиксируем продажу
+    item.is_available = False
+    item.purchased_by = user.id
+    item.purchased_at = utcnow()
+    item.purchase_price = price
+    session.add(item)
+
+    # Доход для owner-panel (внешняя валюта фиксируется как оплаченная)
+    if currency != "CREDITS" and price > 0:
+        session.add(PaymentPurchase(
+            user_id=user.id,
+            role_id=0,
+            payment_role_id=0,
+            amount=float(price),
+            currency=currency,
+            status="success",
+            provider="manual",
+            meta_json=json.dumps({"type": "premium_username", "username": item.username}, default=str),
+        ))
+
+    log_action(session, user.id, "purchase_username",
+               details={"username": item.username, "price": price, "currency": currency})
+    session.commit()
+
+    return {
+        "status": "success",
+        "new_username": item.username,
+        "old_username": old_username,
+    }
+
+
+# ============================================================
+# 👑 ПАНЕЛЬ ВЛАДЕЛЬЦА / ФАУНДЕРА
+# ============================================================
+
+@app.get("/api/owner-panel/stats")
+def get_owner_stats(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Статистика для панели владельца (право access_owner_panel).
+    ЕДИНЫЙ источник правды для окна владельца."""
+    if not has_permission(user, "access_owner_panel", session):
+        raise HTTPException(403, "Нет права: access_owner_panel")
+
+    now = utcnow()
+    day_ago = now - timedelta(days=1)
+    month_ago = now - timedelta(days=30)
+
+    total_users = len(session.exec(select(User)).all())
+    dau = len(session.exec(select(User).where(User.last_seen >= day_ago)).all())
+
+    monthly = session.exec(
+        select(PaymentPurchase).where(
+            PaymentPurchase.created_at >= month_ago,
+            PaymentPurchase.status.in_(["success"]),
+        )
+    ).all()
+    monthly_revenue = sum(float(p.amount or 0) for p in monthly)
+
+    all_paid = session.exec(select(PaymentPurchase).where(PaymentPurchase.status.in_(["success"]))).all()
+    total_revenue = sum(float(p.amount or 0) for p in all_paid)
+
+    username_sales = len(session.exec(
+        select(PremiumUsername).where(
+            PremiumUsername.purchased_at >= month_ago,
+            PremiumUsername.purchased_by.is_not(None),
+        )
+    ).all()) or 0
+
+    posts_per_day = len(session.exec(select(Post).where(Post.created_at >= day_ago)).all())
+    messages_per_day = len(session.exec(select(Message).where(Message.created_at >= day_ago)).all())
+    new_chats = len(session.exec(select(Chat).where(Chat.created_at >= day_ago)).all())
+    pending_reports = len(session.exec(select(Report).where(Report.status == "pending")).all())
+
+    # Топ-активные пользователи по постам
+    top_rows = session.exec(
+        select(Post.author_id, func.count(Post.id))
+        .group_by(Post.author_id)
+        .order_by(func.count(Post.id).desc())
+        .limit(10)
+    ).all()
+    top_users = []
+    for author_id, cnt in top_rows:
+        u = session.get(User, author_id)
+        if u:
+            top_users.append({
+                "id": u.id,
+                "display_name": u.display_name,
+                "username": u.username,
+                "posts_count": cnt,
+            })
+
+    audit_logs = session.exec(
+        select(ActionLog).order_by(ActionLog.created_at.desc()).limit(50)
+    ).all()
+    audit_payload = []
+    for log in audit_logs:
+        actor = session.get(User, log.actor_id) if log.actor_id else None
+        audit_payload.append({
+            "time": log.created_at.strftime("%H:%M %d.%m") if log.created_at else "",
+            "user": actor.display_name if actor else "system",
+            "action": log.action,
+            "ip": log.ip_address or "",
+        })
+
+    return {
+        "total_users": total_users,
+        "dau": dau,
+        "monthly_revenue": round(monthly_revenue, 2),
+        "total_revenue": round(total_revenue, 2),
+        "username_sales": username_sales,
+        "pending_reports": pending_reports,
+        "posts_per_day": posts_per_day,
+        "messages_per_day": messages_per_day,
+        "new_chats_per_day": new_chats,
+        "top_users": top_users,
+        "audit_logs": audit_payload,
+        "shop_enabled": _shop_effectively_enabled(session),
+        "premium_usernames_total": len(session.exec(select(PremiumUsername)).all()),
+    }
 
