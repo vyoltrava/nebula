@@ -1,3 +1,4 @@
+import dynamic from "next/dynamic";
 import type { Metadata, Viewport } from "next";
 import { Jersey_25, Inter } from "next/font/google";
 import { BanOverlay } from "@/components/BanOverlay";
@@ -23,6 +24,8 @@ import "@/themes/zune/styles/index.css";
 import { IosThemeProvider } from "@/themes/ios";
 import "@/themes/ios/styles/index.css";
 import "./globals.css";
+const OrbitOnboarding = dynamic(() => import("@/components/OrbitOnboarding"), { ssr: false });
+
 
 const jersey = Jersey_25({ weight: "400", subsets: ["latin"], variable: "--font-jersey" });
 const inter = Inter({ subsets: ["latin", "cyrillic"], variable: "--font-inter" });
@@ -129,6 +132,7 @@ export default function RootLayout({
         </ZuneThemeProvider>
         </AuthProvider>
         </ThemeModeProvider>
+      <OrbitOnboarding />
       </body>
     </html>
   );

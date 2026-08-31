@@ -49,6 +49,14 @@ export const en: Dictionary = {
     wasHourAgo: "was here {n} h. ago",
     edit: "Edit",
   },
+  onboarding: {
+    title: "How Orbit works",
+    desc: "Press and hold anywhere — an arc menu unfolds. Release on an item to open that section.",
+    skeletonLabel: "Bottom bar",
+    hintTry: "This is a demo — try the arc!",
+    done: "Got it",
+    skip: "Skip",
+  },
   lang: {
     label: "Language",
     ru: "Russian",

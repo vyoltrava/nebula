@@ -1,0 +1,3 @@
+components/OrbitOnboarding.tsx(82,6): error TS17008: JSX element 'div' has no corresponding closing tag.
+components/OrbitOnboarding.tsx(93,8): error TS17008: JSX element 'div' has no corresponding closing tag.
+components/OrbitOnboarding.tsx(205,1): error TS1005: '</' expected.

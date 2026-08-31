@@ -966,3 +966,8 @@ body.ios-theme .post-edit-cancel:hover {
 body.ios-theme .post-edit-cancel:active {
   transform: translateY(1px);
 }
+
+@keyframes obPulse {
+  0%, 100% { transform: scale(1); opacity: 0.55; }
+  50% { transform: scale(1.45); opacity: 0; }
+}
