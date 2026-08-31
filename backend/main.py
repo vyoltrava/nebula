@@ -2617,6 +2617,22 @@ def get_my_chat_drafts(
         {"chat_id": d.chat_id, "text": d.text, "updated_at": d.updated_at}
         for d in rows
     ]
+@app.get("/api/chat-drafts/{chat_id}")
+def get_chat_draft(
+    chat_id: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Один черновик (для инпута чата / поста на другом устройстве)."""
+    _ensure_chatdraft_table(session)
+    row = session.exec(
+        select(ChatDraft).where(
+            ChatDraft.user_id == user.id, ChatDraft.chat_id == chat_id
+        )
+    ).first()
+    return {"chat_id": chat_id, "text": row.text if row else ""}
+
+@app.put("/api/chat-drafts/{chat_id}")
 
 @app.put("/api/chat-drafts/{chat_id}")
 def put_chat_draft(
