@@ -21,6 +21,8 @@ export function useDraft(key: string, initialValue: string = "") {
       } else {
         localStorage.removeItem(key);
       }
+      // уведомить другие компоненты (список чатов) об изменении черновика
+      window.dispatchEvent(new Event("drafts-changed"));
     }
   }, [key, value]);
 

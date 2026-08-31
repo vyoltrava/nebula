@@ -1,7 +1,7 @@
 "use client";
 import { useTheme } from "next-themes";
 import { resolveNickColor } from "@/lib/nickGlow";
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
@@ -13,7 +13,7 @@ import { socket } from "@/lib/websocket";
 import { sanitizeSvg } from "@/lib/sanitize";
 import { ChatListSkeleton } from "@/components/Skeletons";
 import { ChatPreview } from "@/components/ChatPreview";
-import { Pin, PinOff, MoreVertical, Trash2 } from "lucide-react";
+import { Pin, PinOff, MoreVertical, Trash2, Pencil } from "lucide-react";
 import { pinChat, unpinChat } from "@/lib/api";
 import { useSwipe } from "@/lib/useSwipe";
 import { generatePrismKey, splitKeyIntoShards, encryptAnchorWithPin } from "@/lib/prismCrypto";
@@ -112,6 +112,33 @@ export default function MessagesPage() {
   
   const router = useRouter();
   const { refresh } = useUnreadCounts();
+
+  // 📝 Черновики чатов (localStorage: draft_chat_{id} — пишутся useDraft в чате)
+  const [chatDrafts, setChatDrafts] = useState<Record<string, boolean>>({});
+  const readChatDrafts = useCallback(() => {
+    const map: Record<string, boolean> = {};
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("draft_chat_") && (localStorage.getItem(k) || "").trim()) {
+          map[k.slice("draft_chat_".length)] = true;
+        }
+      }
+    } catch {}
+    setChatDrafts(map);
+  }, []);
+  useEffect(() => {
+    readChatDrafts();
+    const onWake = () => {
+      if (document.visibilityState === "visible") readChatDrafts();
+    };
+    window.addEventListener("focus", onWake);
+    window.addEventListener("drafts-changed", onWake);
+    return () => {
+      window.removeEventListener("focus", onWake);
+      window.removeEventListener("drafts-changed", onWake);
+    };
+  }, [readChatDrafts]);
   const [activeChatMenu, setActiveChatMenu] = useState<number | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; right: number } | null>(null);
   const [pinningChat, setPinningChat] = useState<number | null>(null);
@@ -591,9 +618,18 @@ const confirmPrismKey = async () => {
                   {chat.last_message ? (
                     <div className="mt-0.5">
                       <p className={`text-sm truncate ${chat.unread_count > 0 ? "text-gray-900 dark:text-white" : "text-gray-600 dark:text-white/50"}`}>
+                        {chatDrafts[chat.id] && (
+                          <span className="inline-flex items-center gap-1 mr-1.5 px-1.5 py-0.5 rounded bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#8b5cf6] text-[10px] font-bold uppercase tracking-wide align-middle">
+                            <Pencil size={9} /> Черновик
+                          </span>
+                        )}
                         <ChatPreview text={chat.last_message.text} query={query.trim()} />
                       </p>
                     </div>
+                  ) : chatDrafts[chat.id] ? (
+                    <p className="text-sm text-[#8b5cf6] dark:text-[#a78bfa] mt-0.5 flex items-center gap-1 font-semibold">
+                      <Pencil size={12} /> Черновик
+                    </p>
                   ) : (
                     <p className="text-sm text-gray-500 dark:text-white/40 mt-0.5">
                       {isGroup ? t("messages.members", { n: chat.members_count }) : t("messages.startChat")}
