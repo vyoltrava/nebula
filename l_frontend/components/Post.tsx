@@ -906,7 +906,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             {/* Лайк: счётчик слева, сердечко ближе к центру */}
             <button
               onClick={toggleLike}
-              className={`flex items-center gap-1 py-1.5 pl-3 pr-2.5 transition-all ${
+              className={`flex items-center gap-1 py-1 pl-2.5 pr-2 transition-all ${
                 liked
                   ? "bg-[#8B5CF6] text-white"
                   : "text-gray-800 dark:text-white/70 hover:text-pink-500"
@@ -914,7 +914,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               title={liked ? "Отменить лайк" : "Лайк"}
             >
               <span className="text-sm font-semibold">{count}</span>
-              <Heart size={16} />
+              <Heart size={13} />
             </button>
 
             {/* Разделитель */}
@@ -923,14 +923,14 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             {/* Дизлайк: разбитое сердечко ближе к центру, счётчик справа */}
             <button
               onClick={toggleDislike}
-              className={`flex items-center gap-1 py-1.5 pl-2.5 pr-3 transition-all ${
+              className={`flex items-center gap-1 py-1 pl-2 pr-2.5 transition-all ${
                 disliked
                   ? "bg-red-500 text-white"
                   : "text-gray-800 dark:text-white/70 hover:text-red-500"
               }`}
               title={disliked ? "Отменить дизлайк" : "Дизлайк"}
             >
-              <HeartCrack size={16} />
+              <HeartCrack size={13} />
               <span className="text-sm font-semibold">{dislikeCount}</span>
             </button>
           </div>
