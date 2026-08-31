@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useTheme } from "next-themes";
 import { resolveNickColor } from "@/lib/nickGlow";
 import { STICKERS } from "@/lib/stickers";
@@ -20,13 +20,13 @@ import { getCachedUser } from "@/lib/authCache";
 import { timeAgo } from "@/lib/time";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import LinkPreview from "@/components/LinkPreview";
-import { EchoModal } from "@/components/EchoModal"; // Импортируем модалку
+import { EchoModal } from "@/components/EchoModal"; // РРјРїРѕСЂС‚РёСЂСѓРµРј РјРѕРґР°Р»РєСѓ
 import dynamic from "next/dynamic";
 
-// 🚀 react-markdown тяжёлый — ленивая загрузка
+// рџљЂ react-markdown С‚СЏР¶С‘Р»С‹Р№ вЂ” Р»РµРЅРёРІР°СЏ Р·Р°РіСЂСѓР·РєР°
 const MarkdownRenderer = dynamic(() => import("@/components/MarkdownRenderer").then(m => m.MarkdownRenderer), {
   ssr: false,
-  loading: () => <div className="editor-loading animate-pulse text-sm opacity-50">📝 …</div>,
+  loading: () => <div className="editor-loading animate-pulse text-sm opacity-50">рџ“ќ вЂ¦</div>,
 });
 
 
@@ -35,8 +35,8 @@ function extractFirstUrl(text: string): string | null {
   return m ? m[0].replace(/[.,;:!?)]+$/, "") : null;
 }
 
-// 📱 Компактное время для мобильной шапки поста:
-// если пост выложен сегодня — только HH:MM (без «сегодня в …»), иначе обычный timeAgo
+// рџ“± РљРѕРјРїР°РєС‚РЅРѕРµ РІСЂРµРјСЏ РґР»СЏ РјРѕР±РёР»СЊРЅРѕР№ С€Р°РїРєРё РїРѕСЃС‚Р°:
+// РµСЃР»Рё РїРѕСЃС‚ РІС‹Р»РѕР¶РµРЅ СЃРµРіРѕРґРЅСЏ вЂ” С‚РѕР»СЊРєРѕ HH:MM (Р±РµР· В«СЃРµРіРѕРґРЅСЏ РІ вЂ¦В»), РёРЅР°С‡Рµ РѕР±С‹С‡РЅС‹Р№ timeAgo
 function shortPostTime(date: string | Date | undefined): string {
   if (!date) return "";
   let d: Date;
@@ -116,8 +116,8 @@ function AuthorBadges({ is_admin, is_moderator, is_banned, role }: {
   );
 }
 
-// 🆕 Инлайн-редактор поста — «лист тетради» на пожелтевшей бумаге.
-// Рендерится прямо внутри карточки поста на месте текста (никаких модалок).
+// рџ†• РРЅР»Р°Р№РЅ-СЂРµРґР°РєС‚РѕСЂ РїРѕСЃС‚Р° вЂ” В«Р»РёСЃС‚ С‚РµС‚СЂР°РґРёВ» РЅР° РїРѕР¶РµР»С‚РµРІС€РµР№ Р±СѓРјР°РіРµ.
+// Р РµРЅРґРµСЂРёС‚СЃСЏ РїСЂСЏРјРѕ РІРЅСѓС‚СЂРё РєР°СЂС‚РѕС‡РєРё РїРѕСЃС‚Р° РЅР° РјРµСЃС‚Рµ С‚РµРєСЃС‚Р° (РЅРёРєР°РєРёС… РјРѕРґР°Р»РѕРє).
 function InlinePostEditor({
   value,
   onChange,
@@ -131,7 +131,7 @@ function InlinePostEditor({
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
 
-  // Автофокус + курсор в конец текста
+  // РђРІС‚РѕС„РѕРєСѓСЃ + РєСѓСЂСЃРѕСЂ РІ РєРѕРЅРµС† С‚РµРєСЃС‚Р°
   useEffect(() => {
     const el = ref.current;
     if (el) {
@@ -234,7 +234,7 @@ export function Post({
     });
 
     useEffect(() => {
-      // При смене аккаунта / изменении liked_by_me синхронизируем локальный стейт
+      // РџСЂРё СЃРјРµРЅРµ Р°РєРєР°СѓРЅС‚Р° / РёР·РјРµРЅРµРЅРёРё liked_by_me СЃРёРЅС…СЂРѕРЅРёР·РёСЂСѓРµРј Р»РѕРєР°Р»СЊРЅС‹Р№ СЃС‚РµР№С‚
       if (liked_by_me === true) {
         setLiked(true);
         setLikedCache(id, true);
@@ -272,7 +272,7 @@ export function Post({
     const [displayText, setDisplayText] = useState(text);
     const [isEdited, setIsEdited] = useState(false);
     const [savingEdit, setSavingEdit] = useState(false);
-    const [showEcho, setShowEcho] = useState(false); // Состояние для Эхо
+    const [showEcho, setShowEcho] = useState(false); // РЎРѕСЃС‚РѕСЏРЅРёРµ РґР»СЏ Р­С…Рѕ
     const router = useRouter();
     const { t } = useI18n();
 
@@ -281,7 +281,7 @@ export function Post({
     setEditText(text);
   }, [text]);
 
-// 🔥 Оптимизация: view отправляем только на странице поста или при реальной видимости
+// рџ”Ґ РћРїС‚РёРјРёР·Р°С†РёСЏ: view РѕС‚РїСЂР°РІР»СЏРµРј С‚РѕР»СЊРєРѕ РЅР° СЃС‚СЂР°РЅРёС†Рµ РїРѕСЃС‚Р° РёР»Рё РїСЂРё СЂРµР°Р»СЊРЅРѕР№ РІРёРґРёРјРѕСЃС‚Рё
 useEffect(() => {
   if (isMainPost) {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/view`, {
@@ -291,7 +291,7 @@ useEffect(() => {
     return;
   }
   
-  // Для ленты — IntersectionObserver (view только когда пост реально виден)
+  // Р”Р»СЏ Р»РµРЅС‚С‹ вЂ” IntersectionObserver (view С‚РѕР»СЊРєРѕ РєРѕРіРґР° РїРѕСЃС‚ СЂРµР°Р»СЊРЅРѕ РІРёРґРµРЅ)
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
@@ -317,7 +317,7 @@ useEffect(() => {
   const handler = (e: Event) => {
     const d = (e as CustomEvent).detail;
     if (d.post_id === id) {
-      // 🛡️ Защита от отрицательных значений и undefined
+      // рџ›ЎпёЏ Р—Р°С‰РёС‚Р° РѕС‚ РѕС‚СЂРёС†Р°С‚РµР»СЊРЅС‹С… Р·РЅР°С‡РµРЅРёР№ Рё undefined
       setCount(Math.max(0, d.likes_count ?? 0));
       if (d.dislikes_count !== undefined) setDislikeCount(Math.max(0, d.dislikes_count));
       if (d.liked !== undefined) setLiked(!!d.liked);
@@ -331,7 +331,7 @@ useEffect(() => {
     const cleanUsername = username || handle?.replace("@", "");
 
     useEffect(() => {
-      // 🔥 Проверяем кеш сначала
+      // рџ”Ґ РџСЂРѕРІРµСЂСЏРµРј РєРµС€ СЃРЅР°С‡Р°Р»Р°
       const cached = getCachedFollow(author_id);
       if (cached !== null) {
         setFollowing(cached);
@@ -390,7 +390,7 @@ useEffect(() => {
       return () => window.removeEventListener("dislike-state-sync", handler);
     }, [id]);
 
-// Было:
+// Р‘С‹Р»Рѕ:
 // setCount((c) => (next ? c + 1 : c - 1));
 
 async function toggleLike() {
@@ -403,8 +403,8 @@ async function toggleLike() {
   const next = !liked;
   setLiked(next);
   setCount((c) => Math.max(0, next ? (c ?? 0) + 1 : (c ?? 0) - 1));
-  setLikedCache(id, next); // ← РАСКОММЕНТИРОВАТЬ, пишем сразу
-  // Взаимное исключение: при лайке снимаем дизлайк
+  setLikedCache(id, next); // в†ђ Р РђРЎРљРћРњРњР•РќРўРР РћР’РђРўР¬, РїРёС€РµРј СЃСЂР°Р·Сѓ
+  // Р’Р·Р°РёРјРЅРѕРµ РёСЃРєР»СЋС‡РµРЅРёРµ: РїСЂРё Р»Р°Р№РєРµ СЃРЅРёРјР°РµРј РґРёР·Р»Р°Р№Рє
   if (next && disliked) {
     setDisliked(false);
     setDislikeCount((c) => Math.max(0, (c ?? 0) - 1));
@@ -423,7 +423,7 @@ async function toggleLike() {
     if (data.disliked !== undefined) setDisliked(!!data.disliked);
     setLikedCache(id, data.liked);
     
-    // 🔄 Глобальная синхронизация для других компонентов (профиль, лента)
+    // рџ”„ Р“Р»РѕР±Р°Р»СЊРЅР°СЏ СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёСЏ РґР»СЏ РґСЂСѓРіРёС… РєРѕРјРїРѕРЅРµРЅС‚РѕРІ (РїСЂРѕС„РёР»СЊ, Р»РµРЅС‚Р°)
     window.dispatchEvent(new CustomEvent("like-sync", { detail: { post_id: id, ...data } }));
     window.dispatchEvent(new CustomEvent("like-state-sync", { detail: { post_id: id, liked: data.liked } }));
     if (data.disliked !== undefined) {
@@ -432,7 +432,7 @@ async function toggleLike() {
   } else {
     setLiked(!next);
     setCount((c) => Math.max(0, next ? (c ?? 0) - 1 : (c ?? 0) + 1));
-    setLikedCache(id, !next); // откат кэша
+    setLikedCache(id, !next); // РѕС‚РєР°С‚ РєСЌС€Р°
     if (next && disliked) {
       setDisliked(true);
       setDislikeCount((c) => (c ?? 0) + 1);
@@ -450,7 +450,7 @@ async function toggleDislike() {
   const next = !disliked;
   setDisliked(next);
   setDislikeCount((c) => Math.max(0, next ? (c ?? 0) + 1 : (c ?? 0) - 1));
-  // Взаимное исключение: при дизлайке снимаем лайк
+  // Р’Р·Р°РёРјРЅРѕРµ РёСЃРєР»СЋС‡РµРЅРёРµ: РїСЂРё РґРёР·Р»Р°Р№РєРµ СЃРЅРёРјР°РµРј Р»Р°Р№Рє
   if (next && liked) {
     setLiked(false);
     setCount((c) => Math.max(0, (c ?? 0) - 1));
@@ -473,7 +473,7 @@ async function toggleDislike() {
     }
     
     
-    // 🔄 Глобальная синхронизация для других компонентов (профиль, лента)
+    // рџ”„ Р“Р»РѕР±Р°Р»СЊРЅР°СЏ СЃРёРЅС…СЂРѕРЅРёР·Р°С†РёСЏ РґР»СЏ РґСЂСѓРіРёС… РєРѕРјРїРѕРЅРµРЅС‚РѕРІ (РїСЂРѕС„РёР»СЊ, Р»РµРЅС‚Р°)
     window.dispatchEvent(new CustomEvent("dislike-sync", { detail: { post_id: id, ...data } }));
     window.dispatchEvent(new CustomEvent("dislike-state-sync", { detail: { post_id: id, disliked: data.disliked } }));
     if (data.liked !== undefined) {
@@ -529,7 +529,7 @@ async function toggleDislike() {
       setFollowing(data.following);
       setCachedFollow(author_id, data.following);
     } else {
-      // Откат
+      // РћС‚РєР°С‚
       setFollowing(!next);
       setCachedFollow(author_id, !next);
     }
@@ -645,13 +645,13 @@ async function toggleDislike() {
     }
   }
 
-  // 🆕 ЕДИНАЯ ФУНКЦИЯ ДЛЯ РЕПОСТА И ЦИТАТЫ
+  // рџ†• Р•Р”РРќРђРЇ Р¤РЈРќРљР¦РРЇ Р”Р›РЇ Р Р•РџРћРЎРўРђ Р Р¦РРўРђРўР«
   async function handleRepostOrQuote(postId: number) {
     const token = getToken();
     if (!token) { router.push("/login"); return; }
     
     const text = prompt(t("post.quotePrompt"));
-    if (text === null) return; // Пользователь нажал "Отмена"
+    if (text === null) return; // РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РЅР°Р¶Р°Р» "РћС‚РјРµРЅР°"
 
     const form = new FormData();
     form.append("repost_of", String(postId));
@@ -722,7 +722,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            {/* Ник + бейджи + кнопки действий (эхо / жалоба / редактировать) — в одном ряду */}
+            {/* РќРёРє + Р±РµР№РґР¶Рё + РєРЅРѕРїРєРё РґРµР№СЃС‚РІРёР№ (СЌС…Рѕ / Р¶Р°Р»РѕР±Р° / СЂРµРґР°РєС‚РёСЂРѕРІР°С‚СЊ) вЂ” РІ РѕРґРЅРѕРј СЂСЏРґСѓ */}
             <div className="flex items-center gap-1.5 flex-wrap text-sm min-w-0">
               <Link
                 href={`/${cleanUsername}`}
@@ -740,7 +740,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 role={author_role}
               />
 
-              {/* Иконка Эхо */}
+              {/* РРєРѕРЅРєР° Р­С…Рѕ */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -752,7 +752,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 <Radio size={15} />
               </button>
 
-              {/* Жалоба на пост */}
+              {/* Р–Р°Р»РѕР±Р° РЅР° РїРѕСЃС‚ */}
               {currentUser?.id !== author_id && !is_repost && (
                 <button
                   onClick={(e) => {
@@ -766,7 +766,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 </button>
               )}
 
-              {/* Карандаш (Редактировать) */}
+              {/* РљР°СЂР°РЅРґР°С€ (Р РµРґР°РєС‚РёСЂРѕРІР°С‚СЊ) */}
               {canEdit && !is_repost && !editing && (
                 <button
                   onClick={(e) => {
@@ -787,7 +787,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 className={`text-[11px] sm:text-xs font-bold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full border transition-all shrink-0 ${
                   following
                     ? "border-[#8b5cf6] bg-[#8b5cf6] text-white"
-                    : "border-line dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white"
+                    : "border-line dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:hover:text-white"
                 }`}
               >
                 {following ? t("post.following") : t("post.follow")}
@@ -795,13 +795,13 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             )}
           </div>
 
-          {/* Хэндл + дата — отдельной строкой под никами.
-              📱 На телефоне для сегодняшних постов показываем только время (без «сегодня в …»). */}
+          {/* РҐСЌРЅРґР» + РґР°С‚Р° вЂ” РѕС‚РґРµР»СЊРЅРѕР№ СЃС‚СЂРѕРєРѕР№ РїРѕРґ РЅРёРєР°РјРё.
+              рџ“± РќР° С‚РµР»РµС„РѕРЅРµ РґР»СЏ СЃРµРіРѕРґРЅСЏС€РЅРёС… РїРѕСЃС‚РѕРІ РїРѕРєР°Р·С‹РІР°РµРј С‚РѕР»СЊРєРѕ РІСЂРµРјСЏ (Р±РµР· В«СЃРµРіРѕРґРЅСЏ РІ вЂ¦В»). */}
           <div className="text-xs font-normal text-gray-600 dark:text-white/50 flex items-center gap-1.5 flex-wrap mt-0.5 leading-tight">
             {handle}
             {created_at && (
               <>
-                <span>·</span>
+                <span>В·</span>
                 <span className="hidden sm:inline">{timeAgo(created_at)}</span>
                 <span className="sm:hidden">{shortPostTime(created_at)}</span>
               </>
@@ -809,7 +809,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             {isEdited && <span className="text-gray-500 dark:text-white/40 text-[10px] italic">{t("post.edited")}</span>}
           </div>
           
-          {/* 🛡️ Предупреждение при модераторском редактировании чужого поста */}
+          {/* рџ›ЎпёЏ РџСЂРµРґСѓРїСЂРµР¶РґРµРЅРёРµ РїСЂРё РјРѕРґРµСЂР°С‚РѕСЂСЃРєРѕРј СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёРё С‡СѓР¶РѕРіРѕ РїРѕСЃС‚Р° */}
           {editing && currentUser?.id !== author_id && (
             <div className="mt-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 dark:text-yellow-300 text-xs">
               {t("post.modEditWarn")}
@@ -879,7 +879,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             </>
           )}
 
-          {/* ✍️ Режим редактирования: вместо действий — «Сохранить» (сургуч) и «Отмена» (металл) */}
+          {/* вњЌпёЏ Р РµР¶РёРј СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёСЏ: РІРјРµСЃС‚Рѕ РґРµР№СЃС‚РІРёР№ вЂ” В«РЎРѕС…СЂР°РЅРёС‚СЊВ» (СЃСѓСЂРіСѓС‡) Рё В«РћС‚РјРµРЅР°В» (РјРµС‚Р°Р»Р») */}
           {editing ? (
             <div className="flex items-center gap-3 mt-3 flex-wrap">
               <button
@@ -897,13 +897,13 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 {t("common.cancel")}
               </button>
               <span className="text-xs text-gray-500 dark:text-white/40">
-                {t("post.ctrlEnter")} · {t("post.chars", { n: editText.length })}
+                {t("post.ctrlEnter")} В· {t("post.chars", { n: editText.length })}
               </span>
             </div>
           ) : (
           <div className="flex items-center gap-3 mt-3 flex-wrap">
           <div className="flex items-center rounded-full border border-line dark:border-white/20 overflow-hidden hover:bg-gray-100 dark:hover:bg-white/10">
-            {/* Лайк: счётчик слева, сердечко ближе к центру */}
+            {/* Р›Р°Р№Рє: СЃС‡С‘С‚С‡РёРє СЃР»РµРІР°, СЃРµСЂРґРµС‡РєРѕ Р±Р»РёР¶Рµ Рє С†РµРЅС‚СЂСѓ */}
             <button
               onClick={toggleLike}
               className={`flex items-center gap-1 py-1 pl-2.5 pr-1.5 transition-all ${
@@ -911,16 +911,16 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                   ? "bg-[#8B5CF6] text-white"
                   : "text-gray-800 dark:text-white/70 hover:text-pink-500"
               }`}
-              title={liked ? "Отменить лайк" : "Лайк"}
+              title={liked ? "РћС‚РјРµРЅРёС‚СЊ Р»Р°Р№Рє" : "Р›Р°Р№Рє"}
             >
               <span className="text-xs font-semibold leading-none">{count}</span>
               <Heart size={13} />
             </button>
 
-            {/* Разделитель */}
+            {/* Р Р°Р·РґРµР»РёС‚РµР»СЊ */}
             <div className="w-px self-stretch my-1.5 bg-line dark:bg-white/20" />
 
-            {/* Дизлайк: разбитое сердечко ближе к центру, счётчик справа */}
+            {/* Р”РёР·Р»Р°Р№Рє: СЂР°Р·Р±РёС‚РѕРµ СЃРµСЂРґРµС‡РєРѕ Р±Р»РёР¶Рµ Рє С†РµРЅС‚СЂСѓ, СЃС‡С‘С‚С‡РёРє СЃРїСЂР°РІР° */}
             <button
               onClick={toggleDislike}
               className={`flex items-center gap-1 py-1 pl-1.5 pr-2.5 transition-all ${
@@ -928,7 +928,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                   ? "bg-red-500 text-white"
                   : "text-gray-800 dark:text-white/70 hover:text-red-500"
               }`}
-              title={disliked ? "Отменить дизлайк" : "Дизлайк"}
+              title={disliked ? "РћС‚РјРµРЅРёС‚СЊ РґРёР·Р»Р°Р№Рє" : "Р”РёР·Р»Р°Р№Рє"}
             >
               <HeartCrack size={13} />
               <span className="text-xs font-semibold leading-none">{dislikeCount}</span>
@@ -943,7 +943,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               <Reply size={13} />
             </button>
 
-            {/* 🆕 ЕДИНАЯ КНОПКА РЕПОСТА И ЦИТАТЫ */}
+            {/* рџ†• Р•Р”РРќРђРЇ РљРќРћРџРљРђ Р Р•РџРћРЎРўРђ Р Р¦РРўРђРўР« */}
             {currentUser && currentUser.id !== author_id && !is_repost && !is_quote && (
               <button
                 onClick={() => handleRepostOrQuote(id)}
@@ -976,7 +976,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             
             {views_count !== undefined && (
               <span className="text-[11px] text-gray-500 dark:text-white/40 flex items-center gap-1">
-                👁 {views_count}
+                рџ‘Ѓ {views_count}
               </span>
             )}
 
@@ -1020,7 +1020,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 }}
                 className="border border-line dark:border-white/20 text-gray-600 dark:text-white/60 rounded-lg px-3 hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
               >
-                ✕
+                вњ•
               </button>
             </div>
           )}
@@ -1064,7 +1064,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
         </div>
       </div>
 
-      {/* 🔊 ЭХО-МОДАЛКА (Открывается по клику на иконку Radio) */}
+      {/* рџ”Љ Р­РҐРћ-РњРћР”РђР›РљРђ (РћС‚РєСЂС‹РІР°РµС‚СЃСЏ РїРѕ РєР»РёРєСѓ РЅР° РёРєРѕРЅРєСѓ Radio) */}
       {showEcho && <EchoModal postId={id} onClose={() => setShowEcho(false)} />}
 
       {showReport && (
@@ -1079,7 +1079,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
   );
 }
 
-// 🆕 Компонент отдельного ответа (рекурсивный)
+// рџ†• РљРѕРјРїРѕРЅРµРЅС‚ РѕС‚РґРµР»СЊРЅРѕРіРѕ РѕС‚РІРµС‚Р° (СЂРµРєСѓСЂСЃРёРІРЅС‹Р№)
 function ReplyItem({
   reply,
   allReplies,
@@ -1190,7 +1190,7 @@ function ReplyItem({
                   setShowReplyForm(true);
                   setReplyText(`@${reply.username} `);
                 }}
-                className="text-xs text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white flex items-center gap-1 transition-colors"
+                className="text-xs text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white flex items-center gap-1 transition-colors"
               >
               <Reply size={12} />
               {t("post.reply")}
@@ -1245,7 +1245,7 @@ function ReplyItem({
                 }}
                 className="border border-line dark:border-white/20 text-gray-600 dark:text-white/60 rounded-lg px-2.5 hover:bg-gray-100 dark:hover:bg-white/10 transition-all text-sm"
               >
-                ✕
+                вњ•
               </button>
             </div>
           )}

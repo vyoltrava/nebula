@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useTheme } from "next-themes";
 import { resolveNickColor } from "@/lib/nickGlow";
@@ -28,24 +28,24 @@ import { BrandIcon } from "@/components/BrandIcon";
 import { CommunityTabs } from "@/components/CommunityTabs";
 
 
-// ════════════════════════════════════════════════════════════════
-// 🎯 КОНСТАНТЫ ОРБИТЫ
-// ════════════════════════════════════════════════════════════════
+// в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+// рџЋЇ РљРћРќРЎРўРђРќРўР« РћР Р‘РРўР«
+// в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 const INNER_RADIUS     = 135;
 const OUTER_RADIUS     = 215;
-// 🆕 Радиусы для СВОБОДНОЙ орбиты (полный круг вокруг точки зажима):
-// меньше базовых, чтобы круг гарантированно влезал в экран телефона
+// рџ†• Р Р°РґРёСѓСЃС‹ РґР»СЏ РЎР’РћР‘РћР”РќРћР™ РѕСЂР±РёС‚С‹ (РїРѕР»РЅС‹Р№ РєСЂСѓРі РІРѕРєСЂСѓРі С‚РѕС‡РєРё Р·Р°Р¶РёРјР°):
+// РјРµРЅСЊС€Рµ Р±Р°Р·РѕРІС‹С…, С‡С‚РѕР±С‹ РєСЂСѓРі РіР°СЂР°РЅС‚РёСЂРѕРІР°РЅРЅРѕ РІР»РµР·Р°Р» РІ СЌРєСЂР°РЅ С‚РµР»РµС„РѕРЅР°
 const FREE_INNER_RADIUS = 95;
 const FREE_OUTER_RADIUS = 150;
 const SNAP_RADIUS      = 48;
 const LONG_PRESS_MS    = 250;
 
-// 🆕 ЖЕСТЫ ОТТЯГИВАНИЯ
-const PULL_BACK_THRESHOLD = 80;        // 80px влево = назад (меньше = быстрее отклик)
-const SCROLL_DEAD_ZONE    = 15;        // 15px мёртвая зона
+// рџ†• Р–Р•РЎРўР« РћРўРўРЇР“РР’РђРќРРЇ
+const PULL_BACK_THRESHOLD = 80;        // 80px РІР»РµРІРѕ = РЅР°Р·Р°Рґ (РјРµРЅСЊС€Рµ = Р±С‹СЃС‚СЂРµРµ РѕС‚РєР»РёРє)
+const SCROLL_DEAD_ZONE    = 15;        // 15px РјС‘СЂС‚РІР°СЏ Р·РѕРЅР°
 const SCROLL_MAX_SPEED = 14;
-const SCROLL_SENSITIVITY = 0.06;  // максимум за ~230px
-const DRAG_ACTIVATION     = 20;        // 🆕 после 20px движения — режим оттягивания
+const SCROLL_SENSITIVITY = 0.06;  // РјР°РєСЃРёРјСѓРј Р·Р° ~230px
+const DRAG_ACTIVATION     = 20;        // рџ†• РїРѕСЃР»Рµ 20px РґРІРёР¶РµРЅРёСЏ вЂ” СЂРµР¶РёРј РѕС‚С‚СЏРіРёРІР°РЅРёСЏ
 
 const ARC_SPAN     = Math.PI / 2;
 const ARC_CENTER   = Math.PI;
@@ -56,9 +56,9 @@ const ARC_OFFSET_X = -40;
 const FEED_MEMORY_KEY = "trelod_feed_memory";
 const FEED_TOOLTIP_KEY = "trelod_feed_tooltip";
 
-// 🛡 Блокировка выделения текста, пока открыта дуга орбиты.
-// Оверлей дуги pointer-events-none, поэтому выделение надо глушить на <body>:
-// иначе зажим (orbit2/Ctrl) начинает выделять текст ПОД дугой.
+// рџ›Ў Р‘Р»РѕРєРёСЂРѕРІРєР° РІС‹РґРµР»РµРЅРёСЏ С‚РµРєСЃС‚Р°, РїРѕРєР° РѕС‚РєСЂС‹С‚Р° РґСѓРіР° РѕСЂР±РёС‚С‹.
+// РћРІРµСЂР»РµР№ РґСѓРіРё pointer-events-none, РїРѕСЌС‚РѕРјСѓ РІС‹РґРµР»РµРЅРёРµ РЅР°РґРѕ РіР»СѓС€РёС‚СЊ РЅР° <body>:
+// РёРЅР°С‡Рµ Р·Р°Р¶РёРј (orbit2/Ctrl) РЅР°С‡РёРЅР°РµС‚ РІС‹РґРµР»СЏС‚СЊ С‚РµРєСЃС‚ РџРћР” РґСѓРіРѕР№.
 function setBodySelectionLock(lock: boolean) {
   if (typeof document === "undefined") return;
   const b = document.body;
@@ -67,14 +67,14 @@ function setBodySelectionLock(lock: boolean) {
   (b.style as unknown as { WebkitTouchCallout?: string }).WebkitTouchCallout = lock ? "none" : "";
 }
 
-// ════════════════════════════════════════════════════════════════
-//  Админский dropdown (desktop classic)
-// ════════════════════════════════════════════════════════════════
+// в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+//  РђРґРјРёРЅСЃРєРёР№ dropdown (desktop classic)
+// в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
 
-// ════════════════════════════════════════════════════════════════
-//  Мобильный админ-лист (bottom sheet)
-// ════════════════════════════════════════════════════════════════
+// в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+//  РњРѕР±РёР»СЊРЅС‹Р№ Р°РґРјРёРЅ-Р»РёСЃС‚ (bottom sheet)
+// в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
 
 function MobileSearch({ onClose }: { onClose: () => void }) {
@@ -121,7 +121,7 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
             className="flex-1 bg-transparent text-gray-900 dark:text-white text-sm focus:outline-none placeholder-gray-400 dark:placeholder-white/40"
           />
         </div>
-        <button onClick={onClose} className="p-2 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white">
+        <button onClick={onClose} className="p-2 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white">
           <X size={20} />
         </button>
       </div>
@@ -159,9 +159,9 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
                 </div>
                 <p className="text-sm text-gray-800 dark:text-white/80 line-clamp-3 whitespace-pre-wrap break-words">{p.text}</p>
                 <div className="flex items-center gap-3 mt-1.5 text-[11px] text-gray-500 dark:text-white/40">
-                  <span>❤️ {p.likes_count}</span>
-                  <span>💬 {p.replies_count}</span>
-                  <span>👁 {p.views_count ?? 0}</span>
+                  <span>вќ¤пёЏ {p.likes_count}</span>
+                  <span>рџ’¬ {p.replies_count}</span>
+                  <span>рџ‘Ѓ {p.views_count ?? 0}</span>
                 </div>
               </button>
             ))}
@@ -181,9 +181,9 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
 }
 
 
-// ════════════════════════════════════════════════════════════════
-// 🎛 ВАРИАНТЫ САЙДБАРА
-// ════════════════════════════════════════════════════════════════
+// в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+// рџЋ› Р’РђР РРђРќРўР« РЎРђР™Р”Р‘РђР Рђ
+// в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 export type SidebarLayout = "classic" | "orbit" | "dock" | "orbit2";
 const LAYOUT_KEY = "trelod_sidebar_layout";
 
@@ -248,8 +248,8 @@ function LayoutPreview({ kind }: { kind: SidebarLayout }) {
 
 function LayoutPicker({ current, onClose, isMobile }: { current: SidebarLayout; onClose: () => void; isMobile?: boolean }) {
   const { t } = useI18n();
-  // 📱 На телефоне компьютерные виды (Орбита-кнопка / Док) НЕ показываем —
-  //    там всё равно мобильная версия интерфейса. Только «Классика» и «Орбита 2».
+  // рџ“± РќР° С‚РµР»РµС„РѕРЅРµ РєРѕРјРїСЊСЋС‚РµСЂРЅС‹Рµ РІРёРґС‹ (РћСЂР±РёС‚Р°-РєРЅРѕРїРєР° / Р”РѕРє) РќР• РїРѕРєР°Р·С‹РІР°РµРј вЂ”
+  //    С‚Р°Рј РІСЃС‘ СЂР°РІРЅРѕ РјРѕР±РёР»СЊРЅР°СЏ РІРµСЂСЃРёСЏ РёРЅС‚РµСЂС„РµР№СЃР°. РўРѕР»СЊРєРѕ В«РљР»Р°СЃСЃРёРєР°В» Рё В«РћСЂР±РёС‚Р° 2В».
   const variants: { key: SidebarLayout; name: string; desc: string }[] = [
     { key: "classic", name: t("nav.layoutClassic"), desc: t("nav.layoutClassicDesc") },
     ...(isMobile ? [] : [
@@ -264,7 +264,7 @@ function LayoutPicker({ current, onClose, isMobile }: { current: SidebarLayout; 
       <div className="fixed z-[311] w-[270px] max-w-[calc(100vw-24px)] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 md:left-auto md:right-3 md:translate-x-0 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-3">
         <div className="flex items-center justify-between mb-2 px-1">
           <p className="text-sm font-black text-gray-900 dark:text-white">{t("nav.layout")}</p>
-          <button onClick={onClose} className="text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white p-1"><X size={16} /></button>
+          <button onClick={onClose} className="text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white p-1"><X size={16} /></button>
         </div>
         <div className="space-y-2">
           {variants.map((v) => (
@@ -291,21 +291,21 @@ function LayoutPicker({ current, onClose, isMobile }: { current: SidebarLayout; 
   );
 }
 
-// ════════════════════════════════════════════════════════════════
-//  САЙДБАР
-// ════════════════════════════════════════════════════════════════
+// в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+//  РЎРђР™Р”Р‘РђР 
+// в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 export function Sidebar() {
   const pathname = usePathname();
   const router   = useRouter();
   const { t, locale } = useI18n();
-  // 🚫 Nebula: классический сайдбар НЕ должен срабатывать (жесты, орбита, смена аккаунта),
-  // его место занимает NebulaSidebar через NebulaGate.
+  // рџљ« Nebula: РєР»Р°СЃСЃРёС‡РµСЃРєРёР№ СЃР°Р№РґР±Р°СЂ РќР• РґРѕР»Р¶РµРЅ СЃСЂР°Р±Р°С‚С‹РІР°С‚СЊ (Р¶РµСЃС‚С‹, РѕСЂР±РёС‚Р°, СЃРјРµРЅР° Р°РєРєР°СѓРЅС‚Р°),
+  // РµРіРѕ РјРµСЃС‚Рѕ Р·Р°РЅРёРјР°РµС‚ NebulaSidebar С‡РµСЂРµР· NebulaGate.
   const { isNebula } = useNebulaMode();
   const [user, setUser]               = useState<any>(() => getCachedUser());
-  // 🚫 Железобетонная проверка Nebula: берём и React-состояние, и класс DOM
-  //    («nebula-mode» вешает NebulaGate на <html>). Даже если стейт не успел
-  //    обновиться — класс уже на месте, поэтому классическая орбита/жесты
-  //    гарантированно отключатся в режиме Nebula.
+  // рџљ« Р–РµР»РµР·РѕР±РµС‚РѕРЅРЅР°СЏ РїСЂРѕРІРµСЂРєР° Nebula: Р±РµСЂС‘Рј Рё React-СЃРѕСЃС‚РѕСЏРЅРёРµ, Рё РєР»Р°СЃСЃ DOM
+  //    (В«nebula-modeВ» РІРµС€Р°РµС‚ NebulaGate РЅР° <html>). Р”Р°Р¶Рµ РµСЃР»Рё СЃС‚РµР№С‚ РЅРµ СѓСЃРїРµР»
+  //    РѕР±РЅРѕРІРёС‚СЊСЃСЏ вЂ” РєР»Р°СЃСЃ СѓР¶Рµ РЅР° РјРµСЃС‚Рµ, РїРѕСЌС‚РѕРјСѓ РєР»Р°СЃСЃРёС‡РµСЃРєР°СЏ РѕСЂР±РёС‚Р°/Р¶РµСЃС‚С‹
+  //    РіР°СЂР°РЅС‚РёСЂРѕРІР°РЅРЅРѕ РѕС‚РєР»СЋС‡Р°С‚СЃСЏ РІ СЂРµР¶РёРјРµ Nebula.
   const nebulaOff = isNebula ||
     (typeof document !== "undefined" && document.documentElement.classList.contains("nebula-mode"));
   const [showNotifs, setShowNotifs]   = useState(false);
@@ -313,9 +313,9 @@ export function Sidebar() {
   const [notifsLoading, setNotifsLoading] = useState(false);
   const [showBugModal, setShowBugModal] = useState(false);
   const [showSearch, setShowSearch]     = useState(false);
-  // ════════════════════════════════════════════════════════════════
-// 🧠 ПАМЯТЬ ЛЕНТЫ (Logic) — ОБЪЯВЛЯЕМ РАНЬШЕ, ЧЕМ ИСПОЛЬЗУЕМ
-// ════════════════════════════════════════════════════════════════
+  // в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+// рџ§  РџРђРњРЇРўР¬ Р›Р•РќРўР« (Logic) вЂ” РћР‘РЄРЇР’Р›РЇР•Рњ Р РђРќР¬РЁР•, Р§Р•Рњ РРЎРџРћР›Р¬Р—РЈР•Рњ
+// в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 const [hasFeedMemory, setHasFeedMemory] = useState(false);
 const [showTooltip, setShowTooltip] = useState(false);
 const lastTapRef = useRef(0);
@@ -361,26 +361,26 @@ useEffect(() => {
   }
 }, [hasFeedMemory]);
 
-// 🆕 ═══ ПОСЛЕДНИЙ ЧИТАЕМЫЙ ПОСТ ═══
+// рџ†• в•ђв•ђв•ђ РџРћРЎР›Р•Р”РќРР™ Р§РРўРђР•РњР«Р™ РџРћРЎРў в•ђв•ђв•ђ
 const { post: lastReadPost, clear: clearLastRead } = useLastReadPost();
 
-// 🎯 УНИВЕРСАЛЬНАЯ ФУНКЦИЯ "ПРОДОЛЖИТЬ" (приоритет: пост > память ленты)
+// рџЋЇ РЈРќРР’Р•Р РЎРђР›Р¬РќРђРЇ Р¤РЈРќРљР¦РРЇ "РџР РћР”РћР›Р–РРўР¬" (РїСЂРёРѕСЂРёС‚РµС‚: РїРѕСЃС‚ > РїР°РјСЏС‚СЊ Р»РµРЅС‚С‹)
 const handleContinueClick = useCallback(() => {
   if (lastReadPost) {
-    // 🎯 Клик по "Продолжить чтение" — ведём на пост с флагом ?continue=1
-    // PostPage увидит флаг и почистит запись
+    // рџЋЇ РљР»РёРє РїРѕ "РџСЂРѕРґРѕР»Р¶РёС‚СЊ С‡С‚РµРЅРёРµ" вЂ” РІРµРґС‘Рј РЅР° РїРѕСЃС‚ СЃ С„Р»Р°РіРѕРј ?continue=1
+    // PostPage СѓРІРёРґРёС‚ С„Р»Р°Рі Рё РїРѕС‡РёСЃС‚РёС‚ Р·Р°РїРёСЃСЊ
     router.push(`/post/${lastReadPost.post_id}?continue=1`);
-    // Сразу чистим локально, чтобы кнопка исчезла мгновенно (без ожидания ответа сервера)
+    // РЎСЂР°Р·Сѓ С‡РёСЃС‚РёРј Р»РѕРєР°Р»СЊРЅРѕ, С‡С‚РѕР±С‹ РєРЅРѕРїРєР° РёСЃС‡РµР·Р»Р° РјРіРЅРѕРІРµРЅРЅРѕ (Р±РµР· РѕР¶РёРґР°РЅРёСЏ РѕС‚РІРµС‚Р° СЃРµСЂРІРµСЂР°)
     clearLastRead();
   } else if (hasFeedMemory) {
     triggerRestore();
   }
 }, [lastReadPost, hasFeedMemory, router, clearLastRead, triggerRestore]);
 
-// Показывать ли кнопку вообще
+// РџРѕРєР°Р·С‹РІР°С‚СЊ Р»Рё РєРЅРѕРїРєСѓ РІРѕРѕР±С‰Рµ
 const showContinueButton = !!lastReadPost || hasFeedMemory;
 
-// Конфиг кнопки (текст, иконка, тип)
+// РљРѕРЅС„РёРі РєРЅРѕРїРєРё (С‚РµРєСЃС‚, РёРєРѕРЅРєР°, С‚РёРї)
 const continueConfig = lastReadPost
   ? {
       icon: BookOpen,
@@ -400,7 +400,7 @@ const continueConfig = lastReadPost
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const [fingerPos, setFingerPos]   = useState<{ x: number; y: number } | null>(null);
   const [closing, setClosing]       = useState(false);
-  // 🎯 ВСЕ жесты через ref — синхронные, без задержек React state
+  // рџЋЇ Р’РЎР• Р¶РµСЃС‚С‹ С‡РµСЂРµР· ref вЂ” СЃРёРЅС…СЂРѕРЅРЅС‹Рµ, Р±РµР· Р·Р°РґРµСЂР¶РµРє React state
   const [pullingBack, setPullingBack] = useState(false);
   const [scrollVelocity, setScrollVelocity] = useState(0);
   
@@ -408,9 +408,9 @@ const continueConfig = lastReadPost
   const scrollVelocityRef = useRef(0);
   const isDraggingRef = useRef(false);
   const scrollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const smoothVelocityRef = useRef(0);          // 🆕 сглаженная скорость
-  const scrollTargetRef = useRef<HTMLElement | null>(null); // 🆕 кэш элемента скролла
-  const scrollRafRef = useRef<number>(0);       // 🆕 для requestAnimationFrame
+  const smoothVelocityRef = useRef(0);          // рџ†• СЃРіР»Р°Р¶РµРЅРЅР°СЏ СЃРєРѕСЂРѕСЃС‚СЊ
+  const scrollTargetRef = useRef<HTMLElement | null>(null); // рџ†• РєСЌС€ СЌР»РµРјРµРЅС‚Р° СЃРєСЂРѕР»Р»Р°
+  const scrollRafRef = useRef<number>(0);       // рџ†• РґР»СЏ requestAnimationFrame
 
 
 
@@ -457,8 +457,8 @@ const continueConfig = lastReadPost
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
     const update = () => setIsMobile(mq.matches);
-    // 🔄 Поворот / resize: сбрасываем открытую орбиту — иначе координаты
-    // дуги и точка касания перестают соответствовать новому вьюпорту
+    // рџ”„ РџРѕРІРѕСЂРѕС‚ / resize: СЃР±СЂР°СЃС‹РІР°РµРј РѕС‚РєСЂС‹С‚СѓСЋ РѕСЂР±РёС‚Сѓ вЂ” РёРЅР°С‡Рµ РєРѕРѕСЂРґРёРЅР°С‚С‹
+    // РґСѓРіРё Рё С‚РѕС‡РєР° РєР°СЃР°РЅРёСЏ РїРµСЂРµСЃС‚Р°СЋС‚ СЃРѕРѕС‚РІРµС‚СЃС‚РІРѕРІР°С‚СЊ РЅРѕРІРѕРјСѓ РІСЊСЋРїРѕСЂС‚Сѓ
     const resetOrbit = () => {
       update();
       if (longPressTimer.current) {
@@ -510,7 +510,7 @@ const continueConfig = lastReadPost
   innerItems.push({ href: "/bookmarks", icon: Bookmark, label: t("nav.bookmarks") });
   if (isMobile) {
     innerItems.push({ href: "#search", icon: Search, label: t("nav.search") });
-    // 🆕 Выбор вида интерфейса доступен и с телефона — прямо из орбиты
+    // рџ†• Р’С‹Р±РѕСЂ РІРёРґР° РёРЅС‚РµСЂС„РµР№СЃР° РґРѕСЃС‚СѓРїРµРЅ Рё СЃ С‚РµР»РµС„РѕРЅР° вЂ” РїСЂСЏРјРѕ РёР· РѕСЂР±РёС‚С‹
     innerItems.push({ href: "#layout", icon: Palette, label: t("nav.layout") });
   }
 innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), count: counts.updates });
@@ -574,7 +574,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
   }, []);
 
   function loadNotifications() {
-    setShowNotifs(true); // открываем модалку сразу, данные грузятся в фоне
+    setShowNotifs(true); // РѕС‚РєСЂС‹РІР°РµРј РјРѕРґР°Р»РєСѓ СЃСЂР°Р·Сѓ, РґР°РЅРЅС‹Рµ РіСЂСѓР·СЏС‚СЃСЏ РІ С„РѕРЅРµ
     const token = getToken();
     if (!token) return;
     setNotifsLoading(true);
@@ -624,15 +624,15 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     const items  = info.layer === "inner" ? innerItems : outerItems;
     const n = items.length;
 
-    // 🆕 Свободная орбита (полный круг) — компактные радиусы,
-    //    обычная кнопка — прежние радиусы полудуги
+    // рџ†• РЎРІРѕР±РѕРґРЅР°СЏ РѕСЂР±РёС‚Р° (РїРѕР»РЅС‹Р№ РєСЂСѓРі) вЂ” РєРѕРјРїР°РєС‚РЅС‹Рµ СЂР°РґРёСѓСЃС‹,
+    //    РѕР±С‹С‡РЅР°СЏ РєРЅРѕРїРєР° вЂ” РїСЂРµР¶РЅРёРµ СЂР°РґРёСѓСЃС‹ РїРѕР»СѓРґСѓРіРё
     const radius = info.layer === "inner"
       ? (ap.fullCircle ? FREE_INNER_RADIUS : INNER_RADIUS)
       : (ap.fullCircle ? FREE_OUTER_RADIUS : OUTER_RADIUS);
 
-    // 🔄 Полный круг: шаг 2π/n — пункты РАВНОМЕРНО ВОКРУГ зажима,
-    //     первый сверху, без склейки первого и последнего.
-    //    Полудуга от кнопки: как раньше — (end−start)/(n−1).
+    // рџ”„ РџРѕР»РЅС‹Р№ РєСЂСѓРі: С€Р°Рі 2ПЂ/n вЂ” РїСѓРЅРєС‚С‹ Р РђР’РќРћРњР•Р РќРћ Р’РћРљР РЈР“ Р·Р°Р¶РёРјР°,
+    //     РїРµСЂРІС‹Р№ СЃРІРµСЂС…Сѓ, Р±РµР· СЃРєР»РµР№РєРё РїРµСЂРІРѕРіРѕ Рё РїРѕСЃР»РµРґРЅРµРіРѕ.
+    //    РџРѕР»СѓРґСѓРіР° РѕС‚ РєРЅРѕРїРєРё: РєР°Рє СЂР°РЅСЊС€Рµ вЂ” (endв€’start)/(nв€’1).
     const step  = ap.fullCircle
       ? (Math.PI * 2) / Math.max(n, 1)
       : (ap.end - ap.start) / Math.max(n - 1, 1);
@@ -645,17 +645,17 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
   }, [innerItems.length, outerItems.length]);
 
   const openWheelAt = useCallback((cx?: number, cy?: number) => {
-    // 🚫 Nebula — классическая дуга не открывается (свежее чтение класса DOM,
-    //    не зависит от устаревшего стейта в deps)
+    // рџљ« Nebula вЂ” РєР»Р°СЃСЃРёС‡РµСЃРєР°СЏ РґСѓРіР° РЅРµ РѕС‚РєСЂС‹РІР°РµС‚СЃСЏ (СЃРІРµР¶РµРµ С‡С‚РµРЅРёРµ РєР»Р°СЃСЃР° DOM,
+    //    РЅРµ Р·Р°РІРёСЃРёС‚ РѕС‚ СѓСЃС‚Р°СЂРµРІС€РµРіРѕ СЃС‚РµР№С‚Р° РІ deps)
     if (typeof document !== "undefined" && document.documentElement.classList.contains("nebula-mode")) return;
     let centerX: number;
     let centerY: number;
-    // 🆕 Свободное открытие (orbit2 / Ctrl): ПОЛНЫЙ КРУГ вокруг точки зажима
+    // рџ†• РЎРІРѕР±РѕРґРЅРѕРµ РѕС‚РєСЂС‹С‚РёРµ (orbit2 / Ctrl): РџРћР›РќР«Р™ РљР РЈР“ РІРѕРєСЂСѓРі С‚РѕС‡РєРё Р·Р°Р¶РёРјР°
     const freeForm = typeof cx === "number" && typeof cy === "number";
     if (freeForm) {
       centerX = cx as number;
       centerY = cy as number;
-      // Круг не должен вылезать за края экрана — поджимаем центр к вьюпорту
+      // РљСЂСѓРі РЅРµ РґРѕР»Р¶РµРЅ РІС‹Р»РµР·Р°С‚СЊ Р·Р° РєСЂР°СЏ СЌРєСЂР°РЅР° вЂ” РїРѕРґР¶РёРјР°РµРј С†РµРЅС‚СЂ Рє РІСЊСЋРїРѕСЂС‚Сѓ
       if (typeof window !== "undefined") {
         const pad = FREE_OUTER_RADIUS + 12;
         centerX = Math.min(Math.max(centerX, pad), window.innerWidth - pad);
@@ -670,7 +670,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
     arcParamsRef.current = freeForm
       ? {
-          // 🔄 Полный круг: старт сверху, шаг 2π/n считается в getIconPos
+          // рџ”„ РџРѕР»РЅС‹Р№ РєСЂСѓРі: СЃС‚Р°СЂС‚ СЃРІРµСЂС…Сѓ, С€Р°Рі 2ПЂ/n СЃС‡РёС‚Р°РµС‚СЃСЏ РІ getIconPos
           start: -Math.PI / 2,
           end: -Math.PI / 2 + Math.PI * 2,
           offsetX: 0,
@@ -687,8 +687,8 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     arcCenterRef.current = { x: centerX, y: centerY };
 
     isLongPressed.current = true;
-    // 🛡 Защита от выделения: снимаем уже начатое выделение и блокируем новое,
-    // пока дуга открыта (возвращаем в closeWheel)
+    // рџ›Ў Р—Р°С‰РёС‚Р° РѕС‚ РІС‹РґРµР»РµРЅРёСЏ: СЃРЅРёРјР°РµРј СѓР¶Рµ РЅР°С‡Р°С‚РѕРµ РІС‹РґРµР»РµРЅРёРµ Рё Р±Р»РѕРєРёСЂСѓРµРј РЅРѕРІРѕРµ,
+    // РїРѕРєР° РґСѓРіР° РѕС‚РєСЂС‹С‚Р° (РІРѕР·РІСЂР°С‰Р°РµРј РІ closeWheel)
     try { window.getSelection()?.removeAllRanges(); } catch {}
     setBodySelectionLock(true);
     setWheelOpen(true);
@@ -697,33 +697,33 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     setScrollVelocity(0);
     isDraggingRef.current = false;
     scrollVelocityRef.current = 0;
-    smoothVelocityRef.current = 0; // 🆕
+    smoothVelocityRef.current = 0; // рџ†•
     requestAnimationFrame(() => {
       requestAnimationFrame(() => { setWheelReady(true); });
     });
   }, []);
 
   const closeWheel = useCallback((doAction: boolean) => {
-    // 🚫 Nebula — дополнительная защита: если режим включился во время открытой дуги,
-    //    просто схлопываем её без выполнения действий
+    // рџљ« Nebula вЂ” РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅР°СЏ Р·Р°С‰РёС‚Р°: РµСЃР»Рё СЂРµР¶РёРј РІРєР»СЋС‡РёР»СЃСЏ РІРѕ РІСЂРµРјСЏ РѕС‚РєСЂС‹С‚РѕР№ РґСѓРіРё,
+    //    РїСЂРѕСЃС‚Рѕ СЃС…Р»РѕРїС‹РІР°РµРј РµС‘ Р±РµР· РІС‹РїРѕР»РЅРµРЅРёСЏ РґРµР№СЃС‚РІРёР№
     const nebulaNow = typeof document !== "undefined" && document.documentElement.classList.contains("nebula-mode");
     if (nebulaNow) { setWheelOpen(false); setWheelReady(false); setClosing(false); return; }
-    // 🆕 Если тянул ВЛЕВО → router.back()
+    // рџ†• Р•СЃР»Рё С‚СЏРЅСѓР» Р’Р›Р•Р’Рћ в†’ router.back()
     if (pullingBack) {
       setPullingBack(false);
       setScrollVelocity(0);
       router.back();
     }
-    // 🆕 Иначе обычная логика выбора пункта меню
+    // рџ†• РРЅР°С‡Рµ РѕР±С‹С‡РЅР°СЏ Р»РѕРіРёРєР° РІС‹Р±РѕСЂР° РїСѓРЅРєС‚Р° РјРµРЅСЋ
     else if (doAction && hoveredIdx !== null) {
       const item = wheelItems[hoveredIdx];
         if (item) {
           if (item.href === "#logout") {
-            // 🆕 Открываем модалку смены аккаунта вместо мгновенного выхода.
-            // ⚠️ ВАЖНО: не делаем return — дуга обязана закрыться (анимация ниже),
-            // иначе её touch-обработчики остаются активными и перехватывают
-            // тапы по модалке (симптом: при выборе аккаунта открывается LayoutPicker
-            // и меняется раскладка орбита1 → орбита2).
+            // рџ†• РћС‚РєСЂС‹РІР°РµРј РјРѕРґР°Р»РєСѓ СЃРјРµРЅС‹ Р°РєРєР°СѓРЅС‚Р° РІРјРµСЃС‚Рѕ РјРіРЅРѕРІРµРЅРЅРѕРіРѕ РІС‹С…РѕРґР°.
+            // вљ пёЏ Р’РђР–РќРћ: РЅРµ РґРµР»Р°РµРј return вЂ” РґСѓРіР° РѕР±СЏР·Р°РЅР° Р·Р°РєСЂС‹С‚СЊСЃСЏ (Р°РЅРёРјР°С†РёСЏ РЅРёР¶Рµ),
+            // РёРЅР°С‡Рµ РµС‘ touch-РѕР±СЂР°Р±РѕС‚С‡РёРєРё РѕСЃС‚Р°СЋС‚СЃСЏ Р°РєС‚РёРІРЅС‹РјРё Рё РїРµСЂРµС…РІР°С‚С‹РІР°СЋС‚
+            // С‚Р°РїС‹ РїРѕ РјРѕРґР°Р»РєРµ (СЃРёРјРїС‚РѕРј: РїСЂРё РІС‹Р±РѕСЂРµ Р°РєРєР°СѓРЅС‚Р° РѕС‚РєСЂС‹РІР°РµС‚СЃСЏ LayoutPicker
+            // Рё РјРµРЅСЏРµС‚СЃСЏ СЂР°СЃРєР»Р°РґРєР° РѕСЂР±РёС‚Р°1 в†’ РѕСЂР±РёС‚Р°2).
             setShowOrbitSwitcher(true);
           } else if (item.href === "#bug") {
             setShowBugModal(true);
@@ -743,12 +743,12 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     setScrollVelocity(0);
     isDraggingRef.current = false;
     scrollVelocityRef.current = 0;
-    smoothVelocityRef.current = 0; // 🆕
+    smoothVelocityRef.current = 0; // рџ†•
     setTimeout(() => {
       setWheelOpen(false);
       setClosing(false);
       isLongPressed.current = false;
-      setBodySelectionLock(false); // 🛡 выделение снова разрешено
+      setBodySelectionLock(false); // рџ›Ў РІС‹РґРµР»РµРЅРёРµ СЃРЅРѕРІР° СЂР°Р·СЂРµС€РµРЅРѕ
     }, 280);
   }, [hoveredIdx, wheelItems, router, pullingBack]);
 
@@ -765,7 +765,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     return minDist <= SNAP_RADIUS ? nearest : null;
   }, [wheelItems.length, getIconPos]);
 
-  // 🆕 Ищем скроллящийся элемент (вызывается 1 раз при нажатии, не 60 раз/сек)
+  // рџ†• РС‰РµРј СЃРєСЂРѕР»Р»СЏС‰РёР№СЃСЏ СЌР»РµРјРµРЅС‚ (РІС‹Р·С‹РІР°РµС‚СЃСЏ 1 СЂР°Р· РїСЂРё РЅР°Р¶Р°С‚РёРё, РЅРµ 60 СЂР°Р·/СЃРµРє)
   const findScrollTarget = (): HTMLElement => {
     const se = document.scrollingElement as HTMLElement | null;
     if (se && se.scrollHeight > se.clientHeight) return se;
@@ -779,29 +779,29 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     return document.documentElement;
   };
 
-  // 🆕 ═══ РЕФСЫ ДЛЯ СВОБОДНОЙ ОРБИТЫ И CTRL-РЕЖИМА ═══
-  const lastMouseRef = useRef({ x: 0, y: 0 });      // последняя позиция курсора (для Ctrl)
-  const suppressClickRef = useRef(false);           // гасим клик «сквозь» открытую дугу
+  // рџ†• в•ђв•ђв•ђ Р Р•Р¤РЎР« Р”Р›РЇ РЎР’РћР‘РћР”РќРћР™ РћР Р‘РРўР« Р CTRL-Р Р•Р–РРњРђ в•ђв•ђв•ђ
+  const lastMouseRef = useRef({ x: 0, y: 0 });      // РїРѕСЃР»РµРґРЅСЏСЏ РїРѕР·РёС†РёСЏ РєСѓСЂСЃРѕСЂР° (РґР»СЏ Ctrl)
+  const suppressClickRef = useRef(false);           // РіР°СЃРёРј РєР»РёРє В«СЃРєРІРѕР·СЊВ» РѕС‚РєСЂС‹С‚СѓСЋ РґСѓРіСѓ
 
-  // 🎯 Общая точка входа жеста: кнопка орбиты, свободная орбита и Ctrl.
+  // рџЋЇ РћР±С‰Р°СЏ С‚РѕС‡РєР° РІС…РѕРґР° Р¶РµСЃС‚Р°: РєРЅРѕРїРєР° РѕСЂР±РёС‚С‹, СЃРІРѕР±РѕРґРЅР°СЏ РѕСЂР±РёС‚Р° Рё Ctrl.
   // centerAtPress:
-  //   false (по умолчанию) — жест с КНОПКИ: дуга-полукруг от кнопки (как было);
-  //   true — orbit2 / Ctrl: ПОЛНЫЙ КРУГ вокруг точки зажима.
+  //   false (РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ) вЂ” Р¶РµСЃС‚ СЃ РљРќРћРџРљР: РґСѓРіР°-РїРѕР»СѓРєСЂСѓРі РѕС‚ РєРЅРѕРїРєРё (РєР°Рє Р±С‹Р»Рѕ);
+  //   true вЂ” orbit2 / Ctrl: РџРћР›РќР«Р™ РљР РЈР“ РІРѕРєСЂСѓРі С‚РѕС‡РєРё Р·Р°Р¶РёРјР°.
   const startGestureAt = useCallback((px: number, py: number, centerAtPress = false) => {
-    // 🚫 Nebula — любой вход жеста классики блокируем
+    // рџљ« Nebula вЂ” Р»СЋР±РѕР№ РІС…РѕРґ Р¶РµСЃС‚Р° РєР»Р°СЃСЃРёРєРё Р±Р»РѕРєРёСЂСѓРµРј
     if (typeof document !== "undefined" && document.documentElement.classList.contains("nebula-mode")) return;
     startPos.current = { x: px, y: py };
-    // 🆕 нашли элемент скролла ОДИН раз — дальше только лёгкий scrollBy
+    // рџ†• РЅР°С€Р»Рё СЌР»РµРјРµРЅС‚ СЃРєСЂРѕР»Р»Р° РћР”РРќ СЂР°Р· вЂ” РґР°Р»СЊС€Рµ С‚РѕР»СЊРєРѕ Р»С‘РіРєРёР№ scrollBy
     scrollTargetRef.current = findScrollTarget();
 
     longPressTimer.current = setTimeout(() => {
       longPressTimer.current = null;
       if (centerAtPress) {
-        openWheelAt(px, py);              // 🔄 полный круг вокруг точки зажима
+        openWheelAt(px, py);              // рџ”„ РїРѕР»РЅС‹Р№ РєСЂСѓРі РІРѕРєСЂСѓРі С‚РѕС‡РєРё Р·Р°Р¶РёРјР°
       } else {
-        openWheelAt();                    // ◗ полудуга от кнопки (прежнее поведение)
+        openWheelAt();                    // в—— РїРѕР»СѓРґСѓРіР° РѕС‚ РєРЅРѕРїРєРё (РїСЂРµР¶РЅРµРµ РїРѕРІРµРґРµРЅРёРµ)
       }
-      suppressClickRef.current = true;    // отпускание не должно «нажать» то, что под ним
+      suppressClickRef.current = true;    // РѕС‚РїСѓСЃРєР°РЅРёРµ РЅРµ РґРѕР»Р¶РЅРѕ В«РЅР°Р¶Р°С‚СЊВ» С‚Рѕ, С‡С‚Рѕ РїРѕРґ РЅРёРј
       const idx = findNearest(px, py);
       setHoveredIdx(idx);
       setFingerPos({ x: px, y: py });
@@ -814,20 +814,20 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     startGestureAt(px, py);
   }, [startGestureAt]);
 
-  // 🖥 Следим за курсором — нужно для открытия дуги у курсора по Ctrl
+  // рџ–Ґ РЎР»РµРґРёРј Р·Р° РєСѓСЂСЃРѕСЂРѕРј вЂ” РЅСѓР¶РЅРѕ РґР»СЏ РѕС‚РєСЂС‹С‚РёСЏ РґСѓРіРё Сѓ РєСѓСЂСЃРѕСЂР° РїРѕ Ctrl
   useEffect(() => {
     const track = (e: MouseEvent) => { lastMouseRef.current = { x: e.clientX, y: e.clientY }; };
     document.addEventListener("mousemove", track);
     return () => document.removeEventListener("mousemove", track);
   }, []);
 
-  // 🛡 Страховка: если компонент размонтировали с открытой дугой — вернуть выделение
+  // рџ›Ў РЎС‚СЂР°С…РѕРІРєР°: РµСЃР»Рё РєРѕРјРїРѕРЅРµРЅС‚ СЂР°Р·РјРѕРЅС‚РёСЂРѕРІР°Р»Рё СЃ РѕС‚РєСЂС‹С‚РѕР№ РґСѓРіРѕР№ вЂ” РІРµСЂРЅСѓС‚СЊ РІС‹РґРµР»РµРЅРёРµ
   useEffect(() => {
     return () => setBodySelectionLock(false);
   }, []);
 
-  // 🛡 Клик «сквозь» открытую дугу гасим ОДИН раз (capture),
-  //    чтобы отпускание пальца/кнопки не активировало ссылку под точкой зажима
+  // рџ›Ў РљР»РёРє В«СЃРєРІРѕР·СЊВ» РѕС‚РєСЂС‹С‚СѓСЋ РґСѓРіСѓ РіР°СЃРёРј РћР”РРќ СЂР°Р· (capture),
+  //    С‡С‚РѕР±С‹ РѕС‚РїСѓСЃРєР°РЅРёРµ РїР°Р»СЊС†Р°/РєРЅРѕРїРєРё РЅРµ Р°РєС‚РёРІРёСЂРѕРІР°Р»Рѕ СЃСЃС‹Р»РєСѓ РїРѕРґ С‚РѕС‡РєРѕР№ Р·Р°Р¶РёРјР°
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       if (!suppressClickRef.current) return;
@@ -839,15 +839,15 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     return () => document.removeEventListener("click", onClick, true);
   }, []);
 
-  // 🆕 ORBIT2 («свободная орбита»): зажал В ЛЮБОМ месте экрана → выбрал → отпустил.
-  //    Работает и на ПК, и на телефоне. Поля ввода исключены.
+  // рџ†• ORBIT2 (В«СЃРІРѕР±РѕРґРЅР°СЏ РѕСЂР±РёС‚Р°В»): Р·Р°Р¶Р°Р» Р’ Р›Р®Р‘РћРњ РјРµСЃС‚Рµ СЌРєСЂР°РЅР° в†’ РІС‹Р±СЂР°Р» в†’ РѕС‚РїСѓСЃС‚РёР».
+  //    Р Р°Р±РѕС‚Р°РµС‚ Рё РЅР° РџРљ, Рё РЅР° С‚РµР»РµС„РѕРЅРµ. РџРѕР»СЏ РІРІРѕРґР° РёСЃРєР»СЋС‡РµРЅС‹.
   useEffect(() => {
     if (layout !== "orbit2") return;
     const isExcluded = (t: EventTarget | null) =>
       t instanceof HTMLElement &&
       !!t.closest("input, textarea, select, [contenteditable='true'], [data-orbit-ignore]");
     const onDown = (e: MouseEvent | TouchEvent) => {
-      // 🚫 Nebula — жесты классической орбиты не работают (стейт + класс DOM)
+      // рџљ« Nebula вЂ” Р¶РµСЃС‚С‹ РєР»Р°СЃСЃРёС‡РµСЃРєРѕР№ РѕСЂР±РёС‚С‹ РЅРµ СЂР°Р±РѕС‚Р°СЋС‚ (СЃС‚РµР№С‚ + РєР»Р°СЃСЃ DOM)
       const nebulaNow = typeof document !== "undefined" && document.documentElement.classList.contains("nebula-mode");
       if (isNebula || nebulaNow) return;
       if (wheelOpen || isLongPressed.current || longPressTimer.current) return;
@@ -864,16 +864,16 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     };
   }, [layout, wheelOpen, startGestureAt, isNebula]);
 
-  // 🆕 CTRL-ОРБИТА НА ПК (только для вида «Орбита 2»):
-  //    зажал Ctrl → меню (полный круг, как вторая орбита) ОТКРЫВАЕТСЯ СРАЗУ у курсора;
-  //    просто кликаешь по пункту — выбираешь; отпустил Ctrl / Esc — закрылось.
-  //    🔒 Не срабатывает над полями ввода и элементами с [data-orbit-ignore] (бары и пр.).
+  // рџ†• CTRL-РћР Р‘РРўРђ РќРђ РџРљ (С‚РѕР»СЊРєРѕ РґР»СЏ РІРёРґР° В«РћСЂР±РёС‚Р° 2В»):
+  //    Р·Р°Р¶Р°Р» Ctrl в†’ РјРµРЅСЋ (РїРѕР»РЅС‹Р№ РєСЂСѓРі, РєР°Рє РІС‚РѕСЂР°СЏ РѕСЂР±РёС‚Р°) РћРўРљР Р«Р’РђР•РўРЎРЇ РЎР РђР—РЈ Сѓ РєСѓСЂСЃРѕСЂР°;
+  //    РїСЂРѕСЃС‚Рѕ РєР»РёРєР°РµС€СЊ РїРѕ РїСѓРЅРєС‚Сѓ вЂ” РІС‹Р±РёСЂР°РµС€СЊ; РѕС‚РїСѓСЃС‚РёР» Ctrl / Esc вЂ” Р·Р°РєСЂС‹Р»РѕСЃСЊ.
+  //    рџ”’ РќРµ СЃСЂР°Р±Р°С‚С‹РІР°РµС‚ РЅР°Рґ РїРѕР»СЏРјРё РІРІРѕРґР° Рё СЌР»РµРјРµРЅС‚Р°РјРё СЃ [data-orbit-ignore] (Р±Р°СЂС‹ Рё РїСЂ.).
   useEffect(() => {
     if (isMobile) return;
-    // 🎛 Ctrl-орбита имеет смысл только для «Орбиты 2» (свободная орбита);
-    //    в остальных видах (классика, док) Ctrl не должен ничего открывать
+    // рџЋ› Ctrl-РѕСЂР±РёС‚Р° РёРјРµРµС‚ СЃРјС‹СЃР» С‚РѕР»СЊРєРѕ РґР»СЏ В«РћСЂР±РёС‚С‹ 2В» (СЃРІРѕР±РѕРґРЅР°СЏ РѕСЂР±РёС‚Р°);
+    //    РІ РѕСЃС‚Р°Р»СЊРЅС‹С… РІРёРґР°С… (РєР»Р°СЃСЃРёРєР°, РґРѕРє) Ctrl РЅРµ РґРѕР»Р¶РµРЅ РЅРёС‡РµРіРѕ РѕС‚РєСЂС‹РІР°С‚СЊ
     if (layout !== "orbit2") return;
-    // 🚫 Nebula — Ctrl-орбита классики не работает
+    // рџљ« Nebula вЂ” Ctrl-РѕСЂР±РёС‚Р° РєР»Р°СЃСЃРёРєРё РЅРµ СЂР°Р±РѕС‚Р°РµС‚
     const nebulaNow = () => typeof document !== "undefined" && document.documentElement.classList.contains("nebula-mode");
     const isExcludedUnderMouse = () => {
       const { x, y } = lastMouseRef.current;
@@ -888,17 +888,17 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       if (e.key === "Escape" && isLongPressed.current) { closeWheel(false); return; }
       if (e.key !== "Control") return;
       if (e.repeat || wheelOpen || isLongPressed.current || longPressTimer.current) return;
-      if (nebulaNow()) return;    // 🚫 Nebula — отключаем Ctrl-орбиту
-      if (isExcludedUnderMouse()) return;   // 🔒 над полем ввода/баром — не открываем
-      // Открываем СРАЗУ (без таймера долгого зажатия) — полный круг у курсора
+      if (nebulaNow()) return;    // рџљ« Nebula вЂ” РѕС‚РєР»СЋС‡Р°РµРј Ctrl-РѕСЂР±РёС‚Сѓ
+      if (isExcludedUnderMouse()) return;   // рџ”’ РЅР°Рґ РїРѕР»РµРј РІРІРѕРґР°/Р±Р°СЂРѕРј вЂ” РЅРµ РѕС‚РєСЂС‹РІР°РµРј
+      // РћС‚РєСЂС‹РІР°РµРј РЎР РђР—РЈ (Р±РµР· С‚Р°Р№РјРµСЂР° РґРѕР»РіРѕРіРѕ Р·Р°Р¶Р°С‚РёСЏ) вЂ” РїРѕР»РЅС‹Р№ РєСЂСѓРі Сѓ РєСѓСЂСЃРѕСЂР°
       const { x, y } = lastMouseRef.current;
       startPos.current = { x, y };
       scrollTargetRef.current = findScrollTarget();
       openWheelAt(x, y);
       setHoveredIdx(findNearest(x, y));
       setFingerPos({ x, y });
-      // ВАЖНО: suppressClickRef НЕ ставим — жест начинался без зажатия мыши,
-      // поэтому обычный клик по пункту («нажал и выбрал») дойдёт до кнопки.
+      // Р’РђР–РќРћ: suppressClickRef РќР• СЃС‚Р°РІРёРј вЂ” Р¶РµСЃС‚ РЅР°С‡РёРЅР°Р»СЃСЏ Р±РµР· Р·Р°Р¶Р°С‚РёСЏ РјС‹С€Рё,
+      // РїРѕСЌС‚РѕРјСѓ РѕР±С‹С‡РЅС‹Р№ РєР»РёРє РїРѕ РїСѓРЅРєС‚Сѓ (В«РЅР°Р¶Р°Р» Рё РІС‹Р±СЂР°Р»В») РґРѕР№РґС‘С‚ РґРѕ РєРЅРѕРїРєРё.
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.key !== "Control") return;
@@ -914,7 +914,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
   }, [isMobile, layout, wheelOpen, hoveredIdx, closeWheel, openWheelAt, findNearest]);
 
   useEffect(() => {
-    // 🚫 Nebula — глобальные обработчики жестов классики не вешаем вовсе
+    // рџљ« Nebula вЂ” РіР»РѕР±Р°Р»СЊРЅС‹Рµ РѕР±СЂР°Р±РѕС‚С‡РёРєРё Р¶РµСЃС‚РѕРІ РєР»Р°СЃСЃРёРєРё РЅРµ РІРµС€Р°РµРј РІРѕРІСЃРµ
     const nebulaNow = typeof document !== "undefined" && document.documentElement.classList.contains("nebula-mode");
     if (isNebula || nebulaNow) return;
     const cancelTimer = () => {
@@ -928,7 +928,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       const absDx = Math.abs(dx);
       const absDy = Math.abs(dy);
 
-      // 🎯 Горизонталь доминирует → назад
+      // рџЋЇ Р“РѕСЂРёР·РѕРЅС‚Р°Р»СЊ РґРѕРјРёРЅРёСЂСѓРµС‚ в†’ РЅР°Р·Р°Рґ
       if (dx < -PULL_BACK_THRESHOLD && absDx >= absDy * 0.7) {
         pullingBackRef.current = true;
         scrollVelocityRef.current = 0;
@@ -937,7 +937,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         return;
       }
 
-      // 🎯 Вертикаль доминирует → скролл
+      // рџЋЇ Р’РµСЂС‚РёРєР°Р»СЊ РґРѕРјРёРЅРёСЂСѓРµС‚ в†’ СЃРєСЂРѕР»Р»
       if (absDy > SCROLL_DEAD_ZONE && absDy >= absDx * 0.6) {
         pullingBackRef.current = false;
         const speed = Math.min(absDy * SCROLL_SENSITIVITY, SCROLL_MAX_SPEED);
@@ -948,7 +948,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         return;
       }
 
-      // 🎯 Мёртвая зона
+      // рџЋЇ РњС‘СЂС‚РІР°СЏ Р·РѕРЅР°
       pullingBackRef.current = false;
       scrollVelocityRef.current = 0;
       setPullingBack(false);
@@ -962,7 +962,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       const dy = py - start.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      // ═══ ФАЗА 1: Таймер ещё тикает ═══
+      // в•ђв•ђв•ђ Р¤РђР—Рђ 1: РўР°Р№РјРµСЂ РµС‰С‘ С‚РёРєР°РµС‚ в•ђв•ђв•ђ
       if (longPressTimer.current) {
         if (dist > DRAG_ACTIVATION) {
           cancelTimer();
@@ -972,7 +972,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         return;
       }
 
-      // ═══ ФАЗА 2: Дуга открыта — свайпы ВЫКЛЮЧЕНЫ, только выбор пункта ═══
+      // в•ђв•ђв•ђ Р¤РђР—Рђ 2: Р”СѓРіР° РѕС‚РєСЂС‹С‚Р° вЂ” СЃРІР°Р№РїС‹ Р’Р«РљР›Р®Р§Р•РќР«, С‚РѕР»СЊРєРѕ РІС‹Р±РѕСЂ РїСѓРЅРєС‚Р° в•ђв•ђв•ђ
       if (isLongPressed.current) {
         const idx = findNearest(px, py);
         setHoveredIdx(idx);
@@ -980,7 +980,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         return;
       }
 
-      // ═══ ФАЗА 3: Drag (меню не открывалось) ═══
+      // в•ђв•ђв•ђ Р¤РђР—Рђ 3: Drag (РјРµРЅСЋ РЅРµ РѕС‚РєСЂС‹РІР°Р»РѕСЃСЊ) в•ђв•ђв•ђ
       if (isDraggingRef.current) {
         updateGesture(dx, dy);
       }
@@ -1004,7 +1004,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         isDraggingRef.current = false;
         pullingBackRef.current = false;
         scrollVelocityRef.current = 0;
-        smoothVelocityRef.current = 0; // 🆕 — плавно остановится
+        smoothVelocityRef.current = 0; // рџ†• вЂ” РїР»Р°РІРЅРѕ РѕСЃС‚Р°РЅРѕРІРёС‚СЃСЏ
         setPullingBack(false);
         setScrollVelocity(0);
         startPos.current = null;
@@ -1045,12 +1045,12 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     };
   }, [hoveredIdx, closeWheel, findNearest, router, isNebula]);
 
-  // 🎯 ПЛАВНЫЙ скролл: rAF + сглаживание (нет дрожания, мягкое дотормаживание)
+  // рџЋЇ РџР›РђР’РќР«Р™ СЃРєСЂРѕР»Р»: rAF + СЃРіР»Р°Р¶РёРІР°РЅРёРµ (РЅРµС‚ РґСЂРѕР¶Р°РЅРёСЏ, РјСЏРіРєРѕРµ РґРѕС‚РѕСЂРјР°Р¶РёРІР°РЅРёРµ)
   useEffect(() => {
     const loop = () => {
       const target = scrollVelocityRef.current;
       const cur = smoothVelocityRef.current;
-      // плавно разгоняемся/тормозим к целевой скорости (0.12 = мягкость)
+      // РїР»Р°РІРЅРѕ СЂР°Р·РіРѕРЅСЏРµРјСЃСЏ/С‚РѕСЂРјРѕР·РёРј Рє С†РµР»РµРІРѕР№ СЃРєРѕСЂРѕСЃС‚Рё (0.12 = РјСЏРіРєРѕСЃС‚СЊ)
       const next = cur + (target - cur) * 0.12;
       smoothVelocityRef.current = Math.abs(next) < 0.05 ? 0 : next;
 
@@ -1103,15 +1103,15 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     : user.role?.color ?? null
     : null;
 
-  // 🌗 Цвет ника и свечения с учётом темы:
-  //  dark — цвет роли как есть (#ffffff у Founder светится белым),
-  //  light — светлые цвета инвертируются в «чернила», свечение тёмное.
+  // рџЊ— Р¦РІРµС‚ РЅРёРєР° Рё СЃРІРµС‡РµРЅРёСЏ СЃ СѓС‡С‘С‚РѕРј С‚РµРјС‹:
+  //  dark вЂ” С†РІРµС‚ СЂРѕР»Рё РєР°Рє РµСЃС‚СЊ (#ffffff Сѓ Founder СЃРІРµС‚РёС‚СЃСЏ Р±РµР»С‹Рј),
+  //  light вЂ” СЃРІРµС‚Р»С‹Рµ С†РІРµС‚Р° РёРЅРІРµСЂС‚РёСЂСѓСЋС‚СЃСЏ РІ В«С‡РµСЂРЅРёР»Р°В», СЃРІРµС‡РµРЅРёРµ С‚С‘РјРЅРѕРµ.
   const { resolvedTheme } = useTheme();
   const displayNickColor = resolveNickColor(glow, resolvedTheme);
   const nickGlowStyle = displayNickColor
     ? ({ color: displayNickColor, textShadow: `0 0 6px ${displayNickColor}B3, 0 0 14px ${displayNickColor}66` } as React.CSSProperties)
     : undefined;
-  // Свечение аватарки тем же цветом, что и ник (в light — тёмный ореол)
+  // РЎРІРµС‡РµРЅРёРµ Р°РІР°С‚Р°СЂРєРё С‚РµРј Р¶Рµ С†РІРµС‚РѕРј, С‡С‚Рѕ Рё РЅРёРє (РІ light вЂ” С‚С‘РјРЅС‹Р№ РѕСЂРµРѕР»)
   const avatarGlowStyle = displayNickColor
     ? ({ filter: `drop-shadow(0 0 8px ${displayNickColor})` } as React.CSSProperties)
     : undefined;
@@ -1196,7 +1196,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
           )}
         </button>
 
-        {/* Настройки — сразу над Админ-панелью */}
+        {/* РќР°СЃС‚СЂРѕР№РєРё вЂ” СЃСЂР°Р·Сѓ РЅР°Рґ РђРґРјРёРЅ-РїР°РЅРµР»СЊСЋ */}
         <Link href="/settings"
           className={`flex ${containerClass} font-medium transition-all border-b border-line dark:border-white/5 group ${
             pathname === "/settings" ? "bg-[#8b5cf6]/15 text-[#a78bfa]" : "text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"
@@ -1222,10 +1222,10 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         )}
       </nav>
 
-      {/* ═══════ FOOTER (без лишних линий) ═══════ */}
+      {/* в•ђв•ђв•ђв•ђв•ђв•ђв•ђ FOOTER (Р±РµР· Р»РёС€РЅРёС… Р»РёРЅРёР№) в•ђв•ђв•ђв•ђв•ђв•ђв•ђ */}
       <div className={`mt-auto pt-4 ${isDock ? "flex flex-col items-center gap-3" : ""}`}>
         
-{/* Сервисные кнопки */}
+{/* РЎРµСЂРІРёСЃРЅС‹Рµ РєРЅРѕРїРєРё */}
 {!isDock && (
   <div className="px-4 flex items-center gap-2 mb-4">
     {showContinueButton && continueConfig.isPost && (
@@ -1240,7 +1240,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       className="p-2.5 rounded-xl text-orange-400/80 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-500/10 transition-all" title={t("nav.reportProblem")}>
       <Bug size={18} />
     </button>
-    <button onClick={() => router.push("/support")} // 🆕 Замените "/support" на открытие модалки, если нужно
+    <button onClick={() => router.push("/support")} // рџ†• Р—Р°РјРµРЅРёС‚Рµ "/support" РЅР° РѕС‚РєСЂС‹С‚РёРµ РјРѕРґР°Р»РєРё, РµСЃР»Рё РЅСѓР¶РЅРѕ
       className="p-2.5 rounded-xl text-cyan-400/80 hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-cyan-500/10 transition-all" title={t("nav.supportChat")}>
       <Headphones size={18} />
     </button>
@@ -1277,10 +1277,10 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 )}
 
 
-         {/* Профиль с кнопкой выхода внутри (справа) */}
+         {/* РџСЂРѕС„РёР»СЊ СЃ РєРЅРѕРїРєРѕР№ РІС‹С…РѕРґР° РІРЅСѓС‚СЂРё (СЃРїСЂР°РІР°) */}
         {user ? (
           <div className={isDock ? "flex flex-col items-center gap-2 px-2" : "px-2"}>
-            {/* Ссылка на профиль + кнопка выхода внутри */}
+            {/* РЎСЃС‹Р»РєР° РЅР° РїСЂРѕС„РёР»СЊ + РєРЅРѕРїРєР° РІС‹С…РѕРґР° РІРЅСѓС‚СЂРё */}
             <div className={`flex ${isDock ? "justify-center" : "items-center gap-3"} px-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 transition-all group w-full`}>
               <Link href={`/${user.username}`} className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="shrink-0" style={avatarGlowStyle}>
@@ -1298,7 +1298,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
                 )}
               </Link>
               
-              {/* 🆕 КНОПКА ВЫХОДА СПРАВА ВНУТРИ БЛОКА */}
+              {/* рџ†• РљРќРћРџРљРђ Р’Р«РҐРћР”Рђ РЎРџР РђР’Рђ Р’РќРЈРўР Р Р‘Р›РћРљРђ */}
               {!isDock && (
                 <button 
                   onClick={() => setShowOrbitSwitcher(true)}
@@ -1334,15 +1334,15 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     if (!wheelOpen) return;
     if (buttonRef.current) {
       const r = buttonRef.current.getBoundingClientRect();
-      // Кнопка видима → пункты разлетаются из неё (классическая орбита)
+      // РљРЅРѕРїРєР° РІРёРґРёРјР° в†’ РїСѓРЅРєС‚С‹ СЂР°Р·Р»РµС‚Р°СЋС‚СЃСЏ РёР· РЅРµС‘ (РєР»Р°СЃСЃРёС‡РµСЃРєР°СЏ РѕСЂР±РёС‚Р°)
       if (r.width > 0 || r.height > 0) {
         buttonCx.current = r.left + r.width / 2;
         buttonCy.current = r.top + r.height / 2;
         return;
       }
     }
-    // 🆕 orbit2 / Ctrl: кнопки нет или она скрыта —
-    // точка входа анимации = место зажима (центр круга)
+    // рџ†• orbit2 / Ctrl: РєРЅРѕРїРєРё РЅРµС‚ РёР»Рё РѕРЅР° СЃРєСЂС‹С‚Р° вЂ”
+    // С‚РѕС‡РєР° РІС…РѕРґР° Р°РЅРёРјР°С†РёРё = РјРµСЃС‚Рѕ Р·Р°Р¶РёРјР° (С†РµРЅС‚СЂ РєСЂСѓРіР°)
     buttonCx.current = arcCenterRef.current.x;
     buttonCy.current = arcCenterRef.current.y;
   }, [wheelOpen]);
@@ -1434,7 +1434,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
           </div>
         )}
 
-        {/* 🆕 Индикатор "тянешь назад" */}
+        {/* рџ†• РРЅРґРёРєР°С‚РѕСЂ "С‚СЏРЅРµС€СЊ РЅР°Р·Р°Рґ" */}
         {pullingBack && (
           <div
             className="absolute pointer-events-none"
@@ -1452,7 +1452,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
           </div>
         )}
 
-        {/* 🆕 Индикатор скролла */}
+        {/* рџ†• РРЅРґРёРєР°С‚РѕСЂ СЃРєСЂРѕР»Р»Р° */}
         {scrollVelocity !== 0 && !pullingBack && (
           <div
             className="absolute pointer-events-none"
@@ -1465,7 +1465,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
           >
             <div className="flex items-center gap-2 bg-[#8b5cf6]/80 text-white px-3 py-1.5 rounded-full shadow-lg backdrop-blur-sm">
               <span className="text-xs font-bold">
-                {scrollVelocity > 0 ? "↑" : "↓"} {Math.abs(Math.round(scrollVelocity))}px
+                {scrollVelocity > 0 ? "в†‘" : "в†“"} {Math.abs(Math.round(scrollVelocity))}px
               </span>
             </div>
           </div>
@@ -1476,13 +1476,13 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
   return (
     <>
-      {/* ═══════ МОБИЛКА / DESKTOP ORBIT / DESKTOP ORBIT2 ═══════ */}
-      {/* orbit2 — без фиксированной кнопки: дуга открывается зажимом в любом месте */}
-      {/* 🚫 В режиме Nebula классическая орбита полностью отключена (в т.ч. кнопка вне <aside>) */}
+      {/* в•ђв•ђв•ђв•ђв•ђв•ђв•ђ РњРћР‘РР›РљРђ / DESKTOP ORBIT / DESKTOP ORBIT2 в•ђв•ђв•ђв•ђв•ђв•ђв•ђ */}
+      {/* orbit2 вЂ” Р±РµР· С„РёРєСЃРёСЂРѕРІР°РЅРЅРѕР№ РєРЅРѕРїРєРё: РґСѓРіР° РѕС‚РєСЂС‹РІР°РµС‚СЃСЏ Р·Р°Р¶РёРјРѕРј РІ Р»СЋР±РѕРј РјРµСЃС‚Рµ */}
+      {/* рџљ« Р’ СЂРµР¶РёРјРµ Nebula РєР»Р°СЃСЃРёС‡РµСЃРєР°СЏ РѕСЂР±РёС‚Р° РїРѕР»РЅРѕСЃС‚СЊСЋ РѕС‚РєР»СЋС‡РµРЅР° (РІ С‚.С‡. РєРЅРѕРїРєР° РІРЅРµ <aside>) */}
       {!nebulaOff && (
       <div className={layout === "orbit" ? "block" : layout === "orbit2" ? "hidden" : "md:hidden"}>
-        {/* 🔥 КРУГИ НА ВОДЕ (Память ленты) */}
-        {/* 🔥 МЯГКОЕ СВЕЧЕНИЕ (Сохраненный пост) */}
+        {/* рџ”Ґ РљР РЈР“Р РќРђ Р’РћР”Р• (РџР°РјСЏС‚СЊ Р»РµРЅС‚С‹) */}
+        {/* рџ”Ґ РњРЇР“РљРћР• РЎР’Р•Р§Р•РќРР• (РЎРѕС…СЂР°РЅРµРЅРЅС‹Р№ РїРѕСЃС‚) */}
         {lastReadPost && (
           <div 
             className={`fixed z-[97] w-14 h-14 pointer-events-none flex items-center justify-center
@@ -1492,7 +1492,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
               }
             `}
           >
-            {/* Статичное свечение вместо бесконечной пульсации */}
+            {/* РЎС‚Р°С‚РёС‡РЅРѕРµ СЃРІРµС‡РµРЅРёРµ РІРјРµСЃС‚Рѕ Р±РµСЃРєРѕРЅРµС‡РЅРѕР№ РїСѓР»СЊСЃР°С†РёРё */}
             <span className="absolute inset-0 rounded-full bg-[#8b5cf6]/10 ring-2 ring-[#8b5cf6]/40 shadow-[0_0_15px_rgba(139,92,246,0.4)]"></span>
           </div>
         )}
@@ -1528,12 +1528,12 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       </div>
       )}
 
-      {/* 🆕 Дуга рендерится ВНЕ обёртки — доступна в любом виде сайдбара
-          (Ctrl на ПК в classic/dock/orbit, свободный зажим в orbit2) */}
-      {/* 🚫 В Nebula классическая дуга не рендерится */}
+      {/* рџ†• Р”СѓРіР° СЂРµРЅРґРµСЂРёС‚СЃСЏ Р’РќР• РѕР±С‘СЂС‚РєРё вЂ” РґРѕСЃС‚СѓРїРЅР° РІ Р»СЋР±РѕРј РІРёРґРµ СЃР°Р№РґР±Р°СЂР°
+          (Ctrl РЅР° РџРљ РІ classic/dock/orbit, СЃРІРѕР±РѕРґРЅС‹Р№ Р·Р°Р¶РёРј РІ orbit2) */}
+      {/* рџљ« Р’ Nebula РєР»Р°СЃСЃРёС‡РµСЃРєР°СЏ РґСѓРіР° РЅРµ СЂРµРЅРґРµСЂРёС‚СЃСЏ */}
       {!nebulaOff && renderWheel()}
 
-{/* 🆕 🔥 ТУЛТИП "ПРОДОЛЖИТЬ ЧТЕНИЕ" */}
+{/* рџ†• рџ”Ґ РўРЈР›РўРРџ "РџР РћР”РћР›Р–РРўР¬ Р§РўР•РќРР•" */}
 {!nebulaOff && showTooltip && showContinueButton && layout !== "orbit2" && (
   <div 
     className={`fixed z-[99] bg-[#8b5cf6] text-white text-xs font-bold px-3 py-2 rounded-lg shadow-xl whitespace-nowrap animate-bounce
@@ -1558,7 +1558,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
   </div>
 )}
 
-{/* ═══════ DESKTOP ORBIT: плавающие кнопки слева от орбиты ═══════ */}
+{/* в•ђв•ђв•ђв•ђв•ђв•ђв•ђ DESKTOP ORBIT: РїР»Р°РІР°СЋС‰РёРµ РєРЅРѕРїРєРё СЃР»РµРІР° РѕС‚ РѕСЂР±РёС‚С‹ в•ђв•ђв•ђв•ђв•ђв•ђв•ђ */}
 {!nebulaOff && layout === "orbit" && !isMobile && (
   <div className={`fixed right-[92px] ${orbitRowPos} z-[97] flex flex-row items-center gap-3`}>
 
@@ -1593,7 +1593,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
 
 
-      {/* ═══════ ДЕСКТОП CLASSIC / DOCK (в orbit и orbit2 сайдбара нет) ═══════ */}
+      {/* в•ђв•ђв•ђв•ђв•ђв•ђв•ђ Р”Р•РЎРљРўРћРџ CLASSIC / DOCK (РІ orbit Рё orbit2 СЃР°Р№РґР±Р°СЂР° РЅРµС‚) в•ђв•ђв•ђв•ђв•ђв•ђв•ђ */}
       {layout !== "orbit" && layout !== "orbit2" && (
         <aside className={`hidden md:flex shrink-0 overflow-y-auto flex-col bg-paper dark:bg-[#171717] transition-all duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
           isDock ? "md:w-20 md:min-w-20 px-0 py-4 gap-2" : "md:w-64 md:min-w-64 p-5 gap-5"
@@ -1602,7 +1602,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         </aside>
       )}
 
-      {/* ═══════ УВЕДОМЛЕНИЯ ═══════ */}
+      {/* в•ђв•ђв•ђв•ђв•ђв•ђв•ђ РЈР’Р•Р”РћРњР›Р•РќРРЇ в•ђв•ђв•ђв•ђв•ђв•ђв•ђ */}
       {showNotifs && (
         <>
           <div className="fixed inset-0 bg-black/60 z-[99]" onClick={() => setShowNotifs(false)} />
@@ -1617,7 +1617,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
                     {t("notif.markAll")}
                   </button>
                 )}
-                <button onClick={() => setShowNotifs(false)} className="p-1.5 text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                <button onClick={() => setShowNotifs(false)} className="p-1.5 text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                   <X size={16} />
                 </button>
               </div>
@@ -1626,7 +1626,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
               {notifsLoading && notifs.length === 0 ? (
                 <div className="p-8 text-center">
                   <Bell size={32} className="text-gray-300 dark:text-white/10 mx-auto mb-3 animate-pulse" />
-                  <p className="text-sm text-gray-400 dark:text-white/40">…</p>
+                  <p className="text-sm text-gray-400 dark:text-white/40">вЂ¦</p>
                 </div>
               ) : notifs.length === 0 && (
                 <div className="p-8 text-center">
@@ -1675,7 +1675,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       {showSearch && <MobileSearch onClose={() => setShowSearch(false)} />}
       {showLayoutPicker && <LayoutPicker current={layout} isMobile={isMobile} onClose={() => setShowLayoutPicker(false)} />}
       
-      {/* 🆕 МОДАЛКА СМЕНЫ АККАУНТА */}
+      {/* рџ†• РњРћР”РђР›РљРђ РЎРњР•РќР« РђРљРљРђРЈРќРўРђ */}
       {showOrbitSwitcher && (
         <AccountSwitcher 
           variant="orbit" 

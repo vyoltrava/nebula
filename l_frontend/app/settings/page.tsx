@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getToken, clearToken } from "@/lib/auth";
@@ -50,14 +50,14 @@ export default function SettingsPage() {
 
   const [view, setView] = useState<View>("profile");
 
-  // Поддержка ?view=... (например, из Nebula-настроек: /settings?view=security)
+  // РџРѕРґРґРµСЂР¶РєР° ?view=... (РЅР°РїСЂРёРјРµСЂ, РёР· Nebula-РЅР°СЃС‚СЂРѕРµРє: /settings?view=security)
   useEffect(() => {
     const v = new URLSearchParams(window.location.search).get("view");
     const valid: View[] = ["profile", "payments", "appearance", "notifications", "permissions", "messages", "security", "nebula"];
     if (v && valid.includes(v as View)) setView(v as View);
   }, []);
 
-  // Пароли
+  // РџР°СЂРѕР»Рё
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -256,7 +256,7 @@ async function activate2FA() {
       body: form,
     });
     if (res.ok) {
-      // ✅ НЕ закрываем модалку — переходим к показу кодов
+      // вњ… РќР• Р·Р°РєСЂС‹РІР°РµРј РјРѕРґР°Р»РєСѓ вЂ” РїРµСЂРµС…РѕРґРёРј Рє РїРѕРєР°Р·Сѓ РєРѕРґРѕРІ
       setSetupStep("backup");
       setVerifyCode("");
       fetchSecurityStatus();
@@ -344,11 +344,11 @@ async function activate2FA() {
       style={{ fontFamily: "'Inter', -apple-system, system-ui, sans-serif" }}
     >
       <div className="max-w-2xl md:max-w-4xl mx-auto px-4 py-4 lg:py-6">
-        {/* ===== Шапка ===== */}
+        {/* ===== РЁР°РїРєР° ===== */}
         <header className="flex items-center gap-3 mb-6">
           <button
             onClick={() => router.push(isNebula ? "/messages" : "/")}
-            className="w-10 h-10 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-[#1E1E23] text-[#B9B8BD] hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-center transition-colors"
+            className="w-10 h-10 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-[#1E1E23] text-[#B9B8BD] hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-center transition-colors"
             aria-label={t("common.back")}
           >
             <ArrowLeft size={18} />
@@ -356,7 +356,7 @@ async function activate2FA() {
           <h1 className="text-2xl font-bold">{t("settings.title")}</h1>
         </header>
 
-        {/* ===== Мобильные чипы ===== */}
+        {/* ===== РњРѕР±РёР»СЊРЅС‹Рµ С‡РёРїС‹ ===== */}
 <div className="lg:hidden flex gap-2 overflow-x-auto pb-2 mb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
   {nav.map((n) => (
     <button
@@ -374,7 +374,7 @@ async function activate2FA() {
 </div>
 
         <div className="lg:grid lg:grid-cols-[240px_1fr] lg:gap-6 items-start">
-          {/* ===== Сайдбар (ПК) ===== */}
+          {/* ===== РЎР°Р№РґР±Р°СЂ (РџРљ) ===== */}
 
 <aside className="hidden lg:flex flex-col gap-1 bg-gray-100 dark:bg-[#1E1E23] border border-line dark:border-white/10 rounded-xl p-3 sticky top-6">
   {nav.map((n) => {
@@ -392,7 +392,7 @@ async function activate2FA() {
       >
         <Icon 
           size={16} 
-          className={active ? "text-[#8b5cf6]" : "text-gray-800 dark:text-white/80 group-hover:text-gray-900 dark:text-white"} 
+          className={active ? "text-[#8b5cf6]" : "text-gray-800 dark:text-white/80 group-hover:text-gray-900 dark:group-hover:text-white"} 
         />
         {n.label}
       </button>
@@ -409,15 +409,15 @@ async function activate2FA() {
   </button>
 </aside>
 
-          {/* ===== Контент ===== */}
+          {/* ===== РљРѕРЅС‚РµРЅС‚ ===== */}
           <section className="bg-gray-100 dark:bg-[#1E1E23] border border-line dark:border-white/10 rounded-xl p-5 sm:p-6">
-            {/* ---------- ПРОФИЛЬ ---------- */}
+            {/* ---------- РџР РћР¤РР›Р¬ ---------- */}
             {view === "profile" && (
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold">{t("settings.profile")}</h2>
                 <LanguageSwitcher />
 
-                {/* Аватар */}
+                {/* РђРІР°С‚Р°СЂ */}
                 <div className="flex items-center gap-4">
                   {preview ? (
                     <img src={preview} alt="" className="w-20 h-20 rounded-xl object-cover border border-line dark:border-white/10" />
@@ -441,13 +441,13 @@ async function activate2FA() {
                   />
                 </div>
 
-                {/* Имя */}
+                {/* РРјСЏ */}
                 <div>
                   <label className={labelCls}>{t("settings.displayName")}</label>
                   <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputCls} />
                 </div>
 
-                {/* О себе */}
+                {/* Рћ СЃРµР±Рµ */}
                 <div>
                   <label className={labelCls}>{t("settings.bio")}</label>
                   <textarea
@@ -489,7 +489,7 @@ async function activate2FA() {
               </div>
             )}
 
-            {/* ---------- ОПЛАТА ---------- */}
+            {/* ---------- РћРџР›РђРўРђ ---------- */}
             {view === "payments" && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">{t("settings.payments")}</h2>
@@ -497,7 +497,7 @@ async function activate2FA() {
               </div>
             )}
 
-            {/* ---------- ВНЕШНИЙ ВИД ---------- */}
+            {/* ---------- Р’РќР•РЁРќРР™ Р’РР” ---------- */}
             {view === "appearance" && (
               <div>
                 <h2 className="text-lg font-semibold mb-1">{t("settings.appearance")}</h2>
@@ -508,7 +508,7 @@ async function activate2FA() {
               </div>
             )}
 
-            {/* ---------- УВЕДОМЛЕНИЯ ---------- */}
+            {/* ---------- РЈР’Р•Р”РћРњР›Р•РќРРЇ ---------- */}
             {view === "notifications" && (
               <div>
                 <h2 className="text-lg font-semibold mb-1">{t("settings.notifications")}</h2>
@@ -517,7 +517,7 @@ async function activate2FA() {
               </div>
             )}
 
-            {/* ---------- РАЗРЕШЕНИЯ ---------- */}
+            {/* ---------- Р РђР—Р Р•РЁР•РќРРЇ ---------- */}
             {view === "permissions" && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">{t("settings.permissions")}</h2>
@@ -525,7 +525,7 @@ async function activate2FA() {
               </div>
             )}
 
-            {/* ---------- ЖИВЫЕ СООБЩЕНИЯ ---------- */}
+            {/* ---------- Р–РР’Р«Р• РЎРћРћР‘Р©Р•РќРРЇ ---------- */}
             {view === "messages" && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">{t("settings.liveMessages")}</h2>
@@ -536,21 +536,21 @@ async function activate2FA() {
             {/* ---------- NEBULA ---------- */}
             {view === "nebula" && (
               <div>
-                <h2 className="text-lg font-semibold mb-1">Режим Nebula</h2>
+                <h2 className="text-lg font-semibold mb-1">Р РµР¶РёРј Nebula</h2>
                 <p className="text-sm text-[#B9B8BD] mb-4 dark:text-white/60">
-                  Превращает соцсеть в чистый мессенджер: остаются только чаты
-                  (орбита) и настройки Nebula. Всё возвращается назад, когда
-                  режим выключен.
+                  РџСЂРµРІСЂР°С‰Р°РµС‚ СЃРѕС†СЃРµС‚СЊ РІ С‡РёСЃС‚С‹Р№ РјРµСЃСЃРµРЅРґР¶РµСЂ: РѕСЃС‚Р°СЋС‚СЃСЏ С‚РѕР»СЊРєРѕ С‡Р°С‚С‹
+                  (РѕСЂР±РёС‚Р°) Рё РЅР°СЃС‚СЂРѕР№РєРё Nebula. Р’СЃС‘ РІРѕР·РІСЂР°С‰Р°РµС‚СЃСЏ РЅР°Р·Р°Рґ, РєРѕРіРґР°
+                  СЂРµР¶РёРј РІС‹РєР»СЋС‡РµРЅ.
                 </p>
                 <div className="flex items-center justify-between gap-4 p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                   <div className="flex items-center gap-3">
                     <Sparkles size={20} className="text-[#8b5cf6]" />
                     <div>
                       <div className="text-sm font-medium">
-                        Режим Nebula (только мессенджер)
+                        Р РµР¶РёРј Nebula (С‚РѕР»СЊРєРѕ РјРµСЃСЃРµРЅРґР¶РµСЂ)
                       </div>
                       <div className="text-xs text-gray-500 dark:text-white/40">
-                        {isNebula ? "Сейчас включён" : "Сейчас выключен"}
+                        {isNebula ? "РЎРµР№С‡Р°СЃ РІРєР»СЋС‡С‘РЅ" : "РЎРµР№С‡Р°СЃ РІС‹РєР»СЋС‡РµРЅ"}
                       </div>
                     </div>
                   </div>
@@ -575,7 +575,7 @@ async function activate2FA() {
               </div>
             )}
 
-            {/* ---------- БЕЗОПАСНОСТЬ ---------- */}
+            {/* ---------- Р‘Р•Р—РћРџРђРЎРќРћРЎРўР¬ ---------- */}
             {view === "security" && (
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold">{t("settings.security")}</h2>
@@ -634,7 +634,7 @@ async function activate2FA() {
                   </p>
                 </div>
 
-                {/* Пароль */}
+                {/* РџР°СЂРѕР»СЊ */}
                 <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-white/5 flex items-center justify-center">
@@ -658,7 +658,7 @@ async function activate2FA() {
                         <button
                           type="button"
                           onClick={() => setShowOld(!showOld)}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#B9B8BD] hover:text-gray-900 dark:text-white transition-colors"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#B9B8BD] hover:text-gray-900 dark:hover:text-white transition-colors"
                         >
                           {showOld ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
@@ -680,7 +680,7 @@ async function activate2FA() {
                         <button
                           type="button"
                           onClick={() => setShowNew(!showNew)}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#B9B8BD] hover:text-gray-900 dark:text-white transition-colors"
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#B9B8BD] hover:text-gray-900 dark:hover:text-white transition-colors"
                         >
                           {showNew ? <EyeOff size={16} /> : <Eye size={16} />}
                         </button>
@@ -719,7 +719,7 @@ async function activate2FA() {
                   </form>
                 </div>
 
-                {/* Выход со всех устройств */}
+                {/* Р’С‹С…РѕРґ СЃРѕ РІСЃРµС… СѓСЃС‚СЂРѕР№СЃС‚РІ */}
                 <div className="p-4 rounded-lg border border-[#E74C3C]/30 bg-[#E74C3C]/5">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 rounded-lg bg-[#E74C3C]/15 flex items-center justify-center">
@@ -776,7 +776,7 @@ async function activate2FA() {
           </div>
 
           <details className="group">
-            <summary className="text-sm text-[#B9B8BD] cursor-pointer hover:text-gray-900 dark:text-white transition-colors">
+            <summary className="text-sm text-[#B9B8BD] cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors">
               {t("settings.noCamera")}
             </summary>
             <div className="mt-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
@@ -813,14 +813,14 @@ async function activate2FA() {
           <button
             onClick={() => setSetupStep("scan")}
             disabled={loading2FA}
-            className="w-full text-sm text-[#B9B8BD] hover:text-gray-900 dark:text-white transition-colors disabled:opacity-40"
+            className="w-full text-sm text-[#B9B8BD] hover:text-gray-900 dark:hover:text-white transition-colors disabled:opacity-40"
           >
-            ← {t("common.back")}
+            в†ђ {t("common.back")}
           </button>
         </div>
       )}
 
-      {/* 🆕 ШАГ 3: ПОКАЗ РЕЗЕРВНЫХ КОДОВ — ВНУТРИ МОДАЛКИ */}
+      {/* рџ†• РЁРђР“ 3: РџРћРљРђР— Р Р•Р—Р•Р Р’РќР«РҐ РљРћР”РћР’ вЂ” Р’РќРЈРўР Р РњРћР”РђР›РљР */}
       {setupStep === "backup" && (
         <div className="space-y-4">
           <div className="flex items-center gap-2 mb-2">
@@ -883,7 +883,7 @@ async function activate2FA() {
                 }
               }}
             >
-              ✓ {t("settings.iSaved")}
+              вњ“ {t("settings.iSaved")}
             </Button>
           </div>
 
@@ -909,7 +909,7 @@ async function activate2FA() {
               <h3 className="text-lg font-semibold">{t("settings.disable2fa")}</h3>
               <button
                 onClick={() => !loading2FA && setShowDisable2FA(false)}
-                className="text-[#B9B8BD] hover:text-gray-900 dark:text-white transition-colors p-1"
+                className="text-[#B9B8BD] hover:text-gray-900 dark:hover:text-white transition-colors p-1"
                 disabled={loading2FA}
               >
                 <X size={20} />

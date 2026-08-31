@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -92,7 +92,7 @@ export function RightPanel() {
               </div>
               <button
                 onClick={() => follow(a.id)}
-                className="text-xs font-bold px-3 py-1 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white transition-all"
+                className="text-xs font-bold px-3 py-1 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:hover:text-white transition-all"
               >
                 {t("post.follow")}
               </button>
@@ -101,7 +101,7 @@ export function RightPanel() {
         </div>
       </section>
 
-      {/* Кнопка команды проекта — в самом низу правой панели */}
+      {/* РљРЅРѕРїРєР° РєРѕРјР°РЅРґС‹ РїСЂРѕРµРєС‚Р° вЂ” РІ СЃР°РјРѕРј РЅРёР·Сѓ РїСЂР°РІРѕР№ РїР°РЅРµР»Рё */}
       <Link
         href="/team"
         className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl border border-line dark:border-white/15 bg-gradient-to-r from-white/5 to-white/10 text-gray-900 dark:text-white hover:from-[#8b5cf6]/20 hover:to-[#8b5cf6]/10 hover:border-[#8b5cf6]/50 transition-all font-semibold text-sm"

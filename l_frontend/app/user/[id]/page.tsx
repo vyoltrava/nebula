@@ -677,7 +677,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                         <button onClick={toggleFollow} className={`px-4 py-2 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-line dark:border-white/20 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:hover:text-white"}`}>
     {following ? t("post.following") : t("post.follow")}
   </button>
-                      <button onClick={startChat} className="flex items-center justify-center p-2 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white transition-all" title={t("profile.write")}>
+                      <button onClick={startChat} className="flex items-center justify-center p-2 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:hover:text-white transition-all" title={t("profile.write")}>
                         <MessageSquare size={18} />
                       </button>
                       <button
@@ -728,7 +728,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                     <button onClick={toggleFollow} className={`px-5 py-2.5 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-line dark:border-white/20 text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-white"}`}>
                       {following ? t("post.following") : t("post.follow")}
                     </button>
-                    <button onClick={startChat} className="p-2.5 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:text-white transition-all" title={t("profile.write")}>
+                    <button onClick={startChat} className="p-2.5 rounded-full border border-line dark:border-white/20 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:hover:text-white transition-all" title={t("profile.write")}>
                       <MessageSquare size={18} />
                     </button>
                     <button
@@ -831,7 +831,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
               <div className="w-full max-w-md border border-line dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl pointer-events-auto max-h-[80vh] md:max-h-[70vh] flex flex-col">
                 <div className="sticky top-0 bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md border-b border-line dark:border-white/10 p-4 flex items-center justify-between shrink-0">
                   <h2 className="font-black text-gray-900 dark:text-white text-lg">{modalType === "followers" ? t("profile.followersTitle") : t("profile.followingTitle")}</h2>
-                  <button onClick={() => setModalType(null)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"><X size={20} /></button>
+                  <button onClick={() => setModalType(null)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10"><X size={20} /></button>
                 </div>
                 <div className="overflow-y-auto flex-1 p-2">
                   {modalLoading && <p className="p-8 text-center text-gray-600 dark:text-white/50">{t("common.loading")}</p>}
@@ -865,7 +865,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
               <div className="w-full max-w-sm bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-4 pointer-events-auto animate-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-bold text-gray-900 dark:text-white text-sm">Сменить значок</h3>
-                  <button onClick={() => setShowBadgeModal(false)} className="text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white p-1"><X size={16} /></button>
+                  <button onClick={() => setShowBadgeModal(false)} className="text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white p-1"><X size={16} /></button>
                 </div>
                 
                 <div className="space-y-4">

@@ -117,7 +117,7 @@ useEffect(() => {
         <div className="w-full">
           <button
             onClick={() => router.back()}
-            className="sticky top-0 z-10 w-full px-4 py-3 bg-paper dark:bg-[#171717]/90 backdrop-blur-md border-b border-line dark:border-white/10 flex items-center gap-2 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white transition-colors font-medium"
+            className="sticky top-0 z-10 w-full px-4 py-3 bg-paper dark:bg-[#171717]/90 backdrop-blur-md border-b border-line dark:border-white/10 flex items-center gap-2 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white transition-colors font-medium"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -48,18 +48,18 @@ function SearchContent() {
         setResults(await response.json());
       }
     } catch (error) {
-      console.error("Ошибка поиска:", error);
+      console.error("РћС€РёР±РєР° РїРѕРёСЃРєР°:", error);
     } finally {
       setLoading(false);
     }
   }
 
-  // Автофокус при загрузке
+  // РђРІС‚РѕС„РѕРєСѓСЃ РїСЂРё Р·Р°РіСЂСѓР·РєРµ
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
-  // Debounce поиск по мере ввода
+  // Debounce РїРѕРёСЃРє РїРѕ РјРµСЂРµ РІРІРѕРґР°
   useEffect(() => {
     const trimmed = query.trim();
     if (!trimmed) {
@@ -71,7 +71,7 @@ function SearchContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  // Обновляем URL при изменении запроса (без перезагрузки)
+  // РћР±РЅРѕРІР»СЏРµРј URL РїСЂРё РёР·РјРµРЅРµРЅРёРё Р·Р°РїСЂРѕСЃР° (Р±РµР· РїРµСЂРµР·Р°РіСЂСѓР·РєРё)
   useEffect(() => {
     const trimmed = query.trim();
     const current = searchParams.get("q") || "";
@@ -82,7 +82,7 @@ function SearchContent() {
     }
   }, [query, searchParams, router]);
 
-  // Поиск при первом заходе с ?q=...
+  // РџРѕРёСЃРє РїСЂРё РїРµСЂРІРѕРј Р·Р°С…РѕРґРµ СЃ ?q=...
   useEffect(() => {
     if (initialQuery) doSearch(initialQuery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,7 +97,7 @@ function SearchContent() {
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
       <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10">
-        {/* Шапка поиска */}
+        {/* РЁР°РїРєР° РїРѕРёСЃРєР° */}
         <div className="p-4 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
           <div className="flex gap-2 mb-3">
             <div className="flex-1 flex items-center gap-2 border border-line dark:border-white/15 rounded-full px-4 py-2.5 bg-gray-100 dark:bg-white/5 focus-within:border-[#8b5cf6] transition-all">
@@ -112,7 +112,7 @@ function SearchContent() {
               {query && (
                 <button
                   onClick={() => setQuery("")}
-                  className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white transition-colors shrink-0"
+                  className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white transition-colors shrink-0"
                 >
                   <X size={16} />
                 </button>
@@ -120,7 +120,7 @@ function SearchContent() {
             </div>
           </div>
 
-          {/* Вкладки */}
+          {/* Р’РєР»Р°РґРєРё */}
           {results && totalCount > 0 && (
             <div className="flex gap-1 overflow-x-auto scrollbar-hide -mx-1 px-1">
               {[
@@ -134,7 +134,7 @@ function SearchContent() {
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all shrink-0 ${
                     activeTab === tab.key
                       ? "bg-[#8b5cf6] text-white"
-                      : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white"
+                      : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white"
                   }`}
                 >
                   <tab.icon size={12} />
@@ -148,15 +148,15 @@ function SearchContent() {
           )}
         </div>
 
-        {/* Состояния загрузки */}
+        {/* РЎРѕСЃС‚РѕСЏРЅРёСЏ Р·Р°РіСЂСѓР·РєРё */}
         {loading && (
           <SearchResultsSkeleton />
         )}
 
-        {/* Результаты */}
+        {/* Р РµР·СѓР»СЊС‚Р°С‚С‹ */}
         {!loading && results && (
           <>
-            {/* Люди */}
+            {/* Р›СЋРґРё */}
             {(activeTab === "all" || activeTab === "users") && filteredUsers.length > 0 && (
               <section className="p-4 border-b border-line dark:border-white/10">
                 <h2 className="font-black mb-3 text-gray-900 dark:text-white flex items-center gap-2">
@@ -184,7 +184,7 @@ function SearchContent() {
               </section>
             )}
 
-            {/* Посты */}
+            {/* РџРѕСЃС‚С‹ */}
             {(activeTab === "all" || activeTab === "posts") && filteredPosts.length > 0 && (
               <section>
                 <h2 className="font-black p-4 pb-0 text-gray-900 dark:text-white flex items-center gap-2">
@@ -198,7 +198,7 @@ function SearchContent() {
               </section>
             )}
 
-            {/* Ничего не найдено */}
+            {/* РќРёС‡РµРіРѕ РЅРµ РЅР°Р№РґРµРЅРѕ */}
             {totalCount === 0 && (
               <div className="p-12 text-center">
                 <SearchIcon size={48} className="text-gray-500 dark:text-white/20 mx-auto mb-3" />
@@ -209,7 +209,7 @@ function SearchContent() {
           </>
         )}
 
-        {/* Пустое состояние */}
+        {/* РџСѓСЃС‚РѕРµ СЃРѕСЃС‚РѕСЏРЅРёРµ */}
         {!loading && !results && (
           <div className="p-12 text-center">
             <SearchIcon size={48} className="text-gray-500 dark:text-white/20 mx-auto mb-3" />

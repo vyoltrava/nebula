@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { createContext, useContext, useRef, useState, useEffect, useCallback } from "react";
 import { Play, Pause, X, Rewind, FastForward } from "lucide-react";
 
@@ -38,11 +38,11 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
   const [duration, setDuration] = useState(0);
   const [rate, setRate] = useState(1);
 
-  // ✅ Глобальные медиа-элементы — НИКОГДА не переназначаются
+  // вњ… Р“Р»РѕР±Р°Р»СЊРЅС‹Рµ РјРµРґРёР°-СЌР»РµРјРµРЅС‚С‹ вЂ” РќРРљРћР“Р”Рђ РЅРµ РїРµСЂРµРЅР°Р·РЅР°С‡Р°СЋС‚СЃСЏ
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Привязка только для глобальных элементов
+  // РџСЂРёРІСЏР·РєР° С‚РѕР»СЊРєРѕ РґР»СЏ РіР»РѕР±Р°Р»СЊРЅС‹С… СЌР»РµРјРµРЅС‚РѕРІ
   const bindGlobal = useCallback((el: HTMLMediaElement | null, kind: "audio" | "video") => {
     if (kind === "audio") audioRef.current = el as HTMLAudioElement;
     else videoRef.current = el as HTMLVideoElement;
@@ -70,7 +70,7 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
   const activeEl = () =>
     track?.type === "video_note" ? videoRef.current : audioRef.current;
 
-  // При смене трека: ставим src и играем
+  // РџСЂРё СЃРјРµРЅРµ С‚СЂРµРєР°: СЃС‚Р°РІРёРј src Рё РёРіСЂР°РµРј
   useEffect(() => {
     const a = audioRef.current;
     const v = videoRef.current;
@@ -148,7 +148,7 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
     <GlobalPlayerContext.Provider
       value={{ track, playing, currentTime, duration, rate, playTrack, toggle, close, seekBy, seekTo, cycleRate }}
     >
-      {/* ✅ Глобальные скрытые элементы — привязываются ОДИН РАЗ */}
+      {/* вњ… Р“Р»РѕР±Р°Р»СЊРЅС‹Рµ СЃРєСЂС‹С‚С‹Рµ СЌР»РµРјРµРЅС‚С‹ вЂ” РїСЂРёРІСЏР·С‹РІР°СЋС‚СЃСЏ РћР”РРќ Р РђР— */}
       <audio ref={(el) => bindGlobal(el, "audio")} className="hidden" />
       <video ref={(el) => bindGlobal(el, "video")} playsInline muted className="hidden" />
 
@@ -157,37 +157,37 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
     <div className="bg-white/5 backdrop-blur-xl border border-line dark:border-white/10 rounded-2xl shadow-lg shadow-black/30">
       <div className="px-3 py-2">
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Перемотка и play */}
+          {/* РџРµСЂРµРјРѕС‚РєР° Рё play */}
           <div className="flex items-center gap-1 shrink-0">
-            <button onClick={() => seekBy(-10)} className="p-1.5 rounded-lg text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90 transition-all" title="-10 сек">
+            <button onClick={() => seekBy(-10)} className="p-1.5 rounded-lg text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90 transition-all" title="-10 СЃРµРє">
               <Rewind size={16} />
             </button>
             <button onClick={toggle} className="w-9 h-9 rounded-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white flex items-center justify-center active:scale-90 transition-all">
               {playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
             </button>
-            <button onClick={() => seekBy(10)} className="p-1.5 rounded-lg text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90 transition-all" title="+10 сек">
+            <button onClick={() => seekBy(10)} className="p-1.5 rounded-lg text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90 transition-all" title="+10 СЃРµРє">
               <FastForward size={16} />
             </button>
           </div>
 
-          {/* Название */}
+          {/* РќР°Р·РІР°РЅРёРµ */}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{track.title}</p>
             <p className="text-[10px] text-gray-500 dark:text-white/40 font-mono">{fmt(currentTime)} / {fmt(duration)}</p>
           </div>
 
-          {/* Скорость */}
-          <button onClick={cycleRate} className="shrink-0 px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-[11px] font-bold text-gray-800 dark:text-white/70 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 active:scale-95 transition-all" title="Скорость">
+          {/* РЎРєРѕСЂРѕСЃС‚СЊ */}
+          <button onClick={cycleRate} className="shrink-0 px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-[11px] font-bold text-gray-800 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 active:scale-95 transition-all" title="РЎРєРѕСЂРѕСЃС‚СЊ">
             {rate}X
           </button>
 
-          {/* Крестик */}
-          <button onClick={close} className="shrink-0 p-1.5 rounded-lg text-gray-500 dark:text-white/50 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all" title="Закрыть">
+          {/* РљСЂРµСЃС‚РёРє */}
+          <button onClick={close} className="shrink-0 p-1.5 rounded-lg text-gray-500 dark:text-white/50 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all" title="Р—Р°РєСЂС‹С‚СЊ">
             <X size={18} />
           </button>
         </div>
 
-        {/* Прогресс-бар */}
+        {/* РџСЂРѕРіСЂРµСЃСЃ-Р±Р°СЂ */}
         <div className="mt-1.5 h-1 rounded-full bg-gray-100 dark:bg-white/10 cursor-pointer" onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); seekTo(Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1)); }}>
           <div className="h-full rounded-full bg-gradient-to-r from-[#8b5cf6] to-[#a78bfa] transition-all duration-200" style={{ width: `${progress}%` }} />
         </div>

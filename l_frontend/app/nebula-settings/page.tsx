@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 /**
- * Nebula: настройки мессенджера - полный функционал основной системы,
- * собранный в удобный Telegram-подобный список. Доступна только в Nebula.
- * Включает: внешний вид, уведомления, доступы, 2FA, смену пароля, аккаунт.
+ * Nebula: РЅР°СЃС‚СЂРѕР№РєРё РјРµСЃСЃРµРЅРґР¶РµСЂР° - РїРѕР»РЅС‹Р№ С„СѓРЅРєС†РёРѕРЅР°Р» РѕСЃРЅРѕРІРЅРѕР№ СЃРёСЃС‚РµРјС‹,
+ * СЃРѕР±СЂР°РЅРЅС‹Р№ РІ СѓРґРѕР±РЅС‹Р№ Telegram-РїРѕРґРѕР±РЅС‹Р№ СЃРїРёСЃРѕРє. Р”РѕСЃС‚СѓРїРЅР° С‚РѕР»СЊРєРѕ РІ Nebula.
+ * Р’РєР»СЋС‡Р°РµС‚: РІРЅРµС€РЅРёР№ РІРёРґ, СѓРІРµРґРѕРјР»РµРЅРёСЏ, РґРѕСЃС‚СѓРїС‹, 2FA, СЃРјРµРЅСѓ РїР°СЂРѕР»СЏ, Р°РєРєР°СѓРЅС‚.
  */
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -296,14 +296,14 @@ export default function NebulaSettingsPage() {
                 <label className={labelCls}>{t("settings.currentPassword")}</label>
                 <div className="relative">
                   <input type={showOld ? "text" : "password"} value={oldPassword} onChange={(e) => setOldPassword(e.target.value)} placeholder={t("settings.oldPasswordPh")} required className={inputCls + " pr-10"} />
-                  <button type="button" onClick={() => setShowOld(!showOld)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#B9B8BD] hover:text-gray-900 dark:text-white transition-colors">{showOld ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                  <button type="button" onClick={() => setShowOld(!showOld)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#B9B8BD] hover:text-gray-900 dark:hover:text-white transition-colors">{showOld ? <EyeOff size={16} /> : <Eye size={16} />}</button>
                 </div>
               </div>
               <div>
                 <label className={labelCls}>{t("settings.newPassword")}</label>
                 <div className="relative">
                   <input type={showNew ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={t("settings.newPasswordPh")} required minLength={6} className={inputCls + " pr-10"} />
-                  <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#B9B8BD] hover:text-gray-900 dark:text-white transition-colors">{showNew ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                  <button type="button" onClick={() => setShowNew(!showNew)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#B9B8BD] hover:text-gray-900 dark:hover:text-white transition-colors">{showNew ? <EyeOff size={16} /> : <Eye size={16} />}</button>
                 </div>
               </div>
               <div>
@@ -358,7 +358,7 @@ export default function NebulaSettingsPage() {
                 </div>
                 <div className="flex justify-center bg-white rounded-lg p-5"><img src={qrCode} alt="QR" className="w-52 h-52" /></div>
                 <details className="group">
-                  <summary className="text-sm text-[#B9B8BD] cursor-pointer hover:text-gray-900 dark:text-white transition-colors">{t("settings.noCamera")}</summary>
+                  <summary className="text-sm text-[#B9B8BD] cursor-pointer hover:text-gray-900 dark:hover:text-white transition-colors">{t("settings.noCamera")}</summary>
                   <div className="mt-3 p-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                     <p className="text-xs text-[#B9B8BD] mb-1">{t("settings.secretKey")}</p>
                     <p className="font-mono text-sm text-gray-900 dark:text-white break-all select-all">{secret}</p>
@@ -380,7 +380,7 @@ export default function NebulaSettingsPage() {
                 <div className="grid grid-cols-2 gap-2">{backupCodes.map((code) => (<div key={code} className="bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 rounded-lg px-3 py-2 text-center text-sm font-mono tracking-wider select-all">{code}</div>))}</div>
                 <div className="flex gap-2">
                   <Button icon={Copy} className="flex-1" onClick={async () => { try { await navigator.clipboard.writeText(backupCodes.join("\n")); alert(t("settings.codesCopiedLong")); } catch { const textarea = document.createElement("textarea"); textarea.value = backupCodes.join("\n"); document.body.appendChild(textarea); textarea.select(); document.execCommand("copy"); document.body.removeChild(textarea); alert(t("settings.codesCopied")); } }}>{t("settings.copyAll")}</Button>
-                  <Button variant="success" className="flex-1" onClick={() => { if (confirm(t("settings.savedCodesConfirm"))) setShow2FASetup(false); }}>✓ {t("settings.iSaved")}</Button>
+                  <Button variant="success" className="flex-1" onClick={() => { if (confirm(t("settings.savedCodesConfirm"))) setShow2FASetup(false); }}>вњ“ {t("settings.iSaved")}</Button>
                 </div>
                 <p className="text-[10px] text-gray-500 dark:text-white/30 text-center">{t("settings.iSavedHint")}</p>
               </div>
@@ -395,7 +395,7 @@ export default function NebulaSettingsPage() {
           <div className="relative bg-gray-100 dark:bg-[#1E1E23] border border-line dark:border-white/10 rounded-xl p-6 max-w-sm w-full">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-lg font-semibold">{t("settings.disable2fa")}</h3>
-              <button onClick={() => !loading2FA && setShowDisable2FA(false)} className="text-[#B9B8BD] hover:text-gray-900 dark:text-white transition-colors p-1" disabled={loading2FA}><X size={20} /></button>
+              <button onClick={() => !loading2FA && setShowDisable2FA(false)} className="text-[#B9B8BD] hover:text-gray-900 dark:hover:text-white transition-colors p-1" disabled={loading2FA}><X size={20} /></button>
             </div>
             <p className="text-sm text-[#B9B8BD] mb-4">{t("settings.disable2faHint")}</p>
             <input value={disableCode} onChange={(e) => setDisableCode(e.target.value)} placeholder={t("settings.codePh")} className={inputCls + " text-center text-xl tracking-widest font-mono py-3 mb-4"} autoFocus disabled={loading2FA} />

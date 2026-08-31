@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
@@ -21,7 +21,7 @@ export default function AdminThemesPage() {
   const [globalEnabled, setGlobalEnabled] = useState(true);
   const [previewTheme, setPreviewTheme] = useState<ThemeConfig | null>(null);
 
-  // Загрузка админа
+  // Р—Р°РіСЂСѓР·РєР° Р°РґРјРёРЅР°
   useEffect(() => {
     const token = getToken();
     if (!token) { router.push("/login"); return; }
@@ -36,10 +36,10 @@ export default function AdminThemesPage() {
       .catch(() => router.push("/login"));
   }, [router]);
 
-  // Загрузка тем с бэкенда (если есть) + localStorage
+  // Р—Р°РіСЂСѓР·РєР° С‚РµРј СЃ Р±СЌРєРµРЅРґР° (РµСЃР»Рё РµСЃС‚СЊ) + localStorage
   useEffect(() => {
     loadThemes();
-    // Грузим состояние с бэкенда
+    // Р“СЂСѓР·РёРј СЃРѕСЃС‚РѕСЏРЅРёРµ СЃ Р±СЌРєРµРЅРґР°
     const token = getToken();
     if (token) {
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/themes/settings`, {
@@ -64,7 +64,7 @@ export default function AdminThemesPage() {
         }
       }
     } catch {}
-    // Fallback: встроенные темы + сохранённые в localStorage
+    // Fallback: РІСЃС‚СЂРѕРµРЅРЅС‹Рµ С‚РµРјС‹ + СЃРѕС…СЂР°РЅС‘РЅРЅС‹Рµ РІ localStorage
     const custom = localStorage.getItem("custom_themes");
     if (custom) {
       try {
@@ -85,7 +85,7 @@ export default function AdminThemesPage() {
     localStorage.setItem("themes_global_enabled", String(next));
     if (!next) setTheme(null);
     
-    // Сохраняем на бэкенд
+    // РЎРѕС…СЂР°РЅСЏРµРј РЅР° Р±СЌРєРµРЅРґ
     const token = getToken();
     if (token) {
       try {
@@ -120,7 +120,7 @@ export default function AdminThemesPage() {
 
   function saveTheme() {
     if (!editingTheme || !editingTheme.name.trim()) {
-      alert("Введите название темы");
+      alert("Р’РІРµРґРёС‚Рµ РЅР°Р·РІР°РЅРёРµ С‚РµРјС‹");
       return;
     }
 
@@ -136,7 +136,7 @@ export default function AdminThemesPage() {
     setShowEditor(false);
     setEditingTheme(null);
 
-    // Попытка сохранить на бэк (если endpoint есть)
+    // РџРѕРїС‹С‚РєР° СЃРѕС…СЂР°РЅРёС‚СЊ РЅР° Р±СЌРє (РµСЃР»Рё endpoint РµСЃС‚СЊ)
     saveToBackend(editingTheme).catch(() => {});
   }
 
@@ -179,7 +179,7 @@ export default function AdminThemesPage() {
   }
 
   async function deleteTheme(t: ThemeConfig) {
-    if (!confirm(`Удалить тему "${t.name}"?`)) return;
+    if (!confirm(`РЈРґР°Р»РёС‚СЊ С‚РµРјСѓ "${t.name}"?`)) return;
     
     if (typeof t.id === "number") {
       const token = getToken();
@@ -191,10 +191,10 @@ export default function AdminThemesPage() {
       } catch {}
     }
     
-    // Перезагружаем список
+    // РџРµСЂРµР·Р°РіСЂСѓР¶Р°РµРј СЃРїРёСЃРѕРє
     await loadThemes();
     
-    // Если удалили активную — сбрасываем
+    // Р•СЃР»Рё СѓРґР°Р»РёР»Рё Р°РєС‚РёРІРЅСѓСЋ вЂ” СЃР±СЂР°СЃС‹РІР°РµРј
     if (previewTheme?.id === t.id) {
       setPreviewTheme(null);
       setTheme(null);
@@ -213,7 +213,7 @@ export default function AdminThemesPage() {
     setTheme(t);
   }
 
-  if (!me) return <div className="p-8 text-gray-600 dark:text-white/60">Загрузка...</div>;
+  if (!me) return <div className="p-8 text-gray-600 dark:text-white/60">Р—Р°РіСЂСѓР·РєР°...</div>;
 
   return (
     <div className="h-screen flex overflow-hidden relative">
@@ -221,21 +221,21 @@ export default function AdminThemesPage() {
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
       <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10 relative">
-        {/* Шапка */}
+        {/* РЁР°РїРєР° */}
         <div className="p-6 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => router.push("/admin")}
-                className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
+                className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
               >
                 <ArrowLeft size={20} />
               </button>
               <Palette size={24} className="text-[#8b5cf6]" />
               <div>
-                <h1 className="text-2xl font-black text-gray-900 dark:text-white">Конструктор тем</h1>
+                <h1 className="text-2xl font-black text-gray-900 dark:text-white">РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ С‚РµРј</h1>
                 <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">
-                  Создавай анимированные фоны для всего сайта
+                  РЎРѕР·РґР°РІР°Р№ Р°РЅРёРјРёСЂРѕРІР°РЅРЅС‹Рµ С„РѕРЅС‹ РґР»СЏ РІСЃРµРіРѕ СЃР°Р№С‚Р°
                 </p>
               </div>
             </div>
@@ -244,20 +244,20 @@ export default function AdminThemesPage() {
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm font-bold hover:shadow-lg hover:shadow-purple-500/30 transition-all"
             >
               <Plus size={16} />
-              Новая тема
+              РќРѕРІР°СЏ С‚РµРјР°
             </button>
           </div>
 
-          {/* Глобальный тумблер */}
+          {/* Р“Р»РѕР±Р°Р»СЊРЅС‹Р№ С‚СѓРјР±Р»РµСЂ */}
           <div className="mt-4 p-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-3">
               {globalEnabled ? <Globe size={18} className="text-emerald-600 dark:text-emerald-400" /> : <Globe size={18} className="text-gray-500 dark:text-white/40" />}
               <div>
                 <p className="text-sm font-bold text-gray-900 dark:text-white">
-                  Темы включены для всех пользователей
+                  РўРµРјС‹ РІРєР»СЋС‡РµРЅС‹ РґР»СЏ РІСЃРµС… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№
                 </p>
                 <p className="text-[11px] text-gray-500 dark:text-white/40">
-                  {globalEnabled ? "Анимированные фоны отображаются на сайте" : "Фон выключен для всех — чистый чёрный"}
+                  {globalEnabled ? "РђРЅРёРјРёСЂРѕРІР°РЅРЅС‹Рµ С„РѕРЅС‹ РѕС‚РѕР±СЂР°Р¶Р°СЋС‚СЃСЏ РЅР° СЃР°Р№С‚Рµ" : "Р¤РѕРЅ РІС‹РєР»СЋС‡РµРЅ РґР»СЏ РІСЃРµС… вЂ” С‡РёСЃС‚С‹Р№ С‡С‘СЂРЅС‹Р№"}
                 </p>
               </div>
             </div>
@@ -276,7 +276,7 @@ export default function AdminThemesPage() {
           </div>
         </div>
 
-        {/* Сетка тем */}
+        {/* РЎРµС‚РєР° С‚РµРј */}
         <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {themes.map(t => (
             <ThemeCard
@@ -292,7 +292,7 @@ export default function AdminThemesPage() {
         </div>
       </main>
 
-      {/* Модалка редактора */}
+      {/* РњРѕРґР°Р»РєР° СЂРµРґР°РєС‚РѕСЂР° */}
       {showEditor && editingTheme && (
         <ThemeEditor
           theme={editingTheme}
@@ -305,7 +305,7 @@ export default function AdminThemesPage() {
   );
 }
 
-// ============ КАРТОЧКА ТЕМЫ ============
+// ============ РљРђР РўРћР§РљРђ РўР•РњР« ============
 function ThemeCard({
   theme, onEdit, onDelete, onPreview, onSetDefault, isCurrent,
 }: {
@@ -320,48 +320,48 @@ function ThemeCard({
     <div className={`rounded-2xl overflow-hidden border transition-all ${
       isCurrent ? "border-[#8b5cf6] ring-2 ring-[#8b5cf6]/50" : "border-line dark:border-white/10"
     } bg-ivory dark:bg-[#1f1f23]`}>
-      {/* Превью */}
+      {/* РџСЂРµРІСЊСЋ */}
       <div className="relative h-40 overflow-hidden group">
         <ThemePreview theme={theme} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-3 gap-2">
           <button
             onClick={onPreview}
             className="p-2 rounded-lg bg-white/20 backdrop-blur text-gray-900 dark:text-white hover:bg-white/30 transition-all"
-            title="Применить ко всему сайту"
+            title="РџСЂРёРјРµРЅРёС‚СЊ РєРѕ РІСЃРµРјСѓ СЃР°Р№С‚Сѓ"
           >
             <Eye size={16} />
           </button>
           <button
             onClick={onEdit}
             className="p-2 rounded-lg bg-white/20 backdrop-blur text-gray-900 dark:text-white hover:bg-white/30 transition-all"
-            title="Редактировать"
+            title="Р РµРґР°РєС‚РёСЂРѕРІР°С‚СЊ"
           >
             <Edit3 size={16} />
           </button>
           <button
             onClick={onDelete}
             className="p-2 rounded-lg bg-red-500/30 backdrop-blur text-white hover:bg-red-500/50 transition-all"
-            title="Удалить"
+            title="РЈРґР°Р»РёС‚СЊ"
           >
             <Trash2 size={16} />
           </button>
         </div>
         {theme.is_default && (
           <div className="absolute top-2 left-2 px-2 py-0.5 rounded bg-emerald-500 text-white text-[10px] font-black uppercase flex items-center gap-1">
-            <Check size={10} /> Дефолтная
+            <Check size={10} /> Р”РµС„РѕР»С‚РЅР°СЏ
           </div>
         )}
         {isCurrent && (
           <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-[#8b5cf6] text-white text-[10px] font-black uppercase">
-            Активна
+            РђРєС‚РёРІРЅР°
           </div>
         )}
       </div>
 
-      {/* Инфо */}
+      {/* РРЅС„Рѕ */}
       <div className="p-3">
         <div className="flex items-center justify-between gap-2 mb-2">
-          <h3 className="font-bold text-gray-900 dark:text-white truncate">{theme.name || "Без названия"}</h3>
+          <h3 className="font-bold text-gray-900 dark:text-white truncate">{theme.name || "Р‘РµР· РЅР°Р·РІР°РЅРёСЏ"}</h3>
           <span className="text-[10px] uppercase font-black px-1.5 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-white/60 shrink-0">
             {theme.type}
           </span>
@@ -402,14 +402,14 @@ function ThemeCard({
               : "bg-gray-100 dark:bg-white/5 text-white/70 hover:bg-[#8b5cf6]/20 hover:text-[#8b5cf6]"
           }`}
         >
-          {theme.is_default ? "✓ По умолчанию" : "Сделать по умолчанию"}
+          {theme.is_default ? "вњ“ РџРѕ СѓРјРѕР»С‡Р°РЅРёСЋ" : "РЎРґРµР»Р°С‚СЊ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ"}
         </button>
       </div>
     </div>
   );
 }
 
-// ============ ПРЕВЬЮ ТЕМЫ (мини-рендер) ============
+// ============ РџР Р•Р’Р¬Р® РўР•РњР« (РјРёРЅРё-СЂРµРЅРґРµСЂ) ============
 function ThemePreview({ theme }: { theme: ThemeConfig }) {
   const c1 = theme.colors[0] || "#8b5cf6";
   const c2 = theme.colors[1] || "#6366f1";
@@ -417,7 +417,7 @@ function ThemePreview({ theme }: { theme: ThemeConfig }) {
   const c4 = theme.colors[3] || c1;
 
   const style = {
-    "--theme-speed": `${Math.max(theme.speed / 4, 2)}s`, // ускоренно для превью
+    "--theme-speed": `${Math.max(theme.speed / 4, 2)}s`, // СѓСЃРєРѕСЂРµРЅРЅРѕ РґР»СЏ РїСЂРµРІСЊСЋ
     "--theme-intensity": String(theme.intensity),
     "--theme-blur": `${Math.max(theme.blur / 4, 10)}px`,
     "--c1": c1, "--c2": c2, "--c3": c3, "--c4": c4,
@@ -449,7 +449,7 @@ function ThemePreview({ theme }: { theme: ThemeConfig }) {
   );
 }
 
-// ============ РЕДАКТОР ТЕМЫ ============
+// ============ Р Р•Р”РђРљРўРћР  РўР•РњР« ============
 function ThemeEditor({
   theme, onChange, onSave, onClose,
 }: {
@@ -459,10 +459,10 @@ function ThemeEditor({
   onClose: () => void;
 }) {
   const ANIMATION_TYPES: { value: ThemeAnimationType; label: string; icon: any; desc: string }[] = [
-    { value: "aurora", label: "Аврора", icon: Sparkles, desc: "Плавающие размытые пятна" },
-    { value: "gradient", label: "Перелив", icon: Palette, desc: "Поток перетекающих цветов" },
-    { value: "liquid", label: "Жидкость", icon: Zap, desc: "Вращающиеся формы" },
-    { value: "neon", label: "Неон", icon: Sparkles, desc: "Пульсирующие пятна" },
+    { value: "aurora", label: "РђРІСЂРѕСЂР°", icon: Sparkles, desc: "РџР»Р°РІР°СЋС‰РёРµ СЂР°Р·РјС‹С‚С‹Рµ РїСЏС‚РЅР°" },
+    { value: "gradient", label: "РџРµСЂРµР»РёРІ", icon: Palette, desc: "РџРѕС‚РѕРє РїРµСЂРµС‚РµРєР°СЋС‰РёС… С†РІРµС‚РѕРІ" },
+    { value: "liquid", label: "Р–РёРґРєРѕСЃС‚СЊ", icon: Zap, desc: "Р’СЂР°С‰Р°СЋС‰РёРµСЃСЏ С„РѕСЂРјС‹" },
+    { value: "neon", label: "РќРµРѕРЅ", icon: Sparkles, desc: "РџСѓР»СЊСЃРёСЂСѓСЋС‰РёРµ РїСЏС‚РЅР°" },
   ];
 
   function updateColor(i: number, v: string) {
@@ -489,38 +489,38 @@ function ThemeEditor({
           <div className="sticky top-0 bg-ivory dark:bg-[#1f1f23] p-4 border-b border-line dark:border-white/10 flex items-center justify-between z-10">
             <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
               <Palette size={20} className="text-[#8b5cf6]" />
-              Редактор темы
+              Р РµРґР°РєС‚РѕСЂ С‚РµРјС‹
             </h2>
-            <button onClick={onClose} className="p-2 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-white/10">
+            <button onClick={onClose} className="p-2 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-white/10">
               <X size={18} />
             </button>
           </div>
 
           <div className="p-4 space-y-4">
-            {/* Живое превью */}
+            {/* Р–РёРІРѕРµ РїСЂРµРІСЊСЋ */}
             <div className="rounded-xl overflow-hidden border border-line dark:border-white/10 h-40 relative">
               <ThemePreview theme={theme} />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <p className="text-gray-800 dark:text-white/80 font-bold text-lg drop-shadow-lg">
-                  {theme.name || "Предпросмотр"}
+                  {theme.name || "РџСЂРµРґРїСЂРѕСЃРјРѕС‚СЂ"}
                 </p>
               </div>
             </div>
 
-            {/* Название */}
+            {/* РќР°Р·РІР°РЅРёРµ */}
             <div>
-              <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Название</label>
+              <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">РќР°Р·РІР°РЅРёРµ</label>
               <input
                 value={theme.name}
                 onChange={(e) => onChange({ ...theme, name: e.target.value })}
-                placeholder="Например: Северное сияние"
+                placeholder="РќР°РїСЂРёРјРµСЂ: РЎРµРІРµСЂРЅРѕРµ СЃРёСЏРЅРёРµ"
                 className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
               />
             </div>
 
-            {/* Тип анимации */}
+            {/* РўРёРї Р°РЅРёРјР°С†РёРё */}
             <div>
-              <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Тип анимации</label>
+              <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">РўРёРї Р°РЅРёРјР°С†РёРё</label>
               <div className="grid grid-cols-2 gap-2">
                 {ANIMATION_TYPES.map(t => {
                   const Icon = t.icon;
@@ -545,18 +545,18 @@ function ThemeEditor({
               </div>
             </div>
 
-            {/* Цвета */}
+            {/* Р¦РІРµС‚Р° */}
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-bold text-gray-600 dark:text-white/60">
-                  Цвета ({theme.colors.length}/4)
+                  Р¦РІРµС‚Р° ({theme.colors.length}/4)
                 </label>
                 {theme.colors.length < 4 && (
                   <button
                     onClick={addColor}
                     className="text-[11px] text-[#8b5cf6] font-bold hover:underline"
                   >
-                    + Добавить
+                    + Р”РѕР±Р°РІРёС‚СЊ
                   </button>
                 )}
               </div>
@@ -577,7 +577,7 @@ function ThemeEditor({
                         onClick={() => removeColor(i)}
                         className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                       >
-                        ×
+                        Г—
                       </button>
                     )}
                   </div>
@@ -585,18 +585,18 @@ function ThemeEditor({
               </div>
             </div>
 
-            {/* Слайдеры */}
+            {/* РЎР»Р°Р№РґРµСЂС‹ */}
             <SliderRow
-              label="Скорость анимации"
+              label="РЎРєРѕСЂРѕСЃС‚СЊ Р°РЅРёРјР°С†РёРё"
               value={theme.speed}
               min={4} max={60} step={1}
-              unit="с"
-              hint="Меньше = быстрее"
+              unit="СЃ"
+              hint="РњРµРЅСЊС€Рµ = Р±С‹СЃС‚СЂРµРµ"
               onChange={(v) => onChange({ ...theme, speed: v })}
             />
 
             <SliderRow
-              label="Яркость"
+              label="РЇСЂРєРѕСЃС‚СЊ"
               value={theme.intensity}
               min={0.05} max={0.5} step={0.01}
               unit=""
@@ -606,21 +606,21 @@ function ThemeEditor({
             />
 
             <SliderRow
-              label="Размытие"
+              label="Р Р°Р·РјС‹С‚РёРµ"
               value={theme.blur}
               min={0} max={150} step={5}
               unit="px"
-              hint="Больше = мягче"
+              hint="Р‘РѕР»СЊС€Рµ = РјСЏРіС‡Рµ"
               onChange={(v) => onChange({ ...theme, blur: v })}
             />
 
-            {/* Уровень доступа (на будущее) */}
+            {/* РЈСЂРѕРІРµРЅСЊ РґРѕСЃС‚СѓРїР° (РЅР° Р±СѓРґСѓС‰РµРµ) */}
             <div className="p-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 flex items-center gap-3">
               <Lock size={16} className="text-gray-500 dark:text-white/40" />
               <div className="flex-1">
-                <p className="text-xs font-bold text-gray-800 dark:text-white/80">Уровень доступа</p>
+                <p className="text-xs font-bold text-gray-800 dark:text-white/80">РЈСЂРѕРІРµРЅСЊ РґРѕСЃС‚СѓРїР°</p>
                 <p className="text-[10px] text-gray-500 dark:text-white/40">
-                  Для всех = 0, Спонсоры = 3, Админы = 9
+                  Р”Р»СЏ РІСЃРµС… = 0, РЎРїРѕРЅСЃРѕСЂС‹ = 3, РђРґРјРёРЅС‹ = 9
                 </p>
               </div>
               <input
@@ -638,13 +638,13 @@ function ThemeEditor({
               onClick={onClose}
               className="flex-1 py-2.5 rounded-lg border border-line dark:border-white/15 text-gray-800 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/5"
             >
-              Отмена
+              РћС‚РјРµРЅР°
             </button>
             <button
               onClick={onSave}
               className="flex-1 py-2.5 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold hover:shadow-lg hover:shadow-purple-500/30"
             >
-              Сохранить
+              РЎРѕС…СЂР°РЅРёС‚СЊ
             </button>
           </div>
         </div>
@@ -653,7 +653,7 @@ function ThemeEditor({
   );
 }
 
-// ============ УНИВЕРСАЛЬНЫЙ СЛАЙДЕР ============
+// ============ РЈРќРР’Р•Р РЎРђР›Р¬РќР«Р™ РЎР›РђР™Р”Р•Р  ============
 function SliderRow({
   label, value, min, max, step, unit, hint, onChange, format,
 }: {

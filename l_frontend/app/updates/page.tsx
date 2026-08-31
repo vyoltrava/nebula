@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { getToken } from "@/lib/auth";
 import { Avatar } from "@/components/Avatar";
@@ -55,7 +55,7 @@ export default function UpdatesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // 🆕 Прочитанные посты
+  // рџ†• РџСЂРѕС‡РёС‚Р°РЅРЅС‹Рµ РїРѕСЃС‚С‹
   const [readIds, setReadIds] = useState<Set<number>>(new Set());
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const postsRef = useRef<HTMLDivElement>(null);
@@ -83,7 +83,7 @@ export default function UpdatesPage() {
       if (res.ok) {
         const data = await res.json();
         setUpdates(data);
-        // Если бэкенд возвращает is_read — собираем прочитанные
+        // Р•СЃР»Рё Р±СЌРєРµРЅРґ РІРѕР·РІСЂР°С‰Р°РµС‚ is_read вЂ” СЃРѕР±РёСЂР°РµРј РїСЂРѕС‡РёС‚Р°РЅРЅС‹Рµ
         const read = new Set<number>(
           data.filter((u: any) => u.is_read).map((u: any) => u.id)
         );
@@ -103,9 +103,9 @@ export default function UpdatesPage() {
     const token = getToken();
     if (!token) return;
 
-    // Оптимистично обновляем UI
+    // РћРїС‚РёРјРёСЃС‚РёС‡РЅРѕ РѕР±РЅРѕРІР»СЏРµРј UI
     setReadIds((prev) => new Set(prev).add(id));
-    refresh(); // 🆕 Гасим бейдж в сайдбаре сразу
+    refresh(); // рџ†• Р“Р°СЃРёРј Р±РµР№РґР¶ РІ СЃР°Р№РґР±Р°СЂРµ СЃСЂР°Р·Сѓ
 
     try {
       await fetch(`${API_URL}/api/updates/${id}/read`, {
@@ -124,7 +124,7 @@ export default function UpdatesPage() {
     if (unread.length === 0) return;
 
     setReadIds(new Set(updates.map((u) => u.id)));
-    refresh(); // 🆕 Гасим бейдж в сайдбаре сразу
+    refresh(); // рџ†• Р“Р°СЃРёРј Р±РµР№РґР¶ РІ СЃР°Р№РґР±Р°СЂРµ СЃСЂР°Р·Сѓ
 
     try {
       await fetch(`${API_URL}/api/updates/read-all`, {
@@ -141,11 +141,11 @@ export default function UpdatesPage() {
       setExpandedId(null);
     } else {
       setExpandedId(id);
-      markRead(id); // 🆕 Отмечаем прочитанным СРАЗУ при открытии, а не при закрытии
+      markRead(id); // рџ†• РћС‚РјРµС‡Р°РµРј РїСЂРѕС‡РёС‚Р°РЅРЅС‹Рј РЎР РђР—РЈ РїСЂРё РѕС‚РєСЂС‹С‚РёРё, Р° РЅРµ РїСЂРё Р·Р°РєСЂС‹С‚РёРё
     }
   }
 
-  // 🆕 Клик вне поста — просто сворачиваем (без повторного markRead)
+  // рџ†• РљР»РёРє РІРЅРµ РїРѕСЃС‚Р° вЂ” РїСЂРѕСЃС‚Рѕ СЃРІРѕСЂР°С‡РёРІР°РµРј (Р±РµР· РїРѕРІС‚РѕСЂРЅРѕРіРѕ markRead)
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (postsRef.current && !postsRef.current.contains(e.target as Node)) {
@@ -211,7 +211,7 @@ export default function UpdatesPage() {
                    <CommunityTabs />
 
 
-        {/* Шапка */}
+        {/* РЁР°РїРєР° */}
         <div className="text-center mb-12">
 
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#8b5cf6]/20 border border-[#8b5cf6]/40 mb-4 shadow-[0_0_30px_rgba(139,92,246,0.3)]">
@@ -254,7 +254,7 @@ export default function UpdatesPage() {
           </div>
         )}
 
-        {/* Таймлайн */}
+        {/* РўР°Р№РјР»Р°Р№РЅ */}
         <div className="relative pl-10" ref={postsRef}>
           <div className="absolute left-[13px] top-2 bottom-0 w-px bg-gradient-to-b from-[#8b5cf6]/60 via-white/10 to-transparent" />
 
@@ -267,7 +267,7 @@ export default function UpdatesPage() {
 
             return (
               <div key={u.id} className="relative mb-8">
-                {/* Точка на таймлайне */}
+                {/* РўРѕС‡РєР° РЅР° С‚Р°Р№РјР»Р°Р№РЅРµ */}
                 <span
                   className="absolute -left-10 top-5 w-7 h-7 rounded-full border-2 bg-paper dark:bg-[#171717] flex items-center justify-center z-10"
                   style={{
@@ -278,7 +278,7 @@ export default function UpdatesPage() {
                   <Icon size={13} style={{ color: read ? "rgba(255,255,255,0.3)" : cfg.color }} />
                 </span>
 
-                {/* Карточка */}
+                {/* РљР°СЂС‚РѕС‡РєР° */}
                 <article
                   onClick={() => toggleExpand(u.id)}
                   className={`border rounded-2xl p-5 backdrop-blur-sm transition-all cursor-pointer select-none relative overflow-hidden ${
@@ -288,7 +288,7 @@ export default function UpdatesPage() {
                   }`}
                   style={isMajor && !read ? { boxShadow: cfg.glow } : undefined}
                 >
-                  {/* Полоса непрочитанного */}
+                  {/* РџРѕР»РѕСЃР° РЅРµРїСЂРѕС‡РёС‚Р°РЅРЅРѕРіРѕ */}
                   {!read && (
                     <div className="absolute left-0 top-3 bottom-3 w-[3px] rounded-r-full bg-[#8b5cf6]" />
                   )}
@@ -311,7 +311,7 @@ export default function UpdatesPage() {
                           })}
                         </span>
 
-                        {/* Индикатор непрочитанного */}
+                        {/* РРЅРґРёРєР°С‚РѕСЂ РЅРµРїСЂРѕС‡РёС‚Р°РЅРЅРѕРіРѕ */}
                         {!read && (
                           <span className="ml-auto w-2 h-2 rounded-full bg-[#8b5cf6] shadow-[0_0_6px_rgba(139,92,246,0.6)]" />
                         )}
@@ -321,7 +321,7 @@ export default function UpdatesPage() {
                         {u.title}
                       </h2>
 
-                      {/* Контент с обрезкой */}
+                      {/* РљРѕРЅС‚РµРЅС‚ СЃ РѕР±СЂРµР·РєРѕР№ */}
                       <div className="relative">
                         <p
                           className={`text-gray-800 dark:text-white/70 text-sm leading-relaxed whitespace-pre-wrap transition-all ${
@@ -331,13 +331,13 @@ export default function UpdatesPage() {
                           {u.content}
                         </p>
 
-                        {/* Градиент "читать дальше" */}
+                        {/* Р“СЂР°РґРёРµРЅС‚ "С‡РёС‚Р°С‚СЊ РґР°Р»СЊС€Рµ" */}
                         {!expanded && u.content.length > 120 && (
                           <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[#171717]/90 to-transparent pointer-events-none" />
                         )}
                       </div>
 
-                      {/* Подсказка развернуть */}
+                      {/* РџРѕРґСЃРєР°Р·РєР° СЂР°Р·РІРµСЂРЅСѓС‚СЊ */}
                       {!expanded && u.content.length > 120 && (
                         <div className="flex items-center gap-1 mt-2 text-[#8b5cf6] text-xs font-semibold opacity-60 group-hover:opacity-100">
                           <ChevronDown size={14} />
@@ -381,7 +381,7 @@ export default function UpdatesPage() {
         </div>
       </div>
 
-      {/* Модалка создания */}
+      {/* РњРѕРґР°Р»РєР° СЃРѕР·РґР°РЅРёСЏ */}
       {showForm && (
         <>
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200]" onClick={() => setShowForm(false)} />
@@ -389,7 +389,7 @@ export default function UpdatesPage() {
             <div className="w-full max-w-xl border border-line dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[85vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-5">
                 <h2 className="text-xl font-black text-gray-900 dark:text-white">{t("updates.newTitle")}</h2>
-                <button onClick={() => setShowForm(false)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10">
+                <button onClick={() => setShowForm(false)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10">
                   <X size={20} />
                 </button>
               </div>

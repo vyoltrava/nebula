@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState } from "react";
 import { Mic, Video, RefreshCw, CheckCircle2, XCircle, HelpCircle, AlertTriangle, Loader2 } from "lucide-react";
 import { useDevicePermission } from "@/lib/useDevicePermission";
@@ -7,10 +7,10 @@ import { useI18n } from "@/lib/i18n/LanguageProvider";
 import type { MessageKey } from "@/lib/i18n";
 
 const STATUS_CONFIG: Record<PermStatus, { label: string; color: string; bg: string; border: string; icon: any }> = {
-  granted: { label: "Разрешено", color: "text-[#2ECC71]", bg: "bg-[#2ECC71]/15", border: "border-[#2ECC71]/30", icon: CheckCircle2 },
-  denied: { label: "Запрещено", color: "text-[#E74C3C]", bg: "bg-[#E74C3C]/15", border: "border-[#E74C3C]/30", icon: XCircle },
-  prompt: { label: "Не запрошено", color: "text-[#F39C12]", bg: "bg-[#F39C12]/15", border: "border-[#F39C12]/30", icon: HelpCircle },
-  unknown: { label: "Неизвестно", color: "text-[#B9B8BD]", bg: "bg-gray-100 dark:bg-white/5", border: "border-line dark:border-white/10", icon: HelpCircle },
+  granted: { label: "Р Р°Р·СЂРµС€РµРЅРѕ", color: "text-[#2ECC71]", bg: "bg-[#2ECC71]/15", border: "border-[#2ECC71]/30", icon: CheckCircle2 },
+  denied: { label: "Р—Р°РїСЂРµС‰РµРЅРѕ", color: "text-[#E74C3C]", bg: "bg-[#E74C3C]/15", border: "border-[#E74C3C]/30", icon: XCircle },
+  prompt: { label: "РќРµ Р·Р°РїСЂРѕС€РµРЅРѕ", color: "text-[#F39C12]", bg: "bg-[#F39C12]/15", border: "border-[#F39C12]/30", icon: HelpCircle },
+  unknown: { label: "РќРµРёР·РІРµСЃС‚РЅРѕ", color: "text-[#B9B8BD]", bg: "bg-gray-100 dark:bg-white/5", border: "border-line dark:border-white/10", icon: HelpCircle },
 };
 
 function PermissionRow({
@@ -76,7 +76,7 @@ function PermissionRow({
           )}
           <button
             onClick={refresh}
-            className="w-10 h-10 shrink-0 rounded-lg border border-line dark:border-white/10 text-[#B9B8BD] hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-center transition-colors"
+            className="w-10 h-10 shrink-0 rounded-lg border border-line dark:border-white/10 text-[#B9B8BD] hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 flex items-center justify-center transition-colors"
             title={t("common.refresh")}
           >
             <RefreshCw size={15} />

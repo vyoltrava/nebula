@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
@@ -27,16 +27,16 @@ export function CommunityTabs() {
 
   return (
     <div className="sticky top-0 z-20 -mx-4 px-4 py-2 mb-6 bg-paper dark:bg-[#171717]/90 backdrop-blur-md flex items-center gap-1 sm:static sm:z-auto sm:mx-0 sm:px-0 sm:py-0 sm:mb-8 sm:bg-transparent sm:backdrop-blur-none">
-      {/* Назад — чисто стрелка */}
+      {/* РќР°Р·Р°Рґ вЂ” С‡РёСЃС‚Рѕ СЃС‚СЂРµР»РєР° */}
       <Link
         href="/"
         title={t("common.back")}
-        className="p-2.5 -ml-1.5 rounded-lg text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/5 active:scale-95 transition-all shrink-0"
+        className="p-2.5 -ml-1.5 rounded-lg text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 active:scale-95 transition-all shrink-0"
       >
         <ArrowLeft size={20} />
       </Link>
 
-      {/* Табы без пузыря: на мобиле — на всю ширину, на десктопе — компакт */}
+      {/* РўР°Р±С‹ Р±РµР· РїСѓР·С‹СЂСЏ: РЅР° РјРѕР±РёР»Рµ вЂ” РЅР° РІСЃСЋ С€РёСЂРёРЅСѓ, РЅР° РґРµСЃРєС‚РѕРїРµ вЂ” РєРѕРјРїР°РєС‚ */}
       <div className="flex flex-1 gap-1 min-w-0">
         {tabs.map((tab) => (
           <Link
@@ -49,7 +49,7 @@ export function CommunityTabs() {
             }`}
           >
             <tab.icon size={16} className={`shrink-0 ${tab.active ? "text-[#8b5cf6]" : ""}`} />
-            {/* Мобила — короткая подпись, десктоп — полная */}
+            {/* РњРѕР±РёР»Р° вЂ” РєРѕСЂРѕС‚РєР°СЏ РїРѕРґРїРёСЃСЊ, РґРµСЃРєС‚РѕРї вЂ” РїРѕР»РЅР°СЏ */}
             <span className="truncate sm:hidden">{tab.short}</span>
             <span className="hidden sm:inline truncate">{tab.label}</span>
           </Link>

@@ -155,7 +155,7 @@ export default function PrismChatPage() {
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_100%)] pointer-events-none" />
 
       <header className="relative z-30 px-4 py-3 flex items-center justify-between border-b border-line dark:border-white/5 bg-gray-50 dark:bg-[#050508]/80 backdrop-blur-xl">
-        <button onClick={() => router.push("/messages")} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors text-gray-800 dark:text-white/70 hover:text-gray-900 dark:text-white">
+        <button onClick={() => router.push("/messages")} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-full transition-colors text-gray-800 dark:text-white/70 hover:text-gray-900 dark:hover:text-white">
           <ArrowLeft size={20} />
         </button>
         

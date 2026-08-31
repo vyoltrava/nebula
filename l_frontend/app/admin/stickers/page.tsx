@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
@@ -9,18 +9,18 @@ import {
   Image as ImageIcon, Upload, Loader2, Search, Check,
 } from "lucide-react";
 
-// Группировка STICKERS по категориям
+// Р“СЂСѓРїРїРёСЂРѕРІРєР° STICKERS РїРѕ РєР°С‚РµРіРѕСЂРёСЏРј
 const CATEGORIES = [
-  { key: "emotions", label: "Эмоции", range: [0, 25] },
-  { key: "gestures", label: "Жесты", range: [25, 41] },
-  { key: "animals", label: "Животные", range: [41, 65] },
-  { key: "food", label: "Еда", range: [65, 89] },
-  { key: "objects", label: "Объекты", range: [89, 131] },
-  { key: "nature", label: "Природа", range: [131, 156] },
-  { key: "transport", label: "Транспорт", range: [156, 176] },
-  { key: "activities", label: "Активности", range: [176, 214] },
-  { key: "symbols", label: "Символы", range: [214, 264] },
-  { key: "flags", label: "Флаги", range: [264, 292] },
+  { key: "emotions", label: "Р­РјРѕС†РёРё", range: [0, 25] },
+  { key: "gestures", label: "Р–РµСЃС‚С‹", range: [25, 41] },
+  { key: "animals", label: "Р–РёРІРѕС‚РЅС‹Рµ", range: [41, 65] },
+  { key: "food", label: "Р•РґР°", range: [65, 89] },
+  { key: "objects", label: "РћР±СЉРµРєС‚С‹", range: [89, 131] },
+  { key: "nature", label: "РџСЂРёСЂРѕРґР°", range: [131, 156] },
+  { key: "transport", label: "РўСЂР°РЅСЃРїРѕСЂС‚", range: [156, 176] },
+  { key: "activities", label: "РђРєС‚РёРІРЅРѕСЃС‚Рё", range: [176, 214] },
+  { key: "symbols", label: "РЎРёРјРІРѕР»С‹", range: [214, 264] },
+  { key: "flags", label: "Р¤Р»Р°РіРё", range: [264, 292] },
 ];
 
 export default function AdminStickersPage() {
@@ -33,7 +33,7 @@ export default function AdminStickersPage() {
   const [emojiInputs, setEmojiInputs] = useState<Record<number, string>>({});
   const fileRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
-  // 🆕 Состояния для нового редактора пака
+  // рџ†• РЎРѕСЃС‚РѕСЏРЅРёСЏ РґР»СЏ РЅРѕРІРѕРіРѕ СЂРµРґР°РєС‚РѕСЂР° РїР°РєР°
   const [selectedEmojis, setSelectedEmojis] = useState<string[]>([]);
   const [emojiSearch, setEmojiSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("emotions");
@@ -64,7 +64,7 @@ export default function AdminStickersPage() {
 
   async function savePack() {
     if (!editingPack) return;
-    if (!editingPack.name?.trim()) { alert("Введи название пака"); return; }
+    if (!editingPack.name?.trim()) { alert("Р’РІРµРґРё РЅР°Р·РІР°РЅРёРµ РїР°РєР°"); return; }
     const token = getToken();
     const form = new FormData();
     form.append("name", editingPack.name);
@@ -86,7 +86,7 @@ export default function AdminStickersPage() {
         const data = await res.json();
         const packId = editingPack.id || data.id;
 
-        // 🆕 Если выбраны эмодзи — добавляем их в пак
+        // рџ†• Р•СЃР»Рё РІС‹Р±СЂР°РЅС‹ СЌРјРѕРґР·Рё вЂ” РґРѕР±Р°РІР»СЏРµРј РёС… РІ РїР°Рє
         if (selectedEmojis.length > 0 && packId) {
           const emojiForm = new FormData();
           emojiForm.append("emojis", JSON.stringify(selectedEmojis));
@@ -103,7 +103,7 @@ export default function AdminStickersPage() {
         loadPacks();
       } else {
         const err = await res.json().catch(() => null);
-        alert(err?.detail || "Ошибка сохранения");
+        alert(err?.detail || "РћС€РёР±РєР° СЃРѕС…СЂР°РЅРµРЅРёСЏ");
       }
     } finally {
       setSavingPack(false);
@@ -111,7 +111,7 @@ export default function AdminStickersPage() {
   }
 
   async function deletePack(id: number) {
-    if (!confirm("Удалить пак со всеми стикерами?")) return;
+    if (!confirm("РЈРґР°Р»РёС‚СЊ РїР°Рє СЃРѕ РІСЃРµРјРё СЃС‚РёРєРµСЂР°РјРё?")) return;
     const token = getToken();
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/sticker-packs/${id}`, {
       method: "DELETE",
@@ -149,7 +149,7 @@ export default function AdminStickersPage() {
         body: form,
       });
       if (res.ok) loadPacks();
-      else alert("Ошибка загрузки");
+      else alert("РћС€РёР±РєР° Р·Р°РіСЂСѓР·РєРё");
     } finally {
       setUploadingPackId(null);
       if (fileRefs.current[packId]) fileRefs.current[packId]!.value = "";
@@ -175,7 +175,7 @@ export default function AdminStickersPage() {
   }
 
   async function deleteSticker(stickerId: number) {
-    if (!confirm("Удалить стикер?")) return;
+    if (!confirm("РЈРґР°Р»РёС‚СЊ СЃС‚РёРєРµСЂ?")) return;
     const token = getToken();
     await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/stickers/${stickerId}`, {
       method: "DELETE",
@@ -184,7 +184,7 @@ export default function AdminStickersPage() {
     loadPacks();
   }
 
-  // 🆕 Фильтрация эмодзи
+  // рџ†• Р¤РёР»СЊС‚СЂР°С†РёСЏ СЌРјРѕРґР·Рё
   const filteredStickers = emojiSearch.trim()
     ? STICKERS.filter(s =>
         s.emoji.includes(emojiSearch) ||
@@ -202,24 +202,24 @@ export default function AdminStickersPage() {
     );
   }
 
-  if (!me) return <div className="p-8 text-gray-600 dark:text-white/60">Загрузка...</div>;
+  if (!me) return <div className="p-8 text-gray-600 dark:text-white/60">Р—Р°РіСЂСѓР·РєР°...</div>;
 
   return (
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
       <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10">
-        {/* Шапка */}
+        {/* РЁР°РїРєР° */}
         <div className="p-4 sm:p-6 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/80 backdrop-blur-md z-10">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
-              <button onClick={() => router.push("/admin")} className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10">
+              <button onClick={() => router.push("/admin")} className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10">
                 <ArrowLeft size={20} />
               </button>
               <SmilePlus size={24} className="text-yellow-600 dark:text-yellow-400" />
               <div>
-                <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white">Стикер-паки</h1>
-                <p className="text-[11px] sm:text-xs text-gray-500 dark:text-white/40">Реакции и стикеры для чатов</p>
+                <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white">РЎС‚РёРєРµСЂ-РїР°РєРё</h1>
+                <p className="text-[11px] sm:text-xs text-gray-500 dark:text-white/40">Р РµР°РєС†РёРё Рё СЃС‚РёРєРµСЂС‹ РґР»СЏ С‡Р°С‚РѕРІ</p>
               </div>
             </div>
             <button
@@ -232,12 +232,12 @@ export default function AdminStickersPage() {
               }}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-500 text-black text-sm font-bold hover:bg-yellow-600 dark:hover:bg-yellow-400 transition-all"
             >
-              <Plus size={16} /> Новый пак
+              <Plus size={16} /> РќРѕРІС‹Р№ РїР°Рє
             </button>
           </div>
         </div>
 
-        {/* Список паков */}
+        {/* РЎРїРёСЃРѕРє РїР°РєРѕРІ */}
         <div className="p-4 space-y-4 max-w-4xl mx-auto">
           {packs.map(pack => (
             <div key={pack.id} className={`border rounded-2xl p-4 ${pack.is_active ? "border-line dark:border-white/15 bg-gray-100 dark:bg-white/5" : "border-line dark:border-white/5 bg-white/[0.02] opacity-60"}`}>
@@ -248,15 +248,15 @@ export default function AdminStickersPage() {
                     pack.min_level <= 1 ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400"
                   }`}>
                     {pack.min_level <= 1 ? <Globe size={10} /> : <Lock size={10} />}
-                    {pack.min_level <= 1 ? "Все" : `Lvl ${pack.min_level}+`}
+                    {pack.min_level <= 1 ? "Р’СЃРµ" : `Lvl ${pack.min_level}+`}
                   </span>
-                  <span className="text-[10px] text-gray-500 dark:text-white/30">{pack.stickers.length} стикеров</span>
+                  <span className="text-[10px] text-gray-500 dark:text-white/30">{pack.stickers.length} СЃС‚РёРєРµСЂРѕРІ</span>
                 </div>
                 <div className="flex gap-1.5">
                   <button onClick={() => toggleActive(pack)} className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${pack.is_active ? "border-green-400/30 text-green-600 dark:text-green-400" : "border-line dark:border-white/15 text-gray-500 dark:text-white/40"}`}>
-                    {pack.is_active ? "Активен" : "Выключен"}
+                    {pack.is_active ? "РђРєС‚РёРІРµРЅ" : "Р’С‹РєР»СЋС‡РµРЅ"}
                   </button>
-                  <button onClick={() => { setEditingPack({ ...pack }); setSelectedEmojis([]); setShowPackEditor(true); }} className="p-1.5 rounded-lg text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10">
+                  <button onClick={() => { setEditingPack({ ...pack }); setSelectedEmojis([]); setShowPackEditor(true); }} className="p-1.5 rounded-lg text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10">
                     <Edit3 size={14} />
                   </button>
                   <button onClick={() => deletePack(pack.id)} className="p-1.5 rounded-lg text-red-400/60 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10">
@@ -279,12 +279,12 @@ export default function AdminStickersPage() {
                       onClick={() => deleteSticker(s.id)}
                       className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      ×
+                      Г—
                     </button>
                   </div>
                 ))}
                 {pack.stickers.length === 0 && (
-                  <p className="text-[11px] text-gray-500 dark:text-white/30">Пак пуст — добавь стикеры ниже ↓</p>
+                  <p className="text-[11px] text-gray-500 dark:text-white/30">РџР°Рє РїСѓСЃС‚ вЂ” РґРѕР±Р°РІСЊ СЃС‚РёРєРµСЂС‹ РЅРёР¶Рµ в†“</p>
                 )}
               </div>
 
@@ -303,7 +303,7 @@ export default function AdminStickersPage() {
                   className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/15 text-gray-800 dark:text-white/70 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10 disabled:opacity-50"
                 >
                   {uploadingPackId === pack.id ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                  Загрузить картинки
+                  Р—Р°РіСЂСѓР·РёС‚СЊ РєР°СЂС‚РёРЅРєРё
                 </button>
 
                 <div className="flex-1 flex gap-2">
@@ -311,11 +311,11 @@ export default function AdminStickersPage() {
                     value={emojiInputs[pack.id] || ""}
                     onChange={(e) => setEmojiInputs(prev => ({ ...prev, [pack.id]: e.target.value }))}
                     onKeyDown={(e) => { if (e.key === "Enter") addEmoji(pack.id); }}
-                    placeholder="Вставь эмодзи: 💀 🗿 🔥 (можно несколько через пробел)"
+                    placeholder="Р’СЃС‚Р°РІСЊ СЌРјРѕРґР·Рё: рџ’Ђ рџ—ї рџ”Ґ (РјРѕР¶РЅРѕ РЅРµСЃРєРѕР»СЊРєРѕ С‡РµСЂРµР· РїСЂРѕР±РµР»)"
                     className="flex-1 px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400"
                   />
                   <button onClick={() => addEmoji(pack.id)} className="px-3 py-2 rounded-lg bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-xs font-bold hover:bg-yellow-500/30">
-                    + Эмодзи
+                    + Р­РјРѕРґР·Рё
                   </button>
                 </div>
               </div>
@@ -323,64 +323,64 @@ export default function AdminStickersPage() {
           ))}
 
           {packs.length === 0 && (
-            <p className="text-center text-gray-500 dark:text-white/40 py-16">Паков пока нет — создай первый!</p>
+            <p className="text-center text-gray-500 dark:text-white/40 py-16">РџР°РєРѕРІ РїРѕРєР° РЅРµС‚ вЂ” СЃРѕР·РґР°Р№ РїРµСЂРІС‹Р№!</p>
           )}
         </div>
 
-        {/* 🆕 УЛУЧШЕННЫЙ РЕДАКТОР ПАКА */}
+        {/* рџ†• РЈР›РЈР§РЁР•РќРќР«Р™ Р Р•Р”РђРљРўРћР  РџРђРљРђ */}
         {showPackEditor && editingPack && (
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => !savingPack && setShowPackEditor(false)} />
             <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
               <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-black text-gray-900 dark:text-white text-lg">{editingPack.id ? "Редактировать пак" : "Новый пак"}</h2>
-                  <button onClick={() => !savingPack && setShowPackEditor(false)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white p-1"><X size={18} /></button>
+                  <h2 className="font-black text-gray-900 dark:text-white text-lg">{editingPack.id ? "Р РµРґР°РєС‚РёСЂРѕРІР°С‚СЊ РїР°Рє" : "РќРѕРІС‹Р№ РїР°Рє"}</h2>
+                  <button onClick={() => !savingPack && setShowPackEditor(false)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white p-1"><X size={18} /></button>
                 </div>
 
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Название</label>
+                      <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">РќР°Р·РІР°РЅРёРµ</label>
                       <input
                         value={editingPack.name}
                         onChange={e => setEditingPack({ ...editingPack, name: e.target.value })}
-                        placeholder="Например: Мемы, Вайб, VIP..."
+                        placeholder="РќР°РїСЂРёРјРµСЂ: РњРµРјС‹, Р’Р°Р№Р±, VIP..."
                         className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Доступ</label>
+                      <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Р”РѕСЃС‚СѓРї</label>
                       <select
                         value={editingPack.min_level}
                         onChange={e => setEditingPack({ ...editingPack, min_level: Number(e.target.value) })}
                         className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400"
                       >
-                        <option value={1} className="bg-gray-900">Все пользователи (lvl 1+)</option>
-                        <option value={2} className="bg-gray-900">Эксклюзив (lvl 2+)</option>
-                        <option value={3} className="bg-gray-900">Спонсоры (lvl 3+)</option>
-                        <option value={9} className="bg-gray-900">Команда (lvl 9+)</option>
+                        <option value={1} className="bg-gray-900">Р’СЃРµ РїРѕР»СЊР·РѕРІР°С‚РµР»Рё (lvl 1+)</option>
+                        <option value={2} className="bg-gray-900">Р­РєСЃРєР»СЋР·РёРІ (lvl 2+)</option>
+                        <option value={3} className="bg-gray-900">РЎРїРѕРЅСЃРѕСЂС‹ (lvl 3+)</option>
+                        <option value={9} className="bg-gray-900">РљРѕРјР°РЅРґР° (lvl 9+)</option>
                       </select>
                     </div>
                   </div>
 
-                  {/* 🆕 ВЫБОР ЭМОДЗИ ИЗ БИБЛИОТЕКИ */}
+                  {/* рџ†• Р’Р«Р‘РћР  Р­РњРћР”Р—Р РР— Р‘РР‘Р›РРћРўР•РљР */}
                   <div className="border border-line dark:border-white/10 rounded-xl p-3 bg-white/[0.02]">
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-xs font-bold text-gray-600 dark:text-white/60">
-                        Выбрать эмодзи из библиотеки ({selectedEmojis.length} выбрано)
+                        Р’С‹Р±СЂР°С‚СЊ СЌРјРѕРґР·Рё РёР· Р±РёР±Р»РёРѕС‚РµРєРё ({selectedEmojis.length} РІС‹Р±СЂР°РЅРѕ)
                       </label>
                       {selectedEmojis.length > 0 && (
                         <button
                           onClick={() => setSelectedEmojis([])}
                           className="text-[10px] text-red-600 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300"
                         >
-                          Сбросить
+                          РЎР±СЂРѕСЃРёС‚СЊ
                         </button>
                       )}
                     </div>
 
-                    {/* Выбранные эмодзи */}
+                    {/* Р’С‹Р±СЂР°РЅРЅС‹Рµ СЌРјРѕРґР·Рё */}
                     {selectedEmojis.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mb-3 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
                         {selectedEmojis.map((emoji, i) => (
@@ -388,7 +388,7 @@ export default function AdminStickersPage() {
                             key={i}
                             onClick={() => toggleEmoji(emoji)}
                             className="w-8 h-8 flex items-center justify-center bg-gray-100 dark:bg-white/10 rounded-lg text-lg hover:bg-red-500/20 transition-colors"
-                            title="Убрать"
+                            title="РЈР±СЂР°С‚СЊ"
                           >
                             {emoji}
                           </button>
@@ -396,18 +396,18 @@ export default function AdminStickersPage() {
                       </div>
                     )}
 
-                    {/* Поиск */}
+                    {/* РџРѕРёСЃРє */}
                     <div className="relative mb-2">
                       <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
                       <input
                         value={emojiSearch}
                         onChange={e => setEmojiSearch(e.target.value)}
-                        placeholder="Поиск эмодзи..."
+                        placeholder="РџРѕРёСЃРє СЌРјРѕРґР·Рё..."
                         className="w-full pl-9 pr-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400"
                       />
                     </div>
 
-                    {/* Категории */}
+                    {/* РљР°С‚РµРіРѕСЂРёРё */}
                     {!emojiSearch && (
                       <div className="flex gap-1 mb-2 overflow-x-auto scrollbar-hide pb-1">
                         {CATEGORIES.map(cat => (
@@ -426,7 +426,7 @@ export default function AdminStickersPage() {
                       </div>
                     )}
 
-                    {/* Сетка эмодзи */}
+                    {/* РЎРµС‚РєР° СЌРјРѕРґР·Рё */}
                     <div className="grid grid-cols-8 sm:grid-cols-10 gap-1 max-h-48 overflow-y-auto p-1">
                       {filteredStickers.map((s) => {
                         const isSelected = selectedEmojis.includes(s.emoji);
@@ -446,7 +446,7 @@ export default function AdminStickersPage() {
                         );
                       })}
                       {filteredStickers.length === 0 && (
-                        <p className="col-span-full text-center text-gray-500 dark:text-white/30 text-xs py-4">Ничего не найдено</p>
+                        <p className="col-span-full text-center text-gray-500 dark:text-white/30 text-xs py-4">РќРёС‡РµРіРѕ РЅРµ РЅР°Р№РґРµРЅРѕ</p>
                       )}
                     </div>
                   </div>
@@ -458,7 +458,7 @@ export default function AdminStickersPage() {
                     disabled={savingPack}
                     className="flex-1 py-2.5 rounded-lg border border-line dark:border-white/15 text-gray-800 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/5 disabled:opacity-50"
                   >
-                    Отмена
+                    РћС‚РјРµРЅР°
                   </button>
                   <button
                     onClick={savePack}
@@ -466,7 +466,7 @@ export default function AdminStickersPage() {
                     className="flex-1 py-2.5 rounded-lg bg-yellow-500 text-black font-bold hover:bg-yellow-600 dark:hover:bg-yellow-400 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {savingPack ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                    {savingPack ? "Сохранение..." : "Сохранить"}
+                    {savingPack ? "РЎРѕС…СЂР°РЅРµРЅРёРµ..." : "РЎРѕС…СЂР°РЅРёС‚СЊ"}
                   </button>
                 </div>
               </div>

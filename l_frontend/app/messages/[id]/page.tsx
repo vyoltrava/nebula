@@ -2123,7 +2123,7 @@ const ChatHeader = () => (
       <div className="flex items-center gap-2 sm:gap-3 md:gap-3">
         <button
           onClick={() => router.push("/messages")}
-          className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white shrink-0 p-2 sm:p-1 -ml-1 sm:ml-0 active:scale-95 transition-transform"
+          className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white shrink-0 p-2 sm:p-1 -ml-1 sm:ml-0 active:scale-95 transition-transform"
           title={t("common.back")}
         >
           <span className="text-lg sm:text-base">←</span>
@@ -2266,7 +2266,7 @@ const ChatHeader = () => (
                   {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && (
                     <button
                       onClick={() => setShowGroupSettings(true)}
-                      className="hidden sm:flex p-2.5 sm:p-2 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white transition-colors active:scale-95"
+                      className="hidden sm:flex p-2.5 sm:p-2 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white transition-colors active:scale-95"
                       title={t("messages.groupSettings")}
                     >
                       <Settings size={19} className="sm:w-5 sm:h-5" />
@@ -2280,7 +2280,7 @@ const ChatHeader = () => (
                         if (!showChatMenu) menuOpenTimeRef.current = Date.now();
                         setShowChatMenu((prev) => !prev);
                       }}
-                      className="p-2.5 sm:p-2 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white transition-colors active:scale-95"
+                      className="p-2.5 sm:p-2 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white transition-colors active:scale-95"
                       title={t("common.more")}
                     >
                       <MoreVertical size={19} className="sm:w-5 sm:h-5" />
@@ -2402,7 +2402,7 @@ const ChatHeader = () => (
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white p-1"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white p-1"
             >
               <X size={15} />
             </button>
@@ -2442,7 +2442,7 @@ const ChatHeader = () => (
             <div className="flex items-center gap-3">
               <button
                 onClick={toggleSelectMode}
-                className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white transition-colors p-2 -ml-1 active:scale-95"
+                className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white transition-colors p-2 -ml-1 active:scale-95"
               >
                 <X size={20} />
               </button>
@@ -2721,7 +2721,7 @@ onDoubleClick={(e) => {
     </div>
     <button 
       onClick={cancelEdit} 
-      className="p-1 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors shrink-0"
+      className="p-1 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors shrink-0"
     >
       <X size={14} />
     </button>
@@ -2740,7 +2740,7 @@ onDoubleClick={(e) => {
                 {decryptDisplayText(replyTo) || (replyTo.media_type === 'audio' ? '🎙️ Голосовое' : replyTo.media_type === 'video' ? '🎬 Видео' : replyTo.media_type === 'image' ? '📷 Фото' : '📎 Вложение')}
               </p>
             </div>
-            <button onClick={cancelReply} className="p-1 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors shrink-0">
+            <button onClick={cancelReply} className="p-1 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors shrink-0">
               <X size={14} />
             </button>
           </div>
@@ -2905,7 +2905,7 @@ onDoubleClick={(e) => {
         <div className="shrink-0 p-3 pb-2 border-b border-line dark:border-white/10">
           <div className="flex items-center justify-between mb-2 px-1">
             <p className="text-xs font-bold text-gray-600 dark:text-white/60">Выбрать реакцию</p>
-            <button onClick={() => setReactionPickerFor(null)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white p-1">
+            <button onClick={() => setReactionPickerFor(null)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white p-1">
               <X size={14} />
             </button>
           </div>
@@ -3127,7 +3127,7 @@ style={{
           <h2 className="text-sm font-bold text-gray-900 dark:text-white">Медиа</h2>
           <button
             onClick={() => setShowMediaGallery(false)}
-            className="text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 active:scale-95 transition-all"
+            className="text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 active:scale-95 transition-all"
           >
             <X size={18} />
           </button>
@@ -3234,7 +3234,7 @@ style={{
         >
           <button
             onClick={() => setSelectedMedia(null)}
-            className="absolute top-3 sm:top-4 right-3 sm:right-4 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white p-2 z-10"
+            className="absolute top-3 sm:top-4 right-3 sm:right-4 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white p-2 z-10"
           >
             <X size={24} />
           </button>
@@ -3387,7 +3387,7 @@ style={{
           <h3 className="font-bold text-gray-900 dark:text-white">Переслать сообщение</h3>
           <button
             onClick={() => { setShowForwardModal(false); setForwardingMessage(null); }}
-            className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white p-1"
+            className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white p-1"
           >
             <X size={18} />
           </button>
@@ -3436,7 +3436,7 @@ style={{
             <div className="fixed inset-x-0 bottom-0 z-[261] md:inset-auto md:bottom-4 md:right-4 md:w-80 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col max-h-[70vh] md:max-h-[500px] animate-in slide-in-from-bottom-10 duration-200">
               <div className="shrink-0 p-3 border-b border-line dark:border-white/10 flex items-center justify-between">
                 <p className="text-sm font-bold text-gray-900 dark:text-white">Стикеры</p>
-                <button onClick={() => setShowStickers(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                <button onClick={() => setShowStickers(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                   <X size={16} />
                 </button>
               </div>

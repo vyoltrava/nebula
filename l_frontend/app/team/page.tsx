@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -48,7 +48,7 @@ export default function TeamPage() {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/team`)
       .then((r) => (r.ok ? r.json() : { groups: [] }))
       .then((data) => {
-        // Собираем всех участников из бэкендных групп в один массив, исключая систему (lvl 11)
+        // РЎРѕР±РёСЂР°РµРј РІСЃРµС… СѓС‡Р°СЃС‚РЅРёРєРѕРІ РёР· Р±СЌРєРµРЅРґРЅС‹С… РіСЂСѓРїРї РІ РѕРґРёРЅ РјР°СЃСЃРёРІ, РёСЃРєР»СЋС‡Р°СЏ СЃРёСЃС‚РµРјСѓ (lvl 11)
         const members: Member[] = [];
         for (const g of data.groups || []) {
           for (const m of g.members || []) {
@@ -62,7 +62,7 @@ export default function TeamPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Группируем по уровням согласно конфигурации
+  // Р“СЂСѓРїРїРёСЂСѓРµРј РїРѕ СѓСЂРѕРІРЅСЏРј СЃРѕРіР»Р°СЃРЅРѕ РєРѕРЅС„РёРіСѓСЂР°С†РёРё
   const groupedDepartments = DEPARTMENT_CONFIG.map((config) => ({
     ...config,
     members: allMembers.filter((m) => config.levels.includes(m.level)),
@@ -73,12 +73,12 @@ export default function TeamPage() {
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
       <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10">
-        {/* Шапка */}
+        {/* РЁР°РїРєР° */}
         <div className="p-6 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
           <div className="flex items-center gap-4">
             <button
               onClick={() => router.back()}
-              className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
+              className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
             >
               <ArrowLeft size={20} />
             </button>
@@ -92,7 +92,7 @@ export default function TeamPage() {
           </div>
         </div>
 
-        {/* Контент */}
+        {/* РљРѕРЅС‚РµРЅС‚ */}
         <div className="p-6 space-y-8">
           {loading && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -116,7 +116,7 @@ export default function TeamPage() {
             const Icon = g.icon;
             return (
               <section key={g.key} className="space-y-4">
-                {/* Заголовок отдела — единый фиолетовый полупрозрачный стиль без свечения */}
+                {/* Р—Р°РіРѕР»РѕРІРѕРє РѕС‚РґРµР»Р° вЂ” РµРґРёРЅС‹Р№ С„РёРѕР»РµС‚РѕРІС‹Р№ РїРѕР»СѓРїСЂРѕР·СЂР°С‡РЅС‹Р№ СЃС‚РёР»СЊ Р±РµР· СЃРІРµС‡РµРЅРёСЏ */}
                 <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#8b5cf6]/10 border border-[#8b5cf6]/20">
                   <div className="text-[#8b5cf6]">
                     <Icon size={20} />
@@ -129,7 +129,7 @@ export default function TeamPage() {
                   </span>
                 </div>
 
-                {/* Сетка участников */}
+                {/* РЎРµС‚РєР° СѓС‡Р°СЃС‚РЅРёРєРѕРІ */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {g.members.map((m) => {
                     const glow = getGlowColor(m);
@@ -139,7 +139,7 @@ export default function TeamPage() {
                         href={`/user/${m.id}`}
                         className="group relative flex items-center gap-4 p-4 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-200 dark:hover:border-white/20 transition-all overflow-hidden"
                       >
-                        {/* Фоновое свечение при ховере */}
+                        {/* Р¤РѕРЅРѕРІРѕРµ СЃРІРµС‡РµРЅРёРµ РїСЂРё С…РѕРІРµСЂРµ */}
                         {glow && (
                           <div
                             className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity"
@@ -147,7 +147,7 @@ export default function TeamPage() {
                           />
                         )}
 
-                        {/* Аватар с glow */}
+                        {/* РђРІР°С‚Р°СЂ СЃ glow */}
                         <div
                           className="shrink-0 relative"
                           style={
@@ -163,12 +163,12 @@ export default function TeamPage() {
                         </div>
 
                         <div className="flex-1 min-w-0 relative">
-                          {/* Никнейм с glow.
-                              🐞 FIX: белый ник (#ffffff у Founder) в светлой теме
-                              был невидим — для него добавляем класс team-nick-on-light,
-                              который в light-теме красит ник в чёрный (см. globals.css).
-                              Fallback-белый цвет убран: обычные участники наследуют
-                              цвет темы (--text). */}
+                          {/* РќРёРєРЅРµР№Рј СЃ glow.
+                              рџђћ FIX: Р±РµР»С‹Р№ РЅРёРє (#ffffff Сѓ Founder) РІ СЃРІРµС‚Р»РѕР№ С‚РµРјРµ
+                              Р±С‹Р» РЅРµРІРёРґРёРј вЂ” РґР»СЏ РЅРµРіРѕ РґРѕР±Р°РІР»СЏРµРј РєР»Р°СЃСЃ team-nick-on-light,
+                              РєРѕС‚РѕСЂС‹Р№ РІ light-С‚РµРјРµ РєСЂР°СЃРёС‚ РЅРёРє РІ С‡С‘СЂРЅС‹Р№ (СЃРј. globals.css).
+                              Fallback-Р±РµР»С‹Р№ С†РІРµС‚ СѓР±СЂР°РЅ: РѕР±С‹С‡РЅС‹Рµ СѓС‡Р°СЃС‚РЅРёРєРё РЅР°СЃР»РµРґСѓСЋС‚
+                              С†РІРµС‚ С‚РµРјС‹ (--text). */}
                           <p
                             className={`font-bold text-base truncate transition-all ${
                               glow?.toLowerCase() === "#ffffff" ? "team-nick-on-light" : ""
@@ -186,8 +186,8 @@ export default function TeamPage() {
                           </p>
                           <p className="text-sm text-gray-600 dark:text-white/50 truncate">@{m.username}</p>
 
-                          {/* Только плашка роли — без текстовых бейджей уровней */}
-                          {/* Плашки статусов и ролей */}
+                          {/* РўРѕР»СЊРєРѕ РїР»Р°С€РєР° СЂРѕР»Рё вЂ” Р±РµР· С‚РµРєСЃС‚РѕРІС‹С… Р±РµР№РґР¶РµР№ СѓСЂРѕРІРЅРµР№ */}
+                          {/* РџР»Р°С€РєРё СЃС‚Р°С‚СѓСЃРѕРІ Рё СЂРѕР»РµР№ */}
                           <div className="mt-2 flex flex-wrap gap-1.5">
                             {m.is_system && (
                               <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-white bg-[#00ff41] shadow-[0_0_8px_rgba(0,255,65,0.4)]">
@@ -196,10 +196,10 @@ export default function TeamPage() {
                             )}
                             
                             {m.is_admin && (
-                              /* 🌗 Плашка Founder инвертируется по теме приложения,
-                                 как в components/RoleBadge.tsx:
-                                 dark  — белая плашка, текст внутри чёрный;
-                                 light — чёрная плашка, текст белый (как было). */
+                              /* рџЊ— РџР»Р°С€РєР° Founder РёРЅРІРµСЂС‚РёСЂСѓРµС‚СЃСЏ РїРѕ С‚РµРјРµ РїСЂРёР»РѕР¶РµРЅРёСЏ,
+                                 РєР°Рє РІ components/RoleBadge.tsx:
+                                 dark  вЂ” Р±РµР»Р°СЏ РїР»Р°С€РєР°, С‚РµРєСЃС‚ РІРЅСѓС‚СЂРё С‡С‘СЂРЅС‹Р№;
+                                 light вЂ” С‡С‘СЂРЅР°СЏ РїР»Р°С€РєР°, С‚РµРєСЃС‚ Р±РµР»С‹Р№ (РєР°Рє Р±С‹Р»Рѕ). */
                               <span className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-black text-white dark:bg-white dark:text-black shadow-[0_0_8px_rgba(0,0,0,0.4)] dark:shadow-[0_0_8px_rgba(255,255,255,0.35)]">
                                 FOUNDER
                               </span>
@@ -211,7 +211,7 @@ export default function TeamPage() {
                               </span>
                             )}
                             
-                            {/* Показываем обычную роль, если она есть */}
+                            {/* РџРѕРєР°Р·С‹РІР°РµРј РѕР±С‹С‡РЅСѓСЋ СЂРѕР»СЊ, РµСЃР»Рё РѕРЅР° РµСЃС‚СЊ */}
                             {m.role && (
                               <span
                                 className="inline-block px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider text-white"

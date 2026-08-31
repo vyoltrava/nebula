@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -73,7 +73,7 @@ export function NebulaCircleModal({ onClose }: { onClose: () => void }) {
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 text-gray-500 hover:text-gray-900 dark:text-white/50 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+              className="p-1.5 text-gray-500 hover:text-gray-900 dark:hover:text-white/50 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
             >
               <X size={18} />
             </button>

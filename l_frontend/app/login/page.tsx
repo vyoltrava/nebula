@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { setToken } from "@/lib/auth";
@@ -19,7 +19,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { t } = useI18n();
 
-  // 🔥 ИСПРАВЛЕНО: храним user_id, а не temp_token
+  // рџ”Ґ РРЎРџР РђР’Р›Р•РќРћ: С…СЂР°РЅРёРј user_id, Р° РЅРµ temp_token
   const [requires2FA, setRequires2FA] = useState(false);
   const [tempUserId, setTempUserId] = useState<number | null>(null);
   const [twoFACode, setTwoFACode] = useState("");
@@ -63,10 +63,10 @@ export default function LoginPage() {
         return;
       }
 
-      // 🔥 ШАГ 1: Получаем токен
+      // рџ”Ґ РЁРђР“ 1: РџРѕР»СѓС‡Р°РµРј С‚РѕРєРµРЅ
       const token = data.token;
 
-      // 🔥 ШАГ 2: Если бэкенд сразу отдал user, используем его. Иначе запрашиваем /api/me
+      // рџ”Ґ РЁРђР“ 2: Р•СЃР»Рё Р±СЌРєРµРЅРґ СЃСЂР°Р·Сѓ РѕС‚РґР°Р» user, РёСЃРїРѕР»СЊР·СѓРµРј РµРіРѕ. РРЅР°С‡Рµ Р·Р°РїСЂР°С€РёРІР°РµРј /api/me
       let userData = data.user;
       if (!userData) {
         const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
@@ -75,12 +75,12 @@ export default function LoginPage() {
         if (meRes.ok) {
           userData = await meRes.json();
         } else {
-          setError("Не удалось получить данные профиля");
+          setError("РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ РґР°РЅРЅС‹Рµ РїСЂРѕС„РёР»СЏ");
           return;
         }
       }
 
-      // 🔥 ШАГ 3: Сохраняем и токен, и пользователя в мульти-аккаунт менеджер
+      // рџ”Ґ РЁРђР“ 3: РЎРѕС…СЂР°РЅСЏРµРј Рё С‚РѕРєРµРЅ, Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РІ РјСѓР»СЊС‚Рё-Р°РєРєР°СѓРЅС‚ РјРµРЅРµРґР¶РµСЂ
       setToken(token, userData, { refreshToken: data.refresh_token });
       sessionStorage.setItem("justLoggedIn", "1");
       router.push("/");
@@ -116,7 +116,7 @@ export default function LoginPage() {
       const data = await res.json();
       const token = data.token;
 
-      // 🔥 Для 2FA тоже запрашиваем /api/me, чтобы гарантированно получить актуальные данные
+      // рџ”Ґ Р”Р»СЏ 2FA С‚РѕР¶Рµ Р·Р°РїСЂР°С€РёРІР°РµРј /api/me, С‡С‚РѕР±С‹ РіР°СЂР°РЅС‚РёСЂРѕРІР°РЅРЅРѕ РїРѕР»СѓС‡РёС‚СЊ Р°РєС‚СѓР°Р»СЊРЅС‹Рµ РґР°РЅРЅС‹Рµ
       const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -127,7 +127,7 @@ export default function LoginPage() {
         sessionStorage.setItem("justLoggedIn", "1");
         router.push("/");
       } else {
-        setError("Не удалось получить данные профиля после 2FA");
+        setError("РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ РґР°РЅРЅС‹Рµ РїСЂРѕС„РёР»СЏ РїРѕСЃР»Рµ 2FA");
       }
     } catch {
       setError(t("login.serverErrorShort"));
@@ -138,7 +138,7 @@ export default function LoginPage() {
 
   function cancel2FA() {
     setRequires2FA(false);
-    setTempUserId(null); // Очищаем ID
+    setTempUserId(null); // РћС‡РёС‰Р°РµРј ID
     setTwoFACode("");
     setError("");
   }
@@ -208,7 +208,7 @@ export default function LoginPage() {
                 className={`flex-1 py-2 font-bold transition-all ${
                   mode === "login"
                     ? "bg-[#8b5cf6] text-white"
-                    : "text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white"
+                    : "text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white"
                 }`}
               >
                 {t("login.tabLogin")}
@@ -219,7 +219,7 @@ export default function LoginPage() {
                 className={`flex-1 py-2 font-bold transition-all ${
                   mode === "register"
                     ? "bg-[#8b5cf6] text-white"
-                    : "text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white"
+                    : "text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white"
                 }`}
               >
                 {t("login.tabRegister")}
@@ -261,7 +261,7 @@ export default function LoginPage() {
               </Button>
             </form>
             
-            {/* Гармоничный футер с переключателем языка */}
+            {/* Р“Р°СЂРјРѕРЅРёС‡РЅС‹Р№ С„СѓС‚РµСЂ СЃ РїРµСЂРµРєР»СЋС‡Р°С‚РµР»РµРј СЏР·С‹РєР° */}
             <div className="mt-6 pt-4 border-t border-line dark:border-white/10 flex justify-center">
               <LanguageSwitcher variant="compact" />
             </div>

@@ -1,9 +1,9 @@
-"use client";
+﻿"use client";
 
 /**
- * Секция «нешний вид» для страницы настроек (классика + Nebula).
- * Тема + быстрая реакция (двойной тап по сообщению).
- * еакция хранится per-account: quick_reaction_<userId>.
+ * РЎРµРєС†РёСЏ В«РЅРµС€РЅРёР№ РІРёРґВ» РґР»СЏ СЃС‚СЂР°РЅРёС†С‹ РЅР°СЃС‚СЂРѕРµРє (РєР»Р°СЃСЃРёРєР° + Nebula).
+ * РўРµРјР° + Р±С‹СЃС‚СЂР°СЏ СЂРµР°РєС†РёСЏ (РґРІРѕР№РЅРѕР№ С‚Р°Рї РїРѕ СЃРѕРѕР±С‰РµРЅРёСЋ).
+ * РµР°РєС†РёСЏ С…СЂР°РЅРёС‚СЃСЏ per-account: quick_reaction_<userId>.
  */
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
@@ -100,7 +100,7 @@ export function AppearanceSettings() {
           return (
             <button key={m.id} type="button" role="radio" aria-checked={active} onClick={() => setTheme(m.id)}
               className={`flex flex-col items-center gap-1.5 rounded-lg px-2 py-3 text-xs font-medium transition-all duration-300 ${
-                active ? "bg-[#8b5cf6] text-white shadow-sm" : "text-gray-500 hover:bg-white hover:text-gray-900 dark:text-white/50 dark:hover:bg-white/5 dark:hover:text-white"
+                active ? "bg-[#8b5cf6] text-white shadow-sm" : "text-gray-500 hover:bg-white hover:text-gray-900 dark:hover:text-white/50 dark:hover:bg-white/5 dark:hover:text-white"
               }`}>
               <Icon size={18} />
               {m.label}
@@ -146,7 +146,7 @@ export function AppearanceSettings() {
               <div className="shrink-0 p-3 pb-2 border-b border-line dark:border-white/10">
                 <div className="flex items-center justify-between mb-2 px-1">
                   <p className="text-xs font-bold text-gray-600 dark:text-white/60">{t("messages.quickReaction")}</p>
-                  <button type="button" onClick={() => setPickerOpen(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                  <button type="button" onClick={() => setPickerOpen(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                     <X size={14} />
                   </button>
                 </div>

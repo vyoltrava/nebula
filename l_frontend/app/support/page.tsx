@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { getToken } from "@/lib/auth";
 import { useWebSocket } from "@/src/hooks/useWebSocket";
@@ -44,10 +44,10 @@ export default function SupportPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const activeIdRef = useRef<number | null>(null);
 
-  // Держим ref в синке со state для WebSocket callback
+  // Р”РµСЂР¶РёРј ref РІ СЃРёРЅРєРµ СЃРѕ state РґР»СЏ WebSocket callback
   useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
 
-  // Получаем свой ID при монтировании
+  // РџРѕР»СѓС‡Р°РµРј СЃРІРѕР№ ID РїСЂРё РјРѕРЅС‚РёСЂРѕРІР°РЅРёРё
   useEffect(() => {
     (async () => {
       const token = getToken();
@@ -62,7 +62,7 @@ export default function SupportPage() {
     })();
   }, []);
 
-  // === ЗАГРУЗКА СПИСКА ЗАЯВОК ===
+  // === Р—РђР“Р РЈР—РљРђ РЎРџРРЎРљРђ Р—РђРЇР’РћРљ ===
   const loadTickets = useCallback(async () => {
     const token = getToken();
     if (!token) return;
@@ -77,7 +77,7 @@ export default function SupportPage() {
     } catch {}
   }, []);
 
-  // === ЗАГРУЗКА СООБЩЕНИЙ ===
+  // === Р—РђР“Р РЈР—РљРђ РЎРћРћР‘Р©Р•РќРР™ ===
   const loadMessages = useCallback(async (ticketId: number) => {
     const token = getToken();
     if (!token) return;
@@ -99,7 +99,7 @@ export default function SupportPage() {
   useEffect(() => { loadTickets(); }, [loadTickets]);
   useEffect(() => {
     if (activeId) {
-      setMessages([]); // очищаем при переключении
+      setMessages([]); // РѕС‡РёС‰Р°РµРј РїСЂРё РїРµСЂРµРєР»СЋС‡РµРЅРёРё
       loadMessages(activeId);
     }
   }, [activeId, loadMessages]);
@@ -108,18 +108,18 @@ export default function SupportPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // === WEBSOCKET — МГНОВЕННЫЕ ОБНОВЛЕНИЯ ===
+  // === WEBSOCKET вЂ” РњР“РќРћР’Р•РќРќР«Р• РћР‘РќРћР’Р›Р•РќРРЇ ===
   useWebSocket("support_new_message", (data: any) => {
     const currentActiveId = activeIdRef.current;
     
-    // Обновляем список заявок (превью последнего сообщения)
+    // РћР±РЅРѕРІР»СЏРµРј СЃРїРёСЃРѕРє Р·Р°СЏРІРѕРє (РїСЂРµРІСЊСЋ РїРѕСЃР»РµРґРЅРµРіРѕ СЃРѕРѕР±С‰РµРЅРёСЏ)
     setTickets(prev => prev.map(t => {
       if (t.id === data.ticket_id) {
         return {
           ...t,
           updated_at: data.message.created_at,
           last_message: {
-            text: data.message.text || (data.message.media_url ? "📷 Фото" : ""),
+            text: data.message.text || (data.message.media_url ? "рџ“· Р¤РѕС‚Рѕ" : ""),
             is_mine: data.message.sender_id === myId,
             created_at: data.message.created_at,
           },
@@ -128,12 +128,12 @@ export default function SupportPage() {
       return t;
     }));
 
-    // Если это активная заявка — добавляем сообщение в чат
+    // Р•СЃР»Рё СЌС‚Рѕ Р°РєС‚РёРІРЅР°СЏ Р·Р°СЏРІРєР° вЂ” РґРѕР±Р°РІР»СЏРµРј СЃРѕРѕР±С‰РµРЅРёРµ РІ С‡Р°С‚
     if (data.ticket_id === currentActiveId) {
       setMessages(prev => {
-        // Не дублируем (optimistic update мог уже добавить)
+        // РќРµ РґСѓР±Р»РёСЂСѓРµРј (optimistic update РјРѕРі СѓР¶Рµ РґРѕР±Р°РІРёС‚СЊ)
         if (prev.some(m => m.id === data.message.id)) return prev;
-        // Убираем temp сообщение с таким же текстом если есть
+        // РЈР±РёСЂР°РµРј temp СЃРѕРѕР±С‰РµРЅРёРµ СЃ С‚Р°РєРёРј Р¶Рµ С‚РµРєСЃС‚РѕРј РµСЃР»Рё РµСЃС‚СЊ
         const filtered = prev.filter(m => m.id > 0 || (m.text !== data.message.text));
         return [...filtered, data.message];
       });
@@ -143,12 +143,12 @@ export default function SupportPage() {
   useWebSocket("support_ticket_closed", (data: any) => {
     const currentActiveId = activeIdRef.current;
 
-    // Обновляем статус в списке
+    // РћР±РЅРѕРІР»СЏРµРј СЃС‚Р°С‚СѓСЃ РІ СЃРїРёСЃРєРµ
     setTickets(prev => prev.map(t =>
       t.id === data.ticket_id ? { ...t, status: "closed" } : t
     ));
 
-    // Системное сообщение в чате
+    // РЎРёСЃС‚РµРјРЅРѕРµ СЃРѕРѕР±С‰РµРЅРёРµ РІ С‡Р°С‚Рµ
     if (data.ticket_id === currentActiveId) {
       setMessages(prev => [...prev, {
         id: Date.now(),
@@ -163,7 +163,7 @@ export default function SupportPage() {
     }
   });
 
-  // === СОЗДАНИЕ НОВОЙ ЗАЯВКИ ===
+  // === РЎРћР—Р”РђРќРР• РќРћР’РћР™ Р—РђРЇР’РљР ===
   async function createTicket() {
     if (creating || (!newText.trim() && !file)) return;
     setCreating(true);
@@ -193,12 +193,12 @@ export default function SupportPage() {
     }
   }
 
-   // === ОТПРАВКА СООБЩЕНИЯ (OPTIMISTIC) ===
+   // === РћРўРџР РђР’РљРђ РЎРћРћР‘Р©Р•РќРРЇ (OPTIMISTIC) ===
   async function sendMessage() {
     if ((!input.trim() && !file) || !activeId || sending) return;
     setSending(true);
 
-    const tempId = -Date.now(); // отрицательный ID для temp
+    const tempId = -Date.now(); // РѕС‚СЂРёС†Р°С‚РµР»СЊРЅС‹Р№ ID РґР»СЏ temp
     const tempMsg: Message = {
       id: tempId,
       sender_id: myId || -1,
@@ -221,7 +221,7 @@ export default function SupportPage() {
     const form = new FormData();
     form.append("ticket_id", String(activeId));
     
-    // ✅ ИСПРАВЛЕНИЕ 1: ВСЕГДА отправляем text, даже если он пустой (FastAPI требует наличие поля)
+    // вњ… РРЎРџР РђР’Р›Р•РќРР• 1: Р’РЎР•Р“Р”Рђ РѕС‚РїСЂР°РІР»СЏРµРј text, РґР°Р¶Рµ РµСЃР»Рё РѕРЅ РїСѓСЃС‚РѕР№ (FastAPI С‚СЂРµР±СѓРµС‚ РЅР°Р»РёС‡РёРµ РїРѕР»СЏ)
     form.append("text", savedInput.trim() || ""); 
     
     if (savedFile) form.append("file", savedFile);
@@ -235,10 +235,10 @@ export default function SupportPage() {
       
         if (res.ok) {
           const data = await res.json();
-          // Заменяем temp на реальное сообщение
+          // Р—Р°РјРµРЅСЏРµРј temp РЅР° СЂРµР°Р»СЊРЅРѕРµ СЃРѕРѕР±С‰РµРЅРёРµ
           setMessages(prev => prev.map(m => m.id === tempId ? data.message : m));
           
-          // Обновляем список заявок (Заменили t на ticket внутри map)
+          // РћР±РЅРѕРІР»СЏРµРј СЃРїРёСЃРѕРє Р·Р°СЏРІРѕРє (Р—Р°РјРµРЅРёР»Рё t РЅР° ticket РІРЅСѓС‚СЂРё map)
           setTickets(prev => prev.map(ticket => {
             if (ticket.id === activeId) {
               return {
@@ -255,12 +255,12 @@ export default function SupportPage() {
           }));
         
       } else {
-        // ✅ ИСПРАВЛЕНИЕ 2: Читаем и показываем реальную ошибку от бэкенда
+        // вњ… РРЎРџР РђР’Р›Р•РќРР• 2: Р§РёС‚Р°РµРј Рё РїРѕРєР°Р·С‹РІР°РµРј СЂРµР°Р»СЊРЅСѓСЋ РѕС€РёР±РєСѓ РѕС‚ Р±СЌРєРµРЅРґР°
         const errData = await res.json().catch(() => ({}));
         console.error("Server Error Detail:", errData);
         alert(errData.detail || t("support.sendFailed"));
         
-        // Откат (rollback)
+        // РћС‚РєР°С‚ (rollback)
         setMessages(prev => prev.filter(m => m.id !== tempId));
         setInput(savedInput);
         setFile(savedFile);
@@ -270,7 +270,7 @@ export default function SupportPage() {
       console.error("Network Error:", error);
       alert(t("support.network"));
       
-      // Откат (rollback)
+      // РћС‚РєР°С‚ (rollback)
       setMessages(prev => prev.filter(m => m.id !== tempId));
       setInput(savedInput);
       setFile(savedFile);
@@ -297,7 +297,7 @@ export default function SupportPage() {
 
       <main className="flex-1 flex overflow-hidden">
         
-        {/* ЛЕВАЯ КОЛОНКА: СПИСОК ЗАЯВОК */}
+        {/* Р›Р•Р’РђРЇ РљРћР›РћРќРљРђ: РЎРџРРЎРћРљ Р—РђРЇР’РћРљ */}
         <div className={`w-full md:w-80 lg:w-96 border-r border-line dark:border-white/10 flex flex-col bg-white/[0.02] ${activeId ? "hidden md:flex" : "flex"}`}>
           <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -328,7 +328,7 @@ export default function SupportPage() {
                   {t("support.create")}
                 </button>
                 <button onClick={() => { setShowCreate(false); setNewText(""); setFile(null); setPreviewUrl(null); }}
-                  className="px-3 py-2 rounded-xl border border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white text-sm">
+                  className="px-3 py-2 rounded-xl border border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white text-sm">
                   {t("common.cancel")}
                 </button>
               </div>
@@ -366,7 +366,7 @@ export default function SupportPage() {
           </div>
         </div>
 
-        {/* ПРАВАЯ КОЛОНКА: ЧАТ */}
+        {/* РџР РђР’РђРЇ РљРћР›РћРќРљРђ: Р§РђРў */}
         <div className={`flex-1 flex flex-col bg-ivory dark:bg-[#18181b] ${activeId ? "flex" : "hidden md:flex"}`}>
           {!activeId ? (
             <div className="flex-1 flex items-center justify-center">
@@ -380,7 +380,7 @@ export default function SupportPage() {
             <>
               <div className="p-3 border-b border-line dark:border-white/10 flex items-center gap-3 bg-white/[0.02]">
                 <button onClick={() => setActiveId(null)}
-                  className="md:hidden p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10">
+                  className="md:hidden p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10">
                   <ChevronLeft size={20} />
                 </button>
                 <div className="flex-1 min-w-0">
@@ -407,7 +407,7 @@ export default function SupportPage() {
                       <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
                         isMine ? "bg-[#8b5cf6] text-white rounded-br-md" : "bg-gray-100 dark:bg-white/10 text-white rounded-bl-md"
                       }`}>
-                        {!isMine && <p className="text-[10px] text-[#a78bfa] font-bold mb-1">🛡️ {m.sender_name}</p>}
+                        {!isMine && <p className="text-[10px] text-[#a78bfa] font-bold mb-1">рџ›ЎпёЏ {m.sender_name}</p>}
                         {m.text && <p className="text-sm whitespace-pre-wrap break-words">{m.text}</p>}
                         {m.media_url && m.media_type === "image" && (
                           <img src={m.media_url} alt="" className="mt-2 rounded-lg max-w-full max-h-60 object-contain" />
@@ -436,12 +436,12 @@ export default function SupportPage() {
                   <div className="flex gap-2 items-end">
                     <input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={handleFileSelect} />
                     <button onClick={() => fileInputRef.current?.click()}
-                      className="p-2.5 rounded-xl border border-line dark:border-white/15 text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 shrink-0">
+                      className="p-2.5 rounded-xl border border-line dark:border-white/15 text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 shrink-0">
                       <ImageIcon size={18} />
                     </button>
                     <input value={input} onChange={e => setInput(e.target.value)}
                       onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                      placeholder="Написать сообщение..." disabled={sending}
+                      placeholder="РќР°РїРёСЃР°С‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ..." disabled={sending}
                       className="flex-1 px-4 py-2.5 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-[#8b5cf6]" />
                     <button onClick={sendMessage} disabled={(!input.trim() && !file) || sending}
                       className="p-2.5 rounded-xl bg-[#8b5cf6] text-white hover:bg-[#7c3aed] disabled:opacity-40 shrink-0">
@@ -452,7 +452,7 @@ export default function SupportPage() {
               ) : (
                 <div className="p-4 border-t border-line dark:border-white/10 text-center">
                   <p className="text-gray-500 dark:text-white/30 text-sm flex items-center justify-center gap-2">
-                    <Clock size={14} /> Эта заявка закрыта
+                    <Clock size={14} /> Р­С‚Р° Р·Р°СЏРІРєР° Р·Р°РєСЂС‹С‚Р°
                   </p>
                 </div>
               )}

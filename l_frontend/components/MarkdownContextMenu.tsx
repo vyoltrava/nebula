@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useRef, useState } from "react";
 import { Bold, Italic, Code, Link2, Eye } from "lucide-react";
 
@@ -37,11 +37,11 @@ export function MarkdownContextMenu({ x, y, onClose, onAction }: MarkdownContext
     const vw = window.visualViewport?.width || window.innerWidth;
     const vh = window.visualViewport?.height || window.innerHeight;
 
-    // ВСЕГДА над курсором
+    // Р’РЎР•Р“Р”Рђ РЅР°Рґ РєСѓСЂСЃРѕСЂРѕРј
     let finalY = y - h - 8;
     if (finalY < PAD) finalY = PAD;
 
-    // По X — центрируем относительно курсора, но не вылетаем за края
+    // РџРѕ X вЂ” С†РµРЅС‚СЂРёСЂСѓРµРј РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ РєСѓСЂСЃРѕСЂР°, РЅРѕ РЅРµ РІС‹Р»РµС‚Р°РµРј Р·Р° РєСЂР°СЏ
     let finalX = x - w / 2;
     if (finalX < PAD) finalX = PAD;
     if (finalX + w > vw - PAD) finalX = vw - w - PAD;
@@ -53,7 +53,7 @@ export function MarkdownContextMenu({ x, y, onClose, onAction }: MarkdownContext
     <button
       key={action}
       onClick={() => { onAction(action); onClose(); }}
-      className="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90 transition-all text-gray-800 dark:text-white/70 hover:text-gray-900 dark:text-white"
+      className="flex items-center justify-center w-9 h-9 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90 transition-all text-gray-800 dark:text-white/70 hover:text-gray-900 dark:hover:text-white"
       title={label}
     >
       <Icon size={16} />
@@ -70,13 +70,13 @@ export function MarkdownContextMenu({ x, y, onClose, onAction }: MarkdownContext
         className="fixed z-[301] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl shadow-2xl px-1.5 py-1 flex items-center gap-0.5"
         style={{ left: pos.x, top: pos.y }}
       >
-        {btn(Bold, "Жирный", "bold")}
-        {btn(Italic, "Курсив", "italic")}
+        {btn(Bold, "Р–РёСЂРЅС‹Р№", "bold")}
+        {btn(Italic, "РљСѓСЂСЃРёРІ", "italic")}
         {sep}
-        {btn(Code, "Код", "code")}
-        {btn(Link2, "Ссылка", "link")}
+        {btn(Code, "РљРѕРґ", "code")}
+        {btn(Link2, "РЎСЃС‹Р»РєР°", "link")}
         {sep}
-        {btn(Eye, "Спойлер", "spoiler")}
+        {btn(Eye, "РЎРїРѕР№Р»РµСЂ", "spoiler")}
       </div>
     </>
   );

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { Loader2, type LucideIcon } from "lucide-react";
@@ -18,7 +18,7 @@ const variantClasses: Record<Variant, string> = {
     "bg-red-500/20 border border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/30",
   success:
     "bg-green-500/20 border border-green-500/30 text-green-600 dark:text-green-400 hover:bg-green-500/30",
-  ghost: "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white",
+  ghost: "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50 hover:bg-gray-200 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white",
 };
 
 const sizeClasses: Record<Size, string> = {

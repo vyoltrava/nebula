@@ -96,7 +96,7 @@ export default function CategoryPage() {
   return (
     <div className="min-h-screen bg-paper dark:bg-[#171717]">
       <div className="max-w-6xl mx-auto px-4 py-10">
-        <Link href="/suggestions" className="inline-flex items-center gap-2 text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white mb-6">
+        <Link href="/suggestions" className="inline-flex items-center gap-2 text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white mb-6">
           <ArrowLeft size={16} /> {t("suggestions.title")}
         </Link>
 
@@ -175,7 +175,7 @@ export default function CategoryPage() {
               ))}
               {hasMore && (
                 <button onClick={() => loadThreads(cursor)}
-                  className="w-full py-3 border-t border-line dark:border-white/10 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white transition-all">
+                  className="w-full py-3 border-t border-line dark:border-white/10 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white transition-all">
                   {t("suggestions.loadMoreThreads")}
                 </button>
               )}
@@ -189,7 +189,7 @@ export default function CategoryPage() {
           <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-black text-gray-900 dark:text-white">{t("suggestions.newThread")}</h3>
-              <button onClick={() => setShowCreate(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white"><X size={20} /></button>
+              <button onClick={() => setShowCreate(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white"><X size={20} /></button>
             </div>
             {canManage && prefixes.length > 0 && (
               <select value={prefixId} onChange={(e) => setPrefixId(parseInt(e.target.value))}

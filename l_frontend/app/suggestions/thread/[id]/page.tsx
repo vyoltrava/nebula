@@ -129,7 +129,7 @@ export default function ThreadPage() {
   return (
     <div className="min-h-screen bg-paper dark:bg-[#171717]">
       <div className="max-w-4xl mx-auto px-4 py-10">
-        <Link href={`/suggestions/category/${thread.category_id}`} className="inline-flex items-center gap-2 text-gray-600 dark:text-white/50 hover:text-gray-900 dark:text-white mb-6">
+        <Link href={`/suggestions/category/${thread.category_id}`} className="inline-flex items-center gap-2 text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white mb-6">
           <ArrowLeft size={16} /> {t("suggestions.backToCategory")}
         </Link>
 
@@ -175,11 +175,11 @@ export default function ThreadPage() {
             <p className="text-xs font-black uppercase text-[#8b5cf6] mb-3">{t("suggestions.manage")}</p>
             <div className="flex flex-wrap gap-2 mb-3">
               <button onClick={() => setEditModal(true)}
-                className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-gray-800 dark:text-white/70 text-xs font-bold hover:text-gray-900 dark:text-white flex items-center gap-1.5">
+                className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-gray-800 dark:text-white/70 text-xs font-bold hover:text-gray-900 dark:hover:text-white flex items-center gap-1.5">
                 <Pencil size={13} /> {t("suggestions.editThread")}
               </button>
               <button onClick={() => api("PATCH", `/api/suggestions/thread/${threadId}/pin`, patchForm({ is_pinned: String(!thread.is_pinned) }))}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1.5 ${thread.is_pinned ? "bg-yellow-500/20 border-yellow-500/30 text-yellow-600 dark:text-yellow-400" : "bg-gray-100 dark:bg-white/5 border-line dark:border-white/10 text-gray-800 dark:text-white/70 hover:text-gray-900 dark:text-white"}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold border flex items-center gap-1.5 ${thread.is_pinned ? "bg-yellow-500/20 border-yellow-500/30 text-yellow-600 dark:text-yellow-400" : "bg-gray-100 dark:bg-white/5 border-line dark:border-white/10 text-gray-800 dark:text-white/70 hover:text-gray-900 dark:hover:text-white"}`}>
                 <Pin size={13} /> {thread.is_pinned ? t("suggestions.unpin") : t("suggestions.pin")}
               </button>
               <button onClick={() => api("PATCH", `/api/suggestions/thread/${threadId}/close`, patchForm({ closed: String(!thread.is_closed) }))}
@@ -241,7 +241,7 @@ export default function ThreadPage() {
               </div>
             ))}
             {hasMore && (
-              <button onClick={() => loadThread(cursor)} className="w-full py-3 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:text-white">
+              <button onClick={() => loadThread(cursor)} className="w-full py-3 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white">
                 {t("common.loadMore")}
               </button>
             )}
@@ -302,7 +302,7 @@ function EditModal({ thread, onClose, onSaved }: any) {
       <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-black text-gray-900 dark:text-white">{t("suggestions.editThread")}</h3>
-          <button onClick={onClose} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:text-white"><X size={20} /></button>
+          <button onClick={onClose} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white"><X size={20} /></button>
         </div>
         <input value={title} onChange={(e) => setTitle(e.target.value)}
           className="w-full mb-4 px-4 py-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-gray-900 dark:text-white text-lg focus:border-[#8b5cf6] outline-none" />

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -14,7 +14,7 @@ import {
   CheckCheck, Bell, ArrowLeft 
 } from "lucide-react";
 
-// Относительное время
+// РћС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕРµ РІСЂРµРјСЏ
 function timeAgo(dateStr: string, t: (key: MessageKey, params?: Record<string, string | number>) => string, locale: string): string {
   const date = new Date(dateStr);
   const now = new Date();
@@ -63,7 +63,7 @@ export default function NotificationsPage() {
         prev.map((n) => (n.id === id ? { ...n, read: true } : n))
       );
     } catch (e) {
-      console.error("Ошибка отметки:", e);
+      console.error("РћС€РёР±РєР° РѕС‚РјРµС‚РєРё:", e);
     }
   }
 
@@ -74,10 +74,10 @@ export default function NotificationsPage() {
     
     const unread = notifs.filter((n) => !n.read);
     
-    // Мгновенно обновляем UI
+    // РњРіРЅРѕРІРµРЅРЅРѕ РѕР±РЅРѕРІР»СЏРµРј UI
     setNotifs((prev) => prev.map((n) => ({ ...n, read: true })));
     
-    // Параллельно отправляем на сервер
+    // РџР°СЂР°Р»Р»РµР»СЊРЅРѕ РѕС‚РїСЂР°РІР»СЏРµРј РЅР° СЃРµСЂРІРµСЂ
     await Promise.allSettled(
       unread.map((n) =>
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications/${n.id}/read`, {
@@ -128,13 +128,13 @@ export default function NotificationsPage() {
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
       <main className="flex-1 overflow-y-auto overflow-x-hidden border-x border-line dark:border-white/10 md:border-x-0">
-        {/* Шапка */}
+        {/* РЁР°РїРєР° */}
         <div className="p-3 sm:p-4 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
           <div className="flex items-center justify-between gap-2 sm:gap-3">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <button
                 onClick={() => router.back()}
-                className="p-1.5 sm:p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all active:scale-95 shrink-0"
+                className="p-1.5 sm:p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all active:scale-95 shrink-0"
               >
                 <ArrowLeft size={18} className="sm:w-5 sm:h-5" />
               </button>
@@ -167,7 +167,7 @@ export default function NotificationsPage() {
           </div>
         </div>
 
-        {/* Контент */}
+        {/* РљРѕРЅС‚РµРЅС‚ */}
         <div className="max-w-3xl mx-auto">
           {loading && <NotificationsSkeleton />}
 
@@ -201,7 +201,7 @@ export default function NotificationsPage() {
                         : "hover:bg-gray-100 dark:hover:bg-white/5"
                     }`}
                   >
-                    {/* Аватарка */}
+                    {/* РђРІР°С‚Р°СЂРєР° */}
                     <div className="shrink-0 mt-0.5">
                       <Avatar
                         src={n.actor?.avatar_url}
@@ -211,7 +211,7 @@ export default function NotificationsPage() {
                       />
                     </div>
 
-                    {/* Контент */}
+                    {/* РљРѕРЅС‚РµРЅС‚ */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                         <span className="font-bold text-[13px] sm:text-sm text-gray-900 dark:text-white truncate group-hover:text-[#a78bfa] transition-colors max-w-[40%] sm:max-w-none">
@@ -232,14 +232,14 @@ export default function NotificationsPage() {
                           {timeAgo(n.created_at, t, locale)}
                         </p>
 
-                        {/* Подсказка куда ведёт — только на sm+ */}
+                        {/* РџРѕРґСЃРєР°Р·РєР° РєСѓРґР° РІРµРґС‘С‚ вЂ” С‚РѕР»СЊРєРѕ РЅР° sm+ */}
                         <p className="hidden sm:block text-xs text-[#8b5cf6]/80 font-medium truncate">
-                          → {link === "/messages" ? t("notif.openMessages") : t("notif.goToProfile")}
+                          в†’ {link === "/messages" ? t("notif.openMessages") : t("notif.goToProfile")}
                         </p>
                       </div>
                     </div>
 
-                    {/* Индикатор непрочитанного */}
+                    {/* РРЅРґРёРєР°С‚РѕСЂ РЅРµРїСЂРѕС‡РёС‚Р°РЅРЅРѕРіРѕ */}
                     {!n.read && (
                       <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#8b5cf6] shrink-0 mt-3 shadow-[0_0_8px_rgba(139,92,246,0.6)]" />
                     )}
