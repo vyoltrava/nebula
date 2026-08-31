@@ -5,7 +5,7 @@ import { STICKERS } from "@/lib/stickers";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, HeartCrack, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio, Eye, Smile, X, Lock } from "lucide-react";
+import { Heart, HeartCrack, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio, Eye, SmilePlus, X, Lock } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
 import { safeFetch } from "@/lib/ban";
@@ -49,6 +49,39 @@ function shortPostTime(date: string | Date | undefined): string {
     return d.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
   }
   return timeAgo(date);
+}
+
+// 🚀 Кэш паков реакций на посты (один запрос на всё приложение)
+let _prPacksCache: any[] | null = null;
+let _prPacksPromise: Promise<any[]> | null = null;
+function fetchPostReactionPacks(): Promise<any[]> {
+  if (_prPacksCache) return Promise.resolve(_prPacksCache);
+  if (!_prPacksPromise) {
+    const token = getToken();
+    _prPacksPromise = fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/post-reactions`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => {
+        _prPacksCache = Array.isArray(d) ? d : [];
+        return _prPacksCache;
+      })
+      .catch(() => {
+        _prPacksPromise = null;
+        return [];
+      });
+  }
+  return _prPacksPromise;
+}
+function invalidatePostReactionPacks() {
+  _prPacksCache = null;
+  _prPacksPromise = null;
+}
+// Стикеры могут приходить относительным путём — приводим к полному URL
+function reactionImgSrc(content: string): string {
+  if (!content) return content;
+  if (content.startsWith("http") || content.startsWith("data:") || content.startsWith("blob:")) return content;
+  return mediaUrl(content);
 }
 
 function SmartMedia({ src, type, className }: { src: string; type?: string | null; className?: string }) {
@@ -276,11 +309,12 @@ export function Post({
     const [showEcho, setShowEcho] = useState(false); // Состояние для Эхо
     // 🆕 Реакции на посты (одна реакция на юзера)
     const [postReactions, setPostReactions] = useState<any[]>([]);
-    const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
+    const [reactionModal, setReactionModal] = useState<"pick" | "stats" | null>(null);
     const [reactionPacks, setReactionPacks] = useState<any[]>([]);
     const [reactionPackTab, setReactionPackTab] = useState(0);
-    const reactionPacksFetchedRef = useRef(false);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const suppressClickRef = useRef(false);
     const { reaction: quickPostReaction } = useQuickPostReaction();
     const router = useRouter();
     const { t } = useI18n();
@@ -415,22 +449,10 @@ useEffect(() => {
 
   useEffect(() => { loadPostReactions(); }, [id]);
 
-  async function loadReactionPacks() {
-    if (reactionPacksFetchedRef.current) return;
-    reactionPacksFetchedRef.current = true;
-    try {
-      const token = getToken();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/post-reactions`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (res.ok) setReactionPacks(await res.json());
-    } catch {}
-  }
-
-  function openReactionPicker() {
-    loadReactionPacks();
-    setReactionPickerOpen(true);
-  }
+  // 🚀 Паки реакций кешируются на уровне модуля — один запрос на всё приложение, модалка открывается мгновенно
+  useEffect(() => {
+    fetchPostReactionPacks().then((packs) => setReactionPacks(packs));
+  }, []);
 
   const myReaction = postReactions.find((r) => r.mine) || null;
   const totalReactions = postReactions.reduce((acc, r) => acc + (r.count || 0), 0);
@@ -450,25 +472,46 @@ useEffect(() => {
       if (res.ok) {
         const data = await res.json();
         setPostReactions(Array.isArray(data.reactions) ? data.reactions : []);
+      } else if (res.status === 403) {
+        // Реакция могла быть отключена админом — обновляем доступные паки
+        invalidatePostReactionPacks();
+        fetchPostReactionPacks().then((packs) => setReactionPacks(packs));
       }
     } catch {}
   }
 
-  // Одиночный клик по кнопке реакции:
-  // есть своя реакция → снять её; нет своей, но выбрана быстрая → поставить быструю; иначе открыть пикер
-  function handleReactionButton() {
+  // Одиночный клик → модалка выбора реакции. Двойной клик/тап → быстрая реакция.
+  function handleReactionClick() {
     if (!getToken()) { router.push("/login"); return; }
-    if (myReaction) {
-      togglePostReaction({ type: myReaction.type, content: myReaction.content, sticker_id: myReaction.sticker_id });
-    } else if (quickPostReaction) {
-      togglePostReaction({ type: quickPostReaction.type, content: quickPostReaction.content, sticker_id: quickPostReaction.stickerId ?? null });
-    } else {
-      openReactionPicker();
+    if (suppressClickRef.current) { suppressClickRef.current = false; return; }
+    if (clickTimerRef.current) {
+      // второй клик — быстрая реакция
+      clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
+      if (quickPostReaction) {
+        togglePostReaction({ type: quickPostReaction.type, content: quickPostReaction.content, sticker_id: quickPostReaction.stickerId ?? null });
+      } else {
+        setReactionModal("pick");
+      }
+      return;
     }
+    clickTimerRef.current = setTimeout(() => {
+      clickTimerRef.current = null;
+      setReactionModal("pick");
+    }, 260);
+  }
+
+  // Правый клик / удержание → модалка со всеми выставленными реакциями и их числом
+  function openReactionStats() {
+    suppressClickRef.current = true;
+    setReactionModal("stats");
   }
 
   function startReactionLongPress() {
-    longPressTimerRef.current = setTimeout(openReactionPicker, 500);
+    longPressTimerRef.current = setTimeout(() => {
+      longPressTimerRef.current = null;
+      openReactionStats();
+    }, 450);
   }
   function cancelReactionLongPress() {
     if (longPressTimerRef.current) { clearTimeout(longPressTimerRef.current); longPressTimerRef.current = null; }
@@ -986,37 +1029,43 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             </div>
           ) : (
           <div className="flex items-center gap-3 mt-3 flex-wrap">
-            {/* 🆕 ЕДИНАЯ КНОПКА РЕАКЦИИ — круг, иконка ровно по центру, на 20% крупнее остальных кнопок
-                Клик — поставить/снять свою; удержание или правый клик — пикер */}
+            {/* 🆕 КНОПКА РЕАКЦИИ — капсула в стиле остальных кнопок поста
+                Клик — выбрать реакцию; двойной клик/тап — быстрая реакция;
+                правый клик / удержание — все выставленные реакции с числами */}
             <div className="flex items-center gap-1.5">
               <button
-                onClick={(e) => { e.stopPropagation(); handleReactionButton(); }}
-                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); openReactionPicker(); }}
+                onClick={(e) => { e.stopPropagation(); handleReactionClick(); }}
+                onDoubleClick={(e) => e.stopPropagation()}
+                onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); openReactionStats(); }}
                 onTouchStart={(e) => { e.stopPropagation(); startReactionLongPress(); }}
                 onTouchEnd={cancelReactionLongPress}
                 onTouchMove={cancelReactionLongPress}
-                className={`w-[28px] h-[28px] rounded-full border border-line dark:border-white/20 flex items-center justify-center transition-all active:scale-90 ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-line dark:border-white/20 transition-all active:scale-90 ${
                   myReaction
                     ? "bg-[#8B5CF6] border-[#8B5CF6] text-white"
-                    : "text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-[#8b5cf6]"
+                    : "text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40"
                 }`}
-                title="Удерживайте или нажмите правой кнопкой для выбора реакции"
+                title="Клик — выбрать реакцию · Двойной тап — быстрая · Удержание/правый клик — все реакции"
               >
                 {myReaction ? (
                   myReaction.type === "sticker" ? (
-                    <img src={myReaction.content} alt="" className="w-[16px] h-[16px] object-contain" />
+                    <img src={reactionImgSrc(myReaction.content)} alt="" className="w-[16px] h-[16px] object-contain" />
                   ) : (
                     <span className="text-[14px] leading-none">{myReaction.content}</span>
                   )
                 ) : (
-                  <Smile size={14} className="shrink-0" />
+                  <SmilePlus size={15} className="shrink-0" />
+                )}
+                {myReaction && totalReactions > 1 && (
+                  <span className="text-xs font-semibold leading-none">{totalReactions}</span>
                 )}
               </button>
 
-              {/* Общий счётчик всех реакций */}
+              {/* Общий счётчик всех реакций → все выставленные реакции с числами */}
               {totalReactions > 0 && (
                 <button
-                  onClick={(e) => { e.stopPropagation(); openReactionPicker(); }}
+                  onClick={(e) => { e.stopPropagation(); setReactionModal("stats"); }}
+                  onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setReactionModal("stats"); }}
                   className="text-xs font-semibold leading-none text-gray-800 dark:text-white/70 transition-all"
                   title="Все реакции"
                 >
@@ -1157,16 +1206,16 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
       {/* 🔊 ЭХО-МОДАЛКА (Открывается по клику на иконку Radio) */}
       {showEcho && <EchoModal postId={id} onClose={() => setShowEcho(false)} />}
 
-      {/* 🆕 ПИКЕР РЕАКЦИЙ НА ПОСТ (удержание / правый клик) */}
-      {reactionPickerOpen && (
+      {/* 🆕 МОДАЛКА ВЫБОРА РЕАКЦИИ (клик по кнопке) — паки уже закешированы, открывается мгновенно */}
+      {reactionModal === "pick" && (
         <>
-          <div className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm" onClick={() => setReactionPickerOpen(false)} />
+          <div className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm" onClick={() => setReactionModal(null)} />
           <div className="fixed inset-0 z-[261] flex items-center justify-center p-4 pointer-events-none">
             <div className="w-full max-w-sm max-h-[80vh] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
               <div className="shrink-0 p-3 pb-2 border-b border-line dark:border-white/10">
                 <div className="flex items-center justify-between mb-2 px-1">
                   <p className="text-xs font-bold text-gray-600 dark:text-white/60">Выбрать реакцию</p>
-                  <button onClick={() => setReactionPickerOpen(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                  <button onClick={() => setReactionModal(null)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                     <X size={14} />
                   </button>
                 </div>
@@ -1214,7 +1263,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                             onClick={(e) => {
                               e.stopPropagation();
                               togglePostReaction({ type, content: st.content, sticker_id: type === "sticker" ? Number(st.id) : null });
-                              setReactionPickerOpen(false);
+                              setReactionModal(null);
                             }}
                             className={`relative aspect-square flex items-center justify-center rounded-xl transition-all active:scale-90 ${
                               isMine ? "ring-2 ring-[#8b5cf6] bg-[#8b5cf6]/20" : "hover:bg-gray-100 dark:hover:bg-white/10"
@@ -1223,7 +1272,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                             {type === "emoji" ? (
                               <span className="text-2xl">{st.content}</span>
                             ) : (
-                              <img src={st.content} alt="" className="w-10 h-10 object-contain" />
+                              <img src={reactionImgSrc(st.content)} alt="" className="w-10 h-10 object-contain" />
                             )}
                             {(countEntry?.count ?? 0) > 0 && (
                               <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 text-[9px] font-bold flex items-center justify-center">
@@ -1241,6 +1290,54 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 🆕 МОДАЛКА: ВСЕ ВЫСТАВЛЕННЫЕ РЕАКЦИИ С ЧИСЛАМИ (правый клик / удержание / счётчик) */}
+      {reactionModal === "stats" && (
+        <>
+          <div className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm" onClick={() => setReactionModal(null)} />
+          <div className="fixed inset-0 z-[261] flex items-center justify-center p-4 pointer-events-none">
+            <div className="w-full max-w-xs max-h-[70vh] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto animate-in zoom-in-95 duration-200">
+              <div className="shrink-0 p-3 pb-2 border-b border-line dark:border-white/10 flex items-center justify-between px-1">
+                <p className="text-xs font-bold text-gray-600 dark:text-white/60">Реакции · {totalReactions}</p>
+                <button onClick={() => setReactionModal(null)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2 min-h-0">
+                {postReactions.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-white/40 text-center py-6">Пока никто не поставил реакцию</p>
+                ) : (
+                  postReactions.map((r) => (
+                    <button
+                      key={(r.sticker_id ?? "") + r.content}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        togglePostReaction({ type: r.type, content: r.content, sticker_id: r.sticker_id });
+                      }}
+                      className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-xl transition-colors ${
+                        r.mine ? "bg-[#8b5cf6]/15 ring-1 ring-[#8b5cf6]/40" : "hover:bg-gray-100 dark:hover:bg-white/10"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2 min-w-0">
+                        {r.type === "sticker" ? (
+                          <img src={reactionImgSrc(r.content)} alt="" className="w-6 h-6 object-contain" />
+                        ) : (
+                          <span className="text-xl leading-none">{r.content}</span>
+                        )}
+                        {r.mine && <span className="text-[10px] font-bold text-[#8b5cf6]">ваша</span>}
+                      </span>
+                      <span className="text-sm font-bold text-gray-900 dark:text-white">{r.count}</span>
+                    </button>
+                  ))
+                )}
+              </div>
+              <p className="shrink-0 px-4 py-2 text-[10px] text-gray-500 dark:text-white/40 text-center border-t border-line dark:border-white/10">
+                Нажмите на реакцию, чтобы поставить её
+              </p>
             </div>
           </div>
         </>
