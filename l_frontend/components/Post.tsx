@@ -1050,29 +1050,25 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               >
                 {myReaction ? (
                   myReaction.type === "sticker" ? (
-                    <img src={reactionImgSrc(myReaction.content)} alt="" className="w-[16px] h-[16px] object-contain" />
+                    <img src={reactionImgSrc(myReaction.content)} alt="" className="w-[16px] h-[16px] object-contain shrink-0" />
                   ) : (
-                    <span className="text-[14px] leading-none">{myReaction.content}</span>
+                    <span className="text-[14px] leading-none shrink-0">{myReaction.content}</span>
                   )
                 ) : (
                   <SmilePlus size={15} className="shrink-0" />
                 )}
-                {myReaction && totalReactions > 1 && (
-                  <span className="text-xs font-semibold leading-none">{totalReactions}</span>
+                {totalReactions > 0 && (
+                  <span className="text-xs font-semibold leading-none tabular-nums tracking-tight whitespace-nowrap">
+                    {totalReactions >= 1_000_000
+                      ? `${(totalReactions / 1_000_000).toFixed(totalReactions >= 10_000_000 ? 0 : 1).replace(".0", "")}M`
+                      : totalReactions >= 10_000
+                      ? `${Math.round(totalReactions / 1000)}K`
+                      : totalReactions >= 1_000
+                      ? `${(totalReactions / 1000).toFixed(1).replace(".0", "")}K`
+                      : totalReactions}
+                  </span>
                 )}
               </button>
-
-              {/* Общий счётчик всех реакций → все выставленные реакции с числами */}
-              {totalReactions > 0 && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); setReactionModal("stats"); }}
-                  onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setReactionModal("stats"); }}
-                  className="text-xs font-semibold leading-none text-gray-800 dark:text-white/70 transition-all"
-                  title="Все реакции"
-                >
-                  {totalReactions}
-                </button>
-              )}
             </div>
             <BookmarkButton postId={id} initial={bookmarked} />
 

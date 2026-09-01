@@ -25,7 +25,7 @@ export function BackupsSection({ me }: { me: any }) {
   const [backups, setBackups] = useState<BackupItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<number | null>(null);
-  const [actorFilter, setActorFilter] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [banTargetId, setBanTargetId] = useState("");
   const [banBusy, setBanBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -33,8 +33,7 @@ export function BackupsSection({ me }: { me: any }) {
   async function load() {
     const token = getToken();
     if (!token) return;
-    const q = actorFilter ? `?actor_id=${encodeURIComponent(actorFilter)}` : "";
-    const res = await fetch(`${API_URL}/api/admin/backups${q}`, {
+    const res = await fetch(`${API_URL}/api/admin/backups`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
@@ -95,9 +94,24 @@ export function BackupsSection({ me }: { me: any }) {
   const canPurge = !!me?.is_admin;
   const canBanAdmin = !!me?.is_admin || (me?.permissions || []).includes("manage_backups");
 
-  const filtered = backups.filter((b) =>
-    !actorFilter || String(b.actor_id ?? b.actor?.id ?? "") === actorFilter
-  );
+  const normalize = (s: any) => String(s ?? "").toLowerCase();
+  const filtered = backups.filter((b) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    const haystack = [
+      b.id,
+      b.actor_id,
+      b.actor?.id,
+      b.actor?.username,
+      b.action,
+      ACTION_LABELS[b.action]?.label,
+      b.target_type,
+      b.target_id,
+      b.payload_preview,
+      b.created_at ? new Date(b.created_at).toLocaleString("ru-RU") : "",
+    ].map(normalize).join(" ");
+    return haystack.includes(q);
+  });
 
   const actorName = (b: BackupItem) =>
     b.actor ? `@${b.actor.username}` : `Админ #${b.actor_id ?? "?"}`;
@@ -137,15 +151,14 @@ export function BackupsSection({ me }: { me: any }) {
           )}
         </div>
 
-        {/* Фильтр по админу */}
+        {/* Универсальный поиск: админ, ID, действие, цель, дата */}
         <div className="flex items-center gap-2 mb-4">
-          <div className="relative">
+          <div className="relative flex-1 max-w-md">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
-            <input value={actorFilter}
-              onChange={(e) => setActorFilter(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && load()}
-              placeholder="ID админа"
-              className="w-56 pl-9 pr-3 py-2 text-sm rounded-lg bg-white dark:bg-white/5 border border-line dark:border-white/15 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-purple-500" />
+            <input value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Поиск: @админ, ID, действие, цель, дата…"
+              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg bg-white dark:bg-white/5 border border-line dark:border-white/15 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-purple-500" />
           </div>
           <button onClick={load}
             className="text-sm px-4 py-2 rounded-lg bg-purple-500 text-white font-bold hover:bg-purple-600">

@@ -579,7 +579,7 @@ export default function StatPage() {
       </div>
 
       {/* Модалка детальной статистики */}
-      {selectedMember && memberStats && (
+      {selectedMember && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[400] flex items-center justify-center p-4">
           <div className="w-full max-w-5xl bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-ivory dark:bg-[#1f1f23] border-b border-line dark:border-white/10 p-4 flex items-center justify-between">
@@ -594,11 +594,11 @@ export default function StatPage() {
                 {(me?.is_admin || me?.permissions?.includes("manage_backups")) &&
                  selectedMember.user?.id !== me?.id &&
                  !selectedMember.user?.is_banned &&
-                 (selectedMember.user?.is_admin || selectedMember.user?.is_moderator) && (
+                 (selectedMember.user?.is_admin || selectedMember.user?.is_moderator || selectedMember.role) && (
                   <button onClick={() => { banAdminWithRollback(selectedMember.user); setSelectedMember(null); setMemberStats(null); }} disabled={banAdminBusy}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-red-700 dark:text-red-300 border border-red-500/30 bg-red-500/5 hover:bg-red-500/15 disabled:opacity-50"
-                    title="☢️ Бан админа + мгновенный откат всех его действий из резервной БД">
-                    <Ban size={14} /> Бан + откат
+                    title="☢️ Бан + мгновенный откат всех его действий из резервной БД">
+                    <Ban size={14} /> {banAdminBusy ? "Откат…" : "Бан + откат"}
                   </button>
                 )}
                 <button onClick={() => { setSelectedMember(null); setMemberStats(null); }} className="p-2 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10">
@@ -607,6 +607,29 @@ export default function StatPage() {
               </div>
             </div>
             <div className="p-6 space-y-6">
+              {!memberStats ? (
+                /* Скелетон плашек на время загрузки */
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {[0, 1, 2, 3].map((i) => (
+                      <div key={i} className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10 animate-pulse">
+                        <div className="h-3 w-2/3 rounded bg-gray-300 dark:bg-white/10 mb-3" />
+                        <div className="h-6 w-1/2 rounded bg-gray-300 dark:bg-white/10" />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10 animate-pulse">
+                    <div className="h-4 w-40 rounded bg-gray-300 dark:bg-white/10 mb-4" />
+                    <div className="space-y-2">
+                      {[0, 1, 2].map((i) => (
+                        <div key={i} className="h-12 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/5" />
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-center text-xs text-gray-500 dark:text-white/40">Загрузка статистики…</p>
+                </>
+              ) : (
+              <>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10">
                   <p className="text-gray-500 dark:text-white/40 text-xs mb-1">Всего действий</p>
@@ -622,7 +645,7 @@ export default function StatPage() {
                 </div>
                 <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10">
                   <p className="text-gray-500 dark:text-white/40 text-xs mb-1">KPI</p>
-                  <div className="flex items-center gap-3"><KpiRing value={selectedMember.kpi || memberStats.total_actions ? Math.min(100, selectedMember.kpi || 50) : 0} /><span className="text-gray-600 dark:text-white/60 text-sm">/ 100</span></div>
+                  <div className="flex items-center gap-3"><KpiRing value={Math.min(100, selectedMember.kpi ?? memberStats.total_actions ?? 0)} /><span className="text-gray-600 dark:text-white/60 text-sm">/ 100</span></div>
                 </div>
               </div>
               <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10">
@@ -664,6 +687,8 @@ export default function StatPage() {
                     ))}
                   </div>
                 </div>
+              )}
+              </>
               )}
             </div>
           </div>
