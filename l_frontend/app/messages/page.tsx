@@ -462,7 +462,7 @@ const confirmPrismKey = async () => {
           {/* mr-12/md:mr-14 — резервируем место под fixed-кнопку "+", чтобы поиск не заезжал на неё */}
           <div className="flex items-center gap-3 md:gap-4 mr-12 md:mr-14">
             
-            {/* РРєРѕРЅРєа */}
+            {/* Иконка */}
             <div className="flex items-center gap-3 shrink-0">
               <MessageSquare size={24} className="text-[#8b5cf6]" />
             </div>
@@ -633,7 +633,7 @@ const confirmPrismKey = async () => {
                     )}
                   </div>
                   
-                  {/* ТЕКСТ ПОСЛЕДНЕГО РЎРћРћР‘ЩР•РќРРЇ */}
+                  {/* ТЕКСТ ПОСЛЕДНЕГО СООБЩЕНИЯ */}
                   {chatDrafts[String(chat.id)] ? (
                     <p className="text-sm truncate text-[#8b5cf6] dark:text-[#a78bfa] mt-0.5 flex items-center gap-1.5">
                       <span className="inline-flex items-center gap-1 shrink-0 px-1.5 py-0.5 rounded bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-[#8b5cf6] dark:text-[#a78bfa] text-[10px] font-bold uppercase tracking-wide">
@@ -793,8 +793,8 @@ const confirmPrismKey = async () => {
         />
       )}
 
-      {/* МОДАЛКА РџРРР—РњЫ */}
-      {/* МОДАЛКА РџРРР—РњЫ */}
+      {/* МОДАЛКА ПРИЗМЫ */}
+      {/* МОДАЛКА ПРИЗМЫ */}
       {showPrismModal && (
         <>
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[2000]" onClick={() => { setShowPrismModal(false); setCreationLandscape(null); setSelectedCreationObject(null); }} />
@@ -809,7 +809,7 @@ const confirmPrismKey = async () => {
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-gray-900 dark:text-white tracking-wide">
-                      {creationLandscape ? "Р’ЫР‘Р•РРТЕ КЛЮЧ" : "INITIATE PRISM"}
+                      {creationLandscape ? "ВЫБЕРИТЕ КЛЮЧ" : "INITIATE PRISM"}
                     </h3>
                     <p className="text-[10px] text-cyan-400/70 uppercase tracking-widest">
                       {creationLandscape ? "Запомните этот объект для входа" : "Бесшовное E2E шифрование"}

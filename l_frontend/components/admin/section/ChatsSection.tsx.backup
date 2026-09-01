@@ -69,7 +69,7 @@ export function ChatsSection({ me }: { me: any }) {
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Поиск чата..."
               className="w-full pl-9 pr-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-cyan-600 dark:focus:border-cyan-400" />
           </div>
-          <p className="text-xs text-gray-500 dark:text-white/40 mt-2">Всего: {chats.length} Е Показано: {filtered.length}</p>
+          <p className="text-xs text-gray-500 dark:text-white/40 mt-2">Всего: {chats.length} • Показано: {filtered.length}</p>
         </div>
         <div className="flex-1 overflow-y-auto">
           {filtered.map((c) => (
@@ -83,7 +83,7 @@ export function ChatsSection({ me }: { me: any }) {
                 <p className="font-bold text-gray-900 dark:text-white text-sm truncate">{c.name || (c.is_group ? "Группа" : "Диалог")}</p>
                 <p className="text-[11px] text-gray-500 dark:text-white/40 truncate">
                   {c.is_group ? `${c.members_count} участников` : "Личный чат"}
-                  {c.last_message && ` Е ${c.last_message.text?.slice(0, 25) || "📎"}`}
+                  {c.last_message && ` • ${c.last_message.text?.slice(0, 25) || "📎"}`}
                 </p>
               </div>
             </button>
@@ -118,7 +118,7 @@ export function ChatsSection({ me }: { me: any }) {
                   <Avatar src={m.sender_avatar} name={m.sender_name} id={m.sender_id} size={32} />
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] text-gray-600 dark:text-white/50">
-                      <span className="font-bold text-gray-800 dark:text-white/80">{m.sender_name}</span> Е{" "}
+                      <span className="font-bold text-gray-800 dark:text-white/80">{m.sender_name}</span> •{" "}
                       {new Date(m.created_at).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                       {m.pinned && <Pin size={10} className="inline ml-1 text-[#8b5cf6]" />}
                     </p>

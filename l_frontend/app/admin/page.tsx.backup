@@ -75,11 +75,11 @@ export default function AdminPage() {
 
     // Фильтр по типу
     if (filterType === "team") {
-      // Команда: Р°Рґмины, РјРѕРґераторы, или уровень >= 3
+      // Команда: админы, РјРѕРґераторы, или уровень >= 3
       const isTeam = u.is_admin || u.is_moderator || (u.level ?? 1) >= 3;
       if (!isTeam) return false;
     } else if (filterType === "users") {
-      // Обычные пользователи: не Р°Рґмин, не РјРѕРґератор, уровень < 3
+      // Обычные пользователи: не админ, не РјРѕРґератор, уровень < 3
       const isRegularUser = !u.is_admin && !u.is_moderator && (u.level ?? 1) < 3;
       if (!isRegularUser) return false;
     }
@@ -127,7 +127,7 @@ export default function AdminPage() {
       load();
     } else {
       const d = await res.json().catch(() => null);
-      alert(d?.detail || "Не СѓРґалось РІС‹Рґать варн");
+      alert(d?.detail || "Не удалось выдать варн");
     }
   }
 
@@ -142,9 +142,9 @@ export default function AdminPage() {
   }
 
 
-  // ✅ Р В�РЎРџРРђР’Р›Р•РќРћ: используем userId (числовой ID)
+  // ✅ РВ?СПРАВЛЕНО: используем userId (числовой ID)
   async function deleteAllPosts(userId: number) {
-    if (!confirm("РЈРґалить ВСЕ посты этого пользователя? Это РґРµР№ствие нельзя отменить!")) return;
+    if (!confirm("РЈРґалить ВСЕ посты этого пользователя? Это действие нельзя отменить!")) return;
     const token = getToken();
     if (!token) return;
     
@@ -163,7 +163,7 @@ export default function AdminPage() {
     load();
   }
 
-  // ✅ Р В�РЎРџРРђР’Р›Р•РќРћ + проверка иерархии
+  // ✅ РВ?СПРАВЛЕНО + проверка иерархии
   async function toggleBan(userId: number, target: any) {
     const token = getToken();
     if (!token) return;
@@ -173,7 +173,7 @@ export default function AdminPage() {
     const targetLevel = target?.level ?? 1;
     
     if (targetLevel >= myLevel && !me?.is_admin) {
-      alert(`🛡️ Р В�Р С�Р С�СѓРЅРёС‚еС‚: уровень цели (${targetLevel}) в‰Ґ вашего (${myLevel}). Вы не можете забанить этого пользователя.`);
+      alert(`🛡️ РВ?РС?РС?унитет: уровень цели (${targetLevel}) ≥ вашего (${myLevel}). Вы не можете забанить этого пользователя.`);
       return;
     }
 
@@ -190,7 +190,7 @@ export default function AdminPage() {
     load();
   }
 
-  // ✅ Р В�РЎРџРРђР’Р›Р•РќРћ
+  // ✅ РВ?СПРАВЛЕНО
   async function removeAvatar(userId: number) {
     const token = getToken();
     if (!token) return;
@@ -208,7 +208,7 @@ export default function AdminPage() {
     load();
   }
 
-  // ✅ Р В�РЎРџРРђР’Р›Р•РќРћ
+  // ✅ РВ?СПРАВЛЕНО
   async function toggleModerator(userId: number) {
     const token = getToken();
     if (!token) return;
@@ -226,7 +226,7 @@ export default function AdminPage() {
     load();
   }
 
-  // ✅ Р В�РЎРџРРђР’Р›Р•РќРћ
+  // ✅ РВ?СПРАВЛЕНО
   async function assignRole(userId: number, roleId: number | null) {
     const token = getToken();
     if (!token) return;
@@ -325,7 +325,7 @@ export default function AdminPage() {
                   className="flex items-center gap-2 px-4 py-2 rounded-lg border border-cyan-400/50 bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 text-sm font-bold hover:bg-cyan-500/30 transition-all"
                 >
                   <MessageSquare size={16} />
-                  РњРѕРґерация чатов
+                  Модерация чатов
                 </Link>
               )}
             </div>
@@ -336,7 +336,7 @@ export default function AdminPage() {
               : `Права: ${me.permissions?.map((p: string) => p).join(", ") || "нет"}`}
           </p>
           <p className="text-gray-500 dark:text-white/40 text-xs mt-1">
-            Всего пользователей: {users.length} вЂў Р олей: {roles.length}
+            Всего пользователей: {users.length} Е Р олей: {roles.length}
           </p>
         </div>
 
@@ -428,10 +428,10 @@ export default function AdminPage() {
               </select>
             </div>
 
-            {/* Р В�РЅРґРёРєаС‚РѕСЂ активных фильтров */}
+            {/* РВ?ндикатор активных фильтров */}
             {(searchQuery || filterType !== "all" || selectedRoleId) && (
               <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-white/60">
-                <span>РќР°Р№Рґено: <span className="font-bold text-gray-900 dark:text-white">{filteredUsers.length}</span></span>
+                <span>Найдено: <span className="font-bold text-gray-900 dark:text-white">{filteredUsers.length}</span></span>
                 {(searchQuery || filterType !== "all" || selectedRoleId) && (
                   <button
                     onClick={() => {
@@ -453,7 +453,7 @@ export default function AdminPage() {
         <div className="p-4 space-y-3">
           {filteredUsers.length === 0 && (
             <p className="p-8 text-center text-gray-600 dark:text-white/50">
-              {users.length === 0 ? "Пользователи не РЅР°Р№Рґены" : "Нет пользователей по Р·Р°Рґанным фильтрам"}
+              {users.length === 0 ? "Пользователи не найдены" : "Нет пользователей по заданным фильтрам"}
             </p>
           )}
           {filteredUsers.map((u) => {
@@ -520,7 +520,7 @@ export default function AdminPage() {
                       <span className="text-gray-500 dark:text-white/40 text-sm">@{u.username}</span>
                     </div>
                     <p className="text-gray-500 dark:text-white/40 text-xs mt-1">
-                      ID: {u.id} вЂў Уровень: <span className="text-gray-600 dark:text-white/60 font-mono">{targetLevel}</span> вЂў Регистрация: {new Date(u.created_at).toLocaleDateString("ru-RU")}
+                      ID: {u.id} Е Уровень: <span className="text-gray-600 dark:text-white/60 font-mono">{targetLevel}</span> Е Регистрация: {new Date(u.created_at).toLocaleDateString("ru-RU")}
                     </p>
                   </div>
 
@@ -541,7 +541,7 @@ export default function AdminPage() {
                       </button>
                     )}
 
-                    {/* 🛡️ Кнопка бана СЃ защитой иерархии */}
+                    {/* 🛡️ Кнопка бана с защитой иерархии */}
                     {can("ban_users") && !u.is_admin && u.id !== me.id && (
                       canSanction ? (
                         <button
@@ -559,10 +559,10 @@ export default function AdminPage() {
                       ) : (
                         <div
                           className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-line dark:border-white/10 text-gray-500 dark:text-white/30 text-xs font-bold cursor-not-allowed"
-                          title={`Р В�Р С�Р С�СѓРЅРёС‚еС‚: уровень цели (${targetLevel}) в‰Ґ вашего (${myLevel})`}
+                          title={`РВ?РС?РС?унитет: уровень цели (${targetLevel}) ≥ вашего (${myLevel})`}
                         >
                           <Shield size={12} />
-                          Р В�Р С�Р С�СѓРЅРёС‚еС‚
+                          РВ?РС?РС?унитет
                         </div>
                       )
                     )}
@@ -599,7 +599,7 @@ export default function AdminPage() {
                         }`}
                       >
                         <UserCheck size={12} />
-                        {u.is_moderator ? "Снять разработчика" : "Р’ разработчика"}
+                        {u.is_moderator ? "Снять разработчика" : "В разработчика"}
                       </button>
                     )}
 
@@ -677,7 +677,7 @@ export default function AdminPage() {
                 </div>
 
                 <div className="mb-4 p-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
-                  <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Р’С‹Рґать РїСЂРµРґСѓРїСЂРµР¶Рґение</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Выдать предупреждение</label>
                   <textarea
                     value={warnReason}
                     onChange={(e) => setWarnReason(e.target.value)}
@@ -689,7 +689,7 @@ export default function AdminPage() {
                     onClick={issueWarn}
                     className="mt-2 w-full py-2 rounded-lg bg-yellow-500 text-black text-sm font-bold hover:bg-yellow-600 dark:hover:bg-yellow-400 transition-all"
                   >
-                    Р’С‹Рґать варн
+                    Выдать варн
                   </button>
                 </div>
 
@@ -712,7 +712,7 @@ export default function AdminPage() {
                         )}
                       </div>
                       <p className="text-[10px] text-gray-500 dark:text-white/40 mt-1.5">
-                        {w.issuer ? `Р’С‹Рґал: ${w.issuer.display_name}` : "Система"} В· {new Date(w.created_at).toLocaleDateString("ru-RU")}
+                        {w.issuer ? `Выдал: ${w.issuer.display_name}` : "Система"} В· {new Date(w.created_at).toLocaleDateString("ru-RU")}
                         {!w.active && " В· снят"}
                       </p>
                     </div>

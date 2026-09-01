@@ -414,7 +414,7 @@ async function activate2FA() {
 
           {/* ===== Контент ===== */}
           <section className="bg-gray-100 dark:bg-[#1E1E23] border border-line dark:border-white/10 rounded-xl p-5 sm:p-6">
-            {/* ---------- РџРРћФРР›Ь ---------- */}
+            {/* ---------- ПРОФИЛЬ ---------- */}
             {view === "profile" && (
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold">{t("settings.profile")}</h2>
@@ -507,7 +507,7 @@ async function activate2FA() {
               </div>
             )}
 
-            {/* ---------- Р’РќР•РЁНИЙ ВИД ---------- */}
+            {/* ---------- ВНЕШНИЙ ВИД ---------- */}
             {view === "appearance" && (
               <div>
                 <h2 className="text-lg font-semibold mb-1">{t("settings.appearance")}</h2>
@@ -527,7 +527,7 @@ async function activate2FA() {
               </div>
             )}
 
-            {/* ---------- РРђР—РР•РЁЕНИЯ ---------- */}
+            {/* ---------- РАЗРЕШЕНИЯ ---------- */}
             {view === "permissions" && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">{t("settings.permissions")}</h2>
@@ -535,7 +535,7 @@ async function activate2FA() {
               </div>
             )}
 
-            {/* ---------- Р–РР’ЫР• РЎРћРћР‘ЩР•РќРРЇ ---------- */}
+            {/* ---------- ЖИВЫЕ СООБЩЕНИЯ ---------- */}
             {view === "messages" && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">{t("settings.liveMessages")}</h2>
@@ -828,7 +828,7 @@ async function activate2FA() {
         </div>
       )}
 
-      {/* 🆕 ШАГ 3: ПОКАЗ РЕЗЕРВНЫХ КОДОВ — Р’РќРЈРўРР МОДАЛКИ */}
+      {/* 🆕 ШАГ 3: ПОКАЗ РЕЗЕРВНЫХ КОДОВ — ВНУТРИ МОДАЛКИ */}
       {setupStep === "backup" && (
         <div className="space-y-4">
           <div className="flex items-center gap-2 mb-2">

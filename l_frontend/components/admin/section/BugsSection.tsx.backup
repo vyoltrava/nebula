@@ -127,7 +127,7 @@ export function BugsSection({ me }: { me: any }) {
                 <div className="flex-1 min-w-0">
                   <h2 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white">{selected.title}</h2>
                   <p className="text-sm text-gray-600 dark:text-white/50 mt-1">
-                    ID #{selected.id} Е От:{" "}
+                    ID #{selected.id} • От:{" "}
                     {selected.reporter ? (
                       <Link href={`/user/${selected.reporter.id}`} className="text-[#8b5cf6] hover:underline">@{selected.reporter.username}</Link>
                     ) : "неизвестен"}

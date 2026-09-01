@@ -77,7 +77,7 @@ export default function SupportPage() {
     } catch {}
   }, []);
 
-  // === ЗАГРУЗКА РЎРћРћР‘ЩР•РќРР™ ===
+  // === ЗАГРУЗКА РЎРћРћР‘ЩР•РќРЙ ===
   const loadMessages = useCallback(async (ticketId: number) => {
     const token = getToken();
     if (!token) return;
@@ -221,7 +221,7 @@ export default function SupportPage() {
     const form = new FormData();
     form.append("ticket_id", String(activeId));
     
-    // ✅ РРЎРџРРђР’Р›Р•РќРР• 1: ВСЕГДА отправляем text, даже если он пустой (FastAPI требует наличие поля)
+    // ✅ РРЎРџРРђР’Р›Р•РќРЕ 1: ВСЕГДА отправляем text, даже если он пустой (FastAPI требует наличие поля)
     form.append("text", savedInput.trim() || ""); 
     
     if (savedFile) form.append("file", savedFile);
@@ -255,7 +255,7 @@ export default function SupportPage() {
           }));
         
       } else {
-        // ✅ РРЎРџРРђР’Р›Р•РќРР• 2: Читаем и показываем реальную ошибку от бэкенда
+        // ✅ РРЎРџРРђР’Р›Р•РќРЕ 2: Читаем и показываем реальную ошибку от бэкенда
         const errData = await res.json().catch(() => ({}));
         console.error("Server Error Detail:", errData);
         alert(errData.detail || t("support.sendFailed"));

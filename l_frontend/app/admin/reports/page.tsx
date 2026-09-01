@@ -7,8 +7,8 @@ import { getToken } from "@/lib/auth";
 import { Flag, CheckCircle, XCircle, Trash2, Ban } from "lucide-react";
 
 const REASON_LABELS: Record<string, string> = {
-  spam: "рџ“ў Спам",
-  insult: "СЂСџВ�Ў Оскорбление",
+  spam: "📢 Спам",
+  insult: "рПВ?С Оскорбление",
   nsfw: "🔞 Контент 18+",
   rules_violation: "⚠️ Нарушение правил",
   other: "❓ Другое",
@@ -50,8 +50,8 @@ export default function ReportsPage() {
 
   async function resolveReport(reportId: number, action: string) {
     const confirmMsg = {
-      delete_post: "РЈРґалить пост Рё закрыть жалобу?",
-      ban_user: "Забанить пользователя Рё закрыть жалобу?",
+      delete_post: "РЈРґалить пост и закрыть жалобу?",
+      ban_user: "Забанить пользователя и закрыть жалобу?",
       ignore: "Закрыть жалобу без действий?",
     }[action];
 
@@ -100,7 +100,7 @@ export default function ReportsPage() {
               href="/admin"
               className="text-sm text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
-              ← Назад РІ Р°Рґминку
+              ← Назад в админку
             </Link>
           </div>
 
@@ -116,7 +116,7 @@ export default function ReportsPage() {
                     : "border-line dark:border-white/20 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"
                 }`}
               >
-                {f === "pending" && "вЏі Новые"}
+                {f === "pending" && "⏳ Новые"}
                 {f === "resolved" && "✅ Обработанные"}
                 {f === "rejected" && "❌ Отклонённые"}
                 {f === "all" && "Все"}
@@ -153,7 +153,7 @@ export default function ReportsPage() {
                 )}
 
                 <div className="flex-1 min-w-0">
-                  {/* Р В�нфо Рѕ жалобе */}
+                  {/* Инфо о жалобе */}
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold text-gray-900 dark:text-white">
                       {r.reporter?.display_name || "Unknown"}
@@ -214,7 +214,7 @@ export default function ReportsPage() {
                   )}
                 </div>
 
-                {/* Р”РµР№ствия вЂ” только Рґля pending */}
+                {/* Действия — только Рґля pending */}
                 {r.status === "pending" && (
                   <div className="flex flex-col gap-2">
                     {r.target?.type === "post" && (

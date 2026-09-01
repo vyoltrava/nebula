@@ -36,7 +36,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
   const recordedBlobRef = useRef<Blob | null>(null);
 
-  // РРЅРёС†РёалРёзаС†РёСЏ камеры
+  // Инициализация камеры
   useEffect(() => {
     startCamera(facingMode);
     return () => {
@@ -48,7 +48,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   }, []);
 
 
-    // 🔄 ФРКС ЧЁРНОГО ЭКРАНА: при сворачивании/разворачивании/выходе из предпросмотра
+    // 🔄 ФИКС ЧЁРНОГО ЭКРАНА: при сворачивании/разворачивании/выходе из предпросмотра
   // <video> пересоздаётся, а стрим оставался на уничтоженном элементе.
   // Эффект повторно вешает стрим на живой элемент.
   useEffect(() => {
@@ -247,7 +247,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   const glassBtn =
     "flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-line dark:border-white/15 text-gray-800 dark:text-white/85 hover:bg-white/15 hover:text-gray-900 dark:hover:text-white active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all";
 
-  // ===================== СВЁРНУТЫЙ РР•Р–РМ (ORB) =====================
+  // ===================== СВЁРНУТЫЙ РЕЖИМ (ORB) =====================
   if (isMinimized) {
     const orbSize = 72; // мобила
     return (
@@ -344,7 +344,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
     );
   }
 
-  // ===================== ПОЛНОЭКРАННЫЙ РР•Р–РМ =====================
+  // ===================== ПОЛНОЭКРАННЫЙ РЕЖИМ =====================
   // Квадрат адаптивный: min(92vw, 92vh, 480px) — всегда квадрат на любом экране
   const squareSize = "min(92vw, 82vh, 480px)";
 
@@ -358,7 +358,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
           {isRecording && (
             <div className="absolute -inset-3 sm:-inset-4 pointer-events-none">
               <ProgressRing size={0} stroke={0} />
-              {/* РСЃРїРѕлСЊзСѓеРј отдельный SVG на весь контейнер */}
+              {/* Используем отдельный SVG на весь контейнер */}
               <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" style={{ transform: "rotate(-90deg)", filter: "drop-shadow(0 0 8px #8b5cf6)" }}>
                 <rect x="2" y="2" width="96" height="96" rx="20" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
                 <rect

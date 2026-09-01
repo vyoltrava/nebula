@@ -1,5 +1,5 @@
 ﻿/* ============================================================
-   ZUNE-ANIMATIONS вЂ” «жидкая» пластика Windows Phone.
+   ZUNE-ANIMATIONS — «жидкая» пластика Windows Phone.
    Пружина cubic-bezier(0.68,-0.55,0.27,1.55); посты выезжают
    снизу каскадом; живое кольцо аватара; скроллбар 3px → 5px.
    ============================================================ */
@@ -87,7 +87,7 @@ body.zune-theme aside {
   transition-timing-function: var(--z-spring);
 }
 
-/* ---------- Уважение Рє reduce-motion ---------- */
+/* ---------- Уважение к reduce-motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   body.zune-theme *,
   body.zune-theme *::before,

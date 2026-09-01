@@ -21,7 +21,7 @@ export default function AdminThemesPage() {
   const [globalEnabled, setGlobalEnabled] = useState(true);
   const [previewTheme, setPreviewTheme] = useState<ThemeConfig | null>(null);
 
-  // Загрузка Р°Рґмина
+  // Загрузка админа
   useEffect(() => {
     const token = getToken();
     if (!token) { router.push("/login"); return; }
@@ -64,7 +64,7 @@ export default function AdminThemesPage() {
         }
       }
     } catch {}
-    // Fallback: встроенные темы + сохранённые РІ localStorage
+    // Fallback: встроенные темы + сохранённые в localStorage
     const custom = localStorage.getItem("custom_themes");
     if (custom) {
       try {
@@ -120,7 +120,7 @@ export default function AdminThemesPage() {
 
   function saveTheme() {
     if (!editingTheme || !editingTheme.name.trim()) {
-      alert("Р’РІРµРґите название темы");
+      alert("Введите название темы");
       return;
     }
 
@@ -194,7 +194,7 @@ export default function AdminThemesPage() {
     // Перезагружаем список
     await loadThemes();
     
-    // Если СѓРґалили активную вЂ” сбрасываем
+    // Если удалили активную — сбрасываем
     if (previewTheme?.id === t.id) {
       setPreviewTheme(null);
       setTheme(null);
@@ -235,7 +235,7 @@ export default function AdminThemesPage() {
               <div>
                 <h1 className="text-2xl font-black text-gray-900 dark:text-white">Конструктор тем</h1>
                 <p className="text-xs text-gray-500 dark:text-white/40 mt-0.5">
-                  Создавай анимированные фоны Рґля всего СЃР°Р№та
+                  Создавай анимированные фоны Рґля всего сайта
                 </p>
               </div>
             </div>
@@ -257,7 +257,7 @@ export default function AdminThemesPage() {
                   Темы включены Рґля всех пользователей
                 </p>
                 <p className="text-[11px] text-gray-500 dark:text-white/40">
-                  {globalEnabled ? "Анимированные фоны отображаются на СЃР°Р№те" : "Фон выключен Рґля всех вЂ” чистый чёрный"}
+                  {globalEnabled ? "Анимированные фоны отображаются на сайте" : "Фон выключен Рґля всех — чистый чёрный"}
                 </p>
               </div>
             </div>
@@ -292,7 +292,7 @@ export default function AdminThemesPage() {
         </div>
       </main>
 
-      {/* РњРѕРґалка СЂРµРґактора */}
+      {/* Модалка редактора */}
       {showEditor && editingTheme && (
         <ThemeEditor
           theme={editingTheme}
@@ -327,14 +327,14 @@ function ThemeCard({
           <button
             onClick={onPreview}
             className="p-2 rounded-lg bg-white/20 backdrop-blur text-gray-900 dark:text-white hover:bg-white/30 transition-all"
-            title="Применить ко всему СЃР°Р№ту"
+            title="Применить ко всему сайту"
           >
             <Eye size={16} />
           </button>
           <button
             onClick={onEdit}
             className="p-2 rounded-lg bg-white/20 backdrop-blur text-gray-900 dark:text-white hover:bg-white/30 transition-all"
-            title="Р РµРґактировать"
+            title="Редактировать"
           >
             <Edit3 size={16} />
           </button>
@@ -358,7 +358,7 @@ function ThemeCard({
         )}
       </div>
 
-      {/* Р В�нфо */}
+      {/* Инфо */}
       <div className="p-3">
         <div className="flex items-center justify-between gap-2 mb-2">
           <h3 className="font-bold text-gray-900 dark:text-white truncate">{theme.name || "Без названия"}</h3>
@@ -409,7 +409,7 @@ function ThemeCard({
   );
 }
 
-// ============ ПРЕВЬЮ ТЕМЫ (мини-СЂРµРЅРґер) ============
+// ============ ПРЕВЬЮ ТЕМЫ (мини-рендер) ============
 function ThemePreview({ theme }: { theme: ThemeConfig }) {
   const c1 = theme.colors[0] || "#8b5cf6";
   const c2 = theme.colors[1] || "#6366f1";
@@ -461,7 +461,7 @@ function ThemeEditor({
   const ANIMATION_TYPES: { value: ThemeAnimationType; label: string; icon: any; desc: string }[] = [
     { value: "aurora", label: "Аврора", icon: Sparkles, desc: "Плавающие размытые пятна" },
     { value: "gradient", label: "Перелив", icon: Palette, desc: "Поток перетекающих цветов" },
-    { value: "liquid", label: "Р–РёРґкость", icon: Zap, desc: "Вращающиеся формы" },
+    { value: "liquid", label: "Жидкость", icon: Zap, desc: "Вращающиеся формы" },
     { value: "neon", label: "Неон", icon: Sparkles, desc: "Пульсирующие пятна" },
   ];
 
@@ -489,7 +489,7 @@ function ThemeEditor({
           <div className="sticky top-0 bg-ivory dark:bg-[#1f1f23] p-4 border-b border-line dark:border-white/10 flex items-center justify-between z-10">
             <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
               <Palette size={20} className="text-[#8b5cf6]" />
-              Р РµРґактор темы
+              Редактор темы
             </h2>
             <button onClick={onClose} className="p-2 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-white/10">
               <X size={18} />
@@ -502,7 +502,7 @@ function ThemeEditor({
               <ThemePreview theme={theme} />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <p className="text-gray-800 dark:text-white/80 font-bold text-lg drop-shadow-lg">
-                  {theme.name || "РџСЂРµРґпросмотр"}
+                  {theme.name || "Предпросмотр"}
                 </p>
               </div>
             </div>
@@ -585,7 +585,7 @@ function ThemeEditor({
               </div>
             </div>
 
-            {/* РЎР»Р°Р№Рґеры */}
+            {/* Слайдеры */}
             <SliderRow
               label="Скорость анимации"
               value={theme.speed}
@@ -614,13 +614,13 @@ function ThemeEditor({
               onChange={(v) => onChange({ ...theme, blur: v })}
             />
 
-            {/* Уровень Рґоступа (на Р±СѓРґущее) */}
+            {/* Уровень Рґоступа (на будущее) */}
             <div className="p-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 flex items-center gap-3">
               <Lock size={16} className="text-gray-500 dark:text-white/40" />
               <div className="flex-1">
                 <p className="text-xs font-bold text-gray-800 dark:text-white/80">Уровень Рґоступа</p>
                 <p className="text-[10px] text-gray-500 dark:text-white/40">
-                  Для всех = 0, Спонсоры = 3, РђРґмины = 9
+                  Для всех = 0, Спонсоры = 3, Админы = 9
                 </p>
               </div>
               <input
@@ -653,7 +653,7 @@ function ThemeEditor({
   );
 }
 
-// ============ Р Р€Р СњР В�Р’Р•РРЎРђР›ЬРќЫР™ СЛАЙДЕР ============
+// ============ УНРВ?ВЕРСАЛЬНЫЙ СЛАЙДЕР ============
 function SliderRow({
   label, value, min, max, step, unit, hint, onChange, format,
 }: {

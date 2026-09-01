@@ -7,8 +7,8 @@ import { getToken } from "@/lib/auth";
 import { Flag, CheckCircle, XCircle, Trash2, Ban } from "lucide-react";
 
 const REASON_LABELS: Record<string, string> = {
-  spam: "рџ“ў Спам",
-  insult: "СЂСџВ�РЋ Оскорбление",
+  spam: "📢 Спам",
+  insult: "рПВ?С Оскорбление",
   nsfw: "🔞 Контент 18+",
   rules_violation: "⚠️ Нарушение правил",
   other: "❓ Другое",
@@ -100,7 +100,7 @@ export default function ReportsPage() {
               href="/admin"
               className="text-sm text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white transition-colors"
             >
-              ← Назад РІ Р°Рґминку
+              ← Назад РІ админку
             </Link>
           </div>
 
@@ -116,7 +116,7 @@ export default function ReportsPage() {
                     : "border-line dark:border-white/20 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"
                 }`}
               >
-                {f === "pending" && "вЏі Новые"}
+                {f === "pending" && "⏳ Новые"}
                 {f === "resolved" && "✅ Обработанные"}
                 {f === "rejected" && "❌ Отклонённые"}
                 {f === "all" && "Все"}
@@ -214,7 +214,7 @@ export default function ReportsPage() {
                   )}
                 </div>
 
-                {/* Р”РµР№ствия вЂ” только Рґля pending */}
+                {/* Действия — только Рґля pending */}
                 {r.status === "pending" && (
                   <div className="flex flex-col gap-2">
                     {r.target?.type === "post" && (

@@ -119,7 +119,7 @@ export default function BackupsPage() {
             value={actorFilter}
             onChange={(e) => setActorFilter(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && load()}
-            placeholder="Фильтр: ID админа…"
+            placeholder="Фильтр: ID админаЅ"
             className="px-3 py-2 text-sm rounded-lg bg-white dark:bg-white/5 border border-gray-300 dark:border-white/10 outline-none focus:border-purple-500 w-56"
           />
           <button onClick={load} className="text-sm px-4 py-2 rounded-lg bg-purple-500 text-white font-bold hover:bg-purple-600">Обновить</button>
@@ -128,7 +128,7 @@ export default function BackupsPage() {
         {msg && <div className="mb-4 text-sm px-4 py-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-600 dark:text-purple-300">{msg}</div>}
 
         {loading ? (
-          <div className="text-sm text-gray-500 dark:text-white/40 py-10 text-center">Загрузка…</div>
+          <div className="text-sm text-gray-500 dark:text-white/40 py-10 text-center">ЗагрузкаЅ</div>
         ) : backups.length === 0 ? (
           <div className="text-sm text-gray-500 dark:text-white/40 py-10 text-center border border-dashed border-gray-300 dark:border-white/10 rounded-2xl">
             Резерв пуст — деструктивных действий не зафиксировано.

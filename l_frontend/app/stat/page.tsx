@@ -298,7 +298,7 @@ export default function StatPage() {
           </div>
         </div>
 
-        {/* ========== РџРѕлСЊзРѕРІаС‚елРё ========== */}
+        {/* ========== Пользователи ========== */}
         {activeTab === "users" && overview && (
           <div className="space-y-6">
             {/* ОБЗОР */}
@@ -335,7 +335,7 @@ export default function StatPage() {
                   <p className="text-[10px] text-gray-500 dark:text-white/40 mt-2">Средняя оценка активности</p>
                 </div>
                 <div className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl p-4">
-                  <p className="text-gray-600 dark:text-white/50 text-xs mb-3">РџРѕлСЊзРѕРІаС‚елРё</p>
+                  <p className="text-gray-600 dark:text-white/50 text-xs mb-3">Пользователи</p>
                   <div className="flex items-end gap-3 h-14">
                     {[
                       { v: overview.total_posts, l: "Посты", c: "#8b5cf6" },
@@ -355,7 +355,7 @@ export default function StatPage() {
               </div>
             </div>
 
-            {/* ФРР›ЬРўРЫ */}
+            {/* ФИЛЬТРЫ */}
             <div className="flex gap-3 items-center p-4 bg-gray-100 dark:bg-white/5 rounded-xl border border-line dark:border-white/10 flex-wrap relative">
               <div className="flex-1 min-w-[200px] relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" size={18} />
@@ -396,7 +396,7 @@ export default function StatPage() {
               </div>
             </div>
 
-            {/* РўРђР‘Р›РЦРђ */}
+            {/* ТАБЛИЦА */}
             <div className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl overflow-x-auto">
               <table className="w-full text-sm border-collapse min-w-[900px]">
                 <thead>
@@ -496,7 +496,7 @@ export default function StatPage() {
               {filtered.length === 0 && <p className="text-center text-gray-500 dark:text-white/40 py-12">Никого не нашли</p>}
             </div>
 
-            {/* РџРђР“РРќРђЦРРЇ */}
+            {/* ПАГИНАЦИЯ */}
             {totalPages > 1 && (
               <div className="flex items-center justify-center gap-1">
                 <button disabled={page === 1} onClick={() => setPage(1)} className="p-2 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 disabled:opacity-30 hover:bg-gray-100 dark:hover:bg-white/10"><ChevronsLeft size={16} /></button>

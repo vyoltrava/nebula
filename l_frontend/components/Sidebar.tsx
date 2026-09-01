@@ -30,7 +30,7 @@ import { getNotifsCache, setNotifsCache, invalidateNotifsCache } from "@/lib/not
 
 
 // НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
-// 🎯 КОНСТАНТЫ РћРР‘РРўЫ
+// 🎯 КОНСТАНТЫ ОРБИТЫ
 // НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
 const INNER_RADIUS     = 135;
 const OUTER_RADIUS     = 215;
@@ -183,7 +183,7 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
 
 
 // НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
-// 🎛 Р’РђРРРђРќРўЫ САЙДБАРА
+// 🎛 ВАРИАНТЫ САЙДБАРА
 // НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
 export type SidebarLayout = "classic" | "orbit" | "dock" | "orbit2";
 const LAYOUT_KEY = "trelod_sidebar_layout";
@@ -315,7 +315,7 @@ export function Sidebar() {
   const [showBugModal, setShowBugModal] = useState(false);
   const [showSearch, setShowSearch]     = useState(false);
   // НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
-// 🧠 ПАМЯТЬ ЛЕНТЫ (Logic) — ОБЪЯВЛЯЕМ РАНЬШЕ, ЧЕМ РРЎРџРћР›ЬР—РЈЕМ
+// 🧠 ПАМЯТЬ ЛЕНТЫ (Logic) — ОБЪЯВЛЯЕМ РАНЬШЕ, ЧЕМ ИСПОЛЬЗУЕМ
 // НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
 const [hasFeedMemory, setHasFeedMemory] = useState(false);
 const [showTooltip, setShowTooltip] = useState(false);
@@ -362,10 +362,10 @@ useEffect(() => {
   }
 }, [hasFeedMemory]);
 
-// 🆕 ННН ПОСЛЕДНИЙ ЧРРўРђР•РњЫР™ ПОСТ ННН
+// 🆕 ННН ПОСЛЕДНИЙ ЧИТАЕМЫЙ ПОСТ ННН
 const { post: lastReadPost, clear: clearLastRead } = useLastReadPost();
 
-// 🎯 РЈРќРР’Р•РРЎРђР›ЬРќРђРЇ ФРЈРќРљЦРРЇ "РџРРћР”РћР›Р–РРўЬ" (приоритет: пост > память ленты)
+// 🎯 УНИВЕРСАЛЬНАЯ ФУНКЦИЯ "ПРОДОЛЖИТЬ" (приоритет: пост > память ленты)
 const handleContinueClick = useCallback(() => {
   if (lastReadPost) {
     // 🎯 Клик по "Продолжить чтение" — ведём на пост с флагом ?continue=1
@@ -732,7 +732,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       setScrollVelocity(0);
       router.back();
     }
-    // 🆕 РРЅаС‡е обычная логика выбора пункта меню
+    // 🆕 Иначе обычная логика выбора пункта меню
     else if (doAction && hoveredIdx !== null) {
       const item = wheelItems[hoveredIdx];
         if (item) {
@@ -783,7 +783,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     return minDist <= SNAP_RADIUS ? nearest : null;
   }, [wheelItems.length, getIconPos]);
 
-  // 🆕 РС‰еРј скроллящийся элемент (вызывается 1 раз при нажатии, не 60 раз/сек)
+  // 🆕 Ищем скроллящийся элемент (вызывается 1 раз при нажатии, не 60 раз/сек)
   const findScrollTarget = (): HTMLElement => {
     const se = document.scrollingElement as HTMLElement | null;
     if (se && se.scrollHeight > se.clientHeight) return se;
@@ -797,7 +797,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     return document.documentElement;
   };
 
-  // 🆕 ННН РЕФСЫ ДЛЯ СВОБОДНОЙ РћРР‘РРўЫ Р CTRL-РР•Р–РМА ННН
+  // 🆕 ННН РЕФСЫ ДЛЯ СВОБОДНОЙ ОРБИТЫ И CTRL-РЕЖИМА ННН
   const lastMouseRef = useRef({ x: 0, y: 0 });      // последняя позиция курсора (для Ctrl)
   const suppressClickRef = useRef(false);           // гасим клик «сквозь» открытую дугу
 
@@ -832,7 +832,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     startGestureAt(px, py);
   }, [startGestureAt]);
 
-  // рџ–Ґ Следим за курсором — нужно для открытия дуги у курсора по Ctrl
+  // 🖥 Следим за курсором — нужно для открытия дуги у курсора по Ctrl
   useEffect(() => {
     const track = (e: MouseEvent) => { lastMouseRef.current = { x: e.clientX, y: e.clientY }; };
     document.addEventListener("mousemove", track);
@@ -882,7 +882,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     };
   }, [layout, wheelOpen, startGestureAt, isNebula]);
 
-  // 🆕 CTRL-РћРР‘РТА НА ПК (только для вида «Орбита 2»):
+  // 🆕 CTRL-ОРБИТА НА ПК (только для вида «Орбита 2»):
   //    зажал Ctrl → меню (полный круг, как вторая орбита) ОТКРЫВАЕТСЯ СРАЗУ у курсора;
   //    просто кликаешь по пункту — выбираешь; отпустил Ctrl / Esc — закрылось.
   //    🔒 Не срабатывает над полями ввода и элементами с [data-orbit-ignore] (бары и пр.).
@@ -1317,7 +1317,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
                 )}
               </Link>
               
-              {/* 🆕 КНОПКА ВЫХОДА СПРАВА Р’РќРЈРўРР БЛОКА */}
+              {/* 🆕 КНОПКА ВЫХОДА СПРАВА ВНУТРИ БЛОКА */}
               {!isDock && (
                 <button 
                   onClick={() => setShowOrbitSwitcher(true)}
@@ -1453,7 +1453,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
           </div>
         )}
 
-        {/* 🆕 РРЅРґРёРєаС‚Рѕр "тянешь назад" */}
+        {/* 🆕 Индикатор "тянешь назад" */}
         {pullingBack && (
           <div
             className="absolute pointer-events-none"
@@ -1471,7 +1471,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
           </div>
         )}
 
-        {/* 🆕 РРЅРґРёРєаС‚Рѕр скролла */}
+        {/* 🆕 Индикатор скролла */}
         {scrollVelocity !== 0 && !pullingBack && (
           <div
             className="absolute pointer-events-none"
@@ -1500,8 +1500,8 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       {/* 🚫 В режиме Nebula классическая орбита полностью отключена (в т.ч. кнопка вне <aside>) */}
       {!nebulaOff && (
       <div className={layout === "orbit" ? "block" : layout === "orbit2" ? "hidden" : "md:hidden"}>
-        {/* рџ”Ґ РљРРЈР“Р НА ВОДЕ (Память ленты) */}
-        {/* рџ”Ґ МЯГКОЕ РЎР’Р•ЧР•РќРЕ (Сохраненный пост) */}
+        {/* 🔥 КРУГИ НА ВОДЕ (Память ленты) */}
+        {/* 🔥 МЯГКОЕ СВЕЧЕНИЕ (Сохраненный пост) */}
         {lastReadPost && (
           <div 
             className={`fixed z-[97] w-14 h-14 pointer-events-none flex items-center justify-center
@@ -1552,7 +1552,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       {/* 🚫 В Nebula классическая дуга не рендерится */}
       {!nebulaOff && renderWheel()}
 
-{/* 🆕 рџ”Ґ ТУЛТИП "РџРРћР”РћР›Р–РРўЬ ЧРўР•РќРЕ" */}
+{/* 🆕 🔥 ТУЛТИП "ПРОДОЛЖИТЬ ЧТЕНИЕ" */}
 {!nebulaOff && showTooltip && showContinueButton && layout !== "orbit2" && (
   <div 
     className={`fixed z-[99] bg-[#8b5cf6] text-white text-xs font-bold px-3 py-2 rounded-lg shadow-xl whitespace-nowrap animate-bounce

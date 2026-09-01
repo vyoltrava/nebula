@@ -233,7 +233,7 @@ export function CreatePost() {
   />
 </div>
 
-{/* ✅ ПРЕВЬЮ И КНОПКИ ВЫНЕСЕНЫ НАРУЖУ (ниже поля ввода) */}
+{/* ✅ ПРЕВЬЮ Р КНОПКИ ВЫНЕСЕНЫ НАРУЖУ (ниже поля ввода) */}
 {preview && file && (
   <div className="relative mt-2 max-w-full">
     {file.type.startsWith("audio/") ? (

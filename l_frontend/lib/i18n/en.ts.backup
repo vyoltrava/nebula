@@ -508,7 +508,7 @@ export const en: Dictionary = {
     body: "Your account has been blocked by the administration for violating community rules.",
     status: "Account status",
     appeal: "If you believe this block was a mistake, please contact the administration.",
-    footer: "trelod Е Moderation System",
+    footer: "trelod • Moderation System",
   },
   pwa: {
     install: "Install app",
@@ -716,7 +716,7 @@ export const en: Dictionary = {
     activated: "Channel activated",
     tapToSend: "Tap the crystal at the bottom to send a message",
     placeholder: "Enter message...",
-    hint: "Enter to send Е Esc to close",
+    hint: "Enter to send • Esc to close",
   },
   group: {
     new: "New group",

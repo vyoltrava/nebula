@@ -247,7 +247,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   const glassBtn =
     "flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-line dark:border-white/15 text-gray-800 dark:text-white/85 hover:bg-white/15 hover:text-gray-900 dark:hover:text-white active:scale-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all";
 
-  // ===================== СВЁРНУТЫЙ РР•Р–РРњ (ORB) =====================
+  // ===================== СВЁРНУТЫЙ РР•Р–РМ (ORB) =====================
   if (isMinimized) {
     const orbSize = 72; // мобила
     return (
@@ -344,7 +344,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
     );
   }
 
-  // ===================== ПОЛНОЭКРАННЫЙ РР•Р–РРњ =====================
+  // ===================== ПОЛНОЭКРАННЫЙ РР•Р–РМ =====================
   // Квадрат адаптивный: min(92vw, 92vh, 480px) — всегда квадрат на любом экране
   const squareSize = "min(92vw, 82vh, 480px)";
 

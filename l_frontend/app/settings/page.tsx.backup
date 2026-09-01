@@ -507,7 +507,7 @@ async function activate2FA() {
               </div>
             )}
 
-            {/* ---------- Р’РќР•РЁНИЙ ВИД ---------- */}
+            {/* ---------- ВНЕШНИЙ ВИД ---------- */}
             {view === "appearance" && (
               <div>
                 <h2 className="text-lg font-semibold mb-1">{t("settings.appearance")}</h2>
@@ -527,7 +527,7 @@ async function activate2FA() {
               </div>
             )}
 
-            {/* ---------- РРђР—РР•РЁЕНИЯ ---------- */}
+            {/* ---------- РАЗРЕШЕНИЯ ---------- */}
             {view === "permissions" && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">{t("settings.permissions")}</h2>

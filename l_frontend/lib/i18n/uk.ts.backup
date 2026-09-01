@@ -515,7 +515,7 @@ export const uk = {
     updateLater: "Пізніше",
     online: "В мережі",
     offline: "Немає з'єднання",
-    syncing: "Синхронгзацгя…",
+    syncing: "Синхронізація…",
   },
   perm: {
     title: "Доступ до мікрофона та камери",

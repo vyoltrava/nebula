@@ -193,7 +193,7 @@
   to   { opacity: 1; transform: scale(1); }
 }
 
-/* ---------- РљРР РџРР§РРљР Р¤РћР Рњ РќРђРЎРўР ОЕК ---------- */
+/* ---------- КИРПИЧИКИ ФОРМ НАСТРОЕК ---------- */
 .zune-theme label.text-sm,
 .zune-theme label.font-medium {
   font-size: 18px !important;

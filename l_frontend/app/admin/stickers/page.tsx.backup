@@ -33,7 +33,7 @@ export default function AdminStickersPage() {
   const [emojiInputs, setEmojiInputs] = useState<Record<number, string>>({});
   const fileRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
-  // 🆕 Состояния Рґля нового СЂРµРґактора пака
+  // 🆕 Состояния Рґля нового редактора пака
   const [selectedEmojis, setSelectedEmojis] = useState<string[]>([]);
   const [emojiSearch, setEmojiSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("emotions");
@@ -86,7 +86,7 @@ export default function AdminStickersPage() {
         const data = await res.json();
         const packId = editingPack.id || data.id;
 
-        // 🆕 Если выбраны СЌРјРѕРґзи вЂ” Рґобавляем их РІ пак
+        // 🆕 Если выбраны эмодзи — Рґобавляем их РІ пак
         if (selectedEmojis.length > 0 && packId) {
           const emojiForm = new FormData();
           emojiForm.append("emojis", JSON.stringify(selectedEmojis));
@@ -184,7 +184,7 @@ export default function AdminStickersPage() {
     loadPacks();
   }
 
-  // 🆕 Фильтрация СЌРјРѕРґзи
+  // 🆕 Фильтрация эмодзи
   const filteredStickers = emojiSearch.trim()
     ? STICKERS.filter(s =>
         s.emoji.includes(emojiSearch) ||
@@ -279,12 +279,12 @@ export default function AdminStickersPage() {
                       onClick={() => deleteSticker(s.id)}
                       className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      Г—
+                      ×
                     </button>
                   </div>
                 ))}
                 {pack.stickers.length === 0 && (
-                  <p className="text-[11px] text-gray-500 dark:text-white/30">Пак пуст вЂ” Рґобавь стикеры ниже ↓</p>
+                  <p className="text-[11px] text-gray-500 dark:text-white/30">Пак пуст — Рґобавь стикеры ниже ↓</p>
                 )}
               </div>
 
@@ -311,7 +311,7 @@ export default function AdminStickersPage() {
                     value={emojiInputs[pack.id] || ""}
                     onChange={(e) => setEmojiInputs(prev => ({ ...prev, [pack.id]: e.target.value }))}
                     onKeyDown={(e) => { if (e.key === "Enter") addEmoji(pack.id); }}
-                    placeholder="Вставь СЌРјРѕРґзи: 💀 рџ—ї рџ”Ґ (можно несколько через пробел)"
+                    placeholder="Вставь эмодзи: 💀 🗿 🔥 (можно несколько через пробел)"
                     className="flex-1 px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400"
                   />
                   <button onClick={() => addEmoji(pack.id)} className="px-3 py-2 rounded-lg bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-xs font-bold hover:bg-yellow-500/30">
@@ -323,18 +323,18 @@ export default function AdminStickersPage() {
           ))}
 
           {packs.length === 0 && (
-            <p className="text-center text-gray-500 dark:text-white/40 py-16">Паков пока нет вЂ” создай первый!</p>
+            <p className="text-center text-gray-500 dark:text-white/40 py-16">Паков пока нет — создай первый!</p>
           )}
         </div>
 
-        {/* 🆕 РЈР›РЈР§РЁЕННЫЙ РЕДАКТОР ПАКА */}
+        {/* 🆕 УЛУЧШЕННЫЙ РЕДАКТОР ПАКА */}
         {showPackEditor && editingPack && (
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300]" onClick={() => !savingPack && setShowPackEditor(false)} />
             <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
               <div className="w-full max-w-2xl bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="font-black text-gray-900 dark:text-white text-lg">{editingPack.id ? "Р РµРґактировать пак" : "Новый пак"}</h2>
+                  <h2 className="font-black text-gray-900 dark:text-white text-lg">{editingPack.id ? "Редактировать пак" : "Новый пак"}</h2>
                   <button onClick={() => !savingPack && setShowPackEditor(false)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white p-1"><X size={18} /></button>
                 </div>
 
@@ -364,11 +364,11 @@ export default function AdminStickersPage() {
                     </div>
                   </div>
 
-                  {/* 🆕 ВЫБОР Р­Р СљР С›Р вЂќР вЂ”Р В� Р В�Р— Р вЂ�Р В�Р вЂ�Р вЂєР В�Р С›Р СћР вЂўР С™Р В� */}
+                  {/* 🆕 ВЫБОР ЭМОДЗРВ? Р В�З РвЀ?РВ?РвЀ?ЛРВ?ОТЕКРВ? */}
                   <div className="border border-line dark:border-white/10 rounded-xl p-3 bg-white/[0.02]">
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-xs font-bold text-gray-600 dark:text-white/60">
-                        Выбрать СЌРјРѕРґзи из библиотеки ({selectedEmojis.length} выбрано)
+                        Выбрать эмодзи из библиотеки ({selectedEmojis.length} выбрано)
                       </label>
                       {selectedEmojis.length > 0 && (
                         <button
@@ -380,7 +380,7 @@ export default function AdminStickersPage() {
                       )}
                     </div>
 
-                    {/* Выбранные СЌРјРѕРґзи */}
+                    {/* Выбранные эмодзи */}
                     {selectedEmojis.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mb-3 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
                         {selectedEmojis.map((emoji, i) => (
@@ -402,7 +402,7 @@ export default function AdminStickersPage() {
                       <input
                         value={emojiSearch}
                         onChange={e => setEmojiSearch(e.target.value)}
-                        placeholder="Поиск СЌРјРѕРґзи..."
+                        placeholder="Поиск эмодзи..."
                         className="w-full pl-9 pr-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-yellow-600 dark:focus:border-yellow-400"
                       />
                     </div>
@@ -426,7 +426,7 @@ export default function AdminStickersPage() {
                       </div>
                     )}
 
-                    {/* Сетка СЌРјРѕРґзи */}
+                    {/* Сетка эмодзи */}
                     <div className="grid grid-cols-8 sm:grid-cols-10 gap-1 max-h-48 overflow-y-auto p-1">
                       {filteredStickers.map((s) => {
                         const isSelected = selectedEmojis.includes(s.emoji);
@@ -446,7 +446,7 @@ export default function AdminStickersPage() {
                         );
                       })}
                       {filteredStickers.length === 0 && (
-                        <p className="col-span-full text-center text-gray-500 dark:text-white/30 text-xs py-4">Ничего не РЅР°Р№Рґено</p>
+                        <p className="col-span-full text-center text-gray-500 dark:text-white/30 text-xs py-4">Ничего не найдено</p>
                       )}
                     </div>
                   </div>

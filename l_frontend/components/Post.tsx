@@ -151,7 +151,7 @@ function AuthorBadges({ is_admin, is_moderator, is_banned, role }: {
   );
 }
 
-// 🆕 РнлаР№н-редактор поста — «лист тетради» на пожелтевшей бумаге.
+// 🆕 Инлайн-редактор поста — «лист тетради» на пожелтевшей бумаге.
 // Рендерится прямо внутри карточки поста на месте текста (никаких модалок).
 function InlinePostEditor({
   value,
@@ -325,7 +325,7 @@ export function Post({
     setEditText(text);
   }, [text]);
 
-// рџ”Ґ Оптимизация: view отправляем только на странице поста или при реальной видимости
+// 🔥 Оптимизация: view отправляем только на странице поста или при реальной видимости
 useEffect(() => {
   if (isMainPost) {
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/posts/${id}/view`, {
@@ -375,7 +375,7 @@ useEffect(() => {
     const cleanUsername = username || handle?.replace("@", "");
 
     useEffect(() => {
-      // рџ”Ґ Проверяем кеш сначала
+      // 🔥 Проверяем кеш сначала
       const cached = getCachedFollow(author_id);
       if (cached !== null) {
         setFollowing(cached);
@@ -531,7 +531,7 @@ async function toggleLike() {
   const next = !liked;
   setLiked(next);
   setCount((c) => Math.max(0, next ? (c ?? 0) + 1 : (c ?? 0) - 1));
-  setLikedCache(id, next); // ← РРђРЎРљРћРњРњР•РќРўРРРћР’РђРўЬ, пишем сразу
+  setLikedCache(id, next); // ← РАСКОММЕНТИРОВАТЬ, пишем сразу
   // Взаимное исключение: при лайке снимаем дизлайк
   if (next && disliked) {
     setDisliked(false);
@@ -773,7 +773,7 @@ async function toggleDislike() {
     }
   }
 
-  // 🆕 ЕДИНАЯ ФРЈРќРљЦРРЇ ДЛЯ РЕПОСТА Р ЦРРўРђРўЫ
+  // 🆕 ЕДИНАЯ ФУНКЦИЯ ДЛЯ РЕПОСТА И ЦИТАТЫ
   async function handleRepostOrQuote(postId: number) {
     const token = getToken();
     if (!token) { router.push("/login"); return; }
@@ -868,7 +868,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 role={author_role}
               />
 
-              {/* РРєРѕнРєа Эхо */}
+              {/* Иконка Эхо */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1083,7 +1083,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               <Reply size={13} />
             </button>
 
-            {/* 🆕 ЕДИНАЯ КНОПКА РЕПОСТА Р ЦРРўРђРўЫ */}
+            {/* 🆕 ЕДИНАЯ КНОПКА РЕПОСТА И ЦИТАТЫ */}
             {currentUser && currentUser.id !== author_id && !is_repost && !is_quote && (
               <button
                 onClick={() => handleRepostOrQuote(id)}

@@ -268,7 +268,7 @@ export default function PrismChatPage() {
             value={pin}
             onChange={(e) => setPin(e.target.value)}
             onKeyDown={handlePinKeyDown}
-            placeholder="••••"
+            placeholder="ЕЕЕЕ"
             autoFocus
             disabled={syncStatus === "decrypting"}
             className="w-full px-4 py-3 rounded-xl bg-gray-50 dark:bg-white/5 border border-line dark:border-white/10 text-center text-xl tracking-[0.5em] focus:outline-none focus:border-cyan-500/60 transition-colors"

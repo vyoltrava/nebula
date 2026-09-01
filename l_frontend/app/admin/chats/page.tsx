@@ -61,7 +61,7 @@ export default function AdminChatsPage() {
     if (res.ok) openChat(activeChat);
     else {
       const d = await res.json().catch(() => null);
-      alert(d?.detail || "Ошибка СѓРґаления (возможно, только Рґля Founder)");
+      alert(d?.detail || "Ошибка удаления (возможно, только Рґля Founder)");
     }
   }
 
@@ -94,7 +94,7 @@ export default function AdminChatsPage() {
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
       <main className="flex-1 flex overflow-hidden border-x border-line dark:border-white/10">
-        {/* Р РЋР СџР В�СОК ЧАТОВ */}
+        {/* СПРВ?СОК ЧАТОВ */}
         <div className={`w-full md:w-96 md:border-r border-line dark:border-white/10 flex flex-col ${activeChat ? "hidden md:flex" : "flex"}`}>
           <div className="p-4 border-b border-line dark:border-white/10 bg-paper dark:bg-[#171717]/80 backdrop-blur-md">
             <div className="flex items-center gap-3 mb-3">
@@ -102,7 +102,7 @@ export default function AdminChatsPage() {
                 <ArrowLeft size={18} />
               </button>
               <MessageSquare size={20} className="text-cyan-600 dark:text-cyan-400" />
-              <h1 className="text-lg font-black text-gray-900 dark:text-white">РњРѕРґерация чатов</h1>
+              <h1 className="text-lg font-black text-gray-900 dark:text-white">Модерация чатов</h1>
             </div>
             <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
@@ -114,7 +114,7 @@ export default function AdminChatsPage() {
               />
             </div>
             <p className="text-xs text-gray-500 dark:text-white/40 mt-2">
-              Всего: {chats.length} В· Показано: {filtered.length}
+              Всего: {chats.length} · Показано: {filtered.length}
             </p>
           </div>
           <div className="flex-1 overflow-y-auto">
@@ -141,18 +141,18 @@ export default function AdminChatsPage() {
                   </p>
                   <p className="text-[11px] text-gray-500 dark:text-white/40 truncate">
                     {c.is_group ? `${c.members_count} участников` : "Личный чат"}
-                    {c.last_message && ` В· ${c.last_message.text?.slice(0, 25) || "📎"}`}
+                    {c.last_message && ` · ${c.last_message.text?.slice(0, 25) || "📎"}`}
                   </p>
                 </div>
               </button>
             ))}
             {filtered.length === 0 && (
-              <p className="text-center text-gray-500 dark:text-white/40 text-sm py-8">Чатов не РЅР°Р№Рґено</p>
+              <p className="text-center text-gray-500 dark:text-white/40 text-sm py-8">Чатов не найдено</p>
             )}
           </div>
         </div>
 
-        {/* Р РЋР С›Р С›Р вЂ�Р©Р вЂўР СњР В�РЇ */}
+{/* ВКЛАДКИ ЧАТОВ (текст восстановлен вручную после потери данных кодировкой) */}
         <div className={`flex-1 flex flex-col ${activeChat ? "flex" : "hidden md:flex"}`}>
           {!activeChat ? (
             <div className="flex-1 flex items-center justify-center">
@@ -183,7 +183,7 @@ export default function AdminChatsPage() {
                     <Avatar src={m.sender_avatar} name={m.sender_name} id={m.sender_id} size={32} />
                     <div className="flex-1 min-w-0">
                       <p className="text-[11px] text-gray-600 dark:text-white/50">
-                        <span className="font-bold text-gray-800 dark:text-white/80">{m.sender_name}</span> В·{" "}
+                        <span className="font-bold text-gray-800 dark:text-white/80">{m.sender_name}</span> ·{" "}
                         {new Date(m.created_at).toLocaleString("ru-RU", {
                           day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
                         })}

@@ -31,7 +31,7 @@
   text-shadow: none;
 }
 
-/* РСЃРєР»СЋС‡РµРЅия: РєСЂСѓРіР»С‹Рµ Р°РІР°С‚Р°ры Рё РїРѕР»Р·СѓРЅРѕРє-switch */
+/* Исключения: круглые аватары и ползунок-switch */
 .zune-theme img[alt][src*="avatar"],
 .zune-theme .avatar,
 .zune-theme [data-avatar],

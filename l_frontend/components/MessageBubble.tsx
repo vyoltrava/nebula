@@ -66,7 +66,7 @@ export const MessageBubble = memo(function MessageBubble({
   const isVideoNote = !!msg.media_url && msg.media_type === "video_note";
   const isAudio = !!msg.media_url && msg.media_type === "audio";
   const isSticker = !!msg.media_url && msg.media_type === "sticker"; // 🆕 Добавлено для стикеров
-  const isForwarded = !!msg.forwarded_from_id; // ✅ РРЎРџРРђР’Р›Р•РќРћ: добавлена отсутствующая переменная
+  const isForwarded = !!msg.forwarded_from_id; // ✅ ИСПРАВЛЕНО: добавлена отсутствующая переменная
   const isEncryptedMedia = !!msg.is_encrypted_media || msg.ciphertext === "[encrypted_media]";
 
   return (
@@ -138,7 +138,7 @@ export const MessageBubble = memo(function MessageBubble({
               </>
             )}
 
-            {/* 🆕 ЦРТАТА (ответ на сообщение) */}
+            {/* 🆕 ЦИТАТА (ответ на сообщение) */}
             {msg.reply_preview && (
               <button
                 onClick={(e) => {
@@ -178,7 +178,7 @@ export const MessageBubble = memo(function MessageBubble({
             )}
           </div>
 
-          {/* 🆕 РР•РђРљЦРР */}
+          {/* 🆕 РЕАКЦИИ */}
           {!isEditing && !isSelectMode && msg.reactions?.length > 0 && (
             <div className={`flex flex-wrap gap-1 mt-1.5 ${isMine ? "justify-end" : "justify-start"}`}>
               {msg.reactions.map((r: any) => (
@@ -192,7 +192,7 @@ export const MessageBubble = memo(function MessageBubble({
                   }`}
                 >
                   {r.type === "sticker" ? (
-                    /* ✅ РРЎРџРРђР’Р›Р•РќРћ: убран невалидный JS-комментарий изнутри JSX */
+                    /* ✅ ИСПРАВЛЕНО: убран невалидный JS-комментарий изнутри JSX */
                     <img src={mediaUrl(r.content)} alt="" className="w-5 h-5 object-contain" />
                   ) : (
                     <span>{r.emoji}</span>
