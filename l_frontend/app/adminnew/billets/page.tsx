@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getToken, getUserLevel } from "@/lib/auth";
 import { Plus, Shield, Gift, List, Sparkles, ArrowLeft, Crown } from "lucide-react";
-import { Button } from "@/components/ui/Button"; // ← ИМПОРТ КНОПКИ
+
+import { Button } from "@/components/ui/Button";
 import { BilletForm } from "@/components/admin/billets/BilletForm";
 import { BilletAssignForm } from "@/components/admin/billets/BilletAssignForm";
 import { BilletList } from "@/components/admin/billets/BilletList";
@@ -180,18 +181,18 @@ export default function BilletsAdminPage() {
   return (
     <div className="min-h-screen bg-paper dark:bg-[#101010] text-gray-900 dark:text-white">
       <div className="max-w-6xl mx-auto p-4 pt-6">
-        {/* ═══════════════════════════════════════════════════ */}
-        {/* ШАПКА С КНОПКОЙ НАЗАД */}
-        {/* ═══════════════════════════════════════════════════ */}
+        {/* ================ */}
+        {/* Шапка с кнопкой назад */}
+        {/* ================ */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            {/*  КНОПКА НАЗАД */}
+            {/* Кнопка назад */}
             <Button
               variant="secondary"
               size="iconSm"
               icon={ArrowLeft}
               onClick={() => router.back()}
-              title="Вернуться назад"
+              title="Назад"
             />
             
             <div>
@@ -203,7 +204,7 @@ export default function BilletsAdminPage() {
           </div>
         </div>
 
-        {/* ВКЛАДКИ */}
+        {/* Вкладки */}
         <div className="flex gap-1 mb-6 bg-paper dark:bg-[#171717] p-1 rounded-lg border border-line dark:border-white/10">
           <button onClick={() => setActiveTab("my")} className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${activeTab === "my" ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" : "text-gray-400 hover:text-gray-300"}`}>
             <List className="inline mr-2" size={16} /> Мои плашки
@@ -216,10 +217,10 @@ export default function BilletsAdminPage() {
           </button>
         </div>
 
-        {/* Кнопка перехода к системным плашкам (level 9-11) */ }
+        {/* Кнопка перехода к системным плашкам (level 9-11) */}
         <div className="mb-6">
           <button
-            onClick={() => router.push("/admin/billets/system")}
+            onClick={() => router.push("/admin/badges/system")}
             className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg text-sm font-medium text-purple-400 transition-colors flex items-center gap-2"
           >
             <Crown size={16} /> Системные плашки по уровню (9–11)
@@ -285,7 +286,7 @@ export default function BilletsAdminPage() {
       </td>
       <td className="p-4">
         <span className={`px-2 py-1 rounded text-xs ${a.is_active ? "bg-green-500/20 text-green-600 dark:text-green-400" : "bg-gray-500/20 text-gray-400"}`}>
-          {a.is_active ? "Активна" : "Истекла"}
+          {a.is_active ? "Активна" : "Отозвана"}
         </span>
       </td>
       <td className="p-4 text-right">

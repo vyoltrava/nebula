@@ -455,7 +455,15 @@ useEffect(() => {
     const handler = (e: Event) => {
       const d = (e as CustomEvent).detail;
       if (d.post_id === id && Array.isArray(d.reactions)) {
-        setPostReactions(d.reactions);
+        // Чужой синк не должен подменять МОЮ реакцию: сохраняем свой флаг mine,
+        // у остальных обновляется только число
+        setPostReactions((prev) => {
+          const my = prev.find((r) => r.mine) || null;
+          return d.reactions.map((r: any) => ({
+            ...r,
+            mine: !!my && r.type === my.type && r.content === my.content && r.sticker_id === my.sticker_id,
+          }));
+        });
       }
     };
     window.addEventListener("reaction-sync", handler);
@@ -1053,11 +1061,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 onTouchStart={(e) => { e.stopPropagation(); startReactionLongPress(); }}
                 onTouchEnd={cancelReactionLongPress}
                 onTouchMove={cancelReactionLongPress}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-line dark:border-white/20 transition-all active:scale-90 ${
-                  myReaction
-                    ? "bg-[#8B5CF6] border-[#8B5CF6] text-white"
-                    : "text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40"
-                }`}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full transition-all active:scale-90 text-gray-800 dark:text-white/70 hover:opacity-70"
                 title="Клик — выбрать реакцию · Двойной тап — быстрая · Удержание/правый клик — все реакции"
               >
                 {myReaction ? (

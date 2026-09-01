@@ -6123,10 +6123,12 @@ async def toggle_post_reaction(
 
     reactions = build_post_reactions_map(session, [post_id], user.id).get(post_id, [])
 
-    # 🚀 Рассылаем актуальные реакции ВСЕМ клиентам — число на кнопке обновляется в реальном времени
+    # 🚀 Рассылаем ВСЕМ клиентам обновлённые счётчики.
+    # mine в рассылке сбрасываем — флаг «моя реакция» у каждого клиента свой,
+    # он сохраняется локально (иначе все увидели бы чужую реакцию как свою).
     await manager.broadcast_all("post_reaction", {
         "post_id": post_id,
-        "reactions": reactions,
+        "reactions": [{**r, "mine": False} for r in reactions],
     })
     return {"ok": True, "reactions": reactions}
 

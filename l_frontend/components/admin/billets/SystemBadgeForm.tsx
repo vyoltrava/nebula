@@ -12,18 +12,18 @@ interface Props {
 
 const LEVEL_META: Record<number, { label: string; icon: string }> = {
   9: { label: "Developer", icon: "</>" },
-  10: { label: "Founder", icon: "★" },
+  10: { label: "Founder", icon: "?" },
   11: { label: "System", icon: "01" },
 };
 
 const ANIM_OPTIONS = ["pulse", "shimmer", "glow", "float"];
 const SPEED_OPTIONS = ["slow", "normal", "fast"];
 const QUALITY_PRESETS = [
-  { bg_type: "solid", bg_color: "#8b5cf6", name: "Фиолетовый" },
-  { bg_type: "solid", bg_color: "#3b82f6", name: "Синий" },
-  { bg_type: "solid", bg_color: "#fbbf24", name: "Золотой" },
-  { bg_type: "solid", bg_color: "#10b981", name: "Изумруд" },
-  { bg_type: "solid", bg_color: "#ef4444", name: "Красный" },
+  { bg_type: "solid", bg_color: "#8b5cf6", name: "����������" },
+  { bg_type: "solid", bg_color: "#3b82f6", name: "�����" },
+  { bg_type: "solid", bg_color: "#fbbf24", name: "�������" },
+  { bg_type: "solid", bg_color: "#10b981", name: "�������" },
+  { bg_type: "solid", bg_color: "#ef4444", name: "�������" },
   { bg_type: "gradient", bg_gradient: "linear-gradient(135deg,#3b82f6,#8b5cf6)", name: "Blue-Purple" },
   { bg_type: "gradient", bg_gradient: "linear-gradient(135deg,#ffffff,#e5e7eb)", name: "White Founder" },
   { bg_type: "gradient", bg_gradient: "linear-gradient(135deg,#18181b,#27272a)", name: "Dark Metal" },
@@ -59,7 +59,7 @@ export function SystemBadgeForm({ badge, level, onClose, onSuccess }: Props) {
   const [innerGlowEnabled, setInnerGlowEnabled] = useState(badge?.inner_glow_enabled ?? false);
   const [metallicEnabled, setMetallicEnabled] = useState(badge?.metallic_enabled ?? false);
   const [specularEnabled, setSpecularEnabled] = useState(badge?.specular_enabled ?? false);
-  // 🆕 Авто-подбор эффектов под выбранный цвет фона
+  // ? ����-������ �������� ��� ��������� ���� ����
   const [autoSync, setAutoSync] = useState(badge?.auto_sync ?? true);
 
   const syncEffectsToColor = (color: string) => {
@@ -108,13 +108,13 @@ export function SystemBadgeForm({ badge, level, onClose, onSuccess }: Props) {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error(`Ошибка: ${res.status}`);
+      if (!res.ok) throw new Error(`������: ${res.status}`);
       const result = await res.json();
-      // Убеждаемся, что level присутствует в ответе
+      // ����������, ��� level ������������ � ������
       onSuccess?.({ ...result, level });
       onClose();
     } catch (err: any) {
-      setError(err.message || "Произошла ошибка");
+      setError(err.message || "��������� ������");
     } finally {
       setLoading(false);
     }
@@ -146,9 +146,9 @@ export function SystemBadgeForm({ badge, level, onClose, onSuccess }: Props) {
         {/* Header */ }
         <div className="p-6 border-b border-line dark:border-white/10 flex items-center justify-between">
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <span className="text-2xl">{meta.icon}</span> {isEdit ? "Редактировать" : "Создать"} плашку: {meta.label}
+            <span className="text-2xl">{meta.icon}</span> {isEdit ? "�������������" : "�������"} ������: {meta.label}
           </h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">×</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">?</button>
         </div>
 
         {/* Error */ }
@@ -166,18 +166,18 @@ export function SystemBadgeForm({ badge, level, onClose, onSuccess }: Props) {
 
           {/* Name */ }
           <div>
-            <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">Название</label>
+            <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">��������</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500/50"
-              placeholder="Введите название"
+              placeholder="������� ��������"
             />
           </div>
 
           {/* Text Content */ }
           <div>
-            <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">Текст (будет виден пользователям)</label>
+            <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">����� (����� ����� �������������)</label>
             <input
               value={textContent}
               onChange={(e) => setTextContent(e.target.value)}
@@ -185,12 +185,12 @@ export function SystemBadgeForm({ badge, level, onClose, onSuccess }: Props) {
               placeholder={meta.label}
               maxLength={40}
             />
-            <span className="text-xs text-gray-500 mt-1 block">{textContent.length}/40 символов</span>
+            <span className="text-xs text-gray-500 mt-1 block">{textContent.length}/40 ��������</span>
           </div>
 
           {/* Text Color */ }
           <div>
-            <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">Цвет текста</label>
+            <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">���� ������</label>
             <div className="flex gap-2">
               <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="w-12 h-10 rounded border border-line dark:border-white/10 cursor-pointer p-0.5" />
                             <input value={textColor} onChange={(e) => setTextColor(e.target.value)} className="flex-1 bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500/50" placeholder="#ffffff" />
@@ -199,25 +199,25 @@ export function SystemBadgeForm({ badge, level, onClose, onSuccess }: Props) {
 
           {/* BG Type */ }
           <div>
-            <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">Тип фона</label>
+            <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">��� ����</label>
             <div className="grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => setBgType("solid")} className={`py-2 px-3 rounded-lg text-sm border transition-all ${bgType === "solid" ? "border-blue-500 bg-blue-500/10" : "border-line dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5"}`}>Сплошной</button>
-              <button type="button" onClick={() => setBgType("gradient")} className={`py-2 px-3 rounded-lg text-sm border transition-all ${bgType === "gradient" ? "border-blue-500 bg-blue-500/10" : "border-line dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5"}`}>Градиент</button>
+              <button type="button" onClick={() => setBgType("solid")} className={`py-2 px-3 rounded-lg text-sm border transition-all ${bgType === "solid" ? "border-blue-500 bg-blue-500/10" : "border-line dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5"}`}>��������</button>
+              <button type="button" onClick={() => setBgType("gradient")} className={`py-2 px-3 rounded-lg text-sm border transition-all ${bgType === "gradient" ? "border-blue-500 bg-blue-500/10" : "border-line dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5"}`}>��������</button>
             </div>
           </div>
 
           {/* BG Color */ }
           {bgType === "solid" && (
             <div>
-              <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">Цвет фона</label>
+              <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">���� ����</label>
               <div className="flex gap-2">
                 <input type="color" value={bgColor} onChange={(e) => { setBgColor(e.target.value); syncEffectsToColor(e.target.value); }} className="w-12 h-10 rounded border border-line dark:border-white/10 cursor-pointer p-0.5" />
                 <input value={bgColor} onChange={(e) => { setBgColor(e.target.value); syncEffectsToColor(e.target.value); }} className="flex-1 bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500/50" placeholder="#3b82f6" />
 
-              {/* Авто-подбор эффектов под цвет */}
+              {/* ����-������ �������� ��� ���� */}
               <label className="flex items-center gap-2 mt-2 text-xs text-gray-600 dark:text-white/60 cursor-pointer">
                 <input type="checkbox" checked={autoSync} onChange={(e) => setAutoSync(e.target.checked)} className="w-4 h-4 rounded border-line dark:border-white/30 accent-blue-500" />
-                Автоматически подбирать обводку, свечение и тени под этот цвет
+                ������������� ��������� �������, �������� � ���� ��� ���� ����
               </label>              </div>
                         </div>
           )}
@@ -225,7 +225,7 @@ export function SystemBadgeForm({ badge, level, onClose, onSuccess }: Props) {
           {/* BG Gradient */ }
           {bgType === "gradient" && (
             <div>
-              <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">Градиент</label>
+              <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">��������</label>
               <div className="space-y-2">
                 <input value={bgGradient} onChange={(e) => setBgGradient(e.target.value)} className="w-full bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500/50 font-mono text-sm" placeholder="linear-gradient(135deg,#3b82f6,#8b5cf6)" />
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -241,18 +241,18 @@ export function SystemBadgeForm({ badge, level, onClose, onSuccess }: Props) {
           <div className="space-y-3">
             <div className="flex gap-2 items-end">
               <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">Цвет обводки</label>
+                <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">���� �������</label>
                 <input type="color" value={borderColor} onChange={(e) => setBorderColor(e.target.value)} className="w-full h-10 rounded border border-line dark:border-white/10 cursor-pointer p-0.5" />
               </div>
               <div className="w-20">
-                <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">Толщина</label>
+                <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">�������</label>
                 <input type="number" min={0} max={10} value={borderWidth} onChange={(e) => setBorderWidth(Number(e.target.value))} className="w-full bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg px-3 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500/50" />
               </div>
             </div>
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={borderGlow} onChange={(e) => setBorderGlow(e.target.checked)} className="w-4 h-4 rounded border-line dark:border-white/30" />
-                <span className="text-sm text-gray-700 dark:text-white/80">Свечение обводки</span>
+                <span className="text-sm text-gray-700 dark:text-white/80">�������� �������</span>
               </label>
               {borderGlow && <input type="range" min={10} max={200} value={borderGlowIntensity} onChange={(e) => setBorderGlowIntensity(Number(e.target.value))} className="flex-1" />}
             </div>
@@ -260,7 +260,7 @@ export function SystemBadgeForm({ badge, level, onClose, onSuccess }: Props) {
 
           {/* Animations */ }
           <div>
-            <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">Анимации</label>
+            <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">��������</label>
             <div className="flex flex-wrap gap-2">
               {ANIM_OPTIONS.map((anim) => (
                 <button key={anim} type="button" onClick={() => animations.includes(anim) ? setAnimations(animations.filter((a) => a !== anim)) : setAnimations([...animations, anim])} className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${animations.includes(anim) ? "border-blue-500 bg-blue-500/10 text-blue-400" : "border-line dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5"}`}>{anim}</button>
@@ -270,7 +270,7 @@ export function SystemBadgeForm({ badge, level, onClose, onSuccess }: Props) {
 
           {/* Animation Speed */ }
           <div>
-            <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">Скорость анимаций</label>
+            <label className="block text-sm font-medium text-gray-600 dark:text-white/60 mb-1.5">�������� ��������</label>
                         <select value={animationSpeed} onChange={(e) => setAnimationSpeed(e.target.value)} className="w-full bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500/50">
               {SPEED_OPTIONS.map((s) => (<option key={s} value={s}>{s}</option>))}
             </select>
@@ -279,10 +279,10 @@ export function SystemBadgeForm({ badge, level, onClose, onSuccess }: Props) {
           {/* Effects */ }
           <div className="grid grid-cols-2 gap-4">
             {[
-              { checked: shadowEnabled, setter: setShadowEnabled, label: "Тень" },
-              { checked: innerGlowEnabled, setter: setInnerGlowEnabled, label: "Внутреннее свечение" },
-              { checked: metallicEnabled, setter: setMetallicEnabled, label: "Металлик" },
-              { checked: specularEnabled, setter: setSpecularEnabled, label: "Блики" },
+              { checked: shadowEnabled, setter: setShadowEnabled, label: "����" },
+              { checked: innerGlowEnabled, setter: setInnerGlowEnabled, label: "���������� ��������" },
+              { checked: metallicEnabled, setter: setMetallicEnabled, label: "��������" },
+              { checked: specularEnabled, setter: setSpecularEnabled, label: "�����" },
             ].map((item) => (
               <label key={item.label} className="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" checked={item.checked} onChange={(e) => item.setter(e.target.checked)} className="w-4 h-4 rounded border-line dark:border-white/30" />
@@ -294,9 +294,9 @@ export function SystemBadgeForm({ badge, level, onClose, onSuccess }: Props) {
 
         {/* Footer */ }
         <div className="p-6 border-t border-line dark:border-white/10 flex justify-end gap-3">
-          <button type="button" onClick={onClose} className="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">Отмена</button>
+          <button type="button" onClick={onClose} className="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">������</button>
           <button onClick={handleSubmit} disabled={loading} className="px-6 py-2.5 rounded-lg text-sm font-medium bg-blue-500 hover:bg-blue-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
-            {loading ? (<><div className="w-4 h-4 border-2 border-line dark:border-white/30 border-t-white rounded-full animate-spin" />Сохранение...</>) : (isEdit ? "Сохранить изменения" : "Создать плашку")}
+            {loading ? (<><div className="w-4 h-4 border-2 border-line dark:border-white/30 border-t-white rounded-full animate-spin" />����������...</>) : (isEdit ? "��������� ���������" : "������� ������")}
           </button>
         </div>
             </div>

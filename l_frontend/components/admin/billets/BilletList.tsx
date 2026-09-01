@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { BilletData } from "@/types/billet"; 
 
@@ -24,8 +24,8 @@ export function BilletList({ billets, loading, onEdit, onDelete, onAssign }: Bil
   if (billets.length === 0) {
     return (
       <div className="text-center py-12 text-gray-400">
-        <div className="text-4xl mb-2">рџЏ·пёЏ</div>
-        <p>РќРµС‚ СЃРѕР·РґР°РЅРЅС‹С… РїР»Р°С€РµРє</p>
+        <div className="text-4xl mb-2">🏷️</div>
+        <p>Нет созданных плашек</p>
       </div>
     );
   }
@@ -44,7 +44,7 @@ export function BilletList({ billets, loading, onEdit, onDelete, onAssign }: Bil
             <span className={`px-1.5 py-0.5 rounded text-xs ${
               billet.is_active ? "bg-green-500/20 text-green-600 dark:text-green-400" : "bg-gray-500/20 text-gray-400"
             }`}>
-              {billet.is_active ? "РђРєС‚РёРІРЅР°" : "РЎРєСЂС‹С‚Р°"}
+              {billet.is_active ? "Активна" : "Скрыта"}
             </span>
           </div>
 
@@ -57,19 +57,19 @@ export function BilletList({ billets, loading, onEdit, onDelete, onAssign }: Bil
               onClick={() => onAssign(billet)}
               className="flex-1 px-2 py-1.5 text-xs bg-blue-500/20 hover:bg-blue-500/30 text-blue-600 dark:text-blue-400 rounded"
             >
-              Р’С‹РґР°С‚СЊ
+              Выдать
             </button>
             <button
               onClick={() => onEdit(billet)}
               className="px-2 py-1.5 text-xs bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded"
             >
-              вњЏпёЏ
+              ✏️
             </button>
             <button
               onClick={() => onDelete(billet.id)}
               className="px-2 py-1.5 text-xs bg-red-500/20 hover:bg-red-500/30 text-red-600 dark:text-red-400 rounded"
             >
-              рџ—‘пёЏ
+              🗑️
             </button>
           </div>
         </div>
