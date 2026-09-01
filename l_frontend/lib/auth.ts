@@ -77,18 +77,34 @@ export function setToken(
     localStorage.setItem("token", token);
     socket.connect(token);
     return;
-  }
+    }
 
-  const list = getAccountsList().filter((a) => a.userId !== user.id);
-  list.push({
-    userId: user.id,
-    username: user.username,
-    displayName: user.display_name,
-    avatarUrl: user.avatar_url || null,
-    token,
-    refreshToken: opts?.refreshToken || undefined,
-    addedAt: Date.now(),
-  });
+  const list = getAccountsList();
+  const existingIndex = list.findIndex((a) => a.userId === user.id);
+
+  if (existingIndex >= 0) {
+    // 🔥 Обновляем существующий аккаунт, сохраняем addedAt и порядок
+    const existing = list[existingIndex];
+    list[existingIndex] = {
+      ...existing,
+      username: user.username,
+      displayName: user.display_name,
+      avatarUrl: user.avatar_url || existing.avatarUrl, // обновляем аву, если пришла новая
+      token,
+      refreshToken: opts?.refreshToken || existing.refreshToken,
+      addedAt: existing.addedAt, // сохраняем порядок
+    };
+  } else {
+    list.push({
+      userId: user.id,
+      username: user.username,
+      displayName: user.display_name,
+      avatarUrl: user.avatar_url || null,
+      token,
+      refreshToken: opts?.refreshToken || undefined,
+      addedAt: Date.now(),
+    });
+  }
 
   // Лимит аккаунтов: удаляем самый старый
   while (list.length > MAX_ACCOUNTS) {

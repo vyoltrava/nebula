@@ -1355,7 +1355,7 @@ def pwa_version():
 
 @app.post("/api/register")
 @limiter.limit("5/minute")
-def register(request: Request, data: RegisterIn, session: Session = Depends(get_session)):
+def register(request: Request, response: Response, data: RegisterIn, session: Session = Depends(get_session)):
     username = data.username.strip().lower()
     if not re.match(r"^[a-z0-9_]{3,30}$", username):
         raise HTTPException(400, "Username: 3-30 символов, только латиница, цифры и _")
@@ -1392,9 +1392,9 @@ def register(request: Request, data: RegisterIn, session: Session = Depends(get_
     session.add(IPLog(user_id=user.id, ip_address=ip, user_agent=request.headers.get("user-agent"), action="register"))
     session.commit()
     user_token_version = getattr(user, 'token_version', 0) or 0
-    return {"token": create_token(user.id, user_token_version), "user": user_out(user, session)}
-
-
+    _refresh = set_refresh_cookie(response, user.id, user_token_version)
+    return {"token": create_token(user.id, user_token_version), "refresh_token": _refresh, "user": user_out(user, session)}
+    
 
 @app.post("/api/me/logout-all")
 def logout_all(

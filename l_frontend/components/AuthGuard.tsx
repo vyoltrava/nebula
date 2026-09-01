@@ -22,9 +22,17 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Если есть токен и страница публична — на главную
+        // Если есть токен и страница публична — НЕ редиректим, если это
+    // страница добавления аккаунта (add_account=1) или принудительный логин.
+    // Это позволяет войти на второй аккаунт, не разлогинивая первый.
     if (token && isPublic) {
-      router.replace("/");
+      const urlParams = new URLSearchParams(window.location.search);
+      const isAddingAccount = urlParams.get("add_account") === "1";
+      const isSwitching = urlParams.get("switch") === "1";
+      if (!isAddingAccount && !isSwitching) {
+        router.replace("/");
+      }
+      setChecked(true);
       return;
     }
 
