@@ -639,7 +639,7 @@ def refresh_access_token(
     user = session.get(User, token_sub)
     if not user or user.is_banned:
         raise HTTPException(401, "User not found")
-    user_token_version = getattr(user, 'token_version', 0)
+    user_token_version = getattr(user, 'token_version', 0) or 0
     if payload.get("ver", 0) != user_token_version:
         raise HTTPException(401, "Session revoked")
 
@@ -676,7 +676,7 @@ def auth_validate(request: Request, session: Session = Depends(get_session)):
     user = session.get(User, user_id)
     if not user or user.is_banned:
         raise HTTPException(401, "Invalid user")
-    if payload.get("ver", 0) != getattr(user, "token_version", 0):
+    if payload.get("ver", 0) != (getattr(user, "token_version", 0) or 0):
         raise HTTPException(401, "Session revoked")
     return {"valid": True, "user": {"id": user.id, "username": user.username, "display_name": user.display_name}}
 
@@ -685,21 +685,21 @@ def get_current_user(
     authorization: str = Header(default=None),
     session: Session = Depends(get_session),
     background_tasks: BackgroundTasks = None,  # ← НОВОЕ
-) -> User:
+    ) -> User:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(401, "Not authenticated")
     token = authorization.split(" ", 1)[1]
     try:
         payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
+        user_id = _jwt_sub(payload)
+        if user_id is None:
+            raise HTTPException(401, "Invalid token")
     except Exception:
-        raise HTTPException(401, "Invalid token")
-    user_id = _jwt_sub(payload)
-    if user_id is None:
         raise HTTPException(401, "Invalid token")
     user = session.get(User, user_id)
     if not user:
         raise HTTPException(401, "User not found")
-    user_token_version = getattr(user, 'token_version', 0)
+    user_token_version = getattr(user, 'token_version', 0) or 0
     if payload.get("ver", 0) != user_token_version:
         raise HTTPException(401, "Session revoked")
     if user.is_banned:
@@ -1387,11 +1387,11 @@ def register(request: Request, data: RegisterIn, session: Session = Depends(get_
     session.commit()
     session.refresh(user)
     ensure_user_has_keys(user.id, session)
-        # Логируем IP регистрации
+    # Логируем IP регистрации
     ip = get_client_ip(request)
     session.add(IPLog(user_id=user.id, ip_address=ip, user_agent=request.headers.get("user-agent"), action="register"))
     session.commit()
-    user_token_version = getattr(user, 'token_version', 0)
+    user_token_version = getattr(user, 'token_version', 0) or 0
     return {"token": create_token(user.id, user_token_version), "user": user_out(user, session)}
 
 
