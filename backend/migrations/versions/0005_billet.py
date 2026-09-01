@@ -25,7 +25,7 @@ TABLE_MAP = [
 
 COLUMN_MAP = [
     ("user", "custom_badge_url", "billet_url"),
-    ("custom_badge_assignment", "badge_id", "billet_id"),
+    ("billet_assignment", "badge_id", "billet_id"),  # таблица уже переименована на шаге 1
 ]
 
 
