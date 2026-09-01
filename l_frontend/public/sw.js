@@ -13,7 +13,7 @@
  * ============================================================ */
 "use strict";
 
-var VERSION = "2.0.0";
+var VERSION = "2.0.1"; // 🔥 Bumped для обновления apple-touch-icon и PWA-иконок
 var CACHE_PRECACHE = "nebula-precache-v" + VERSION;
 var CACHE_SHELL = "nebula-shell-v" + VERSION;
 var CACHE_API = "nebula-api-v" + VERSION;
@@ -26,7 +26,7 @@ var PRECACHE_URLS = [
   "/",
   "/offline.html",
   "/manifest.json",
-  "/apple-touch-icon.png",
+  // ❌ apple-touch-icon.png НЕ кэшируем — он обновляется через ?v=
   "/pwa/icon-192.png",
   "/pwa/icon-512.png",
   "/pwa/maskable-192.png",

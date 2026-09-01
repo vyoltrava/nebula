@@ -103,9 +103,10 @@ const nextConfig: NextConfig = {
         source: "/pwa/:path*",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
+      // Иконка apple-touch-icon — НЕ кэшировать, чтобы iOS всегда брало актуальную
       {
         source: "/apple-touch-icon.png",
-        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+        headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
       },
       {
         source: "/offline.html",
