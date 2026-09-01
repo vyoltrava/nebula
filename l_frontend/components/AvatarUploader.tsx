@@ -28,6 +28,13 @@ export function AvatarUploader({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // 🎞 GIF: кроппер (canvas) убивает анимацию — грузим оригинал как есть
+    if (file.type === "image/gif") {
+      handleUpload(file, "avatar.gif");
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       setCropperImage(reader.result as string);
@@ -38,14 +45,14 @@ export function AvatarUploader({
     if (inputRef.current) inputRef.current.value = "";
   };
 
-  const handleCropComplete = async (croppedBlob: Blob) => {
+  const handleUpload = async (blob: Blob, filename: string) => {
     const token = getToken();
     if (!token) return;
 
     setUploading(true);
     try {
       const form = new FormData();
-      form.append("file", croppedBlob, "avatar.jpg");
+      form.append("file", blob, filename);
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
         method: "POST",
@@ -68,12 +75,16 @@ export function AvatarUploader({
     }
   };
 
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    await handleUpload(croppedBlob, "avatar.jpg");
+  };
+
   return (
     <>
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/png,image/jpeg,image/gif,image/webp"
         className="hidden"
         onChange={handleFileSelect}
       />
@@ -100,19 +111,25 @@ export function useAvatarUploader(onUploaded: (url: string) => void, endpoint?: 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // 🎞 GIF: кроппер (canvas) убивает анимацию — грузим оригинал как есть
+    if (file.type === "image/gif") {
+      handleUpload(file, "avatar.gif");
+      if (inputRef.current) inputRef.current.value = "";
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => setCropperImage(reader.result as string);
     reader.readAsDataURL(file);
     if (inputRef.current) inputRef.current.value = "";
   };
 
-  const handleCropComplete = async (croppedBlob: Blob) => {
+  const handleUpload = async (blob: Blob, filename: string) => {
     const token = getToken();
     if (!token) return;
     setUploading(true);
     try {
       const form = new FormData();
-      form.append("file", croppedBlob, "avatar.jpg");
+      form.append("file", blob, filename);
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint || "/api/me/avatar"}`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -129,6 +146,10 @@ export function useAvatarUploader(onUploaded: (url: string) => void, endpoint?: 
     } finally {
       setUploading(false);
     }
+  };
+
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    await handleUpload(croppedBlob, "avatar.jpg");
   };
 
   return {

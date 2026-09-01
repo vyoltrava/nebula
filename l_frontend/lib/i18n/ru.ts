@@ -327,6 +327,8 @@ export const ru: Dictionary = {
     deleteCover: "Удалить",
     addCover: "Добавить обложку",
     changeAvatar: "Сменить аватарку",
+  deleteAvatar: "Удалить аватарку",
+  deleteAvatarConfirm: "Удалить аватарку?",
     deleteCoverConfirm: "Удалить обложку?",
     profileNotLoaded: "Профиль не загружен",
     startChatFailed: "Не удалось начать переписку",

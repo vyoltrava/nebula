@@ -1533,14 +1533,26 @@ async def upload_avatar(
     # Загружаем новую
     try:
         print(f"  Uploading to Cloudinary...")
-        result = await run_in_threadpool(
-            lambda: cloudinary.uploader.upload(
-                content,
-                folder=UPLOAD_FOLDER,
-                resource_type="image",
-                transformation=[{"width": 400, "height": 400, "crop": "fill"}],
+        is_gif = ext == ".gif" or (file.content_type or "") == "image/gif"
+        if is_gif:
+            # 🎞 GIF: без трансформаций — сохраняем анимацию и исходное качество
+            result = await run_in_threadpool(
+                lambda: cloudinary.uploader.upload(
+                    content,
+                    folder=UPLOAD_FOLDER,
+                    resource_type="image",
+                )
             )
-        )
+        else:
+            # 🖼 Статичные: кроп до 512px + auto-качество (без «мыла»)
+            result = await run_in_threadpool(
+                lambda: cloudinary.uploader.upload(
+                    content,
+                    folder=UPLOAD_FOLDER,
+                    resource_type="image",
+                    transformation=[{"width": 512, "height": 512, "crop": "fill", "quality": "auto", "fetch_format": "auto"}],
+                )
+            )
         user.avatar_url = result.get("secure_url")
         print(f"  ✅ Cloudinary upload success: {user.avatar_url}")
     except Exception as e:
@@ -1553,6 +1565,33 @@ async def upload_avatar(
     print(f"📸 === AVATAR UPLOAD END ===\n")
     return {"avatar_url": user.avatar_url}
 
+@app.delete("/api/me/avatar")
+@limiter.limit("5/minute")
+async def delete_own_avatar(
+    request: Request,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Удаление своей аватарки (обнуление avatar_url)"""
+    if not user.avatar_url:
+        raise HTTPException(400, "Аватарка уже отсутствует")
+
+    # Удаляем файл из Cloudinary, если он там лежит
+    if "cloudinary.com" in user.avatar_url:
+        try:
+            public_id = extract_cloudinary_public_id(user.avatar_url)
+            if public_id:
+                cloudinary.uploader.destroy(public_id)
+        except Exception as e:
+            print(f"  ⚠️ Failed to delete avatar from cloudinary: {e}")
+
+    user.avatar_url = None
+    session.add(user)
+    session.commit()
+    return {"ok": True, "avatar_url": None}
+
+
+@app.post("/api/me/cover")
 
 @app.post("/api/me/cover")
 @limiter.limit("5/minute")

@@ -327,6 +327,8 @@ export const uk = {
     deleteCover: "Видалити",
     addCover: "Додати обкладинку",
     changeAvatar: "Змінити аватарку",
+  deleteAvatar: "Видалити аватарку",
+  deleteAvatarConfirm: "Видалити аватарку?",
     deleteCoverConfirm: "Видалити обкладинку?",
     profileNotLoaded: "Профіль не завантажено",
     startChatFailed: "Не вдалося почати листування",

@@ -138,6 +138,24 @@ async function uploadCover(e: React.ChangeEvent<HTMLInputElement>) {
     }
   }
 
+  async function removeAvatar() {
+    if (!confirm(t("profile.deleteAvatarConfirm"))) return;
+    const token = getToken();
+    if (!token) return;
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/avatar`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      setProfile((prev: any) => (prev ? { ...prev, avatar_url: null } : prev));
+      setShowAvatarMenu(false);
+    } else {
+      let detail = "";
+      try { detail = (await res.json())?.detail || ""; } catch {}
+      setAvatarError(detail || t("settings.avatarUploadError", { detail: "" }));
+    }
+  }
+
 function getGlowColor(user: any): string | null {
 if (user?.role?.color && (user?.role?.level ?? 0) >= 8) return user.role.color; // 🆕 роль 8-11 перекрывает флаги
 if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
@@ -621,11 +639,11 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
           </button>
           {profile.avatar_url && (
             <button
-              onClick={(e) => { e.stopPropagation(); alert(t("profile.avatarDeleteUnavailable")); setShowAvatarMenu(false); }}
+              onClick={(e) => { e.stopPropagation(); removeAvatar(); }}
               className="w-full px-4 py-3 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
             >
               <XIcon size={16} />
-              {t("profile.deleteCover")}
+              {t("profile.deleteAvatar")}
             </button>
           )}
         </div>

@@ -330,6 +330,8 @@ export const en: Dictionary = {
     deleteCover: "Delete",
     addCover: "Add cover",
     changeAvatar: "Change avatar",
+  deleteAvatar: "Delete avatar",
+  deleteAvatarConfirm: "Delete avatar?",
     deleteCoverConfirm: "Delete cover?",
     profileNotLoaded: "Profile not loaded",
     startChatFailed: "Failed to start chat",
