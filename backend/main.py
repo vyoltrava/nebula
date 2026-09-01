@@ -54,7 +54,7 @@ from database import init_db, get_session, engine
 from models import utcnow
 from models import (
     User, Post, Like, Dislike, Follow, Notification, Tag, PostTag, Role,
-    Chat, ChatMember, Message, Report, UserKey, ChatSessionKey,
+    Chat, ChatMember, Message, Report, UserKey, ChatSessionKey, ChatPost, ChatPostComment, ChatInvite,
     IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead,
     PushSubscription, StickerPack, Sticker, MessageReaction, PostReaction, Theme, SystemSetting,
     RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge,
@@ -3126,7 +3126,7 @@ async def cancel_repost(
         raise HTTPException(400, "Это не репост")
     
     # Каскадно удаляем сам репост
-    cascade_delete_post(post.id, session)
+    await cascade_delete_post(post.id, session)
     await manager.broadcast_all("post_deleted", {"post_id": post.id})
     return {"ok": True}
 
@@ -5299,8 +5299,8 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
     last_message_data = None
     if last_msg:
         sender = users_map.get(last_msg.sender_id)
-        if chat.is_secret or getattr(chat, "is_prism", False):
-            enc_label = "🔒 Секретное сообщение" if chat.is_secret else "🔐 Prism-сообщение"
+        if getattr(chat, "is_secret", False):
+            enc_label = "🔒 Секретное сообщение"
             last_message_data = {"text": enc_label, "is_encrypted": True,
                                    "sender_id": last_msg.sender_id,
                                    "created_at": last_msg.created_at.isoformat()}
@@ -5328,7 +5328,7 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
     # Мой статус в группе
     my_role = members_map.get(user_id).role if user_id in members_map else None
 
-    if chat.is_group:
+    if chat.is_group or chat.is_prism:
         return {
             "id": chat.id,
             "is_group": True,
@@ -5347,6 +5347,9 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "unread_count": unread,
             "pinned": chat.pinned_by == user_id,  # 🆕
             "pinned_at": chat.pinned_at.isoformat() if chat.pinned_at else None,
+            "who_can_post": getattr(chat, "who_can_post", "members"),
+            "who_can_comment": getattr(chat, "who_can_comment", "members"),
+            "invite_token": getattr(chat, "invite_token", None),
         }
     else:
         # DM — как раньше
@@ -5372,7 +5375,6 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "id": chat.id,
             "is_group": False,
             "is_secret": chat.is_secret,
-            "is_prism": chat.is_prism, 
             "other": user_out(other, session) if other else None,
             "last_message": last_message_data,
             "unread_count": unread,
@@ -5438,12 +5440,6 @@ class CreateGroupIn(BaseModel):
     name: str
     user_ids: list[int]  # ID пользователей, которых добавляем (кроме себя)
 
-
-class CreatePrismChatIn(BaseModel):
-    other_user_id: int
-    shard1_encrypted: str  
-    shard2_genesis: str   
-    avatar_url: Optional[str] = None
    
 
 
@@ -5736,7 +5732,16 @@ def cascade_delete_chat(chat_id: int, session: Session):
     
     # 5. Удаляем сессионные ключи
     session.exec(delete(ChatSessionKey).where(ChatSessionKey.chat_id == chat_id))
-    
+
+    # 🆕 Лента постов: комментарии и посты + приглашения
+    chat_post_ids = session.exec(
+        select(ChatPost.id).where(ChatPost.chat_id == chat_id)
+    ).all()
+    if chat_post_ids:
+        session.exec(delete(ChatPostComment).where(ChatPostComment.post_id.in_(chat_post_ids)))
+    session.exec(delete(ChatPost).where(ChatPost.chat_id == chat_id))
+    session.exec(delete(ChatInvite).where(ChatInvite.chat_id == chat_id))
+
     # 6. Удаляем участников чата
     session.exec(delete(ChatMember).where(ChatMember.chat_id == chat_id))
     
@@ -7425,7 +7430,7 @@ async def send_message_v2(
             except Exception as e:
                 raise HTTPException(400, f"Upload failed: {str(e)}")
 
-        is_encrypted_chat = chat.is_secret or getattr(chat, "is_prism", False)
+        is_encrypted_chat = getattr(chat, "is_secret", False)
 
     if is_encrypted_chat:
         if not ciphertext.strip() and not media_url:
@@ -8957,7 +8962,7 @@ async def resolve_report(
             author = session.get(User, post.author_id)
             if author and author.id != staff.id:
                 check_sanction_rights(staff, author, session, "удалять посты этого пользователя")
-            cascade_delete_post(post.id, session)
+            await cascade_delete_post(post.id, session)
     elif action == "ban_user":
         if not has_permission(staff, "ban_users", session):
             raise HTTPException(403, "No permission: ban_users")
@@ -10266,238 +10271,322 @@ def support_ticket_messages(
         for m in messages
     ]
 
-@app.post("/api/chats/prism")
-async def create_prism_chat(
-    data: CreatePrismChatIn,
+@app.get("/api/chats/{chat_id}/posts")
+def list_chat_posts(
+    chat_id: int,
+    offset: int = 0,
+    limit: int = 20,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Создание чата типа 'Призма'"""
-    if data.other_user_id == user.id:
-        raise HTTPException(400, "Нельзя создать чат с собой")
-    
-    other = session.get(User, data.other_user_id)
-    if not other:
-        raise HTTPException(404, "Пользователь не найден")
+    """Лента постов группового чата (пагинация offset-лимит)."""
+    member = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    posts = session.exec(
+        select(ChatPost).where(ChatPost.chat_id == chat_id)
+        .order_by(ChatPost.created_at.desc()).offset(offset).limit(limit)
+    ).all()
+    author_ids = list({p.author_id for p in posts})
+    users = {u.id: user_out(u, session) for u in session.exec(select(User).where(User.id.in_(author_ids))).all()} if author_ids else {}
+    return [
+        {
+            "id": p.id,
+            "chat_id": p.chat_id,
+            "author": users.get(p.author_id),
+            "text": p.text,
+            "media_url": p.media_url,
+            "media_type": p.media_type,
+            "link_url": p.link_url,
+            "created_at": p.created_at.isoformat(),
+            "edited": p.edited,
+            "edited_at": p.edited_at.isoformat() if p.edited_at else None,
+            "comment_count": session.exec(select(func.count(ChatPostComment.id)).where(ChatPostComment.post_id == p.id)).one(),
+            "mine": p.author_id == user.id,
+            "role": member.role,
+        }
+        for p in posts
+    ]
 
-    # 1. Проверяем, нет ли уже активной Призмы с этим юзером
-    my_chats = session.exec(select(ChatMember.chat_id).where(ChatMember.user_id == user.id)).all()
-    for cid in my_chats:
-        chat = session.get(Chat, cid)
-        if chat and getattr(chat, 'is_prism', False):
-            other_in = session.exec(select(ChatMember).where(
-                ChatMember.chat_id == cid, ChatMember.user_id == data.other_user_id
-            )).first()
-            if other_in:
-                return {"chat_id": cid, "already_existed": True}
 
-    # 2. Создаем чат
-    chat = Chat(is_prism=True, avatar_url=data.avatar_url)
+class ChatPostIn(BaseModel):
+    text: Optional[str] = None
+    media_url: Optional[str] = None
+    media_type: Optional[str] = None
+    link_url: Optional[str] = None
+
+
+@app.post("/api/chats/{chat_id}/posts")
+async def create_chat_post(
+    request: Request,
+    chat_id: int,
+    data: ChatPostIn,
+    actor: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Создать пост в ленте чата (Telegram-канал)."""
+    member = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == actor.id)).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    if not data.text and not data.media_url:
+        raise HTTPException(400, "Пост не может быть пустым")
+    if getattr(chat, "who_can_post", "members") == "admins" and member.role not in ("owner", "admin"):
+        raise HTTPException(403, "Только участники с правом администратора могут публиковать")
+    post = ChatPost(chat_id=chat_id, author_id=actor.id, text=data.text, media_url=data.media_url,
+                    media_type=data.media_type, link_url=data.link_url)
+    session.add(post)
+    session.commit()
+    session.refresh(post)
+    log_action(session, actor.id, "chat_post_create", target_type="chat_post", target_id=post.id, ip_address=get_client_ip(request))
+    await manager.broadcast_to_chat(chat_id, "new_chat_post", {
+        "id": post.id, "chat_id": chat_id, "author_id": actor.id,
+        "text": post.text, "media_url": post.media_url, "media_type": post.media_type, "link_url": post.link_url,
+        "created_at": post.created_at.isoformat(),
+    }, session)
+    return {"id": post.id, "created_at": post.created_at.isoformat()}
+
+@app.patch("/api/chats/posts/{post_id}")
+async def edit_chat_post(post_id: int, text: Optional[str] = Form(None), actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    post = session.get(ChatPost, post_id)
+    if not post:
+        raise HTTPException(404, "Пост не найден")
+    member = session.exec(select(ChatMember).where(ChatMember.chat_id == post.chat_id, ChatMember.user_id == actor.id)).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+    if post.author_id != actor.id and member.role not in ("owner", "admin"):
+        raise HTTPException(403, "Нет прав")
+    if text is not None:
+        post.text = text
+    post.edited = True
+    post.edited_at = utcnow()
+    session.add(post)
+    session.commit()
+    await manager.broadcast_to_chat(post.chat_id, "chat_post_edited", {"id": post.id, "text": post.text, "edited_at": post.edited_at.isoformat()}, session)
+    return {"ok": True}
+
+
+@app.delete("/api/chats/posts/{post_id}")
+async def delete_chat_post(post_id: int, actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    post = session.get(ChatPost, post_id)
+    if not post:
+        raise HTTPException(404, "Пост не найден")
+    member = session.exec(select(ChatMember).where(ChatMember.chat_id == post.chat_id, ChatMember.user_id == actor.id)).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+    if post.author_id != actor.id and member.role not in ("owner", "admin"):
+        raise HTTPException(403, "Нет прав")
+    chat_id = post.chat_id
+    session.exec(delete(ChatPostComment).where(ChatPostComment.post_id == post.id))
+    session.delete(post)
+    session.commit()
+    await manager.broadcast_to_chat(chat_id, "chat_post_deleted", {"id": post_id}, session)
+    return {"ok": True}
+
+
+def _serialize_comment(c, users_map, session, user_id):
+    return {"id": c.id, "post_id": c.post_id, "parent_id": c.parent_id,
+            "author": users_map.get(c.author_id), "text": c.text,
+            "created_at": c.created_at.isoformat(), "mine": c.author_id == user_id}
+
+
+def _build_comment_tree(comments, users_map, session, user_id):
+    by_id, roots = {}, []
+    for c in comments:
+        node = _serialize_comment(c, users_map, session, user_id)
+        node["children"] = []
+        by_id[c.id] = node
+    for c in comments:
+        node = by_id[c.id]
+        if c.parent_id and c.parent_id in by_id:
+            by_id[c.parent_id]["children"].append(node)
+        else:
+            roots.append(node)
+    return roots
+
+
+@app.get("/api/chats/posts/{post_id}/comments")
+def list_post_comments(post_id: int, offset: int = 0, limit: int = 50, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    post = session.get(ChatPost, post_id)
+    if not post:
+        raise HTTPException(404, "Пост не найден")
+    member = session.exec(select(ChatMember).where(ChatMember.chat_id == post.chat_id, ChatMember.user_id == user.id)).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+    roots = session.exec(
+        select(ChatPostComment).where(ChatPostComment.post_id == post_id, ChatPostComment.parent_id == None)
+        .order_by(ChatPostComment.created_at.asc()).offset(offset).limit(limit)).all()
+    comments = list(roots)
+    if roots:
+        children = session.exec(
+            select(ChatPostComment).where(ChatPostComment.parent_id.in_([c.id for c in roots]))
+            .order_by(ChatPostComment.created_at.asc())).all()
+        comments += children
+    author_ids = list({c.author_id for c in comments})
+    users_map = {u.id: user_out(u, session) for u in session.exec(select(User).where(User.id.in_(author_ids))).all()} if author_ids else {}
+    roots_out = _build_comment_tree(comments, users_map, session, user.id)
+    has_more = len(roots) == limit
+    return {"comments": roots_out, "has_more": has_more, "offset": offset, "limit": limit}
+
+
+class ChatCommentIn(BaseModel):
+    text: str
+    parent_id: Optional[int] = None
+
+
+@app.post("/api/chats/posts/{post_id}/comments")
+async def create_post_comment(request: Request, post_id: int, data: ChatCommentIn, actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    post = session.get(ChatPost, post_id)
+    if not post:
+        raise HTTPException(404, "Пост не найден")
+    member = session.exec(select(ChatMember).where(ChatMember.chat_id == post.chat_id, ChatMember.user_id == actor.id)).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+    chat = session.get(Chat, post.chat_id)
+    if getattr(chat, "who_can_comment", "members") == "admins" and member.role not in ("owner", "admin"):
+        raise HTTPException(403, "Только администраторы могут комментировать")
+    parent = None
+    if data.parent_id:
+        parent = session.get(ChatPostComment, data.parent_id)
+        if not parent or parent.post_id != post_id:
+            raise HTTPException(404, "Родительский комментарий не найден")
+    c = ChatPostComment(post_id=post_id, parent_id=data.parent_id, author_id=actor.id, text=data.text)
+    session.add(c)
+    session.commit()
+    session.refresh(c)
+    payload = {"id": c.id, "chat_id": post.chat_id, "post_id": post_id, "parent_id": c.parent_id,
+               "author_id": actor.id, "text": c.text, "created_at": c.created_at.isoformat()}
+    await manager.broadcast_to_chat(post.chat_id, "new_chat_comment", payload, session)
+    return payload
+
+
+@app.delete("/api/chats/comments/{comment_id}")
+async def delete_post_comment(comment_id: int, actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    c = session.get(ChatPostComment, comment_id)
+    if not c:
+        raise HTTPException(404, "Не найдено")
+    post = session.get(ChatPost, c.post_id)
+    chat_id = post.chat_id
+    member = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == actor.id)).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+    if c.author_id != actor.id and member.role not in ("owner", "admin"):
+        raise HTTPException(403, "Нет прав")
+    session.delete(c)
+    session.commit()
+    await manager.broadcast_to_chat(chat_id, "chat_comment_deleted", {"id": comment_id, "post_id": c.post_id}, session)
+    return {"ok": True}
+
+
+
+@app.post("/api/chats/{chat_id}/invite")
+async def create_chat_invite(chat_id: int, actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Создать приглашительную ссылку (как в Telegram). Только админы."""
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    member = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == actor.id)).first()
+    if not member or member.role not in ("owner", "admin"):
+        raise HTTPException(403, "Только администраторы могут создавать приглашения")
+    token = secrets.token_urlsafe(24)
+    inv = ChatInvite(chat_id=chat_id, token=token, created_by=actor.id)
+    session.add(inv)
+    chat.invite_token = token
     session.add(chat)
-    
-    # 🔥 КРИТИЧЕСКИ ВАЖНО: получаем ID чата из базы данных ДО создания участников
     session.commit()
-    session.refresh(chat)
-    
-    # 3. Теперь chat.id известен, добавляем участников
-    session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="member"))
-    session.add(ChatMember(chat_id=chat.id, user_id=data.other_user_id, role="member"))
-    
-    # 4. Сохраняем "Спектр 1" (Якорь) в профиль текущего пользователя
-    user.prism_anchor = data.shard1_encrypted
-    session.add(user)
-    
-    # 5. Создаем ПЕРВОЕ системное сообщение, которое хранит "Спектр 2" (Генезис)
-    genesis_msg = Message(
-        chat_id=chat.id,
-        sender_id=user.id,
-        text=f"__PRISM_GENESIS__:{data.shard2_genesis}",
-        media_type="system",
-    )
-    session.add(genesis_msg)
-    
-    # 6. Уведомление
-    session.add(Notification(
-        user_id=data.other_user_id,
-        actor_id=user.id,
-        type="prism_chat_created",
-        details=json.dumps({"chat_id": chat.id}),
-    ))
+    return {"invite_link": f"/invite/{token}", "token": token}
+
+
+@app.get("/api/invite/{token}")
+def get_invite_info(token: str, actor: Optional[User] = Depends(get_optional_user), session: Session = Depends(get_session)):
+    """Публичная инфа о приглашении (авторизация не обязана)."""
+    inv = session.exec(select(ChatInvite).where(ChatInvite.token == token, ChatInvite.is_active == True)).first()
+    if not inv:
+        raise HTTPException(404, "Приглашение не найдено")
+    chat = session.get(Chat, inv.chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    members = session.exec(select(ChatMember).where(ChatMember.chat_id == chat.id)).all()
+    owner = session.get(User, chat.owner_id)
+    return {
+        "token": token, "chat_id": chat.id, "name": chat.name or "Группа", "avatar_url": chat.avatar_url,
+        "is_group": chat.is_group or chat.is_prism, "members_count": len(members),
+        "owner": user_out(owner, session) if owner else None,
+        "is_member": any(m.user_id == actor.id for m in members) if actor else False,
+    }
+
+
+@app.post("/api/invite/{token}/join")
+async def join_chat_invite(token: str, request: Request, actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Вступить в чат по приглашению."""
+    inv = session.exec(select(ChatInvite).where(ChatInvite.token == token, ChatInvite.is_active == True)).first()
+    if not inv:
+        raise HTTPException(404, "Приглашение не найдено")
+    chat = session.get(Chat, inv.chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    existing = session.exec(select(ChatMember).where(ChatMember.chat_id == chat.id, ChatMember.user_id == actor.id)).first()
+    if existing:
+        return {"chat_id": chat.id, "joined": False}
+    session.add(ChatMember(chat_id=chat.id, user_id=actor.id, role="member"))
     session.commit()
-
-    # 7. WebSocket уведомление
-    await manager.broadcast_to_users([data.other_user_id], "prism_chat_created", {
-        "chat_id": chat.id,
-        "from_user": user.display_name,
-    })
-
-    return {"chat_id": chat.id, "already_existed": False}
+    log_action(session, actor.id, "chat_join_invite", target_type="chat", target_id=chat.id, ip_address=get_client_ip(request))
+    await manager.broadcast_to_chat(chat.id, "group_member_added", {"chat_id": chat.id, "user": user_out(actor, session)})
+    return {"chat_id": chat.id, "joined": True}
 
 
-@app.patch("/api/users/me/prism-anchor")
-async def update_prism_anchor(
-    shard1_encrypted: str = Form(...),
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Обновление Якоря пользователя (например, при смене PIN-кода)"""
-    user.prism_anchor = shard1_encrypted
-    session.add(user)
+@app.delete("/api/chats/{chat_id}/invite")
+async def revoke_chat_invite(chat_id: int, actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Отозвать все активные приглашения чата."""
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    member = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == actor.id)).first()
+    if not member or member.role not in ("owner", "admin"):
+        raise HTTPException(403, "Только администраторы могут отозвать приглашение")
+    session.exec(update(ChatInvite).where(ChatInvite.chat_id == chat_id, ChatInvite.is_active == True).values(is_active=False))
+    chat.invite_token = None
+    session.add(chat)
     session.commit()
     return {"ok": True}
 
 
-@app.post("/api/chats/prism-avatar")
-@limiter.limit("5/minute")
-async def upload_prism_avatar(
-    request: Request,
-    file: UploadFile = File(...),
-    user: User = Depends(get_current_user),
-):
-    if not file.filename or not file.filename.lower().endswith('.png'):
-        raise HTTPException(400, "Для Призмы требуется формат PNG (без сжатия)")
-    
-    err = check_size_before_read(file.headers, 5 * 1024 * 1024)
-    if err:
-        raise HTTPException(413, err)
-
-    content = await file.read()
-    if len(content) > 5 * 1024 * 1024:
-        raise HTTPException(400, "Файл слишком большой (макс 5 МБ)")
-    
-    try:
-        # 🔥 ИСПРАВЛЕНО: quality="100" и flags="lossless" ГАРАНТИРУЮТ сохранение каждого бита
-        result = await run_in_threadpool(
-            lambda: cloudinary.uploader.upload(
-                content,
-                folder=UPLOAD_FOLDER,
-                resource_type="image",
-                format="png",
-                quality="100",
-                flags="lossless"
-            )
-        )
-        return {"avatar_url": result.get("secure_url")}
-    except Exception as e:
-        raise HTTPException(400, f"Ошибка загрузки: {str(e)}")
+class ChatPrivacyIn(BaseModel):
+    who_can_post: Optional[str] = None
+    who_can_comment: Optional[str] = None
+    avatar_url: Optional[str] = None
+    name: Optional[str] = None
 
 
-# ============================================================
-# ✨ PRISM — E2E endpoints (landscape + enter)
-# ============================================================
-@app.get("/api/chats/{chat_id}/prism-landscape")
-async def prism_landscape(
-    chat_id: int,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Возвращает shard2 (из genesis-сообщения) и stатус anchor для реконструкции ключа.
-
-    Flow на клиенте:
-      1. Получить shard2 отсюда
-      2. shard3 — из локального хранилища (prismStorage)
-      3. shard1 — расшифровать prism_anchor пользователя PIN-ом (клиент)
-      4. reconstructKey(shard1, shard2, shard3) → 16-байтовый master key
-      5. generatePrismPuzzleSVG(masterKey) → паззл
-    """
+@app.patch("/api/chats/{chat_id}/settings")
+async def update_chat_settings(chat_id: int, data: ChatPrivacyIn, actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Обновление настроек/приватности чата (Telegram-like)."""
     chat = session.get(Chat, chat_id)
-    if not chat or not getattr(chat, "is_prism", False):
-        raise HTTPException(404, "Prism-чат не найден")
-
-    member = session.exec(
-        select(ChatMember).where(
-            ChatMember.chat_id == chat_id, ChatMember.user_id == user.id
-        )
-    ).first()
-    if not member:
-        raise HTTPException(403, "Вы не участник этого чата")
-
-    # Извлекаем shard2_genesis из genesis-сообщения
-    genesis_msg = session.exec(
-        select(Message)
-        .where(
-            Message.chat_id == chat_id,
-            Message.media_type == "system",
-            Message.text != None,
-        )
-        .order_by(Message.id)
-        .limit(1)
-    ).first()
-
-    shard2 = None
-    genesis_type = None
-    if genesis_msg and genesis_msg.text:
-        text = genesis_msg.text
-        if text.startswith("__PRISM_GENESIS__:"):
-            shard2 = text[len("__PRISM_GENESIS__:"):]
-            genesis_type = "prism"
-        elif text.startswith("__PRISME_GENESIS__:"):
-            genesis_type = "prisme"
-
-    # Находим собеседника
-    other_member = session.exec(
-        select(ChatMember).where(
-            ChatMember.chat_id == chat_id, ChatMember.user_id != user.id
-        )
-    ).first()
-    other = None
-    if other_member:
-        other_user = session.get(User, other_member.user_id)
-        if other_user:
-            other = {
-                "id": other_user.id,
-                "username": other_user.username,
-                "display_name": other_user.display_name,
-                "avatar_url": other_user.avatar_url,
-            }
-
-        return {
-        "chat_id": chat_id,
-        "genesis_type": genesis_type,
-        "shard2": shard2,
-        "has_anchor": bool(user.prism_anchor),
-        "prism_anchor": user.prism_anchor,
-        "other": other,
-    }
-
-
-@app.post("/api/chats/{chat_id}/prism-enter")
-async def prism_enter(
-    chat_id: int,
-    object_id: int = Form(...),
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Подтверждение выбора объекта-ключа пользователем.
-
-    object_id — идентификатор выбранного объекта паззла (0-99 для shard-based,
-    или реальный PrismeObject.id).
-    Сервер проверяет членство и (при возможности) объект.
-    Визуальная верификация паззла происходит на клиенте.
-    """
-    chat = session.get(Chat, chat_id)
-    if not chat or not getattr(chat, "is_prism", False):
-        raise HTTPException(404, "Prism-чат не найден")
-
-    member = session.exec(
-        select(ChatMember).where(
-            ChatMember.chat_id == chat_id, ChatMember.user_id == user.id
-        )
-    ).first()
-    if not member:
-        raise HTTPException(403, "Вы не участник этого чата")
-
-    # Проверяем, что объект существует и привязан к чату (Prisme-объекты)
-    from models import PrismeObject
-    prisme_obj = session.get(PrismeObject, object_id)
-    if prisme_obj and prisme_obj.chat_id == chat_id:
-        return {"ok": True, "slot": prisme_obj.slot, "kind": prisme_obj.kind}
-
-    # Для shard-based Prism-чатов: object_id — индекс пазлового объекта (0-99).
-    # Сервер не может проверить без master key, подтверждаем членство.
-    return {"ok": True, "object_id": object_id}
-
-
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    member = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == actor.id)).first()
+    if not member or member.role not in ("owner", "admin"):
+        raise HTTPException(403, "Нет прав")
+    if data.who_can_post in ("members", "admins"):
+        chat.who_can_post = data.who_can_post
+    if data.who_can_comment in ("members", "admins"):
+        chat.who_can_comment = data.who_can_comment
+    if data.name is not None:
+        chat.name = data.name.strip()[:80]
+    if data.avatar_url is not None:
+        chat.avatar_url = data.avatar_url
+    session.add(chat)
+    session.commit()
+    await manager.broadcast_to_chat(chat_id, "chat_settings_updated", {
+        "chat_id": chat_id, "who_can_post": chat.who_can_post, "who_can_comment": chat.who_can_comment,
+        "name": chat.name, "avatar_url": chat.avatar_url,
+    }, session)
+    return {"ok": True}
 # ============================================================
 # 🏅 ЗНАЧКИ (BADGES)
 # ============================================================
@@ -12875,4 +12964,39 @@ def get_owner_stats(
         "shop_enabled": _shop_effectively_enabled(session),
         "premium_usernames_total": len(session.exec(select(PremiumUsername)).all()),
     }
+
+
+# ============================================================
+# 📎 Универсальная загрузка медиа для постов чатов (Telegram-like feed)
+# ============================================================
+@app.post("/api/media/upload")
+@limiter.limit("20/minute")
+async def upload_media_for_post(
+    request: Request,
+    file: UploadFile = File(...),
+    actor: User = Depends(get_current_user),
+):
+    if not file.filename:
+        raise HTTPException(400, "No file provided")
+    ext = os.path.splitext(file.filename)[1].lower()
+    kind = file.content_type or ""
+    is_image = ext in {".jpg", ".jpeg", ".png", ".gif", ".webp"} or kind.startswith("image/")
+    is_video = kind.startswith("video/") or ext in {".mp4", ".webm", ".mov"}
+    is_audio = kind.startswith("audio/") or ext in {".mp3", ".ogg", ".wav"}
+    if not (is_image or is_video or is_audio):
+        raise HTTPException(400, f"Неверный формат: {ext}")
+    err = check_size_before_read(file.headers, 10 * 1024 * 1024)
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(413, "Файл слишком большой (максимум 10 МБ)")
+    media_type = "image" if is_image else ("video" if is_video else "audio")
+    try:
+        result = await run_in_threadpool(lambda: cloudinary.uploader.upload(
+            content, folder=UPLOAD_FOLDER,
+            resource_type="video" if media_type != "image" else "image",
+        ))
+        url = result.get("secure_url")
+    except Exception as e:
+        raise HTTPException(400, f"Ошибка загрузки: {str(e)}")
+    return {"url": url, "media_type": media_type}
 

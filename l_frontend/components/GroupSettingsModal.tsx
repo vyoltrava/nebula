@@ -16,6 +16,8 @@ export function GroupSettingsModal({ chatId, chat, onClose, onUpdate }: GroupSet
   const [name, setName] = useState(chat.name || "");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(chat.avatar_url || null);
+  const [whoCanPost, setWhoCanPost] = useState(chat.who_can_post || "members");
+  const [whoCanComment, setWhoCanComment] = useState(chat.who_can_comment || "members");
   const [loading, setLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -53,6 +55,14 @@ export function GroupSettingsModal({ chatId, chat, onClose, onUpdate }: GroupSet
           throw new Error("Failed to upload avatar");
         }
       }
+
+      // 3. Приватность: кто может постить/комментировать
+      const priv = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/settings`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ who_can_post: whoCanPost, who_can_comment: whoCanComment }),
+      });
+      if (!priv.ok) throw new Error("Failed to update privacy");
 
       onUpdate();
       onClose();
@@ -114,6 +124,26 @@ export function GroupSettingsModal({ chatId, chat, onClose, onUpdate }: GroupSet
             placeholder="Название группы"
           />
           <p className="text-[10px] text-gray-500 dark:text-white/30 mt-0.5 text-right">{name.length}/80</p>
+        </div>
+
+        {/* Приватность */}
+        <div className="mb-4 space-y-3">
+          <div>
+            <label className="text-xs text-gray-600 dark:text-white/60 font-bold block mb-1">Кто может публиковать посты</label>
+            <select value={whoCanPost} onChange={(e) => setWhoCanPost(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm">
+              <option value="members">Все участники</option>
+              <option value="admins">Только администраторы</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-600 dark:text-white/60 font-bold block mb-1">Кто может комментировать</label>
+            <select value={whoCanComment} onChange={(e) => setWhoCanComment(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm">
+              <option value="members">Все участники</option>
+              <option value="admins">Только администраторы</option>
+            </select>
+          </div>
         </div>
 
         {/* Кнопки */}

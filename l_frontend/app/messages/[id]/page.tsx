@@ -15,6 +15,7 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import { MessageContextMenu } from "@/components/MessageContextMenu";
 import CallButton from '@/components/CallButton';
 import { MessageBubble } from "@/components/MessageBubble";
+import { ChatPostFeed } from "@/components/ChatPostFeed";
 import LinkPreview  from "@/components/LinkPreview";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
@@ -2419,6 +2420,10 @@ const ChatHeader = () => (
   </div>
 );
 
+// 📰 Для групповых чатов (в т.ч. переименованных prism) показываем ленту постов
+  if (isGroup) {
+    return <ChatPostFeed chatId={chatId} initialChatInfo={chatInfo} />;
+  }
   return (
     <div className="h-screen flex overflow-hidden">
       <style>{`
@@ -3508,6 +3513,6 @@ style={{
 
 
 
-    </div>
+</div>
   );
 }

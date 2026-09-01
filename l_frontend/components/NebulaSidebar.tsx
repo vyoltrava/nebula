@@ -194,10 +194,8 @@ export function NebulaSidebar() {
     if (isMessagesPage) window.dispatchEvent(new CustomEvent("nebula-create", { detail: "group" }));
     else router.push("/messages?create=group");
   };
-  const openCreatePrism = () => {
-    if (isMessagesPage) window.dispatchEvent(new CustomEvent("nebula-create", { detail: "prism" }));
-    else router.push("/messages?create=prism");
-  };
+  // 🔁 prism-создание удалено: prism-чаты объединены с групповыми (см. TODO_FEED_CHAT.md)
+  const openCreatePrism = openCreateGroup;
 
   // ── Секретный чат: выбор собеседника из подписок → POST /api/chats/secret ──
   const openCreateSecret = async () => {
@@ -252,7 +250,6 @@ export function NebulaSidebar() {
     { key: "messages", icon: MessageCircle, label: t("nav.messages"), badge: counts.chats, run: () => router.push("/messages") },
     { key: "saved", icon: Bookmark, label: t("messages.saved"), badge: 0, run: openSavedMessages },
     { key: "group", icon: Users, label: t("messages.createGroup"), badge: 0, run: openCreateGroup },
-    { key: "prism", icon: ShieldCheck, label: "PRISM Link", badge: 0, run: openCreatePrism },
     { key: "secret", icon: Lock, label: t("profile.secretChat"), badge: 0, run: openCreateSecret },
     { key: "profile", icon: null, label: t("nav.profile"), badge: 0, run: () => user && router.push(`/nebula-user/${user.username}`) },
     { key: "logout", icon: LogOut, label: t("nav.logout"), badge: 0, run: () => setShowAccountSwitcher(true) },
@@ -563,10 +560,6 @@ export function NebulaSidebar() {
           <button onClick={openCreateGroup} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title={t("messages.createGroup")}>
             <Users size={18} className={iconClass + " text-[#8b5cf6]"} />
             <span className={textClass}>{t("messages.createGroup")}</span>
-          </button>
-          <button onClick={openCreatePrism} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title="PRISM Link">
-            <ShieldCheck size={18} className={iconClass + " text-cyan-600 dark:text-cyan-400"} />
-            <span className={textClass}>PRISM Link</span>
           </button>
           <button onClick={openCreateSecret} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 last:border-none group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title={t("profile.secretChat")}>
             <Lock size={18} className={iconClass + " text-emerald-600 dark:text-emerald-400"} />

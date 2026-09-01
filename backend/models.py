@@ -194,6 +194,10 @@ class Chat(SQLModel, table=True):
     owner_id: Optional[int] = Field(default=None, foreign_key="user.id")
     pinned_by: Optional[int] = Field(default=None, foreign_key="user.id")
     pinned_at: Optional[datetime] = None
+    # 🔗 Пригласительная ссылка (как в Telegram) + приватность ленты постов
+    invite_token: Optional[str] = Field(default=None, unique=True, index=True)
+    who_can_post: str = Field(default="members")  # "members" | "admins" — кто может публиковать посты
+    who_can_comment: str = Field(default="members")  # "members" | "admins" — кто может комментировать
 
 
 
@@ -225,6 +229,40 @@ class Message(SQLModel, table=True):
     forwarded_from_id: Optional[int] = Field(default=None, foreign_key="message.id")
     forwarded_sender_name: Optional[str] = None
     reply_to_id: Optional[int] = Field(default=None, foreign_key="message.id") 
+
+
+class ChatPost(SQLModel, table=True):
+    """Пост в ленте группового чата (Telegram-канал)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    chat_id: int = Field(foreign_key="chat.id", index=True)
+    author_id: int = Field(foreign_key="user.id", index=True)
+    text: Optional[str] = None
+    media_url: Optional[str] = None
+    media_type: Optional[str] = None  # image | video | gif | audio
+    link_url: Optional[str] = None
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    edited: bool = Field(default=False)
+    edited_at: Optional[datetime] = None
+
+
+class ChatPostComment(SQLModel, table=True):
+    """Комментарий к посту чата, с поддержкой вложенных ответов."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    post_id: int = Field(foreign_key="chatpost.id", index=True)
+    parent_id: Optional[int] = Field(default=None, foreign_key="chatpostcomment.id")
+    author_id: int = Field(foreign_key="user.id", index=True)
+    text: str
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ChatInvite(SQLModel, table=True):
+    """Приглашительная ссылка на чат."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    chat_id: int = Field(foreign_key="chat.id", index=True)
+    token: str = Field(index=True, unique=True)
+    created_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=utcnow)
+    is_active: bool = Field(default=True)
 
 
 class RoleCategory(SQLModel, table=True):
