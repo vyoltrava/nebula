@@ -1,18 +1,18 @@
-"""Rename custom_badge* -> billet* (таблицы, колонки).
+﻿"""Rename custom_badge* -> billet* (С‚Р°Р±Р»РёС†С‹, РєРѕР»РѕРЅРєРё).
 
 CustomBadge -> Billet, CustomBadgeTemplate -> BilletTemplate,
 CustomBadgeAssignment -> BilletAssignment,
 user.custom_badge_url -> user.billet_url,
 custom_badge_assignment.badge_id -> custom_badge_assignment.billet_id.
 
-Revision ID: 0005_rename_custom_badge_to_billet
+Revision ID: 0005_billet
 Revises: 0004_add_premium_usernames
 Create Date: 2026-09-01
 """
 from alembic import op
 from sqlalchemy import inspect
 
-revision = "0005_rename_custom_badge_to_billet"
+revision = "0005_billet"
 down_revision = "0004_add_premium_usernames"
 branch_labels = None
 depends_on = None
@@ -47,13 +47,13 @@ def upgrade():
     conn = op.get_bind()
     tables = _tables(conn)
 
-    # 1) Переименование таблиц (сначала assignment/template, потом базовая)
+    # 1) РџРµСЂРµРёРјРµРЅРѕРІР°РЅРёРµ С‚Р°Р±Р»РёС† (СЃРЅР°С‡Р°Р»Р° assignment/template, РїРѕС‚РѕРј Р±Р°Р·РѕРІР°СЏ)
     for old, new in TABLE_MAP:
         if old in tables and new not in tables:
             op.rename_table(old, new)
             tables = _tables(conn)
 
-    # 2) Переименование колонок (batch-режим — совместимо с SQLite)
+    # 2) РџРµСЂРµРёРјРµРЅРѕРІР°РЅРёРµ РєРѕР»РѕРЅРѕРє (batch-СЂРµР¶РёРј вЂ” СЃРѕРІРјРµСЃС‚РёРјРѕ СЃ SQLite)
     for table, old, new in COLUMN_MAP:
         if table in tables and old in _columns(conn, table) and new not in _columns(conn, table):
             with op.batch_alter_table(table) as batch:
