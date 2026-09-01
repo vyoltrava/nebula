@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { getToken, clearToken } from "@/lib/auth";
+import { getToken, clearToken, refreshAccessToken } from "@/lib/auth";
 import { apiFetch } from "@/lib/apiFetch";
 
 // Страницы, которые доступны без авторизации
@@ -16,7 +16,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     const token = getToken();
     const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
-        if (!token && !isPublic) {
+    if (!token && !isPublic) {
       // Нет токена и страница защищённая — на логин
       router.replace("/login");
       return;
@@ -33,12 +33,27 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       apiFetch("/api/me")
         .then((res) => {
           if (!res.ok) {
-            // Токен недействителен (истёк, отозван, 2FA) — выходим
-            clearToken();
-            router.replace("/login");
+            // Токен недействителен (истёк, отозван, 2FA) — пробуем refresh
+            return refreshAccessToken().then(({ token: fresh, unreachable }) => {
+              if (fresh) {
+                // Успешно обновили — проверяем снова
+                return apiFetch("/api/me");
+              }
+              if (!unreachable) {
+                // Сессия реально мёртва — удаляем аккаунт
+                clearToken();
+                router.replace("/login");
+              } else {
+                setChecked(true); // сеть недоступна — оставляем как есть
+              }
+              return undefined;
+            });
           } else {
             setChecked(true);
           }
+        })
+        .then((res) => {
+          if (res && res.ok) setChecked(true);
         })
         .catch(() => {
           // Сетевая/серверная ошибка (напр. рестарт Render / офлайн) —
