@@ -6,14 +6,15 @@ import { getToken } from "@/lib/auth";
 import { Trash2, Edit2, X, Crown, Info, Plus, User, ChevronUp } from "lucide-react";
 import { Button, IconButton } from "@/components/ui/Button";
 
-// === Доп. роли уровней 9-11 (высшая каста). Это настоящие роли: цвет подсвечивает ник, права выдаются системой ролей ===
+// === Р”РѕРї. СЂРѕлРё СѓСЂРѕРІРЅеР№ 9-11 (РІС‹СЃС€аСЏ РєаСЃС‚а). ЭС‚Рѕ РЅаСЃС‚РѕСЏС‰Рёе СЂРѕлРё: С†РІеС‚ РїРѕРґСЃРІеС‡РёРІаеС‚ РЅРёРє, РїСЂаРІа РІС‹РґаСЋС‚СЃСЏ СЃРёСЃС‚еРјРѕР№ СЂРѕлеР№ ===
 const LEVELS = [9, 10, 11] as const;
 const LEVEL_META: Record<number, { label: string; color: string; desc: string }> = {
-  9: { label: "Developer", color: "#3b82f6", desc: "Разработка и технический доступ" },
-  10: { label: "Founder", color: "#fbbf24", desc: "Глава проекта / владелец" },
-  11: { label: "System", color: "#8b5cf6", desc: "Системный / официальный аккаунт" },
+  9: { label: "Developer", color: "#3b82f6", desc: "РазСЂабРѕС‚Рєа Рё С‚еС…РЅРёС‡еСЃРєРёР№ РґРѕСЃС‚СѓРї" },
+  10: { label: "Founder", color: "#fbbf24", desc: "Р“лаРІа РїСЂРѕеРєС‚а / РІлаРґелеС†" },
+  11: { label: "System", color: "#8b5cf6", desc: "РЎРёСЃС‚еРјРЅС‹Р№ / РѕС„РёС†РёалСЊРЅС‹Р№ аРєРєаСѓРЅС‚" },
 };
 
+// Категории прав с иконками и fallback
 const PERMISSION_META: Record<string, { icon: string; category: "content" | "users" | "chats" | "system" }> = {
   delete_posts:         { icon: "🗑️", category: "content" },
   edit_posts:           { icon: "✏️", category: "content" },
@@ -33,17 +34,17 @@ const PERMISSION_META: Record<string, { icon: string; category: "content" | "use
   manage_reports:       { icon: "🚩", category: "system" },
   tech_access:          { icon: "🔧", category: "system" },
   manage_team_stats:    { icon: "📊", category: "system" },
+  manage_suggestions:   { icon: "💡", category: "content" },
   manage_usernames:     { icon: "🏷️", category: "system" },
   access_owner_panel:   { icon: "👑", category: "system" },
   manage_backups:       { icon: "🛡️", category: "system" },
-  manage_suggestions:   { icon: "💡", category: "content" },
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
-  content: "📝 Контент",
-  users: "👥 Пользователи",
-  chats: "💬 Чаты и группы",
-  system: "⚙️ Система",
+  content: "рџ“ќ РљРѕРЅС‚еРЅС‚",
+  users: "рџ‘Ґ РџРѕлСЊзРѕРІаС‚елРё",
+  chats: "рџ’¬ ЧаС‚С‹ Рё РіСЂСѓРїРїС‹",
+  system: "вљ™пёЏ РЎРёСЃС‚еРја",
 };
 
 interface RoleData {
@@ -64,7 +65,7 @@ export default function EliteRolesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Форма создания/редактирования роли
+  // ФРѕСЂРја СЃРѕзРґаРЅРёСЏ/СЂеРґаРєС‚РёСЂРѕРІаРЅРёСЏ СЂРѕлРё
   const [showForm, setShowForm] = useState(false);
   const [editingRole, setEditingRole] = useState<RoleData | null>(null);
   const [name, setName] = useState("");
@@ -74,7 +75,7 @@ export default function EliteRolesPage() {
   const [isStaff, setIsStaff] = useState(true);
   const [permissions, setPermissions] = useState<string[]>([]);
 
-  // Выдача роли пользователю
+  // Р’С‹РґаС‡а СЂРѕлРё РїРѕлСЊзРѕРІаС‚елСЋ
   const [showAssign, setShowAssign] = useState(false);
   const [assignQuery, setAssignQuery] = useState("");
   const [assignResults, setAssignResults] = useState<any[]>([]);
@@ -117,11 +118,11 @@ export default function EliteRolesPage() {
           const permsData = await permsRes.json();
           setAvailablePermissions(permsData.map((p: any) => ({
             ...p,
-            icon: PERMISSION_META[p.id]?.icon || "🔑",
+            icon: PERMISSION_META[p.id]?.icon || "рџ”‘",
             category: PERMISSION_META[p.id]?.category || p.category || "system",
           })));
         }
-      } catch { /* fallback: права останутся пустыми */ }
+      } catch { /* fallback: РїСЂаРІа РѕСЃС‚аРЅСѓС‚СЃСЏ РїСѓСЃС‚С‹РјРё */ }
     } catch {
       router.push("/");
     } finally {
@@ -165,7 +166,7 @@ export default function EliteRolesPage() {
     const token = getToken();
     if (!token) return;
     if (level > myLevel) {
-      alert(`Вы не можете создавать роли уровня выше ${myLevel}.`);
+      alert(`Р’С‹ РЅе РјРѕжеС‚е СЃРѕзРґаРІаС‚СЊ СЂРѕлРё СѓСЂРѕРІРЅСЏ РІС‹С€е ${myLevel}.`);
       return;
     }
     setSaving(true);
@@ -190,20 +191,20 @@ export default function EliteRolesPage() {
       );
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        alert(data?.detail || "Ошибка сохранения роли");
+        alert(data?.detail || "РћС€РёбРєа СЃРѕС…СЂаРЅеРЅРёСЏ СЂРѕлРё");
         return;
       }
       setShowForm(false);
       load();
     } catch {
-      alert("Ошибка сети");
+      alert("РћС€РёбРєа СЃеС‚Рё");
     } finally {
       setSaving(false);
     }
   }
 
   async function deleteRole(roleId: number) {
-    if (!confirm("Удалить роль? Она исчезнет у всех пользователей этой роли.")) return;
+    if (!confirm("РЈРґалРёС‚СЊ СЂРѕлСЊ? РћРЅа РёСЃС‡езРЅеС‚ Сѓ РІСЃеС… РїРѕлСЊзРѕРІаС‚елеР№ СЌС‚РѕР№ СЂРѕлРё.")) return;
     const token = getToken();
     if (!token) return;
     try {
@@ -213,16 +214,16 @@ export default function EliteRolesPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        alert(data?.detail || "Ошибка удаления");
+        alert(data?.detail || "РћС€РёбРєа СѓРґалеРЅРёСЏ");
         return;
       }
       load();
     } catch {
-      alert("Ошибка сети");
+      alert("РћС€РёбРєа СЃеС‚Рё");
     }
   }
 
-  // === Выдача роли пользователю (система ролей) ===
+  // === Р’С‹РґаС‡а СЂРѕлРё РїРѕлСЊзРѕРІаС‚елСЋ (СЃРёСЃС‚еРја СЂРѕлеР№) ===
   const [assignableRoles, setAssignableRoles] = useState<RoleData[]>([]);
 
   useEffect(() => {
@@ -255,7 +256,7 @@ export default function EliteRolesPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        alert(data?.detail || "Ошибка выдачи роли");
+        alert(data?.detail || "РћС€РёбРєа РІС‹РґаС‡Рё СЂРѕлРё");
         return;
       }
       setShowAssign(false);
@@ -263,7 +264,7 @@ export default function EliteRolesPage() {
       setAssignQuery("");
       setAssignRoleId(null);
     } catch {
-      alert("Ошибка сети");
+      alert("РћС€РёбРєа СЃеС‚Рё");
     } finally {
       setAssignSaving(false);
     }
@@ -271,7 +272,7 @@ export default function EliteRolesPage() {
 
   if (!me) return (
     <div className="h-screen flex items-center justify-center bg-ivory dark:bg-[#18181b]">
-      <p className="text-gray-600 dark:text-white/60 animate-pulse">Загрузка...</p>
+      <p className="text-gray-600 dark:text-white/60 animate-pulse">Р—аРіСЂСѓзРєа...</p>
     </div>
   );
 
@@ -285,15 +286,15 @@ export default function EliteRolesPage() {
             <div className="flex items-center gap-3">
               <Crown size={24} className="text-[#fbbf24]" />
               <div>
-                <h1 className="text-2xl font-black text-gray-900 dark:text-white">Роли высшей касты (9–11)</h1>
+                <h1 className="text-2xl font-black text-gray-900 dark:text-white">РРѕлРё РІС‹СЃС€еР№ РєаСЃС‚С‹ (9вЂ“11)</h1>
                 <p className="text-xs text-gray-600 dark:text-white/50 mt-0.5">
-                  Ваш уровень: <span className="font-bold">{myLevel}</span>
+                  Р’аС€ СѓСЂРѕРІеРЅСЊ: <span className="font-bold">{myLevel}</span>
                 </p>
               </div>
             </div>
             <div className="flex gap-2">
-              <Button icon={Plus} onClick={() => openForm()}>Создать роль</Button>
-              <Button variant="secondary" icon={User} onClick={() => setShowAssign(true)}>Выдать роль</Button>
+              <Button icon={Plus} onClick={() => openForm()}>РЎРѕзРґаС‚СЊ СЂРѕлСЊ</Button>
+              <Button variant="secondary" icon={User} onClick={() => setShowAssign(true)}>Р’С‹РґаС‚СЊ СЂРѕлСЊ</Button>
             </div>
           </div>
         </div>
@@ -302,12 +303,12 @@ export default function EliteRolesPage() {
           <div className="bg-[#fbbf24]/10 border border-[#fbbf24]/30 rounded-xl p-4 flex gap-3">
             <Info size={20} className="text-[#fbbf24] shrink-0 mt-0.5" />
             <div className="text-sm text-gray-800 dark:text-white/80 space-y-1">
-              <p className="font-bold text-gray-900 dark:text-white">Это полноценные роли уровней 9–11</p>
-              <p>Создаются через систему ролей: <strong>цвет роли подсвечивает ник</strong>, права работают во всём приложении. Выдача — через «Выдать роль» (та же система, что в управлении ролями).</p>
+              <p className="font-bold text-gray-900 dark:text-white">ЭС‚Рѕ РїРѕлРЅРѕС†еРЅРЅС‹е СЂРѕлРё СѓСЂРѕРІРЅеР№ 9вЂ“11</p>
+              <p>РЎРѕзРґаСЋС‚СЃСЏ С‡еСЂез СЃРёСЃС‚еРјСѓ СЂРѕлеР№: <strong>С†РІеС‚ СЂРѕлРё РїРѕРґСЃРІеС‡РёРІаеС‚ РЅРёРє</strong>, РїСЂаРІа СЂабРѕС‚аСЋС‚ РІРѕ РІСЃС‘Рј РїСЂРёлРѕжеРЅРёРё. Р’С‹РґаС‡а вЂ” С‡еСЂез «Р’С‹РґаС‚СЊ СЂРѕлСЊ» (С‚а же СЃРёСЃС‚еРја, С‡С‚Рѕ РІ СѓРїСЂаРІлеРЅРёРё СЂРѕлСЏРјРё).</p>
               <div className="flex flex-wrap gap-2 mt-2 text-xs">
                 {LEVELS.map(l => (
                   <span key={l} className="px-2 py-0.5 rounded border" style={{ color: LEVEL_META[l].color, borderColor: `${LEVEL_META[l].color}40`, background: `${LEVEL_META[l].color}15` }}>
-                    {LEVEL_META[l].label}: {l} — {LEVEL_META[l].desc}
+                    {LEVEL_META[l].label}: {l} вЂ” {LEVEL_META[l].desc}
                   </span>
                 ))}
               </div>
@@ -316,11 +317,11 @@ export default function EliteRolesPage() {
         </div>
 
         <div className="p-4 space-y-3">
-          {loading && <p className="text-center text-gray-500 dark:text-white/40 py-8 animate-pulse">Загрузка...</p>}
+          {loading && <p className="text-center text-gray-500 dark:text-white/40 py-8 animate-pulse">Р—аРіСЂСѓзРєа...</p>}
           {!loading && roles.length === 0 && (
             <div className="text-center py-12">
               <Crown size={48} className="mx-auto text-gray-300 dark:text-white/10 mb-3" />
-              <p className="text-gray-500 dark:text-white/40 text-sm">Ролей 9–11 пока нет. Нажмите «Создать роль».</p>
+              <p className="text-gray-500 dark:text-white/40 text-sm">РРѕлеР№ 9вЂ“11 РїРѕРєа РЅеС‚. РќажРјРёС‚е «РЎРѕзРґаС‚СЊ СЂРѕлСЊ».</p>
             </div>
           )}
           {roles.map(role => {
@@ -342,8 +343,8 @@ export default function EliteRolesPage() {
                     {role.description && <p className="text-xs text-gray-600 dark:text-white/60 italic hidden md:block">"{role.description}"</p>}
                   </div>
                   <div className="flex gap-2 shrink-0">
-                    <IconButton icon={Edit2} variant="secondary" size="iconSm" disabled={!canEditLevel(lvl)} onClick={() => openForm(role)} title="Редактировать" />
-                    <IconButton icon={Trash2} variant="danger" size="iconSm" disabled={!canEditLevel(lvl)} onClick={() => deleteRole(role.id)} title="Удалить" />
+                    <IconButton icon={Edit2} variant="secondary" size="iconSm" disabled={!canEditLevel(lvl)} onClick={() => openForm(role)} title="РеРґаРєС‚РёСЂРѕРІаС‚СЊ" />
+                    <IconButton icon={Trash2} variant="danger" size="iconSm" disabled={!canEditLevel(lvl)} onClick={() => deleteRole(role.id)} title="РЈРґалРёС‚СЊ" />
                   </div>
                 </div>
 
@@ -359,7 +360,7 @@ export default function EliteRolesPage() {
                       }[metaP?.category || "system"];
                       return (
                         <span key={perm} className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-xs ${categoryColor}`}>
-                          <span>{metaP?.icon || "🔑"}</span>
+                          <span>{metaP?.icon || "рџ”‘"}</span>
                           <span>{perm}</span>
                         </span>
                       );
@@ -371,7 +372,7 @@ export default function EliteRolesPage() {
           })}
         </div>
 
-        {/* МОДАЛКА СОЗДАНИЯ/РЕДАКТИРОВАНИЯ РОЛИ 9-11 */}
+        {/* РњРћР”РђР›РљРђ РЎРћР—Р”РђРќР�РЇ/РР•Р”РђРљРўР�РРћР’РђРќР�РЇ РРћР›Р� 9-11 */}
         {showForm && (
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200] animate-in fade-in duration-200" onClick={() => !saving && setShowForm(false)} />
@@ -379,19 +380,19 @@ export default function EliteRolesPage() {
               <div className="w-full max-w-lg border border-line dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-black text-gray-900 dark:text-white">
-                    {editingRole ? "Редактировать роль" : "Создать роль"}
+                    {editingRole ? "РеРґаРєС‚РёСЂРѕРІаС‚СЊ СЂРѕлСЊ" : "РЎРѕзРґаС‚СЊ СЂРѕлСЊ"}
                   </h2>
                   <IconButton icon={X} size="iconSm" onClick={() => !saving && setShowForm(false)} />
                 </div>
                 <form onSubmit={saveRole} className="space-y-5">
                   <div>
-                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Название роли</label>
-                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Например: Младший разработчик, 2nd Founder" required
+                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">РќазРІаРЅРёе СЂРѕлРё</label>
+                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="РќаРїСЂРёРјеСЂ: РњлаРґС€РёР№ СЂазСЂабРѕС‚С‡РёРє, 2nd Founder" required
                       className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]" />
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Цвет плашки и подсветки ника</label>
+                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">ЦРІеС‚ РїлаС€РєРё Рё РїРѕРґСЃРІеС‚РєРё РЅРёРєа</label>
                     <div className="flex items-center gap-3">
                       <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="w-16 h-10 rounded-lg border border-line dark:border-white/20 cursor-pointer bg-transparent" />
                       <input type="text" value={color} onChange={(e) => setColor(e.target.value)} className="flex-1 border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white font-mono text-sm focus:outline-none focus:border-[#8b5cf6]" />
@@ -399,14 +400,14 @@ export default function EliteRolesPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Описание роли</label>
-                    <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Чем занимается носитель этой роли?"
+                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">РћРїРёСЃаРЅРёе СЂРѕлРё</label>
+                    <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="ЧеРј заРЅРёРјаеС‚СЃСЏ РЅРѕСЃРёС‚елСЊ СЌС‚РѕР№ СЂРѕлРё?"
                       className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] resize-none" />
                   </div>
 
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <label className="block text-sm font-bold text-gray-800 dark:text-white/80">Уровень иерархии</label>
+                      <label className="block text-sm font-bold text-gray-800 dark:text-white/80">РЈСЂРѕРІеРЅСЊ РёеСЂаСЂС…РёРё</label>
                       <span className="text-xs font-mono px-2 py-0.5 rounded border" style={{ color: LEVEL_META[level]?.color, borderColor: `${LEVEL_META[level]?.color}40`, backgroundColor: `${LEVEL_META[level]?.color}10` }}>
                         {level} / 11
                       </span>
@@ -423,9 +424,9 @@ export default function EliteRolesPage() {
                     <p className="text-xs text-gray-500 dark:text-white/40 mt-2">{LEVEL_META[level]?.desc}</p>
                   </div>
 
-                  {/* 🆕 Предпросмотр плашки */ }
+                  {/* рџ†• РџСЂеРґРїСЂРѕСЃРјРѕС‚СЂ РїлаС€РєРё */ }
                   <div>
-                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Предпросмотр плашки</label>
+                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">РџСЂеРґРїСЂРѕСЃРјРѕС‚СЂ РїлаС€РєРё</label>
                     <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                       {isStaff && (
                         <span className="px-2 py-0.5 rounded-full bg-[#8b5cf6]/20 text-[#8b5cf6] text-xs font-bold border border-[#8b5cf6]/40 flex items-center gap-1">
@@ -437,7 +438,7 @@ export default function EliteRolesPage() {
                         style={{ backgroundColor: color, borderColor: `${color}80`, boxShadow: `0 4px 14px 0 ${color}40` }}
                       >
                         <img src="/role-icon.svg" alt="" className="w-4 h-4 shrink-0" />
-                        {name || "Название"}
+                        {name || "РќазРІаРЅРёе"}
                         <span className="border-l border-white/30 pl-2 text-[10px] font-mono opacity-90">
                           Lvl {level}
                         </span>
@@ -453,7 +454,7 @@ export default function EliteRolesPage() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Права роли</label>
+                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">РџСЂаРІа СЂРѕлРё</label>
                     <div className="max-h-56 overflow-y-auto space-y-3 border border-line dark:border-white/10 rounded-lg p-3">
                       {(["content", "users", "chats", "system"] as const).map(cat => {
                         const group = availablePermissions.filter(p => p.category === cat);
@@ -472,17 +473,17 @@ export default function EliteRolesPage() {
                         );
                       })}
                       {availablePermissions.length === 0 && (
-                        <p className="text-xs text-gray-500 dark:text-white/40 text-center py-4">Права не загружены</p>
+                        <p className="text-xs text-gray-500 dark:text-white/40 text-center py-4">РџСЂаРІа РЅе заРіСЂСѓжеРЅС‹</p>
                       )}
                     </div>
                   </div>
 
                   <div className="flex gap-3 pt-2">
                     <Button type="submit" loading={saving} disabled={saving} className="flex-1">
-                      {saving ? "Сохранение..." : editingRole ? "Сохранить" : "Создать"}
+                      {saving ? "РЎРѕС…СЂаРЅеРЅРёе..." : editingRole ? "РЎРѕС…СЂаРЅРёС‚СЊ" : "РЎРѕзРґаС‚СЊ"}
                     </Button>
                     <Button variant="secondary" onClick={() => !saving && setShowForm(false)} disabled={saving} className="flex-1">
-                      Отмена
+                      РћС‚РјеРЅа
                     </Button>
                   </div>
                 </form>
@@ -491,7 +492,7 @@ export default function EliteRolesPage() {
           </>
         )}
 
-        {/* МОДАЛКА ВЫДАЧИ РОЛИ ПОЛЬЗОВАТЕЛЮ */}
+        {/* РњРћР”РђР›РљРђ Р’ЫР”РђЧР� РРћР›Р� РџРћР›ЬР—РћР’РђРўР•Р›Ю */}
         {showAssign && (
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200] animate-in fade-in duration-200" onClick={() => !assignSaving && setShowAssign(false)} />
@@ -499,15 +500,15 @@ export default function EliteRolesPage() {
               <div className="w-full max-w-md border border-line dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
-                    <Crown size={18} className="text-[#fbbf24]" /> Выдать роль
+                    <Crown size={18} className="text-[#fbbf24]" /> Р’С‹РґаС‚СЊ СЂРѕлСЊ
                   </h2>
                   <IconButton icon={X} size="iconSm" onClick={() => !assignSaving && setShowAssign(false)} />
                 </div>
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Найти пользователя</label>
-                    <input value={assignQuery} onChange={(e) => { setAssignQuery(e.target.value); setAssignTarget(null); }} placeholder="Введите username или имя..."
+                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">РќаР№С‚Рё РїРѕлСЊзРѕРІаС‚елСЏ</label>
+                    <input value={assignQuery} onChange={(e) => { setAssignQuery(e.target.value); setAssignTarget(null); }} placeholder="Р’РІеРґРёС‚е username РёлРё РёРјСЏ..."
                       className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]" />
                   </div>
 
@@ -537,10 +538,10 @@ export default function EliteRolesPage() {
                   )}
 
                   <div>
-                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Роль (9–11)</label>
+                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">РРѕлСЊ (9вЂ“11)</label>
                     <div className="space-y-2">
                       {assignableRoles.length === 0 && (
-                        <p className="text-sm text-gray-500 dark:text-white/40 py-2 text-center">Роли не загружены</p>
+                        <p className="text-sm text-gray-500 dark:text-white/40 py-2 text-center">РРѕлРё РЅе заРіСЂСѓжеРЅС‹</p>
                       )}
                       {assignableRoles.map(r => {
                         const lvl = r.level ?? 9;
@@ -578,16 +579,16 @@ export default function EliteRolesPage() {
                       })}
                     </div>
                     <p className="text-xs text-gray-500 dark:text-white/40 mt-2">
-                      Роль выдаётся через систему ролей — подсветка ника и права применятся автоматически.
+                      РРѕлСЊ РІС‹РґаС‘С‚СЃСЏ С‡еСЂез СЃРёСЃС‚еРјСѓ СЂРѕлеР№ вЂ” РїРѕРґСЃРІеС‚Рєа РЅРёРєа Рё РїСЂаРІа РїСЂРёРјеРЅСЏС‚СЃСЏ аРІС‚РѕРјаС‚РёС‡еСЃРєРё.
                     </p>
                   </div>
 
                   <div className="flex gap-3 pt-2">
                     <Button onClick={assignRoleToUser} loading={assignSaving} disabled={!assignTarget || !assignRoleId || assignSaving} className="flex-1">
-                      Выдать
+                      Р’С‹РґаС‚СЊ
                     </Button>
                     <Button variant="secondary" onClick={() => !assignSaving && setShowAssign(false)} disabled={assignSaving} className="flex-1">
-                      Отмена
+                      РћС‚РјеРЅа
                     </Button>
                   </div>
                 </div>

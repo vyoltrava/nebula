@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useEffect, useMemo, useState } from "react";
 import { getToken } from "@/lib/auth";
 import { getCookie, setCookie } from "@/lib/cookieManager";
@@ -298,7 +298,7 @@ export default function StatPage() {
           </div>
         </div>
 
-        {/* ========== ВКЛАДКА: РџРћР›ЬР—РћР’РђРўР•Р›Р ========== */}
+        {/* ========== РџРѕлСЊзРѕРІаС‚елРё ========== */}
         {activeTab === "users" && overview && (
           <div className="space-y-6">
             {/* ОБЗОР */}
@@ -335,7 +335,7 @@ export default function StatPage() {
                   <p className="text-[10px] text-gray-500 dark:text-white/40 mt-2">Средняя оценка активности</p>
                 </div>
                 <div className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl p-4">
-                  <p className="text-gray-600 dark:text-white/50 text-xs mb-3">РСЃРїРѕлСЊзРѕРІаРЅРёе фич</p>
+                  <p className="text-gray-600 dark:text-white/50 text-xs mb-3">РџРѕлСЊзРѕРІаС‚елРё</p>
                   <div className="flex items-end gap-3 h-14">
                     {[
                       { v: overview.total_posts, l: "Посты", c: "#8b5cf6" },
