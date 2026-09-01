@@ -1061,7 +1061,11 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
                 onTouchStart={(e) => { e.stopPropagation(); startReactionLongPress(); }}
                 onTouchEnd={cancelReactionLongPress}
                 onTouchMove={cancelReactionLongPress}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full transition-all active:scale-90 text-gray-800 dark:text-white/70 hover:opacity-70"
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border transition-all active:scale-90 hover:opacity-80 ${
+                  myReaction
+                    ? "border-[#8B5CF6] text-[#8B5CF6] dark:text-[#a78bfa]"
+                    : "border-line dark:border-white/20 text-gray-800 dark:text-white/70"
+                }`}
                 title="Клик — выбрать реакцию · Двойной тап — быстрая · Удержание/правый клик — все реакции"
               >
                 {myReaction ? (
