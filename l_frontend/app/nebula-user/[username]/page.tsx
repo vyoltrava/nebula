@@ -17,7 +17,7 @@ import {
   User as UserIcon, Lock, AlertTriangle,
 } from "lucide-react";
 import { useNebulaMode } from "@/lib/useNebula";
-import { getToken, clearToken, getActiveAccount } from "@/lib/auth";
+import { getToken, clearToken, getActiveAccount, setToken } from "@/lib/auth";
 import { ensureKeyPair } from "@/lib/crypto";
 import { mediaUrl } from "@/lib/media";
 import { resolveNickColor } from "@/lib/nickGlow";
@@ -136,8 +136,18 @@ export default function NebulaUserPage() {
   const {
     inputRef, openFilePicker, handleFileSelect, handleCropComplete,
     cropperImage, setCropperImage,
-  } = useAvatarUploader((newUrl) => {
+   } = useAvatarUploader((newUrl) => {
     setUser((prev) => (prev ? { ...prev, avatar_url: newUrl } : prev));
+    // 🔥 Синхронизируем localStorage для AccountSwitcher модалки
+    const active = getActiveAccount();
+    if (active) {
+      setToken(active.token, {
+        id: active.userId,
+        username: active.username,
+        display_name: active.displayName,
+        avatar_url: newUrl,
+      }, { refreshToken: active.refreshToken });
+    }
   }, "/api/me/avatar");
 
   useEffect(() => {

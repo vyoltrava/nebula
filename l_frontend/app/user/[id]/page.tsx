@@ -10,7 +10,7 @@ import { Post } from "@/components/Post";
 import { Avatar } from "@/components/Avatar";
 import { RoleBadge } from "@/components/RoleBadge";
 import { AvatarFrame } from "@/components/AvatarFrame";
-import { getToken } from "@/lib/auth";
+import { getToken, getActiveAccount, setToken } from "@/lib/auth";
 import { ReportModal } from "@/components/ReportModal";
 import { SystemName } from "@/components/SystemName";
 import { ensureKeyPair } from "@/lib/crypto";
@@ -61,8 +61,18 @@ export default function UserProfilePage() {
     handleFileSelect,
     handleCropComplete,
     setCropperImage,
-  } = useAvatarUploader((newUrl) => {
+   } = useAvatarUploader((newUrl) => {
     setProfile((prev: any) => (prev ? { ...prev, avatar_url: newUrl } : prev));
+    // 🔥 Синхронизируем localStorage для AccountSwitcher модалки
+    const active = getActiveAccount();
+    if (active) {
+      setToken(active.token, {
+        id: active.userId,
+        username: active.username,
+        display_name: active.displayName,
+        avatar_url: newUrl,
+      }, { refreshToken: active.refreshToken });
+    }
   }, "/api/me/avatar");
 
   const coverInputRef = useRef<HTMLInputElement>(null);
