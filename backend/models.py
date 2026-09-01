@@ -347,6 +347,25 @@ class ActionLog(SQLModel, table=True):
     ip_address: Optional[str] = None
     created_at: datetime = Field(default_factory=utcnow)
 
+
+class AdminBackup(SQLModel, table=True):
+    """🛡️ Резервная БД: снимки действий администраторов.
+    Любое деструктивное действие (удаление поста, бан и т.п.) применяется
+    сразу, но снимок лежит здесь и может быть откачен. При «бане админа»
+    все его действия восстанавливаются автоматически."""
+    __tablename__ = "admin_backup"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    actor_id: int = Field(index=True)                    # кто совершил действие
+    action: str                                          # delete_post | ban_user
+    target_type: str                                     # post | user
+    target_id: Optional[int] = None
+    payload: str = Field(default="{}")                   # JSON-снимок для отката
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    restored: bool = Field(default=False, index=True)
+    restored_at: Optional[datetime] = None
+    restored_by: Optional[int] = Field(default=None, foreign_key="user.id")
+
 class Bookmark(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)

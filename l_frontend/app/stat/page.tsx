@@ -199,6 +199,28 @@ export default function StatPage() {
     if (res.ok) loadData();
   }
 
+  // 🛡️ Резервная БД: бан админа с автооткатом его действий
+  const [showBanAdmin, setShowBanAdmin] = useState(false);
+  const [banAdminTarget, setBanAdminTarget] = useState<any>(null);
+  const [banAdminBusy, setBanAdminBusy] = useState(false);
+
+  async function banAdminWithRollback(u: any) {
+    if (!confirm(`☢️ ЯДЕРНО: забанить @${u.username} и откатить ВСЕ его админ-действия (вернуть удалённые посты, снять его баны)?`)) return;
+    setBanAdminBusy(true);
+    try {
+      const token = getToken();
+      const res = await fetch(`${API_URL}/api/admin/users/${u.id}/ban-admin`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        const r = data.restored || {};
+        alert(`✅ @${data.banned} забанен. Откатено: постов — ${r.delete_post || 0}, банов — ${r.ban_user || 0}.`);
+        loadData();
+      } else {
+        alert(data.detail || "Не удалось выполнить");
+      }
+    } finally { setBanAdminBusy(false); setMenuUserId(null); }
+  }
+
   function handleSort(field: SortField) {
     if (sortField === field) setSort(field);
     else { setSort(field); }
@@ -452,6 +474,13 @@ export default function StatPage() {
                                   <button onClick={() => { setMenuUserId(null); toggleBan(u); }}
                                     className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${u.is_banned ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"} hover:bg-gray-100 dark:hover:bg-white/5`}>
                                     <Ban size={14} /> {u.is_banned ? "Разбанить" : "Забанить"}
+                                  </button>
+                                )}
+                                {me?.is_admin && !u.is_banned && (u.is_admin || u.is_moderator) && u.id !== me?.id && (
+                                  <button onClick={() => banAdminWithRollback(u)} disabled={banAdminBusy}
+                                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-700 dark:text-red-300 font-bold hover:bg-red-500/10"
+                                    title="Бан админа + мгновенный откат всех его действий из резервной БД">
+                                    ☢️ Бан админа + откат
                                   </button>
                                 )}
                               </div>

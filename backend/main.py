@@ -59,8 +59,8 @@ from models import (
     PushSubscription, StickerPack, Sticker, MessageReaction, PostReaction, Theme, SystemSetting,
     RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge,
     CustomBadge, CustomBadgeTemplate, CustomBadgeAssignment, SystemBadge,
-    SuggestionCategory, SuggestionThread, SuggestionThreadComment, TeamStatistic, RoleHistory, NickHistory, Suggestion, SuggestionComment, ChatDraft, PremiumUsername, PaymentPurchase, PaymentRole
-    
+    SuggestionCategory, SuggestionThread, SuggestionThreadComment, TeamStatistic, RoleHistory, NickHistory, Suggestion, SuggestionComment, ChatDraft, PremiumUsername, PaymentPurchase, PaymentRole,
+    AdminBackup
 )
 import logging
 from fastapi.responses import JSONResponse
@@ -137,6 +137,117 @@ def log_action(
         ip_address=ip_address,
     )
     session.add(log)
+
+
+# ============================================================
+# 🛡️ РЕЗЕРВНАЯ БД ДЕЙСТВИЙ АДМИНОВ (снимки для отката)
+# ============================================================
+def backup_action(
+    session: Session,
+    actor_id: int,
+    action: str,
+    target_type: str,
+    target_id: Optional[int],
+    payload: dict,
+):
+    """Сохраняет снимок деструктивного действия администратора в резервную БД."""
+    backup = AdminBackup(
+        actor_id=actor_id,
+        action=action,
+        target_type=target_type,
+        target_id=target_id,
+        payload=json.dumps(payload, default=str, ensure_ascii=False),
+    )
+    session.add(backup)
+    return backup
+
+
+def snapshot_post_tree(session: Session, post_id: int) -> dict:
+    """Снимок поста и всей ветки ответов (BFS, как в cascade_delete_post) для отката."""
+    ids_to_snap = {post_id}
+    queue = [post_id]
+    while queue:
+        current_id = queue.pop(0)
+        children = session.exec(
+            select(Post.id).where(Post.reply_to_id == current_id)
+        ).all()
+        for child_id in children:
+            if child_id not in ids_to_snap:
+                ids_to_snap.add(child_id)
+                queue.append(child_id)
+    posts = session.exec(select(Post).where(Post.id.in_(list(ids_to_snap)))).all()
+    return {
+        "posts": [
+            {
+                "id": p.id,
+                "author_id": p.author_id,
+                "text": p.text,
+                "media_url": p.media_url,
+                "media_type": p.media_type,
+                "reply_to_id": p.reply_to_id,
+                "repost_of_id": p.repost_of_id,
+                "echo_parent_id": p.echo_parent_id,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+                "views_count": p.views_count,
+            }
+            for p in posts
+        ]
+    }
+
+
+def restore_backup(backup: AdminBackup, session: Session, restored_by: int) -> dict:
+    """Откат одного действия из резервной БД. Возвращает статус."""
+    if backup.restored:
+        return {"status": "already_restored"}
+    payload = json.loads(backup.payload or "{}")
+
+    if backup.action == "delete_post":
+        # Восстанавливаем посты ветки (пропуская уже существующие id)
+        restored_count = 0
+        for p in payload.get("posts", []):
+            if session.get(Post, p["id"]) is not None:
+                continue
+            created = p.get("created_at")
+            session.add(Post(
+                id=p["id"],
+                author_id=p["author_id"],
+                text=p.get("text") or "",
+                media_url=p.get("media_url"),
+                media_type=p.get("media_type"),
+                reply_to_id=p.get("reply_to_id"),
+                repost_of_id=p.get("repost_of_id"),
+                echo_parent_id=p.get("echo_parent_id"),
+                created_at=datetime.fromisoformat(created) if created else utcnow(),
+                views_count=p.get("views_count", 0),
+            ))
+            restored_count += 1
+        backup.restored = True
+        backup.restored_at = utcnow()
+        backup.restored_by = restored_by
+        session.add(backup)
+        log_action(session, restored_by, "restore_post_backup",
+                   target_type="post", target_id=backup.target_id,
+                   details={"backup_id": backup.id, "restored_posts": restored_count})
+        return {"status": "ok", "restored_posts": restored_count}
+
+    elif backup.action == "ban_user":
+        # Возвращаем предыдущее состояние бана
+        user_id = payload.get("user_id")
+        previous = payload.get("previous_is_banned", False)
+        target = session.get(User, user_id) if user_id else None
+        if target:
+            target.is_banned = bool(previous)
+            session.add(target)
+        backup.restored = True
+        backup.restored_at = utcnow()
+        backup.restored_by = restored_by
+        session.add(backup)
+        log_action(session, restored_by, "restore_ban_backup",
+                   target_type="user", target_id=user_id,
+                   details={"backup_id": backup.id, "previous_is_banned": previous})
+        return {"status": "ok", "user_id": user_id, "is_banned": bool(previous)}
+
+    return {"status": "unknown_action", "action": backup.action}
 
 
 def is_ip_blocked(session: Session, ip: str) -> Optional[IPBlock]:
@@ -2943,6 +3054,9 @@ async def delete_post(
         author = session.get(User, post.author_id)
         if author:
             check_sanction_rights(user, author, session, "удалять посты этого пользователя")
+        # 🛡️ Резерв: снимок ветки до удаления (откат бана админа вернёт пост)
+        tree = snapshot_post_tree(session, post_id)
+        backup_action(session, user.id, "delete_post", "post", post_id, tree)
     await cascade_delete_post(post_id, session)
     log_action(
         session, user.id, "delete_post",
@@ -3918,6 +4032,11 @@ def admin_ban_user(
     # 🛡️ Единый иммунитет: Founder/Developer/System трогает только Founder
     check_sanction_rights(admin, target, session, "банить этого пользователя")
     
+    # 🛡️ Резерв: запоминаем предыдущее состояние бана для отката
+    if not target.is_banned:  # это бан (а не разбан)
+        backup_action(session, admin.id, "ban_user", "user", target.id,
+                      {"user_id": target.id, "previous_is_banned": bool(target.is_banned),
+                       "username": target.username})
     target.is_banned = not target.is_banned
     session.add(target)
     session.commit()
@@ -3926,6 +4045,124 @@ def admin_ban_user(
                details={"username": target.username})
     session.commit()
     return {"is_banned": target.is_banned}
+
+
+# ============================================================
+# 🛡️ РЕЗЕРВНАЯ БД: список / откат / бан админа с автооткатом
+# ============================================================
+def _require_founder(admin: User):
+    """Откатом и баном админов управляет только Founder (is_admin)."""
+    if not admin.is_admin:
+        raise HTTPException(403, "Только Founder управляет резервом действий")
+
+
+@app.get("/api/admin/backups")
+def admin_list_backups(
+    actor_id: Optional[int] = None,
+    limit: int = 100,
+    admin: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Очередь резервных действий админов (для ручного отката)."""
+    _require_founder(admin)
+    q = select(AdminBackup).where(AdminBackup.restored == False)
+    if actor_id:
+        q = q.where(AdminBackup.actor_id == actor_id)
+    q = q.order_by(AdminBackup.created_at.desc()).limit(min(limit, 500))
+    backups = session.exec(q).all()
+    actors = {u.id: u for u in session.exec(select(User).where(User.id.in_({b.actor_id for b in backups}))).all()} if backups else {}
+    return {
+        "backups": [
+            {
+                "id": b.id,
+                "actor": {
+                    "id": a.id, "username": a.username, "avatar_url": a.avatar_url,
+                } if (a := actors.get(b.actor_id)) else None,
+                "action": b.action,
+                "target_type": b.target_type,
+                "target_id": b.target_id,
+                "payload_preview": (b.payload or "")[:300],
+                "created_at": b.created_at.isoformat() if b.created_at else None,
+            }
+            for b in backups
+        ]
+    }
+
+
+@app.post("/api/admin/backups/{backup_id}/restore")
+def admin_restore_backup(
+    backup_id: int,
+    admin: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Откатить одно действие из резерва (вернуть пост / снять бан)."""
+    _require_founder(admin)
+    backup = session.get(AdminBackup, backup_id)
+    if not backup:
+        raise HTTPException(404, "Backup not found")
+    result = restore_backup(backup, session, admin.id)
+    session.commit()
+    return result
+
+
+@app.post("/api/admin/users/{user_id}/ban-admin")
+def admin_ban_admin(
+    user_id: int,
+    admin: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """☢️ ЯДЕРНАЯ КНОПКА: банит админа и мгновенно откатывает ВСЕ его действия из резерва
+    (восстанавливаются все удалённые им посты, снимаются его баны пользователей)."""
+    _require_founder(admin)
+    if user_id == admin.id:
+        raise HTTPException(400, "Нельзя применить к самому себе")
+    target = session.get(User, user_id)
+    if not target:
+        raise HTTPException(404, "User not found")
+    if not (target.is_admin or target.is_moderator):
+        raise HTTPException(400, "Это не админ/модератор — используйте обычный бан")
+
+    # 1. Бан + сброс всех сессий
+    target.is_banned = True
+    target.token_version = (target.token_version or 0) + 1
+    session.add(target)
+
+    # 2. Мгновенный откат всех его действий из резервной БД
+    backups = session.exec(
+        select(AdminBackup)
+        .where(AdminBackup.actor_id == user_id, AdminBackup.restored == False)
+        .order_by(AdminBackup.created_at.asc())
+    ).all()
+    restored = {"delete_post": 0, "ban_user": 0}
+    for b in backups:
+        r = restore_backup(b, session, admin.id)
+        if r.get("status") == "ok":
+            key = "delete_post" if b.action == "delete_post" else "ban_user"
+            restored[key] = restored.get(key, 0) + 1
+
+    log_action(session, admin.id, "ban_admin_rollback",
+               target_type="user", target_id=user_id,
+               details={"restored": restored, "username": target.username})
+    session.commit()
+    return {"ok": True, "banned": target.username, "restored": restored}
+
+
+@app.post("/api/admin/backups/purge")
+def admin_purge_old_backups(
+    days: int = 30,
+    admin: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Чистка резерва: удаляет ОТКАЧЕННЫЕ записи старше N дней (нескандированные не трогаем)."""
+    _require_founder(admin)
+    cutoff = utcnow() - timedelta(days=max(days, 1))
+    old = session.exec(
+        select(AdminBackup).where(AdminBackup.restored == True, AdminBackup.created_at < cutoff)
+    ).all()
+    for b in old:
+        session.delete(b)
+    session.commit()
+    return {"deleted": len(old)}
 
 
 # ============================================================
@@ -4066,6 +4303,9 @@ async def admin_delete_post(
     author = session.get(User, post.author_id)
     if author and author.id != staff.id:
         check_sanction_rights(staff, author, session, "удалять посты этого пользователя")
+    # 🛡️ Резерв: снимок ветки до удаления (откат бана админа вернёт пост)
+    tree = snapshot_post_tree(session, post_id)
+    backup_action(session, staff.id, "delete_post", "post", post_id, tree)
     await cascade_delete_post(post_id, session)
     log_action(
         session, staff.id, "delete_post",
