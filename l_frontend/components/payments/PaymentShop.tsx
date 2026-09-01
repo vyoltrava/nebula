@@ -49,8 +49,22 @@ export function PaymentShop({ onPurchased }: { onPurchased?: () => void }) {
   if (state.loading) {
     return <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-violet-500" /></div>;
   }
-  if (!state.enabled) return null; // система выключена — блок не показываем
-  if (state.roles.length === 0) return null;
+  if (!state.enabled) {
+    return (
+      <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-black/[0.03] dark:bg-white/[0.04] p-6 text-center">
+        <CreditCard className="w-8 h-8 text-gray-400 dark:text-white/30 mx-auto mb-2" />
+        <p className="text-sm text-gray-500 dark:text-white/50">Магазин ролей временно закрыт</p>
+      </div>
+    );
+  }
+  if (state.roles.length === 0) {
+    return (
+      <div className="rounded-2xl border border-black/5 dark:border-white/10 bg-black/[0.03] dark:bg-white/[0.04] p-6 text-center">
+        <CreditCard className="w-8 h-8 text-gray-400 dark:text-white/30 mx-auto mb-2" />
+        <p className="text-sm text-gray-500 dark:text-white/50">Сейчас нет ролей в продаже</p>
+      </div>
+    );
+  }
 
   return (
     <div>

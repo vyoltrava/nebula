@@ -38,7 +38,7 @@ import { PaymentShop } from "@/components/payments/PaymentShop";
 import { ShopSettings } from "@/components/settings/ShopSettings";
 import { Button, IconButton } from "@/components/ui/Button";
 
-type View = "profile" | "payments" | "appearance" | "notifications" | "permissions" | "messages" | "security" | "nebula" | "shop";
+type View = "profile" | "appearance" | "notifications" | "permissions" | "messages" | "security" | "nebula" | "shop";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
@@ -55,7 +55,7 @@ export default function SettingsPage() {
   // Поддержка ?view=... (например, из Nebula-настроек: /settings?view=security)
   useEffect(() => {
     const v = new URLSearchParams(window.location.search).get("view");
-    const valid: View[] = ["profile", "payments", "appearance", "notifications", "permissions", "messages", "security", "nebula", "shop"];
+    const valid: View[] = ["profile", "appearance", "notifications", "permissions", "messages", "security", "nebula", "shop"];
     if (v && valid.includes(v as View)) setView(v as View);
   }, []);
 
@@ -317,13 +317,12 @@ async function activate2FA() {
 
   const nav: { id: View; label: string; icon: any }[] = [
     { id: "profile", label: t("settings.profile"), icon: User },
-    { id: "payments", label: t("settings.payments"), icon: CreditCard },
+    { id: "shop", label: t("settings.shop"), icon: ShoppingBag },
     { id: "appearance", label: t("settings.appearance"), icon: Palette },
     { id: "notifications", label: t("settings.notifications"), icon: Bell },
     { id: "permissions", label: t("settings.permissions"), icon: Mic },
     { id: "messages", label: t("settings.liveMessages"), icon: Zap },
     { id: "security", label: t("settings.security"), icon: ShieldCheck },
-    { id: "shop", label: t("settings.shop"), icon: ShoppingBag },
     { id: "nebula", label: "Nebula", icon: Sparkles },
   ];
 
@@ -492,17 +491,14 @@ async function activate2FA() {
               </div>
             )}
 
-            {/* ---------- ОПЛАТА ---------- */}
-            {view === "payments" && (
-              <div>
-                <h2 className="text-lg font-semibold mb-4">{t("settings.payments")}</h2>
-                <PaymentShop />
-              </div>
-            )}
-
-            {/* ---------- МАГАЗИН ---------- */}
+            {/* ---------- МАГАЗИН (роли + юзернеймы) ---------- */}
             {view === "shop" && (
-              <div>
+              <div className="space-y-8">
+                <div>
+                  <h2 className="text-lg font-semibold mb-4">{t("settings.payments")}</h2>
+                  <PaymentShop />
+                </div>
+                <div className="border-t border-line dark:border-white/10" />
                 <ShopSettings />
               </div>
             )}
