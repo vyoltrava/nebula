@@ -16,7 +16,7 @@ export type RecUser = {
   avatar_url?: string | null;
   bio?: string | null;
   is_verified: boolean;
-  custom_badge_url?: string | null;
+  billet_url?: string | null;
 };
 
 export type Recommendation = {

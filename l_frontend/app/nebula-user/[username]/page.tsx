@@ -52,7 +52,7 @@ type UserProfile = {
   level?: number;
   role?: { id?: number; color?: string; level?: number } | null;
   selected_badge_id?: number | null;
-  custom_badge_url?: string | null;
+  billet_url?: string | null;
   last_seen?: string;
 };
 
@@ -119,7 +119,7 @@ export default function NebulaUserPage() {
     if (!user?.id) return;
     const token = getToken();
     if (!token) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/custom-badge-assignments?user_id=${user.id}&active_only=true`, {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/billet-assignments?user_id=${user.id}&active_only=true`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => (r.ok ? r.json() : []))
@@ -421,7 +421,7 @@ export default function NebulaUserPage() {
                   >
                     {user.display_name}
                   </h1>
-                  <RoleBadge user={user} activeCustomBadgeAssignment={customAssignment} size="md" />
+                  <RoleBadge user={user} activeBilletAssignment={customAssignment} size="md" />
                   {isMine && (
                     <button
                       onClick={() => setEditing((v) => !v)}

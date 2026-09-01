@@ -52,7 +52,7 @@ export default function UserProfilePage() {
   const [showReport, setShowReport] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(() => getCachedUser());
   const [availableBadges, setAvailableBadges] = useState<any[]>([]);
-  const [activeCustomBadgeAssignment, setActiveCustomBadgeAssignment] = useState<any>(null); // 🆕 Активная кастомная плашка
+  const [activeBilletAssignment, setActiveBilletAssignment] = useState<any>(null); // 🆕 Активная кастомная плашка
   const {
     cropperImage,
     uploading,
@@ -171,7 +171,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       const badgeExists = availableBadges.some(b => b.id === profile.selected_badge_id);
       if (!badgeExists) {
         // Значок удален из базы, очищаем его у пользователя локально
-        setProfile((prev: any) => prev ? { ...prev, selected_badge_id: null, custom_badge_url: null } : null);
+        setProfile((prev: any) => prev ? { ...prev, selected_badge_id: null, billet_url: null } : null);
         
         // И отправляем запрос на сервер, чтобы очистить там
         const token = getToken();
@@ -364,21 +364,21 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       // 🆕 ЗАГРУЗКА АКТИВНОЙ КАСТОМНОЙ ПЛАШКИ (после того, как узнали profileData.id)
       if (token && profileData.id) {
         try {
-          const assignRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/custom-badge-assignments?user_id=${profileData.id}&active_only=true`, {
+          const assignRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/billet-assignments?user_id=${profileData.id}&active_only=true`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (assignRes.ok) {
             const assignments = await assignRes.json();
             // Берем первую активную плашку (обычно она одна из-за логики бэкенда)
             if (assignments && assignments.length > 0) {
-              setActiveCustomBadgeAssignment(assignments[0]);
+              setActiveBilletAssignment(assignments[0]);
             } else {
-              setActiveCustomBadgeAssignment(null);
+              setActiveBilletAssignment(null);
             }
           }
         } catch (err) {
           console.error("Failed to load custom badge assignment:", err);
-          setActiveCustomBadgeAssignment(null);
+          setActiveBilletAssignment(null);
         }
       }
       // Подписка
@@ -663,10 +663,10 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     </h1>
   )}
   
-  {/* ✅ ДОБАВЬ activeCustomBadgeAssignment СЮДА */}
+  {/* ✅ ДОБАВЬ activeBilletAssignment СЮДА */}
   <RoleBadge 
     user={profile} 
-    activeCustomBadgeAssignment={activeCustomBadgeAssignment} 
+    activeBilletAssignment={activeBilletAssignment} 
     size="md" 
   />
 </div>
@@ -849,7 +849,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className={`font-bold text-sm md:text-base truncate ${glowStyle(u) ? "" : "text-gray-900 dark:text-white"}`} style={glowStyle(u)}>{u.display_name}</p>
-                          <RoleBadge user={u} activeCustomBadgeAssignment={u.active_custom_badge_assignment} size="sm" />                     </div>
+                          <RoleBadge user={u} activeBilletAssignment={u.active_billet_assignment} size="sm" />                     </div>
                         <p className="text-xs md:text-sm text-gray-600 dark:text-white/50 truncate">@{u.username}</p>
                       </div>
                     </Link>
@@ -884,7 +884,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                         type="file" 
                         accept="image/*" 
                         className="hidden" 
-                        id="custom-badge-upload"
+                        id="billet-upload"
                         onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
@@ -892,7 +892,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                           const form = new FormData();
                           form.append("file", file);
                           try {
-                            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/custom-badge`, {
+                            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/billet`, {
                               method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form
                             });
                             if (res.ok) {
@@ -909,15 +909,15 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                         }}
                       />
                       <div className="flex gap-2">
-                        <label htmlFor="custom-badge-upload" className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-[#8b5cf6]/20 border border-[#8b5cf6]/30 text-[#8b5cf6] text-xs font-bold hover:bg-[#8b5cf6]/30 cursor-pointer transition-colors">
-                          <Upload size={14} /> {profile?.custom_badge_url ? "Заменить" : "Загрузить"}
+                        <label htmlFor="billet-upload" className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-[#8b5cf6]/20 border border-[#8b5cf6]/30 text-[#8b5cf6] text-xs font-bold hover:bg-[#8b5cf6]/30 cursor-pointer transition-colors">
+                          <Upload size={14} /> {profile?.billet_url ? "Заменить" : "Загрузить"}
                         </label>
-                        {profile?.custom_badge_url && (
+                        {profile?.billet_url && (
                           <button 
                             onClick={async () => {
                               if (!confirm("Удалить свой значок?")) return;
                               const token = getToken();
-                              await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/custom-badge`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+                              await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/billet`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
                               setShowBadgeModal(false);
                               const fresh = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${userId}`).then(r => r.json());
                               setProfile(fresh);
@@ -932,7 +932,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   )}
 
                   {/* 2. МОИ ЗАГРУЗКИ (кастомный значок) */}
-                  {profile?.custom_badge_url && (
+                  {profile?.billet_url && (
                     <div>
                       <p className="text-xs text-gray-600 dark:text-white/60 mb-2">Мой загруженный значок:</p>
                       <div className="grid grid-cols-4 gap-2">
@@ -944,7 +944,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                           className="aspect-square rounded-lg border border-purple-600 dark:border-purple-400 bg-purple-500/20 flex items-center justify-center relative"
                           style={{ filter: `drop-shadow(0 0 8px #8b5cf699)` }}
                         >
-                          <img src={profile.custom_badge_url} className="w-6 h-6 object-contain" alt="custom" />
+                          <img src={profile.billet_url} className="w-6 h-6 object-contain" alt="custom" />
                           <Check size={12} className="absolute -top-1 -right-1 bg-purple-500 text-white rounded-full p-0.5" />
                         </button>
                       </div>
@@ -959,7 +959,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                         {availableBadges
                           .filter(b => b.role_id === currentUser?.role?.id || b.user_id === currentUser?.id || (b.is_selectable && (currentUser?.level ?? 1) >= 3))
                           .map((badge) => {
-                            const isActive = profile?.selected_badge_id === badge.id && !profile?.custom_badge_url;
+                            const isActive = profile?.selected_badge_id === badge.id && !profile?.billet_url;
                             return (
                               <button 
                                 key={badge.id} 

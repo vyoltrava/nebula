@@ -24,9 +24,9 @@ export function AvatarFrame({
 
   // Логика выбора значка в углу аватарки
   const sysBadge = user.system_badge; // 🆕 отредактированная плашка из /admin/badges/system
-  let userBadge = (user.custom_badge_url ? {
+  let userBadge = (user.billet_url ? {
     id: -1,
-    icon_url: user.custom_badge_url,
+    icon_url: user.billet_url,
     glow_color: "#8b5cf6",
     enable_ring: true,
     enable_glow: true,

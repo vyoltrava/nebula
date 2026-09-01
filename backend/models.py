@@ -21,7 +21,7 @@ class User(SQLModel, table=True):
     role_id: Optional[int] = Field(default=None, foreign_key="role.id")
     selected_badge_id: Optional[int] = Field(default=None)
 
-    custom_badge_url: Optional[str] = Field(default=None)  # 🆕 URL загруженного пользователем значка
+    billet_url: Optional[str] = Field(default=None)  # 🆕 URL загруженного пользователем значка
     created_at: datetime = Field(default_factory=utcnow)
     bio: Optional[str] = None
     live_text_enabled: bool = True     # 🆕 показывать ли живые сообщения других
@@ -610,9 +610,9 @@ class NickHistory(SQLModel, table=True):
 # 🏷️ КАСТОМНЫЕ ПЛАШКИ (BADGES 2.0)
 # ============================================================
 
-class CustomBadge(SQLModel, table=True):
+class Billet(SQLModel, table=True):
     """Кастомная плашка/бейджик для пользователя"""
-    __tablename__ = "custom_badge"
+    __tablename__ = "billet"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=80)                    # Название плашки
@@ -657,9 +657,9 @@ class CustomBadge(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
 
 
-class CustomBadgeTemplate(SQLModel, table=True):
+class BilletTemplate(SQLModel, table=True):
     """Шаблоны для кастомных плашек"""
-    __tablename__ = "custom_badge_template"
+    __tablename__ = "billet_template"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(max_length=80)                  # Название шаблона
@@ -670,16 +670,16 @@ class CustomBadgeTemplate(SQLModel, table=True):
     is_system: bool = Field(default=False)             # Системный (готовый) шаблон
 
 
-class CustomBadgeAssignment(SQLModel, table=True):
+class BilletAssignment(SQLModel, table=True):
     """Назначение плашек пользователям"""
-    __tablename__ = "custom_badge_assignment"
+    __tablename__ = "billet_assignment"
     __table_args__ = (
-        UniqueConstraint("user_id", "badge_id", name="uq_user_badge"),
+        UniqueConstraint("user_id", "billet_id", name="uq_user_billet"),
     )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(index=True)
-    badge_id: int = Field(foreign_key="custom_badge.id")
+    billet_id: int = Field(foreign_key="billet.id")
     granted_by: int = Field(foreign_key="user.id")
     granted_at: datetime = Field(default_factory=utcnow)
     expires_at: Optional[datetime] = None              # Дата истечения

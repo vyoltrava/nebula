@@ -321,8 +321,8 @@ def calculate_roles_similarity(db: Session, a: User, b: User) -> float:
     ra, rb = _roles(a), _roles(b)
     role_overlap = len(ra & rb) / len(ra | rb) if (ra or rb) else 0.0
     badge_overlap = 0.0
-    if a.custom_badge_url and b.custom_badge_url:
-        badge_overlap = 1.0 if a.custom_badge_url == b.custom_badge_url else 0.3
+    if a.billet_url and b.billet_url:
+        badge_overlap = 1.0 if a.billet_url == b.billet_url else 0.3
     return (role_overlap * 0.5 + badge_overlap * 0.5) * 100.0
 
 

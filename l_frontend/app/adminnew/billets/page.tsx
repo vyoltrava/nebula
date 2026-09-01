@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation";
 import { getToken, getUserLevel } from "@/lib/auth";
 import { Plus, Shield, Gift, List, Sparkles, ArrowLeft, Crown } from "lucide-react";
 import { Button } from "@/components/ui/Button"; // ← ИМПОРТ КНОПКИ
-import { CustomBadgeForm } from "@/components/admin/badges/CustomBadgeForm";
-import { CustomBadgeAssignForm } from "@/components/admin/badges/CustomBadgeAssignForm";
-import { CustomBadgeList } from "@/components/admin/badges/CustomBadgeList";
+import { BilletForm } from "@/components/admin/billets/BilletForm";
+import { BilletAssignForm } from "@/components/admin/billets/BilletAssignForm";
+import { BilletList } from "@/components/admin/billets/BilletList";
 
 type TabId = "my" | "assign" | "assigned";
 
-interface CustomBadgeData {
+interface BilletData {
   id: number;
   name: string;
   description: string | null;
@@ -48,8 +48,8 @@ interface CustomBadgeData {
 interface AssignmentData {
   id: number;
   user_id: number;
-  badge_id: number;
-  badge: CustomBadgeData | null;
+  billet_id: number;
+  billet: BilletData | null;
   granted_by: number;
   granted_at: string;
   expires_at: string | null;
@@ -57,18 +57,18 @@ interface AssignmentData {
   custom_message: string | null;
 }
 
-export default function BadgesAdminPage() {
+export default function BilletsAdminPage() {
   const router = useRouter();
   const [me, setMe] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<TabId>("my");
-  const [badges, setBadges] = useState<CustomBadgeData[]>([]);
-  const [badgesLoading, setBadgesLoading] = useState(false);
+  const [billets, setBillets] = useState<BilletData[]>([]);
+  const [billetsLoading, setBilletsLoading] = useState(false);
   const [assignments, setAssignments] = useState<AssignmentData[]>([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [formBadge, setFormBadge] = useState<CustomBadgeData | null>(null);
+  const [formBillet, setFormBillet] = useState<BilletData | null>(null);
   const [showAssignForm, setShowAssignForm] = useState(false);
-  const [assignBadge, setAssignBadge] = useState<CustomBadgeData | null>(null);
+  const [assignBillet, setAssignBillet] = useState<BilletData | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -82,16 +82,16 @@ export default function BadgesAdminPage() {
     });
   }, [router]);
 
-  const fetchBadges = async () => {
+  const fetchBillets = async () => {
     const token = getToken();
     if (!token) return;
-    setBadgesLoading(true);
+    setBilletsLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/custom-badges`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/billets`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) { const data = await res.json(); setBadges(data); }
-    } finally { setBadgesLoading(false); }
+      if (res.ok) { const data = await res.json(); setBillets(data); }
+    } finally { setBilletsLoading(false); }
   };
 
   const fetchAssignments = async () => {
@@ -99,7 +99,7 @@ export default function BadgesAdminPage() {
     if (!token) return;
     setAssignmentsLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/custom-badge-assignments`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/billet-assignments`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) { const data = await res.json(); setAssignments(data); }
@@ -107,18 +107,18 @@ export default function BadgesAdminPage() {
   };
 
   useEffect(() => {
-    if (me && (me.level ?? getUserLevel(me)) >= 9) { fetchBadges(); fetchAssignments(); }
+    if (me && (me.level ?? getUserLevel(me)) >= 9) { fetchBillets(); fetchAssignments(); }
   }, [me]);
 
-  const deleteBadge = async (badgeId: number) => {
+  const deleteBillet = async (billetId: number) => {
     if (!confirm("Удалить эту плашку? Это действие нельзя отменить.")) return;
     const token = getToken();
     if (!token) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/custom-badges/${badgeId}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/billets/${billetId}`, {
         method: "DELETE", headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) { setBadges(badges.filter((b) => b.id !== badgeId)); }
+      if (res.ok) { setBillets(billets.filter((b) => b.id !== billetId)); }
     } catch (e) { console.error(e); }
   };
 
@@ -127,7 +127,7 @@ export default function BadgesAdminPage() {
     const token = getToken();
     if (!token) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/custom-badge-assignments/${assignId}/revoke`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/billet-assignments/${assignId}/revoke`, {
         method: "POST", headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -140,7 +140,7 @@ export default function BadgesAdminPage() {
     const token = getToken();
     if (!token) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/custom-badge-assignments/${assignId}/extend`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/billet-assignments/${assignId}/extend`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ days }),
@@ -152,20 +152,20 @@ export default function BadgesAdminPage() {
     } catch (e) { console.error(e); }
   };
 
-  const handleBadgeSuccess = (badge: any) => {
-    if (formBadge) {
-      setBadges(badges.map((b) => (b.id === badge.id ? badge : b)));
+  const handleBilletSuccess = (billet: any) => {
+    if (formBillet) {
+      setBillets(billets.map((b) => (b.id === billet.id ? billet : b)));
     } else {
-      setBadges([badge, ...badges]);
+      setBillets([billet, ...billets]);
     }
   };
 
   const handleAssignmentSuccess = () => { fetchAssignments(); };
 
-  const filteredBadges = badges.filter(b => b.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredBillets = billets.filter(b => b.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredAssignments = assignments.filter(a =>
-    (a.badge?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (a.badge?.text_content || "").toLowerCase().includes(searchQuery.toLowerCase())
+    (a.billet?.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (a.billet?.text_content || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const formatDate = (dateStr: string | null) => {
@@ -196,9 +196,9 @@ export default function BadgesAdminPage() {
             
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2">
-                <Shield className="text-blue-600 dark:text-blue-400" /> Кастомные плашки
+                <Shield className="text-blue-600 dark:text-blue-400" /> Именные плашки
               </h1>
-              <p className="text-sm text-gray-400 mt-1">Управление кастомными плашками (level {level})</p>
+              <p className="text-sm text-gray-400 mt-1">Плашки у ника, создаваемые и выдающиеся вручную (level {level})</p>
             </div>
           </div>
         </div>
@@ -219,10 +219,10 @@ export default function BadgesAdminPage() {
         {/* Кнопка перехода к системным плашкам (level 9-11) */ }
         <div className="mb-6">
           <button
-            onClick={() => router.push("/admin/badges/system")}
+            onClick={() => router.push("/admin/billets/system")}
             className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 rounded-lg text-sm font-medium text-purple-400 transition-colors flex items-center gap-2"
           >
-            <Crown size={16} /> Системные плашки (level 9–11)
+            <Crown size={16} /> Системные плашки по уровню (9–11)
           </button>
         </div>
 
@@ -232,15 +232,15 @@ export default function BadgesAdminPage() {
             <div className="flex items-center justify-between">
               <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Поиск плашек..."
                 className="px-3 py-1.5 bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg text-sm focus:outline-none focus:border-blue-500/50" />
-              <button onClick={() => { setFormBadge(null); setShowForm(true); }}
+              <button onClick={() => { setFormBillet(null); setShowForm(true); }}
                 className="px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
                 <Plus size={16} /> Создать плашку
               </button>
             </div>
-            <CustomBadgeList badges={filteredBadges} loading={badgesLoading}
-              onEdit={(badge) => { setFormBadge(badge); setShowForm(true); }}
-              onDelete={deleteBadge}
-              onAssign={(badge) => { setAssignBadge(badge); setShowAssignForm(true); }} />
+            <BilletList billets={filteredBillets} loading={billetsLoading}
+              onEdit={(billet) => { setFormBillet(billet); setShowForm(true); }}
+              onDelete={deleteBillet}
+              onAssign={(billet) => { setAssignBillet(billet); setShowAssignForm(true); }} />
           </div>
         )}
 
@@ -248,7 +248,7 @@ export default function BadgesAdminPage() {
         {activeTab === "assign" && (
           <div className="bg-paper dark:bg-[#171717] border border-line dark:border-white/10 rounded-xl p-6">
             <h2 className="text-lg font-semibold mb-4">Выдача плашки пользователю</h2>
-            <CustomBadgeAssignForm badges={badges} onSuccess={handleAssignmentSuccess} />
+            <BilletAssignForm billets={billets} onSuccess={handleAssignmentSuccess} />
           </div>
         )}
 
@@ -278,7 +278,7 @@ export default function BadgesAdminPage() {
           <span className="text-sm">ID: {a.user_id}</span>
         </div>
       </td>
-      <td className="p-4">{a.badge?.name || "—"}</td>
+      <td className="p-4">{a.billet?.name || "—"}</td>
       <td className="p-4 text-sm text-gray-400">{formatDate(a.granted_at)}</td>
       <td className="p-4 text-sm text-gray-400">
         {a.expires_at ? formatDate(a.expires_at) : <span className="text-green-600 dark:text-green-400">Бессрочно</span>}
@@ -303,8 +303,8 @@ export default function BadgesAdminPage() {
         )}
       </div>
 
-      {showForm && <CustomBadgeForm badge={formBadge || undefined} onClose={() => setShowForm(false)} onSuccess={handleBadgeSuccess} />}
-      {showAssignForm && assignBadge && <CustomBadgeAssignForm badge={assignBadge} onClose={() => setShowAssignForm(false)} onSuccess={handleAssignmentSuccess} />}
+      {showForm && <BilletForm billet={formBillet || undefined} onClose={() => setShowForm(false)} onSuccess={handleBilletSuccess} />}
+      {showAssignForm && assignBillet && <BilletAssignForm billet={assignBillet} onClose={() => setShowAssignForm(false)} onSuccess={handleAssignmentSuccess} />}
     </div>
   );
 }

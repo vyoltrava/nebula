@@ -4,12 +4,12 @@ import { useTheme } from "next-themes";
 
 interface RoleBadgeProps {
   user: any;
-  activeCustomBadgeAssignment?: any; 
+  activeBilletAssignment?: any; 
   size?: "sm" | "md" | "lg";
   showAnimation?: boolean;
 }
 
-export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", showAnimation = true }: RoleBadgeProps) {
+export function RoleBadge({ user, activeBilletAssignment, size = "md", showAnimation = true }: RoleBadgeProps) {
   const [mounted, setMounted] = useState(false);
   const { resolvedTheme } = useTheme();
   // 🌗 До гидратации считаем тему тёмной (defaultTheme="dark") — SSR совпадёт
@@ -24,7 +24,7 @@ export function RoleBadge({ user, activeCustomBadgeAssignment, size = "md", show
   // 🆕 Если проп не передан, берём активную кастомную плашку из объекта пользователя,
   // чтобы glow/анимации работали везде (посты, чаты, профиль), а не только там,
   // где компонент вызывают с явным prop.
-  const assignment = activeCustomBadgeAssignment ?? user.active_custom_badge_assignment;
+  const assignment = activeBilletAssignment ?? user.active_billet_assignment;
 
   const sizeClasses = {
     sm: "px-1.5 py-0.5 text-[8px] md:text-[9px]",

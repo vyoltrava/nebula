@@ -19,7 +19,7 @@ type FollowedUser = {
   posts_count?: number;
   role?: { id?: number; color?: string; level?: number } | null;
   selected_badge_id?: number | null;
-  custom_badge_url?: string | null;
+  billet_url?: string | null;
 };
 
 export function NebulaCircleModal({ onClose }: { onClose: () => void }) {

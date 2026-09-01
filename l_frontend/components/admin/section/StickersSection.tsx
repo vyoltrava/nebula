@@ -316,7 +316,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
 
    async function saveBadge() {
     if (!editingBadge || !editingBadge.name?.trim()) return alert("Введи название значка");
-    if (!badgeFile && !editingBadge.id) return alert("Загрузи картинку для значка");
+    if (!badgeFile && !editingBadge.id) return alert("Загрузи картинку для значка аватара");
     
     const token = getToken();
     const form = new FormData();
@@ -390,7 +390,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
           onClick={() => setActiveTab("badges")} 
           className={`px-4 py-2 rounded-t-lg font-bold text-sm transition-colors flex items-center gap-1.5 ${activeTab === "badges" ? "bg-purple-500/20 text-purple-600 dark:text-purple-400 border-b-2 border-purple-600 dark:border-purple-400" : "text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white"}`}
         >
-          <Sparkles size={14} /> Значки (Badges)
+          <Sparkles size={14} /> Значки аватара
         </button>
       </div>
 
@@ -473,7 +473,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
               setBadgeFile(null); setBadgeFileUrl("");
               setShowBadgeEditor(true);
             }}>
-              Новый значок
+              Новый значок аватара
             </Button>
           </div>
 
@@ -517,7 +517,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                 </div>
               </div>
             ))}
-            {badges.length === 0 && <p className="col-span-full text-center text-gray-500 dark:text-white/40 py-16">Значков пока нет. Создай первый для роли или спонсоров!</p>}
+            {badges.length === 0 && <p className="col-span-full text-center text-gray-500 dark:text-white/40 py-16">Значков аватара пока нет. Создай первый для роли или спонсоров!</p>}
           </div>
         </div>
       )}
@@ -637,7 +637,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
           <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
             <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-black text-gray-900 dark:text-white text-lg">{editingBadge.id ? "Редактировать значок" : "Новый значок"}</h2>
+                <h2 className="font-black text-gray-900 dark:text-white text-lg">{editingBadge.id ? "Редактировать значок аватара" : "Новый значок аватара"}</h2>
                 <IconButton icon={X} size="iconSm" onClick={() => !savingBadge && setShowBadgeEditor(false)} />
               </div>
               
@@ -648,7 +648,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Иконка значка</label>
+                  <label className="block text-xs font-bold text-gray-600 dark:text-white/60 mb-1.5">Иконка значка аватара</label>
                   <input ref={badgeFileRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleBadgeFileSelect(e.target.files?.[0] || null)} />
                   <div className="flex gap-2">
                     <button onClick={() => badgeFileRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/15 text-gray-800 dark:text-white/80 text-xs font-bold hover:bg-gray-100 dark:hover:bg-white/10">
@@ -757,7 +757,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
           <div className="fixed inset-0 z-[301] flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
             <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto my-8">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-black text-gray-900 dark:text-white text-lg">Загрузить стоковые значки</h2>
+                <h2 className="font-black text-gray-900 dark:text-white text-lg">Загрузить стоковые значки аватара</h2>
                 <IconButton icon={X} size="iconSm" onClick={() => !uploadingStock && setShowStockUploader(false)} />
               </div>
               
@@ -790,7 +790,7 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                 <div className="border border-line dark:border-white/10 rounded-xl p-3 bg-white/[0.02]">
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-bold text-gray-600 dark:text-white/60 flex items-center gap-1.5">
-                      <ImageIcon size={14} /> Файлы значков ({stockFiles.length})
+                      <ImageIcon size={14} /> Файлы значков аватара ({stockFiles.length})
                     </label>
                     {stockFiles.length > 0 && (
                       <button onClick={() => setStockFiles([])} className="text-[10px] text-red-600 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300">Очистить</button>

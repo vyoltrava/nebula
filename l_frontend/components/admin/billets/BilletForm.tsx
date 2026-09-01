@@ -1,44 +1,44 @@
-"use client";
+﻿"use client";
 import { useState, useRef } from "react";
 import { getToken } from "@/lib/auth";
 import { X, Upload, Trash2, Check, Sparkles, Palette, Type, Layers, Wand2, Settings } from "lucide-react";
 
-interface BadgeFormProps {
-  badge?: any;
+interface BilletFormProps {
+  billet?: any;
   onClose: () => void;
-  onSuccess?: (badge: any) => void;
+  onSuccess?: (billet: any) => void;
 }
 
 const PRESETS = [
-  { name: "Золотая VIP", bg_color: "#fbbf24", border_color: "#d97706", glow: true },
-  { name: "Алмазный синий", bg_color: "#3b82f6", border_color: "#1d4ed8", glow: true },
-  { name: "Пурпурный", bg_color: "#8b5cf6", border_color: "#6b21a8", glow: false },
-  { name: "Красный", bg_color: "#ef4444", border_color: "#b91c1c", glow: true },
-  { name: "Зеленый", bg_color: "#22c55e", border_color: "#15803d", glow: false },
+  { name: "Р—РѕР»РѕС‚Р°СЏ VIP", bg_color: "#fbbf24", border_color: "#d97706", glow: true },
+  { name: "РђР»РјР°Р·РЅС‹Р№ СЃРёРЅРёР№", bg_color: "#3b82f6", border_color: "#1d4ed8", glow: true },
+  { name: "РџСѓСЂРїСѓСЂРЅС‹Р№", bg_color: "#8b5cf6", border_color: "#6b21a8", glow: false },
+  { name: "РљСЂР°СЃРЅС‹Р№", bg_color: "#ef4444", border_color: "#b91c1c", glow: true },
+  { name: "Р—РµР»РµРЅС‹Р№", bg_color: "#22c55e", border_color: "#15803d", glow: false },
 ];
 
 const ANIM_OPTIONS = [
-  { value: "perimeter_wave", label: "Вращение обводки" },
-  { value: "pulse_glow", label: "Пульсация свечения" },
-  { value: "shimmer", label: "Перелив градиента" },
-  { value: "blink", label: "Мерцание" },
-  { value: "rotate_icon", label: "Вращение иконки" },
-  { value: "float", label: "Парящий эффект" },
+  { value: "perimeter_wave", label: "Р’СЂР°С‰РµРЅРёРµ РѕР±РІРѕРґРєРё" },
+  { value: "pulse_glow", label: "РџСѓР»СЊСЃР°С†РёСЏ СЃРІРµС‡РµРЅРёСЏ" },
+  { value: "shimmer", label: "РџРµСЂРµР»РёРІ РіСЂР°РґРёРµРЅС‚Р°" },
+  { value: "blink", label: "РњРµСЂС†Р°РЅРёРµ" },
+  { value: "rotate_icon", label: "Р’СЂР°С‰РµРЅРёРµ РёРєРѕРЅРєРё" },
+  { value: "float", label: "РџР°СЂСЏС‰РёР№ СЌС„С„РµРєС‚" },
 ];
 
 const SPEED_OPTIONS = [
-  { value: "slow", label: "Медленно" },
-  { value: "normal", label: "Нормально" },
-  { value: "fast", label: "Быстро" },
+  { value: "slow", label: "РњРµРґР»РµРЅРЅРѕ" },
+  { value: "normal", label: "РќРѕСЂРјР°Р»СЊРЅРѕ" },
+  { value: "fast", label: "Р‘С‹СЃС‚СЂРѕ" },
 ];
 
 const SUB_TABS = [
-  { id: "base", label: "Базовые", icon: <Type size={16} /> },
-  { id: "visual", label: "Визуал", icon: <Palette size={16} /> },
-  { id: "border", label: "Обводка", icon: <Layers size={16} /> },
-  { id: "animations", label: "Анимации", icon: <Wand2 size={16} /> },
-  { id: "effects", label: "Эффекты", icon: <Sparkles size={16} /> },
-  { id: "extras", label: "Доп.", icon: <Settings size={16} /> },
+  { id: "base", label: "Р‘Р°Р·РѕРІС‹Рµ", icon: <Type size={16} /> },
+  { id: "visual", label: "Р’РёР·СѓР°Р»", icon: <Palette size={16} /> },
+  { id: "border", label: "РћР±РІРѕРґРєР°", icon: <Layers size={16} /> },
+  { id: "animations", label: "РђРЅРёРјР°С†РёРё", icon: <Wand2 size={16} /> },
+  { id: "effects", label: "Р­С„С„РµРєС‚С‹", icon: <Sparkles size={16} /> },
+  { id: "extras", label: "Р”РѕРї.", icon: <Settings size={16} /> },
 ];
 
 const GRADIENT_PRESETS = [
@@ -48,59 +48,59 @@ const GRADIENT_PRESETS = [
   "linear-gradient(135deg,#667eea,#764ba2)",
 ];
 
-export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
-  const isEdit = !!badge;
+export function BilletForm({ billet, onClose, onSuccess }: BilletFormProps) {
+  const isEdit = !!billet;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeSubTab, setActiveSubTab] = useState("base");
 
   // Base fields
-  const [name, setName] = useState(badge?.name || "");
-  const [description, setDescription] = useState(badge?.description || "");
-  const [textContent, setTextContent] = useState(badge?.text_content || "");
-  const [iconPreview, setIconPreview] = useState(badge?.icon_url || null);
+  const [name, setName] = useState(billet?.name || "");
+  const [description, setDescription] = useState(billet?.description || "");
+  const [textContent, setTextContent] = useState(billet?.text_content || "");
+  const [iconPreview, setIconPreview] = useState(billet?.icon_url || null);
   const iconInputRef = useRef<HTMLInputElement>(null);
 
 
-  const [textColor, setTextColor] = useState(badge?.text_color || "#ffffff");
+  const [textColor, setTextColor] = useState(billet?.text_color || "#ffffff");
 
   // Visual fields
-  const [bgType, setBgType] = useState(badge?.bg_type || "solid");
-  const [bgColor, setBgColor] = useState(badge?.bg_color || "#3b82f6");
-  const [bgGradient, setBgGradient] = useState(badge?.bg_gradient || "linear-gradient(135deg,#3b82f6,#8b5cf6)");
-  const [bgGradientAngle, setBgGradientAngle] = useState(badge?.bg_gradient_angle ?? 135);
-  const [bgImagePreview, setBgImagePreview] = useState(badge?.bg_image_url || null);
-  const [bgImageMode, setBgImageMode] = useState(badge?.bg_image_mode || "cover");
+  const [bgType, setBgType] = useState(billet?.bg_type || "solid");
+  const [bgColor, setBgColor] = useState(billet?.bg_color || "#3b82f6");
+  const [bgGradient, setBgGradient] = useState(billet?.bg_gradient || "linear-gradient(135deg,#3b82f6,#8b5cf6)");
+  const [bgGradientAngle, setBgGradientAngle] = useState(billet?.bg_gradient_angle ?? 135);
+  const [bgImagePreview, setBgImagePreview] = useState(billet?.bg_image_url || null);
+  const [bgImageMode, setBgImageMode] = useState(billet?.bg_image_mode || "cover");
   const bgImageInputRef = useRef<HTMLInputElement>(null);
 
   // Border fields
-  const [borderColor, setBorderColor] = useState(badge?.border_color || "#ffffff");
-  const [borderWidth, setBorderWidth] = useState(badge?.border_width ?? 2);
-  const [borderStyle, setBorderStyle] = useState(badge?.border_style || "solid");
-  const [borderGlow, setBorderGlow] = useState(badge?.border_glow ?? false);
-  const [borderGlowIntensity, setBorderGlowIntensity] = useState(badge?.border_glow_intensity ?? 50);
+  const [borderColor, setBorderColor] = useState(billet?.border_color || "#ffffff");
+  const [borderWidth, setBorderWidth] = useState(billet?.border_width ?? 2);
+  const [borderStyle, setBorderStyle] = useState(billet?.border_style || "solid");
+  const [borderGlow, setBorderGlow] = useState(billet?.border_glow ?? false);
+  const [borderGlowIntensity, setBorderGlowIntensity] = useState(billet?.border_glow_intensity ?? 50);
 
   // Animations
   const [animationFlags, setAnimationFlags] = useState<string[]>(
-    badge?.animation_flags ? JSON.parse(badge.animation_flags) : []
+    billet?.animation_flags ? JSON.parse(billet.animation_flags) : []
   );
-  const [animationSpeed, setAnimationSpeed] = useState(badge?.animation_speed || "normal");
+  const [animationSpeed, setAnimationSpeed] = useState(billet?.animation_speed || "normal");
 
   // Effects
-  const [shadowEnabled, setShadowEnabled] = useState(badge?.shadow_enabled ?? true);
-  const [shadowBlur, setShadowBlur] = useState(badge?.shadow_blur ?? 5);
-  const [shadowOffsetX, setShadowOffsetX] = useState(badge?.shadow_offset_x ?? 0);
-  const [shadowOffsetY, setShadowOffsetY] = useState(badge?.shadow_offset_y ?? 2);
-  const [shadowColor, setShadowColor] = useState(badge?.shadow_color || "rgba(0,0,0,0.3)");
-  const [innerGlowEnabled, setInnerGlowEnabled] = useState(badge?.inner_glow_enabled ?? false);
-  const [specularEnabled, setSpecularEnabled] = useState(badge?.specular_enabled ?? false);
-  const [metallicEnabled, setMetallicEnabled] = useState(badge?.metallic_enabled ?? false);
+  const [shadowEnabled, setShadowEnabled] = useState(billet?.shadow_enabled ?? true);
+  const [shadowBlur, setShadowBlur] = useState(billet?.shadow_blur ?? 5);
+  const [shadowOffsetX, setShadowOffsetX] = useState(billet?.shadow_offset_x ?? 0);
+  const [shadowOffsetY, setShadowOffsetY] = useState(billet?.shadow_offset_y ?? 2);
+  const [shadowColor, setShadowColor] = useState(billet?.shadow_color || "rgba(0,0,0,0.3)");
+  const [innerGlowEnabled, setInnerGlowEnabled] = useState(billet?.inner_glow_enabled ?? false);
+  const [specularEnabled, setSpecularEnabled] = useState(billet?.specular_enabled ?? false);
+  const [metallicEnabled, setMetallicEnabled] = useState(billet?.metallic_enabled ?? false);
 
   // Extras
-  const [priority, setPriority] = useState(badge?.priority ?? 0);
-  const [isActive, setIsActive] = useState(badge?.is_active ?? true);
+  const [priority, setPriority] = useState(billet?.priority ?? 0);
+  const [isActive, setIsActive] = useState(billet?.is_active ?? true);
 
-  // 🆕 Авто-подбор эффектов под выбранный цвет фона
+  // рџ†• РђРІС‚Рѕ-РїРѕРґР±РѕСЂ СЌС„С„РµРєС‚РѕРІ РїРѕРґ РІС‹Р±СЂР°РЅРЅС‹Р№ С†РІРµС‚ С„РѕРЅР°
   const [autoSync, setAutoSync] = useState(true);
 
   const syncEffectsToColor = (color: string) => {
@@ -146,20 +146,20 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setError("Введите название плашки");
+      setError("Р’РІРµРґРёС‚Рµ РЅР°Р·РІР°РЅРёРµ РїР»Р°С€РєРё");
       return;
     }
     setLoading(true);
     setError(null);
     try {
       const token = getToken();
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || ""; // <-- ДОБАВЛЕНО
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || ""; // <-- Р”РћР‘РђР’Р›Р•РќРћ
       
       const payload: any = {
         name,
         description: description || null,
         text_content: textContent || null,
-        text_color: textColor, // 🆕 ДОБАВЛЕНО
+        text_color: textColor, // рџ†• Р”РћР‘РђР’Р›Р•РќРћ
         bg_type: bgType,
         bg_color: bgColor,
         bg_gradient: bgType === "gradient" ? bgGradient : null,
@@ -190,22 +190,22 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
 
       let result: any;
       if (isEdit) {
-        // <-- ИСПРАВЛЕНО: добавлен apiUrl
-        const res = await fetch(`${apiUrl}/api/custom-badges/${badge.id}`, {
+        // <-- РРЎРџР РђР’Р›Р•РќРћ: РґРѕР±Р°РІР»РµРЅ apiUrl
+        const res = await fetch(`${apiUrl}/api/billets/${billet.id}`, {
           method: "PUT",
           headers,
           body: JSON.stringify(payload),
         });
-        if (!res.ok) throw new Error(`Ошибка: ${res.status}`);
+        if (!res.ok) throw new Error(`РћС€РёР±РєР°: ${res.status}`);
         result = await res.json();
       } else {
-        // <-- ИСПРАВЛЕНО: добавлен apiUrl
-        const res = await fetch(`${apiUrl}/api/custom-badges`, {
+        // <-- РРЎРџР РђР’Р›Р•РќРћ: РґРѕР±Р°РІР»РµРЅ apiUrl
+        const res = await fetch(`${apiUrl}/api/billets`, {
           method: "POST",
           headers,
           body: JSON.stringify(payload),
         });
-        if (!res.ok) throw new Error(`Ошибка: ${res.status}`);
+        if (!res.ok) throw new Error(`РћС€РёР±РєР°: ${res.status}`);
         result = await res.json();
       }
 
@@ -213,8 +213,8 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
       if (iconPreview && iconPreview.startsWith("data:")) {
         const formData = new FormData();
         formData.append("icon_base64", iconPreview);
-        // <-- ИСПРАВЛЕНО: добавлен apiUrl
-        await fetch(`${apiUrl}/api/badges/${result.id}/upload-icon`, {
+        // <-- РРЎРџР РђР’Р›Р•РќРћ: РґРѕР±Р°РІР»РµРЅ apiUrl
+        await fetch(`${apiUrl}/api/billets/${result.id}/upload-icon`, {
           method: "POST",
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           body: formData,
@@ -223,8 +223,8 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
       if (bgImagePreview && bgImagePreview.startsWith("data:")) {
         const formData = new FormData();
         formData.append("bg_image_base64", bgImagePreview);
-        // <-- ИСПРАВЛЕНО: добавлен apiUrl
-        await fetch(`${apiUrl}/api/badges/${result.id}/upload-bg-image`, {
+        // <-- РРЎРџР РђР’Р›Р•РќРћ: РґРѕР±Р°РІР»РµРЅ apiUrl
+        await fetch(`${apiUrl}/api/billets/${result.id}/upload-bg-image`, {
           method: "POST",
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           body: formData,
@@ -234,7 +234,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
       onSuccess?.(result);
       onClose();
     } catch (err: any) {
-      setError(err.message || "Произошла ошибка");
+      setError(err.message || "РџСЂРѕРёР·РѕС€Р»Р° РѕС€РёР±РєР°");
     } finally {
       setLoading(false);
     }
@@ -250,12 +250,12 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
     if (bgImageInputRef.current) bgImageInputRef.current.value = "";
   };
 
-  // Live preview badge style
-  // Live preview badge style
+  // Live preview billet style
+  // Live preview billet style
   const getPreviewStyle = () => {
     const style: React.CSSProperties = {};
     
-    // 1. Фон
+    // 1. Р¤РѕРЅ
     if (bgType === "gradient") {
       style.backgroundImage = bgGradient;
     } else if (bgType === "image" && bgImagePreview) {
@@ -268,7 +268,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
       style.backgroundColor = bgColor || "#3b82f6";
     }
 
-    // 2. Металлический эффект (БЕЗОПАСНАЯ конкатенация)
+    // 2. РњРµС‚Р°Р»Р»РёС‡РµСЃРєРёР№ СЌС„С„РµРєС‚ (Р‘Р•Р—РћРџРђРЎРќРђРЇ РєРѕРЅРєР°С‚РµРЅР°С†РёСЏ)
     if (metallicEnabled) {
       const metallicGradient = "linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%, rgba(255,255,255,0.1) 100%)";
       if (style.backgroundImage) {
@@ -278,12 +278,12 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
       }
     }
 
-    // 3. Обводка
+    // 3. РћР±РІРѕРґРєР°
     if (borderWidth > 0) {
       style.border = `${borderWidth}px ${borderStyle} ${borderColor}`;
     }
 
-    // 4. Тени (Сборка в массив)
+    // 4. РўРµРЅРё (РЎР±РѕСЂРєР° РІ РјР°СЃСЃРёРІ)
     const shadows: string[] = [];
     if (shadowEnabled) {
       shadows.push(`${shadowOffsetX}px ${shadowOffsetY}px ${shadowBlur}px ${shadowColor}`);
@@ -298,12 +298,12 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
       style.boxShadow = shadows.join(", ");
     }
 
-    // 5. Свечение обводки
+    // 5. РЎРІРµС‡РµРЅРёРµ РѕР±РІРѕРґРєРё
     if (borderGlow) {
       style.filter = `drop-shadow(0 0 ${borderGlowIntensity}px ${borderColor})`;
     }
 
-    // 6. Цвет текста (для мгновенного отображения в превью)
+    // 6. Р¦РІРµС‚ С‚РµРєСЃС‚Р° (РґР»СЏ РјРіРЅРѕРІРµРЅРЅРѕРіРѕ РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ РІ РїСЂРµРІСЊСЋ)
     style.color = textColor;
 
     return style;
@@ -315,7 +315,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-line dark:border-white/10">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            {isEdit ? "Редактирование плашки" : "Создание новой плашки"}
+            {isEdit ? "Р РµРґР°РєС‚РёСЂРѕРІР°РЅРёРµ РїР»Р°С€РєРё" : "РЎРѕР·РґР°РЅРёРµ РЅРѕРІРѕР№ РїР»Р°С€РєРё"}
           </h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-gray-900 dark:hover:text-white">
             <X size={20} />
@@ -344,7 +344,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
             
             {/* Mini Preview in Sidebar */}
             <div className="mt-auto p-6 border-t border-line dark:border-white/10 flex flex-col items-center gap-4">
-              <span className="text-xs text-gray-500 uppercase tracking-wider">Предпросмотр</span>
+              <span className="text-xs text-gray-500 uppercase tracking-wider">РџСЂРµРґРїСЂРѕСЃРјРѕС‚СЂ</span>
               <div 
                 className="relative flex items-center justify-center px-4 py-2 rounded-lg min-w-[120px] min-h-[40px]"
                 style={getPreviewStyle()}
@@ -352,9 +352,9 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                 {iconPreview && (
                   <img src={iconPreview} alt="" className="w-5 h-5 mr-2 object-contain" />
                 )}
-                {/* Убрали text-gray-900 dark:text-white, цвет теперь берется из getPreviewStyle().color */}
+                {/* РЈР±СЂР°Р»Рё text-gray-900 dark:text-white, С†РІРµС‚ С‚РµРїРµСЂСЊ Р±РµСЂРµС‚СЃСЏ РёР· getPreviewStyle().color */}
                 <span className="text-sm font-bold drop-shadow-md whitespace-nowrap">
-                  {textContent || name || "Плашка"}
+                  {textContent || name || "РџР»Р°С€РєР°"}
                 </span>
               </div>
             </div>
@@ -375,42 +375,42 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                   <div className="space-y-4">
                     <label className="block">
-                      <span className="text-sm font-medium text-gray-300 mb-1 block">Название *</span>
+                      <span className="text-sm font-medium text-gray-300 mb-1 block">РќР°Р·РІР°РЅРёРµ *</span>
                       <input
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         className="w-full bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500/50 transition-colors"
-                        placeholder="Например: VIP Gold"
+                        placeholder="РќР°РїСЂРёРјРµСЂ: VIP Gold"
                       />
                     </label>
                     
                     <label className="block">
-                      <span className="text-sm font-medium text-gray-300 mb-1 block">Описание</span>
+                      <span className="text-sm font-medium text-gray-300 mb-1 block">РћРїРёСЃР°РЅРёРµ</span>
                       <textarea
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         className="w-full bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500/50 transition-colors h-24 resize-none"
-                        placeholder="Краткое описание назначения плашки..."
+                        placeholder="РљСЂР°С‚РєРѕРµ РѕРїРёСЃР°РЅРёРµ РЅР°Р·РЅР°С‡РµРЅРёСЏ РїР»Р°С€РєРё..."
                       />
                     </label>
 
                     <label className="block">
-                      <span className="text-sm font-medium text-gray-300 mb-1 block">Текст на плашке</span>
+                      <span className="text-sm font-medium text-gray-300 mb-1 block">РўРµРєСЃС‚ РЅР° РїР»Р°С€РєРµ</span>
                       <input
                         type="text"
                         value={textContent}
                         onChange={(e) => setTextContent(e.target.value)}
                         className="w-full bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-blue-500/50 transition-colors"
-                        placeholder="Текст, который будет виден пользователям"
+                        placeholder="РўРµРєСЃС‚, РєРѕС‚РѕСЂС‹Р№ Р±СѓРґРµС‚ РІРёРґРµРЅ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏРј"
                         maxLength={40}
                       />
-                      <span className="text-xs text-gray-500 mt-1 block">{textContent.length}/40 символов</span>
+                      <span className="text-xs text-gray-500 mt-1 block">{textContent.length}/40 СЃРёРјРІРѕР»РѕРІ</span>
                     </label>
                   </div>
 
                   <div className="pt-6 border-t border-line dark:border-white/10">
-                    <span className="text-sm font-medium text-gray-300 mb-3 block">Иконка / Логотип</span>
+                    <span className="text-sm font-medium text-gray-300 mb-3 block">РРєРѕРЅРєР° / Р›РѕРіРѕС‚РёРї</span>
                     <div className="flex items-center gap-4">
                       <div className="w-16 h-16 bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg flex items-center justify-center overflow-hidden relative group">
                         {iconPreview ? (
@@ -436,7 +436,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                           onChange={handleIconUpload}
                           className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-500/10 file:text-blue-400 hover:file:bg-blue-500/20 cursor-pointer"
                         />
-                        <p className="text-xs text-gray-500 mt-1">PNG, JPG или WebP. Максимум 2MB.</p>
+                        <p className="text-xs text-gray-500 mt-1">PNG, JPG РёР»Рё WebP. РњР°РєСЃРёРјСѓРј 2MB.</p>
                       </div>
                     </div>
                   </div>
@@ -447,12 +447,12 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
               {activeSubTab === "visual" && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                   <div>
-                    <span className="text-sm font-medium text-gray-300 mb-3 block">Тип фона</span>
+                    <span className="text-sm font-medium text-gray-300 mb-3 block">РўРёРї С„РѕРЅР°</span>
                     <div className="grid grid-cols-3 gap-3">
                       {[
-                        { id: "solid", label: "Сплошной" },
-                        { id: "gradient", label: "Градиент" },
-                        { id: "image", label: "Изображение" },
+                        { id: "solid", label: "РЎРїР»РѕС€РЅРѕР№" },
+                        { id: "gradient", label: "Р“СЂР°РґРёРµРЅС‚" },
+                        { id: "image", label: "РР·РѕР±СЂР°Р¶РµРЅРёРµ" },
                       ].map((type) => (
                         <button
                           key={type.id}
@@ -473,7 +473,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                   {bgType === "solid" && (
                     <div className="space-y-4">
                       <label className="block">
-                        <span className="text-sm font-medium text-gray-300 mb-1 block">Цвет фона</span>
+                        <span className="text-sm font-medium text-gray-300 mb-1 block">Р¦РІРµС‚ С„РѕРЅР°</span>
                         <div className="flex gap-2 flex-wrap">
                           <input
                             type="color"
@@ -488,14 +488,14 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                             className="flex-1 bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-gray-900 dark:text-white"
                           />
                         </div>
-                        {/* 🆕 Авто-подбор эффектов под цвет */}
+                        {/* рџ†• РђРІС‚Рѕ-РїРѕРґР±РѕСЂ СЌС„С„РµРєС‚РѕРІ РїРѕРґ С†РІРµС‚ */}
                         <label className="flex items-center gap-2 mt-2 text-xs text-gray-500 cursor-pointer">
                           <input type="checkbox" checked={autoSync} onChange={(e) => setAutoSync(e.target.checked)} className="w-4 h-4 rounded accent-blue-500" />
-                          Автоматически подбирать обводку, свечение и тени под этот цвет
+                          РђРІС‚РѕРјР°С‚РёС‡РµСЃРєРё РїРѕРґР±РёСЂР°С‚СЊ РѕР±РІРѕРґРєСѓ, СЃРІРµС‡РµРЅРёРµ Рё С‚РµРЅРё РїРѕРґ СЌС‚РѕС‚ С†РІРµС‚
                         </label>
                       </label>
                       <div className="pt-2">
-                        <span className="text-xs text-gray-500 mb-2 block">Быстрые пресеты:</span>
+                        <span className="text-xs text-gray-500 mb-2 block">Р‘С‹СЃС‚СЂС‹Рµ РїСЂРµСЃРµС‚С‹:</span>
                         <div className="flex gap-2">
                           {PRESETS.map((p, i) => (
                             <button
@@ -511,10 +511,10 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                       </div>
                     </div>
                   )}
-                  {/* Добавь это внутри вкладки "visual", например, после блока bgType === "solid" */}
+                  {/* Р”РѕР±Р°РІСЊ СЌС‚Рѕ РІРЅСѓС‚СЂРё РІРєР»Р°РґРєРё "visual", РЅР°РїСЂРёРјРµСЂ, РїРѕСЃР»Рµ Р±Р»РѕРєР° bgType === "solid" */}
 <div className="pt-4 border-t border-line dark:border-white/10">
   <label className="block">
-    <span className="text-sm font-medium text-gray-300 mb-1 block">Цвет текста на плашке</span>
+    <span className="text-sm font-medium text-gray-300 mb-1 block">Р¦РІРµС‚ С‚РµРєСЃС‚Р° РЅР° РїР»Р°С€РєРµ</span>
     <div className="flex gap-2 flex-wrap">
       <input
         type="color"
@@ -535,7 +535,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                   {bgType === "gradient" && (
                     <div className="space-y-4">
                       <label className="block">
-                        <span className="text-sm font-medium text-gray-300 mb-1 block">CSS Градиент</span>
+                        <span className="text-sm font-medium text-gray-300 mb-1 block">CSS Р“СЂР°РґРёРµРЅС‚</span>
                         <input
                           type="text"
                           value={bgGradient}
@@ -545,7 +545,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                       </label>
                       <div className="grid grid-cols-2 gap-4">
                          <label className="block">
-                           <span className="text-xs text-gray-500 mb-1 block">Угол (deg)</span>
+                           <span className="text-xs text-gray-500 mb-1 block">РЈРіРѕР» (deg)</span>
                            <input
                              type="number"
                              value={bgGradientAngle}
@@ -555,7 +555,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                          </label>
                       </div>
                       <div className="pt-2">
-                        <span className="text-xs text-gray-500 mb-2 block">Пресеты градиентов:</span>
+                        <span className="text-xs text-gray-500 mb-2 block">РџСЂРµСЃРµС‚С‹ РіСЂР°РґРёРµРЅС‚РѕРІ:</span>
                         <div className="grid grid-cols-4 gap-2">
                           {GRADIENT_PRESETS.map((grad, i) => (
                             <button
@@ -574,7 +574,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                   {bgType === "image" && (
                     <div className="space-y-4">
                        <label className="block">
-                        <span className="text-sm font-medium text-gray-300 mb-1 block">Фоновое изображение</span>
+                        <span className="text-sm font-medium text-gray-300 mb-1 block">Р¤РѕРЅРѕРІРѕРµ РёР·РѕР±СЂР°Р¶РµРЅРёРµ</span>
                         <div className="flex items-center gap-4">
                           <div className="w-16 h-16 bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg flex items-center justify-center overflow-hidden relative group">
                             {bgImagePreview ? (
@@ -602,15 +602,15 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                         </div>
                       </label>
                       <label className="block">
-                        <span className="text-sm font-medium text-gray-300 mb-1 block">Режим отображения</span>
+                        <span className="text-sm font-medium text-gray-300 mb-1 block">Р РµР¶РёРј РѕС‚РѕР±СЂР°Р¶РµРЅРёСЏ</span>
                         <select
                           value={bgImageMode}
                           onChange={(e) => setBgImageMode(e.target.value)}
                           className="w-full bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white"
                         >
-                          <option value="cover">Cover (Заполнить)</option>
-                          <option value="contain">Contain (Вместить)</option>
-                          <option value="tile">Tile (Замостить)</option>
+                          <option value="cover">Cover (Р—Р°РїРѕР»РЅРёС‚СЊ)</option>
+                          <option value="contain">Contain (Р’РјРµСЃС‚РёС‚СЊ)</option>
+                          <option value="tile">Tile (Р—Р°РјРѕСЃС‚РёС‚СЊ)</option>
                         </select>
                       </label>
                     </div>
@@ -623,7 +623,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                   <div className="grid grid-cols-2 gap-6">
                     <label className="block">
-                      <span className="text-sm font-medium text-gray-300 mb-1 block">Цвет обводки</span>
+                      <span className="text-sm font-medium text-gray-300 mb-1 block">Р¦РІРµС‚ РѕР±РІРѕРґРєРё</span>
                       <div className="flex gap-2">
                         <input
                           type="color"
@@ -640,7 +640,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                       </div>
                     </label>
                     <label className="block">
-                      <span className="text-sm font-medium text-gray-300 mb-1 block">Толщина (px)</span>
+                      <span className="text-sm font-medium text-gray-300 mb-1 block">РўРѕР»С‰РёРЅР° (px)</span>
                       <input
                         type="range"
                         min="0"
@@ -659,7 +659,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                   </div>
 
                   <label className="block">
-                    <span className="text-sm font-medium text-gray-300 mb-1 block">Стиль линии</span>
+                    <span className="text-sm font-medium text-gray-300 mb-1 block">РЎС‚РёР»СЊ Р»РёРЅРёРё</span>
                     <div className="grid grid-cols-3 gap-3">
                       {["solid", "dashed", "dotted"].map((style) => (
                         <button
@@ -680,7 +680,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
 
                   <div className="pt-4 border-t border-line dark:border-white/10">
                     <div className="flex items-center justify-between mb-4">
-                      <span className="text-sm font-medium text-gray-300">Свечение обводки (Glow)</span>
+                      <span className="text-sm font-medium text-gray-300">РЎРІРµС‡РµРЅРёРµ РѕР±РІРѕРґРєРё (Glow)</span>
                       <button
                         type="button"
                         onClick={() => setBorderGlow(!borderGlow)}
@@ -698,7 +698,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                     {borderGlow && (
                       <div className="space-y-2">
                          <label className="block">
-                          <span className="text-xs text-gray-500 mb-1 block">Интенсивность</span>
+                          <span className="text-xs text-gray-500 mb-1 block">РРЅС‚РµРЅСЃРёРІРЅРѕСЃС‚СЊ</span>
                           <input
                             type="range"
                             min="0"
@@ -718,7 +718,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
               {activeSubTab === "animations" && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                   <div>
-                    <span className="text-sm font-medium text-gray-300 mb-3 block">Активные анимации</span>
+                    <span className="text-sm font-medium text-gray-300 mb-3 block">РђРєС‚РёРІРЅС‹Рµ Р°РЅРёРјР°С†РёРё</span>
                     <div className="grid grid-cols-2 gap-3">
                       {ANIM_OPTIONS.map((opt) => (
                         <button
@@ -739,7 +739,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                   </div>
 
                   <div className="pt-4 border-t border-line dark:border-white/10">
-                    <span className="text-sm font-medium text-gray-300 mb-3 block">Скорость анимации</span>
+                    <span className="text-sm font-medium text-gray-300 mb-3 block">РЎРєРѕСЂРѕСЃС‚СЊ Р°РЅРёРјР°С†РёРё</span>
                     <div className="grid grid-cols-3 gap-3">
                       {SPEED_OPTIONS.map((speed) => (
                         <button
@@ -766,7 +766,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                   {/* Shadow */}
                   <div className="p-4 bg-ivory dark:bg-[#1a1a1a] rounded-xl border border-line dark:border-white/5 space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-300">Тень (Drop Shadow)</span>
+                      <span className="text-sm font-medium text-gray-300">РўРµРЅСЊ (Drop Shadow)</span>
                       <button
                         type="button"
                         onClick={() => setShadowEnabled(!shadowEnabled)}
@@ -784,7 +784,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                     {shadowEnabled && (
                       <div className="grid grid-cols-2 gap-4 pt-2">
                         <label className="block">
-                          <span className="text-xs text-gray-500 mb-1 block">Размытие</span>
+                          <span className="text-xs text-gray-500 mb-1 block">Р Р°Р·РјС‹С‚РёРµ</span>
                           <input
                             type="number"
                             value={shadowBlur}
@@ -793,7 +793,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                           />
                         </label>
                         <label className="block">
-                          <span className="text-xs text-gray-500 mb-1 block">Цвет</span>
+                          <span className="text-xs text-gray-500 mb-1 block">Р¦РІРµС‚</span>
                           <input
                             type="text"
                             value={shadowColor}
@@ -808,9 +808,9 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                   {/* Toggles */}
                   <div className="space-y-3">
                     {[
-                      { label: "Внутреннее свечение (Inner Glow)", state: innerGlowEnabled, setter: setInnerGlowEnabled },
-                      { label: "Блики (Specular)", state: specularEnabled, setter: setSpecularEnabled },
-                      { label: "Металлический эффект", state: metallicEnabled, setter: setMetallicEnabled },
+                      { label: "Р’РЅСѓС‚СЂРµРЅРЅРµРµ СЃРІРµС‡РµРЅРёРµ (Inner Glow)", state: innerGlowEnabled, setter: setInnerGlowEnabled },
+                      { label: "Р‘Р»РёРєРё (Specular)", state: specularEnabled, setter: setSpecularEnabled },
+                      { label: "РњРµС‚Р°Р»Р»РёС‡РµСЃРєРёР№ СЌС„С„РµРєС‚", state: metallicEnabled, setter: setMetallicEnabled },
                     ].map((item, i) => (
                       <div key={i} className="flex items-center justify-between p-3 bg-ivory dark:bg-[#1a1a1a] rounded-lg border border-line dark:border-white/5">
                         <span className="text-sm text-gray-300">{item.label}</span>
@@ -838,7 +838,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                    <div className="grid grid-cols-2 gap-6">
                     <label className="block">
-                      <span className="text-sm font-medium text-gray-300 mb-1 block">Приоритет</span>
+                      <span className="text-sm font-medium text-gray-300 mb-1 block">РџСЂРёРѕСЂРёС‚РµС‚</span>
                       <input
                         type="number"
                         value={priority}
@@ -846,12 +846,12 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
                         className="w-full bg-ivory dark:bg-[#1a1a1a] border border-line dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white"
                         placeholder="0"
                       />
-                      <span className="text-xs text-gray-500 mt-1 block">Чем выше число, тем выше плашка в списке.</span>
+                      <span className="text-xs text-gray-500 mt-1 block">Р§РµРј РІС‹С€Рµ С‡РёСЃР»Рѕ, С‚РµРј РІС‹С€Рµ РїР»Р°С€РєР° РІ СЃРїРёСЃРєРµ.</span>
                     </label>
                     
                     <div className="flex items-center justify-end h-full pb-2">
                        <label className="flex items-center gap-3 cursor-pointer select-none">
-                        <span className="text-sm text-gray-300">Активная плашка</span>
+                        <span className="text-sm text-gray-300">РђРєС‚РёРІРЅР°СЏ РїР»Р°С€РєР°</span>
                         <button
                           type="button"
                           onClick={() => setIsActive(!isActive)}
@@ -882,7 +882,7 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
             onClick={onClose}
             className="px-6 py-2.5 rounded-lg text-sm font-medium text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
           >
-            Отмена
+            РћС‚РјРµРЅР°
           </button>
           <button
             onClick={handleSubmit}
@@ -892,12 +892,12 @@ export function CustomBadgeForm({ badge, onClose, onSuccess }: BadgeFormProps) {
             {loading ? (
               <>
                 <div className="w-4 h-4 border-2 border-line dark:border-white/30 border-t-white rounded-full animate-spin" />
-                Сохранение...
+                РЎРѕС…СЂР°РЅРµРЅРёРµ...
               </>
             ) : (
               <>
                 <Check size={16} />
-                {isEdit ? "Сохранить изменения" : "Создать плашку"}
+                {isEdit ? "РЎРѕС…СЂР°РЅРёС‚СЊ РёР·РјРµРЅРµРЅРёСЏ" : "РЎРѕР·РґР°С‚СЊ РїР»Р°С€РєСѓ"}
               </>
             )}
           </button>

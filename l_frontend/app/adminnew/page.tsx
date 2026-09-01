@@ -129,7 +129,7 @@ export default function AdminPage() {
                 </Link>
               )}
               {(me?.level ?? 0) >= 9 && (
-                <Link href="/adminnew/badges" className={iconBtnClass} title="Кастомные плашки">
+                <Link href="/adminnew/billets" className={iconBtnClass} title="Именные плашки">
                   <Shield size={20} />
                 </Link>
               )}

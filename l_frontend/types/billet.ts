@@ -1,6 +1,6 @@
 // l_frontend/types/badge.ts
 
-export interface CustomBadgeData {
+export interface BilletData {
   id: number;
   name: string;
   description: string | null;
@@ -38,7 +38,7 @@ export interface AssignmentData {
   id: number;
   user_id: number;
   badge_id: number;
-  badge: CustomBadgeData | null;
+  badge: BilletData | null;
   granted_by: number;
   granted_at: string;
   expires_at: string | null;
