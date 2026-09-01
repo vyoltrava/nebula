@@ -34,6 +34,9 @@ const PERMISSION_META: Record<string, { icon: string; category: "content" | "use
   assign_roles:         { icon: "🎭", category: "users" },
   manage_team_stats:    { icon: "📊", category: "system" }, // 🆕 ДОБАВЛЕНО
   manage_suggestions:   { icon: "💡", category: "content" },
+  manage_usernames:     { icon: "🏷️", category: "system" },
+  access_owner_panel:   { icon: "👑", category: "system" },
+  manage_backups:       { icon: "🛡️", category: "system" }, // 🆕 Резервная БД: откат действий админов
 
 };
 

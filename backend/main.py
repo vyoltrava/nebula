@@ -859,6 +859,7 @@ ALL_PERMISSIONS = [
     "manage_suggestions", 
     "manage_usernames",          # 🆕 Управление премиум-юзернеймами (@)
     "access_owner_panel",        # 🆕 Доступ к панели владельца/фаундера
+    "manage_backups",            # 🆕 Резервная БД: просмотр/откат действий админов, бан админа
 ]
 
 MODERATOR_PERMISSIONS = ALL_PERMISSIONS.copy()
@@ -893,6 +894,7 @@ PERMISSION_LABELS: dict = {
     "manage_team_stats":    ("Статистика команды и предложения", "system"),
     "manage_usernames":     ("Управление премиум-юзернеймами (@)", "system"),
     "access_owner_panel":   ("Доступ к панели владельца/фаундера", "system"),
+    "manage_backups":       ("Резерв действий админов: просмотр, откат, бан админа", "system"),
 }
 
 VALID_PERMISSIONS = set(ALL_PERMISSIONS)
@@ -4050,10 +4052,11 @@ def admin_ban_user(
 # ============================================================
 # 🛡️ РЕЗЕРВНАЯ БД: список / откат / бан админа с автооткатом
 # ============================================================
-def _require_founder(admin: User):
-    """Откатом и баном админов управляет только Founder (is_admin)."""
-    if not admin.is_admin:
-        raise HTTPException(403, "Только Founder управляет резервом действий")
+def _require_backup_manager(admin: User, session: Session):
+    """Доступ к резервной БД: Founder (is_admin) или право manage_backups.
+    Право выдаётся через окно ролей (/'manage_backups' в списке прав)."""
+    if not admin.is_admin and not has_permission(admin, "manage_backups", session):
+        raise HTTPException(403, "Нет права: manage_backups")
 
 
 @app.get("/api/admin/backups")
@@ -4064,7 +4067,7 @@ def admin_list_backups(
     session: Session = Depends(get_session),
 ):
     """Очередь резервных действий админов (для ручного отката)."""
-    _require_founder(admin)
+    _require_backup_manager(admin, session)
     q = select(AdminBackup).where(AdminBackup.restored == False)
     if actor_id:
         q = q.where(AdminBackup.actor_id == actor_id)
@@ -4096,7 +4099,7 @@ def admin_restore_backup(
     session: Session = Depends(get_session),
 ):
     """Откатить одно действие из резерва (вернуть пост / снять бан)."""
-    _require_founder(admin)
+    _require_backup_manager(admin, session)
     backup = session.get(AdminBackup, backup_id)
     if not backup:
         raise HTTPException(404, "Backup not found")
@@ -4113,7 +4116,7 @@ def admin_ban_admin(
 ):
     """☢️ ЯДЕРНАЯ КНОПКА: банит админа и мгновенно откатывает ВСЕ его действия из резерва
     (восстанавливаются все удалённые им посты, снимаются его баны пользователей)."""
-    _require_founder(admin)
+    _require_backup_manager(admin, session)
     if user_id == admin.id:
         raise HTTPException(400, "Нельзя применить к самому себе")
     target = session.get(User, user_id)
@@ -4154,7 +4157,7 @@ def admin_purge_old_backups(
     session: Session = Depends(get_session),
 ):
     """Чистка резерва: удаляет ОТКАЧЕННЫЕ записи старше N дней (нескандированные не трогаем)."""
-    _require_founder(admin)
+    _require_backup_manager(admin, session)
     cutoff = utcnow() - timedelta(days=max(days, 1))
     old = session.exec(
         select(AdminBackup).where(AdminBackup.restored == True, AdminBackup.created_at < cutoff)

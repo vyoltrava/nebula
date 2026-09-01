@@ -476,7 +476,8 @@ export default function StatPage() {
                                     <Ban size={14} /> {u.is_banned ? "Разбанить" : "Забанить"}
                                   </button>
                                 )}
-                                {me?.is_admin && !u.is_banned && (u.is_admin || u.is_moderator) && u.id !== me?.id && (
+                                {(me?.is_admin || me?.permissions?.includes("manage_backups")) &&
+                                 !u.is_banned && (u.is_admin || u.is_moderator) && u.id !== me?.id && (
                                   <button onClick={() => banAdminWithRollback(u)} disabled={banAdminBusy}
                                     className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-700 dark:text-red-300 font-bold hover:bg-red-500/10"
                                     title="Бан админа + мгновенный откат всех его действий из резервной БД">

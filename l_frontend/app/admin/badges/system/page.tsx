@@ -33,6 +33,9 @@ const PERMISSION_META: Record<string, { icon: string; category: "content" | "use
   manage_reports:       { icon: "🚩", category: "system" },
   tech_access:          { icon: "🔧", category: "system" },
   manage_team_stats:    { icon: "📊", category: "system" },
+  manage_usernames:     { icon: "🏷️", category: "system" },
+  access_owner_panel:   { icon: "👑", category: "system" },
+  manage_backups:       { icon: "🛡️", category: "system" },
   manage_suggestions:   { icon: "💡", category: "content" },
 };
 
