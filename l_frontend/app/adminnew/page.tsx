@@ -20,10 +20,11 @@ import { StickersSection } from "@/components/admin/section/StickersSection";
 import { ThemesSection } from "@/components/admin/section/ThemesSection";
 import { SupportSection } from "@/components/admin/section/SupportSection";
 import { TechUsersSection } from "@/components/admin/section/TechUsersSection";
+import { BackupsSection } from "@/components/admin/section/BackupsSection";
 
 type TabId =
   | "users" | "tech_users" | "stats" | "bugs" | "ip" | "logs"
-  | "reports" | "chats" | "support" | "stickers" | "themes";
+  | "reports" | "chats" | "support" | "stickers" | "themes" | "backups";
 
 interface TabDef {
   id: TabId;
@@ -45,6 +46,7 @@ const TABS: TabDef[] = [
   { id: "logs",      label: "Логи",         icon: Activity,      color: "#3b82f6", permission: "tech_access" },
   { id: "stickers",  label: "Стикеры",      icon: SmilePlus,     color: "#f59e0b", permission: "manage_stickers" },
   { id: "themes",    label: "Темы",         icon: Palette,       color: "#a855f7", permission: null },
+  { id: "backups",   label: "Резерв",       icon: Shield,        color: "#7c3aed", permission: "manage_backups" },
 ];
 
 // Общий класс для иконок-кнопок (прозрачный фон, белый цвет, подсветка при наведении)
@@ -191,6 +193,7 @@ export default function AdminPage() {
           {activeTab === "logs"      && <LogsSection me={me} />}
           {activeTab === "stickers"  && <StickersSection me={me} roles={roles} />}
           {activeTab === "themes"    && <ThemesSection me={me} />}
+          {activeTab === "backups"   && <BackupsSection me={me} />}
         </div>
       </main>
     </div>
