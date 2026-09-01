@@ -62,7 +62,7 @@ export default function SupportPage() {
     })();
   }, []);
 
-  // === ЗАГРУЗКА РЎРџРРЎРљРђ ЗАЯВОК ===
+  // === ЗАГРУЗКА СПИСКА ЗАЯВОК ===
   const loadTickets = useCallback(async () => {
     const token = getToken();
     if (!token) return;
@@ -108,7 +108,7 @@ export default function SupportPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // === WEBSOCKET — МГНОВЕННЫЕ РћР‘РќРћР’Р›Р•РќРРЇ ===
+  // === WEBSOCKET — МГНОВЕННЫЕ ОБНОВЛЕНИЯ ===
   useWebSocket("support_new_message", (data: any) => {
     const currentActiveId = activeIdRef.current;
     
@@ -163,7 +163,7 @@ export default function SupportPage() {
     }
   });
 
-  // === РЎРћР—Р”РђРќРР• НОВОЙ Р—РђРЇР’РљР ===
+  // === СОЗДАНИЕ НОВОЙ ЗАЯВКИ ===
   async function createTicket() {
     if (creating || (!newText.trim() && !file)) return;
     setCreating(true);
@@ -297,7 +297,7 @@ export default function SupportPage() {
 
       <main className="flex-1 flex overflow-hidden">
         
-        {/* ЛЕВАЯ КОЛОНКА: РЎРџРРЎРћРљ ЗАЯВОК */}
+        {/* ЛЕВАЯ КОЛОНКА: СПИСОК ЗАЯВОК */}
         <div className={`w-full md:w-80 lg:w-96 border-r border-line dark:border-white/10 flex flex-col bg-white/[0.02] ${activeId ? "hidden md:flex" : "flex"}`}>
           <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-2">

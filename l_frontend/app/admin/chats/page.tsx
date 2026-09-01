@@ -52,7 +52,7 @@ export default function AdminChatsPage() {
   }
 
   async function deleteMsg(msgId: number) {
-    if (!confirm("РЈРґР°Р»РёС‚СЊ СЃРѕРѕР±С‰РµРЅРёРµ?")) return;
+    if (!confirm("РЈРґалить сообщение?")) return;
     const token = getToken();
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${activeChat.id}/messages/${msgId}`, {
       method: "DELETE",
@@ -61,7 +61,7 @@ export default function AdminChatsPage() {
     if (res.ok) openChat(activeChat);
     else {
       const d = await res.json().catch(() => null);
-      alert(d?.detail || "РћС€РёР±РєР° СѓРґР°Р»РµРЅРёСЏ (РІРѕР·РјРѕР¶РЅРѕ, С‚РѕР»СЊРєРѕ РґР»СЏ Founder)");
+      alert(d?.detail || "Ошибка СѓРґаления (возможно, только Рґля Founder)");
     }
   }
 
@@ -77,7 +77,7 @@ export default function AdminChatsPage() {
     if (res.ok) openChat(activeChat);
     else {
       const d = await res.json().catch(() => null);
-      alert(d?.detail || "РќРµС‚ РїСЂР°РІР° pin_messages");
+      alert(d?.detail || "Нет права pin_messages");
     }
   }
 
@@ -86,7 +86,7 @@ export default function AdminChatsPage() {
   );
 
   if (!me) {
-    return <div className="h-screen flex items-center justify-center bg-ivory dark:bg-[#18181b]"><p className="text-gray-600 dark:text-white/60 animate-pulse">Р—Р°РіСЂСѓР·РєР°...</p></div>;
+    return <div className="h-screen flex items-center justify-center bg-ivory dark:bg-[#18181b]"><p className="text-gray-600 dark:text-white/60 animate-pulse">Загрузка...</p></div>;
   }
 
   return (
@@ -94,7 +94,7 @@ export default function AdminChatsPage() {
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
       <main className="flex-1 flex overflow-hidden border-x border-line dark:border-white/10">
-        {/* Р РЋР СџР В�Р РЋР С›Р С™ Р§РђРўРћР’ */}
+        {/* Р РЋР СџР В�СОК ЧАТОВ */}
         <div className={`w-full md:w-96 md:border-r border-line dark:border-white/10 flex flex-col ${activeChat ? "hidden md:flex" : "flex"}`}>
           <div className="p-4 border-b border-line dark:border-white/10 bg-paper dark:bg-[#171717]/80 backdrop-blur-md">
             <div className="flex items-center gap-3 mb-3">
@@ -102,19 +102,19 @@ export default function AdminChatsPage() {
                 <ArrowLeft size={18} />
               </button>
               <MessageSquare size={20} className="text-cyan-600 dark:text-cyan-400" />
-              <h1 className="text-lg font-black text-gray-900 dark:text-white">РњРѕРґРµСЂР°С†РёСЏ С‡Р°С‚РѕРІ</h1>
+              <h1 className="text-lg font-black text-gray-900 dark:text-white">РњРѕРґерация чатов</h1>
             </div>
             <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="РџРѕРёСЃРє С‡Р°С‚Р°..."
+                placeholder="Поиск чата..."
                 className="w-full pl-9 pr-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-cyan-600 dark:focus:border-cyan-400"
               />
             </div>
             <p className="text-xs text-gray-500 dark:text-white/40 mt-2">
-              Р’СЃРµРіРѕ: {chats.length} В· РџРѕРєР°Р·Р°РЅРѕ: {filtered.length}
+              Всего: {chats.length} В· Показано: {filtered.length}
             </p>
           </div>
           <div className="flex-1 overflow-y-auto">
@@ -137,28 +137,28 @@ export default function AdminChatsPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-bold text-gray-900 dark:text-white text-sm truncate">
-                    {c.name || (c.is_group ? "Р“СЂСѓРїРїР°" : "Р”РёР°Р»РѕРі")}
+                    {c.name || (c.is_group ? "Группа" : "Диалог")}
                   </p>
                   <p className="text-[11px] text-gray-500 dark:text-white/40 truncate">
-                    {c.is_group ? `${c.members_count} СѓС‡Р°СЃС‚РЅРёРєРѕРІ` : "Р›РёС‡РЅС‹Р№ С‡Р°С‚"}
+                    {c.is_group ? `${c.members_count} участников` : "Р›РёС‡РЅС‹Р№ чат"}
                     {c.last_message && ` В· ${c.last_message.text?.slice(0, 25) || "рџ“Ћ"}`}
                   </p>
                 </div>
               </button>
             ))}
             {filtered.length === 0 && (
-              <p className="text-center text-gray-500 dark:text-white/40 text-sm py-8">Р§Р°С‚РѕРІ РЅРµ РЅР°Р№РґРµРЅРѕ</p>
+              <p className="text-center text-gray-500 dark:text-white/40 text-sm py-8">Чатов не РЅР°Р№Рґено</p>
             )}
           </div>
         </div>
 
-        {/* Р РЋР С›Р С›Р вЂ�Р©Р вЂўР СњР В�Р Р‡ */}
+        {/* Р РЋР С›Р С›Р вЂ�Р©Р вЂўР СњР В�РЇ */}
         <div className={`flex-1 flex flex-col ${activeChat ? "flex" : "hidden md:flex"}`}>
           {!activeChat ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <MessageSquare size={48} className="text-gray-500 dark:text-white/10 mx-auto mb-3" />
-                <p className="text-gray-500 dark:text-white/30 text-sm">Р’С‹Р±РµСЂРё С‡Р°С‚ РґР»СЏ РјРѕРґРµСЂР°С†РёРё</p>
+                <p className="text-gray-500 dark:text-white/30 text-sm">Выбери чат Рґля РјРѕРґерации</p>
               </div>
             </div>
           ) : (
@@ -171,12 +171,12 @@ export default function AdminChatsPage() {
                   <ArrowLeft size={18} />
                 </button>
                 <p className="font-bold text-gray-900 dark:text-white text-sm truncate flex-1">{activeChat.name}</p>
-                <span className="text-[10px] text-gray-500 dark:text-white/40">{activeChat.members_count} СѓС‡Р°СЃС‚РЅРёРєРѕРІ</span>
+                <span className="text-[10px] text-gray-500 dark:text-white/40">{activeChat.members_count} участников</span>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {loading && <p className="text-center text-gray-500 dark:text-white/40 text-sm">Р—Р°РіСЂСѓР·РєР°...</p>}
+                {loading && <p className="text-center text-gray-500 dark:text-white/40 text-sm">Загрузка...</p>}
                 {!loading && messages.length === 0 && (
-                  <p className="text-center text-gray-500 dark:text-white/40 text-sm">РЎРѕРѕР±С‰РµРЅРёР№ РЅРµС‚</p>
+                  <p className="text-center text-gray-500 dark:text-white/40 text-sm">РЎРѕРѕР±С‰РµРЅРёР№ нет</p>
                 )}
                 {!loading && messages.map((m) => (
                   <div key={m.id} className="flex items-start gap-2.5">
@@ -197,7 +197,7 @@ export default function AdminChatsPage() {
                         ) : m.media_type === "audio" ? (
                           <audio src={mediaUrl(m.media_url)} controls className="max-w-[220px]" />
                         ) : (
-                          m.text || "рџ“Ћ Р’Р»РѕР¶РµРЅРёРµ"
+                          m.text || "рџ“Ћ Вложение"
                         )}
                       </div>
                     </div>
@@ -208,7 +208,7 @@ export default function AdminChatsPage() {
                         size="iconSm"
                         onClick={() => togglePin(m)}
                         className="hover:text-[#8b5cf6]"
-                        title={m.pinned ? "РћС‚РєСЂРµРїРёС‚СЊ" : "Р—Р°РєСЂРµРїРёС‚СЊ"}
+                        title={m.pinned ? "Открепить" : "Закрепить"}
                       />
                       {me.is_admin && (
                         <IconButton
@@ -216,7 +216,7 @@ export default function AdminChatsPage() {
                           variant="danger"
                           size="iconSm"
                           onClick={() => deleteMsg(m.id)}
-                          title="РЈРґР°Р»РёС‚СЊ (С‚РѕР»СЊРєРѕ Founder)"
+                          title="РЈРґалить (только Founder)"
                         />
                       )}
                     </div>

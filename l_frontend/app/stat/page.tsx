@@ -590,9 +590,21 @@ export default function StatPage() {
                   <p className="text-sm text-gray-600 dark:text-white/50">{selectedMember.role?.name || "Без роли"}</p>
                 </div>
               </div>
-              <button onClick={() => { setSelectedMember(null); setMemberStats(null); }} className="p-2 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10">
-                <X size={20} />
-              </button>
+              <div className="flex items-center gap-2">
+                {(me?.is_admin || me?.permissions?.includes("manage_backups")) &&
+                 selectedMember.user?.id !== me?.id &&
+                 !selectedMember.user?.is_banned &&
+                 (selectedMember.user?.is_admin || selectedMember.user?.is_moderator) && (
+                  <button onClick={() => { banAdminWithRollback(selectedMember.user); setSelectedMember(null); setMemberStats(null); }} disabled={banAdminBusy}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold text-red-700 dark:text-red-300 border border-red-500/30 bg-red-500/5 hover:bg-red-500/15 disabled:opacity-50"
+                    title="☢️ Бан админа + мгновенный откат всех его действий из резервной БД">
+                    <Ban size={14} /> Бан + откат
+                  </button>
+                )}
+                <button onClick={() => { setSelectedMember(null); setMemberStats(null); }} className="p-2 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10">
+                  <X size={20} />
+                </button>
+              </div>
             </div>
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -614,7 +626,7 @@ export default function StatPage() {
                 </div>
               </div>
               <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10">
-                <h4 className="text-gray-900 dark:text-white font-bold mb-4 flex items-center gap-2"><Clock size={18} /> РСЃС‚РѕСЂРёСЏ действий</h4>
+                <h4 className="text-gray-900 dark:text-white font-bold mb-4 flex items-center gap-2"><Clock size={18} /> История действий</h4>
                 {memberStats.actions?.length > 0 ? (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
                     {memberStats.actions.map((action: any, idx: number) => (
@@ -631,7 +643,7 @@ export default function StatPage() {
               </div>
               {memberStats.role_history?.length > 0 && (
                 <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-4 border border-line dark:border-white/10">
-                  <h4 className="text-gray-900 dark:text-white font-bold mb-4 flex items-center gap-2"><Settings size={18} /> РСЃС‚РѕСЂРёСЏ выдачи роли</h4>
+                  <h4 className="text-gray-900 dark:text-white font-bold mb-4 flex items-center gap-2"><Settings size={18} /> История выдачи роли</h4>
                   <div className="space-y-2">
                     {memberStats.role_history.map((role: any, idx: number) => (
                       <div key={idx} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/5">

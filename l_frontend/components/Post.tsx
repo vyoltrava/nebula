@@ -773,7 +773,7 @@ async function toggleDislike() {
     }
   }
 
-  // 🆕 Р•Р”РРќРђРЇ ФРЈРќРљЦРРЇ ДЛЯ РЕПОСТА Р ЦРРўРђРўЫ
+  // 🆕 ЕДИНАЯ ФРЈРќРљЦРРЇ ДЛЯ РЕПОСТА Р ЦРРўРђРўЫ
   async function handleRepostOrQuote(postId: number) {
     const token = getToken();
     if (!token) { router.push("/login"); return; }
@@ -1083,7 +1083,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               <Reply size={13} />
             </button>
 
-            {/* 🆕 Р•Р”РРќРђРЇ КНОПКА РЕПОСТА Р ЦРРўРђРўЫ */}
+            {/* 🆕 ЕДИНАЯ КНОПКА РЕПОСТА Р ЦРРўРђРўЫ */}
             {currentUser && currentUser.id !== author_id && !is_repost && !is_quote && (
               <button
                 onClick={() => handleRepostOrQuote(id)}

@@ -38,7 +38,7 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
   const [duration, setDuration] = useState(0);
   const [rate, setRate] = useState(1);
 
-  // ✅ Глобальные медиа-элементы — РќРРљРћР“Р”Рђ не переназначаются
+  // ✅ Глобальные медиа-элементы — НИКОГДА не переназначаются
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -148,7 +148,7 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
     <GlobalPlayerContext.Provider
       value={{ track, playing, currentTime, duration, rate, playTrack, toggle, close, seekBy, seekTo, cycleRate }}
     >
-      {/* ✅ Глобальные скрытые элементы — привязываются РћР”РРќ РАЗ */}
+      {/* ✅ Глобальные скрытые элементы — привязываются ОДИН РАЗ */}
       <audio ref={(el) => bindGlobal(el, "audio")} className="hidden" />
       <video ref={(el) => bindGlobal(el, "video")} playsInline muted className="hidden" />
 

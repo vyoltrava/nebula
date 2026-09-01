@@ -444,7 +444,7 @@ async function activate2FA() {
                   />
                 </div>
 
-                {/* РРјСЏ */}
+                {/* Имя */}
                 <div>
                   <label className={labelCls}>{t("settings.displayName")}</label>
                   <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className={inputCls} />
@@ -507,7 +507,7 @@ async function activate2FA() {
               </div>
             )}
 
-            {/* ---------- Р’РќР•РЁРќРР™ Р’РР” ---------- */}
+            {/* ---------- Р’РќР•РЁНИЙ ВИД ---------- */}
             {view === "appearance" && (
               <div>
                 <h2 className="text-lg font-semibold mb-1">{t("settings.appearance")}</h2>
@@ -518,7 +518,7 @@ async function activate2FA() {
               </div>
             )}
 
-            {/* ---------- РЈР’Р•Р”РћРњР›Р•РќРРЇ ---------- */}
+            {/* ---------- УВЕДОМЛЕНИЯ ---------- */}
             {view === "notifications" && (
               <div>
                 <h2 className="text-lg font-semibold mb-1">{t("settings.notifications")}</h2>
@@ -527,7 +527,7 @@ async function activate2FA() {
               </div>
             )}
 
-            {/* ---------- РРђР—РР•РЁР•РќРРЇ ---------- */}
+            {/* ---------- РРђР—РР•РЁЕНИЯ ---------- */}
             {view === "permissions" && (
               <div>
                 <h2 className="text-lg font-semibold mb-4">{t("settings.permissions")}</h2>
@@ -828,7 +828,7 @@ async function activate2FA() {
         </div>
       )}
 
-      {/* 🆕 ШАГ 3: ПОКАЗ РЕЗЕРВНЫХ КОДОВ — Р’РќРЈРўРР РњРћР”РђР›РљР */}
+      {/* 🆕 ШАГ 3: ПОКАЗ РЕЗЕРВНЫХ КОДОВ — Р’РќРЈРўРР МОДАЛКИ */}
       {setupStep === "backup" && (
         <div className="space-y-4">
           <div className="flex items-center gap-2 mb-2">

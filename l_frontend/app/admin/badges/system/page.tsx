@@ -6,10 +6,10 @@ import { getToken } from "@/lib/auth";
 import { Trash2, Edit2, X, Crown, Info, Plus, User, ChevronUp } from "lucide-react";
 import { Button, IconButton } from "@/components/ui/Button";
 
-// === Р”РѕРї. СЂРѕлРё СѓСЂРѕРІРЅеР№ 9-11 (РІС‹СЃС€аСЏ РєаСЃС‚а). ЭС‚Рѕ РЅаСЃС‚РѕСЏС‰Рёе СЂРѕлРё: С†РІеС‚ РїРѕРґСЃРІеС‡РёРІаеС‚ РЅРёРє, РїСЂаРІа РІС‹РґаСЋС‚СЃСЏ СЃРёСЃС‚еРјРѕР№ СЂРѕлеР№ ===
+// === Доп. СЂРѕлРё СѓСЂРѕРІРЅеР№ 9-11 (РІС‹СЃС€аСЏ РєаСЃС‚а). ЭС‚Рѕ РЅаСЃС‚РѕСЏС‰Рёе СЂРѕлРё: С†РІеС‚ РїРѕРґСЃРІеС‡РёРІаеС‚ ник, РїСЂаРІа РІС‹РґаСЋС‚СЃСЏ СЃРёСЃС‚еРјРѕР№ СЂРѕлеР№ ===
 const LEVELS = [9, 10, 11] as const;
 const LEVEL_META: Record<number, { label: string; color: string; desc: string }> = {
-  9: { label: "Developer", color: "#3b82f6", desc: "РазСЂабРѕС‚Рєа Рё С‚еС…РЅРёС‡еСЃРєРёР№ РґРѕСЃС‚СѓРї" },
+  9: { label: "Developer", color: "#3b82f6", desc: "РазСЂабРѕС‚Рєа Рё С‚еС…РЅРёС‡еСЃРєРёР№ Рґоступ" },
   10: { label: "Founder", color: "#fbbf24", desc: "Р“лаРІа РїСЂРѕеРєС‚а / РІлаРґелеС†" },
   11: { label: "System", color: "#8b5cf6", desc: "РЎРёСЃС‚еРјРЅС‹Р№ / РѕС„РёС†РёалСЊРЅС‹Р№ аРєРєаСѓРЅС‚" },
 };
@@ -43,8 +43,8 @@ const PERMISSION_META: Record<string, { icon: string; category: "content" | "use
 const CATEGORY_LABELS: Record<string, string> = {
   content: "рџ“ќ РљРѕРЅС‚еРЅС‚",
   users: "рџ‘Ґ РџРѕлСЊзРѕРІаС‚елРё",
-  chats: "рџ’¬ ЧаС‚С‹ Рё РіСЂСѓРїРїС‹",
-  system: "вљ™пёЏ РЎРёСЃС‚еРја",
+  chats: "рџ’¬ ЧаС‚С‹ Рё группы",
+  system: "⚙️ РЎРёСЃС‚еРја",
 };
 
 interface RoleData {
@@ -122,7 +122,7 @@ export default function EliteRolesPage() {
             category: PERMISSION_META[p.id]?.category || p.category || "system",
           })));
         }
-      } catch { /* fallback: РїСЂаРІа РѕСЃС‚аРЅСѓС‚СЃСЏ РїСѓСЃС‚С‹РјРё */ }
+      } catch { /* fallback: РїСЂаРІа РѕСЃС‚аРЅСѓС‚СЃСЏ пустыми */ }
     } catch {
       router.push("/");
     } finally {
@@ -166,7 +166,7 @@ export default function EliteRolesPage() {
     const token = getToken();
     if (!token) return;
     if (level > myLevel) {
-      alert(`Р’С‹ РЅе РјРѕжеС‚е СЃРѕзРґаРІаС‚СЊ СЂРѕлРё СѓСЂРѕРІРЅСЏ РІС‹С€е ${myLevel}.`);
+      alert(`Вы РЅе РјРѕжеС‚е СЃРѕзРґаРІаС‚СЊ СЂРѕлРё уровня РІС‹С€е ${myLevel}.`);
       return;
     }
     setSaving(true);
@@ -304,7 +304,7 @@ export default function EliteRolesPage() {
             <Info size={20} className="text-[#fbbf24] shrink-0 mt-0.5" />
             <div className="text-sm text-gray-800 dark:text-white/80 space-y-1">
               <p className="font-bold text-gray-900 dark:text-white">ЭС‚Рѕ РїРѕлРЅРѕС†еРЅРЅС‹е СЂРѕлРё СѓСЂРѕРІРЅеР№ 9вЂ“11</p>
-              <p>РЎРѕзРґаСЋС‚СЃСЏ С‡еСЂез СЃРёСЃС‚еРјСѓ СЂРѕлеР№: <strong>С†РІеС‚ СЂРѕлРё РїРѕРґСЃРІеС‡РёРІаеС‚ РЅРёРє</strong>, РїСЂаРІа СЂабРѕС‚аСЋС‚ РІРѕ РІСЃС‘Рј РїСЂРёлРѕжеРЅРёРё. Р’С‹РґаС‡а вЂ” С‡еСЂез «Р’С‹РґаС‚СЊ СЂРѕлСЊ» (С‚а же СЃРёСЃС‚еРја, С‡С‚Рѕ РІ СѓРїСЂаРІлеРЅРёРё СЂРѕлСЏРјРё).</p>
+              <p>РЎРѕзРґаСЋС‚СЃСЏ С‡еСЂез СЃРёСЃС‚еРјСѓ СЂРѕлеР№: <strong>С†РІеС‚ СЂРѕлРё РїРѕРґСЃРІеС‡РёРІаеС‚ ник</strong>, РїСЂаРІа СЂабРѕС‚аСЋС‚ во всём РїСЂРёлРѕжеРЅРёРё. Р’С‹РґаС‡а вЂ” С‡еСЂез «Р’С‹РґаС‚СЊ СЂРѕлСЊ» (С‚а же СЃРёСЃС‚еРја, что РІ СѓРїСЂаРІлеРЅРёРё СЂРѕлСЏРјРё).</p>
               <div className="flex flex-wrap gap-2 mt-2 text-xs">
                 {LEVELS.map(l => (
                   <span key={l} className="px-2 py-0.5 rounded border" style={{ color: LEVEL_META[l].color, borderColor: `${LEVEL_META[l].color}40`, background: `${LEVEL_META[l].color}15` }}>
@@ -372,7 +372,7 @@ export default function EliteRolesPage() {
           })}
         </div>
 
-        {/* РњРћР”РђР›РљРђ РЎРћР—Р”РђРќР�РЇ/РР•Р”РђРљРўР�РРћР’РђРќР�РЇ РРћР›Р� 9-11 */}
+        {/* МОДАЛКА РЎРћР—Р”РђРќР�РЇ/РР•Р”РђРљРўР�РРћР’РђРќР�РЇ РРћР›Р� 9-11 */}
         {showForm && (
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200] animate-in fade-in duration-200" onClick={() => !saving && setShowForm(false)} />
@@ -424,9 +424,9 @@ export default function EliteRolesPage() {
                     <p className="text-xs text-gray-500 dark:text-white/40 mt-2">{LEVEL_META[level]?.desc}</p>
                   </div>
 
-                  {/* рџ†• РџСЂеРґРїСЂРѕСЃРјРѕС‚СЂ РїлаС€РєРё */ }
+                  {/* рџ†• РџСЂеРґпросмотр РїлаС€РєРё */ }
                   <div>
-                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">РџСЂеРґРїСЂРѕСЃРјРѕС‚СЂ РїлаС€РєРё</label>
+                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">РџСЂеРґпросмотр РїлаС€РєРё</label>
                     <div className="flex flex-wrap items-center gap-3 p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                       {isStaff && (
                         <span className="px-2 py-0.5 rounded-full bg-[#8b5cf6]/20 text-[#8b5cf6] text-xs font-bold border border-[#8b5cf6]/40 flex items-center gap-1">
@@ -492,7 +492,7 @@ export default function EliteRolesPage() {
           </>
         )}
 
-        {/* РњРћР”РђР›РљРђ Р’ЫР”РђЧР� РРћР›Р� РџРћР›ЬР—РћР’РђРўР•Р›Ю */}
+        {/* МОДАЛКА Р’ЫР”РђЧР� РРћР›Р� РџРћР›ЬР—РћР’РђРўР•Р›Ю */}
         {showAssign && (
           <>
             <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200] animate-in fade-in duration-200" onClick={() => !assignSaving && setShowAssign(false)} />
@@ -507,8 +507,8 @@ export default function EliteRolesPage() {
 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">РќаР№С‚Рё РїРѕлСЊзРѕРІаС‚елСЏ</label>
-                    <input value={assignQuery} onChange={(e) => { setAssignQuery(e.target.value); setAssignTarget(null); }} placeholder="Р’РІеРґРёС‚е username РёлРё РёРјСЏ..."
+                    <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">РќаР№ти РїРѕлСЊзРѕРІаС‚елСЏ</label>
+                    <input value={assignQuery} onChange={(e) => { setAssignQuery(e.target.value); setAssignTarget(null); }} placeholder="Р’РІеРґРёС‚е username РёлРё имя..."
                       className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]" />
                   </div>
 

@@ -41,7 +41,7 @@ const FREE_OUTER_RADIUS = 150;
 const SNAP_RADIUS      = 48;
 const LONG_PRESS_MS    = 250;
 
-// 🆕 ЖЕСТЫ РћРўРўРЇР“РР’РђРќРРЇ
+// 🆕 ЖЕСТЫ ОТТЯГИВАНИЯ
 const PULL_BACK_THRESHOLD = 80;        // 80px влево = назад (меньше = быстрее отклик)
 const SCROLL_DEAD_ZONE    = 15;        // 15px мёртвая зона
 const SCROLL_MAX_SPEED = 14;
@@ -362,7 +362,7 @@ useEffect(() => {
   }
 }, [hasFeedMemory]);
 
-// 🆕 ═══ РџРћРЎР›Р•Р”РќРР™ ЧРРўРђР•РњЫР™ ПОСТ ═══
+// 🆕 ═══ ПОСЛЕДНИЙ ЧРРўРђР•РњЫР™ ПОСТ ═══
 const { post: lastReadPost, clear: clearLastRead } = useLastReadPost();
 
 // 🎯 РЈРќРР’Р•РРЎРђР›ЬРќРђРЇ ФРЈРќРљЦРРЇ "РџРРћР”РћР›Р–РРўЬ" (приоритет: пост > память ленты)
@@ -803,13 +803,13 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
   // 🎯 Общая точка входа жеста: кнопка орбиты, свободная орбита и Ctrl.
   // centerAtPress:
-  //   false (по умолчанию) — жест с РљРќРћРџРљР: дуга-полукруг от кнопки (как было);
+  //   false (по умолчанию) — жест с КНОПКИ: дуга-полукруг от кнопки (как было);
   //   true — orbit2 / Ctrl: ПОЛНЫЙ КРУГ вокруг точки зажима.
   const startGestureAt = useCallback((px: number, py: number, centerAtPress = false) => {
     // 🚫 Nebula — любой вход жеста классики блокируем
     if (typeof document !== "undefined" && document.documentElement.classList.contains("nebula-mode")) return;
     startPos.current = { x: px, y: py };
-    // 🆕 нашли элемент скролла РћР”РРќ раз — дальше только лёгкий scrollBy
+    // 🆕 нашли элемент скролла ОДИН раз — дальше только лёгкий scrollBy
     scrollTargetRef.current = findScrollTarget();
 
     longPressTimer.current = setTimeout(() => {
@@ -844,7 +844,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     return () => setBodySelectionLock(false);
   }, []);
 
-  // 🛡 Клик «сквозь» открытую дугу гасим РћР”РРќ раз (capture),
+  // 🛡 Клик «сквозь» открытую дугу гасим ОДИН раз (capture),
   //    чтобы отпускание пальца/кнопки не активировало ссылку под точкой зажима
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -1495,7 +1495,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
   return (
     <>
-      {/* ═══════ РњРћР‘РР›РљРђ / DESKTOP ORBIT / DESKTOP ORBIT2 ═══════ */}
+      {/* ═══════ МОБИЛКА / DESKTOP ORBIT / DESKTOP ORBIT2 ═══════ */}
       {/* orbit2 — без фиксированной кнопки: дуга открывается зажимом в любом месте */}
       {/* 🚫 В режиме Nebula классическая орбита полностью отключена (в т.ч. кнопка вне <aside>) */}
       {!nebulaOff && (
@@ -1552,7 +1552,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       {/* 🚫 В Nebula классическая дуга не рендерится */}
       {!nebulaOff && renderWheel()}
 
-{/* 🆕 рџ”Ґ РўРЈР›РўРРџ "РџРРћР”РћР›Р–РРўЬ ЧРўР•РќРР•" */}
+{/* 🆕 рџ”Ґ ТУЛТИП "РџРРћР”РћР›Р–РРўЬ ЧРўР•РќРР•" */}
 {!nebulaOff && showTooltip && showContinueButton && layout !== "orbit2" && (
   <div 
     className={`fixed z-[99] bg-[#8b5cf6] text-white text-xs font-bold px-3 py-2 rounded-lg shadow-xl whitespace-nowrap animate-bounce
@@ -1621,7 +1621,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         </aside>
       )}
 
-      {/* ═══════ РЈР’Р•Р”РћРњР›Р•РќРРЇ ═══════ */}
+      {/* ═══════ УВЕДОМЛЕНИЯ ═══════ */}
       {showNotifs && (
         <>
           <div className="fixed inset-0 bg-black/60 z-[99]" onClick={() => setShowNotifs(false)} />
