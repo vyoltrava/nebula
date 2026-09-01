@@ -5795,12 +5795,47 @@ async def delete_chat(
 
 @app.on_event("startup")
 def startup():
-    """Только проверка соединения с БД. Схема создаётся/мигрируется через Alembic."""
-    # Применение миграций: alembic upgrade head (см. scripts/run_migrations.py, деплой)
-    from sqlalchemy import text as _t
+    """Проверка соединения + само-лечение схемы.
+
+    Схема создаётся/мигрируется через Alembic, но на случай пропущенной
+    миграции (как было с admin_backup на Postgres) здесь идемпотентно
+    создаются отсутствующие таблицы и добавляются отсутствующие колонки.
+    """
+    from sqlalchemy import text as _t, inspect as _inspect
+    from sqlmodel import SQLModel as _SQLModel
+    import models as _models  # noqa: F401 — регистрация всех таблиц
     try:
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             conn.execute(_t("SELECT 1"))
+            # 🛡️ Идемпотентное создание отсутствующих таблиц (checkfirst)
+            try:
+                _SQLModel.metadata.create_all(conn)
+            except Exception as e:
+                print(f"⚠️ create_all (self-heal) не удался: {e}")
+            # 🛡️ Добавление отсутствующих колонок (модели → БД)
+            try:
+                insp = _inspect(conn)
+                for table in _SQLModel.metadata.tables.values():
+                    if not insp.has_table(table.name):
+                        continue
+                    existing = {c["name"] for c in insp.get_columns(table.name)}
+                    for col in table.columns:
+                        if col.name in existing:
+                            continue
+                        try:
+                            col_type = col.type.compile(conn.dialect)
+                        except Exception:
+                            col_type = "VARCHAR"
+                        default = ""
+                        if col.default is not None and isinstance(col.default.arg, (str, int, float, bool)):
+                            default = f" DEFAULT '{col.default.arg}'" if isinstance(col.default.arg, str) else f" DEFAULT {col.default.arg}"
+                        try:
+                            conn.execute(_t(f"ALTER TABLE {table.name} ADD COLUMN {col.name} {col_type}{default}"))
+                            print(f"🛠️ Self-heal: добавлена колонка {table.name}.{col.name}")
+                        except Exception:
+                            pass  # параллельный деплой / другая БД
+            except Exception as e:
+                print(f"⚠️ Self-heal колонок не удался: {e}")
         print("✅ База данных доступна")
     except Exception as e:
         print(f"❌ Нет соединения с БД: {e}")
