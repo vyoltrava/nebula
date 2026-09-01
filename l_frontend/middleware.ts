@@ -18,8 +18,15 @@ export function middleware(request: NextRequest) {
   const hasSession = Boolean(request.cookies.get(AUTH_HINT)?.value);
 
   // Залогиненного не пускаем на страницы входа — возвращаем в ленту.
+  // НО: если есть query ?add_account=1 или ?switch=1 — это намеренный
+  // переход для добавления/переключения аккаунта, страница логина должна открыться.
   if (hasSession && request.nextUrl.pathname.startsWith("/login")) {
-    return NextResponse.redirect(new URL("/", request.url));
+    const sp = request.nextUrl.searchParams;
+    const isAddingAccount = sp.get("add_account") === "1";
+    const isSwitching = sp.get("switch") === "1";
+    if (!isAddingAccount && !isSwitching) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
   }
 
   return NextResponse.next();

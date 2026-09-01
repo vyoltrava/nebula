@@ -31,20 +31,16 @@ export async function apiFetch(
   let token = getToken();
   let res = await doFetch(token);
 
-  if (!res.ok && res.status === 401 && !skipAuthRefresh) {
+    if (!res.ok && res.status === 401 && !skipAuthRefresh) {
     const { token: newToken, unreachable } = await refreshAccessToken();
     if (newToken) {
       token = newToken;
       res = await doFetch(token);
-    } else if (!unreachable) {
-      // refresh провален и сервер реально ответил 401 — сессия мертва, выходим
-      clearToken();
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("auth:logout"));
-      }
     }
-    // unreachable === true (сервер недоступен): НЕ трогаем аккаунт —
-    // просто отдаём исходный 401; при восстановлении сети refresh пройдёт.
+    // 🔥 Если refresh провален — НЕ удаляем аккаунт! Просто возвращаем исходный
+    // 401. Вызывающий код (AuthProvider/AuthGuard) сам решает, удалять или нет.
+    // Раньше clearToken() удалял аккаунт при любом 401 — это ломало мультиаккаунт.
+    // unreachable === true (сеть недоступна): тоже не трогаем аккаунт.
   }
 
   return res;
