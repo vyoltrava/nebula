@@ -76,34 +76,57 @@ export function PaymentShop({ onPurchased }: { onPurchased?: () => void }) {
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /> {t("payment.manualPending")}
         </div>
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="space-y-3">
         {state.roles.map(role => (
-          <div key={role.roleId}
-            className="rounded-2xl bg-white dark:bg-white/5 border border-black/5 dark:border-white/10 p-4 flex flex-col">
-            <div className="font-semibold text-gray-900 dark:text-white">{role.roleName}</div>
-            <div className="mt-1">
-              <span className="text-2xl font-extrabold text-violet-500">{role.price} {role.currency}</span>
-              <span className="text-xs text-gray-500 dark:text-white/50 ml-1">/ {periodLabel(role.period)}</span>
-            </div>
-            {role.description && (
-              <p className="text-sm text-gray-500 dark:text-white/60 mt-1">{role.description}</p>
-            )}
-            <ul className="mt-2 space-y-1 flex-1">
-              {(role.features || []).map((f, i) => (
-                <li key={i} className="text-sm text-gray-700 dark:text-white/80 flex items-start gap-1.5">
-                  <Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /> {f}
-                </li>
-              ))}
-            </ul>
-            {role.trialDays > 0 && (
-              <div className="text-xs text-green-600 dark:text-green-400 mt-2">
-                {t("payment.trialFree").replace("{n}", String(role.trialDays))}
+          <div key={role.roleId} role="button" tabIndex={0}
+            onClick={() => setSelected(role)}
+            onKeyDown={e => { if (e.key === "Enter" || e.key === " ") setSelected(role); }}
+            className="group cursor-pointer rounded-2xl bg-white dark:bg-white/5 border border-black/5 dark:border-white/10 px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-4 hover:border-violet-400/60 dark:hover:border-violet-400/40 hover:bg-violet-500/[0.03] dark:hover:bg-violet-500/[0.06] transition">
+            {/* Название + описание */}
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-gray-900 dark:text-white flex items-center gap-2 flex-wrap">
+                {role.roleName}
+                {role.isRecurring && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold uppercase tracking-wide">
+                    {t("payment.autoRenew")}
+                  </span>
+                )}
+                {role.trialDays > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-600 dark:text-green-400 font-bold">
+                    {t("payment.trialFree").replace("{n}", String(role.trialDays))}
+                  </span>
+                )}
               </div>
-            )}
-            <button onClick={() => setSelected(role)}
-              className="mt-3 w-full py-2 rounded-xl bg-violet-500 text-white font-semibold hover:bg-violet-600 transition">
-              {t("payment.buy")}
-            </button>
+              {role.description && (
+                <p className="text-sm text-gray-500 dark:text-white/50 mt-0.5 line-clamp-1">{role.description}</p>
+              )}
+              {/* Превью: первые 3 пункта в строку */}
+              {(role.features || []).length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+                  {role.features.slice(0, 3).map((f, i) => (
+                    <span key={i} className="text-xs text-gray-600 dark:text-white/60 flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5 text-green-500 shrink-0" /> <span className="line-clamp-1">{f}</span>
+                    </span>
+                  ))}
+                  {(role.features?.length || 0) > 3 && (
+                    <span className="text-xs text-violet-500 font-medium group-hover:underline">
+                      +{(role.features?.length || 0) - 3} ещё · подробнее
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* Цена + кнопка */}
+            <div className="flex items-center gap-4 shrink-0 sm:pl-4 sm:border-l border-black/5 dark:border-white/10">
+              <div className="text-right">
+                <div className="text-xl font-extrabold text-violet-500 whitespace-nowrap">{role.price} {role.currency}</div>
+                <div className="text-[11px] text-gray-500 dark:text-white/40">/ {periodLabel(role.period)}</div>
+              </div>
+              <button onClick={e => { e.stopPropagation(); setSelected(role); }}
+                className="px-5 py-2 rounded-xl bg-violet-500 text-white text-sm font-semibold hover:bg-violet-600 transition whitespace-nowrap">
+                {t("payment.buy")}
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -161,7 +184,7 @@ function PaymentModal({ role, periodLabel, onClose, onSuccess, onManualPending }
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
       onClick={loading ? undefined : onClose}>
-      <div className="w-full max-w-sm rounded-3xl bg-white dark:bg-[#1e1e22] p-6 relative"
+      <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-[#1e1e22] p-6 relative max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}>
         <button onClick={onClose} disabled={loading}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-white">
@@ -170,19 +193,42 @@ function PaymentModal({ role, periodLabel, onClose, onSuccess, onManualPending }
 
         <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t("payment.purchaseTitle")}</h2>
 
-        <div className="mt-4 rounded-2xl bg-black/5 dark:bg-white/5 p-4">
-          <div className="font-semibold text-gray-900 dark:text-white">{role.roleName}</div>
-          {role.description && (
-            <p className="text-sm text-gray-500 dark:text-white/60 mt-0.5">{role.description}</p>
-          )}
-          <div className="mt-2 flex items-baseline gap-1">
-            <span className="text-2xl font-extrabold text-violet-500">{role.price} {role.currency}</span>
-            <span className="text-xs text-gray-500 dark:text-white/50">/ {periodLabel(role.period)}</span>
+        {/* Шапка: имя, описание, цена в одну строку */}
+        <div className="mt-4 rounded-2xl bg-black/5 dark:bg-white/5 px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+          <div className="min-w-0">
+            <div className="font-semibold text-gray-900 dark:text-white">{role.roleName}</div>
+            {role.description && (
+              <p className="text-sm text-gray-500 dark:text-white/60 mt-0.5">{role.description}</p>
+            )}
           </div>
-          {role.isRecurring && (
-            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{t("payment.autoRenew")}</p>
-          )}
+          <div className="text-right shrink-0">
+            <div className="text-xl font-extrabold text-violet-500 whitespace-nowrap">{role.price} {role.currency}</div>
+            <div className="text-[11px] text-gray-500 dark:text-white/40">/ {periodLabel(role.period)}</div>
+            {role.isRecurring && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">{t("payment.autoRenew")}</p>
+            )}
+          </div>
         </div>
+
+        {/* Полный список привилегий — 2 столбца */}
+        {(role.features || []).length > 0 && (
+          <div className="mt-4">
+            <div className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-white/40 mb-2">Что входит</div>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+              {role.features.map((f, i) => (
+                <li key={i} className="text-sm text-gray-700 dark:text-white/80 flex items-start gap-2">
+                  <Check className="w-4 h-4 text-green-500 shrink-0 mt-0.5" /> {f}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {role.trialDays > 0 && (
+          <div className="mt-3 text-sm text-green-600 dark:text-green-400 flex items-center gap-1.5">
+            <Check className="w-4 h-4" /> {t("payment.trialFree").replace("{n}", String(role.trialDays))}
+          </div>
+        )}
 
         {error && (
           <div className="mt-3 flex items-start gap-2 p-3 rounded-xl bg-red-500/10 text-red-500 text-sm">
@@ -191,7 +237,7 @@ function PaymentModal({ role, periodLabel, onClose, onSuccess, onManualPending }
         )}
 
         <button onClick={pay} disabled={loading}
-          className="mt-4 w-full py-3 rounded-xl bg-violet-500 text-white font-semibold hover:bg-violet-600 disabled:opacity-50 flex items-center justify-center gap-2 transition">
+          className="mt-5 w-full py-3 rounded-xl bg-violet-500 text-white font-semibold hover:bg-violet-600 disabled:opacity-50 flex items-center justify-center gap-2 transition">
           {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> {t("payment.processing")}</> : t("payment.pay")}
         </button>
 
