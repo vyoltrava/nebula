@@ -6122,6 +6122,12 @@ async def toggle_post_reaction(
         session.commit()
 
     reactions = build_post_reactions_map(session, [post_id], user.id).get(post_id, [])
+
+    # 🚀 Рассылаем актуальные реакции ВСЕМ клиентам — число на кнопке обновляется в реальном времени
+    await manager.broadcast_all("post_reaction", {
+        "post_id": post_id,
+        "reactions": reactions,
+    })
     return {"ok": True, "reactions": reactions}
 
 

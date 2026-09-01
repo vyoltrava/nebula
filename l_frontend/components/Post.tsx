@@ -450,6 +450,18 @@ useEffect(() => {
 
   useEffect(() => { loadPostReactions(); }, [id]);
 
+  // 🚀 Живая синхронизация реакций через WebSocket (reaction-sync ← post_reaction)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const d = (e as CustomEvent).detail;
+      if (d.post_id === id && Array.isArray(d.reactions)) {
+        setPostReactions(d.reactions);
+      }
+    };
+    window.addEventListener("reaction-sync", handler);
+    return () => window.removeEventListener("reaction-sync", handler);
+  }, [id]);
+
   // 🚀 Паки реакций кешируются на уровне модуля — один запрос на всё приложение, модалка открывается мгновенно
   useEffect(() => {
     fetchPostReactionPacks().then((packs) => setReactionPacks(packs));

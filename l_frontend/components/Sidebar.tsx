@@ -451,6 +451,13 @@ const continueConfig = lastReadPost
     }
   });
 
+  // 🆕 Реакции на посты: WS → window-событие для компонентов ленты
+  useWebSocket("post_reaction", (data: any) => {
+    window.dispatchEvent(new CustomEvent("reaction-sync", {
+      detail: { post_id: data.post_id, reactions: data.reactions },
+    }));
+  });
+
   const [layout, setLayout] = useState<SidebarLayout>(() => getSidebarLayout());
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
   const [showOrbitSwitcher, setShowOrbitSwitcher] = useState(false);
