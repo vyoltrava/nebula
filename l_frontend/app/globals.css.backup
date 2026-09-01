@@ -1,0 +1,983 @@
+@import "tailwindcss";
+
+/* Tailwind v4: включаем dark-вариант по классу "dark" на <html>.
+   (Аналог darkMode: 'class' из tailwind.config.js, которого в v4 больше нет.)
+   Класс на <html> вешает next-themes (см. components/ThemeModeProvider.tsx). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* 🎨 Фирменные светлые тона: приглушённая слоновая кость (карточки) и тёплая
+   крафт-бумага (фон страниц). Генерируют утилиты bg-ivory / bg-paper и т.д. */
+@theme {
+  --color-ivory: #F5F1E6;
+  --color-paper: #ECE7D8;
+  /* Тёплая средняя линия для обводок карточек/кнопок на светлой теме */
+  --color-line: #D9D1BA;
+}
+
+
+/* ============================================================
+   🌗 ЦВЕТОВЫЕ ТОКЕНЫ (Light по умолчанию, Dark через класс .dark
+   на <html>, который вешает next-themes)
+   ============================================================ */
+:root {
+  /* Light theme — тёплые, заметно приглушённые «бумажные» оттенки */
+  --bg-primary: #ece7d8;            /* paper — фон страницы */
+  --bg-secondary: #f5f1e6;          /* ivory — карточки */
+  --bg-tertiary: #e3ddca;           /* поля ввода, ховеры */
+  --accent: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --border: rgba(38, 30, 16, 0.1);
+  --border-strong: rgba(38, 30, 16, 0.2);
+  --text: #26221a;
+  --text-muted: rgba(38, 34, 26, 0.65);
+  --scrollbar-thumb: rgba(38, 34, 26, 0.26);
+  --splash-bg: #ece7d8;
+
+  /* Подложка и «вуаль» анимированных фонов (Themes) */
+  --anim-base: #e6e0ce;
+  --anim-veil: rgba(249, 246, 238, 0.55);
+  --anim-veil-strong: rgba(249, 246, 238, 0.74);
+}
+
+.dark {
+  /* Dark theme — прежние значения приложения */
+  --bg-primary: #171717;
+  --bg-secondary: #1f1f23;
+  --bg-tertiary: #2a2a2f;
+  --accent: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --text: #e8e8f0;
+  --text-muted: rgba(232, 232, 240, 0.6);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.15);
+  --splash-bg: #171717;
+
+  --anim-base: #0a0a0e;
+  --anim-veil: rgba(10, 10, 14, 0.45);
+  --anim-veil-strong: rgba(8, 8, 12, 0.65);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg-primary);
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.font-logo {
+  font-family: var(--font-jersey), cursive;
+  letter-spacing: 0.05em;
+}
+
+/* Скроллбар (адаптивный) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+/* === Подсветка ника цветом роли === */
+.role-glow {
+  color: var(--role-color, inherit);
+  text-shadow:
+    0 0 4px  color-mix(in srgb, var(--role-color) 80%, transparent),
+    0 0 10px color-mix(in srgb, var(--role-color) 55%, transparent),
+    0 0 22px color-mix(in srgb, var(--role-color) 30%, transparent);
+}
+
+/* 🌗 Светлая тема: светлые цвета ролей (например, белый у Founder) смешиваются
+   с тёмной подложкой — ник остаётся читаемым; неоновое свечение убираем */
+html:not(.dark) .role-glow {
+  color: color-mix(in srgb, var(--role-color, currentColor) 68%, #211d14);
+  text-shadow: none;
+}
+
+/* ===== Splash screen ===== */
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--splash-bg, #171717);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: opacity 0.5s ease;
+}
+
+.splash--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.splash__img {
+  width: min(70vmin, 600px);
+  height: auto;
+}
+
+/* ========== АНИМИРОВАННЫЕ ПЛАШКИ FOUNDER / DEVELOPER ========== */
+@keyframes badge-flow {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes badge-shine {
+  0%   { left: -80%; }
+  60%  { left: 130%; }
+  100% { left: 130%; }
+}
+@keyframes badge-pulse-white {
+  0%, 100% { box-shadow: 0 0 6px rgba(255,255,255,.35), 0 0 14px rgba(255,255,255,.15); }
+  50%      { box-shadow: 0 0 12px rgba(255,255,255,.75), 0 0 24px rgba(255,255,255,.3); }
+}
+@keyframes badge-pulse-blue {
+  0%, 100% { box-shadow: 0 0 6px rgba(59,130,246,.4), 0 0 14px rgba(59,130,246,.2); }
+  50%      { box-shadow: 0 0 12px rgba(59,130,246,.8), 0 0 24px rgba(59,130,246,.35); }
+}
+@keyframes badge-blink { 50% { opacity: 0; } }
+
+.badge-founder,
+.badge-developer {
+  position: relative;
+  overflow: hidden;
+}
+.badge-founder::after,
+.badge-developer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -80%;
+  width: 50%;
+  height: 100%;
+  animation: badge-shine 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* FOUNDER: серебро + голографический блик + белое свечение */
+.badge-founder {
+  background: linear-gradient(110deg, #ffffff 25%, #c9c9d1 45%, #ffffff 65%);
+  background-size: 200% 100%;
+  animation: badge-flow 3s linear infinite, badge-pulse-white 2.5s ease-in-out infinite;
+}
+.badge-founder::after {
+  background: linear-gradient(100deg, transparent, rgba(139,92,246,.45), #fff, rgba(56,189,248,.45), transparent);
+}
+
+/* DEVELOPER: синий перелив + белый блик */
+.badge-developer {
+  background: linear-gradient(110deg, #1d4ed8 25%, #60a5fa 45%, #1d4ed8 65%);
+  background-size: 200% 100%;
+  animation: badge-flow 3s linear infinite, badge-pulse-blue 2.5s ease-in-out infinite;
+}
+.badge-developer::after {
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.85), transparent);
+}
+
+/* мигающий курсор терминала */
+.badge-cursor {
+  animation: badge-blink 1s steps(1) infinite;
+}
+
+
+@keyframes eq {
+  0%, 100% { height: 25%; }
+  50% { height: 100%; }
+}
+.eq-bar {
+  height: 25%;
+  animation: eq 1s ease-in-out infinite;
+}
+
+/* живая линия аудиоплеера — бегущий градиент пока играет */
+.audio-line-live {
+  background: linear-gradient(90deg, #7c3aed, #a78bfa, #8b5cf6, #a78bfa, #7c3aed);
+  background-size: 300% 100%;
+  animation: audioLine 2s linear infinite;
+}
+@keyframes audioLine {
+  from { background-position: 0% 0; }
+  to { background-position: 300% 0; }
+}
+
+
+/* ============================================================
+   🎨 АНИМИРОВАННЫЕ ТЕМЫ (живые градиенты)
+   ============================================================ */
+
+.animated-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  /* Адаптивная подложка: светлая/тёмная (см. токены --anim-* выше).
+     Сами анимации (Themes) работают в обеих темах без изменений. */
+  background: var(--anim-base, #0a0a0e);
+}
+
+/* Вуаль поверх анимации — чтобы контент читался (светлее в light) */
+.animated-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--anim-veil, rgba(10, 10, 14, 0.45));
+}
+
+/* ---------- AURORA: плавающие размытые пятна ---------- */
+.animated-bg .blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(var(--theme-blur, 70px));
+  opacity: var(--theme-intensity, 0.22);
+  will-change: transform;
+}
+
+.animated-bg .blob-1 {
+  width: 60vmax; height: 60vmax;
+  top: -25%; left: -20%;
+  animation: blob-drift-1 var(--theme-speed, 24s) ease-in-out infinite alternate;
+}
+.animated-bg .blob-2 {
+  width: 50vmax; height: 50vmax;
+  bottom: -25%; right: -20%;
+  animation: blob-drift-2 calc(var(--theme-speed, 24s) * 1.25) ease-in-out infinite alternate;
+}
+.animated-bg .blob-3 {
+  width: 40vmax; height: 40vmax;
+  top: 30%; left: 35%;
+  animation: blob-drift-3 calc(var(--theme-speed, 24s) * 0.8) ease-in-out infinite alternate;
+}
+
+@keyframes blob-drift-1 {
+  0%   { transform: translate(0, 0) scale(1) rotate(0deg); }
+  50%  { transform: translate(18vw, 12vh) scale(1.2) rotate(30deg); }
+  100% { transform: translate(-8vw, 25vh) scale(0.9) rotate(-20deg); }
+}
+@keyframes blob-drift-2 {
+  0%   { transform: translate(0, 0) scale(1.1); }
+  50%  { transform: translate(-20vw, -15vh) scale(0.85); }
+  100% { transform: translate(10vw, -30vh) scale(1.25); }
+}
+@keyframes blob-drift-3 {
+  0%   { transform: translate(0, 0) scale(0.9); }
+  50%  { transform: translate(-15vw, 10vh) scale(1.3); }
+  100% { transform: translate(20vw, -10vh) scale(1); }
+}
+
+/* ---------- GRADIENT: переливающийся поток ---------- */
+.animated-bg.type-gradient {
+  background: linear-gradient(-45deg, var(--c1), var(--c2), var(--c3), var(--c4));
+  background-size: 400% 400%;
+  animation: gradient-flow var(--theme-speed, 18s) ease infinite;
+}
+.animated-bg.type-gradient::after {
+  background: var(--anim-veil-strong, rgba(8, 8, 12, 0.65));
+}
+@keyframes gradient-flow {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ---------- LIQUID: "жидкие" вращающиеся формы ---------- */
+.animated-bg .wave {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 170vmax; height: 170vmax;
+  margin-left: -85vmax; margin-top: -85vmax;
+  border-radius: 42% 58% 62% 38% / 45% 42% 58% 55%;
+  opacity: var(--theme-intensity, 0.16);
+  filter: blur(var(--theme-blur, 40px));
+  will-change: transform;
+}
+.animated-bg .wave-1 {
+  animation: wave-rotate var(--theme-speed, 30s) linear infinite;
+}
+.animated-bg .wave-2 {
+  border-radius: 58% 42% 40% 60% / 55% 58% 42% 45%;
+  animation: wave-rotate calc(var(--theme-speed, 30s) * 1.4) linear infinite reverse;
+}
+@keyframes wave-rotate {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- NEON: пульсирующие неоновые пятна ---------- */
+.animated-bg .neon-spot {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(var(--theme-blur, 60px));
+  will-change: transform, opacity;
+}
+.animated-bg .neon-1 {
+  width: 45vmax; height: 45vmax; top: -10%; left: -10%;
+  animation: neon-pulse var(--theme-speed, 8s) ease-in-out infinite;
+}
+.animated-bg .neon-2 {
+  width: 40vmax; height: 40vmax; bottom: -10%; right: -10%;
+  animation: neon-pulse calc(var(--theme-speed, 8s) * 1.3) ease-in-out infinite 1s;
+}
+.animated-bg .neon-3 {
+  width: 30vmax; height: 30vmax; top: 40%; left: 45%;
+  animation: neon-pulse calc(var(--theme-speed, 8s) * 0.7) ease-in-out infinite 0.5s;
+}
+@keyframes neon-pulse {
+  0%, 100% { opacity: calc(var(--theme-intensity, 0.2) * 0.4); transform: scale(1); }
+  50%      { opacity: var(--theme-intensity, 0.2); transform: scale(1.25); }
+}
+
+/* Отключаем анимации если юзер просит меньше движения */
+@media (prefers-reduced-motion: reduce) {
+  .animated-bg * { animation: none !important; }
+}
+
+/* ============================================================
+   🌗 АДАПТАЦИЯ АНИМИРОВАННЫХ ФОНОВ ПОД СВЕТЛУЮ ТЕМУ
+   Пятна/волны/неон рассчитаны на тёмную подложку. На светлой
+   используем multiply (краска на бумаге) + лёгкую насыщенность,
+   а неяркую интенсивность компенсируем повышением opacity.
+   Тёмная тема продолжает рендериться как раньше.
+   ============================================================ */
+html:not(.dark) .animated-bg .blob,
+html:not(.dark) .animated-bg .wave,
+html:not(.dark) .animated-bg .neon-spot {
+  mix-blend-mode: multiply;
+  filter: blur(var(--theme-blur, 70px)) saturate(1.35);
+}
+
+html:not(.dark) .animated-bg .blob {
+  opacity: calc(var(--theme-intensity, 0.22) * 1.6);
+}
+html:not(.dark) .animated-bg .wave {
+  opacity: calc(var(--theme-intensity, 0.16) * 1.5);
+}
+html:not(.dark) .animated-bg .neon-spot {
+  opacity: calc(var(--theme-intensity, 0.2) * 1.2);
+}
+
+/* 🦴 Скелетоны — фиолетовый шиммер */
+@keyframes skeleton-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.skeleton-shimmer {
+  background: linear-gradient(100deg, transparent 25%, rgba(139, 92, 246, 0.16) 50%, transparent 75%);
+  animation: skeleton-shimmer 1.3s ease-in-out infinite;
+}
+
+
+
+/* Markdown базовые стили (адаптивные через токены) */
+.markdown-body hr { border-color: var(--border-strong); margin: 1rem 0; }
+.markdown-body table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; }
+.markdown-body th, .markdown-body td { border: 1px solid var(--border-strong); padding: 0.5rem; text-align: left; }
+.markdown-body th { background: var(--bg-tertiary); font-weight: bold; }
+/* Длинные слова/URL переносятся и не выносят сообщение за экран (мобильные) */
+.markdown-body { overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
+
+
+
+/* Call animations */
+@keyframes call-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.8; }
+}
+
+.call-ringing {
+  animation: call-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes call-connecting {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+
+.call-connecting {
+  animation: call-connecting 1s ease-in-out infinite;
+}
+
+
+/* ═══════════════════════════════════════════
+   🎭 ROLE BADGES — АНИМАЦИИ
+   ═══════════════════════════════════════════ */
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%) skewX(-15deg); }
+  100% { transform: translateX(200%) skewX(-15deg); }
+}
+
+@keyframes founderGlow {
+  0%, 100% { box-shadow: 0 4px 14px 0 rgba(255,255,255,0.4), inset 0 1px 0 rgba(255,255,255,0.8); }
+  50% { box-shadow: 0 4px 24px 4px rgba(255,255,255,0.6), inset 0 1px 0 rgba(255,255,255,0.8); }
+}
+
+@keyframes developerPulse {
+  0%, 100% { box-shadow: 0 4px 14px 0 rgba(59,130,246,0.4); }
+  50% { box-shadow: 0 4px 20px 2px rgba(59,130,246,0.6); }
+}
+
+@keyframes specialGlow {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.15); }
+}
+
+@keyframes gradientShift {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+@keyframes sparkle1 {
+  0%, 100% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 0.8; transform: scale(1.2); }
+}
+
+@keyframes sparkle2 {
+  0%, 100% { opacity: 0; transform: scale(0.5); }
+  50% { opacity: 0.6; transform: scale(1); }
+}
+
+@keyframes rolePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+.animate-shimmer {
+  animation: shimmer 3s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+}
+
+.animate-founder-glow {
+  animation: founderGlow 3s ease-in-out infinite;
+}
+
+.animate-developer-pulse {
+  animation: developerPulse 2.5s ease-in-out infinite;
+}
+
+.animate-special-glow {
+  animation: specialGlow 2s ease-in-out infinite;
+}
+
+.animate-gradient-shift {
+  animation: gradientShift 3s linear infinite;
+}
+
+.animate-sparkle-1 {
+  animation: sparkle1 2s ease-in-out infinite;
+}
+
+.animate-sparkle-2 {
+  animation: sparkle2 2s ease-in-out infinite 1s;
+}
+
+.animate-role-pulse {
+  animation: rolePulse 3s ease-in-out infinite;
+}
+
+.badge-cursor {
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* ═══════════════════════════════════════════
+   🎭 AVATAR FRAMES — ОПТИМИЗИРОВАННЫЕ АНИМАЦИИ (60 FPS)
+   ═══════════════════════════════════════════ */
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes spin-reverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+@keyframes role-aura {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+@keyframes float-1 {
+  0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.6; }
+  50% { transform: translateY(-4px) rotate(5deg); opacity: 1; }
+}
+
+@keyframes float-2 {
+  0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.4; }
+  50% { transform: translateY(4px) rotate(-5deg); opacity: 0.8; }
+}
+
+@keyframes bounce-slow {
+  0%, 100% { transform: translate(-50%, 0) translateZ(0); }
+  50% { transform: translate(-50%, -6px) translateZ(0); }
+}
+
+/* Лёгкая анимация пульсации без filter (максимальная производительность в Firefox) */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.4; transform: scale(1) translateZ(0); }
+  50% { opacity: 0.9; transform: scale(1.15) translateZ(0); }
+}
+
+/* === КЛАССЫ С АППАРАТНЫМ УСКОРЕНИЕМ (GPU) === */
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.animate-spin-reverse {
+  animation: spin-reverse 6s linear infinite;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.animate-role-aura {
+  animation: role-aura 2s ease-in-out infinite;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+.animate-float-1 {
+  animation: float-1 3s ease-in-out infinite;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+.animate-float-2 {
+  animation: float-2 3s ease-in-out infinite 1.5s;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 3s ease-in-out infinite;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.badge-glow-effect {
+  animation: pulse-glow 2s ease-in-out infinite;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+
+@keyframes perimeter-wave {
+  0% {
+    stroke-dashoffset: 360; /* Ровно длина паттерна (60+300) */
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-perimeter-wave {
+  animation: perimeter-wave 3s linear infinite;
+}
+
+.animate-perimeter-wave-slow {
+  animation: perimeter-wave 5s linear infinite;
+}
+
+/* === Custom Badge Animations === */
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(to right, transparent 0%, rgba(255, 255, 255, 0.3) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes rotate-icon {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-rotate-icon {
+  animation: rotate-icon 2s linear infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.animate-float {
+  animation: float 2s ease-in-out infinite;
+}
+
+
+/* === ИСПРАВЛЕНИЕ: Классы для анимаций из формы === */
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+.animate-blink {
+  animation: blink 1s step-end infinite;
+}
+
+/* ============================================================
+   🐞 FIX: Поле ввода сообщения в чате — ТЁМНАЯ ТЕМА
+   ------------------------------------------------------------
+   Симптом: в тёмной теме текст поля белый, а фон при наведении/
+   фокусе становился светлым (focus-within:bg-gray-100) → текст
+   сливался с фоном и становился невидимым.
+
+   Правила применяются ТОЛЬКО к тёмной теме:
+     • `.dark` — так тему вешает next-themes в этом проекте
+       (класс на <html>, см. ThemeModeProvider / globals.css);
+     • `[data-theme="dark"]` — резерв для data-атрибут-темы.
+   Светлая тема этими правилами не затрагивается вообще.
+
+   Состояния:
+     база        → фон #2d2d2d, тонкая рамка
+     :hover      → фон чуть светлее #3d3d3d + рамка ярче (НЕ белый!)
+     :focus-within → фон остаётся тёмным #333, рамка — акцент #8b5cf6
+     :active     → как у hover, без белой вспышки
+     текст       → светло-серый #e0e0e0 (не чисто белый), читаем
+                   во ВСЕХ состояниях
+     плейсхолдер → приглушённый светло-серый
+   ============================================================ */
+
+/* --- Обёртка поля ввода (фон/рамка) --- */
+.dark .chat-input-shell,
+[data-theme="dark"] .chat-input-shell {
+  background-color: #2d2d2d;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.dark .chat-input-shell:hover,
+[data-theme="dark"] .chat-input-shell:hover {
+  /* Фон остаётся ТЁМНЫМ, чуть светлее базы + тонкая рамка */
+  background-color: #3d3d3d;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.dark .chat-input-shell:focus-within,
+[data-theme="dark"] .chat-input-shell:focus-within {
+  /* При фокусе фон НЕ белеет — лишь слегка светлее базы */
+  background-color: #333333;
+  border-color: #8b5cf6; /* фирменный акцент приложения */
+}
+
+.dark .chat-input-shell:active,
+[data-theme="dark"] .chat-input-shell:active {
+  background-color: #3d3d3d;
+}
+
+/* --- Сам редактор (contentEditable, класс .rich-editor) --- */
+.dark .chat-input-shell .rich-editor,
+[data-theme="dark"] .chat-input-shell .rich-editor {
+  /* Светлый, но НЕ белый текст — читается на любом из тёмных фонов выше */
+  color: #e0e0e0;
+  caret-color: #e0e0e0;
+}
+
+/* Текст остаётся читаемым при наведении, фокусе и нажатии
+   (перестраховка от любых hover-утилит Tailwind) */
+.dark .chat-input-shell:hover .rich-editor,
+[data-theme="dark"] .chat-input-shell:hover .rich-editor,
+.dark .chat-input-shell:focus-within .rich-editor,
+[data-theme="dark"] .chat-input-shell:focus-within .rich-editor,
+.dark .chat-input-shell:active .rich-editor,
+[data-theme="dark"] .chat-input-shell:active .rich-editor {
+  color: #e0e0e0;
+}
+
+/* Плейсхолдер — приглушённый светло-серый */
+.dark .chat-input-shell .rich-editor:empty::before,
+[data-theme="dark"] .chat-input-shell .rich-editor:empty::before {
+  color: rgba(224, 224, 224, 0.45);
+}
+
+/* ============================================================
+   🐞 FIX: Страница Team — ник Founder'а
+   Цвет ника задаётся инлайн-стилем (#ffffff для Founder), поэтому
+   в светлой теме он сливался с фоном. Класс .team-nick-on-light
+   навешивается из team/page.tsx только для светящихся БЕЛЫХ ников
+   и перекрашивает их в чёрный в светлой теме (в тёмной остаётся
+   инлайн-белый цвет и неоновое свечение).
+   !important — чтобы перебить инлайн-стили React.
+   ============================================================ */
+html:not(.dark) .team-nick-on-light,
+:root:not(.dark) [data-theme="light"] .team-nick-on-light {
+  color: #111111 !important;
+  text-shadow: none !important;
+}
+/* ============================================================
+   📝 РЕДАКТОР ПОСТА ВНУТРИ КАРТОЧКИ (inline, без модалки)
+   ------------------------------------------------------------
+   По умолчанию (классическая тема) — обычное минималистичное
+   поле ввода и кнопки в стиле основного интерфейса.
+   Тематические переопределения:
+   • body.zune-theme — Metro-стиль ZUNE (плоско, жёсткие углы)
+   • body.ios-theme  — «лист тетради», сургучная печать и металл
+   ============================================================ */
+
+/* --- Классическая тема: поле как везде в приложении --- */
+.post-inline-editor {
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 8px 12px;
+  color: var(--text);
+  caret-color: var(--accent);
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  transition: border-color 0.15s ease;
+}
+
+.post-inline-editor::placeholder {
+  color: var(--text-muted);
+}
+
+.post-inline-editor:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* --- Классическая тема: кнопки как везде в приложении --- */
+.post-edit-save {
+  background-color: var(--accent);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.post-edit-save:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+.post-edit-save:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.post-edit-save:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.post-edit-cancel {
+  background-color: transparent;
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  transition: background-color 0.15s ease;
+}
+
+.post-edit-cancel:hover {
+  background-color: var(--bg-tertiary);
+}
+
+/* --- ZUNE: Metro — плоско, жёсткие углы, Segoe UI --- */
+body.zune-theme .post-editing {
+  border-radius: 0;
+  border-color: var(--z-accent);
+  background-color: var(--z-bg-raise);
+  box-shadow: 0 0 0 1px rgba(255, 0, 255, 0.15);
+}
+
+body.zune-theme .post-inline-editor {
+  font-family: var(--z-font);
+  font-size: 15px;
+  font-weight: var(--z-weight-regular);
+  padding: 10px 12px;
+  color: var(--z-text);
+  caret-color: var(--z-accent);
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 2px solid var(--z-stroke);
+  border-radius: 0;
+  transition: border-color var(--z-speed) var(--z-ease-out);
+}
+
+body.zune-theme .post-inline-editor::placeholder {
+  color: var(--z-text-dim);
+}
+
+body.zune-theme .post-inline-editor:focus {
+  border-color: var(--z-accent);
+}
+
+body.zune-theme .post-edit-save {
+  background-color: var(--z-accent);
+  color: #ffffff;
+  border-radius: 0;
+  font-weight: var(--z-weight-semibold);
+  transition: background-color var(--z-speed) var(--z-ease-out), transform 0.1s ease;
+}
+
+body.zune-theme .post-edit-save:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+
+body.zune-theme .post-edit-cancel {
+  background-color: transparent;
+  color: var(--z-text);
+  border: 2px solid var(--z-stroke);
+  border-radius: 0;
+  font-weight: var(--z-weight-semibold);
+  transition: background-color var(--z-speed) var(--z-ease-out);
+}
+
+body.zune-theme .post-edit-cancel:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* --- iOS: «лист тетради» на пожелтевшей бумаге --- */
+body.ios-theme .post-editing {
+  border-radius: 16px;
+}
+
+body.ios-theme .post-inline-editor {
+  font-family: "Segoe Script", "Bradley Hand", "Comic Sans MS", cursive;
+  font-size: 15px;
+  line-height: 28px;
+  padding: 10px 14px 12px;
+  color: #3a3226;
+  caret-color: #8b5cf6;
+  background-color: #f6efdb;
+  background-image:
+    radial-gradient(ellipse at top left, rgba(255, 252, 240, 0.9), transparent 60%),
+    repeating-linear-gradient(180deg, transparent 0px, transparent 27px, rgba(116, 132, 180, 0.4) 27px, rgba(116, 132, 180, 0.4) 28px);
+  /* Линовка прокручивается вместе с текстом, «свет бумаги» остаётся на месте */
+  background-attachment: scroll, local;
+  background-position: 0 10px, 0 10px;
+  border: 1px solid #d9d1ba;
+  border-radius: 12px;
+}
+
+body.ios-theme .post-inline-editor::placeholder {
+  color: rgba(122, 106, 70, 0.55);
+  font-style: italic;
+}
+
+.dark body.ios-theme .post-inline-editor {
+  color: #ecdfc0;
+  caret-color: #a78bfa;
+  background-color: #292317;
+  background-image:
+    radial-gradient(ellipse at top left, rgba(255, 240, 200, 0.05), transparent 60%),
+    repeating-linear-gradient(180deg, transparent 0px, transparent 27px, rgba(167, 139, 250, 0.18) 27px, rgba(167, 139, 250, 0.18) 28px);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.dark body.ios-theme .post-inline-editor::placeholder {
+  color: rgba(236, 223, 192, 0.35);
+}
+
+/* --- iOS: сургучная печать (Сохранить) --- */
+body.ios-theme .post-edit-save {
+  background:
+    radial-gradient(circle at 30% 25%, rgba(255, 190, 175, 0.45) 0%, rgba(255, 190, 175, 0) 42%),
+    radial-gradient(circle at 68% 80%, rgba(70, 6, 16, 0.55) 0%, rgba(70, 6, 16, 0) 55%),
+    linear-gradient(145deg, #c93a48 0%, #a91f2e 48%, #821524 100%);
+  color: #ffeee6;
+  border: none;
+  border-radius: 999px;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 214, 200, 0.35),
+    inset 0 0 0 5px rgba(96, 10, 20, 0.5),
+    inset 0 -7px 14px rgba(70, 6, 16, 0.5),
+    inset 0 6px 10px rgba(255, 178, 158, 0.28),
+    0 4px 12px rgba(140, 25, 40, 0.45);
+  text-shadow: 0 -1px 1px rgba(80, 8, 18, 0.75);
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+body.ios-theme .post-edit-save:hover:not(:disabled) {
+  filter: brightness(1.1) saturate(1.05);
+}
+
+body.ios-theme .post-edit-save:active:not(:disabled) {
+  transform: translateY(1px) scale(0.97);
+}
+
+body.ios-theme .post-edit-save:disabled {
+  filter: grayscale(0.4) brightness(0.75);
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+/* --- iOS: металлическая кнопка (Отмена) --- */
+body.ios-theme .post-edit-cancel {
+  background: linear-gradient(180deg, #f2f2ef 0%, #d4d4cf 40%, #a8a8a2 60%, #c4c4be 100%);
+  color: #40403a;
+  border: 1px solid #8f8f88;
+  border-radius: 10px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.22),
+    0 2px 6px rgba(0, 0, 0, 0.22);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.dark body.ios-theme .post-edit-cancel {
+  background: linear-gradient(180deg, #63636b 0%, #45454d 40%, #2e2e34 60%, #4a4a52 100%);
+  color: #e4e4ea;
+  border-color: #191920;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.65);
+}
+
+body.ios-theme .post-edit-cancel:hover {
+  filter: brightness(1.06);
+}
+
+body.ios-theme .post-edit-cancel:active {
+  transform: translateY(1px);
+}
+
+@keyframes obPulse {
+  0%, 100% { transform: scale(1); opacity: 0.55; }
+  50% { transform: scale(1.45); opacity: 0; }
+}
+
+/* Стрелка-подсказка после onboarding: взгляд → на реальную кнопку орбиты */
+@keyframes obArrow {
+  0%, 100% { transform: translateY(-50%) translateX(0); opacity: 0.6; }
+  50% { transform: translateY(-50%) translateX(10px); opacity: 1; }
+}
+@keyframes obRing {
+  0% { transform: translateY(-50%) scale(0.7); opacity: 0.9; }
+  100% { transform: translateY(-50%) scale(1.5); opacity: 0; }
+}

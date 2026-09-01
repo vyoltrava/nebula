@@ -141,7 +141,7 @@ export default function AdminChatsPage() {
                   </p>
                   <p className="text-[11px] text-gray-500 dark:text-white/40 truncate">
                     {c.is_group ? `${c.members_count} участников` : "Личный чат"}
-                    {c.last_message && ` В· ${c.last_message.text?.slice(0, 25) || "📎"}`}
+                    {c.last_message && ` В· ${c.last_message.text?.slice(0, 25) || "рџ“Ћ"}`}
                   </p>
                 </div>
               </button>
@@ -197,7 +197,7 @@ export default function AdminChatsPage() {
                         ) : m.media_type === "audio" ? (
                           <audio src={mediaUrl(m.media_url)} controls className="max-w-[220px]" />
                         ) : (
-                          m.text || "📎 Вложение"
+                          m.text || "рџ“Ћ Вложение"
                         )}
                       </div>
                     </div>

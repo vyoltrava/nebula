@@ -11,7 +11,7 @@ const LEVELS = [9, 10, 11] as const;
 const LEVEL_META: Record<number, { label: string; color: string; desc: string }> = {
   9: { label: "Developer", color: "#3b82f6", desc: "РазСЂабРѕС‚Рєа Рё С‚еС…РЅРёС‡еСЃРєРёР№ Рґоступ" },
   10: { label: "Founder", color: "#fbbf24", desc: "Р“лаРІа РїСЂРѕеРєС‚а / РІлаРґелеС†" },
-  11: { label: "System", color: "#8b5cf6", desc: "РЎРёСЃС‚еРјРЅС‹Р№ / РѕС„РёС†РёалСЊРЅС‹Р№ аРєРєаСѓРЅт" },
+  11: { label: "System", color: "#8b5cf6", desc: "РЎРёСЃС‚еРјРЅС‹Р№ / РѕС„РёС†РёалСЊРЅС‹Р№ аРєРєаСѓРЅС‚" },
 };
 
 // Категории прав с иконками и fallback
@@ -41,7 +41,7 @@ const PERMISSION_META: Record<string, { icon: string; category: "content" | "use
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
-  content: "📝 РљРѕРЅС‚еРЅт",
+  content: "📝 РљРѕРЅС‚еРЅС‚",
   users: "рџ‘Ґ РџРѕлСЊзРѕРІаС‚елРё",
   chats: "рџ’¬ ЧаС‚С‹ Рё группы",
   system: "⚙️ РЎРёСЃС‚еРја",
@@ -204,7 +204,7 @@ export default function EliteRolesPage() {
   }
 
   async function deleteRole(roleId: number) {
-    if (!confirm("РЈРґалРёС‚СЊ СЂРѕлСЊ? РћРЅа РёСЃС‡езРЅеС‚ у РІСЃеС… РїРѕлСЊзРѕРІаС‚елеР№ этой СЂРѕлРё.")) return;
+    if (!confirm("РЈРґалРёС‚СЊ СЂРѕлСЊ? РћРЅа РёСЃС‡езРЅеС‚ Сѓ РІСЃеС… РїРѕлСЊзРѕРІаС‚елеР№ этой СЂРѕлРё.")) return;
     const token = getToken();
     if (!token) return;
     try {
@@ -288,7 +288,7 @@ export default function EliteRolesPage() {
               <div>
                 <h1 className="text-2xl font-black text-gray-900 dark:text-white">РРѕлРё РІС‹СЃС€еР№ РєаСЃС‚С‹ (9вЂ“11)</h1>
                 <p className="text-xs text-gray-600 dark:text-white/50 mt-0.5">
-                  Р’аС€ СѓСЂРѕРІеРЅь: <span className="font-bold">{myLevel}</span>
+                  Р’аС€ СѓСЂРѕРІеРЅСЊ: <span className="font-bold">{myLevel}</span>
                 </p>
               </div>
             </div>
@@ -304,7 +304,7 @@ export default function EliteRolesPage() {
             <Info size={20} className="text-[#fbbf24] shrink-0 mt-0.5" />
             <div className="text-sm text-gray-800 dark:text-white/80 space-y-1">
               <p className="font-bold text-gray-900 dark:text-white">ЭС‚Рѕ РїРѕлРЅРѕС†еРЅРЅС‹е СЂРѕлРё СѓСЂРѕРІРЅеР№ 9вЂ“11</p>
-              <p>РЎРѕзРґаСЋС‚СЃСЏ С‡еСЂез СЃРёСЃС‚еРју СЂРѕлеР№: <strong>С†РІеС‚ СЂРѕлРё РїРѕРґСЃРІеС‡РёРІаеС‚ ник</strong>, РїСЂаРІа СЂабРѕС‚аСЋС‚ во всём РїСЂРёлРѕжеРЅРёРё. Р’С‹РґаС‡а вЂ” С‡еСЂез «Р’С‹РґаС‚СЊ СЂРѕлСЊ» (С‚а же СЃРёСЃС‚еРја, что РІ СѓРїСЂаРІлеРЅРёРё СЂРѕлСЏРјРё).</p>
+              <p>РЎРѕзРґаСЋС‚СЃСЏ С‡еСЂез СЃРёСЃС‚еРјСѓ СЂРѕлеР№: <strong>С†РІеС‚ СЂРѕлРё РїРѕРґСЃРІеС‡РёРІаеС‚ ник</strong>, РїСЂаРІа СЂабРѕС‚аСЋС‚ во всём РїСЂРёлРѕжеРЅРёРё. Р’С‹РґаС‡а вЂ” С‡еСЂез «Р’С‹РґаС‚СЊ СЂРѕлСЊ» (С‚а же СЃРёСЃС‚еРја, что РІ СѓРїСЂаРІлеРЅРёРё СЂРѕлСЏРјРё).</p>
               <div className="flex flex-wrap gap-2 mt-2 text-xs">
                 {LEVELS.map(l => (
                   <span key={l} className="px-2 py-0.5 rounded border" style={{ color: LEVEL_META[l].color, borderColor: `${LEVEL_META[l].color}40`, background: `${LEVEL_META[l].color}15` }}>
@@ -407,7 +407,7 @@ export default function EliteRolesPage() {
 
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <label className="block text-sm font-bold text-gray-800 dark:text-white/80">РЈСЂРѕРІеРЅь РёеСЂаСЂС…РёРё</label>
+                      <label className="block text-sm font-bold text-gray-800 dark:text-white/80">РЈСЂРѕРІеРЅСЊ РёеСЂаСЂС…РёРё</label>
                       <span className="text-xs font-mono px-2 py-0.5 rounded border" style={{ color: LEVEL_META[level]?.color, borderColor: `${LEVEL_META[level]?.color}40`, backgroundColor: `${LEVEL_META[level]?.color}10` }}>
                         {level} / 11
                       </span>
@@ -473,7 +473,7 @@ export default function EliteRolesPage() {
                         );
                       })}
                       {availablePermissions.length === 0 && (
-                        <p className="text-xs text-gray-500 dark:text-white/40 text-center py-4">РџСЂаРІа РЅе заРіСЂСѓжеРЅы</p>
+                        <p className="text-xs text-gray-500 dark:text-white/40 text-center py-4">РџСЂаРІа РЅе заРіСЂСѓжеРЅС‹</p>
                       )}
                     </div>
                   </div>
@@ -541,7 +541,7 @@ export default function EliteRolesPage() {
                     <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">РРѕлСЊ (9вЂ“11)</label>
                     <div className="space-y-2">
                       {assignableRoles.length === 0 && (
-                        <p className="text-sm text-gray-500 dark:text-white/40 py-2 text-center">РРѕлРё РЅе заРіСЂСѓжеРЅы</p>
+                        <p className="text-sm text-gray-500 dark:text-white/40 py-2 text-center">РРѕлРё РЅе заРіСЂСѓжеРЅС‹</p>
                       )}
                       {assignableRoles.map(r => {
                         const lvl = r.level ?? 9;
@@ -579,7 +579,7 @@ export default function EliteRolesPage() {
                       })}
                     </div>
                     <p className="text-xs text-gray-500 dark:text-white/40 mt-2">
-                      РРѕлСЊ РІС‹РґаС‘С‚СЃСЏ С‡еСЂез СЃРёСЃС‚еРју СЂРѕлеР№ вЂ” РїРѕРґСЃРІеС‚Рєа РЅРёРєа Рё РїСЂаРІа РїСЂРёРјеРЅятся аРІС‚РѕРјаС‚РёС‡еСЃРєРё.
+                      РРѕлСЊ РІС‹РґаС‘С‚СЃСЏ С‡еСЂез СЃРёСЃС‚еРјСѓ СЂРѕлеР№ вЂ” РїРѕРґСЃРІеС‚Рєа РЅРёРєа Рё РїСЂаРІа РїСЂРёРјеРЅятся аРІС‚РѕРјаС‚РёС‡еСЃРєРё.
                     </p>
                   </div>
 

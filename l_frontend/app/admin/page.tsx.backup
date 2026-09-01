@@ -428,7 +428,7 @@ export default function AdminPage() {
               </select>
             </div>
 
-            {/* Р В�РЅРґРёРєаС‚Рѕр активных фильтров */}
+            {/* Р В�РЅРґРёРєаС‚РѕСЂ активных фильтров */}
             {(searchQuery || filterType !== "all" || selectedRoleId) && (
               <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-white/60">
                 <span>РќР°Р№Рґено: <span className="font-bold text-gray-900 dark:text-white">{filteredUsers.length}</span></span>
@@ -541,7 +541,7 @@ export default function AdminPage() {
                       </button>
                     )}
 
-                    {/* 🛡️ Кнопка бана с защитой иерархии */}
+                    {/* 🛡️ Кнопка бана СЃ защитой иерархии */}
                     {can("ban_users") && !u.is_admin && u.id !== me.id && (
                       canSanction ? (
                         <button
@@ -599,7 +599,7 @@ export default function AdminPage() {
                         }`}
                       >
                         <UserCheck size={12} />
-                        {u.is_moderator ? "Снять разработчика" : "В разработчика"}
+                        {u.is_moderator ? "Снять разработчика" : "Р’ разработчика"}
                       </button>
                     )}
 

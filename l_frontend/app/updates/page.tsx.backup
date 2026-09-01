@@ -311,7 +311,7 @@ export default function UpdatesPage() {
                           })}
                         </span>
 
-                        {/* РРЅРґРёРєаС‚Рѕр непрочитанного */}
+                        {/* РРЅРґРёРєаС‚РѕСЂ непрочитанного */}
                         {!read && (
                           <span className="ml-auto w-2 h-2 rounded-full bg-[#8b5cf6] shadow-[0_0_6px_rgba(139,92,246,0.6)]" />
                         )}

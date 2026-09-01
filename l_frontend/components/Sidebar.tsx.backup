@@ -1453,7 +1453,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
           </div>
         )}
 
-        {/* 🆕 РРЅРґРёРєаС‚Рѕр "тянешь назад" */}
+        {/* 🆕 РРЅРґРёРєаС‚РѕСЂ "тянешь назад" */}
         {pullingBack && (
           <div
             className="absolute pointer-events-none"
@@ -1471,7 +1471,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
           </div>
         )}
 
-        {/* 🆕 РРЅРґРёРєаС‚Рѕр скролла */}
+        {/* 🆕 РРЅРґРёРєаС‚РѕСЂ скролла */}
         {scrollVelocity !== 0 && !pullingBack && (
           <div
             className="absolute pointer-events-none"
@@ -1501,7 +1501,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       {!nebulaOff && (
       <div className={layout === "orbit" ? "block" : layout === "orbit2" ? "hidden" : "md:hidden"}>
         {/* рџ”Ґ РљРРЈР“Р НА ВОДЕ (Память ленты) */}
-        {/* рџ”Ґ МЯГКОЕ РЎР’Р•ЧР•РќРЕ (Сохраненный пост) */}
+        {/* рџ”Ґ МЯГКОЕ РЎР’Р•ЧР•РќРР• (Сохраненный пост) */}
         {lastReadPost && (
           <div 
             className={`fixed z-[97] w-14 h-14 pointer-events-none flex items-center justify-center
@@ -1552,7 +1552,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       {/* 🚫 В Nebula классическая дуга не рендерится */}
       {!nebulaOff && renderWheel()}
 
-{/* 🆕 рџ”Ґ ТУЛТИП "РџРРћР”РћР›Р–РРўЬ ЧРўР•РќРЕ" */}
+{/* 🆕 рџ”Ґ ТУЛТИП "РџРРћР”РћР›Р–РРўЬ ЧРўР•РќРР•" */}
 {!nebulaOff && showTooltip && showContinueButton && layout !== "orbit2" && (
   <div 
     className={`fixed z-[99] bg-[#8b5cf6] text-white text-xs font-bold px-3 py-2 rounded-lg shadow-xl whitespace-nowrap animate-bounce

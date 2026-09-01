@@ -279,7 +279,7 @@ export default function AdminStickersPage() {
                       onClick={() => deleteSticker(s.id)}
                       className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      ×
+                      Г—
                     </button>
                   </div>
                 ))}
@@ -364,7 +364,7 @@ export default function AdminStickersPage() {
                     </div>
                   </div>
 
-                  {/* 🆕 ВЫБОР Р­Р СљР С›Р вЂќР вЂ”Р В� Р В�З Р вЂ�Р В�Р вЂ�Р вЂєР В�Р С›Р СћР вЂўР С™Р В� */}
+                  {/* 🆕 ВЫБОР Р­Р СљР С›Р вЂќР вЂ”Р В� Р В�Р— Р вЂ�Р В�Р вЂ�Р вЂєР В�Р С›Р СћР вЂўР С™Р В� */}
                   <div className="border border-line dark:border-white/10 rounded-xl p-3 bg-white/[0.02]">
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-xs font-bold text-gray-600 dark:text-white/60">

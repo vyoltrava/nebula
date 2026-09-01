@@ -36,10 +36,10 @@ export default function AdminThemesPage() {
       .catch(() => router.push("/login"));
   }, [router]);
 
-  // Загрузка тем с бэкенда (если есть) + localStorage
+  // Загрузка тем СЃ бэкенда (если есть) + localStorage
   useEffect(() => {
     loadThemes();
-    // Грузим состояние с бэкенда
+    // Грузим состояние СЃ бэкенда
     const token = getToken();
     if (token) {
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/themes/settings`, {
@@ -577,7 +577,7 @@ function ThemeEditor({
                         onClick={() => removeColor(i)}
                         className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                       >
-                        ×
+                        Г—
                       </button>
                     )}
                   </div>
@@ -590,7 +590,7 @@ function ThemeEditor({
               label="Скорость анимации"
               value={theme.speed}
               min={4} max={60} step={1}
-              unit="с"
+              unit="СЃ"
               hint="Меньше = быстрее"
               onChange={(v) => onChange({ ...theme, speed: v })}
             />

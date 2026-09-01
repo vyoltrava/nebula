@@ -8,7 +8,7 @@ import { Flag, CheckCircle, XCircle, Trash2, Ban } from "lucide-react";
 
 const REASON_LABELS: Record<string, string> = {
   spam: "рџ“ў Спам",
-  insult: "СЂСџВ�Ў Оскорбление",
+  insult: "СЂСџВ�РЋ Оскорбление",
   nsfw: "🔞 Контент 18+",
   rules_violation: "⚠️ Нарушение правил",
   other: "❓ Другое",

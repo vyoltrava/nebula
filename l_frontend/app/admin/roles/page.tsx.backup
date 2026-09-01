@@ -6,7 +6,7 @@ import { getToken } from "@/lib/auth";
 import { Palette, Plus, Trash2, Edit2, X, ShieldCheck, AlertTriangle, Info, ChevronUp, Crown, Sparkles, User, FolderOpen, Settings, CreditCard } from "lucide-react";
 import { Button, IconButton } from "@/components/ui/Button";
 
-// Категории прав с иконками Рё fallback
+// Категории прав СЃ иконками Рё fallback
 // Категории прав с иконками и fallback
 const PERMISSION_META: Record<string, { icon: string; category: "content" | "users" | "chats" | "system" }> = {
   delete_posts:         { icon: "🗑️", category: "content" },
@@ -35,7 +35,7 @@ const PERMISSION_META: Record<string, { icon: string; category: "content" | "use
 
 const CATEGORY_LABELS: Record<string, string> = {
   content: "📝 Контент",
-  users: "СЂСџвЂ�Ґ Пользователи",
+  users: "СЂСџвЂ�Тђ Пользователи",
   chats: "рџ’¬ Чаты Рё группы",
   system: "⚙️ Система",
 };
@@ -59,7 +59,7 @@ const LEVEL_DESCRIPTIONS: Record<number, { title: string; desc: string; bestFor:
   },
   4: { 
     title: "Младший специалист", 
-    desc: "Начинающий РјРѕРґератор или помощник с базовыми, ограниченными правами.", 
+    desc: "Начинающий РјРѕРґератор или помощник СЃ базовыми, ограниченными правами.", 
     bestFor: "Junior Mod, Helper" 
   },
   5: { 
@@ -137,7 +137,7 @@ export default function RolesPage() {
       
       const meData = await meRes.json();
 
-            // 🆕 Загружаем список прав с бэкенда
+            // 🆕 Загружаем список прав СЃ бэкенда
       try {
         const permsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/permissions`);
         if (permsRes.ok) {
@@ -260,7 +260,7 @@ export default function RolesPage() {
   }
 
   async function deleteRole(roleId: number) {
-    if (!confirm("РЈРґалить роль? Она исчезнет у всех пользователей.")) return;
+    if (!confirm("РЈРґалить роль? Она исчезнет Сѓ всех пользователей.")) return;
     const token = getToken();
     if (!token) return;
     
@@ -782,7 +782,7 @@ export default function RolesPage() {
                       {level >= 4 && (
                         <p className="text-xs text-green-400/80 mt-1 flex items-center gap-1">
                           <ShieldCheck size={12} />
-                          Может банить пользователей с уровнем <strong>ниже {level}</strong>
+                          Может банить пользователей СЃ уровнем <strong>ниже {level}</strong>
                         </p>
                       )}
                     </div>
