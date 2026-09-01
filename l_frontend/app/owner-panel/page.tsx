@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import {
   Crown, Users, Activity, DollarSign, AlertTriangle, Shield,
   BarChart3, Database, GitBranch, Eye, Clock, Zap, TrendingUp, FileText,
+  ArrowLeft,
 } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { getToken } from "@/lib/auth";
 import { Button } from "@/components/ui/Button";
+import { Sidebar } from "@/components/Sidebar";
 
 interface OwnerStats {
   total_users: number;
@@ -75,26 +77,44 @@ export default function OwnerPanel() {
 
   if (isLoading || !stats) {
     return (
-      <div className="max-w-6xl mx-auto px-4 py-10">
-        <div className="h-10 w-1/3 rounded-lg bg-gray-100 dark:bg-white/5 mb-8" />
-        <div className="grid md:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_: unknown, i: number) => (
-            <div key={i} className="h-28 rounded-xl bg-gray-100 dark:bg-white/5" />
-          ))}
-        </div>
+      <div className="h-screen flex overflow-hidden bg-ivory dark:bg-[#18181b]">
+        <Sidebar />
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-6xl mx-auto px-4 py-10">
+            <div className="h-10 w-1/3 rounded-lg bg-gray-100 dark:bg-white/5 mb-8" />
+            <div className="grid md:grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_: unknown, i: number) => (
+                <div key={i} className="h-28 rounded-xl bg-gray-100 dark:bg-white/5" />
+              ))}
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10">
+    <div className="h-screen flex overflow-hidden bg-ivory dark:bg-[#18181b]">
+      <Sidebar />
+      <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
+      <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10">
+      <div className="max-w-6xl mx-auto px-4 py-10">
       {/* ==== ШАПКА ==== */}
       <div className="flex items-center justify-between mb-8">
-        <div>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => router.push("/adminnew")}
+            title="Назад в админ-панель"
+            className="w-10 h-10 rounded-full flex items-center justify-center border border-line dark:border-white/10 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div>
           <h1 className="text-3xl font-black flex items-center gap-3">
             <Crown size={30} className="text-amber-500" />
             {t("nav.ownerPanel")}
           </h1>
           <p className="text-gray-600 dark:text-white/50 text-sm">Полный контроль над платформой. Только для владельцев и фаундеров.</p>
+          </div>
         </div>
         <Button variant="secondary" icon={Shield}>Безопасный доступ</Button>
       </div>
@@ -214,6 +234,8 @@ export default function OwnerPanel() {
           </div>
         )}
       </div>
+      </div>
+      </main>
     </div>
   );
 }

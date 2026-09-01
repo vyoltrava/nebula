@@ -542,7 +542,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     });
   }
   if (user?.permissions?.includes("access_owner_panel")) {
-    outerItems.push({ href: "/owner-panel", icon: Crown, label: t("nav.ownerPanel") });
+    // 🚫 owner-panel больше не в сидебаре — вход только напрямую из админки
   }
   if (user) {
     outerItems.push({ href: "#logout", icon: LogOut, label: t("nav.logout") });
