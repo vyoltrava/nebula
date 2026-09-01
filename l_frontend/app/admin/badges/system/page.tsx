@@ -304,7 +304,7 @@ export default function EliteRolesPage() {
             <Info size={20} className="text-[#fbbf24] shrink-0 mt-0.5" />
             <div className="text-sm text-gray-800 dark:text-white/80 space-y-1">
               <p className="font-bold text-gray-900 dark:text-white">Это полноценные роли уровней 9–11</p>
-              <p>Создаются через систему ролей: <strong>цвет роли подсвечивает ник</strong>, права работают во всём приложении. Выдача — через ЫВыдать рольл (та же система, что в управлении ролями).</p>
+<p>Создаются через систему ролей: <strong>цвет роли подсвечивает ник</strong>, права работают во всём приложении. Выдача — через «Выдать роль»( та же система, что в управлении ролями.).</p>
               <div className="flex flex-wrap gap-2 mt-2 text-xs">
                 {LEVELS.map(l => (
                   <span key={l} className="px-2 py-0.5 rounded border" style={{ color: LEVEL_META[l].color, borderColor: `${LEVEL_META[l].color}40`, background: `${LEVEL_META[l].color}15` }}>
@@ -401,7 +401,7 @@ export default function EliteRolesPage() {
 
                   <div>
                     <label className="block text-sm font-bold text-gray-800 dark:text-white/80 mb-2">Описание роли</label>
-                    <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="ЧеРј занимается носитель этой роли?"
+<textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Чем занимается носитель этой роли?"
                       className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6] resize-none" />
                   </div>
 
@@ -500,7 +500,7 @@ export default function EliteRolesPage() {
               <div className="w-full max-w-md border border-line dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-black text-gray-900 dark:text-white flex items-center gap-2">
-                    <Crown size={18} className="text-[#fbbf24]" /> Выдать роль
+<Crown size={18} className="text-[#fbbf24]" /> Выдать роль
                   </h2>
                   <IconButton icon={X} size="iconSm" onClick={() => !assignSaving && setShowAssign(false)} />
                 </div>

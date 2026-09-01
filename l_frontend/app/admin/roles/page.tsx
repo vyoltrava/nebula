@@ -89,7 +89,7 @@ const LEVEL_DESCRIPTIONS: Record<number, { title: string; desc: string; bestFor:
   },
   10: { 
     title: "Founder (Системный)", 
-    desc: "РЎРѕР·Рґатель проекта. Абсолютный контроль над всеми системами.", 
+    desc: "Создатель проекта. Абсолютный контроль над всеми системами.", 
     bestFor: "Founder, Admin" 
   },
 };
@@ -411,7 +411,7 @@ export default function RolesPage() {
                 </Button>
               )}
               <Button icon={Plus} onClick={() => openForm()}>
-                РЎРѕР·Рґать роль
+                Создать роль
               </Button>
             </div>
           </div>
@@ -627,7 +627,7 @@ export default function RolesPage() {
               <div className="w-full max-w-lg border border-line dark:border-white/20 rounded-2xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl p-6 pointer-events-auto max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-black text-gray-900 dark:text-white">
-                    {editingRole ? "Редактировать роль" : "РЎРѕР·Рґать роль"}
+                    {editingRole ? "Редактировать роль" : "Создать роль"}
                   </h2>
                   <IconButton
                     icon={X}
@@ -896,7 +896,7 @@ export default function RolesPage() {
 
                   <div className="flex gap-3 pt-2">
                     <Button type="submit" loading={saving} disabled={saving} className="flex-1">
-                      {saving ? "Сохранение..." : editingRole ? "Сохранить" : "РЎРѕР·Рґать"}
+                      {saving ? "Сохранение..." : editingRole ? "Сохранить" : "Создать"}
                     </Button>
                     <Button
                       variant="secondary"
@@ -958,7 +958,7 @@ export default function RolesPage() {
                     </div>
                   </div>
                   <Button type="submit" loading={catSaving} disabled={catSaving || !catName.trim()} className="w-full">
-                    {catSaving ? "Сохранение..." : editingCat ? "Сохранить" : "РЎРѕР·Рґать группу"}
+                    {catSaving ? "Сохранение..." : editingCat ? "Сохранить" : "Создать группу"}
                   </Button>
                 </form>
 
