@@ -23,26 +23,6 @@ function isIOS(): boolean {
   );
 }
 
-// 🔥 Тихий прогрев разрешений (без UI)
-async function silentWarmup() {
-  try {
-    // Прогреваем микрофон
-    const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    audioStream.getTracks().forEach((t) => t.stop());
-
-    // iOS нужна небольшая пауза между запросами
-    await new Promise((r) => setTimeout(r, 150));
-
-    // Прогреваем камеру
-    const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-    videoStream.getTracks().forEach((t) => t.stop());
-
-    console.log("[PermissionGate] 🔥 Warm-up complete");
-  } catch (err) {
-    console.log("[PermissionGate] Warm-up failed:", err);
-  }
-}
-
 export function PermissionGate() {
   const { t } = useI18n();
   const [show, setShow] = useState(false);
@@ -56,32 +36,9 @@ export function PermissionGate() {
 
     const wasRequested = localStorage.getItem("app_perm_requested");
 
-    // 🍏 iOS WARM-UP: если разрешения уже давали — делаем тихий прогрев
-    if (wasRequested) {
-      const handleWarmup = () => {
-        if (warmedUpRef.current) return;
-        warmedUpRef.current = true;
+        // 🍏 iOS: НЕ делаем тихий прогрев — он вызывает зависание захвата на iOS
+    // Разрешения запрашиваются только через явное действие пользователя (handleAllow)
 
-        document.removeEventListener("click", handleWarmup);
-        document.removeEventListener("touchstart", handleWarmup);
-        document.removeEventListener("keydown", handleWarmup);
-
-        // Прогреваем только на iOS (на других ОС разрешения и так живут)
-        if (isIOS()) {
-          silentWarmup();
-        }
-      };
-
-      document.addEventListener("click", handleWarmup);
-      document.addEventListener("touchstart", handleWarmup);
-      document.addEventListener("keydown", handleWarmup);
-
-      return () => {
-        document.removeEventListener("click", handleWarmup);
-        document.removeEventListener("touchstart", handleWarmup);
-        document.removeEventListener("keydown", handleWarmup);
-      };
-    }
 
     // 🆕 Если разрешения ещё не запрашивали — показываем модалку по первому клику
     const handleFirstInteraction = () => {
