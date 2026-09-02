@@ -65,10 +65,13 @@ export default function CallModal() {
       className="fixed inset-0 z-[9999] bg-black flex flex-col"
       onClick={() => { if (!remoteUnmuted) setRemoteUnmuted(true); }}
     >
-{/* ======== ОСНОВНАЯ ОБЛАСТЬ (видео-квадраты) ======== */}
+      {/* Аудио-элемент для голосовых звонков — muted старт (iOS), unmute по тапу */}
+      {!isVideoCall && <audio ref={remoteAudioRef} autoPlay playsInline muted={!remoteUnmuted} />}
+      {/* ======== ОСНОВНАЯ ОБЛАСТЬ ======== */}
+      {/* Видео-квадраты: сверху — собеседник, снизу — своя камера (PiP). По тапу на собеседнике — раскрытие на весь экран. */}
       <div className="flex-1 relative flex items-center justify-center overflow-hidden">
 
-        {/* Удалённое видео: квадрат сверху; по тапу — на весь экран */}
+        {/* Удалённое видео: квадрат по центру; по тапу — на весь экран */}
         {isVideoCall && isActive && (
           <video
             ref={remoteVideoRef}
@@ -78,10 +81,57 @@ export default function CallModal() {
             onClick={() => setRemoteFullscreen((v) => !v)}
             className={
               remoteFullscreen
-                ? 'absolute inset-0 w-full h-full object-contain cursor-zoom-out'
-                : 'absolute inset-0 max-w-[92vw] max-h-[88vh] w-auto h-auto object-contain cursor-zoom-in'
+                ? 'absolute inset-0 w-full h-full object-contain cursor-zoom-out rounded-none'
+                : 'w-[240px] h-[240px] object-cover rounded-2xl cursor-zoom-in shadow-2xl'
             }
           />
+        )}
+
+        {/* Своя камера — небольшой PiP поверх удалённого видео (если оно не в фуллскрин) */}
+        {isVideoCall && isActive && !remoteFullscreen && localStream && (
+          <video
+            ref={localVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className="absolute bottom-6 right-[-60px] sm:right-6 w-32 h-32 object-cover rounded-2xl shadow-2xl border-2 border-white"
+          />
+        )}
+
+        {/* Аватарка / статус для аудио-звонков и экрана "звоню" */}
+        {!isVideoCall && (
+          <div className="flex flex-col items-center justify-center gap-6">
+            {displayAvatar ? (
+              <img src={displayAvatar} alt={displayName} className="w-40 h-40 rounded-full object-cover border-4 border-white/20" />
+            ) : (
+              <div className="w-40 h-40 rounded-full bg-gray-700 flex items-center justify-center text-5xl font-bold text-white/70">
+                {displayName?.[0]?.toUpperCase() ?? '?'}
+              </div>
+            )}
+                        <div className="text-center">
+              <p className="text-2xl font-bold text-white">{displayName}</p>
+              <p className="text-sm text-white/50 mt-1">
+                {status === 'ringing' ? 'Входящий звонок…' : status === 'initiating' ? 'Звоню…' : 'Соединение…'}
+              </p>
+              {status !== 'ringing' && status !== 'initiating' && (
+                <p className="text-sm text-white/50 mt-2">{formatDuration(duration)}</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ======== КНОПКИ УПРАВЛЕНИЯ — один ряд ======== */}
+      <div className="flex items-center justify-center gap-4 pb-6">
+        {status === 'ringing' && (
+          <button
+            type="button"
+            onClick={() => acceptCall()}
+            className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+            title="Принять"
+          >
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.258-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" /></svg>
+          </button>
         )}
 
         {/* Своя камера: квадрат снизу */}

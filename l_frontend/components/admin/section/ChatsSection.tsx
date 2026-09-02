@@ -582,4 +582,3 @@ export function ChatsSection({ me }: { me: any }) {
     </div>
   );
 }
-
