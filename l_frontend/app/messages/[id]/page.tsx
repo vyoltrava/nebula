@@ -13,6 +13,7 @@ import { VideoNoteRecorder } from "@/components/VideoNoteRecorder";
 import { VideoNotePlayer } from "@/components/VideoNotePlayer";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { MessageContextMenu } from "@/components/MessageContextMenu";
+import { ReportDialog, ReportTargetType } from "@/components/ReportDialog";
 import CallButton from '@/components/CallButton';
 import { MessageBubble } from "@/components/MessageBubble";
 import LinkPreview  from "@/components/LinkPreview";
@@ -51,7 +52,7 @@ import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import {
   Send, Image as ImageIcon, X, Smile, Paperclip,
   FileText, Film, Edit2, Trash2, MoreVertical,
-  Lock, Search, ShieldCheck, AlertTriangle,
+  Lock, Search, ShieldCheck, AlertTriangle, Flag,
   Check, CheckCheck, CheckSquare, Mic, Square, Users, Settings,
   Pin, PinOff, Video, Copy, SmilePlus,  Reply, Bookmark, Type, Plus
 } from "lucide-react";
@@ -163,6 +164,7 @@ export default function ChatPage() {
   const [mediaItems, setMediaItems] = useState<any[]>([]);
   const [selectedMedia, setSelectedMedia] = useState<any | null>(null);
   const [activeMessageMenu, setActiveMessageMenu] = useState<number | null>(null);
+  const [reportTarget, setReportTarget] = useState<{ type: ReportTargetType; id: number; label?: string } | null>(null);
   const [contextMenu, setContextMenu] = useState<{
   msg: any;
   x: number;
@@ -1616,6 +1618,18 @@ function getMessageMenuItems(msg: any): { icon: any; label: string; onClick: () 
       });
   }
 
+  // Жалоба на сообщение (только в группах, не своё)
+  if (isGroup && !isMine) {
+    items.push({
+      icon: Flag,
+      label: "Пожаловаться",
+      onClick: () => {
+        setReportTarget({ type: "chat_message", id: msg.id, label: `${msg.sender_name}: ${(msg.text || "вложение").slice(0, 60)}` });
+      },
+      danger: true,
+    });
+  }
+
   return items;
 }
 
@@ -2362,6 +2376,28 @@ const ChatHeader = () => (
           <div className="sm:hidden h-px bg-gray-100 dark:bg-white/10 my-1" />
 
           {/* 🖥️ ОБЩИЕ КНОПКИ МЕНЮ */}
+          {!isSavedChat && chatPartner?.id && (
+            <button
+              onClick={() => {
+                setReportTarget({ type: "dm_user", id: chatPartner.id, label: chatPartner.display_name });
+                setShowChatMenu(false);
+              }}
+              className="w-full px-3 py-2.5 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
+            >
+              <Flag size={15} /> Пожаловаться
+            </button>
+          )}
+          {isGroup && (
+            <button
+              onClick={() => {
+                setReportTarget({ type: "chat", id: Number(chatId), label: chatInfo?.name });
+                setShowChatMenu(false);
+              }}
+              className="w-full px-3 py-2.5 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
+            >
+              <Flag size={15} /> Пожаловаться на канал
+            </button>
+          )}
           {isGroup && (
             <button
               onClick={() => { setShowGroupMembers(true); setShowChatMenu(false); }}
@@ -3030,6 +3066,14 @@ onDoubleClick={(e) => {
             y={contextMenu.y}
             items={getMessageMenuItems(contextMenu.msg)}
             onClose={() => setContextMenu(null)}
+          />
+        )}
+        {reportTarget && (
+          <ReportDialog
+            targetType={reportTarget.type}
+            targetId={reportTarget.id}
+            contextLabel={reportTarget.label}
+            onClose={() => setReportTarget(null)}
           />
         )}
         {/* 🆕 Анимация вылетающей реакции при двойном тапе */}
