@@ -15,7 +15,6 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import { MessageContextMenu } from "@/components/MessageContextMenu";
 import CallButton from '@/components/CallButton';
 import { MessageBubble } from "@/components/MessageBubble";
-import { ChatPostFeed } from "@/components/ChatPostFeed";
 import LinkPreview  from "@/components/LinkPreview";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
@@ -411,6 +410,9 @@ const handlePointerLeave = () => {
   };
 
   const isGroup = !!chatInfo?.is_group;
+  // 📢 Канал: публиковать могут только те, кому разрешено (who_can_post)
+  const isChannel = isGroup && !!chatInfo?.is_channel;
+  const canPostInChannel = !isChannel || chatInfo?.who_can_post !== "admins" || chatInfo?.my_role === "owner" || chatInfo?.my_role === "admin";
 
   const getMediaClasses = (type: string) => {
     const base = "rounded-lg sm:rounded-xl mb-1.5 sm:mb-2 w-full";
@@ -2466,10 +2468,8 @@ const ChatHeader = () => (
   </div>
 );
 
-// 📰 Для каналов (лента постов) показываем фид; группы общаются сообщениями
-  if (isGroup && chatInfo?.is_channel) {
-    return <ChatPostFeed chatId={chatId} initialChatInfo={chatInfo} />;
-  }
+// 📰 Каналы теперь рендерятся как обычный чат (пузыри, меню, реакции) —
+  // унифицировано с 1-на-1; ограничение публикаторов через who_can_post.
   return (
     <div className="h-screen flex overflow-hidden">
       <style>{`
@@ -2733,7 +2733,7 @@ onDoubleClick={(e) => {
             )}
 
 
-{!isSelectMode && (
+{!isSelectMode && canPostInChannel && (
   <div className="relative z-30 p-3 sm:p-3 md:p-4 border-t border-line dark:border-white/10 bg-paper dark:bg-[#171717]/80 backdrop-blur-md">
     {isRecording ? (
       <div className="flex items-center gap-2.5 sm:gap-3">
@@ -2940,6 +2940,11 @@ onDoubleClick={(e) => {
         </div>
       </div>
     )}
+  </div>
+)}
+{isChannel && !canPostInChannel && (
+  <div className="p-3 border-t border-line dark:border-white/10 bg-paper dark:bg-[#171717]/80 text-center text-xs text-gray-500 dark:text-white/40">
+    {t("messages.adminsOnlyPost")}
   </div>
 )}
           </>

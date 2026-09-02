@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
@@ -8,11 +8,12 @@ import { GroupSettingsModal } from "@/components/GroupSettingsModal";
 import { MessageBubble } from "@/components/MessageBubble";
 import { CommentNode } from "@/components/ChatCommentNode";
 import { RichEditor } from "@/components/RichEditor";
+import { ReactionPicker } from "@/components/ReactionPicker";
 import { useWebSocket } from "@/src/hooks/useWebSocket";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
-import { Send, Users, Settings, X, Paperclip, Plus, Link as LinkIcon, MessageSquare, Type } from "lucide-react";
+import { Send, Users, Settings, X, Paperclip, Plus, Link as LinkIcon, MessageSquare, Type, Pin, Reply, Trash2, Copy } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 const PAGE = 20;
@@ -60,6 +61,26 @@ export function ChatPostFeed({ chatId, initialChatInfo }: { chatId: string; init
   const [showMembers, setShowMembers] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
+
+  // 📢 Меню поста (3 точки), реакции, ответ, редактирование
+  const [messageMenuOpen, setMessageMenuOpen] = useState<number | null>(null);
+  const [reactionPickerOpen, setReactionPickerOpen] = useState<number | null>(null);
+  const [replyTo, setReplyTo] = useState<any>(null);
+  const [editingPostId, setEditingPostId] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
+
+  // Закрытие меню по клику вне
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-post-menu]") && !target.closest("[data-post-menu-button]")) {
+        setMessageMenuOpen(null);
+        setReactionPickerOpen(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<any>(null);
@@ -133,6 +154,38 @@ export function ChatPostFeed({ chatId, initialChatInfo }: { chatId: string; init
   };
   const deletePost = async (id: number) => { if (confirm("Удалить пост?")) await authFetch(`${API}/api/chats/posts/${id}`, { method: "DELETE" }); };
   const deleteComment = async (id: number) => { await authFetch(`${API}/api/chats/comments/${id}`, { method: "DELETE" }); };
+
+  // 📢 Реакция на пост канала (toggle: бэкенд сам добавляет/удаляет)
+  const toggleReaction = async (postId: number, emoji: string) => {
+    const res = await authFetch(`${API}/api/chats/posts/${postId}/reactions`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emoji })
+    });
+    if (res.ok) {
+      const d = await res.json();
+      setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, reactions: d.reactions } : p));
+      setReactionPickerOpen(null);
+    }
+  };
+  const handleReply = (post: any) => {
+    setReplyTo({ id: post.id, sender_name: post.author_name || chatInfo?.name || "Канал", text: post.text?.slice(0, 100) });
+    setMessageMenuOpen(null);
+  };
+  const handlePin = async (postId: number) => {
+    await authFetch(`${API}/api/chats/posts/${postId}/pin`, { method: "POST" });
+    setMessageMenuOpen(null);
+  };
+  const handleDeletePost = async (postId: number) => {
+    if (!confirm("Удалить пост?")) return;
+    await authFetch(`${API}/api/chats/posts/${postId}`, { method: "DELETE" });
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
+    setMessageMenuOpen(null);
+  };
+  const handleCopyPostLink = (postId: number) => {
+    try { navigator.clipboard?.writeText(`${location.origin}/messages/${chatId}?post=${postId}`); } catch {}
+    setMessageMenuOpen(null);
+  };
+
   const copyLink = (link: string) => { try { navigator.clipboard?.writeText(`${location.origin}${link}`); } catch {} alert("Ссылка скопирована"); };
   const makeInvite = async () => {
     const res = await authFetch(`${API}/api/chats/${chatId}/invite`, { method: "POST" });
@@ -160,6 +213,16 @@ export function ChatPostFeed({ chatId, initialChatInfo }: { chatId: string; init
     const rm = (arr: any[]): any[] => arr.filter((c) => { if (c.id === data.id) return false; c.children = rm(c.children || []); return true; });
     setComments((prev) => rm(prev));
   });
+  // 📢 WS реакции на постах канала (realtime обновление)
+  useWebSocket("post_reactions_updated", (data: any) => {
+    if (String(data.chat_id) !== String(chatId)) return;
+    setPosts((prev) => prev.map((p) => p.id === data.post_id ? { ...p, reactions: data.reactions } : p));
+  });
+  // 📢 WS закрепление постов канала
+  useWebSocket("chat_post_pinned", (data: any) => {
+    if (String(data.chat_id) !== String(chatId)) return;
+    setPosts((prev) => prev.map((p) => p.id === data.post_id ? { ...p, pinned: data.pinned, pinned_by: data.pinned_by, pinned_at: data.pinned_at } : p));
+  });
   useWebSocket("chat_settings_updated", (data: any) => {
     if (String(data.chat_id) !== String(chatId)) return;
     setChatInfo((prev: any) => ({ ...prev, name: data.name ?? prev?.name, avatar_url: data.avatar_url ?? prev?.avatar_url, who_can_post: data.who_can_post ?? prev?.who_can_post, who_can_comment: data.who_can_comment ?? prev?.who_can_comment }));
@@ -173,6 +236,18 @@ export function ChatPostFeed({ chatId, initialChatInfo }: { chatId: string; init
   }, []);
   useEffect(() => { loadChatInfo(); }, []);
   useEffect(() => { if (!loading) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [loading]);
+  // 📢 Закрытие меню поста при клике вне (но не на кнопке меню и не на дропдауне/пикере)
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-post-menu]") && !target.closest("[data-post-menu-btn]")) {
+        setMessageMenuOpen(null);
+        setReactionPickerOpen(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const canDeletePost = (p: any) => isModerator || p.author_id === currentUser?.id;
 
@@ -215,24 +290,41 @@ export function ChatPostFeed({ chatId, initialChatInfo }: { chatId: string; init
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 overscroll-contain touch-pan-y" style={{ WebkitOverflowScrolling: "touch" }}>
           {loading && <div className="p-4 text-center text-sm text-gray-500">{t("common.loading")}</div>}
           {currentUser && posts.map((p) => {
-            const isMine = false; // 📢 в канале посты всегда от имени канала (слева)
+            const isMine = p.author_id === currentUser?.id;
+            const isModerator = chatInfo?.my_role === "owner" || chatInfo?.my_role === "admin";
+            const canDelete = isMine || isModerator;
             const showAuthorSign = chatInfo?.show_author !== false;
+            // 📢 Преобразуем реакции в формат MessageBubble: {emoji, me, count}
+            const reactionsMap = new Map<string, { emoji: string; me: boolean; count: number }>();
+            (p.reactions || []).forEach((r: any) => {
+              const key = r.emoji;
+              const existing = reactionsMap.get(key);
+              if (existing) {
+                existing.count++;
+                if (r.user_id === currentUser?.id) existing.me = true;
+              } else {
+                reactionsMap.set(key, { emoji: r.emoji, me: r.user_id === currentUser?.id, count: 1 });
+              }
+            });
+            const formattedReactions = Array.from(reactionsMap.values());
+
             const msg = {
               id: p.id,
               text: p.text,
               media_url: p.media_url,
               media_type: p.media_type,
               sender_id: p.author_id,
-              // 📢 от имени канала: аватар канала; имя — автора (если включена настройка), иначе канала
-              sender_name: showAuthorSign ? (p.author?.display_name || chatInfo?.name || "Канал") : (chatInfo?.name || "Канал"),
+              sender_name: chatInfo?.name || "Канал",
               sender_avatar: chatInfo?.avatar_url,
               created_at: p.created_at,
-              reactions: [],
+              reactions: formattedReactions,
               reply_preview: null,
               read: true,
             };
+            // 📢 Подпись автора (мелким серым) — показывается только если отличается от имени канала
+            const authorSign = showAuthorSign && p.author?.display_name ? p.author.display_name : null;
             return (
-              <div key={p.id}>
+              <div key={p.id} className="relative" data-post-menu={messageMenuOpen === p.id ? "open" : undefined}>
                 <MessageBubble
                   msg={msg}
                   isMine={isMine}
@@ -240,31 +332,66 @@ export function ChatPostFeed({ chatId, initialChatInfo }: { chatId: string; init
                   isSecret={false}
                   isSelectMode={false}
                   isSelected={false}
-                  isEditing={false}
-                  editText=""
+                  isEditing={editingPostId === p.id}
+                  editText={editText}
                   displayText={p.text || ""}
                   senderGlow={null}
-                  isPinned={false}
+                  isPinned={p.is_pinned}
+                  authorName={authorSign}
                   chatId={chatId}
                   getMediaClasses={getMediaClasses}
                   extractFirstUrl={extractFirstUrl}
-                  onEditChange={() => {}}
+                  onEditChange={setEditText}
                   onSubmitEdit={() => {}}
-                  onCancelEdit={() => {}}
+                  onCancelEdit={() => { setEditingPostId(null); setEditText(""); }}
                   onSelect={() => {}}
-                  onReply={() => {}}
+                  onReply={() => handleReply(p)}
                   onContextMenu={(e) => e.preventDefault()}
                   onPointerDown={() => {}}
                   onPointerUp={() => {}}
                   onPointerLeave={() => {}}
-                  onDoubleClick={() => {}}
-                  onReactionClick={() => {}}
-                  onMenuClick={() => { if (canDeletePost(p)) deletePost(p.id); }}
-                  activeMessageMenu={false}
+                  onDoubleClick={() => handleReply(p)}
+                  onReactionClick={() => setReactionPickerOpen(reactionPickerOpen === p.id ? null : p.id)}
+                  onMenuClick={(e) => { e.stopPropagation(); setMessageMenuOpen(messageMenuOpen === p.id ? null : p.id); }}
+                  data-post-menu-button
+                  data-post-id={p.id}
+                  onToggleReaction={(msgId, stickerId, emoji) => emoji && toggleReaction(msgId, emoji)}
+                  activeMessageMenu={messageMenuOpen === p.id}
                   menuOpenUp={false}
-                  onSwipeRight={() => {}}
-                  onToggleReaction={() => {}}
+                  onSwipeRight={() => handleReply(p)}
                 />
+                {/* 📢 Меню 3 точки (как в обычном чате) */}
+                {messageMenuOpen === p.id && (
+                  <div className={`absolute z-50 ${isMine ? "right-12" : "left-12"} mt-1`} data-post-menu="dropdown">
+                    <div className="bg-white dark:bg-[#1e1e1e] border border-line dark:border-white/15 rounded-xl shadow-xl py-1 min-w-[180px]">
+                      <button onClick={() => handleReply(p)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-white/80">
+                        <Reply size={14} /> Ответить
+                      </button>
+                      {isModerator && (
+                        <button onClick={() => handlePin(p.id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-white/80">
+                          <Pin size={14} /> {p.is_pinned ? "Открепить" : "Закрепить"}
+                        </button>
+                      )}
+                      <button onClick={() => handleCopyPostLink(p.id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-white/10 text-gray-700 dark:text-white/80">
+                        <Copy size={14} /> Копировать ссылку
+                      </button>
+                      {canDelete && (
+                        <button onClick={() => handleDeletePost(p.id)} className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-red-50 dark:hover:bg-red-500/10 text-red-600 dark:text-red-400">
+                          <Trash2 size={14} /> Удалить
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {/* 📢 Пикер реакций */}
+                {reactionPickerOpen === p.id && (
+                  <div className={`absolute z-50 ${isMine ? "right-12" : "left-12"} mt-1`} data-post-menu="picker">
+                    <ReactionPicker
+                      onSelect={(emoji) => toggleReaction(p.id, emoji)}
+                      onClose={() => setReactionPickerOpen(null)}
+                    />
+                  </div>
+                )}
                 {p.comment_count > 0 && (
                   <div className={`flex ${isMine ? "justify-end" : "justify-start"} px-1 -mt-0.5`}>
                     <button

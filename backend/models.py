@@ -1,5 +1,5 @@
 from typing import Optional
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Index
 from sqlalchemy import UniqueConstraint
 from datetime import datetime, timezone
 
@@ -249,6 +249,9 @@ class ChatPost(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow, index=True)
     edited: bool = Field(default=False)
     edited_at: Optional[datetime] = None
+    pinned: bool = Field(default=False, index=True)
+    pinned_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    pinned_at: Optional[datetime] = None
 
 
 class ChatPostComment(SQLModel, table=True):
@@ -259,6 +262,19 @@ class ChatPostComment(SQLModel, table=True):
     author_id: int = Field(foreign_key="user.id", index=True)
     text: str
     created_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class ChatPostReaction(SQLModel, table=True):
+    """Реакция на пост канала (эмодзи). Одна реакция на пользователя на пост."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    post_id: int = Field(foreign_key="chatpost.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    emoji: str = Field(max_length=16)
+    created_at: datetime = Field(default_factory=utcnow)
+
+    __table_args__ = (
+        Index("ix_chatpostreaction_post_user", "post_id", "user_id"),
+    )
 
 
 class ChatInvite(SQLModel, table=True):

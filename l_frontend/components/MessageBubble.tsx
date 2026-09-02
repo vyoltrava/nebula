@@ -30,6 +30,7 @@ interface MessageBubbleProps {
   displayText: string;
   senderGlow: string | null;
   isPinned: boolean;
+  authorName?: string | null; // 📢 Подпись автора (для каналов)
   onEditChange: (text: string) => void;
   onSubmitEdit: () => void;
   onCancelEdit: () => void;
@@ -53,9 +54,9 @@ interface MessageBubbleProps {
 
 export const MessageBubble = memo(function MessageBubble({
   msg, isMine, isGroup, isSecret, isSelectMode, isSelected, isEditing, editText,
-  displayText, senderGlow, isPinned, onEditChange, onSubmitEdit, onCancelEdit,
+  displayText, senderGlow, isPinned, authorName, onEditChange, onSubmitEdit, onCancelEdit,
   onSelect, onReply, onContextMenu, onPointerDown, onPointerUp, onPointerLeave,
-  onDoubleClick, onReactionClick, onMenuClick, onToggleReaction, activeMessageMenu, menuOpenUp, 
+  onDoubleClick, onReactionClick, onMenuClick, onToggleReaction, activeMessageMenu, menuOpenUp,
   onSwipeRight, chatId, getMediaClasses, extractFirstUrl
 }: MessageBubbleProps) {
 
@@ -95,9 +96,17 @@ export const MessageBubble = memo(function MessageBubble({
 
         <div className={`max-w-[85%] sm:max-w-[75%] md:max-w-[70%] min-w-0 flex flex-col ${isMine ? "items-end" : "items-start"}`}>
           {isGroup && !isMine && (
-            <p className="text-[11px] sm:text-xs font-bold mb-1 px-1" style={senderGlow ? { color: senderGlow } : { color: "#a78bfa" }}>
-              {msg.sender_name}
-            </p>
+            <div className="mb-1 px-1">
+              <p className="text-[11px] sm:text-xs font-bold" style={senderGlow ? { color: senderGlow } : { color: "#a78bfa" }}>
+                {msg.sender_name}
+              </p>
+              {/* 📢 подпись автора поста в канале — мелким серым */}
+              {authorName && authorName !== msg.sender_name && (
+                <p className="text-[10px] text-gray-500 dark:text-white/40 leading-tight">
+                  {authorName}
+                </p>
+              )}
+            </div>
           )}
 
           <div className={`${bubbleRadius} transition-all ${isSelected ? "ring-2 ring-[#8b5cf6] ring-offset-2 ring-offset-[#171717]" : ""} ${isVideoNote || isAudio || isSticker ? "p-0 bg-transparent border-0 rounded-2xl overflow-hidden" : `px-3 sm:px-3.5 md:px-4 py-2 sm:py-2 ${isForwarded ? 
@@ -217,7 +226,7 @@ export const MessageBubble = memo(function MessageBubble({
                 <SmilePlus size={14} />
               </button>
               {!isSecret && (
-                <button onClick={onMenuClick} className="p-1 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white active:scale-90 transition-transform">
+                <button onClick={onMenuClick} data-post-menu-btn="true" className="p-1 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white active:scale-90 transition-transform">
                   <MoreVertical size={13} />
                 </button>
               )}
