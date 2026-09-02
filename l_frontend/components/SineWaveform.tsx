@@ -185,80 +185,67 @@ function drawWave(
   analyser: AnalyserNode | null,
   buf: Uint8Array | null,
   playing: boolean,
-  phase: number,
+  _phase: number,
   color: string,
   progress: number
 ) {
   ctx.clearRect(0, 0, W, H);
   const centerY = H / 2;
+  const bars = Math.max(24, Math.min(56, Math.floor(W / 8)));
+  const slot = W / bars;
+  const gap = Math.max(1, slot * 0.18);
+  const barW = Math.max(1, slot - gap);
+  const maxHalf = (H * 0.88) / 2;
 
-  // живой множитель громкости (0..1); минимум держим чтобы плейсхолдер не сгорал
-  const live = playing ? 0.35 + 0.65 * liveGain(analyser, buf) : 0;
-  const ampScale = (H * 0.38 * (0.35 + live)) / Math.max(0.35, 1);
+  // живой множитель громкости (0..1) при воспроизведении
+  const live = playing ? liveGain(analyser, buf) : 0;
+  const ampScale = 0.4 + 0.6 * live;
 
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, shade(color, 1.15));
-  grad.addColorStop(0.5, color);
-  grad.addColorStop(1, shade(color, 0.85));
+  const playX = W * Math.min(1, Math.max(0, progress));
 
-  const path = new Path2D();
-  path.moveTo(0, centerY);
+  for (let i = 0; i < bars; i++) {
+    const cx = i * slot + slot / 2;
+    if (cx > W) break;
+    let amp = sampleAmplitude(cx, W, env);
+    amp = Math.max(0.06, amp * ampScale);
+    const half = Math.max(1, amp * maxHalf); // высота столбца от центра
+    const x0 = cx - barW / 2;
+    const top = centerY - half;
+    const played = cx <= playX;
 
-  const pts: Array<[number, number]> = [];
-  const step = Math.max(1, Math.floor(W / 72));
-  for (let x = 0; x <= W; x += step) {
-    const a = sampleAmplitude(x, W, env);
-    const wobble = playing ? 0.08 * Math.sin(phase * 1.7 + x / 37) : 0;
-    pts.push([x, centerY - (a + wobble) * ampScale]);
+    ctx.fillStyle = played ? shade(color, 0.12) : withAlpha(color, 0.32);
+    roundRectFill(ctx, x0, top, barW, half * 2, Math.min(barW / 2, half));
   }
 
-  // Верхняя ветвь — плавная quadratic кривая слева направо
-  for (let i = 0; i < pts.length; i++) {
-    const [x, y] = pts[i];
-    if (i === 0) {
-      path.moveTo(x, y);
-    } else {
-      const [px, py] = pts[i - 1];
-      path.quadraticCurveTo(px, py, (px + x) / 2, (py + y) / 2);
-    }
-  }
-  if (pts.length > 1) {
-    const last = pts[pts.length - 1];
-    path.lineTo(last[0], last[1]);
-  }
+  // тонкая линия-центр
+  ctx.fillStyle = withAlpha(color, 0.14);
+  ctx.fillRect(0, centerY - 0.5, W, 1);
 
-  // Нижняя ветвь — зеркальная, закрывает «петлю» (симметрия вверх/вниз)
-  for (let i = pts.length - 1; i >= 0; i--) {
-    const [x, y] = pts[i];
-    if (i === pts.length - 1) {
-      path.lineTo(x, centerY + (centerY - y));
-    } else {
-      const [px, py] = pts[i + 1];
-      path.quadraticCurveTo(
-        px,
-        centerY + (centerY - py),
-        (px + x) / 2,
-        centerY + (centerY - (py + y) / 2)
-      );
-    }
-  }
-  path.closePath();
-
-  ctx.fillStyle = playing ? grad : withAlpha(color, 0.35);
-  ctx.fill(path);
-
-  // playhead
+  // playhead-метка
   if (progress > 0) {
     const px = W * Math.min(1, Math.max(0, progress));
-    ctx.strokeStyle = shade(color, 1.4);
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([3, 3]);
-    ctx.beginPath();
-    ctx.moveTo(px, 2);
-    ctx.lineTo(px, H - 2);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    ctx.fillStyle = shade(color, 1.4);
+    ctx.fillRect(px, 2, 2, H - 4);
   }
+}
+
+function roundRectFill(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + w, y, x + w, y + h, rr);
+  ctx.arcTo(x + w, y + h, x, y + h, rr);
+  ctx.arcTo(x, y + h, x, y, rr);
+  ctx.arcTo(x, y, x + w, y, rr);
+  ctx.closePath();
+  ctx.fill();
 }
 
 function shade(hex: string, n: number): string {

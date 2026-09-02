@@ -4,7 +4,7 @@
 import { useRef, useState, useEffect } from "react";
 import {
   Square, X, Mic, MicOff, Minimize2, Maximize2,
-  RefreshCw, FlipHorizontal, Send, Trash2,
+  Volume2, VolumeX, RefreshCw, FlipHorizontal, Send, Trash2,
 } from "lucide-react";
 import {
   recordingOptions,
@@ -39,7 +39,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
 
-  // БЛОК 5: жёсткий таймер 60.000 мс в Web Worker (не JS-таймер на главном потоке).
+  // БЛОК 5: жёсткий таймер 60.000 мс в главном потоке (setInterval по Date.now()).
   const recTimer = useRecordingTimer({
     maxDurationSec: maxDuration,
     onLimit: autoSend,
@@ -54,6 +54,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   const [hasRecording, setHasRecording] = useState(false);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
   const recordedBlobRef = useRef<Blob | null>(null);
+  const [previewMuted, setPreviewMuted] = useState(true);
 
   // Инициализация камеры
   useEffect(() => {
@@ -108,6 +109,30 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
       alert("Нет доступа к камере");
       onCancel();
     }
+  }
+
+  // БЛОК 3: предпросмотр - авто-размут и играет со звуком, если браузер позволяет.
+  useEffect(() => {
+    const v = previewRef.current;
+    if (hasRecording && v) {
+      const act = (navigator as any).userActivation;
+      const allowSound = !act || act.hasBeenActive === true;
+      if (allowSound) {
+        v.muted = false;
+        setPreviewMuted(false);
+      } else {
+        v.muted = true;
+      }
+      const p = v.play();
+      if (p) p.catch(() => {});
+    }
+  }, [hasRecording, recordedUrl, previewMuted]);
+
+  function togglePreviewMute() {
+    const next = !previewMuted;
+    setPreviewMuted(next);
+    const v = previewRef.current;
+    if (v) { v.muted = next; const p = v.play(); if (p) p.catch(() => {}); }
   }
 
   async function switchCamera() {
@@ -180,9 +205,17 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
       }
     };
 
-    recorder.start(1000); // таймслайс — собирает чанки, не зависает
+        // Сначала включаем UI и таймер (надёжно), затем стартуем рекордер.
     setIsRecording(true);
     recTimer.start();
+    try {
+      recorder.start(1000); // таймслайс - собирает чанки, не зависает
+    } catch (err) {
+      console.error("MediaRecorder start failed", err);
+      recTimer.stop();
+      setIsRecording(false);
+      alert("Не удалось начать запись (кодек не поддержан)");
+    }
   }
 
   function stopRecording() {
@@ -400,7 +433,6 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
           {/* Внешнее светящееся кольцо-прогресс (только при записи) */}
           {isRecording && (
             <div className="absolute -inset-3 sm:-inset-4 pointer-events-none">
-              <ProgressRing size={0} stroke={0} />
               {/* Используем отдельный SVG на весь контейнер */}
               <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" style={{ transform: "rotate(-90deg)", filter: "drop-shadow(0 0 8px #8b5cf6)" }}>
                 <rect x="2" y="2" width="96" height="96" rx="20" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
@@ -422,7 +454,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
                 key="preview"
                 ref={previewRef}
                 src={recordedUrl}
-                autoPlay loop playsInline muted
+                autoPlay loop playsInline muted={previewMuted}
                 className="w-full h-full object-cover"
                 style={{ transform: isMirrored ? "scaleX(-1)" : "none" }}
               />
@@ -434,6 +466,17 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
                 className="w-full h-full object-cover"
                 style={{ transform: isMirrored ? "scaleX(-1)" : "none" }}
               />
+            )}
+
+            {/* БЛОК 3: громкость звука в предпросмотре */}
+            {hasRecording && (
+              <button
+                onClick={togglePreviewMute}
+                className="absolute top-3 right-3 z-10 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white/80 hover:text-white transition-colors"
+                title={previewMuted ? "Включить звук" : "Выключить звук"}
+              >
+                {previewMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+              </button>
             )}
 
             {/* Верхний градиент + таймер */}

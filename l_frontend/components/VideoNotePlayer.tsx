@@ -1,64 +1,67 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { VideoOff, Volume2, VolumeX } from "lucide-react";
+import { VideoOff, Volume2, VolumeX, X } from "lucide-react";
 import { useGlobalPlayer } from "@/components/GlobalPlayer";
 import { prepareVideoPreview, VideoPreview } from "@/lib/mediaConfig";
 import { useSpringScale } from "@/lib/useSpringScale";
 
 /**
- * VideoNotePlayer — превью видеокружка в чате.
- * БЛОК 2: spring‑увеличение ровно в 2.0× (damping 12, stiffness 100, zIndex 9999, overflow visible).
- * БЛОК 3: аудио‑трек буферизуется preload="auto" и держится на паузе до клика «Слушать»,
- *         звук играет с видимого <video> (в жесте пользователя — без блокировки autoplay).
+ * VideoNotePlayer - превью видеокружка в чате.
+ * БЛОК 2: «пузырь» с видео при просмотре увеличивается ровно в 2.0× пружиной
+ *   (damping 12, stiffness 100) и показывается в fixed-оверлее поверх всех
+ *   элементов (zIndex 9999), поэтому родительский overflow-hidden не обрезает.
+ * БЛОК 3: аудио-трек буферизуется preload="auto", звук играет с видимого
+ *   <video> в жесте пользователя (без блокировки autoplay).
  */
 export function VideoNotePlayer({ src, trackId, title }: { src: string; trackId?: string | number; title?: string }) {
   const gp = useGlobalPlayer();
   const id = trackId ?? src;
   const active = gp.track?.id === id && gp.track?.type === "video_note";
-  const playing = active && gp.playing;
-  const localRef = useRef<HTMLVideoElement>(null);
+  const localRef = useRef<HTMLVideoElement | null>(null);
   const [preview, setPreview] = useState<VideoPreview | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const [muted, setMuted] = useState(false);
-
-  // БЛОК 2: пружина (web‑эквивалент Reanimated withSpring)
-  const zoom = useSpringScale(1, { stiffness: 100, damping: 12 });
   const [expanded, setExpanded] = useState(false);
 
-  // Регистрируем ВИДИМЫЙ <video> как глобальный плеер: один элемент отвечает за
-  // кадры И звук (БЛОК 3) — вместо скрытого muted‑видео.
-  useEffect(() => {
-    const v = localRef.current;
-    if (v) gp.registerVideoPlayer(v);
-    return () => { gp.registerVideoPlayer(null); };
-  }, [gp]);
+  // БЛОК 2: пружина (web-эквивалент Reanimated withSpring)
+  const zoom = useSpringScale(1, { stiffness: 100, damping: 12 });
 
-  // I‑frame poster (веб‑аналог prepareAsync()) — кешируется в mediaConfig
+  // Колбэк-реф: регистрирует <video> в глобальном плеере при любом маунте
+  // (в т.ч. когда кадр переезжает в оверлей) и снимает при анмаунте.
+  const attachVideo = (n: HTMLVideoElement | null) => {
+    localRef.current = n;
+    if (n) {
+      gp.registerVideoPlayer(n);
+      n.muted = muted;
+      n.preload = "auto";
+    } else {
+      gp.registerVideoPlayer(null);
+    }
+  };
+
+  // I-frame poster (веб-аналог prepareAsync()) - кешируется в mediaConfig
   useEffect(() => {
     let ok = true;
     prepareVideoPreview(src).then((p) => { if (ok) setPreview(p); });
     return () => { ok = false; };
   }, [src]);
 
-  // БЛОК 2: масштаб 2.0× при воспроизведении, zIndex 9999, overflow visible — не обрезается
-  useEffect(() => {
-    if (active && playing) { setExpanded(true); zoom.animateTo(2); }
-    else { setExpanded(false); zoom.animateTo(1); }
-  }, [active, playing, zoom]);
-
-  // БЛОК 3: аудио‑буфер готов (preload="auto"), держим muted‑флагом спикера
+  // БЛОК 3: mute синхронизируем с состоянием спикера
   useEffect(() => {
     const v = localRef.current;
-    if (!v) return;
-    v.muted = muted;
-    v.preload = "auto";
+    if (v) v.muted = muted;
   }, [muted]);
 
-  const fmt = (s: number) => {
-    if (!isFinite(s) || isNaN(s)) return "0:00";
-    const m = Math.floor(s / 60);
-    return `${m}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
+  useEffect(() => {
+    if (expanded) zoom.animateTo(2);
+    else zoom.animateTo(1);
+  }, [expanded, zoom]);
+
+  const fmt = (x: number) => {
+    if (!isFinite(x) || isNaN(x)) return "0:00";
+    const m = Math.floor(x / 60);
+    return `${m}:${Math.floor(x % 60).toString().padStart(2, "0")}`;
   };
   const progress = active && gp.duration ? (gp.currentTime / gp.duration) * 100 : 0;
   const dur = active ? gp.duration || preview?.duration || 0 : preview?.duration || 0;
@@ -66,17 +69,21 @@ export function VideoNotePlayer({ src, trackId, title }: { src: string; trackId?
   const handlePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
     gp.playTrack({ id, type: "video_note", src, title: title || "🎬 Видео-квадрат" });
-    // воспроизводим с звуком внутри жеста (autoplay policy для unmuted)
+    setExpanded(true);
     const v = localRef.current;
     if (v) { v.muted = muted; v.play().catch(() => {}); }
   };
 
-  return (
-    // overflow-visible + zIndex 9999 во время анимации — не обрезается родителем
+  const closeExpand = () => {
+    setExpanded(false);
+    const v = localRef.current;
+    if (v) v.pause();
+  };// Сам «пузырь» (одна и та же разметка для инлайна и оверлея)
+  const bubble = (
     <div
-      ref={zoom.ref as any}
+      ref={zoom.ref as React.Ref<HTMLDivElement>}
       style={zoom.style}
-      className={`${expanded ? "relative z-[9999]" : "relative"} overflow-visible shrink-0 w-52 h-52 sm:w-56 sm:h-56 rounded-2xl bg-black ring-1 ring-white/10`}
+      className="relative overflow-visible shrink-0 w-52 h-52 sm:w-56 sm:h-56 rounded-2xl bg-black ring-1 ring-white/10"
     >
       <button
         onClick={handlePlay}
@@ -84,7 +91,7 @@ export function VideoNotePlayer({ src, trackId, title }: { src: string; trackId?
         title="Видео-квадрат"
       >
         <video
-          ref={localRef}
+          ref={attachVideo}
           src={src}
           poster={preview?.poster || undefined}
           playsInline
@@ -135,4 +142,28 @@ export function VideoNotePlayer({ src, trackId, title }: { src: string; trackId?
       </button>
     </div>
   );
+
+  if (expanded) {
+    return (
+      <div
+        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        onClick={closeExpand}
+        role="dialog"
+        aria-modal="true"
+      >
+        <button
+          onClick={closeExpand}
+          className="absolute top-4 right-4 p-2 rounded-full bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white hover:bg-gray-300 dark:hover:bg-white/20 active:scale-90 transition-all"
+          title="Закрыть"
+        >
+          <X size={20} />
+        </button>
+        <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-center">
+          {bubble}
+        </div>
+      </div>
+    );
+  }
+
+  return bubble;
 }
