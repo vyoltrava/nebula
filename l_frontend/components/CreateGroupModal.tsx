@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 import { useState, useEffect } from "react";
-import { X, Search, Users, Check, Megaphone } from "lucide-react";
+import { X, Search, Users, Check } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
 import { Button, IconButton } from "@/components/ui/Button";
@@ -8,12 +8,9 @@ import { Button, IconButton } from "@/components/ui/Button";
 interface Props {
   onClose: () => void;
   onCreated: (chatId: number) => void;
-  /** Режим: группа для переписки или канал (лента постов) */
-  mode?: "group" | "channel";
 }
 
-export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) {
-  const isChannel = mode === "channel";
+export function CreateGroupModal({ onClose, onCreated }: Props) {
   const [name, setName] = useState("");
   const [query, setQuery] = useState("");
   const [users, setUsers] = useState<any[]>([]);
@@ -43,23 +40,22 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
   }, [query]);
 
   function toggle(id: number) {
-    const max = isChannel ? 200 : 49;
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
-      else if (next.size < max) next.add(id);
+      else if (next.size < 49) next.add(id);
       return next;
     });
   }
 
   async function create() {
-    if (!name.trim()) { setError(isChannel ? "Введите название канала" : "Введите название группы"); return; }
-    if (!isChannel && selected.size === 0) { setError("Добавьте хотя бы одного участника"); return; }
+    if (!name.trim()) { setError("Введите название группы"); return; }
+    if (selected.size === 0) { setError("Добавьте хотя бы одного участника"); return; }
     setLoading(true);
     setError(null);
     try {
       const token = getToken();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${isChannel ? "channel" : "group"}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/group`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -90,18 +86,18 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
         <div className="w-full max-w-lg max-h-[85vh] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
           <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
-              {isChannel ? <Megaphone className="text-[#f59e0b]" size={20} /> : <Users className="text-[#8b5cf6]" size={20} />}
-              <h2 className="text-lg font-black text-gray-900 dark:text-white">{isChannel ? "Новый канал" : "Новая группа"}</h2>
+              <Users className="text-[#8b5cf6]" size={20} />
+              <h2 className="text-lg font-black text-gray-900 dark:text-white">Новая группа</h2>
             </div>
             <IconButton icon={X} size="iconSm" onClick={onClose} />
           </div>
 
           <div className="p-4 border-b border-line dark:border-white/10 shrink-0">
-            <label className="block text-xs text-gray-600 dark:text-white/60 mb-1.5 font-bold">{isChannel ? "Название канала" : "Название группы"}</label>
+            <label className="block text-xs text-gray-600 dark:text-white/60 mb-1.5 font-bold">Название группы</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value.slice(0, 80))}
-              placeholder={isChannel ? "Например: Новости проекта..." : "Например: Друзья, Проект X..."}
+              placeholder="Например: Друзья, Проект X..."
               className="w-full px-3 py-2 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
               autoFocus
             />
@@ -109,13 +105,8 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
 
           <div className="p-4 border-b border-line dark:border-white/10 shrink-0">
             <label className="block text-xs text-gray-600 dark:text-white/60 mb-1.5 font-bold">
-              {isChannel ? `Добавить подписчиков (${selected.size})` : `Добавить участников (${selected.size}/49)`}
+              Добавить участников ({selected.size}/49)
             </label>
-            {isChannel && (
-              <p className="text-xs text-gray-500 dark:text-white/40 mb-2">
-                Необязательно — подписчики смогут присоединиться по ссылке-приглашению. Публиковать в канале смогут только администраторы.
-              </p>
-            )}
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
               <input
@@ -127,7 +118,7 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
             </div>
           </div>
 
-          {selected.size > 0 && (
+                    {selected.size > 0 && (
             <div className="p-3 border-b border-line dark:border-white/10 flex gap-1.5 flex-wrap shrink-0">
               {selectedUsers.map((u) => (
                 <div
@@ -190,21 +181,17 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
 
           <div className="p-4 border-t border-line dark:border-white/10 shrink-0">
             <Button
-              icon={isChannel ? Megaphone : Users}
+              icon={Users}
               loading={loading}
               onClick={create}
-              disabled={loading || !name.trim() || (!isChannel && selected.size === 0)}
+              disabled={loading || !name.trim() || selected.size === 0}
               className="w-full"
             >
-              {loading
-                ? (isChannel ? "Создание..." : "Создание...")
-                : isChannel
-                  ? `Создать канал${selected.size > 0 ? ` (${selected.size + 1} чел.)` : ""}`
-                  : `Создать группу (${selected.size + 1} чел.)`}
+              {loading ? "Создание..." : "Создать группу"}
             </Button>
           </div>
         </div>
       </div>
     </>
-  );
+    );
 }

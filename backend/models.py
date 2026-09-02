@@ -189,21 +189,15 @@ class Chat(SQLModel, table=True):
     is_group: bool = Field(default=False)
     is_saved: bool = Field(default=False) # 🆕 Флаг избранного
     is_prism: bool = Field(default=False)
-    # 🆕 Тип чата: "dm" | "group" (переписка) | "channel" (лента постов)
-    chat_type: str = Field(default="dm")
     name: Optional[str] = Field(default=None, max_length=80)
     avatar_url: Optional[str] = None
     owner_id: Optional[int] = Field(default=None, foreign_key="user.id")
     pinned_by: Optional[int] = Field(default=None, foreign_key="user.id")
     pinned_at: Optional[datetime] = None
-    # 🔗 Пригласительная ссылка (как в Telegram) + приватность ленты постов
+    # 🔗 Пригласительная ссылка (как в Telegram)
     invite_token: Optional[str] = Field(default=None, unique=True, index=True)
-    who_can_post: str = Field(default="members")  # "members" | "admins" — кто может публиковать посты
-    who_can_comment: str = Field(default="members")  # "members" | "admins" — кто может комментировать
     # 🆕 Кто может добавлять участников ("members" | "admins")
     can_add_members: str = Field(default="admins")
-    # 🆕 Канал: показывать ли автора поста (подпись), как в Telegram
-    show_author: bool = Field(default=True)
 
 
 
@@ -235,46 +229,6 @@ class Message(SQLModel, table=True):
     forwarded_from_id: Optional[int] = Field(default=None, foreign_key="message.id")
     forwarded_sender_name: Optional[str] = None
     reply_to_id: Optional[int] = Field(default=None, foreign_key="message.id") 
-
-
-class ChatPost(SQLModel, table=True):
-    """Пост в ленте группового чата (Telegram-канал)."""
-    id: Optional[int] = Field(default=None, primary_key=True)
-    chat_id: int = Field(foreign_key="chat.id", index=True)
-    author_id: int = Field(foreign_key="user.id", index=True)
-    text: Optional[str] = None
-    media_url: Optional[str] = None
-    media_type: Optional[str] = None  # image | video | gif | audio
-    link_url: Optional[str] = None
-    created_at: datetime = Field(default_factory=utcnow, index=True)
-    edited: bool = Field(default=False)
-    edited_at: Optional[datetime] = None
-    pinned: bool = Field(default=False, index=True)
-    pinned_by: Optional[int] = Field(default=None, foreign_key="user.id")
-    pinned_at: Optional[datetime] = None
-
-
-class ChatPostComment(SQLModel, table=True):
-    """Комментарий к посту чата, с поддержкой вложенных ответов."""
-    id: Optional[int] = Field(default=None, primary_key=True)
-    post_id: int = Field(foreign_key="chatpost.id", index=True)
-    parent_id: Optional[int] = Field(default=None, foreign_key="chatpostcomment.id")
-    author_id: int = Field(foreign_key="user.id", index=True)
-    text: str
-    created_at: datetime = Field(default_factory=utcnow, index=True)
-
-
-class ChatPostReaction(SQLModel, table=True):
-    """Реакция на пост канала (эмодзи). Одна реакция на пользователя на пост."""
-    id: Optional[int] = Field(default=None, primary_key=True)
-    post_id: int = Field(foreign_key="chatpost.id", index=True)
-    user_id: int = Field(foreign_key="user.id", index=True)
-    emoji: str = Field(max_length=16)
-    created_at: datetime = Field(default_factory=utcnow)
-
-    __table_args__ = (
-        Index("ix_chatpostreaction_post_user", "post_id", "user_id"),
-    )
 
 
 class ChatInvite(SQLModel, table=True):

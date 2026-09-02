@@ -22,14 +22,10 @@ export function GroupSettingsModal({ chatId, chat, onClose, onUpdate }: Props) {
   const [name, setName] = useState(chat.name || "");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(chat.avatar_url || null);
-  const [whoCanPost, setWhoCanPost] = useState(chat.who_can_post || "members");
-  const [whoCanComment, setWhoCanComment] = useState(chat.who_can_comment || "members");
   const [canAddMembers, setCanAddMembers] = useState(chat.can_add_members || "admins");
-  const [showAuthor, setShowAuthor] = useState(chat.show_author !== false);
   const [loading, setLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const isAdmin = chat?.my_role === "owner" || chat?.my_role === "admin";
-  const isChannel = !!chat?.is_channel;
 
   const authFetch = (url: string, opts: any = {}) => {
     const token = getToken();
@@ -114,7 +110,7 @@ const loadInvites = async () => {
       }
       const priv = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/settings`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ who_can_post: whoCanPost, who_can_comment: whoCanComment, can_add_members: canAddMembers, show_author: showAuthor }),
+        body: JSON.stringify({ can_add_members: canAddMembers }),
       });
       if (!priv.ok) throw new Error("Failed to update settings");
       onUpdate();
@@ -150,11 +146,11 @@ const loadInvites = async () => {
     <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
       <div className="w-full max-w-lg bg-ivory dark:bg-[#1f1f23] rounded-2xl border border-line dark:border-white/10 shadow-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between shrink-0">
-          <h2 className="text-lg font-black text-gray-900 dark:text-white">{isChannel ? "Настройки канала" : "Настройки группы"}</h2>
+          <h2 className="text-lg font-black text-gray-900 dark:text-white">Настройки группы</h2>
           <IconButton icon={X} size="iconSm" onClick={onClose} />
         </div>
         <div className="p-3 border-b border-line dark:border-white/10 flex gap-2 shrink-0">
-          {tabBtn("main", isChannel ? "Канал" : "Группа", <Settings size={14} />)}
+          {tabBtn("main", "Группа", <Settings size={14} />)}
           {isAdmin && tabBtn("links", "Ссылки", <Link2 size={14} />)}
           {isAdmin && tabBtn("members", "Участники", <Users size={14} />)}
           {isAdmin && tabBtn("danger", "Удаление", <Trash2 size={14} />)}
@@ -177,32 +173,12 @@ const loadInvites = async () => {
               </div>
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs text-gray-600 dark:text-white/60 font-bold block mb-1">Кто публикует посты {isChannel ? "(канал)" : ""}</label>
-                  <select value={whoCanPost} onChange={(e) => setWhoCanPost(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm">
-                    <option value="members">Все участники</option>
-                    <option value="admins">Только администраторы</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-600 dark:text-white/60 font-bold block mb-1">Кто комментирует</label>
-                  <select value={whoCanComment} onChange={(e) => setWhoCanComment(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm">
-                    <option value="members">Все участники</option>
-                    <option value="admins">Только администраторы</option>
-                  </select>
-                </div>
-                <div>
                   <label className="text-xs text-gray-600 dark:text-white/60 font-bold block mb-1">Кто может добавлять участников</label>
                   <select value={canAddMembers} onChange={(e) => setCanAddMembers(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm">
                     <option value="admins">Только администраторы</option>
                     <option value="members">Все участники</option>
                   </select>
                 </div>
-                {isChannel && (
-                  <label className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 cursor-pointer">
-                    <span className="text-sm font-bold text-gray-900 dark:text-white">Показывать автора поста</span>
-                    <input type="checkbox" checked={showAuthor} onChange={(e) => setShowAuthor(e.target.checked)} className="w-5 h-5 accent-[#8b5cf6]" />
-                  </label>
-                )}
               </div>
               <Button icon={Save} loading={loading} onClick={saveSettings} disabled={loading} className="w-full">
                 {loading ? "Сохранение..." : "Сохранить"}
@@ -305,10 +281,10 @@ const loadInvites = async () => {
                 <h3 className="font-black text-gray-900 dark:text-white">Опасная зона</h3>
               </div>
               <p className="text-xs text-gray-600 dark:text-white/50 mb-4">
-                Удаление {isChannel ? "канала" : "группы"} удалит все сообщения и участников. Действие необратимо.
+                Удаление группы удалит все сообщения и участников. Действие необратимо.
               </p>
               <Button variant="danger" icon={Trash2} onClick={deleteChat} className="w-full">
-                Удалить {isChannel ? "канал" : "группу"}
+                Удалить группу
               </Button>
             </div>
           )}

@@ -54,7 +54,7 @@ from database import init_db, get_session, engine
 from models import utcnow
 from models import (
     User, Post, Like, Dislike, Follow, Notification, Tag, PostTag, Role,
-    Chat, ChatMember, Message, Report, UserKey, ChatSessionKey, ChatPost, ChatPostComment, ChatInvite,
+    Chat, ChatMember, Message, Report, UserKey, ChatSessionKey, ChatInvite,
     IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead,
     PushSubscription, StickerPack, Sticker, MessageReaction, PostReaction, Theme, SystemSetting,
     RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge,
@@ -5329,39 +5329,11 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
     my_role = members_map.get(user_id).role if user_id in members_map else None
 
     if chat.is_group or chat.is_prism:
-        chat_kind = getattr(chat, "chat_type", None) or ("channel" if chat.is_prism else "group")
-
-        # 📢 Каналы: последнее действие = последний пост (Message в каналах нет)
-        if chat_kind == "channel":
-            last_post = session.exec(
-                select(ChatPost)
-                .where(ChatPost.chat_id == chat.id)
-                .order_by(ChatPost.created_at.desc())
-                .limit(1)
-            ).first()
-            if last_post:
-                pa = users_map.get(last_post.author_id)
-                ptext = last_post.text or (
-                    "📷 Фото" if last_post.media_type in ("image", "gif")
-                    else "🎬 Видео" if last_post.media_type == "video"
-                    else "🎙️ Голосовое" if last_post.media_type == "audio"
-                    else "📎 Медиа"
-                )
-                preview = f"{pa.display_name}: {ptext}" if pa else ptext
-                last_message_data = {
-                    "text": preview,
-                    "is_encrypted": False,
-                    "sender_id": last_post.author_id,
-                    "created_at": last_post.created_at.isoformat(),
-                }
-
         return {
             "id": chat.id,
             "is_group": True,
             "is_secret": False,  # группы без E2EE
             "is_prism": bool(chat.is_prism),
-            "chat_type": chat_kind,
-            "is_channel": chat_kind == "channel",
             "created_at": chat.created_at.isoformat(),
             "name": chat.name or "Без названия",
             "avatar_url": chat.avatar_url,
@@ -5376,10 +5348,7 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "unread_count": unread,
             "pinned": chat.pinned_by == user_id,  # 🆕
             "pinned_at": chat.pinned_at.isoformat() if chat.pinned_at else None,
-            "who_can_post": getattr(chat, "who_can_post", "members"),
-            "who_can_comment": getattr(chat, "who_can_comment", "members"),
             "can_add_members": getattr(chat, "can_add_members", "admins"),
-            "show_author": getattr(chat, "show_author", True),
             "invite_token": getattr(chat, "invite_token", None),
         }
     else:
@@ -5510,7 +5479,7 @@ async def create_group_chat(
     if not valid_ids:
         raise HTTPException(400, "Нет валидных пользователей для добавления")
 
-    chat = Chat(is_group=True, chat_type="group", name=data.name.strip(), owner_id=user.id)
+    chat = Chat(is_group=True, name=data.name.strip(), owner_id=user.id)
     session.add(chat)
     session.commit()
     session.refresh(chat)
@@ -5538,69 +5507,6 @@ async def create_group_chat(
         [user.id] + list(valid_ids),
         "group_created",
         {"chat_id": chat.id, "name": chat.name}
-    ))
-
-    return {"chat_id": chat.id}
-
-
-class CreateChannelIn(BaseModel):
-    name: str
-    user_ids: Optional[list[int]] = None  # подписчики (опционально — можно создать пустой канал)
-    description: Optional[str] = None
-
-
-@app.post("/api/chats/channel")
-@app.post("/api/chats/channel/")
-@limiter.limit("5/minute")
-async def create_channel_chat(
-    request: Request,
-    data: CreateChannelIn,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Создание КАНАЛА — отдельный вид чата с лентой постов.
-    По умолчанию постить могут только админы (Telegram-модель)."""
-    if not data.name or not data.name.strip():
-        raise HTTPException(400, "Название канала обязательно")
-    if len(data.name.strip()) > 80:
-        raise HTTPException(400, "Название максимум 80 символов")
-
-    ids = [uid for uid in set(data.user_ids or []) if uid != user.id]
-    if len(ids) > 200:
-        raise HTTPException(400, "Максимум 200 подписчиков при создании канала")
-
-    valid_ids = set()
-    for uid in ids:
-        target = session.get(User, uid)
-        if target and not target.is_banned:
-            valid_ids.add(uid)
-
-    chat = Chat(
-        is_group=True,
-        chat_type="channel",
-        name=data.name.strip(),
-        owner_id=user.id,
-        who_can_post="admins",   # канал: пишут только админы
-        who_can_comment="members",
-    )
-    session.add(chat)
-    session.commit()
-    session.refresh(chat)
-
-    session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="owner"))
-    for uid in valid_ids:
-        session.add(ChatMember(chat_id=chat.id, user_id=uid, role="member"))
-    session.commit()
-
-    log_action(session, user.id, "create_channel",
-               target_type="chat", target_id=chat.id,
-               details={"name": chat.name, "subscribers_count": len(valid_ids) + 1},
-               ip_address=get_client_ip(request))
-
-    asyncio.create_task(manager.broadcast_to_users(
-        [user.id] + list(valid_ids),
-        "group_created",
-        {"chat_id": chat.id, "name": chat.name, "chat_type": "channel"}
     ))
 
     return {"chat_id": chat.id}
@@ -5870,13 +5776,7 @@ def cascade_delete_chat(chat_id: int, session: Session):
     # 5. Удаляем сессионные ключи
     session.exec(delete(ChatSessionKey).where(ChatSessionKey.chat_id == chat_id))
 
-    # 🆕 Лента постов: комментарии и посты + приглашения
-    chat_post_ids = session.exec(
-        select(ChatPost.id).where(ChatPost.chat_id == chat_id)
-    ).all()
-    if chat_post_ids:
-        session.exec(delete(ChatPostComment).where(ChatPostComment.post_id.in_(chat_post_ids)))
-    session.exec(delete(ChatPost).where(ChatPost.chat_id == chat_id))
+    # Приглашения
     session.exec(delete(ChatInvite).where(ChatInvite.chat_id == chat_id))
 
     # 6. Удаляем участников чата
@@ -5981,50 +5881,6 @@ def startup():
                             pass  # параллельный деплой / другая БД
         except Exception as e:
             print(f"⚠️ Self-heal колонок не удался: {e}")
-        # 🛡️ Бэкфорс: старые групповые чаты (is_group) с лентой постов → каналы;
-        # обычные группы без постов остаются/становятся группами переписки.
-        # is_group без '= 1' — валидно и для SQLite (0/1), и для Postgres (BOOL).
-        try:
-            with engine.begin() as conn:
-                conn.execute(_t(
-                    "UPDATE chat SET chat_type = 'channel' "
-                    "WHERE is_group AND (chat_type IS NULL OR chat_type = '' OR chat_type = 'dm')"
-                ))
-                conn.execute(_t(
-                    "UPDATE chat SET who_can_post = 'admins' "
-                    "WHERE chat_type = 'channel' AND (who_can_post IS NULL OR who_can_post = '')"
-                ))
-        except Exception as e:
-            print(f"⚠️ Бэкфорс chat_type не удался: {e}")
-        # 🛡️ Миграция: старые посты каналов (ChatPost) → обычные сообщения Message.
-        # Только для каналов, где ещё нет сообщений (идемпотентно).
-        try:
-            with engine.begin() as conn:
-                conn.execute(_t(
-                    "INSERT INTO message (chat_id, sender_id, text, media_url, media_type, created_at, read) "
-                    "SELECT p.chat_id, p.author_id, "
-                    "NULLIF(TRIM(COALESCE(p.text, '') || CASE WHEN p.link_url IS NOT NULL AND p.link_url != '' THEN char(10) || p.link_url ELSE '' END), ''), "
-                    "p.media_url, p.media_type, p.created_at, 1 "
-                    "FROM chatpost p JOIN chat c ON c.id = p.chat_id "
-                    "WHERE c.chat_type = 'channel' "
-                    "AND (SELECT COUNT(*) FROM message m WHERE m.chat_id = p.chat_id) = 0"
-                ))
-                # переносим комментарии постов как ответить-сообщения? — нет, просто чистим посты
-                conn.execute(_t(
-                    "DELETE FROM chatpostcomment WHERE post_id IN ("
-                    "SELECT p.id FROM chatpost p JOIN chat c ON c.id = p.chat_id "
-                    "WHERE c.chat_type = 'channel' "
-                    "AND (SELECT COUNT(*) FROM message m WHERE m.chat_id = p.chat_id) > 0)"
-                ))
-                conn.execute(_t(
-                    "DELETE FROM chatpost WHERE chat_id IN ("
-                    "SELECT c.id FROM chat c WHERE c.chat_type = 'channel' "
-                    "AND (SELECT COUNT(*) FROM chatpost p2 WHERE p2.chat_id = c.id) > 0 "
-                    "AND (SELECT COUNT(*) FROM message m WHERE m.chat_id = c.id) > 0)"
-                ))
-                print("🛠️ Миграция постов каналов → сообщения выполнена")
-        except Exception as e:
-            print(f"⚠️ Миграция постов каналов не удалась: {e}")
         print("✅ База данных доступна")
     except Exception as e:
         print(f"❌ Нет соединения с БД: {e}")
@@ -6538,23 +6394,14 @@ async def send_sticker_message(
     # 5. Рассылка
     sender = session.get(User, user.id)
     all_member_ids = session.exec(select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)).all()
-    # 📢 Канал: WS-сообщение тоже от имени канала + подпись автора
-    ws_channel = getattr(chat, "chat_type", None) == "channel"
-    ws_show_author = getattr(chat, "show_author", True)
     ws_sender_name = sender.display_name if sender else "User"
     ws_sender_avatar = sender.avatar_url if sender else None
-    ws_author_signature = None
-    if ws_channel:
-        ws_author_signature = ws_sender_name if ws_show_author else None
-        ws_sender_name = (chat.name or "Канал")
-        ws_sender_avatar = chat.avatar_url
     await manager.broadcast_to_users(list(all_member_ids), "new_message", {
         "id": msg.id,
         "chat_id": chat_id,
         "sender_id": user.id,
         "sender_name": ws_sender_name,
         "sender_avatar": ws_sender_avatar,
-        "author_signature": ws_author_signature,
         "text": msg.text,
         "media_url": msg.media_url,
         "media_type": msg.media_type,
@@ -7598,10 +7445,6 @@ async def send_message_v2(
     chat = session.get(Chat, chat_id)
     if not chat:
         raise HTTPException(404, "Чат не найден")
-    # 📢 В каналах писать могут только те, кому разрешено (who_can_post)
-    if getattr(chat, "chat_type", None) == "channel":
-        if getattr(chat, "who_can_post", "admins") == "admins" and member.role not in ("owner", "admin"):
-            raise HTTPException(403, "В канал могут публиковать только администраторы")
 
     media_url = None
     media_type_final = None
@@ -7944,21 +7787,12 @@ def get_messages_v2(
     }
     reactions_map = build_reactions_map(session, [m.id for m in messages], user.id)
     
-    # 📢 Канал: посты от имени канала, автор — подписью (если включено)
-    channel_chat = session.get(Chat, chat_id)
-    is_channel_chat = getattr(channel_chat, "chat_type", None) == "channel"
-    channel_show_author = getattr(channel_chat, "show_author", True)
-    
     result = []
     for msg in messages:
         sender = senders.get(msg.sender_id)
         sender_name = sender.display_name if sender else "Unknown"
         sender_avatar = sender.avatar_url if sender else None
         author_signature = None
-        if is_channel_chat:
-            author_signature = sender_name if channel_show_author else None
-            sender_name = (channel_chat.name or "Канал")
-            sender_avatar = channel_chat.avatar_url
         is_enc = bool(
             msg.media_url and
             not msg.media_url.startswith("http") and
@@ -10524,362 +10358,6 @@ def support_ticket_messages(
         for m in messages
     ]
 
-@app.get("/api/chats/{chat_id}/posts")
-def list_chat_posts(
-    chat_id: int,
-    offset: int = 0,
-    limit: int = 20,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Лента постов группового чата (пагинация offset-лимит)."""
-    member = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)).first()
-    if not member:
-        raise HTTPException(403, "Не участник чата")
-    chat = session.get(Chat, chat_id)
-    if not chat:
-        raise HTTPException(404, "Чат не найден")
-    posts = session.exec(
-        select(ChatPost).where(ChatPost.chat_id == chat_id)
-        .order_by(ChatPost.pinned.desc(), ChatPost.created_at.desc()).offset(offset).limit(limit)
-    ).all()
-    author_ids = list({p.author_id for p in posts})
-    users = {u.id: user_out(u, session) for u in session.exec(select(User).where(User.id.in_(author_ids))).all()} if author_ids else {}
-    # Собираем реакции для всех постов одним запросом
-    post_ids = [p.id for p in posts]
-    reactions_map: dict[int, list] = {pid: [] for pid in post_ids}
-    if post_ids:
-        for r in session.exec(
-            select(ChatPostReaction).where(ChatPostReaction.post_id.in_(post_ids))
-        ).all():
-            reactions_map.setdefault(r.post_id, []).append({
-                "emoji": r.emoji, "user_id": r.user_id,
-                "user_name": users.get(r.user_id, {}).get("display_name") if r.user_id in users else None,
-            })
-    return [
-        {
-            "id": p.id,
-            "chat_id": p.chat_id,
-            "author": users.get(p.author_id),
-            "text": p.text,
-            "media_url": p.media_url,
-            "media_type": p.media_type,
-            "link_url": p.link_url,
-            "created_at": p.created_at.isoformat(),
-            "edited": p.edited,
-            "edited_at": p.edited_at.isoformat() if p.edited_at else None,
-            "comment_count": session.exec(select(func.count(ChatPostComment.id)).where(ChatPostComment.post_id == p.id)).one(),
-            "mine": p.author_id == user.id,
-            "role": member.role,
-            "pinned": p.pinned,
-            "pinned_by": p.pinned_by,
-            "pinned_at": p.pinned_at.isoformat() if p.pinned_at else None,
-            "reactions": reactions_map.get(p.id, []),
-        }
-        for p in posts
-    ]
-
-
-class ChatPostIn(BaseModel):
-    text: Optional[str] = None
-    media_url: Optional[str] = None
-    media_type: Optional[str] = None
-    link_url: Optional[str] = None
-
-
-@app.post("/api/chats/{chat_id}/posts")
-async def create_chat_post(
-    request: Request,
-    chat_id: int,
-    data: ChatPostIn,
-    actor: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Создать пост в ленте чата (Telegram-канал)."""
-    member = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == actor.id)).first()
-    if not member:
-        raise HTTPException(403, "Не участник чата")
-    chat = session.get(Chat, chat_id)
-    if not chat:
-        raise HTTPException(404, "Чат не найден")
-    # 💬 Посты в ленте разрешены только каналам (группы переписываются сообщениями)
-    if getattr(chat, "chat_type", "group") == "group" and chat.is_group:
-        raise HTTPException(403, "В групповом чате общаются сообщениями, а не постами")
-    if not data.text and not data.media_url:
-        raise HTTPException(400, "Пост не может быть пустым")
-    if getattr(chat, "who_can_post", "members") == "admins" and member.role not in ("owner", "admin"):
-        raise HTTPException(403, "Только участники с правом администратора могут публиковать")
-    post = ChatPost(chat_id=chat_id, author_id=actor.id, text=data.text, media_url=data.media_url,
-                    media_type=data.media_type, link_url=data.link_url)
-    session.add(post)
-    session.commit()
-    session.refresh(post)
-    log_action(session, actor.id, "chat_post_create", target_type="chat_post", target_id=post.id, ip_address=get_client_ip(request))
-    await manager.broadcast_to_chat(chat_id, "new_chat_post", {
-        "id": post.id, "chat_id": chat_id, "author_id": actor.id,
-        "text": post.text, "media_url": post.media_url, "media_type": post.media_type, "link_url": post.link_url,
-        "created_at": post.created_at.isoformat(),
-        "pinned": False, "pinned_by": None, "pinned_at": None, "reactions": [],
-        "comment_count": 0, "mine": True,
-    }, session)
-    return {"id": post.id, "created_at": post.created_at.isoformat()}
-
-@app.patch("/api/chats/posts/{post_id}")
-async def edit_chat_post(post_id: int, text: Optional[str] = Form(None), actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    post = session.get(ChatPost, post_id)
-    if not post:
-        raise HTTPException(404, "Пост не найден")
-    member = session.exec(select(ChatMember).where(ChatMember.chat_id == post.chat_id, ChatMember.user_id == actor.id)).first()
-    if not member:
-        raise HTTPException(403, "Не участник чата")
-    if post.author_id != actor.id and member.role not in ("owner", "admin"):
-        raise HTTPException(403, "Нет прав")
-    if text is not None:
-        post.text = text
-    post.edited = True
-    post.edited_at = utcnow()
-    session.add(post)
-    session.commit()
-    await manager.broadcast_to_chat(post.chat_id, "chat_post_edited", {"id": post.id, "text": post.text, "edited_at": post.edited_at.isoformat()}, session)
-    return {"ok": True}
-
-
-@app.delete("/api/chats/posts/{post_id}")
-async def delete_chat_post(post_id: int, actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    post = session.get(ChatPost, post_id)
-    if not post:
-        raise HTTPException(404, "Пост не найден")
-    member = session.exec(select(ChatMember).where(ChatMember.chat_id == post.chat_id, ChatMember.user_id == actor.id)).first()
-    if not member:
-        raise HTTPException(403, "Не участник чата")
-    if post.author_id != actor.id and member.role not in ("owner", "admin"):
-        raise HTTPException(403, "Нет прав")
-    chat_id = post.chat_id
-    session.exec(delete(ChatPostComment).where(ChatPostComment.post_id == post.id))
-    session.delete(post)
-    session.commit()
-    await manager.broadcast_to_chat(chat_id, "chat_post_deleted", {"id": post_id}, session)
-    return {"ok": True}
-
-
-# ============================================================
-# 📢 РЕАКЦИИ НА ПОСТЫ КАНАЛА
-# ============================================================
-
-@app.post("/api/chats/posts/{post_id}/reactions")
-async def toggle_post_reaction(
-    post_id: int,
-    emoji: str = Form(...),
-    actor: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Переключить реакцию на посте канала. Одна реакция на пользователя."""
-    post = session.get(ChatPost, post_id)
-    if not post:
-        raise HTTPException(404, "Пост не найден")
-    member = session.exec(select(ChatMember).where(ChatMember.chat_id == post.chat_id, ChatMember.user_id == actor.id)).first()
-    if not member:
-        raise HTTPException(403, "Не участник чата")
-    if not emoji or len(emoji) > 16:
-        raise HTTPException(400, "Невалидная реакция")
-
-    existing = session.exec(
-        select(ChatPostReaction).where(
-            ChatPostReaction.post_id == post_id,
-            ChatPostReaction.user_id == actor.id,
-            ChatPostReaction.emoji == emoji,
-        )
-    ).first()
-
-    if existing:
-        # Убираем реакцию (toggle off)
-        session.delete(existing)
-        session.commit()
-    else:
-        # Проверяем лимит реакций на пользователя (макс 3 разных эмодзи)
-        user_reactions = session.exec(
-            select(ChatPostReaction).where(
-                ChatPostReaction.post_id == post_id,
-                ChatPostReaction.user_id == actor.id,
-            )
-        ).all()
-        if len(user_reactions) >= 3:
-            raise HTTPException(400, "Максимум 3 реакции на пост")
-        session.add(ChatPostReaction(post_id=post_id, user_id=actor.id, emoji=emoji))
-        session.commit()
-
-    # Собираем обновлённый список реакций
-    all_reactions = session.exec(
-        select(ChatPostReaction).where(ChatPostReaction.post_id == post_id)
-    ).all()
-    reactions_payload = [
-        {"emoji": r.emoji, "user_id": r.user_id}
-        for r in all_reactions
-    ]
-
-    # WS realtime обновление
-    await manager.broadcast_to_chat(
-        post.chat_id,
-        "post_reactions_updated",
-        {"chat_id": post.chat_id, "post_id": post_id, "reactions": reactions_payload},
-        session,
-    )
-    return {"reactions": reactions_payload}
-
-
-# ============================================================
-# 📌 ЗАКРЕПЛЕНИЕ ПОСТОВ В КАНАЛЕ
-# ============================================================
-
-@app.post("/api/chats/posts/{post_id}/pin")
-async def pin_chat_post(
-    post_id: int,
-    actor: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Закрепить/открепить пост в канале (только админы)."""
-    post = session.get(ChatPost, post_id)
-    if not post:
-        raise HTTPException(404, "Пост не найден")
-    chat = session.get(Chat, post.chat_id)
-    if not chat:
-        raise HTTPException(404, "Чат не найден")
-    member = session.exec(select(ChatMember).where(ChatMember.chat_id == post.chat_id, ChatMember.user_id == actor.id)).first()
-    if not member:
-        raise HTTPException(403, "Не участник чата")
-    # Только админы могут закреплять
-    if member.role not in ("owner", "admin") and chat.owner_id != actor.id:
-        raise HTTPException(403, "Только администраторы могут закреплять посты")
-
-    if post.pinned:
-        # Открепляем
-        post.pinned = False
-        post.pinned_by = None
-        post.pinned_at = None
-    else:
-        # Лимит 5 закреплённых
-        pinned_count = session.exec(
-            select(func.count(ChatPost.id)).where(ChatPost.chat_id == post.chat_id, ChatPost.pinned == True)
-        ).one()
-        if pinned_count >= 5:
-            raise HTTPException(400, "Максимум 5 закреплённых постов")
-        post.pinned = True
-        post.pinned_by = actor.id
-        post.pinned_at = datetime.now(timezone.utc)
-
-    session.add(post)
-    session.commit()
-
-    # WS realtime
-    await manager.broadcast_to_chat(
-        post.chat_id,
-        "chat_post_pinned",
-        {
-            "chat_id": post.chat_id,
-            "post_id": post_id,
-            "pinned": post.pinned,
-            "pinned_by": post.pinned_by,
-            "pinned_at": post.pinned_at.isoformat() if post.pinned_at else None,
-        },
-        session,
-    )
-    return {"ok": True, "pinned": post.pinned}
-
-
-def _serialize_comment(c, users_map, session, user_id):
-    return {"id": c.id, "post_id": c.post_id, "parent_id": c.parent_id,
-            "author": users_map.get(c.author_id), "text": c.text,
-            "created_at": c.created_at.isoformat(), "mine": c.author_id == user_id}
-
-
-def _build_comment_tree(comments, users_map, session, user_id):
-    by_id, roots = {}, []
-    for c in comments:
-        node = _serialize_comment(c, users_map, session, user_id)
-        node["children"] = []
-        by_id[c.id] = node
-    for c in comments:
-        node = by_id[c.id]
-        if c.parent_id and c.parent_id in by_id:
-            by_id[c.parent_id]["children"].append(node)
-        else:
-            roots.append(node)
-    return roots
-
-
-@app.get("/api/chats/posts/{post_id}/comments")
-def list_post_comments(post_id: int, offset: int = 0, limit: int = 50, user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    post = session.get(ChatPost, post_id)
-    if not post:
-        raise HTTPException(404, "Пост не найден")
-    member = session.exec(select(ChatMember).where(ChatMember.chat_id == post.chat_id, ChatMember.user_id == user.id)).first()
-    if not member:
-        raise HTTPException(403, "Не участник чата")
-    roots = session.exec(
-        select(ChatPostComment).where(ChatPostComment.post_id == post_id, ChatPostComment.parent_id == None)
-        .order_by(ChatPostComment.created_at.asc()).offset(offset).limit(limit)).all()
-    comments = list(roots)
-    if roots:
-        children = session.exec(
-            select(ChatPostComment).where(ChatPostComment.parent_id.in_([c.id for c in roots]))
-            .order_by(ChatPostComment.created_at.asc())).all()
-        comments += children
-    author_ids = list({c.author_id for c in comments})
-    users_map = {u.id: user_out(u, session) for u in session.exec(select(User).where(User.id.in_(author_ids))).all()} if author_ids else {}
-    roots_out = _build_comment_tree(comments, users_map, session, user.id)
-    has_more = len(roots) == limit
-    return {"comments": roots_out, "has_more": has_more, "offset": offset, "limit": limit}
-
-
-class ChatCommentIn(BaseModel):
-    text: str
-    parent_id: Optional[int] = None
-
-
-@app.post("/api/chats/posts/{post_id}/comments")
-async def create_post_comment(request: Request, post_id: int, data: ChatCommentIn, actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    post = session.get(ChatPost, post_id)
-    if not post:
-        raise HTTPException(404, "Пост не найден")
-    member = session.exec(select(ChatMember).where(ChatMember.chat_id == post.chat_id, ChatMember.user_id == actor.id)).first()
-    if not member:
-        raise HTTPException(403, "Не участник чата")
-    chat = session.get(Chat, post.chat_id)
-    if getattr(chat, "who_can_comment", "members") == "admins" and member.role not in ("owner", "admin"):
-        raise HTTPException(403, "Только администраторы могут комментировать")
-    parent = None
-    if data.parent_id:
-        parent = session.get(ChatPostComment, data.parent_id)
-        if not parent or parent.post_id != post_id:
-            raise HTTPException(404, "Родительский комментарий не найден")
-    c = ChatPostComment(post_id=post_id, parent_id=data.parent_id, author_id=actor.id, text=data.text)
-    session.add(c)
-    session.commit()
-    session.refresh(c)
-    payload = {"id": c.id, "chat_id": post.chat_id, "post_id": post_id, "parent_id": c.parent_id,
-               "author_id": actor.id, "text": c.text, "created_at": c.created_at.isoformat()}
-    await manager.broadcast_to_chat(post.chat_id, "new_chat_comment", payload, session)
-    return payload
-
-
-@app.delete("/api/chats/comments/{comment_id}")
-async def delete_post_comment(comment_id: int, actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    c = session.get(ChatPostComment, comment_id)
-    if not c:
-        raise HTTPException(404, "Не найдено")
-    post = session.get(ChatPost, c.post_id)
-    chat_id = post.chat_id
-    member = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == actor.id)).first()
-    if not member:
-        raise HTTPException(403, "Не участник чата")
-    if c.author_id != actor.id and member.role not in ("owner", "admin"):
-        raise HTTPException(403, "Нет прав")
-    session.delete(c)
-    session.commit()
-    await manager.broadcast_to_chat(chat_id, "chat_comment_deleted", {"id": comment_id, "post_id": c.post_id}, session)
-    return {"ok": True}
-
-
 
 def _serialize_invite(inv: ChatInvite) -> dict:
     return {
@@ -11026,10 +10504,7 @@ async def revoke_chat_invite(chat_id: int, actor: User = Depends(get_current_use
 
 
 class ChatPrivacyIn(BaseModel):
-    who_can_post: Optional[str] = None
-    who_can_comment: Optional[str] = None
     can_add_members: Optional[str] = None
-    show_author: Optional[bool] = None
     avatar_url: Optional[str] = None
     name: Optional[str] = None
 
@@ -11043,14 +10518,8 @@ async def update_chat_settings(chat_id: int, data: ChatPrivacyIn, actor: User = 
     member = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == actor.id)).first()
     if not member or member.role not in ("owner", "admin"):
         raise HTTPException(403, "Нет прав")
-    if data.who_can_post in ("members", "admins"):
-        chat.who_can_post = data.who_can_post
-    if data.who_can_comment in ("members", "admins"):
-        chat.who_can_comment = data.who_can_comment
     if data.can_add_members in ("members", "admins"):
         chat.can_add_members = data.can_add_members
-    if data.show_author is not None:
-        chat.show_author = bool(data.show_author)
     if data.name is not None:
         chat.name = data.name.strip()[:80]
     if data.avatar_url is not None:
@@ -11058,8 +10527,8 @@ async def update_chat_settings(chat_id: int, data: ChatPrivacyIn, actor: User = 
     session.add(chat)
     session.commit()
     await manager.broadcast_to_chat(chat_id, "chat_settings_updated", {
-        "chat_id": chat_id, "who_can_post": chat.who_can_post, "who_can_comment": chat.who_can_comment,
-        "can_add_members": chat.can_add_members, "show_author": chat.show_author,
+        "chat_id": chat_id,
+        "can_add_members": chat.can_add_members,
         "name": chat.name, "avatar_url": chat.avatar_url,
     }, session)
     return {"ok": True}
