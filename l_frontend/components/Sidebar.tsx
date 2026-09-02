@@ -16,7 +16,8 @@ import { getToken, clearToken } from "@/lib/auth";
 import { AccountSwitcher } from "@/components/AccountSwitcher";
 
 import { BugReportModal } from "@/components/BugReportModal";
-import { getCachedUser, setCachedUser,  } from "@/lib/authCache";
+import { getCachedUser, setCachedUser, clearCachedUser, isCachedUserFresh } from "@/lib/authCache";
+import { apiFetch } from "@/lib/apiFetch";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { useWebSocket } from "@/src/hooks/useWebSocket";
 import { setLikedCache } from "@/lib/postCache";
@@ -564,24 +565,65 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
   useEffect(() => { refresh(); }, [pathname]);
 
-  useEffect(() => {
+    useEffect(() => {
     const token = getToken();
     if (!token) return;
     const controller = new AbortController();
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
+    const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+    if (!apiUrl) return;
+    // 🔄 apiFetch: при 401 сам тихо обновит access-токен через refresh-cookie
+    // и повторит запрос. Раньше был голый fetch — после долгой неактивности
+    // вкладки токен истекал, запрос молча падал, и сайдбар навсегда оставался
+    // в виде «не залогинен».
+    // Теперь: если всё-таки 401 и refresh не помог — используем кэш,
+    // а не выкидываем пользователя (может быть проблема с сетью).
+    apiFetch(`${apiUrl}/api/me`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: controller.signal,
     })
       .then(async (r) => {
-        if (!r.ok) return;
+        if (!r.ok) {
+          if (r.status === 401) {
+            // Не удаляем сразу — пробуем кэш
+            const cached = getCachedUser();
+            if (cached) setUser(cached);
+            else { clearCachedUser(); setUser(null); }
+          }
+          return;
+        }
         const data = await r.json();
         setUser(data);
         setCachedUser(data);
       })
       .catch((err) => {
-        if (err.name !== "AbortError") console.error("Failed to load user:", err);
+        if (err.name !== "AbortError") {
+          console.error("Failed to load user:", err);
+          const cached = getCachedUser();
+          if (cached) setUser(cached);
+        }
       });
     return () => controller.abort();
+  }, []);
+
+  // 🔄 Возврат на вкладку после неактивности: обновляем профиль в фоне
+  // (кэш мог устареть, access-токен — истечь). Стабильный колбэк — почти
+  // всегда нетворк-чтение из localStorage-кэша, лишний запрос не идёт.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (isCachedUserFresh()) return;         // кэш свежий — сеть не трогаем
+      if (!getToken()) return;
+      apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => { if (data) { setUser(data); setCachedUser(data); } })
+        .catch(() => {});
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
   }, []);
 
   function loadNotifications() {

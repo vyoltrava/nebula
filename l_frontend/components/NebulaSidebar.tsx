@@ -20,6 +20,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
+import { apiFetch } from "@/lib/apiFetch";
 import { AccountSwitcher } from "@/components/AccountSwitcher";
 import { BugReportModal } from "@/components/BugReportModal";
 import { getCachedUser, setCachedUser } from "@/lib/authCache";
@@ -119,14 +120,50 @@ export function NebulaSidebar() {
     const token = getToken();
     if (!token) { router.replace("/login"); return; }
     const cached = getCachedUser();
-    if (cached) { setUser(cached); setReady(true); return; }
-    fetch(process.env.NEXT_PUBLIC_API_URL + "/api/me", {
-      headers: { Authorization: "Bearer " + token },
-    })
+    if (cached) { setUser(cached); setReady(true); }
+        // 🔄 apiFetch: при 401 тихо обновит access-токен через refresh-cookie.
+    // Раньше голый fetch при истёкшем токене молча падал → сайдбар выглядел
+    // «не залогиненным» после долгой неактивности / первого захода.
+    // Теперь: если /api/me не дал ответа — держим кэш, а при возврате на
+    // вкладку пробуем запросить снова.
+    const meUrl = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "") + "/api/me";
+    if (!getToken()) { router.replace("/login"); }
+    apiFetch(meUrl)
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => { if (data) { setUser(data); setCachedUser(data); } setReady(true); })
-      .catch(() => setReady(true));
+      .then((data) => {
+        if (data) { setUser(data); setCachedUser(data); }
+        else {
+          // Не получилось — используем свежий кэш, если он есть
+          const cached = getCachedUser();
+          if (cached) setUser(cached);
+        }
+        setReady(true);
+      })
+      .catch(() => {
+        // Сеть недоступна — держим кэш, не ломаем UI
+        const cached = getCachedUser();
+        if (cached) setUser(cached);
+        setReady(true);
+      });
   }, [router]);
+
+  // 🔄 Повторный запрос при возврате на вкладку (focus/visibility)
+  useEffect(() => {
+    const onFocus = () => {
+      if (!getToken()) return;
+      const meUrl = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "") + "/api/me";
+      apiFetch(meUrl)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => { if (data) { setUser(data); setCachedUser(data); } })
+        .catch(() => {});
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) onFocus(); });
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", () => {});
+    };
+  }, []);
 
   const glow = user
     ? (user.role?.color && (user.role?.level ?? 0) >= 8 ? user.role.color : null) // 🆕 роль 8-11 перекрывает флаги

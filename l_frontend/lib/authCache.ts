@@ -18,13 +18,28 @@ export function getCachedUser(): any | null {
     if (!parsed.userId || parsed.userId !== getActiveAccountId()) {
       return null;
     }
-    // Проверяем, что кэш не устарел
-    if (Date.now() - parsed.timestamp > CACHE_TTL) {
-      return null;
-    }
+    // 🔄 Stale-while-revalidate: возвращаем юзера ДАЖЕ если кэш устарел.
+    // TTL проверяется отдельно через isCachedUserFresh() — устаревший юзер
+    // всё равно лучше «мерцания неавторизованного» в сайдбаре, пока идёт
+    // фоновый запрос /api/me (типичный кейс: вкладка была неактивна > 5 мин).
     return parsed.user;
   } catch {
     return null;
+  }
+}
+
+/** Свежий ли кэш (в пределах TTL). Для решения «достаточно ли кэша, не ходя в сеть». */
+export function isCachedUserFresh(): boolean {
+  try {
+    const raw = localStorage.getItem(USER_CACHE_KEY);
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    return (
+      parsed.userId === getActiveAccountId() &&
+      Date.now() - parsed.timestamp <= CACHE_TTL
+    );
+  } catch {
+    return false;
   }
 }
 
