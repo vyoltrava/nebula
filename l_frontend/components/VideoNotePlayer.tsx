@@ -1,15 +1,14 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { VideoOff, Volume2, VolumeX, X } from "lucide-react";
+import { VideoOff, Volume2, VolumeX } from "lucide-react";
 import { useGlobalPlayer } from "@/components/GlobalPlayer";
 import { prepareVideoPreview, VideoPreview } from "@/lib/mediaConfig";
-import { useSpringScale } from "@/lib/useSpringScale";
 
 /**
  * VideoNotePlayer - превью видеокружка в чате.
- * БЛОК 2: «пузырь» с видео при просмотре увеличивается ровно в 2.0× пружиной
- *   (damping 12, stiffness 100) и показывается в fixed-оверлее поверх всех
- *   элементов (zIndex 9999), поэтому родительский overflow-hidden не обрезает.
+ * БЛОК 2: кружок НЕ открывается в оверлее — он остаётся на своём месте в
+ *   сообщении и при воспроизведении плавно слегка увеличивается
+ *   (transition width/height), занимая больше места, как в Telegram.
  * БЛОК 3: аудио-трек буферизуется preload="auto", звук играет с видимого
  *   <video> в жесте пользователя (без блокировки autoplay).
  */
@@ -22,10 +21,6 @@ export function VideoNotePlayer({ src, trackId, title }: { src: string; trackId?
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const [muted, setMuted] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-
-  // БЛОК 2: пружина (web-эквивалент Reanimated withSpring)
-  const zoom = useSpringScale(1, { stiffness: 100, damping: 12 });
 
   // Колбэк-реф: регистрирует <video> в глобальном плеере при любом маунте
   // (в т.ч. когда кадр переезжает в оверлей) и снимает при анмаунте.
@@ -53,10 +48,18 @@ export function VideoNotePlayer({ src, trackId, title }: { src: string; trackId?
     if (v) v.muted = muted;
   }, [muted]);
 
-  useEffect(() => {
-    if (expanded) zoom.animateTo(2);
-    else zoom.animateTo(1);
-  }, [expanded, zoom]);
+  const handlePlay = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (active && gp.playing) {
+      gp.toggle();
+      const v = localRef.current;
+      if (v) v.pause();
+      return;
+    }
+    gp.playTrack({ id, type: "video_note", src, title: title || "🎬 Видео-квадрат" });
+    const v = localRef.current;
+    if (v) { v.muted = muted; v.play().catch(() => {}); }
+  };
 
   const fmt = (x: number) => {
     if (!isFinite(x) || isNaN(x)) return "0:00";
@@ -66,24 +69,16 @@ export function VideoNotePlayer({ src, trackId, title }: { src: string; trackId?
   const progress = active && gp.duration ? (gp.currentTime / gp.duration) * 100 : 0;
   const dur = active ? gp.duration || preview?.duration || 0 : preview?.duration || 0;
 
-  const handlePlay = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    gp.playTrack({ id, type: "video_note", src, title: title || "🎬 Видео-квадрат" });
-    setExpanded(true);
-    const v = localRef.current;
-    if (v) { v.muted = muted; v.play().catch(() => {}); }
-  };
-
-  const closeExpand = () => {
-    setExpanded(false);
-    const v = localRef.current;
-    if (v) v.pause();
-  };// Сам «пузырь» (одна и та же разметка для инлайна и оверлея)
-  const bubble = (
+  return (
     <div
-      ref={zoom.ref as React.Ref<HTMLDivElement>}
-      style={zoom.style}
-      className="relative overflow-visible shrink-0 w-52 h-52 sm:w-56 sm:h-56 rounded-2xl bg-black ring-1 ring-white/10"
+      // БЛОК 2: остаёмся на своём месте, при воспроизведении плавно
+      // увеличиваемся в размерах потока (без оверлея и position:fixed)
+      style={{ zIndex: active ? 9999 : undefined }}
+      className={`relative shrink-0 rounded-2xl bg-black ring-1 ring-white/10 overflow-visible transition-[width,height] duration-300 ease-out ${
+        active
+          ? "w-64 h-64 sm:w-72 sm:h-72 z-[9999]"
+          : "w-52 h-52 sm:w-56 sm:h-56"
+      }`}
     >
       <button
         onClick={handlePlay}
@@ -142,28 +137,4 @@ export function VideoNotePlayer({ src, trackId, title }: { src: string; trackId?
       </button>
     </div>
   );
-
-  if (expanded) {
-    return (
-      <div
-        className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
-        onClick={closeExpand}
-        role="dialog"
-        aria-modal="true"
-      >
-        <button
-          onClick={closeExpand}
-          className="absolute top-4 right-4 p-2 rounded-full bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white hover:bg-gray-300 dark:hover:bg-white/20 active:scale-90 transition-all"
-          title="Закрыть"
-        >
-          <X size={20} />
-        </button>
-        <div onClick={(e) => e.stopPropagation()} className="flex items-center justify-center">
-          {bubble}
-        </div>
-      </div>
-    );
-  }
-
-  return bubble;
 }

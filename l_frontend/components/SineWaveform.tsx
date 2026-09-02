@@ -54,7 +54,15 @@ export function SineWaveform({
       .then((decoded) => {
         if (!active) return;
         const raw = computeAmplitudeEnvelope(decoded, BINS);
-        const sm = smoothEnvelope(raw, 5);
+        let sm = smoothEnvelope(raw, 5);
+        // Нормализация: пик = 1, иначе бары визуально одинаковые/мелкие
+        let peak = 0;
+        for (let i = 0; i < sm.length; i++) if (sm[i] > peak) peak = sm[i];
+        if (peak > 0.001) {
+          const n = new Float32Array(sm.length);
+          for (let i = 0; i < sm.length; i++) n[i] = Math.max(0.08, sm[i] / peak);
+          sm = n;
+        }
         envRef.current = sm;
         envelopeCache.set(src, sm);
         setReady(true);
@@ -62,7 +70,17 @@ export function SineWaveform({
       })
       .catch(() => {
         if (!active) return;
-        envRef.current = new Float32Array(BINS).fill(0.25); // плейсхолдер
+        // Детерминированный fallback-профиль по src (стабильный «вид волны»,
+        // как в ТГ до загрузки), а не плейсхолдер-синус.
+        let seed = 0;
+        for (let i = 0; i < src.length; i++) seed = (seed * 31 + src.charCodeAt(i)) | 0;
+        const rnd = () => {
+          seed = (seed * 1103515245 + 12345) | 0;
+          return ((seed >>> 16) & 0x7fff) / 0x7fff;
+        };
+        const fb = new Float32Array(BINS);
+        for (let i = 0; i < BINS; i++) fb[i] = 0.25 + 0.7 * rnd();
+        envRef.current = fb;
         setReady(true);
       });
     return () => { active = false; };
@@ -199,7 +217,7 @@ function drawWave(
 
   // живой множитель громкости (0..1) при воспроизведении
   const live = playing ? liveGain(analyser, buf) : 0;
-  const ampScale = 0.4 + 0.6 * live;
+  const ampScale = 0.55 + 0.45 * live;
 
   const playX = W * Math.min(1, Math.max(0, progress));
 
@@ -213,7 +231,7 @@ function drawWave(
     const top = centerY - half;
     const played = cx <= playX;
 
-    ctx.fillStyle = played ? shade(color, 0.12) : withAlpha(color, 0.32);
+    ctx.fillStyle = played ? color : withAlpha("#9ca3af", 0.45);
     roundRectFill(ctx, x0, top, barW, half * 2, Math.min(barW / 2, half));
   }
 
@@ -222,7 +240,7 @@ function drawWave(
   ctx.fillRect(0, centerY - 0.5, W, 1);
 
   // playhead-метка
-  if (progress > 0) {
+  if (progress > 0 && progress < 1) {
     const px = W * Math.min(1, Math.max(0, progress));
     ctx.fillStyle = shade(color, 1.4);
     ctx.fillRect(px, 2, 2, H - 4);
