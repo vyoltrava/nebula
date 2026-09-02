@@ -78,6 +78,19 @@
 - UX композера ленты: при `who_can_post === "admins"` у обычных участников
   композер скрыт, показывается «Только админы пишут» (пункт 3 из TODO).
 
+## ✅ Фикс деплоя Postgres (2026-09-02, UndefinedColumn chat.chat_type)
+
+- Причина: на Postgres ошибка абортирует транзакцию. В self-heal (startup)
+  и в миграции 0007 все ALTER'ы шли в одной транзакции — первый сбой
+  (DuplicateColumn invite_token) молча отменял все последующие команды,
+  включая ADD COLUMN chat_type → все SELECT chat падали с UndefinedColumn.
+- Исправлено: каждый ALTER теперь в отдельной транзакции (engine.begin),
+  при ошибке — rollback. В 0007 добавлен rollback в `_safe`.
+- Бэкфорс переписан диалект-независимо: `WHERE is_group AND ...` вместо
+  `is_group = 1` (на Postgres `boolean = integer` — ошибка).
+- Новая миграция `0008_chat_type` (идемпотентно: ADD COLUMN chat_type
+  DEFAULT 'dm' + бэкфорс is_group-чатов в channel).
+
 ## ⏳ Осталось доделать (заглушки)
 
 1. **Prism-фронтенд не вычищен** (не ломает, но мёртвый код):

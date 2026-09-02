@@ -5866,6 +5866,9 @@ def startup():
     Схема создаётся/мигрируется через Alembic, но на случай пропущенной
     миграции (как было с admin_backup на Postgres) здесь идемпотентно
     создаются отсутствующие таблицы и добавляются отсутствующие колонки.
+    ⚠️ Postgres: ошибка абортирует транзакцию — поэтому каждое действие
+    выполняется в ОТДЕЛЬНОЙ короткой транзакции (engine.begin на стейтмент),
+    иначе один сбой молча ломает все последующие ALTER'ы.
     """
     from sqlalchemy import text as _t, inspect as _inspect
     from sqlmodel import SQLModel as _SQLModel
@@ -5873,15 +5876,19 @@ def startup():
     try:
         with engine.begin() as conn:
             conn.execute(_t("SELECT 1"))
-            # 🛡️ Идемпотентное создание отсутствующих таблиц (checkfirst)
-            try:
+        # 🛡️ Идемпотентное создание отсутствующих таблиц (checkfirst)
+        try:
+            with engine.begin() as conn:
                 _SQLModel.metadata.create_all(conn)
-            except Exception as e:
-                print(f"⚠️ create_all (self-heal) не удался: {e}")
-            # 🛡️ Добавление отсутствующих колонок (модели → БД)
-            try:
+        except Exception as e:
+            print(f"⚠️ create_all (self-heal) не удался: {e}")
+        # 🛡️ Добавление отсутствующих колонок (модели → БД)
+        try:
+            with engine.begin() as conn:
                 insp = _inspect(conn)
-                for table in _SQLModel.metadata.tables.values():
+            for table in _SQLModel.metadata.tables.values():
+                with engine.begin() as conn:
+                    insp = _inspect(conn)
                     if not insp.has_table(table.name):
                         continue
                     existing = {c["name"] for c in insp.get_columns(table.name)}
@@ -5899,25 +5906,25 @@ def startup():
                             conn.execute(_t(f"ALTER TABLE {table.name} ADD COLUMN {col.name} {col_type}{default}"))
                             print(f"🛠️ Self-heal: добавлена колонка {table.name}.{col.name}")
                         except Exception:
+                            conn.rollback()  # сброс аборта, чтобы остальные колонки добавились
                             pass  # параллельный деплой / другая БД
-            except Exception as e:
-                print(f"⚠️ Self-heal колонок не удался: {e}")
-            # 🛡️ Бэкфорс: старые групповые чаты (is_group) с лентой постов → каналы;
-            # обычные группы без постов остаются/становятся группами переписки.
-            try:
-                from sqlalchemy import text as _t2
-                with engine.begin() as conn:
-                    conn.execute(_t2(
-                        "UPDATE chat SET chat_type = 'channel' "
-                        "WHERE is_group = 1 AND (chat_type IS NULL OR chat_type = '' OR chat_type = 'dm')"
-                    ))
-                    # у каналов по умолчанию постят только админы
-                    conn.execute(_t2(
-                        "UPDATE chat SET who_can_post = 'admins' "
-                        "WHERE chat_type = 'channel' AND (who_can_post IS NULL OR who_can_post = '')"
-                    ))
-            except Exception as e:
-                print(f"⚠️ Бэкфорс chat_type не удался: {e}")
+        except Exception as e:
+            print(f"⚠️ Self-heal колонок не удался: {e}")
+        # 🛡️ Бэкфорс: старые групповые чаты (is_group) с лентой постов → каналы;
+        # обычные группы без постов остаются/становятся группами переписки.
+        # is_group без '= 1' — валидно и для SQLite (0/1), и для Postgres (BOOL).
+        try:
+            with engine.begin() as conn:
+                conn.execute(_t(
+                    "UPDATE chat SET chat_type = 'channel' "
+                    "WHERE is_group AND (chat_type IS NULL OR chat_type = '' OR chat_type = 'dm')"
+                ))
+                conn.execute(_t(
+                    "UPDATE chat SET who_can_post = 'admins' "
+                    "WHERE chat_type = 'channel' AND (who_can_post IS NULL OR who_can_post = '')"
+                ))
+        except Exception as e:
+            print(f"⚠️ Бэкфорс chat_type не удался: {e}")
         print("✅ База данных доступна")
     except Exception as e:
         print(f"❌ Нет соединения с БД: {e}")

@@ -31,6 +31,7 @@ def upgrade():
         try:
             conn.execute(text(sql))
         except Exception as e:
+            conn.rollback()  # Postgres: аборт транзакции блокирует следующие стейтменты
             print(f"⚠️ [0007] skip: {type(e).__name__}: {str(e)[:120]}")
 
     _safe(
@@ -91,9 +92,28 @@ def upgrade():
         ')'
     )
 
-    # Колонки приватности в chat (SQLite не умеет IF NOT EXISTS — ловим ошибку)
-    for col in ("invite_token", "who_can_post", "who_can_comment"):
-        _safe(f"ALTER TABLE chat ADD COLUMN {col} VARCHAR")
+    # Колонки приватности в chat (SQLite не умеет IF NOT EXISTS — ловим ошибку).
+    # ⚠️ Postgres: ошибка в транзакции абортирует её, поэтому перед каждым
+    # следующим стейтментом обязателен rollback.
+    for col in ("invite_token", "who_can_post", "who_can_comment", "chat_type"):
+        try:
+            conn.execute(text(f"ALTER TABLE chat ADD COLUMN {col} VARCHAR"))
+        except Exception as e:
+            conn.rollback()
+            print(f"⚠️ [0007] skip: {type(e).__name__}: {str(e)[:120]}")
+
+    try:
+        conn.execute(text(
+            "UPDATE chat SET chat_type = 'channel' "
+            "WHERE is_group AND (chat_type IS NULL OR chat_type = '' OR chat_type = 'dm')"
+        ))
+        conn.execute(text(
+            "UPDATE chat SET who_can_post = 'admins' "
+            "WHERE chat_type = 'channel' AND (who_can_post IS NULL OR who_can_post = '')"
+        ))
+    except Exception as e:
+        conn.rollback()
+        print(f"⚠️ [0007] skip backfill: {type(e).__name__}: {str(e)[:120]}")
 
     conn.commit()
 
