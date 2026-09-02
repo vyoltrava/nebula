@@ -2420,8 +2420,8 @@ const ChatHeader = () => (
   </div>
 );
 
-// 📰 Для групповых чатов (в т.ч. переименованных prism) показываем ленту постов
-  if (isGroup) {
+// 📰 Для каналов (лента постов) показываем фид; группы общаются сообщениями
+  if (isGroup && chatInfo?.is_channel) {
     return <ChatPostFeed chatId={chatId} initialChatInfo={chatInfo} />;
   }
   return (

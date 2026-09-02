@@ -5329,11 +5329,14 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
     my_role = members_map.get(user_id).role if user_id in members_map else None
 
     if chat.is_group or chat.is_prism:
+        chat_kind = getattr(chat, "chat_type", None) or ("channel" if chat.is_prism else "group")
         return {
             "id": chat.id,
             "is_group": True,
             "is_secret": False,  # группы без E2EE
-            "is_prism": chat.is_prism, 
+            "is_prism": bool(chat.is_prism),
+            "chat_type": chat_kind,
+            "is_channel": chat_kind == "channel",
             "name": chat.name or "Без названия",
             "avatar_url": chat.avatar_url,
             "owner_id": chat.owner_id,
@@ -5471,7 +5474,7 @@ async def create_group_chat(
     if not valid_ids:
         raise HTTPException(400, "Нет валидных пользователей для добавления")
 
-    chat = Chat(is_group=True, name=data.name.strip(), owner_id=user.id)
+    chat = Chat(is_group=True, chat_type="group", name=data.name.strip(), owner_id=user.id)
     session.add(chat)
     session.commit()
     session.refresh(chat)
@@ -5499,6 +5502,69 @@ async def create_group_chat(
         [user.id] + list(valid_ids),
         "group_created",
         {"chat_id": chat.id, "name": chat.name}
+    ))
+
+    return {"chat_id": chat.id}
+
+
+class CreateChannelIn(BaseModel):
+    name: str
+    user_ids: Optional[list[int]] = None  # подписчики (опционально — можно создать пустой канал)
+    description: Optional[str] = None
+
+
+@app.post("/api/chats/channel")
+@app.post("/api/chats/channel/")
+@limiter.limit("5/minute")
+async def create_channel_chat(
+    request: Request,
+    data: CreateChannelIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Создание КАНАЛА — отдельный вид чата с лентой постов.
+    По умолчанию постить могут только админы (Telegram-модель)."""
+    if not data.name or not data.name.strip():
+        raise HTTPException(400, "Название канала обязательно")
+    if len(data.name.strip()) > 80:
+        raise HTTPException(400, "Название максимум 80 символов")
+
+    ids = [uid for uid in set(data.user_ids or []) if uid != user.id]
+    if len(ids) > 200:
+        raise HTTPException(400, "Максимум 200 подписчиков при создании канала")
+
+    valid_ids = set()
+    for uid in ids:
+        target = session.get(User, uid)
+        if target and not target.is_banned:
+            valid_ids.add(uid)
+
+    chat = Chat(
+        is_group=True,
+        chat_type="channel",
+        name=data.name.strip(),
+        owner_id=user.id,
+        who_can_post="admins",   # канал: пишут только админы
+        who_can_comment="members",
+    )
+    session.add(chat)
+    session.commit()
+    session.refresh(chat)
+
+    session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="owner"))
+    for uid in valid_ids:
+        session.add(ChatMember(chat_id=chat.id, user_id=uid, role="member"))
+    session.commit()
+
+    log_action(session, user.id, "create_channel",
+               target_type="chat", target_id=chat.id,
+               details={"name": chat.name, "subscribers_count": len(valid_ids) + 1},
+               ip_address=get_client_ip(request))
+
+    asyncio.create_task(manager.broadcast_to_users(
+        [user.id] + list(valid_ids),
+        "group_created",
+        {"chat_id": chat.id, "name": chat.name, "chat_type": "channel"}
     ))
 
     return {"chat_id": chat.id}
@@ -5836,6 +5902,22 @@ def startup():
                             pass  # параллельный деплой / другая БД
             except Exception as e:
                 print(f"⚠️ Self-heal колонок не удался: {e}")
+            # 🛡️ Бэкфорс: старые групповые чаты (is_group) с лентой постов → каналы;
+            # обычные группы без постов остаются/становятся группами переписки.
+            try:
+                from sqlalchemy import text as _t2
+                with engine.begin() as conn:
+                    conn.execute(_t2(
+                        "UPDATE chat SET chat_type = 'channel' "
+                        "WHERE is_group = 1 AND (chat_type IS NULL OR chat_type = '' OR chat_type = 'dm')"
+                    ))
+                    # у каналов по умолчанию постят только админы
+                    conn.execute(_t2(
+                        "UPDATE chat SET who_can_post = 'admins' "
+                        "WHERE chat_type = 'channel' AND (who_can_post IS NULL OR who_can_post = '')"
+                    ))
+            except Exception as e:
+                print(f"⚠️ Бэкфорс chat_type не удался: {e}")
         print("✅ База данных доступна")
     except Exception as e:
         print(f"❌ Нет соединения с БД: {e}")
@@ -7398,9 +7480,13 @@ async def send_message_v2(
     chat = session.get(Chat, chat_id)
     if not chat:
         raise HTTPException(404, "Чат не найден")
+    # 📢 В каналах обычные сообщения запрещены — только посты ленты
+    if getattr(chat, "chat_type", None) == "channel":
+        raise HTTPException(403, "В канале можно публиковать только посты")
 
     media_url = None
     media_type_final = None
+    is_encrypted_chat = getattr(chat, "is_secret", False)  # ← фикс UnboundLocalError для текстовых сообщений
     
     if file and file.filename:
         ext = os.path.splitext(file.filename or "")[1].lower()
@@ -10369,6 +10455,9 @@ async def create_chat_post(
     chat = session.get(Chat, chat_id)
     if not chat:
         raise HTTPException(404, "Чат не найден")
+    # 💬 Посты в ленте разрешены только каналам (группы переписываются сообщениями)
+    if getattr(chat, "chat_type", "group") == "group" and chat.is_group:
+        raise HTTPException(403, "В групповом чате общаются сообщениями, а не постами")
     if not data.text and not data.media_url:
         raise HTTPException(400, "Пост не может быть пустым")
     if getattr(chat, "who_can_post", "members") == "admins" and member.role not in ("owner", "admin"):

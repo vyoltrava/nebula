@@ -88,6 +88,7 @@ export function ChatPostFeed({ chatId, initialChatInfo }: { chatId: string; init
     if (res.ok) { const d = await res.json(); setInviteLink(d.invite_link); copyLink(d.invite_link); } else { alert("Нет прав на создание приглашения"); }
   };
   const isModerator = chatInfo?.my_role === "owner" || chatInfo?.my_role === "admin";
+  const isChannelAdminsOnly = chatInfo?.who_can_post === "admins";
 
   // WS realtime
   useWebSocket("new_chat_post", (data: any) => {
@@ -181,7 +182,8 @@ export function ChatPostFeed({ chatId, initialChatInfo }: { chatId: string; init
             </button>
           )}
         </div>
-        {/* Composer */}
+        {/* Composer — скрыт у обычных участников, если постить могут только админы */}
+        {(!isChannelAdminsOnly || isModerator) ? (
         <div className="border-t border-line dark:border-white/10 bg-paper dark:bg-[#171717]/95 p-2">
           {composer.media_url && (
             <div className="mb-2 rounded-lg overflow-hidden max-h-40 relative">
@@ -209,6 +211,11 @@ export function ChatPostFeed({ chatId, initialChatInfo }: { chatId: string; init
             </button>
           </div>
         </div>
+        ) : (
+          <div className="border-t border-line dark:border-white/10 bg-paper dark:bg-[#171717]/95 p-3 text-center text-xs text-gray-500 dark:text-white/40">
+            {t("messages.adminsOnlyPost")}
+          </div>
+        )}
       </main>
     </div>
 

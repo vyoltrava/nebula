@@ -414,6 +414,7 @@ export const en: Dictionary = {
     inMessages: "in messages",
     saved: "Saved",
     createGroup: "Create group",
+    createChannel: "Create channel",
     openChat: "Open chat",
     deleteChat: "Delete chat",
     searchUser: "Search by @username or name...",

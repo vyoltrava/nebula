@@ -412,6 +412,7 @@ export const ru: Dictionary = {
     inMessages: "в сообщениях",
     saved: "Избранное",
     createGroup: "Создать группу",
+    createChannel: "Создать канал",
     openChat: "Открыть чат",
     deleteChat: "Удалить чат",
     searchUser: "Поиск по @username или имени...",

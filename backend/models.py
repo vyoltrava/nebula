@@ -189,6 +189,8 @@ class Chat(SQLModel, table=True):
     is_group: bool = Field(default=False)
     is_saved: bool = Field(default=False) # 🆕 Флаг избранного
     is_prism: bool = Field(default=False)
+    # 🆕 Тип чата: "dm" | "group" (переписка) | "channel" (лента постов)
+    chat_type: str = Field(default="dm")
     name: Optional[str] = Field(default=None, max_length=80)
     avatar_url: Optional[str] = None
     owner_id: Optional[int] = Field(default=None, foreign_key="user.id")

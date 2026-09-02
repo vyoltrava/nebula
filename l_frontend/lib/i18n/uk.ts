@@ -412,6 +412,7 @@ export const uk = {
     inMessages: "у повідомленнях",
     saved: "Обране",
     createGroup: "Створити групу",
+    createChannel: "Створити канал",
     openChat: "Відкрити чат",
     deleteChat: "Видалити чат",
     searchUser: "Пошук за @username або іменем...",
