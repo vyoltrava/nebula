@@ -4760,62 +4760,101 @@ def admin_set_post_reaction_packs(
     return {"ok": True, "config": get_post_reaction_config(session)}
 
 
+def _active_chat_report_for_chat(session: Session, chat_id: int):
+    """Активная (pending) жалоба, дающая доступ к чату. None — доступа нет."""
+    return session.exec(
+        select(Report).where(
+            Report.status == "pending",
+            Report.target_type.in_(["chat", "dm_user", "chat_message"]),
+        ).order_by(Report.created_at.desc())
+    ).all() and next((
+        r for r in session.exec(
+            select(Report).where(
+                Report.status == "pending",
+                Report.target_type.in_(["chat", "dm_user", "chat_message"]),
+            ).order_by(Report.created_at.desc())
+        ).all()
+        if _report_chat_id(session, r) == chat_id
+    ), None)
+
+
+def _report_chat_id(session: Session, r: Report):
+    """chat_id цели жалобы (None, если цель удалена)"""
+    if r.target_type == "chat":
+        return r.target_id
+    if r.target_type == "chat_message":
+        msg = session.get(Message, r.target_id)
+        return msg.chat_id if msg else None
+    if r.target_type == "dm_user":
+        # Личный диалог жалобщика и цели
+        member_rows = session.exec(
+            select(ChatMember).where(ChatMember.user_id.in_([r.reporter_id, r.target_id]))
+        ).all()
+        chat_members: dict = {}
+        for m in member_rows:
+            chat_members.setdefault(m.chat_id, set()).add(m.user_id)
+        for cid, us in chat_members.items():
+            if us == {r.reporter_id, r.target_id}:
+                ch = session.get(Chat, cid)
+                if ch and not ch.is_group:
+                    return cid
+    return None
+
+
 @app.get("/api/admin/chats")
 def admin_list_chats(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    """Все чаты КРОМЕ секретных. Личные чаты Founder/Developer/System — только для Founder."""
+    """🔒 ПРИВАТНОСТЬ: список чатов НЕ отдаётся. Возвращаются только чаты
+    с активной (pending) жалобой. Жалобу закрыли → доступ пропал."""
     if not has_permission(staff, "manage_groups", session):
         raise HTTPException(403, "Нет права: manage_groups")
 
-    chats = session.exec(
-        select(Chat).where(Chat.is_secret == False).order_by(Chat.created_at.desc())
+    pending = session.exec(
+        select(Report).where(
+            Report.status == "pending",
+            Report.target_type.in_(["chat", "dm_user", "chat_message"]),
+        ).order_by(Report.created_at.desc())
     ).all()
-    if not chats:
-        return []
-    chat_ids = [c.id for c in chats]
 
-    members = session.exec(select(ChatMember).where(ChatMember.chat_id.in_(chat_ids))).all()
-    user_ids = list({m.user_id for m in members})
-    users = {u.id: u for u in session.exec(select(User).where(User.id.in_(user_ids))).all()}
-    members_by_chat = {}
-    for m in members:
-        members_by_chat.setdefault(m.chat_id, []).append(users.get(m.user_id))
-
-    msgs = session.exec(
-        select(Message).where(Message.chat_id.in_(chat_ids)).order_by(Message.created_at.desc())
-    ).all()
-    last_by_chat = {}
-    for m in msgs:
-        if m.chat_id not in last_by_chat:
-            last_by_chat[m.chat_id] = m
+    # chat_id -> самая мягкая область доступа (chat > message)
+    scope_by_chat: dict = {}
+    for r in pending:
+        cid = _report_chat_id(session, r)
+        if cid is None:
+            continue
+        # Жалоба на весь чат/юзера открывает весь диалог; на сообщение — только сообщение
+        if r.target_type in ("chat", "dm_user"):
+            scope_by_chat[cid] = "chat"
+        elif cid not in scope_by_chat:
+            scope_by_chat[cid] = "message"
 
     result = []
-    for c in chats:
-        chat_users = [u for u in members_by_chat.get(c.id, []) if u]
+    for cid, scope in scope_by_chat.items():
+        c = session.get(Chat, cid)
+        if not c or c.is_secret:
+            continue
+        chat_users = session.exec(
+            select(ChatMember).where(ChatMember.chat_id == cid)
+        ).all()
+        user_ids = [m.user_id for m in chat_users]
+        users = {u.id: u for u in session.exec(select(User).where(User.id.in_(user_ids or [0]))).all()}
+        chat_user_objs = [users[m.user_id] for m in chat_users if m.user_id in users]
         # 🛡️ Личные чаты (DM) с иммунитетом скрыты от всех, кроме Founder
         if not c.is_group:
-            has_immune = any(u.is_admin or u.is_moderator or u.is_trelod for u in chat_users)
+            has_immune = any(u.is_admin or u.is_moderator or u.is_trelod for u in chat_user_objs)
             if has_immune and not staff.is_admin:
                 continue
-        last = last_by_chat.get(c.id)
-        last_data = None
-        if last:
-            sender = users.get(last.sender_id)
-            last_data = {
-                "text": (last.text or "📎 Вложение")[:40],
-                "sender_name": sender.display_name if sender else "Unknown",
-                "created_at": last.created_at.isoformat(),
-            }
         result.append({
             "id": c.id,
             "is_group": c.is_group,
-            "name": c.name if c.is_group else (" / ".join([u.display_name for u in chat_users]) or "Диалог"),
+            "name": c.name if c.is_group else (" / ".join([u.display_name for u in chat_user_objs]) or "Диалог"),
             "avatar_url": c.avatar_url,
-            "members_count": len(chat_users),
+            "members_count": len(chat_user_objs),
             "is_blocked": bool(session.get(SystemSetting, f"chat_blocked_{c.id}")),
-            "last_message": last_data,
+            "access_scope": scope,
+            "last_message": None,  # 🔒 превью переписки не отдаём
             "created_at": c.created_at.isoformat(),
         })
     return result
@@ -4828,7 +4867,9 @@ def admin_chat_messages(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    """Просмотр сообщений чата. Личные чаты Founder/Developer/System — только для Founder."""
+    """🔒 ПРИВАТНОСТЬ: сообщения доступны ТОЛЬКО при активной (pending) жалобе.
+    Жалоба на сообщение → отдаётся только это сообщение; на чат/юзера → весь диалог.
+    Жалобу закрыли → доступ пропадает."""
     if not has_permission(staff, "manage_groups", session):
         raise HTTPException(403, "Нет права: manage_groups")
     chat = session.get(Chat, chat_id)
@@ -4837,6 +4878,12 @@ def admin_chat_messages(
     if chat.is_secret:
         raise HTTPException(403, "🔒 Секретные чаты недоступны для модерации")
 
+    # 🔒 Доступ только через активную жалобу
+    report = _active_chat_report_for_chat(session, chat_id)
+    if not report:
+        raise HTTPException(403, "🔒 Приватность: доступ к чату открывается только при активной жалобе")
+    scope = "chat" if report.target_type in ("chat", "dm_user") else "message"
+
     # 🛡️ Защита личных чатов с иммунитетом
     if not chat.is_group:
         member_rows = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id)).all()
@@ -4844,6 +4891,24 @@ def admin_chat_messages(
         has_immune = any(u and (u.is_admin or u.is_moderator or u.is_trelod) for u in member_users)
         if has_immune and not staff.is_admin:
             raise HTTPException(403, "🛡️ Личные чаты Founder/Developer недоступны для модерации")
+
+    # 🔒 Жалоба на конкретное сообщение → только оно
+    if scope == "message":
+        msg = session.get(Message, report.target_id)
+        if not msg or msg.chat_id != chat_id:
+            raise HTTPException(404, "Сообщение не найдено")
+        sender = session.get(User, msg.sender_id)
+        return [{
+            "id": msg.id,
+            "sender_id": msg.sender_id,
+            "sender_name": sender.display_name if sender else "Unknown",
+            "sender_avatar": sender.avatar_url if sender else None,
+            "text": msg.text,
+            "media_url": msg.media_url,
+            "media_type": msg.media_type,
+            "pinned": msg.pinned,
+            "created_at": msg.created_at.isoformat(),
+        }]
 
     messages = session.exec(
         select(Message).where(Message.chat_id == chat_id)
@@ -4884,6 +4949,11 @@ def admin_chat_members(
     if chat.is_secret:
         raise HTTPException(403, "Секретные чаты недоступны")
 
+    # 🔒 ПРИВАТНОСТЬ: участники видны только при активной жалобе на этот чат
+    report = _active_chat_report_for_chat(session, chat_id)
+    if not report:
+        raise HTTPException(403, "🔒 Приватность: доступ открывается только при активной жалобе")
+
     members = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id)).all()
     users = {u.id: u for u in session.exec(
         select(User).where(User.id.in_([m.user_id for m in members] or [0]))
@@ -4906,8 +4976,9 @@ def admin_chat_members(
     } for m in members]
 
 
-def _chat_moderation_guard(staff: User, chat_id: int, session: Session):
-    """Общие проверки: право manage_groups, чат существует, не секретный"""
+def _chat_moderation_guard(staff: User, chat_id: int, session: Session, require_report: bool = True):
+    """Общие проверки: право manage_groups, чат существует, не секретный.
+    🔒 require_report: модерация разрешена только при активной жалобе (приватность)."""
     if not has_permission(staff, "manage_groups", session):
         raise HTTPException(403, "Нет права: manage_groups")
     chat = session.get(Chat, chat_id)
@@ -4915,6 +4986,8 @@ def _chat_moderation_guard(staff: User, chat_id: int, session: Session):
         raise HTTPException(404, "Чат не найден")
     if chat.is_secret:
         raise HTTPException(403, "Секретные чаты недоступны для модерации")
+    if require_report and not _active_chat_report_for_chat(session, chat_id):
+        raise HTTPException(403, "🔒 Приватность: модерация открывается только при активной жалобе")
     return chat
 
 
@@ -4946,8 +5019,8 @@ def admin_unblock_chat(
     staff: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
-    """Разблокировка чата"""
-    _chat_moderation_guard(staff, chat_id, session)
+    """Разблокировка чата (доступна и после закрытия жалобы)"""
+    _chat_moderation_guard(staff, chat_id, session, require_report=False)
     setting = session.get(SystemSetting, f"chat_blocked_{chat_id}")
     if setting:
         session.delete(setting)
