@@ -1,4 +1,4 @@
-﻿// components/VideoNoteRecorder.tsx
+// components/VideoNoteRecorder.tsx
 "use client";
 
 import { useRef, useState, useEffect } from "react";
@@ -6,6 +6,14 @@ import {
   Square, X, Mic, MicOff, Minimize2, Maximize2,
   RefreshCw, FlipHorizontal, Send, Trash2,
 } from "lucide-react";
+import {
+  recordingOptions,
+  VIDEO_CONSTRAINTS,
+  AUDIO_CONSTRAINTS,
+  MAX_RECORDING_SEC,
+  fileExtensionForMime,
+} from "@/lib/mediaConfig";
+import { useRecordingTimer } from "@/lib/useRecordingTimer";
 
 interface Props {
   onRecorded: (file: File) => void;
@@ -19,13 +27,24 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const cancelRef = useRef(false);
+  // Авто-отправка в 60.000 мс (БЛОК 5): флаг «не показывать превью, отправлять сразу».
+  const autoSendRef = useRef(false);
+  // Реальный MIME, с которым стартовал MediaRecorder (кодек + контейнер). БЛОК 1.
+  const currentMimeRef = useRef<string>("video/webm");
+  // URL блоба, чтобы точно освободить память после отправки (БЛОК 1: чистка кэша).
+  const recordedUrlRef = useRef<string | null>(null);
 
   const [isRecording, setIsRecording] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [seconds, setSeconds] = useState(0);
+
+  // БЛОК 5: жёсткий таймер 60.000 мс в Web Worker (не JS-таймер на главном потоке).
+  const recTimer = useRecordingTimer({
+    maxDurationSec: maxDuration,
+    onLimit: autoSend,
+  });
+  const seconds = recTimer.seconds;
 
   const [isMinimized, setIsMinimized] = useState(false);
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
@@ -42,7 +61,7 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
     return () => {
       cancelRef.current = true;
       cleanupResources();
-      if (recordedUrl) URL.revokeObjectURL(recordedUrl);
+      if (recordedUrlRef.current) URL.revokeObjectURL(recordedUrlRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -111,82 +130,105 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
   function startRecording() {
     if (!streamRef.current) return;
     cancelRef.current = false;
+    autoSendRef.current = false;
     chunksRef.current = [];
 
-    const recorder = new MediaRecorder(streamRef.current, {
-      mimeType: "video/webm;codecs=vp8,opus",
-    });
+    // БЛОК 1: выбираем H.264 (Baseline) по возможности, ограничиваем битрейт ~2 Mbps.
+    let opts: MediaRecorderOptions;
+    try {
+      opts = recordingOptions(false);
+    } catch {
+      opts = {};
+    }
+    let recorder: MediaRecorder;
+    try {
+      recorder = new MediaRecorder(streamRef.current, opts);
+    } catch {
+      // Fallback без опций (если браузер не принял заданный mime/битрейт).
+      recorder = new MediaRecorder(streamRef.current);
+    }
     mediaRecorderRef.current = recorder;
+    const mime = recorder.mimeType || "video/webm";
+    currentMimeRef.current = mime;
 
     recorder.ondataavailable = (e) => {
       if (e.data.size > 0) chunksRef.current.push(e.data);
     };
 
     recorder.onstop = () => {
+      recTimer.stop();
       if (cancelRef.current) {
         cancelRef.current = false;
+        autoSendRef.current = false;
         return;
       }
-      const blob = new Blob(chunksRef.current, { type: "video/webm" });
+      const blob = new Blob(chunksRef.current, { type: mime });
       recordedBlobRef.current = blob;
       const url = URL.createObjectURL(blob);
-      if (recordedUrl) URL.revokeObjectURL(recordedUrl);
+      if (recordedUrlRef.current) URL.revokeObjectURL(recordedUrlRef.current);
+      recordedUrlRef.current = url;
       setRecordedUrl(url);
-      setHasRecording(true);
-      setIsRecording(false);
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (autoSendRef.current) {
+        // БЛОК 5: 60.000 мс — не показываем превью, сразу в обработку.
+        autoSendRef.current = false;
+        setIsRecording(false);
+        setHasRecording(false);
+        confirmSend();
+      } else {
+        setHasRecording(true);
+        setIsRecording(false);
+      }
     };
 
-    recorder.start();
+    recorder.start(1000); // таймслайс — собирает чанки, не зависает
     setIsRecording(true);
-    setSeconds(0);
-
-    timerRef.current = setInterval(() => {
-      setSeconds((s) => {
-        if (s + 1 >= maxDuration) {
-          // Авто-стоп → сразу отправляем (как в TG)
-          autoSend();
-          return maxDuration;
-        }
-        return s + 1;
-      });
-    }, 1000);
+    recTimer.start();
   }
 
   function stopRecording() {
+    autoSendRef.current = false;
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.stop();
     }
   }
 
+  // БЛОК 5: жёсткий лимит 60.000 мс → авто-остановка + отправка (не FILE_TOO_LARGE).
   function autoSend() {
-    // Останавливаем запись, но флаг cancel не ставим → onstop создаст blob
-    // Затем сразу отправляем
+    autoSendRef.current = true;
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.stop();
     }
     setIsRecording(false);
-    if (timerRef.current) clearInterval(timerRef.current);
-    // Небольшая задержка, чтобы onstop успел отработать
-    setTimeout(() => confirmSend(), 150);
   }
 
   function confirmSend() {
     const blob = recordedBlobRef.current;
     if (!blob) return;
-    const file = new File([blob], `video-note-${Date.now()}.webm`, { type: "video/webm" });
+    // БЛОК 1: имя и тип по реальному контейнеру (mp4/webm).
+    const mime = currentMimeRef.current || blob.type || "video/webm";
+    const ext = fileExtensionForMime(mime);
+    const file = new File([blob], `video-note-${Date.now()}.${ext}`, { type: mime });
+    // БЛОК 1: чистка кэша сразу после отправки — не забиваем память.
     cleanupResources();
-    if (recordedUrl) { URL.revokeObjectURL(recordedUrl); setRecordedUrl(null); }
+    if (recordedUrlRef.current) {
+      URL.revokeObjectURL(recordedUrlRef.current);
+      recordedUrlRef.current = null;
+      setRecordedUrl(null);
+    }
     recordedBlobRef.current = null;
     setHasRecording(false);
     onRecorded(file);
   }
 
   function retake() {
-    if (recordedUrl) { URL.revokeObjectURL(recordedUrl); setRecordedUrl(null); }
+    if (recordedUrlRef.current) {
+      URL.revokeObjectURL(recordedUrlRef.current);
+      recordedUrlRef.current = null;
+      setRecordedUrl(null);
+    }
     recordedBlobRef.current = null;
     setHasRecording(false);
-    setSeconds(0);
+    recTimer.reset();
     chunksRef.current = [];
   }
 
@@ -195,14 +237,15 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
       try { mediaRecorderRef.current.stop(); } catch {}
     }
     mediaRecorderRef.current = null;
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    recTimer.stop();
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
     setIsRecording(false);
-    setSeconds(0);
+    recTimer.reset();
   }
+
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -405,6 +448,15 @@ export function VideoNoteRecorder({ onRecorded, onCancel, maxDuration = 60 }: Pr
                   </span>
                   <span className="text-sm font-mono text-gray-500 dark:text-white/40">/ {formatTime(maxDuration)}</span>
                 </div>
+              </div>
+            )}
+
+{/* БЛОК 5: предупреждение за 1 секунду до жёсткого лимита */}
+            {isRecording && recTimer.isWarning && (
+              <div className="absolute bottom-16 left-0 right-0 flex justify-center pointer-events-none">
+                <p className="px-3 py-1.5 rounded-full bg-red-600/90 text-white text-xs font-bold animate-in fade-in slide-in-from-bottom-1 duration-200 shadow-lg">
+                  Осталась 1 секунда
+                </p>
               </div>
             )}
 

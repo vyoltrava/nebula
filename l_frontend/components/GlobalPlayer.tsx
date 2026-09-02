@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { createContext, useContext, useRef, useState, useEffect, useCallback } from "react";
 import { Play, Pause, X, Rewind, FastForward } from "lucide-react";
 
@@ -21,6 +21,10 @@ interface Ctx {
   seekBy: (sec: number) => void;
   seekTo: (ratio: number) => void;
   cycleRate: () => void;
+  /** ������� <video>?������� ����������� (���� 3: ���� ������ � ���, � �� �� �������� muted?�����). */
+  registerVideoPlayer: (el: HTMLVideoElement | null) => void;
+  /** AnalyserNode ��� ������������ ����� (���� 4). */
+  analyserRef: React.RefObject<AnalyserNode>;
 }
 
 const GlobalPlayerContext = createContext<Ctx | null>(null);
@@ -38,16 +42,16 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
   const [duration, setDuration] = useState(0);
   const [rate, setRate] = useState(1);
 
-  // ✅ Глобальные медиа-элементы — НИКОГДА не переназначаются
+  // ? ���������� �����-�������� � ������� �� ���������������
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  // ���� 3/4: Web Audio � ����� ���������� ��������� ��� ����� + �������� �����
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
 
-  // Привязка только для глобальных элементов
-  const bindGlobal = useCallback((el: HTMLMediaElement | null, kind: "audio" | "video") => {
-    if (kind === "audio") audioRef.current = el as HTMLAudioElement;
-    else videoRef.current = el as HTMLVideoElement;
+  // ������ ������� �������� �� ���������� ��������� (play/pause/time/duration).
+  const wire = useCallback((el: HTMLMediaElement | null) => {
     if (!el) return;
-
     el.ontimeupdate = () => setCurrentTime(el.currentTime);
     el.onloadedmetadata = () => {
       if (el.duration === Infinity || isNaN(el.duration)) {
@@ -67,10 +71,53 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
     el.onpause = () => setPlaying(false);
   }, []);
 
+  // �������� �����?�������� + �������� AnalyserNode (���� ���).
+  const bindGlobal = useCallback((el: HTMLAudioElement | null) => {
+    audioRef.current = el;
+    if (!el) return;
+    wire(el);
+    if (typeof window === "undefined") return;
+    const AC =
+      (window as any).AudioContext ?? (window as any).webkitAudioContext;
+    if (AC && !audioCtxRef.current) {
+      const ctx = new AC();
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.85;
+      audioCtxRef.current = ctx;
+      analyserRef.current = analyser;
+    }
+    const ctx = audioCtxRef.current;
+    const analyser = analyserRef.current;
+    // createMediaElementSource ����� ������� ���� ��� �� ������� � ������
+    // ������ � ���������� � ������� �� ����� (����� ����� ����������).
+    if (
+      ctx &&
+      analyser &&
+      typeof (ctx as any).createMediaElementSource === "function"
+    ) {
+      try {
+        const source = ctx.createMediaElementSource(el);
+        if (!source) throw 0;
+        source.connect(analyser);
+        analyser.connect(ctx.destination);
+      } catch {
+        /* ���������� ���������� � ����� ������ �������� ��� ����� */
+      }
+    }
+  }, [wire]);
+
+  // ����������� ������������ ������� <video> ��� ���������� ����� � gp ������ ���
+  // (�� ������, � ����� ������������). ���� ������� ������ �������� muted?�����.
+  const registerVideoPlayer = useCallback((el: HTMLVideoElement | null) => {
+    videoRef.current = el;
+    if (el) wire(el);
+  }, [wire]);
+
   const activeEl = () =>
     track?.type === "video_note" ? videoRef.current : audioRef.current;
 
-  // При смене трека: ставим src и играем
+  // ��� ����� �����: ������ src � ������
   useEffect(() => {
     const a = audioRef.current;
     const v = videoRef.current;
@@ -83,8 +130,11 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
     const other = track.type === "video_note" ? a : v;
     other?.pause();
     if (!el) return;
+    // БЛОК 3: звук включаем (не muted) — пользователь уже кликнул (жест)
+    (el as HTMLMediaElement).muted = false;
     if (el.getAttribute("src") !== track.src) el.src = track.src;
     el.playbackRate = rate;
+    audioCtxRef.current?.resume(); // БЛОК 4: анализатор получит сигнал
     el.play().catch(() => {});
   }, [track, rate]);
 
@@ -146,48 +196,49 @@ export function GlobalPlayerProvider({ children }: { children: React.ReactNode }
 
   return (
     <GlobalPlayerContext.Provider
-      value={{ track, playing, currentTime, duration, rate, playTrack, toggle, close, seekBy, seekTo, cycleRate }}
+      value={{ track, playing, currentTime, duration, rate, playTrack, toggle, close, seekBy, seekTo, cycleRate, registerVideoPlayer, analyserRef }}
     >
-      {/* ✅ Глобальные скрытые элементы — привязываются ОДИН РАЗ */}
-      <audio ref={(el) => bindGlobal(el, "audio")} className="hidden" />
-      <video ref={(el) => bindGlobal(el, "video")} playsInline muted className="hidden" />
+      {/* ? ���������� ������� �������� � ������������� ���� ��� */}
+            {/* ✅ Скрытый аудио‑элемент: источник для AnalyserNode + воспроизведение. preload="auto" — БЛОК 3: аудио буферизуется заранее, затем держится на паузе. */}
+      <audio ref={bindGlobal} preload="auto" className="hidden" />
+      {/* Видеокружок регистрирует видимый <video> через registerVideoPlayer — один элемент для кадров И звука (БЛОК 3), без дублирования. */}
 
 {track && (
   <div className="fixed top-[70px] right-3 sm:right-5 z-[150] w-[calc(100vw-24px)] max-w-[420px] animate-in slide-in-from-top-2 duration-200">
     <div className="bg-white/5 backdrop-blur-xl border border-line dark:border-white/10 rounded-2xl shadow-lg shadow-black/30">
       <div className="px-3 py-2">
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Перемотка и play */}
+          {/* ��������� � play */}
           <div className="flex items-center gap-1 shrink-0">
-            <button onClick={() => seekBy(-10)} className="p-1.5 rounded-lg text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90 transition-all" title="-10 сек">
+            <button onClick={() => seekBy(-10)} className="p-1.5 rounded-lg text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90 transition-all" title="-10 ���">
               <Rewind size={16} />
             </button>
             <button onClick={toggle} className="w-9 h-9 rounded-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white flex items-center justify-center active:scale-90 transition-all">
               {playing ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
             </button>
-            <button onClick={() => seekBy(10)} className="p-1.5 rounded-lg text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90 transition-all" title="+10 сек">
+            <button onClick={() => seekBy(10)} className="p-1.5 rounded-lg text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90 transition-all" title="+10 ���">
               <FastForward size={16} />
             </button>
           </div>
 
-          {/* Название */}
+          {/* �������� */}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{track.title}</p>
             <p className="text-[10px] text-gray-500 dark:text-white/40 font-mono">{fmt(currentTime)} / {fmt(duration)}</p>
           </div>
 
-          {/* Скорость */}
-          <button onClick={cycleRate} className="shrink-0 px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-[11px] font-bold text-gray-800 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 active:scale-95 transition-all" title="Скорость">
+          {/* �������� */}
+          <button onClick={cycleRate} className="shrink-0 px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-[11px] font-bold text-gray-800 dark:text-white/70 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 active:scale-95 transition-all" title="��������">
             {rate}X
           </button>
 
-          {/* Крестик */}
-          <button onClick={close} className="shrink-0 p-1.5 rounded-lg text-gray-500 dark:text-white/50 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all" title="Закрыть">
+          {/* ������� */}
+          <button onClick={close} className="shrink-0 p-1.5 rounded-lg text-gray-500 dark:text-white/50 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-all" title="�������">
             <X size={18} />
           </button>
         </div>
 
-        {/* Прогресс-бар */}
+        {/* ��������-��� */}
         <div className="mt-1.5 h-1 rounded-full bg-gray-100 dark:bg-white/10 cursor-pointer" onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); seekTo(Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1)); }}>
           <div className="h-full rounded-full bg-gradient-to-r from-[#8b5cf6] to-[#a78bfa] transition-all duration-200" style={{ width: `${progress}%` }} />
         </div>
