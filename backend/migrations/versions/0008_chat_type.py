@@ -21,17 +21,17 @@ depends_on = None
 
 def upgrade():
     conn = op.get_bind()
+    from sqlalchemy import inspect as _inspect
+    insp = _inspect(conn)
 
-    # 1. Колонка chat_type (идемпотентно)
-    try:
-        conn.execute(text("ALTER TABLE chat ADD COLUMN chat_type VARCHAR DEFAULT 'dm'"))
-    except Exception as e:
-        conn.rollback()  # Postgres: сброс абортнутой транзакции
-        print(f"⚠️ [0008] skip add chat_type: {type(e).__name__}: {str(e)[:120]}")
+    # 1. Колонка chat_type (идемпотентно, без ожидаемых ошибок)
+    if insp.has_table("chat"):
+        cols = {c["name"] for c in insp.get_columns("chat")}
+        if "chat_type" not in cols:
+            conn.execute(text("ALTER TABLE chat ADD COLUMN chat_type VARCHAR DEFAULT 'dm'"))
 
-    # 2. Бэкфорс: старые групповые чаты с лентой → каналы; пишут только админы.
-    #    is_group без сравнения с 1 — работает и на SQLite (0/1), и на Postgres (BOOL).
-    try:
+        # 2. Бэкфорс: старые групповые чаты с лентой → каналы; пишут только админы.
+        #    is_group без сравнения с 1 — работает и на SQLite (0/1), и на Postgres (BOOL).
         conn.execute(text(
             "UPDATE chat SET chat_type = 'channel' "
             "WHERE is_group AND (chat_type IS NULL OR chat_type = '' OR chat_type = 'dm')"
@@ -40,17 +40,13 @@ def upgrade():
             "UPDATE chat SET who_can_post = 'admins' "
             "WHERE chat_type = 'channel' AND (who_can_post IS NULL OR who_can_post = '')"
         ))
-    except Exception as e:
-        conn.rollback()
-        print(f"⚠️ [0008] skip backfill: {type(e).__name__}: {str(e)[:120]}")
-
-    conn.commit()
+    # ВАЖНО: без conn.commit() — транзакцией управляет alembic.
 
 
 def downgrade():
     conn = op.get_bind()
-    try:
+    from sqlalchemy import inspect as _inspect
+    insp = _inspect(conn)
+    if insp.has_table("chat") and "chat_type" in {c["name"] for c in insp.get_columns("chat")}:
         conn.execute(text("ALTER TABLE chat DROP COLUMN chat_type"))
-    except Exception:
-        conn.rollback()
     conn.commit()

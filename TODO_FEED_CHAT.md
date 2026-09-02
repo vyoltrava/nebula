@@ -90,6 +90,12 @@
   `is_group = 1` (на Postgres `boolean = integer` — ошибка).
 - Новая миграция `0008_chat_type` (идемпотентно: ADD COLUMN chat_type
   DEFAULT 'dm' + бэкфорс is_group-чатов в channel).
+- Урок №2: в миграциях НЕЛЬЗЯ вызывать `conn.rollback()` (сносит транзакцию
+  alembic → "Online migration expected to match one row ... 0 found") и
+  `conn.commit()` (штамп версии уезжает на миграцию назад). Ожидаемые ошибки
+  (duplicate column) устранены проверкой через `sqlalchemy.inspect` — миграции
+  не выполняют заведомо падающий DDL. Проверено: upgrade с version='0006'
+  корректно доходит до '0008_chat_type', повторный запуск — no-op.
 
 ## ⏳ Осталось доделать (заглушки)
 

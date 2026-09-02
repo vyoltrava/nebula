@@ -24,15 +24,17 @@ def upgrade():
     SQLModel.metadata.create_all(op.get_bind())
 
     conn = op.get_bind()
+    insp = __import__("sqlalchemy").inspect(conn)
 
-    # Явный fallback. Диалект-независимый (SQLite не знает NOW()/SERIAL),
-    # каждый стейтмент в try — миграция не должна падать ни на одной БД.
+    def _table_exists(name: str) -> bool:
+        return insp.has_table(name)
+
+    def _has_column(table: str, col: str) -> bool:
+        return col in {c["name"] for c in insp.get_columns(table)}
+
+    # Явный fallback-создание таблиц (IF NOT EXISTS — идемпотентно, ошибок быть не должно)
     def _safe(sql: str):
-        try:
-            conn.execute(text(sql))
-        except Exception as e:
-            conn.rollback()  # Postgres: аборт транзакции блокирует следующие стейтменты
-            print(f"⚠️ [0007] skip: {type(e).__name__}: {str(e)[:120]}")
+        conn.execute(text(sql))
 
     _safe(
         'CREATE TABLE IF NOT EXISTS admin_backup ('
@@ -92,30 +94,26 @@ def upgrade():
         ')'
     )
 
-    # Колонки приватности в chat (SQLite не умеет IF NOT EXISTS — ловим ошибку).
-    # ⚠️ Postgres: ошибка в транзакции абортирует её, поэтому перед каждым
-    # следующим стейтментом обязателен rollback.
-    for col in ("invite_token", "who_can_post", "who_can_comment", "chat_type"):
-        try:
-            conn.execute(text(f"ALTER TABLE chat ADD COLUMN {col} VARCHAR"))
-        except Exception as e:
-            conn.rollback()
-            print(f"⚠️ [0007] skip: {type(e).__name__}: {str(e)[:120]}")
+    # Колонки приватности + chat_type: добавляем ТОЛЬКО если отсутствуют
+    # (никаких ожидаемых ошибок — они сбивали штампование версии alembic).
+    if _table_exists("chat"):
+        for col in ("invite_token", "who_can_post", "who_can_comment", "chat_type"):
+            if not _has_column("chat", col):
+                conn.execute(text(f"ALTER TABLE chat ADD COLUMN {col} VARCHAR"))
 
-    try:
-        conn.execute(text(
-            "UPDATE chat SET chat_type = 'channel' "
-            "WHERE is_group AND (chat_type IS NULL OR chat_type = '' OR chat_type = 'dm')"
-        ))
-        conn.execute(text(
-            "UPDATE chat SET who_can_post = 'admins' "
-            "WHERE chat_type = 'channel' AND (who_can_post IS NULL OR who_can_post = '')"
-        ))
-    except Exception as e:
-        conn.rollback()
-        print(f"⚠️ [0007] skip backfill: {type(e).__name__}: {str(e)[:120]}")
-
-    conn.commit()
+        # Бэкфорс: старые групповые чаты с лентой → каналы; пишут только админы.
+        # is_group без '= 1' — валидно и на SQLite (0/1), и на Postgres (BOOL).
+        if _has_column("chat", "chat_type"):
+            conn.execute(text(
+                "UPDATE chat SET chat_type = 'channel' "
+                "WHERE is_group AND (chat_type IS NULL OR chat_type = '' OR chat_type = 'dm')"
+            ))
+            conn.execute(text(
+                "UPDATE chat SET who_can_post = 'admins' "
+                "WHERE chat_type = 'channel' AND (who_can_post IS NULL OR who_can_post = '')"
+            ))
+    # ВАЖНО: никаких conn.commit() — транзакцией управляет alembic,
+    # лишний commit сдвигает штамп версии на мигцию назад.
 
 
 def downgrade():
