@@ -15,7 +15,6 @@ export default function CallModal() {
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
-  // iOS: autoplay немuted-видео/аудио блокируется политикой воспроизведения.
   const [remoteUnmuted, setRemoteUnmuted] = useState(false);
 
   const {
@@ -27,6 +26,10 @@ export default function CallModal() {
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
+      // Принудительный play для Android/iOS WebView
+      localVideoRef.current.play().catch(() => {
+        // Игнорируем ошибки, если поток еще не готов
+      });
     }
   }, [localStream]);
 
@@ -34,19 +37,20 @@ export default function CallModal() {
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current.play().catch(() => {});
     }
     if (remoteAudioRef.current && remoteStream) {
       remoteAudioRef.current.srcObject = remoteStream;
+      remoteAudioRef.current.play().catch(() => {});
     }
   }, [remoteStream]);
 
-  // Размут напрямую через DOM-свойство (без пересоздания медиа-элемента)
+  // Размут напрямую через DOM-свойство
   useEffect(() => {
     if (remoteVideoRef.current) remoteVideoRef.current.muted = !remoteUnmuted;
     if (remoteAudioRef.current) remoteAudioRef.current.muted = !remoteUnmuted;
   }, [remoteUnmuted]);
 
-  // Если звонок не активен — ничего не рендерим
   if (status === 'idle') return null;
 
   const isActive = status === 'active' || status === 'connecting';
@@ -54,12 +58,14 @@ export default function CallModal() {
   const displayName = remoteUserName || 'Неизвестный';
   const displayAvatar = remoteUserAvatar || '';
 
+  // Одинаковый класс размера для обоих квадратов
+  const videoBoxClass = "relative w-40 h-40 sm:w-56 sm:h-56 rounded-2xl overflow-hidden bg-black shadow-2xl flex items-center justify-center";
+
   return (
     <div
       className="fixed inset-0 z-[9999] bg-black flex flex-col text-white"
       onClick={() => { if (!remoteUnmuted) setRemoteUnmuted(true); }}
     >
-      {/* Скрытый аудио-элемент для голосовых звонков (iOS unmute по тапу) */}
       {!isVideoCall && <audio ref={remoteAudioRef} autoPlay playsInline muted={!remoteUnmuted} />}
 
       {/* ======== 1. ВЕРХНЯЯ ПАНЕЛЬ: Имя и статус ======== */}
@@ -74,21 +80,22 @@ export default function CallModal() {
         </p>
       </div>
 
-      {/* ======== 2. ОСНОВНАЯ ОБЛАСТЬ: Квадраты друг под другом ======== */}
+      {/* ======== 2. ОСНОВНАЯ ОБЛАСТЬ: Два одинаковых квадрата ======== */}
       <div className="flex-1 flex flex-col items-center justify-center gap-6 sm:gap-8">
         
-        {/* Собеседник (сверху) */}
-        <div className="relative w-48 h-48 sm:w-64 sm:h-64 rounded-2xl overflow-hidden bg-gray-800 shadow-2xl border border-white/10 flex items-center justify-center">
-          {isVideoCall && isActive && remoteStream ? (
+        {/* СОБЕСЕДНИК (Сверху) */}
+        <div className={videoBoxClass + " border border-white/10"}>
+          {isVideoCall ? (
             <video
               ref={remoteVideoRef}
               autoPlay
               playsInline
               muted={!remoteUnmuted}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transform-gpu"
+              style={{ transform: 'translateZ(0)' }} /* Фикс серого экрана на Android */
             />
           ) : (
-            // Заглушка для аудиозвонка или пока нет потока
+            // Заглушка для аудио-звонка
             displayAvatar ? (
               <img src={displayAvatar} alt={displayName} className="w-full h-full object-cover" />
             ) : (
@@ -99,74 +106,64 @@ export default function CallModal() {
           )}
         </div>
 
-        {/* Вы (снизу) */}
-        <div className="relative w-32 h-32 sm:w-48 sm:h-48 rounded-2xl overflow-hidden bg-gray-800 shadow-2xl border-2 border-white/20 flex items-center justify-center">
-          {isVideoCall && isActive && localStream && !isVideoOff ? (
-            <video
-              ref={localVideoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover"
-            />
+        {/* ВЫ (Снизу) */}
+        <div className={videoBoxClass + " border-2 border-white/20"}>
+          {isVideoCall ? (
+            isVideoOff ? (
+              // Показываем иконку ТОЛЬКО если пользователь сам выключил камеру
+              <div className="flex flex-col items-center justify-center text-white/50">
+                <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                </svg>
+                <span className="text-xs mt-2 font-medium">Камера выкл.</span>
+              </div>
+            ) : (
+              // Видео рендерится ВСЕГДА, если это видеозвонок и камера не выключена вручную
+              <video
+                ref={localVideoRef}
+                autoPlay
+                playsInline
+                muted /* ОБЯЗАТЕЛЬНО для автовоспроизведения на Android/iOS */
+                className="w-full h-full object-cover transform-gpu"
+                style={{ transform: 'translateZ(0)' }} /* Фикс серого экрана на Android */
+              />
+            )
           ) : (
-            // Заглушка, если камера выключена или это аудиозвонок
+            // Заглушка для аудио-звонка
             <div className="flex flex-col items-center justify-center text-white/50">
-              <svg className="w-10 h-10 sm:w-12 sm:h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
-              <span className="text-xs mt-1 font-medium">Вы</span>
+              <span className="text-xs mt-2 font-medium">Вы</span>
             </div>
           )}
         </div>
 
       </div>
 
-      {/* ======== 3. ПАНЕЛЬ УПРАВЛЕНИЯ: Кнопки в ряд ======== */}
+      {/* ======== 3. ПАНЕЛЬ УПРАВЛЕНИЯ ======== */}
       <div className="py-6 px-4 flex items-center justify-center gap-4 sm:gap-6 pb-10">
         
-        {/* Входящий звонок: отклонить + ответить */}
         {status === 'ringing' && !isCaller && (
           <>
-            <button
-              type="button"
-              onClick={rejectCall}
-              className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform"
-              aria-label="Отклонить"
-              title="Отклонить"
-            >
+            <button onClick={rejectCall} className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform" aria-label="Отклонить">
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.258-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" /></svg>
             </button>
-            <button
-              type="button"
-              onClick={acceptCall}
-              className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform"
-              aria-label="Ответить"
-              title="Ответить"
-            >
+            <button onClick={acceptCall} className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform" aria-label="Ответить">
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h1c.5 0 .93.26 1.16.65l1.72 3.16a2 2 0 01-.4 2.36L6.5 10.9a13.04 13.04 0 006.6 6.6l1.73-1.98a2 2 0 012.36-.4l3.16 1.72c.39.23.65.66.65 1.16v1a2 2 0 01-2 2 15 15 0 01-15-15z" /></svg>
             </button>
           </>
         )}
 
-        {/* Исходящий звонок: отменить */}
         {status === 'ringing' && isCaller && (
-          <button
-            type="button"
-            onClick={endCall}
-            className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform"
-            aria-label="Отменить"
-            title="Отменить"
-          >
+          <button onClick={endCall} className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform" aria-label="Отменить">
             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.258-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" /></svg>
           </button>
         )}
 
-        {/* Активный/соединяющийся звонок: микрофон + камера + завершить */}
         {(status === 'active' || status === 'connecting') && (
           <>
             <button
-              type="button"
               onClick={toggleMute}
               className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform ${isMuted ? 'bg-amber-400 text-gray-900' : 'bg-white/15 text-white hover:bg-white/25'}`}
               title={isMuted ? 'Включить микрофон' : 'Выключить микрофон'}
@@ -180,7 +177,6 @@ export default function CallModal() {
 
             {isVideoCall && (
               <button
-                type="button"
                 onClick={toggleVideo}
                 className={`w-14 h-14 rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform ${isVideoOff ? 'bg-amber-400 text-gray-900' : 'bg-white/15 text-white hover:bg-white/25'}`}
                 title={isVideoOff ? 'Включить камеру' : 'Выключить камеру'}
@@ -194,7 +190,6 @@ export default function CallModal() {
             )}
 
             <button
-              type="button"
               onClick={endCall}
               className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform"
               title="Завершить"
