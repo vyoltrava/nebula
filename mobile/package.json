@@ -1,0 +1,21 @@
+{
+  "name": "nebula-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nebula mobile app (Capacitor wrapper)",
+  "scripts": {
+    "cap": "cap",
+    "sync": "cap sync",
+    "open:android": "cap open android",
+    "open:ios": "cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/core": "^8.5.1",
+    "@capacitor/ios": "^8.5.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.1",
+    "typescript": "^7.0.2"
+  }
+}
