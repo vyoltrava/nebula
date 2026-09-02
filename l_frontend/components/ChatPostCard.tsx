@@ -19,7 +19,7 @@ export function ChatPostCard({ post, currentUser, onDelete, onEdit, onShowCommen
   const [editText, setEditText] = useState(post.text ?? "");
 
   return (
-    <div className="mx-auto w-full max-w-[640px] px-3 py-2.5 border-b border-line dark:border-white/5 bg-paper dark:bg-[#131313]">
+    <div className="w-full px-3 py-2.5 border-b border-line dark:border-white/5 bg-paper dark:bg-[#131313]">
       <div className="flex gap-2.5">
         <Avatar src={post.author?.avatar_url} name={post.author?.display_name || post.author?.username || "?"} size={36} />
         <div className="flex-1 min-w-0">

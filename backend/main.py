@@ -5330,6 +5330,31 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
 
     if chat.is_group or chat.is_prism:
         chat_kind = getattr(chat, "chat_type", None) or ("channel" if chat.is_prism else "group")
+
+        # 📢 Каналы: последнее действие = последний пост (Message в каналах нет)
+        if chat_kind == "channel":
+            last_post = session.exec(
+                select(ChatPost)
+                .where(ChatPost.chat_id == chat.id)
+                .order_by(ChatPost.created_at.desc())
+                .limit(1)
+            ).first()
+            if last_post:
+                pa = users_map.get(last_post.author_id)
+                ptext = last_post.text or (
+                    "📷 Фото" if last_post.media_type in ("image", "gif")
+                    else "🎬 Видео" if last_post.media_type == "video"
+                    else "🎙️ Голосовое" if last_post.media_type == "audio"
+                    else "📎 Медиа"
+                )
+                preview = f"{pa.display_name}: {ptext}" if pa else ptext
+                last_message_data = {
+                    "text": preview,
+                    "is_encrypted": False,
+                    "sender_id": last_post.author_id,
+                    "created_at": last_post.created_at.isoformat(),
+                }
+
         return {
             "id": chat.id,
             "is_group": True,
@@ -5337,6 +5362,7 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "is_prism": bool(chat.is_prism),
             "chat_type": chat_kind,
             "is_channel": chat_kind == "channel",
+            "created_at": chat.created_at.isoformat(),
             "name": chat.name or "Без названия",
             "avatar_url": chat.avatar_url,
             "owner_id": chat.owner_id,
@@ -5366,6 +5392,7 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
                 "is_group": False,
                 "is_secret": chat.is_secret,
                 "is_saved": True,  # 🆕 Флаг для фронта
+                "created_at": chat.created_at.isoformat(),
                 "other": user_out(other, session) if other else None,
                 "last_message": last_message_data,
                 "unread_count": unread,
@@ -5378,6 +5405,7 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "id": chat.id,
             "is_group": False,
             "is_secret": chat.is_secret,
+            "created_at": chat.created_at.isoformat(),
             "other": user_out(other, session) if other else None,
             "last_message": last_message_data,
             "unread_count": unread,
@@ -5425,14 +5453,20 @@ def list_chats_v2(
     # Сортировка:
     # 1. Закреплённые чаты ВСЕГДА сверху
     # 2. Среди закреплённых — по времени закрепления (новые выше)
-    # 3. Среди незакреплённых — непрочитанные выше
-    # 4. Потом по дате последнего сообщения
+    # 3. Среди незакреплённых — по времени последней активности (сообщение/пост);
+    #    у каналов активность берётся из постов, у чатов без активности — дата создания
+    def _activity_ts(x):
+        lm = x.get("last_message")
+        if lm and lm.get("created_at"):
+            return datetime.fromisoformat(lm["created_at"]).timestamp()
+        ca = x.get("created_at")
+        return datetime.fromisoformat(ca).timestamp() if ca else 0
+
     def sort_key(x):
         is_pinned = 0 if x.get("pinned") else 1
         pinned_time = -(datetime.fromisoformat(x["pinned_at"]).timestamp()) if x.get("pinned_at") else 0
-        has_unread = 0 if x["unread_count"] > 0 else 1
-        last_msg_time = -(datetime.fromisoformat(x["last_message"]["created_at"]).timestamp()) if x.get("last_message") else 0
-        return (is_pinned, pinned_time, has_unread, last_msg_time)
+        last_msg_time = -_activity_ts(x)
+        return (is_pinned, pinned_time, last_msg_time)
 
     result.sort(key=sort_key)
     return result

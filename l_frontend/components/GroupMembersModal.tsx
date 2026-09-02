@@ -98,6 +98,7 @@ export function GroupMembersModal({ chatId, myRole, onClose, onChanged }: Props)
     if (role === "admin") return <Shield size={12} className="text-[#8b5cf6]" />;
     return null;
   }
+  void roleIcon;
 
   return (
     <>
@@ -140,54 +141,55 @@ export function GroupMembersModal({ chatId, myRole, onClose, onChanged }: Props)
                 <div
                   key={u.id}
                   onClick={() => addUser(u.id)}
-                  className="flex items-center gap-2 p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg cursor-pointer"
+                  className="flex items-center gap-3 p-3 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 cursor-pointer transition-colors"
                 >
-                  <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={28} />
+                  <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={36} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
                       {u.display_name}
                     </p>
-                    <p className="text-xs text-gray-600 dark:text-white/50 truncate">@{u.username}</p>
+                    <p className="text-xs text-gray-500 dark:text-white/50 truncate">@{u.username}</p>
                   </div>
-                  <UserPlus size={14} className="text-[#8b5cf6]" />
+                  <span className="flex items-center gap-1 px-2 py-1 rounded-lg border border-[#8b5cf6]/40 text-[#8b5cf6] text-xs font-bold">
+                    <UserPlus size={12} /> Добавить
+                  </span>
                 </div>
               ))}
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {loading && (
               <div className="p-3 space-y-1"><UserRowSkeleton /><UserRowSkeleton /><UserRowSkeleton /></div>
             )}
             {members.map((m) => (
               <div
                 key={m.user.id}
-                className="flex items-center gap-3 p-3 border-b border-line dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5"
+                className="flex items-center gap-3 p-3 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
               >
                 <Avatar
                   src={m.user.avatar_url}
                   name={m.user.display_name}
                   id={m.user.id}
-                  size={36}
+                  size={40}
                 />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-bold text-gray-900 dark:text-white truncate">
                       {m.user.display_name}
                     </p>
-                    {roleIcon(m.role)}
                     {m.role === "owner" && (
-                      <span className="text-[9px] font-black text-yellow-600 dark:text-yellow-400 uppercase">
+                      <span className="px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-[10px] font-black uppercase">
                         Создатель
                       </span>
                     )}
                     {m.role === "admin" && (
-                      <span className="text-[9px] font-black text-[#8b5cf6] uppercase">
+                      <span className="px-2 py-0.5 rounded bg-[#8b5cf6]/20 text-[#8b5cf6] text-[10px] font-black uppercase">
                         Админ
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-600 dark:text-white/50 truncate">@{m.user.username}</p>
+                  <p className="text-xs text-gray-500 dark:text-white/50 truncate">@{m.user.username}</p>
                 </div>
                 {isAdmin && m.role !== "owner" && (
                   <IconButton

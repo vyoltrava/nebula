@@ -144,7 +144,7 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
             </div>
           )}
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {query.length < 1 && (
               <p className="p-8 text-center text-gray-500 dark:text-white/40 text-sm">
                 Начните вводить имя, чтобы найти пользователей
@@ -159,21 +159,23 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
                 <div
                   key={u.id}
                   onClick={() => toggle(u.id)}
-                  className={`flex items-center gap-3 p-3 border-b border-line dark:border-white/5 cursor-pointer transition-colors ${
-                    isSelected ? "bg-[#8b5cf6]/10" : "hover:bg-gray-100 dark:hover:bg-white/5"
+                  className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                    isSelected
+                      ? "border-[#8b5cf6] bg-[#8b5cf6]/10"
+                      : "border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10"
                   }`}
                 >
-                  <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={36} />
+                  <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={40} />
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-gray-900 dark:text-white truncate">{u.display_name}</p>
-                    <p className="text-xs text-gray-600 dark:text-white/50 truncate">@{u.username}</p>
+                    <p className="text-xs text-gray-500 dark:text-white/50 truncate">@{u.username}</p>
                   </div>
                   <div
                     className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                      isSelected ? "bg-[#8b5cf6] border-[#8b5cf6]" : "border-line dark:border-white/30"
+                      isSelected ? "bg-[#8b5cf6] border-[#8b5cf6]" : "border-gray-300 dark:border-white/30"
                     }`}
                   >
-                    {isSelected && <Check size={12} className="text-gray-900 dark:text-white" />}
+                    {isSelected && <Check size={12} className="text-white" />}
                   </div>
                 </div>
               );

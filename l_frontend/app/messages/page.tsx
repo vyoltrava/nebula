@@ -375,8 +375,8 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     }
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;
-    const aTime = a.last_message ? new Date(a.last_message.created_at).getTime() : 0;
-    const bTime = b.last_message ? new Date(b.last_message.created_at).getTime() : 0;
+    const aTime = a.last_message ? new Date(a.last_message.created_at).getTime() : (a.created_at ? new Date(a.created_at).getTime() : 0);
+    const bTime = b.last_message ? new Date(b.last_message.created_at).getTime() : (b.created_at ? new Date(b.created_at).getTime() : 0);
     return bTime - aTime;
   });
 
