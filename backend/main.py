@@ -4973,8 +4973,10 @@ def admin_kick_member(
     if member.role == "owner":
         raise HTTPException(400, "Нельзя исключить владельца чата")
     target = session.get(User, user_id)
-    if target and (target.is_admin or target.is_trelod) and not staff.is_admin:
-        raise HTTPException(403, "🛡️ Недостаточно прав для этого участника")
+    if target:
+        # 🛡️ Иммунитет по уровню (как warn/ban в секции юзеров)
+        protect_system_account(target, staff, "модерировать этого участника")
+        check_hierarchy_or_403(staff, target, session, action="модерировать этого участника в чате")
     session.delete(member)
     log_action(session, staff.id, "kick_chat_member", target_type="user", target_id=user_id,
                details={"chat_id": chat_id})
@@ -4999,6 +5001,11 @@ def admin_mute_member(
         raise HTTPException(404, "Участник не найден")
     if member.role == "owner":
         raise HTTPException(400, "Нельзя замутить владельца чата")
+    target = session.get(User, user_id)
+    if target:
+        # 🛡️ Иммунитет по уровню (как warn/ban в секции юзеров)
+        protect_system_account(target, staff, "модерировать этого участника")
+        check_hierarchy_or_403(staff, target, session, action="выдать мут этому участнику в чате")
     until = datetime.now(timezone.utc) + timedelta(minutes=max(1, minutes))
     key = f"chat_mute_{chat_id}_{user_id}"
     setting = session.get(SystemSetting, key)
