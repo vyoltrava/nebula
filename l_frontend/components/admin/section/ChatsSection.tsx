@@ -29,6 +29,8 @@ export function ChatsSection({ me }: { me: any }) {
   // Внутренние вкладки секции: жалобы из чатов и сами чаты
   const [tab, setTab] = useState<"reports" | "chats">("reports");
 
+  const [chats, setChats] = useState<any[]>([]);
+  const [search, setSearch] = useState("");
   const [activeChat, setActiveChat] = useState<any | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -47,7 +49,7 @@ export function ChatsSection({ me }: { me: any }) {
     const res = await fetch(`${API}/api/admin/chats`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (res.ok) { await res.json(); }
+    if (res.ok) setChats(await res.json());
   }
 
   async function loadReports(status: string) {
@@ -60,9 +62,11 @@ export function ChatsSection({ me }: { me: any }) {
     setReportsLoading(false);
   }
 
+  useEffect(() => { loadChats(); }, []);
   useEffect(() => { loadReports(reportStatus); }, [reportStatus]);
 
   async function openChat(chat: any) {
+    setTab("chats");
     setActiveChat(chat);
     setShowMembers(false);
     setMembers([]);
@@ -72,11 +76,6 @@ export function ChatsSection({ me }: { me: any }) {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) setMessages(await res.json());
-    else {
-      const d = await res.json().catch(() => null);
-      alert(d?.detail || "🔒 Доступ закрыт (жалоба обработана)");
-      setActiveChat(null);
-    }
     setLoading(false);
   }
 
@@ -111,6 +110,7 @@ export function ChatsSection({ me }: { me: any }) {
     if (res.ok) {
       const updated = { ...activeChat, is_blocked: !blocked };
       setActiveChat(updated);
+      setChats((cs) => cs.map((c) => (c.id === updated.id ? updated : c)));
     } else {
       const d = await res.json().catch(() => null);
       alert(d?.detail || "Ошибка блокировки");
@@ -225,17 +225,7 @@ export function ChatsSection({ me }: { me: any }) {
     else alert("Пользователь забанен");
   }
 
-  async function openChatById(chatId: number) {
-    setTab("chats");
-    await openChat({ id: chatId, name: "Чат", is_group: true, members_count: "" });
-    const token = getToken();
-    const ch = await fetch(`${API}/api/admin/chats`, { headers: { Authorization: `Bearer ${token}` } });
-    if (ch.ok) {
-      const list = await ch.json();
-      const found = (list as any[]).find((c: any) => c.id === chatId);
-      if (found) setActiveChat((prev: any) => ({ ...(prev || {}), ...found }));
-    }
-  }
+  const filtered = chats.filter((c) => (c.name || "").toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div>
@@ -333,7 +323,10 @@ export function ChatsSection({ me }: { me: any }) {
                     <div className="flex flex-wrap gap-1.5 shrink-0">
                       {r.chat_id && (
                         <button
-                          onClick={() => openChatById(r.chat_id)}
+                          onClick={() => {
+                            const chat = chats.find((c) => c.id === r.chat_id);
+                            if (chat) openChat(chat);
+                          }}
                           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#8b5cf6] text-white text-xs font-bold hover:bg-[#7c3aed] transition-all"
                         >
                           <MessageSquare size={11} /> Открыть чат
@@ -399,27 +392,49 @@ export function ChatsSection({ me }: { me: any }) {
       )}
 
       {tab === "chats" && (
-        !activeChat ? (
-          <div className="flex flex-col items-center justify-center h-[calc(100vh-260px)] text-center">
-            <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 flex items-center justify-center mb-4">
-              <ShieldBan size={28} className="text-gray-500 dark:text-white/30" />
-            </div>
-            <p className="font-bold text-gray-800 dark:text-white/70 text-sm mb-1">Приватность защищена</p>
-            <p className="text-xs text-gray-500 dark:text-white/40 max-w-sm">
-              Просмотр переписок без активной жалобы недоступен. Открой чат можно только из карточки жалобы на вкладке «Жалобы». После обработки жалобы доступ закрывается автоматически.
-            </p>
-            <div className="mt-6 flex items-center gap-3 p-3 rounded-xl border border-dashed border-line dark:border-white/15 opacity-60">
-              <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-white/10 flex items-center justify-center shrink-0">
-                <Megaphone size={16} className="text-gray-500 dark:text-white/40" />
+        <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-260px)]">
+          {/* Список чатов */}
+          <div className={`w-full md:w-96 border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 flex flex-col ${activeChat ? "hidden md:flex" : "flex"}`}>
+            <div className="p-3 border-b border-line dark:border-white/10">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
+                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Поиск чата..."
+                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-cyan-600 dark:focus:border-cyan-400" />
               </div>
-              <div className="text-left">
-                <p className="font-bold text-gray-600 dark:text-white/60 text-sm">Каналы</p>
-                <p className="text-[11px] text-gray-500 dark:text-white/40">Скоро — новые чат-каналы</p>
+              <p className="text-xs text-gray-500 dark:text-white/40 mt-2">Всего: {chats.length} · Показано: {filtered.length}</p>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {filtered.map((c) => (
+                <button key={c.id} onClick={() => openChat(c)}
+                  className={`w-full flex items-center gap-3 p-3 border-b border-line dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 text-left ${activeChat?.id === c.id ? "bg-cyan-500/10" : ""}`}>
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shrink-0 overflow-hidden">
+                    {c.avatar_url ? <img src={mediaUrl(c.avatar_url)} alt="" className="w-full h-full object-cover" />
+                      : c.is_group ? <Users size={20} className="text-gray-900 dark:text-white" /> : <MessageSquare size={18} className="text-gray-900 dark:text-white" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-gray-900 dark:text-white text-sm truncate">{c.name || (c.is_group ? "Группа" : "Диалог")}</p>
+                    <p className="text-[11px] text-gray-500 dark:text-white/40 truncate">
+                      {c.is_group ? `${c.members_count} участников` : "Личный чат"}
+                      {c.last_message && ` · ${c.last_message.text?.slice(0, 25) || "📎"}`}
+                    </p>
+                  </div>
+                </button>
+              ))}
+              {filtered.length === 0 && <p className="text-center text-gray-500 dark:text-white/40 text-sm py-8">Чатов не найдено</p>}
+            </div>
+            {/* Заглушка под будущие каналы (как в ТГ) */}
+            <div className="p-3 border-t border-line dark:border-white/10">
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-dashed border-line dark:border-white/15 opacity-60">
+                <div className="w-11 h-11 rounded-xl bg-gray-100 dark:bg-white/10 flex items-center justify-center shrink-0">
+                  <Megaphone size={18} className="text-gray-500 dark:text-white/40" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-gray-600 dark:text-white/60 text-sm">Каналы</p>
+                  <p className="text-[11px] text-gray-500 dark:text-white/40">Скоро — новые чат-каналы</p>
+                </div>
               </div>
             </div>
           </div>
-        ) : (
-        <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-260px)]">
 
           {/* Сообщения */}
           <div className={`flex-1 border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 flex flex-col ${activeChat ? "flex" : "hidden md:flex"}`}>
@@ -577,8 +592,8 @@ export function ChatsSection({ me }: { me: any }) {
             )}
           </div>
         </div>
-        )
       )}
     </div>
   );
 }
+
