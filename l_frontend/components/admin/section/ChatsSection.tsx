@@ -6,6 +6,7 @@ import { mediaUrl } from "@/lib/media";
 import {
   MessageSquare, Search, Users, ArrowLeft, Pin, PinOff, Trash2,
   Flag, CheckCircle, XCircle, Ban, AlertTriangle, Megaphone, Loader2,
+  ShieldBan, ShieldAlert, ShieldCheck, UserMinus,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
@@ -39,6 +40,10 @@ export function ChatsSection({ me }: { me: any }) {
   const [reportsLoading, setReportsLoading] = useState(false);
   const [busy, setBusy] = useState<number | null>(null);
 
+  const [members, setMembers] = useState<any[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
+
   async function loadChats() {
     const token = getToken();
     const res = await fetch(`${API}/api/admin/chats`, {
@@ -63,6 +68,8 @@ export function ChatsSection({ me }: { me: any }) {
   async function openChat(chat: any) {
     setTab("chats");
     setActiveChat(chat);
+    setShowMembers(false);
+    setMembers([]);
     setLoading(true);
     const token = getToken();
     const res = await fetch(`${API}/api/admin/chats/${chat.id}/messages`, {
@@ -70,6 +77,65 @@ export function ChatsSection({ me }: { me: any }) {
     });
     if (res.ok) setMessages(await res.json());
     setLoading(false);
+  }
+
+  async function loadMembers(chatId: number) {
+    setMembersLoading(true);
+    const token = getToken();
+    const res = await fetch(`${API}/api/admin/chats/${chatId}/members`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) setMembers(await res.json());
+    setMembersLoading(false);
+  }
+
+  async function toggleBlockChat() {
+    if (!activeChat) return;
+    const blocked = !!activeChat.is_blocked;
+    if (!blocked) {
+      const reason = prompt("Причина блокировки чата (необязательно):");
+      if (reason === null) return;
+    } else if (!confirm("Разблокировать чат?")) return;
+    const token = getToken();
+    const url = blocked
+      ? `${API}/api/admin/chats/${activeChat.id}/unblock`
+      : `${API}/api/admin/chats/${activeChat.id}/block`;
+    const opts: any = { method: "POST", headers: { Authorization: `Bearer ${token}` } };
+    if (!blocked) {
+      const fd = new FormData();
+      fd.append("reason", "");
+      opts.body = fd;
+    }
+    const res = await fetch(url, opts);
+    if (res.ok) {
+      const updated = { ...activeChat, is_blocked: !blocked };
+      setActiveChat(updated);
+      setChats((cs) => cs.map((c) => (c.id === updated.id ? updated : c)));
+    } else {
+      const d = await res.json().catch(() => null);
+      alert(d?.detail || "Ошибка блокировки");
+    }
+  }
+
+  async function memberAction(userId: number, action: "kick" | "mute" | "unmute") {
+    if (!activeChat) return;
+    if (action === "kick" && !confirm("Исключить участника из чата?")) return;
+    const token = getToken();
+    const url = `${API}/api/admin/chats/${activeChat.id}/members/${userId}/${action}`;
+    const opts: any = { method: "POST", headers: { Authorization: `Bearer ${token}` } };
+    if (action === "mute") {
+      const mins = prompt("Мут на сколько минут?", "60");
+      if (!mins) return;
+      const fd = new FormData();
+      fd.append("minutes", mins);
+      opts.body = fd;
+    }
+    const res = await fetch(url, opts);
+    if (!res.ok) {
+      const d = await res.json().catch(() => null);
+      alert(d?.detail || "Ошибка действия");
+    }
+    loadMembers(activeChat.id);
   }
 
   async function deleteMsg(msgId: number) {
@@ -386,8 +452,107 @@ export function ChatsSection({ me }: { me: any }) {
                     <ArrowLeft size={18} />
                   </button>
                   <p className="font-bold text-gray-900 dark:text-white text-sm truncate flex-1">{activeChat.name}</p>
+                  {activeChat.is_blocked && (
+                    <span className="px-2 py-0.5 rounded-md bg-red-500/15 text-red-600 dark:text-red-400 text-[10px] font-bold">Заблокирован</span>
+                  )}
                   <span className="text-[10px] text-gray-500 dark:text-white/40">{activeChat.members_count} участников</span>
+                  {activeChat.is_group && (
+                    <button
+                      onClick={toggleBlockChat}
+                      className={`p-2 rounded-lg transition-colors ${
+                        activeChat.is_blocked
+                          ? "text-green-600 dark:text-green-400 hover:bg-green-500/10"
+                          : "text-red-600 dark:text-red-400 hover:bg-red-500/10"
+                      }`}
+                      title={activeChat.is_blocked ? "Разблокировать чат" : "Заблокировать чат (запретить отправку сообщений)"}
+                    >
+                      {activeChat.is_blocked ? <ShieldCheck size={16} /> : <ShieldBan size={16} />}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => { setShowMembers((v) => !v); if (!showMembers) loadMembers(activeChat.id); }}
+                    className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10"
+                    title={activeChat.is_group ? "Участники и модерация" : "Пользователи диалога"}
+                  >
+                    <Users size={16} />
+                  </button>
                 </div>
+                {showMembers && (
+                  <div className="border-b border-line dark:border-white/10 max-h-[45%] overflow-y-auto">
+                    <div className="px-3 py-2 flex items-center justify-between sticky top-0 bg-ivory dark:bg-[#171717]/95 backdrop-blur z-10">
+                      <p className="text-xs font-bold text-gray-900 dark:text-white">
+                        {activeChat.is_group ? "Участники" : "Пользователи диалога"}
+                      </p>
+                      {membersLoading && <Loader2 size={12} className="animate-spin text-gray-400" />}
+                    </div>
+                    {members.map((u) => {
+                      const muted = u.muted_until && new Date(u.muted_until) > new Date();
+                      return (
+                        <div key={u.user_id} className="px-3 py-2 flex items-center gap-2.5 border-t border-line dark:border-white/5">
+                          <Avatar src={u.avatar_url} name={u.display_name} id={u.user_id} size={28} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-gray-900 dark:text-white truncate">
+                              {u.display_name}
+                              {u.is_staff && <span className="ml-1 text-[9px] px-1 rounded bg-[#8b5cf6]/20 text-[#8b5cf6]">staff</span>}
+                            </p>
+                            <p className="text-[10px] text-gray-500 dark:text-white/40">
+                              @{u.username || "—"} · {u.role}
+                              {u.is_banned && <span className="text-red-500 font-bold"> · ЗАБАНЕН</span>}
+                              {muted && <span className="text-amber-500 font-bold"> · мут до {new Date(u.muted_until).toLocaleString("ru-RU", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" })}</span>}
+                            </p>
+                          </div>
+                          <div className="flex gap-1 shrink-0">
+                            <button
+                              onClick={() => warnUser(u.user_id)}
+                              className="p-1.5 rounded-lg text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                              title="Выдать варн"
+                            >
+                              <AlertTriangle size={13} />
+                            </button>
+                            {u.is_banned ? (
+                              <button
+                                onClick={() => banUser(u.user_id)}
+                                className="p-1.5 rounded-lg text-green-600 dark:text-green-400 hover:bg-green-500/10"
+                                title="Разбанить"
+                              >
+                                <ShieldCheck size={13} />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => banUser(u.user_id)}
+                                className="p-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-500/10"
+                                title="Забанить"
+                              >
+                                <Ban size={13} />
+                              </button>
+                            )}
+                            {activeChat.is_group && u.role !== "owner" && (
+                              <>
+                                <button
+                                  onClick={() => memberAction(u.user_id, muted ? "unmute" : "mute")}
+                                  className={`p-1.5 rounded-lg ${muted ? "text-green-600 dark:text-green-400 hover:bg-green-500/10" : "text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"}`}
+                                  title={muted ? "Снять мут" : "Замутить в чате"}
+                                >
+                                  {muted ? <ShieldCheck size={13} /> : <ShieldAlert size={13} />}
+                                </button>
+                                <button
+                                  onClick={() => memberAction(u.user_id, "kick")}
+                                  className="p-1.5 rounded-lg text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10"
+                                  title="Исключить из чата"
+                                >
+                                  <UserMinus size={13} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {!membersLoading && members.length === 0 && (
+                      <p className="px-3 py-3 text-xs text-gray-500 dark:text-white/40 text-center">Список пуст</p>
+                    )}
+                  </div>
+                )}
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {loading && <p className="text-center text-gray-500 dark:text-white/40 text-sm">Загрузка...</p>}
                   {!loading && messages.length === 0 && <p className="text-center text-gray-500 dark:text-white/40 text-sm">Сообщений нет</p>}

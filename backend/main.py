@@ -4814,6 +4814,7 @@ def admin_list_chats(
             "name": c.name if c.is_group else (" / ".join([u.display_name for u in chat_users]) or "Диалог"),
             "avatar_url": c.avatar_url,
             "members_count": len(chat_users),
+            "is_blocked": bool(session.get(SystemSetting, f"chat_blocked_{c.id}")),
             "last_message": last_data,
             "created_at": c.created_at.isoformat(),
         })
@@ -4864,6 +4865,168 @@ def admin_chat_messages(
         "pinned": m.pinned,
         "created_at": m.created_at.isoformat(),
     } for m in messages]
+
+
+# ---------- Модерация чатов: блокировка чата, участники ----------
+
+@app.get("/api/admin/chats/{chat_id}/members")
+def admin_chat_members(
+    chat_id: int,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Участники чата для панели модерации"""
+    if not has_permission(staff, "manage_groups", session):
+        raise HTTPException(403, "Нет права: manage_groups")
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    if chat.is_secret:
+        raise HTTPException(403, "Секретные чаты недоступны")
+
+    members = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id)).all()
+    users = {u.id: u for u in session.exec(
+        select(User).where(User.id.in_([m.user_id for m in members] or [0]))
+    ).all()}
+
+    now = datetime.now(timezone.utc)  # noqa: F841 (для будущего сравнения muted_until)
+    return [{
+        "user_id": m.user_id,
+        "role": m.role,
+        "joined_at": m.joined_at.isoformat(),
+        "username": users[m.user_id].username if m.user_id in users else None,
+        "display_name": users[m.user_id].display_name if m.user_id in users else "Unknown",
+        "avatar_url": users[m.user_id].avatar_url if m.user_id in users else None,
+        "is_banned": users[m.user_id].is_banned if m.user_id in users else False,
+        "is_staff": bool(users[m.user_id] and (users[m.user_id].is_admin or users[m.user_id].is_moderator or users[m.user_id].is_trelod)) if m.user_id in users else False,
+        "muted_until": (
+            session.get(SystemSetting, f"chat_mute_{chat_id}_{m.user_id}").value
+            if session.get(SystemSetting, f"chat_mute_{chat_id}_{m.user_id}") else None
+        ),
+    } for m in members]
+
+
+def _chat_moderation_guard(staff: User, chat_id: int, session: Session):
+    """Общие проверки: право manage_groups, чат существует, не секретный"""
+    if not has_permission(staff, "manage_groups", session):
+        raise HTTPException(403, "Нет права: manage_groups")
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    if chat.is_secret:
+        raise HTTPException(403, "Секретные чаты недоступны для модерации")
+    return chat
+
+
+@app.post("/api/admin/chats/{chat_id}/block")
+def admin_block_chat(
+    chat_id: int,
+    reason: str = Form(""),
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Блокировка всего чата (группы/канала): отправка сообщений запрещена"""
+    chat = _chat_moderation_guard(staff, chat_id, session)
+    if not chat.is_group:
+        raise HTTPException(400, "Блокировка доступна только для групповых чатов")
+    setting = session.get(SystemSetting, f"chat_blocked_{chat_id}")
+    if setting:
+        setting.value = "1"
+    else:
+        session.add(SystemSetting(key=f"chat_blocked_{chat_id}", value="1"))
+    log_action(session, staff.id, "block_chat", target_type="chat", target_id=chat_id,
+               details={"reason": reason})
+    session.commit()
+    return {"ok": True, "blocked": True}
+
+
+@app.post("/api/admin/chats/{chat_id}/unblock")
+def admin_unblock_chat(
+    chat_id: int,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Разблокировка чата"""
+    _chat_moderation_guard(staff, chat_id, session)
+    setting = session.get(SystemSetting, f"chat_blocked_{chat_id}")
+    if setting:
+        session.delete(setting)
+    log_action(session, staff.id, "unblock_chat", target_type="chat", target_id=chat_id)
+    session.commit()
+    return {"ok": True, "blocked": False}
+
+
+@app.post("/api/admin/chats/{chat_id}/members/{user_id}/kick")
+def admin_kick_member(
+    chat_id: int,
+    user_id: int,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Исключить участника из чата"""
+    _chat_moderation_guard(staff, chat_id, session)
+    member = session.exec(
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user_id)
+    ).first()
+    if not member:
+        raise HTTPException(404, "Участник не найден")
+    if member.role == "owner":
+        raise HTTPException(400, "Нельзя исключить владельца чата")
+    target = session.get(User, user_id)
+    if target and (target.is_admin or target.is_trelod) and not staff.is_admin:
+        raise HTTPException(403, "🛡️ Недостаточно прав для этого участника")
+    session.delete(member)
+    log_action(session, staff.id, "kick_chat_member", target_type="user", target_id=user_id,
+               details={"chat_id": chat_id})
+    session.commit()
+    return {"ok": True}
+
+
+@app.post("/api/admin/chats/{chat_id}/members/{user_id}/mute")
+def admin_mute_member(
+    chat_id: int,
+    user_id: int,
+    minutes: int = Form(60),
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Мут участника в чате на N минут"""
+    _chat_moderation_guard(staff, chat_id, session)
+    member = session.exec(
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user_id)
+    ).first()
+    if not member:
+        raise HTTPException(404, "Участник не найден")
+    if member.role == "owner":
+        raise HTTPException(400, "Нельзя замутить владельца чата")
+    until = datetime.now(timezone.utc) + timedelta(minutes=max(1, minutes))
+    key = f"chat_mute_{chat_id}_{user_id}"
+    setting = session.get(SystemSetting, key)
+    if setting:
+        setting.value = until.isoformat()
+    else:
+        session.add(SystemSetting(key=key, value=until.isoformat()))
+    log_action(session, staff.id, "mute_chat_member", target_type="user", target_id=user_id,
+               details={"chat_id": chat_id, "minutes": minutes})
+    session.commit()
+    return {"ok": True, "muted_until": until.isoformat()}
+
+
+@app.post("/api/admin/chats/{chat_id}/members/{user_id}/unmute")
+def admin_unmute_member(
+    chat_id: int,
+    user_id: int,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    key = f"chat_mute_{chat_id}_{user_id}"
+    setting = session.get(SystemSetting, key)
+    if setting:
+        session.delete(setting)
+    log_action(session, staff.id, "unmute_chat_member", target_type="user", target_id=user_id,
+               details={"chat_id": chat_id})
+    session.commit()
+    return {"ok": True}
 
 
 
@@ -7445,6 +7608,19 @@ async def send_message_v2(
     chat = session.get(Chat, chat_id)
     if not chat:
         raise HTTPException(404, "Чат не найден")
+
+    # 🛡️ Модерация: чат заблокирован админом / юзер в муте
+    if not user.is_admin and not user.is_moderator and not user.is_trelod:
+        blocked = session.get(SystemSetting, f"chat_blocked_{chat_id}")
+        if blocked and blocked.value == "1":
+            raise HTTPException(403, "Чат заблокирован администрацией")
+        mute = session.get(SystemSetting, f"chat_mute_{chat_id}_{user.id}")
+        if mute:
+            try:
+                if datetime.fromisoformat(mute.value) > datetime.now(timezone.utc):
+                    raise HTTPException(403, "Вы в муте в этом чате")
+            except (ValueError, TypeError):
+                pass
 
     media_url = None
     media_type_final = None
