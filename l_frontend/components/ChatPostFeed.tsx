@@ -12,7 +12,7 @@ import { useWebSocket } from "@/src/hooks/useWebSocket";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
-import { Send, Users, Settings, X, Paperclip, Plus, Link as LinkIcon, MessageSquare } from "lucide-react";
+import { Send, Users, Settings, X, Paperclip, Plus, Link as LinkIcon, MessageSquare, Type } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 const PAGE = 20;
@@ -72,7 +72,14 @@ export function ChatPostFeed({ chatId, initialChatInfo }: { chatId: string; init
   const loadPosts = async (reset = false) => {
     const off = reset ? 0 : offset;
     const res = await authFetch(`${API}/api/chats/${chatId}/posts?offset=${off}&limit=${PAGE}`);
-    if (res.ok) { const data: any[] = await res.json(); setPosts((p) => reset ? data : [...p, ...data]); setOffset(off + data.length); setHasMore(data.length === PAGE); }
+    if (res.ok) {
+      const data: any[] = await res.json();
+      // Backend отдаёт desc (новые первыми) → разворачиваем: старые сверху, новые снизу
+      const asc = [...data].reverse();
+      setPosts((p) => reset ? asc : [...asc, ...p]);
+      setOffset(off + data.length);
+      setHasMore(data.length === PAGE);
+    }
     if (reset) setLoading(false);
   };
   // 📎 Загрузка файла → Cloudinary → media_url поста
@@ -137,7 +144,9 @@ export function ChatPostFeed({ chatId, initialChatInfo }: { chatId: string; init
   // WS realtime
   useWebSocket("new_chat_post", (data: any) => {
     if (String(data.chat_id) !== String(chatId)) return;
-    setPosts((prev) => [{ ...data, author: currentUser?.id === data.author_id ? currentUser : data.author, comment_count: 0, mine: data.author_id === currentUser?.id }, ...prev]);
+    // 📢 новые посты появляются СНИЗУ (как в чате)
+    setPosts((prev) => prev.some((p) => p.id === data.id) ? prev : [...prev, { ...data, author: currentUser?.id === data.author_id ? currentUser : data.author, comment_count: 0, mine: data.author_id === currentUser?.id }]);
+    setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
   });
   useWebSocket("chat_post_edited", (data: any) => setPosts((prev) => prev.map((p) => p.id === data.id ? { ...p, text: data.text, edited: true, edited_at: data.edited_at } : p)));
   useWebSocket("chat_post_deleted", (data: any) => setPosts((prev) => prev.filter((p) => p.id !== data.id)));
@@ -190,11 +199,6 @@ export function ChatPostFeed({ chatId, initialChatInfo }: { chatId: string; init
             <div className="text-[10px] text-gray-500 dark:text-white/40">{chatInfo?.members_count} {t("messages.members2")} · {chatInfo?.who_can_post === "admins" ? t("messages.adminsOnlyPost") : t("messages.allMembersPost")}</div>
           </div>
           {isModerator && (
-            <button onClick={makeInvite} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/10" title={t("messages.createGroup")}>
-              <LinkIcon size={18} />
-            </button>
-          )}
-          {isModerator && (
             <button onClick={() => setShowSettings(true)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-white/10" title={t("messages.groupSettings")}>
               <Settings size={18} />
             </button>
@@ -211,15 +215,17 @@ export function ChatPostFeed({ chatId, initialChatInfo }: { chatId: string; init
         <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-3 md:p-4 space-y-1 overscroll-contain touch-pan-y" style={{ WebkitOverflowScrolling: "touch" }}>
           {loading && <div className="p-4 text-center text-sm text-gray-500">{t("common.loading")}</div>}
           {currentUser && posts.map((p) => {
-            const isMine = p.author_id === currentUser.id;
+            const isMine = false; // 📢 в канале посты всегда от имени канала (слева)
+            const showAuthorSign = chatInfo?.show_author !== false;
             const msg = {
               id: p.id,
               text: p.text,
               media_url: p.media_url,
               media_type: p.media_type,
               sender_id: p.author_id,
-              sender_name: p.author?.display_name || "",
-              sender_avatar: p.author?.avatar_url,
+              // 📢 от имени канала: аватар канала; имя — автора (если включена настройка), иначе канала
+              sender_name: showAuthorSign ? (p.author?.display_name || chatInfo?.name || "Канал") : (chatInfo?.name || "Канал"),
+              sender_avatar: chatInfo?.avatar_url,
               created_at: p.created_at,
               reactions: [],
               reply_preview: null,
@@ -366,7 +372,7 @@ export function ChatPostFeed({ chatId, initialChatInfo }: { chatId: string; init
                         }}
                         className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-3 transition-colors border-t border-line dark:border-white/5"
                       >
-                        <Paperclip size={18} className="text-gray-600 dark:text-white/60" /> <span>{t("messages.formatText")}</span>
+                        <Type size={18} className="text-gray-600 dark:text-white/60" /> <span>{t("messages.formatText")}</span>
                       </button>
                     </div>
                   </>

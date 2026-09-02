@@ -137,6 +137,9 @@ export default function ChatPage() {
 
 
   const [messages, setMessages] = useState<any[]>([]);
+  const [msgCursor, setMsgCursor] = useState<number | null>(null);
+  const [hasMoreMsgs, setHasMoreMsgs] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [isSavedChat, setIsSavedChat] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [text, setText, clearDraft] = useDraft(`draft_chat_${chatId}`, "");
@@ -396,6 +399,8 @@ const handlePointerLeave = () => {
     const isNearBottom = scrollHeight - scrollTop - clientHeight < 200;
     setShowScrollBtn(!isNearBottom);
     setIsAutoScrollEnabled(isNearBottom);
+    // 🆕 доскроллили вверх → подгружаем старые сообщения
+    if (scrollTop < 60 && hasMoreMsgs && !loadingOlder) loadOlderMessages();
   };
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
@@ -922,12 +927,53 @@ async function loadChatInfo() {
     if (res.ok) {
       const data = await res.json();
       // ✅ Совместимо со старым (массив) и новым ({messages, ...}) форматом
-      setMessages(Array.isArray(data) ? data : (data.messages ?? []));
+      const list = Array.isArray(data) ? data : (data.messages ?? []);
+      setMessages(list);
+      // 🆕 курсорная пагинация: запоминаем, есть ли ещё старые сообщения
+      if (!Array.isArray(data)) {
+        setHasMoreMsgs(!!data.has_more);
+        setMsgCursor(data.next_cursor ?? null);
+      }
     }
     } catch (err) {
       console.error("Failed to load messages", err);
     } finally {
       setLoadingMessages(false);
+    }
+  }
+
+  // 🆕 Подгрузка старых сообщений при скролле вверх (с сохранением позиции)
+  async function loadOlderMessages() {
+    if (loadingOlder || !msgCursor || !scrollContainerRef.current) return;
+    setLoadingOlder(true);
+    const el = scrollContainerRef.current;
+    const prevHeight = el.scrollHeight;
+    const prevTop = el.scrollTop;
+    try {
+      const token = getToken();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages?cursor=${msgCursor}&limit=50`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const older = Array.isArray(data) ? data : (data.messages ?? []);
+        if (older.length > 0) {
+          setMessages((prev) => [...older, ...prev]);
+          setHasMoreMsgs(!!data.has_more);
+          setMsgCursor(data.next_cursor ?? null);
+          requestAnimationFrame(() => {
+            if (scrollContainerRef.current) {
+              scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight - prevHeight + prevTop;
+            }
+          });
+        } else {
+          setHasMoreMsgs(false);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load older messages", err);
+    } finally {
+      setLoadingOlder(false);
     }
   }
 

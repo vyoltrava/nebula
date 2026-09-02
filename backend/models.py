@@ -200,6 +200,10 @@ class Chat(SQLModel, table=True):
     invite_token: Optional[str] = Field(default=None, unique=True, index=True)
     who_can_post: str = Field(default="members")  # "members" | "admins" — кто может публиковать посты
     who_can_comment: str = Field(default="members")  # "members" | "admins" — кто может комментировать
+    # 🆕 Кто может добавлять участников ("members" | "admins")
+    can_add_members: str = Field(default="admins")
+    # 🆕 Канал: показывать ли автора поста (подпись), как в Telegram
+    show_author: bool = Field(default=True)
 
 
 
@@ -265,6 +269,8 @@ class ChatInvite(SQLModel, table=True):
     created_by: Optional[int] = Field(default=None, foreign_key="user.id")
     created_at: datetime = Field(default_factory=utcnow)
     is_active: bool = Field(default=True)
+    name: Optional[str] = Field(default=None, max_length=80)  # 🆕 название ссылки
+    expires_at: Optional[datetime] = None  # 🆕 срок действия (временные ссылки)
 
 
 class RoleCategory(SQLModel, table=True):

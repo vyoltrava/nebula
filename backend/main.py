@@ -5378,6 +5378,8 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "pinned_at": chat.pinned_at.isoformat() if chat.pinned_at else None,
             "who_can_post": getattr(chat, "who_can_post", "members"),
             "who_can_comment": getattr(chat, "who_can_comment", "members"),
+            "can_add_members": getattr(chat, "can_add_members", "admins"),
+            "show_author": getattr(chat, "show_author", True),
             "invite_token": getattr(chat, "invite_token", None),
         }
     else:
@@ -5649,8 +5651,13 @@ async def add_group_member(
     can_manage = has_permission(actor, "manage_groups", session)   # 🆕
     if not actor_member and not can_manage:
         raise HTTPException(403, "Не участник чата")
-    if not can_manage and actor_member.role not in ("owner", "admin"):
-        raise HTTPException(403, "Только админы группы или право manage_groups")
+    # 🔒 Приватность: кто может добавлять участников
+    can_add = getattr(chat, "can_add_members", "admins")
+    is_admin_actor = actor_member and actor_member.role in ("owner", "admin")
+    if not can_manage and not is_admin_actor and can_add != "members":
+        raise HTTPException(403, "Только админы группы могут добавлять участников")
+    if not can_manage and not actor_member:
+        raise HTTPException(403, "Не участник чата")
 
     existing = session.exec(
         select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user_id)
@@ -5759,6 +5766,36 @@ async def remove_group_member(
          "user": user_out(target_user, session) if target_user else None}
     ))
 
+    return {"ok": True}
+
+
+class MemberRoleIn(BaseModel):
+    role: str  # "admin" | "member"
+
+
+@app.patch("/api/chats/{chat_id}/members/{user_id}/role")
+async def set_member_role(chat_id: int, user_id: int, data: MemberRoleIn, actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Назначить/снять админа группы (только owner/admin, нельзя трогать owner)."""
+    if data.role not in ("admin", "member"):
+        raise HTTPException(400, "Роль должна быть admin или member")
+    chat = session.get(Chat, chat_id)
+    if not chat or not chat.is_group:
+        raise HTTPException(404, "Группа не найдена")
+    actor_member = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == actor.id)).first()
+    if not actor_member or actor_member.role not in ("owner", "admin"):
+        raise HTTPException(403, "Только админы группы могут менять роли")
+    target = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user_id)).first()
+    if not target:
+        raise HTTPException(404, "Участник не найден")
+    if target.role == "owner":
+        raise HTTPException(403, "Нельзя изменить роль создателя")
+    target.role = data.role
+    session.add(target)
+    session.commit()
+    all_member_ids = session.exec(select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)).all()
+    asyncio.create_task(manager.broadcast_to_users(
+        list(all_member_ids), "group_member_role", {"chat_id": chat_id, "user_id": user_id, "role": data.role}
+    ))
     return {"ok": True}
 
 
@@ -10649,29 +10686,101 @@ async def delete_post_comment(comment_id: int, actor: User = Depends(get_current
 
 
 
-@app.post("/api/chats/{chat_id}/invite")
-async def create_chat_invite(chat_id: int, actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    """Создать приглашительную ссылку (как в Telegram). Только админы."""
+def _serialize_invite(inv: ChatInvite) -> dict:
+    return {
+        "id": inv.id, "token": inv.token, "name": inv.name,
+        "is_active": inv.is_active,
+        "expires_at": inv.expires_at.isoformat() if inv.expires_at else None,
+        "created_at": inv.created_at.isoformat() if inv.created_at else None,
+        "invite_link": f"/invite/{inv.token}",
+    }
+
+
+def _invite_valid(inv: ChatInvite) -> bool:
+    if not inv.is_active:
+        return False
+    if inv.expires_at:
+        exp = inv.expires_at if inv.expires_at.tzinfo is None else inv.expires_at.replace(tzinfo=None)
+        if exp < datetime.utcnow():
+            return False
+    return True
+
+
+@app.get("/api/chats/{chat_id}/invites")
+def list_chat_invites(chat_id: int, actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Список пригласительных ссылок чата (только админы)."""
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    member = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == actor.id)).first()
+    if not member or member.role not in ("owner", "admin"):
+        raise HTTPException(403, "Только администраторы")
+    invites = session.exec(select(ChatInvite).where(ChatInvite.chat_id == chat_id).order_by(ChatInvite.created_at.desc())).all()
+    return [_serialize_invite(i) for i in invites]
+
+
+class InviteIn(BaseModel):
+    name: Optional[str] = None
+    expires_in_hours: Optional[int] = None  # временная ссылка
+
+
+@app.post("/api/chats/{chat_id}/invites")
+async def create_chat_invite_v2(chat_id: int, data: InviteIn, actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Создать пригласительную ссылку с названием и сроком действия."""
     chat = session.get(Chat, chat_id)
     if not chat:
         raise HTTPException(404, "Чат не найден")
     member = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == actor.id)).first()
     if not member or member.role not in ("owner", "admin"):
         raise HTTPException(403, "Только администраторы могут создавать приглашения")
+    expires_at = None
+    if data.expires_in_hours and data.expires_in_hours > 0:
+        expires_at = datetime.utcnow() + timedelta(hours=data.expires_in_hours)
     token = secrets.token_urlsafe(24)
-    inv = ChatInvite(chat_id=chat_id, token=token, created_by=actor.id)
+    inv = ChatInvite(chat_id=chat_id, token=token, created_by=actor.id,
+                     name=(data.name or "").strip()[:80] or None, expires_at=expires_at)
     session.add(inv)
-    chat.invite_token = token
+    if not chat.invite_token:
+        chat.invite_token = token
     session.add(chat)
     session.commit()
-    return {"invite_link": f"/invite/{token}", "token": token}
+    session.refresh(inv)
+    return _serialize_invite(inv)
+
+
+@app.delete("/api/chats/{chat_id}/invites/{invite_id}")
+async def revoke_chat_invite_one(chat_id: int, invite_id: int, actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Отозвать одну пригласительную ссылку."""
+    chat = session.get(Chat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    member = session.exec(select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == actor.id)).first()
+    if not member or member.role not in ("owner", "admin"):
+        raise HTTPException(403, "Только администраторы")
+    inv = session.get(ChatInvite, invite_id)
+    if not inv or inv.chat_id != chat_id:
+        raise HTTPException(404, "Приглашение не найдено")
+    inv.is_active = False
+    session.add(inv)
+    if chat.invite_token == inv.token:
+        chat.invite_token = None
+    session.add(chat)
+    session.commit()
+    return {"ok": True}
+
+
+
+@app.post("/api/chats/{chat_id}/invite")
+async def create_chat_invite(chat_id: int, actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    """Создать приглашительную ссылку (как в Telegram). Только админы."""
+    return await create_chat_invite_v2(chat_id, InviteIn(), actor, session)
 
 
 @app.get("/api/invite/{token}")
 def get_invite_info(token: str, actor: Optional[User] = Depends(get_optional_user), session: Session = Depends(get_session)):
     """Публичная инфа о приглашении (авторизация не обязана)."""
     inv = session.exec(select(ChatInvite).where(ChatInvite.token == token, ChatInvite.is_active == True)).first()
-    if not inv:
+    if not inv or not _invite_valid(inv):
         raise HTTPException(404, "Приглашение не найдено")
     chat = session.get(Chat, inv.chat_id)
     if not chat:
@@ -10690,7 +10799,7 @@ def get_invite_info(token: str, actor: Optional[User] = Depends(get_optional_use
 async def join_chat_invite(token: str, request: Request, actor: User = Depends(get_current_user), session: Session = Depends(get_session)):
     """Вступить в чат по приглашению."""
     inv = session.exec(select(ChatInvite).where(ChatInvite.token == token, ChatInvite.is_active == True)).first()
-    if not inv:
+    if not inv or not _invite_valid(inv):
         raise HTTPException(404, "Приглашение не найдено")
     chat = session.get(Chat, inv.chat_id)
     if not chat:
@@ -10724,6 +10833,8 @@ async def revoke_chat_invite(chat_id: int, actor: User = Depends(get_current_use
 class ChatPrivacyIn(BaseModel):
     who_can_post: Optional[str] = None
     who_can_comment: Optional[str] = None
+    can_add_members: Optional[str] = None
+    show_author: Optional[bool] = None
     avatar_url: Optional[str] = None
     name: Optional[str] = None
 
@@ -10741,6 +10852,10 @@ async def update_chat_settings(chat_id: int, data: ChatPrivacyIn, actor: User = 
         chat.who_can_post = data.who_can_post
     if data.who_can_comment in ("members", "admins"):
         chat.who_can_comment = data.who_can_comment
+    if data.can_add_members in ("members", "admins"):
+        chat.can_add_members = data.can_add_members
+    if data.show_author is not None:
+        chat.show_author = bool(data.show_author)
     if data.name is not None:
         chat.name = data.name.strip()[:80]
     if data.avatar_url is not None:
@@ -10749,6 +10864,7 @@ async def update_chat_settings(chat_id: int, data: ChatPrivacyIn, actor: User = 
     session.commit()
     await manager.broadcast_to_chat(chat_id, "chat_settings_updated", {
         "chat_id": chat_id, "who_can_post": chat.who_can_post, "who_can_comment": chat.who_can_comment,
+        "can_add_members": chat.can_add_members, "show_author": chat.show_author,
         "name": chat.name, "avatar_url": chat.avatar_url,
     }, session)
     return {"ok": True}
