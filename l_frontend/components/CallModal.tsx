@@ -89,6 +89,18 @@ export default function CallModal() {
 <div className="relative z-10 flex flex-col items-center justify-between w-full h-full p-6 max-w-md mx-auto">
         {/* Верхняя панель */}
         <div className="w-full text-center mt-8">
+          {displayAvatar ? (
+            <img
+              src={displayAvatar}
+              alt=""
+              className="w-16 h-16 rounded-full mx-auto mb-3 object-cover ring-2 ring-white/30"
+            />
+          ) : (
+            <div className="w-16 h-16 rounded-full mx-auto mb-3 bg-[#8b5cf6] text-white flex items-center justify-center text-2xl font-bold ring-2 ring-white/30">
+              {displayName.charAt(0)}
+            </div>
+          )}
+          <div className="text-xl font-bold text-gray-900 dark:text-white">{displayName}</div>
           <div className="text-gray-800 dark:text-white/80 text-sm mb-2 font-medium">
             {status === 'ringing' && isCaller && 'Вызов...'}
             {status === 'ringing' && !isCaller && 'Входящий звонок'}
@@ -110,6 +122,29 @@ export default function CallModal() {
         </div>
         {/* Кнопки управления */}
         <div className="flex flex-col items-center justify-center gap-4 w-full">
+          {status === 'ringing' && !isCaller && (
+            <>
+              <div className="flex items-center justify-center gap-6">
+                {/* Отклонить входящий звонок */}
+                <button
+                  onClick={rejectCall}
+                  className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shadow-lg transition-transform hover:scale-110"
+                  aria-label="Отклонить"
+                >
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.258-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" /></svg>
+                </button>
+                {/* Ответить (принять) входящий звонок */}
+                <button
+                  onClick={acceptCall}
+                  className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-600 text-white flex items-center justify-center shadow-lg transition-transform hover:scale-110"
+                  aria-label="Ответить"
+                >
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h1c.5 0 .93.26 1.16.65l1.72 3.16a2 2 0 01-.4 2.36L6.5 10.9a13.04 13.04 0 006.6 6.6l1.73-1.98a2 2 0 012.36-.4l3.16 1.72c.39.23.65.66.65 1.16v1a2 2 0 01-2 2 15 15 0 01-15-15z" /></svg>
+                </button>
+              </div>
+            </>
+          )}
+
           {status === 'ringing' && isCaller && (
             <button onClick={endCall} className="w-16 h-16 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg transition-transform hover:scale-110">
               <svg className="w-8 h-8 text-gray-900 dark:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.258-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" /></svg>
