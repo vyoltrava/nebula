@@ -5549,7 +5549,23 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
                                    "created_at": last_msg.created_at.isoformat()}
         else:
             if last_msg.text:
-                preview = last_msg.text[:50]
+                # 📞 Сообщение-уведомление о звонке — человекочитаемое превью вместо JSON
+                if last_msg.text.startswith('{"nebula_call_log"'):
+                    try:
+                        _cl = json.loads(last_msg.text)
+                        _clt = "Видеозвонок" if _cl.get("call_type") == "video" else "Звонок"
+                        _clo = _cl.get("outcome")
+                        if _clo == "missed":
+                            preview = f"📞 {_clt}: пропущенный"
+                        elif _clo == "declined":
+                            preview = f"📞 {_clt}: отклонённый"
+                        else:
+                            _d = int(_cl.get("duration") or 0)
+                            preview = f"📞 {_clt}: {(_d // 60)}:{(_d % 60):02d}" if _d > 0 else f"📞 {_clt}"
+                    except Exception:
+                        preview = "📞 Звонок"
+                else:
+                    preview = last_msg.text[:50]
             elif last_msg.media_type in ("image", "gif"):
                 preview = "📷 Фото"
             elif last_msg.media_type == "video":

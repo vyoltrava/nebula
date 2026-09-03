@@ -7,6 +7,7 @@ import { getToken } from "@/lib/auth";
 import { showBackgroundNotification } from "@/lib/notifications";
 import { useWebRTC } from "@/src/hooks/useWebRTC";
 import { CallContext } from "@/lib/CallContext";
+import { sendCallLogMessage, clearCallChat } from "@/lib/callLog";
 import CallModal from "@/components/CallModal";
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
@@ -19,10 +20,36 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     toggleMute,
     toggleVideo,
     handleSignal,
+    endReasonRef,
+    connectedOnceRef,
   } = useWebRTC((data) => {
     // ✅ ТЕПЕРЬ ЭТО РАБОТАЕТ, так как мы добавили метод send в шаге 1
     socket.send(data); 
   });
+
+  // 📞 Сообщение-уведомление о звонке в чате (как в Telegram).
+  // Пишет ТОЛЬКО вызывающий (один writer — нет дублей). Отправляется один раз
+  // при переходе статуса в 'ended'. Исход:
+  //   declined     — собеседник отклонил/занят
+  //   ended        — разговор состоялся (duration > 0)
+  //   missed       — никто не ответил (отмена на гудках или сбой)
+  const lastLoggedCallRef = useRef<string | null>(null);
+  useEffect(() => {
+    const { status, isCaller, callId, callType, remoteUserId, duration } = callState;
+    if (status !== 'ended' || !isCaller || !callId || !remoteUserId) return;
+    if (lastLoggedCallRef.current === callId) return;
+    lastLoggedCallRef.current = callId;
+
+    const reason = endReasonRef.current;
+    const outcome = reason === 'declined'
+      ? 'declined'
+      : connectedOnceRef.current
+        ? 'ended'
+        : 'missed';
+    sendCallLogMessage({ remoteUserId, callType, outcome, duration });
+    clearCallChat();
+  }, [callState, endReasonRef, connectedOnceRef]);
+
   // 🛡 STABILIZATION FIX (критично для звонков):
   // Раньше весь этот useEffect зависел от [handleSignal], а handleSignal
   // пересоздавался при КАЖДОМ рендере провайдера (sendSignal передаётся
@@ -50,11 +77,15 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
     const unsubMessage = socket.on("new_message", (data: any) => {
       if (document.hidden) {
+        const rawText: string = data.text || "";
+        const isCallLog = rawText.startsWith('{"nebula_call_log"');
         showBackgroundNotification({
           title: `💬 ${data.sender_name || "Новое сообщение"}`,
-          body: data.media_type
+          body: isCallLog
+            ? "📞 Звонок"
+            : data.media_type
             ? `📎 ${data.media_type === "image" ? "Фото" : data.media_type === "audio" ? "Голосовое" : data.media_type}`
-            : (data.text || "🔒 Секретное сообщение"),
+            : (rawText || "🔒 Секретное сообщение"),
           icon: data.sender_avatar || undefined,
           tag: `chat-${data.chat_id}`,
           url: `/messages/${data.chat_id}`,

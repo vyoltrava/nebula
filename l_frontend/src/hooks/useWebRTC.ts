@@ -327,6 +327,10 @@ export function useWebRTC(
   // 🔁 Периодическая переотправка ANSWER вызываемой стороной
   const answerResendTimerRef =
     useRef<ReturnType<typeof setInterval> | null>(null);
+  // 📞 Причина завершения звонка (для сообщения-уведомления в чате)
+  const endReasonRef = useRef<'local' | 'declined' | 'remote_ended' | null>(null);
+  // 📞 Флаг: P2P-соединение хоть раз установилось (для исхода 'ended' vs 'missed')
+  const connectedOnceRef = useRef(false);
 
   const safeSendSignal = useCallback(
     (data: WebRTCSignal) => {
@@ -533,6 +537,9 @@ export function useWebRTC(
     }
     pendingOfferRef.current = null;
 
+    // 📞 сброс флага «соединение устанавливалось» для сообщения о звонке
+    connectedOnceRef.current = false;
+
     const pc = pcRef.current;
     if (pc) {
       try {
@@ -712,6 +719,7 @@ export function useWebRTC(
 
           case 'connected':
             rtcLog('🎉 WEBRTC CALL CONNECTED');
+            connectedOnceRef.current = true;
             if (disconnectedTimerRef.current) clearTimeout(disconnectedTimerRef.current);
             if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
             
@@ -948,6 +956,7 @@ export function useWebRTC(
   const endCall = useCallback(
     (callId: string, targetUserId: number) => {
       rtcLog(`👋 Ending call ${callId}`);
+      endReasonRef.current = 'local';
       safeSendSignal({ type: 'call_end', call_id: callId, target_user_id: targetUserId });
       setState((prev) => ({ ...prev, status: 'ended' }));
       setTimeout(() => {
@@ -1076,6 +1085,7 @@ export function useWebRTC(
         case 'call_busy':
         case 'call_ended':
           rtcLog(`📴 Remote ended: ${data.type}`);
+          endReasonRef.current = data.type === 'call_ended' ? 'remote_ended' : 'declined';
           setState((prev) => ({ ...prev, status: 'ended' }));
           setTimeout(() => {
             cleanup();
@@ -1127,5 +1137,7 @@ export function useWebRTC(
     toggleVideo,
     handleSignal,
     peerConnection: pcRef.current,
+    endReasonRef,
+    connectedOnceRef,
   };
 }

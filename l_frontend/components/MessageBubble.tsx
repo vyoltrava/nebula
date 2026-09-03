@@ -14,9 +14,46 @@ import { VideoNotePlayer } from './VideoNotePlayer';
 import { EncryptedMediaPlayer } from './EncryptedMediaPlayer';
 import LinkPreview from './LinkPreview';
 import { SwipeableMessage } from './SwipeableMessage';
-import { Pin, Check, CheckCheck, SmilePlus, MoreVertical, Lock } from 'lucide-react';
+import { Pin, Check, CheckCheck, SmilePlus, MoreVertical, Lock, Phone, PhoneOff, Video } from 'lucide-react';
 import { formatChatTime } from '@/lib/time';
+import { parseCallLog, CallLogPayload } from '@/lib/callLog';
 import { mediaUrl } from '@/lib/media';
+
+function formatCallDuration(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+function CallLogRow({ log, time, isMine }: { log: CallLogPayload; time: string; isMine: boolean }) {
+  const isVideo = log.call_type === 'video';
+  const title = isVideo ? 'Видеозвонок' : 'Аудиозвонок';
+  let sub: string;
+  let Icon = isVideo ? Video : Phone;
+  if (log.outcome === 'missed') {
+    sub = 'Пропущенный';
+    Icon = PhoneOff;
+  } else if (log.outcome === 'declined') {
+    sub = 'Отклонённый';
+    Icon = PhoneOff;
+  } else {
+    sub = log.duration > 0 ? `Длительность: ${formatCallDuration(log.duration)}` : 'Не состоялся';
+  }
+  return (
+    <div className={`flex ${isMine ? 'justify-end' : 'justify-start'} my-1.5`}>
+      <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-gray-100 dark:bg-white/10 border border-line dark:border-white/15 max-w-[85%]">
+        <div className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center ${log.outcome === 'ended' ? 'bg-[#8b5cf6]/20' : 'bg-red-500/15'}`}>
+          <Icon size={17} className={log.outcome === 'ended' ? 'text-[#8b5cf6]' : 'text-red-400'} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-medium leading-tight text-gray-900 dark:text-white">{title}</p>
+          <p className={`text-[11px] leading-tight ${log.outcome === 'ended' ? 'text-gray-500 dark:text-white/40' : 'text-red-400/90'}`}>{sub}</p>
+        </div>
+        <span className="self-end text-[10px] text-gray-400 dark:text-white/30 ml-2">{time}</span>
+      </div>
+    </div>
+  );
+}
 
 interface MessageBubbleProps {
   msg: any;
@@ -69,6 +106,24 @@ export const MessageBubble = memo(function MessageBubble({
   const isSticker = !!msg.media_url && msg.media_type === "sticker"; // 🆕 Добавлено для стикеров
   const isForwarded = !!msg.forwarded_from_id; // ✅ ИСПРАВЛЕНО: добавлена отсутствующая переменная
   const isEncryptedMedia = !!msg.is_encrypted_media || msg.ciphertext === "[encrypted_media]";
+
+  // 📞 Сообщение-уведомление о звонке (аудио/видео, пропущенный, отклонённый, длительность)
+  const callLog = parseCallLog(displayText);
+  if (callLog) {
+    const time = formatChatTime(msg.created_at);
+    return (
+      <div
+        id={`msg-${msg.id}`}
+        className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+        onContextMenu={onContextMenu}
+        onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}
+        onDoubleClick={onDoubleClick}
+      >
+        <CallLogRow log={callLog} time={time} isMine={isMine} />
+      </div>
+    );
+  }
 
   return (
     <SwipeableMessage msgId={msg.id} onSwipeRight={onSwipeRight} raised={activeMessageMenu}>
