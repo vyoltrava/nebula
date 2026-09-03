@@ -961,6 +961,7 @@ privacy: {
 
 call: {
   iosPwaHint: "Calls may not work in app mode. Open the site in Safari — on iOS, microphone and camera are fully available only there.",
+  iosRelayHint: "On iPhone, TURN traffic is most likely blocked by iCloud Private Relay (Settings → [your name] → iCloud → Private Relay — turn off) or by the VPN app on the device itself.",
 },
 
 mute: {

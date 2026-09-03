@@ -234,8 +234,16 @@ const getRTCConfig = (): RTCConfiguration => {
   // 📱 iOS/VPN FIX: Metered и прочие TURN-провайдеры часто отдают только
   // udp-варианты. На iPhone (особенно за VPN/WireGuard и сотовым оператором)
   // UDP часто зарезан -> srflx/relay через udp не собираются -> вечное
-  // «Соединение...». Дублируем каждый turn:/turns: TCP-вариантом (и для
-  // turn: дополнительно порт 443 tcp), если transport ещё не указан.
+  // «Соединение...».
+  //
+  // ⚠️ ВАЖНО ПРО SAFARI: WebKit НЕ поддерживает `turn:` поверх TCP
+  // (только UDP и `turns:` = TURN over TLS). Поэтому:
+  //   1) для каждого turn:/turns: без transport добавляем transport=tcp
+  //      (помогает Chrome/Firefox на ПК/Android);
+  //   2) ОБЯЗАТЕЛЬНО генерируем `turns:<host>:443?transport=tcp` с теми же
+  //      кредами — это единственный TCP-путь, который умеет iPhone.
+  // Если и turns:443 недоступен с айфона — на устройстве режет уже не
+  // провайдер, а сам VPN-клиент/Личное реле iCloud (см. подсказку в модалке).
   const withTcpFallback = (servers: RTCIceServer[]): RTCIceServer[] => {
     const out: RTCIceServer[] = [];
     for (const s of servers) {
@@ -243,21 +251,28 @@ const getRTCConfig = (): RTCConfiguration => {
       if (!s.urls) continue;
       const urls = Array.isArray(s.urls) ? s.urls : [s.urls];
       const tcpUrls: string[] = [];
+      const tlsUrls: string[] = [];
       for (const u of urls) {
         if (typeof u !== 'string') continue;
         if (!/^turns?:/i.test(u)) continue;
-        if (u.includes('transport=')) continue; // transport уже задан
-        const sep = u.includes('?') ? '&' : '?';
-        tcpUrls.push(`${u}${sep}transport=tcp`);
-        if (/^turn:/i.test(u) && !u.includes('443')) {
-          try {
-            const noScheme = u.replace(/^turn:/i, '');
-            const hostPart = noScheme.split('?')[0];
-            tcpUrls.push(`turn:${hostPart.split(':')[0]}:443?transport=tcp`);
-          } catch { /* ignore */ }
+        const isTurns = /^turns:/i.test(u);
+        const host = u.replace(/^turns?:/i, '').split('?')[0];
+        const hostname = host.split(':')[0];
+
+        // TCP-вариант для Chromium/Firefox (Safari его игнорирует)
+        if (!u.includes('transport=')) {
+          const sep = u.includes('?') ? '&' : '?';
+          tcpUrls.push(`${u}${sep}transport=tcp`);
+        }
+
+        // 🔑 TLS-вариант для Safari/iPhone: turns:<hostname>:443?transport=tcp
+        // с ТЕМИ ЖЕ учётными данными. Не дублируем, если уже есть turns:443.
+        if (!isTurns || !u.includes(':443')) {
+          tlsUrls.push(`turns:${hostname}:443?transport=tcp`);
         }
       }
       if (tcpUrls.length) out.push({ ...s, urls: tcpUrls });
+      if (tlsUrls.length) out.push({ ...s, urls: tlsUrls });
     }
     return out;
   };

@@ -125,6 +125,19 @@ export default function CallModal() {
     setIosPwaHint(isIOS && isStandalone);
   }, [status]);
 
+  // 📱 iOS: если висим в «Соединение...» дольше 12 секунд — почти наверняка
+  // TURN-трафик режет Личное реле iCloud (iCloud Private Relay) или VPN-клиент
+  // на самом айфоне (Wi-Fi/провайдер тут ни при чём, если на ПК/Android работает).
+  const [iosRelayHint, setIosRelayHint] = useState(false);
+  useEffect(() => {
+    if (status !== 'connecting') { setIosRelayHint(false); return; }
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (!isIOS) return;
+    const timer = setTimeout(() => setIosRelayHint(true), 12_000);
+    return () => clearTimeout(timer);
+  }, [status]);
+
   if (status === 'idle') return null;
 
   const isActive = status === 'active' || status === 'connecting';
@@ -150,6 +163,11 @@ export default function CallModal() {
         {iosPwaHint && (
           <p className="mt-2 max-w-[92%] rounded-xl bg-amber-500/90 text-black text-[11px] sm:text-xs font-semibold px-3 py-2 text-center shadow-lg">
             {t("call.iosPwaHint")}
+          </p>
+        )}
+        {iosRelayHint && (
+          <p className="mt-2 max-w-[92%] rounded-xl bg-amber-500/90 text-black text-[11px] sm:text-xs font-semibold px-3 py-2 text-center shadow-lg">
+            {t("call.iosRelayHint")}
           </p>
         )}
         <p className="text-white/70 text-sm font-medium mt-1">
