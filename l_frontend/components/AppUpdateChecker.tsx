@@ -1,8 +1,9 @@
-// components/AppUpdateChecker.tsx — проверка обновлений APK (только в нативном приложении)
+// components/AppUpdateChecker.tsx — автообновление APK. Стилистика как в Telegram:
+// цельный bottom-баннер с blur-подложкой, не перекрывает контент, аккуратные кнопки.
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Download, X } from 'lucide-react';
+import { Download, RefreshCw, X, ArrowUpCircle } from 'lucide-react';
 import { checkApkUpdate, isNativeApp, installUpdate, ApkUpdateInfo } from '@/lib/appUpdate';
 
 const DISMISS_PREFIX = 'apk_update_dismissed_';
@@ -52,27 +53,70 @@ export function AppUpdateChecker() {
   };
 
   return (
-    <div className="fixed bottom-20 left-3 right-3 sm:left-auto sm:right-6 sm:w-96 z-[10000]">
-      <div className="rounded-2xl bg-[#8b5cf6] text-white shadow-2xl p-4 flex items-start gap-3">
-        <Download size={22} className="shrink-0 mt-0.5" />
-        <div className="flex-1 min-w-0">
-          <p className="font-bold text-sm">Доступно обновление trelod v{update.latestVersion}</p>
-          <p className="text-xs text-white/70 mt-0.5">
-            Текущая версия: {update.currentVersion}
-          </p>
-          <button
-            onClick={doUpdate}
-            disabled={busy}
-            className="mt-2.5 w-full sm:w-auto px-4 py-2 rounded-xl bg-white text-[#8b5cf6] text-sm font-bold active:scale-95 transition-transform disabled:opacity-60"
-          >
-            {busy ? 'Обновляю…' : 'Обновить сейчас'}
-          </button>
-          {status && <p className="text-[11px] text-white/80 mt-2">{status}</p>}
+    <>
+      {/* 🔥 blur-подложка — затемняет фон и фокусирует на баннере */}
+      <div className="fixed inset-0 z-[9998] bg-black/40 backdrop-blur-sm" onClick={dismiss} />
+
+      {/* Цельный bottom-баннер в стиле приложения (как сущ. обновления в ТГ) */}
+      <div className="fixed bottom-0 left-0 right-0 z-[9999] px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+        <div className="mx-auto max-w-xl rounded-2xl border border-white/10 bg-white/95 dark:bg-[#1c1c1f]/95 backdrop-blur-xl shadow-2xl overflow-hidden">
+          {/* цветная шапка */}
+          <div className="h-1 bg-gradient-to-r from-[#8b5cf6] via-[#a78bfa] to-[#8b5cf6]" />
+          <div className="p-4 sm:p-5">
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 w-11 h-11 rounded-xl bg-[#8b5cf6]/15 flex items-center justify-center">
+                {busy ? (
+                  <RefreshCw size={20} className="text-[#8b5cf6] animate-spin" />
+                ) : (
+                  <ArrowUpCircle size={20} className="text-[#8b5cf6]" />
+                )}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-bold text-gray-900 dark:text-white text-[15px]">
+                    Обновление приложения
+                  </h3>
+                  <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#8b5cf6]/15 text-[#8b5cf6]">
+                    v{update.latestVersion}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-500 dark:text-white/50 mt-0.5">
+                  Доступна новая версия. Текущая: v{update.currentVersion}
+                </p>
+                {status && (
+                  <p className="text-xs text-[#8b5cf6] mt-2">{status}</p>
+                )}
+              </div>
+
+              <button
+                onClick={dismiss}
+                aria-label="Закрыть"
+                className="shrink-0 p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-white/10 transition-colors"
+              >
+                <X size={16} className="text-gray-400 dark:text-white/40" />
+              </button>
+            </div>
+
+            <div className="mt-3.5 flex gap-2.5">
+              <button
+                onClick={doUpdate}
+                disabled={busy}
+                className="flex-1 sm:flex-none sm:px-6 py-2.5 rounded-xl bg-[#8b5cf6] hover:bg-[#7c3aed] text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                <Download size={16} />
+                {busy ? 'Обновляю…' : 'Обновить сейчас'}
+              </button>
+              <button
+                onClick={dismiss}
+                className="flex-1 sm:flex-none sm:px-5 py-2.5 rounded-xl bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-white/70 text-sm font-medium transition-colors active:scale-[0.98]"
+              >
+                Позже
+              </button>
+            </div>
+          </div>
         </div>
-        <button onClick={dismiss} aria-label="Закрыть" className="shrink-0 p-1 rounded-full hover:bg-white/15">
-          <X size={18} />
-        </button>
       </div>
-    </div>
+    </>
   );
 }

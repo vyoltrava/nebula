@@ -13,7 +13,7 @@
  * ============================================================ */
 "use strict";
 
-var VERSION = "2.0.1"; // 🔥 Bumped для обновления apple-touch-icon и PWA-иконок
+var VERSION = "2.1.0"; // 🔥 Dynamic PWA icon + принудительная смена
 var CACHE_PRECACHE = "nebula-precache-v" + VERSION;
 var CACHE_SHELL = "nebula-shell-v" + VERSION;
 var CACHE_API = "nebula-api-v" + VERSION;
@@ -59,6 +59,17 @@ function isNavigationRequest(request) {
 function isImage(url) {
   var ext = url.pathname.split("?")[0].toLowerCase();
   return /\.(png|jpe?g|gif|webp|avif|svg|ico)$/.test(ext);
+}
+// Динамические ресурсы PWA-иконок — НЕ кэшируем вечно,
+// иначе смена иконки «зависает» на старых картинках (Network First).
+function isDynamicPwaIcon(url) {
+  var p = url.pathname;
+  return (
+    p.indexOf("/pwa/icons/") === 0 ||
+    p.indexOf("/api/pwa/manifest/") === 0 ||
+    p.indexOf("/manifest-") === 0 ||
+    p.indexOf("/apple-touch-icon") === 0
+  );
 }
 
 function isFont(url) {
@@ -300,6 +311,13 @@ self.addEventListener("fetch", function (event) {
   }
 
   if (isIgnored(url)) return;
+
+  // 🔥 Динамическая иконка PWA / манифест — Network First (всегда свежие),
+  // чтобы смена иконки принудительно подхватывалась, а не кэшировалась вечно.
+  if (isDynamicPwaIcon(url)) {
+    event.respondWith(networkFirst(CACHE_SHELL, request, { fallback: null }));
+    return;
+  }
 
   // 1) Навигация (документы) — Network First, fallback offline.html
   if (isNavigationRequest(request)) {

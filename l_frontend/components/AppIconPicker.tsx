@@ -42,7 +42,6 @@ export function AppIconPicker() {
 
   const pick = (id: string) => {
     if (locked) return;
-    setAppIcon(id);
     setCurrent(id);
     try {
       const cap = (window as any).Capacitor;
@@ -52,10 +51,12 @@ export function AppIconPicker() {
         setNote('Нативный плагин иконок недоступен — обнови APK до последней версии.');
         return;
       }
+      // Применяем (fire-and-forget: внутри — смена favicon/manifest + инвалидация кэша)
+      void setAppIcon(id);
       setNote(
         isNative
           ? 'Иконка обновлена — приложение сейчас перезапустится.'
-          : 'Иконка вкладки обновлена. Иконка установленного PWA обновится, когда система перепроверит манифест.'
+          : 'Иконка вкладки обновлена. Принудительно обновлена — проверь значок на экране.'
       );
     } catch {
       setNote(null);
