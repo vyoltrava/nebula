@@ -10159,17 +10159,29 @@ async def api_get_ice_servers(user: User = Depends(get_current_user)):
 
     servers: list = []
 
+    async def _fetch_metered_creds(key: str, dom: str):
+        """Получить TURN-креды у Metered. Правильный endpoint Registrar:
+        vts.<subdomain>.metered.live / vts.metered.live с параметром apiKey.
+        Пробуем оба хоста — кастомный домен и дефолтный."""
+        import httpx  # локальный импорт: больше нигде в main.py не нужен
+        urls = [
+            f"https://vts.{dom}.metered.live/api/v1/turn/credentials",
+            "https://vts.metered.live/api/v1/turn/credentials",
+        ]
+        for base in urls:
+            try:
+                async with httpx.AsyncClient(timeout=6.0) as client:
+                    resp = await client.get(base, params={"apiKey": key})
+                    resp.raise_for_status()
+                    return resp.json()
+            except Exception as e:  # noqa: BLE001 — пробуем следующий хост
+                print(f"⚠️ Metered API failed ({base}): {e}")
+        return None
+
     # --- 1) Эфемерные креды через Metered API ---
     if api_key:
-        import httpx  # локальный импорт: больше нигде в main.py не нужен
         try:
-            async with httpx.AsyncClient(timeout=6.0) as client:
-                resp = await client.get(
-                    f"https://{domain}.metered.live/api/v1/turn/credentials",
-                    params={"secretKey": api_key},
-                )
-                resp.raise_for_status()
-                raw = resp.json()
+            raw = _fetch_metered_creds(api_key, domain)
             if isinstance(raw, list):
                 servers = [
                     s for s in raw
@@ -10184,6 +10196,10 @@ async def api_get_ice_servers(user: User = Depends(get_current_user)):
                         "stun:stun1.l.google.com:19302",
                     ]
                 })
+            elif raw is None:
+                print("⚠️ Metered API вернул пусто — fallback to static creds")
+            else:
+                print("⚠️ Metered API вернул не list — fallback to static creds")
         except Exception as e:  # noqa: BLE001 — внешний сервис, любой сбой => фолбэк
             print(f"⚠️ Metered API failed ({e}) — fallback to static creds")
 

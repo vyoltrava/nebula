@@ -32,7 +32,7 @@
 
 | Переменная на Render | Назначение |
 |---|---|
-| `METERED_API_KEY` | secretKey из dashboard.metered.live → эфемерные креды через API (приоритет) |
+| `METERED_API_KEY` | secretKey из dashboard.metered.live → эфемерные креды через API (приоритет). Эндпоинт: `https://vts.metered.live/api/v1/turn/credentials?apiKey=<secretKey>` |
 | `METERED_USERNAME` / `METERED_PASSWORD` | статические креды — фолбэк, если API недоступен |
 | `METERED_DOMAIN` | опц.: subdomain `*.metered.live` (по умолчанию `nebula`) |
 | `METERED_TURN_HOST` | опц.: хост для статического фолбэка (по умолчанию `relay.metered.ca`) |
