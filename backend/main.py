@@ -6099,6 +6099,14 @@ def startup():
                 _SQLModel.metadata.create_all(conn)
         except Exception as e:
             print(f"⚠️ create_all (self-heal) не удался: {e}")
+        # 🛡️ Синхронизация PostgreSQL-секвенций с MAX(id)
+        # (иначе после сида/восстановления бэкапа INSERT падает с
+        # duplicate key value violates unique constraint "<table>_pkey")
+        try:
+            from database import _fix_postgres_sequences
+            _fix_postgres_sequences()
+        except Exception as e:
+            print(f"⚠️ Самолечение секвенций не удалось: {e}")
         # 🛡️ Добавление отсутствующих колонок (модели → БД)
         try:
             with engine.begin() as conn:
