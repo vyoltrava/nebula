@@ -237,9 +237,19 @@ const getRTCConfig = (): RTCConfiguration => {
     // 🔥 ИЗМЕНЕНИЕ: Если включен флаг или мы detect проблемы, ставим 'relay'
     iceTransportPolicy: FORCE_RELAY_ONLY ? 'relay' : 'all',
 
-    bundlePolicy: 'max-bundle',
-    rtcpMuxPolicy: 'require',
-    iceCandidatePoolSize: 8, // Увеличили пул для быстрого старта
+    // 📱 iOS: минимальный безопасный конфиг (обход бага WebKit «зависший ICE»).
+    ...(isIOS
+      ? {
+          // 🔥 Чиним бесконечное "Соединение..." на iPhone/iPad: убираем
+          // iceCandidatePoolSize и не форсируем bundlePolicy/rtcpMuxPolicy,
+          // которые в WebKit могут остановить сборку кандидатов.
+          iceCandidatePoolSize: 0,
+        }
+      : {
+          bundlePolicy: 'max-bundle',
+          rtcpMuxPolicy: 'require',
+          iceCandidatePoolSize: 8, // Увеличили пул для быстрого старта
+        }),
   };
 
   // 🔍 VERIFICATION AID: видно, какие iceServers реально попали в PeerConnection.
@@ -272,6 +282,14 @@ type BufferedIceCandidate = RTCIceCandidateInit;
 const isBrowser =
   typeof window !== 'undefined' &&
   typeof RTCPeerConnection !== 'undefined';
+
+// 📱 iOS Safari/WKWebView — известный баг: iceCandidatePoolSize>0 в связке с
+// жёсткими bundlePolicy/rtcpMuxPolicy может ЗАВИСИТЬ ICE-сборку (бесконечное
+// "Соединение..."). На iOS применяем минимальный безопасный конфиг.
+const isIOS =
+  typeof window !== 'undefined' &&
+  (/iP(hone|ad|od)/.test(navigator.userAgent || '') ||
+    (navigator.userAgent === 'MacIntel' && 'ontouchstart' in window));
 
 function rtcLog(message: string, ...args: unknown[]) {
   console.log(`🧊 [WEBRTC] ${message}`, ...args);
@@ -360,13 +378,12 @@ export function useWebRTC(
 
       rtcLog(`🎥 Requesting ${callType} media`);
       
-      // 🔥 Запрос с явными ограничениями для стабильности
+      // 🔥 Запрос медиа. Упрощённые аудио-констрейнты: на iOS Safari форсированный
+      // channelCount:1 (моно) + noiseSuppression/autoGainControl не поддерживаются и
+      // приводят к отказу getUserMedia или тихому треку. echoCancellation убирает эхо.
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          channelCount: 1,
         },
         video: callType === 'video' ? {
           width: { ideal: 1280, max: 1920 },
