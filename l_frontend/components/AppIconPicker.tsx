@@ -4,7 +4,8 @@
 
 import { useEffect, useState } from 'react';
 import { Check, Lock, Smartphone } from 'lucide-react';
-import { APP_ICONS, ICON_MIN_LEVEL, DEFAULT_ICON, getIconId, setAppIcon } from '@/lib/pwaIcons';
+import { APP_ICONS, ICON_MIN_LEVEL, DEFAULT_ICON, getIconId, setAppIcon, isIOSDevice } from '@/lib/pwaIcons';
+import { isPwaStandalone } from '@/lib/appUpdate';
 import { getCachedUser } from '@/lib/authCache';
 import { getUserLevel } from '@/lib/auth';
 
@@ -53,6 +54,11 @@ export function AppIconPicker() {
       }
       // Применяем (fire-and-forget: внутри — смена favicon/manifest + инвалидация кэша)
       void setAppIcon(id);
+      if (!isNative && isIOSDevice() && isPwaStandalone()) {
+        // 🔒 Ограничение iOS: иконку Home Screen Safari не меняет из веба
+        setNote('На iOS иконка на экране «Домой» меняется так: удали значок и добавь сайт заново (Поделиться → На экран «Домой»).');
+        return;
+      }
       setNote(
         isNative
           ? 'Иконка обновлена — приложение сейчас перезапустится.'

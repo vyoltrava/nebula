@@ -21,6 +21,14 @@ export const DEFAULT_ICON = 'standart';
 /** Минимальный уровень пользователя, с которого доступна смена иконки. */
 export const ICON_MIN_LEVEL = 2;
 
+/** iPhone / iPad / iPod (для iOS-специфичных подсказок). */
+export function isIOSDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  const ua = window.navigator.userAgent || '';
+  return /iP(hone|ad|od)/.test(ua) ||
+    (ua.includes('Mac') && 'ontouchend' in document);
+}
+
 export function getIconId(): string {
   if (typeof window === 'undefined') return DEFAULT_ICON;
   const stored = localStorage.getItem(STORAGE_KEY) ?? '';

@@ -24,6 +24,23 @@ export function isNativeApp(): boolean {
   }
 }
 
+/** PWA-режим (standalone): iOS Home Screen / установленный Web-бандл. */
+export function isPwaStandalone(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const nav = window.navigator as any;
+    if (nav.standalone === true) return true; // iOS
+    return window.matchMedia('(display-mode: standalone)').matches; // Android/десктоп
+  } catch {
+    return false;
+  }
+}
+
+/** Стоит показывать автообновление: нативный APK или PWA. */
+export function shouldCheckUpdates(): boolean {
+  return isNativeApp() || isPwaStandalone();
+}
+
 /** Сравнение версий вида 1.2.3: -1 / 0 / 1 */
 export function compareVersions(a: string, b: string): number {
   const pa = a.replace(/^v/, '').split('.').map((n) => parseInt(n, 10) || 0);
@@ -36,22 +53,28 @@ export function compareVersions(a: string, b: string): number {
 }
 
 /**
- * Проверить обновление: версия APK (нативно) vs /apk/update.json.
+ * Проверить обновление: версия APK (нативно) или «0» в PWA vs /apk/update.json.
  */
 export async function checkApkUpdate(): Promise<ApkUpdateInfo> {
   const empty: ApkUpdateInfo = {
     available: false, latestVersion: '', currentVersion: '', apkUrl: null,
   };
-  if (!isNativeApp()) return empty;
+  if (!shouldCheckUpdates()) return empty;
 
-  // Своя установленная версия — из нативного плагина
+  // Своя установленная версия:
+  //  - нативный APK — из плагина
+  //  - PWA (iOS/Android standalone) — плагина нет, считаем за самую свежую цель;
+  //    реальная версия не известна, потому при выдаче нового релиза update.json
+  //    всегда новее → баннер покажем.
   let currentVersion = '0';
   try {
     const cap = (window as any).Capacitor;
-    const r = await cap.Plugins.AppUpdate.getVersion();
-    currentVersion = r?.version || '0';
+    if (cap?.isNativePlatform?.() && cap.Plugins?.AppUpdate) {
+      const r = await cap.Plugins.AppUpdate.getVersion();
+      currentVersion = r?.version || '0';
+    }
   } catch {
-    return { ...empty, currentVersion };
+    // плагин недоступен — PWA, оставляем '0'
   }
 
   // Свежая версия — из манифеста обновлений, задеплоенного с фронтом
@@ -92,6 +115,22 @@ export async function installUpdate(url: string): Promise<{ ok: boolean; message
   }
   window.open(url, '_blank', 'noopener');
   return { ok: true, message: 'Открыта ссылка на скачивание' };
+}
+
+/**
+ * Применить обновление в PWA: просим SW перекачаться и перезагружаем страницу —
+ * новый фронт (а он и есть «обновление» для PWA) встаёт сразу.
+ */
+export async function applyPwaUpdate(): Promise<void> {
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration();
+    if (reg) {
+      await reg.update();
+      // даём новому SW время установиться и взять управление
+      await new Promise((r) => setTimeout(r, 800));
+    }
+  } catch { /*SW нет — просто перезагрузка*/ }
+  window.location.reload();
 }
 
 /** Открыть скачивание APK (стандартный sideload: браузер качает → юзер ставит). */

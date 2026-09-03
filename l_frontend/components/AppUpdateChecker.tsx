@@ -4,7 +4,10 @@
 
 import { useEffect, useState } from 'react';
 import { Download, RefreshCw, X, ArrowUpCircle } from 'lucide-react';
-import { checkApkUpdate, isNativeApp, installUpdate, ApkUpdateInfo } from '@/lib/appUpdate';
+import {
+  checkApkUpdate, isNativeApp, isPwaStandalone, shouldCheckUpdates,
+  installUpdate, applyPwaUpdate, ApkUpdateInfo,
+} from '@/lib/appUpdate';
 
 const DISMISS_PREFIX = 'apk_update_dismissed_';
 const CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12 часов
@@ -14,9 +17,12 @@ export function AppUpdateChecker() {
   const [hidden, setHidden] = useState(true);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [isPwa, setIsPwa] = useState(false);
 
   useEffect(() => {
-    if (!isNativeApp()) return; // в браузере/PWA обновления идут через Service Worker
+    if (!shouldCheckUpdates()) return; // обычная вкладка браузера — SW сам обновится
+
+    setIsPwa(!isNativeApp() && isPwaStandalone());
 
     let timer: ReturnType<typeof setInterval> | null = null;
     const run = async () => {
@@ -46,6 +52,12 @@ export function AppUpdateChecker() {
   const doUpdate = async () => {
     if (!update.apkUrl) return;
     setBusy(true);
+    if (isPwa) {
+      // PWA (вкл. iOS Home Screen): обновление = новый фронт, применяем через SW
+      setStatus('Применяю обновление…');
+      await applyPwaUpdate(); // внутри — reload страницы
+      return;
+    }
     setStatus('Скачиваю обновление…');
     const res = await installUpdate(update.apkUrl);
     setStatus(res.ok ? (res.message || 'Готово — подтверди установку в диалоге Android.') : `Ошибка: ${res.error}`);
@@ -82,7 +94,9 @@ export function AppUpdateChecker() {
                   </span>
                 </div>
                 <p className="text-sm text-gray-500 dark:text-white/50 mt-0.5">
-                  Доступна новая версия. Текущая: v{update.currentVersion}
+                  {isPwa
+                    ? 'Установите новую версию сайта — обновление применится сразу.'
+                    : `Доступна новая версия. Текущая: v${update.currentVersion}`}
                 </p>
                 {status && (
                   <p className="text-xs text-[#8b5cf6] mt-2">{status}</p>
