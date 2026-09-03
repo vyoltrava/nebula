@@ -53,8 +53,7 @@ class User(SQLModel, table=True):
     is_private: bool = Field(default=False)                # приватный аккаунт: профиль/посты только для подписчиков (+ staff с manage_users)
     allow_comments: str = Field(default="everyone")        # "everyone" | "followers" | "following" | "mentioned"
     hide_following: bool = Field(default=False)            # скрыть список «читает»
-    hide_followers: bool = Field(default=False)            # скрыть список подписчиков
-    search_hide_email: bool = Field(default=False)         # исключить из поиска по email 
+    hide_followers: bool = Field(default=False)            # скрыть список подписчиков 
 
 
 

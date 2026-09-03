@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "@/lib/apiFetch";
 import { getToken } from "@/lib/auth";
 import {
-  Lock, MessageCircle, Phone, MessageSquare, Users, EyeOff, Mail, Loader2, ShieldCheck,
+  Lock, MessageCircle, Phone, MessageSquare, Users, EyeOff, Loader2, ShieldCheck,
 } from "lucide-react";
 import {
   validatePrivacyUpdate,
@@ -16,19 +16,14 @@ import {
   type PrivacySettings as PrivacyForm,
   type PrivacyField,
 } from "@/lib/validators/privacy";
+import { useI18n } from "@/lib/i18n/LanguageProvider";
 
-const AUDIENCE_LABELS: Record<string, string> = {
-  everyone: "Все",
-  followers: "Подписчики",
-  following: "Те, на кого подписан я",
-  nobody: "Никто",
-};
-
-const COMMENT_LABELS: Record<string, string> = {
-  everyone: "Все",
-  followers: "Подписчики",
-  following: "Те, на кого подписан я",
-  mentioned: "Только упомянутые",
+const OPTION_LABEL_KEYS: Record<string, string> = {
+  everyone: "privacy.optAll",
+  followers: "privacy.optFollowers",
+  following: "privacy.optFollowing",
+  nobody: "privacy.optNobody",
+  mentioned: "privacy.optMentioned",
 };
 
 const DEFAULTS: PrivacyForm = {
@@ -38,7 +33,6 @@ const DEFAULTS: PrivacyForm = {
   allow_comments: "everyone",
   hide_following: false,
   hide_followers: false,
-  search_hide_email: false,
 };
 
 function Toggle({ on }: { on: boolean }) {
@@ -57,6 +51,7 @@ function Toggle({ on }: { on: boolean }) {
 }
 
 export function PrivacyTab() {
+  const { t } = useI18n();
   const [form, setForm] = useState<PrivacyForm>(DEFAULTS);
   const [loaded, setLoaded] = useState(false);
   const [savingKey, setSavingKey] = useState<PrivacyField | null>(null);
@@ -101,7 +96,7 @@ export function PrivacyTab() {
     } catch (e: any) {
       // 3) rollback
       setForm(prev);
-      setError(e?.message || "Ошибка сохранения");
+      setError(e?.message || t("privacy.saveError"));
     } finally {
       setSavingKey(null);
     }
@@ -110,24 +105,23 @@ export function PrivacyTab() {
   const toggles: { key: PrivacyField; icon: any; title: string; hint: string }[] = [
     {
       key: "is_private", icon: Lock,
-      title: "Приватный аккаунт",
-      hint: "Ваш профиль и записи видны только подписчикам. Неавторизованные увидят замок.",
+      title: t("privacy.privateAccount"),
+      hint: t("privacy.privateAccountHint"),
     },
-    { key: "hide_following", icon: Users, title: "Скрыть, на кого я подписан", hint: "Список подписок будет виден только вам" },
-    { key: "hide_followers", icon: EyeOff, title: "Скрыть моих подписчиков", hint: "Список подписчиков будет виден только вам" },
-    { key: "search_hide_email", icon: Mail, title: "Исключить из поиска по email", hint: "Вас нельзя будет найти по email-адресу" },
+    { key: "hide_following", icon: Users, title: t("privacy.hideFollowing"), hint: t("privacy.hideFollowingHint") },
+    { key: "hide_followers", icon: EyeOff, title: t("privacy.hideFollowers"), hint: t("privacy.hideFollowersHint") },
   ];
 
-  const selects: { key: PrivacyField; icon: any; title: string; labels: Record<string, string>; options: readonly string[] }[] = [
-    { key: "allow_messages", icon: MessageCircle, title: "Кто может отправлять вам сообщения?", labels: AUDIENCE_LABELS, options: AUDIENCE_OPTIONS },
-    { key: "allow_calls", icon: Phone, title: "Кто может звонить вам?", labels: AUDIENCE_LABELS, options: AUDIENCE_OPTIONS },
-    { key: "allow_comments", icon: MessageSquare, title: "Кто может комментировать ваши записи?", labels: COMMENT_LABELS, options: COMMENT_OPTIONS },
+  const selects: { key: PrivacyField; icon: any; title: string; options: readonly string[] }[] = [
+    { key: "allow_messages", icon: MessageCircle, title: t("privacy.whoMessages"), options: AUDIENCE_OPTIONS },
+    { key: "allow_calls", icon: Phone, title: t("privacy.whoCalls"), options: AUDIENCE_OPTIONS },
+    { key: "allow_comments", icon: MessageSquare, title: t("privacy.whoComments"), options: COMMENT_OPTIONS },
   ];
 
   if (!loaded) {
     return (
       <div className="flex items-center justify-center py-10 text-gray-500 dark:text-white/40">
-        <Loader2 size={18} className="animate-spin mr-2" /> Загрузка…
+        <Loader2 size={18} className="animate-spin mr-2" /> {t("common.loading")}
       </div>
     );
   }
@@ -143,7 +137,7 @@ export function PrivacyTab() {
       {/* А. Аудитория профиля */}
       <section>
         <h3 className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-white/40 mb-2 px-1">
-          Аудитория профиля
+          {t("privacy.audienceTitle")}
         </h3>
         <div className="rounded-2xl border border-black/10 dark:border-white/10 divide-y divide-black/5 dark:divide-white/5 overflow-hidden">
           {toggles.map(({ key, icon: Icon, title, hint }) => {
@@ -170,10 +164,10 @@ export function PrivacyTab() {
       {/* Б. Читаемость и связь */}
       <section>
         <h3 className="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-white/40 mb-2 px-1">
-          Читаемость и связь
+          {t("privacy.readabilityTitle")}
         </h3>
         <div className="rounded-2xl border border-black/10 dark:border-white/10 divide-y divide-black/5 dark:divide-white/5 overflow-hidden">
-          {selects.map(({ key, icon: Icon, title, labels, options }) => (
+          {selects.map(({ key, icon: Icon, title, options }) => (
             <div key={key} className="px-4 py-3.5">
               <div className="flex items-center gap-3 mb-2.5">
                 <Icon size={17} className="text-gray-500 dark:text-white/40 shrink-0" />
@@ -192,7 +186,7 @@ export function PrivacyTab() {
                         : "bg-black/5 dark:bg-white/10 text-gray-700 dark:text-white/70 hover:bg-black/10 dark:hover:bg-white/20"
                     }`}
                   >
-                    {labels[o] || o}
+                    {t((OPTION_LABEL_KEYS[o] || o) as Parameters<typeof t>[0])}
                   </button>
                 ))}
               </div>
@@ -203,7 +197,7 @@ export function PrivacyTab() {
 
       <p className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-white/30 px-1">
         <ShieldCheck size={12} />
-        Все ограничения проверяются на сервере — их нельзя обойти изменением интерфейса.
+        {t("privacy.serverEnforced")}
       </p>
     </div>
   );

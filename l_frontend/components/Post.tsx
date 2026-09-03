@@ -375,26 +375,31 @@ useEffect(() => {
     const cleanUsername = username || handle?.replace("@", "");
 
     useEffect(() => {
-      // 🔥 Проверяем кеш сначала
+      // 🔥 Кеш — только для мгновенного старта (без «мигания» кнопки).
+      // ВАЖНО: НЕ делаем early-return — статус всегда сверяется с сервером,
+      // иначе кнопка «читаю» навечно застревает на устаревшем значении
+      // (например, после отписки с другого устройства).
       const cached = getCachedFollow(author_id);
       if (cached !== null) {
         setFollowing(cached);
-        return;
       }
 
       const token = getToken();
       if (!token) return;
       
+      let alive = true;
       safeFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${author_id}/is-following`, {
         headers: { Authorization: `Bearer ${token}` },
       })
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          if (data) {
+          if (alive && data) {
             setFollowing(data.following);
             setCachedFollow(author_id, data.following);
           }
-        });
+        })
+        .catch(() => {});
+      return () => { alive = false; };
     }, [author_id]);
 
     useEffect(() => {

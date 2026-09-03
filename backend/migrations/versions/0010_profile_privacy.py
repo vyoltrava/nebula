@@ -15,7 +15,7 @@ def upgrade() -> None:
     op.execute('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS allow_comments VARCHAR NOT NULL DEFAULT \'everyone\';')
     op.execute('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS hide_following BOOLEAN NOT NULL DEFAULT FALSE;')
     op.execute('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS hide_followers BOOLEAN NOT NULL DEFAULT FALSE;')
-    op.execute('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS search_hide_email BOOLEAN NOT NULL DEFAULT FALSE;')
+    # 🔥 search_hide_email удалён (поиска по email в проекте нет)
 
 
 def downgrade() -> None:

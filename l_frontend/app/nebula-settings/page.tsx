@@ -183,7 +183,7 @@ export default function NebulaSettingsPage() {
   const sections: { id: string; icon: any; color: string; title: string; hint: string }[] = [
     { id: "appearance", icon: Sun, color: "text-amber-500", title: t("nebula.secAppearance"), hint: t("nebula.hintAppearance") },
     { id: "notifications", icon: Bell, color: "text-blue-500", title: t("nebula.secNotifications"), hint: t("nebula.hintNotifications") },
-    { id: "privacy", icon: ShieldCheck, color: "text-cyan-500", title: "Приватность", hint: "Профиль, сообщения, комментарии, подписки" },
+    { id: "privacy", icon: ShieldCheck, color: "text-cyan-500", title: t("privacy.title"), hint: t("privacy.hint") },
     { id: "permissions", icon: Lock, color: "text-emerald-500", title: t("nebula.secPermissions"), hint: t("nebula.hintPermissions") },
     { id: "livetext", icon: Zap, color: "text-yellow-500", title: t("nebula.secLivetext"), hint: t("nebula.hintLivetext") },
     { id: "language", icon: Languages, color: "text-purple-500", title: t("nebula.secLanguage"), hint: t("nebula.hintLanguage") },

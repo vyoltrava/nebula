@@ -323,7 +323,7 @@ async function activate2FA() {
     { id: "appearance", label: t("settings.appearance"), icon: Palette },
     { id: "notifications", label: t("settings.notifications"), icon: Bell },
     { id: "permissions", label: t("settings.permissions"), icon: Mic },
-    { id: "privacy", label: "Приватность", icon: Lock },
+    { id: "privacy", label: t("privacy.title"), icon: Lock },
     { id: "messages", label: t("settings.liveMessages"), icon: Zap },
     { id: "security", label: t("settings.security"), icon: ShieldCheck },
     { id: "nebula", label: "Nebula", icon: Sparkles },
@@ -588,7 +588,7 @@ async function activate2FA() {
             {/* ---------- ПРИВАТНОСТЬ ---------- */}
             {view === "privacy" && (
               <div className="space-y-6">
-                <h2 className="text-lg font-semibold">Приватность</h2>
+                <h2 className="text-lg font-semibold">{t("privacy.title")}</h2>
                 <PrivacyTab />
               </div>
             )}

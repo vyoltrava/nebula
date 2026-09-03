@@ -3192,6 +3192,28 @@ def get_posts(
 
     posts = session.exec(query.limit(limit)).all()
 
+    # 🛡 ПРИВАТНЫЕ АККАНТЫ: их посты не попадают в общую ленту, если зритель —
+    # не сам автор, не его подписчик и не staff с правом «Доступ к панели
+    # управления» (manage_users).
+    if posts:
+        _authors = session.exec(select(User).where(User.id.in_({p.author_id for p in posts}))).all()
+        _hidden = set()
+        for _u in _authors:
+            if not getattr(_u, "is_private", False):
+                continue
+            if viewer is None:
+                _hidden.add(_u.id)
+            elif (
+                viewer.id != _u.id
+                and not viewer.is_admin
+                and not viewer.is_moderator
+                and not has_permission(viewer, "manage_users", session)
+                and not _viewer_follows(viewer.id, _u.id, session)
+            ):
+                _hidden.add(_u.id)
+        if _hidden:
+            posts = [p for p in posts if p.author_id not in _hidden]
+
     if not posts:
         return {"posts": [], "has_more": False, "next_cursor": None}
 
@@ -8484,7 +8506,6 @@ class PrivacyIn(BaseModel):
     # 🛡 Видимость данных
     hide_following: Optional[bool] = None
     hide_followers: Optional[bool] = None
-    search_hide_email: Optional[bool] = None
 
 
 _PROFILE_PRIVACY_STRINGS = {
@@ -8492,7 +8513,7 @@ _PROFILE_PRIVACY_STRINGS = {
     "allow_calls": {"everyone", "followers", "following", "nobody"},
     "allow_comments": {"everyone", "followers", "following", "mentioned"},
 }
-_PROFILE_PRIVACY_BOOLS = ("is_private", "hide_following", "hide_followers", "search_hide_email")
+_PROFILE_PRIVACY_BOOLS = ("is_private", "hide_following", "hide_followers")
 
 
 @app.get("/api/me/privacy")
@@ -8505,7 +8526,6 @@ async def get_privacy_settings(user: User = Depends(get_current_user)):
         "allow_comments": getattr(user, "allow_comments", "everyone"),
         "hide_following": getattr(user, "hide_following", False),
         "hide_followers": getattr(user, "hide_followers", False),
-        "search_hide_email": getattr(user, "search_hide_email", False),
     }
 
 
@@ -8534,7 +8554,6 @@ async def update_privacy_settings(
         "allow_comments": getattr(user, "allow_comments", "everyone"),
         "hide_following": getattr(user, "hide_following", False),
         "hide_followers": getattr(user, "hide_followers", False),
-        "search_hide_email": getattr(user, "search_hide_email", False),
     }
 
 

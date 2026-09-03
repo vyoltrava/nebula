@@ -13,7 +13,6 @@ export interface PrivacySettings {
   allow_comments: (typeof COMMENT_OPTIONS)[number];
   hide_following: boolean;
   hide_followers: boolean;
-  search_hide_email: boolean;
 }
 
 export type PrivacyField = keyof PrivacySettings;
@@ -31,7 +30,7 @@ export function validatePrivacyUpdate(
 ): { ok: true; data: PrivacyUpdate } | { ok: false; error: string } {
   const data: PrivacyUpdate = {};
 
-  for (const key of ["is_private", "hide_following", "hide_followers", "search_hide_email"] as const) {
+  for (const key of ["is_private", "hide_following", "hide_followers"] as const) {
     if (key in update) {
       const v = update[key];
       if (typeof v !== "boolean") return { ok: false, error: `«${key}» должен быть true/false` };

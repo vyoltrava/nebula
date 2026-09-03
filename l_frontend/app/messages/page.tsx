@@ -768,8 +768,8 @@ const confirmPrismKey = async () => {
                 className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
               >
                 {menuChat.muted
-                  ? <><Bell size={16} className="text-green-600 dark:text-green-400" /> Включить уведомления</>
-                  : <><BellOff size={16} className="text-amber-600 dark:text-amber-400" /> Выключить уведомления</>}
+                  ? <><Bell size={16} className="text-green-600 dark:text-green-400" /> {t("mute.turnOn")}</>
+                  : <><BellOff size={16} className="text-amber-600 dark:text-amber-400" /> {t("mute.turnOff")}</>}
               </button>
               <button
                 onClick={() => { 
