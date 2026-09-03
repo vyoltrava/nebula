@@ -176,6 +176,44 @@ export function isTurnConfigured(): boolean {
   return !!(dynamicIceServers && dynamicIceServers.length > 0);
 }
 
+// ============================================================================
+// 📊 DEBUG-DUMP: что реально ушло в RTCPeerConnection и какие ошибки ICE были.
+// Нужно для удалённой диагностики «не работает на айфоне»: пользователь жмёт
+// «Скопировать диагностику» в CallModal и присылает текст.
+// ============================================================================
+const iceDebug = {
+  configUsed: null as any,
+  policyUsed: '' as string,
+  candidateErrors: [] as { url?: string; errorCode?: number; errorText?: string }[],
+};
+
+function captureIceConfig(config: RTCConfiguration) {
+  iceDebug.configUsed = {
+    iceServers: config.iceServers,
+    iceTransportPolicy: config.iceTransportPolicy ?? 'all',
+  };
+  iceDebug.policyUsed = String(config.iceTransportPolicy ?? 'all');
+}
+
+export function buildCallDebugReport(diag: any): string {
+  const lines: string[] = [
+    '=== NEBULA CALL DEBUG ===',
+    `UA: ${navigator.userAgent}`,
+    `Platform: ${navigator.platform}, touchPoints: ${navigator.maxTouchPoints}`,
+    `Standalone(PWA): ${(navigator as any).standalone === true || window.matchMedia('(display-mode: standalone)').matches}`,
+    `TURN from backend: ${isTurnConfigured()}`,
+    `ICE policy: ${iceDebug.policyUsed || 'n/a'}`,
+    `Diag: ${JSON.stringify(diag ?? null)}`,
+    `Config: ${JSON.stringify(iceDebug.configUsed)}`,
+    'Candidate errors:',
+    ...(iceDebug.candidateErrors.length
+      ? iceDebug.candidateErrors.map((e) => `  code=${e.errorCode} text="${e.errorText}" url=${e.url}`)
+      : ['  (none)']),
+    '=========================',
+  ];
+  return lines.join('\n');
+}
+
 const emptyDiag = () => ({
   ice: 'new',
   conn: 'new',
@@ -281,7 +319,10 @@ const getRTCConfig = (): RTCConfiguration => {
     iceServers: withTcpFallback(iceServers),
 
     // 🔥 ИЗМЕНЕНИЕ: Если включен флаг или мы detect проблемы, ставим 'relay'
-    iceTransportPolicy: FORCE_RELAY_ONLY ? 'relay' : 'all',
+    // 📱 iOS: принудительно relay — за VPN srflx-пары (IP VPN-сервера) почти
+    // всегда не соединяются, а WebKit зря тратит на них ~20 секунд и часто
+    // «залипает» в checking. Relay (turns:443) — единственный рабочий путь.
+    iceTransportPolicy: (FORCE_RELAY_ONLY || isIOS) ? 'relay' : 'all',
 
     // 📱 iOS: минимальный безопасный конфиг (обход бага WebKit «зависший ICE»).
     ...(isIOS
@@ -668,6 +709,7 @@ export function useWebRTC(
 
       // 🔥 Получаем свежий конфиг каждый раз (на случай изменения FORCE_RELAY_ONLY)
       const config = getRTCConfig();
+      captureIceConfig(config);
       const pc = new RTCPeerConnection(config);
 
       pcRef.current = pc;
@@ -721,6 +763,15 @@ export function useWebRTC(
           errorCode: event.errorCode,
           errorText: event.errorText,
         });
+        // 📊 В debug-dump: код ошибки сразу виден при удалённой диагностике
+        // (401 = неверные креды TURN, 701 = хост недоступен/DNS, и т.д.)
+        if (iceDebug.candidateErrors.length < 30) {
+          iceDebug.candidateErrors.push({
+            url: event.url,
+            errorCode: (event as any).errorCode,
+            errorText: (event as any).errorText,
+          });
+        }
         // 📊 Индикатор: ошибки сбора кандидатов (STUN/TURN недоступен)
         setState((prev) => {
           const d: CallDiagnostics =

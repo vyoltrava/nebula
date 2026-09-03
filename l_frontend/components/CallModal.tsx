@@ -4,6 +4,7 @@ import { useRef, useEffect, useState } from 'react';
 import { useCall } from '@/lib/CallContext';
 import { callSounds } from '@/lib/callSounds';
 import { useI18n } from '@/lib/i18n/LanguageProvider';
+import { buildCallDebugReport } from '@/src/hooks/useWebRTC';
 
 function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -169,6 +170,20 @@ export default function CallModal() {
           <p className="mt-2 max-w-[92%] rounded-xl bg-amber-500/90 text-black text-[11px] sm:text-xs font-semibold px-3 py-2 text-center shadow-lg">
             {t("call.iosRelayHint")}
           </p>
+        )}
+        {/* 🔎 Копирование диагностики: когда звонок не соединяется — прислать
+            разработчику текст (UA, ICE-политика, конфиг TURN, ошибки кандидатов) */}
+        {(iosRelayHint || diag?.ice === 'failed') && (
+          <button
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(buildCallDebugReport(diag));
+              } catch { /* clipboard может быть заблокирован — игнорируем */ }
+            }}
+            className="mt-2 rounded-lg bg-white/15 hover:bg-white/25 text-white text-[11px] font-semibold px-3 py-1.5 transition-colors"
+          >
+            {t("call.copyDiag")}
+          </button>
         )}
         <p className="text-white/70 text-sm font-medium mt-1">
           {(status === 'ringing' || status === 'initiating') && isCaller && 'Вызов...'}
