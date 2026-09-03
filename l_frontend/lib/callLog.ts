@@ -37,6 +37,19 @@ export function clearCallChat(): void {
   activeCallChat = null;
 }
 
+/** Человекочитаемый текст звонка для пушей/превью. */
+export function formatCallLogText(payload: CallLogPayload): string {
+  const type = payload.call_type === 'video' ? 'Видеозвонок' : 'Аудиозвонок';
+  if (payload.outcome === 'missed') return `📞 ${type}: пропущенный`;
+  if (payload.outcome === 'declined') return `📞 ${type}: отклонённый`;
+  if (payload.duration > 0) {
+    const m = Math.floor(payload.duration / 60);
+    const s = payload.duration % 60;
+    return `📞 ${type}: ${m}:${s.toString().padStart(2, '0')}`;
+  }
+  return `📞 ${type}`;
+}
+
 /** Парсинг текста сообщения в call_log (null — если это обычное сообщение). */
 export function parseCallLog(text: string | null | undefined): CallLogPayload | null {
   if (!text || !text.startsWith('{"nebula_call_log"')) return null;

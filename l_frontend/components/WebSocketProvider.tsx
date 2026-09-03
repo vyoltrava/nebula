@@ -7,7 +7,8 @@ import { getToken } from "@/lib/auth";
 import { showBackgroundNotification } from "@/lib/notifications";
 import { useWebRTC } from "@/src/hooks/useWebRTC";
 import { CallContext } from "@/lib/CallContext";
-import { sendCallLogMessage, clearCallChat } from "@/lib/callLog";
+import { sendCallLogMessage, clearCallChat, parseCallLog, formatCallLogText } from "@/lib/callLog";
+import { stripMarkdown } from "@/lib/plainText";
 import CallModal from "@/components/CallModal";
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
@@ -78,14 +79,19 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     const unsubMessage = socket.on("new_message", (data: any) => {
       if (document.hidden) {
         const rawText: string = data.text || "";
-        const isCallLog = rawText.startsWith('{"nebula_call_log"');
+        // 📞 Звонок — человекочитаемое превью вместо сырого JSON; обычные — без Markdown-разметки
+        const callLog = parseCallLog(rawText);
+        let body: string;
+        if (callLog) {
+          body = formatCallLogText(callLog);
+        } else if (data.media_type) {
+          body = `📎 ${data.media_type === "image" ? "Фото" : data.media_type === "audio" ? "Голосовое" : data.media_type}`;
+        } else {
+          body = stripMarkdown(rawText) || "🔒 Секретное сообщение";
+        }
         showBackgroundNotification({
           title: `💬 ${data.sender_name || "Новое сообщение"}`,
-          body: isCallLog
-            ? "📞 Звонок"
-            : data.media_type
-            ? `📎 ${data.media_type === "image" ? "Фото" : data.media_type === "audio" ? "Голосовое" : data.media_type}`
-            : (rawText || "🔒 Секретное сообщение"),
+          body,
           icon: data.sender_avatar || undefined,
           tag: `chat-${data.chat_id}`,
           url: `/messages/${data.chat_id}`,

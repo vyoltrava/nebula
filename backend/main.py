@@ -5549,23 +5549,10 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
                                    "created_at": last_msg.created_at.isoformat()}
         else:
             if last_msg.text:
-                # 📞 Сообщение-уведомление о звонке — человекочитаемое превью вместо JSON
-                if last_msg.text.startswith('{"nebula_call_log"'):
-                    try:
-                        _cl = json.loads(last_msg.text)
-                        _clt = "Видеозвонок" if _cl.get("call_type") == "video" else "Звонок"
-                        _clo = _cl.get("outcome")
-                        if _clo == "missed":
-                            preview = f"📞 {_clt}: пропущенный"
-                        elif _clo == "declined":
-                            preview = f"📞 {_clt}: отклонённый"
-                        else:
-                            _d = int(_cl.get("duration") or 0)
-                            preview = f"📞 {_clt}: {(_d // 60)}:{(_d % 60):02d}" if _d > 0 else f"📞 {_clt}"
-                    except Exception:
-                        preview = "📞 Звонок"
-                else:
-                    preview = last_msg.text[:50]
+                # 📞 Сообщение-уведомление о звонке — человекочитаемое превью вместо JSON;
+                # обычные — без Markdown-разметки.
+
+                preview = (_call_log_push(last_msg.text) if last_msg.text.startswith('{"nebula_call_log"') else _strip_markdown(last_msg.text))[:50]
             elif last_msg.media_type in ("image", "gif"):
                 preview = "📷 Фото"
             elif last_msg.media_type == "video":
@@ -7912,7 +7899,7 @@ async def send_message_v2(
                 f"/messages/{chat_id}",
             ))
         else:
-            body = (msg.text or ("📎 Вложение" if media_url else "Сообщение"))[:100]
+            body = _push_body(msg.text, media_url)
             asyncio.create_task(run_in_threadpool(
                 send_push, other.user_id,
                 f"💬 {user.display_name}",
@@ -8279,7 +8266,7 @@ async def forward_message(
     # 9. Push-уведомления
     from push_service import send_push
     for other in other_members:
-        body = (new_msg.text or "📎 Вложение")[:100]
+        body = _push_body(new_msg.text, new_msg.media_type)
         asyncio.create_task(run_in_threadpool(
             send_push, other.user_id,
             f"💬 {user.display_name}",
@@ -8291,6 +8278,63 @@ async def forward_message(
 
 
 
+# ============================================================
+# 📱 PUSH-ПРЕВЬЮ: человекочитаемые пуши вместо сырого Markdown/JSON
+# ============================================================
+import re as _re
+
+def _strip_markdown(text: str) -> str:
+    """Убирает Markdown-разметку (жирный, спойлер, код, ссылки, заголовки)... -> plain text для пуша/превью."""
+    if not text:
+        return ""
+    s = text
+    s = _re.sub(r"\|\|(.+?)\|\|", r"\1", s)      # спойлер ||скрытый|| -> скрытый
+    s = _re.sub(r"`+([^`]+)`+", r"\1", s)          # инлайн-код `код` -> код
+    s = _re.sub(r"```.*?```", " [код] ", s, flags=_re.S)  # блок кода -> [код]
+    s = _re.sub(r"!\[([^\]]*)\]\([^)]+\)", " 📷 ", s) # изображение ![alt](url) -> 📷
+    s = _re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", s)  # ссылка [текст](url) -> текст
+    s = _re.sub(r"^\s{0,3}#{1,6}\s*", "", s, flags=_re.M) # заголовки #...
+    s = _re.sub(r"\*\*(.+?)\*\*", r"\1", s)       # **жирный** -> жирный
+    s = _re.sub(r"__(.+?)__", r"\1", s)            # __жирный__ -> жирный
+    s = _re.sub(r"(?<!\*)\*(?!\*)([^*\n]+)\*(?!\*)", r"\1", s)  # *курсив* -> курсив
+    s = _re.sub(r"~~(.+?)~~", r"\1", s)            # ~~зачёркнутый~~ -> зачёркнутый
+    s = _re.sub(r"^\s*[-*+]\s+", "", s, flags=_re.M)  # маркер-список -> убираем булиты
+    s = _re.sub(r"[>|]\s*", "", s, flags=_re.M)  # цитаты >и мобильные таблицы | ...
+    s = _re.sub(r"\s+", " ", s)                        # множ. пробелы
+    for _sym in ("*", "_", "`"):
+        s = s.replace("\\" + _sym, _sym)
+    return s.strip()
+
+def _call_log_push(text: str) -> str:
+    """Превью звонка для пуша: из JSON-маркера в человекочитаемую строку."""
+    try:
+        cl = json.loads(text)
+        ct = "Видеозвонок" if cl.get("call_type") == "video" else "Аудиозвонок"
+        outcome = cl.get("outcome")
+        if outcome == "missed":
+            return f"📞 {ct}: пропущенный"
+        if outcome == "declined":
+            return f"📞 {ct}: отклонённый"
+        d = int(cl.get("duration") or 0)
+        if d > 0:
+            return f"📞 {ct}: {d // 60}:{d % 60:02d}"
+        return f"📞 {ct}"
+    except Exception:
+        return "📞 Звонок"
+
+def _push_body(text: str, media_type: str|None = None) -> str:
+    """Итоговый body пуша для нового сообщения: обычные — plain text без Markdown, звонок — человекочитаемое превью."""
+    if text and text.startswith('{"nebula_call_log"'):
+        return _call_log_push(text)
+    if text:
+        return _strip_markdown(text)[:100]
+    if media_type in ("image", "gif"):
+        return "📷 Фото"
+    if media_type == "video":
+        return "🎬 Видео"
+    if media_type == "audio":
+        return "🎙️ Голосовое"
+    return "📎 Вложение"
 class PushSubscribeIn(BaseModel):
     endpoint: str
     p256dh: str
