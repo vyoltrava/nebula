@@ -15,7 +15,8 @@ export default function CallModal() {
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
 
-  const [remoteUnmuted, setRemoteUnmuted] = useState(false);
+  // Звук включён по умолчанию; muted-фолбэк только если браузер заблокировал unmuted-автоплей
+  const [remoteUnmuted, setRemoteUnmuted] = useState(true);
 
   const {
     status, callType, remoteUserName, remoteUserAvatar, isCaller,
@@ -35,13 +36,19 @@ export default function CallModal() {
 
   // Привязка удаленного видео/аудио
   useEffect(() => {
+    const tryPlay = (el: HTMLMediaElement) => {
+      el.play().catch((err: DOMException) => {
+        // Браузер блокирует unmuted-автоплей — глушим и ждём тапа пользователя
+        if (err?.name === 'NotAllowedError') setRemoteUnmuted(false);
+      });
+    };
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
-      remoteVideoRef.current.play().catch(() => {});
+      tryPlay(remoteVideoRef.current);
     }
     if (remoteAudioRef.current && remoteStream) {
       remoteAudioRef.current.srcObject = remoteStream;
-      remoteAudioRef.current.play().catch(() => {});
+      tryPlay(remoteAudioRef.current);
     }
   }, [remoteStream]);
 
@@ -50,6 +57,11 @@ export default function CallModal() {
     if (remoteVideoRef.current) remoteVideoRef.current.muted = !remoteUnmuted;
     if (remoteAudioRef.current) remoteAudioRef.current.muted = !remoteUnmuted;
   }, [remoteUnmuted]);
+
+  // Сброс состояния звука между звонками
+  useEffect(() => {
+    if (status === 'idle' || status === 'ended') setRemoteUnmuted(true);
+  }, [status]);
 
   if (status === 'idle') return null;
 
