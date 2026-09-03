@@ -42,7 +42,12 @@ class User(SQLModel, table=True):
     prism_anchor: Optional[str] = Field(default=None) 
 
     # 💰 Баланс кредитов (для покупки премиум-юзернеймов за CREDITS)
-    credits: int = Field(default=0) 
+    credits: int = Field(default=0)
+
+    # 🛡 ПРИВАТНОСТЬ: кто может писать мне в ЛС / звонить
+    # "everyone" | "followers" | "nobody"
+    allow_messages: str = Field(default="everyone")
+    allow_calls: str = Field(default="everyone") 
 
 
 
@@ -209,6 +214,9 @@ class ChatMember(SQLModel, table=True):
     # 🆕 Роль в чате: "owner" | "admin" | "member"
     role: str = Field(default="member")
     joined_at: datetime = Field(default_factory=utcnow)
+    # 🔕 Отключение уведомлений чата: NULL = включены; дата в будущем = до момента;
+    # 9999-01-01 = навсегда
+    muted_until: Optional[datetime] = Field(default=None, sa_column_kwargs={"server_default": None})
     __table_args__ = (UniqueConstraint("chat_id", "user_id"),)
 
 class Message(SQLModel, table=True):

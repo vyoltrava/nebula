@@ -37,6 +37,7 @@ import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PaymentShop } from "@/components/payments/PaymentShop";
 import { ShopSettings } from "@/components/settings/ShopSettings";
+import { PrivacySettings } from "@/components/settings/PrivacySettings";
 import { Button, IconButton } from "@/components/ui/Button";
 
 type View = "profile" | "appearance" | "notifications" | "permissions" | "messages" | "security" | "nebula" | "shop";
@@ -587,6 +588,7 @@ async function activate2FA() {
             {view === "security" && (
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold">{t("settings.security")}</h2>
+                <PrivacySettings />
 
                 {/* 2FA */}
                 <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">

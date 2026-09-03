@@ -15,6 +15,7 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 import { MessageContextMenu } from "@/components/MessageContextMenu";
 import { ReportDialog, ReportTargetType } from "@/components/ReportDialog";
 import CallButton from '@/components/CallButton';
+import { ChatMuteButton } from '@/components/ChatMuteButton';
 import { registerCallChat } from '@/lib/callLog';
 import { MessageBubble } from "@/components/MessageBubble";
 import LinkPreview  from "@/components/LinkPreview";
@@ -2317,6 +2318,11 @@ const ChatHeader = () => (
 
                   
                   
+                  {/* 🔕 Отключение уведомлений чата (по времени / навсегда) */}
+                  {!isSavedChat && (
+                    <ChatMuteButton chatId={Number(chatId)} />
+                  )}
+
                   <button
                     onClick={() => { setMediaTab("image"); loadMedia(); setShowMediaGallery(true); }}
                     className="hidden sm:flex p-2.5 sm:p-2 text-gray-600 dark:text-white/60 hover:text-[#8b5cf6] transition-colors active:scale-95"

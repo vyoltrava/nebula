@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { useCall } from '@/lib/CallContext';
+import { callSounds } from '@/lib/callSounds';
 
 function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -73,6 +74,25 @@ export default function CallModal() {
   useEffect(() => {
     if (status === 'idle' || status === 'ended') setRemoteUnmuted(true);
   }, [status]);
+
+  // 🔔 ЗВУКИ ЗВОНКА: рингтон для входящего, гудок для исходящего,
+  // стоп при соединении/завершении + короткий «пип» соединения.
+  const connectedSoundRef = useRef(false);
+  useEffect(() => {
+    if (status === 'ringing') {
+      if (isCaller) callSounds.playOutgoing();
+      else callSounds.playIncoming();
+      connectedSoundRef.current = false;
+    } else {
+      callSounds.stopAll();
+      if (status === 'active' && !connectedSoundRef.current) {
+        connectedSoundRef.current = true;
+        callSounds.playConnected();
+      }
+      if (status === 'idle' || status === 'ended') connectedSoundRef.current = false;
+    }
+    return () => { callSounds.stopAll(); };
+  }, [status, isCaller]);
 
   if (status === 'idle') return null;
 

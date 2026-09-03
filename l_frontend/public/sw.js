@@ -366,16 +366,19 @@ self.addEventListener("push", function (event) {
       }
     } catch (e) { /* битые данные — используем дефолт */ }
   }
+  var isCallPush = data.kind === "call";
   var options = {
     body: data.body || "",
     icon: "/pwa/icon-192.png",
     badge: "/pwa/maskable-192.png",
     tag: "trelod-" + (data.url || "default"),
     data: { url: data.url || "/", date: new Date().toISOString() },
-    vibrate: [200, 100, 200],
+    vibrate: isCallPush ? [500, 200, 500, 200, 500] : [200, 100, 200],
     renotify: true,
+    requireInteraction: isCallPush,
+    silent: false,
     actions: [
-      { action: "open", title: "Открыть" },
+      { action: "open", title: isCallPush ? "Открыть и перезвонить" : "Открыть" },
       { action: "close", title: "Закрыть" }
     ]
   };

@@ -57,8 +57,9 @@ def get_vapid() -> dict:
     return _vapid
 
 
-def send_push(user_id: int, title: str, body: str, url: str):
-    """Синхронная отправка — вызывать через run_in_threadpool"""
+def send_push(user_id: int, title: str, body: str, url: str, kind: str = "message"):
+    """Синхронная отправка — вызывать через run_in_threadpool.
+    kind: 'message' | 'call' — для особой обработки в service worker (рингтон)."""
     log.info(f"[PUSH] Попытка отправки для user_id={user_id}: {title}")
     try:
         from pywebpush import webpush, WebPushException
@@ -86,7 +87,7 @@ def send_push(user_id: int, title: str, body: str, url: str):
                             "endpoint": sub.endpoint,
                             "keys": {"p256dh": sub.p256dh, "auth": sub.auth},
                         },
-                        data=json.dumps({"title": title, "body": body, "url": url}),
+                        data=json.dumps({"title": title, "body": body, "url": url, "kind": kind}),
                         vapid_private_key=keys["private_pem"],
                         vapid_claims={"sub": "mailto:admin@trelod.app"},
                         timeout=10,

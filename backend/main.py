@@ -7597,6 +7597,8 @@ async def upload_encrypted_media(
 
     from push_service import send_push
     for other in other_members:
+        if _member_muted(chat_id, other.user_id, session):
+            continue  # 🔕 уведомления чата выключены
         asyncio.create_task(run_in_threadpool(
             send_push, other.user_id,
             "🔒 Секретное сообщение",
@@ -7699,6 +7701,19 @@ async def send_message_v2(
     chat = session.get(Chat, chat_id)
     if not chat:
         raise HTTPException(404, "Чат не найден")
+
+    # 🛡 ПРИВАТНОСТЬ: запрет на сообщения (только для личных чатов)
+    if not getattr(chat, "is_group", False):
+        _other_member = session.exec(
+            select(ChatMember).where(
+                ChatMember.chat_id == chat_id,
+                ChatMember.user_id != user.id,
+            )
+        ).first()
+        if _other_member:
+            _target_user = session.get(User, _other_member.user_id)
+            if _target_user and not _privacy_allows(_target_user, user.id, "messages", session):
+                raise HTTPException(403, "Пользователь запретил отправлять ему сообщения")
 
     # 🛡️ Модерация: чат заблокирован админом / юзер в муте
     if not user.is_admin and not user.is_moderator and not user.is_trelod:
@@ -7899,6 +7914,8 @@ async def send_message_v2(
     # 🆕 PUSH-УВЕДОМЛЕНИЯ получателям
     from push_service import send_push
     for other in other_members:
+        if _member_muted(chat_id, other.user_id, session):
+            continue  # 🔕 уведомления чата выключены
         if chat.is_secret:
             asyncio.create_task(run_in_threadpool(
                 send_push, other.user_id,
@@ -8274,6 +8291,8 @@ async def forward_message(
     # 9. Push-уведомления
     from push_service import send_push
     for other in other_members:
+        if _member_muted(target_chat_id, other.user_id, session):
+            continue  # 🔕 уведомления чата выключены
         body = _push_body(new_msg.text, new_msg.media_type)
         asyncio.create_task(run_in_threadpool(
             send_push, other.user_id,
@@ -8284,6 +8303,132 @@ async def forward_message(
     
     return {"ok": True, "message_id": new_msg.id}
 
+
+
+# ============================================================
+# 🔕 МЬЮТ УВЕДОМЛЕНИЙ ЧАТА (по времени / навсегда) + 🛡 ПРИВАТНОСТЬ
+# ============================================================
+
+FOREVER_MUTE = datetime(9999, 1, 1, tzinfo=timezone.utc)
+
+def _member_muted(chat_id: int, user_id: int, session: Session) -> bool:
+    """True, если юзер выключил уведомления этого чата (и мьют ещё активен)."""
+    try:
+        m = session.exec(
+            select(ChatMember).where(
+                ChatMember.chat_id == chat_id,
+                ChatMember.user_id == user_id,
+            )
+        ).first()
+    except Exception:
+        return False
+    mu = getattr(m, "muted_until", None)
+    if not mu:
+        return False
+    if mu.tzinfo is None:
+        mu = mu.replace(tzinfo=timezone.utc)
+    return mu > datetime.now(timezone.utc)
+
+
+def _privacy_allows(target: "User", actor_id: int, kind: str, session: Session) -> bool:
+    """🛡 Проверка приватности: может ли actor писать (kind='messages')
+    или звонить (kind='calls') пользователю target."""
+    setting = getattr(target, f"allow_{kind}", "everyone") or "everyone"
+    if setting == "everyone":
+        return True
+    if setting == "nobody":
+        return False
+    if setting == "followers":
+        # actor должен быть подписчиком target
+        return session.exec(
+            select(Follow).where(
+                Follow.follower_id == actor_id,
+                Follow.followee_id == target.id,
+            )
+        ).first() is not None
+    return True
+
+
+class PrivacyIn(BaseModel):
+    allow_messages: Optional[str] = None
+    allow_calls: Optional[str] = None
+
+
+@app.get("/api/me/privacy")
+async def get_privacy_settings(user: User = Depends(get_current_user)):
+    """🛡 Настройки приватности: кто может писать/звонить."""
+    return {"allow_messages": user.allow_messages, "allow_calls": user.allow_calls}
+
+
+@app.patch("/api/me/privacy")
+async def update_privacy_settings(
+    data: PrivacyIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    for key in ("allow_messages", "allow_calls"):
+        value = getattr(data, key)
+        if value is not None:
+            if value not in ("everyone", "followers", "nobody"):
+                raise HTTPException(400, f"Недопустимое значение {key}")
+            setattr(user, key, value)
+    session.add(user)
+    session.commit()
+    return {"allow_messages": user.allow_messages, "allow_calls": user.allow_calls}
+
+
+class ChatMuteIn(BaseModel):
+    minutes: Optional[int] = None   # сколько минут мьютить (1ч=60, 8ч=480, 24ч=1440)
+    forever: bool = False           # навсегда
+
+
+@app.get("/api/chats/{chat_id}/mute")
+async def get_chat_mute(
+    chat_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    member = session.exec(
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
+    ).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+    mu = member.muted_until
+    if mu and mu.tzinfo is None:
+        mu = mu.replace(tzinfo=timezone.utc)
+    if mu and mu > datetime.now(timezone.utc):
+        return {"muted_until": mu.isoformat(), "forever": mu.year >= 9999}
+    return {"muted_until": None, "forever": False}
+
+
+@app.patch("/api/chats/{chat_id}/mute")
+async def set_chat_mute(
+    chat_id: int,
+    data: ChatMuteIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """🔕 Отключение уведомлений чата: по времени, навсегда или выключить мьют."""
+    member = session.exec(
+        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
+    ).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+
+    if data.forever:
+        member.muted_until = FOREVER_MUTE
+    elif data.minutes and data.minutes > 0:
+        member.muted_until = datetime.now(timezone.utc) + timedelta(minutes=data.minutes)
+    else:
+        member.muted_until = None
+    session.add(member)
+    session.commit()
+
+    mu = member.muted_until
+    return {
+        "muted_until": mu.isoformat() if mu else None,
+        "forever": bool(mu and mu.year >= 9999),
+    }
 
 
 # ============================================================
@@ -10362,9 +10507,21 @@ async def websocket_endpoint(websocket: WebSocket):
             if mtype == "call_initiate":
                 if not isinstance(target_id, int):
                     continue
+                # 🛡 ПРИВАТНОСТЬ: проверяем, может ли инициатор звонить адресату
+                _target_user = None
+                with Session(engine) as _s:
+                    _target_user = _s.get(User, target_id)
+                    if _target_user and not _privacy_allows(_target_user, user_id, "calls", _s):
+                        print(f"[📞 PRIVACY] call_initiate {user_id} -> {target_id} BLOCKED (allow_calls={_target_user.allow_calls})")
+                        await manager.send_to_user(user_id, "call_rejected", {
+                            "call_id": "",
+                            "reason": "privacy_blocked",
+                        })
+                        continue
+
                 call_id = f"call-{user_id}-{target_id}-{uuid.uuid4().hex[:8]}"
                 # 1) Входящий вызов адресату (useWebRTC.ts case 'call_incoming')
-                await manager.send_to_user(target_id, "call_incoming", {
+                delivered = await manager.send_to_user(target_id, "call_incoming", {
                     "call_id": call_id,
                     "call_type": msg.get("call_type", "audio"),
                     "caller_id": user_id,
@@ -10376,6 +10533,22 @@ async def websocket_endpoint(websocket: WebSocket):
                     "call_id": call_id,
                     "target_user_id": target_id,
                 })
+                # 3) 🔔 Адресат офлайн — доставляем звонок ПУШЕМ (как push-уведомления,
+                #    звонок проходит всегда, независимо от онлайна). По приходу пуша
+                #    пользователь открывает приложение и может перезвонить.
+                if not delivered:
+                    from push_service import send_push
+                    _ct = "видеозвонок" if msg.get("call_type", "audio") == "video" else "аудиозвонок"
+                    _caller_name = msg.get("caller_name") or "Пользователь"
+                    print(f"[📞 OFFLINE] {target_id} офлайн — отправляю push о входящем звонке")
+                    asyncio.create_task(run_in_threadpool(
+                        send_push,
+                        target_id,
+                        "📞 Входящий звонок",
+                        f"{_caller_name}: {_ct}",
+                        "/messages",
+                        "call",
+                    ))
                 continue
 
             # --- Остальные сигналы: релей адресату «как есть».
