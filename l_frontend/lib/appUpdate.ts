@@ -1,6 +1,7 @@
-// lib/appUpdate.ts — система обновлений APK через GitHub Releases.
-// Публикация: релиз на GitHub с APK-ассетом (например app-release.apk);
-// версия — тег релиза (v1.2.3). Приложение проверяет свежесть и предлагает скачать.
+// lib/appUpdate.ts — автообновление APK прямо из приложения.
+// Проверка простая: приложение спрашивает у нативного плагина свою версию
+// и сравнивает её с /apk/update.json (деплоится вместе с фронтом).
+// Выпуск обновления: собрал APK → node scripts/release-apk.mjs <версия> → git push.
 'use client';
 
 export interface ApkUpdateInfo {
@@ -8,13 +9,9 @@ export interface ApkUpdateInfo {
   latestVersion: string;
   currentVersion: string;
   apkUrl: string | null;
-  releaseNotes: string | null;
-  publishedAt: string | null;
 }
 
-const REPO = process.env.NEXT_PUBLIC_GITHUB_APK_REPO || '';
-const ASSET_NAME = process.env.NEXT_PUBLIC_APK_ASSET_NAME || 'app-release.apk';
-const CURRENT_APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0';
+const UPDATE_MANIFEST = '/apk/update.json';
 
 /** Нативное приложение Capacitor? */
 export function isNativeApp(): boolean {
@@ -39,37 +36,41 @@ export function compareVersions(a: string, b: string): number {
 }
 
 /**
- * Проверить обновление APK через GitHub Releases (последний релиз).
- * NEXT_PUBLIC_GITHUB_APK_REPO, напр. "vyoltrava/trelod-app".
+ * Проверить обновление: версия APK (нативно) vs /apk/update.json.
  */
 export async function checkApkUpdate(): Promise<ApkUpdateInfo> {
   const empty: ApkUpdateInfo = {
-    available: false, latestVersion: '', currentVersion: CURRENT_APP_VERSION,
-    apkUrl: null, releaseNotes: null, publishedAt: null,
+    available: false, latestVersion: '', currentVersion: '', apkUrl: null,
   };
-  if (!REPO) return empty;
+  if (!isNativeApp()) return empty;
+
+  // Своя установленная версия — из нативного плагина
+  let currentVersion = '0';
   try {
-    const res = await fetch(
-      `https://api.github.com/repos/${REPO}/releases/latest`,
-      { headers: { Accept: 'application/vnd.github+json' }, cache: 'no-store' }
-    );
-    if (!res.ok) return empty;
-    const rel = await res.json();
-    const latestVersion: string = rel.tag_name || '';
-    const asset = (rel.assets || []).find((a: any) =>
-      a.name === ASSET_NAME || a.name.endsWith('.apk'));
-    const available =
-      !!asset && compareVersions(latestVersion, CURRENT_APP_VERSION) > 0;
+    const cap = (window as any).Capacitor;
+    const r = await cap.Plugins.AppUpdate.getVersion();
+    currentVersion = r?.version || '0';
+  } catch {
+    return { ...empty, currentVersion };
+  }
+
+  // Свежая версия — из манифеста обновлений, задеплоенного с фронтом
+  try {
+    const res = await fetch(UPDATE_MANIFEST, { cache: 'no-store' });
+    if (!res.ok) return { ...empty, currentVersion };
+    const meta = await res.json();
+    if (!meta?.version || !meta?.url) return { ...empty, currentVersion };
+
+    const apkUrl = new URL(meta.url, window.location.origin).href;
+    const available = compareVersions(String(meta.version), currentVersion) > 0;
     return {
       available,
-      latestVersion: latestVersion.replace(/^v/, ''),
-      currentVersion: CURRENT_APP_VERSION,
-      apkUrl: asset?.browser_download_url || null,
-      releaseNotes: rel.body || null,
-      publishedAt: rel.published_at || null,
+      latestVersion: String(meta.version),
+      currentVersion,
+      apkUrl,
     };
   } catch {
-    return empty;
+    return { ...empty, currentVersion };
   }
 }
 

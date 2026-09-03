@@ -19,13 +19,18 @@ export function AppIconPicker() {
   const level = getUserLevel(getCachedUser());
   const locked = level < ICON_MIN_LEVEL;
 
-  const pick = (id: string) => {
+    const pick = (id: string) => {
     if (locked) return;
     setAppIcon(id);
     setCurrent(id);
     try {
       const cap = (window as any).Capacitor;
       const isNative = !!cap?.isNativePlatform?.();
+      const plugin = cap?.Plugins?.AppIcon;
+      if (isNative && !plugin) {
+        setNote('Нативный плагин иконок недоступен — обнови APK до последней версии.');
+        return;
+      }
       setNote(
         isNative
           ? 'Иконка обновлена — приложение сейчас перезапустится.'

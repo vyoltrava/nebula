@@ -74,6 +74,21 @@ public class AppUpdatePlugin extends Plugin {
         });
     }
 
+    /** Версия установленного APK (versionName из build.gradle) — для проверки обновлений. */
+    @PluginMethod
+    public void getVersion(PluginCall call) {
+        try {
+            Context ctx = getBridge().getContext();
+            String v = ctx.getPackageManager()
+                    .getPackageInfo(ctx.getPackageName(), 0).versionName;
+            JSObject result = new JSObject();
+            result.put("version", v);
+            call.resolve(result);
+        } catch (Exception e) {
+            call.reject("getVersion failed: " + e.getMessage());
+        }
+    }
+
     /** Запускает установщик для последнего скачанного APK, если он есть. */
     private void tryInstallLastDownload(Context ctx) {
         try {

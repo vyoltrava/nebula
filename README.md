@@ -48,14 +48,20 @@
 - **APK (Android):** иконки всех тем зашиты в билд (mipmaps `ic_launcher_<theme>`); переключение лаунчер-иконки — через `activity-alias` + нативный плагин `AppIcon` (`PackageManager.setComponentEnabledSetting`, механизм самого Telegram).
 - Генерация: `node scripts/generate-icons.mjs` (все темы PWA) и `node scripts/generate-icons.mjs --android-theme=indigo` (+ mipmaps APK). Темы задаются в `THEMES` в скрипте и синхронно в `lib/pwaIcons.ts`.
 
-## Обновления APK (GitHub Releases)
+## Обновления APK (из приложения)
 
-1. Собери APK и опубликуй GitHub Release: тег = версия (например `v1.1.0`), ассет — `app-release.apk`.
-2. На Render (фронтенд env) задай:
-   - `NEXT_PUBLIC_GITHUB_APK_REPO` — `owner/repo` с релизами (напр. `vyoltrava/trelod-app`);
-   - `NEXT_PUBLIC_APP_VERSION` — версия текущего собранного APK (напр. `1.1.0`);
-   - опц. `NEXT_PUBLIC_APK_ASSET_NAME` — имя ассета (по умолчанию `app-release.apk`).
-3. Приложение (Capacitor-натива) проверяет последний релиз при старте и каждые 12 часов; если версия новее — показывает баннер «Доступно обновление» с кнопкой «Скачать APK» (стандартный sideload через браузер). В браузере/PWA проверка отключена.
+Всё построено на двух файлах, которые деплоятся вместе с фронтом:
+- `public/apk/app-release.apk` — свежий APK
+- `public/apk/update.json` — `{ "version": "1.2", "url": "/apk/app-release.apk" }`
+
+**Выпуск обновления:**
+1. Собери APK: `cd mobile/android && gradlew.bat assembleRelease` (предварительно подняв `versionName`/`versionCode` в `app/build.gradle`).
+2. `cd l_frontend && node scripts/release-apk.mjs 1.3` (подставь новую версию).
+3. `git add -A && git commit -m "release 1.3" && git push`.
+
+Приложение при старте и каждые 12 часов сравнивает свою версию с `update.json`; если на сервере новее — баннер «Обновить сейчас»: APK скачивается и ставится через системный установщик (Android попросит разрешение на установку из источника — один раз). Никаких GitHub Releases и env не нужно.
+
+**Ссылка для установки с нуля:** `https://твой-домен/apk/app-release.apk`.
 
 ### Индикаторы звонка в UI (CallModal)
 
