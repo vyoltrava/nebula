@@ -7,7 +7,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
  */
 const config: CapacitorConfig = {
   appId: 'app.nebula.mobile',
-  appName: 'Nebula',
+  appName: 'trelod', // 🔥 имя установленного приложения
   webDir: 'www',
   server: {
     // Продакшен-фронтенд. Локальная отладка: закомментируй url и раскомментируй

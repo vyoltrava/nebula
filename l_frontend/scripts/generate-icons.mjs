@@ -1,82 +1,106 @@
 // scripts/generate-icons.mjs
-// Генерирует все PNG-иконки PWA из public/logo-icon.svg (самостоятельный скрипт на sharp).
-// Запуск:  node scripts/generate-icons.mjs
-// Результат: public/pwa/icon-<size>.png и public/pwa/maskable-<size>.png
+// Генерирует PNG-иконки из ГОТОВЫХ SVG-исходников в public/balik/.
+// Ничего не перерисовывает — просто конвертирует SVG как есть в PNG-копии.
+//
+// Источники:
+//   stok.svg            → стандартные PWA-иконки (public/pwa/*) + apple-touch-icon
+//   white/ukraina/inversiya.svg → public/pwa/icons/<id>/* + android ic_launcher_<id>
+//
+// Запуск:  node scripts/generate-icons.mjs [--android]
 import sharp from "sharp";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const LOGO = readFileSync(resolve(ROOT, "public/logo-icon.svg"), "utf8");
+const BALIK = resolve(ROOT, "public", "balik");
 const OUT_DIR = resolve(ROOT, "public/pwa");
+const ANDROID_RES = resolve(ROOT, "..", "mobile/android/app/src/main/res");
 
-// Брендовый цвет темы (совпадает с theme-color в layout.tsx)
-const BG = "#6366f1";
-const BG_DARK = "#171717";
+// Стандартная иконка + готовые варианты (id файла в balik)
+const VARIANTS = ["stok", "white", "ukraina", "inversiya"];
 
-// Размеры, требуемые для manifest + iOS + maskable
+// Стандартные размеры PWA (корневые)
 const SIZES = [72, 96, 128, 144, 152, 180, 192, 384, 512];
+// Размеры для вариантов (в своих папках)
+const VARIANT_SIZES = [192, 512];
 
-// Видимое содержимое логотипа (кроме <svg ...> обёртки)
-const INNER = LOGO.replace(/<svg[^>]*>/i, "").replace(/<\/svg>/i, "").trim();
+const ANDROID_DENSITIES = [
+  { dir: "mipmap-mdpi", size: 48 },
+  { dir: "mipmap-hdpi", size: 72 },
+  { dir: "mipmap-xhdpi", size: 96 },
+  { dir: "mipmap-xxhdpi", size: 144 },
+  { dir: "mipmap-xxxhdpi", size: 192 },
+];
 
-// Приблизительный bbox содержимого логотипа (из path'ов): ширина ~739 из 1000
-const CONTENT_FRACTION = 0.74;
+async function renderPng(svg, size) {
+  return sharp(Buffer.from(svg)).resize(size, size, { fit: "contain" }).png().toBuffer();
+}
 
-/**
- * Рендерит иконку: фоновая плашка + логотип в безопасной зоне.
- * @param {number} size   размер квадрата (px)
- * @param {number} frac   доля иконки, которую занимает логотип (0..1)
- * @param {string} bg     цвет фона
- * @param {boolean} rounded скруглить углы (для "any" purpose на iOS-like)
- * @returns {Promise<Buffer>}
- */
-async function render(size, frac, bg, rounded = false) {
-  const viewBoxScale = frac / CONTENT_FRACTION; // масштаб всего viewBox 1000
-  const k = (size / 1000) * viewBoxScale; // scale() для group
-  const o = (size - 1000 * k) / 2; // translate для центрирования
-
-  const rx = rounded ? size * 0.18 : 0;
-  const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">
-  <rect width="${size}" height="${size}" rx="${rx}" fill="${bg}"/>
-  <g transform="translate(${o} ${o}) scale(${k})">${INNER}</g>
-</svg>`;
-
-  return sharp(Buffer.from(svg)).png().toBuffer();
+/** Круглая (для roundIcon): рендер + круговая маска. */
+async function renderRound(svg, size) {
+  const base = await renderPng(svg, size);
+  const r = size / 2;
+  const mask = Buffer.from(
+    `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><circle cx="${r}" cy="${r}" r="${r}" fill="white"/></svg>`
+  );
+  return sharp(base).composite([{ input: mask, blend: "dest-in" }]).png().toBuffer();
 }
 
 async function main() {
-  if (!existsSync(OUT_DIR)) mkdirSync(OUT_DIR, { recursive: true });
-
-  for (const size of SIZES) {
-    // "any" — скруглённая плашка для обычных браузеров/папки приложения
-    await sharp(await render(size, 0.6, BG, true)).toFile(
-      resolve(OUT_DIR, `icon-${size}.png`)
-    );
-    // "maskable" — full-bleed, логотип в безопасной зоне (внутри 80%)
-    await sharp(await render(size, 0.5, BG, false)).toFile(
-      resolve(OUT_DIR, `maskable-${size}.png`)
-    );
+  const svgCache = {};
+  for (const id of VARIANTS) {
+    const f = resolve(BALIK, `${id}.svg`);
+    if (!existsSync(f)) {
+      console.error(`❌ Не найден ${f}`);
+      process.exit(1);
+    }
+    svgCache[id] = readFileSync(f, "utf8");
   }
 
-  // Apple touch icon (iOS): скруглённая плашка 180x180
-  await sharp(await render(180, 0.6, BG, true)).toFile(
-    resolve(ROOT, "public/apple-touch-icon.png")
-  );
+  // --- 1) СТАНДАРТНАЯ (stok) в корень public/pwa/ ---
+  const stok = svgCache.stok;
+  for (const size of SIZES) {
+    await sharp(await renderPng(stok, size)).toFile(resolve(OUT_DIR, `icon-${size}.png`));
+    await sharp(await renderPng(stok, size)).toFile(resolve(OUT_DIR, `maskable-${size}.png`));
+  }
+  // favicon + apple-touch-icon — В цвета stok.svg
+  await sharp(await renderPng(stok, 32)).toFile(resolve(OUT_DIR, "favicon-32.png"));
+  await sharp(await renderPng(stok, 180)).toFile(resolve(ROOT, "public/apple-touch-icon.png"));
+  console.log("  ✅ стандартная (stok) в корень PWA");
 
-  // Splash / dark favicon для тёмной темы (не обязательно, но приятно)
-  await sharp(await render(512, 0.6, BG_DARK, true)).toFile(
-    resolve(OUT_DIR, "icon-dark-512.png")
-  );
+  // --- 2) ВАРИАНТЫ в свои папки public/pwa/icons/<id>/ ---
+  for (const id of ["white", "ukraina", "inversiya"]) {
+    const dir = resolve(OUT_DIR, "icons", id);
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    const svg = svgCache[id];
+    for (const size of VARIANT_SIZES) {
+      await sharp(await renderPng(svg, size)).toFile(resolve(dir, `icon-${size}.png`));
+      await sharp(await renderPng(svg, size)).toFile(resolve(dir, `maskable-${size}.png`));
+    }
+    await sharp(await renderPng(svg, 180)).toFile(resolve(dir, "apple-touch-icon.png"));
+    await sharp(await renderPng(svg, 32)).toFile(resolve(dir, "favicon-32.png"));
+    console.log(`  ✅ ${id}`);
+  }
 
-  // favicon.ico на основе 32x32 PNG (favicon можно хранить как .png, но оставляем .ico)
-  const icoPng = await sharp(await render(32, 0.7, BG, true)).toFile(
-    resolve(OUT_DIR, "favicon-32.png")
-  );
-  void icoPng;
+  // --- 3) ANDROID mipmaps (--android) ---
+  if (process.argv.includes("--android")) {
+    for (const { dir, size } of ANDROID_DENSITIES) {
+      const outDir = resolve(ANDROID_RES, dir);
+      if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
+      // стандартная лаунчер-иконка из stok
+      await sharp(await renderPng(stok, size)).toFile(resolve(outDir, "ic_launcher.png"));
+      await sharp(await renderRound(stok, size)).toFile(resolve(outDir, "ic_launcher_round.png"));
+      // варианты
+      for (const id of ["white", "ukraina", "inversiya"]) {
+        await sharp(await renderPng(svgCache[id], size)).toFile(resolve(outDir, `ic_launcher_${id}.png`));
+        await sharp(await renderRound(svgCache[id], size)).toFile(resolve(outDir, `ic_launcher_${id}_round.png`));
+      }
+    }
+    console.log("  ✅ Android mipmaps (stok + white/ukraina/inversiya)");
+  }
 
-  console.log(`✅ Иконки сгенерированы в ${OUT_DIR}`);
+  console.log("✅ Готово");
 }
 
 main().catch((e) => {

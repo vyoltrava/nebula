@@ -18,6 +18,9 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // 🔥 Нативный плагин смены иконки лаунчера (как в Telegram)
+        registerPlugin(AppIconPlugin.class);
+
         // Запрос нативных разрешений для веб-звонков (getUserMedia в WebView)
         // и уведомлений (Android 13+). WebView Капаситора выдаёт их странице,
         // только если они уже получены на уровне приложения.

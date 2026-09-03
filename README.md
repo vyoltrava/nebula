@@ -42,6 +42,21 @@
 Проверка: dev-консоль печатает `🧊 [WEBRTC] RTC config iceServers:` — там должны быть `turn:`-URL'ы.
 Легаси-вариант `NEXT_PUBLIC_TURN_*` во фронтенде сохранён как резервный путь (небезопасен: ключи видны в бандле).
 
+## Смена иконки приложения (как в Telegram)
+
+- **PWA:** в Настройки → Внешний вид → «Иконка приложения» выбор из 7 тем. Меняются favicon, apple-touch-icon и `<link rel="manifest">` → `manifest-<theme>.json`. Установленный на Android WebAPK подхватит иконку, когда Chrome перепроверит манифест.
+- **APK (Android):** иконки всех тем зашиты в билд (mipmaps `ic_launcher_<theme>`); переключение лаунчер-иконки — через `activity-alias` + нативный плагин `AppIcon` (`PackageManager.setComponentEnabledSetting`, механизм самого Telegram).
+- Генерация: `node scripts/generate-icons.mjs` (все темы PWA) и `node scripts/generate-icons.mjs --android-theme=indigo` (+ mipmaps APK). Темы задаются в `THEMES` в скрипте и синхронно в `lib/pwaIcons.ts`.
+
+## Обновления APK (GitHub Releases)
+
+1. Собери APK и опубликуй GitHub Release: тег = версия (например `v1.1.0`), ассет — `app-release.apk`.
+2. На Render (фронтенд env) задай:
+   - `NEXT_PUBLIC_GITHUB_APK_REPO` — `owner/repo` с релизами (напр. `vyoltrava/trelod-app`);
+   - `NEXT_PUBLIC_APP_VERSION` — версия текущего собранного APK (напр. `1.1.0`);
+   - опц. `NEXT_PUBLIC_APK_ASSET_NAME` — имя ассета (по умолчанию `app-release.apk`).
+3. Приложение (Capacitor-натива) проверяет последний релиз при старте и каждые 12 часов; если версия новее — показывает баннер «Доступно обновление» с кнопкой «Скачать APK» (стандартный sideload через браузер). В браузере/PWA проверка отключена.
+
 ### Индикаторы звонка в UI (CallModal)
 
 Во время «Соединение...» под статусом выводится строка диагностики:

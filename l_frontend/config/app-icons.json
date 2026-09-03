@@ -1,0 +1,6 @@
+[
+  { "id": "standart",  "name": "Стандартная" },
+  { "id": "white",     "name": "White" },
+  { "id": "ukraina",   "name": "Ukraina" },
+  { "id": "inversiya", "name": "Инверсия" }
+]

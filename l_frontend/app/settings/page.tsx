@@ -32,6 +32,7 @@ import { PushSettings } from "@/components/PushSettings";
 import { DevicePermissionsSection } from "@/components/DevicePermissionsSection";
 import { LiveTextSettings } from "@/components/LiveTextSettings";
 import { AppearanceSettings } from "@/components/AppearanceSettings";
+import { AppIconPicker } from "@/components/AppIconPicker";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PaymentShop } from "@/components/payments/PaymentShop";
@@ -511,6 +512,9 @@ async function activate2FA() {
                   {t("settings.appearanceHint")}
                 </p>
                 <AppearanceSettings />
+                <div className="mt-4">
+                  <AppIconPicker />
+                </div>
               </div>
             )}
 

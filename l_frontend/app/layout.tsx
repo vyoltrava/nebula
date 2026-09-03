@@ -13,6 +13,8 @@ import PWARegister from "@/components/PWARegister";
 import InstallPrompt from "@/components/InstallPrompt";
 import ConnectionStatus from "@/components/ConnectionStatus";
 import { NotificationPermissionPrompt } from "@/components/NotificationPermissionPrompt";
+import { IconThemeInit } from "@/components/IconThemeInit";
+import { AppUpdateChecker } from "@/components/AppUpdateChecker";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { ThemeModeProvider } from "@/components/ThemeModeProvider";
@@ -111,8 +113,10 @@ export default function RootLayout({
         <AnimatedBackground />
         <GlobalPlayerProvider>
         <PWARegister />
+        <IconThemeInit />
         <InstallPrompt />
         <ConnectionStatus />
+        <AppUpdateChecker />
         <SplashScreen />
         <ShellSwitcherGate />
         <NebulaGate />
