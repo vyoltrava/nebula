@@ -45,9 +45,16 @@ class User(SQLModel, table=True):
     credits: int = Field(default=0)
 
     # 🛡 ПРИВАТНОСТЬ: кто может писать мне в ЛС / звонить
-    # "everyone" | "followers" | "nobody"
+    # "everyone" | "followers" | "following" | "nobody"
     allow_messages: str = Field(default="everyone")
-    allow_calls: str = Field(default="everyone") 
+    allow_calls: str = Field(default="everyone")
+
+    # 🛡 ПРИВАТНОСТЬ ПРОФИЛЯ (Twitter-like)
+    is_private: bool = Field(default=False)                # приватный аккаунт: профиль/посты только для подписчиков (+ staff с manage_users)
+    allow_comments: str = Field(default="everyone")        # "everyone" | "followers" | "following" | "mentioned"
+    hide_following: bool = Field(default=False)            # скрыть список «читает»
+    hide_followers: bool = Field(default=False)            # скрыть список подписчиков
+    search_hide_email: bool = Field(default=False)         # исключить из поиска по email 
 
 
 

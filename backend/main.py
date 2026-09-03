@@ -1114,6 +1114,7 @@ def user_out(user: User, session: Session = None, preloaded: tuple = None) -> di
         "email_linked": bool(user.email),      # 🆕
         "selected_badge_id": user.selected_badge_id,
         "billet_url": user.billet_url,  # 🆕
+        "is_private": getattr(user, "is_private", False),  # 🛡 приватный аккаунт
 
     }
    
@@ -1851,8 +1852,15 @@ def is_following(
 
 
 @app.get("/api/users/{identifier}")
-def get_user_profile(identifier: str, session: Session = Depends(get_session)):
+def get_user_profile(
+    identifier: str,
+    viewer: Optional[User] = Depends(get_optional_user),
+    session: Session = Depends(get_session),
+):
     user = resolve_user(identifier, session)
+    # 🛡 Приватный аккаунт: неавторизованные и не-подписчики видят только замок
+    if not _can_view_profile(viewer, user, session):
+        return _profile_locked_response(user)
     followers_count = session.exec(
         select(func.count()).select_from(Follow).where(Follow.followee_id == user.id)
     ).one()
@@ -1875,7 +1883,11 @@ def get_user_profile(identifier: str, session: Session = Depends(get_session)):
 
 
 @app.get("/api/users/by-username/{username}")
-def get_user_by_username(username: str, session: Session = Depends(get_session)):
+def get_user_by_username(
+    username: str,
+    viewer: Optional[User] = Depends(get_optional_user),
+    session: Session = Depends(get_session),
+):
     """Получить профиль пользователя по username (без @)"""
     # Убираем @ если пользователь передал с ним
     clean_username = username.lstrip("@").lower()
@@ -1886,6 +1898,10 @@ def get_user_by_username(username: str, session: Session = Depends(get_session))
     
     if not user:
         raise HTTPException(404, "User not found")
+    
+    # 🛡 Приватный аккаунт: замок для неавторизованных и не-подписчиков
+    if not _can_view_profile(viewer, user, session):
+        return _profile_locked_response(user)
     
     # Возвращаем те же данные, что и обычный профиль
     followers_count = session.exec(
@@ -1916,6 +1932,9 @@ def get_user_posts(
     session: Session = Depends(get_session),
 ):
     user = resolve_user(identifier, session)
+    # 🛡 Приватный аккаунт: посты видят только подписчики (+ staff с manage_users)
+    if not _can_view_profile(viewer, user, session):
+        raise HTTPException(403, "Приватный аккаунт")
     query = (
         select(Post)
         .where(Post.author_id == user.id, Post.reply_to_id == None)
@@ -2061,8 +2080,20 @@ def get_user_posts(
 
 
 @app.get("/api/users/{identifier}/followers")
-def get_followers(identifier: str, session: Session = Depends(get_session)):
+def get_followers(
+    identifier: str,
+    viewer: Optional[User] = Depends(get_optional_user),
+    session: Session = Depends(get_session),
+):
     user = resolve_user(identifier, session)
+    # 🛡 Приватный аккаунт или скрытый список подписчиков — только для себя/staff
+    if not _can_view_profile(viewer, user, session):
+        raise HTTPException(403, "Приватный аккаунт")
+    if getattr(user, "hide_followers", False) and (
+        viewer is None or (viewer.id != user.id and not viewer.is_admin and not viewer.is_moderator
+                           and not has_permission(viewer, "manage_users", session))
+    ):
+        raise HTTPException(403, "Список подписчиков скрыт настройками приватности")
     follows = session.exec(
         select(Follow).where(Follow.followee_id == user.id)
     ).all()
@@ -2080,8 +2111,20 @@ def get_followers(identifier: str, session: Session = Depends(get_session)):
 
 
 @app.get("/api/users/{identifier}/following")
-def get_following(identifier: str, session: Session = Depends(get_session)):
+def get_following(
+    identifier: str,
+    viewer: Optional[User] = Depends(get_optional_user),
+    session: Session = Depends(get_session),
+):
     user = resolve_user(identifier, session)
+    # 🛡 Приватный аккаунт или скрытый список «читает» — только для себя/staff
+    if not _can_view_profile(viewer, user, session):
+        raise HTTPException(403, "Приватный аккаунт")
+    if getattr(user, "hide_following", False) and (
+        viewer is None or (viewer.id != user.id and not viewer.is_admin and not viewer.is_moderator
+                           and not has_permission(viewer, "manage_users", session))
+    ):
+        raise HTTPException(403, "Список подписок скрыт настройками приватности")
     follows = session.exec(
         select(Follow).where(Follow.follower_id == user.id)
     ).all()
@@ -3279,6 +3322,24 @@ async def create_post(
     
     if repost_of and reply_to:
         raise HTTPException(400, "Нельзя одновременно отвечать и репостить")
+
+    # 🛡 ПРИВАТНОСТЬ: «Кто может комментировать мои записи» — проверяем настройку
+    # автора поста, на который отвечают.
+    if reply_to:
+        parent_post = session.get(Post, reply_to)
+        if parent_post:
+            parent_author = session.get(User, parent_post.author_id)
+            if parent_author and parent_author.id != user.id and not user.is_admin:
+                _csetting = getattr(parent_author, "allow_comments", "everyone") or "everyone"
+                _allowed = True
+                if _csetting == "followers":
+                    _allowed = _viewer_follows(user.id, parent_author.id, session)
+                elif _csetting == "following":
+                    _allowed = _viewer_follows(parent_author.id, user.id, session)
+                elif _csetting == "mentioned":
+                    _allowed = f"@{user.username}".lower() in (parent_post.text or "").lower()
+                if not _allowed:
+                    raise HTTPException(403, "Автор ограничил, кто может комментировать эту запись")
 
     original_post = None
     if repost_of:
@@ -5574,6 +5635,13 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
     # Мой статус в группе
     my_role = members_map.get(user_id).role if user_id in members_map else None
 
+    # 🔕 Мьют уведомлений текущего пользователя в этом чате (активен ли сейчас)
+    _my_member = members_map.get(user_id)
+    _mu = getattr(_my_member, "muted_until", None) if _my_member else None
+    if _mu and _mu.tzinfo is None:
+        _mu = _mu.replace(tzinfo=timezone.utc)
+    _is_muted = bool(_mu and _mu > datetime.now(timezone.utc))
+
     if chat.is_group or chat.is_prism:
         return {
             "id": chat.id,
@@ -5591,6 +5659,7 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             ],
             "my_role": my_role,
             "last_message": last_message_data,
+            "muted": _is_muted,
             "unread_count": unread,
             "pinned": chat.pinned_by == user_id,  # 🆕
             "pinned_at": chat.pinned_at.isoformat() if chat.pinned_at else None,
@@ -5612,6 +5681,7 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
                 "created_at": chat.created_at.isoformat(),
                 "other": user_out(other, session) if other else None,
                 "last_message": last_message_data,
+                "muted": _is_muted,
                 "unread_count": unread,
                 "pinned": chat.pinned_by == user_id,
                 "pinned_at": chat.pinned_at.isoformat() if chat.pinned_at else None,
@@ -5625,6 +5695,7 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "created_at": chat.created_at.isoformat(),
             "other": user_out(other, session) if other else None,
             "last_message": last_message_data,
+            "muted": _is_muted,
             "unread_count": unread,
             "pinned": chat.pinned_by == user_id,
             "pinned_at": chat.pinned_at.isoformat() if chat.pinned_at else None,
@@ -8346,18 +8417,96 @@ def _privacy_allows(target: "User", actor_id: int, kind: str, session: Session) 
                 Follow.followee_id == target.id,
             )
         ).first() is not None
+    if setting == "following":
+        # только люди, на которых подписан сам target (target.followee == actor)
+        return session.exec(
+            select(Follow).where(
+                Follow.follower_id == target.id,
+                Follow.followee_id == actor_id,
+            )
+        ).first() is not None
     return True
 
 
+def _viewer_follows(viewer_id: int, target_id: int, session: Session) -> bool:
+    """viewer подписан на target?"""
+    return session.exec(
+        select(Follow).where(
+            Follow.follower_id == viewer_id,
+            Follow.followee_id == target_id,
+        )
+    ).first() is not None
+
+
+def _can_view_profile(viewer: Optional["User"], target: "User", session: Session) -> bool:
+    """🛡 Доступ к профилю приватного аккаунта.
+    Открыт: самому владельцу, его подписчикам, а также staff с правом
+    «Доступ к панели управления» (manage_users) — право даёт доступ ко ВСЕМ
+    приватным аккаунтам, не привязываясь к уровню роли."""
+    if not getattr(target, "is_private", False):
+        return True
+    if viewer is None:
+        return False
+    if viewer.id == target.id:
+        return True
+    if viewer.is_admin or viewer.is_moderator:
+        return True
+    if has_permission(viewer, "manage_users", session):
+        return True
+    return _viewer_follows(viewer.id, target.id, session)
+
+
+def _profile_locked_response(target: "User") -> dict:
+    """Минимальный ответ для приватного профиля, к которому нет доступа."""
+    return {
+        "locked": True,
+        "is_private": True,
+        "id": target.id,
+        "username": target.username,
+        "display_name": target.display_name,
+        "avatar_url": target.avatar_url,
+        "bio": None,
+        "cover_url": None,
+        "followers_count": 0,
+        "following_count": 0,
+        "posts_count": 0,
+    }
+
+
 class PrivacyIn(BaseModel):
+    # 🛡 Аудитория профиля
+    is_private: Optional[bool] = None                  # приватный аккаунт
+    # 🛡 Читаемость и связь ("everyone" | "followers" | "following" | "nobody" /
+    #   для комментариев также "mentioned")
     allow_messages: Optional[str] = None
     allow_calls: Optional[str] = None
+    allow_comments: Optional[str] = None
+    # 🛡 Видимость данных
+    hide_following: Optional[bool] = None
+    hide_followers: Optional[bool] = None
+    search_hide_email: Optional[bool] = None
+
+
+_PROFILE_PRIVACY_STRINGS = {
+    "allow_messages": {"everyone", "followers", "following", "nobody"},
+    "allow_calls": {"everyone", "followers", "following", "nobody"},
+    "allow_comments": {"everyone", "followers", "following", "mentioned"},
+}
+_PROFILE_PRIVACY_BOOLS = ("is_private", "hide_following", "hide_followers", "search_hide_email")
 
 
 @app.get("/api/me/privacy")
 async def get_privacy_settings(user: User = Depends(get_current_user)):
-    """🛡 Настройки приватности: кто может писать/звонить."""
-    return {"allow_messages": user.allow_messages, "allow_calls": user.allow_calls}
+    """🛡 Настройки приватности профиля (полный набор, Twitter-like)."""
+    return {
+        "is_private": getattr(user, "is_private", False),
+        "allow_messages": user.allow_messages,
+        "allow_calls": user.allow_calls,
+        "allow_comments": getattr(user, "allow_comments", "everyone"),
+        "hide_following": getattr(user, "hide_following", False),
+        "hide_followers": getattr(user, "hide_followers", False),
+        "search_hide_email": getattr(user, "search_hide_email", False),
+    }
 
 
 @app.patch("/api/me/privacy")
@@ -8366,15 +8515,27 @@ async def update_privacy_settings(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    for key in ("allow_messages", "allow_calls"):
+    for key, allowed in _PROFILE_PRIVACY_STRINGS.items():
         value = getattr(data, key)
         if value is not None:
-            if value not in ("everyone", "followers", "nobody"):
+            if value not in allowed:
                 raise HTTPException(400, f"Недопустимое значение {key}")
             setattr(user, key, value)
+    for key in _PROFILE_PRIVACY_BOOLS:
+        value = getattr(data, key)
+        if value is not None:
+            setattr(user, key, bool(value))
     session.add(user)
     session.commit()
-    return {"allow_messages": user.allow_messages, "allow_calls": user.allow_calls}
+    return {
+        "is_private": getattr(user, "is_private", False),
+        "allow_messages": user.allow_messages,
+        "allow_calls": user.allow_calls,
+        "allow_comments": getattr(user, "allow_comments", "everyone"),
+        "hide_following": getattr(user, "hide_following", False),
+        "hide_followers": getattr(user, "hide_followers", False),
+        "search_hide_email": getattr(user, "search_hide_email", False),
+    }
 
 
 class ChatMuteIn(BaseModel):
@@ -10045,7 +10206,11 @@ def get_user_posts_by_username(
 
 
 @app.get("/api/users/by-username/{username}/followers")
-def get_followers_by_username(username: str, session: Session = Depends(get_session)):
+def get_followers_by_username(
+    username: str,
+    viewer: Optional[User] = Depends(get_optional_user),
+    session: Session = Depends(get_session),
+):
     """Получить подписчиков по username"""
     clean_username = username.lstrip("@").lower()
     
@@ -10056,11 +10221,15 @@ def get_followers_by_username(username: str, session: Session = Depends(get_sess
     if not user:
         raise HTTPException(404, "User not found")
     
-    return get_followers(str(user.id), session)
+    return get_followers(str(user.id), viewer, session)
 
 
 @app.get("/api/users/by-username/{username}/following")
-def get_following_by_username(username: str, session: Session = Depends(get_session)):
+def get_following_by_username(
+    username: str,
+    viewer: Optional[User] = Depends(get_optional_user),
+    session: Session = Depends(get_session),
+):
     """Получить подписки по username"""
     clean_username = username.lstrip("@").lower()
     
@@ -10071,7 +10240,7 @@ def get_following_by_username(username: str, session: Session = Depends(get_sess
     if not user:
         raise HTTPException(404, "User not found")
     
-    return get_following(str(user.id), session)
+    return get_following(str(user.id), viewer, session)
 
 
 @app.get("/api/users/by-username/{username}/is-following")

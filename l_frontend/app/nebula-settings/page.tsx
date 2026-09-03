@@ -19,6 +19,7 @@ import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Button, IconButton } from "@/components/ui/Button";
 import { AppearanceSettings } from "@/components/AppearanceSettings";
 import { PushSettings } from "@/components/PushSettings";
+import { PrivacyTab } from "@/components/settings/PrivacyTab";
 import { DevicePermissionsSection } from "@/components/DevicePermissionsSection";
 import { LiveTextSettings } from "@/components/LiveTextSettings";
 import { PaymentShop } from "@/components/payments/PaymentShop";
@@ -182,6 +183,7 @@ export default function NebulaSettingsPage() {
   const sections: { id: string; icon: any; color: string; title: string; hint: string }[] = [
     { id: "appearance", icon: Sun, color: "text-amber-500", title: t("nebula.secAppearance"), hint: t("nebula.hintAppearance") },
     { id: "notifications", icon: Bell, color: "text-blue-500", title: t("nebula.secNotifications"), hint: t("nebula.hintNotifications") },
+    { id: "privacy", icon: ShieldCheck, color: "text-cyan-500", title: "Приватность", hint: "Профиль, сообщения, комментарии, подписки" },
     { id: "permissions", icon: Lock, color: "text-emerald-500", title: t("nebula.secPermissions"), hint: t("nebula.hintPermissions") },
     { id: "livetext", icon: Zap, color: "text-yellow-500", title: t("nebula.secLivetext"), hint: t("nebula.hintLivetext") },
     { id: "language", icon: Languages, color: "text-purple-500", title: t("nebula.secLanguage"), hint: t("nebula.hintLanguage") },
@@ -257,6 +259,7 @@ export default function NebulaSettingsPage() {
                   <div className="px-5 pb-5">
                     {s.id === "appearance" && <AppearanceSettings />}
                     {s.id === "notifications" && <PushSettings />}
+                    {s.id === "privacy" && <PrivacyTab />}
                     {s.id === "permissions" && <DevicePermissionsSection />}
                     {s.id === "livetext" && <LiveTextSettings />}
                     {s.id === "language" && <LanguageSwitcher />}

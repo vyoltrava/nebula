@@ -13,8 +13,9 @@ import { socket } from "@/lib/websocket";
 import { sanitizeSvg } from "@/lib/sanitize";
 import { ChatListSkeleton } from "@/components/Skeletons";
 import { ChatPreview } from "@/components/ChatPreview";
-import { Pin, PinOff, MoreVertical, Trash2, Pencil } from "lucide-react";
-import { pinChat, unpinChat } from "@/lib/api";
+import { Pin, PinOff, MoreVertical, Trash2, Pencil, Bell, BellOff } from "lucide-react";
+import { pinChat, unpinChat, setChatMute } from "@/lib/api";
+import { formatChatTime } from "@/lib/time";
 import { useSwipe } from "@/lib/useSwipe";
 import { generatePrismKey, splitKeyIntoShards, encryptAnchorWithPin } from "@/lib/prismCrypto";
 import { generatePrismAvatar } from "@/lib/prismAvatar";
@@ -547,14 +548,16 @@ const confirmPrismKey = async () => {
               }}
             >
               <div className={`flex items-center gap-3 p-3 md:p-4 border-b transition-all duration-200 cursor-pointer ${
+                chat.muted ? "opacity-60" : ""
+              } ${
                 chat.is_prism
                   ? "bg-cyan-950/20 border-l-4 border-l-cyan-500 border-b-cyan-500/20 hover:bg-cyan-900/30"
                   : chat.is_secret
                   ? "bg-emerald-950/20 border-l-4 border-l-emerald-500 border-b-emerald-500/20 hover:bg-emerald-900/30"
                   : "border-b-white/10 border-l-4 border-l-transparent hover:bg-gray-100 dark:hover:bg-white/5"
               } ${
-                chat.unread_count > 0 
-                  ? (chat.is_prism ? "bg-cyan-900/40" : chat.is_secret ? "bg-emerald-900/40" : "bg-purple-500/10") 
+                chat.unread_count > 0 && !chat.muted
+                  ? (chat.is_prism ? "bg-cyan-900/40" : chat.is_secret ? "bg-emerald-900/40" : "bg-purple-500/10")
                   : ""
               }`}>
                 
@@ -629,7 +632,7 @@ const confirmPrismKey = async () => {
                     </div>
                     {chat.last_message && (
                       <span className="text-xs text-gray-500 dark:text-white/40 shrink-0">
-                        {new Date(chat.last_message.created_at).toLocaleTimeString(locale === "en" ? "en-US" : "ru-RU", { hour: "2-digit", minute: "2-digit" })}
+                        {formatChatTime(chat.last_message.created_at)}
                       </span>
                     )}
                   </div>
@@ -643,7 +646,7 @@ const confirmPrismKey = async () => {
                       <span className="truncate">{chatDrafts[String(chat.id)]}</span>
                     </p>
                   ) : chat.last_message ? (
-                    <p className={`text-sm truncate ${chat.unread_count > 0 ? "text-gray-900 dark:text-white" : "text-gray-600 dark:text-white/50"}`}>
+                    <p className={`text-sm truncate ${chat.muted ? "text-gray-500 dark:text-white/40" : chat.unread_count > 0 ? "text-gray-900 dark:text-white" : "text-gray-600 dark:text-white/50"}`}>
                       <ChatPreview text={chat.last_message.text} query={query.trim()} />
                     </p>
                   ) : (
@@ -655,8 +658,10 @@ const confirmPrismKey = async () => {
 
                 <div className="shrink-0 flex items-center gap-2">
                   {chat.unread_count > 0 && (
-                    <span className={`text-gray-900 dark:text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shrink-0 ${
-                      isGroup ? "bg-[#8b5cf6]" : chat.is_secret ? "bg-emerald-500" : "bg-gradient-to-r from-pink-500 to-purple-500"
+                    <span className={`text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shrink-0 ${
+                      chat.muted
+                        ? "bg-gray-400/70 dark:bg-white/25 text-gray-800 dark:text-black"
+                        : `text-gray-900 dark:text-white ${isGroup ? "bg-[#8b5cf6]" : chat.is_secret ? "bg-emerald-500" : "bg-gradient-to-r from-pink-500 to-purple-500"}`
                     }`}>
                       {chat.unread_count}
                     </span>
@@ -749,6 +754,22 @@ const confirmPrismKey = async () => {
               >
                 {menuChat.pinned ? <PinOff size={16} className="text-yellow-600 dark:text-yellow-400" /> : <Pin size={16} className="text-[#8b5cf6]" />}
                 {menuChat.pinned ? t("messages.unpin") : t("messages.pin")}
+              </button>
+              {/* 🔕 Выключение уведомлений чата прямо из списка */}
+              <button
+                onClick={async () => {
+                  try {
+                    await setChatMute(menuChat.id, menuChat.muted ? { minutes: null, forever: false } : { forever: true });
+                    await load();
+                  } catch { /* ignore */ }
+                  setActiveChatMenu(null);
+                  setMenuPosition(null);
+                }}
+                className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+              >
+                {menuChat.muted
+                  ? <><Bell size={16} className="text-green-600 dark:text-green-400" /> Включить уведомления</>
+                  : <><BellOff size={16} className="text-amber-600 dark:text-amber-400" /> Выключить уведомления</>}
               </button>
               <button
                 onClick={() => { 

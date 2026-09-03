@@ -89,6 +89,28 @@ export async function getPinnedMessages(chatId: number): Promise<any[]> {
 
 
 // ============================================================
+// 🔕 МЬЮТ УВЕДОМЛЕНИЙ ЧАТА
+// ============================================================
+
+export async function setChatMute(
+  chatId: number,
+  body: { minutes?: number | null; forever?: boolean }
+): Promise<{ muted_until: string | null; forever: boolean }> {
+  const token = getToken();
+  if (!token) throw new Error("Не авторизован");
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/mute`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: "Unknown error" }));
+    throw new Error(error.detail || "Failed to set chat mute");
+  }
+  return res.json();
+}
+
+// ============================================================
 // 📌 ЗАКРЕПЛЕНИЕ ЧАТОВ (ДО 5 ШТУК)
 // ============================================================
 

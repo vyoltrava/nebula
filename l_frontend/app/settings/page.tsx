@@ -37,10 +37,10 @@ import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { PaymentShop } from "@/components/payments/PaymentShop";
 import { ShopSettings } from "@/components/settings/ShopSettings";
-import { PrivacySettings } from "@/components/settings/PrivacySettings";
+import { PrivacyTab } from "@/components/settings/PrivacyTab";
 import { Button, IconButton } from "@/components/ui/Button";
 
-type View = "profile" | "appearance" | "notifications" | "permissions" | "messages" | "security" | "nebula" | "shop";
+type View = "profile" | "appearance" | "notifications" | "permissions" | "messages" | "privacy" | "security" | "nebula" | "shop";
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null);
@@ -57,7 +57,7 @@ export default function SettingsPage() {
   // Поддержка ?view=... (например, из Nebula-настроек: /settings?view=security)
   useEffect(() => {
     const v = new URLSearchParams(window.location.search).get("view");
-    const valid: View[] = ["profile", "appearance", "notifications", "permissions", "messages", "security", "nebula", "shop"];
+    const valid: View[] = ["profile", "appearance", "notifications", "permissions", "messages", "privacy", "security", "nebula", "shop"];
     if (v && valid.includes(v as View)) setView(v as View);
   }, []);
 
@@ -323,6 +323,7 @@ async function activate2FA() {
     { id: "appearance", label: t("settings.appearance"), icon: Palette },
     { id: "notifications", label: t("settings.notifications"), icon: Bell },
     { id: "permissions", label: t("settings.permissions"), icon: Mic },
+    { id: "privacy", label: "Приватность", icon: Lock },
     { id: "messages", label: t("settings.liveMessages"), icon: Zap },
     { id: "security", label: t("settings.security"), icon: ShieldCheck },
     { id: "nebula", label: "Nebula", icon: Sparkles },
@@ -584,11 +585,18 @@ async function activate2FA() {
               </div>
             )}
 
+            {/* ---------- ПРИВАТНОСТЬ ---------- */}
+            {view === "privacy" && (
+              <div className="space-y-6">
+                <h2 className="text-lg font-semibold">Приватность</h2>
+                <PrivacyTab />
+              </div>
+            )}
+
             {/* ---------- БЕЗОПАСНОСТЬ ---------- */}
             {view === "security" && (
               <div className="space-y-6">
                 <h2 className="text-lg font-semibold">{t("settings.security")}</h2>
-                <PrivacySettings />
 
                 {/* 2FA */}
                 <div className="p-4 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
