@@ -231,8 +231,39 @@ const getRTCConfig = (): RTCConfiguration => {
       ? [...ICE_SERVERS, ...dynamicIceServers]
       : ICE_SERVERS;
 
+  // 📱 iOS/VPN FIX: Metered и прочие TURN-провайдеры часто отдают только
+  // udp-варианты. На iPhone (особенно за VPN/WireGuard и сотовым оператором)
+  // UDP часто зарезан -> srflx/relay через udp не собираются -> вечное
+  // «Соединение...». Дублируем каждый turn:/turns: TCP-вариантом (и для
+  // turn: дополнительно порт 443 tcp), если transport ещё не указан.
+  const withTcpFallback = (servers: RTCIceServer[]): RTCIceServer[] => {
+    const out: RTCIceServer[] = [];
+    for (const s of servers) {
+      out.push(s);
+      if (!s.urls) continue;
+      const urls = Array.isArray(s.urls) ? s.urls : [s.urls];
+      const tcpUrls: string[] = [];
+      for (const u of urls) {
+        if (typeof u !== 'string') continue;
+        if (!/^turns?:/i.test(u)) continue;
+        if (u.includes('transport=')) continue; // transport уже задан
+        const sep = u.includes('?') ? '&' : '?';
+        tcpUrls.push(`${u}${sep}transport=tcp`);
+        if (/^turn:/i.test(u) && !u.includes('443')) {
+          try {
+            const noScheme = u.replace(/^turn:/i, '');
+            const hostPart = noScheme.split('?')[0];
+            tcpUrls.push(`turn:${hostPart.split(':')[0]}:443?transport=tcp`);
+          } catch { /* ignore */ }
+        }
+      }
+      if (tcpUrls.length) out.push({ ...s, urls: tcpUrls });
+    }
+    return out;
+  };
+
   const config: RTCConfiguration = {
-    iceServers,
+    iceServers: withTcpFallback(iceServers),
 
     // 🔥 ИЗМЕНЕНИЕ: Если включен флаг или мы detect проблемы, ставим 'relay'
     iceTransportPolicy: FORCE_RELAY_ONLY ? 'relay' : 'all',
@@ -381,20 +412,36 @@ export function useWebRTC(
       // 🔥 Запрос медиа. Упрощённые аудио-констрейнты: на iOS Safari форсированный
       // channelCount:1 (моно) + noiseSuppression/autoGainControl не поддерживаются и
       // приводят к отказу getUserMedia или тихому треку. echoCancellation убирает эхо.
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-        },
-        video: callType === 'video' ? {
-          width: { ideal: 1280, max: 1920 },
-          height: { ideal: 720, max: 1080 },
-          frameRate: { ideal: 30, max: 30 },
-          facingMode: 'user',
-        } : false,
-      });
-
-      rtcLog('✅ Media stream acquired');
-      return stream;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+          },
+          video: callType === 'video' ? {
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 },
+            frameRate: { ideal: 30, max: 30 },
+            facingMode: 'user',
+          } : false,
+        });
+        rtcLog('✅ Media stream acquired');
+        return stream;
+      } catch (err: any) {
+        // 📱 iOS FIX: Safari/PWA может отказать на расширенных констрейнтах
+        // (NotReadableError/OverconstrainedError/AbortError). Повторяем с
+        // максимально простым запросом — audio:true / video:true.
+        const name = err?.name || '';
+        if (name === 'NotReadableError' || name === 'OverconstrainedError' || name === 'AbortError' || name === 'TypeError') {
+          rtcWarn(`⚠️ getUserMedia failed (${name}) — retrying with plain constraints`);
+          const plain = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: callType === 'video',
+          });
+          rtcLog('✅ Media stream acquired (plain constraints fallback)');
+          return plain;
+        }
+        throw err;
+      }
     },
     [],
   );

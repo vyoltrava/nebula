@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { useCall } from '@/lib/CallContext';
 import { callSounds } from '@/lib/callSounds';
+import { useI18n } from '@/lib/i18n/LanguageProvider';
 
 function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -11,6 +12,7 @@ function formatDuration(seconds: number): string {
 }
 
 export default function CallModal() {
+  const { t } = useI18n();
   const { callState, acceptCall, rejectCall, endCall, toggleMute, toggleVideo } = useCall();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -97,28 +99,31 @@ export default function CallModal() {
   // ⏱ АВТОСБРОС НЕОТВЕЧЕННОГО ЗВОНКА: если вызываемый не ответил за 45 секунд
   // (в т.ч. он офлайн — тогда сброс не происходил никогда), исходящий звонок
   // сам завершается. Пуш «Пропущенный звонок» адресат уже получил от сервера.
+  // ВАЖНО: у звонящего статус «initiating» до подключения — тоже ждём ответа.
   useEffect(() => {
-    if (status !== 'ringing' || !isCaller) return;
+    if (isCaller && status !== 'ringing' && status !== 'initiating') return;
     const timer = setTimeout(() => {
-      if (callState.status === 'ringing' && callState.isCaller) {
-        endCall();
+      const s = callState.status;
+      if (s === 'ringing' || s === 'initiating') {
+        if (callState.isCaller) endCall();
+        else if (s === 'ringing') rejectCall();
       }
     }, 45_000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, isCaller, callState.callId]);
 
-  // ⏱ ВХОДЯЩИЙ: если звонящий не отвечает/пропал (нет call_ended) — гасим через 45с
+  // 📱 iOS PWA: в standalone-режиме (добавлено на домашний экран) WebKit
+  // ограничивает микрофон/камеру — звонки стабильно работают только в Safari.
+  const [iosPwaHint, setIosPwaHint] = useState(false);
   useEffect(() => {
-    if (status !== 'ringing' || isCaller) return;
-    const timer = setTimeout(() => {
-      if (callState.status === 'ringing' && !callState.isCaller) {
-        rejectCall();
-      }
-    }, 45_000);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, isCaller, callState.callId]);
+    if (status === 'idle') return;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isStandalone = (navigator as any).standalone === true ||
+      window.matchMedia('(display-mode: standalone)').matches;
+    setIosPwaHint(isIOS && isStandalone);
+  }, [status]);
 
   if (status === 'idle') return null;
 
@@ -142,6 +147,11 @@ export default function CallModal() {
       {/* ======== 1. ВЕРХНЯЯ ПАНЕЛЬ: Имя и статус ======== */}
       <div className="shrink-0 flex flex-col items-center pt-6 sm:pt-8 pb-2 px-4">
         <h2 className="text-2xl font-bold drop-shadow-md truncate max-w-full">{displayName}</h2>
+        {iosPwaHint && (
+          <p className="mt-2 max-w-[92%] rounded-xl bg-amber-500/90 text-black text-[11px] sm:text-xs font-semibold px-3 py-2 text-center shadow-lg">
+            {t("call.iosPwaHint")}
+          </p>
+        )}
         <p className="text-white/70 text-sm font-medium mt-1">
           {(status === 'ringing' || status === 'initiating') && isCaller && 'Вызов...'}
           {status === 'ringing' && !isCaller && 'Входящий звонок'}

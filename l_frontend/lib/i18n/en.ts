@@ -959,6 +959,10 @@ privacy: {
   serverEnforced: "All restrictions are enforced server-side and cannot be bypassed via the UI.",
 },
 
+call: {
+  iosPwaHint: "Calls may not work in app mode. Open the site in Safari — on iOS, microphone and camera are fully available only there.",
+},
+
 mute: {
   turnOff: "Mute notifications",
   turnOn: "Unmute notifications",

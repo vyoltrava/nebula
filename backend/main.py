@@ -10695,17 +10695,26 @@ async def websocket_endpoint(websocket: WebSocket):
             if mtype == "call_initiate":
                 if not isinstance(target_id, int):
                     continue
-                # 🛡 ПРИВАТНОСТЬ: проверяем, может ли инициатор звонить адресату
-                _target_user = None
-                with Session(engine) as _s:
-                    _target_user = _s.get(User, target_id)
-                    if _target_user and not _privacy_allows(_target_user, user_id, "calls", _s):
-                        print(f"[📞 PRIVACY] call_initiate {user_id} -> {target_id} BLOCKED (allow_calls={_target_user.allow_calls})")
-                        await manager.send_to_user(user_id, "call_rejected", {
-                            "call_id": "",
-                            "reason": "privacy_blocked",
-                        })
-                        continue
+                # 🛡 ПРИВАТНОСТЬ: проверяем, может ли инициатор звонить адресату.
+                # ⚠️ ОБОРОНИТЕЛЬНО: любая ошибка здесь (нет миграции, недоступна БД)
+                # раньше роняла ВЕСЬ WS-цикл -> обрыв сокета звонящего, звонок не
+                # начинался и пуш «пропущенный» не уходил. Теперь fail-open.
+                _blocked = False
+                try:
+                    with Session(engine) as _s:
+                        _target_user = _s.get(User, target_id)
+                        if _target_user and not _privacy_allows(_target_user, user_id, "calls", _s):
+                            _blocked = True
+                            print(f"[📞 PRIVACY] call_initiate {user_id} -> {target_id} BLOCKED (allow_calls={_target_user.allow_calls})")
+                except Exception as _pe:  # noqa: BLE001
+                    print(f"[📞 PRIVACY] check failed (fail-open): {_pe}")
+
+                if _blocked:
+                    await manager.send_to_user(user_id, "call_rejected", {
+                        "call_id": "",
+                        "reason": "privacy_blocked",
+                    })
+                    continue
 
                 call_id = f"call-{user_id}-{target_id}-{uuid.uuid4().hex[:8]}"
                 # 1) Входящий вызов адресату (useWebRTC.ts case 'call_incoming')
