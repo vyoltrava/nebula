@@ -7,7 +7,7 @@ import {
   useEffect,
 } from 'react';
 
-import { getToken } from '@/lib/auth';
+import { getToken, getActiveAccount } from '@/lib/auth';
 
 export type CallType = 'audio' | 'video';
 
@@ -901,12 +901,17 @@ export function useWebRTC(
           localStream: stream,
         }));
 
+        // 🛡 ОПРЕДЕЛИТЕЛЬ: в сигнале уходим СВОИ именем/авой из активного
+        // аккаунта. Раньше сюда улетало имя СОБЕСЕДНИКА (параметры
+        // callerName/callerAvatar передаёт страница, зная только партнёра),
+        // из-за чего вызываемый видел в «Входящем звонке» СВОЙ ник.
+        const me = getActiveAccount();
         safeSendSignal({
           type: 'call_initiate',
           target_user_id: targetUserId,
           call_type: callType,
-          caller_name: callerName,
-          caller_avatar: callerAvatar,
+          caller_name: me?.displayName || callerName,
+          caller_avatar: me?.avatarUrl || callerAvatar,
         });
       } catch (error) {
         rtcError('Failed to initiate call', error);

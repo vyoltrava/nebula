@@ -10728,12 +10728,12 @@ async def websocket_endpoint(websocket: WebSocket):
                     from push_service import send_push
                     _ct = "видеозвонок" if msg.get("call_type", "audio") == "video" else "аудиозвонок"
                     _caller_name = msg.get("caller_name") or "Пользователь"
-                    print(f"[📞 OFFLINE] {target_id} офлайн — отправляю push о входящем звонке")
+                    print(f"[📞 OFFLINE] {target_id} офлайн — отправляю push о пропущенном звонке")
                     asyncio.create_task(run_in_threadpool(
                         send_push,
                         target_id,
-                        "📞 Входящий звонок",
-                        f"{_caller_name}: {_ct}",
+                        "📞 Пропущенный звонок",
+                        f"{_caller_name}: пропущенный {_ct}. Нажмите, чтобы перезвонить.",
                         "/messages",
                         "call",
                     ))

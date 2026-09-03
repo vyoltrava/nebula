@@ -94,6 +94,32 @@ export default function CallModal() {
     return () => { callSounds.stopAll(); };
   }, [status, isCaller]);
 
+  // ⏱ АВТОСБРОС НЕОТВЕЧЕННОГО ЗВОНКА: если вызываемый не ответил за 45 секунд
+  // (в т.ч. он офлайн — тогда сброс не происходил никогда), исходящий звонок
+  // сам завершается. Пуш «Пропущенный звонок» адресат уже получил от сервера.
+  useEffect(() => {
+    if (status !== 'ringing' || !isCaller) return;
+    const timer = setTimeout(() => {
+      if (callState.status === 'ringing' && callState.isCaller) {
+        endCall();
+      }
+    }, 45_000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, isCaller, callState.callId]);
+
+  // ⏱ ВХОДЯЩИЙ: если звонящий не отвечает/пропал (нет call_ended) — гасим через 45с
+  useEffect(() => {
+    if (status !== 'ringing' || isCaller) return;
+    const timer = setTimeout(() => {
+      if (callState.status === 'ringing' && !callState.isCaller) {
+        rejectCall();
+      }
+    }, 45_000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, isCaller, callState.callId]);
+
   if (status === 'idle') return null;
 
   const isActive = status === 'active' || status === 'connecting';
