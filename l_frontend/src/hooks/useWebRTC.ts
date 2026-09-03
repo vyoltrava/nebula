@@ -171,6 +171,12 @@ const FORCE_RELAY_ONLY = false;
 let dynamicIceServers: RTCIceServer[] | null = null;
 let iceFetchInFlight = false;
 
+// 📱 iOS ADAPTIVE ICE: переопределение transport-политики между попытками.
+// null = дефолт ('all'). WebKit с 'relay'-политикой иногда вообще не собирает
+// кандидатов (0 шт., 0 ошибок, ice:'new') — тогда пересобираем PC с 'all',
+// и наоборот. Переключение выполняет setupPeerConnection (retry-таймер).
+let currentIcePolicyOverride: RTCIceTransportPolicy | null = null;
+
 /** Есть ли рабочий TURN (подтянутый с бэкенда)? Для индикаторов и подсказок. */
 export function isTurnConfigured(): boolean {
   return !!(dynamicIceServers && dynamicIceServers.length > 0);
@@ -312,17 +318,22 @@ const getRTCConfig = (): RTCConfiguration => {
       if (tcpUrls.length) out.push({ ...s, urls: tcpUrls });
       if (tlsUrls.length) out.push({ ...s, urls: tlsUrls });
     }
-    return out;
+    // 🧹 Дедуп URLs (legacy NEXT_PUBLIC_TURN + бэкенд дают повторы)
+    return out.map((s) =>
+      Array.isArray(s.urls)
+        ? { ...s, urls: Array.from(new Set(s.urls as string[])) }
+        : s
+    );
   };
 
   const config: RTCConfiguration = {
     iceServers: withTcpFallback(iceServers),
 
     // 🔥 ИЗМЕНЕНИЕ: Если включен флаг или мы detect проблемы, ставим 'relay'
-    // 📱 iOS: принудительно relay — за VPN srflx-пары (IP VPN-сервера) почти
-    // всегда не соединяются, а WebKit зря тратит на них ~20 секунд и часто
-    // «залипает» в checking. Relay (turns:443) — единственный рабочий путь.
-    iceTransportPolicy: (FORCE_RELAY_ONLY || isIOS) ? 'relay' : 'all',
+    // 📱 iOS: НЕ форсируем 'relay' — WebKit с relay-политикой может не собрать
+    // ни одного кандидата (см. debug-дамп: ice:'new', 0 кандидатов, 0 ошибок).
+    // Политика переключается адаптивно через currentIcePolicyOverride.
+    iceTransportPolicy: currentIcePolicyOverride ?? (FORCE_RELAY_ONLY ? 'relay' : 'all'),
 
     // 📱 iOS: минимальный безопасный конфиг (обход бага WebKit «зависший ICE»).
     ...(isIOS
@@ -436,6 +447,9 @@ export function useWebRTC(
   const endReasonRef = useRef<'local' | 'declined' | 'remote_ended' | null>(null);
   // 📞 Флаг: P2P-соединение хоть раз установилось (для исхода 'ended' vs 'missed')
   const connectedOnceRef = useRef(false);
+  // 📱 iOS ADAPTIVE ICE: retry-состояние
+  const iosIceRetryRef = useRef(0);
+  const iosRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const safeSendSignal = useCallback(
     (data: WebRTCSignal) => {
@@ -657,6 +671,13 @@ export function useWebRTC(
     }
     pendingOfferRef.current = null;
 
+    // 📱 iOS ADAPTIVE ICE: сброс retry-состояния между звонками
+    if (iosRetryTimerRef.current) {
+      clearTimeout(iosRetryTimerRef.current);
+      iosRetryTimerRef.current = null;
+    }
+    iosIceRetryRef.current = 0;
+
     // 📞 сброс флага «соединение устанавливалось» для сообщения о звонке
     connectedOnceRef.current = false;
 
@@ -714,6 +735,43 @@ export function useWebRTC(
 
       pcRef.current = pc;
       activeCallIdRef.current = callId;
+
+      // 📱 iOS ADAPTIVE ICE: если за 8 секунд не собрался НИ ОДИН кандидат
+      // (debug-дамп показывает: ice:'new', 0 кандидатов, 0 ошибок — WebKit
+      // «залипает» с текущей transport-политикой), пересобираем PeerConnection
+      // с противоположной политикой ('all' <-> 'relay'). Локальный mediaStream
+      // сохраняется — треки НЕ останавливаем, cleanup() не зовём.
+      if (isIOS && iosIceRetryRef.current < 1) {
+        if (iosRetryTimerRef.current) clearTimeout(iosRetryTimerRef.current);
+        iosRetryTimerRef.current = setTimeout(() => {
+          const d = stateRef.current.diag;
+          const gathered =
+            (d?.candHost ?? 0) + (d?.candSrflx ?? 0) + (d?.candRelay ?? 0);
+          const cur = pcRef.current;
+          const connected =
+            !!cur &&
+            (cur.connectionState === 'connected' ||
+              cur.iceConnectionState === 'connected');
+          if (gathered === 0 && !connected && cur === pc) {
+            iosIceRetryRef.current += 1;
+            currentIcePolicyOverride =
+              currentIcePolicyOverride === 'relay' ? 'all' : 'relay';
+            rtcWarn(
+              `🔁 iOS: 0 ICE-кандидатов за 8с — retry #${iosIceRetryRef.current} с policy=${currentIcePolicyOverride}`,
+            );
+            try {
+              pc.onicecandidate = null;
+              pc.onicecandidateerror = null;
+              pc.ontrack = null;
+              pc.close();
+            } catch { /* ignore */ }
+            if (pcRef.current === pc) pcRef.current = null;
+            setupPeerConnection(callId, stream, isCaller).catch((e) =>
+              rtcError('iOS ICE retry: re-setup failed', e),
+            );
+          }
+        }, 8000);
+      }
 
       // 📊 Сброс диагностики на старте каждого PeerConnection
       setState((prev) => ({
