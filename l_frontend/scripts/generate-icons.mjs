@@ -47,6 +47,28 @@ async function renderRound(svg, size) {
   return sharp(base).composite([{ input: mask, blend: "dest-in" }]).png().toBuffer();
 }
 
+/** Symbol-only PNG (прозрачный фон) для адаптивной иконки Android: слой foreground. */
+function foregroundSvg(stok, size) {
+  const vbMatch = stok.match(/viewBox=["']([^"']+)["']/i);
+  const p = (vbMatch ? vbMatch[1] : "0 0 512 512").split(/[\s,]+/).map(Number);
+  const [vx, vy, vw, vh] = p.length === 4 ? p : [0, 0, 512, 512];
+  const maxDim = Math.max(vw, vh);
+
+  // Содержимое stok, ВЫРЕЗАЯ полноразмерный фон-rect (фон задаёт @color/ic_launcher_background)
+  let inner = stok.replace(/<svg[^>]*>/i, "").replace(/<\/svg>/i, "").trim();
+  inner = inner.replace(/<rect\b[^>]*\/?>/gi, (rect) => {
+    const w = parseFloat((rect.match(/width=["']([^"']+)["']/i) || [])[1] || "0");
+    const h = parseFloat((rect.match(/height=["']([^"']+)["']/i) || [])[1] || "0");
+    return w >= maxDim * 0.9 && h >= maxDim * 0.9 ? "" : rect;
+  });
+
+  // Контент в safe-zone адаптивной иконки (~66% канваса)
+  const k = (size * 0.6) / maxDim;
+  const tx = (size - vw * k) / 2 - vx * k;
+  const ty = (size - vh * k) / 2 - vy * k;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${tx} ${ty}) scale(${k})">${inner}</g></svg>`;
+}
+
 async function main() {
   const svgCache = {};
   for (const id of VARIANTS) {
@@ -88,9 +110,10 @@ async function main() {
     for (const { dir, size } of ANDROID_DENSITIES) {
       const outDir = resolve(ANDROID_RES, dir);
       if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
-      // стандартная лаунчер-иконка из stok
+      // стандартная лаунчер-иконка из stok (+ foreground для адаптивной иконки)
       await sharp(await renderPng(stok, size)).toFile(resolve(outDir, "ic_launcher.png"));
       await sharp(await renderRound(stok, size)).toFile(resolve(outDir, "ic_launcher_round.png"));
+      await sharp(Buffer.from(foregroundSvg(stok, size))).toFile(resolve(outDir, "ic_launcher_foreground.png"));
       // варианты
       for (const id of ["white", "ukraina", "inversiya"]) {
         await sharp(await renderPng(svgCache[id], size)).toFile(resolve(outDir, `ic_launcher_${id}.png`));

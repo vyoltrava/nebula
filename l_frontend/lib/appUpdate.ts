@@ -73,6 +73,26 @@ export async function checkApkUpdate(): Promise<ApkUpdateInfo> {
   }
 }
 
+/**
+ * Установка обновления:
+ *  - в нативном APK: качает APK и запускает системный установщик (без браузера)
+ *  - в браузере: открывает ссылку в новой вкладке
+ */
+export async function installUpdate(url: string): Promise<{ ok: boolean; message?: string; error?: string }> {
+  if (typeof window === 'undefined') return { ok: false, error: 'no window' };
+  try {
+    const cap = (window as any).Capacitor;
+    if (cap?.isNativePlatform?.() && cap.Plugins?.AppUpdate) {
+      const res = await cap.Plugins.AppUpdate.downloadAndInstall({ url });
+      return { ok: !!res?.ok, message: res?.message };
+    }
+  } catch (e: any) {
+    return { ok: false, error: e?.message || String(e) };
+  }
+  window.open(url, '_blank', 'noopener');
+  return { ok: true, message: 'Открыта ссылка на скачивание' };
+}
+
 /** Открыть скачивание APK (стандартный sideload: браузер качает → юзер ставит). */
 export function openApkDownload(url: string): void {
   if (typeof window === 'undefined') return;
