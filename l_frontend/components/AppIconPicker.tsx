@@ -2,7 +2,7 @@
 // Доступно с 2 уровня (ICON_MIN_LEVEL).
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check, Lock, Smartphone } from 'lucide-react';
 import { APP_ICONS, ICON_MIN_LEVEL, DEFAULT_ICON, getIconId, setAppIcon } from '@/lib/pwaIcons';
 import { getCachedUser } from '@/lib/authCache';
@@ -19,7 +19,28 @@ export function AppIconPicker() {
   const level = getUserLevel(getCachedUser());
   const locked = level < ICON_MIN_LEVEL;
 
-    const pick = (id: string) => {
+  // 🔥 Нативный источник правды — активный activity-alias из плагина.
+  // localStorage в WebView при жёстком рестарте приложения (kill после смены
+  // иконки) бывает ненадёжен, поэтому активную иконку спрашиваем у плагина.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const cap = (window as any).Capacitor;
+        if (cap?.isNativePlatform?.() && cap.Plugins?.AppIcon) {
+          const r = await cap.Plugins.AppIcon.getIcon();
+          if (!cancelled && r?.alias && APP_ICONS.some((i) => i.id === r.alias)) {
+            setCurrent(r.alias);
+          }
+        }
+      } catch {
+        // плагин недоступен — оставляем localStorage
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const pick = (id: string) => {
     if (locked) return;
     setAppIcon(id);
     setCurrent(id);
