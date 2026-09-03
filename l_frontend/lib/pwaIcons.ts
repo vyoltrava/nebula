@@ -5,6 +5,8 @@
 'use client';
 
 import iconsConfig from '@/config/app-icons.json';
+import { getCachedUser } from '@/lib/authCache';
+import { getUserLevel } from '@/lib/auth';
 
 export interface AppIcon {
   id: string;
@@ -62,9 +64,11 @@ async function bustCache(): Promise<void> {
   } catch { /* light */ }
 }
 
-/** Установить и сохранить иконку (вызов из настроек). */
+/** Установить и сохранить иконку (вызов из настроек). Только с 2 уровня. */
 export async function setAppIcon(iconId: string): Promise<void> {
   if (!APP_ICONS.some((i) => i.id === iconId)) return;
+  // 🔥 Дубль-страховка: смена иконки доступна только с уровня ICON_MIN_LEVEL
+  if (getUserLevel(getCachedUser()) < ICON_MIN_LEVEL) return;
   localStorage.setItem(STORAGE_KEY, iconId);
   applyAppIcon(iconId);
   await bustCache();
