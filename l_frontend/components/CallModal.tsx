@@ -38,8 +38,13 @@ export default function CallModal() {
   useEffect(() => {
     const tryPlay = (el: HTMLMediaElement) => {
       el.play().catch((err: DOMException) => {
-        // Браузер блокирует unmuted-автоплей — глушим и ждём тапа пользователя
-        if (err?.name === 'NotAllowedError') setRemoteUnmuted(false);
+        // iOS Safari: unmuted-автоплей заблокирован — глушим, запускаем play()
+        // снова, а звук вернём при первом тапе (жест пользователя).
+        if (err?.name === 'NotAllowedError') {
+          el.muted = true;
+          setRemoteUnmuted(false);
+          el.play().catch(() => {});
+        }
       });
     };
     if (remoteVideoRef.current && remoteStream) {
@@ -52,11 +57,17 @@ export default function CallModal() {
     }
   }, [remoteStream]);
 
-  // Размут напрямую через DOM-свойство
+  // Размут напрямую через DOM-свойство + ОБЯЗАТЕЛЬНЫЙ повторный play():
+  // на iOS после смены muted аудио/видео не продолжает играть само.
   useEffect(() => {
-    if (remoteVideoRef.current) remoteVideoRef.current.muted = !remoteUnmuted;
-    if (remoteAudioRef.current) remoteAudioRef.current.muted = !remoteUnmuted;
-  }, [remoteUnmuted]);
+    for (const el of [remoteVideoRef.current, remoteAudioRef.current]) {
+      if (!el) continue;
+      el.muted = !remoteUnmuted;
+      if (!remoteUnmuted && el.srcObject) {
+        el.play().catch(() => {});
+      }
+    }
+  }, [remoteUnmuted, remoteStream]);
 
   // Сброс состояния звука между звонками
   useEffect(() => {
@@ -70,8 +81,10 @@ export default function CallModal() {
   const displayName = remoteUserName || 'Неизвестный';
   const displayAvatar = remoteUserAvatar || '';
 
-  // Одинаковый класс размера для обоих квадратов
-  const videoBoxClass = "relative w-40 h-40 sm:w-56 sm:h-56 rounded-2xl overflow-hidden bg-black shadow-2xl flex items-center justify-center";
+  // Адаптив: на телефонах квадрат ≈70% ширины экрана (два штуки + панели влезают
+  // по высоте даже на маленьких iPhone), на ПК — фиксированный размер, чтобы
+  // видео не «плыло» на весь экран.
+  const videoBoxClass = "relative w-[min(70vw,320px)] h-[min(70vw,320px)] sm:w-56 sm:h-56 md:w-72 md:h-72 rounded-2xl overflow-hidden bg-black shadow-2xl flex items-center justify-center";
 
   return (
     <div
@@ -84,7 +97,7 @@ export default function CallModal() {
       <div className="flex flex-col items-center pt-8 pb-2">
         <h2 className="text-2xl font-bold drop-shadow-md">{displayName}</h2>
         <p className="text-white/70 text-sm font-medium mt-1">
-          {status === 'ringing' && isCaller && 'Вызов...'}
+          {(status === 'ringing' || status === 'initiating') && isCaller && 'Вызов...'}
           {status === 'ringing' && !isCaller && 'Входящий звонок'}
           {status === 'connecting' && 'Соединение...'}
           {status === 'active' && formatDuration(duration)}

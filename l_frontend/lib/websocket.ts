@@ -135,6 +135,22 @@ class NebulaSocket {
     }, delay);
   }
 
+  // 🔥 ОЖИВЛЕНИЕ СОКЕТА (критично для iOS):
+  // iOS Safari/WKWebView подвешивает WebSocket при блокировке экрана и
+  // сворачивании приложения. После возврата сокет мёртв, и входящие звонки
+  // (call_incoming) не доходят. Вызывайте этот метод при возврате во
+  // вкладку/приложение — он восстановит соединение без перезагрузки страницы.
+  ensureAlive() {
+    const dead =
+      !this.ws ||
+      this.ws.readyState === WebSocket.CLOSED ||
+      this.ws.readyState === WebSocket.CLOSING;
+    if (dead && this.lastToken && this.shouldReconnect && this.reconnectTimeout === null) {
+      this.reconnectAttempts = 0;
+      this.scheduleReconnect(this.lastToken);
+    }
+  }
+
   disconnect() {
     this.shouldReconnect = false;
     if (this.reconnectTimeout) clearTimeout(this.reconnectTimeout);

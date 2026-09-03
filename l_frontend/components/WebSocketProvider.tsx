@@ -94,6 +94,17 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     const unsubCallIce = socket.on("call_ice_candidate", (data: any) => handleSignalRef.current({ type: "call_ice_candidate", ...data }));
     const unsubCallBusy = socket.on("call_busy", (data: any) => handleSignalRef.current({ type: "call_busy", ...data }));
 
+    // 📱 iOS: после возврата из фона/разблокировки сокет может быть мёртв —
+    // оживляем, иначе входящие звонки не доходят.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        socket.ensureAlive();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    window.addEventListener('online', onVisible);
+
     return () => {
       unsubMessage();
       unsubPost();
@@ -107,6 +118,9 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       unsubCallAnswer();
       unsubCallIce();
       unsubCallBusy();
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+      window.removeEventListener('online', onVisible);
       // Разрываем соединение ТОЛЬКО при финальном размонтировании провайдера
       // ([] deps), а не при каждом рендере, как раньше.
       socket.disconnect();
