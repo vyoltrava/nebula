@@ -20,7 +20,7 @@ export default function CallModal() {
 
   const {
     status, callType, remoteUserName, remoteUserAvatar, isCaller,
-    localStream, remoteStream, isMuted, isVideoOff, duration,
+    localStream, remoteStream, isMuted, isVideoOff, duration, diag,
   } = callState;
 
   // Привязка локального видео
@@ -81,21 +81,21 @@ export default function CallModal() {
   const displayName = remoteUserName || 'Неизвестный';
   const displayAvatar = remoteUserAvatar || '';
 
-  // Адаптив: на телефонах квадрат ≈70% ширины экрана (два штуки + панели влезают
-  // по высоте даже на маленьких iPhone), на ПК — фиксированный размер, чтобы
-  // видео не «плыло» на весь экран.
-  const videoBoxClass = "relative w-[min(70vw,320px)] h-[min(70vw,320px)] sm:w-56 sm:h-56 md:w-72 md:h-72 rounded-2xl overflow-hidden bg-black shadow-2xl flex items-center justify-center";
+  // Адаптив: квадрат = min(70% ширины экрана, 30% высоты, 320px).
+  // На телефонах — крупный, на ПК/низких окнах — ограничен по высоте,
+  // поэтому панель управления никогда не уезжает за экран.
+  const videoBoxClass = "relative w-[min(70vw,30vh,320px)] h-[min(70vw,30vh,320px)] rounded-2xl overflow-hidden bg-black shadow-2xl flex items-center justify-center";
 
   return (
     <div
-      className="fixed inset-0 z-[9999] bg-black flex flex-col text-white"
+      className="fixed inset-0 z-[9999] bg-black flex flex-col text-white overflow-hidden"
       onClick={() => { if (!remoteUnmuted) setRemoteUnmuted(true); }}
     >
       {!isVideoCall && <audio ref={remoteAudioRef} autoPlay playsInline muted={!remoteUnmuted} />}
 
       {/* ======== 1. ВЕРХНЯЯ ПАНЕЛЬ: Имя и статус ======== */}
-      <div className="flex flex-col items-center pt-8 pb-2">
-        <h2 className="text-2xl font-bold drop-shadow-md">{displayName}</h2>
+      <div className="shrink-0 flex flex-col items-center pt-6 sm:pt-8 pb-2 px-4">
+        <h2 className="text-2xl font-bold drop-shadow-md truncate max-w-full">{displayName}</h2>
         <p className="text-white/70 text-sm font-medium mt-1">
           {(status === 'ringing' || status === 'initiating') && isCaller && 'Вызов...'}
           {status === 'ringing' && !isCaller && 'Входящий звонок'}
@@ -103,10 +103,28 @@ export default function CallModal() {
           {status === 'active' && formatDuration(duration)}
           {status === 'ended' && 'Звонок завершён'}
         </p>
+
+        {/* 📊 Диагностика соединения — видна, пока не подключились */}
+        {status === 'connecting' && diag && (
+          <p className="text-[11px] text-white/40 font-mono mt-1">
+            ICE:{diag.ice} · H/S/R:{diag.candHost}/{diag.candSrflx}/{diag.candRelay} · TURN:{diag.turnActive ? 'ON' : 'OFF'}
+            {diag.candidateErrors > 0 && ` · err:${diag.candidateErrors}`}
+          </p>
+        )}
+
+        {/* ⚠️ Красная плашка при проблемах ICE */}
+        {diag && (diag.ice === 'failed' || diag.conn === 'failed') && (
+          <div className="mt-2 px-3 py-1.5 rounded-lg bg-red-500/20 border border-red-400/40 max-w-[92%]">
+            <p className="text-xs text-red-200 text-center">
+              {diag.hint || 'Не удалось установить P2P-соединение. Проверьте сеть или TURN-сервер.'}
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* ======== 2. ОСНОВНАЯ ОБЛАСТЬ: Два одинаковых квадрата ======== */}
-      <div className="flex-1 flex flex-col items-center justify-center gap-6 sm:gap-8">
+      {/* ======== 2. ОСНОВНАЯ ОБЛАСТЬ: Два квадрата ======== */}
+      {/* min-h-0 + shrink: область сжимается, кнопки управления ВСЕГДА остаются на экране */}
+      <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-4 sm:gap-8 px-3">
         
         {/* СОБЕСЕДНИК (Сверху) */}
         <div className={videoBoxClass + " border border-white/10"}>
@@ -167,7 +185,7 @@ export default function CallModal() {
       </div>
 
       {/* ======== 3. ПАНЕЛЬ УПРАВЛЕНИЯ ======== */}
-      <div className="py-6 px-4 flex items-center justify-center gap-4 sm:gap-6 pb-10">
+      <div className="shrink-0 py-4 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] flex items-center justify-center gap-4 sm:gap-6">
         
         {status === 'ringing' && !isCaller && (
           <>
