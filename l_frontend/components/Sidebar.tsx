@@ -828,15 +828,6 @@ function HorizontalSwipeNav({ pathname, user, counts }: { pathname: string; user
   // ── Рендер ──────────────────────────────────────────────────────────
   return (
     <>
-      {/* Индикатор зоны открытия (виден только когда меню ЗАКРЫТО) */}
-      {!isOpen && (
-        <div className="fixed bottom-6 right-6 z-[98] pointer-events-none">
-          <span className="bg-[#8b5cf6]/80 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg animate-pulse inline-flex items-center gap-1">
-            ↗ Свайп
-          </span>
-        </div>
-      )}
-
       {/* Открытое меню: overlay + горизонтальный ряд кнопок */}
       {isOpen && (
         <>
@@ -847,28 +838,37 @@ function HorizontalSwipeNav({ pathname, user, counts }: { pathname: string; user
             onTouchMove={(e) => e.preventDefault()}
             onClick={closeMenu}
           />
-          {/* Горизонтальная панель кнопок — ЗАМИРАЕТ по центру экрана */}
+          {/* Горизонтальная панель кнопок — ЗАМИРАЕТ по центру экрана.
+              📐 Адаптив: при 6 пунктах круги 48px, при 5 — 52px, иначе 56px,
+              чтобы ВСЕ кнопки гарантированно влезали на узкий экран (320–360px). */}
           <div
             ref={containerRef}
-            className="fixed left-4 right-4 top-1/2 -translate-y-1/2 z-[100] flex items-center justify-around"
+            className="fixed left-3 right-3 top-1/2 -translate-y-1/2 z-[100] flex items-start justify-around"
           >
             {items.map((item, i) => {
               const active = pathname === item.href;
               const badge = (item as { badge?: number }).badge;
+              const circleCx =
+                items.length >= 6
+                  ? "w-12 h-12"
+                  : items.length === 5
+                    ? "w-[52px] h-[52px]"
+                    : "w-14 h-14";
+              const iconSize = items.length >= 6 ? 20 : 22;
               return (
                 <button
                   key={item.href}
                   onClick={() => handleNavigate(item.href)}
                   onTouchStart={() => setSelectedIndex(i)}
                   onTouchEnd={() => setTimeout(() => setSelectedIndex(null), 250)}
-                  className="flex flex-col items-center"
+                  className="flex flex-col items-center flex-1 min-w-0 max-w-[72px]"
                   style={{
                     animation: "hswipe-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both",
                     animationDelay: `${i * 40}ms`,
                   }}
                 >
                   <span
-                    className={`relative w-14 h-14 rounded-full flex items-center justify-center border shadow-lg transition-all duration-150 ${
+                    className={`relative ${circleCx} shrink-0 rounded-full flex items-center justify-center border shadow-lg transition-all duration-150 ${
                       selectedIndex === i
                         ? "scale-110 bg-[#8b5cf6] text-white shadow-[0_0_20px_rgba(139,92,246,0.5)] border-[#8b5cf6]"
                         : active
@@ -876,14 +876,14 @@ function HorizontalSwipeNav({ pathname, user, counts }: { pathname: string; user
                           : "bg-white/90 dark:bg-[#1a1a1f]/90 border-line dark:border-white/10 text-gray-700 dark:text-white/80"
                     }`}
                   >
-                    <item.icon size={22} />
+                    <item.icon size={iconSize} />
                     {!!badge && badge > 0 && (
                       <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#ef4444] text-white text-[10px] font-black flex items-center justify-center border-2 border-white dark:border-[#1a1a1f]">
                         {badge > 99 ? "99+" : badge}
                       </span>
                     )}
                   </span>
-                  <span className="text-[10px] font-semibold mt-1 text-gray-600 dark:text-white/70">
+                  <span className="text-[10px] font-semibold mt-1 text-gray-600 dark:text-white/70 w-full text-center truncate px-0.5 leading-tight">
                     {item.label}
                   </span>
                 </button>
