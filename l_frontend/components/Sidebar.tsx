@@ -354,11 +354,15 @@ function Dock2Wheel({
   router,
   setShowBugModal,
   setShowLayoutPicker,
+  hasContinue,
+  onContinue,
 }: {
   user: Dock2User;
   router: ReturnType<typeof useRouter>;
   setShowBugModal: (v: boolean) => void;
   setShowLayoutPicker: (v: boolean) => void;
+  hasContinue?: boolean;   // 📖 есть незаконченный пост → подсветка кнопки
+  onContinue?: () => void; // 📖 двойной тап/клик → продолжить чтение
 }) {
   const { t } = useI18n();
   const squareRef = useRef<HTMLDivElement>(null);
@@ -366,6 +370,8 @@ function Dock2Wheel({
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selModeRef = useRef(false);      // 🖐 режим выбора иконки (ушёл в сторону от кнопки)
   const geomRef = useRef<Dock2Geom | null>(null); // геометрия панели для hit-теста в жестах
+  const movedRef = useRef(false);        // был свайп (перемотка/выбор) — не считать тапом
+  const dblTapRef = useRef(0);           // время последнего тапа (двойной тап → продолжить чтение)
 
   const [currentPage, setCurrentPage] = useState(0);
   const [isActive, setIsActive] = useState(false);
@@ -431,6 +437,7 @@ function Dock2Wheel({
     const touch = e.touches[0];
     startPos.current = { x: touch.clientX, y: touch.clientY };
     selModeRef.current = false;
+    movedRef.current = false; // новый жест — пока не свайп
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
     longPressTimer.current = setTimeout(() => {
       const g = dock2GeomFor(pages[currentPage]);
@@ -450,6 +457,7 @@ function Dock2Wheel({
     // ── До открытия: свайп вверх/вниз по кнопке листает группы ──
     if (!isActive) {
       if (Math.abs(dy) > DOCK2_PAGE_SWIPE && Math.abs(dy) > Math.abs(dx)) {
+        movedRef.current = true; // это свайп, а не тап
         flipPage(dy > 0);
         startPos.current = { x: touch.clientX, y: touch.clientY }; // сброс для следующего свайпа
       }
@@ -459,12 +467,13 @@ function Dock2Wheel({
     // ── В РЕЖИМЕ УДЕРЖАНИЯ: перемотка тоже работает, пока палец у кнопки ──
     if (!selModeRef.current) {
       if (Math.abs(dy) > DOCK2_PAGE_SWIPE && Math.abs(dy) > Math.abs(dx)) {
+        movedRef.current = true;
         flipPage(dy > 0);
         startPos.current = { x: touch.clientX, y: touch.clientY };
         return;
       }
       // Ушёл в сторону от кнопки → переключаемся на выбор иконки
-      if (Math.abs(dx) > DOCK2_SELECT_ENTER) selModeRef.current = true;
+      if (Math.abs(dx) > DOCK2_SELECT_ENTER) { selModeRef.current = true; movedRef.current = true; }
       else return;
     }
 
@@ -487,6 +496,17 @@ function Dock2Wheel({
   // ЖЕСТ: ОТПУСКАНИЕ (переход по выбранной иконке ИЛИ закрытие)
   const handleTouchEnd = () => {
     if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+
+    // 📖 Двойной тап по кнопке (панель НЕ открывалась, свайпа не было) → продолжить чтение
+    if (!isActive && !movedRef.current && onContinue) {
+      const now = Date.now();
+      if (now - dblTapRef.current < 300) {
+        dblTapRef.current = 0;
+        onContinue();
+      } else {
+        dblTapRef.current = now;
+      }
+    }
 
     if (isActive && selectedItem !== null) {
       const item = pages[currentPage][selectedItem];
@@ -541,8 +561,11 @@ function Dock2Wheel({
         className={`fixed z-[100] right-0 top-1/2 -translate-y-1/2 w-[16px] h-[88px] rounded-l-full border border-r-0 flex flex-col items-center justify-center gap-[5px] transition-all duration-200 ${
           isActive
             ? "border-[#8b5cf6] bg-[#8b5cf6]/25 shadow-[0_0_14px_rgba(139,92,246,0.5)]"
-            : "border-line dark:border-white/10 bg-paper/90 dark:bg-[#171717]/90 backdrop-blur-sm shadow-sm"
+            : hasContinue
+              ? "border-[#8b5cf6]/50 bg-[#8b5cf6]/15 shadow-[0_0_12px_rgba(139,92,246,0.45)]" // 📖 «круги на воде» — есть что дочитать
+              : "border-line dark:border-white/10 bg-paper/90 dark:bg-[#171717]/90 backdrop-blur-sm shadow-sm"
         }`}
+        onDoubleClick={() => { if (onContinue) onContinue(); }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -1901,6 +1924,8 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
             router={router}
             setShowBugModal={setShowBugModal}
             setShowLayoutPicker={setShowLayoutPicker}
+            hasContinue={!!lastReadPost}
+            onContinue={handleContinueClick}
           />
         ) : (
       <div className={layout === "orbit" ? "block" : layout === "orbit2" ? "hidden" : "md:hidden"}>
