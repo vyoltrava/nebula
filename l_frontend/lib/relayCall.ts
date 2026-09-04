@@ -71,7 +71,7 @@ export async function startCapture(
   callType: string,
   mime: string,
   onChunk: (b: ArrayBuffer) => void,
-  chunkMs = 400,
+  chunkMs = 60,
 ): Promise<RelayCapturedStream | null> {
   if (!navigator.mediaDevices?.getUserMedia) { log('getUserMedia unsupported'); return null; }
   let stream: MediaStream | null = null;
@@ -81,20 +81,19 @@ export async function startCapture(
       audio: true,
       video: isVideo ? { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' } : false,
     });
-    // mime теперь параметр
     log('capture mime=', mime);
     const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
-    const queue: Blob[] = [];
-    recorder.ondataavailable = (e) => { if (e.data.size > 0) queue.push(e.data); };
+    // 🔥 Низкая задержка: MediaRecorder сам вызывает ondataavailable каждые
+    // chunkMs без промежуточного setInterval (он добавлял лишнюю паузу
+    // и накапливал чанки -> «невыносимая» задержка).
+    recorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) {
+        e.data.arrayBuffer().then((ab) => onChunk(ab)).catch((err) => log('chunk err', err));
+      }
+    };
     recorder.start(chunkMs);
-    const timer = setInterval(() => {
-      if (!queue.length) return;
-      const blob = new Blob(queue.splice(0, queue.length), { type: mime });
-      blob.arrayBuffer().then((ab) => onChunk(ab)).catch((e) => log('arrayBuffer err', e));
-    }, chunkMs);
-    // meta — mime ушёл из startCapture: теперь mime приходит параметром.
-    log('capture started', callType, mime);
-    return { stop: () => { clearInterval(timer); try { recorder.stop(); } catch {} stream?.getTracks().forEach((t) => t.stop()); log('capture stopped'); } };
+    log('capture started', callType, chunkMs + 'ms');
+    return { stop: () => { try { recorder.stop(); } catch {} stream?.getTracks().forEach((t) => t.stop()); log('capture stopped'); } };
   } catch (e) { log('capture failed', callType, (e as Error)?.message || e); return null; }
 }
 
@@ -163,6 +162,14 @@ export class RelayReceiver {
     const chunk = this.queue.shift()!;
     try {
       this.appending = true;
+      // 🔥 Не даём буферу MSE раздуваться: если накоплено больше ~1 сек,
+      // удаляем старые сегменты (иначе задержка растёт → «невыносимо»).
+      try {
+        const sd = this.sb.buffered;
+        if (sd.length && sd.end(sd.length - 1) - sd.start(0) > 1.0) {
+          this.sb.remove(sd.start(0), sd.end(sd.length - 1) - 0.5);
+        }
+      } catch {}
       this.sb.appendBuffer(chunk);
     } catch (e) {
       log('appendBuffer err', e);

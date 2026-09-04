@@ -21,11 +21,6 @@ export function RoleBadge({ user, activeBilletAssignment, size = "md", showAnima
 
   if (!user) return null;
 
-  // 🆕 Если проп не передан, берём активную кастомную плашку из объекта пользователя,
-  // чтобы glow/анимации работали везде (посты, чаты, профиль), а не только там,
-  // где компонент вызывают с явным prop.
-  const assignment = activeBilletAssignment ?? user.active_billet_assignment;
-
   const sizeClasses = {
     sm: "px-1.5 py-0.5 text-[8px] md:text-[9px]",
     md: "px-2 py-0.5 md:px-2.5 md:py-1 text-[9px] md:text-[10px]",
@@ -33,6 +28,25 @@ export function RoleBadge({ user, activeBilletAssignment, size = "md", showAnima
   };
 
   const iconSize = size === "sm" ? "w-3 h-3" : "w-3.5 h-3.5 md:w-4 md:h-4";
+
+  // ═══════════════════════════════════════════
+  // 🚫 0. ЗАБАНЕН — плашка BANNED (самый высокий приоритет,
+  // рендерится в профиле у имени, как в AuthorBadges у постов)
+  // ═══════════════════════════════════════════
+  if (user.is_banned) {
+    return (
+      <span
+        className={`inline-flex items-center gap-0.5 ${sizeClasses[size]} rounded-md font-black uppercase tracking-widest shrink-0 border border-red-500/30 bg-red-500/15 text-red-600 dark:text-red-400`}
+      >
+        <span className="relative z-10">Banned</span>
+      </span>
+    );
+  }
+
+  // 🆕 Если проп не передан, берём активную кастомную плашку из объекта пользователя,
+  // чтобы glow/анимации работали везде (посты, чаты, профиль), а не только там,
+  // где компонент вызывают с явным prop.
+  const assignment = activeBilletAssignment ?? user.active_billet_assignment;
 
   // ═══════════════════════════════════════════
   // 🏆 1. ПРИОРИТЕТ: КАСТОМНАЯ ПЛАШКА (ИЗ АДМИНКИ)
