@@ -8521,9 +8521,10 @@ async def relay_call_stream(websocket: WebSocket, call_id: str):
             if message["type"] == "websocket.disconnect":
                 break
             data_bytes = message.get("bytes")
-            if data_bytes is None:
+            text = message.get("text")
+            if data_bytes is None and text is None:
                 continue
-            # релей другому участнику в том же звонке
+            # релей другому участнику (и бинарные чанки, и текстовый meta)
             async with _relay_calls_lock:
                 peers = _relay_ws.get(call_id)
                 pw = None
@@ -8531,7 +8532,10 @@ async def relay_call_stream(websocket: WebSocket, call_id: str):
                     pw = peers.get(peer)
             if pw is not None:
                 try:
-                    await pw.send_bytes(data_bytes)
+                    if data_bytes is not None:
+                        await pw.send_bytes(data_bytes)
+                    elif text is not None:
+                        await pw.send_text(text)
                 except Exception as e:
                     print(f"[Relay] peer send failed: {e}")
     except Exception as e:

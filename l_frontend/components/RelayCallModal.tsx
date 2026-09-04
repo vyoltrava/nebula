@@ -4,7 +4,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { getRelayCallApi, RelayPlayer } from '@/lib/relayCall';
+import { getRelayCallApi } from '@/lib/relayCall';
 import { callSounds } from '@/lib/callSounds';
 import type { RelayCallState } from '@/lib/relayCall';
 
@@ -24,20 +24,22 @@ function TubeIcon({ end = false, className = 'w-7 h-7' }: { end?: boolean; class
 export default function RelayCallModal() {
   const api = getRelayCallApi();
   const [st, setSt] = useState<RelayCallState>(api.getState());
-  const localVideoRef = useRef<HTMLVideoElement | null>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
-  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
-  const playerRef = useRef<RelayPlayer | null>(null);
+  const playerRef = useRef<HTMLDivElement | null>(null);
 
   // Подписка на изменения состояния API
   useEffect(() => api.onEvent((s) => setSt({ ...s })), [api]);
 
-  // Когда активен — привязываем плеер API к нашим remote-элементам.
+  // Когда активен — вставляем медиа-элемент приёмника (audio/video) в DOM.
   useEffect(() => {
-    const pl = api.getPlayer();
-    if (pl) {
-      if (pl.isVideo && remoteVideoRef.current) pl.attach(remoteVideoRef.current);
-      else if (!pl.isVideo && remoteAudioRef.current) pl.attach(remoteAudioRef.current);
+    if (st.status !== 'active') return;
+    const rc = api.getReceiver();
+    const el = rc?.element as HTMLElement | null;
+    if (el && playerRef.current && playerRef.current.childElementCount === 0) {
+      playerRef.current.appendChild(el);
+      (el as HTMLMediaElement).style.width = '100%';
+      (el as HTMLMediaElement).style.height = '100%';
+      (el as HTMLMediaElement).play?.().catch?.(() => {});
+      console.log('receiver element mounted');
     }
   }, [st.status, st.callType]);
 // Звуки звонка: входящий/исходящий гудок; стоп при соединении/сбросе.
@@ -70,11 +72,16 @@ export default function RelayCallModal() {
     <div className="fixed inset-0 z-[9999] bg-black flex flex-col text-white overflow-hidden">
       {/* видео-зона */}
       <div className="flex-1 flex flex-col items-center justify-center px-6">
-        {isVideoCall && isActive ? (
-          <div className="relative w-[min(70vw,220px)] aspect-square rounded-2xl overflow-hidden bg-black/40 flex items-center justify-center">
-            <video ref={remoteVideoRef} className="w-full h-full object-cover" muted playsInline />
-          </div>
-        ) : (
+        {/* Видео-звонок: контейнер для remote <video>; аудио: скрытый контейнер */}
+        <div
+          ref={playerRef}
+          className={
+            isVideoCall && isActive
+              ? 'relative w-[min(70vw,220px)] aspect-square rounded-2xl overflow-hidden bg-black/40 flex items-center justify-center'
+              : 'hidden'
+          }
+        />
+        {!isVideoCall && (
           <div className="w-28 h-28 rounded-full bg-white/10 flex items-center justify-center text-5xl overflow-hidden">
             {st.peerAvatar
               ? <img src={st.peerAvatar} alt={name} className="w-full h-full object-cover" />
@@ -90,7 +97,6 @@ export default function RelayCallModal() {
             <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse" /> live
           </div>
         )}
-        <audio ref={remoteAudioRef} className="hidden" />
       </div>
 
       {/* кнопки */}

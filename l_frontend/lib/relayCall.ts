@@ -1,7 +1,8 @@
 // lib/relayCall.ts
-// 📞 Релейный звонок БЕЗ WebRTC: медиа идёт через WebSocket-сервер (TCP),
-// как обычный трафик сайта. Не нужны UDP/STUN/TURN — работает там, где
-// открывается сам сайт. Двусторонний.
+// 📞 Релейный звонок БЕЗ WebRTC. Медиа идёт через WebSocket (TCP).
+// Приём через MSE (MediaSource Extensions) — чанки стримятся в <audio>.
+// Кодек согласуется между сторонами через meta-сообщение:
+//   Safari пишет audio/mp4, Chrome/Firefox — audio/webm;codecs=opus.
 'use client';
 
 import { getToken } from '@/lib/auth';
@@ -31,8 +32,8 @@ export interface RelayCallApi {
   remoteEnded: () => void;
   remoteAccepted: () => Promise<void>;
   remoteRejected: () => void;
+  getReceiver: () => RelayReceiver | null;
   onEvent: (cb: (s: RelayCallState) => void) => () => void;
-  getPlayer: () => RelayPlayer | null;
 }
 
 function apiUrl(): string { return process.env.NEXT_PUBLIC_API_URL || ''; }
@@ -53,99 +54,191 @@ async function post(path: string, body: unknown): Promise<Response | null> {
   } catch (e) { log('POST failed', path, e); return null; }
 }
 
-/** Захват потока и стрим чанков на сервер. */
+/** Выбираем mime, который умеет этот браузер (Safari=mp4, Chrome/Firefox=webm). */
+export function pickRecorderMime(isVideo: boolean): string {
+  const audio = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'];
+  const video = ['video/mp4', 'video/webm;codecs=vp8,opus', 'video/webm'];
+  const list = isVideo ? video : audio;
+  try {
+    if (typeof MediaRecorder !== 'undefined' && typeof MediaRecorder.isTypeSupported === 'function') {
+      for (const m of list) if (MediaRecorder.isTypeSupported(m)) return m;
+    }
+  } catch {}
+  return list[0];
+}
+/** Захват потока: recorder -> чанки -> onChunk; первым вызывается onMeta(mime). */
 export async function startCapture(
   callType: string,
+  onMeta: (mime: string) => void,
   onChunk: (b: ArrayBuffer) => void,
   chunkMs = 400,
 ): Promise<RelayCapturedStream | null> {
   if (!navigator.mediaDevices?.getUserMedia) { log('getUserMedia unsupported'); return null; }
   let stream: MediaStream | null = null;
-  let recorder: MediaRecorder | null = null;
   try {
     const isVideo = callType === 'video';
     stream = await navigator.mediaDevices.getUserMedia({
       audio: true,
       video: isVideo ? { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' } : false,
     });
-    const wanted = isVideo ? 'video/webm;codecs=vp8,opus' : 'audio/webm;codecs=opus';
-    let chosen = '';
-    if (typeof MediaRecorder.isTypeSupported === 'function') {
-      chosen = MediaRecorder.isTypeSupported(wanted) ? wanted
-        : (isVideo ? (MediaRecorder.isTypeSupported('video/webm') ? 'video/webm' : 'audio/webm;codecs=opus') : 'audio/webm;codecs=opus');
-    } else { chosen = wanted; }
-    recorder = new MediaRecorder(stream, { mimeType: chosen });
+    const mime = pickRecorderMime(isVideo);
+    log('capture mime=', mime);
+    const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
     const queue: Blob[] = [];
     recorder.ondataavailable = (e) => { if (e.data.size > 0) queue.push(e.data); };
     recorder.start(chunkMs);
-    const mime = chosen;
     const timer = setInterval(() => {
       if (!queue.length) return;
       const blob = new Blob(queue.splice(0, queue.length), { type: mime });
       blob.arrayBuffer().then((ab) => onChunk(ab)).catch((e) => log('arrayBuffer err', e));
     }, chunkMs);
+    // meta — mime, чтобы вторая сторона знала кодек
+    onMeta(JSON.stringify({ t: 'meta', mime: mime || 'audio/webm' }));
     log('capture started', callType, mime);
-    return { stop: () => { clearInterval(timer); try { recorder?.stop(); } catch {} try { stream?.getTracks().forEach((t) => t.stop()); } catch {} log('capture stopped'); } };
+    return { stop: () => { clearInterval(timer); try { recorder.stop(); } catch {} stream?.getTracks().forEach((t) => t.stop()); log('capture stopped'); } };
   } catch (e) { log('capture failed', callType, (e as Error)?.message || e); return null; }
 }
-export class RelayPlayer {
+
+/**
+ * Приёмник: MSE-стриминг чанков в <audio>/<video>.
+ * Safari-получатель: 'audio/mp4' поддержан MSE — работает.
+ * Если MSE/mime не поддержан — фолбэк: полный буфер через blob (костыль).
+ */
+export class RelayReceiver {
   private el: HTMLAudioElement | HTMLVideoElement | null = null;
+  private ms: MediaSource | null = null;
+  private sb: SourceBuffer | null = null;
+  private mime = '';
   private isVideoValue = false;
-  private buf: Uint8Array[] = [];
-  private flushTimer: ReturnType<typeof setInterval> | null = null;
-  private url: string | null = null;
-  constructor(isVideo: boolean) { this.isVideoValue = isVideo; }
-  get isVideo(): boolean { return this.isVideoValue; }
-  attach(el: HTMLAudioElement | HTMLVideoElement): void { this.el = el; this.start(); }
-  start(): void { if (!this.flushTimer) this.flushTimer = setInterval(() => this.flush(), 250); }
-  push(data: ArrayBuffer): void { this.buf.push(new Uint8Array(data)); }
-  private flush(): void {
-    if (!this.buf.length || !this.el) return;
-    const parts = this.buf; this.buf = [];
-    const len = parts.reduce((s, p) => s + p.length, 0);
-    const data = new Uint8Array(len); let off = 0;
-    for (const p of parts) { data.set(p, off); off += p.length; }
-    const blob = new Blob([data as unknown as BlobPart], { type: this.isVideoValue ? 'video/webm' : 'audio/webm' });
-    const url = URL.createObjectURL(blob);
-    if (this.url) URL.revokeObjectURL(this.url);
-    this.url = url;
-    try { this.el.src = url; this.el.play().catch(() => { /* deferred */ }); }
-    catch (e) { log('flush/play err', e); }
+  private queue: ArrayBuffer[] = [];
+  private appending = false;
+  private fallback: Uint8Array[] = [];
+  private fallbackUrl: string | null = null;
+  private mseOk = false;
+  private started = false;
+
+  init(mime: string, isVideo: boolean): void {
+    if (this.started) return;
+    this.started = true;
+    this.mime = mime;
+    this.isVideoValue = isVideo;
+    try {
+      const MSE = (window as any).MediaSource;
+      if (MSE && typeof MSE.isTypeSupported === 'function' && MSE.isTypeSupported(mime)) {
+        const ms: MediaSource = new MSE();
+        this.ms = ms;
+        this.el = isVideo ? document.createElement('video') : new Audio();
+        this.el.src = URL.createObjectURL(ms);
+        (this.el as HTMLAudioElement).autoplay = true;
+        ms.addEventListener('sourceopen', () => {
+          try {
+            this.sb = ms.addSourceBuffer(mime);
+            if ('mode' in this.sb) (this.sb as any).mode = 'sequence';
+            this.sb.addEventListener('updateend', () => this.drain());
+            this.drain();
+            log('receiver MSE ready', mime);
+          } catch (e) { log('addSourceBuffer failed', e); this.mseOk = false; }
+        });
+        this.mseOk = true;
+        this.el.play().catch(() => {});
+        log('receiver MSE init', mime);
+        return;
+      }
+    } catch (e) { log('MSE init error', e); }
+    this.mseOk = false;
+    this.el = isVideo ? document.createElement('video') : new Audio();
+    log('receiver fallback (blob)', mime);
   }
+
+  get element(): HTMLAudioElement | HTMLVideoElement | null { return this.el; }
+  get isVideo(): boolean { return this.isVideoValue; }
+
+  push(data: ArrayBuffer): void {
+    if (!this.started) return;
+    if (this.mseOk) { this.queue.push(data); this.drain(); }
+    else { this.fallback.push(new Uint8Array(data)); this.flushFallback(); }
+  }
+
+  private drain(): void {
+    if (!this.sb || this.appending || !this.queue.length) return;
+    const chunk = this.queue.shift()!;
+    try {
+      this.appending = true;
+      this.sb.appendBuffer(chunk);
+    } catch (e) {
+      log('appendBuffer err', e);
+      this.appending = false;
+    }
+  }
+
+  /** Костыль-фолбэк: весь буфер от начала звонка -> blob -> src. */
+  private flushFallback(): void {
+    if (!this.el || !this.fallback.length) return;
+    const len = this.fallback.reduce((s, p) => s + p.length, 0);
+    const data = new Uint8Array(len); let off = 0;
+    for (const p of this.fallback) { data.set(p, off); off += p.length; }
+    const blob = new Blob([data as unknown as BlobPart], { type: this.mime });
+    const url = URL.createObjectURL(blob);
+    if (this.fallbackUrl) URL.revokeObjectURL(this.fallbackUrl);
+    this.fallbackUrl = url;
+    const prev = this.el.currentTime;
+    try { this.el.src = url; this.el.currentTime = prev; this.el.play().catch(() => {}); } catch {}
+  }
+
   stop(): void {
-    if (this.flushTimer) { clearInterval(this.flushTimer); this.flushTimer = null; }
-    if (this.el) { try { this.el.pause(); } catch {} this.el.src = ''; }
-    if (this.url) { URL.revokeObjectURL(this.url); this.url = null; }
-    this.buf = [];
+    try { this.el?.pause(); } catch {}
+    if (this.el) this.el.src = '';
+    try { if (this.sb) { try { this.sb.abort(); } catch {} } } catch {}
+    try { if (this.ms && this.ms.readyState === 'open') this.ms.endOfStream(); } catch {}
+    this.sb = null; this.ms = null; this.el = null;
+    this.queue = []; this.fallback = [];
+    if (this.fallbackUrl) { URL.revokeObjectURL(this.fallbackUrl); this.fallbackUrl = null; }
+    this.started = false;
+    log('receiver stopped');
   }
 }
-// (content will be written in next step)
 
-export function makeRelayCall(callType: string): RelayCallApi {
-  let state: RelayCallState = { callId: '', status: 'idle', isCaller: false, peerId: null, peerName: '', peerAvatar: '', callType };
+export function makeRelayCall(defaultCallType: string): RelayCallApi {
+  let state: RelayCallState = { callId: '', status: 'idle', isCaller: false, peerId: null, peerName: '', peerAvatar: '', callType: defaultCallType };
   let cap: RelayCapturedStream | null = null;
-  let player: RelayPlayer | null = null;
+  let receiver: RelayReceiver | null = null;
   let streamWs: WebSocket | null = null;
   const listeners = new Set<(s: RelayCallState) => void>();
   const emit = () => listeners.forEach((cb) => { try { cb(state); } catch {} });
   const set = (patch: Partial<RelayCallState>, why = '') => { state = { ...state, ...patch }; log('state->', state.status, '(' + why + ')'); emit(); };
 
+  const sendChunk = (ab: ArrayBuffer) => { if (streamWs?.readyState === WebSocket.OPEN) streamWs.send(ab); };
+  const sendMeta = (json: string) => { if (streamWs?.readyState === WebSocket.OPEN) streamWs.send(json); };
+
   const openStream = async (): Promise<void> => {
     const token = getToken();
     if (!token || !state.callId) return;
     const wsUrl = apiWsUrl(`/api/calls/${state.callId}/stream?token=${token}`);
-    log('opening stream ws', wsUrl);
+    log('opening stream ws');
     try {
       const ws = new WebSocket(wsUrl);
       ws.binaryType = 'arraybuffer';
       ws.onopen = () => { streamWs = ws; log('stream ws open'); };
-      ws.onmessage = (ev) => { if (ev.data instanceof ArrayBuffer) player?.push(ev.data); };
+      ws.onmessage = (ev) => {
+        if (typeof ev.data === 'string') {
+          // meta от второй стороны: инициализируем приёмник её кодеком
+          try {
+            const m = JSON.parse(ev.data);
+            if (m?.t === 'meta') {
+              log('peer meta mime=', m.mime);
+              receiver?.init(m.mime, state.callType === 'video');
+            }
+          } catch {}
+          return;
+        }
+        if (ev.data instanceof ArrayBuffer) receiver?.push(ev.data);
+      };
       ws.onerror = (e) => log('stream ws error', e);
       ws.onclose = (e) => { log('stream ws close', e.code, e.reason); if (streamWs === ws) streamWs = null; };
     } catch (e) { log('stream ws open failed', e); }
   };
   const closeStream = () => { try { streamWs?.close(); } catch {} streamWs = null; };
-  const cleanup = (why: string) => { cap?.stop(); cap = null; player?.stop(); player = null; closeStream(); log('cleanup', why); };
+  const cleanup = (why: string) => { cap?.stop(); cap = null; receiver?.stop(); receiver = null; closeStream(); log('cleanup', why); };
 
   return {
     getState: () => state,
@@ -156,8 +249,8 @@ export function makeRelayCall(callType: string): RelayCallApi {
       const d = await res.json().catch(() => null);
       if (!d?.call_id) { set({ status: 'ended' }, 'no-call-id'); return; }
       set({ callId: d.call_id, status: 'calling', isCaller: true, peerId: targetUserId, peerName: name, peerAvatar: avatar, callType }, 'initiate');
-      cap = await startCapture(callType === 'video' ? 'video' : 'audio', (ab) => { if (streamWs?.readyState === WebSocket.OPEN) streamWs.send(ab); });
-      player = new RelayPlayer(callType === 'video'); player.start();
+      receiver = new RelayReceiver();
+      cap = await startCapture(callType, sendMeta, sendChunk);
       await openStream();
     },
     incoming(callId, callerId, callType, name, avatar) {
@@ -168,8 +261,8 @@ export function makeRelayCall(callType: string): RelayCallApi {
       log('accept', state.callId);
       await post('/api/calls/action', { call_id: state.callId, action: 'accept' });
       set({ status: 'active' }, 'accept');
-      cap = await startCapture(state.callType === 'video' ? 'video' : 'audio', (ab) => { if (streamWs?.readyState === WebSocket.OPEN) streamWs.send(ab); });
-      player = new RelayPlayer(state.callType === 'video'); player.start();
+      receiver = new RelayReceiver();
+      cap = await startCapture(state.callType, sendMeta, sendChunk);
       await openStream();
     },
     async reject() {
@@ -187,20 +280,19 @@ export function makeRelayCall(callType: string): RelayCallApi {
       cleanup('remote-ended'); set({ status: 'ended' }, 'remote-end');
     },
     async remoteAccepted() {
-      // Собеседник принял: у звонящего calling -> active + открываем стрим.
       log('remoteAccepted');
       if (state.status !== 'calling') { log('remoteAccepted ignored, status=', state.status); return; }
       set({ status: 'active' }, 'remote-accepted');
-      if (!cap) cap = await startCapture(state.callType === 'video' ? 'video' : 'audio', (ab) => { if (streamWs?.readyState === WebSocket.OPEN) streamWs.send(ab); });
-      if (!player) { player = new RelayPlayer(state.callType === 'video'); player.start(); }
+      if (!receiver) receiver = new RelayReceiver();
+      if (!cap) cap = await startCapture(state.callType, sendMeta, sendChunk);
       if (!streamWs) await openStream();
     },
     remoteRejected() {
       log('remoteRejected');
       cleanup('remote-rejected'); set({ status: 'ended' }, 'remote-reject');
     },
+    getReceiver: () => receiver,
     onEvent: (cb) => { listeners.add(cb); cb(state); return () => listeners.delete(cb); },
-    getPlayer: () => player,
   };
 }
 
@@ -210,14 +302,3 @@ export function getRelayCallApi(): RelayCallApi {
   return globalApi;
 }
 
-export function onRelayCallSignal(cb: (type: string, data: any) => void): () => void {
-  const handlers: [string, (d: any) => void][] = [
-    ['relay_call_incoming', (d) => cb('incoming', d)],
-    ['relay_call_accepted', (d) => cb('accepted', d)],
-    ['relay_call_rejected', (d) => cb('rejected', d)],
-    ['relay_call_active', (d) => cb('active', d)],
-    ['relay_call_ended', (d) => cb('ended', d)],
-  ];
-  handlers.forEach(([ev, fn]) => socket.on(ev, fn));
-  return () => handlers.forEach(([ev, fn]) => socket.off(ev, fn));
-}
