@@ -69,7 +69,7 @@ export function pickRecorderMime(isVideo: boolean): string {
 /** Захват потока: recorder -> чанки -> onChunk; первым вызывается onMeta(mime). */
 export async function startCapture(
   callType: string,
-  onMeta: (mime: string) => void,
+  mime: string,
   onChunk: (b: ArrayBuffer) => void,
   chunkMs = 400,
 ): Promise<RelayCapturedStream | null> {
@@ -81,7 +81,7 @@ export async function startCapture(
       audio: true,
       video: isVideo ? { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' } : false,
     });
-    const mime = pickRecorderMime(isVideo);
+    // mime теперь параметр
     log('capture mime=', mime);
     const recorder = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
     const queue: Blob[] = [];
@@ -92,8 +92,7 @@ export async function startCapture(
       const blob = new Blob(queue.splice(0, queue.length), { type: mime });
       blob.arrayBuffer().then((ab) => onChunk(ab)).catch((e) => log('arrayBuffer err', e));
     }, chunkMs);
-    // meta — mime, чтобы вторая сторона знала кодек
-    onMeta(JSON.stringify({ t: 'meta', mime: mime || 'audio/webm' }));
+    // meta — mime ушёл из startCapture: теперь mime приходит параметром.
     log('capture started', callType, mime);
     return { stop: () => { clearInterval(timer); try { recorder.stop(); } catch {} stream?.getTracks().forEach((t) => t.stop()); log('capture stopped'); } };
   } catch (e) { log('capture failed', callType, (e as Error)?.message || e); return null; }
@@ -203,12 +202,20 @@ export function makeRelayCall(defaultCallType: string): RelayCallApi {
   let cap: RelayCapturedStream | null = null;
   let receiver: RelayReceiver | null = null;
   let streamWs: WebSocket | null = null;
+  let myMime = '';
+  // 🔴 Исходящая очередь: meta и чанки, накопленные ДО открытия stream-WS.
+  // Раньше meta отправлялась сразу из startCapture — когда WS ещё был закрыт —
+  // и терялась. Приёмник без meta не инициализирует MSE → звука не было.
+  const outQueue: (ArrayBuffer | string)[] = [];
   const listeners = new Set<(s: RelayCallState) => void>();
   const emit = () => listeners.forEach((cb) => { try { cb(state); } catch {} });
   const set = (patch: Partial<RelayCallState>, why = '') => { state = { ...state, ...patch }; log('state->', state.status, '(' + why + ')'); emit(); };
 
-  const sendChunk = (ab: ArrayBuffer) => { if (streamWs?.readyState === WebSocket.OPEN) streamWs.send(ab); };
-  const sendMeta = (json: string) => { if (streamWs?.readyState === WebSocket.OPEN) streamWs.send(json); };
+  const sendChunk = (ab: ArrayBuffer) => {
+    if (streamWs?.readyState === WebSocket.OPEN) streamWs.send(ab);
+    else { if (outQueue.length < 300) outQueue.push(ab); }
+  };
+  // meta отправляется в onopen; резервный sendMeta не нужен, но оставляем для ясности
 
   const openStream = async (): Promise<void> => {
     const token = getToken();
@@ -218,10 +225,20 @@ export function makeRelayCall(defaultCallType: string): RelayCallApi {
     try {
       const ws = new WebSocket(wsUrl);
       ws.binaryType = 'arraybuffer';
-      ws.onopen = () => { streamWs = ws; log('stream ws open'); };
+      ws.onopen = () => {
+        streamWs = ws;
+        log('stream ws open');
+        // 🔑 Отправляем meta СРАЗУ после открытия + флушим очередь чанков
+        if (myMime) {
+          try { ws.send(JSON.stringify({ t: 'meta', mime: myMime })); log('meta sent on open:', myMime); } catch {}
+        }
+        while (outQueue.length) {
+          const item = outQueue.shift()!;
+          try { ws.send(item as any); } catch (e) { log('queue flush err', e); break; }
+        }
+      };
       ws.onmessage = (ev) => {
         if (typeof ev.data === 'string') {
-          // meta от второй стороны: инициализируем приёмник её кодеком
           try {
             const m = JSON.parse(ev.data);
             if (m?.t === 'meta') {
@@ -248,9 +265,10 @@ export function makeRelayCall(defaultCallType: string): RelayCallApi {
       if (!res?.ok) { set({ status: 'ended' }, 'initiate-failed'); return; }
       const d = await res.json().catch(() => null);
       if (!d?.call_id) { set({ status: 'ended' }, 'no-call-id'); return; }
+      myMime = pickRecorderMime(callType === 'video');
       set({ callId: d.call_id, status: 'calling', isCaller: true, peerId: targetUserId, peerName: name, peerAvatar: avatar, callType }, 'initiate');
       receiver = new RelayReceiver();
-      cap = await startCapture(callType, sendMeta, sendChunk);
+      cap = await startCapture(callType, myMime, sendChunk);
       await openStream();
     },
     incoming(callId, callerId, callType, name, avatar) {
@@ -260,9 +278,10 @@ export function makeRelayCall(defaultCallType: string): RelayCallApi {
     async accept() {
       log('accept', state.callId);
       await post('/api/calls/action', { call_id: state.callId, action: 'accept' });
+      myMime = pickRecorderMime(state.callType === 'video');
       set({ status: 'active' }, 'accept');
       receiver = new RelayReceiver();
-      cap = await startCapture(state.callType, sendMeta, sendChunk);
+      cap = await startCapture(state.callType, myMime, sendChunk);
       await openStream();
     },
     async reject() {
@@ -284,7 +303,10 @@ export function makeRelayCall(defaultCallType: string): RelayCallApi {
       if (state.status !== 'calling') { log('remoteAccepted ignored, status=', state.status); return; }
       set({ status: 'active' }, 'remote-accepted');
       if (!receiver) receiver = new RelayReceiver();
-      if (!cap) cap = await startCapture(state.callType, sendMeta, sendChunk);
+      if (!cap) {
+        myMime = pickRecorderMime(state.callType === 'video');
+        cap = await startCapture(state.callType, myMime, sendChunk);
+      }
       if (!streamWs) await openStream();
     },
     remoteRejected() {
