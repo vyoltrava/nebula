@@ -4,7 +4,7 @@
 // название, описание, приватность, ссылка (@slug).
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { X, Upload, Image as ImageIcon, Link2, Copy, Trash2, Users, AlertTriangle, Settings, AtSign, CheckCircle, XCircle, Loader2, Globe, Lock, Crown, Shield, UserX, BarChart3 } from "lucide-react";
+import { X, Upload, Image as ImageIcon, Link2, Copy, Trash2, Users, AlertTriangle, Settings, AtSign, CheckCircle, XCircle, Loader2, Globe, Lock, Crown, Shield, UserX, BarChart3, UserPlus } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { Avatar } from "@/components/Avatar";
@@ -54,6 +54,12 @@ export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
   const [commentsOn, setCommentsOn] = useState(channel.comments_enabled ?? true);
   // 📊 Статистика
   const [stats, setStats] = useState<any>(null);
+  // 🧑🤝🧑 Приглашение контактов (Nebula: подписки = контакты)
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteContacts, setInviteContacts] = useState<any[]>([]);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteSearch, setInviteSearch] = useState("");
+  const [invitingIds, setInvitingIds] = useState<Set<number>>(new Set());
 
   const createInvite = async () => {
     setCreatingInvite(true);
@@ -182,6 +188,42 @@ export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
     if (r.ok) setStats(await r.json());
   }
 
+  // 🧑🤝🧑 Загрузка контактов (свои подписки) и фильтр уже-подписанных
+  async function loadInviteContacts() {
+    setInviteLoading(true);
+    try {
+      const meRes = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`);
+      if (!meRes.ok) { setInviteLoading(false); return; }
+      const me = await meRes.json();
+      const res = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/${me.id}/following`);
+      const contacts: any[] = res.ok ? await res.json() : [];
+      const subIds = new Set((subscribers || []).map((m: any) => m.user?.id).filter(Boolean));
+      setInviteContacts(contacts.filter((c: any) => !subIds.has(c.id) && c.id !== me.id));
+    } catch {
+      setInviteContacts([]);
+    } finally {
+      setInviteLoading(false);
+    }
+  }
+
+  async function inviteContact(uid: number) {
+    if (invitingIds.has(uid)) return;
+    setInvitingIds((prev) => new Set(prev).add(uid));
+    const r = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/subscribers?user_id=${uid}`, { method: "POST" });
+    if (r.ok) {
+      setInviteContacts((prev) => prev.filter((c) => c.id !== uid));
+      setMsg("Контакт приглашён");
+      loadSubscribers();
+      onChanged();
+    } else {
+      const d = await r.json().catch(() => null);
+      setMsg(d?.detail || "Не удалось пригласить");
+    }
+    setInvitingIds((prev) => {
+      const n = new Set(prev); n.delete(uid); return n;
+    });
+  }
+
   useEffect(() => {
     if (tab === "requests") loadRequests();
     if (tab === "members") loadSubscribers();
@@ -258,7 +300,7 @@ export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
                 <Toggle label="Показывать историю чата новым участникам" value={showHistory} onChange={setShowHistory} />
                 <Toggle label="Комментарии включены" value={commentsOn} onChange={setCommentsOn} />
               </div>
-              {msg && <p className="text-xs text-red-500 dark:text-red-400">{msg}</p>}
+              {msg && <p className={`text-xs ${msg.includes("ошибк") || msg.includes("Ошибк") || msg.includes("Не удалось") ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>{msg}</p>}
               <Button icon={CheckCircle} onClick={saveSettingsToggle} loading={savingToggles} className="w-full">
                 Сохранить настройки
               </Button>
@@ -312,7 +354,50 @@ export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
           )}
 
           {tab === "members" && (
-            <div>
+            <div className="space-y-3">
+              <button
+                onClick={() => { setShowInvite(!showInvite); setMsg(""); if (!showInvite && inviteContacts.length === 0) loadInviteContacts(); }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#8b5cf6]/10 border border-[#8b5cf6]/40 text-[#8b5cf6] text-sm font-bold hover:bg-[#8b5cf6]/20 transition-colors"
+              >
+                {showInvite ? "✕ Скрыть приглашение" : "+ Пригласить контактов"}
+              </button>
+
+              {showInvite && (
+                <div className="rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 p-3 space-y-2.5">
+                  <div className="relative">
+                    <AtSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
+                    <input value={inviteSearch} onChange={(e) => setInviteSearch(e.target.value)} placeholder="Поиск среди контактов (Nebula)…" className="w-full pl-8 pr-3 py-2 rounded-lg border border-line dark:border-white/10 bg-ivory dark:bg-[#171717] text-gray-900 dark:text-white text-sm" />
+                  </div>
+                  <p className="text-[10px] text-gray-500 dark:text-white/40">Ваши подписки в Nebula — они и есть контакты. Лимит ручного добавления: 200.</p>
+                  {inviteLoading ? (
+                    <p className="text-center text-gray-500 dark:text-white/40 text-sm py-4">Загрузка…</p>
+                  ) : inviteContacts.length === 0 ? (
+                    <p className="text-center text-gray-500 dark:text-white/40 text-sm py-4">Некого пригласить — все ваши контакты уже в канале, или вы никого не читаете.</p>
+                  ) : (
+                    <div className="max-h-56 overflow-y-auto space-y-1.5">
+                      {inviteContacts
+                        .filter((c) => {
+                          const q = inviteSearch.trim().toLowerCase();
+                          if (!q) return true;
+                          return (c.display_name || "").toLowerCase().includes(q) || (c.username || "").toLowerCase().includes(q);
+                        })
+                        .map((c) => (
+                          <div key={c.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-gray-200/60 dark:hover:bg-white/10 transition-colors">
+                            <Avatar src={c.avatar_url} name={c.display_name} id={c.id} size={32} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{c.display_name}</p>
+                              <p className="text-[11px] text-gray-500 dark:text-white/50 truncate">@{c.username}</p>
+                            </div>
+                            <button onClick={() => inviteContact(c.id)} disabled={invitingIds.has(c.id)} className="px-3 py-1.5 rounded-lg bg-[#8b5cf6] text-white text-xs font-bold hover:bg-[#7c3aed] disabled:opacity-50 flex items-center gap-1">
+                              {invitingIds.has(c.id) ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />}
+                              Пригласить
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
               {subscribers.length === 0 ? (
                 <p className="text-center text-gray-500 dark:text-white/40 text-sm py-8">Подписчиков нет</p>
               ) : (

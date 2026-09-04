@@ -71,7 +71,10 @@ export function NebulaGate() {
       pathname.startsWith("/settings") ||
       pathname.startsWith("/login") ||
       pathname.startsWith("/prism") ||   // ✅ Prisme-чаты (/prisme и /prism/[id])
-      pathname.startsWith("/support");   // ✅ Чат поддержки
+      pathname.startsWith("/support") || // ✅ Чат поддержки
+      pathname.startsWith("/channels") || // ✅ Каналы (в т.ч. /channels/@slug и /channels/[id])
+      pathname.startsWith("/search") ||   // ✅ Поиск (нужен для приглашения по нику)
+      pathname.startsWith("/user");       // ✅ Профили пользователей соцсети
     if (!allowed) router.replace("/messages");
   }, [ready, isNebula, pathname, router]);
 

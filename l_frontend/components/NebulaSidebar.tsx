@@ -15,7 +15,7 @@ import Link from "next/link";
 import {
   Settings, LogOut, MessageCircle, ArrowLeft, Menu,
   Users, Bug, Headphones, Sparkles, Bookmark, ShieldCheck, Orbit,
-  Lock, X,
+  Lock, X, Megaphone,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
@@ -199,6 +199,7 @@ export function NebulaSidebar() {
     messages: "#8b5cf6",
     saved: "#fbbf24",
     group: "#8b5cf6",
+    channel: "#a78bfa",
     prism: "#22d3ee",
     secret: "#10b981",
     circle: "#ec4899",
@@ -233,6 +234,13 @@ export function NebulaSidebar() {
   };
   // 🔁 prism-создание удалено: prism-чаты объединены с групповыми (см. TODO_FEED_CHAT.md)
   const openCreatePrism = openCreateGroup;
+  // 📢 Создание канала (модалка живёт на /messages, поддерживает ?create=channel и событие)
+  const openCreateChannel = () => {
+    if (isMessagesPage) window.dispatchEvent(new CustomEvent("nebula-create", { detail: "channel" }));
+    else router.push("/messages?create=channel");
+  };
+  // Список каналов: обычный и Nebula-режим используют один список в /messages
+  const openChannelsList = () => router.push("/messages");
 
   // ── Секретный чат: выбор собеседника из подписок → POST /api/chats/secret ──
   const openCreateSecret = async () => {
@@ -287,6 +295,7 @@ export function NebulaSidebar() {
     { key: "messages", icon: MessageCircle, label: t("nav.messages"), badge: counts.chats, run: () => router.push("/messages") },
     { key: "saved", icon: Bookmark, label: t("messages.saved"), badge: 0, run: openSavedMessages },
     { key: "group", icon: Users, label: t("messages.createGroup"), badge: 0, run: openCreateGroup },
+    { key: "channel", icon: Megaphone, label: "Создать канал", badge: 0, run: openCreateChannel },
     { key: "secret", icon: Lock, label: t("profile.secretChat"), badge: 0, run: openCreateSecret },
     { key: "profile", icon: null, label: t("nav.profile"), badge: 0, run: () => user && router.push(`/nebula-user/${user.username}`) },
     { key: "logout", icon: LogOut, label: t("nav.logout"), badge: 0, run: () => setShowAccountSwitcher(true) },
@@ -598,9 +607,13 @@ export function NebulaSidebar() {
             <Users size={18} className={iconClass + " text-[#8b5cf6]"} />
             <span className={textClass}>{t("messages.createGroup")}</span>
           </button>
-          <button onClick={openCreateSecret} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 last:border-none group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title={t("profile.secretChat")}>
+          <button onClick={openCreateSecret} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title={t("profile.secretChat")}>
             <Lock size={18} className={iconClass + " text-emerald-600 dark:text-emerald-400"} />
             <span className={textClass}>{t("profile.secretChat")}</span>
+          </button>
+          <button onClick={openCreateChannel} className={"flex " + containerClass + " font-medium transition-all border-b border-line dark:border-white/5 last:border-none group text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/[0.03] hover:text-gray-600 dark:hover:text-white/60"} title="Создать канал">
+            <Megaphone size={18} className={iconClass + " text-[#8b5cf6]"} />
+            <span className={textClass}>Создать канал</span>
           </button>
         </nav>
 

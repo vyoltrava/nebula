@@ -22,7 +22,7 @@ const MarkdownRenderer = dynamic(() => import("@/components/MarkdownRenderer").t
 import {
   ArrowLeft, Megaphone, Users, BellOff, Bell, Settings, Eye, MessageCircle,
   Pin, Trash2, Pencil, Send, Loader2, Globe, Lock, X, Reply, UserPlus, Ban,
-  Forward, Plus, Paperclip, Clock, Image as ImageIcon, SmilePlus, Type, Copy, Bookmark,
+  Forward, Plus, Paperclip, Clock, Image as ImageIcon, SmilePlus, Type, Copy, Bookmark, Crown, Shield,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
@@ -79,8 +79,14 @@ export default function ChannelPage() {
   const editEditorRef = useRef<RichEditorHandle>(null);
   // меню поста (long-press / правый клик / клик по зоне)
   const [postMenu, setPostMenu] = useState<{ postId: number; x: number; y: number } | null>(null);
+  // 👥 Просмотр списка подписчиков (доступно всем)
+  const [showSubscribers, setShowSubscribers] = useState(false);
+  const [subscribersList, setSubscribersList] = useState<any[]>([]);
+  const [subsLoading, setSubsLoading] = useState(false);
+  const [subsSearch, setSubsSearch] = useState("");
   const postLpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const postLpPos = useRef({ x: 0, y: 0 });
+  const postSwipe = useRef({ done: false });
   const clearPostLp = () => { if (postLpTimer.current) { clearTimeout(postLpTimer.current); postLpTimer.current = null; } };
 
   const openPostIdRef = useRef<number | null>(null);
@@ -337,6 +343,15 @@ export default function ChannelPage() {
     loadPosts();
   }
 
+  // ---------- 👥 Список подписчиков (доступно всем) ----------
+  async function loadSubscribersList() {
+    setSubsLoading(true);
+    try {
+      const res = await fetch(`${API}/api/channels/${channel.id}/subscribers`, { headers: headers() });
+      if (res.ok) setSubscribersList(await res.json());
+    } finally { setSubsLoading(false); }
+  }
+
   // ---------- 👍 Реакции (та же система, что в чатах) ----------
   const loadStickerPacks = useCallback(async () => {
     if (stickerPacks.length) return;
@@ -488,21 +503,46 @@ export default function ChannelPage() {
   // подпись автора мелким серым (если включена)
   function PostBubble({ post: p, pinned }: { post: any; pinned: boolean }) {
     const media = Array.isArray(p.media) ? p.media : [];
+    // 📱 Мобильные жесты: long-press (350мс, порог 12px) → меню; свайп влево → комментарии
+    const openPostMenuAt = (x: number, y: number) => {
+      try { navigator.vibrate?.(15); } catch {}
+      setPostMenu({ postId: p.id, x, y });
+    };
     return (
       <div
         className="flex justify-start"
         id={`post-${p.id}`}
-        onContextMenu={(e) => { e.preventDefault(); setPostMenu({ postId: p.id, x: e.clientX, y: e.clientY }); }}
+        style={{ touchAction: "pan-y" } as React.CSSProperties}
+        onContextMenu={(e) => {
+          if ((e.target as HTMLElement)?.closest("button, a, input, textarea, .rich-editor")) return;
+          e.preventDefault();
+          setPostMenu({ postId: p.id, x: e.clientX, y: e.clientY });
+        }}
         onPointerDown={(e) => {
-          if (e.pointerType === "touch") {
-            postLpPos.current = { x: e.clientX, y: e.clientY };
+          if (e.pointerType !== "touch") return;
+          if ((e.target as HTMLElement)?.closest("button, a, input, textarea, .rich-editor")) return;
+          postLpPos.current = { x: e.clientX, y: e.clientY };
+          postSwipe.current = { done: false };
+          clearPostLp();
+          postLpTimer.current = setTimeout(() => openPostMenuAt(postLpPos.current.x, postLpPos.current.y), 400);
+        }}
+        onPointerMove={(e) => {
+          if (e.pointerType !== "touch") return;
+          const dx = e.clientX - postLpPos.current.x;
+          const dy = e.clientY - postLpPos.current.y;
+          // микродвижение не отменяет long-press; явное движение — отменяет
+          if (Math.abs(dx) > 12 || Math.abs(dy) > 12) clearPostLp();
+          // свайп влево → комментарии (горизонталь доминирует, 60px)
+          if (!postSwipe.current.done && Math.abs(dx) > Math.abs(dy) && dx < -60) {
+            postSwipe.current.done = true;
             clearPostLp();
-            postLpTimer.current = setTimeout(() => setPostMenu({ postId: p.id, x: postLpPos.current.x, y: postLpPos.current.y }), 350);
+            try { navigator.vibrate?.(10); } catch {}
+            openComments(p.id);
           }
         }}
         onPointerUp={clearPostLp}
-        onPointerMove={clearPostLp}
         onPointerLeave={clearPostLp}
+        onPointerCancel={clearPostLp}
       >
         <div className="max-w-[85%] sm:max-w-[75%] md:max-w-[70%] min-w-0 flex flex-col items-start">
           {p.is_temp && (
@@ -641,7 +681,7 @@ export default function ChannelPage() {
                 ? <Globe size={12} className="text-gray-400 shrink-0" />
                 : <Lock size={12} className="text-gray-400 shrink-0" />}
             </div>
-            <p className="text-[11px] text-gray-500 dark:text-white/40 flex items-center gap-1 truncate">
+            <p className="text-[11px] text-gray-500 dark:text-white/40 flex items-center gap-1 truncate cursor-pointer hover:text-[#8b5cf6]" onClick={() => { setShowSubscribers(true); loadSubscribersList(); }}>
               @{channel.custom_slug} · <Users size={10} /> {channel.subscribers_count}
             </p>
           </div>
@@ -688,6 +728,56 @@ export default function ChannelPage() {
           </div>
         </header>
 
+        {showSubscribers ? (
+        /* ── 👥 ПОДПИСЧИКИ — отдельный экран (доступен всем) ── */
+        <>
+          <div className="shrink-0 flex items-center gap-3 px-3 sm:px-4 py-2.5 border-b border-line dark:border-white/10 bg-paper dark:bg-[#171717]/95 backdrop-blur-md">
+            <button onClick={() => setShowSubscribers(false)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white transition-colors p-2 -ml-1 active:scale-95">
+              <ArrowLeft size={20} />
+            </button>
+            <Users size={18} className="text-[#8b5cf6]" />
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm text-gray-900 dark:text-white">{"Подписчики"} · {channel.subscribers_count}</p>
+              <p className="text-[11px] text-gray-500 dark:text-white/40 truncate">@{channel.custom_slug}</p>
+            </div>
+          </div>
+          <div className="shrink-0 px-3 sm:px-4 py-2 border-b border-line dark:border-white/10">
+            <input
+              value={subsSearch}
+              onChange={(e) => setSubsSearch(e.target.value)}
+              placeholder="Поиск по имени или @username…"
+              className="w-full px-3 py-2 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-[#8b5cf6]"
+            />
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+            {subsLoading && <p className="text-center text-gray-500 dark:text-white/40 text-sm py-8"><Loader2 size={18} className="animate-spin inline" /></p>}
+            {!subsLoading && subscribersList.length === 0 && (
+              <p className="text-center text-gray-500 dark:text-white/40 text-sm py-16">Подписчиков пока нет</p>
+            )}
+            {!subsLoading && subscribersList
+              .filter((m: any) => {
+                const q = subsSearch.trim().toLowerCase();
+                if (!q) return true;
+                return (m.user?.display_name || "").toLowerCase().includes(q) || (m.user?.username || "").toLowerCase().includes(q);
+              })
+              .map((m: any) => (
+                <div key={m.user.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
+                  <Avatar src={m.user.avatar_url} name={m.user.display_name} id={m.user.id} size={40} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-bold text-sm text-gray-900 dark:text-white truncate">{m.user.display_name}</p>
+                      {m.role === "owner" ? <Crown size={12} className="text-yellow-500 shrink-0" /> : m.role === "admin" ? <Shield size={12} className="text-[#8b5cf6] shrink-0" /> : null}
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-white/40 truncate">@{m.user.username}</p>
+                  </div>
+                  <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-white/30 shrink-0">
+                    {m.role === "owner" ? "Владелец" : m.role === "admin" ? "Админ" : ""}
+                  </span>
+                </div>
+              ))}
+          </div>
+        </>
+        ) : openPostId === null ? (<>
         {/* ── ЛЕНТА ПУЗЫРЕЙ (на всю ширину, как в чате) ── */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-4">
           <div className="space-y-3 pb-4">
@@ -828,55 +918,57 @@ export default function ChannelPage() {
           </div>
         ) : null}
         {/*COMPOSER_END*/}
-        {/* ── ШТОРКА КОММЕНТАРИЕВ ── */}
-        {openPostId !== null && (
-          <>
-            <div className="fixed inset-0 z-[2000] bg-black/60 backdrop-blur-sm" onClick={() => setOpenPostId(null)} />
-            <div className="fixed bottom-0 inset-x-0 z-[2001] md:inset-auto md:right-4 md:bottom-4 md:w-[420px] md:h-[80vh] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-2 duration-200">
-              <div className="p-3 border-b border-line dark:border-white/10 flex items-center gap-2">
-                <MessageCircle size={16} className="text-[#8b5cf6]" />
-                <span className="font-bold text-sm text-gray-900 dark:text-white flex-1">{t("channels.comments") || "Комментарии"}</span>
-                <button onClick={() => setOpenPostId(null)} className="p-1.5 rounded-lg text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/10">
-                  <X size={16} />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-3">
-                {commentsLoading && <p className="text-center text-gray-500 dark:text-white/40 text-sm py-8">...</p>}
-                {!commentsLoading && comments.length === 0 && (
-                  <p className="text-center text-gray-500 dark:text-white/40 text-sm py-8">{t("channels.comments")} пока нет</p>
-                )}
-                {!commentsLoading && comments.map((c: any) => <CommentNode key={c.id} c={c} depth={0} />)}
-              </div>
-              <div className="p-3 border-t border-line dark:border-white/10">
-                {replyTo && (
-                  <div className="flex items-center gap-2 mb-2 text-[11px] text-gray-600 dark:text-white/60 bg-gray-100 dark:bg-white/5 rounded-lg px-2.5 py-1.5">
-                    <Reply size={11} className="text-[#8b5cf6]" />
-                    <span className="flex-1 truncate">→ {replyTo.user?.display_name}: {replyTo.text}</span>
-                    <button onClick={() => setReplyTo(null)} className="text-gray-400 hover:text-red-500"><X size={12} /></button>
-                  </div>
-                )}
-                <div className="flex items-end gap-2">
-                  <textarea
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    rows={1}
-                    maxLength={2000}
-                    placeholder={t("channels.addComment") || "Ваш комментарий..."}
-                    className="flex-1 px-3 py-2 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-[#8b5cf6] resize-none"
-                  />
-                  <button
-                    onClick={sendComment}
-                    disabled={sendingComment || !commentText.trim()}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#8b5cf6] hover:bg-[#7c3aed] disabled:opacity-40 text-white shrink-0"
-                  >
-                    {sendingComment ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                  </button>
-                </div>
-              </div>
+        </>) : (
+        /* ── 💬 КОММЕНТАРИИ — отдельный экран (не модалка) ── */
+        <>
+          <div className="shrink-0 flex items-center gap-3 px-3 sm:px-4 py-2.5 border-b border-line dark:border-white/10 bg-paper dark:bg-[#171717]/95 backdrop-blur-md">
+            <button onClick={() => { setOpenPostId(null); setReplyTo(null); }} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white transition-colors p-2 -ml-1 active:scale-95">
+              <ArrowLeft size={20} />
+            </button>
+            <MessageCircle size={18} className="text-[#8b5cf6]" />
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm text-gray-900 dark:text-white">{t("channels.comments") || "Комментарии"}</p>
+              <p className="text-[11px] text-gray-500 dark:text-white/40 truncate">
+                {(() => { const p = posts.find((x) => x.id === openPostId); return p?.text ? p.text.slice(0, 60) : (p ? `Пост · 👁 ${p.views_count}` : ""); })()}
+              </p>
             </div>
-          </>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+            {commentsLoading && <p className="text-center text-gray-500 dark:text-white/40 text-sm py-8"><Loader2 size={18} className="animate-spin inline" /></p>}
+            {!commentsLoading && comments.length === 0 && (
+              <p className="text-center text-gray-500 dark:text-white/40 text-sm py-16">{t("channels.comments")} пока нет</p>
+            )}
+            {!commentsLoading && comments.map((c: any) => <CommentNode key={c.id} c={c} depth={0} />)}
+          </div>
+          <div className="shrink-0 border-t border-line dark:border-white/10 bg-paper dark:bg-[#171717]/95 p-3">
+            {replyTo && (
+              <div className="flex items-center gap-2 mb-2 text-[11px] text-gray-600 dark:text-white/60 bg-gray-100 dark:bg-white/5 rounded-lg px-2.5 py-1.5">
+                <Reply size={11} className="text-[#8b5cf6]" />
+                <span className="flex-1 truncate">→ {replyTo.user?.display_name}: {replyTo.text}</span>
+                <button onClick={() => setReplyTo(null)} className="text-gray-400 hover:text-red-500"><X size={12} /></button>
+              </div>
+            )}
+            <div className="flex items-end gap-2">
+              <textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                rows={1}
+                maxLength={2000}
+                placeholder={t("channels.addComment") || "Ваш комментарий..."}
+                className="flex-1 px-3 py-2 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/30 focus:outline-none focus:border-[#8b5cf6] resize-none"
+              />
+              <button
+                onClick={sendComment}
+                disabled={sendingComment || !commentText.trim()}
+                className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#8b5cf6] hover:bg-[#7c3aed] disabled:opacity-40 text-white shrink-0"
+              >
+                {sendingComment ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              </button>
+            </div>
+          </div>
+        </>
         )}
-        {/*COMMENTS_DRAWER_END*/}
+        {/*COMMENTS_SCREEN_END*/}
         {/* ── МОДАЛКА УПРАВЛЕНИЯ ── */}
         {showManage && (
           <ChannelManageModal
