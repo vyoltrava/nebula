@@ -121,8 +121,13 @@ export default function CallModal() {
     if (status === 'idle') return;
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    const isStandalone = (navigator as any).standalone === true ||
-      window.matchMedia('(display-mode: standalone)').matches;
+    const isStandalone = (() => {
+      try {
+        return (navigator as any).standalone === true ||
+          (typeof window.matchMedia === 'function' &&
+            window.matchMedia('(display-mode: standalone)').matches);
+      } catch { return false; }
+    })();
     setIosPwaHint(isIOS && isStandalone);
   }, [status]);
 

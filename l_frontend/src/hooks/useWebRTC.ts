@@ -202,11 +202,19 @@ function captureIceConfig(config: RTCConfiguration) {
 }
 
 export function buildCallDebugReport(diag: any): string {
+  let standalone = 'n/a';
+  try {
+    standalone = String(
+      (navigator as any).standalone === true ||
+        (typeof window.matchMedia === 'function' &&
+          window.matchMedia('(display-mode: standalone)').matches),
+    );
+  } catch { standalone = 'err'; }
   const lines: string[] = [
     '=== NEBULA CALL DEBUG ===',
     `UA: ${navigator.userAgent}`,
     `Platform: ${navigator.platform}, touchPoints: ${navigator.maxTouchPoints}`,
-    `Standalone(PWA): ${(navigator as any).standalone === true || window.matchMedia('(display-mode: standalone)').matches}`,
+    `Standalone(PWA): ${standalone}`,
     `TURN from backend: ${isTurnConfigured()}`,
     `ICE policy: ${iceDebug.policyUsed || 'n/a'}`,
     `Diag: ${JSON.stringify(diag ?? null)}`,
@@ -852,9 +860,15 @@ export function useWebRTC(
             prev.diag ?? { ...emptyDiag(), turnActive: isTurnConfigured() };
           let hint = d.hint;
           if (iceState === 'failed') {
-            hint = isTurnConfigured()
-              ? 'TURN задан, но недоступен из вашей сети (провайдер/DPI). Попробуйте VPN или другой TURN.'
-              : 'TURN НЕ НАСТРОЕН: звонок между разными сетями невозможен. Задайте METERED_* на бэкенде.';
+            if (!isTurnConfigured()) {
+              hint = 'TURN НЕ НАСТРОЕН: звонок между разными сетями невозможен. Задайте METERED_* на бэкенде.';
+            } else if ((d.candRelay ?? 0) === 0 && (d.candSrflx ?? 0) === 0) {
+              hint = 'Все TURN/STUN недоступны (собрано 0 кандидатов). Сеть/IP-блокировка. Проверьте VPN/провайдера.';
+            } else if ((d.candRelay ?? 0) === 0 && (d.candSrflx ?? 0) > 0) {
+              hint = 'TURN-сервер недоступен (0 relay-кандидатов), P2P тоже не соединён. Скорее всего, relay.metered.ca блокируется из вашей сети — откройте https://relay.metered.ca в браузере: если не грузится, проблема в блокировке, а не в коде.';
+            } else {
+              hint = 'TURN задан, но недоступен из вашей сети (провайдер/DPI). Попробуйте VPN или другой TURN.';
+            }
           }
           return { ...prev, diag: { ...d, ice: iceState, hint } };
         });
