@@ -689,23 +689,57 @@ const SWIPE_THRESHOLD   = 80;   // минимальная дистанция п�
 const SWIPE_VELOCITY    = 0.3;  // минимальная скорость (px/ms) — «быстрый» свайп
 const GESTURE_LOCK_DIST = 15;   // после 15px диагонали ↗ глушим скролл страницы
 
-function HorizontalSwipeNav({ pathname, user, counts }: { pathname: string; user: any; counts: any }) {
+function HorizontalSwipeNav({
+  pathname,
+  user,
+  counts,
+  onSearch,
+  onLayout,
+  onBug,
+  onSwitchAccount,
+}: {
+  pathname: string;
+  user: any;
+  counts: any;
+  onSearch?: () => void;
+  onLayout?: () => void;
+  onBug?: () => void;
+  onSwitchAccount?: () => void;
+}) {
   const router = useRouter();
+  const { t } = useI18n();
 
-  // ── Пункты меню (макс 6) ────────────────────────────────────────────
+  // ── ПОЛНЫЙ список пунктов меню (как в орбите), у каждого — краткая подпись ──
   const items = useMemo(() => {
-    const base = [
-      { href: "/",           icon: Home,      label: "Home" },
-      { href: "/channels",   icon: Satellite, label: "Community" },
-      ...(user ? [{ href: "/messages", icon: MessageSquare, label: "Messages", badge: counts?.messages }] : []),
-      ...(user ? [{ href: "/notifications", icon: Bell, label: "Notifications", badge: counts?.notifications }] : []),
-      { href: "/bookmarks",  icon: Bookmark,  label: "Bookmarks" },
-      user
-        ? { href: `/u/${user.username}`, icon: UserPlus, label: "Profile" }
-        : { href: "/login", icon: UserPlus, label: "Login" },
+    const list: {
+      key: string;
+      href: string;
+      icon: React.ComponentType<{ size?: number | string; className?: string }>;
+      label: string;
+      badge?: number;
+      action?: "search" | "layout" | "bug" | "switch";
+    }[] = [
+      { key: "home",     href: "/",           icon: Home,          label: t("nav.home") },
+      { key: "comm",     href: "/updates",    icon: Satellite,     label: t("nav.community") },
+      ...(user ? [{ key: "msgs",  href: "/messages",      icon: MessageSquare, label: t("nav.messages"),      badge: counts?.chats }] : []),
+      ...(user ? [{ key: "notifs",href: "/notifications", icon: Bell,          label: t("nav.notifications"), badge: counts?.notifications }] : []),
+      { key: "bookmarks",href: "/bookmarks",  icon: Bookmark,      label: t("nav.bookmarks") },
+      { key: "search",   href: "#search",     icon: Search,        label: t("nav.search"),       action: "search" },
+      { key: "settings", href: "/settings",   icon: Settings,      label: t("nav.settings") },
+      { key: "rules",    href: "/rules",      icon: Shield,        label: t("nav.rules") },
+      { key: "bugs",     href: "#bug",        icon: Bug,           label: t("nav.bugs"),         action: "bug" },
+      { key: "support",  href: "/support",    icon: Headphones,    label: t("nav.support") },
+      { key: "layout",   href: "#layout",     icon: Palette,       label: t("nav.layout"),       action: "layout" },
+      ...(user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")
+        ? [{ key: "admin", href: "/adminnew", icon: ShieldCheck, label: user?.is_admin ? t("nav.admin") : t("nav.moderation") }]
+        : []),
+      ...(user
+        ? [{ key: "profile", href: `/${user.username}`, icon: UserPlus, label: t("nav.profile") }]
+        : [{ key: "login", href: "/login", icon: UserPlus, label: t("nav.login") }]),
+      ...(user ? [{ key: "switch", href: "#logout", icon: LogOut, label: t("nav.logout"), action: "switch" as const }] : []),
     ];
-    return base.slice(0, 6);
-  }, [user, counts]);
+    return list;
+  }, [user, counts, t]);
 
   // ── Состояния / рефы ────────────────────────────────────────────────
   const [isOpen, setIsOpen] = useState(false);
@@ -820,9 +854,13 @@ function HorizontalSwipeNav({ pathname, user, counts }: { pathname: string; user
   // 🧭 Смена страницы тоже закрывает меню
   useEffect(() => { closeMenu(); }, [pathname, closeMenu]);
 
-  const handleNavigate = (href: string) => {
+  const handleNavigate = (item: (typeof items)[number]) => {
     closeMenu();
-    router.push(href);
+    if (item.action === "search") { onSearch?.(); return; }
+    if (item.action === "layout") { onLayout?.(); return; }
+    if (item.action === "bug")    { onBug?.();    return; }
+    if (item.action === "switch") { onSwitchAccount?.(); return; }
+    router.push(item.href);
   };
 
   // ── Рендер ──────────────────────────────────────────────────────────
@@ -838,33 +876,27 @@ function HorizontalSwipeNav({ pathname, user, counts }: { pathname: string; user
             onTouchMove={(e) => e.preventDefault()}
             onClick={closeMenu}
           />
-          {/* Горизонтальная панель кнопок — ЗАМИРАЕТ по центру экрана.
-              📐 Адаптив: при 6 пунктах круги 48px, при 5 — 52px, иначе 56px,
-              чтобы ВСЕ кнопки гарантированно влезали на узкий экран (320–360px). */}
+          {/* Панель кнопок — ЗАМИРАЕТ по центру экрана, переносятся рядами.
+              При >8 пунктах круги 48px, иначе 56px — чтобы влезали на узкий экран. */}
           <div
             ref={containerRef}
-            className="fixed left-3 right-3 top-1/2 -translate-y-1/2 z-[100] flex items-start justify-around"
+            className="fixed left-3 right-3 top-1/2 -translate-y-1/2 z-[100] flex flex-wrap items-start justify-center gap-y-3"
           >
             {items.map((item, i) => {
-              const active = pathname === item.href;
-              const badge = (item as { badge?: number }).badge;
-              const circleCx =
-                items.length >= 6
-                  ? "w-12 h-12"
-                  : items.length === 5
-                    ? "w-[52px] h-[52px]"
-                    : "w-14 h-14";
-              const iconSize = items.length >= 6 ? 20 : 22;
+              const active = !item.action && pathname === item.href;
+              const badge = item.badge;
+              const circleCx = items.length > 8 ? "w-12 h-12" : "w-14 h-14";
+              const iconSize = items.length > 8 ? 20 : 22;
               return (
                 <button
-                  key={item.href}
-                  onClick={() => handleNavigate(item.href)}
+                  key={item.key}
+                  onClick={() => handleNavigate(item)}
                   onTouchStart={() => setSelectedIndex(i)}
                   onTouchEnd={() => setTimeout(() => setSelectedIndex(null), 250)}
-                  className="flex flex-col items-center flex-1 min-w-0 max-w-[72px]"
+                  className="flex flex-col items-center w-[72px] max-w-[72px]"
                   style={{
                     animation: "hswipe-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both",
-                    animationDelay: `${i * 40}ms`,
+                    animationDelay: `${i * 30}ms`,
                   }}
                 >
                   <span
@@ -2369,7 +2401,15 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
       {/* 🆕 Horizontal Swipe Nav — только мобильные */}
       {isMobile && layout === "horizontal-swipe" && (
-        <HorizontalSwipeNav pathname={pathname} user={user} counts={counts} />
+        <HorizontalSwipeNav
+          pathname={pathname}
+          user={user}
+          counts={counts}
+          onSearch={() => setShowSearch(true)}
+          onLayout={() => setShowLayoutPicker(true)}
+          onBug={() => setShowBugModal(true)}
+          onSwitchAccount={() => setShowOrbitSwitcher(true)}
+        />
       )}
     </>
   );
