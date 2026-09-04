@@ -1,5 +1,5 @@
 ﻿"use client";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useTheme } from "next-themes";
 import { resolveNickColor } from "@/lib/nickGlow";
 import { usePathname, useRouter } from "next/navigation";
@@ -186,13 +186,13 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
 // НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
 // 🎛 ВАРИАНТЫ САЙДБАРА
 // НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
-export type SidebarLayout = "classic" | "orbit" | "dock" | "orbit2";
+export type SidebarLayout = "classic" | "orbit" | "dock" | "orbit2" | "dock2";
 const LAYOUT_KEY = "trelod_sidebar_layout";
 
 export function getSidebarLayout(): SidebarLayout {
   if (typeof window === "undefined") return "classic";
   const v = localStorage.getItem(LAYOUT_KEY);
-  return v === "orbit" || v === "dock" || v === "orbit2" ? v : "classic";
+  return v === "orbit" || v === "dock" || v === "orbit2" || v === "dock2" ? v : "classic";
 }
 
 export function setSidebarLayout(v: SidebarLayout) {
@@ -231,6 +231,19 @@ function LayoutPreview({ kind }: { kind: SidebarLayout }) {
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-[#8b5cf6] ring-4 ring-[#8b5cf6]/25" />
         </div>
       )}
+      {kind === "dock2" && (
+        <>
+          <div className="w-6 bg-gray-100 dark:bg-[#22222a] border-r border-line dark:border-white/10 flex flex-col items-center justify-center gap-1">
+            <div className="w-1.5 h-1.5 rounded-sm bg-[#8b5cf6] scale-125" />
+            <div className="w-1.5 h-1.5 rounded-sm bg-gray-200 dark:bg-white/25" />
+            <div className="w-1.5 h-1.5 rounded-sm bg-gray-100 dark:bg-white/15" />
+          </div>
+          <div className="flex-1 p-1.5 space-y-1">
+            <div className="h-1.5 w-full rounded bg-gray-100 dark:bg-white/10" />
+            <div className="h-1.5 w-3/4 rounded bg-gray-100 dark:bg-white/10" />
+          </div>
+        </>
+      )}
       {kind === "dock" && (
         <>
           <div className="w-4 bg-gray-100 dark:bg-[#22222a] border-r border-line dark:border-white/10 flex flex-col items-center gap-1 py-1">
@@ -259,6 +272,9 @@ function LayoutPicker({ current, onClose, isMobile }: { current: SidebarLayout; 
       { key: "dock" as SidebarLayout, name: t("nav.layoutDock"), desc: t("nav.layoutDockDesc") },
     ]),
     { key: "orbit2", name: t("nav.layoutOrbit2"), desc: t("nav.layoutOrbit2Desc") },
+    ...(isMobile ? [
+      { key: "dock2" as SidebarLayout, name: t("nav.layoutDock2"), desc: t("nav.layoutDock2Desc") },
+    ] : []),
   ];
   return (
     <>
@@ -288,6 +304,291 @@ function LayoutPicker({ current, onClose, isMobile }: { current: SidebarLayout; 
         </div>
         <p className="mt-2 text-[10px] text-gray-500 dark:text-white/40 text-center">{t("nav.layoutHint")}</p>
         <p className="mt-1 text-[10px] text-[#8b5cf6] dark:text-[#a78bfa] text-center leading-snug">{t("nav.layoutCtrlHint")}</p>
+      </div>
+    </>
+  );
+}
+
+// НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
+// 🎯 DOCK2 — «исключительно жестовый» режим (мобильные):
+//    квадрат-индикатор + удержание (long press) + свайп. БЕЗ кликов.
+//    Свайп вверх/вниз по квадрату → переключение страниц,
+//    удержание и ведение пальца в сторону → выбор иконки,
+//    отпускание → переход / закрытие.
+// НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
+type Dock2User = {
+  username?: string;
+  is_admin?: boolean;
+  is_moderator?: boolean;
+  permissions?: string[];
+} | null;
+
+type Dock2Icon = React.ComponentType<{ size?: number | string; className?: string }>;
+type Dock2Item = { href: string; icon: Dock2Icon; label: string };
+const DOCK2_PAGE_SWIPE = 30; // px вертикального свайпа для смены страницы
+const DOCK2_PANEL_DIST   = 40; // палец дальше этого расстояния → ищем иконку
+const DOCK2_PICK_DIST    = 60; // радиус «попадания» в иконку
+
+function Dock2Wheel({
+  user,
+  router,
+  setShowBugModal,
+  setShowLayoutPicker,
+}: {
+  user: Dock2User;
+  router: ReturnType<typeof useRouter>;
+  setShowBugModal: (v: boolean) => void;
+  setShowLayoutPicker: (v: boolean) => void;
+}) {
+  const { t } = useI18n();
+  const squareRef = useRef<HTMLDivElement>(null);
+  const startPos = useRef<{ x: number; y: number } | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [currentPage, setCurrentPage] = useState(0);
+  const [isActive, setIsActive] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<number | null>(null);
+  const [direction, setDirection] = useState<"up" | "down">("up");
+  // 📐 Геометрия квадрата, снятая В МОМЕНТ открытия (в обработчике жеста) —
+  //    используется при рендере панели. Не читаем ref в render (stale/ошибка линтера).
+  const [squareRect, setSquareRect] = useState<{
+    top: number;
+    bottom: number;
+    left: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
+  // НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
+  // 🧩 Страницы-меню. Страница «Админ» добавляется только для администраторов.
+  // НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
+  const pages = useMemo<Dock2Item[][]>(() => {
+    const main: Dock2Item[] = [
+      { href: "/", icon: Home, label: t("nav.home") },
+      { href: "/messages", icon: MessageSquare, label: t("nav.messages") },
+      { href: "/notifications", icon: Bell, label: t("nav.notifications") },
+      { href: "/bookmarks", icon: Bookmark, label: t("nav.bookmarks") },
+    ];
+
+    const social: Dock2Item[] = [
+      { href: "/updates", icon: Satellite, label: t("nav.community") },
+      { href: "/search", icon: Search, label: t("nav.search") },
+    ];
+    if (user) social.push({ href: `/${user.username}`, icon: Home, label: t("nav.profile") });
+    social.push({ href: "/settings", icon: Settings, label: t("nav.settings") });
+
+    const tools: Dock2Item[] = [
+      { href: "/rules", icon: Shield, label: t("nav.rules") },
+      { href: "#bug", icon: Bug, label: t("nav.bugs") },
+      { href: "/support", icon: Headphones, label: t("nav.support") },
+      { href: "#layout", icon: Palette, label: t("nav.layout") },
+    ];
+
+    // 👑 Страница «Админ» — только для админов/модераторов.
+    const admin: Dock2Item[] = [];
+    if (user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")) {
+      admin.push({
+        href: "/adminnew",
+        icon: user?.is_admin ? ShieldAlert : ShieldCheck,
+        label: user?.is_admin ? t("nav.admin") : t("nav.moderation"),
+      });
+    }
+
+    return [main, social, tools, admin].filter((p) => p.length > 0);
+  }, [user, t]);
+
+  // ЖЕСТ: УДЕРЖАНИЕ
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    startPos.current = { x: touch.clientX, y: touch.clientY };
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    longPressTimer.current = setTimeout(() => {
+      const rect = squareRef.current?.getBoundingClientRect();
+      let dir: "up" | "down" = "up";
+      if (rect) {
+        const spaceUp = rect.top;
+        const spaceDown = window.innerHeight - rect.bottom;
+        dir = spaceUp > spaceDown ? "up" : "down";
+        setSquareRect({ top: rect.top, bottom: rect.bottom, left: rect.left, width: rect.width, height: rect.height });
+      }
+      setDirection(dir);
+      setIsActive(true);
+    }, LONG_PRESS_MS);
+  };
+
+// ЖЕСТ: ДВИЖЕНИЕ (свайп по квадрату ИЛИ выбор иконки)
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    if (!startPos.current) return;
+
+    // Режим переключения страниц (панель ещё не открыта)
+    if (!isActive) {
+      const dy = touch.clientY - startPos.current.y;
+      if (Math.abs(dy) > DOCK2_PAGE_SWIPE) {
+        const newPage = dy > 0
+          ? (currentPage + 1) % pages.length
+          : (currentPage - 1 + pages.length) % pages.length;
+        setCurrentPage(newPage);
+        startPos.current = { x: touch.clientX, y: touch.clientY }; // сброс для следующего свайпа
+        if (typeof navigator !== "undefined" && navigator.vibrate) {
+          try { navigator.vibrate(10); } catch { /* noop */ }
+        }
+      }
+      return;
+    }
+
+    // Режим выбора иконки (панель открыта — ведём палец от квадрата)
+    const rect = squareRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const dx = touch.clientX - rect.left;
+    const dy = touch.clientY - rect.top;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > DOCK2_PANEL_DIST) {
+      const items = pages[currentPage];
+      const cols = 2;
+      const rows = Math.ceil(items.length / cols);
+      const itemWidth = 80;
+      const itemHeight = 80;
+
+      let nearest = -1;
+      let minDist = Infinity;
+      items.forEach((_: Dock2Item, idx: number) => {
+        const col = idx % cols;
+        const row = Math.floor(idx / cols);
+        const ix = rect.left + 20 + col * itemWidth + itemWidth / 2;
+        const iy = direction === "up"
+          ? rect.top - 20 - (rows - row) * itemHeight + itemHeight / 2
+          : rect.bottom + 20 + row * itemHeight + itemHeight / 2;
+        const d = Math.sqrt((touch.clientX - ix) ** 2 + (touch.clientY - iy) ** 2);
+        if (d < minDist) { minDist = d; nearest = idx; }
+      });
+      setSelectedItem(minDist < DOCK2_PICK_DIST ? nearest : null);
+    } else {
+      setSelectedItem(null);
+    }
+  };
+
+  // ЖЕСТ: ОТПУСКАНИЕ (переход по выбранной иконке ИЛИ закрытие)
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+
+    if (isActive && selectedItem !== null) {
+      const item = pages[currentPage][selectedItem];
+      if (item) {
+        if (item.href === "#bug") {
+          setShowBugModal(true);
+        } else if (item.href === "#layout") {
+          setShowLayoutPicker(true);
+        } else if (!item.href.startsWith("#")) {
+          router.push(item.href);
+        }
+      }
+    }
+
+    setIsActive(false);
+    setSelectedItem(null);
+    setSquareRect(null);
+    startPos.current = null;
+  };
+
+  // ЖЕСТ: ОТМЕНА касания (жест прерван системой)
+  const handleTouchCancel = () => {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+    setIsActive(false);
+    setSelectedItem(null);
+    setSquareRect(null);
+    startPos.current = null;
+  };
+
+// Панель с иконками (внутренняя геометрия)
+  const panelInfo = useMemo(() => {
+    if (!isActive) return null;
+    const items = pages[currentPage];
+    const cols = 2;
+    const rows = Math.ceil(items.length / cols);
+    const itemW = 70, itemH = 70, gap = 4, pad = 12;
+    const panelW = cols * itemW + gap * (cols - 1) + pad * 2;
+    const panelH = rows * itemH + gap * (rows - 1) + pad * 2;
+    const rect = squareRect;
+    const left = rect ? rect.left + rect.width / 2 - panelW / 2 : 0;
+    const top = rect
+      ? (direction === "up" ? rect.top - 20 - panelH : rect.bottom + 20)
+      : 0;
+    return { items, itemH, itemW, gap, pad, panelW, panelH, left, top };
+  }, [isActive, currentPage, direction, pages, squareRect]);
+
+  return (
+    <>
+      {/* Квадрат-индикатор (всегда виден) */}
+      <div
+        ref={squareRef}
+        className={`fixed z-[98] right-3 bottom-24 w-14 h-14 rounded-2xl bg-paper dark:bg-[#171717]/90 backdrop-blur-sm border flex flex-col items-center justify-center gap-1.5 transition-all duration-200 ${
+          isActive
+            ? "border-[#8b5cf6] bg-[#8b5cf6]/20 shadow-[0_0_18px_rgba(139,92,246,0.5)]"
+            : "border-line dark:border-white/10 shadow-lg"
+        }`}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
+        style={{
+          touchAction: "none",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          WebkitTouchCallout: "none",
+        } as React.CSSProperties}
+      >
+        {pages.map((page, idx) => (
+          <div
+            key={`pg-${idx}`}
+            className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+              currentPage === idx
+                ? "bg-[#8b5cf6] scale-150"
+                : "bg-gray-300 dark:bg-white/30"
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* Панель с иконками — показывается ТОЛЬКО при удержании */}
+      <div
+        className="fixed z-[99] pointer-events-none transition-all duration-200"
+        style={{
+          opacity: isActive ? 1 : 0,
+          transform: isActive ? "scale(1)" : "scale(0.8)",
+          left: panelInfo?.left ?? 0,
+          top: panelInfo?.top ?? 0,
+        } as React.CSSProperties}
+      >
+        {isActive && panelInfo && (
+          <div className="rounded-2xl bg-paper dark:bg-[#171717]/95 backdrop-blur-md border border-line dark:border-white/10 shadow-2xl pointer-events-none">
+            <div
+              className="grid gap-1"
+              style={{
+                width: panelInfo.panelW,
+                gridTemplateColumns: "repeat(2, 1fr)",
+                padding: panelInfo.pad,
+              }}
+            >
+              {panelInfo.items.map((item, idx) => (
+                <div
+                  key={item.href + idx}
+                  className={`flex flex-col items-center justify-center gap-0.5 p-1 rounded-xl transition-all duration-150 ${
+                    selectedItem === idx ? "bg-[#8b5cf6]/20 scale-110" : ""
+                  }`}
+                  style={{ width: panelInfo.itemW, height: panelInfo.itemH }}
+                >
+                  <item.icon size={24} className="text-gray-700 dark:text-white/80" />
+                  <span className="text-[9px] text-gray-600 dark:text-white/60 text-center leading-tight">
+                    {item.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
@@ -1548,6 +1849,14 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
       {/* orbit2 — без фиксированной кнопки: дуга открывается зажимом в любом месте */}
       {/* 🚫 В режиме Nebula классическая орбита полностью отключена (в т.ч. кнопка вне <aside>) */}
       {!nebulaOff && (
+        layout === "dock2" && isMobile ? (
+          <Dock2Wheel
+            user={user}
+            router={router}
+            setShowBugModal={setShowBugModal}
+            setShowLayoutPicker={setShowLayoutPicker}
+          />
+        ) : (
       <div className={layout === "orbit" ? "block" : layout === "orbit2" ? "hidden" : "md:hidden"}>
         {/* 🔥 КРУГИ НА ВОДЕ (Память ленты) */}
         {/* 🔥 МЯГКОЕ СВЕЧЕНИЕ (Сохраненный пост) */}
@@ -1594,6 +1903,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
           <Orbit size={22} className={`transition-all duration-300 ${wheelOpen ? "text-[#8b5cf6] rotate-[60deg]" : "text-gray-800 dark:text-white/80"}`} />
         </button>
       </div>
+        )
       )}
 
       {/* 🆕 Дуга рендерится ВНЕ обёртки — доступна в любом виде сайдбара
