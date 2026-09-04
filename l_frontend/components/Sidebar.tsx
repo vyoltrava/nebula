@@ -285,7 +285,7 @@ function LayoutPicker({ current, onClose, isMobile }: { current: SidebarLayout; 
     { key: "orbit2", name: t("nav.layoutOrbit2"), desc: t("nav.layoutOrbit2Desc") },
     ...(isMobile ? [
       { key: "dock2" as SidebarLayout, name: t("nav.layoutDock2"), desc: t("nav.layoutDock2Desc") },
-      { key: "horizontal-swipe" as SidebarLayout, name: "Horizontal Swipe", desc: "Свайп слева направо → меню замирает" },
+      { key: "horizontal-swipe" as SidebarLayout, name: "Horizontal Swipe", desc: "Диагональный свайп ↗ → меню замирает" },
     ] : []),
   ];
   return (
@@ -677,16 +677,17 @@ function Dock2Wheel({
 // ННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
 // 🆕 Horizontal Swipe Nav
 //    Мобильное горизонтальное меню:
-//    • ОТКРЫТИЕ  — быстрый свайп слева направо в правом нижнем углу
-//                  (нижние 40% экрана И правые 50%) → меню ЗАМИРАЕТ открытым.
-//    • ЗАКРЫТИЕ  — быстрый свайп справа налево в любой части экрана.
-//    • Пока открыто: overlay блокирует фон (скролл запрещён).
+//    • ОТКРЫТИЕ  — ДИАГОНАЛЬНЫЙ свайп слева-направо И снизу-вверх (↗),
+//                  старт в нижних 40% экрана → меню ЗАМИРАЕТ открытым.
+//    • ЗАКРЫТИЕ  — обратный диагональный свайп справа-налево и сверху-вниз (↙)
+//                  в любой части экрана.
+//    • Как только жест распознан как диагональный ↗ — скролл страницы глушится.
 //    Используется ТОЛЬКО на мобильных (isMobile), на ПК не рендерится.
 // НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
 const OPEN_ZONE_BOTTOM  = 0.40; // зона открытия: нижние 40% экрана
-const OPEN_ZONE_RIGHT   = 0.50; // зона открытия: правые 50% экрана
-const SWIPE_THRESHOLD   = 80;   // минимальная дистанция свайпа (px)
+const SWIPE_THRESHOLD   = 80;   // минимальная дистанция по КАЖДОЙ оси (px)
 const SWIPE_VELOCITY    = 0.3;  // минимальная скорость (px/ms) — «быстрый» свайп
+const GESTURE_LOCK_DIST = 15;   // после 15px диагонали ↗ глушим скролл страницы
 
 function HorizontalSwipeNav({ pathname, user, counts }: { pathname: string; user: any; counts: any }) {
   const router = useRouter();
@@ -712,6 +713,7 @@ function HorizontalSwipeNav({ pathname, user, counts }: { pathname: string; user
   const startPos  = useRef<{ x: number; y: number } | null>(null);
   const startTime = useRef<number | null>(null);
   const isOpenRef = useRef(false); // актуальный флаг внутри слушателей документа
+  const gestureLockRef = useRef(false); // жест распознан как диагональный ↗ → глушим скролл
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   // 🛡 Блокировка фона: скролл + выделение + long-press контекстное меню
@@ -745,16 +747,29 @@ function HorizontalSwipeNav({ pathname, user, counts }: { pathname: string; user
     const onTouchStart = (e: TouchEvent) => {
       startPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       startTime.current = Date.now();
+      gestureLockRef.current = false;
     };
 
     const onTouchMove = (e: TouchEvent) => {
       // Меню открыто → не даём странице скроллиться под оверлеем.
-      // Меню закрыто → НЕ мешаем скроллу (страница скроллится как обычно).
-      if (isOpenRef.current) e.preventDefault();
+      if (isOpenRef.current) { e.preventDefault(); return; }
+
+      // Меню закрыто: если жест в нижней зоне УЖЕ пошёл диагонально ↗
+      // (вправо и вверх) — глушим скролл страницы, чтобы не мешал свайпу.
+      if (startPos.current && !gestureLockRef.current) {
+        const mdx = e.touches[0].clientX - startPos.current.x;
+        const mdy = e.touches[0].clientY - startPos.current.y;
+        const inBottomZone = startPos.current.y > window.innerHeight * (1 - OPEN_ZONE_BOTTOM);
+        if (inBottomZone && mdx > GESTURE_LOCK_DIST && mdy < -GESTURE_LOCK_DIST) {
+          gestureLockRef.current = true;
+        }
+      }
+      if (gestureLockRef.current) e.preventDefault();
+      // Иначе — НЕ мешаем скроллу (страница скроллится как обычно).
     };
 
     const onTouchEnd = (e: TouchEvent) => {
-      if (!startPos.current || startTime.current == null) return;
+      if (!startPos.current || startTime.current == null) { gestureLockRef.current = false; return; }
       const endPos = { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
       const endTime = Date.now();
       const dx = endPos.x - startPos.current.x;
@@ -764,11 +779,10 @@ function HorizontalSwipeNav({ pathname, user, counts }: { pathname: string; user
       const velocity = distance / duration; // px per ms
 
       if (!isOpenRef.current) {
-        // ОТКРЫТИЕ: старт в зоне правого нижнего угла + быстрый свайп вправо
-        const inOpenZone =
-          startPos.current.y > window.innerHeight * (1 - OPEN_ZONE_BOTTOM) &&
-          startPos.current.x > window.innerWidth * (1 - OPEN_ZONE_RIGHT);
-        if (inOpenZone && dx > SWIPE_THRESHOLD && velocity >= SWIPE_VELOCITY) {
+        // ОТКРЫТИЕ: старт в нижних 40% экрана + ДИАГОНАЛЬНЫЙ свайп ↗
+        // (вправо > 80px И вверх > 80px) + достаточно быстрый
+        const inOpenZone = startPos.current.y > window.innerHeight * (1 - OPEN_ZONE_BOTTOM);
+        if (inOpenZone && dx > SWIPE_THRESHOLD && dy < -SWIPE_THRESHOLD && velocity >= SWIPE_VELOCITY) {
           setIsOpen(true);
           isOpenRef.current = true;
           lockBody();
@@ -777,11 +791,12 @@ function HorizontalSwipeNav({ pathname, user, counts }: { pathname: string; user
           }
         }
       } else {
-        // ЗАКРЫТИЕ: свайп влево в любой части экрана
-        if (dx < -SWIPE_THRESHOLD) closeMenu();
+        // ЗАКРЫТИЕ: обратная диагональ ↙ (влево И вниз) в любой части экрана
+        if (dx < -SWIPE_THRESHOLD && dy > SWIPE_THRESHOLD) closeMenu();
       }
       startPos.current = null;
       startTime.current = null;
+      gestureLockRef.current = false;
     };
 
     document.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -817,7 +832,7 @@ function HorizontalSwipeNav({ pathname, user, counts }: { pathname: string; user
       {!isOpen && (
         <div className="fixed bottom-6 right-6 z-[98] pointer-events-none">
           <span className="bg-[#8b5cf6]/80 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg animate-pulse inline-flex items-center gap-1">
-            → Свайп
+            ↗ Свайп
           </span>
         </div>
       )}
@@ -2146,7 +2161,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
             hasContinue={!!lastReadPost}
             onContinue={handleContinueClick}
           />
-        ) : (
+        ) : layout === "horizontal-swipe" ? null : (
       <div className={layout === "orbit" ? "block" : layout === "orbit2" ? "hidden" : "md:hidden"}>
         {/* 🔥 КРУГИ НА ВОДЕ (Память ленты) */}
         {/* 🔥 МЯГКОЕ СВЕЧЕНИЕ (Сохраненный пост) */}
