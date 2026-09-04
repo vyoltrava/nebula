@@ -14,7 +14,7 @@ export function CreateChannelModal({
   onCreated,
 }: {
   onClose: () => void;
-  onCreated: (channelId: number) => void;
+  onCreated: (slugWithAt: string) => void;
 }) {
   const { t } = useI18n();
   const [title, setTitle] = useState("");
@@ -52,8 +52,8 @@ export function CreateChannelModal({
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (res.ok && data.channel?.id) {
-        onCreated(data.channel.id);
+      if (res.ok && data.channel?.custom_slug) {
+        onCreated(`@${data.channel.custom_slug}`);
       } else {
         setError(data.detail || t("channels.createFailed") || "Не удалось создать канал");
       }

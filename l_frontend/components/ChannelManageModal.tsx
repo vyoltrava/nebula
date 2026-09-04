@@ -1,229 +1,259 @@
 "use client";
-// 📢 Модалка управления каналом — Заявки / Инвайты / Настройки.
-// Изолированная система каналов (/api/channels/*).
-import { useEffect, useState } from "react";
-import { X, Settings, Megaphone, Users, Link, Copy, CheckCircle, XCircle, Loader2, AtSign, Globe, Lock } from "lucide-react";
+// 📢 Настройки канала — дизайн ТОЧЬ-В-ТОЧЬ как GroupSettingsModal:
+// те же вкладки (Канал / Ссылки / Заявки / Удаление), аватар с загрузкой,
+// название, описание, приватность, ссылка (@slug).
+import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { X, Upload, Image as ImageIcon, Link2, Copy, Trash2, Users, AlertTriangle, Settings, AtSign, CheckCircle, XCircle, Loader2, Globe, Lock } from "lucide-react";
 import { getToken } from "@/lib/auth";
+import { mediaUrl } from "@/lib/media";
+import { Avatar } from "@/components/Avatar";
+import { Button, IconButton } from "@/components/ui/Button";
 
-const API = process.env.NEXT_PUBLIC_API_URL;
-
-export function ChannelManageModal({
-  channel,
-  onClose,
-  onChanged,
-}: {
+interface Props {
   channel: any;
   onClose: () => void;
   onChanged: () => void;
-}) {
-  const [tab, setTab] = useState<"requests" | "invites" | "settings">("requests");
-  const [requests, setRequests] = useState<any[]>([]);
-  const [requestsLoading, setRequestsLoading] = useState(false);
+}
+
+type Tab = "main" | "links" | "requests" | "danger";
+
+export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
+  const router = useRouter();
+  const channelId = channel.id;
+  const [tab, setTab] = useState<Tab>("main");
+  const [title, setTitle] = useState(channel.title || "");
+  const [description, setDescription] = useState(channel.description || "");
+  const [isPublic, setIsPublic] = useState(channel.is_public ?? true);
+  const [slug, setSlug] = useState(channel.custom_slug || "");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(channel.avatar_url || null);
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const isAdmin = channel?.my_role === "owner" || channel?.my_role === "admin";
+
+  const authFetch = (url: string, opts: any = {}) => {
+    const token = getToken();
+    return fetch(url, { ...opts, headers: { ...(opts.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+  };
+
+  // Ссылки-инвайты
   const [inviteUrl, setInviteUrl] = useState("");
   const [autoApprove, setAutoApprove] = useState(false);
   const [creatingInvite, setCreatingInvite] = useState(false);
-  const [sShowSig, setSShowSig] = useState(true);
-  const [sSilent, setSSilent] = useState(false);
-  const [sComments, setSComments] = useState(true);
-  const [sSlug, setSSlug] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState("");
-
-  const headers = (): Record<string, string> => ({ Authorization: `Bearer ${getToken()}` });
-
-  const loadRequests = async () => {
-    const res = await fetch(`${API}/api/channels/${channel.id}/requests`, { headers: headers() });
-    if (res.ok) setRequests(await res.json());
-  };
-
-  useEffect(() => {
-    setSShowSig(channel.settings?.show_author_signature !== false);
-    setSSilent(!!channel.settings?.silent_messages_by_default);
-    setSComments(channel.comments_enabled !== false);
-    setSSlug(channel.custom_slug || "");
-    if (tab === "requests") { setRequestsLoading(true); loadRequests().finally(() => setRequestsLoading(false)); }
-    if (tab === "settings") setMsg("");
-    // eslint-disable-next-line
-  }, [tab, channel.id]);
-
-  const decide = async (reqId: number, action: "approve" | "reject") => {
-    const res = await fetch(`${API}/api/channels/${channel.id}/requests/${reqId}?action=${action}`, {
-      method: "PATCH", headers: headers(),
-    });
-    if (res.ok) { loadRequests(); onChanged(); }
-  };
+  // Заявки
+  const [requests, setRequests] = useState<any[]>([]);
 
   const createInvite = async () => {
     setCreatingInvite(true);
-    const res = await fetch(`${API}/api/channels/${channel.id}/invites?auto_approve=${autoApprove}`, {
-      method: "POST", headers: headers(),
-    });
+    const r = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/invites?auto_approve=${autoApprove}`, { method: "POST" });
     setCreatingInvite(false);
-    if (res.ok) {
-      const d = await res.json();
-      const link = `${window.location.origin}${d.url}`;
+    if (r.ok) {
+      const d = await r.json();
+      const link = `${location.origin}${d.url}`;
       setInviteUrl(link);
-      try { await navigator.clipboard.writeText(link); setMsg("Скопировано"); }
-      catch { setMsg("Ссылка готова"); }
+      try { await navigator.clipboard.writeText(link); setMsg("Ссылка скопирована"); } catch { setMsg("Ссылка готова"); }
     } else {
-      const d = await res.json().catch(() => null);
-      setMsg(d?.detail || "Ошибка создания ссылки");
+      const d = await r.json().catch(() => null);
+      setMsg(d?.detail || "Ошибка");
     }
   };
 
-  const saveSettings = async () => {
-    setSaving(true); setMsg("");
-    const res = await fetch(`${API}/api/channels/${channel.id}/settings`, {
-      method: "PATCH",
-      headers: { ...headers(), "Content-Type": "application/json" },
-      body: JSON.stringify({ show_author_signature: sShowSig, silent_messages_by_default: sSilent, comments_enabled: sComments }),
-    });
-    if (res.ok) {
-      const newSlug = sSlug.trim().toLowerCase().replace(/^@/, "");
-      if (newSlug && newSlug !== channel.custom_slug) {
-        const r2 = await fetch(`${API}/api/channels/${channel.id}`, {
+  const loadRequests = async () => {
+    const r = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/requests`);
+    if (r.ok) setRequests(await r.json());
+  };
+  const decide = async (reqId: number, action: "approve" | "reject") => {
+    const r = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/requests/${reqId}?action=${action}`, { method: "PATCH" });
+    if (r.ok) { loadRequests(); onChanged(); }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    setAvatarFile(f); setAvatarPreview(URL.createObjectURL(f));
+  };
+
+  const SLUG_RE = /^[a-z0-9_]{5,32}$/;
+  const slugValid = SLUG_RE.test(slug.replace(/^@/, "").toLowerCase());
+
+  async function saveSettings() {
+    setLoading(true);
+    setMsg("");
+    try {
+      const newSlug = slug.replace(/^@/, "").toLowerCase();
+      if (title !== channel.title || (description || "") !== (channel.description || "") || isPublic !== channel.is_public || newSlug !== channel.custom_slug) {
+        const r = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}`, {
           method: "PATCH",
-          headers: { ...headers(), "Content-Type": "application/json" },
-          body: JSON.stringify({ custom_slug: newSlug }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: title.trim(),
+            description: description.trim() || null,
+            is_public: isPublic,
+            custom_slug: newSlug !== channel.custom_slug ? newSlug : undefined,
+          }),
         });
-        if (!r2.ok) {
-          const d = await r2.json().catch(() => null);
-          setMsg(d?.detail || "Настройки сохранены, но ссылку изменить не удалось");
-          setSaving(false); onChanged(); return;
+        if (!r.ok) {
+          const d = await r.json().catch(() => null);
+          setMsg(d?.detail || "Ошибка сохранения");
+          setLoading(false);
+          return;
         }
       }
-      setMsg("Сохранено"); onChanged();
-    } else {
-      const d = await res.json().catch(() => null);
-      setMsg(d?.detail || "Ошибка сохранения");
+      if (avatarFile) {
+        const form = new FormData(); form.append("file", avatarFile);
+        const r = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/avatar`, { method: "POST", body: form });
+        if (!r.ok) {
+          const d = await r.json().catch(() => null);
+          setMsg(d?.detail || "Ошибка загрузки аватара");
+          setLoading(false);
+          return;
+        }
+      }
+      onChanged();
+      onClose();
+    } catch {
+      setMsg("Ошибка сохранения настроек");
+    } finally {
+      setLoading(false);
     }
-    setSaving(false);
-  };
+  }
+
+  async function deleteChannel() {
+    if (!confirm("Удалить канал? Все посты и комментарии будут удалены. Действие необратимо.")) return;
+    const r = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}`, { method: "DELETE" });
+    if (r.ok) { onClose(); router.push("/messages"); }
+    else { const d = await r.json().catch(() => null); alert(d?.detail || "Нет прав на удаление"); }
+  }
+
+  const tabBtn = (id: Tab, label: string, icon: any) => (
+    <button onClick={() => setTab(id)}
+      className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 ${tab === id ? "bg-[#8b5cf6] text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/10"}`}>
+      {icon} {label}
+    </button>
+  );
+
+  useEffect(() => {
+    if (tab === "requests") loadRequests();
+    if (tab !== "main") setMsg("");
+    // eslint-disable-next-line
+  }, [tab]);
 
   return (
-    <>
-      <div className="fixed inset-0 z-[2100] bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-0 z-[2101] flex items-center justify-center p-4 pointer-events-none">
-        <div className="w-full max-w-lg bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-2xl shadow-2xl pointer-events-auto animate-in zoom-in-95 duration-200 flex flex-col overflow-hidden">
-          {/* Шапка */}
-          <div className="p-4 border-b border-line dark:border-white/10 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-[#8b5cf6]/15 flex items-center justify-center">
-              <Settings size={18} className="text-[#8b5cf6]" />
-            </div>
-            <p className="font-bold text-gray-900 dark:text-white text-sm flex-1 truncate">{channel.title}</p>
-            <button onClick={onClose} className="p-2 rounded-lg text-gray-500 dark:text-white/40 hover:bg-gray-100 dark:hover:bg-white/10">
-              <X size={18} />
-            </button>
-          </div>
-
-          {/* Вкладки */}
-          <div className="flex gap-1.5 px-3 py-2 flex-wrap">
-            <button onClick={() => setTab("requests")} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === "requests" ? "bg-[#8b5cf6] text-white" : "bg-white dark:bg-white/5 border border-line dark:border-white/10 text-gray-600 dark:text-white/60"}`}>
-              <Users size={12} className="inline" /> Заявки{requests.length > 0 ? ` (${requests.length})` : ""}
-            </button>
-            <button onClick={() => setTab("invites")} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === "invites" ? "bg-[#8b5cf6] text-white" : "bg-white dark:bg-white/5 border border-line dark:border-white/10 text-gray-600 dark:text-white/60"}`}>
-              <Link size={12} className="inline" /> Инвайты
-            </button>
-            <button onClick={() => setTab("settings")} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${tab === "settings" ? "bg-[#8b5cf6] text-white" : "bg-white dark:bg-white/5 border border-line dark:border-white/10 text-gray-600 dark:text-white/60"}`}>
-              <Settings size={12} className="inline" /> Настройки
-            </button>
-            {msg && <span className={`text-[11px] ml-auto ${msg.includes("Ошиб") || msg.includes("не удалось") ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>{msg}</span>}
-          </div>
-
-          {/* Тело вкладок */}
-          <div className="flex-1 overflow-y-auto p-4">
-            {/* ── ЗАЯВКИ ── */}
-            {tab === "requests" && (
+    <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div className="w-full max-w-lg bg-ivory dark:bg-[#1f1f23] rounded-2xl border border-line dark:border-white/10 shadow-2xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between shrink-0">
+          <h2 className="text-lg font-black text-gray-900 dark:text-white">Настройки канала</h2>
+          <IconButton icon={X} size="iconSm" onClick={onClose} />
+        </div>
+        <div className="p-3 border-b border-line dark:border-white/10 flex gap-2 shrink-0">
+          {tabBtn("main", "Канал", <Settings size={14} />)}
+          {isAdmin && tabBtn("links", "Ссылки", <Link2 size={14} />)}
+          {isAdmin && tabBtn("requests", "Заявки", <Users size={14} />)}
+          {isAdmin && tabBtn("danger", "Удаление", <Trash2 size={14} />)}
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {tab === "main" && (
+            <>
+              <div className="flex items-center justify-center">
+                <div className="relative w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 cursor-pointer group" onClick={() => fileRef.current?.click()}>
+                  {avatarPreview ? <img src={mediaUrl(avatarPreview)} alt="" className="w-full h-full object-cover" />
+                    : <div className="w-full h-full flex items-center justify-center text-gray-500 dark:text-white/40"><ImageIcon size={32} /></div>}
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"><Upload size={20} className="text-white" /></div>
+                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                </div>
+              </div>
               <div>
-                {requestsLoading && <p className="text-center text-gray-500 dark:text-white/40 text-sm py-6">Загрузка...</p>}
-                {!requestsLoading && requests.length === 0 && (
-                  <p className="text-center text-gray-500 dark:text-white/40 text-sm py-8">Заявок на вступление нет</p>
-                )}
-                <div className="space-y-2.5">
-                  {requests.map((r) => (
-                    <div key={r.id} className="flex items-center gap-2.5 bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 rounded-xl p-2.5">
-                      <img src={r.user?.avatar_url} alt="" className="w-9 h-9 rounded-full bg-gray-300 dark:bg-white/10" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm text-gray-900 dark:text-white truncate">{r.user?.display_name}</p>
-                        <p className="text-[11px] text-gray-500 dark:text-white/40">@{r.user?.username} · {new Date(r.created_at).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
-                      </div>
-                      <button onClick={() => decide(r.id, "approve")} className="p-2 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25" title="Одобрить">
-                        <CheckCircle size={16} />
-                      </button>
-                      <button onClick={() => decide(r.id, "reject")} className="p-2 rounded-lg text-gray-500 dark:text-white/40 hover:text-red-500 hover:bg-red-500/10" title="Отклонить">
-                        <XCircle size={16} />
-                      </button>
+                <label className="text-xs text-gray-600 dark:text-white/60 font-bold block mb-1">Название</label>
+                <input value={title} onChange={(e) => setTitle(e.target.value.slice(0, 100))}
+                  className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-[#8b5cf6]" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-600 dark:text-white/60 font-bold block mb-1">Описание</label>
+                <textarea value={description || ""} onChange={(e) => setDescription(e.target.value.slice(0, 500))} rows={2}
+                  className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-[#8b5cf6] resize-none" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-600 dark:text-white/60 font-bold block mb-1">Приватность</label>
+                <select value={isPublic ? "public" : "private"} onChange={(e) => setIsPublic(e.target.value === "public")} className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm">
+                  <option value="public">🌐 Публичный — подписка сразу</option>
+                  <option value="private">🔒 Приватный — по заявке/инвайту</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-gray-600 dark:text-white/60 font-bold block mb-1">Ссылка на канал</label>
+                <div className="relative">
+                  <AtSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
+                  <input value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase())} maxLength={33}
+                    className={`w-full pl-8 pr-3 py-2 rounded-lg border bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-[#8b5cf6] ${slugValid || slug.replace(/^@/, "") === channel.custom_slug ? "border-line dark:border-white/10" : "border-red-500/60"}`} />
+                </div>
+                <p className="text-[11px] text-gray-500 dark:text-white/40 mt-1">Латиница, цифры, «_», 5-32 символа. Канал доступен по /channels/@{slug.replace(/^@/, "") || "ссылка"}</p>
+              </div>
+              {msg && <p className="text-xs text-red-500 dark:text-red-400">{msg}</p>}
+              <Button icon={CheckCircle} onClick={saveSettings} loading={loading} className="w-full">
+                Сохранить
+              </Button>
+            </>
+          )}
+
+          {tab === "links" && (
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-white/80 cursor-pointer py-1">
+                <input type="checkbox" checked={autoApprove} onChange={(e) => setAutoApprove(e.target.checked)} className="accent-[#8b5cf6]" />
+                {channel.is_public ? "Прямое вступление (публичный канал)" : "Вступление без одобрения (auto-approve)"}
+              </label>
+              <div className="flex gap-2">
+                <input value={inviteUrl} readOnly placeholder="Ссылка появится после создания"
+                  className="flex-1 px-3 py-2 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm" />
+                <Button icon={creatingInvite ? Loader2 : Copy} onClick={createInvite} loading={creatingInvite}>
+                  Создать
+                </Button>
+              </div>
+              {inviteUrl && <p className="text-[11px] text-gray-500 dark:text-white/40">Ссылка скопирована в буфер обмена.</p>}
+            </div>
+          )}
+
+          {tab === "requests" && (
+            <div>
+              {requests.length === 0 && (
+                <p className="text-center text-gray-500 dark:text-white/40 text-sm py-8">Заявок на вступление нет</p>
+              )}
+              <div className="space-y-2.5">
+                {requests.map((r) => (
+                  <div key={r.id} className="rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 p-3 flex items-center gap-3">
+                    <Avatar src={r.user?.avatar_url} name={r.user?.display_name} id={r.user_id} size={40} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-gray-900 dark:text-white truncate">{r.user?.display_name}</p>
+                      <p className="text-xs text-gray-500 dark:text-white/50 truncate">@{r.user?.username}</p>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {/*REQS_END*/}
-            {/* ── ИНВАЙТЫ ── */}
-            {tab === "invites" && (
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-white/80 cursor-pointer py-1">
-                  <input type="checkbox" checked={autoApprove} onChange={(e) => setAutoApprove(e.target.checked)} className="accent-[#8b5cf6]" />
-                  <>{channel.is_public ? <><Globe size={13} className="text-gray-400" /> Прямое вступление (публичный канал)</> : <><Globe size={13} className="text-gray-400" /> Вступление без одобрения (auto-approve)</>}</>
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    value={inviteUrl}
-                    readOnly
-                    placeholder="Ссылка появится после создания"
-                    className="flex-1 px-3 py-2 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm"
-                  />
-                  <button onClick={createInvite} disabled={creatingInvite} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#8b5cf6] hover:bg-[#7c3aed] disabled:opacity-50 text-white text-sm font-bold shrink-0">
-                    {creatingInvite ? <Loader2 size={14} className="animate-spin" /> : <Copy size={14} />}
-                    Создать и копировать
-                  </button>
-                </div>
-                {inviteUrl && (
-                  <p className="text-[11px] text-gray-500 dark:text-white/40">
-                    Ссылка скопирована в буфер обмена. По ней пользователь попадёт на /c/{channel.custom_slug}?invite=...
-                  </p>
-                )}
-              </div>
-            )}
-            {/*INV_END*/}
-            {/* ── НАСТРОЙКИ ── */}
-            {tab === "settings" && (
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-white/80 cursor-pointer py-1">
-                  <input type="checkbox" checked={sShowSig} onChange={(e) => setSShowSig(e.target.checked)} className="accent-[#8b5cf6]" />
-                  Подпись автора под постами
-                </label>
-                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-white/80 cursor-pointer py-1">
-                  <input type="checkbox" checked={sSilent} onChange={(e) => setSSilent(e.target.checked)} className="accent-[#8b5cf6]" />
-                  Тихие посты по умолчанию
-                </label>
-                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-white/80 cursor-pointer py-1">
-                  <input type="checkbox" checked={sComments} onChange={(e) => setSComments(e.target.checked)} className="accent-[#8b5cf6]" />
-                  Комментарии включены
-                </label>
-                <div>
-                  <label className="text-xs font-bold text-gray-600 dark:text-white/60 mb-1 block">Ссылка на канал</label>
-                  <div className="relative">
-                    <AtSign size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
-                    <input
-                      value={sSlug}
-                      onChange={(e) => setSSlug(e.target.value.toLowerCase())}
-                      maxLength={33}
-                      className="w-full pl-8 pr-3 py-2 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm"
-                    />
+                    <button onClick={() => decide(r.id, "approve")} className="p-2 rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/25" title="Одобрить">
+                      <CheckCircle size={16} />
+                    </button>
+                    <button onClick={() => decide(r.id, "reject")} className="p-2 rounded-lg text-gray-500 dark:text-white/40 hover:text-red-500 hover:bg-red-500/10" title="Отклонить">
+                      <XCircle size={16} />
+                    </button>
                   </div>
-                  <p className="text-[11px] text-gray-500 dark:text-white/40 mt-1">Латиница, цифры, «_», 5-32 символа. Канал будет доступен по /c/@ссылка</p>
-                </div>
-                <button onClick={saveSettings} disabled={saving} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#8b5cf6] hover:bg-[#7c3aed] disabled:opacity-50 text-white text-sm font-bold">
-                  {saving ? <Loader2 size={14} className="animate-spin" /> : <Settings size={14} />}
-                  Сохранить настройки
-                </button>
+                ))}
               </div>
-            )}
-            {/*SET_END*/}
-          </div>
+            </div>
+          )}
+
+          {tab === "danger" && (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle size={18} className="text-red-500" />
+                <h3 className="font-black text-gray-900 dark:text-white">Опасная зона</h3>
+              </div>
+              <p className="text-xs text-gray-600 dark:text-white/50 mb-4">
+                Удаление канала удалит все посты, комментарии и подписчиков. Действие необратимо.
+              </p>
+              <Button variant="danger" icon={Trash2} onClick={deleteChannel} className="w-full">
+                Удалить канал
+              </Button>
+            </div>
+          )}
         </div>
       </div>
-    </>
+    </div>
   );
 }

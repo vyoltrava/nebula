@@ -15,7 +15,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from pydantic import BaseModel
 from sqlmodel import Session, select, func
 
@@ -1521,6 +1521,64 @@ def admin_unblock_channel(
 def is_channel_blocked(session: Session, channel_id: int) -> bool:
     """Хелпер: канал заблокирован модерацией → постинг запрещён."""
     return bool(session.get(SystemSetting, f"channel_blocked_{channel_id}"))
+
+
+@router.post("/channels/{channel_id}/avatar")
+async def upload_channel_avatar(
+    channel_id: int,
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Загрузка аватара канала (по образцу /api/chats/{chat_id}/avatar)."""
+    import os as _os
+    import cloudinary
+    import cloudinary.uploader
+    from cloudinary_config import UPLOAD_FOLDER
+    from main import extract_cloudinary_public_id, check_size_before_read
+    from fastapi.concurrency import run_in_threadpool
+
+    ch = get_channel_or_404(session, channel_id)
+    require_admin(session, ch, user)
+
+    if not file.filename:
+        raise HTTPException(400, "No file provided")
+    ext = _os.path.splitext(file.filename)[1].lower()
+    if ext not in {".jpg", ".jpeg", ".png", ".gif", ".webp"}:
+        raise HTTPException(400, f"Неверный формат: {ext}. Поддерживаются: .jpg, .jpeg, .png, .gif, .webp")
+    err = check_size_before_read(file.headers, 5 * 1024 * 1024)
+    if err:
+        raise HTTPException(413, err)
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(400, "Файл слишком большой (максимум 5 МБ)")
+
+    # Удаляем старую аватарку
+    if ch.avatar_url and "cloudinary.com" in ch.avatar_url:
+        try:
+            public_id = extract_cloudinary_public_id(ch.avatar_url)
+            if public_id:
+                cloudinary.uploader.destroy(public_id)
+        except Exception:
+            pass
+
+    try:
+        result = await run_in_threadpool(
+            lambda: cloudinary.uploader.upload(
+                content,
+                folder=UPLOAD_FOLDER,
+                resource_type="image",
+                transformation=[{"width": 400, "height": 400, "crop": "fill"}],
+            )
+        )
+        ch.avatar_url = result.get("secure_url")
+    except Exception as e:
+        raise HTTPException(400, f"Ошибка загрузки: {str(e)}")
+
+    session.add(ch)
+    session.commit()
+    await notify_subscribers(session, ch.id, "channel_updated", {"channel_id": ch.id})
+    return {"ok": True, "avatar_url": ch.avatar_url}
 
 
 @router.delete("/admin/channels/{channel_id}/posts/{post_id}")
