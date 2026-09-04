@@ -85,11 +85,13 @@ def channel_out(channel: Channel, session: Session, viewer: Optional[User] = Non
     my_role = None
     muted = False
     unread = 0
+    pinned = False
     if viewer:
         sub = get_subscription(session, channel.id, viewer.id)
         if sub:
             my_role = sub.role
             muted = sub.muted_until is not None and sub.muted_until > utcnow()
+            pinned = sub.pinned_at is not None
             if sub.last_seen_post_at:
                 unread = session.exec(
                     select(func.count(ChannelPost.id)).where(
@@ -119,6 +121,7 @@ def channel_out(channel: Channel, session: Session, viewer: Optional[User] = Non
         "created_at": channel.created_at.isoformat() if channel.created_at else None,
         "my_role": my_role,
         "is_muted": muted,
+        "pinned": pinned,
         "unread_count": unread,
         "is_channel": True,
     }
@@ -365,6 +368,23 @@ def list_subscribers(
         }
         for s in subs if s.user_id in users
     ]
+
+
+@router.post("/channels/{channel_id}/pin")
+async def pin_channel_toggle(
+    channel_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Личное закрепление/открепление канала в списке чатов пользователя."""
+    ch = get_channel_or_404(session, channel_id)
+    sub = get_subscription(session, ch.id, user.id)
+    if not sub:
+        raise HTTPException(403, "Вы не подписаны на канал")
+    sub.pinned_at = None if sub.pinned_at else utcnow()
+    session.add(sub)
+    session.commit()
+    return {"ok": True, "is_pinned": sub.pinned_at is not None}
 
 
 @router.patch("/channels/{channel_id}/mute")

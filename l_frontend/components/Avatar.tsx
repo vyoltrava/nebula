@@ -8,6 +8,7 @@ export function Avatar({
   size = 40,
   className = "",
   online = false,
+  round = false,
 }: {
   src?: string | null;
   name: string;
@@ -15,6 +16,7 @@ export function Avatar({
   size?: number;
   className?: string;
   online?: boolean;
+  round?: boolean; // 📢 круглый аватар (для каналов)
 }) {
   const [imgError, setImgError] = useState(false);
 
@@ -36,7 +38,7 @@ export function Avatar({
     >
       {/* 🆕 ЗАМЕНИЛ bg-white/[0.08] НА bg-transparent, чтобы не было ложной обводки */}
       <div
-        className="w-full h-full rounded-xl overflow-hidden bg-transparent"
+        className={`w-full h-full ${round ? "rounded-full" : "rounded-xl"} overflow-hidden bg-transparent`}
         style={{ width: size, height: size }}
       >
         {imageUrl && !imgError ? (

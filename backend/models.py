@@ -911,6 +911,8 @@ class ChannelSubscriber(SQLModel, table=True):
     muted_until: Optional[datetime] = None
     # 🔔 бейдж непрочитанных: посты новее этой даты считаются новыми
     last_seen_post_at: Optional[datetime] = None
+    # 📌 личное закрепление канала пользователем (в списке чатов)
+    pinned_at: Optional[datetime] = None
     __table_args__ = (UniqueConstraint("channel_id", "user_id"),)
 
 

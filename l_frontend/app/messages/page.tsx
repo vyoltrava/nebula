@@ -7,7 +7,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
 import { CreateGroupModal } from "@/components/CreateGroupModal";
 import { CreateChannelModal } from "@/components/CreateChannelModal";
-import { MessageSquare, Search, Lock, Users, Bookmark, ShieldCheck, X, Plus, Megaphone } from "lucide-react";
+import { MessageSquare, Search, Lock, Users, Bookmark, ShieldCheck, X, Plus, Megaphone, UserPlus } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { socket } from "@/lib/websocket";
@@ -246,6 +246,49 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     }
   }
 
+  // 📢 Действия меню канала в списке чатов
+  async function toggleChannelPin(chId: number) {
+    const token = getToken();
+    if (!token) return;
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${chId}/pin`, {
+      method: "POST", headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) await load();
+  }
+
+  async function toggleChannelMute(chId: number, muted: boolean) {
+    const token = getToken();
+    if (!token) return;
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${chId}/mute?forever=${!muted}`, {
+      method: "PATCH", headers: { Authorization: `Bearer ${token}` },
+    });
+    await load();
+  }
+
+  async function leaveChannel(chId: number) {
+    if (!confirm(t("channels.unsubscribe") || "Отписаться от канала?")) return;
+    const token = getToken();
+    if (!token) return;
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${chId}/subscribe`, {
+      method: "DELETE", headers: { Authorization: `Bearer ${token}` },
+    });
+    await load();
+  }
+
+  async function deleteChannelFromList(chId: number) {
+    if (!confirm(t("channels.deleteChannelConfirm") || "Удалить канал? Действие необратимо.")) return;
+    const token = getToken();
+    if (!token) return;
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${chId}`, {
+      method: "DELETE", headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) await load();
+    else {
+      const d = await res.json().catch(() => null);
+      alert(d?.detail || "Ошибка");
+    }
+  }
+
   async function openSavedMessages() {
     const token = getToken();
     if (!token) return;
@@ -342,6 +385,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
           subscribers_count: ch.subscribers_count,
           unread_count: ch.unread_count || 0,
           muted: !!ch.is_muted,
+          pinned: !!ch.pinned,
           last_activity: ch.created_at,
           members: [],
         }));
@@ -555,42 +599,72 @@ const confirmPrismKey = async () => {
         )}
 
         {!loading && sortedChats.map((chat) => {
-          // 📢 Каналы: отдельная карточка (рупор вместо пузыря чата)
+          // 📢 Каналы: карточка как у чатов (меню, свайпы, круглый аватар)
           if (chat.is_channel) {
             return (
-              <div
+              <SwipeableChatItem
                 key={`channel-${chat.id}`}
+                isPinned={!!chat.pinned}
                 onClick={() => { refresh(); router.push(`/channels/${chat.custom_slug}`); }}
-                className={`flex items-center gap-3 p-3 md:p-4 border-b border-b-white/10 border-l-4 border-l-[#8b5cf6]/40 hover:bg-gray-100 dark:hover:bg-white/5 cursor-pointer transition-all duration-200 ${chat.muted ? "opacity-60" : ""} ${chat.unread_count > 0 && !chat.muted ? "bg-purple-500/10" : ""}`}
+                onSwipeRight={() => {
+                  if (activeChatMenu === chat.id) { setActiveChatMenu(null); setMenuPosition(null); }
+                  else { setActiveChatMenu(chat.id); }
+                }}
+                onSwipeLeft={() => {
+                  if (chat.my_role === "owner") deleteChannelFromList(chat.id);
+                  else leaveChannel(chat.id);
+                }}
               >
-                <div className="shrink-0">
-                  {chat.avatar_url ? (
-                    <Avatar src={chat.avatar_url} name={chat.name} id={chat.id} size={48} />
-                  ) : (
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9] flex items-center justify-center">
-                      <Megaphone size={22} className="text-white" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <p className="font-bold truncate text-gray-900 dark:text-white">{chat.name}</p>
-                    <span className="ml-1 px-2 py-0.5 rounded-md bg-[#8b5cf6]/10 border border-[#8b5cf6]/40 text-[#a78bfa] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
-                      <Megaphone size={10} /> {t("messages.channel") || "Канал"}
-                    </span>
+                <div className={`flex items-center gap-3 p-3 md:p-4 border-b transition-all duration-200 cursor-pointer ${chat.muted ? "opacity-60" : ""} border-b-white/10 border-l-4 border-l-[#8b5cf6]/40 hover:bg-gray-100 dark:hover:bg-white/5 ${chat.unread_count > 0 && !chat.muted ? "bg-purple-500/10" : ""}`}>
+                  <div className="shrink-0">
+                    {chat.avatar_url ? (
+                      <Avatar src={chat.avatar_url} name={chat.name} id={chat.id} size={48} round />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9] flex items-center justify-center">
+                        <Megaphone size={22} className="text-white" />
+                      </div>
+                    )}
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-white/40 mt-0.5 truncate">
-                    {chat.my_role === "owner" ? "Ваш канал" : chat.my_role === "admin" ? "Вы админ" : "Канал"} · @{chat.custom_slug} · {chat.subscribers_count}
-                  </p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {chat.pinned && <Pin size={12} className="text-[#8b5cf6] shrink-0" />}
+                      <p className="font-bold truncate text-gray-900 dark:text-white">{chat.name}</p>
+                      <span className="ml-1 px-2 py-0.5 rounded-md bg-[#8b5cf6]/10 border border-[#8b5cf6]/40 text-[#a78bfa] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
+                        <Megaphone size={10} /> {t("messages.channel") || "Канал"}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-white/40 mt-0.5 truncate">
+                      {chat.my_role === "owner" ? "Ваш канал" : chat.my_role === "admin" ? "Вы админ" : "Канал"} · @{chat.custom_slug} · {chat.subscribers_count}
+                    </p>
+                  </div>
+                  <div className="shrink-0 flex items-center gap-2">
+                    {chat.unread_count > 0 && (
+                      <span className={`text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center ${chat.muted ? "bg-gray-400/70 dark:bg-white/25 text-gray-800 dark:text-black" : "bg-[#8b5cf6] text-gray-900 dark:text-white"}`}>
+                        {chat.unread_count}
+                      </span>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (activeChatMenu === chat.id) {
+                          setActiveChatMenu(null);
+                          setMenuPosition(null);
+                        } else {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setActiveChatMenu(chat.id);
+                          setMenuPosition({
+                            top: rect.bottom + 8,
+                            right: window.innerWidth - rect.right,
+                          });
+                        }
+                      }}
+                      className="p-1.5 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                    >
+                      <MoreVertical size={16} />
+                    </button>
+                  </div>
                 </div>
-                <div className="shrink-0 flex items-center gap-2">
-                  {chat.unread_count > 0 && (
-                    <span className={`text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center ${chat.muted ? "bg-gray-400/70 dark:bg-white/25 text-gray-800 dark:text-black" : "bg-[#8b5cf6] text-gray-900 dark:text-white"}`}>
-                      {chat.unread_count}
-                    </span>
-                  )}
-                </div>
-              </div>
+              </SwipeableChatItem>
             );
           }
           const isSaved = !!chat.is_saved;
@@ -834,8 +908,59 @@ const confirmPrismKey = async () => {
               style={menuPosition ? { top: menuPosition.top, right: menuPosition.right } : undefined}
             >
               <p className="text-xs text-gray-500 dark:text-white/40 mb-2 px-1 truncate">
-                {menuChat.is_group ? menuChat.name : menuChat.other?.display_name}
+                {menuChat.is_channel ? menuChat.name : menuChat.is_group ? menuChat.name : menuChat.other?.display_name}
               </p>
+              {menuChat.is_channel ? (
+                <>
+                  {/* 📌 Закрепить/открепить канал */}
+                  <button
+                    onClick={async () => { await toggleChannelPin(menuChat.id); setActiveChatMenu(null); setMenuPosition(null); }}
+                    className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+                  >
+                    {menuChat.pinned ? <PinOff size={16} className="text-yellow-600 dark:text-yellow-400" /> : <Pin size={16} className="text-[#8b5cf6]" />}
+                    {menuChat.pinned ? t("messages.unpin") : t("messages.pin")}
+                  </button>
+                  {/* 🔕 Мьют канала */}
+                  <button
+                    onClick={async () => { await toggleChannelMute(menuChat.id, !!menuChat.muted); setActiveChatMenu(null); setMenuPosition(null); }}
+                    className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+                  >
+                    {menuChat.muted
+                      ? <><Bell size={16} className="text-green-600 dark:text-green-400" /> {t("mute.turnOn")}</>
+                      : <><BellOff size={16} className="text-amber-600 dark:text-amber-400" /> {t("mute.turnOff")}</>}
+                  </button>
+                  {/* Открыть */}
+                  <button
+                    onClick={() => {
+                      setActiveChatMenu(null);
+                      setMenuPosition(null);
+                      refresh();
+                      router.push(`/channels/${menuChat.custom_slug}`);
+                    }}
+                    className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+                  >
+                    <Megaphone size={16} className="text-gray-600 dark:text-white/60" /> {t("messages.openChat")}
+                  </button>
+                  <div className="h-px bg-gray-100 dark:bg-white/10 my-1" />
+                  {/* Отписаться / Удалить (owner) */}
+                  {menuChat.my_role === "owner" ? (
+                    <button
+                      onClick={() => { setActiveChatMenu(null); setMenuPosition(null); deleteChannelFromList(menuChat.id); }}
+                      className="w-full px-3 py-3 rounded-xl text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
+                    >
+                      <Trash2 size={16} className="text-red-600 dark:text-red-400" /> {t("channels.deleteChannel") || "Удалить канал"}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => { setActiveChatMenu(null); setMenuPosition(null); leaveChannel(menuChat.id); }}
+                      className="w-full px-3 py-3 rounded-xl text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors"
+                    >
+                      <UserPlus size={16} className="rotate-45 text-red-600 dark:text-red-400" /> {t("channels.unsubscribe") || "Отписаться"}
+                    </button>
+                  )}
+                </>
+              ) : (
+              <>
               <button
                 onClick={() => togglePinChat(menuChat.id, !!menuChat.pinned)}
                 className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
@@ -882,6 +1007,8 @@ const confirmPrismKey = async () => {
               >
                 <Trash2 size={16} className="text-red-600 dark:text-red-400" /> {t("messages.deleteChat")}
               </button>
+              </>
+              )}
             </div>
           </>
         );

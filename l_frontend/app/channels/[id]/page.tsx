@@ -448,7 +448,7 @@ export default function ChannelPage() {
             <ArrowLeft size={20} />
           </button>
           {channel.avatar_url ? (
-            <Avatar src={channel.avatar_url} name={channel.title} id={channel.id} size={40} />
+            <Avatar src={channel.avatar_url} name={channel.title} id={channel.id} size={40} round />
           ) : (
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9] flex items-center justify-center shrink-0">
               <Megaphone size={20} className="text-white" />
@@ -508,9 +508,9 @@ export default function ChannelPage() {
           </div>
         </header>
 
-        {/* ── ЛЕНТА ПУЗЫРЕЙ ── */}
+        {/* ── ЛЕНТА ПУЗЫРЕЙ (на всю ширину, как в чате) ── */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-4">
-          <div className="max-w-3xl mx-auto space-y-3 pb-4">
+          <div className="space-y-3 pb-4">
             {pinnedPosts.map((p) => <PostBubble key={p.id} post={p} pinned />)}
             {pinnedPosts.length > 0 && <div className="h-px bg-line dark:bg-white/10" />}
             {feedPosts.length === 0 && pinnedPosts.length === 0 && (

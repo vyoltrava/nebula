@@ -4,7 +4,7 @@
 // название, описание, приватность, ссылка (@slug).
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { X, Upload, Image as ImageIcon, Link2, Copy, Trash2, Users, AlertTriangle, Settings, AtSign, CheckCircle, XCircle, Loader2, Globe, Lock } from "lucide-react";
+import { X, Upload, Image as ImageIcon, Link2, Copy, Trash2, Users, AlertTriangle, Settings, AtSign, CheckCircle, XCircle, Loader2, Globe, Lock, Crown, Shield, UserX } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { Avatar } from "@/components/Avatar";
@@ -16,7 +16,7 @@ interface Props {
   onChanged: () => void;
 }
 
-type Tab = "main" | "links" | "requests" | "danger";
+type Tab = "main" | "links" | "members" | "requests" | "danger";
 
 export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
   const router = useRouter();
@@ -44,6 +44,8 @@ export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
   const [creatingInvite, setCreatingInvite] = useState(false);
   // Заявки
   const [requests, setRequests] = useState<any[]>([]);
+  // Участники
+  const [subscribers, setSubscribers] = useState<any[]>([]);
 
   const createInvite = async () => {
     setCreatingInvite(true);
@@ -67,6 +69,23 @@ export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
   const decide = async (reqId: number, action: "approve" | "reject") => {
     const r = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/requests/${reqId}?action=${action}`, { method: "PATCH" });
     if (r.ok) { loadRequests(); onChanged(); }
+  };
+
+  // 👥 Участники: список, роли, исключение
+  const loadSubscribers = async () => {
+    const r = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/subscribers`);
+    if (r.ok) setSubscribers(await r.json());
+  };
+  const setRole = async (uid: number, role: string) => {
+    const r = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/subscribers/${uid}?role=${role}`, { method: "PATCH" });
+    if (!r.ok) { const d = await r.json().catch(() => null); alert(d?.detail || "Не удалось изменить роль"); }
+    loadSubscribers();
+  };
+  const kickMember = async (uid: number) => {
+    if (!confirm("Исключить из канала?")) return;
+    const r = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/subscribers/${uid}`, { method: "DELETE" });
+    if (!r.ok) { const d = await r.json().catch(() => null); alert(d?.detail || "Не удалось исключить"); }
+    loadSubscribers();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,6 +154,7 @@ export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
 
   useEffect(() => {
     if (tab === "requests") loadRequests();
+    if (tab === "members") loadSubscribers();
     if (tab !== "main") setMsg("");
     // eslint-disable-next-line
   }, [tab]);
@@ -149,6 +169,7 @@ export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
         <div className="p-3 border-b border-line dark:border-white/10 flex gap-2 shrink-0">
           {tabBtn("main", "Канал", <Settings size={14} />)}
           {isAdmin && tabBtn("links", "Ссылки", <Link2 size={14} />)}
+          {isAdmin && tabBtn("members", "Участники", <Users size={14} />)}
           {isAdmin && tabBtn("requests", "Заявки", <Users size={14} />)}
           {isAdmin && tabBtn("danger", "Удаление", <Trash2 size={14} />)}
         </div>
@@ -156,7 +177,7 @@ export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
           {tab === "main" && (
             <>
               <div className="flex items-center justify-center">
-                <div className="relative w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 cursor-pointer group" onClick={() => fileRef.current?.click()}>
+                <div className="relative w-24 h-24 rounded-full overflow-hidden bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 cursor-pointer group" onClick={() => fileRef.current?.click()}>
                   {avatarPreview ? <img src={mediaUrl(avatarPreview)} alt="" className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center text-gray-500 dark:text-white/40"><ImageIcon size={32} /></div>}
                   <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"><Upload size={20} className="text-white" /></div>
@@ -210,6 +231,48 @@ export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
                 </Button>
               </div>
               {inviteUrl && <p className="text-[11px] text-gray-500 dark:text-white/40">Ссылка скопирована в буфер обмена.</p>}
+            </div>
+          )}
+
+          {tab === "members" && (
+            <div>
+              {subscribers.length === 0 ? (
+                <p className="text-center text-gray-500 dark:text-white/40 text-sm py-8">Подписчиков нет</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {subscribers.map((m) => {
+                    const u = m.user;
+                    const isOwner = m.role === "owner";
+                    return (
+                      <div key={u.id} className="rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 p-3 flex items-center gap-3">
+                        <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={40} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-900 dark:text-white truncate">{u.display_name}</span>
+                            {isOwner ? <Crown size={14} className="text-yellow-500" /> : m.role === "admin" ? <Shield size={14} className="text-[#8b5cf6]" /> : null}
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-white/50 truncate">@{u.username}</p>
+                        </div>
+                        {isOwner ? (
+                          <span className="text-[10px] font-black text-yellow-500 uppercase">Создатель</span>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <select
+                              value={m.role}
+                              onChange={(e) => setRole(u.id, e.target.value)}
+                              className="px-2 py-1 rounded-lg border border-line dark:border-white/10 bg-ivory dark:bg-[#171717] text-xs font-bold text-gray-900 dark:text-white"
+                            >
+                              <option value="subscriber">Подписчик</option>
+                              <option value="admin">Админ</option>
+                            </select>
+                            <IconButton icon={UserX} variant="danger" size="iconSm" onClick={() => kickMember(u.id)} title="Исключить" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
