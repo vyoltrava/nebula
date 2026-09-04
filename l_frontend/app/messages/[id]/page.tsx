@@ -58,7 +58,7 @@ import {
   Lock, Search, ShieldCheck, AlertTriangle, Flag,
   Check, CheckCheck, CheckSquare, Mic, Square, Users, Settings,
   Pin, PinOff, Video, Copy, SmilePlus,  Reply, Bookmark, Type, Plus,
-  Phone
+  Phone, Megaphone
 } from "lucide-react";
 // ✅ НОВЫЕ ИМПОРТЫ:
 import {
@@ -592,27 +592,63 @@ function decryptText(ciphertext: string): string {
     const token = getToken();
     if (!token) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const chats = await res.json();
-        // Исключаем секретные чаты
-        setForwardChats(chats.filter((c: any) => !c.is_secret));
-      }
+      // Чаты + каналы (изолированная система) для пересылки «из чата в канал»
+      const [chatsRes, channelsRes] = await Promise.all([
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/my`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+      const chats = chatsRes.ok ? await chatsRes.json() : [];
+      const channels = channelsRes.ok ? await channelsRes.json() : [];
+      // Исключаем секретные чаты, помечаем каналы
+      const chatItems = (chats.filter((c: any) => !c.is_secret) || []).map((c: any) => ({ ...c, is_channel: false }));
+      const channelItems = (channels || []).map((ch: any) => ({
+        id: ch.id,
+        is_channel: true,
+        is_group: false,
+        name: ch.title,
+        custom_slug: ch.custom_slug,
+        avatar_url: ch.avatar_url,
+        my_role: ch.my_role,
+      }));
+      setForwardChats([...chatItems, ...channelItems]);
     } catch (err) {
-      console.error("Failed to load chats for forwarding:", err);
+      console.error("Failed to load chats/channels for forwarding:", err);
     }
   }
 
   // Функция пересылки
-  async function forwardToChat(targetChatId: number) {
+  async function forwardToChat(target: any) {
     const token = getToken();
     if (!token || !forwardingMessage) return;
     try {
+      // 📢 Пересылка в канал (изолированная система): создаём пост на основе сообщения
+      if (target.is_channel) {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/channels/${target.id}/posts`,
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ forwarded_from_chat: forwardingMessage.id }),
+          }
+        );
+        if (res.ok) {
+          setShowForwardModal(false);
+          setForwardingMessage(null);
+          alert(t("messages.forwarded"));
+        } else {
+          const err = await res.json().catch(() => ({ detail: t("common.error") }));
+          alert(err.detail || t("messages.forwardFailed"));
+        }
+        return;
+      }
+      // Обычный чат — существующий эндпоинт
       const form = new FormData();
-      form.append("target_chat_id", String(targetChatId));
-      
+      form.append("target_chat_id", String(target.id));
+
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages/${forwardingMessage.id}/forward`,
         {
@@ -621,7 +657,7 @@ function decryptText(ciphertext: string): string {
           body: form,
         }
       );
-      
+
       if (res.ok) {
         setShowForwardModal(false);
         setForwardingMessage(null);
@@ -3501,12 +3537,14 @@ style={{
         <div className="flex-1 overflow-y-auto p-2">
           {forwardChats.map((c) => (
             <button
-              key={c.id}
-              onClick={() => forwardToChat(c.id)}
+              key={(c.is_channel ? "ch-" : "chat-") + c.id}
+              onClick={() => forwardToChat(c)}
               className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-left"
             >
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shrink-0">
-                {c.is_group ? (
+              <div className={`w-10 h-10 rounded-xl shrink-0 overflow-hidden flex items-center justify-center ${c.is_channel ? "bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9]" : "bg-gradient-to-br from-purple-500 to-indigo-600"}`}>
+                {c.is_channel ? (
+                  <Megaphone size={18} className="text-white" />
+                ) : c.is_group ? (
                   <Users size={18} className="text-gray-900 dark:text-white" />
                 ) : c.other?.avatar_url ? (
                   <img src={mediaUrl(c.other.avatar_url)} alt="" className="w-full h-full rounded-xl object-cover" />
@@ -3516,10 +3554,10 @@ style={{
               </div>
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-gray-900 dark:text-white truncate">
-                  {c.is_group ? c.name : c.other?.display_name}
+                  {c.is_channel ? c.name : c.is_group ? c.name : c.other?.display_name}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-white/40 truncate">
-                  {c.is_group ? `${c.members_count} участников` : `@${c.other?.username}`}
+                  {c.is_channel ? `@${c.custom_slug} — канал` : c.is_group ? `${c.members_count} участников` : `@${c.other?.username}`}
                 </p>
               </div>
             </button>

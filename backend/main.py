@@ -368,6 +368,8 @@ app.include_router(lp_router, prefix="/api")
 
 @app.on_event("startup")
 def print_routes():
+    # ⏰ Воркер отложенных постов каналов (импортируется ниже по файлу)
+    start_channels_scheduler()
     print("=== ЗАРЕГИСТРИРОВАННЫЕ РОУТЫ ===")
     for route in app.routes:
         if hasattr(route, "path"):
@@ -9709,7 +9711,8 @@ def create_report(
     session: Session = Depends(get_session),
 ):
     # Валидация типа
-    if target_type not in ("post", "user", "chat", "chat_message", "dm_user"):
+    if target_type not in ("post", "user", "chat", "chat_message", "dm_user",
+                           "channel", "channel_post", "channel_comment"):
         raise HTTPException(400, "Invalid target type")
     
     # Валидация причины
@@ -9753,6 +9756,10 @@ def create_report(
         # Нельзя жаловаться на себя
         if target.id == user.id:
             raise HTTPException(400, "Cannot report yourself")
+    elif target_type in ("channel", "channel_post", "channel_comment"):
+        # 📢 Жалобы на каналы (изолированная система) — валидация в channels.py
+        from channels import validate_channel_report_target
+        validate_channel_report_target(session, target_type, target_id)
 
     # Проверка на дубликат жалобы
     existing = session.exec(
@@ -13283,6 +13290,14 @@ app.include_router(prisma_router, prefix="/api")
 from payments import router as payments_router
 
 app.include_router(payments_router, prefix="/api")
+
+# ============================================================
+# 📢 КАНАЛЫ — регистрация роутера (модуль channels.py).
+#    Изолированная система: свои таблицы, свои WS-события channel_*.
+# ============================================================
+from channels import router as channels_router, start_channels_scheduler
+
+app.include_router(channels_router, prefix="/api")
 
 # ============================================================
 # 🌐 РЕКОМЕНДАЦИИ — визуальная паутина похожих пользователей

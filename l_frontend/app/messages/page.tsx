@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
 import { CreateGroupModal } from "@/components/CreateGroupModal";
-import { MessageSquare, Search, Lock, Users, Bookmark, ShieldCheck, X, Plus } from "lucide-react";
+import { CreateChannelModal } from "@/components/CreateChannelModal";
+import { MessageSquare, Search, Lock, Users, Bookmark, ShieldCheck, X, Plus, Megaphone } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { socket } from "@/lib/websocket";
@@ -103,6 +104,7 @@ export default function MessagesPage() {
   const [query, setQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showPrismModal, setShowPrismModal] = useState(false);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [prismSearchQuery, setPrismSearchQuery] = useState("");
@@ -167,8 +169,8 @@ export default function MessagesPage() {
     if (!q) return allChats;
     return allChats.filter((c) => {
       const isGroup = !!c.is_group;
-      const name = (isGroup ? c.name : c.other?.display_name || "").toLowerCase();
-      const username = (!isGroup ? c.other?.username || "" : "").toLowerCase();
+      const name = (c.is_channel ? c.name : isGroup ? c.name : c.other?.display_name || "").toLowerCase();
+      const username = (c.is_channel ? `@${c.custom_slug || ""}` : !isGroup ? c.other?.username || "" : "").toLowerCase();
       const text = (c.last_message?.text || "").toLowerCase();
       return name.includes(q) || username.includes(q) || text.includes(q);
     });
@@ -191,6 +193,9 @@ export default function MessagesPage() {
     } else if (create === "group") {
       setShowCreateGroup(true);
       window.history.replaceState({}, "", "/messages");
+    } else if (create === "channel") {
+      setShowCreateChannel(true);
+      window.history.replaceState({}, "", "/messages");
     }
   }, []);
 
@@ -199,6 +204,7 @@ export default function MessagesPage() {
       const kind = (e as CustomEvent).detail;
       if (kind === "prism") setShowCreateGroup(true); // 🔁 prism → группа
       else if (kind === "group") setShowCreateGroup(true);
+      else if (kind === "channel") setShowCreateChannel(true);
     };
     window.addEventListener("nebula-create", onNebulaCreate);
     return () => window.removeEventListener("nebula-create", onNebulaCreate);
@@ -311,10 +317,37 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       return;
     }
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) setAllChats(await res.json());
+      // Чаты (существующий API) + каналы (изолированная система /api/channels)
+      const [chatsRes, channelsRes] = await Promise.all([
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/my`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+      const chatsData = chatsRes.ok ? await chatsRes.json() : [];
+      let items: any[] = chatsData;
+      if (channelsRes.ok) {
+        const channelsData = await channelsRes.json();
+        // Каналы → унифицированный формат списка (is_channel: true)
+        const channelItems = (channelsData || []).map((ch: any) => ({
+          id: ch.id,
+          is_channel: true,
+          is_group: false,
+          name: ch.title,
+          avatar_url: ch.avatar_url,
+          custom_slug: ch.custom_slug,
+          my_role: ch.my_role,
+          subscribers_count: ch.subscribers_count,
+          unread_count: ch.unread_count || 0,
+          muted: !!ch.is_muted,
+          last_activity: ch.created_at,
+          members: [],
+        }));
+        items = [...chatsData, ...channelItems];
+      }
+      setAllChats(items);
     } finally {
       setLoading(false);
     }
@@ -330,6 +363,12 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     const unsubGroupAdded = socket.on("group_member_added", () => { load(); });
     const unsubGroupRemoved = socket.on("group_member_removed", () => { load(); });
     const unsubChatDeleted = socket.on("chat_deleted", () => { load(); refresh(); });
+    // 📢 Каналы (изолированные channel_* события)
+    const unsubChannelPost = socket.on("channel_new_post", () => { load(); });
+    const unsubChannelSilent = socket.on("channel_new_post_silent", () => { load(); });
+    const unsubChannelEdited = socket.on("channel_post_edited", () => { load(); });
+    const unsubChannelDeleted = socket.on("channel_post_deleted", () => { load(); });
+    const unsubChannelJoined = socket.on("channel_subscriber_joined", () => { load(); });
 
     return () => {
       unsubNewMsg();
@@ -338,6 +377,11 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       unsubGroupAdded();
       unsubGroupRemoved();
       unsubChatDeleted();
+      unsubChannelPost();
+      unsubChannelSilent();
+      unsubChannelEdited();
+      unsubChannelDeleted();
+      unsubChannelJoined();
     };
   }, []);
 
@@ -371,8 +415,8 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     }
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;
-    const aTime = a.last_message ? new Date(a.last_message.created_at).getTime() : (a.created_at ? new Date(a.created_at).getTime() : 0);
-    const bTime = b.last_message ? new Date(b.last_message.created_at).getTime() : (b.created_at ? new Date(b.created_at).getTime() : 0);
+    const aTime = a.last_message ? new Date(a.last_message.created_at).getTime() : (a.last_activity ? new Date(a.last_activity).getTime() : (a.created_at ? new Date(a.created_at).getTime() : 0));
+    const bTime = b.last_message ? new Date(b.last_message.created_at).getTime() : (b.last_activity ? new Date(b.last_activity).getTime() : (b.created_at ? new Date(b.created_at).getTime() : 0));
     return bTime - aTime;
   });
 
@@ -511,6 +555,44 @@ const confirmPrismKey = async () => {
         )}
 
         {!loading && sortedChats.map((chat) => {
+          // 📢 Каналы: отдельная карточка (рупор вместо пузыря чата)
+          if (chat.is_channel) {
+            return (
+              <div
+                key={`channel-${chat.id}`}
+                onClick={() => { refresh(); router.push(`/channels/${chat.id}`); }}
+                className={`flex items-center gap-3 p-3 md:p-4 border-b border-b-white/10 border-l-4 border-l-[#8b5cf6]/40 hover:bg-gray-100 dark:hover:bg-white/5 cursor-pointer transition-all duration-200 ${chat.muted ? "opacity-60" : ""} ${chat.unread_count > 0 && !chat.muted ? "bg-purple-500/10" : ""}`}
+              >
+                <div className="shrink-0">
+                  {chat.avatar_url ? (
+                    <Avatar src={chat.avatar_url} name={chat.name} id={chat.id} size={48} />
+                  ) : (
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9] flex items-center justify-center">
+                      <Megaphone size={22} className="text-white" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <p className="font-bold truncate text-gray-900 dark:text-white">{chat.name}</p>
+                    <span className="ml-1 px-2 py-0.5 rounded-md bg-[#8b5cf6]/10 border border-[#8b5cf6]/40 text-[#a78bfa] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
+                      <Megaphone size={10} /> {t("messages.channel") || "Канал"}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500 dark:text-white/40 mt-0.5 truncate">
+                    {chat.my_role === "owner" ? "Ваш канал" : chat.my_role === "admin" ? "Вы админ" : "Канал"} · @{chat.custom_slug} · {chat.subscribers_count}
+                  </p>
+                </div>
+                <div className="shrink-0 flex items-center gap-2">
+                  {chat.unread_count > 0 && (
+                    <span className={`text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center ${chat.muted ? "bg-gray-400/70 dark:bg-white/25 text-gray-800 dark:text-black" : "bg-[#8b5cf6] text-gray-900 dark:text-white"}`}>
+                      {chat.unread_count}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          }
           const isSaved = !!chat.is_saved;
           const isGroup = !!chat.is_group;
           const otherUser = chat.other;
@@ -720,6 +802,12 @@ const confirmPrismKey = async () => {
             >
               <Users size={16} className="text-[#8b5cf6]" /> {t("messages.createGroup")}
             </button>
+            <button
+              onClick={() => { setShowCreateMenu(false); setShowCreateChannel(true); }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border-t border-line dark:border-white/5"
+            >
+              <Megaphone size={16} className="text-[#8b5cf6]" /> {t("messages.createChannel")}
+            </button>
           </div>
         )}
       </div>
@@ -805,6 +893,18 @@ const confirmPrismKey = async () => {
           onCreated={(chatId) => {
             setShowCreateGroup(false);
             router.push(`/messages/${chatId}`);
+          }}
+        />
+      )}
+
+      {/* 📢 МОДАЛКА СОЗДАНИЯ КАНАЛА */}
+      {showCreateChannel && (
+        <CreateChannelModal
+          onClose={() => setShowCreateChannel(false)}
+          onCreated={(channelId) => {
+            setShowCreateChannel(false);
+            load();
+            router.push(`/channels/${channelId}`);
           }}
         />
       )}

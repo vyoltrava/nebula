@@ -26,8 +26,8 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export function ChatsSection({ me }: { me: any }) {
-  // Внутренние вкладки секции: жалобы из чатов и сами чаты
-  const [tab, setTab] = useState<"reports" | "chats">("reports");
+  // Внутренние вкладки секции: жалобы из чатов, сами чаты и каналы
+  const [tab, setTab] = useState<"reports" | "chats" | "channels">("reports");
 
   const [chats, setChats] = useState<any[]>([]);
   const [search, setSearch] = useState("");
@@ -43,6 +43,64 @@ export function ChatsSection({ me }: { me: any }) {
   const [members, setMembers] = useState<any[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
+
+  // 📢 Каналы (модерация по жалобе — как у чатов)
+  const [channels, setChannels] = useState<any[]>([]);
+  const [activeChannel, setActiveChannel] = useState<any | null>(null);
+  const [channelPosts, setChannelPosts] = useState<any[]>([]);
+  const [channelPostsLoading, setChannelPostsLoading] = useState(false);
+
+  async function loadChannels() {
+    const token = getToken();
+    const res = await fetch(`${API}/api/admin/channels`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) setChannels(await res.json());
+  }
+
+  async function openChannel(ch: any) {
+    setActiveChannel(ch);
+    setChannelPostsLoading(true);
+    const token = getToken();
+    const res = await fetch(`${API}/api/admin/channels/${ch.id}/posts`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) setChannelPosts(await res.json());
+    else setChannelPosts([]);
+    setChannelPostsLoading(false);
+  }
+
+  async function toggleBlockChannel() {
+    if (!activeChannel) return;
+    const blocked = !!activeChannel.is_blocked;
+    if (!blocked) {
+      const reason = prompt("Причина блокировки канала (необязательно):");
+      if (reason === null) return;
+    } else if (!confirm("Разблокировать канал?")) return;
+    const token = getToken();
+    const url = blocked
+      ? `${API}/api/admin/channels/${activeChannel.id}/unblock`
+      : `${API}/api/admin/channels/${activeChannel.id}/block?reason=`;
+    const res = await fetch(url, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+    if (res.ok) {
+      const updated = { ...activeChannel, is_blocked: !blocked };
+      setActiveChannel(updated);
+      setChannels((cs) => cs.map((ch) => (ch.id === updated.id ? updated : ch)));
+    } else {
+      const d = await res.json().catch(() => null);
+      alert(d?.detail || "Ошибка блокировки");
+    }
+  }
+
+  async function deleteChannelPost(postId: number) {
+    if (!confirm("Удалить пост канала?")) return;
+    const token = getToken();
+    const res = await fetch(`${API}/api/admin/channels/${activeChannel.id}/posts/${postId}`, {
+      method: "DELETE", headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) openChannel(activeChannel);
+    else { const d = await res.json().catch(() => null); alert(d?.detail || "Ошибка"); }
+  }
 
   async function loadChats() {
     const token = getToken();
@@ -64,6 +122,7 @@ export function ChatsSection({ me }: { me: any }) {
 
   useEffect(() => { loadChats(); }, []);
   useEffect(() => { loadReports(reportStatus); }, [reportStatus]);
+  useEffect(() => { if (tab === "channels") loadChannels(); }, [tab]);
 
   async function openChat(chat: any) {
     setTab("chats");
@@ -251,6 +310,16 @@ export function ChatsSection({ me }: { me: any }) {
         >
           <MessageSquare size={16} /> Чаты
         </button>
+        <button
+          onClick={() => setTab("channels")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg border font-medium text-sm transition-all ${
+            tab === "channels"
+              ? "bg-[#8b5cf6] text-white border-transparent"
+              : "bg-white dark:bg-white/5 border-line dark:border-white/10 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10"
+          }`}
+        >
+          <Megaphone size={16} /> Каналы
+        </button>
       </div>
 
       {tab === "reports" && (
@@ -422,18 +491,7 @@ export function ChatsSection({ me }: { me: any }) {
               ))}
               {filtered.length === 0 && <p className="text-center text-gray-500 dark:text-white/40 text-sm py-8">Чатов не найдено</p>}
             </div>
-            {/* Заглушка под будущие каналы (как в ТГ) */}
-            <div className="p-3 border-t border-line dark:border-white/10">
-              <div className="flex items-center gap-3 p-3 rounded-xl border border-dashed border-line dark:border-white/15 opacity-60">
-                <div className="w-11 h-11 rounded-xl bg-gray-100 dark:bg-white/10 flex items-center justify-center shrink-0">
-                  <Megaphone size={18} className="text-gray-500 dark:text-white/40" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-bold text-gray-600 dark:text-white/60 text-sm">Каналы</p>
-                  <p className="text-[11px] text-gray-500 dark:text-white/40">Скоро — новые чат-каналы</p>
-                </div>
-              </div>
-            </div>
+            {/* 📢 Каналы модерации — теперь в отдельной вкладке «Каналы» */}
           </div>
 
           {/* Сообщения */}
@@ -587,6 +645,120 @@ export function ChatsSection({ me }: { me: any }) {
                       </div>
                     </div>
                   ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 📢 Вкладка «Каналы»: только каналы с активной жалобой */}
+      {tab === "channels" && (
+        <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-260px)]">
+          {/* Список каналов (только с жалобами) */}
+          <div className={`w-full md:w-96 border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 flex flex-col ${activeChannel ? "hidden md:flex" : "flex"}`}>
+            <div className="p-3 border-b border-line dark:border-white/10">
+              <p className="text-xs text-gray-500 dark:text-white/40 flex items-center gap-1.5">
+                <ShieldAlert size={12} /> 🔒 Показаны только каналы с активной жалобой
+              </p>
+              <p className="text-xs text-gray-500 dark:text-white/40 mt-1">Всего: {channels.length}</p>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {channels.map((ch) => (
+                <button key={ch.id} onClick={() => openChannel(ch)}
+                  className={`w-full flex items-center gap-3 p-3 border-b border-line dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5 text-left ${activeChannel?.id === ch.id ? "bg-[#8b5cf6]/10" : ""}`}>
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9] flex items-center justify-center shrink-0 overflow-hidden">
+                    {ch.avatar_url ? <img src={mediaUrl(ch.avatar_url)} alt="" className="w-full h-full object-cover" />
+                      : <Megaphone size={20} className="text-white" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-gray-900 dark:text-white text-sm truncate">{ch.name}</p>
+                    <p className="text-[11px] text-gray-500 dark:text-white/40 truncate">
+                      @{ch.custom_slug} · {ch.subscribers_count} подписчиков · {ch.posts_count} постов
+                    </p>
+                    <p className="text-[11px] text-red-500 dark:text-red-400 truncate">
+                      Жалоба: {REASON_LABELS[ch.report_reason] || ch.report_reason} · {ch.access_scope === "channel" ? "весь канал" : "пост"}
+                    </p>
+                  </div>
+                  {ch.is_blocked && (
+                    <span className="px-2 py-0.5 rounded-md bg-red-500/15 text-red-600 dark:text-red-400 text-[10px] font-bold shrink-0">Бан</span>
+                  )}
+                </button>
+              ))}
+              {channels.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <ShieldCheck size={40} className="text-gray-400 dark:text-white/20 mb-3" />
+                  <p className="text-gray-500 dark:text-white/40 text-sm">Жалоб на каналы нет</p>
+                  <p className="text-gray-400 dark:text-white/20 text-xs mt-1">Каналы не видны без активной жалобы</p>
+                </div>
+              )}
+            </div>
+          </div>
+          {/* Посты канала */}
+          <div className={`flex-1 border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 flex flex-col ${activeChannel ? "flex" : "hidden md:flex"}`}>
+            {!activeChannel ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <Megaphone size={48} className="text-gray-500 dark:text-white/10 mx-auto mb-3" />
+                  <p className="text-gray-500 dark:text-white/30 text-sm">Выбери канал для модерации</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="p-3 border-b border-line dark:border-white/10 flex items-center gap-3">
+                  <button onClick={() => setActiveChannel(null)} className="p-2 rounded-lg text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 md:hidden">
+                    <ArrowLeft size={18} />
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-gray-900 dark:text-white text-sm truncate">{activeChannel.name}</p>
+                    <p className="text-[11px] text-gray-500 dark:text-white/40">@{activeChannel.custom_slug}</p>
+                  </div>
+                  {activeChannel.is_blocked && (
+                    <span className="px-2 py-0.5 rounded-md bg-red-500/15 text-red-600 dark:text-red-400 text-[10px] font-bold">Заблокирован</span>
+                  )}
+                  {me.is_admin && (
+                    <button onClick={toggleBlockChannel}
+                      className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        activeChannel.is_blocked
+                          ? "border border-green-400/40 text-green-600 dark:text-green-400 hover:bg-green-500/10"
+                          : "bg-red-600 text-white hover:bg-red-700"
+                      }`}>
+                      {activeChannel.is_blocked ? <><ShieldCheck size={12} /> Разблокировать</> : <><Ban size={12} /> Заблокировать</>}
+                    </button>
+                  )}
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {channelPostsLoading && <p className="text-center text-gray-500 dark:text-white/40 text-sm">Загрузка...</p>}
+                  {!channelPostsLoading && channelPosts.length === 0 && <p className="text-center text-gray-500 dark:text-white/40 text-sm">Постов нет</p>}
+                  {!channelPostsLoading && channelPosts.map((p) => {
+                    const media = Array.isArray(p.media) ? p.media : [];
+                    return (
+                      <div key={p.id} className="border border-line dark:border-white/10 rounded-xl p-3 bg-white dark:bg-white/5">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Avatar src={p.author?.avatar_url} name={p.author?.display_name} id={p.author_id} size={24} />
+                          <p className="text-[11px] text-gray-600 dark:text-white/50 flex-1 min-w-0 truncate">
+                            <span className="font-bold text-gray-800 dark:text-white/80">{p.author?.display_name || "Unknown"}</span> ·{" "}
+                            {new Date(p.created_at).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                            {p.is_pinned && <Pin size={10} className="inline ml-1 text-[#8b5cf6]" />}
+                          </p>
+                          <span className="text-[10px] text-gray-400 dark:text-white/30 shrink-0">👁 {p.views_count} · 💬 {p.comments_count}</span>
+                          {me.is_admin && (
+                            <button onClick={() => deleteChannelPost(p.id)} className="p-1.5 rounded-lg text-gray-500 dark:text-white/40 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-500/10" title="Удалить пост">
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
+                        <div className="text-sm text-gray-800 dark:text-white/90 break-words">{p.text || ""}</div>
+                        {media.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {media.map((m: any, i: number) => m.type === "video"
+                              ? <video key={i} src={mediaUrl(m.url)} controls className="max-w-[220px] rounded-lg" />
+                              : <img key={i} src={mediaUrl(m.url)} alt="" className="max-w-[180px] rounded-lg" />)}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </>
             )}

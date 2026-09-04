@@ -874,3 +874,116 @@ class PremiumUsername(SQLModel, table=True):
     # Метаданные
     views_count: int = Field(default=0)
     analytics: str = Field(default="{}")       # {views_by_day: {}, clicks: 0}
+
+
+# ============================================================
+# 📢 КАНАЛЫ (CHANNELS) — полностью изолированная система.
+# Никаких FK на chat/chatmember/message. Только user.id.
+# ============================================================
+
+class Channel(SQLModel, table=True):
+    __tablename__ = "channel"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    owner_id: int = Field(foreign_key="user.id", index=True)
+    title: str = Field(max_length=100)
+    description: Optional[str] = Field(default=None, max_length=500)
+    avatar_url: Optional[str] = None
+    # Уникальная кастомная ссылка (без @, храним в lowercase)
+    custom_slug: str = Field(unique=True, index=True, max_length=32)
+    is_public: bool = Field(default=True)
+    # JSON: {"show_author_signature": bool, "silent_messages_by_default": bool}
+    settings: str = Field(default="{}")
+    # Комментарии включены/выключены на уровне канала
+    comments_enabled: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class ChannelSubscriber(SQLModel, table=True):
+    __tablename__ = "channel_subscriber"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    channel_id: int = Field(foreign_key="channel.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    # owner | admin | subscriber
+    role: str = Field(default="subscriber", max_length=20)
+    joined_at: datetime = Field(default_factory=utcnow)
+    muted_until: Optional[datetime] = None
+    # 🔔 бейдж непрочитанных: посты новее этой даты считаются новыми
+    last_seen_post_at: Optional[datetime] = None
+    __table_args__ = (UniqueConstraint("channel_id", "user_id"),)
+
+
+class ChannelPost(SQLModel, table=True):
+    __tablename__ = "channel_post"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    channel_id: int = Field(foreign_key="channel.id", index=True)
+    author_id: int = Field(foreign_key="user.id", index=True)
+    text: Optional[str] = Field(default=None, max_length=8000)
+    # JSON-массив: [{"type": "image|video|file", "url": "...", "name": "..."}]
+    media: str = Field(default="[]")
+    is_silent: bool = Field(default=False)
+    is_pinned: bool = Field(default=False)
+    pinned_at: Optional[datetime] = None
+    views_count: int = Field(default=0)
+    # Отложенный постинг: NULL = опубликован; дата в будущем = в очереди
+    scheduled_at: Optional[datetime] = None
+    is_published: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    edited_at: Optional[datetime] = None
+
+
+class ChannelComment(SQLModel, table=True):
+    __tablename__ = "channel_comment"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    post_id: int = Field(foreign_key="channel_post.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    # Ответ на другой комментарий (треды/ветки)
+    parent_comment_id: Optional[int] = Field(default=None, foreign_key="channel_comment.id", index=True)
+    text: str = Field(max_length=2000)
+    media: str = Field(default="[]")
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    edited_at: Optional[datetime] = None
+
+
+class ChannelPostView(SQLModel, table=True):
+    """Дедупликация просмотров: один user_id зачитывается один раз на пост."""
+    __tablename__ = "channel_post_view"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    post_id: int = Field(foreign_key="channel_post.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    viewed_at: datetime = Field(default_factory=utcnow)
+    __table_args__ = (UniqueConstraint("post_id", "user_id"),)
+
+
+class ChannelInvite(SQLModel, table=True):
+    """Инвайт-ссылка на канал."""
+    __tablename__ = "channel_invite"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    channel_id: int = Field(foreign_key="channel.id", index=True)
+    token: str = Field(unique=True, index=True, max_length=64)
+    created_by: int = Field(foreign_key="user.id")
+    created_at: datetime = Field(default_factory=utcnow)
+    is_active: bool = Field(default=True)
+    # True = по инвайту можно войти без одобрения админа
+    auto_approve: bool = Field(default=False)
+
+
+class ChannelInviteRequest(SQLModel, table=True):
+    """Заявка на вступление (по кнопке subscribe или по инвайту)."""
+    __tablename__ = "channel_invite_request"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    channel_id: int = Field(foreign_key="channel.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    invite_token: Optional[str] = Field(default=None, max_length=64)
+    # pending | approved | rejected
+    status: str = Field(default="pending", max_length=20, index=True)
+    created_at: datetime = Field(default_factory=utcnow)
+    reviewed_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    resolved_at: Optional[datetime] = None
+    __table_args__ = (UniqueConstraint("channel_id", "user_id"),)
