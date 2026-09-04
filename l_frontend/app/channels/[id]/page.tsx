@@ -104,6 +104,9 @@ export default function ChannelPage() {
   const postLpPos = useRef({ x: 0, y: 0 });
   const clearPostLp = () => { if (postLpTimer.current) { clearTimeout(postLpTimer.current); postLpTimer.current = null; } };
 
+  // 🆕 Двойной тап/клик → быстрая реакция (ручной детектор — надёжно на ПК и мобиле)
+  const lastTapRef = useRef<{ id: number; time: number } | null>(null);
+
   const openPostIdRef = useRef<number | null>(null);
   useEffect(() => { openPostIdRef.current = openPostId; }, [openPostId]);
 
@@ -381,6 +384,11 @@ export default function ChannelPage() {
     } catch (e) { console.error(e); }
   }, [headers, stickerPacks.length]);
 
+  // 🆕 Прелоад паков при загрузке канала — окно реакций открывается МГНОВЕННО
+  useEffect(() => {
+    if (channel?.id) loadStickerPacks();
+  }, [channel?.id, loadStickerPacks]);
+
   async function toggleReaction(postId: number, stickerId?: number | string, emoji?: string) {
     if (!stickerId && !emoji) return;
     const form = new FormData();
@@ -533,30 +541,6 @@ export default function ChannelPage() {
         className="relative flex justify-start"
         id={`post-${p.id}`}
         style={{ touchAction: "pan-y" } as React.CSSProperties}
-        onDoubleClick={(e) => {
-          // 🆕 Двойной тап → быстрая реакция (как в обычном чате) + pop-анимация
-          if ((e.target as HTMLElement)?.closest("button, a, input, textarea, .rich-editor, [data-dont-react]")) return;
-          if (!isSubscribed) return;
-          if (editingPost === p.id || reactionPickerFor !== null || postMenu) return;
-          const reactionToSend = quickReaction || { type: "emoji" as const, content: "❤️" };
-          if (reactionToSend.type === "sticker") {
-            toggleReaction(p.id, reactionToSend.stickerId, undefined);
-          } else {
-            toggleReaction(p.id, undefined, reactionToSend.content);
-          }
-          setPopReaction({
-            content: reactionToSend.content,
-            type: reactionToSend.type,
-            stickerId: reactionToSend.stickerId,
-            x: e.clientX,
-            y: e.clientY,
-            id: p.id,
-            visible: true,
-          });
-          setTimeout(() => {
-            setPopReaction((prev) => (prev ? { ...prev, visible: false } : null));
-          }, 700);
-        }}
         onContextMenu={(e) => {
           if ((e.target as HTMLElement)?.closest("button, a, input, textarea, .rich-editor")) return;
           e.preventDefault();
@@ -606,6 +590,36 @@ export default function ChannelPage() {
           }
           setDragX(0); setDragPostId(null); dragStartX.current = null; dragLocked.current = false;
           clearPostLp();
+
+          // 🆕 Двойной тап/клик по посту (в т.ч. по пустому месту) → быстрая реакция.
+          //    Ручной детектор вместо нативного dblclick — одинаково надёжно на ПК и мобиле.
+          if (!(e.target as HTMLElement)?.closest("button, a, input, textarea, .rich-editor") && editingPost !== p.id) {
+            const now = Date.now();
+            const last = lastTapRef.current;
+            if (last && last.id === p.id && now - last.time < 350) {
+              lastTapRef.current = null;
+              const reactionToSend = quickReaction || { type: "emoji" as const, content: "❤️" };
+              if (reactionToSend.type === "sticker") {
+                toggleReaction(p.id, reactionToSend.stickerId, undefined);
+              } else {
+                toggleReaction(p.id, undefined, reactionToSend.content);
+              }
+              setPopReaction({
+                content: reactionToSend.content,
+                type: reactionToSend.type,
+                stickerId: reactionToSend.stickerId,
+                x: e.clientX,
+                y: e.clientY,
+                id: p.id,
+                visible: true,
+              });
+              setTimeout(() => {
+                setPopReaction((prev) => (prev ? { ...prev, visible: false } : null));
+              }, 700);
+            } else {
+              lastTapRef.current = { id: p.id, time: now };
+            }
+          }
         }}
         onPointerLeave={clearPostLp}
         onPointerCancel={() => { setDragX(0); setDragPostId(null); dragStartX.current = null; dragLocked.current = false; clearPostLp(); }}
@@ -1149,8 +1163,10 @@ export default function ChannelPage() {
                             key={s.id}
                             onClick={() => {
                               // ✅ ЯВНОЕ РАЗДЕЛЕНИЕ (как в чатах)
-                              if (s.type === "emoji") toggleReaction(reactionPickerFor!, undefined, s.content);
-                              else toggleReaction(reactionPickerFor!, Number(s.id), undefined);
+                              const pid = reactionPickerFor!;
+                              setReactionPickerFor(null); // 🆕 окно закрывается МГНОВЕННО, не ждём сеть
+                              if (s.type === "emoji") toggleReaction(pid, undefined, s.content);
+                              else toggleReaction(pid, Number(s.id), undefined);
                             }}
                             className="aspect-square flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90 transition-all"
                           >

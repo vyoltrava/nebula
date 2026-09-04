@@ -11,6 +11,7 @@ import {
   ChevronRight, History, BookOpen, Headphones, Satellite, Crown
 } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
+import { mediaUrl } from "@/lib/media";
 import { UserRowSkeleton } from "@/components/Skeletons";
 import { getToken, clearToken } from "@/lib/auth";
 import { AccountSwitcher } from "@/components/AccountSwitcher";
@@ -318,13 +319,14 @@ function LayoutPicker({ current, onClose, isMobile }: { current: SidebarLayout; 
 // НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
 type Dock2User = {
   username?: string;
+  avatar_url?: string;
   is_admin?: boolean;
   is_moderator?: boolean;
   permissions?: string[];
 } | null;
 
 type Dock2Icon = React.ComponentType<{ size?: number | string; className?: string }>;
-type Dock2Item = { href: string; icon: Dock2Icon; label: string };
+type Dock2Item = { href: string; icon: Dock2Icon; label: string; avatar?: string };
 const DOCK2_PAGE_SWIPE   = 30; // px вертикального свайпа для смены страницы
 const DOCK2_SELECT_ENTER = 56; // ушёл пальцем в сторону от кнопки → режим выбора иконки
 const DOCK2_PICK_DIST    = 60; // радиус «попадания» в иконку
@@ -385,7 +387,7 @@ function Dock2Wheel({
       { href: "/updates", icon: Satellite, label: t("nav.community") },
       { href: "/search", icon: Search, label: t("nav.search") },
     ];
-    if (user) social.push({ href: `/${user.username}`, icon: Home, label: t("nav.profile") });
+    if (user) social.push({ href: `/${user.username}`, icon: Home, label: t("nav.profile"), avatar: user.avatar_url });
     social.push({ href: "/settings", icon: Settings, label: t("nav.settings") });
 
     const tools: Dock2Item[] = [
@@ -524,10 +526,19 @@ function Dock2Wheel({
 
   return (
     <>
-      {/* Узкая вертикальная кнопка-индикатор (центр правого края, НЕ низко) */}
+      {/* 🛡 Защита: при удержании перехватываем ВСЕ касания —
+          объекты под панелью не реагируют на случайные тапы */}
+      {isActive && (
+        <div
+          className="fixed inset-0 z-[98] pointer-events-auto"
+          style={{ touchAction: "none" } as React.CSSProperties}
+        />
+      )}
+
+      {/* Узкая вертикальная кнопка-индикатор (ВПЛОТНУЮ к правому краю, по центру высоты) */}
       <div
         ref={squareRef}
-        className={`fixed z-[98] right-1.5 top-1/2 -translate-y-1/2 w-[18px] h-[84px] rounded-full border flex flex-col items-center justify-center gap-[5px] transition-all duration-200 ${
+        className={`fixed z-[100] right-0 top-1/2 -translate-y-1/2 w-[16px] h-[88px] rounded-l-full border border-r-0 flex flex-col items-center justify-center gap-[5px] transition-all duration-200 ${
           isActive
             ? "border-[#8b5cf6] bg-[#8b5cf6]/25 shadow-[0_0_14px_rgba(139,92,246,0.5)]"
             : "border-line dark:border-white/10 bg-paper/90 dark:bg-[#171717]/90 backdrop-blur-sm shadow-sm"
@@ -557,7 +568,7 @@ function Dock2Wheel({
 
       {/* Панель — ТОЛЬКО при удержании, ВСЕГДА по центру экрана */}
       <div
-        className="fixed z-[99] pointer-events-none transition-all duration-200"
+        className="fixed z-[101] pointer-events-none transition-all duration-200"
         style={{
           opacity: isActive ? 1 : 0,
           transform: isActive ? "scale(1)" : "scale(0.85)",
@@ -607,7 +618,15 @@ function Dock2Wheel({
                   }`}
                   style={{ width: geom.itemW, height: geom.itemH }}
                 >
-                  <item.icon size={24} className="text-gray-700 dark:text-white/80" />
+                  {item.avatar ? (
+                    <img
+                      src={mediaUrl(item.avatar)}
+                      alt=""
+                      className="w-7 h-7 rounded-full object-cover ring-1 ring-line dark:ring-white/15"
+                    />
+                  ) : (
+                    <item.icon size={24} className="text-gray-700 dark:text-white/80" />
+                  )}
                   <span className="text-[9px] text-gray-600 dark:text-white/60 text-center leading-tight">
                     {item.label}
                   </span>
