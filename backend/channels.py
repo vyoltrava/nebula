@@ -15,15 +15,17 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form
 from pydantic import BaseModel
 from sqlmodel import Session, select, func
+from sqlalchemy import delete as sa_delete
 
 from database import get_session
 from models import (
     User, SystemSetting, Report,
     Channel, ChannelSubscriber, ChannelPost, ChannelPostView,
     ChannelComment, ChannelInvite, ChannelInviteRequest,
+    ChannelBan, ChannelSavedPost, ChannelPostReaction,
 )
 from main import get_current_user, log_action, get_client_ip
 from websocket_manager import manager
@@ -33,6 +35,22 @@ router = APIRouter(tags=["channels"])
 
 def utcnow():
     return datetime.now(timezone.utc)
+
+
+# 🛡 Гранулярные права админа
+CHANNEL_PERMISSIONS = [
+    "edit_info",      # изменять инфо канала (имя, аватар, описание)
+    "post",           # публиковать посты
+    "edit_posts",     # редактировать посты других
+    "delete_posts",   # удалять посты других
+    "manage_members", # банить/исключать подписчиков, назначать админов
+    "invite",         # приглашать по ссылке
+    "pin_posts",      # закреплять посты
+    "manage_comments",# модерировать комментарии
+    "manage_stories", # управлять историями (сейчас задел на будущее)
+]
+# owner всегда обладает всеми правами
+OWNER_PERMISSIONS = set(CHANNEL_PERMISSIONS)
 
 
 # ------------------------------------------------------------------
@@ -86,12 +104,19 @@ def channel_out(channel: Channel, session: Session, viewer: Optional[User] = Non
     muted = False
     unread = 0
     pinned = False
+    my_permissions = []
     if viewer:
         sub = get_subscription(session, channel.id, viewer.id)
         if sub:
             my_role = sub.role
             muted = sub.muted_until is not None and sub.muted_until > utcnow()
             pinned = sub.pinned_at is not None
+            try:
+                my_permissions = json.loads(sub.permissions or "[]") or []
+            except Exception:
+                my_permissions = []
+            if my_role == "owner":
+                my_permissions = OWNER_PERMISSIONS
             if sub.last_seen_post_at:
                 unread = session.exec(
                     select(func.count(ChannelPost.id)).where(
@@ -101,18 +126,26 @@ def channel_out(channel: Channel, session: Session, viewer: Optional[User] = Non
                     )
                 ).one()
     owner = session.get(User, channel.owner_id)
+    # подпись автора скрыта, если канал на анонимном режиме
+    ch_settings = channel_settings(channel)
+    anonymous = bool(ch_settings.get("anonymous", False))
     return {
         "id": channel.id,
         "title": channel.title,
         "description": channel.description,
         "avatar_url": channel.avatar_url,
+        "avatar_media_type": channel.avatar_media_type,
         "custom_slug": channel.custom_slug,
         "is_public": channel.is_public,
         "settings": {
-            "show_author_signature": bool(channel_settings(channel).get("show_author_signature", True)),
-            "silent_messages_by_default": bool(channel_settings(channel).get("silent_messages_by_default", False)),
+            "show_author_signature": not anonymous and bool(ch_settings.get("show_author_signature", True)),
+            "silent_messages_by_default": bool(ch_settings.get("silent_messages_by_default", False)),
+            "show_history": bool(ch_settings.get("show_history", True)),
+            "anonymous": bool(anonymous),
+            "reactions": ch_settings.get("reactions", {}),
         },
         "comments_enabled": channel.comments_enabled,
+        "allow_requests": channel.allow_requests,
         "owner": {
             "id": owner.id, "username": owner.username,
             "display_name": owner.display_name, "avatar_url": owner.avatar_url,
@@ -120,6 +153,7 @@ def channel_out(channel: Channel, session: Session, viewer: Optional[User] = Non
         "subscribers_count": subs_count,
         "created_at": channel.created_at.isoformat() if channel.created_at else None,
         "my_role": my_role,
+        "my_permissions": my_permissions,
         "is_muted": muted,
         "pinned": pinned,
         "unread_count": unread,
@@ -135,11 +169,115 @@ def post_media(media_json: str) -> list:
         return []
 
 
-def post_out(post: ChannelPost, session: Session, with_author: bool = True) -> dict:
+def poll_out(post: ChannelPost, viewer: Optional[User] = None) -> Optional[dict]:
+    """Опрос: результаты скрыты, пока зритель не проголосовал (если not reveal)."""
+    try:
+        poll = json.loads(post.poll or "null")
+    except Exception:
+        poll = None
+    if not poll or not isinstance(poll, dict) or not poll.get("options"):
+        return None
+    is_quiz = bool(poll.get("is_quiz")) or poll.get("type") == "quiz"
+    correct_idx = poll.get("correct_index")
+    opts = poll.get("options", [])
+    total = sum(int(o.get("votes", o.get("count", 0))) for o in opts)
+    my_vote = None
+    if viewer:
+        votes = poll.get("votes") or {}
+        for k, v in votes.items():
+            if k == str(viewer.id) or k.startswith(f"{viewer.id}#"):
+                my_vote = v
+                if not poll.get("multiple"):
+                    break
+    reveal = bool(poll.get("reveal")) or poll.get("closed") or my_vote is not None
+    out_opts = []
+    for i, o in enumerate(opts):
+        item = {"id": o.get("id", i), "text": o.get("text")}
+        if reveal:
+            cnt = int(o.get("votes", o.get("count", 0)))
+            item["votes"] = cnt
+            item["percent"] = round(100 * cnt / total, 1) if total else 0
+            if is_quiz:
+                item["is_correct"] = (i == correct_idx) if correct_idx is not None \
+                    else bool(o.get("is_correct"))
+                item["voted_by_me"] = (my_vote in (item["id"], i))
+        out_opts.append(item)
+    return {
+        "type": "quiz" if is_quiz else "poll",
+        "question": poll.get("question"),
+        "options": out_opts,
+        "anonymous": bool(poll.get("anonymous", poll.get("is_anonymous", True))),
+        "multiple": bool(poll.get("multiple")),
+        "reveal": bool(poll.get("reveal")),
+        "closed": bool(poll.get("closed")),
+        "explanation": poll.get("explanation") if is_quiz else None,
+        "total_votes": total if reveal else None,
+        "my_vote": my_vote,
+        "can_vote": my_vote is None and not poll.get("closed"),
+    }
+
+
+def post_out(post: ChannelPost, session: Session, with_author: bool = True,
+             viewer: Optional[User] = None, channel=None) -> dict:
     author = session.get(User, post.author_id) if with_author else None
     comments_count = session.exec(
         select(func.count(ChannelComment.id)).where(ChannelComment.post_id == post.id)
     ).one()
+    def _jd(s):
+        try:
+            return json.loads(s or "{}")
+        except Exception:
+            return {}
+    poll = poll_out(post, viewer)
+    # 👍 Реакции — тот же формат, что в чатах: [{type, emoji, sticker_id, content, count, me}]
+    reactions = []
+    try:
+        rows = session.exec(select(ChannelPostReaction).where(
+            ChannelPostReaction.post_id == post.id)).all()
+        grouped: dict = {}
+        sticker_ids = [r.sticker_id for r in rows if r.sticker_id]
+        stickers_map = {}
+        if sticker_ids:
+            from models import Sticker
+            for s in session.exec(select(Sticker).where(Sticker.id.in_(sticker_ids))).all():
+                stickers_map[s.id] = s
+        for r in rows:
+            if r.sticker_id:
+                st = stickers_map.get(r.sticker_id)
+                if not st:
+                    continue
+                item = grouped.setdefault(f"sticker_{r.sticker_id}", {
+                    "type": "sticker", "sticker_id": r.sticker_id,
+                    "content": st.content, "count": 0, "me": False})
+            else:
+                item = grouped.setdefault(f"emoji_{r.emoji}", {
+                    "type": "emoji", "emoji": r.emoji,
+                    "content": r.emoji, "count": 0, "me": False})
+            item["count"] += 1
+            if viewer and r.user_id == viewer.id:
+                item["me"] = True
+        reactions = sorted(grouped.values(), key=lambda x: -x["count"])
+    except Exception:
+        reactions = []
+    saved = False
+    my_reaction = None
+    if viewer:
+        my_reaction = next((r["emoji"] or r["sticker_id"] for r in reactions if r["me"]), None)
+    if viewer:
+        saved = session.exec(select(ChannelSavedPost).where(
+            ChannelSavedPost.post_id == post.id,
+            ChannelSavedPost.user_id == viewer.id,
+        )).first() is not None
+        r = session.exec(select(ChannelPostReaction).where(
+            ChannelPostReaction.post_id == post.id,
+            ChannelPostReaction.user_id == viewer.id,
+        )).first()
+        if r:
+            my_reaction = r.emoji
+    # анонимность: не отдаём автора подписчикам
+    anon = bool(channel_settings(channel).get("anonymous")) if channel else False
+    if anon:
+        author = None
     return {
         "id": post.id,
         "channel_id": post.channel_id,
@@ -148,8 +286,13 @@ def post_out(post: ChannelPost, session: Session, with_author: bool = True) -> d
             "id": author.id, "username": author.username,
             "display_name": author.display_name, "avatar_url": author.avatar_url,
         } if author else None,
+        "post_type": post.post_type,
         "text": post.text,
         "media": post_media(post.media),
+        "poll": poll,
+        "reactions": reactions,
+        "my_reaction": my_reaction,
+        "is_saved": saved,
         "is_silent": post.is_silent,
         "is_pinned": post.is_pinned,
         "views_count": post.views_count,
@@ -182,6 +325,22 @@ def require_admin(session: Session, channel: Channel, user: User) -> ChannelSubs
     sub = get_subscription(session, channel.id, user.id)
     if not sub or sub.role not in ("owner", "admin"):
         raise HTTPException(403, "Недостаточно прав")
+    return sub
+
+
+def require_perm(session: Session, channel: Channel, user: User, perm: str) -> ChannelSubscriber:
+    """Проверка конкретного права (owner имеет все)."""
+    sub = get_subscription(session, channel.id, user.id)
+    if not sub or sub.role == "subscriber":
+        raise HTTPException(403, "Недостаточно прав")
+    if sub.role == "owner" or perm in OWNER_PERMISSIONS and sub.role == "owner":
+        return sub
+    try:
+        perms = json.loads(sub.permissions or "[]") or []
+    except Exception:
+        perms = []
+    if perm not in perms and sub.role != "owner":
+        raise HTTPException(403, "Нет права: " + perm)
     return sub
 
 
@@ -226,6 +385,10 @@ class ChannelSettingsIn(BaseModel):
     show_author_signature: Optional[bool] = None
     silent_messages_by_default: Optional[bool] = None
     comments_enabled: Optional[bool] = None
+    show_history: Optional[bool] = None
+    anonymous: Optional[bool] = None
+    allow_requests: Optional[bool] = None
+    reactions: Optional[dict] = None  # {enabled: bool, emoji: [...]}
 
 
 class PostCreateIn(BaseModel):
@@ -233,6 +396,8 @@ class PostCreateIn(BaseModel):
     media: Optional[list] = None
     is_silent: Optional[bool] = None
     scheduled_at: Optional[str] = None  # ISO datetime
+    post_type: Optional[str] = "text"   # text | poll | quiz
+    poll: Optional[dict] = None         # опрос/викторина
     # ✅ Пересылка сообщения из чата в канал (создать пост на основе Message)
     forwarded_from_chat: Optional[int] = None  # message_id исходного сообщения
 
@@ -243,9 +408,14 @@ class ForwardPostIn(BaseModel):
     target_id: int
 
 
+class AdminPermsIn(BaseModel):
+    permissions: list
+
+
 class PostUpdateIn(BaseModel):
     text: Optional[str] = None
     media: Optional[list] = None
+    poll: Optional[dict] = None
 
 
 # ------------------------------------------------------------------
@@ -319,30 +489,73 @@ async def delete_channel(
     ch = get_channel_or_404(session, channel_id)
     require_owner(session, ch, user)
 
-    # Каскадное удаление всех данных канала
-    for post in session.exec(select(ChannelPost).where(ChannelPost.channel_id == ch.id)).all():
-        for c in session.exec(select(ChannelComment).where(ChannelComment.post_id == post.id)).all():
-            session.delete(c)
-        for v in session.exec(select(ChannelPostView).where(ChannelPostView.post_id == post.id)).all():
-            session.delete(v)
-        session.delete(post)
-    for r in session.exec(select(ChannelInviteRequest).where(ChannelInviteRequest.channel_id == ch.id)).all():
-        session.delete(r)
-    for i in session.exec(select(ChannelInvite).where(ChannelInvite.channel_id == ch.id)).all():
-        session.delete(i)
-    for s in session.exec(select(ChannelSubscriber).where(ChannelSubscriber.channel_id == ch.id)).all():
-        session.delete(s)
+    # Собираем участников до удаления (для WS-уведомления)
+    member_ids = session.exec(
+        select(ChannelSubscriber.user_id).where(ChannelSubscriber.channel_id == ch.id)
+    ).all()
+
+    # Каскадное удаление всех данных канала — явный порядок зависимостей
+    # (FK без ON DELETE CASCADE: сначала дочерние таблицы постов, потом посты,
+    #  потом прочее, потом подписчики, и только затем сам канал)
+    post_ids = session.exec(
+        select(ChannelPost.id).where(ChannelPost.channel_id == ch.id)
+    ).all()
+    if post_ids:
+        session.exec(sa_delete(ChannelPostReaction).where(ChannelPostReaction.post_id.in_(post_ids)))
+        session.exec(sa_delete(ChannelSavedPost).where(ChannelSavedPost.post_id.in_(post_ids)))
+        session.exec(sa_delete(ChannelPostView).where(ChannelPostView.post_id.in_(post_ids)))
+        session.exec(sa_delete(ChannelComment).where(ChannelComment.post_id.in_(post_ids)))
+        session.exec(sa_delete(ChannelPost).where(ChannelPost.channel_id == ch.id))
+    session.exec(sa_delete(ChannelInviteRequest).where(ChannelInviteRequest.channel_id == ch.id))
+    session.exec(sa_delete(ChannelInvite).where(ChannelInvite.channel_id == ch.id))
+    session.exec(sa_delete(ChannelBan).where(ChannelBan.channel_id == ch.id))
+    session.exec(sa_delete(ChannelSubscriber).where(ChannelSubscriber.channel_id == ch.id))
+    session.flush()  # гарантируем: дочерние строки удалены до DELETE channel
     session.delete(ch)
     session.commit()
 
     log_action(session, user.id, "channel_delete", target_type="channel", target_id=channel_id)
-    await notify_subscribers(session, ch.id, "channel_deleted", {"channel_id": ch.id})
+    for uid in member_ids:
+        await manager.send_to_user(uid, "channel_deleted", {"channel_id": ch.id})
     return {"ok": True}
 
 
 # ------------------------------------------------------------------
 # 👥 Подписчики
 # ------------------------------------------------------------------
+@router.post("/channels/{channel_id}/subscribers")
+async def add_subscriber(
+    channel_id: int,
+    user_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Ручное добавление подписчика админом (лимит — по умолчанию 200, как в ТГ)."""
+    ch = get_channel_or_404(session, channel_id)
+    require_perm(session, ch, user, "manage_members")
+    target_user = session.get(User, user_id)
+    if not target_user:
+        raise HTTPException(404, "Пользователь не найден")
+    if get_subscription(session, ch.id, user_id):
+        raise HTTPException(409, "Пользователь уже подписан")
+    if session.exec(select(ChannelBan).where(
+            ChannelBan.channel_id == ch.id, ChannelBan.user_id == user_id)).first():
+        raise HTTPException(403, "Пользователь забанен в этом канале")
+
+    MAX_MANUAL = 200
+    count = session.exec(select(func.count(ChannelSubscriber.id)).where(
+        ChannelSubscriber.channel_id == ch.id)).one()
+    if count >= MAX_MANUAL:
+        raise HTTPException(409, f"Достигнут лимит ручного добавления ({MAX_MANUAL})")
+
+    session.add(ChannelSubscriber(channel_id=ch.id, user_id=user_id, role="subscriber"))
+    session.commit()
+    await manager.send_to_user(user_id, "channel_subscriber_joined", {"channel_id": ch.id})
+    await notify_subscribers(session, ch.id, "channel_subscriber_joined",
+                             {"channel_id": ch.id, "user_id": user_id})
+    return {"ok": True}
+
+
 @router.get("/channels/{channel_id}/subscribers")
 def list_subscribers(
     channel_id: int,
@@ -415,6 +628,7 @@ async def update_subscriber(
     channel_id: int,
     user_id: int,
     role: str,
+    request: Request = None,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
@@ -429,6 +643,13 @@ async def update_subscriber(
     if target.role == "owner":
         raise HTTPException(400, "Нельзя менять роль владельца")
     target.role = role
+    # гранулярные права админа (чекбоксы)
+    if request is not None:
+        body = await request.json()
+        if isinstance(body, dict) and "permissions" in body:
+            perms = [p for p in (body.get("permissions") or [])
+                     if p in CHANNEL_PERMISSIONS]
+            target.permissions = json.dumps(perms)
     session.add(target)
     session.commit()
 
@@ -485,12 +706,35 @@ async def create_post(
     session: Session = Depends(get_session),
 ):
     ch = get_channel_or_404(session, channel_id)
-    require_admin(session, ch, user)
+    require_perm(session, ch, user, "post")
     if is_channel_blocked(session, ch.id):
         raise HTTPException(403, "🔒 Канал заблокирован модерацией")
 
-    if not (data.text or "").strip() and not data.media and not data.forwarded_from_chat:
+    if not (data.text or "").strip() and not data.media and not data.forwarded_from_chat and data.post_type == "text":
         raise HTTPException(400, "Пост не может быть пустым")
+    if data.post_type in ("poll", "quiz") and not data.poll:
+        raise HTTPException(400, "Укажите данные опроса")
+
+    # валидация опроса
+    poll_json = "{}"
+    if data.post_type in ("poll", "quiz"):
+        opts = data.poll.get("options") or []
+        if len(opts) < 2:
+            raise HTTPException(400, "В опросе должно быть минимум 2 варианта")
+        norm = [{"text": str(o.get("text", ""))[:200], "count": 0} for o in opts]
+        payload = {
+            "question": str(data.poll.get("question", ""))[:500],
+            "options": norm,
+            "is_anonymous": bool(data.poll.get("is_anonymous", True)),
+            "is_quiz": data.post_type == "quiz",
+            "correct_index": data.poll.get("correct_index"),
+            "explanation": str(data.poll.get("explanation") or "")[:500] or None,
+            "votes": {},
+        }
+        if payload["is_quiz"] and (payload["correct_index"] is None or
+                                   payload["correct_index"] >= len(norm)):
+            raise HTTPException(400, "Укажите правильный ответ для викторины")
+        poll_json = json.dumps(payload, ensure_ascii=False)
 
     scheduled_at = None
     is_published = True
@@ -538,8 +782,10 @@ async def create_post(
     post = ChannelPost(
         channel_id=ch.id,
         author_id=user.id,
+        post_type=data.post_type if data.post_type in ("text", "poll", "quiz") else "text",
         text=text or None,
         media=json.dumps(media),
+        poll=poll_json,
         is_silent=is_silent,
         scheduled_at=scheduled_at,
         is_published=is_published,
@@ -554,11 +800,11 @@ async def create_post(
 
     if is_published:
         await _broadcast_new_post(session, ch, post)
-    return {"ok": True, "post": post_out(post, session)}
+    return {"ok": True, "post": post_out(post, session, viewer=user, channel=ch)}
 
 
 @router.get("/channels/{channel_id}/posts")
-def list_posts(
+async def list_posts(
     channel_id: int,
     offset: int = 0,
     limit: int = 30,
@@ -574,9 +820,30 @@ def list_posts(
     limit = max(1, min(limit, 50))
     is_admin = sub is not None and sub.role in ("owner", "admin")
 
+    # ⏰ Отложенный постинг: публикуем посты, чей срок наступил
+    due = session.exec(select(ChannelPost).where(
+        ChannelPost.channel_id == ch.id,
+        ChannelPost.is_published == False,  # noqa: E712
+        ChannelPost.scheduled_at != None,  # noqa: E711
+        ChannelPost.scheduled_at <= utcnow(),
+    )).all()
+    for p in due:
+        p.is_published = True
+        p.created_at = p.scheduled_at
+        session.add(p)
+    if due:
+        session.commit()
+        for p in due:
+            await _broadcast_new_post(session, ch, p)
+
     q = select(ChannelPost).where(ChannelPost.channel_id == ch.id)
     if not (is_admin and include_scheduled):
         q = q.where(ChannelPost.is_published == True)  # noqa: E712
+    ch_settings = channel_settings(ch)
+    show_history = bool(ch_settings.get("show_history", True))
+    # 🔒 show_history=False: подписчик видит посты только после своего вступления
+    if not show_history and sub and not is_admin:
+        q = q.where(ChannelPost.created_at >= (sub.joined_at or utcnow()))
     q = q.order_by(ChannelPost.is_pinned.desc(), ChannelPost.created_at.desc())
     posts = session.exec(q.offset(offset).limit(limit)).all()
 
@@ -600,7 +867,7 @@ def list_posts(
         session.add(sub)
         session.commit()
 
-    return [post_out(p, session) for p in posts]
+    return [post_out(p, session, viewer=user, channel=ch) for p in posts]
 
 
 @router.patch("/channels/{channel_id}/posts/{post_id}")
@@ -612,23 +879,44 @@ async def update_post(
     session: Session = Depends(get_session),
 ):
     ch = get_channel_or_404(session, channel_id)
-    require_admin(session, ch, user)
     post = session.get(ChannelPost, post_id)
     if not post or post.channel_id != ch.id:
         raise HTTPException(404, "Пост не найден")
+    # можно редактировать свой пост либо чужой с правом edit_posts
+    if post.author_id == user.id:
+        require_perm(session, ch, user, "post")
+    else:
+        require_perm(session, ch, user, "edit_posts")
 
     if data.text is not None:
         post.text = data.text.strip()[:8000] or None
     if data.media is not None:
         post.media = json.dumps(data.media)
+    if data.poll is not None and post.poll:
+        poll = json.loads(post.poll)
+        old_opts = [o["id"] for o in poll.get("options", [])]
+        new_poll = data.poll
+        # сохраняем голоса за неизменённые варианты
+        votes = poll.get("votes", {})
+        for uid, oid in list(votes.items()):
+            if oid not in new_poll.get("options", []):
+                votes.pop(uid)
+        for o in new_poll.get("options", []):
+            o["votes"] = sum(1 for v in votes.values() if v == o["id"])
+        new_poll["votes"] = votes
+        new_poll["voted_users"] = poll.get("voted_users", [])
+        post.poll = json.dumps(new_poll)
     post.edited_at = utcnow()
     session.add(post)
     session.commit()
     session.refresh(post)
 
+    po = post_out(post, session, viewer=user, channel=ch)
+    po["poll"] = poll_out(post, user)
+
     await notify_subscribers(session, ch.id, "channel_post_edited",
-                             {"channel_id": ch.id, "post": post_out(post, session)})
-    return {"ok": True, "post": post_out(post, session)}
+                             {"channel_id": ch.id, "post": po})
+    return {"ok": True, "post": po}
 
 
 @router.delete("/channels/{channel_id}/posts/{post_id}")
@@ -639,15 +927,20 @@ async def delete_post(
     session: Session = Depends(get_session),
 ):
     ch = get_channel_or_404(session, channel_id)
-    require_admin(session, ch, user)
     post = session.get(ChannelPost, post_id)
     if not post or post.channel_id != ch.id:
         raise HTTPException(404, "Пост не найден")
+    if post.author_id == user.id:
+        require_perm(session, ch, user, "post")
+    else:
+        require_perm(session, ch, user, "delete_posts")
 
-    for c in session.exec(select(ChannelComment).where(ChannelComment.post_id == post.id)).all():
-        session.delete(c)
-    for v in session.exec(select(ChannelPostView).where(ChannelPostView.post_id == post.id)).all():
-        session.delete(v)
+    # Каскадное удаление дочерних записей поста (FK без ON DELETE CASCADE)
+    session.exec(sa_delete(ChannelPostReaction).where(ChannelPostReaction.post_id == post.id))
+    session.exec(sa_delete(ChannelSavedPost).where(ChannelSavedPost.post_id == post.id))
+    session.exec(sa_delete(ChannelPostView).where(ChannelPostView.post_id == post.id))
+    session.exec(sa_delete(ChannelComment).where(ChannelComment.post_id == post.id))
+    session.flush()
     session.delete(post)
     session.commit()
 
@@ -660,11 +953,12 @@ async def delete_post(
 async def toggle_pin_post(
     channel_id: int,
     post_id: int,
+    request: Request = None,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
     ch = get_channel_or_404(session, channel_id)
-    require_admin(session, ch, user)
+    require_perm(session, ch, user, "pin")
     post = session.get(ChannelPost, post_id)
     if not post or post.channel_id != ch.id:
         raise HTTPException(404, "Пост не найден")
@@ -674,9 +968,11 @@ async def toggle_pin_post(
     session.add(post)
     session.commit()
 
-    await notify_subscribers(session, ch.id, "channel_post_pinned",
-                             {"channel_id": ch.id, "post_id": post.id,
-                              "is_pinned": post.is_pinned})
+    body_data = await request.json() if request else {}
+    if body_data.get("notify", True) and post.is_pinned:
+        await notify_subscribers(session, ch.id, "channel_post_pinned",
+                                 {"channel_id": ch.id, "post_id": post.id,
+                                  "is_pinned": post.is_pinned})
     return {"ok": True, "is_pinned": post.is_pinned}
 
 
@@ -860,10 +1156,26 @@ class CommentCreateIn(BaseModel):
     text: str
     parent_comment_id: Optional[int] = None
     media: Optional[list] = None
+    as_channel: bool = False  # комментарий от имени канала (только админы)
 
 
-def comment_out(c: ChannelComment, session: Session) -> dict:
+def comment_out(c: ChannelComment, session: Session, channel: Optional[Channel] = None) -> dict:
     user = session.get(User, c.user_id)
+    # Анонимный комментарий: подписчики видят "Канал" вместо автора
+    if c.as_channel and channel:
+        sub = get_subscription(session, channel.id, user.id) if user else None
+        viewer_is_admin = sub and sub.role in ("owner", "admin")
+        if not viewer_is_admin:
+            return {
+                "id": c.id, "post_id": c.post_id, "user_id": None, "user": None,
+                "as_channel": True,
+                "channel_name": channel.title, "channel_avatar": channel.avatar_url,
+                "parent_comment_id": c.parent_comment_id, "text": c.text,
+                "media": post_media(c.media),
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "edited_at": c.edited_at.isoformat() if c.edited_at else None,
+                "is_pinned": c.is_pinned,
+            }
     return {
         "id": c.id,
         "post_id": c.post_id,
@@ -872,9 +1184,11 @@ def comment_out(c: ChannelComment, session: Session) -> dict:
             "id": user.id, "username": user.username,
             "display_name": user.display_name, "avatar_url": user.avatar_url,
         } if user else None,
+        "as_channel": bool(c.as_channel),
         "parent_comment_id": c.parent_comment_id,
         "text": c.text,
         "media": post_media(c.media),
+        "is_pinned": c.is_pinned,
         "created_at": c.created_at.isoformat() if c.created_at else None,
         "edited_at": c.edited_at.isoformat() if c.edited_at else None,
     }
@@ -913,8 +1227,10 @@ def list_comments(
         .where(ChannelComment.post_id == post_id)
         .order_by(ChannelComment.created_at)
     ).all()
-    return {"comments": _flat_comments_to_tree([comment_out(c, session) for c in flat]),
-            "total": len(flat)}
+    tree = _flat_comments_to_tree([comment_out(c, session, channel=ch) for c in flat])
+    # закреплённый комментарий — первым в корнях
+    tree.sort(key=lambda n: (not n.get("is_pinned"), 0))
+    return {"comments": tree, "total": len(flat)}
 
 
 @router.post("/channels/posts/{post_id}/comments")
@@ -948,6 +1264,7 @@ async def create_comment(
         parent_comment_id=parent.id if parent else None,
         text=data.text.strip()[:2000],
         media=json.dumps(data.media or []),
+        as_channel=bool(data.as_channel) and sub is not None and sub.role in ("owner", "admin"),
     )
     session.add(c)
     session.commit()
@@ -959,10 +1276,38 @@ async def create_comment(
         select(ChannelComment).where(ChannelComment.post_id == post_id)
     ).all():
         participants.add(t.user_id)
-    payload = {"post_id": post_id, "channel_id": ch.id, "comment": comment_out(c, session)}
+    payload = {"post_id": post_id, "channel_id": ch.id, "comment": comment_out(c, session, channel=ch)}
     await manager.broadcast_to_users(list(participants), "channel_new_comment", payload)
 
-    return {"ok": True, "comment": comment_out(c, session)}
+    return {"ok": True, "comment": comment_out(c, session, channel=ch)}
+
+
+@router.post("/channels/posts/{post_id}/comments/{comment_id}/pin")
+def pin_comment(
+    post_id: int,
+    comment_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Закрепление комментария под постом (только один закреплённый)."""
+    post = session.get(ChannelPost, post_id)
+    if not post:
+        raise HTTPException(404, "Пост не найден")
+    ch = session.get(Channel, post.channel_id)
+    require_perm(session, ch, user, "manage_comments")
+    c = session.get(ChannelComment, comment_id)
+    if not c or c.post_id != post_id:
+        raise HTTPException(404, "Комментарий не найден")
+
+    # снять закрепление с прежнего
+    for other in session.exec(select(ChannelComment).where(
+            ChannelComment.post_id == post_id, ChannelComment.is_pinned == True)).all():  # noqa: E712
+        other.is_pinned = False
+        session.add(other)
+    c.is_pinned = not c.is_pinned
+    session.add(c)
+    session.commit()
+    return {"ok": True, "is_pinned": c.is_pinned}
 
 
 @router.patch("/channels/posts/{post_id}/comments/{comment_id}")
@@ -1082,6 +1427,9 @@ async def subscribe(
     ch = get_channel_or_404(session, channel_id)
     if get_subscription(session, ch.id, user.id):
         raise HTTPException(409, "Вы уже подписаны")
+    if session.exec(select(ChannelBan).where(
+            ChannelBan.channel_id == ch.id, ChannelBan.user_id == user.id)).first():
+        raise HTTPException(403, "Вы заблокированы в этом канале")
 
     if ch.is_public:
         # Публичный: подписка сразу
@@ -1188,23 +1536,103 @@ async def resolve_request(
 @router.post("/channels/{channel_id}/invites")
 async def create_invite(
     channel_id: int,
-    auto_approve: bool = False,
+    request: Request = None,
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
     ch = get_channel_or_404(session, channel_id)
-    require_admin(session, ch, user)
+    require_perm(session, ch, user, "invite")
+
+    body = await request.json() if request else {}
+    auto_approve = bool(body.get("auto_approve", False))
+    expires_at = None
+    if body.get("expires_in_hours"):
+        expires_at = utcnow() + timedelta(hours=float(body["expires_in_hours"]))
+    if body.get("expires_in_days"):
+        expires_at = utcnow() + timedelta(days=float(body["expires_in_days"]))
+    max_uses = int(body["max_uses"]) if body.get("max_uses") else None
 
     token = secrets.token_urlsafe(24)
     inv = ChannelInvite(
         channel_id=ch.id, token=token, created_by=user.id,
-        auto_approve=auto_approve,
+        auto_approve=auto_approve, expires_at=expires_at, max_uses=max_uses,
     )
     session.add(inv)
     session.commit()
     return {"ok": True, "token": token,
             "url": f"/c/{ch.custom_slug}?invite={token}",
-            "auto_approve": auto_approve}
+            "auto_approve": auto_approve,
+            "expires_at": expires_at.isoformat() if expires_at else None,
+            "max_uses": max_uses}
+
+
+@router.get("/channels/{channel_id}/invites")
+def list_invites(
+    channel_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Список всех инвайт-ссылок канала с настройками и использованием."""
+    ch = get_channel_or_404(session, channel_id)
+    require_perm(session, ch, user, "invite")
+    invites = session.exec(select(ChannelInvite).where(
+        ChannelInvite.channel_id == ch.id
+    ).order_by(ChannelInvite.id.desc())).all()
+    out = []
+    for inv in invites:
+        out.append({
+            "token": inv.token,
+            "url": f"/c/{ch.custom_slug}?invite={inv.token}",
+            "is_active": inv.is_active,
+            "auto_approve": inv.auto_approve,
+            "expires_at": inv.expires_at.isoformat() if inv.expires_at else None,
+            "max_uses": inv.max_uses,
+            "uses": inv.uses or 0,
+            "created_by": inv.created_by,
+        })
+    return out
+
+
+@router.delete("/channels/{channel_id}/invites/{token}")
+def revoke_invite(
+    channel_id: int,
+    token: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    ch = get_channel_or_404(session, channel_id)
+    require_perm(session, ch, user, "invite")
+    inv = session.exec(select(ChannelInvite).where(
+        ChannelInvite.token == token, ChannelInvite.channel_id == ch.id)).first()
+    if not inv:
+        raise HTTPException(404, "Инвайт не найден")
+    inv.is_active = False
+    session.add(inv)
+    session.commit()
+    return {"ok": True}
+
+
+@router.get("/channels/{channel_id}/invites/{token}/qr")
+def invite_qr(
+    channel_id: int,
+    token: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """QR-код инвайт-ссылки (base64 PNG)."""
+    import qrcode, io, base64
+    ch = get_channel_or_404(session, channel_id)
+    require_perm(session, ch, user, "invite")
+    inv = session.exec(select(ChannelInvite).where(
+        ChannelInvite.token == token, ChannelInvite.channel_id == ch.id)).first()
+    if not inv:
+        raise HTTPException(404, "Инвайт не найден")
+    url = f"/c/{ch.custom_slug}?invite={inv.token}"
+    img = qrcode.make(url)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return {"qr_code": "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode(),
+            "url": url}
 
 
 @router.get("/channels/invites/{token}")
@@ -1217,6 +1645,10 @@ def invite_info(
     inv = session.exec(select(ChannelInvite).where(ChannelInvite.token == token)).first()
     if not inv or not inv.is_active:
         raise HTTPException(404, "Инвайт не найден или отозван")
+    if inv.expires_at and inv.expires_at < utcnow():
+        raise HTTPException(410, "Срок действия инвайт-ссылки истёк")
+    if inv.max_uses and (inv.uses or 0) >= inv.max_uses:
+        raise HTTPException(410, "Лимит переходов по ссылке исчерпан")
     ch = session.get(Channel, inv.channel_id)
     return {"channel": channel_out(ch, session, user), "auto_approve": inv.auto_approve}
 
@@ -1230,9 +1662,21 @@ async def join_by_invite(
     inv = session.exec(select(ChannelInvite).where(ChannelInvite.token == data.token)).first()
     if not inv or not inv.is_active:
         raise HTTPException(404, "Инвайт не найден или отозван")
+    if inv.expires_at and inv.expires_at < utcnow():
+        raise HTTPException(410, "Срок действия инвайт-ссылки истёк")
+    if inv.max_uses and (inv.uses or 0) >= inv.max_uses:
+        raise HTTPException(410, "Лимит переходов по ссылке исчерпан")
     ch = session.get(Channel, inv.channel_id)
     if get_subscription(session, ch.id, user.id):
         raise HTTPException(409, "Вы уже подписаны")
+    if session.exec(select(ChannelBan).where(
+            ChannelBan.channel_id == ch.id, ChannelBan.user_id == user.id)).first():
+        raise HTTPException(403, "Вы заблокированы в этом канале")
+
+    # инкремент счётчика использований
+    inv.uses = (inv.uses or 0) + 1
+    session.add(inv)
+    session.commit()
 
     if ch.is_public or inv.auto_approve:
         # Прямое вступление
@@ -1246,6 +1690,438 @@ async def join_by_invite(
     result = await _create_pending_request(session, ch, user, invite_token=data.token)
     result["channel"] = channel_out(ch, session, user)
     return result
+
+
+# ------------------------------------------------------------------
+# 🚫 Бан / разбан подписчиков
+# ------------------------------------------------------------------
+@router.post("/channels/{channel_id}/subscribers/{user_id}/ban")
+async def ban_subscriber(
+    channel_id: int,
+    user_id: int,
+    request: Request = None,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Исключение + запрет повторного вступления."""
+    ch = get_channel_or_404(session, channel_id)
+    require_perm(session, ch, user, "manage_members")
+    target = get_subscription(session, ch.id, user_id)
+    if not target:
+        raise HTTPException(404, "Подписчик не найден")
+    if target.role == "owner":
+        raise HTTPException(400, "Нельзя забанить владельца")
+    if user_id == user.id:
+        raise HTTPException(400, "Нельзя забанить себя")
+
+    body = await request.json() if request else {}
+    reason = (body.get("reason") or "").strip()[:255] or None
+
+    existing_ban = session.exec(select(ChannelBan).where(
+        ChannelBan.channel_id == ch.id, ChannelBan.user_id == user_id)).first()
+    if not existing_ban:
+        session.add(ChannelBan(channel_id=ch.id, user_id=user_id,
+                               reason=reason, banned_by=user.id))
+    session.delete(target)
+    session.commit()
+
+    await manager.send_to_user(user_id, "channel_subscriber_left", {"channel_id": ch.id})
+    await notify_subscribers(session, ch.id, "channel_subscriber_banned",
+                             {"channel_id": ch.id, "user_id": user_id})
+    return {"ok": True}
+
+
+@router.delete("/channels/{channel_id}/subscribers/{user_id}/ban")
+def unban_subscriber(
+    channel_id: int,
+    user_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    ch = get_channel_or_404(session, channel_id)
+    require_perm(session, ch, user, "manage_members")
+    ban = session.exec(select(ChannelBan).where(
+        ChannelBan.channel_id == ch.id, ChannelBan.user_id == user_id)).first()
+    if not ban:
+        raise HTTPException(404, "Пользователь не забанен")
+    session.delete(ban)
+    session.commit()
+    return {"ok": True}
+
+
+@router.get("/channels/{channel_id}/bans")
+def list_bans(
+    channel_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    ch = get_channel_or_404(session, channel_id)
+    require_perm(session, ch, user, "manage_members")
+    bans = session.exec(select(ChannelBan).where(
+        ChannelBan.channel_id == ch.id).order_by(ChannelBan.created_at.desc())).all()
+    users = {u.id: u for u in session.exec(
+        select(User).where(User.id.in_([b.user_id for b in bans] or [0]))).all()}
+    return [
+        {
+            "user_id": b.user_id,
+            "user": {"id": u.id, "username": u.username,
+                     "display_name": u.display_name, "avatar_url": u.avatar_url}
+            if (u := users.get(b.user_id)) else None,
+            "reason": b.reason,
+            "created_at": b.created_at.isoformat() if b.created_at else None,
+        } for b in bans
+    ]
+
+
+# ------------------------------------------------------------------
+# 📊 Опросы и викторины
+# ------------------------------------------------------------------
+class PollVoteIn(BaseModel):
+    option_ids: list  # 1 вариант или несколько (multiple)
+
+
+@router.post("/channels/{channel_id}/posts/{post_id}/poll/vote")
+async def vote_poll(
+    channel_id: int,
+    post_id: int,
+    data: PollVoteIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    ch = get_channel_or_404(session, channel_id)
+    post = session.get(ChannelPost, post_id)
+    if not post or post.channel_id != ch.id or not post.poll:
+        raise HTTPException(404, "Пост с опросом не найден")
+    if not get_subscription(session, ch.id, user.id):
+        raise HTTPException(403, "Только подписчики могут голосовать")
+    poll = json.loads(post.poll)
+    if poll.get("closed"):
+        raise HTTPException(409, "Опрос закрыт")
+    n_opts = len(poll.get("options", []))
+    valid_ids = {o.get("id", i) for i, o in enumerate(poll.get("options", []))}
+    chosen = [oid for oid in data.option_ids if oid in valid_ids]
+    if not chosen:
+        raise HTTPException(400, "Некорректный вариант")
+    if not poll.get("multiple") and len(chosen) > 1:
+        raise HTTPException(400, "В этом опросе можно выбрать только один вариант")
+
+    votes: dict = poll.setdefault("votes", {})
+    base = f"{user.id}"
+    already = base in votes or any(k.startswith(f"{base}#") for k in votes)
+    if already:
+        raise HTTPException(409, "Вы уже голосовали")
+    if poll.get("multiple"):
+        for i, oid in enumerate(chosen):
+            votes[f"{base}#{i}"] = oid
+    else:
+        votes[base] = chosen[0]
+    poll["votes"] = votes
+    for i, o in enumerate(poll.get("options", [])):
+        oid = o.get("id", i)
+        o["votes"] = o.get("count", 0) or 0
+        o["votes"] = sum(1 for v in votes.values() if v in (oid, i))
+    post.poll = json.dumps(poll)
+    session.add(post)
+    session.commit()
+
+    po = poll_out(post, user)
+    await notify_subscribers(session, ch.id, "channel_poll_updated",
+                             {"channel_id": ch.id, "post_id": post.id, "poll": po})
+    return {"ok": True, "poll": po}
+
+
+@router.post("/channels/{channel_id}/posts/{post_id}/poll/close")
+def close_poll(
+    channel_id: int,
+    post_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    ch = get_channel_or_404(session, channel_id)
+    post = session.get(ChannelPost, post_id)
+    if not post or post.channel_id != ch.id or not post.poll:
+        raise HTTPException(404, "Пост с опросом не найден")
+    if post.author_id != user.id:
+        require_admin(session, ch, user)
+    poll = json.loads(post.poll)
+    poll["closed"] = True
+    post.poll = json.dumps(poll)
+    session.add(post)
+    session.commit()
+    return {"ok": True, "poll": poll_out(post, user)}
+
+
+# ------------------------------------------------------------------
+# 👍 Реакции на посты
+# ------------------------------------------------------------------
+@router.post("/channels/{channel_id}/posts/{post_id}/react")
+async def toggle_reaction(
+    channel_id: int,
+    post_id: int,
+    sticker_id: int = Form(None),
+    emoji: str = Form(None),
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Реакции на посты — та же система, что в чатах: эмодзи и стикеры,
+    toggle, лимит реакций по уровню пользователя."""
+    ch = get_channel_or_404(session, channel_id)
+    post = session.get(ChannelPost, post_id)
+    if not post or post.channel_id != ch.id:
+        raise HTTPException(404, "Пост не найден")
+    if not get_subscription(session, ch.id, user.id):
+        raise HTTPException(403, "Только подписчики могут ставить реакции")
+
+    # глобальные настройки реакций канала (только для эмодзи-реакций)
+    rset = channel_settings(ch).get("reactions", {})
+    if emoji and rset:
+        if rset.get("enabled") is False:
+            raise HTTPException(403, "Реакции отключены в этом канале")
+        if rset.get("emoji") and emoji not in rset["emoji"]:
+            raise HTTPException(400, "Эта реакция недоступна в канале")
+
+    # доступ к стикеру — как в чатах
+    from main import get_user_level, reaction_limit_for
+    sticker_obj = None
+    if sticker_id:
+        from models import Sticker, StickerPack
+        sticker_obj = session.get(Sticker, sticker_id)
+        if not sticker_obj:
+            raise HTTPException(404, "Стикер не найден")
+        pack = session.get(StickerPack, sticker_obj.pack_id)
+        if not pack.is_active or (get_user_level(user, session) < pack.min_level and not user.is_admin):
+            raise HTTPException(403, "🔒 Стикер недоступен")
+    elif not emoji:
+        raise HTTPException(400, "Укажите sticker_id или emoji")
+
+    # toggle: уже стоит — убираем
+    if sticker_obj:
+        existing = session.exec(select(ChannelPostReaction).where(
+            ChannelPostReaction.post_id == post.id,
+            ChannelPostReaction.user_id == user.id,
+            ChannelPostReaction.sticker_id == sticker_id,
+        )).first()
+    else:
+        existing = session.exec(select(ChannelPostReaction).where(
+            ChannelPostReaction.post_id == post.id,
+            ChannelPostReaction.user_id == user.id,
+            ChannelPostReaction.emoji == emoji,
+            ChannelPostReaction.sticker_id == None,  # noqa: E711
+        )).first()
+
+    if existing:
+        session.delete(existing)
+        session.commit()
+    else:
+        my_count = session.exec(select(func.count(ChannelPostReaction.id)).where(
+            ChannelPostReaction.post_id == post.id,
+            ChannelPostReaction.user_id == user.id,
+        )).one()
+        limit = reaction_limit_for(user, session)
+        if my_count >= limit:
+            raise HTTPException(400, f"Максимум {limit} реакций на вашем уровне")
+        session.add(ChannelPostReaction(
+            post_id=post.id, user_id=user.id,
+            sticker_id=sticker_id if sticker_obj else None,
+            emoji=emoji if not sticker_obj else None,
+        ))
+        session.commit()
+
+    # собираем актуальные реакции тем же способом, что post_out
+    po = post_out(post, session, viewer=user, channel=ch)
+    reactions = po["reactions"]
+
+    await notify_subscribers(session, ch.id, "channel_post_reaction",
+                             {"channel_id": ch.id, "post_id": post.id, "reactions": reactions})
+    return {"ok": True, "reactions": reactions}
+
+
+# ------------------------------------------------------------------
+# 🔖 Сохранённые посты (Saved Messages)
+# ------------------------------------------------------------------
+@router.post("/channels/{channel_id}/posts/{post_id}/save")
+def toggle_save_post(
+    channel_id: int,
+    post_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    ch = get_channel_or_404(session, channel_id)
+    post = session.get(ChannelPost, post_id)
+    if not post or post.channel_id != ch.id:
+        raise HTTPException(404, "Пост не найден")
+    existing = session.exec(select(ChannelSavedPost).where(
+        ChannelSavedPost.post_id == post.id,
+        ChannelSavedPost.user_id == user.id)).first()
+    if existing:
+        session.delete(existing)
+        session.commit()
+        return {"ok": True, "is_saved": False}
+    session.add(ChannelSavedPost(post_id=post.id, user_id=user.id))
+    session.commit()
+    return {"ok": True, "is_saved": True}
+
+
+@router.get("/channels/saved")
+def my_saved_posts(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    saved = session.exec(select(ChannelSavedPost).where(
+        ChannelSavedPost.user_id == user.id
+    ).order_by(ChannelSavedPost.saved_at.desc())).all()
+    posts = []
+    for s in saved:
+        p = session.get(ChannelPost, s.post_id)
+        if not p:
+            continue
+        ch = session.get(Channel, p.channel_id)
+        posts.append({**post_out(p, session, viewer=user, channel=ch),
+                      "channel": {"id": ch.id, "title": ch.title,
+                                  "custom_slug": ch.custom_slug, "avatar_url": ch.avatar_url},
+                      "saved_at": s.saved_at.isoformat()})
+    return posts
+
+
+# ------------------------------------------------------------------
+# 🔍 Поиск по постам канала
+# ------------------------------------------------------------------
+@router.get("/channels/{channel_id}/search")
+def search_channel_posts(
+    channel_id: int,
+    q: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    ch = get_channel_or_404(session, channel_id)
+    if not ch.is_public and not get_subscription(session, ch.id, user.id):
+        raise HTTPException(403, "Это приватный канал")
+    q = (q or "").strip()
+    if not q:
+        return []
+    posts = session.exec(
+        select(ChannelPost).where(
+            ChannelPost.channel_id == ch.id,
+            ChannelPost.is_published == True,  # noqa: E712
+            ChannelPost.text.contains(q),
+        ).order_by(ChannelPost.created_at.desc()).limit(50)
+    ).all()
+    return [post_out(p, session, viewer=user, channel=ch) for p in posts]
+
+
+# ------------------------------------------------------------------
+# 📈 Статистика канала
+# ------------------------------------------------------------------
+@router.get("/channels/{channel_id}/stats")
+def channel_stats(
+    channel_id: int,
+    days: int = 30,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    ch = get_channel_or_404(session, channel_id)
+    require_admin(session, ch, user)
+    days = max(1, min(days, 365))
+
+    subs = session.exec(select(ChannelSubscriber).where(
+        ChannelSubscriber.channel_id == ch.id)).all()
+    growth: dict = {}
+    for s in subs:
+        d = s.joined_at.date().isoformat() if s.joined_at else None
+        if d:
+            growth[d] = growth.get(d, 0) + 1
+
+    posts = session.exec(select(ChannelPost).where(
+        ChannelPost.channel_id == ch.id,
+        ChannelPost.is_published == True,  # noqa: E712
+    )).all()
+    total_views = sum(p.views_count for p in posts)
+    total_reactions = 0
+    per_post = []
+    post_ids = [p.id for p in posts]
+    react_rows = session.exec(select(ChannelPostReaction).where(
+        ChannelPostReaction.post_id.in_(post_ids or [0]))).all() if post_ids else []
+    react_counts: dict = {}
+    for r in react_rows:
+        react_counts[r.post_id] = react_counts.get(r.post_id, 0) + 1
+    for p in posts:
+        r_count = react_counts.get(p.id, 0)
+        total_reactions += r_count
+        comments_count = session.exec(select(func.count(ChannelComment.id)).where(
+            ChannelComment.post_id == p.id)).one()
+        per_post.append({
+            "post_id": p.id, "views": p.views_count,
+            "reactions": r_count, "comments": comments_count,
+            "created_at": p.created_at.isoformat() if p.created_at else None,
+        })
+    total_shares = session.exec(select(func.count(ChannelPost.id)).where(
+        ChannelPost.channel_id == ch.id,
+        ChannelPost.post_type == "forward")).one()
+
+    recent = [p for p in posts if p.created_at and p.created_at >= utcnow() - timedelta(days=days)]
+    notif_reach = {}
+    for p in recent:
+        views = session.exec(select(func.count(ChannelPostView.id)).where(
+            ChannelPostView.post_id == p.id)).one()
+        notif_reach[str(p.id)] = {"views": views, "subscribers": len(subs)}
+
+    return {
+        "subscribers_count": len(subs),
+        "growth": growth,
+        "total_views": total_views,
+        "total_reactions": total_reactions,
+        "total_shares": total_shares,
+        "posts_count": len(posts),
+        "per_post": sorted(per_post, key=lambda x: x["created_at"] or "", reverse=True)[:50],
+        "notification_reach": notif_reach,
+        "days": days,
+    }
+
+
+# ------------------------------------------------------------------
+# 👑 Передача владения каналом
+# ------------------------------------------------------------------
+class TransferOwnershipIn(BaseModel):
+    new_owner_id: int
+    password: Optional[str] = None
+
+
+@router.post("/channels/{channel_id}/transfer-ownership")
+async def transfer_ownership(
+    channel_id: int,
+    data: TransferOwnershipIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Передача владения: подтверждение паролем текущего владельца."""
+    ch = get_channel_or_404(session, channel_id)
+    require_owner(session, ch, user)
+    if data.new_owner_id == user.id:
+        raise HTTPException(400, "Вы уже владелец")
+    target_sub = get_subscription(session, ch.id, data.new_owner_id)
+    if not target_sub:
+        raise HTTPException(404, "Новый владелец должен быть подписчиком канала")
+
+    if data.password:
+        from main import check_password
+        if not check_password(data.password, user.password_hash):
+            raise HTTPException(403, "Неверный пароль")
+
+    ch.owner_id = data.new_owner_id
+    session.add(ch)
+    target_sub.role = "owner"
+    session.add(target_sub)
+    old_owner_sub = get_subscription(session, ch.id, user.id)
+    if old_owner_sub:
+        old_owner_sub.role = "admin"
+        session.add(old_owner_sub)
+    session.commit()
+
+    await manager.send_to_user(data.new_owner_id, "channel_ownership_transferred",
+                               {"channel_id": ch.id})
+    await notify_subscribers(session, ch.id, "channel_owner_changed",
+                             {"channel_id": ch.id, "new_owner_id": data.new_owner_id})
+    return {"ok": True}
 
 
 # ------------------------------------------------------------------

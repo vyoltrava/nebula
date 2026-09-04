@@ -886,16 +886,19 @@ class Channel(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     owner_id: int = Field(foreign_key="user.id", index=True)
-    title: str = Field(max_length=100)
-    description: Optional[str] = Field(default=None, max_length=500)
+    title: str = Field(max_length=255)
+    description: Optional[str] = Field(default=None, max_length=255)
     avatar_url: Optional[str] = None
+    avatar_media_type: Optional[str] = None  # image | video | gif (для анимированных аватаров)
     # Уникальная кастомная ссылка (без @, храним в lowercase)
     custom_slug: str = Field(unique=True, index=True, max_length=32)
     is_public: bool = Field(default=True)
-    # JSON: {"show_author_signature": bool, "silent_messages_by_default": bool}
+    # JSON: {"show_author_signature": bool, "silent_messages_by_default": bool,
+    #         "show_history": bool, "reactions": {"enabled": bool, "emoji": [...]}}
     settings: str = Field(default="{}")
     # Комментарии включены/выключены на уровне канала
     comments_enabled: bool = Field(default=True)
+    allow_requests: bool = Field(default=True)
     created_at: datetime = Field(default_factory=utcnow)
 
 
@@ -913,6 +916,21 @@ class ChannelSubscriber(SQLModel, table=True):
     last_seen_post_at: Optional[datetime] = None
     # 📌 личное закрепление канала пользователем (в списке чатов)
     pinned_at: Optional[datetime] = None
+    # 🛡 Гранулярные права админа (JSON-массив строк, см. CHANNEL_PERMISSIONS)
+    permissions: str = Field(default="[]")
+    __table_args__ = (UniqueConstraint("channel_id", "user_id"),)
+
+
+class ChannelBan(SQLModel, table=True):
+    """Запрет повторного вступления + причина бана."""
+    __tablename__ = "channel_ban"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    channel_id: int = Field(foreign_key="channel.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    reason: Optional[str] = None
+    banned_by: int = Field(foreign_key="user.id")
+    created_at: datetime = Field(default_factory=utcnow)
     __table_args__ = (UniqueConstraint("channel_id", "user_id"),)
 
 
@@ -922,14 +940,19 @@ class ChannelPost(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     channel_id: int = Field(foreign_key="channel.id", index=True)
     author_id: int = Field(foreign_key="user.id", index=True)
+    # text | poll | quiz
+    post_type: str = Field(default="text", max_length=10)
     text: Optional[str] = Field(default=None, max_length=8000)
-    # JSON-массив: [{"type": "image|video|file", "url": "...", "name": "..."}]
+    # JSON-массив: [{"type": "image|video|file|audio|video_note|sticker|gif", "url": "...", "name": "..."}]
     media: str = Field(default="[]")
+    # JSON: {question, options:[{text,count}], is_anonymous, is_quiz, correct_index, explanation, votes:{uid:idx}}
+    poll: str = Field(default="{}")
+    # JSON-агрегат реакций: {"emoji": {"count": n, "users": [id...]}}
+    reactions: str = Field(default="{}")
     is_silent: bool = Field(default=False)
     is_pinned: bool = Field(default=False)
     pinned_at: Optional[datetime] = None
     views_count: int = Field(default=0)
-    # Отложенный постинг: NULL = опубликован; дата в будущем = в очереди
     scheduled_at: Optional[datetime] = None
     is_published: bool = Field(default=True)
     created_at: datetime = Field(default_factory=utcnow, index=True)
@@ -946,6 +969,10 @@ class ChannelComment(SQLModel, table=True):
     parent_comment_id: Optional[int] = Field(default=None, foreign_key="channel_comment.id", index=True)
     text: str = Field(max_length=2000)
     media: str = Field(default="[]")
+    # анонимный комментарий от имени канала
+    as_channel: bool = Field(default=False)
+    # закреплённый комментарий под постом (может быть только один)
+    is_pinned: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utcnow, index=True)
     edited_at: Optional[datetime] = None
 
@@ -961,6 +988,30 @@ class ChannelPostView(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("post_id", "user_id"),)
 
 
+class ChannelSavedPost(SQLModel, table=True):
+    """Сохранённые посты (Saved Messages) у подписчика."""
+    __tablename__ = "channel_saved_post"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    post_id: int = Field(foreign_key="channel_post.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    saved_at: datetime = Field(default_factory=utcnow)
+    __table_args__ = (UniqueConstraint("post_id", "user_id"),)
+
+
+class ChannelPostReaction(SQLModel, table=True):
+    """Реакция на пост — та же система, что MessageReaction в чатах (эмодзи + стикеры)."""
+    __tablename__ = "channel_post_reaction"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    post_id: int = Field(foreign_key="channel_post.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    emoji: Optional[str] = Field(default=None, max_length=16)
+    sticker_id: Optional[int] = Field(default=None, foreign_key="sticker.id")
+    created_at: datetime = Field(default_factory=utcnow)
+    __table_args__ = (UniqueConstraint("post_id", "user_id"),)
+
+
 class ChannelInvite(SQLModel, table=True):
     """Инвайт-ссылка на канал."""
     __tablename__ = "channel_invite"
@@ -973,6 +1024,10 @@ class ChannelInvite(SQLModel, table=True):
     is_active: bool = Field(default=True)
     # True = по инвайту можно войти без одобрения админа
     auto_approve: bool = Field(default=False)
+    # ограничения: срок действия и кол-во использований
+    expires_at: Optional[datetime] = None
+    max_uses: Optional[int] = None
+    uses: int = Field(default=0)
 
 
 class ChannelInviteRequest(SQLModel, table=True):

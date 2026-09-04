@@ -618,9 +618,9 @@ const confirmPrismKey = async () => {
                 <div className={`flex items-center gap-3 p-3 md:p-4 border-b transition-all duration-200 cursor-pointer ${chat.muted ? "opacity-60" : ""} border-b-white/10 border-l-4 border-l-[#8b5cf6]/40 hover:bg-gray-100 dark:hover:bg-white/5 ${chat.unread_count > 0 && !chat.muted ? "bg-purple-500/10" : ""}`}>
                   <div className="shrink-0">
                     {chat.avatar_url ? (
-                      <Avatar src={chat.avatar_url} name={chat.name} id={chat.id} size={48} round />
+                      <Avatar src={chat.avatar_url} name={chat.name} id={chat.id} size={48} />
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9] flex items-center justify-center">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9] flex items-center justify-center">
                         <Megaphone size={22} className="text-white" />
                       </div>
                     )}

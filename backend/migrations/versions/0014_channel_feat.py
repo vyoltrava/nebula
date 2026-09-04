@@ -1,0 +1,103 @@
+"""kick: расширение каналов — баны, права, опросы/реакции, сохрания, инвайт-лимиты
+
+Добавляет колонки в channel / channel_subscriber / channel_post /
+channel_comment / channel_invite и новые таблицы channel_ban,
+channel_saved_post, channel_post_reaction. Идемпотентно (PG + SQLite).
+
+Revision ID: 0014_channel_feat
+"""
+from alembic import op
+from sqlalchemy import text
+
+revision = "0014_channel_feat"
+down_revision = "0013_channel_pinned"
+branch_labels = None
+depends_on = None
+
+# (таблица, колонка, DDL) — для PostgreSQL через ALTER, для SQLite без no-op
+PG_COLS = [
+    ("channel", "avatar_media_type", "VARCHAR"),
+    ("channel", "allow_requests", "BOOLEAN NOT NULL DEFAULT TRUE"),
+    ("channel_subscriber", "permissions", "VARCHAR NOT NULL DEFAULT '[]'"),
+    ("channel_post", "post_type", "VARCHAR NOT NULL DEFAULT 'text'"),
+    ("channel_post", "poll", "VARCHAR NOT NULL DEFAULT '{}'"),
+    ("channel_post", "reactions", "VARCHAR NOT NULL DEFAULT '{}'"),
+    ("channel_comment", "as_channel", "BOOLEAN NOT NULL DEFAULT FALSE"),
+    ("channel_comment", "is_pinned", "BOOLEAN NOT NULL DEFAULT FALSE"),
+    ("channel_invite", "expires_at", "TIMESTAMPTZ"),
+    ("channel_invite", "max_uses", "INTEGER"),
+    ("channel_invite", "uses", "INTEGER NOT NULL DEFAULT 0"),
+]
+
+NEW_TABLES = [
+    """
+    CREATE TABLE IF NOT EXISTS channel_ban (
+        id INTEGER PRIMARY KEY,
+        channel_id INTEGER NOT NULL REFERENCES channel (id),
+        user_id INTEGER NOT NULL REFERENCES "user" (id),
+        reason VARCHAR,
+        banned_by INTEGER NOT NULL REFERENCES "user" (id),
+        created_at TIMESTAMPTZ,
+        CONSTRAINT uq_channel_ban UNIQUE (channel_id, user_id)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS ix_channel_ban_channel_id ON channel_ban (channel_id)",
+    "CREATE INDEX IF NOT EXISTS ix_channel_ban_user_id ON channel_ban (user_id)",
+    """
+    CREATE TABLE IF NOT EXISTS channel_saved_post (
+        id INTEGER PRIMARY KEY,
+        post_id INTEGER NOT NULL REFERENCES channel_post (id),
+        user_id INTEGER NOT NULL REFERENCES "user" (id),
+        saved_at TIMESTAMPTZ,
+        CONSTRAINT uq_channel_saved_post UNIQUE (post_id, user_id)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS ix_channel_saved_post_post_id ON channel_saved_post (post_id)",
+    "CREATE INDEX IF NOT EXISTS ix_channel_saved_post_user_id ON channel_saved_post (user_id)",
+    """
+    CREATE TABLE IF NOT EXISTS channel_post_reaction (
+        id INTEGER PRIMARY KEY,
+        post_id INTEGER NOT NULL REFERENCES channel_post (id),
+        user_id INTEGER NOT NULL REFERENCES "user" (id),
+        emoji VARCHAR(16),
+        sticker_id INTEGER,
+        created_at TIMESTAMPTZ
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS ix_channel_post_reaction_post_id ON channel_post_reaction (post_id)",
+    "CREATE INDEX IF NOT EXISTS ix_channel_post_reaction_user_id ON channel_post_reaction (user_id)",
+]
+
+# (таблица, колонка, DDL) — идемпотентные ALTER для стикер-реакций
+EXTRA_ALTERS = [
+    ("channel_post_reaction", "sticker_id", "INTEGER"),
+]
+
+
+def upgrade() -> None:
+    bind = op.get_bind()
+    is_pg = bind.dialect.name == "postgresql"
+    for ddl in NEW_TABLES:
+        op.execute(ddl)
+    for table, col, ddl in PG_COLS:
+        if is_pg:
+            op.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {ddl}"))
+        else:
+            # SQLite: нет IF NOT EXISTS — идемпотентность через try
+            try:
+                op.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
+            except Exception:
+                pass
+    for table, col, ddl in EXTRA_ALTERS:
+        if is_pg:
+            op.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} {ddl}"))
+        else:
+            try:
+                op.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
+            except Exception:
+                pass
+
+
+def downgrade() -> None:
+    # Не откатываем колонки/таблицы — сохраняем идемпотентность.
+    pass

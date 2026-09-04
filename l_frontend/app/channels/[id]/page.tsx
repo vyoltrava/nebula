@@ -17,7 +17,7 @@ import { ForwardPostModal } from "@/components/ForwardPostModal";
 import {
   ArrowLeft, Megaphone, Users, BellOff, Bell, Settings, Eye, MessageCircle,
   Pin, Trash2, Pencil, Send, Loader2, Globe, Lock, X, Reply, UserPlus, Ban,
-  Forward, Plus, Paperclip, Clock, Image as ImageIcon,
+  Forward, Plus, Paperclip, Clock, Image as ImageIcon, SmilePlus,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
@@ -62,6 +62,11 @@ export default function ChannelPage() {
   const [showManage, setShowManage] = useState(false);
   const [forwardingPost, setForwardingPost] = useState<number | null>(null);
   const [busyAction, setBusyAction] = useState(false);
+
+  // 👍 Реакции — та же система, что в чатах (эмодзи + стикер-паки)
+  const [reactionPickerFor, setReactionPickerFor] = useState<number | null>(null);
+  const [activeReactionTab, setActiveReactionTab] = useState<number>(-1);
+  const [stickerPacks, setStickerPacks] = useState<any[]>([]);
 
   const openPostIdRef = useRef<number | null>(null);
   useEffect(() => { openPostIdRef.current = openPostId; }, [openPostId]);
@@ -285,6 +290,51 @@ export default function ChannelPage() {
     loadPosts();
   }
 
+  // ---------- 👍 Реакции (та же система, что в чатах) ----------
+  const loadStickerPacks = useCallback(async () => {
+    if (stickerPacks.length) return;
+    try {
+      const res = await fetch(`${API}/api/sticker-packs`, { headers: headers() });
+      if (res.ok) setStickerPacks(await res.json());
+    } catch (e) { console.error(e); }
+  }, [headers, stickerPacks.length]);
+
+  async function toggleReaction(postId: number, stickerId?: number | string, emoji?: string) {
+    if (!stickerId && !emoji) return;
+    const form = new FormData();
+    if (stickerId !== undefined && stickerId !== null) {
+      const numId = Number(stickerId);
+      if (isNaN(numId)) return;
+      form.append("sticker_id", String(numId));
+    }
+    if (emoji) form.append("emoji", String(emoji));
+    const res = await fetch(`${API}/api/channels/${channel.id}/posts/${postId}/react`, {
+      method: "POST", headers: headers(), body: form,
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setPosts((prev) => prev.map((m) => (m.id === postId ? { ...m, reactions: data.reactions } : m)));
+      setReactionPickerFor(null);
+    } else {
+      const err = await res.json().catch(() => null);
+      alert(err?.detail || t("messages.reactionFailed") || "Ошибка реакции");
+    }
+  }
+
+  // WS: обновление реакций поста в реальном времени
+  useEffect(() => {
+    const unsub = socket.on("channel_post_reaction", (d: any) => {
+      if (d?.channel_id !== channel?.id || d?.post_id == null) return;
+      setPosts((prev) => prev.map((m) => (m.id === d.post_id ? { ...m, reactions: d.reactions } : m)));
+    });
+    return unsub;
+  }, [channel?.id]);
+
+  // Загрузка стикер-паков при открытии пикера реакций
+  useEffect(() => {
+    if (reactionPickerFor !== null) loadStickerPacks();
+  }, [reactionPickerFor, loadStickerPacks]);
+
   // ---------- Рендер ----------
   if (loading) {
     return (
@@ -397,7 +447,39 @@ export default function ChannelPage() {
                 ))}
               </div>
             )}
+            {/* 👍 РЕАКЦИИ — как в чатах */}
+            {p.reactions?.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1.5 justify-start">
+                {p.reactions.map((r: any) => (
+                  <button
+                    key={r.type === "sticker" ? `s_${r.sticker_id}` : `e_${r.emoji}`}
+                    onClick={() => isSubscribed && toggleReaction(p.id, r.sticker_id, r.emoji)}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-full text-[13px] border transition-all active:scale-90 ${
+                      r.me
+                        ? "bg-[#8b5cf6]/25 border-[#8b5cf6] shadow-[0_0_8px_rgba(139,92,246,0.3)]"
+                        : "bg-gray-100 dark:bg-white/5 border-line dark:border-white/15 hover:bg-gray-100 dark:hover:bg-white/10"
+                    }`}
+                  >
+                    {r.type === "sticker" ? (
+                      <img src={mediaUrl(r.content)} alt="" className="w-5 h-5 object-contain" />
+                    ) : (
+                      <span>{r.emoji}</span>
+                    )}
+                    <span className="text-[11px] font-bold text-gray-700 dark:text-white/80">{r.count}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
+              {isSubscribed && (
+                <button
+                  onClick={() => setReactionPickerFor(reactionPickerFor === p.id ? null : p.id)}
+                  className="text-[10px] sm:text-[11px] text-gray-500 dark:text-white/40 hover:text-[#8b5cf6] flex items-center gap-1"
+                  title="Реакция"
+                >
+                  <SmilePlus size={11} />
+                </button>
+              )}
               <span className="text-[10px] sm:text-[11px] flex items-center gap-1 text-gray-500 dark:text-white/40" title={t("channels.views") || "просмотры"}>
                 <Eye size={11} /> {p.views_count}
               </span>
@@ -448,9 +530,9 @@ export default function ChannelPage() {
             <ArrowLeft size={20} />
           </button>
           {channel.avatar_url ? (
-            <Avatar src={channel.avatar_url} name={channel.title} id={channel.id} size={40} round />
+            <Avatar src={channel.avatar_url} name={channel.title} id={channel.id} size={40} />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9] flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9] flex items-center justify-center shrink-0">
               <Megaphone size={20} className="text-white" />
             </div>
           )}
@@ -696,6 +778,79 @@ export default function ChannelPage() {
           />
         )}
         {/*FORWARD_END*/}
+        {/* ── 👍 ПИКЕР РЕАКЦИЙ (как в чатах: эмодзи + стикер-паки) ── */}
+        {reactionPickerFor !== null && (
+          <>
+            <div className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm" onClick={() => setReactionPickerFor(null)} />
+            <div className="fixed inset-0 z-[261] flex items-center justify-center p-4 pointer-events-none">
+              <div className="w-full max-w-sm max-h-[80vh] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
+                <div className="shrink-0 p-3 pb-2 border-b border-line dark:border-white/10">
+                  <div className="flex items-center justify-between mb-2 px-1">
+                    <p className="text-xs font-bold text-gray-600 dark:text-white/60">{t("appearance.chooseReaction") || "Выбрать реакцию"}</p>
+                    <button onClick={() => setReactionPickerFor(null)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white p-1">
+                      <X size={14} />
+                    </button>
+                  </div>
+                  {/* Вкладки: эмодзи + паки */}
+                  <div className="flex gap-1 overflow-x-auto scrollbar-hide pb-1">
+                    <button
+                      onClick={() => setActiveReactionTab(-1)}
+                      className={`px-2 py-1 rounded-lg text-[11px] font-bold shrink-0 ${activeReactionTab === -1 ? "bg-[#8b5cf6] text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50"}`}
+                    >
+                      {t("appearance.emojiTab") || "Эмодзи"}
+                    </button>
+                    {stickerPacks.map((pack: any) => (
+                      <button
+                        key={pack.id}
+                        onClick={() => setActiveReactionTab(pack.id)}
+                        className={`px-2 py-1 rounded-lg text-[11px] font-bold shrink-0 truncate max-w-[110px] ${activeReactionTab === pack.id ? "bg-[#8b5cf6] text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50"} ${pack.locked ? "opacity-50" : ""}`}
+                      >
+                        {pack.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto p-3">
+                  {activeReactionTab === -1 ? (
+                    <div className="grid grid-cols-8 gap-1">
+                      {["👍", "❤️", "🔥", "👏", "😢", "😮", "😂", "🎉"].map((emoji) => (
+                        <button
+                          key={emoji}
+                          onClick={() => toggleReaction(reactionPickerFor!, undefined, emoji)}
+                          className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-xl"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    (() => {
+                      const pack = stickerPacks.find((pk: any) => pk.id === activeReactionTab);
+                      if (!pack) return null;
+                      return (
+                        <div className="grid grid-cols-4 gap-2">
+                          {(pack.stickers || []).map((s: any) => (
+                            <button
+                              key={s.id}
+                              onClick={() => {
+                                if (pack.locked) return;
+                                toggleReaction(reactionPickerFor!, Number(s.id), undefined);
+                              }}
+                              className={`p-1 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors ${pack.locked ? "opacity-40 cursor-not-allowed" : ""}`}
+                            >
+                              <img src={mediaUrl(s.content)} alt="" className="w-full aspect-square object-contain" />
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+        {/*REACTION_PICKER_END*/}
       </main>
     </div>
   );

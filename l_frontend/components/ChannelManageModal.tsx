@@ -177,7 +177,7 @@ export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
           {tab === "main" && (
             <>
               <div className="flex items-center justify-center">
-                <div className="relative w-24 h-24 rounded-full overflow-hidden bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 cursor-pointer group" onClick={() => fileRef.current?.click()}>
+                <div className="relative w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 cursor-pointer group" onClick={() => fileRef.current?.click()}>
                   {avatarPreview ? <img src={mediaUrl(avatarPreview)} alt="" className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center text-gray-500 dark:text-white/40"><ImageIcon size={32} /></div>}
                   <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity"><Upload size={20} className="text-white" /></div>

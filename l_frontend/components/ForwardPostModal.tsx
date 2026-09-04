@@ -88,7 +88,9 @@ export function ForwardPostModal({
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-left"
               >
                 <div className={`w-10 h-10 rounded-xl shrink-0 overflow-hidden flex items-center justify-center ${c.is_channel ? "bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9]" : "bg-gradient-to-br from-purple-500 to-indigo-600"}`}>
-                  {c.is_channel ? <Megaphone size={18} className="text-white" />
+                  {c.is_channel
+                    ? c.avatar_url ? <img src={mediaUrl(c.avatar_url)} alt="" className="w-full h-full object-cover" />
+                      : <Megaphone size={18} className="text-white" />
                     : c.is_group ? <Users size={18} className="text-gray-900 dark:text-white" />
                     : c.other?.avatar_url ? <img src={mediaUrl(c.other.avatar_url)} alt="" className="w-full h-full rounded-xl object-cover" />
                     : <span className="text-gray-900 dark:text-white font-bold">{(c.other?.display_name || "?")[0]}</span>}
