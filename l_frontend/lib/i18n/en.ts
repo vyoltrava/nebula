@@ -990,7 +990,7 @@ channels: {
   title: "Title",
   titlePlaceholder: "My channel",
   slug: "Channel link",
-  slugHint: "Latin letters, digits and '_', 5-32 chars. Available at /c/@link",
+  slugHint: "Latin letters, digits and '_', 5-32 chars. Available at /channels/link",
   description: "Description",
   descPlaceholder: "What is this channel about?",
   public: "Public",

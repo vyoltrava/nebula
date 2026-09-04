@@ -187,7 +187,7 @@ export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
                   <input value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase())} maxLength={33}
                     className={`w-full pl-8 pr-3 py-2 rounded-lg border bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-[#8b5cf6] ${slugValid || slug.replace(/^@/, "") === channel.custom_slug ? "border-line dark:border-white/10" : "border-red-500/60"}`} />
                 </div>
-                <p className="text-[11px] text-gray-500 dark:text-white/40 mt-1">Латиница, цифры, «_», 5-32 символа. Канал доступен по /channels/@{slug.replace(/^@/, "") || "ссылка"}</p>
+                <p className="text-[11px] text-gray-500 dark:text-white/40 mt-1">Латиница, цифры, «_», 5-32 символа. Канал доступен по /channels/{slug.replace(/^@/, "") || "ссылка"}</p>
               </div>
               {msg && <p className="text-xs text-red-500 dark:text-red-400">{msg}</p>}
               <Button icon={CheckCircle} onClick={saveSettings} loading={loading} className="w-full">

@@ -560,7 +560,7 @@ const confirmPrismKey = async () => {
             return (
               <div
                 key={`channel-${chat.id}`}
-                onClick={() => { refresh(); router.push(`/channels/@${chat.custom_slug}`); }}
+                onClick={() => { refresh(); router.push(`/channels/${chat.custom_slug}`); }}
                 className={`flex items-center gap-3 p-3 md:p-4 border-b border-b-white/10 border-l-4 border-l-[#8b5cf6]/40 hover:bg-gray-100 dark:hover:bg-white/5 cursor-pointer transition-all duration-200 ${chat.muted ? "opacity-60" : ""} ${chat.unread_count > 0 && !chat.muted ? "bg-purple-500/10" : ""}`}
               >
                 <div className="shrink-0">

@@ -53,7 +53,7 @@ export function CreateChannelModal({
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.channel?.custom_slug) {
-        onCreated(`@${data.channel.custom_slug}`);
+        onCreated(data.channel.custom_slug);
       } else {
         setError(data.detail || t("channels.createFailed") || "Не удалось создать канал");
       }

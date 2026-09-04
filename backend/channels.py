@@ -43,6 +43,7 @@ RESERVED_SLUGS = {
     "admin", "api", "nebula", "support", "help", "login", "register",
     "settings", "profile", "posts", "comments", "invites", "requests",
     "subscribe", "join", "create", "new", "search", "about", "terms",
+    "my", "by-slug", "feed",
 }
 
 
