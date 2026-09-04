@@ -299,8 +299,25 @@ def post_out(post: ChannelPost, session: Session, with_author: bool = True,
         "comments_count": comments_count,
         "scheduled_at": post.scheduled_at.isoformat() if post.scheduled_at else None,
         "is_published": post.is_published,
+        "reply_to_post_id": post.reply_to_post_id,
+        "reply_preview": _reply_preview_for(session, post),
         "created_at": post.created_at.isoformat() if post.created_at else None,
         "edited_at": post.edited_at.isoformat() if post.edited_at else None,
+    }
+
+
+def _reply_preview_for(session: Session, post: ChannelPost) -> Optional[dict]:
+    """Превью «ответ на пост» (для reply-цепочек админа)."""
+    if not post.reply_to_post_id:
+        return None
+    target = session.get(ChannelPost, post.reply_to_post_id)
+    if not target:
+        return None
+    return {
+        "post_id": target.id,
+        "text": (target.text or "").strip()[:200] or None,
+        "has_media": bool(target.media not in ("", "[]", "null")),
+        "created_at": target.created_at.isoformat() if target.created_at else None,
     }
 
 
@@ -400,6 +417,8 @@ class PostCreateIn(BaseModel):
     poll: Optional[dict] = None         # опрос/викторина
     # ✅ Пересылка сообщения из чата в канал (создать пост на основе Message)
     forwarded_from_chat: Optional[int] = None  # message_id исходного сообщения
+    # ✅ Ответ на пост (reply-цепочка: админ отвечает на уже выложенный пост)
+    reply_to_post_id: Optional[int] = None
 
 
 class ForwardPostIn(BaseModel):
@@ -715,6 +734,14 @@ async def create_post(
     if data.post_type in ("poll", "quiz") and not data.poll:
         raise HTTPException(400, "Укажите данные опроса")
 
+    # ✅ Ответ на пост: цель должна быть постом этого же канала
+    reply_preview = None
+    if data.reply_to_post_id:
+        reply_target = session.get(ChannelPost, data.reply_to_post_id)
+        if not reply_target or reply_target.channel_id != ch.id:
+            raise HTTPException(400, "Пост, на который отвечаете, не найден в этом канале")
+        reply_preview = (reply_target.text or "").strip()[:200] or (f"Медиа #{reply_target.id}" if reply_target.media not in ("", "[]") else None)
+
     # валидация опроса
     poll_json = "{}"
     if data.post_type in ("poll", "quiz"):
@@ -789,6 +816,7 @@ async def create_post(
         is_silent=is_silent,
         scheduled_at=scheduled_at,
         is_published=is_published,
+        reply_to_post_id=data.reply_to_post_id,
     )
     session.add(post)
     session.commit()

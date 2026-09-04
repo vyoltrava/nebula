@@ -71,7 +71,7 @@ export default function ChannelPage() {
 
   // 👍 Реакции — та же система, что в чатах (эмодзи + стикер-паки)
   const [reactionPickerFor, setReactionPickerFor] = useState<number | null>(null);
-  const [activeReactionTab, setActiveReactionTab] = useState<number>(-1);
+  const [activePackTab, setActivePackTab] = useState<number>(0);
   const [stickerPacks, setStickerPacks] = useState<any[]>([]);
 
   // 🖊 WYSIWYG-композер и контекстные меню (как в чатах)
@@ -84,9 +84,16 @@ export default function ChannelPage() {
   const [subscribersList, setSubscribersList] = useState<any[]>([]);
   const [subsLoading, setSubsLoading] = useState(false);
   const [subsSearch, setSubsSearch] = useState("");
+  // 📱 Свайп-эффект «оттягивания» пузыря (dragX) — ответ для админа, комменты для подписчика
+  const [dragX, setDragX] = useState(0);
+  const [dragPostId, setDragPostId] = useState<number | null>(null);
+  const dragStartX = useRef<number | null>(null);
+  const dragLocked = useRef(false);
+  const [replyToPostId, setReplyToPostId] = useState<number | null>(null);
+  const [replyToPostPreview, setReplyToPostPreview] = useState<any | null>(null);
+
   const postLpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const postLpPos = useRef({ x: 0, y: 0 });
-  const postSwipe = useRef({ done: false });
   const clearPostLp = () => { if (postLpTimer.current) { clearTimeout(postLpTimer.current); postLpTimer.current = null; } };
 
   const openPostIdRef = useRef<number | null>(null);
@@ -174,6 +181,8 @@ export default function ChannelPage() {
       my_reaction: null, is_saved: false, is_silent: isSilent, is_pinned: false,
       views_count: 0, comments_count: 0, scheduled_at: scheduledAt || null,
       is_published: !!scheduledAt ? false : true, is_temp: true,
+      reply_to_post_id: replyToPostId,
+      reply_preview: replyToPostPreview,
       created_at: new Date().toISOString(), edited_at: null,
       author: { ...(channel.owner || {}), id: channel.owner?.id },
     };
@@ -183,9 +192,10 @@ export default function ChannelPage() {
         const res = await fetch(`${API}/api/channels/${channel.id}/posts`, {
           method: "POST", headers: { ...headers(), "Content-Type": "application/json" },
           body: JSON.stringify({ text: tempText || null, media: tempMedia, is_silent: isSilent,
-                                 scheduled_at: new Date(scheduledAt).toISOString() }),
+                                 scheduled_at: new Date(scheduledAt).toISOString(),
+                                 reply_to_post_id: replyToPostId }),
         });
-        if (res.ok) { setPostText(""); setPostMedia([]); setIsSilent(false); setScheduledAt(""); await loadPosts(); }
+        if (res.ok) { setPostText(""); setPostMedia([]); setIsSilent(false); setScheduledAt(""); setReplyToPostId(null); setReplyToPostPreview(null); await loadPosts(); }
         else { const d = await res.json().catch(() => null); alert(d?.detail || "Ошибка публикации"); }
       } finally { setPosting(false); }
       return;
@@ -195,8 +205,10 @@ export default function ChannelPage() {
     setPostMedia([]);
     setIsSilent(false);
     setScheduledAt("");
+    setReplyToPostId(null);
+    setReplyToPostPreview(null);
     try {
-      const body: any = { text: tempText || null, media: tempMedia, is_silent: isSilent };
+      const body: any = { text: tempText || null, media: tempMedia, is_silent: isSilent, reply_to_post_id: replyToPostId };
       if (scheduledAt) body.scheduled_at = new Date(scheduledAt).toISOString();
       const res = await fetch(`${API}/api/channels/${channel.id}/posts`, {
         method: "POST", headers: { ...headers(), "Content-Type": "application/json" }, body: JSON.stringify(body),
@@ -510,7 +522,7 @@ export default function ChannelPage() {
     };
     return (
       <div
-        className="flex justify-start"
+        className="relative flex justify-start"
         id={`post-${p.id}`}
         style={{ touchAction: "pan-y" } as React.CSSProperties}
         onContextMenu={(e) => {
@@ -519,32 +531,80 @@ export default function ChannelPage() {
           setPostMenu({ postId: p.id, x: e.clientX, y: e.clientY });
         }}
         onPointerDown={(e) => {
-          if (e.pointerType !== "touch") return;
           if ((e.target as HTMLElement)?.closest("button, a, input, textarea, .rich-editor")) return;
-          postLpPos.current = { x: e.clientX, y: e.clientY };
-          postSwipe.current = { done: false };
-          clearPostLp();
-          postLpTimer.current = setTimeout(() => openPostMenuAt(postLpPos.current.x, postLpPos.current.y), 400);
+          if (e.pointerType === "touch") {
+            // long-press
+            postLpPos.current = { x: e.clientX, y: e.clientY };
+            clearPostLp();
+            postLpTimer.current = setTimeout(() => { if (dragStartX.current == null) openPostMenuAt(postLpPos.current.x, postLpPos.current.y); }, 400);
+          }
+          // начало потенциального свайпа (touch и mouse)
+          dragStartX.current = e.clientX;
+          dragLocked.current = false;
+          setDragPostId(p.id);
         }}
         onPointerMove={(e) => {
-          if (e.pointerType !== "touch") return;
-          const dx = e.clientX - postLpPos.current.x;
-          const dy = e.clientY - postLpPos.current.y;
-          // микродвижение не отменяет long-press; явное движение — отменяет
-          if (Math.abs(dx) > 12 || Math.abs(dy) > 12) clearPostLp();
-          // свайп влево → комментарии (горизонталь доминирует, 60px)
-          if (!postSwipe.current.done && Math.abs(dx) > Math.abs(dy) && dx < -60) {
-            postSwipe.current.done = true;
+          if (dragStartX.current == null || dragPostId !== p.id) return;
+          const dx = e.clientX - dragStartX.current;
+          const dy = (e.pointerType === "touch") ? (e.clientY - postLpPos.current.y) : 0;
+          // вертикальный скролл — свайп не начинается
+          if (e.pointerType === "touch" && Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 8 && !dragLocked.current) {
             clearPostLp();
-            try { navigator.vibrate?.(10); } catch {}
-            openComments(p.id);
+            dragLocked.current = true;
+            setDragPostId(null);
+            return;
           }
+          if (dragLocked.current) return;
+          // микроскролл до ~6px — терпим (не ломаем тап/длинное нажатие)
+          if (Math.abs(dx) < 6) return;
+          if (e.pointerType === "touch") clearPostLp(); // свайп отменяет long-press
+          // rubber-band: вправо не тянем, слева ограничиваем 90px
+          let next = dx;
+          if (next > 0) next = 0;
+          if (next < -90) next = -90 - (next + 90) * 0.3;
+          dragLocked.current = true;
+          setDragX(next);
         }}
-        onPointerUp={clearPostLp}
+        onPointerUp={(e) => {
+          if (dragPostId === p.id && dragStartX.current != null && dragX < -50) {
+            // commit: админ → ответ на пост, подписчик → комментарии
+            try { navigator.vibrate?.(12); } catch {}
+            if (isAdmin) { setReplyToPostId(p.id); setReplyToPostPreview({ post_id: p.id, text: p.text || "", has_media: (p.media||[]).length > 0 }); setTimeout(() => editorRef.current?.focus(), 0); }
+            else openComments(p.id);
+          }
+          setDragX(0); setDragPostId(null); dragStartX.current = null; dragLocked.current = false;
+          clearPostLp();
+        }}
         onPointerLeave={clearPostLp}
-        onPointerCancel={clearPostLp}
+        onPointerCancel={() => { setDragX(0); setDragPostId(null); dragStartX.current = null; dragLocked.current = false; clearPostLp(); }}
       >
-        <div className="max-w-[85%] sm:max-w-[75%] md:max-w-[70%] min-w-0 flex flex-col items-start">
+        <div
+          className="max-w-[85%] sm:max-w-[75%] md:max-w-[70%] min-w-0 flex flex-col items-start"
+          style={{
+            transform: dragPostId === p.id ? `translateX(${dragX}px)` : "translateX(0px)",
+            transition: dragPostId === p.id ? "none" : "transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)",
+            willChange: "transform",
+          }}
+        >
+          {/* Индикатор действия при оттягивании */}
+          <div
+            className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold text-xs transition-opacity pointer-events-none"
+            style={{
+              opacity: dragPostId === p.id && dragX < -12 ? Math.min(1, -dragX / 80) : 0,
+              color: isAdmin ? "#8b5cf6" : "#0ea5e9",
+              right: 8,
+            }}
+          >
+            <Reply size={16} /> {isAdmin ? "Ответить" : "Комментарии"}
+          </div>
+          {p.reply_preview && !p.is_temp && (
+            <div className="mb-1 ml-1 flex items-center gap-1.5 border-l-2 border-[#8b5cf6] pl-2 py-0.5 max-w-full">
+              <Reply size={9} className="text-[#8b5cf6] shrink-0" />
+              <span className="text-[10px] px-1 py-0.5 rounded bg-gray-200/70 dark:bg-white/10 text-gray-600 dark:text-white/60 truncate">
+                Ответ на @{channel.custom_slug}: {p.reply_preview.text || (p.reply_preview.has_media ? "Медиа" : "Пост")}
+              </span>
+            </div>
+          )}
           {p.is_temp && (
             <div className="mb-0.5 px-1 flex items-center gap-1 text-[9px] text-gray-400 dark:text-white/30">
               <Loader2 size={9} className="animate-spin" /> отправка…
@@ -850,6 +910,20 @@ export default function ChannelPage() {
                 </button>
               </div>
             )}
+            {replyToPostId && (
+              <div className="flex items-center gap-2 px-3 py-2 mb-1.5 bg-[#8b5cf6]/10 border border-[#8b5cf6]/40 rounded-xl">
+                <Reply size={14} className="text-[#8b5cf6] shrink-0" />
+                <div className="flex-1 min-w-0 border-l-2 border-[#8b5cf6] pl-2">
+                  <p className="text-[10px] font-bold text-[#8b5cf6]">Ответ на @{channel.custom_slug}</p>
+                  <p className="text-[11px] text-gray-600 dark:text-white/50 truncate">
+                    {replyToPostPreview?.text || (replyToPostPreview?.has_media ? "📎 Медиа" : "Пост")}
+                  </p>
+                </div>
+                <button onClick={() => { setReplyToPostId(null); setReplyToPostPreview(null); }} className="p-1 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white rounded-full shrink-0">
+                  <X size={13} />
+                </button>
+              </div>
+            )}
             <div className="flex items-end gap-1.5 sm:gap-2">
               <input ref={fileRef} type="file" accept="image/*,image/gif,video/*" multiple className="hidden" onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
               <div className="relative shrink-0 flex items-end pb-1">
@@ -988,72 +1062,75 @@ export default function ChannelPage() {
           />
         )}
         {/*FORWARD_END*/}
-        {/* ── 👍 ПИКЕР РЕАКЦИЙ (как в чатах: эмодзи + стикер-паки) ── */}
+        {/* ── 👍 ПИКЕР РЕАКЦИЙ — ТОЧНАЯ КОПИЯ из чатов ── */}
         {reactionPickerFor !== null && (
           <>
             <div className="fixed inset-0 z-[260] bg-black/60 backdrop-blur-sm" onClick={() => setReactionPickerFor(null)} />
             <div className="fixed inset-0 z-[261] flex items-center justify-center p-4 pointer-events-none">
               <div className="w-full max-w-sm max-h-[80vh] bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto">
+                {/* Шапка — всегда видна */}
                 <div className="shrink-0 p-3 pb-2 border-b border-line dark:border-white/10">
                   <div className="flex items-center justify-between mb-2 px-1">
-                    <p className="text-xs font-bold text-gray-600 dark:text-white/60">{t("appearance.chooseReaction") || "Выбрать реакцию"}</p>
+                    <p className="text-xs font-bold text-gray-600 dark:text-white/60">Выбрать реакцию</p>
                     <button onClick={() => setReactionPickerFor(null)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white p-1">
                       <X size={14} />
                     </button>
                   </div>
-                  {/* Вкладки: эмодзи + паки */}
+
+                  {/* Вкладки паков */}
                   <div className="flex gap-1 overflow-x-auto scrollbar-hide pb-1">
-                    <button
-                      onClick={() => setActiveReactionTab(-1)}
-                      className={`px-2 py-1 rounded-lg text-[11px] font-bold shrink-0 ${activeReactionTab === -1 ? "bg-[#8b5cf6] text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50"}`}
-                    >
-                      {t("appearance.emojiTab") || "Эмодзи"}
-                    </button>
-                    {stickerPacks.map((pack: any) => (
+                    {stickerPacks.map((pack: any, i: number) => (
                       <button
                         key={pack.id}
-                        onClick={() => setActiveReactionTab(pack.id)}
-                        className={`px-2 py-1 rounded-lg text-[11px] font-bold shrink-0 truncate max-w-[110px] ${activeReactionTab === pack.id ? "bg-[#8b5cf6] text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50"} ${pack.locked ? "opacity-50" : ""}`}
+                        onClick={() => setActivePackTab(i)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap shrink-0 transition-all ${
+                          activePackTab === i
+                            ? "bg-[#8b5cf6] text-white"
+                            : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/10"
+                        }`}
                       >
+                        {pack.locked && <Lock size={10} className="text-yellow-600 dark:text-yellow-400" />}
                         {pack.name}
                       </button>
                     ))}
                   </div>
                 </div>
-                <div className="flex-1 overflow-y-auto p-3">
-                  {activeReactionTab === -1 ? (
-                    <div className="grid grid-cols-8 gap-1">
-                      {["👍", "❤️", "🔥", "👏", "😢", "😮", "😂", "🎉"].map((emoji) => (
-                        <button
-                          key={emoji}
-                          onClick={() => toggleReaction(reactionPickerFor!, undefined, emoji)}
-                          className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-xl"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    (() => {
-                      const pack = stickerPacks.find((pk: any) => pk.id === activeReactionTab);
-                      if (!pack) return null;
-                      return (
-                        <div className="grid grid-cols-4 gap-2">
-                          {(pack.stickers || []).map((s: any) => (
-                            <button
-                              key={s.id}
-                              onClick={() => {
-                                if (pack.locked) return;
-                                toggleReaction(reactionPickerFor!, Number(s.id), undefined);
-                              }}
-                              className={`p-1 rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 transition-colors ${pack.locked ? "opacity-40 cursor-not-allowed" : ""}`}
-                            >
-                              <img src={mediaUrl(s.content)} alt="" className="w-full aspect-square object-contain" />
-                            </button>
-                          ))}
+
+                {/* Контент — скроллится */}
+                <div className="flex-1 overflow-y-auto p-3 min-h-0">
+                  {stickerPacks[activePackTab] && (
+                    stickerPacks[activePackTab].locked ? (
+                      <div className="flex flex-col items-center gap-2 py-8 text-center">
+                        <div className="w-12 h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
+                          <Lock size={18} className="text-yellow-600 dark:text-yellow-400" />
                         </div>
-                      );
-                    })()
+                        <p className="text-sm font-bold text-gray-900 dark:text-white">Пак заблокирован</p>
+                        <p className="text-[11px] text-gray-500 dark:text-white/40 max-w-[220px]">
+                          Доступен с уровня {stickerPacks[activePackTab].min_level}.
+                          Повысь уровень, чтобы использовать эти реакции.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-6 gap-1.5">
+                        {stickerPacks[activePackTab].stickers.map((s: any) => (
+                          <button
+                            key={s.id}
+                            onClick={() => {
+                              // ✅ ЯВНОЕ РАЗДЕЛЕНИЕ (как в чатах)
+                              if (s.type === "emoji") toggleReaction(reactionPickerFor!, undefined, s.content);
+                              else toggleReaction(reactionPickerFor!, Number(s.id), undefined);
+                            }}
+                            className="aspect-square flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90 transition-all"
+                          >
+                            {s.type === "emoji" ? (
+                              <span className="text-2xl">{s.content}</span>
+                            ) : (
+                              <img src={mediaUrl(s.content)} alt="" className="w-10 h-10 object-contain" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )
                   )}
                 </div>
               </div>

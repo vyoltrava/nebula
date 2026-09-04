@@ -955,6 +955,8 @@ class ChannelPost(SQLModel, table=True):
     views_count: int = Field(default=0)
     scheduled_at: Optional[datetime] = None
     is_published: bool = Field(default=True)
+    # ✅ Ответ на другой пост (reply-цепочка админа в канале)
+    reply_to_post_id: Optional[int] = Field(default=None, foreign_key="channel_post.id", index=True)
     created_at: datetime = Field(default_factory=utcnow, index=True)
     edited_at: Optional[datetime] = None
 
