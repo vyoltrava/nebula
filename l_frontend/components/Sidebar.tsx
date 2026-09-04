@@ -718,6 +718,7 @@ function HorizontalSwipeNav({
       label: string;
       badge?: number;
       action?: "search" | "layout" | "bug" | "switch";
+      isProfile?: boolean;
     }[] = [
       { key: "home",     href: "/",           icon: Home,          label: t("nav.home") },
       { key: "comm",     href: "/updates",    icon: Satellite,     label: t("nav.community") },
@@ -734,7 +735,7 @@ function HorizontalSwipeNav({
         ? [{ key: "admin", href: "/adminnew", icon: ShieldCheck, label: user?.is_admin ? t("nav.admin") : t("nav.moderation") }]
         : []),
       ...(user
-        ? [{ key: "profile", href: `/${user.username}`, icon: UserPlus, label: t("nav.profile") }]
+        ? [{ key: "profile", href: `/${user.username}`, icon: UserPlus, label: t("nav.profile"), isProfile: true }]
         : [{ key: "login", href: "/login", icon: UserPlus, label: t("nav.login") }]),
       ...(user ? [{ key: "switch", href: "#logout", icon: LogOut, label: t("nav.logout"), action: "switch" as const }] : []),
     ];
@@ -908,7 +909,15 @@ function HorizontalSwipeNav({
                           : "bg-white/90 dark:bg-[#1a1a1f]/90 border-line dark:border-white/10 text-gray-700 dark:text-white/80"
                     }`}
                   >
-                    <item.icon size={iconSize} />
+                    {item.isProfile && user?.avatar_url ? (
+                      <img
+                        src={mediaUrl(user.avatar_url)}
+                        alt={user.display_name || user.username || "Profile"}
+                        className="w-full h-full rounded-full object-cover"
+                      />
+                    ) : (
+                      <item.icon size={iconSize} />
+                    )}
                     {!!badge && badge > 0 && (
                       <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#ef4444] text-white text-[10px] font-black flex items-center justify-center border-2 border-white dark:border-[#1a1a1f]">
                         {badge > 99 ? "99+" : badge}
