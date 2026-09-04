@@ -39,8 +39,8 @@ def upgrade() -> None:
         op.execute(text(
             f"ALTER TABLE {table} ALTER COLUMN id SET DEFAULT nextval('{seq}')"
         ))
-        # «Владение» последовательностью таблицей (для пересоздания схемы)
-        op.execute(text(f"ALTER SEQUENCE {seq} OWNED BY {table}"))
+        # «Владение» последовательностью колонкой таблицы (для пересоздания схемы)
+        op.execute(text(f"ALTER SEQUENCE {seq} OWNED BY {table}.id"))
 
 
 def downgrade() -> None:
