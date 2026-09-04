@@ -29,6 +29,8 @@ export interface RelayCallApi {
   reject: () => Promise<void>;
   end: () => Promise<void>;
   remoteEnded: () => void;
+  remoteAccepted: () => Promise<void>;
+  remoteRejected: () => void;
   onEvent: (cb: (s: RelayCallState) => void) => () => void;
   getPlayer: () => RelayPlayer | null;
 }
@@ -183,6 +185,19 @@ export function makeRelayCall(callType: string): RelayCallApi {
     remoteEnded() {
       log('remoteEnded');
       cleanup('remote-ended'); set({ status: 'ended' }, 'remote-end');
+    },
+    async remoteAccepted() {
+      // Собеседник принял: у звонящего calling -> active + открываем стрим.
+      log('remoteAccepted');
+      if (state.status !== 'calling') { log('remoteAccepted ignored, status=', state.status); return; }
+      set({ status: 'active' }, 'remote-accepted');
+      if (!cap) cap = await startCapture(state.callType === 'video' ? 'video' : 'audio', (ab) => { if (streamWs?.readyState === WebSocket.OPEN) streamWs.send(ab); });
+      if (!player) { player = new RelayPlayer(state.callType === 'video'); player.start(); }
+      if (!streamWs) await openStream();
+    },
+    remoteRejected() {
+      log('remoteRejected');
+      cleanup('remote-rejected'); set({ status: 'ended' }, 'remote-reject');
     },
     onEvent: (cb) => { listeners.add(cb); cb(state); return () => listeners.delete(cb); },
     getPlayer: () => player,

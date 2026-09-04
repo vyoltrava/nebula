@@ -140,13 +140,15 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     });
     // Обработка состояния звонка: принятие/завершение у второй стороны.
     const unsubRelayAccepted = socket.on("relay_call_accepted", () => {
-      // инициатор переходит в active (уже обработано api.accept через onEvent)
-      getRelayCallApi();
+      // инициатор: calling -> active, открываем stream
+      getRelayCallApi().remoteAccepted();
     });
     const unsubRelayActive = socket.on("relay_call_active", () => {
-      const r = getRelayCallApi();
-      // вызываемому уже пришёл incoming; active подтверждает старт
-      r; // noop — модалка подписана на API
+      // вызываемый: уже в active через accept — noop
+    });
+    const unsubRelayRejected = socket.on("relay_call_rejected", () => {
+      // инициатор: собеседник отклонил
+      getRelayCallApi().remoteRejected();
     });
     const unsubRelayEnded = socket.on("relay_call_ended", () => {
       getRelayCallApi().remoteEnded();
