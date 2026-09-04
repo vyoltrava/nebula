@@ -981,3 +981,9 @@ body.ios-theme .post-edit-cancel:active {
   0% { transform: translateY(-50%) scale(0.7); opacity: 0.9; }
   100% { transform: translateY(-50%) scale(1.5); opacity: 0; }
 }
+
+/* 🆕 Horizontal Swipe Nav: кнопки выезжают из центра */
+@keyframes hswipe-pop {
+  0%   { opacity: 0; transform: scale(0.4); }
+  100% { opacity: 1; transform: scale(1); }
+}

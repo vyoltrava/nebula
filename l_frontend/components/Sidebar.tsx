@@ -187,13 +187,13 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
 // НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
 // 🎛 ВАРИАНТЫ САЙДБАРА
 // НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
-export type SidebarLayout = "classic" | "orbit" | "dock" | "orbit2" | "dock2";
+export type SidebarLayout = "classic" | "orbit" | "dock" | "orbit2" | "dock2" | "horizontal-swipe";
 const LAYOUT_KEY = "trelod_sidebar_layout";
 
 export function getSidebarLayout(): SidebarLayout {
   if (typeof window === "undefined") return "classic";
   const v = localStorage.getItem(LAYOUT_KEY);
-  return v === "orbit" || v === "dock" || v === "orbit2" || v === "dock2" ? v : "classic";
+  return v === "orbit" || v === "dock" || v === "orbit2" || v === "dock2" || v === "horizontal-swipe" ? v : "classic";
 }
 
 export function setSidebarLayout(v: SidebarLayout) {
@@ -245,6 +245,16 @@ function LayoutPreview({ kind }: { kind: SidebarLayout }) {
           </div>
         </>
       )}
+      {kind === "horizontal-swipe" && (
+        <div className="relative flex-1 p-1.5">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2/3 h-5 rounded-full bg-gray-100 dark:bg-[#22222a] border border-line dark:border-white/10 flex items-center justify-around px-1">
+            <span className="w-2 h-2 rounded-full bg-[#8b5cf6]" />
+            <span className="w-2 h-2 rounded-full bg-gray-200 dark:bg-white/25" />
+            <span className="w-2 h-2 rounded-full bg-gray-200 dark:bg-white/25" />
+            <span className="w-2 h-2 rounded-full bg-gray-200 dark:bg-white/25" />
+          </div>
+        </div>
+      )}
       {kind === "dock" && (
         <>
           <div className="w-4 bg-gray-100 dark:bg-[#22222a] border-r border-line dark:border-white/10 flex flex-col items-center gap-1 py-1">
@@ -275,6 +285,7 @@ function LayoutPicker({ current, onClose, isMobile }: { current: SidebarLayout; 
     { key: "orbit2", name: t("nav.layoutOrbit2"), desc: t("nav.layoutOrbit2Desc") },
     ...(isMobile ? [
       { key: "dock2" as SidebarLayout, name: t("nav.layoutDock2"), desc: t("nav.layoutDock2Desc") },
+      { key: "horizontal-swipe" as SidebarLayout, name: "Horizontal Swipe", desc: "Свайп слева направо → меню замирает" },
     ] : []),
   ];
   return (
@@ -662,6 +673,214 @@ function Dock2Wheel({
     </>
   );
 }
+
+// ННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
+// 🆕 Horizontal Swipe Nav
+//    Мобильное горизонтальное меню:
+//    • ОТКРЫТИЕ  — быстрый свайп слева направо в правом нижнем углу
+//                  (нижние 40% экрана И правые 50%) → меню ЗАМИРАЕТ открытым.
+//    • ЗАКРЫТИЕ  — быстрый свайп справа налево в любой части экрана.
+//    • Пока открыто: overlay блокирует фон (скролл запрещён).
+//    Используется ТОЛЬКО на мобильных (isMobile), на ПК не рендерится.
+// НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
+const OPEN_ZONE_BOTTOM  = 0.40; // зона открытия: нижние 40% экрана
+const OPEN_ZONE_RIGHT   = 0.50; // зона открытия: правые 50% экрана
+const SWIPE_THRESHOLD   = 80;   // минимальная дистанция свайпа (px)
+const SWIPE_VELOCITY    = 0.3;  // минимальная скорость (px/ms) — «быстрый» свайп
+
+function HorizontalSwipeNav({ pathname, user, counts }: { pathname: string; user: any; counts: any }) {
+  const router = useRouter();
+
+  // ── Пункты меню (макс 6) ────────────────────────────────────────────
+  const items = useMemo(() => {
+    const base = [
+      { href: "/",           icon: Home,      label: "Home" },
+      { href: "/channels",   icon: Satellite, label: "Community" },
+      ...(user ? [{ href: "/messages", icon: MessageSquare, label: "Messages", badge: counts?.messages }] : []),
+      ...(user ? [{ href: "/notifications", icon: Bell, label: "Notifications", badge: counts?.notifications }] : []),
+      { href: "/bookmarks",  icon: Bookmark,  label: "Bookmarks" },
+      user
+        ? { href: `/u/${user.username}`, icon: UserPlus, label: "Profile" }
+        : { href: "/login", icon: UserPlus, label: "Login" },
+    ];
+    return base.slice(0, 6);
+  }, [user, counts]);
+
+  // ── Состояния / рефы ────────────────────────────────────────────────
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const startPos  = useRef<{ x: number; y: number } | null>(null);
+  const startTime = useRef<number | null>(null);
+  const isOpenRef = useRef(false); // актуальный флаг внутри слушателей документа
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // 🛡 Блокировка фона: скролл + выделение + long-press контекстное меню
+  const lockBody = useCallback(() => {
+    if (typeof document === "undefined") return;
+    const b = document.body;
+    b.style.overflow = "hidden";
+    b.style.userSelect = "none";
+    (b.style as unknown as { webkitUserSelect?: string }).webkitUserSelect = "none";
+    (b.style as unknown as { WebkitTouchCallout?: string }).WebkitTouchCallout = "none";
+  }, []);
+
+  const unlockBody = useCallback(() => {
+    if (typeof document === "undefined") return;
+    const b = document.body;
+    b.style.overflow = "";
+    b.style.userSelect = "";
+    (b.style as unknown as { webkitUserSelect?: string }).webkitUserSelect = "";
+    (b.style as unknown as { WebkitTouchCallout?: string }).WebkitTouchCallout = "";
+  }, []);
+
+  const closeMenu = useCallback(() => {
+    setIsOpen(false);
+    setSelectedIndex(null);
+    isOpenRef.current = false;
+    unlockBody();
+  }, [unlockBody]);
+
+  // ── ЖЕСТЫ (на document, touchmove — passive: false) ─────────────────
+  useEffect(() => {
+    const onTouchStart = (e: TouchEvent) => {
+      startPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      startTime.current = Date.now();
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      // Меню открыто → не даём странице скроллиться под оверлеем.
+      // Меню закрыто → НЕ мешаем скроллу (страница скроллится как обычно).
+      if (isOpenRef.current) e.preventDefault();
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!startPos.current || startTime.current == null) return;
+      const endPos = { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+      const endTime = Date.now();
+      const dx = endPos.x - startPos.current.x;
+      const dy = endPos.y - startPos.current.y;
+      const duration = Math.max(1, endTime - startTime.current);
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const velocity = distance / duration; // px per ms
+
+      if (!isOpenRef.current) {
+        // ОТКРЫТИЕ: старт в зоне правого нижнего угла + быстрый свайп вправо
+        const inOpenZone =
+          startPos.current.y > window.innerHeight * (1 - OPEN_ZONE_BOTTOM) &&
+          startPos.current.x > window.innerWidth * (1 - OPEN_ZONE_RIGHT);
+        if (inOpenZone && dx > SWIPE_THRESHOLD && velocity >= SWIPE_VELOCITY) {
+          setIsOpen(true);
+          isOpenRef.current = true;
+          lockBody();
+          if (typeof navigator !== "undefined" && navigator.vibrate) {
+            try { navigator.vibrate(15); } catch { /* noop */ }
+          }
+        }
+      } else {
+        // ЗАКРЫТИЕ: свайп влево в любой части экрана
+        if (dx < -SWIPE_THRESHOLD) closeMenu();
+      }
+      startPos.current = null;
+      startTime.current = null;
+    };
+
+    document.addEventListener("touchstart", onTouchStart, { passive: true });
+    document.addEventListener("touchmove", onTouchMove, { passive: false });
+    document.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchmove", onTouchMove);
+      document.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [closeMenu, lockBody]);
+
+  // 🧹 Unmount: вернуть body в исходное состояние
+  useEffect(() => {
+    return () => {
+      isOpenRef.current = false;
+      unlockBody();
+    };
+  }, [unlockBody]);
+
+  // 🧭 Смена страницы тоже закрывает меню
+  useEffect(() => { closeMenu(); }, [pathname, closeMenu]);
+
+  const handleNavigate = (href: string) => {
+    closeMenu();
+    router.push(href);
+  };
+
+  // ── Рендер ──────────────────────────────────────────────────────────
+  return (
+    <>
+      {/* Индикатор зоны открытия (виден только когда меню ЗАКРЫТО) */}
+      {!isOpen && (
+        <div className="fixed bottom-6 right-6 z-[98] pointer-events-none">
+          <span className="bg-[#8b5cf6]/80 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-lg animate-pulse inline-flex items-center gap-1">
+            → Свайп
+          </span>
+        </div>
+      )}
+
+      {/* Открытое меню: overlay + горизонтальный ряд кнопок */}
+      {isOpen && (
+        <>
+          {/* 🛡 Защита фона — рендерится ТОЛЬКО при isOpen === true */}
+          <div
+            className="fixed inset-0 z-[99] bg-black/40 backdrop-blur-[2px] pointer-events-auto"
+            style={{ touchAction: "none" }}
+            onTouchMove={(e) => e.preventDefault()}
+            onClick={closeMenu}
+          />
+          {/* Горизонтальная панель кнопок — ЗАМИРАЕТ по центру экрана */}
+          <div
+            ref={containerRef}
+            className="fixed left-4 right-4 top-1/2 -translate-y-1/2 z-[100] flex items-center justify-around"
+          >
+            {items.map((item, i) => {
+              const active = pathname === item.href;
+              const badge = (item as { badge?: number }).badge;
+              return (
+                <button
+                  key={item.href}
+                  onClick={() => handleNavigate(item.href)}
+                  onTouchStart={() => setSelectedIndex(i)}
+                  onTouchEnd={() => setTimeout(() => setSelectedIndex(null), 250)}
+                  className="flex flex-col items-center"
+                  style={{
+                    animation: "hswipe-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both",
+                    animationDelay: `${i * 40}ms`,
+                  }}
+                >
+                  <span
+                    className={`relative w-14 h-14 rounded-full flex items-center justify-center border shadow-lg transition-all duration-150 ${
+                      selectedIndex === i
+                        ? "scale-110 bg-[#8b5cf6] text-white shadow-[0_0_20px_rgba(139,92,246,0.5)] border-[#8b5cf6]"
+                        : active
+                          ? "bg-[#8b5cf6]/15 text-[#8b5cf6] border-[#8b5cf6]/40"
+                          : "bg-white/90 dark:bg-[#1a1a1f]/90 border-line dark:border-white/10 text-gray-700 dark:text-white/80"
+                    }`}
+                  >
+                    <item.icon size={22} />
+                    {!!badge && badge > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#ef4444] text-white text-[10px] font-black flex items-center justify-center border-2 border-white dark:border-[#1a1a1f]">
+                        {badge > 99 ? "99+" : badge}
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-[10px] font-semibold mt-1 text-gray-600 dark:text-white/70">
+                    {item.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
 
 // НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
 //  САЙДБАР
@@ -2131,6 +2350,11 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
           isOpen={showOrbitSwitcher} 
           onClose={() => setShowOrbitSwitcher(false)} 
         />
+      )}
+
+      {/* 🆕 Horizontal Swipe Nav — только мобильные */}
+      {isMobile && layout === "horizontal-swipe" && (
+        <HorizontalSwipeNav pathname={pathname} user={user} counts={counts} />
       )}
     </>
   );
