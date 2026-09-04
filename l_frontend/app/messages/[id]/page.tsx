@@ -57,7 +57,8 @@ import {
   FileText, Film, Edit2, Trash2, MoreVertical,
   Lock, Search, ShieldCheck, AlertTriangle, Flag,
   Check, CheckCheck, CheckSquare, Mic, Square, Users, Settings,
-  Pin, PinOff, Video, Copy, SmilePlus,  Reply, Bookmark, Type, Plus
+  Pin, PinOff, Video, Copy, SmilePlus,  Reply, Bookmark, Type, Plus,
+  Phone
 } from "lucide-react";
 // ✅ НОВЫЕ ИМПОРТЫ:
 import {
@@ -136,7 +137,15 @@ export default function ChatPage() {
   const chatId = params?.id as string;
   const router = useRouter();
   const { refresh } = useUnreadCounts();
-  const { initiateCall } = useCall(); 
+
+  // 📵 Заглушка звонков: показываем плашку «временно недоступно» по клику на трубку
+  const [callDisabled, setCallDisabled] = useState(false);
+  const callDisabledTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showCallDisabled = () => {
+    setCallDisabled(true);
+    if (callDisabledTimer.current) clearTimeout(callDisabledTimer.current);
+    callDisabledTimer.current = setTimeout(() => setCallDisabled(false), 2500);
+  };
 
 
   const [messages, setMessages] = useState<any[]>([]);
@@ -2182,6 +2191,12 @@ const partnerGlow = getGlowColor(chatPartner);
 
 const ChatHeader = () => (
   <div className="border-b border-line dark:border-white/10 backdrop-blur-md sticky top-0 z-30 bg-paper dark:bg-[#171717]/80">
+    {/* 🔕 Заглушка: звонки временно недоступны */}
+    {callDisabled && (
+      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-40 max-w-[90%] rounded-xl bg-amber-500/95 text-black text-xs font-bold px-4 py-2 shadow-xl whitespace-nowrap">
+        {t("call.temporarilyDisabled")}
+      </div>
+    )}
     {/* Основной блок */}
     <div className="p-3 sm:p-4 md:p-4">
       <div className="flex items-center gap-2 sm:gap-3 md:gap-3">
@@ -2295,26 +2310,16 @@ const ChatHeader = () => (
                 {/* Кнопки справа */}
                 <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
                   
-                  {/* 🔥 ЗВОНКИ: Кнопки аудио и видео (показываем только если это не группа и не избранное) */}
+                  {/* 🔥 ЗВОНКИ: единая кнопка с заглушкой (звонки временно недоступны) */}
 {!isGroup && !isSavedChat && chatPartner && (
-  <>
-    <CallButton
-      userId={chatPartner.id}
-      userName={chatPartner.display_name}
-      userAvatar={chatPartner.avatar_url || ''}
-      callType="audio"
-      size="sm"
-      onCall={(uid, type) => { registerCallChat(Number(chatId), isSecret); getRelayCallApi().initiate(uid, type, chatPartner.display_name, chatPartner.avatar_url || ''); }}
-    />
-    <CallButton
-      userId={chatPartner.id}
-      userName={chatPartner.display_name}
-      userAvatar={chatPartner.avatar_url || ''}
-      callType="video"
-      size="sm"
-      onCall={(uid, type) => { registerCallChat(Number(chatId), isSecret); getRelayCallApi().initiate(uid, type, chatPartner.display_name, chatPartner.avatar_url || ''); }}
-    />
-  </>
+  <button
+    onClick={showCallDisabled}
+    className="p-2.5 sm:p-2 text-[#8b5cf6] hover:bg-[#8b5cf6]/10 rounded-lg transition-colors active:scale-95"
+    title={t("call.temporarilyDisabled")}
+    aria-label={t("call.temporarilyDisabled")}
+  >
+    <Phone size={19} className="sm:w-5 sm:h-5" />
+  </button>
 )}
 
                   
