@@ -10,6 +10,8 @@ import { CallContext } from "@/lib/CallContext";
 import { sendCallLogMessage, clearCallChat, parseCallLog, formatCallLogText } from "@/lib/callLog";
 import { stripMarkdown } from "@/lib/plainText";
 import CallModal from "@/components/CallModal";
+import RelayCallModal from "@/components/RelayCallModal";
+import { getRelayCallApi } from "@/lib/relayCall";
 
 export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const {
@@ -131,6 +133,12 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     const unsubCallIce = socket.on("call_ice_candidate", (data: any) => handleSignalRef.current({ type: "call_ice_candidate", ...data }));
     const unsubCallBusy = socket.on("call_busy", (data: any) => handleSignalRef.current({ type: "call_busy", ...data }));
 
+    // 📞 Релейный звонок (без WebRTC): входящий от сервера управляет API.
+    const unsubRelayIncoming = socket.on("relay_call_incoming", (data: any) => {
+      const r = getRelayCallApi();
+      r.incoming(data.call_id, data.caller_id, data.call_type || "audio", data.caller_name || "", data.caller_avatar || "");
+    });
+
     // 📱 iOS: после возврата из фона/разблокировки сокет может быть мёртв —
     // оживляем, иначе входящие звонки не доходят.
     const onVisible = () => {
@@ -155,6 +163,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       unsubCallAnswer();
       unsubCallIce();
       unsubCallBusy();
+      unsubRelayIncoming();
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
       window.removeEventListener('online', onVisible);
@@ -198,6 +207,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
     <CallContext.Provider value={contextValue}>
       {children}
       <CallModal />
+      <RelayCallModal />
     </CallContext.Provider>
   );
 }

@@ -17,6 +17,7 @@ import { ReportDialog, ReportTargetType } from "@/components/ReportDialog";
 import CallButton from '@/components/CallButton';
 import { ChatMuteButton } from '@/components/ChatMuteButton';
 import { registerCallChat } from '@/lib/callLog';
+import { getRelayCallApi } from '@/lib/relayCall';
 import { MessageBubble } from "@/components/MessageBubble";
 import LinkPreview  from "@/components/LinkPreview";
 import { getToken } from "@/lib/auth";
@@ -2303,7 +2304,7 @@ const ChatHeader = () => (
       userAvatar={chatPartner.avatar_url || ''}
       callType="audio"
       size="sm"
-      onCall={(uid, type) => { registerCallChat(Number(chatId), isSecret); initiateCall(uid, type, chatPartner.display_name, chatPartner.avatar_url || ''); }}
+      onCall={(uid, type) => { registerCallChat(Number(chatId), isSecret); getRelayCallApi().initiate(uid, type, chatPartner.display_name, chatPartner.avatar_url || ''); }}
     />
     <CallButton
       userId={chatPartner.id}
@@ -2311,7 +2312,7 @@ const ChatHeader = () => (
       userAvatar={chatPartner.avatar_url || ''}
       callType="video"
       size="sm"
-      onCall={(uid, type) => { registerCallChat(Number(chatId), isSecret); initiateCall(uid, type, chatPartner.display_name, chatPartner.avatar_url || ''); }}
+      onCall={(uid, type) => { registerCallChat(Number(chatId), isSecret); getRelayCallApi().initiate(uid, type, chatPartner.display_name, chatPartner.avatar_url || ''); }}
     />
   </>
 )}

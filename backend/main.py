@@ -8399,8 +8399,147 @@ async def forward_message(
 
 
 # ============================================================
-# 🔕 МЬЮТ УВЕДОМЛЕНИЙ ЧАТА (по времени / навсегда) + 🛡 ПРИВАТНОСТЬ
+# 📞 РЕЛЕЙНЫЕ ЗВОНКИ БЕЗ WebRTC (через WebSocket/сервер)
+# Аудио едет как обычный TCP-трафик сайта — не нужен ни UDP,
+# ни STUN/TURN. Работает везде, где открывается сам сайт.
 # ============================================================
+
+_relay_calls: dict = {}        # call_id -> {a, b, status, a_ws, b_ws}
+_relay_calls_lock = asyncio.Lock()
+
+
+class RelayCallIn(BaseModel):
+    target_user_id: int
+    call_type: str = "audio"   # audio | video (пока только аудио-поток)
+
+
+class RelayCallAction(BaseModel):
+    call_id: str
+    action: str = "accept"      # accept | reject | end
+
+
+@app.post("/api/calls/initiate")
+@limiter.limit("10/minute")
+async def relay_call_initiate(
+    request: Request,
+    data: RelayCallIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Создать релейный звонок. Сервер генерирует call_id и пишет
+    вызываемому событие relay_call_incoming через основной WS."""
+    if data.target_user_id == user.id:
+        raise HTTPException(400, "Нельзя позвонить себе")
+    target = session.get(User, data.target_user_id)
+    if not target:
+        raise HTTPException(404, "User not found")
+    # 🛡 приватность звонков
+    if not _privacy_allows(target, user.id, "calls", session):
+        raise HTTPException(403, "Пользователь запретил звонки")
+
+    call_id = f"relay-{user.id}-{data.target_user_id}-{uuid.uuid4().hex[:8]}"
+    async with _relay_calls_lock:
+        _relay_calls[call_id] = {
+            "a": user.id, "b": data.target_user_id,
+            "a_name": user.display_name, "b_name": target.display_name,
+            "a_avatar": user.avatar_url, "b_avatar": target.avatar_url,
+            "status": "ringing", "call_type": data.call_type,
+            "a_ws": None, "b_ws": None,
+        }
+
+    # уведомляем вызываемого (если онлайн)
+    await manager.send_to_user(data.target_user_id, "relay_call_incoming", {
+        "call_id": call_id,
+        "caller_id": user.id,
+        "caller_name": user.display_name,
+        "caller_avatar": user.avatar_url,
+        "call_type": data.call_type,
+    })
+    return {"call_id": call_id, "status": "ringing", "target_user_id": data.target_user_id}
+
+
+@app.post("/api/calls/action")
+async def relay_call_action(
+    data: RelayCallAction,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Принять / отклонить / завершить релейный звонок."""
+    async with _relay_calls_lock:
+        call = _relay_calls.get(data.call_id)
+        if not call:
+            raise HTTPException(404, "Звонок не найден")
+        if data.action == "accept":
+            call["status"] = "active"
+            await manager.send_to_user(call["a"], "relay_call_accepted", {"call_id": data.call_id})
+            await manager.send_to_user(call["b"], "relay_call_active", {"call_id": data.call_id})
+        elif data.action == "reject":
+            call["status"] = "ended"
+            await manager.send_to_user(call["a"], "relay_call_rejected", {"call_id": data.call_id, "reason": "declined"})
+        elif data.action == "end":
+            call["status"] = "ended"
+            await manager.send_to_user(call["b"], "relay_call_ended", {"call_id": data.call_id})
+            await manager.send_to_user(call["a"], "relay_call_ended", {"call_id": data.call_id})
+            _relay_calls.pop(data.call_id, None)
+        return {"ok": True}
+
+
+@app.websocket("/api/calls/{call_id}/stream")
+async def relay_call_stream(websocket: WebSocket, call_id: str):
+    """Поток аудио участника звонка: релеим бинарные чанки другому участнику."""
+    async with _relay_calls_lock:
+        call = _relay_calls.get(call_id)
+        if not call:
+            await websocket.close(code=4404, reason="no such call")
+            return
+        user_id = None
+        # определим, кто подключается, по токену
+        token = websocket.query_params.get("token")
+        if token:
+            try:
+                payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
+                user_id = int(payload["sub"])
+            except Exception:
+                user_id = None
+        if user_id not in (call["a"], call["b"]):
+            await websocket.close(code=4403, reason="not a participant")
+            return
+        peer_id = call["b"] if user_id == call["a"] else call["a"]
+        if user_id == call["a"]:
+            call["a_ws"] = websocket
+        else:
+            call["b_ws"] = websocket
+
+    await websocket.accept()
+    try:
+        while True:
+            message = await websocket.receive()
+            if message["type"] == "websocket.disconnect":
+                break
+            data = message.get("bytes")
+            if data is None:
+                continue
+            # релей другому участнику
+            async with _relay_calls_lock:
+                c = _relay_calls.get(call_id)
+                if not c:
+                    break
+                peer_ws = c["b_ws"] if user_id == c["a"] else c["a_ws"]
+            if peer_ws is not None:
+                try:
+                    await peer_ws.send_bytes(data)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    finally:
+        async with _relay_calls_lock:
+            c = _relay_calls.get(call_id)
+            if c:
+                if c["a_ws"] is websocket:
+                    c["a_ws"] = None
+                elif c["b_ws"] is websocket:
+                    c["b_ws"] = None
 
 FOREVER_MUTE = datetime(9999, 1, 1, tzinfo=timezone.utc)
 
