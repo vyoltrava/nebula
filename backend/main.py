@@ -8400,17 +8400,20 @@ async def forward_message(
 
 # ============================================================
 # 📞 РЕЛЕЙНЫЕ ЗВОНКИ БЕЗ WebRTC (через WebSocket/сервер)
-# Аудио едет как обычный TCP-трафик сайта — не нужен ни UDP,
+# Аудио/видео едет как обычный TCP-трафик сайта — не нужен ни UDP,
 # ни STUN/TURN. Работает везде, где открывается сам сайт.
+# Двусторонний: каждый участник шлёт и принимает чанки.
 # ============================================================
+import asyncio as _asyncio
 
-_relay_calls: dict = {}        # call_id -> {a, b, status, a_ws, b_ws}
-_relay_calls_lock = asyncio.Lock()
+_relay_calls: dict = {}        # call_id -> {a, b, a_name, a_avatar, b_name, b_avatar, status, type}
+_relay_ws: dict = {}           # call_id -> {user_id: websocket}  (live потоки)
+_relay_calls_lock = _asyncio.Lock()
 
 
 class RelayCallIn(BaseModel):
     target_user_id: int
-    call_type: str = "audio"   # audio | video (пока только аудио-поток)
+    call_type: str = "audio"   # audio | video
 
 
 class RelayCallAction(BaseModel):
@@ -8426,14 +8429,12 @@ async def relay_call_initiate(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Создать релейный звонок. Сервер генерирует call_id и пишет
-    вызываемому событие relay_call_incoming через основной WS."""
+    print(f"[RELAY] initiate by {user.id} -> {data.target_user_id} type={data.call_type}")
     if data.target_user_id == user.id:
         raise HTTPException(400, "Нельзя позвонить себе")
     target = session.get(User, data.target_user_id)
     if not target:
         raise HTTPException(404, "User not found")
-    # 🛡 приватность звонков
     if not _privacy_allows(target, user.id, "calls", session):
         raise HTTPException(403, "Пользователь запретил звонки")
 
@@ -8444,10 +8445,8 @@ async def relay_call_initiate(
             "a_name": user.display_name, "b_name": target.display_name,
             "a_avatar": user.avatar_url, "b_avatar": target.avatar_url,
             "status": "ringing", "call_type": data.call_type,
-            "a_ws": None, "b_ws": None,
         }
 
-    # уведомляем вызываемого (если онлайн)
     await manager.send_to_user(data.target_user_id, "relay_call_incoming", {
         "call_id": call_id,
         "caller_id": user.id,
@@ -8455,6 +8454,7 @@ async def relay_call_initiate(
         "caller_avatar": user.avatar_url,
         "call_type": data.call_type,
     })
+    print(f"[Relay] incoming sent to {data.target_user_id}")
     return {"call_id": call_id, "status": "ringing", "target_user_id": data.target_user_id}
 
 
@@ -8464,51 +8464,55 @@ async def relay_call_action(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Принять / отклонить / завершить релейный звонок."""
+    print(f"[Relay] action {data.action} on {data.call_id} by {user.id}")
     async with _relay_calls_lock:
         call = _relay_calls.get(data.call_id)
         if not call:
             raise HTTPException(404, "Звонок не найден")
+        other = call["b"] if user.id == call["a"] else call["a"]
         if data.action == "accept":
             call["status"] = "active"
             await manager.send_to_user(call["a"], "relay_call_accepted", {"call_id": data.call_id})
-            await manager.send_to_user(call["b"], "relay_call_active", {"call_id": data.call_id})
+            await manager.send_to_user(other, "relay_call_active", {"call_id": data.call_id})
+            print(f"[Relay] accepted: {data.call_id}")
         elif data.action == "reject":
             call["status"] = "ended"
-            await manager.send_to_user(call["a"], "relay_call_rejected", {"call_id": data.call_id, "reason": "declined"})
+            await manager.send_to_user(call["a"], "relay_call_rejected", {"call_id": data.call_id})
+            print(f"[Relay] rejected by {user.id}")
         elif data.action == "end":
             call["status"] = "ended"
-            await manager.send_to_user(call["b"], "relay_call_ended", {"call_id": data.call_id})
-            await manager.send_to_user(call["a"], "relay_call_ended", {"call_id": data.call_id})
+            # уведомляем обратный участник о завершении
+            await manager.send_to_user(call["b"] if user.id == call["a"] else call["a"], "relay_call_ended", {"call_id": data.call_id})
+            # завершившему тоже (сбрасываем UI)
+            await manager.send_to_user(user.id, "relay_call_ended", {"call_id": data.call_id})
             _relay_calls.pop(data.call_id, None)
+            _relay_ws.pop(data.call_id, None)
+            print(f"[Relay] ended -> {data.call_id}")
         return {"ok": True}
 
 
 @app.websocket("/api/calls/{call_id}/stream")
 async def relay_call_stream(websocket: WebSocket, call_id: str):
-    """Поток аудио участника звонка: релеим бинарные чанки другому участнику."""
+    """Поток медиа участника: релеим чанки другому участнику. Двусторонне."""
+    token = websocket.query_params.get("token")
+    user_id = None
+    if token:
+        try:
+            payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
+            user_id = int(payload["sub"])
+        except Exception:
+            user_id = None
+
     async with _relay_calls_lock:
         call = _relay_calls.get(call_id)
-        if not call:
-            await websocket.close(code=4404, reason="no such call")
-            return
-        user_id = None
-        # определим, кто подключается, по токену
-        token = websocket.query_params.get("token")
-        if token:
-            try:
-                payload = jwt.decode(token, SECRET, algorithms=[ALGORITHM])
-                user_id = int(payload["sub"])
-            except Exception:
-                user_id = None
-        if user_id not in (call["a"], call["b"]):
+        if not call or user_id not in (call["a"], call["b"]):
             await websocket.close(code=4403, reason="not a participant")
             return
-        peer_id = call["b"] if user_id == call["a"] else call["a"]
-        if user_id == call["a"]:
-            call["a_ws"] = websocket
-        else:
-            call["b_ws"] = websocket
+        peer = call["b"] if user_id == call["a"] else call["a"]
+        if call_id not in _relay_ws:
+            _relay_ws[call_id] = {}
+        _relay_ws[call_id][user_id] = websocket
+    print(f"[Relay] stream ws joined call={call_id} user={user_id}")
 
     await websocket.accept()
     try:
@@ -8516,30 +8520,30 @@ async def relay_call_stream(websocket: WebSocket, call_id: str):
             message = await websocket.receive()
             if message["type"] == "websocket.disconnect":
                 break
-            data = message.get("bytes")
-            if data is None:
+            data_bytes = message.get("bytes")
+            if data_bytes is None:
                 continue
-            # релей другому участнику
+            # релей другому участнику в том же звонке
             async with _relay_calls_lock:
-                c = _relay_calls.get(call_id)
-                if not c:
-                    break
-                peer_ws = c["b_ws"] if user_id == c["a"] else c["a_ws"]
-            if peer_ws is not None:
+                peers = _relay_ws.get(call_id)
+                pw = None
+                if peers:
+                    pw = peers.get(peer)
+            if pw is not None:
                 try:
-                    await peer_ws.send_bytes(data)
-                except Exception:
-                    pass
-    except Exception:
-        pass
+                    await pw.send_bytes(data_bytes)
+                except Exception as e:
+                    print(f"[Relay] peer send failed: {e}")
+    except Exception as e:
+        print(f"[Relay] stream error {call_id}: {e}")
     finally:
         async with _relay_calls_lock:
-            c = _relay_calls.get(call_id)
-            if c:
-                if c["a_ws"] is websocket:
-                    c["a_ws"] = None
-                elif c["b_ws"] is websocket:
-                    c["b_ws"] = None
+            w = _relay_ws.get(call_id)
+            if w and w.get(user_id) is websocket:
+                del w[user_id]
+                if not w:
+                    _relay_ws.pop(call_id, None)
+        print(f"[Relay] stream ws left call={call_id} user={user_id}")
 
 FOREVER_MUTE = datetime(9999, 1, 1, tzinfo=timezone.utc)
 

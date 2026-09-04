@@ -138,6 +138,19 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       const r = getRelayCallApi();
       r.incoming(data.call_id, data.caller_id, data.call_type || "audio", data.caller_name || "", data.caller_avatar || "");
     });
+    // Обработка состояния звонка: принятие/завершение у второй стороны.
+    const unsubRelayAccepted = socket.on("relay_call_accepted", () => {
+      // инициатор переходит в active (уже обработано api.accept через onEvent)
+      getRelayCallApi();
+    });
+    const unsubRelayActive = socket.on("relay_call_active", () => {
+      const r = getRelayCallApi();
+      // вызываемому уже пришёл incoming; active подтверждает старт
+      r; // noop — модалка подписана на API
+    });
+    const unsubRelayEnded = socket.on("relay_call_ended", () => {
+      getRelayCallApi().remoteEnded();
+    });
 
     // 📱 iOS: после возврата из фона/разблокировки сокет может быть мёртв —
     // оживляем, иначе входящие звонки не доходят.
@@ -164,6 +177,9 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       unsubCallIce();
       unsubCallBusy();
       unsubRelayIncoming();
+      unsubRelayAccepted();
+      unsubRelayActive();
+      unsubRelayEnded();
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('focus', onVisible);
       window.removeEventListener('online', onVisible);
