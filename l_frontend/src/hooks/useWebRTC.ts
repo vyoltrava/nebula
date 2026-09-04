@@ -685,6 +685,11 @@ export function useWebRTC(
       iosRetryTimerRef.current = null;
     }
     iosIceRetryRef.current = 0;
+    // 🔴 КРИТИЧНО: сбрасываем и саму переопределённую политику. Это глобальная
+    // переменная модуля — если её не сбросить, залипший 'relay' от iOS-ретрая
+    // ломает ВСЕ последующие звонки на ЛЮБОМ устройстве (политика перекрывает
+    // дефолт 'all', а relay-кандидаты не собираются, если TURN недоступен).
+    currentIcePolicyOverride = null;
 
     // 📞 сброс флага «соединение устанавливалось» для сообщения о звонке
     connectedOnceRef.current = false;
@@ -1068,6 +1073,9 @@ export function useWebRTC(
   const initiateCall = useCallback(
     async (targetUserId: number, callType: CallType, callerName: string, callerAvatar: string) => {
       rtcLog(`📞 Initiating call to ${targetUserId}`);
+      // 🔴 Гарантия старта с чистой политикой: каждый новый звонок начинается
+      // с 'all', даже если прошлый завершился без штатного cleanup.
+      currentIcePolicyOverride = null;
       // 🔥 Медиа и TURN грузим ПАРАЛЛЕЛЬНО: камера включается мгновенно,
       // а не после (возможно очень медленного) запроса /api/ice-servers.
       // refreshIceServers ограничен таймаутом 4с и никогда не бросает исключений.
@@ -1109,6 +1117,8 @@ export function useWebRTC(
   const acceptCall = useCallback(
     async (callId: string, callerId: number, callType: CallType, callerName: string, callerAvatar: string) => {
       rtcLog(`✅ Accepting call ${callId}`);
+      // 🔴 Гарантия старта с чистой политикой (см. initiateCall).
+      currentIcePolicyOverride = null;
       // 🔥 Медиа и TURN параллельно (см. initiateCall) — камера включается мгновенно
       const streamPromise = getMediaStream(callType);
       try {
