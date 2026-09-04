@@ -4,7 +4,7 @@
 // название, описание, приватность, ссылка (@slug).
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { X, Upload, Image as ImageIcon, Link2, Copy, Trash2, Users, AlertTriangle, Settings, AtSign, CheckCircle, XCircle, Loader2, Globe, Lock, Crown, Shield, UserX } from "lucide-react";
+import { X, Upload, Image as ImageIcon, Link2, Copy, Trash2, Users, AlertTriangle, Settings, AtSign, CheckCircle, XCircle, Loader2, Globe, Lock, Crown, Shield, UserX, BarChart3 } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { Avatar } from "@/components/Avatar";
@@ -16,7 +16,7 @@ interface Props {
   onChanged: () => void;
 }
 
-type Tab = "main" | "links" | "members" | "requests" | "danger";
+type Tab = "main" | "settings" | "links" | "members" | "requests" | "stats" | "danger";
 
 export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
   const router = useRouter();
@@ -29,6 +29,7 @@ export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(channel.avatar_url || null);
   const [loading, setLoading] = useState(false);
+  const [savingToggles, setSavingToggles] = useState(false);
   const [msg, setMsg] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const isAdmin = channel?.my_role === "owner" || channel?.my_role === "admin";
@@ -46,6 +47,13 @@ export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
   const [requests, setRequests] = useState<any[]>([]);
   // Участники
   const [subscribers, setSubscribers] = useState<any[]>([]);
+  // ⚙️ Настройки (тумблеры)
+  const [showAuthorSig, setShowAuthorSig] = useState(channel.settings?.show_author_signature !== false);
+  const [silentDefault, setSilentDefault] = useState(!!channel.settings?.silent_messages_by_default);
+  const [showHistory, setShowHistory] = useState(channel.settings?.show_history !== false);
+  const [commentsOn, setCommentsOn] = useState(channel.comments_enabled ?? true);
+  // 📊 Статистика
+  const [stats, setStats] = useState<any>(null);
 
   const createInvite = async () => {
     setCreatingInvite(true);
@@ -147,14 +155,37 @@ export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
 
   const tabBtn = (id: Tab, label: string, icon: any) => (
     <button onClick={() => setTab(id)}
-      className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 ${tab === id ? "bg-[#8b5cf6] text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/10"}`}>
+      className={`px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shrink-0 ${tab === id ? "bg-[#8b5cf6] text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/10"}`}>
       {icon} {label}
     </button>
   );
 
+  async function saveSettingsToggle() {
+    setSavingToggles(true);
+    const r = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/settings`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        show_author_signature: showAuthorSig,
+        silent_messages_by_default: silentDefault,
+        show_history: showHistory,
+        comments_enabled: commentsOn,
+      }),
+    });
+    setSavingToggles(false);
+    if (r.ok) { setMsg("Настройки сохранены"); onChanged(); }
+    else { const d = await r.json().catch(() => null); setMsg(d?.detail || "Ошибка сохранения"); }
+  }
+
+  async function loadStats() {
+    const r = await authFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/stats`);
+    if (r.ok) setStats(await r.json());
+  }
+
   useEffect(() => {
     if (tab === "requests") loadRequests();
     if (tab === "members") loadSubscribers();
+    if (tab === "stats") loadStats();
     if (tab !== "main") setMsg("");
     // eslint-disable-next-line
   }, [tab]);
@@ -166,11 +197,13 @@ export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
           <h2 className="text-lg font-black text-gray-900 dark:text-white">Настройки канала</h2>
           <IconButton icon={X} size="iconSm" onClick={onClose} />
         </div>
-        <div className="p-3 border-b border-line dark:border-white/10 flex gap-2 shrink-0">
+        <div className="p-3 border-b border-line dark:border-white/10 flex gap-2 shrink-0 flex-wrap">
           {tabBtn("main", "Канал", <Settings size={14} />)}
+          {isAdmin && tabBtn("settings", "Настройки", <Settings size={14} />)}
           {isAdmin && tabBtn("links", "Ссылки", <Link2 size={14} />)}
           {isAdmin && tabBtn("members", "Участники", <Users size={14} />)}
           {isAdmin && tabBtn("requests", "Заявки", <Users size={14} />)}
+          {isAdmin && tabBtn("stats", "Статистика", <BarChart3 size={14} />)}
           {isAdmin && tabBtn("danger", "Удаление", <Trash2 size={14} />)}
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -215,6 +248,50 @@ export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
                 Сохранить
               </Button>
             </>
+          )}
+
+          {tab === "settings" && (
+            <div className="space-y-3">
+              <div className="rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 p-3 space-y-3">
+                <Toggle label="Показывать подпись автора (имя и аватар админа)" value={showAuthorSig} onChange={setShowAuthorSig} />
+                <Toggle label="Тихие сообщения по умолчанию" desc="Новые посты приходят без звука" value={silentDefault} onChange={setSilentDefault} />
+                <Toggle label="Показывать историю чата новым участникам" value={showHistory} onChange={setShowHistory} />
+                <Toggle label="Комментарии включены" value={commentsOn} onChange={setCommentsOn} />
+              </div>
+              {msg && <p className="text-xs text-red-500 dark:text-red-400">{msg}</p>}
+              <Button icon={CheckCircle} onClick={saveSettingsToggle} loading={savingToggles} className="w-full">
+                Сохранить настройки
+              </Button>
+            </div>
+          )}
+
+          {tab === "stats" && (
+            <div className="space-y-3">
+              {!stats ? (
+                <p className="text-center text-gray-500 dark:text-white/40 text-sm py-8">Загрузка…</p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <StatCard label="Подписчики" value={stats.subscribers_count ?? 0} />
+                    <StatCard label="Просмотры" value={stats.total_views ?? 0} />
+                    <StatCard label="Реакции" value={stats.total_reactions ?? 0} />
+                    <StatCard label="Репосты" value={stats.total_shares ?? 0} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-600 dark:text-white/60 mb-2">Посты ({stats.posts_count ?? 0})</p>
+                    {(stats.per_post || []).slice(0, 10).map((pp: any) => (
+                      <div key={pp.post_id} className="flex items-center justify-between py-1.5 border-b border-line dark:border-white/5 text-xs">
+                        <span className="text-gray-700 dark:text-white/70 truncate">#{pp.post_id} · {pp.created_at ? new Date(pp.created_at).toLocaleDateString("ru-RU") : "—"}</span>
+                        <span className="text-gray-500 dark:text-white/50 shrink-0 ml-2">👁 {pp.views} · 👍 {pp.reactions} · 💬 {pp.comments}</span>
+                      </div>
+                    ))}
+                    {(!stats.per_post || stats.per_post.length === 0) && (
+                      <p className="text-center text-gray-500 dark:text-white/40 text-sm py-4">Постов пока нет</p>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           )}
 
           {tab === "links" && (
@@ -317,6 +394,33 @@ export function ChannelManageModal({ channel, onClose, onChanged }: Props) {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function Toggle({ label, desc, value, onChange }: { label: string; desc?: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex items-center justify-between gap-3 cursor-pointer py-1">
+      <span className="min-w-0">
+        <span className="block text-sm font-medium text-gray-900 dark:text-white">{label}</span>
+        {desc && <span className="block text-[11px] text-gray-500 dark:text-white/40 mt-0.5">{desc}</span>}
+      </span>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onChange(!value); }}
+        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${value ? "bg-[#8b5cf6]" : "bg-gray-300 dark:bg-white/15"}`}
+      >
+        <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${value ? "left-[22px]" : "left-0.5"}`} />
+      </button>
+    </label>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 p-3">
+      <p className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-white/40">{label}</p>
+      <p className="text-xl font-black text-gray-900 dark:text-white mt-0.5">{value.toLocaleString("ru-RU")}</p>
     </div>
   );
 }

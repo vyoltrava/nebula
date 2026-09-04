@@ -5,6 +5,7 @@
 // (API /api/channels/*, WS channel_*), URL — /channels/@username.
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
@@ -14,10 +15,14 @@ import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { ChannelManageModal } from "@/components/ChannelManageModal";
 import { ForwardPostModal } from "@/components/ForwardPostModal";
+import { RichEditor, RichEditorHandle } from "@/components/RichEditor";
+import { RichContextMenu, RichMenuItem } from "@/components/RichContextMenu";
+// 🚀 react-markdown тяжёлый — ленивая загрузка (как в MessageBubble)
+const MarkdownRenderer = dynamic(() => import("@/components/MarkdownRenderer").then((m) => m.MarkdownRenderer));
 import {
   ArrowLeft, Megaphone, Users, BellOff, Bell, Settings, Eye, MessageCircle,
   Pin, Trash2, Pencil, Send, Loader2, Globe, Lock, X, Reply, UserPlus, Ban,
-  Forward, Plus, Paperclip, Clock, Image as ImageIcon, SmilePlus,
+  Forward, Plus, Paperclip, Clock, Image as ImageIcon, SmilePlus, Type, Copy, Bookmark,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
@@ -35,6 +40,7 @@ export default function ChannelPage() {
   const [channel, setChannel] = useState<any | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [feedLoading, setFeedLoading] = useState(true);
   const [error, setError] = useState("");
 
   // Композер (как в чате)
@@ -68,6 +74,15 @@ export default function ChannelPage() {
   const [activeReactionTab, setActiveReactionTab] = useState<number>(-1);
   const [stickerPacks, setStickerPacks] = useState<any[]>([]);
 
+  // 🖊 WYSIWYG-композер и контекстные меню (как в чатах)
+  const editorRef = useRef<RichEditorHandle>(null);
+  const editEditorRef = useRef<RichEditorHandle>(null);
+  // меню поста (long-press / правый клик / клик по зоне)
+  const [postMenu, setPostMenu] = useState<{ postId: number; x: number; y: number } | null>(null);
+  const postLpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const postLpPos = useRef({ x: 0, y: 0 });
+  const clearPostLp = () => { if (postLpTimer.current) { clearTimeout(postLpTimer.current); postLpTimer.current = null; } };
+
   const openPostIdRef = useRef<number | null>(null);
   useEffect(() => { openPostIdRef.current = openPostId; }, [openPostId]);
 
@@ -90,11 +105,14 @@ export default function ChannelPage() {
 
   const loadPosts = useCallback(async () => {
     if (!channel?.id) return;
-    const res = await fetch(`${API}/api/channels/${channel.id}/posts`, { headers: headers() });
-    if (res.ok) {
-      setPosts(await res.json());
-      refresh();
-    }
+    setFeedLoading(true);
+    try {
+      const res = await fetch(`${API}/api/channels/${channel.id}/posts`, { headers: headers() });
+      if (res.ok) {
+        setPosts(await res.json());
+        refresh();
+      }
+    } finally { setFeedLoading(false); }
   }, [channel?.id, headers, refresh]);
 
   useEffect(() => {
@@ -137,25 +155,54 @@ export default function ChannelPage() {
   // ---------- Действия ----------
   async function createPost() {
     if (!postText.trim() && postMedia.length === 0) return;
+    const token = getToken();
+    if (!token) return;
     setPosting(true);
+    const tempText = postText.trim();
+    const tempMedia = postMedia;
+    // 🚀 Optimistic: сразу добавляем временный пост в ленту (как в чате)
+    const tempId = -Date.now();
+    const tempPost: any = {
+      id: tempId, channel_id: channel.id, post_type: "text",
+      text: tempText, media: tempMedia, poll: null, reactions: [],
+      my_reaction: null, is_saved: false, is_silent: isSilent, is_pinned: false,
+      views_count: 0, comments_count: 0, scheduled_at: scheduledAt || null,
+      is_published: !!scheduledAt ? false : true, is_temp: true,
+      created_at: new Date().toISOString(), edited_at: null,
+      author: { ...(channel.owner || {}), id: channel.owner?.id },
+    };
+    if (scheduledAt) {
+      // ⏰ Отложенный пост — отправляем на сервер, без оптимистичного показа
+      try {
+        const res = await fetch(`${API}/api/channels/${channel.id}/posts`, {
+          method: "POST", headers: { ...headers(), "Content-Type": "application/json" },
+          body: JSON.stringify({ text: tempText || null, media: tempMedia, is_silent: isSilent,
+                                 scheduled_at: new Date(scheduledAt).toISOString() }),
+        });
+        if (res.ok) { setPostText(""); setPostMedia([]); setIsSilent(false); setScheduledAt(""); await loadPosts(); }
+        else { const d = await res.json().catch(() => null); alert(d?.detail || "Ошибка публикации"); }
+      } finally { setPosting(false); }
+      return;
+    }
+    setPosts((prev) => [...prev, tempPost]);
+    setPostText("");
+    setPostMedia([]);
+    setIsSilent(false);
+    setScheduledAt("");
     try {
-      const body: any = {
-        text: postText.trim() || null,
-        media: postMedia,
-        is_silent: isSilent,
-      };
+      const body: any = { text: tempText || null, media: tempMedia, is_silent: isSilent };
       if (scheduledAt) body.scheduled_at = new Date(scheduledAt).toISOString();
       const res = await fetch(`${API}/api/channels/${channel.id}/posts`, {
-        method: "POST",
-        headers: { ...headers(), "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        method: "POST", headers: { ...headers(), "Content-Type": "application/json" }, body: JSON.stringify(body),
       });
       if (res.ok) {
-        setPostText(""); setPostMedia([]); setIsSilent(false); setScheduledAt("");
-        await loadPosts();
+        const d = await res.json();
+        // заменяем временный пост на настоящий
+        setPosts((prev) => prev.map((p) => (p.id === tempId ? d.post : p)));
       } else {
         const d = await res.json().catch(() => null);
         alert(d?.detail || "Ошибка публикации");
+        setPosts((prev) => prev.filter((p) => p.id !== tempId));
       }
     } finally { setPosting(false); }
   }
@@ -335,6 +382,42 @@ export default function ChannelPage() {
     if (reactionPickerFor !== null) loadStickerPacks();
   }, [reactionPickerFor, loadStickerPacks]);
 
+  // ---------- 📋 Меню поста (копирование / сохранение) ----------
+  async function toggleSavePost(postId: number) {
+    const res = await fetch(`${API}/api/channels/${channel.id}/posts/${postId}/save`, {
+      method: "POST", headers: headers(),
+    });
+    if (res.ok) {
+      const d = await res.json();
+      setPosts((prev) => prev.map((m) => (m.id === postId ? { ...m, is_saved: d.is_saved } : m)));
+    }
+  }
+
+  function copyPostText(p: any) {
+    const text = p.text || "";
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text);
+    else {
+      const ta = document.createElement("textarea");
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); document.body.removeChild(ta);
+    }
+  }
+
+  function buildPostMenuItems(p: any): RichMenuItem[] {
+    return [
+      { id: "reply", label: t("channels.reply") || "Ответить в комментариях", icon: Reply, onClick: () => openComments(p.id) },
+      { id: "react", label: t("messages.reaction") || "Реакция", icon: SmilePlus, onClick: () => setReactionPickerFor(p.id) },
+      { id: "copy", label: "Копировать", icon: Copy, onClick: () => copyPostText(p) },
+      { id: "save", label: p.is_saved ? "Убрать из сохранённых" : "Сохранить", icon: Bookmark, onClick: () => toggleSavePost(p.id) },
+      { id: "forward", label: t("messages.forward") || "Переслать", icon: Forward, onClick: () => setForwardingPost(p.id) },
+      ...(isAdmin ? [
+        { id: "pin", label: p.is_pinned ? (t("channels.unpin") || "Открепить") : (t("channels.pin") || "Закрепить"), icon: Pin, separatorBefore: true, onClick: () => togglePin(p.id) },
+        { id: "edit", label: t("channels.edit") || "Редактировать", icon: Pencil, onClick: () => { setEditingPost(p.id); setEditText(p.text || ""); } },
+        { id: "delete", label: t("channels.delete") || "Удалить", icon: Trash2, danger: true, onClick: () => deletePost(p.id) },
+      ] : []),
+    ];
+  }
+
   // ---------- Рендер ----------
   if (loading) {
     return (
@@ -406,8 +489,27 @@ export default function ChannelPage() {
   function PostBubble({ post: p, pinned }: { post: any; pinned: boolean }) {
     const media = Array.isArray(p.media) ? p.media : [];
     return (
-      <div className="flex justify-start" id={`post-${p.id}`}>
+      <div
+        className="flex justify-start"
+        id={`post-${p.id}`}
+        onContextMenu={(e) => { e.preventDefault(); setPostMenu({ postId: p.id, x: e.clientX, y: e.clientY }); }}
+        onPointerDown={(e) => {
+          if (e.pointerType === "touch") {
+            postLpPos.current = { x: e.clientX, y: e.clientY };
+            clearPostLp();
+            postLpTimer.current = setTimeout(() => setPostMenu({ postId: p.id, x: postLpPos.current.x, y: postLpPos.current.y }), 350);
+          }
+        }}
+        onPointerUp={clearPostLp}
+        onPointerMove={clearPostLp}
+        onPointerLeave={clearPostLp}
+      >
         <div className="max-w-[85%] sm:max-w-[75%] md:max-w-[70%] min-w-0 flex flex-col items-start">
+          {p.is_temp && (
+            <div className="mb-0.5 px-1 flex items-center gap-1 text-[9px] text-gray-400 dark:text-white/30">
+              <Loader2 size={9} className="animate-spin" /> отправка…
+            </div>
+          )}
           <div className="mb-1 px-1">
             <p className="text-[11px] sm:text-xs font-bold text-[#a78bfa]">{channel.title}</p>
             {signature && p.author && (
@@ -424,11 +526,11 @@ export default function ChannelPage() {
             )}
             {editingPost === p.id ? (
               <div>
-                <textarea
+                <RichEditor
+                  ref={editEditorRef}
                   value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
-                  rows={3}
-                  className="w-full p-2 rounded-xl border border-line dark:border-white/15 bg-white dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-[#8b5cf6] resize-none"
+                  onChange={(v) => setEditText(v)}
+                  className="w-full min-h-[72px] p-2 rounded-xl border border-line dark:border-white/15 bg-white dark:bg-white/5 text-gray-900 dark:text-white text-sm"
                 />
                 <div className="flex gap-2 mt-2">
                   <button onClick={() => saveEdit(p.id)} className="px-3 py-1.5 rounded-lg bg-[#8b5cf6] text-white text-xs font-bold">{t("common.save") || "Сохранить"}</button>
@@ -436,7 +538,7 @@ export default function ChannelPage() {
                 </div>
               </div>
             ) : (
-              p.text && <p className="text-sm md:text-[15px] whitespace-pre-wrap break-words">{p.text}</p>
+              p.text && <div className="text-sm md:text-[15px]"><MarkdownRenderer text={p.text} /></div>
             )}
             {media.length > 0 && (
               <div className={`mt-2 grid gap-2 ${media.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
@@ -499,22 +601,18 @@ export default function ChannelPage() {
                 {new Date(p.created_at).toLocaleString("ru-RU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                 {p.edited_at && " ✎"}
               </span>
-              {isAdmin && (
-                <div className="flex gap-0.5">
-                  <button onClick={() => togglePin(p.id)} title={p.is_pinned ? (t("channels.unpin") || "Открепить") : (t("channels.pin") || "Закрепить")} className="p-1 rounded-lg text-gray-400 hover:text-[#8b5cf6] hover:bg-gray-200 dark:hover:bg-white/10">
-                    <Pin size={12} />
-                  </button>
-                  <button onClick={() => { setEditingPost(p.id); setEditText(p.text || ""); }} title={t("channels.edit") || "Редактировать"} className="p-1 rounded-lg text-gray-400 hover:text-[#8b5cf6] hover:bg-gray-200 dark:hover:bg-white/10">
-                    <Pencil size={12} />
-                  </button>
-                  <button onClick={() => deletePost(p.id)} title={t("channels.delete") || "Удалить"} className="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-500/10">
-                    <Trash2 size={12} />
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div>
+        {postMenu && postMenu.postId === p.id && (
+          <RichContextMenu
+            x={postMenu.x}
+            y={postMenu.y}
+            items={buildPostMenuItems(p)}
+            onClose={() => setPostMenu(null)}
+            zIndex={9998}
+          />
+        )}
       </div>
     );
   }
@@ -593,15 +691,33 @@ export default function ChannelPage() {
         {/* ── ЛЕНТА ПУЗЫРЕЙ (на всю ширину, как в чате) ── */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-4">
           <div className="space-y-3 pb-4">
-            {pinnedPosts.map((p) => <PostBubble key={p.id} post={p} pinned />)}
-            {pinnedPosts.length > 0 && <div className="h-px bg-line dark:bg-white/10" />}
-            {feedPosts.length === 0 && pinnedPosts.length === 0 && (
+            {feedLoading && posts.length === 0 ? (
+              <>
+                {[1, 2, 3, 4].map((n) => (
+                  <div key={n} className="flex justify-start">
+                    <div className="max-w-[85%] sm:max-w-[75%] w-full">
+                      <div className="mb-1 px-1 h-3 w-28 rounded bg-gray-200 dark:bg-white/10 animate-pulse" />
+                      <div className="rounded-2xl px-4 py-3 bg-gray-100 dark:bg-white/10">
+                        <div className="h-3 w-3/4 rounded bg-gray-200 dark:bg-white/10 animate-pulse mb-2" />
+                        <div className="h-3 w-full rounded bg-gray-200 dark:bg-white/10 animate-pulse mb-2" />
+                        <div className="h-3 w-2/3 rounded bg-gray-200 dark:bg-white/10 animate-pulse" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            ) : pinnedPosts.length > 0 || feedPosts.length > 0 ? (
+              <>
+                {pinnedPosts.map((p) => <PostBubble key={p.id} post={p} pinned />)}
+                {pinnedPosts.length > 0 && <div className="h-px bg-line dark:bg-white/10" />}
+                {feedPosts.map((p) => <PostBubble key={p.id} post={p} pinned={false} />)}
+              </>
+            ) : (
               <div className="py-16 text-center">
                 <Megaphone size={48} className="text-gray-400 dark:text-white/20 mx-auto mb-3" />
                 <p className="text-gray-500 dark:text-white/40 text-sm">{t("channels.posts") || "Постов"} пока нет</p>
               </div>
             )}
-            {feedPosts.map((p) => <PostBubble key={p.id} post={p} pinned={false} />)}
           </div>
         </div>
         {/* ── КОМПОЗЕР (как в чате: «+», поле, Send) ── */}
@@ -669,25 +785,27 @@ export default function ChannelPage() {
                         <Clock size={18} className="text-gray-600 dark:text-white/60" />
                         <span>{scheduledAt ? "Убрать отложенный постинг" : "Отложенный постинг"}</span>
                       </button>
+                      <button
+                        onClick={(e) => { const rect = e.currentTarget.getBoundingClientRect(); editorRef.current?.openMenuAt(rect.left + rect.width / 2, rect.top - 8); setShowInputActions(false); }}
+                        className="w-full px-4 py-3 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-3 transition-colors border-t border-line dark:border-white/5"
+                      >
+                        <Type size={18} className="text-gray-600 dark:text-white/60" /> <span>Форматирование</span>
+                      </button>
                     </div>
                   </>
                 )}
               </div>
-              {/* Поле ввода — chat-input-shell, как в чате */}
+              {/* Поле ввода — WYSIWYG, как в чате (RichEditor) */}
               <div className="chat-input-shell flex-1 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 overflow-hidden focus-within:border-[#8b5cf6] transition-all">
-                <textarea
+                <RichEditor
+                  ref={editorRef}
                   value={postText}
-                  onChange={(e) => setPostText(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      createPost();
-                    }
-                  }}
-                  rows={1}
-                  maxLength={8000}
+                  onChange={(v) => { setPostText(v); }}
                   placeholder={t("channels.writePost") || "Написать пост..."}
-                  className="w-full bg-transparent text-gray-900 dark:text-white text-[15px] sm:text-sm md:text-base placeholder-gray-400 dark:placeholder-white/40 px-3 py-2.5 min-h-[48px] max-h-32 overflow-y-auto resize-none leading-snug focus:outline-none"
+                  className="w-full bg-transparent text-gray-900 dark:text-white text-[15px] sm:text-sm md:text-base placeholder-gray-400 dark:placeholder-white/40 px-3 py-2.5 min-h-[48px] max-h-32 overflow-y-auto leading-snug"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); createPost(); }
+                  }}
                 />
               </div>
               {/* Кнопка отправки */}
