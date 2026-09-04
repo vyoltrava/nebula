@@ -325,9 +325,27 @@ type Dock2User = {
 
 type Dock2Icon = React.ComponentType<{ size?: number | string; className?: string }>;
 type Dock2Item = { href: string; icon: Dock2Icon; label: string };
-const DOCK2_PAGE_SWIPE = 30; // px вертикального свайпа для смены страницы
-const DOCK2_PANEL_DIST   = 40; // палец дальше этого расстояния → ищем иконку
+const DOCK2_PAGE_SWIPE   = 30; // px вертикального свайпа для смены страницы
+const DOCK2_SELECT_ENTER = 56; // ушёл пальцем в сторону от кнопки → режим выбора иконки
 const DOCK2_PICK_DIST    = 60; // радиус «попадания» в иконку
+
+// 🧮 Геометрия панели: ВСЕГДА по центру экрана (clamp от краёв — никогда не вылезает).
+type Dock2Geom = {
+  left: number; top: number; w: number; h: number;
+  itemW: number; itemH: number; cols: number; rows: number;
+  gap: number; pad: number; header: number;
+};
+function dock2GeomFor(items: Dock2Item[]): Dock2Geom | null {
+  if (typeof window === "undefined") return null;
+  const cols = 2;
+  const rows = Math.max(1, Math.ceil(items.length / cols));
+  const itemW = 84, itemH = 78, gap = 6, pad = 12, header = 34;
+  const w = cols * itemW + gap * (cols - 1) + pad * 2;
+  const h = rows * itemH + gap * (rows - 1) + pad * 2 + header;
+  const left = Math.max(12, Math.round((window.innerWidth - w) / 2));
+  const top = Math.max(12, Math.round((window.innerHeight - h) / 2));
+  return { left, top, w, h, itemW, itemH, cols, rows, gap, pad, header };
+}
 
 function Dock2Wheel({
   user,
@@ -344,20 +362,13 @@ function Dock2Wheel({
   const squareRef = useRef<HTMLDivElement>(null);
   const startPos = useRef<{ x: number; y: number } | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const selModeRef = useRef(false);      // 🖐 режим выбора иконки (ушёл в сторону от кнопки)
+  const geomRef = useRef<Dock2Geom | null>(null); // геометрия панели для hit-теста в жестах
 
   const [currentPage, setCurrentPage] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [selectedItem, setSelectedItem] = useState<number | null>(null);
-  const [direction, setDirection] = useState<"up" | "down">("up");
-  // 📐 Геометрия квадрата, снятая В МОМЕНТ открытия (в обработчике жеста) —
-  //    используется при рендере панели. Не читаем ref в render (stale/ошибка линтера).
-  const [squareRect, setSquareRect] = useState<{
-    top: number;
-    bottom: number;
-    left: number;
-    width: number;
-    height: number;
-  } | null>(null);
+  const [geom, setGeom] = useState<Dock2Geom | null>(null); // для рендера (центр экрана)
 
   // НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
   // 🧩 Страницы-меню. Страница «Админ» добавляется только для администраторов.
@@ -397,77 +408,78 @@ function Dock2Wheel({
     return [main, social, tools, admin].filter((p) => p.length > 0);
   }, [user, t]);
 
-  // ЖЕСТ: УДЕРЖАНИЕ
+  // 🔄 Перемотка страниц (работает и ДО открытия, и В РЕЖИМЕ УДЕРЖАНИЯ)
+  const flipPage = (forward: boolean) => {
+    const len = Math.max(1, pages.length);
+    const next = forward ? (currentPage + 1) % len : (currentPage - 1 + len) % len;
+    setCurrentPage(next);
+    setSelectedItem(null); // сброс выбора — иконки другой группы
+    if (isActive) {
+      const g = dock2GeomFor(pages[next]);
+      geomRef.current = g;
+      setGeom(g);
+    }
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      try { navigator.vibrate(10); } catch { /* noop */ }
+    }
+  };
+
+  // ЖЕСТ: УДЕРЖАНИЕ → панель по центру экрана
   const handleTouchStart = (e: React.TouchEvent) => {
     const touch = e.touches[0];
     startPos.current = { x: touch.clientX, y: touch.clientY };
+    selModeRef.current = false;
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
     longPressTimer.current = setTimeout(() => {
-      const rect = squareRef.current?.getBoundingClientRect();
-      let dir: "up" | "down" = "up";
-      if (rect) {
-        const spaceUp = rect.top;
-        const spaceDown = window.innerHeight - rect.bottom;
-        dir = spaceUp > spaceDown ? "up" : "down";
-        setSquareRect({ top: rect.top, bottom: rect.bottom, left: rect.left, width: rect.width, height: rect.height });
-      }
-      setDirection(dir);
+      const g = dock2GeomFor(pages[currentPage]);
+      geomRef.current = g;
+      setGeom(g);
       setIsActive(true);
     }, LONG_PRESS_MS);
   };
 
-// ЖЕСТ: ДВИЖЕНИЕ (свайп по квадрату ИЛИ выбор иконки)
+  // ЖЕСТ: ДВИЖЕНИЕ
   const handleTouchMove = (e: React.TouchEvent) => {
     const touch = e.touches[0];
     if (!startPos.current) return;
+    const dx = touch.clientX - startPos.current.x;
+    const dy = touch.clientY - startPos.current.y;
 
-    // Режим переключения страниц (панель ещё не открыта)
+    // ── До открытия: свайп вверх/вниз по кнопке листает группы ──
     if (!isActive) {
-      const dy = touch.clientY - startPos.current.y;
-      if (Math.abs(dy) > DOCK2_PAGE_SWIPE) {
-        const newPage = dy > 0
-          ? (currentPage + 1) % pages.length
-          : (currentPage - 1 + pages.length) % pages.length;
-        setCurrentPage(newPage);
+      if (Math.abs(dy) > DOCK2_PAGE_SWIPE && Math.abs(dy) > Math.abs(dx)) {
+        flipPage(dy > 0);
         startPos.current = { x: touch.clientX, y: touch.clientY }; // сброс для следующего свайпа
-        if (typeof navigator !== "undefined" && navigator.vibrate) {
-          try { navigator.vibrate(10); } catch { /* noop */ }
-        }
       }
       return;
     }
 
-    // Режим выбора иконки (панель открыта — ведём палец от квадрата)
-    const rect = squareRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    const dx = touch.clientX - rect.left;
-    const dy = touch.clientY - rect.top;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist > DOCK2_PANEL_DIST) {
-      const items = pages[currentPage];
-      const cols = 2;
-      const rows = Math.ceil(items.length / cols);
-      const itemWidth = 80;
-      const itemHeight = 80;
-
-      let nearest = -1;
-      let minDist = Infinity;
-      items.forEach((_: Dock2Item, idx: number) => {
-        const col = idx % cols;
-        const row = Math.floor(idx / cols);
-        const ix = rect.left + 20 + col * itemWidth + itemWidth / 2;
-        const iy = direction === "up"
-          ? rect.top - 20 - (rows - row) * itemHeight + itemHeight / 2
-          : rect.bottom + 20 + row * itemHeight + itemHeight / 2;
-        const d = Math.sqrt((touch.clientX - ix) ** 2 + (touch.clientY - iy) ** 2);
-        if (d < minDist) { minDist = d; nearest = idx; }
-      });
-      setSelectedItem(minDist < DOCK2_PICK_DIST ? nearest : null);
-    } else {
-      setSelectedItem(null);
+    // ── В РЕЖИМЕ УДЕРЖАНИЯ: перемотка тоже работает, пока палец у кнопки ──
+    if (!selModeRef.current) {
+      if (Math.abs(dy) > DOCK2_PAGE_SWIPE && Math.abs(dy) > Math.abs(dx)) {
+        flipPage(dy > 0);
+        startPos.current = { x: touch.clientX, y: touch.clientY };
+        return;
+      }
+      // Ушёл в сторону от кнопки → переключаемся на выбор иконки
+      if (Math.abs(dx) > DOCK2_SELECT_ENTER) selModeRef.current = true;
+      else return;
     }
+
+    // ── Выбор иконки: ближайшая ячейка ЦЕНТРИРОВАННОЙ панели ──
+    const g = geomRef.current;
+    if (!g) return;
+    let nearest = -1;
+    let minDist = Infinity;
+    pages[currentPage].forEach((_: Dock2Item, idx: number) => {
+      const col = idx % g.cols;
+      const row = Math.floor(idx / g.cols);
+      const ix = g.left + g.pad + col * (g.itemW + g.gap) + g.itemW / 2;
+      const iy = g.top + g.pad + g.header + row * (g.itemH + g.gap) + g.itemH / 2;
+      const d = Math.sqrt((touch.clientX - ix) ** 2 + (touch.clientY - iy) ** 2);
+      if (d < minDist) { minDist = d; nearest = idx; }
+    });
+    setSelectedItem(minDist < DOCK2_PICK_DIST ? nearest : null);
   };
 
   // ЖЕСТ: ОТПУСКАНИЕ (переход по выбранной иконке ИЛИ закрытие)
@@ -489,7 +501,7 @@ function Dock2Wheel({
 
     setIsActive(false);
     setSelectedItem(null);
-    setSquareRect(null);
+    selModeRef.current = false;
     startPos.current = null;
   };
 
@@ -498,36 +510,27 @@ function Dock2Wheel({
     if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
     setIsActive(false);
     setSelectedItem(null);
-    setSquareRect(null);
+    selModeRef.current = false;
     startPos.current = null;
   };
 
-// Панель с иконками (внутренняя геометрия)
-  const panelInfo = useMemo(() => {
-    if (!isActive) return null;
-    const items = pages[currentPage];
-    const cols = 2;
-    const rows = Math.ceil(items.length / cols);
-    const itemW = 70, itemH = 70, gap = 4, pad = 12;
-    const panelW = cols * itemW + gap * (cols - 1) + pad * 2;
-    const panelH = rows * itemH + gap * (rows - 1) + pad * 2;
-    const rect = squareRect;
-    const left = rect ? rect.left + rect.width / 2 - panelW / 2 : 0;
-    const top = rect
-      ? (direction === "up" ? rect.top - 20 - panelH : rect.bottom + 20)
-      : 0;
-    return { items, itemH, itemW, gap, pad, panelW, panelH, left, top };
-  }, [isActive, currentPage, direction, pages, squareRect]);
+  // 🏷 Заголовки групп страниц (что с чем сгруппировано)
+  const groupTitles = useMemo(() => ([
+    t("nav.dock2Main"),
+    t("nav.dock2Content"),
+    t("nav.dock2Tools"),
+    t("nav.dock2Admin"),
+  ]), [t]);
 
   return (
     <>
-      {/* Квадрат-индикатор (всегда виден) */}
+      {/* Узкая вертикальная кнопка-индикатор (центр правого края, НЕ низко) */}
       <div
         ref={squareRef}
-        className={`fixed z-[98] right-3 bottom-24 w-14 h-14 rounded-2xl bg-paper dark:bg-[#171717]/90 backdrop-blur-sm border flex flex-col items-center justify-center gap-1.5 transition-all duration-200 ${
+        className={`fixed z-[98] right-1.5 top-1/2 -translate-y-1/2 w-[18px] h-[84px] rounded-full border flex flex-col items-center justify-center gap-[5px] transition-all duration-200 ${
           isActive
-            ? "border-[#8b5cf6] bg-[#8b5cf6]/20 shadow-[0_0_18px_rgba(139,92,246,0.5)]"
-            : "border-line dark:border-white/10 shadow-lg"
+            ? "border-[#8b5cf6] bg-[#8b5cf6]/25 shadow-[0_0_14px_rgba(139,92,246,0.5)]"
+            : "border-line dark:border-white/10 bg-paper/90 dark:bg-[#171717]/90 backdrop-blur-sm shadow-sm"
         }`}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -543,42 +546,66 @@ function Dock2Wheel({
         {pages.map((page, idx) => (
           <div
             key={`pg-${idx}`}
-            className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+            className={`w-1 h-1 rounded-full transition-all duration-300 ${
               currentPage === idx
-                ? "bg-[#8b5cf6] scale-150"
+                ? "bg-[#8b5cf6] scale-125"
                 : "bg-gray-300 dark:bg-white/30"
             }`}
           />
         ))}
       </div>
 
-      {/* Панель с иконками — показывается ТОЛЬКО при удержании */}
+      {/* Панель — ТОЛЬКО при удержании, ВСЕГДА по центру экрана */}
       <div
         className="fixed z-[99] pointer-events-none transition-all duration-200"
         style={{
           opacity: isActive ? 1 : 0,
-          transform: isActive ? "scale(1)" : "scale(0.8)",
-          left: panelInfo?.left ?? 0,
-          top: panelInfo?.top ?? 0,
+          transform: isActive ? "scale(1)" : "scale(0.85)",
+          left: geom?.left ?? 0,
+          top: geom?.top ?? 0,
         } as React.CSSProperties}
       >
-        {isActive && panelInfo && (
-          <div className="rounded-2xl bg-paper dark:bg-[#171717]/95 backdrop-blur-md border border-line dark:border-white/10 shadow-2xl pointer-events-none">
+        {isActive && geom && (
+          <div
+            className="rounded-2xl bg-paper dark:bg-[#171717]/95 backdrop-blur-md border border-line dark:border-white/10 shadow-2xl pointer-events-none overflow-hidden"
+            style={{ width: geom.w }}
+          >
+            {/* Заголовок группы + точки страниц */}
             <div
-              className="grid gap-1"
+              className="flex items-center justify-center gap-2 border-b border-line dark:border-white/5"
+              style={{ height: geom.header }}
+            >
+              <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500 dark:text-white/50">
+                {groupTitles[currentPage] ?? ""}
+              </span>
+              <span className="flex gap-1">
+                {pages.map((_, i) => (
+                  <span
+                    key={`hd-${i}`}
+                    className={`w-1 h-1 rounded-full transition-all ${
+                      currentPage === i ? "bg-[#8b5cf6]" : "bg-gray-300 dark:bg-white/25"
+                    }`}
+                  />
+                ))}
+              </span>
+            </div>
+            {/* Сетка иконок */}
+            <div
+              className="grid"
               style={{
-                width: panelInfo.panelW,
-                gridTemplateColumns: "repeat(2, 1fr)",
-                padding: panelInfo.pad,
+                gridTemplateColumns: `repeat(${geom.cols}, ${geom.itemW}px)`,
+                gap: geom.gap,
+                padding: geom.pad,
+                paddingTop: geom.pad - 2,
               }}
             >
-              {panelInfo.items.map((item, idx) => (
+              {pages[currentPage].map((item, idx) => (
                 <div
                   key={item.href + idx}
-                  className={`flex flex-col items-center justify-center gap-0.5 p-1 rounded-xl transition-all duration-150 ${
-                    selectedItem === idx ? "bg-[#8b5cf6]/20 scale-110" : ""
+                  className={`flex flex-col items-center justify-center gap-0.5 rounded-xl transition-all duration-150 ${
+                    selectedItem === idx ? "bg-[#8b5cf6]/20 scale-105" : ""
                   }`}
-                  style={{ width: panelInfo.itemW, height: panelInfo.itemH }}
+                  style={{ width: geom.itemW, height: geom.itemH }}
                 >
                   <item.icon size={24} className="text-gray-700 dark:text-white/80" />
                   <span className="text-[9px] text-gray-600 dark:text-white/60 text-center leading-tight">

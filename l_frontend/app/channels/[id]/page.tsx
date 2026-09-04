@@ -17,6 +17,7 @@ import { ChannelManageModal } from "@/components/ChannelManageModal";
 import { ForwardPostModal } from "@/components/ForwardPostModal";
 import { RichEditor, RichEditorHandle } from "@/components/RichEditor";
 import { RichContextMenu, RichMenuItem } from "@/components/RichContextMenu";
+import { useQuickReaction } from "@/lib/useQuickReaction";
 // 🚀 react-markdown тяжёлый — ленивая загрузка (как в MessageBubble)
 const MarkdownRenderer = dynamic(() => import("@/components/MarkdownRenderer").then((m) => m.MarkdownRenderer));
 import {
@@ -73,6 +74,13 @@ export default function ChannelPage() {
   const [reactionPickerFor, setReactionPickerFor] = useState<number | null>(null);
   const [activePackTab, setActivePackTab] = useState<number>(0);
   const [stickerPacks, setStickerPacks] = useState<any[]>([]);
+
+  // 🆕 Быстрая реакция (двойной тап) + вылетающая анимация — как в обычном чате
+  const { reaction: quickReaction } = useQuickReaction();
+  const [popReaction, setPopReaction] = useState<{
+    content: string; type: "emoji" | "sticker"; stickerId?: number;
+    x: number; y: number; id: number; visible: boolean;
+  } | null>(null);
 
   // 🖊 WYSIWYG-композер и контекстные меню (как в чатах)
   const editorRef = useRef<RichEditorHandle>(null);
@@ -525,6 +533,30 @@ export default function ChannelPage() {
         className="relative flex justify-start"
         id={`post-${p.id}`}
         style={{ touchAction: "pan-y" } as React.CSSProperties}
+        onDoubleClick={(e) => {
+          // 🆕 Двойной тап → быстрая реакция (как в обычном чате) + pop-анимация
+          if ((e.target as HTMLElement)?.closest("button, a, input, textarea, .rich-editor, [data-dont-react]")) return;
+          if (!isSubscribed) return;
+          if (editingPost === p.id || reactionPickerFor !== null || postMenu) return;
+          const reactionToSend = quickReaction || { type: "emoji" as const, content: "❤️" };
+          if (reactionToSend.type === "sticker") {
+            toggleReaction(p.id, reactionToSend.stickerId, undefined);
+          } else {
+            toggleReaction(p.id, undefined, reactionToSend.content);
+          }
+          setPopReaction({
+            content: reactionToSend.content,
+            type: reactionToSend.type,
+            stickerId: reactionToSend.stickerId,
+            x: e.clientX,
+            y: e.clientY,
+            id: p.id,
+            visible: true,
+          });
+          setTimeout(() => {
+            setPopReaction((prev) => (prev ? { ...prev, visible: false } : null));
+          }, 700);
+        }}
         onContextMenu={(e) => {
           if ((e.target as HTMLElement)?.closest("button, a, input, textarea, .rich-editor")) return;
           e.preventDefault();
@@ -1138,6 +1170,28 @@ export default function ChannelPage() {
           </>
         )}
         {/*REACTION_PICKER_END*/}
+
+        {/* 🆕 Анимация вылетающей реакции при двойном тапе — как в обычном чате */}
+        {popReaction && (
+          <div
+            className={`fixed pointer-events-none z-[300] drop-shadow-lg transition-all duration-700 ease-out ${
+              popReaction.visible
+                ? "opacity-100 scale-100 translate-y-0"
+                : "opacity-0 scale-150 -translate-y-12"
+            }`}
+            style={{
+              left: "50%",
+              top: "20%",
+              transform: "translate(-50%, -50%)",
+            }}
+          >
+            {popReaction.type === "emoji" ? (
+              <span className="text-5xl">{popReaction.content}</span>
+            ) : (
+              <img src={mediaUrl(popReaction.content)} alt="" className="w-12 h-12 object-contain" />
+            )}
+          </div>
+        )}
       </main>
     </div>
   );
