@@ -148,11 +148,12 @@ export function BookmarkPageSkeleton() {
 
 // ==========================================
 // 🦴 Скелетон для списка чатов (страница /messages)
+// count — сколько строк рисовать (по умолчанию 5)
 // ==========================================
-export function ChatListSkeleton() {
+export function ChatListSkeleton({ count = 5 }: { count?: number }) {
   return (
     <div className="space-y-1 p-2 animate-pulse">
-      {[1, 2, 3, 4, 5].map((i) => (
+      {Array.from({ length: Math.max(0, count) }, (_, i) => (
         <div key={i} className="flex items-center gap-3 p-3 rounded-xl">
           {/* Аватарка (квадратная rounded-xl, как <Avatar> в реальном списке чатов) */}
           <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0" />
@@ -173,8 +174,31 @@ export function ChatListSkeleton() {
 
 // ==========================================
 // 🦴 Скелетон для окна чата (активная переписка)
+// count — сколько пузырей сообщений рисовать (по умолчанию 3).
+// Передавай число реальных сообщений в чате: если их 2 — скелетов 2.
+// Пузыри чередуются: входящее / исходящее.
 // ==========================================
-export function ChatWindowSkeleton() {
+export function ChatWindowSkeleton({ count = 3 }: { count?: number }) {
+  const n = Math.max(0, count);
+  const bubbles = Array.from({ length: n }, (_, i) => {
+    const incoming = i % 2 === 0;
+    const widths = ["w-56", "w-72", "w-32", "w-48", "w-64"];
+    const heights = ["h-12", "h-10", "h-8", "h-14", "h-9"];
+    return (
+      <div key={i} className={`flex gap-3 ${incoming ? "" : "justify-end"}`}>
+        {incoming && <div className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0 mt-1" />}
+        <div className="space-y-2 max-w-[75%]">
+          <div className={`h-3 w-20 bg-gray-100 dark:bg-white/5 rounded-md ${incoming ? "" : "ml-auto"}`} />
+          <div
+            className={`bg-gray-100 dark:bg-white/10 rounded-2xl ${
+              incoming ? "rounded-tl-sm" : "rounded-tr-sm bg-[#8b5cf6]/20"
+            } ${heights[i % heights.length]} ${widths[i % widths.length]}`}
+          />
+        </div>
+      </div>
+    );
+  });
+
   return (
     <div className="flex-1 flex flex-col bg-paper dark:bg-[#171717] animate-pulse">
       {/* Шапка чата */}
@@ -187,33 +211,7 @@ export function ChatWindowSkeleton() {
       </div>
 
       {/* Область сообщений */}
-      <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-        {/* Входящее сообщение */}
-        <div className="flex gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0 mt-1" />
-          <div className="space-y-2 max-w-[75%]">
-            <div className="h-3 w-24 bg-gray-100 dark:bg-white/5 rounded-md" />
-            <div className="h-12 w-56 bg-gray-100 dark:bg-white/10 rounded-2xl rounded-tl-sm" />
-          </div>
-        </div>
-
-        {/* Исходящее сообщение */}
-        <div className="flex gap-3 justify-end">
-          <div className="space-y-2 max-w-[75%]">
-            <div className="h-10 w-72 bg-[#8b5cf6]/20 rounded-2xl rounded-tr-sm" />
-            <div className="h-3 w-16 bg-gray-100 dark:bg-white/5 rounded-md ml-auto" />
-          </div>
-        </div>
-
-        {/* Входящее сообщение 2 */}
-        <div className="flex gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0 mt-1" />
-          <div className="space-y-2 max-w-[60%]">
-            <div className="h-3 w-20 bg-gray-100 dark:bg-white/5 rounded-md" />
-            <div className="h-8 w-32 bg-gray-100 dark:bg-white/10 rounded-2xl rounded-tl-sm" />
-          </div>
-        </div>
-      </div>
+      <div className="flex-1 p-4 space-y-4 overflow-y-auto">{bubbles}</div>
 
       {/* Поле ввода */}
       <div className="p-4 border-t border-line dark:border-white/10">

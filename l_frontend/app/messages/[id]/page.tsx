@@ -2597,7 +2597,7 @@ const ChatHeader = () => (
         )}
 
         {loadingMessages ? (
-          <ChatWindowSkeleton />
+          <ChatWindowSkeleton count={messages.length || 3} />
         ) : (
           <>
 {isSecret && messages.length === 0 && secretState !== "error" && secretState !== "waiting" && (

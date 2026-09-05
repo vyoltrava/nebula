@@ -576,7 +576,7 @@ const confirmPrismKey = async () => {
           </div>
         </div>
 
-        {loading && <ChatListSkeleton />}
+        {loading && <ChatListSkeleton count={sortedChats.length || 5} />}
         
         {!loading && q && sortedChats.length > 0 && (
           <div className="px-4 md:px-6 py-2.5 border-b border-line dark:border-white/10 bg-[#8b5cf6]/5 flex items-center gap-3 backdrop-blur-md">
