@@ -28,6 +28,7 @@ export default function CategoryPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [cursor, setCursor] = useState<number | null>(null);
   const [hasMore, setHasMore] = useState(false);
+  const [sending, setSending] = useState(false);
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -73,20 +74,34 @@ export default function CategoryPage() {
   }
 
   async function createThread() {
-    if (!title.trim() || !content.trim()) return alert(t("suggestions.fillFields"));
+    // Валидация как на сервере (title ≥ 3, content ≥ 10), чтобы не ловить тихий 400
+    if (title.trim().length < 3 || content.trim().length < 10)
+      return alert(t("suggestions.fillFields"));
+    if (sending) return; // 🛡 защита от двойного сабмита
+    setSending(true);
     const token = getToken();
     const form = new FormData();
     form.append("category_id", categoryId.toString());
     form.append("title", title);
     form.append("content", content);
     if (canManage && prefixId) form.append("prefix_id", String(prefixId));
-    const res = await fetch(`${API_URL}/api/suggestions/threads`, {
-      method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form,
-    });
-    if (res.ok) {
-      const d = await res.json();
-      setShowCreate(false); setTitle(""); setContent("");
-      router.push(`/suggestions/thread/${d.id}`);
+    try {
+      const res = await fetch(`${API_URL}/api/suggestions/threads`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form,
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setShowCreate(false); setTitle(""); setContent("");
+        router.push(`/suggestions/thread/${d.id}`);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.detail || t("common.error"));
+      }
+    } catch (e) {
+      console.error(e);
+      alert(t("common.error"));
+    } finally {
+      setSending(false);
     }
   }
 
@@ -203,7 +218,9 @@ export default function CategoryPage() {
             <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder={t("suggestions.threadContentPh")} rows={8}
               className="w-full mb-4 px-4 py-3 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-gray-900 dark:text-white focus:border-[#8b5cf6] outline-none resize-none" />
             <div className="flex gap-3">
-              <button onClick={createThread} className="flex-1 py-3 rounded-lg bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed]">{t("suggestions.publish")}</button>
+              <button onClick={createThread} disabled={sending} className="flex-1 py-3 rounded-lg bg-[#8b5cf6] text-white font-bold hover:bg-[#7c3aed] disabled:opacity-40">
+                {sending ? t("suggestions.sending") : t("suggestions.publish")}
+              </button>
               <button onClick={() => setShowCreate(false)} className="flex-1 py-3 rounded-lg border border-line dark:border-white/15 text-gray-800 dark:text-white/80 font-bold hover:bg-gray-100 dark:hover:bg-white/5">{t("common.cancel")}</button>
             </div>
           </div>

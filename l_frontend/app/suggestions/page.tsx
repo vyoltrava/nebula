@@ -158,12 +158,21 @@ function CategoryModal({ initial, onClose, onSaved }: any) {
     form.append("name", name); form.append("description", desc);
     form.append("color", color); form.append("icon", icon);
     if (initial) form.append("is_archived", String(archived));
-    const res = await fetch(`${API_URL}/api/suggestions/categories${initial ? `/${initial.id}` : ""}`, {
-      method: initial ? "PATCH" : "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
-    });
-    if (res.ok) { onClose(); onSaved(); }
+    try {
+      const res = await fetch(`${API_URL}/api/suggestions/categories${initial ? `/${initial.id}` : ""}`, {
+        method: initial ? "PATCH" : "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (res.ok) { onClose(); onSaved(); }
+      else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.detail || t("common.error"));
+      }
+    } catch (e) {
+      console.error(e);
+      alert(t("common.error"));
+    }
   }
 
   return (
@@ -222,10 +231,19 @@ function PrefixModal({ prefixes, onClose, onSaved }: any) {
     const token = getToken();
     const form = new FormData();
     form.append("name", name); form.append("color", color); form.append("bg_color", bg);
-    const res = await fetch(`${API_URL}/api/admin/suggestion-prefixes`, {
-      method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form,
-    });
-    if (res.ok) { setName(""); const r = await fetch(`${API_URL}/api/suggestions/prefixes`).then(r => r.json()); setList(r); onSaved(); }
+    try {
+      const res = await fetch(`${API_URL}/api/admin/suggestion-prefixes`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form,
+      });
+      if (res.ok) { setName(""); const r = await fetch(`${API_URL}/api/suggestions/prefixes`).then(r => r.json()); setList(r); onSaved(); }
+      else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.detail || t("common.error"));
+      }
+    } catch (e) {
+      console.error(e);
+      alert(t("common.error"));
+    }
   }
 
   async function remove(id: number) {

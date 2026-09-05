@@ -96,8 +96,19 @@ export default function ThreadPage() {
     if (!newComment.trim()) return;
     setSending(true);
     try {
-      const ok = await api("POST", `/api/suggestions/thread/${threadId}/comments`, patchForm({ content: newComment }));
-      if (ok) setNewComment("");
+      const res = await fetch(`${API_URL}/api/suggestions/thread/${threadId}/comments`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: patchForm({ content: newComment }),
+      });
+      if (res.ok) { setNewComment(""); loadThread(); }
+      else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.detail || t("common.error"));
+      }
+    } catch (e) {
+      console.error(e);
+      alert(t("common.error"));
     } finally { setSending(false); }
   }
 
@@ -287,14 +298,23 @@ function EditModal({ thread, onClose, onSaved }: any) {
   const [content, setContent] = useState(thread.content);
 
   async function save() {
-    if (!title.trim() || !content.trim()) return alert(t("suggestions.fillFields"));
+    if (title.trim().length < 3 || content.trim().length < 10) return alert(t("suggestions.fillFields"));
     const token = getToken();
     const f = new FormData();
     f.append("title", title); f.append("content", content);
-    const res = await fetch(`${API_URL}/api/suggestions/thread/${thread.id}`, {
-      method: "PATCH", headers: { Authorization: `Bearer ${token}` }, body: f,
-    });
-    if (res.ok) onSaved();
+    try {
+      const res = await fetch(`${API_URL}/api/suggestions/thread/${thread.id}`, {
+        method: "PATCH", headers: { Authorization: `Bearer ${token}` }, body: f,
+      });
+      if (res.ok) onSaved();
+      else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.detail || t("common.error"));
+      }
+    } catch (e) {
+      console.error(e);
+      alert(t("common.error"));
+    }
   }
 
   return (

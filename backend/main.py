@@ -12475,7 +12475,8 @@ def create_suggestion_thread(
     )
     session.add(thread)
     session.commit()
-    session.refresh(thread)
+    # id заполнен после commit (autoincrement) — refresh не нужен, он лишь
+    # делает лишний SELECT и на нагруженной БД добавляет латентность.
     return {"ok": True, "id": thread.id}
 
 @app.get("/api/suggestions/thread/{thread_id}")
