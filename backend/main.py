@@ -60,6 +60,7 @@ from models import (
     RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge,
     Billet, BilletTemplate, BilletAssignment, SystemBadge,
     SuggestionCategory, SuggestionThread, SuggestionThreadComment, TeamStatistic, RoleHistory, NickHistory, Suggestion, SuggestionComment, ChatDraft, PremiumUsername, PaymentPurchase, PaymentRole,
+    UserPrefix, UserPrefixAssign,
     AdminBackup
 )
 import logging
@@ -1070,6 +1071,24 @@ def check_sanction_rights(actor: User, target: User, session: Session, action: s
         )
 
 
+def user_prefix_out(session: Session, user_id: int) -> Optional[dict]:
+    """🏷️ Префикс пользователя (многоугольная иконка-плашка) — для user_out."""
+    assign = session.exec(
+        select(UserPrefixAssign).where(UserPrefixAssign.user_id == user_id)
+    ).first()
+    if not assign:
+        return None
+    p = session.get(UserPrefix, assign.prefix_id)
+    if not p:
+        return None
+    return {
+        "id": p.id,
+        "icon": p.icon,
+        "color": p.color,
+        "bg_color": p.bg_color,
+    }
+
+
 def user_out(user: User, session: Session = None, preloaded: tuple = None) -> dict:
     """Сериализует пользователя в dict (использует кэш ролей).
 
@@ -1120,14 +1139,17 @@ def user_out(user: User, session: Session = None, preloaded: tuple = None) -> di
 
     }
    
-    #  Системная плашка (уровни 9-11) + активная кастомная плашка
+    #  Системная плашка (уровни 9-11) + активная кастомная плашка + префикс юзера
     if session:
         if preloaded is not None:
             result["active_billet_assignment"] = preloaded[0]
             result["system_badge"] = preloaded[1]
+            if len(preloaded) > 2:
+                result["prefix"] = preloaded[2]
         else:
             result["active_billet_assignment"] = get_active_billet_for(user.id, session)
             result["system_badge"] = get_system_badge_for(get_user_level(user, session), session)
+            result["prefix"] = user_prefix_out(session, user.id)
 
     return result
 
@@ -1225,6 +1247,23 @@ def batch_get_users(users: list, session: Session) -> dict:
             _assignment_out_batch(lst[0]) if lst else None,
             sys_map.get(get_user_level(u, session)),
         )
+
+    # 4. 🏷️ Префиксы пользователей одним запросом (batch)
+    prefix_assigns = session.exec(
+        select(UserPrefixAssign).where(UserPrefixAssign.user_id.in_(user_ids))
+    ).all()
+    prefix_ids = {a.prefix_id for a in prefix_assigns}
+    prefixes = (
+        {p.id: p for p in session.exec(select(UserPrefix).where(UserPrefix.id.in_(prefix_ids))).all()}
+        if prefix_ids else {}
+    )
+    prefix_map = {a.user_id: prefixes[a.prefix_id] for a in prefix_assigns if a.prefix_id in prefixes}
+    for u in users:
+        p = prefix_map.get(u.id)
+        preloaded[u.id] = preloaded[u.id] + (
+            {"id": p.id, "icon": p.icon, "color": p.color, "bg_color": p.bg_color} if p else None,
+        )
+
     return preloaded
 
 
@@ -7991,6 +8030,7 @@ async def send_message_v2(
             "sender_id": msg.sender_id,
             "sender_name": user.display_name,
             "sender_avatar": user.avatar_url,
+            "sender_prefix": user_prefix_out(session, user.id),
             "text": msg.text,
             "ciphertext": msg.ciphertext,
             "media_url": msg.media_url,
@@ -8033,6 +8073,7 @@ async def send_message_v2(
         "sender_id": msg.sender_id,
         "sender_name": user.display_name,
         "sender_avatar": user.avatar_url,
+        "sender_prefix": user_prefix_out(session, user.id),
         "text": msg.text,
         "ciphertext": msg.ciphertext,
         "media_url": msg.media_url,
@@ -8182,6 +8223,7 @@ def get_messages_v2(
             "sender_id": msg.sender_id,
             "sender_name": sender_name,
             "sender_avatar": sender_avatar,
+            "sender_prefix": user_prefix_out(session, msg.sender_id) if sender else None,
             "author_signature": author_signature,
             "text": msg.text,
             "ciphertext": msg.ciphertext,
@@ -13925,4 +13967,139 @@ async def upload_media_for_post(
     except Exception as e:
         raise HTTPException(400, f"Ошибка загрузки: {str(e)}")
     return {"url": url, "media_type": media_type}
+
+
+# ============================================================
+# 🏷️ ПРЕФИКСЫ ПОЛЬЗОВАТЕЛЕЙ (многоугольная иконка-плашка)
+# CRUD в adminnew → Префиксы → Пользователи, выдача в UsersSection.
+# ============================================================
+
+def _prefix_admin_guard(staff: User, session: Session):
+    """Доступ: manage_users или админ."""
+    if not (staff.is_admin or has_permission(staff, "manage_users", session)):
+        raise HTTPException(403, "Нет права: manage_users")
+
+
+@app.get("/api/user-prefixes")
+def list_user_prefixes_public(session: Session = Depends(get_session)):
+    """Публичный список всех созданных префиксов (для превью в админке/формах)."""
+    return [
+        {"id": p.id, "icon": p.icon, "color": p.color, "bg_color": p.bg_color}
+        for p in session.exec(select(UserPrefix)).all()
+    ]
+
+
+@app.get("/api/user-prefixes/assignments")
+def list_user_prefix_assignments_public(session: Session = Depends(get_session)):
+    """Публичная карта user_id → префикс. Используется фронтом для отображения
+    префиксов в постах/чатах, где в payload есть только author_id."""
+    assigns = session.exec(select(UserPrefixAssign)).all()
+    prefixes = {p.id: p for p in session.exec(select(UserPrefix)).all()}
+    out = []
+    for a in assigns:
+        p = prefixes.get(a.prefix_id)
+        if not p:
+            continue
+        out.append({"user_id": a.user_id, "icon": p.icon, "color": p.color, "bg_color": p.bg_color})
+    return out
+
+
+@app.get("/api/admin/user-prefixes")
+def admin_list_user_prefixes(
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    _prefix_admin_guard(staff, session)
+    return [
+        {"id": p.id, "icon": p.icon, "color": p.color, "bg_color": p.bg_color}
+        for p in session.exec(select(UserPrefix)).all()
+    ]
+
+
+@app.post("/api/admin/user-prefixes")
+def admin_create_user_prefix(
+    data: dict,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    _prefix_admin_guard(staff, session)
+    icon = str(data.get("icon") or "star").strip()[:40]
+    color = str(data.get("color") or "#ffffff")[:20]
+    bg_color = str(data.get("bg_color") or "#8b5cf6")[:20]
+    p = UserPrefix(icon=icon, color=color, bg_color=bg_color)
+    session.add(p)
+    session.commit()
+    session.refresh(p)
+    return {"id": p.id, "icon": p.icon, "color": p.color, "bg_color": p.bg_color}
+
+
+@app.patch("/api/admin/user-prefixes/{prefix_id}")
+def admin_update_user_prefix(
+    prefix_id: int,
+    data: dict,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    _prefix_admin_guard(staff, session)
+    p = session.get(UserPrefix, prefix_id)
+    if not p:
+        raise HTTPException(404, "Префикс не найден")
+    if "icon" in data: p.icon = str(data["icon"]).strip()[:40]
+    if "color" in data: p.color = str(data["color"])[:20]
+    if "bg_color" in data: p.bg_color = str(data["bg_color"])[:20]
+    session.add(p)
+    session.commit()
+    return {"id": p.id, "icon": p.icon, "color": p.color, "bg_color": p.bg_color}
+
+
+@app.delete("/api/admin/user-prefixes/{prefix_id}")
+def admin_delete_user_prefix(
+    prefix_id: int,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    _prefix_admin_guard(staff, session)
+    p = session.get(UserPrefix, prefix_id)
+    if not p:
+        raise HTTPException(404, "Префикс не найден")
+    # снимаем назначения
+    for a in session.exec(select(UserPrefixAssign).where(UserPrefixAssign.prefix_id == prefix_id)).all():
+        session.delete(a)
+    session.delete(p)
+    session.commit()
+    return {"ok": True}
+
+
+@app.post("/api/admin/user-prefixes/assign")
+def admin_assign_user_prefix(
+    data: dict,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Массовая выдача/снятие префикса: {user_ids: [...], prefix_id: int|null}."""
+    _prefix_admin_guard(staff, session)
+    prefix = None
+    if data.get("prefix_id") is not None:
+        prefix = session.get(UserPrefix, int(data["prefix_id"]))
+        if not prefix:
+            raise HTTPException(404, "Префикс не найден")
+    ids = [int(i) for i in (data.get("user_ids") or []) if i]
+    for uid in ids:
+        target = session.get(User, uid)
+        if not target:
+            continue
+        existing = session.exec(
+            select(UserPrefixAssign).where(UserPrefixAssign.user_id == uid)
+        ).first()
+        if prefix is None:
+            if existing:
+                session.delete(existing)
+        else:
+            if existing:
+                existing.prefix_id = prefix.id
+                session.add(existing)
+            else:
+                session.add(UserPrefixAssign(prefix_id=prefix.id, user_id=uid))
+    session.commit()
+    return {"ok": True, "assigned": len(ids)}
 

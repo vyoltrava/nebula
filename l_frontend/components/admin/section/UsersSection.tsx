@@ -8,6 +8,7 @@ import {
   Shield, ShieldCheck, Ban, UserCheck, ImageOff, Crown,
   ExternalLink, Trash2, Search, Filter, Users, X, AlertTriangle,
 } from "lucide-react";
+import { UserPrefixBadge } from "@/components/UserPrefixBadge";
 
 export function UsersSection({ me }: { me: any }) {
   const [users, setUsers] = useState<any[]>([]);
@@ -19,6 +20,29 @@ export function UsersSection({ me }: { me: any }) {
   const [warnReason, setWarnReason] = useState("");
   const [warnList, setWarnList] = useState<any[]>([]);
   const [warnLoading, setWarnLoading] = useState(false);
+  const [prefixes, setPrefixes] = useState<any[]>([]);
+
+  // 🏷️ Выдача/снятие префикса пользователя
+  async function assignPrefix(userId: number, prefixId: number | null) {
+    const token = getToken();
+    const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/user-prefixes/assign`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ user_ids: [userId], prefix_id: prefixId }),
+    });
+    if (r.ok) {
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.id === userId
+            ? { ...u, prefix: prefixId ? prefixes.find((p) => p.id === prefixId) || null : null }
+            : u
+        )
+      );
+    } else {
+      const d = await r.json().catch(() => null);
+      alert(d?.detail || "Ошибка выдачи префикса");
+    }
+  }
 
   function can(permission: string): boolean {
     if (me.is_admin) return true;
@@ -57,6 +81,10 @@ async function load() {
       })
     );
   }
+
+  // 4. 🏷️ Загружаем префиксы пользователей (для выдачи)
+  const prefRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/user-prefixes`);
+  if (prefRes.ok) setPrefixes(await prefRes.json());
 }
 
   useEffect(() => { load(); }, []);
@@ -250,6 +278,8 @@ async function load() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Link href={`/user/${u.id}`} className="font-bold text-gray-900 dark:text-white hover:text-[#8b5cf6]">{u.display_name}</Link>
+                    {/* 🏷️ Префикс пользователя (многоугольная иконка) */}
+                    <UserPrefixBadge prefix={u.prefix} size={18} />
                     {u.is_admin && <span className="px-1.5 py-0.5 rounded bg-white text-black text-[8px] font-black uppercase"><Crown size={8} className="inline" /> Founder</span>}
                     {u.is_moderator && !u.is_admin && <span className="px-2 py-0.5 rounded bg-[#3b82f6] text-white text-[10px] font-black uppercase"><ShieldCheck size={8} className="inline" /> Developer</span>}
                     {u.role && !u.is_admin && !u.is_moderator && (
@@ -300,6 +330,23 @@ async function load() {
                     </button>
                   )}
                   
+                  {/* 🏷️ Выдача/снятие префикса */}
+                  {can("manage_users") && prefixes.length > 0 && (
+                    <select
+                      value={u.prefix?.id ?? ""}
+                      onChange={(e) => assignPrefix(u.id, e.target.value ? Number(e.target.value) : null)}
+                      className="px-3 py-1.5 rounded-lg border border-line dark:border-white/20 bg-gray-100 dark:bg-white/5 text-purple-600 dark:text-purple-400 text-xs font-bold cursor-pointer max-w-[130px]"
+                      title="Префикс пользователя"
+                    >
+                      <option value="">Без префикса</option>
+                      {prefixes.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          Префикс #{p.id} ({p.icon})
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
                   {/* 🆕 Выпадающий список ролей с группировкой по отделам */}
 {/* 🆕 Выпадающий список ролей с группировкой по отделам */}
 {(can("manage_roles") || can("assign_roles")) && !u.is_admin && canSanction && (

@@ -6,6 +6,7 @@ import { Search, Users } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { onFeedRefresh } from "@/lib/events";
 import { Avatar } from "./Avatar";
+import { UserPrefix } from "./UserPrefixProvider";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 
 
@@ -85,9 +86,12 @@ export function RightPanel() {
               <Avatar src={a.avatar_url} name={a.display_name} id={a.id} size={36} />
 
               <div className="flex-1 leading-tight">
-                <Link href={`/${a.username}`} className="font-bold text-sm text-gray-900 dark:text-white hover:text-[#8b5cf6] transition-colors">
-                  {a.display_name}
-                </Link>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <UserPrefix userId={a.id} prefix={a.prefix} size={13} />
+                  <Link href={`/${a.username}`} className="font-bold text-sm text-gray-900 dark:text-white hover:text-[#8b5cf6] transition-colors truncate">
+                    {a.display_name}
+                  </Link>
+                </div>
                 <p className="text-xs text-gray-600 dark:text-white/50">{t("panel.followersCount", { n: a.followers_count })}</p>
               </div>
               <button

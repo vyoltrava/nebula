@@ -20,6 +20,7 @@ import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { ThemeModeProvider } from "@/components/ThemeModeProvider";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
 import { AuthProvider } from "@/lib/AuthProvider";
+import { UserPrefixProvider } from "@/components/UserPrefixProvider";
 import { ZuneThemeProvider } from "@/themes/zune";
 import "@/themes/zune/styles/index.css";
 import { IosThemeProvider } from "@/themes/ios";
@@ -106,6 +107,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: iosNoFlashScript }} />
         <ThemeModeProvider>
         <AuthProvider>
+<UserPrefixProvider>
         <ZuneThemeProvider>
         <IosThemeProvider>
         <ThemeProvider>
@@ -133,6 +135,7 @@ export default function RootLayout({
         </ThemeProvider>
         </IosThemeProvider>
         </ZuneThemeProvider>
+        </UserPrefixProvider>
         </AuthProvider>
         </ThemeModeProvider>
       <OrbitOnboardingGate />

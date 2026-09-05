@@ -20,6 +20,7 @@ import { ProfileSkeleton, PostSkeleton } from "@/components/Skeletons";
 import { useAvatarUploader } from "@/components/AvatarUploader";
 import dynamic from "next/dynamic";
 import { SmartImage } from "@/components/SmartImage";
+import { UserPrefix } from "@/components/UserPrefixProvider";
 
 // 🚀 Тяжёлые компоненты грузим только при необходимости
 const AvatarCropper = dynamic(() => import("@/components/AvatarCropper").then(m => m.AvatarCropper), {
@@ -681,7 +682,8 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   
                   {/* Левая колонка: Имя и бейджи */}
 <div className="flex items-center justify-center md:justify-start gap-2 md:gap-3 flex-wrap leading-tight">
-      {profile.username === "trelod" ? (
+  <UserPrefix userId={profile.id} prefix={profile.prefix} size={20} />
+  {profile.username === "trelod" ? (
     <h1 className={`text-xl md:text-2xl font-black break-words ${resolvedTheme === "light" ? "text-gray-900 [text-shadow:0_0_8px_rgba(0,0,0,0.3)]" : "text-[#e4e4e7] [text-shadow:0_0_10px_rgba(228,228,231,0.5)]"}`}>
       {profile.display_name}
     </h1>

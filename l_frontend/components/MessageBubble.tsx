@@ -3,6 +3,8 @@
 import React, { memo } from 'react';
 import dynamic from 'next/dynamic';
 import { Avatar } from './Avatar';
+import { UserPrefixBadge } from './UserPrefixBadge';
+import { useUserPrefix } from './UserPrefixProvider';
 // 🚀 react-markdown тяжёлый — ленивая загрузка
 const MarkdownRenderer = dynamic(() => import('./MarkdownRenderer').then(m => m.MarkdownRenderer), {
   ssr: false,
@@ -97,6 +99,9 @@ export const MessageBubble = memo(function MessageBubble({
   onSwipeRight, chatId, getMediaClasses, extractFirstUrl
 }: MessageBubbleProps) {
 
+  // 🏷️ префикс отправителя: из payload сообщения, иначе из общего справочника
+  const ctxPrefix = useUserPrefix(msg.sender_id);
+  const senderPrefix = (msg as any).sender_prefix || ctxPrefix;
   const bubbleRadius = isMine
     ? "rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl rounded-br-[4px]"
     : "rounded-tl-2xl rounded-tr-2xl rounded-br-2xl rounded-bl-[4px]";
@@ -152,7 +157,8 @@ export const MessageBubble = memo(function MessageBubble({
         <div className={`max-w-[85%] sm:max-w-[75%] md:max-w-[70%] min-w-0 flex flex-col ${isMine ? "items-end" : "items-start"}`}>
           {isGroup && !isMine && (
             <div className="mb-1 px-1">
-              <p className="text-[11px] sm:text-xs font-bold" style={senderGlow ? { color: senderGlow } : { color: "#a78bfa" }}>
+              <p className="text-[11px] sm:text-xs font-bold flex items-center gap-1" style={senderGlow ? { color: senderGlow } : { color: "#a78bfa" }}>
+                <UserPrefixBadge prefix={senderPrefix} size={12} />
                 {msg.sender_name}
               </p>
               {/* 📢 подпись автора поста в канале — мелким серым */}

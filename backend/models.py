@@ -949,6 +949,33 @@ class ChannelBadgeAssign(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("channel_id"),)
 
 
+class UserPrefix(SQLModel, table=True):
+    """🏷️ Префикс пользователя: иконка в многоугольной плашке (без текста).
+    Создаётся в админке (adminnew → Префиксы → Пользователи), выдаётся
+    пользователям через раздел «Пользователи». Показывается в чатах,
+    списке чатов, постах, профиле и т.д."""
+    __tablename__ = "user_prefix"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    # ключ из списка заложенных иконок (check | star | crown | bolt | fire | ...)
+    icon: str = Field(default="star", max_length=40)
+    # цвет иконки
+    color: str = Field(default="#ffffff", max_length=20)
+    # цвет плашки (hex)
+    bg_color: str = Field(default="#8b5cf6", max_length=20)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class UserPrefixAssign(SQLModel, table=True):
+    """🔗 Назначение префикса пользователю. Один пользователь → один префикс."""
+    __tablename__ = "user_prefix_assign"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    prefix_id: int = Field(foreign_key="user_prefix.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    __table_args__ = (UniqueConstraint("user_id"),)
+
+
 class ChannelBan(SQLModel, table=True):
     """Запрет повторного вступления + причина бана."""
     __tablename__ = "channel_ban"

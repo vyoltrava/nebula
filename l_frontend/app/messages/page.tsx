@@ -5,6 +5,7 @@ import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
+import { UserPrefix } from "@/components/UserPrefixProvider";
 import { CreateGroupModal } from "@/components/CreateGroupModal";
 import { CreateChannelModal } from "@/components/CreateChannelModal";
 import PublicChannelsModal from "@/components/PublicChannelsModal";
@@ -780,6 +781,7 @@ const confirmPrismKey = async () => {
                         </p>
                       ) : (
                         <>
+                          <UserPrefix userId={otherUser?.id} prefix={otherUser?.prefix} size={14} />
                           <p className={`font-bold truncate ${glowStyle(otherUser) ? "" : "text-gray-900 dark:text-white"}`} style={glowStyle(otherUser)}>
                             {query.trim() ? highlight(otherUser?.display_name, query.trim()) : otherUser?.display_name}
                           </p>

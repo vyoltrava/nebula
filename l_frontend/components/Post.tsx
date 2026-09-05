@@ -21,6 +21,7 @@ import { timeAgo } from "@/lib/time";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import LinkPreview from "@/components/LinkPreview";
 import { EchoModal } from "@/components/EchoModal";
+import { UserPrefix } from "./UserPrefixProvider";
 import { useQuickPostReaction } from "@/lib/useQuickReaction";
 import dynamic from "next/dynamic";
 
@@ -877,6 +878,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
           <div className="flex items-center justify-between gap-2">
             {/* Ник + бейджи + кнопки действий (эхо / жалоба / редактировать) — в одном ряду */}
             <div className="flex items-center gap-1.5 flex-wrap text-sm min-w-0">
+              <UserPrefix userId={author_id} size={14} />
               <Link
                 href={`/${cleanUsername}`}
                 className={`font-bold transition-all ${
