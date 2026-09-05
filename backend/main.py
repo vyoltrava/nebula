@@ -7017,6 +7017,7 @@ def dispatch_ticket_to_team(session: Session, kind: str, title: str, description
     session.refresh(ticket)
 
     assignee_member = pick_ticket_assignee(session, category_id, kind=ticket.kind)
+    bot = get_or_create_bot(session)
     if assignee_member:
         assignee = session.get(User, assignee_member.user_id)
         ticket.status = "assigned"
@@ -7032,17 +7033,99 @@ def dispatch_ticket_to_team(session: Session, kind: str, title: str, description
         if cat_row and cat_row.team_chat_id:
             _post_team_bot_message(session, cat_row.team_chat_id, actor, assignee, ticket)
         return ticket_id
+
+    # Нет исполнителя — заявка всё равно «прилетает» бот-сообщением в чат отдела
+    if cat_row and cat_row.team_chat_id:
+        label = TICKET_KINDS.get(ticket.kind, "Заявка")
+        _post_bot_message(
+            session, cat_row.team_chat_id, bot,
+            f"🤖 {label} «{ticket.title}» — ожидает исполнителя (в отделе нет свободных с правом)",
+        )
     return ticket.id
 
 
 def _post_team_bot_message(session: Session, chat_id: int, actor: User, assignee: User, ticket: TeamTicket) -> None:
-    """Синхронно постит бот-сообщение о назначенной заявке в чат отдела."""
+    """Синхронно постит бот-сообщение о назначенной заявке в чат отдела.
+
+    Отправляется от имени системного бота (nebula_bot), чтобы сообщение
+    выглядело как служебное, а не от заявителя/исполнителя."""
+    bot = get_or_create_bot(session)
     text = f"🤖 {TICKET_KINDS.get(ticket.kind, 'Заявка')} «{ticket.title}» → @{assignee.username}"
+    _post_bot_message(session, chat_id, bot, text)
+
+
+def get_or_create_bot(session: Session) -> User:
+    """Находит или создаёт системного бота, который отправляет служебные
+    сообщения о заявках в рабочих чатах отделов."""
+    bot = session.exec(select(User).where(User.username == "nebula_bot")).first()
+    if bot:
+        return bot
+    bot = User(
+        username="nebula_bot",
+        display_name="Nebula Bot 🤖",
+        password_hash="!bot!",
+        is_bot=True,
+        is_admin=False,
+        is_moderator=False,
+        is_trelod=False,
+        is_banned=False,
+    )
+    session.add(bot)
+    session.commit()
+    session.refresh(bot)
+    return bot
+
+
+def _post_bot_message(session: Session, chat_id: int, bot: User, text: str) -> Optional[Message]:
+    """Создаёт сообщение в чате от имени бота + рассылает по WS."""
     try:
-        session.add(Message(chat_id=chat_id, sender_id=actor.id, text=text))
+        msg = Message(chat_id=chat_id, sender_id=bot.id, text=text)
+        session.add(msg)
         session.commit()
-    except Exception:
+        session.refresh(msg)
+        try:
+            import asyncio
+            loop = None
+            try:
+                loop = asyncio.get_event_loop()
+            except Exception:
+                loop = None
+            if loop and loop.is_running():
+                loop.create_task(manager.broadcast_to_chat(
+                    chat_id, "new_message",
+                    {
+                        "id": msg.id, "chat_id": chat_id, "sender_id": bot.id,
+                        "sender_name": bot.display_name, "sender_avatar": bot.avatar_url,
+                        "sender_prefix": None, "text": msg.text, "ciphertext": None,
+                        "media_url": None, "media_type": None, "is_encrypted_media": False,
+                        "created_at": msg.created_at.isoformat(), "pinned": False,
+                        "pinned_by": None, "reply_to_id": None, "reply_preview": None,
+                        "reactions": [], "is_team_command": True,
+                    },
+                    session,
+                ))
+        except Exception as e:
+            print(f"⚠️ bot WS broadcast: {e}")
+        return msg
+    except Exception as e:
         session.rollback()
+        print(f"⚠️ не удалось отправить бот-сообщение: {e}")
+        return None
+
+
+def ensure_bot_in_team_chats(session: Session) -> None:
+    """Гарантирует, что системный бот состоит во всех рабочих чатах отделов."""
+    bot = get_or_create_bot(session)
+    cats = session.exec(select(RoleCategory).where(RoleCategory.team_chat_id.is_not(None))).all()  # type: ignore[union-attr]
+    for cat in cats:
+        if not cat.team_chat_id:
+            continue
+        member = session.exec(
+            select(ChatMember).where(ChatMember.chat_id == cat.team_chat_id, ChatMember.user_id == bot.id)
+        ).first()
+        if not member:
+            session.add(ChatMember(chat_id=cat.team_chat_id, user_id=bot.id, role="member", auto_assigned=True))
+    session.commit()
 
 
 # ============================================================
@@ -7327,15 +7410,14 @@ async def create_team_ticket(
         session.add(ticket)
         session.commit()
         session.refresh(ticket)
-        # 🏷️ «Приземляем» заявку в чат отдела с тегом исполнителя
+        # 🏷️ «Приземляем» заявку в чат отдела от имени бота с тегом исполнителя
         kind_label = TICKET_KINDS.get(ticket.kind, "")
         try:
-            session.add(Message(
-                chat_id=cat.team_chat_id,
-                sender_id=user.id,
-                text=f"🎫 {kind_label} «{ticket.title}» → исполнитель @{assignee.username}",
-            ))
-            session.commit()
+            bot = get_or_create_bot(session)
+            _post_bot_message(
+                session, cat.team_chat_id, bot,
+                f"🎫 {kind_label} «{ticket.title}» → исполнитель @{assignee.username}",
+            )
         except Exception as e:
             print(f"⚠️ Не удалось отправить сообщение о заявке в чат отдела: {e}")
         # 🔔 WS-уведомление исполнителю в реальном времени
@@ -7899,6 +7981,13 @@ def startup():
                     ensure_team_chat_for_category(_cat.id, _s)
         except Exception as e:
             print(f"⚠️ Бэкфилл рабочих чатов отделов не удался: {e}")
+        # 🤖 Системный бот: создаётся и добавляется во все рабочие чаты отделов,
+        #    чтобы отправлять служебные сообщения о заявках
+        try:
+            with Session(engine) as _s:
+                ensure_bot_in_team_chats(_s)
+        except Exception as e:
+            print(f"⚠️ Инициализация бота не удалась: {e}")
         print("✅ База данных доступна")
     except Exception as e:
         print(f"❌ Нет соединения с БД: {e}")
@@ -11574,6 +11663,7 @@ def create_report(
     # где есть ответственные (право manage_reports и/или can_handle_complaints),
     # и назначается члену команды round-robin.
     try:
+        ensure_bot_in_team_chats(session)
         dispatch_ticket_to_team(
             session, "complaint",
             f"Жалоба на {target_type} #{target_id}",
@@ -12063,6 +12153,7 @@ def create_bug_report(
 
     # 🐞 Баг сразу «прилетает» в рабочий чат тех. отдела (право tech_access)
     try:
+        ensure_bot_in_team_chats(session)
         dispatch_ticket_to_team(
             session, "bug",
             f"Баг: {bug.title}",
@@ -12934,6 +13025,7 @@ async def support_start(  # <-- СТАЛО async def
     # 🎧 Новое обращение в поддержку «прилетает» в рабочий чат отдела
     #    с правом manage_support (kind="appeal") бот-сообщением.
     try:
+        ensure_bot_in_team_chats(session)
         dispatch_ticket_to_team(
             session, "appeal",
             f"Обращение в поддержку #{ticket.id}",

@@ -124,6 +124,7 @@ def _ensure_columns() -> None:
             stmts = [
                 ("rolecategory", "panel_tabs", "VARCHAR DEFAULT '[]'"),
                 ("rolecategory", "team_chat_id", "INTEGER"),
+                ("user", "is_bot", "BOOLEAN DEFAULT 0"),
             ]
             for table, col, ddl in stmts:
                 if table not in existing or col in existing[table]:

@@ -18,6 +18,8 @@ class User(SQLModel, table=True):
     is_moderator: bool = False
     is_banned: bool = False
     is_trelod: bool = Field(default=False)
+    # 🎯 Системный бот (отправляет служебные сообщения о заявках в рабочих чатах отделов)
+    is_bot: bool = Field(default=False)
     role_id: Optional[int] = Field(default=None, foreign_key="role.id")
     selected_badge_id: Optional[int] = Field(default=None)
 
