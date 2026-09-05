@@ -7967,13 +7967,29 @@ def startup():
                         if col.default is not None and isinstance(col.default.arg, (str, int, float, bool)):
                             default = f" DEFAULT '{col.default.arg}'" if isinstance(col.default.arg, str) else f" DEFAULT {col.default.arg}"
                         try:
-                            conn.execute(_t(f"ALTER TABLE {table.name} ADD COLUMN {col.name} {col_type}{default}"))
+                            # ⚠️ Имя таблицы В КАВЫЧКАХ: "user" — зарезервированное
+                            # слово в Postgres, без кавычек ALTER падает с syntax
+                            # error и колонка молча не добавляется (→ 500 на всех
+                            # запросах, т.к. модель требует колонку).
+                            conn.execute(_t(f'ALTER TABLE "{table.name}" ADD COLUMN {col.name} {col_type}{default}'))
                             print(f"🛠️ Self-heal: добавлена колонка {table.name}.{col.name}")
                         except Exception:
                             conn.rollback()  # сброс аборта, чтобы остальные колонки добавились
                             pass  # параллельный деплой / другая БД
         except Exception as e:
             print(f"⚠️ Self-heal колонок не удался: {e}")
+        # 🛡️ Критичные колонки (страховка): если общий self-heal споткнулся,
+        #    эти ALTER'ы выполняются отдельно — иначе модель с новой колонкой
+        #    ломает ВСЕ запросы к таблице (500 на каждом эндпоинте).
+        for _stmt in (
+            'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS is_bot BOOLEAN DEFAULT FALSE',
+            'ALTER TABLE rolecategory ADD COLUMN IF NOT EXISTS panel_tabs VARCHAR DEFAULT \'[]\'',
+        ):
+            try:
+                with engine.begin() as conn:
+                    conn.execute(_t(_stmt))
+            except Exception:
+                pass  # sqlite (нет IF NOT EXISTS) или колонка уже есть
         # 🏢 Бэкфилл: рабочие чаты для отделов, созданных до внедрения команд
         try:
             with Session(engine) as _s:

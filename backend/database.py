@@ -130,10 +130,10 @@ def _ensure_columns() -> None:
                 if table not in existing or col in existing[table]:
                     continue
                 if DATABASE_URL.startswith("sqlite"):
-                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
+                    conn.execute(text(f'ALTER TABLE "{table}" ADD COLUMN {col} {ddl}'))
                 else:
                     conn.execute(text(f'ALTER TABLE "{table}" ADD COLUMN IF NOT EXISTS {col} {ddl}'))
-                print(f"✅ Добавлена колонка {table}.{col}")
+                print(f"[ensure_columns] added column {table}.{col}")
     except Exception as e:
         print(f"⚠️ ensure_columns не удался: {e}")
 
