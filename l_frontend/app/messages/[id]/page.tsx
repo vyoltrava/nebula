@@ -192,6 +192,8 @@ export default function ChatPage() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [chatPartner, setChatPartner] = useState<any>(null);
   const [chatInfo, setChatInfo] = useState<any>(null);
+  // 🟢 Смена в чате отдела (/enter /exit или кнопка в шапке)
+  const [onShift, setOnShift] = useState(false);
   const [isSecret, setIsSecret] = useState(false);
 
   // ✅ НОВЫЕ STATES:
@@ -935,6 +937,8 @@ async function loadChatInfo() {
       const data = await res.json();
       setChatInfo(data);
       setIsSecret(data.is_secret && !data.is_group);
+      // 🟢 Статус смены в чате отдела
+      setOnShift(!!data.my_on_shift);
 
 
 
@@ -953,6 +957,24 @@ async function loadChatInfo() {
     }
   } catch (err) {
     console.error("Failed to load chat info", err);
+  }
+}
+
+// 🟢 Смена: вход/выход (аналог команд /enter и /exit)
+async function toggleShift() {
+  const token = getToken();
+  if (!token) return;
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/shift`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) {
+      const d = await res.json();
+      setOnShift(!!d.on_shift);
+    }
+  } catch (err) {
+    console.error("Failed to toggle shift", err);
   }
 }
 
@@ -2367,6 +2389,21 @@ const ChatHeader = () => (
                     <ChatMuteButton chatId={Number(chatId)} />
                   )}
 
+                  {/* 🟢 Кнопка смены в чате отдела (Эквивалент /enter и /exit) */}
+                  {chatInfo?.is_team_chat && (
+                    <button
+                      onClick={toggleShift}
+                      className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors active:scale-95 ${
+                        onShift
+                          ? "bg-green-500/15 text-green-600 border border-green-500/40"
+                          : "text-gray-600 dark:text-white/60 hover:text-[#8b5cf6] border border-line dark:border-white/15"
+                      }`}
+                      title={onShift ? "Уйти со смены (аналог /exit)" : "Выйти на смену (аналог /enter)"}
+                    >
+                      {onShift ? "🟢 На смене" : "⚪ На смену"}
+                    </button>
+                  )}
+
                   <button
                     onClick={() => { setMediaTab("image"); loadMedia(); setShowMediaGallery(true); }}
                     className="hidden sm:flex p-2.5 sm:p-2 text-gray-600 dark:text-white/60 hover:text-[#8b5cf6] transition-colors active:scale-95"
@@ -2414,6 +2451,14 @@ const ChatHeader = () => (
           >
             <ImageIcon size={15} /> {t("messages.mediaFiles")}
           </button>
+          {chatInfo?.is_team_chat && (
+            <button
+              onClick={() => { toggleShift(); setShowChatMenu(false); }}
+              className="sm:hidden w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
+            >
+              {onShift ? "🔴 Уйти со смены (/exit)" : "🟢 Выйти на смену (/enter)"}
+            </button>
+          )}
           {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && (
             <button
               onClick={() => { setShowGroupSettings(true); setShowChatMenu(false); }}

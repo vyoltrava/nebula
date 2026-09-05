@@ -9,7 +9,8 @@ import { UserPrefix } from "@/components/UserPrefixProvider";
 import { CreateGroupModal } from "@/components/CreateGroupModal";
 import { CreateChannelModal } from "@/components/CreateChannelModal";
 import PublicChannelsModal from "@/components/PublicChannelsModal";
-import { MessageSquare, Search, Lock, Users, Bookmark, ShieldCheck, X, Plus, Megaphone, UserPlus, Globe } from "lucide-react";
+import FolderManagerModal from "@/components/FolderManagerModal";
+import { MessageSquare, Search, Lock, Users, Bookmark, ShieldCheck, X, Plus, Megaphone, UserPlus, Globe, ChevronDown, FolderPlus } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { socket } from "@/lib/websocket";
@@ -102,6 +103,9 @@ function SwipeableChatItem({
 export default function MessagesPage() {
   const { t, locale } = useI18n();
   const [allChats, setAllChats] = useState<any[]>([]);
+  // 🗂️ Папки чатов (Этап 6): системная 💼 РАБОТА + кастомные папки юзера
+  const [folderData, setFolderData] = useState<any>(null);
+  const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
@@ -110,6 +114,10 @@ export default function MessagesPage() {
   const [showPrismModal, setShowPrismModal] = useState(false);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
   const [showPublicChannels, setShowPublicChannels] = useState(false);
+  // 🗂️ Управление кастомными папками чатов
+  const [showFolderManager, setShowFolderManager] = useState(false);
+  // 🎫 WS-уведомление о назначенной заявке отдела
+  const [ticketToast, setTicketToast] = useState<any | null>(null);
   const [prismSearchQuery, setPrismSearchQuery] = useState("");
   const [prismSearchResults, setPrismSearchResults] = useState<any[]>([]);
   const [isCreatingPrism, setIsCreatingPrism] = useState(false);
@@ -363,15 +371,21 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       return;
     }
     try {
-      // Чаты (существующий API) + каналы (изолированная система /api/channels)
-      const [chatsRes, channelsRes] = await Promise.all([
+      // Чаты (существующий API) + каналы (изолированная система /api/channels) + 🗂️ папки
+      const [chatsRes, channelsRes, foldersRes] = await Promise.all([
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
         fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/my`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/folders`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => null),
       ]);
+      if (foldersRes && foldersRes.ok) {
+        setFolderData(await foldersRes.json());
+      }
       const chatsData = chatsRes.ok ? await chatsRes.json() : [];
       let items: any[] = chatsData;
       if (channelsRes.ok) {
@@ -417,6 +431,11 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     const unsubChannelEdited = socket.on("channel_post_edited", () => { load(); });
     const unsubChannelDeleted = socket.on("channel_post_deleted", () => { load(); });
     const unsubChannelJoined = socket.on("channel_subscriber_joined", () => { load(); });
+    // 🎫 Заявка отдела назначена мне — всплывающее уведомление (WS, Этап 7)
+    const unsubTicket = socket.on("team_ticket_assigned", (payload: any) => {
+      setTicketToast(payload || {});
+      window.setTimeout(() => setTicketToast(null), 10000);
+    });
 
     return () => {
       unsubNewMsg();
@@ -430,6 +449,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       unsubChannelEdited();
       unsubChannelDeleted();
       unsubChannelJoined();
+      unsubTicket();
     };
   }, []);
 
@@ -473,6 +493,41 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     return n.includes(q);
   }).length;
   const textMatches = sortedChats.length - nameMatches;
+
+  // 🗂️ Группировка списка: 💼 РАБОТА (системная, с замком) → кастомные папки → остальные чаты.
+  // При активном поиске показываем плоский список (как раньше).
+  const displayItems = useMemo(() => {
+    const items: any[] = [];
+    if (q || !folderData) {
+      sortedChats.forEach((c) => items.push({ type: "chat", chat: c, key: `c-${c.is_channel ? "ch-" : ""}${c.id}` }));
+      return items;
+    }
+    const byId = new Map(sortedChats.map((c) => [String(c.id), c]));
+    const inFolder = new Set<string>();
+
+    const pushFolder = (fkey: string, label: string, icon: string, locked: boolean, chatIds: number[]) => {
+      const fChats = chatIds.map((id) => byId.get(String(id))).filter(Boolean) as any[];
+      if (fChats.length === 0) return; // папка пуста для этого юзера — не рисуем
+      chatIds.forEach((id) => inFolder.add(String(id)));
+      items.push({ type: "header", key: `h-${fkey}`, fkey, label, icon, locked, count: fChats.length });
+      if (!collapsedFolders[fkey]) {
+        fChats.forEach((c) => items.push({ type: "chat", chat: c, key: `c-${c.id}` }));
+      }
+    };
+
+    if (folderData.work_folder) {
+      const wf = folderData.work_folder;
+      pushFolder("work", wf.name || "РАБОТА", wf.icon || "💼", true, wf.chat_ids || []);
+    }
+    for (const f of folderData.folders || []) {
+      pushFolder(`f${f.id}`, f.name, f.icon || "📁", false, f.chat_ids || []);
+    }
+    // Все остальные чаты (ЛС, группы, каналы) — не привязанные к папкам
+    sortedChats.forEach((c) => {
+      if (!inFolder.has(String(c.id))) items.push({ type: "chat", chat: c, key: `c-${c.is_channel ? "ch-" : ""}${c.id}` });
+    });
+    return items;
+  }, [sortedChats, folderData, collapsedFolders, q]);
 
   const searchUsersForPrism = async (q: string) => {
     if (!q.trim()) { 
@@ -559,6 +614,14 @@ const confirmPrismKey = async () => {
             {/* Иконка */}
             <div className="flex items-center gap-3 shrink-0">
               <MessageSquare size={24} className="text-[#8b5cf6]" />
+              {/* 🗂️ Управление папками чатов */}
+              <button
+                onClick={() => setShowFolderManager(true)}
+                title="Папки чатов"
+                className="p-2 text-gray-500 dark:text-white/40 hover:text-[#8b5cf6] hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <FolderPlus size={18} />
+              </button>
             </div>
 
             {/* Поиск — тянется от иконки до кнопки "+" на любой ширине */}
@@ -602,7 +665,26 @@ const confirmPrismKey = async () => {
           </div>
         )}
 
-        {!loading && sortedChats.map((chat) => {
+        {!loading && displayItems.map((item: any) => {
+          // 🗂️ Заголовок папки (системная РАБОТА — с замком; клик — свернуть/развернуть)
+          if (item.type === "header") {
+            const collapsed = !!collapsedFolders[item.fkey];
+            return (
+              <button
+                key={item.key}
+                onClick={() => setCollapsedFolders((prev) => ({ ...prev, [item.fkey]: !collapsed }))}
+                className="w-full flex items-center gap-2 px-4 md:px-6 py-2 border-b border-line dark:border-white/10 bg-gray-100/70 dark:bg-white/[0.03] text-left"
+              >
+                <span className="text-sm">{item.icon}</span>
+                <span className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-white/70">{item.label}</span>
+                {item.locked && <span title="Системная папка — нельзя переименовать или удалить" className="flex"><Lock size={11} className="text-gray-400" /></span>}
+                <span className="text-[10px] text-gray-500 dark:text-white/40 bg-gray-200/70 dark:bg-white/10 px-1.5 rounded-full">{item.count}</span>
+                <span className="flex-1" />
+                <ChevronDown size={14} className={`text-gray-400 transition-transform ${collapsed ? "-rotate-90" : ""}`} />
+              </button>
+            );
+          }
+          const chat = item.chat;
           // 📢 Каналы: карточка как у чатов (меню, свайпы, круглый аватар)
           if (chat.is_channel) {
             return (
@@ -1174,6 +1256,28 @@ const confirmPrismKey = async () => {
       )}
 
       {/* 🌐 Окно «Все каналы» */}
+      {/* 🗂️ Модалка управления папками чатов (Этап 6) */}
+      <FolderManagerModal
+        open={showFolderManager}
+        onClose={() => setShowFolderManager(false)}
+        onChanged={() => { load(); }}
+      />
+
+      {/* 🎫 WS-тост: вам назначена заявка отдела (Этап 7) */}
+      {ticketToast && (
+        <button
+          onClick={() => { const cid = ticketToast.chat_id; setTicketToast(null); if (cid) router.push(`/messages/${cid}`); }}
+          className="fixed bottom-6 right-6 z-[60] max-w-sm text-left rounded-2xl border border-purple-500/50 bg-white dark:bg-[#1f1f23] shadow-2xl p-4 hover:border-purple-500 transition-colors"
+        >
+          <p className="text-sm font-black text-purple-500 mb-1">
+            🎫 {ticketToast.kind_label || "Заявка"} назначена вам
+          </p>
+          <p className="text-sm text-gray-900 dark:text-white font-bold truncate">{ticketToast.title}</p>
+          <p className="text-xs text-gray-500 dark:text-white/40 mt-1">
+            от {ticketToast.created_by_name || "системы"} · нажмите, чтобы открыть чат отдела
+          </p>
+        </button>
+      )}
       {showPublicChannels && <PublicChannelsModal onClose={() => setShowPublicChannels(false)} />}
     </div>
   );

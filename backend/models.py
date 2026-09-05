@@ -209,6 +209,13 @@ class Chat(SQLModel, table=True):
     invite_token: Optional[str] = Field(default=None, unique=True, index=True)
     # 🆕 Кто может добавлять участников ("members" | "admins")
     can_add_members: str = Field(default="admins")
+    # 🏢 Системные папки и команды:
+    # system_folder: None = обычный чат | "work" = системная папка 📁 РАБОТА (нельзя удалять/переименовать юзером)
+    system_folder: Optional[str] = Field(default=None, max_length=30)
+    # Отдел, которому принадлежит чат (рабочий чат отдела)
+    category_id: Optional[int] = Field(default=None, foreign_key="rolecategory.id")
+    # 🔗 Межгрупповой чат: None | "heads_only" (только главы отделов) | "deputies_only" (только замы)
+    cross_team_type: Optional[str] = Field(default=None, max_length=30)
 
 
 
@@ -223,6 +230,22 @@ class ChatMember(SQLModel, table=True):
     # 🔕 Отключение уведомлений чата: NULL = включены; дата в будущем = до момента;
     # 9999-01-01 = навсегда
     muted_until: Optional[datetime] = Field(default=None, sa_column_kwargs={"server_default": None})
+    # 🏢 Иерархия внутри рабочего чата отдела: head | deputy | senior | junior | cross_head
+    # NULL для обычных чатов. По умолчанию вычисляется из уровня юзера, переопределится вручную в /stat.
+    team_hierarchy: Optional[str] = Field(default=None, max_length=20)
+    # 🔒 Иерархия задана вручную в /stat — авто-синк по уровню роли её не перетирает
+    team_hierarchy_manual: bool = Field(default=False)
+    # 🎫 Типы заявок, за которые отвечает участник (JSON: ["complaint","appeal"]; "[]" = все типы)
+    ticket_kinds: str = Field(default="[]")
+    # 🟢 Смена в чате отдела: /enter — на смене, /exit — ушёл со смены
+    on_shift: bool = Field(default=False)
+    shift_entered_at: Optional[datetime] = None
+    # 🔢 Сколько заявок взято за текущую смену (для round-robin «по порядку»)
+    shift_taken: int = Field(default=0)
+    # 🏢 Локальные права внутри конкретного чата отдела (JSON-массив: ["can_handle_tasks", ...])
+    team_permissions: str = Field(default="[]")
+    # 🤖 Участник добавлен автоматически (по роли/плашке) — при снятии роли автоматически кикается
+    auto_assigned: bool = Field(default=False)
     __table_args__ = (UniqueConstraint("chat_id", "user_id"),)
 
 class Message(SQLModel, table=True):
@@ -264,6 +287,8 @@ class RoleCategory(SQLModel, table=True):
     color: str = Field(default="#8b5cf6")
     description: Optional[str] = Field(default=None, max_length=200)
     order: int = Field(default=0)
+    # 🏢 Рабочий чат отдела (создаётся автоматически, см. ensure_team_chat_for_category)
+    team_chat_id: Optional[int] = Field(default=None, foreign_key="chat.id")
     created_at: datetime = Field(default_factory=utcnow)
 
 
@@ -682,6 +707,8 @@ class Billet(SQLModel, table=True):
     metallic_enabled: bool = Field(default=False)
 
     priority: Optional[int] = None                     # Приоритет отображения
+    # 🏢 Отдел, к которому привязана плашка (опционально: выдача плашки = вход в рабочий чат отдела)
+    category_id: Optional[int] = Field(default=None, foreign_key="rolecategory.id")
     is_active: bool = Field(default=True)              # Активна ли плашка
     created_by: Optional[int] = Field(default=None, foreign_key="user.id")
     created_at: datetime = Field(default_factory=utcnow)
@@ -919,6 +946,68 @@ class ChannelSubscriber(SQLModel, table=True):
     # 🛡 Гранулярные права админа (JSON-массив строк, см. CHANNEL_PERMISSIONS)
     permissions: str = Field(default="[]")
     __table_args__ = (UniqueConstraint("channel_id", "user_id"),)
+
+
+# ============================================================
+# 🗂️ КАСТОМНЫЕ ПАПКИ ЧАТОВ ПОЛЬЗОВАТЕЛЯ
+# Обычные юзеры могут группировать чаты (например "Универ", "Игры").
+# Системная папка 📁 РАБОТА в эту таблицу не пишется — она определяется
+# по Chat.system_folder == "work" у чатов пользователя.
+# ============================================================
+
+class UserChatFolder(SQLModel, table=True):
+    """Папка чатов, созданная пользователем."""
+    __tablename__ = "user_chat_folder"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    name: str = Field(max_length=40)
+    # 🎨 Оформление: emoji-иконка и цвет
+    icon: str = Field(default="📁", max_length=8)
+    color: str = Field(default="#8b5cf6", max_length=20)
+    order: int = Field(default=0)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class ChatFolderAssign(SQLModel, table=True):
+    """Привязка чата к папке пользователя."""
+    __tablename__ = "chat_folder_assign"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    folder_id: int = Field(foreign_key="user_chat_folder.id", index=True)
+    chat_id: int = Field(foreign_key="chat.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    created_at: datetime = Field(default_factory=utcnow)
+    __table_args__ = (UniqueConstraint("folder_id", "chat_id"),)
+
+
+# ============================================================
+# 🎫 ЗАЯВКИ ОТДЕЛА (ОЧЕРЕДЬ ЗАДАЧ В РАБОЧЕМ ЧАТЕ)
+# Распределение: Random + Level Priority (см. pick_ticket_assignee)
+# ============================================================
+
+class TeamTicket(SQLModel, table=True):
+    """Заявка, прилетевшая в отдел. Назначается исполнителю из участников
+    рабочего чата, у которых есть право can_handle_tasks."""
+    __tablename__ = "team_ticket"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    category_id: int = Field(foreign_key="rolecategory.id", index=True)
+    chat_id: Optional[int] = Field(default=None, foreign_key="chat.id")
+    title: str = Field(max_length=120)
+    description: Optional[str] = None
+    # open (не назначена) | assigned (в работе) | done (закрыта)
+    status: str = Field(default="open", index=True, max_length=20)
+    # Тип обращения: complaint (жалоба) | appeal (обращение) | other (другое)
+    kind: str = Field(default="other", index=True, max_length=20)
+    created_by: int = Field(foreign_key="user.id")
+    assigned_to: Optional[int] = Field(default=None, foreign_key="user.id")
+    # Иерархия исполнителя на момент назначения (junior/senior/deputy/head)
+    assigned_hierarchy: Optional[str] = Field(default=None, max_length=20)
+    assigned_at: Optional[datetime] = None
+    closed_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    closed_at: Optional[datetime] = None
+    created_at: datetime = Field(default_factory=utcnow)
 
 
 class ChannelBadge(SQLModel, table=True):

@@ -9,9 +9,10 @@ import Link from "next/link";
 import {
   Users, Shield, Search, ArrowLeft, X, BarChart3, Clock, Settings,
   ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight,
-  Ban, ExternalLink, MoreHorizontal, Activity, AtSign,
+  Ban, ExternalLink, MoreHorizontal, Activity, AtSign, Building2,
 } from "lucide-react";
 import PremiumUsernamesTab from "@/components/stat/PremiumUsernamesTab";
+import TeamsTab from "@/components/stat/TeamsTab";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const PAGE_SIZE = 10;
@@ -39,7 +40,7 @@ function saveStatUI(patch: Record<string, unknown>): void {
 
 const statUI = loadStatUI();
 
-type TabMode = "users" | "team" | "premium";
+type TabMode = "users" | "team" | "teams" | "premium";
 type SortField = "username" | "level" | "created_at" | "last_seen" | "posts_count" | "messages_count" | "likes_given" | "likes_received" | "visits_count" | "kpi";
 
 function fmtDate(iso?: string | null) { return iso ? new Date(iso).toLocaleDateString("ru-RU") : "—"; }
@@ -259,6 +260,8 @@ export default function StatPage() {
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const avgKpi = users.length ? Math.round(users.reduce((s, u) => s + (u.kpi || 0), 0) / users.length) : 0;
   const canBan = !!me && (me.is_admin || me.permissions?.includes("ban_users"));
+  // 🏢 Вкладка «Отделы» (Этап 5): право manage_team_hierarchy
+  const canManageTeams = !!me && (me.is_admin || me.is_trelod || me.permissions?.includes("manage_team_hierarchy"));
 
   const catByRoleId = (roleId?: number) => {
     const r = roles.find(x => x.id === roleId);
@@ -295,6 +298,11 @@ export default function StatPage() {
             <button onClick={() => setActiveTab("premium")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === "premium" ? "bg-purple-500 text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/10"}`}>
               <AtSign size={16} /> Премиум @
             </button>
+            {canManageTeams && (
+              <button onClick={() => setActiveTab("teams")} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${activeTab === "teams" ? "bg-purple-500 text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/10"}`}>
+                <Building2 size={16} /> Отделы
+              </button>
+            )}
           </div>
         </div>
 
@@ -516,6 +524,9 @@ export default function StatPage() {
 
         {/* ========== ВКЛАДКА: ПРЕМИУМ @username ========== */}
         {activeTab === "premium" && <PremiumUsernamesTab />}
+
+        {/* ========== ВКЛАДКА: УПРАВЛЕНИЕ ОТДЕЛАМИ (Этап 5) ========== */}
+        {activeTab === "teams" && <TeamsTab />}
 
         {/* ========== ВКЛАДКА: КОМАНДА ========== */}
         {activeTab === "team" && (
