@@ -847,6 +847,37 @@ body.zune-theme .post-edit-save {
 }
 
 body.zune-theme .post-edit-save:hover:not(:disabled) {
+/* ============================================================
+   🎛️ НАТИВНЫЕ СЕЛЕКТЫ В ТЁМНОЙ ТЕМЕ — читаемость выпадающего списка
+   Проблема: сам <select> красится (dark:bg-white/5 + dark:text-white),
+   но нативные <option> наследуют светлый текст и сливаются.
+   Здесь принудительно:
+     - color-scheme: dark → браузер рисует выпадающий список тёмным;
+     - тёмный фон + светлый текст у <option> (перекрывает системный).
+   Светлая тема этими правилами не затрагивается.
+   ============================================================ */
+.dark select,
+[data-theme="dark"] select {
+  color-scheme: dark;
+}
+
+/* option в нативных списках: гарантированно тёмный фон и светлый текст.
+   (class="bg-white dark:bg-gray-900" на <option> вручную больше не нужен —
+   работает для всех селектов сразу.) */
+.dark select option,
+[data-theme="dark"] select option {
+  background-color: #1f1f23;
+  color: #e8e8f0;
+}
+
+/* Перестройка: даже если родитель использует вариативную тему иначе */
+.dark select option:hover,
+.dark select option:focus,
+[data-theme="dark"] select option:hover,
+[data-theme="dark"] select option:focus {
+  background-color: #2a2a2f;
+  color: #ffffff;
+}
   filter: brightness(1.15);
 }
 

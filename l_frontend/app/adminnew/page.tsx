@@ -59,6 +59,8 @@ export default function AdminPage() {
   const [me, setMe] = useState<any>(null);
   const [roles, setRoles] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<TabId | null>(null);
+  // 🎨 Цвета вкладок из привязанных отделов (RoleCategory.panel_tabs)
+  const [panelColors, setPanelColors] = useState<Record<string, { color: string; category_name: string }>>({});
 
   useEffect(() => {
     const token = getToken();
@@ -82,6 +84,14 @@ export default function AdminPage() {
           .then((rolesData) => setRoles(rolesData))
           .catch(console.error);
 
+        // 🎨 Цвета вкладок из отделов, привязанных к разделам
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/panel-colors`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => { if (d?.tabs) setPanelColors(d.tabs); })
+          .catch(() => {});
+
         const visible = TABS.filter((t) => {
           if (t.permission === null) return data.is_admin;
           return data.is_admin || (data.permissions || []).includes(t.permission!);
@@ -103,7 +113,12 @@ export default function AdminPage() {
   const visibleTabs = TABS.filter((t) => {
     if (t.permission === null) return me.is_admin;
     return me.is_admin || (me.permissions || []).includes(t.permission!);
-  });
+  }).map((t) => ({
+    ...t,
+    // 🎨 Цвет вкладки берётся из отдела, привязанного к этому разделу
+    color: panelColors[t.id]?.color || t.color,
+    categoryName: panelColors[t.id]?.category_name,
+  }));
 
   const canRoles = me.is_admin || (me.permissions || []).includes("manage_roles");
 
@@ -174,6 +189,7 @@ export default function AdminPage() {
                       : "bg-white dark:bg-white/5 border-line dark:border-white/10 text-gray-800 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white"
                   }`}
                   style={active ? { backgroundColor: t.color } : undefined}
+                  title={t.categoryName ? `Отдел: ${t.categoryName}` : undefined}
                 >
                   <Icon size={16} /> {t.label}
                 </button>

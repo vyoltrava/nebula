@@ -113,8 +113,33 @@ def _fix_postgres_sequences() -> None:
         # Не валим старт приложения из-за самодиагностики — просто логируем.
         print(f"⚠️ fix_postgres_sequences не удался: {e}")
 
+def _ensure_columns() -> None:
+    """🛡️ Идемпотентное добавление колонок, которых нет в старых БД
+    (create_all не делает ALTER для существующих таблиц)."""
+    from sqlalchemy import text, inspect
+    try:
+        insp = inspect(engine)
+        with engine.begin() as conn:
+            existing = {t: {c["name"] for c in insp.get_columns(t)} for t in insp.get_table_names()}
+            stmts = [
+                ("rolecategory", "panel_tabs", "VARCHAR DEFAULT '[]'"),
+                ("rolecategory", "team_chat_id", "INTEGER"),
+            ]
+            for table, col, ddl in stmts:
+                if table not in existing or col in existing[table]:
+                    continue
+                if DATABASE_URL.startswith("sqlite"):
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
+                else:
+                    conn.execute(text(f'ALTER TABLE "{table}" ADD COLUMN IF NOT EXISTS {col} {ddl}'))
+                print(f"✅ Добавлена колонка {table}.{col}")
+    except Exception as e:
+        print(f"⚠️ ensure_columns не удался: {e}")
+
+
 def init_db():
     SQLModel.metadata.create_all(engine)
+    _ensure_columns()
     _fix_postgres_sequences()
 
 def get_session():

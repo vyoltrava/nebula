@@ -296,6 +296,10 @@ class RoleCategory(SQLModel, table=True):
     order: int = Field(default=0)
     # 🏢 Рабочий чат отдела (создаётся автоматически, см. ensure_team_chat_for_category)
     team_chat_id: Optional[int] = Field(default=None, foreign_key="chat.id")
+    # 🎨 За какие разделы админки отвечает отдел (JSON: ["support","bugs"]).
+    #    Вкладки этих разделов красятся цветом категории, а заявки из разделов
+    #    диспетчеризуются в этот отдел (см. dispatch_ticket_to_team).
+    panel_tabs: str = Field(default="[]")
     created_at: datetime = Field(default_factory=utcnow)
 
 

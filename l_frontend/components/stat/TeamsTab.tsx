@@ -36,7 +36,29 @@ export default function TeamsTab() {
   const [ticketKind, setTicketKind] = useState("complaint");
   // 🐢 Пагинация участников (при тысячах карточек вкладка не фризит)
   const [showAllByTeam, setShowAllByTeam] = useState<Record<number, boolean>>({});
+  // 🎨 Привязка отделов к разделам админки (цвет вкладки + маршрут заявок)
+  const [openPanelTabs, setOpenPanelTabs] = useState<number | null>(null);
+  const [panelSaving, setPanelSaving] = useState(false);
   const MEMBER_PAGE = 50;
+
+  const ADMIN_TABS: [string, string][] = [
+    ["users", "Пользователи"], ["tech_users", "Управление"], ["stats", "Статистика"],
+    ["bugs", "Баг-трекер"], ["ip", "IP блоки"], ["logs", "Логи"],
+    ["reports", "Жалобы"], ["chats", "Чаты"], ["support", "Поддержка"],
+    ["stickers", "Стикеры"], ["themes", "Темы"], ["backups", "Резерв"], ["channel-badges", "Префиксы"],
+  ];
+
+  async function togglePanelTab(categoryId: number, tab: string, current: string[]) {
+    const next = current.includes(tab) ? current.filter((t) => t !== tab) : [...current, tab];
+    setPanelSaving(true);
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/teams/${categoryId}/panel-tabs`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ tabs: next }),
+    });
+    setPanelSaving(false);
+    await load();
+  }
 
   const load = useCallback(async () => {
     const token = getToken();
@@ -229,7 +251,49 @@ export default function TeamsTab() {
             <span className="text-xs text-gray-500 dark:text-white/40 bg-gray-100 dark:bg-white/5 px-2 py-0.5 rounded-full">
               {team.members.length} чел.
             </span>
+            <div className="flex-1" />
+            {/* 🎨 Разделы админки, за которые отвечает отдел */}
+            <button
+              onClick={() => setOpenPanelTabs(openPanelTabs === team.category_id ? null : team.category_id)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-line dark:border-white/15 text-xs font-bold text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+              title="Разделы админки, за которые отвечает этот отдел"
+              style={team.color ? { borderColor: `${team.color}55` } : undefined}
+            >
+              🎨 Разделы
+              {(team.panel_tabs || []).length > 0 && (
+                <span className="w-4 h-4 rounded-full text-[10px] font-black flex items-center justify-center text-white" style={{ backgroundColor: team.color || "#8b5cf6" }}>
+                  {(team.panel_tabs || []).length}
+                </span>
+              )}
+            </button>
           </div>
+
+          {openPanelTabs === team.category_id && (
+            <div className="rounded-xl border border-line dark:border-white/10 bg-gray-50 dark:bg-white/5 p-3">
+              <p className="text-[11px] font-black uppercase tracking-wider text-gray-500 dark:text-white/40 mb-2">
+                Отвечает за разделы · вкладка красится цветом отдела «{team.name}», заявки из раздела приходят сюда
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-1">
+                {ADMIN_TABS.map(([tab, label]) => {
+                  const active = (team.panel_tabs || []).includes(tab);
+                  return (
+                    <label
+                      key={tab}
+                      onClick={() => togglePanelTab(team.category_id, tab, team.panel_tabs || [])}
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-xs transition-colors ${active ? "font-bold" : "text-gray-700 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5"}`}
+                      style={active ? { color: team.color || "#8b5cf6", background: `${team.color || "#8b5cf6"}15` } : undefined}
+                    >
+                      <span className={`w-4 h-4 rounded flex items-center justify-center text-[10px] border ${active ? "text-white border-transparent" : "border-gray-300 dark:border-white/30"}`} style={active ? { backgroundColor: team.color || "#8b5cf6" } : undefined}>
+                        {active ? "✓" : ""}
+                      </span>
+                      {label}
+                    </label>
+                  );
+                })}
+              </div>
+              {panelSaving && <p className="text-[10px] text-gray-400 mt-1">Сохранение…</p>}
+            </div>
+          )}
           {team.members.length === 0 ? (
             <p className="text-sm text-gray-500 dark:text-white/40 px-2">В рабочем чате отдела пока нет участников</p>
           ) : (
@@ -293,7 +357,7 @@ export default function TeamsTab() {
                           ))}
                           <div className="border-t border-line dark:border-white/10 my-1" />
                           <p className="px-2 text-[10px] font-black uppercase text-gray-500 dark:text-white/40">Типы заявок (пусто = все)</p>
-                          {[["complaint", "Жалобы"], ["appeal", "Обращения"], ["other", "Другое"]].map(([k, label]) => (
+                          {[["complaint", "Жалобы"], ["appeal", "Обращения"], ["bug", "Баги"], ["join", "Заявки в канал"], ["other", "Другое"]].map(([k, label]) => (
                             <label key={k} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 cursor-pointer text-xs text-gray-900 dark:text-white">
                               <input
                                 type="checkbox"

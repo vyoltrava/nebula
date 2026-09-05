@@ -6472,11 +6472,14 @@ def delete_cross_team_chat(
 
 # 🏷️ Реестр локальных прав внутри чата отдела (ChatMember.team_permissions)
 TEAM_PERMISSIONS: dict = {
-    "can_handle_tasks":   ("Брать заявки в работу (очередь отдела)", "tickets"),
-    "can_close_tasks":    ("Закрывать заявки отдела", "tickets"),
-    "can_create_tasks":   ("Создавать заявки в отдел", "tickets"),
-    "can_invite_members": ("Добавлять участников в чат отдела", "chat"),
-    "can_pin_messages":   ("Закреплять сообщения в чате отдела", "chat"),
+    "can_handle_tasks":      ("Брать заявки в работу (очередь отдела)", "tickets"),
+    "can_close_tasks":       ("Закрывать заявки отдела", "tickets"),
+    "can_create_tasks":      ("Создавать заявки в отдел", "tickets"),
+    "can_handle_complaints": ("Брать жалобы (панель «Жалобы»)", "tickets"),
+    "can_handle_appeals":    ("Брать обращения в поддержку (панель «Поддержка»)", "tickets"),
+    "can_handle_bugs":       ("Брать баги (панель «Баг-трекер»)", "tickets"),
+    "can_invite_members":    ("Добавлять участников в чат отдела", "chat"),
+    "can_pin_messages":      ("Закреплять сообщения в чате отдела", "chat"),
 }
 
 # Допустимые значения team_hierarchy
@@ -6594,6 +6597,7 @@ def teams_structure(
             "color": cat.color,
             "team_chat_id": cat.team_chat_id,
             "chat_name": chat.name if chat else None,
+            "panel_tabs": _category_panel_tabs(cat),
             "members": members_out,
         })
     return {
@@ -6684,6 +6688,62 @@ def set_team_permissions(
 
 
 # ============================================================
+# 🎨 Привязка отделов к разделам админки (цвет вкладки + маршрут заявок)
+# ============================================================
+
+class PanelTabsIn(BaseModel):
+    tabs: list[str] = []
+
+
+@app.patch("/api/admin/teams/{category_id}/panel-tabs")
+def set_category_panel_tabs(
+    category_id: int,
+    data: PanelTabsIn,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """За какие разделы админ-панели отвечает отдел.
+
+    Вкладки этих разделов красятся цветом категории, а заявки из разделов
+    (complaint→reports, appeal→support, bug→bugs) летят в этот отдел."""
+    _require_team_hierarchy_perm(staff, session)
+    cat = session.get(RoleCategory, category_id)
+    if not cat:
+        raise HTTPException(404, "Отдел не найден")
+    bad = [t for t in data.tabs if t not in ADMIN_PANEL_TABS]
+    if bad:
+        raise HTTPException(400, f"Неизвестные разделы: {bad}")
+    cat.panel_tabs = json.dumps(sorted(set(data.tabs)))
+    session.add(cat)
+    session.commit()
+    log_action(session, staff.id, "set_category_panel_tabs",
+               target_type="category", target_id=category_id,
+               details={"tabs": sorted(set(data.tabs))})
+    return {"ok": True, "category_id": category_id, "panel_tabs": _category_panel_tabs(cat)}
+
+
+@app.get("/api/admin/panel-colors")
+def get_panel_colors(
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Цвета вкладок админки по привязанным отделам:
+    {tab_id: {color, category_id, category_name}}"""
+    cats = session.exec(select(RoleCategory).order_by(RoleCategory.order, RoleCategory.id)).all()
+    out: dict[str, dict] = {}
+    for cat in cats:
+        for tab in _category_panel_tabs(cat):
+            # первая категория по порядку — приоритетная
+            if tab not in out:
+                out[tab] = {
+                    "color": cat.color,
+                    "category_id": cat.id,
+                    "category_name": cat.name,
+                }
+    return {"tabs": out, "all_tabs": ADMIN_PANEL_TABS}
+
+
+# ============================================================
 # 🎫 ОЧЕРЕДЬ ЗАЯВОК ОТДЕЛА (Random + Level Priority)
 # ============================================================
 
@@ -6696,6 +6756,7 @@ TEAM_HIERARCHY_PRIORITY = ["junior", "senior", "deputy", "head", "cross_head"]
 TICKET_KINDS = {
     "complaint": "Жалоба",
     "appeal": "Обращение",
+    "bug": "Баг",
     "join": "Заявка в канал",
     "other": "Другое",
 }
@@ -6703,11 +6764,54 @@ TICKET_KINDS = {
 # 🏷️ Синхронизация: какой тип заявки соответствует какому праву раздела.
 # Если у юзера есть право раздела (например manage_support → поддержка),
 # он авто-получает заявки этого типа — даже без ручной настройки ticket_kinds.
+# Если у юзера НЕТ такого права — такие заявки он НЕ получает (строгая привязка к панели).
 TICKET_KIND_PERMISSION = {
     "complaint": "manage_reports",   # жалобы → раздел «Жалобы»
-    "appeal": "manage_support",      # обращения → раздел «Поддержка»
+    "appeal": "manage_support",      # обращения/поддержка → раздел «Поддержка»
+    "bug": "tech_access",            # баг-трекер → тех. панель (tech_access)
+    "join": None,                    # заявки в канал — любой ответственный
     "other": None,                   # «другое» — по явной настройке
 }
+
+# Локальные права участника рабочего чата, дающие право брать заявки типа.
+TICKET_KIND_LOCAL_PERM = {
+    "complaint": "can_handle_complaints",
+    "appeal": "can_handle_appeals",
+    "bug": "can_handle_bugs",
+}
+
+# 🎨 Разделы админ-панели, за которые может «отвечать» отдел:
+#    вкладка красится цветом категории + заявки из раздела летят в этот отдел.
+ADMIN_PANEL_TABS: dict[str, str] = {
+    "users": "Пользователи",
+    "tech_users": "Управление",
+    "stats": "Статистика",
+    "bugs": "Баг-трекер",
+    "ip": "IP блоки",
+    "logs": "Логи",
+    "reports": "Жалобы",
+    "chats": "Чаты",
+    "support": "Поддержка",
+    "stickers": "Стикеры",
+    "themes": "Темы",
+    "backups": "Резерв",
+    "channel-badges": "Префиксы",
+}
+
+# 🎯 Тип заявки → раздел админки, чей отдел его обслуживает
+TICKET_KIND_TAB = {
+    "complaint": "reports",
+    "appeal": "support",
+    "bug": "bugs",
+}
+
+
+def _category_panel_tabs(cat: RoleCategory) -> list[str]:
+    try:
+        tabs = json.loads(cat.panel_tabs or "[]")
+        return [t for t in tabs if t in ADMIN_PANEL_TABS]
+    except Exception:
+        return []
 
 
 def _member_ticket_kinds(cm: ChatMember) -> list:
@@ -6722,21 +6826,26 @@ def _member_handles_kind(cm: ChatMember, kind: Optional[str], user: Optional[Use
     """Отвечает ли участник за заявку этого типа.
 
     Приоритет:
-    1) Ручной override в /stat (ticket_kinds): если задан — используем его.
-    2) Авто-синк по правам: если у юзера есть право раздела для этого типа
-       (например manage_support → «обращение») — берёт такие заявки.
-    3) Если ничего не задано и права нет — берёт все заявки (как раньше).
+    1) Ручной override в /stat (ticket_kinds): задан → только те типы (пустой = все).
+    2) Локальный перм команды для типа (can_handle_complaints / can_handle_appeals / can_handle_bugs).
+    3) Право раздела для типа (TICKET_KIND_PERMISSION): если задано — берёт заявку
+       ТОЛЬКО при наличии права (строгая привязка к панели).
+    4) Тип без привязки (join / other) — берёт любой участник с базовым can_handle_tasks.
     """
+    if kind is None:
+        return True
     kinds = _member_ticket_kinds(cm)
     if kinds:
-        return kind is None or kind in kinds
-    if kind is not None and session is not None:
-        perm = TICKET_KIND_PERMISSION.get(kind)
-        if perm:
-            u = user or session.get(User, cm.user_id)
-            if u and has_permission(u, perm, session):
-                return True
-    return True
+        return kind in kinds
+    local = TICKET_KIND_LOCAL_PERM.get(kind)
+    if local and local in _member_team_permissions(cm):
+        return True
+    perm = TICKET_KIND_PERMISSION.get(kind)
+    if perm:
+        u = user or (session.get(User, cm.user_id) if session is not None else None)
+        return bool(u and has_permission(u, perm, session))
+    # без привязки — берёт кто угодно с правом брать заявки
+    return "can_handle_tasks" in _member_team_permissions(cm)
 
 
 def _member_team_permissions(cm: ChatMember) -> list:
@@ -6804,15 +6913,12 @@ def pick_ticket_assignee(session: Session, category_id: int, kind: Optional[str]
 # назначаются round-robin члену команды и тегируются в чате.
 # ============================================================
 
-TEAM_TASK_PERMS = {"can_handle_tasks", "can_handle_complaints", "can_handle_appeals"}
+TEAM_TASK_PERMS = {"can_handle_tasks", "can_handle_complaints", "can_handle_appeals", "can_handle_bugs"}
 
 
 def _candidate_perm_for_kind(kind: Optional[str]) -> str:
     """Какой локальный перм нужен члену команды для типа обращения (либо право раздела)."""
-    return {
-        "complaint": "can_handle_complaints",
-        "appeal": "can_handle_appeals",
-    }.get(kind, "can_handle_tasks")
+    return TICKET_KIND_LOCAL_PERM.get(kind or "", "can_handle_tasks")
 
 
 def candidate_team_members(session: Session, kind: Optional[str] = None) -> list[ChatMember]:
@@ -6857,12 +6963,17 @@ def candidate_team_members(session: Session, kind: Optional[str] = None) -> list
 def dispatch_ticket_to_team(session: Session, kind: str, title: str, description: Optional[str], actor: User) -> int:
     """«Бот» прикрепляет новое обращение/жалобу к члену команды.
 
-    Ищет рабоче-чат отдела, где есть участники, ответственные за этот тип
-    (по правам), создаёт TeamTicket и назначает round-robin (pick_ticket_assignee).
+    Приоритет выбора отдела:
+    1) Отдел, привязанный к разделу админки этого типа заявки (RoleCategory.panel_tabs:
+       complaint→reports, appeal→support, bug→bugs) — «кто отвечает за панель, тот и получает».
+    2) Fallback: любой отдел, где есть участники, ответственные за этот тип
+       (по правам панели/локальным пермам), round-robin (pick_ticket_assignee).
     Возвращает id созданного TeamTicket или 0, если отдела-ответчика нет.
     """
+    kind_tab = TICKET_KIND_TAB.get(kind)
     cats = session.exec(select(RoleCategory).where(RoleCategory.team_chat_id.is_not(None))).all()  # type: ignore[union-attr]
     candidates_by_cat: dict[int, list] = {}
+    panel_cats: list[int] = []
     for cat in cats:
         members = session.exec(
             select(ChatMember).where(ChatMember.chat_id == cat.team_chat_id)
@@ -6879,13 +6990,19 @@ def dispatch_ticket_to_team(session: Session, kind: str, title: str, description
         ]
         if cands:
             candidates_by_cat[cat.id] = cands
+        if kind_tab and kind_tab in _category_panel_tabs(cat):
+            panel_cats.append(cat.id)
 
     if not candidates_by_cat:
         return 0
 
-    # round-robin «по очереди»: выбираем отдел и исполнителя
-    chosen = _random.choice(list(candidates_by_cat.items()))
-    category_id, cands = chosen
+    # 1) Отдел, отвечающий за раздел этой заявки (если у него есть кандидаты)
+    chosen_cat = next((pc for pc in panel_cats if pc in candidates_by_cat), None)
+    if chosen_cat is None:
+        # 2) fallback: round-robin среди подходящих отделов
+        chosen_cat = _random.choice(list(candidates_by_cat.keys()))
+    category_id = chosen_cat
+    cands = candidates_by_cat[category_id]
     cat_row = session.get(RoleCategory, category_id)
     ticket = TeamTicket(
         category_id=category_id,
@@ -11943,7 +12060,18 @@ def create_bug_report(
     session.add(bug)
     session.commit()
     session.refresh(bug)
-    
+
+    # 🐞 Баг сразу «прилетает» в рабочий чат тех. отдела (право tech_access)
+    try:
+        dispatch_ticket_to_team(
+            session, "bug",
+            f"Баг: {bug.title}",
+            f"[{priority}] {bug.description}",
+            user,
+        )
+    except Exception as e:
+        print(f"⚠️ dispatch bug: {e}")
+
     return {"ok": True, "id": bug.id}
 
 
@@ -12802,6 +12930,18 @@ async def support_start(  # <-- СТАЛО async def
     ticket.updated_at = datetime.now(timezone.utc)
     session.add(ticket)
     session.commit()
+
+    # 🎧 Новое обращение в поддержку «прилетает» в рабочий чат отдела
+    #    с правом manage_support (kind="appeal") бот-сообщением.
+    try:
+        dispatch_ticket_to_team(
+            session, "appeal",
+            f"Обращение в поддержку #{ticket.id}",
+            (text.strip() or "📷 Фото")[:500],
+            user,
+        )
+    except Exception as e:
+        print(f"⚠️ dispatch support appeal: {e}")
 
     # ✅ БЕЗОПАСНАЯ рассылка через BackgroundTasks
     staff_ids = [
