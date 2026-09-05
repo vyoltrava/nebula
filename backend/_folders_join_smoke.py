@@ -32,6 +32,7 @@ assert len(assign) == 1
 assert len(res["icon"]) <= 16
 
 # --- 2) Заявка в приватный канал → тикет + бот-сообщение в рабочем чате отдела ---
+# other = глава отдела (head): заявки ему НЕ приходят, если есть обычные исполнители
 cat = main.RoleCategory(name="Поддержка")
 s.add(cat); s.commit(); s.refresh(cat)
 team_chat = main.ensure_team_chat_for_category(cat.id, s)
@@ -40,7 +41,25 @@ member = main.add_user_to_team_chat(other, cat, s)
 assert member is not None
 import json
 member.team_permissions = json.dumps(["can_handle_tasks"])
+member.team_hierarchy = "head"
 s.add(member); s.commit()
+
+# обычный исполнитель (junior) с правом can_handle_tasks — заявки идут ему
+worker = User(username="worker1", display_name="Worker", password_hash="x")
+s.add(worker); s.commit(); s.refresh(worker)
+w_member = main.add_user_to_team_chat(worker, cat, s)
+assert w_member is not None
+w_member.team_permissions = json.dumps(["can_handle_tasks"])
+w_member.team_hierarchy = "junior"
+s.add(w_member); s.commit()
+
+# участник с доступом к тикетам, но БЕЗ can_handle_tasks → заявок не получает
+no_perm = User(username="noperm1", display_name="NoPerm", password_hash="x")
+s.add(no_perm); s.commit(); s.refresh(no_perm)
+np_member = main.add_user_to_team_chat(no_perm, cat, s)
+np_member.team_permissions = json.dumps([])
+np_member.team_hierarchy = "senior"
+s.add(np_member); s.commit()
 
 channel = Channel(title="Закрытый клуб", is_public=False, owner_id=other.id, custom_slug="closed-club")
 s.add(channel); s.commit(); s.refresh(channel)
@@ -54,10 +73,11 @@ r = loop.run_until_complete(channels._create_pending_request(s, channel, u))
 print("2) pending request:", r)
 ticket = s.exec(select(TeamTicket).where(TeamTicket.kind == "join")).first()
 print("   ticket:", ticket.title, "| assigned_to:", ticket.assigned_to, "| chat_id:", ticket.chat_id)
-assert ticket is not None and ticket.assigned_to == other.id
+# глава (other) и без права (no_perm) получить не должны — только worker
+assert ticket is not None and ticket.assigned_to == worker.id
 bot_msg = s.exec(select(Message).where(Message.chat_id == team_chat.id)).all()
 print("   bot message:", bot_msg[-1].text if bot_msg else None)
-assert bot_msg and "@" + other.username in bot_msg[-1].text
+assert bot_msg and "@" + worker.username in bot_msg[-1].text
 
 # --- 3) resolve_request закрывает тикет ---
 req = s.exec(select(channels.ChannelInviteRequest)).first()

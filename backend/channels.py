@@ -1523,6 +1523,13 @@ def _dispatch_join_request(session: Session, ch: Channel, user: User) -> None:
 
         category_id, cands = _random.choice(list(candidates_by_cat.items()))
         cat_row = session.get(RoleCategory, category_id)
+
+        # 🚫 Глава отдела, зам и cross_head заявки НЕ получают.
+        # Fallback на них — только если других исполнителей нет вовсе.
+        workers = [cm for cm in cands if (cm.team_hierarchy or "") not in ("head", "deputy", "cross_head")]
+        if not workers:
+            workers = cands
+
         ticket = TeamTicket(
             category_id=category_id,
             chat_id=cat_row.team_chat_id if cat_row else None,
@@ -1536,10 +1543,17 @@ def _dispatch_join_request(session: Session, ch: Channel, user: User) -> None:
         session.commit()
         session.refresh(ticket)
 
-        # round-robin: свободный → на смене → минимальная иерархия
-        on_shift = [cm for cm in cands if cm.on_shift]
-        pool = [cm for cm in (on_shift or cands) if cm.user_id not in busy_ids] or (on_shift or cands)
-        assignee_member = _random.choice(pool)
+        # round-robin как у заявок отдела: на смене + меньше всех взятых,
+        # иначе — минимальный уровень иерархии
+        on_shift = [cm for cm in workers if cm.on_shift]
+        pool = [cm for cm in (on_shift or workers) if cm.user_id not in busy_ids] or (on_shift or workers)
+        if on_shift:
+            min_taken = min(cm.shift_taken or 0 for cm in pool)
+            assignee_member = _random.choice([cm for cm in pool if (cm.shift_taken or 0) == min_taken])
+        else:
+            prio = ["junior", "senior", "deputy", "head", "cross_head"]
+            min_prio = min(prio.index(cm.team_hierarchy or "senior") for cm in pool)
+            assignee_member = _random.choice([cm for cm in pool if prio.index(cm.team_hierarchy or "senior") == min_prio])
         assignee = session.get(User, assignee_member.user_id)
         if assignee:
             ticket.status = "assigned"
