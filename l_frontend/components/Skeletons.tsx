@@ -1,4 +1,5 @@
 "use client";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Video,
 } from "lucide-react";
 // ==========================================
@@ -457,6 +458,155 @@ export function UserSearchFieldSkeleton() {
     </div>
   );
 }
+
+// ==========================================
+// 🦴 РЕЗИНОВЫЕ СКЕЛЕТЫ
+// Количество скелетов рассчитывается динамически:
+//   (карточек в строке) * (строк на экране) + 2 запасные
+// Замеряется реальная ширина контейнера и реальный размер карточки
+// (с учётом gap), поэтому работает при любой сетке/брейкпоинте.
+// ==========================================
+
+type SkeletonSizeOptions = {
+  /** минимальная ширина карточки (fallback до первого замера) */
+  minCardWidth?: number;
+  /** предполагаемая высота карточки (fallback до первого замера) */
+  fallbackCardHeight?: number;
+  /** gap между карточками (fallback до первого замера) */
+  fallbackGap?: number;
+  /** запасные карточки внизу */
+  buffer?: number;
+};
+
+/**
+ * calculateSkeletonCount — считает число скелетов по формуле:
+ * (карточек в строке) * (строк на экране) + buffer
+ */
+export function calculateSkeletonCount(
+  containerWidth: number,
+  viewportHeight: number,
+  cardWidth: number,
+  cardHeight: number,
+  gap: number,
+  buffer = 2
+): number {
+  if (containerWidth <= 0 || cardWidth <= 0 || cardHeight <= 0) return 0;
+
+  // сколько карточек влезает в одну строку (учитываем gap между ними)
+  const perRow = Math.max(1, Math.floor((containerWidth + gap) / (cardWidth + gap)));
+
+  // сколько строк видно на экране (высота окна / высота карточки)
+  const rowsOnScreen = Math.max(1, Math.floor(viewportHeight / (cardHeight + gap)));
+
+  return perRow * rowsOnScreen + buffer;
+}
+
+/**
+ * useResponsiveSkeletonCount — хук: замеряет контейнер и его первый
+ * дочерний элемент (скелет) и возвращает нужное количество скелетов.
+ * Пересчитывается на resize и при изменении размеров контейнера.
+ */
+export function useResponsiveSkeletonCount(
+  containerRef: React.RefObject<HTMLElement | null>,
+  {
+    minCardWidth = 240,
+    fallbackCardHeight = 120,
+    fallbackGap = 16,
+    buffer = 2,
+  }: SkeletonSizeOptions = {}
+): number {
+  const [count, setCount] = useState(0);
+
+  const recalc = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const containerWidth = el.clientWidth;
+    const first = el.firstElementChild as HTMLElement | null;
+
+    // реальная ширина/высота карточки (fallback, пока скелет не отрисован)
+    let cardWidth = first ? first.offsetWidth : minCardWidth;
+    let cardHeight = first ? first.offsetHeight : fallbackCardHeight;
+
+    // реальный gap из computed style контейнера (grid/flex)
+    let gap = fallbackGap;
+    const cs = window.getComputedStyle(el);
+    const colGap = parseFloat(cs.columnGap || cs.gap || "0");
+    const rowGap = parseFloat(cs.rowGap || cs.gap || "0");
+    if (!isNaN(colGap) && colGap > 0) gap = colGap;
+    // высоту строки меряем с учётом вертикального gap
+    cardHeight += isNaN(rowGap) ? 0 : rowGap;
+
+    setCount(
+      calculateSkeletonCount(containerWidth, window.innerHeight, cardWidth, cardHeight, gap, buffer)
+    );
+  }, [containerRef, minCardWidth, fallbackCardHeight, fallbackGap, buffer]);
+
+  useLayoutEffect(() => {
+    recalc();
+
+    const el = containerRef.current;
+    if (!el) return;
+
+    let ro: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== "undefined") {
+      // реагируем и на ресайз окна, и на изменение размеров контейнера
+      ro = new ResizeObserver(recalc);
+      ro.observe(el);
+    }
+    window.addEventListener("resize", recalc);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener("resize", recalc);
+    };
+  }, [recalc, containerRef]);
+
+  return count;
+}
+
+/**
+ * ResponsiveSkeletons — рендерит N скелетов внутри контейнера.
+ * Сначала рисует 1 скелет, чтобы замерить его реальный размер,
+ * затем доводит количество до рассчитанного (perRow * rows + 2).
+ */
+export function ResponsiveSkeletons({
+  containerRef,
+  render,
+  minCardWidth,
+  fallbackCardHeight,
+  fallbackGap,
+  buffer = 2,
+}: {
+  containerRef: React.RefObject<HTMLElement | null>;
+  render: () => React.ReactNode;
+  minCardWidth?: number;
+  fallbackCardHeight?: number;
+  fallbackGap?: number;
+  buffer?: number;
+}) {
+  // первый проход: 1 скелет для замера, потом реальное значение
+  const measured = useRef(false);
+  const dynamicCount = useResponsiveSkeletonCount(containerRef, {
+    minCardWidth,
+    fallbackCardHeight,
+    fallbackGap,
+    buffer,
+  });
+  const count = measured.current ? dynamicCount : 1;
+
+  useEffect(() => {
+    if (count > 0) measured.current = true;
+  }, [count]);
+
+  return (
+    <>
+      {Array.from({ length: Math.max(1, count) }, (_, i) => (
+        <div key={i}>{render()}</div>
+      ))}
+    </>
+  );
+}
+
 
 // ==========================================
 // 🦴 Скелетон таймлайна обновлений (страница /updates)
