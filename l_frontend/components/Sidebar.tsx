@@ -697,6 +697,8 @@ function HorizontalSwipeNav({
   onLayout,
   onBug,
   onSwitchAccount,
+  hasContinue,
+  onContinue,
 }: {
   pathname: string;
   user: any;
@@ -705,6 +707,8 @@ function HorizontalSwipeNav({
   onLayout?: () => void;
   onBug?: () => void;
   onSwitchAccount?: () => void;
+  hasContinue?: boolean;
+  onContinue?: () => void;
 }) {
   const router = useRouter();
   const { t } = useI18n();
@@ -717,9 +721,11 @@ function HorizontalSwipeNav({
       icon: React.ComponentType<{ size?: number | string; className?: string }>;
       label: string;
       badge?: number;
-      action?: "search" | "layout" | "bug" | "switch";
+      action?: "search" | "layout" | "bug" | "switch" | "continue";
       isProfile?: boolean;
     }[] = [
+      // 📖 «Продолжить чтение» — появляется ТОЛЬКО если есть недочитанное
+      ...(hasContinue ? [{ key: "continue", href: "#continue", icon: BookOpen, label: t("nav.continueReading"), action: "continue" as const }] : []),
       { key: "home",     href: "/",           icon: Home,          label: t("nav.home") },
       { key: "comm",     href: "/updates",    icon: Satellite,     label: t("nav.community") },
       ...(user ? [{ key: "msgs",  href: "/messages",      icon: MessageSquare, label: t("nav.messages"),      badge: counts?.chats }] : []),
@@ -740,7 +746,7 @@ function HorizontalSwipeNav({
       ...(user ? [{ key: "switch", href: "#logout", icon: LogOut, label: t("nav.logout"), action: "switch" as const }] : []),
     ];
     return list;
-  }, [user, counts, t]);
+  }, [user, counts, t, hasContinue]);
 
   // ── Состояния / рефы ────────────────────────────────────────────────
   const [isOpen, setIsOpen] = useState(false);
@@ -861,6 +867,7 @@ function HorizontalSwipeNav({
     if (item.action === "layout") { onLayout?.(); return; }
     if (item.action === "bug")    { onBug?.();    return; }
     if (item.action === "switch") { onSwitchAccount?.(); return; }
+    if (item.action === "continue") { onContinue?.(); return; }
     router.push(item.href);
   };
 
@@ -2418,6 +2425,8 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
           onLayout={() => setShowLayoutPicker(true)}
           onBug={() => setShowBugModal(true)}
           onSwitchAccount={() => setShowOrbitSwitcher(true)}
+          hasContinue={!!lastReadPost || hasFeedMemory}
+          onContinue={handleContinueClick}
         />
       )}
     </>
