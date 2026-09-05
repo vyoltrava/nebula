@@ -93,7 +93,7 @@ export const uk = {
     layout: "Інтерфейс",
     admin: "Адмінка",
     moderation: "Модерація",
-    adminPanel: "Панель адміністратора",
+    adminPanel: "Адмін-панель",
     ownerPanel: "Панель владельца",
     logout: "Вийти",
     login: "Увійти",
