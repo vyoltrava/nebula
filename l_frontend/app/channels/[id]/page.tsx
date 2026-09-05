@@ -781,28 +781,25 @@ export default function ChannelPage() {
             </div>
           )}
           <div className="flex-1 min-w-0 cursor-pointer" onClick={() => isAdmin && setShowManage(true)}>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
               <p className="font-bold text-gray-900 dark:text-white truncate">{channel.title}</p>
               {channel.is_public
                 ? <Globe size={12} className="text-gray-400 shrink-0" />
                 : <Lock size={12} className="text-gray-400 shrink-0" />}
+              {(() => {
+                const B = channel.badge;
+                if (!B) return null;
+                return (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full font-bold px-2 py-0.5 text-[11px] shadow-sm shrink-0"
+                    style={{ backgroundColor: B.bg_color || "#8b5cf6", color: B.color || "#fff" }}
+                  >
+                    {!!B.emoji && <span>{B.emoji}</span>}
+                    {!!B.text && <span>{B.text}</span>}
+                  </span>
+                );
+              })()}
             </div>
-            {channel.badge && (
-              <div className="mt-1">
-                {(() => {
-                  const B = channel.badge;
-                  return (
-                    <span
-                      className="inline-flex items-center gap-1.5 rounded-full font-bold px-2.5 py-0.5 text-xs shadow-sm"
-                      style={{ backgroundColor: B.bg_color || "#8b5cf6", color: B.color || "#fff" }}
-                    >
-                      {!!B.emoji && <span>{B.emoji}</span>}
-                      {!!B.text && <span>{B.text}</span>}
-                    </span>
-                  );
-                })()}
-              </div>
-            )}
             <p className="text-[11px] text-gray-500 dark:text-white/40 flex items-center gap-1 truncate cursor-pointer hover:text-[#8b5cf6]" onClick={() => { setShowSubscribers(true); loadSubscribersList(); }}>
               @{channel.custom_slug} · <Users size={10} /> {channel.subscribers_count}
             </p>
