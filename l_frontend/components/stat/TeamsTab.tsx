@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Building2, Lock, ChevronDown, Link2, Trash2, Shield } from "lucide-react";
+import { getToken } from "@/lib/auth";
 
 const HIERARCHY_LABELS: Record<string, string> = {
   head: "Глава",
@@ -33,21 +34,19 @@ export default function TeamsTab() {
   const [openTicketsCat, setOpenTicketsCat] = useState<number | null>(null);
   const [ticketTitle, setTicketTitle] = useState("");
   const [ticketKind, setTicketKind] = useState("complaint");
-
-  const getToken = () => localStorage.getItem("token") || "";
+  // 🐢 Пагинация участников (при тысячах карточек вкладка не фризит)
+  const [showAllByTeam, setShowAllByTeam] = useState<Record<number, boolean>>({});
+  const MEMBER_PAGE = 50;
 
   const load = useCallback(async () => {
     const token = getToken();
     if (!token) return;
     try {
-      const [sRes, cRes] = await Promise.all([
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/teams/structure`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/cross-team-chats`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-      ]);
+      // 🔑 Главный запрос — отделы. Сбой вторичного (cross-team-chats) не должен
+      // ломать показ отделов.
+      const sRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/teams/structure`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (sRes.status === 403) {
         setError("Нет права: manage_team_hierarchy");
         setLoading(false);
@@ -59,13 +58,20 @@ export default function TeamsTab() {
         setLoading(false);
         return;
       }
-      setData(await sRes.json());
-      if (cRes.ok) setCrossChats(await cRes.json());
+      const data = await sRes.json();
+      setData({ ...data, teams: data?.teams || [] });
       setError(null);
     } catch {
       setError("Ошибка сети. Попробуйте ещё раз.");
     }
     setLoading(false);
+    // 🗄️ Вторичный запрос изолируем от главного
+    try {
+      const cRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/cross-team-chats`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (cRes.ok) setCrossChats(await cRes.json());
+    } catch { /* не критично */ }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -97,13 +103,15 @@ export default function TeamsTab() {
   }
 
   async function togglePerm(categoryId: number, userId: number, current: string[], permId: string) {
-    const next = current.includes(permId) ? current.filter((p) => p !== permId) : [...current, permId];
+    const base = Array.isArray(current) ? current : [];
+    const next = base.includes(permId) ? base.filter((p) => p !== permId) : [...base, permId];
     await savePermissions(categoryId, userId, next);
   }
 
   async function toggleKind(categoryId: number, userId: number, current: string[], kind: string, permissions: string[]) {
-    const next = current.includes(kind) ? current.filter((k) => k !== kind) : [...current, kind];
-    await savePermissions(categoryId, userId, permissions, next);
+    const base = Array.isArray(current) ? current : [];
+    const next = base.includes(kind) ? base.filter((k) => k !== kind) : [...base, kind];
+    await savePermissions(categoryId, userId, Array.isArray(permissions) ? permissions : [], next);
   }
 
   async function createCrossChat() {
@@ -226,7 +234,11 @@ export default function TeamsTab() {
             <p className="text-sm text-gray-500 dark:text-white/40 px-2">В рабочем чате отдела пока нет участников</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {team.members.map((m: any) => (
+              {(showAllByTeam[team.category_id] ? team.members : team.members.slice(0, MEMBER_PAGE)).map((m: any) => {
+                // 🛡 Защита от краша, если бэкенд не прислал новые поля
+                const perms = Array.isArray(m.team_permissions) ? m.team_permissions : [];
+                const kinds = Array.isArray(m.ticket_kinds) ? m.ticket_kinds : [];
+                return (
                 <div key={m.user_id} className="bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/10 rounded-xl p-3">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-purple-500/15 text-purple-500 flex items-center justify-center font-black text-sm shrink-0">
@@ -259,12 +271,12 @@ export default function TeamsTab() {
                       <button
                         onClick={() => setOpenPerms(openPerms === m.user_id ? null : m.user_id)}
                         className={`text-xs px-2 py-1.5 rounded-lg border transition-colors ${
-                          m.team_permissions.length > 0
+                          perms.length > 0
                             ? "border-purple-500/50 text-purple-500 bg-purple-500/10"
                             : "border-line dark:border-white/15 text-gray-500 dark:text-white/40"
                         }`}
                       >
-                        Права ({m.team_permissions.length})
+                        Права ({perms.length})
                       </button>
                       {openPerms === m.user_id && (
                         <div className="absolute right-0 top-full mt-1 z-20 w-64 rounded-xl border border-line dark:border-white/15 bg-white dark:bg-[#1f1f23] shadow-xl p-2 space-y-1">
@@ -272,8 +284,8 @@ export default function TeamsTab() {
                             <label key={p.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 cursor-pointer text-xs text-gray-900 dark:text-white">
                               <input
                                 type="checkbox"
-                                checked={m.team_permissions.includes(p.id)}
-                                onChange={() => togglePerm(team.category_id, m.user_id, m.team_permissions, p.id)}
+                                checked={perms.includes(p.id)}
+                                onChange={() => togglePerm(team.category_id, m.user_id, perms, p.id)}
                                 className="accent-[#8b5cf6]"
                               />
                               {p.label}
@@ -285,8 +297,8 @@ export default function TeamsTab() {
                             <label key={k} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 cursor-pointer text-xs text-gray-900 dark:text-white">
                               <input
                                 type="checkbox"
-                                checked={m.ticket_kinds.includes(k)}
-                                onChange={() => toggleKind(team.category_id, m.user_id, m.ticket_kinds, k, m.team_permissions)}
+                                checked={kinds.includes(k)}
+                                onChange={() => toggleKind(team.category_id, m.user_id, kinds, k, perms)}
                                 className="accent-[#8b5cf6]"
                               />
                               {label}
@@ -300,7 +312,16 @@ export default function TeamsTab() {
                     <p className="text-[10px] text-purple-500 mt-1">Сохранение…</p>
                   ) : null}
                 </div>
-              ))}
+                );
+              })}
+              {team.members.length > MEMBER_PAGE && !showAllByTeam[team.category_id] && (
+                <button
+                  onClick={() => setShowAllByTeam((prev) => ({ ...prev, [team.category_id]: true }))}
+                  className="col-span-full py-3 rounded-xl border border-line dark:border-white/10 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors text-sm font-bold"
+                >
+                  Показать всех ({team.members.length})
+                </button>
+              )}
             </div>
           )}
 

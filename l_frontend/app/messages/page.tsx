@@ -1,7 +1,7 @@
 ﻿"use client";
 import { useTheme } from "next-themes";
 import { resolveNickColor } from "@/lib/nickGlow";
-import { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
@@ -780,30 +780,37 @@ const confirmPrismKey = async () => {
 
         {loading && <ChatListSkeleton count={sortedChats.length || 5} />}
 
-        {/* 🗂️ Панель вкладок папок (как в Telegram): Все чаты → 💼 РАБОТА → кастомные */}
+        {/* 🗂️ Панель вкладок папок (классический ПК-сайдбар): квадратные блоки,
+        разделённые полосками; активный — фиолетовый. Тёмная и светлая темы. */}
         {!loading && !q && folderData && (
-          <div className="flex items-center gap-1.5 px-3 md:px-4 py-2 overflow-x-auto border-b border-line dark:border-white/10 bg-white/40 dark:bg-white/[0.02] scrollbar-width-none"
+          <div className="flex items-stretch overflow-x-auto border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#1b1b1f] scrollbar-width-none"
             style={{ scrollbarWidth: "none" }}>
-            {folderTabs.map((tab) => {
+            {folderTabs.map((tab, idx) => {
               const active = activeFolder === tab.key;
               return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveFolder(tab.key)}
-                  className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
-                    active
-                      ? "bg-[#8b5cf6] text-white shadow"
-                      : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/10"
-                  }`}
-                  title={tab.locked ? "Системная папка — нельзя переименовать или удалить" : tab.label}
-                >
-                  <span className="text-sm leading-none">{tab.icon}</span>
-                  <span>{tab.label}</span>
-                  <span className={`text-[10px] px-1.5 rounded-full ${active ? "bg-white/25" : "bg-gray-200 dark:bg-white/10"}`}>
-                    {tab.count}
-                  </span>
-                  {tab.locked && <Lock size={10} className={active ? "text-white/70" : "text-gray-400"} />}
-                </button>
+                <Fragment key={tab.key}>
+                  {idx > 0 && <div className="w-px shrink-0 bg-gray-300/70 dark:bg-white/10 my-2.5" />}
+                  <button
+                    onClick={() => setActiveFolder(tab.key)}
+                    className={`flex items-center justify-center gap-1.5 shrink-0 min-w-[64px] px-3 md:px-4 py-2.5 text-xs font-bold whitespace-nowrap transition-colors ${
+                      active
+                        ? "bg-[#8b5cf6] text-white shadow-sm"
+                        : "text-gray-600 dark:text-white/60 hover:bg-gray-200/70 dark:hover:bg-white/10"
+                    }`}
+                    title={tab.locked ? "Системная папка — нельзя переименовать или удалить" : tab.label}
+                  >
+                    <span className="text-sm leading-none">{tab.icon}</span>
+                    <span>{tab.label}</span>
+                    <span className={`text-[10px] px-1.5 rounded-full ${
+                      active
+                        ? "bg-white/25 text-white"
+                        : "bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70"
+                    }`}>
+                      {tab.count}
+                    </span>
+                    {tab.locked && <Lock size={10} className={active ? "text-white/70" : "text-gray-400 dark:text-white/40"} />}
+                  </button>
+                </Fragment>
               );
             })}
           </div>
@@ -1186,6 +1193,13 @@ const confirmPrismKey = async () => {
                   >
                     <CheckCheck size={16} className="text-sky-600 dark:text-sky-400" /> Прочитать всё
                   </button>
+                  {/* 🗄️ В архив */}
+                  <button
+                    onClick={() => { setActiveChatMenu(null); setMenuPosition(null); archiveChatItem(menuChat); }}
+                    className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+                  >
+                    <Archive size={16} className="text-[#8b5cf6]" /> В архив
+                  </button>
                   {/* Открыть */}
                   <button
                     onClick={() => {
@@ -1247,6 +1261,13 @@ const confirmPrismKey = async () => {
                 className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
               >
                 <CheckCheck size={16} className="text-sky-600 dark:text-sky-400" /> Прочитать всё
+              </button>
+              {/* 🗄️ В архив */}
+              <button
+                onClick={() => { setActiveChatMenu(null); setMenuPosition(null); archiveChatItem(menuChat); }}
+                className="w-full px-3 py-3 rounded-xl text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2.5 transition-colors"
+              >
+                <Archive size={16} className="text-[#8b5cf6]" /> В архив
               </button>
               <button
                 onClick={() => { 

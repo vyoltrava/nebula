@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { X, Plus, Trash2, Pencil, FolderPlus } from "lucide-react";
+import { getToken } from "@/lib/auth";
 
 export default function FolderManagerModal({ open, onClose, onChanged }: { open: boolean; onClose: () => void; onChanged?: () => void }) {
   const [folders, setFolders] = useState<any[]>([]);
@@ -16,12 +17,13 @@ export default function FolderManagerModal({ open, onClose, onChanged }: { open:
   const [newIcon, setNewIcon] = useState("📁");
   const [busy, setBusy] = useState(false);
 
-  const getToken = () => localStorage.getItem("token") || "";
-  const api = (path: string, init?: RequestInit) =>
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}${path}`, {
+  const api = (path: string, init?: RequestInit) => {
+    const token = getToken();
+    return fetch(`${process.env.NEXT_PUBLIC_API_URL}${path}`, {
       ...init,
-      headers: { Authorization: `Bearer ${getToken()}`, ...(init?.headers || {}) },
+      headers: { Authorization: `Bearer ${token || ""}`, ...(init?.headers || {}) },
     });
+  };
 
   const load = useCallback(async () => {
     const [fRes, cRes] = await Promise.all([
