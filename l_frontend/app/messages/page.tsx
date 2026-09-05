@@ -10,6 +10,7 @@ import { CreateGroupModal } from "@/components/CreateGroupModal";
 import { CreateChannelModal } from "@/components/CreateChannelModal";
 import PublicChannelsModal from "@/components/PublicChannelsModal";
 import FolderManagerModal from "@/components/FolderManagerModal";
+import FolderContextModal from "@/components/FolderContextModal";
 import { MessageSquare, Search, Lock, Users, Bookmark, ShieldCheck, X, Plus, Megaphone, UserPlus, Globe, FolderPlus, CheckCheck, Archive, Briefcase } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
@@ -146,6 +147,11 @@ export default function MessagesPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [showWorkChat, setShowWorkChat] = useState(false);
+  // 🗂️ Папка, для которой открыто контекстное меню (правый клик / удержание на вкладке)
+  const [folderMenuId, setFolderMenuId] = useState<number | null>(null);
+  // 📱 Long-press на вкладке папки → контекстное меню
+  const folderLpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const folderLpStartRef = useRef<{ x: number; y: number } | null>(null);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showPrismModal, setShowPrismModal] = useState(false);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
@@ -857,6 +863,27 @@ const confirmPrismKey = async () => {
                   {idx > 0 && <div className="w-px shrink-0 bg-gray-300/70 dark:bg-white/10 my-2.5" />}
                   <button
                     onClick={() => setActiveFolder(tab.key)}
+                    onContextMenu={tab.key.startsWith("f") ? (e) => { e.preventDefault(); setFolderMenuId(Number(tab.key.slice(1))); } : undefined}
+                    onPointerDown={tab.key.startsWith("f") ? (e) => {
+                      if (e.pointerType !== "touch") return;
+                      folderLpStartRef.current = { x: e.clientX, y: e.clientY };
+                      if (folderLpTimerRef.current) clearTimeout(folderLpTimerRef.current);
+                      folderLpTimerRef.current = setTimeout(() => {
+                        folderLpTimerRef.current = null;
+                        folderLpStartRef.current = null;
+                        try { navigator.vibrate?.(15); } catch {}
+                        setFolderMenuId(Number(tab.key.slice(1)));
+                      }, 500);
+                    } : undefined}
+                    onPointerMove={tab.key.startsWith("f") ? (e) => {
+                      if (!folderLpStartRef.current) return;
+                      if (Math.abs(e.clientX - folderLpStartRef.current.x) > 10 || Math.abs(e.clientY - folderLpStartRef.current.y) > 10) {
+                        if (folderLpTimerRef.current) { clearTimeout(folderLpTimerRef.current); folderLpTimerRef.current = null; }
+                        folderLpStartRef.current = null;
+                      }
+                    } : undefined}
+                    onPointerUp={() => { if (folderLpTimerRef.current) { clearTimeout(folderLpTimerRef.current); folderLpTimerRef.current = null; } folderLpStartRef.current = null; }}
+                    onPointerCancel={() => { if (folderLpTimerRef.current) { clearTimeout(folderLpTimerRef.current); folderLpTimerRef.current = null; } folderLpStartRef.current = null; }}
                     className={`flex items-center justify-center gap-1.5 shrink-0 min-w-[64px] px-3 md:px-4 py-2.5 text-xs font-bold whitespace-nowrap transition-colors ${
                       active
                         ? "bg-[#8b5cf6] text-white shadow-sm"
@@ -1573,6 +1600,14 @@ const confirmPrismKey = async () => {
       <FolderManagerModal
         open={showFolderManager}
         onClose={() => setShowFolderManager(false)}
+        onChanged={() => { load(); }}
+      />
+
+      {/* 🗂️ Контекстное меню папки (правый клик / удержание на вкладке) */}
+      <FolderContextModal
+        folderId={folderMenuId}
+        open={folderMenuId !== null}
+        onClose={() => setFolderMenuId(null)}
         onChanged={() => { load(); }}
       />
 
