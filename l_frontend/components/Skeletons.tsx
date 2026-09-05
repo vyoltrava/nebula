@@ -265,10 +265,10 @@ export function AvatarSkeleton({ size = 96 }: { size?: number }) {
 // ==========================================
 // 🦴 Скелетон карточки участника (страница /team)
 // ==========================================
-export function TeamMemberSkeleton() {
+export function TeamMemberSkeleton({ round = false }: { round?: boolean }) {
   return (
     <div className="flex items-center gap-4 p-4 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 animate-pulse">
-      <div className="w-14 h-14 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0" />
+      <div className={`w-14 h-14 ${round ? "rounded-full" : "rounded-xl"} bg-gray-100 dark:bg-white/10 shrink-0`} />
       <div className="flex-1 min-w-0 space-y-2">
         <div className="h-4 bg-gray-100 dark:bg-white/10 rounded w-32" />
         <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-20" />
@@ -281,10 +281,10 @@ export function TeamMemberSkeleton() {
 // ==========================================
 // 🦴 Скелетон строки пользователя (поиск людей, списки юзеров)
 // ==========================================
-export function UserRowSkeleton() {
+export function UserRowSkeleton({ round = false }: { round?: boolean }) {
   return (
     <div className="flex items-center gap-3 p-2.5 animate-pulse">
-      <div className="w-11 h-11 rounded-xl bg-gray-100 dark:bg-white/10 shrink-0" />
+      <div className={`w-11 h-11 ${round ? "rounded-full" : "rounded-xl"} bg-gray-100 dark:bg-white/10 shrink-0`} />
       <div className="flex-1 space-y-2">
         <div className="h-4 bg-gray-100 dark:bg-white/10 rounded w-28" />
         <div className="h-3 bg-gray-100 dark:bg-white/5 rounded w-20" />
@@ -476,6 +476,8 @@ type SkeletonSizeOptions = {
   fallbackGap?: number;
   /** запасные карточки внизу */
   buffer?: number;
+  /** не рисовать скелетов больше, чем реальных объектов */
+  maxCount?: number;
 };
 
 /**
@@ -513,6 +515,7 @@ export function useResponsiveSkeletonCount(
     fallbackCardHeight = 120,
     fallbackGap = 16,
     buffer = 2,
+    maxCount,
   }: SkeletonSizeOptions = {}
 ): number {
   const [count, setCount] = useState(0);
@@ -537,10 +540,11 @@ export function useResponsiveSkeletonCount(
     // высоту строки меряем с учётом вертикального gap
     cardHeight += isNaN(rowGap) ? 0 : rowGap;
 
-    setCount(
-      calculateSkeletonCount(containerWidth, window.innerHeight, cardWidth, cardHeight, gap, buffer)
-    );
-  }, [containerRef, minCardWidth, fallbackCardHeight, fallbackGap, buffer]);
+    let next = calculateSkeletonCount(containerWidth, window.innerHeight, cardWidth, cardHeight, gap, buffer);
+    // адаптация под количество реальных объектов: скелетов ≤ maxCount
+    if (typeof maxCount === "number" && maxCount >= 0) next = Math.min(next, maxCount);
+    setCount(next);
+  }, [containerRef, minCardWidth, fallbackCardHeight, fallbackGap, buffer, maxCount]);
 
   useLayoutEffect(() => {
     recalc();
@@ -576,6 +580,7 @@ export function ResponsiveSkeletons({
   fallbackCardHeight,
   fallbackGap,
   buffer = 2,
+  maxCount,
 }: {
   containerRef: React.RefObject<HTMLElement | null>;
   render: () => React.ReactNode;
@@ -583,6 +588,8 @@ export function ResponsiveSkeletons({
   fallbackCardHeight?: number;
   fallbackGap?: number;
   buffer?: number;
+  /** не рисовать скелетов больше, чем реальных объектов (например items.length или total из API) */
+  maxCount?: number;
 }) {
   // первый проход: 1 скелет для замера, потом реальное значение
   const measured = useRef(false);
@@ -591,6 +598,7 @@ export function ResponsiveSkeletons({
     fallbackCardHeight,
     fallbackGap,
     buffer,
+    maxCount,
   });
   const count = measured.current ? dynamicCount : 1;
 
