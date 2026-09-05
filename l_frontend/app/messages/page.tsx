@@ -126,7 +126,6 @@ export default function MessagesPage() {
   const [archiveLoaded, setArchiveLoaded] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
   const mainRef = useRef<HTMLElement | null>(null);
-  const lastArchiveGestureRef = useRef(0);
 
   const applyArchive = (chats: number[], channels: number[]) => {
     const next = new Set<string>();
@@ -202,47 +201,6 @@ export default function MessagesPage() {
     await load(); refresh();
   };
 
-  // 🗄️ Жест открытия архива: на телефоне — оттянуть список вниз у верхнего края,
-  // на ПК — прокрутить колесо мыши вверх, когда список у верха.
-  useEffect(() => {
-    const el = mainRef.current;
-    if (!el) return;
-    const THRESHOLD = 80;
-    let touchStartY = 0;
-    let pullAccum = 0;
-    const openIfPossible = () => {
-      if (archivedKeys.size === 0) return;
-      const now = Date.now();
-      if (now - lastArchiveGestureRef.current < 1500) return;
-      lastArchiveGestureRef.current = now;
-      setShowArchive(true);
-    };
-    const onWheel = (e: WheelEvent) => {
-      if (el.scrollTop <= 0 && e.deltaY < 0) openIfPossible();
-    };
-    const onTouchStart = (e: TouchEvent) => {
-      touchStartY = e.touches[0].clientY;
-      pullAccum = 0;
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      if (el.scrollTop > 0) { pullAccum = 0; return; }
-      const dy = e.touches[0].clientY - touchStartY;
-      pullAccum = dy > 0 ? dy : 0;
-      if (pullAccum >= THRESHOLD) {
-        pullAccum = 0; touchStartY = e.touches[0].clientY;
-        openIfPossible();
-      }
-    };
-    el.addEventListener("wheel", onWheel, { passive: true });
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: true });
-    return () => {
-      el.removeEventListener("wheel", onWheel);
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [archivedKeys.size, mainRef]);
   const [prismSearchQuery, setPrismSearchQuery] = useState("");
   const [prismSearchResults, setPrismSearchResults] = useState<any[]>([]);
   const [isCreatingPrism, setIsCreatingPrism] = useState(false);
@@ -750,16 +708,6 @@ const confirmPrismKey = async () => {
               >
                 <FolderPlus size={18} />
               </button>
-              {/* 🗄️ Архив */}
-              {archivedKeys.size > 0 && (
-                <button
-                  onClick={() => setShowArchive(true)}
-                  title={`Архив (${archivedKeys.size})`}
-                  className={`p-2 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors ${showArchive ? "text-[#8b5cf6]" : "text-gray-500 dark:text-white/40 hover:text-[#8b5cf6]"}`}
-                >
-                  <Archive size={18} />
-                </button>
-              )}
             </div>
 
             {/* Поиск — тянется от иконки до кнопки "+" на любой ширине */}
@@ -845,6 +793,37 @@ const confirmPrismKey = async () => {
             <p className="text-gray-600 dark:text-white/60 text-lg">В этой папке пока нет чатов</p>
             <p className="text-gray-500 dark:text-white/40 text-sm mt-2">Откройте менеджер папок (🗂️) и добавьте чаты</p>
           </div>
+        )}
+
+        {/* 🗄️ Карточка «Архив» — как отдельный чат в списке (как в Telegram).
+            Видна, только если архив не пуст; свайп вправо — разархивировать всё. */}
+        {!loading && !q && archiveLoaded && archivedKeys.size > 0 && (
+          <SwipeableChatItem
+            isPinned={false}
+            onClick={() => setShowArchive(true)}
+            onSwipeRight={() => {
+              syncArchive({
+                unarchive_chats: archivedChats.filter((c: any) => !c.is_channel).map((c: any) => c.id),
+                unarchive_channels: archivedChats.filter((c: any) => c.is_channel).map((c: any) => c.id),
+              });
+              setShowArchive(false);
+            }}
+            onSwipeLeft={() => { /* ничего */ }}
+          >
+            <div className="flex items-center gap-3 p-3 md:p-4 border-b border-line dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 cursor-pointer">
+              <div className="shrink-0">
+                <div className="w-12 h-12 rounded-xl bg-gray-200 dark:bg-white/10 flex items-center justify-center">
+                  <Archive size={24} className="text-gray-500 dark:text-white/50" />
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold truncate text-gray-900 dark:text-white">Архив</p>
+                <p className="text-sm text-gray-500 dark:text-white/40 truncate">
+                  {archivedChats.length === 1 ? "1 чат" : `${archivedChats.length} чат(ов)`}
+                </p>
+              </div>
+            </div>
+          </SwipeableChatItem>
         )}
 
         {!loading && displayChats.map((item: any) => {
@@ -1445,7 +1424,8 @@ const confirmPrismKey = async () => {
         onChanged={() => { load(); }}
       />
 
-      {/* 🗄️ Панель архива (открывается жестом вверх/оттягиванием или кнопкой) */}
+      {/* 🗄️ Страница архива: открывается кликом по карточке «Архив» в списке чатов.
+            Внутри — список заархивированных чатов/каналов; свайп вправо по элементу — вернуть. */}
       {showArchive && (
         <div className="fixed inset-0 z-[60] bg-paper dark:bg-[#171717] flex flex-col">
           <div className="flex items-center gap-3 px-4 py-3 border-b border-line dark:border-white/10 bg-white/60 dark:bg-white/[0.03]">
