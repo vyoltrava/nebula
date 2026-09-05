@@ -781,10 +781,10 @@ const confirmPrismKey = async () => {
                         </p>
                       ) : (
                         <>
-                          <UserPrefix userId={otherUser?.id} prefix={otherUser?.prefix} size={14} />
                           <p className={`font-bold truncate ${glowStyle(otherUser) ? "" : "text-gray-900 dark:text-white"}`} style={glowStyle(otherUser)}>
                             {query.trim() ? highlight(otherUser?.display_name, query.trim()) : otherUser?.display_name}
                           </p>
+                          <UserPrefix userId={otherUser?.id} prefix={otherUser?.prefix} size={14} />
                           
                           {chat.is_prism && (
                             <span className="ml-1 px-2 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/40 text-cyan-600 dark:text-cyan-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-[0_0_8px_rgba(34,211,238,0.2)]">

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { X, UserPlus, Shield, Crown, UserX, Search } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { UserRowSkeleton } from "@/components/Skeletons";
+import { UserPrefix } from "@/components/UserPrefixProvider";
 import { getToken } from "@/lib/auth";
 import { Button, IconButton } from "@/components/ui/Button";
 
@@ -178,6 +179,7 @@ export function GroupMembersModal({ chatId, myRole, onClose, onChanged }: Props)
                     <p className="font-bold text-gray-900 dark:text-white truncate">
                       {m.user.display_name}
                     </p>
+                    <UserPrefix userId={m.user.id} size={14} />
                     {m.role === "owner" && (
                       <span className="px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-[10px] font-black uppercase">
                         Создатель

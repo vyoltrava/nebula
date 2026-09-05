@@ -29,6 +29,7 @@ import { useSwipe } from "@/lib/useSwipe";
 import { PermissionHelpModal } from "@/components/PermissionHelpModal";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { ChatWindowSkeleton } from "@/components/Skeletons";
+import { UserPrefix } from "@/components/UserPrefixProvider";
 import { isPushSubscribed } from "@/lib/push";
 import { pinMessage, unpinMessage, getPinnedMessages } from "@/lib/api";
 import type { PinnedMessage } from "@/lib/types";
@@ -2316,6 +2317,7 @@ const ChatHeader = () => (
                 >
                   {chatPartner.display_name}
                 </p>
+                <UserPrefix userId={chatPartner.id} prefix={chatPartner.prefix} size={16} />
                 {isSecret && (
                   <span className="inline-flex items-center gap-1 px-1.5 sm:px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[9px] sm:text-[10px] font-black uppercase tracking-widest border border-emerald-500/30 shrink-0">
                     <Lock size={8} />

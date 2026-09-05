@@ -878,7 +878,6 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
           <div className="flex items-center justify-between gap-2">
             {/* Ник + бейджи + кнопки действий (эхо / жалоба / редактировать) — в одном ряду */}
             <div className="flex items-center gap-1.5 flex-wrap text-sm min-w-0">
-              <UserPrefix userId={author_id} size={14} />
               <Link
                 href={`/${cleanUsername}`}
                 className={`font-bold transition-all ${
@@ -888,6 +887,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               >
                 {author}
               </Link>
+              <UserPrefix userId={author_id} size={14} />
               <AuthorBadges
                 is_admin={author_is_admin}
                 is_moderator={author_is_moderator}

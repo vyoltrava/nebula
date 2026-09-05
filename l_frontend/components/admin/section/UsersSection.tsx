@@ -278,7 +278,7 @@ async function load() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Link href={`/user/${u.id}`} className="font-bold text-gray-900 dark:text-white hover:text-[#8b5cf6]">{u.display_name}</Link>
-                    {/* 🏷️ Префикс пользователя (многоугольная иконка) */}
+                    {/* 🏷️ Префикс пользователя (круглая плашка-обводка) */}
                     <UserPrefixBadge prefix={u.prefix} size={18} />
                     {u.is_admin && <span className="px-1.5 py-0.5 rounded bg-white text-black text-[8px] font-black uppercase"><Crown size={8} className="inline" /> Founder</span>}
                     {u.is_moderator && !u.is_admin && <span className="px-2 py-0.5 rounded bg-[#3b82f6] text-white text-[10px] font-black uppercase"><ShieldCheck size={8} className="inline" /> Developer</span>}

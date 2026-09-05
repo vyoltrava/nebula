@@ -1,6 +1,7 @@
 "use client";
-// 🏷️ Префикс пользователя — многоугольная (шестиугольная) плашка только с иконкой.
-// Данные приходят в любом user_out (поле `prefix`), а в сообщениях — `sender_prefix`.
+// 🏷️ Префикс пользователя — круглая плашка с обводкой (bg_color), внутри только
+// иконка (color), фон прозрачный. Ставится после ника, до плашек роли.
+// Данные приходят в любом user_out (поле `prefix`), в сообщениях — `sender_prefix`.
 import { PREFIX_ICONS } from "./prefixIcons";
 
 export function UserPrefixBadge({
@@ -14,22 +15,22 @@ export function UserPrefixBadge({
 }) {
   if (!prefix) return null;
   const icon = PREFIX_ICONS[prefix.icon] || "★";
+  const borderW = Math.max(1.5, Math.round(size * 0.12));
   return (
     <span
       title="Префикс"
-      className={`inline-flex items-center justify-center shrink-0 align-middle select-none ${className}`}
+      className={`inline-flex items-center justify-center shrink-0 align-middle select-none rounded-full ${className}`}
       style={{
         width: size,
-        height: size * 0.9,
-        backgroundColor: prefix.bg_color,
+        height: size,
         color: prefix.color,
-        clipPath:
-          "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)",
-        fontSize: size * 0.55,
+        border: `${borderW}px solid ${prefix.bg_color}`,
+        backgroundColor: "transparent",
+        fontSize: size * 0.5,
         lineHeight: 1,
       }}
     >
-      <span style={{ transform: "translateY(-1px)" }}>{icon}</span>
+      {icon}
     </span>
   );
 }

@@ -87,10 +87,10 @@ export function RightPanel() {
 
               <div className="flex-1 leading-tight">
                 <div className="flex items-center gap-1.5 min-w-0">
-                  <UserPrefix userId={a.id} prefix={a.prefix} size={13} />
                   <Link href={`/${a.username}`} className="font-bold text-sm text-gray-900 dark:text-white hover:text-[#8b5cf6] transition-colors truncate">
                     {a.display_name}
                   </Link>
+                  <UserPrefix userId={a.id} prefix={a.prefix} size={13} />
                 </div>
                 <p className="text-xs text-gray-600 dark:text-white/50">{t("panel.followersCount", { n: a.followers_count })}</p>
               </div>

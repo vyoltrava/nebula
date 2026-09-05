@@ -9,18 +9,19 @@ import { PREFIX_ICONS } from "@/components/prefixIcons";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
-// превью многоугольной плашки
-function HexBadge({ p, size = 22 }: { p: { icon: string; color: string; bg_color: string }; size?: number }) {
+// превью круглой плашки (обводка bg_color, внутри иконка)
+function Pfb({ p, size = 22 }: { p: { icon: string; color: string; bg_color: string }; size?: number }) {
   return (
     <span
-      className="inline-flex items-center justify-center shrink-0"
+      className="inline-flex items-center justify-center shrink-0 rounded-full"
       style={{
-        width: size, height: size * 0.9, backgroundColor: p.bg_color, color: p.color,
-        clipPath: "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)",
-        fontSize: size * 0.55, lineHeight: 1,
+        width: size, height: size, color: p.color,
+        border: `${Math.max(1.5, Math.round(size * 0.12))}px solid ${p.bg_color}`,
+        backgroundColor: "transparent",
+        fontSize: size * 0.5, lineHeight: 1,
       }}
     >
-      <span style={{ transform: "translateY(-1px)" }}>{PREFIX_ICONS[p.icon] || "★"}</span>
+      {PREFIX_ICONS[p.icon] || "★"}
     </span>
   );
 }
@@ -85,7 +86,7 @@ export function UserPrefixesSection({ me }: { me: any }) {
         {/* Превью — многоугольная иконка без текста */}
         <div className="flex items-center gap-3 mb-4 p-3 rounded-xl bg-gray-100 dark:bg-white/5">
           <span className="text-xs text-gray-500 dark:text-white/40">Превью:</span>
-          <HexBadge p={{ icon, color, bg_color: bgColor }} />
+          <Pfb p={{ icon, color, bg_color: bgColor }} />
         </div>
 
         {/* Выбор иконки */}
@@ -139,7 +140,7 @@ export function UserPrefixesSection({ me }: { me: any }) {
           <div className="space-y-2">
             {prefixes.map((p) => (
               <div key={p.id} className={`flex items-center gap-3 p-2.5 rounded-xl border ${editId === p.id ? "border-[#a855f7] bg-[#a855f7]/10" : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5"}`}>
-                <HexBadge p={p} />
+                <Pfb p={p} />
                 <span className="text-xs text-gray-500 dark:text-white/40 font-mono flex-1">
                   #{p.id} · {p.icon} · {p.bg_color}
                 </span>

@@ -8,6 +8,7 @@ import { useParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
+import { UserPrefix } from "@/components/UserPrefixProvider";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { socket } from "@/lib/websocket";
@@ -885,6 +886,7 @@ export default function ChannelPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className="font-bold text-sm text-gray-900 dark:text-white truncate">{m.user.display_name}</p>
+                      <UserPrefix userId={m.user.id} size={14} />
                       {m.role === "owner" ? <Crown size={12} className="text-yellow-500 shrink-0" /> : m.role === "admin" ? <Shield size={12} className="text-[#8b5cf6] shrink-0" /> : null}
                     </div>
                     <p className="text-xs text-gray-500 dark:text-white/40 truncate">@{m.user.username}</p>

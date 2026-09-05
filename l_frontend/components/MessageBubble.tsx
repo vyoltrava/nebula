@@ -158,8 +158,8 @@ export const MessageBubble = memo(function MessageBubble({
           {isGroup && !isMine && (
             <div className="mb-1 px-1">
               <p className="text-[11px] sm:text-xs font-bold flex items-center gap-1" style={senderGlow ? { color: senderGlow } : { color: "#a78bfa" }}>
-                <UserPrefixBadge prefix={senderPrefix} size={12} />
                 {msg.sender_name}
+                <UserPrefixBadge prefix={senderPrefix} size={12} />
               </p>
               {/* 📢 подпись автора поста в канале — мелким серым */}
               {authorName && authorName !== msg.sender_name && (
@@ -278,6 +278,9 @@ export const MessageBubble = memo(function MessageBubble({
           {/* Время и галочки */}
           {!isEditing && !isSelectMode && (
             <div className={`flex items-center gap-1.5 sm:gap-2 mt-1 px-1 ${isMine ? "flex-row-reverse" : "flex-row"}`}>
+              {!isMine && !isGroup && (
+                <UserPrefixBadge prefix={senderPrefix} size={12} />
+              )}
               <p className={`text-[10px] sm:text-[11px] flex items-center gap-1 ${isMine ? "text-gray-600 dark:text-white/60" : "text-gray-500 dark:text-white/40"}`}>
                 {isPinned && <Pin size={10} className="text-[#8b5cf6]" />}
                 {formatChatTime(msg.created_at)}
