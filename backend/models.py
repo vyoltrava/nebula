@@ -216,6 +216,11 @@ class Chat(SQLModel, table=True):
     category_id: Optional[int] = Field(default=None, foreign_key="rolecategory.id")
     # 🔗 Межгрупповой чат: None | "heads_only" (только главы отделов) | "deputies_only" (только замы)
     cross_team_type: Optional[str] = Field(default=None, max_length=30)
+    # 🏢 Чат команды, привязанный к конкретным ролям (JSON массив role.id):
+    # носители этих ролей автоматически входят в чат (как плашка командира).
+    team_role_ids: str = Field(default="[]")
+    # 👑 Роль «командира» этого чата (головная); её носитель получает иерархию head.
+    team_commander_role_id: Optional[int] = Field(default=None, foreign_key="role.id", index=True)
 
 
 
@@ -967,7 +972,7 @@ class UserChatFolder(SQLModel, table=True):
     user_id: int = Field(foreign_key="user.id", index=True)
     name: str = Field(max_length=40)
     # 🎨 Оформление: emoji-иконка и цвет
-    icon: str = Field(default="📁", max_length=8)
+    icon: str = Field(default="📁", max_length=32)
     color: str = Field(default="#8b5cf6", max_length=20)
     order: int = Field(default=0)
     created_at: datetime = Field(default_factory=utcnow)

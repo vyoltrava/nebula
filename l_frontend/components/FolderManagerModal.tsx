@@ -16,6 +16,23 @@ export default function FolderManagerModal({ open, onClose, onChanged }: { open:
   const [newName, setNewName] = useState("");
   const [newIcon, setNewIcon] = useState("📁");
   const [busy, setBusy] = useState(false);
+  // 🆕 Выбор чатов сразу при создании папки
+  const [newChatIds, setNewChatIds] = useState<Set<number>>(new Set());
+  const [showNewChats, setShowNewChats] = useState(false);
+  // 🆕 Эмодзи-пикер: иконки грузятся так же, как реакции — из стикер-паков
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  const [emojiPacks, setEmojiPacks] = useState<any[]>([]);
+  const [emojiPackTab, setEmojiPackTab] = useState(0);
+  const FALLBACK_EMOJIS = ["📁", "💬", "💼", "🎮", "🎵", "🔥", "⭐", "💜", "🌙", "🚀", "🏆", "🐱", "🍕", "⚽", "📚", "✈️", "🎨", "💻", "😂", "😎"];
+
+  useEffect(() => {
+    if (!iconPickerOpen || emojiPacks.length) return;
+    const token = getToken();
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sticker-packs`, { headers: { Authorization: `Bearer ${token || ""}` } })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((packs) => setEmojiPacks(Array.isArray(packs) ? packs.filter((p: any) => (p.stickers || []).some((s: any) => s.type === "emoji")) : []))
+      .catch(() => {});
+  }, [iconPickerOpen, emojiPacks.length]);
 
   const api = (path: string, init?: RequestInit) => {
     const token = getToken();
@@ -47,12 +64,15 @@ export default function FolderManagerModal({ open, onClose, onChanged }: { open:
     const res = await api("/api/chats/folders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName.trim(), icon: newIcon || "📁" }),
+      body: JSON.stringify({ name: newName.trim(), icon: newIcon || "📁", chat_ids: Array.from(newChatIds) }),
     });
     if (res.ok) {
       const f = await res.json();
       setSelectedId(f.id);
       setNewName("");
+      setNewIcon("📁");
+      setNewChatIds(new Set());
+      setShowNewChats(false);
     } else {
       const e = await res.json().catch(() => ({}));
       alert(e.detail || "Ошибка создания папки");
@@ -131,13 +151,15 @@ export default function FolderManagerModal({ open, onClose, onChanged }: { open:
         </div>
 
         {/* Создание */}
-        <div className="flex gap-2">
-          <input
-            value={newIcon}
-            onChange={(e) => setNewIcon(e.target.value.slice(0, 2))}
-            className="w-12 text-center px-2 py-2 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm"
-            title="Эмодзи-иконка"
-          />
+        <div className="flex gap-2 items-center">
+          <button
+            type="button"
+            onClick={() => setIconPickerOpen(!iconPickerOpen)}
+            className="w-12 h-10 text-xl rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 hover:border-[#8b5cf6] transition-colors"
+            title="Выбрать эмодзи-иконку"
+          >
+            {newIcon || "📁"}
+          </button>
           <input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
@@ -148,6 +170,92 @@ export default function FolderManagerModal({ open, onClose, onChanged }: { open:
           <button onClick={createFolder} disabled={busy || !newName.trim()} className="px-3 py-2 rounded-xl bg-purple-500 text-white text-sm font-bold hover:bg-purple-600 disabled:opacity-50">
             <Plus size={16} />
           </button>
+        </div>
+
+        {/* 🆕 Эмодзи-пикер иконки: эмодзи из стикер-паков (как реакции) + любой ввод вручную */}
+        {iconPickerOpen && (
+          <div className="rounded-xl border border-line dark:border-white/10 bg-gray-50 dark:bg-white/5 p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                value={newIcon}
+                onChange={(e) => setNewIcon(e.target.value)}
+                placeholder="Или вставь любой смайл…"
+                className="flex-1 px-2 py-1.5 rounded-lg border border-line dark:border-white/15 bg-white dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-[#8b5cf6]"
+              />
+              <button onClick={() => setIconPickerOpen(false)} className="p-1.5 text-gray-500 hover:text-gray-900 dark:hover:text-white rounded-lg"><X size={14} /></button>
+            </div>
+            {emojiPacks.length > 1 && (
+              <div className="flex gap-1.5 overflow-x-auto pb-1">
+                {emojiPacks.map((p: any, i: number) => (
+                  <button
+                    key={p.id ?? i}
+                    onClick={() => setEmojiPackTab(i)}
+                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap shrink-0 transition-all ${
+                      emojiPackTab === i ? "bg-[#8b5cf6] text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50"
+                    }`}
+                  >
+                    {p.name || `Пак ${i + 1}`}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="grid grid-cols-8 gap-1.5 max-h-40 overflow-y-auto">
+              {(emojiPacks[emojiPackTab]?.stickers || [])
+                .filter((s: any) => s.type === "emoji")
+                .map((s: any) => (
+                  <button
+                    key={s.id}
+                    onClick={() => { setNewIcon(s.content); setIconPickerOpen(false); }}
+                    className={`w-8 h-8 flex items-center justify-center text-lg rounded-lg hover:bg-[#8b5cf6]/15 transition-colors ${newIcon === s.content ? "bg-[#8b5cf6]/25" : ""}`}
+                  >
+                    {s.content}
+                  </button>
+                ))}
+              {FALLBACK_EMOJIS.map((e) => (
+                <button
+                  key={e}
+                  onClick={() => { setNewIcon(e); setIconPickerOpen(false); }}
+                  className={`w-8 h-8 flex items-center justify-center text-lg rounded-lg hover:bg-[#8b5cf6]/15 transition-colors ${newIcon === e ? "bg-[#8b5cf6]/25" : ""}`}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 🆕 Выбор чатов, которые сразу попадут в новую папку */}
+        <div className="rounded-xl border border-line dark:border-white/10 bg-gray-50 dark:bg-white/5">
+          <button
+            onClick={() => setShowNewChats(!showNewChats)}
+            className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold text-gray-700 dark:text-white/70"
+          >
+            <span>Чаты в новой папке{newChatIds.size ? `: ${newChatIds.size}` : ""}</span>
+            <span className="text-gray-400">{showNewChats ? "▲" : "▼"}</span>
+          </button>
+          {showNewChats && (
+            <div className="max-h-40 overflow-y-auto px-2 pb-2 space-y-1">
+              {chats.length === 0 && <p className="text-xs text-gray-500 dark:text-white/40 px-1 py-2">Нет доступных чатов</p>}
+              {chats.map((c: any) => {
+                const checked = newChatIds.has(c.id);
+                return (
+                  <label key={c.id} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-xs ${checked ? "bg-[#8b5cf6]/15" : "hover:bg-gray-100 dark:hover:bg-white/5"}`}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => setNewChatIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(c.id)) next.delete(c.id); else next.add(c.id);
+                        return next;
+                      })}
+                      className="accent-[#8b5cf6]"
+                    />
+                    <span className="truncate text-gray-900 dark:text-white">{chatName(c)}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Список папок */}

@@ -6216,6 +6216,8 @@ class FolderCreateIn(BaseModel):
     name: str
     icon: str = "📁"
     color: str = "#8b5cf6"
+    # 🆕 Чаты, которые сразу кладём в папку при создании
+    chat_ids: list[int] = []
 
 
 @app.post("/api/chats/folders")
@@ -6232,11 +6234,35 @@ def create_chat_folder(
     max_order = session.exec(
         select(func.max(UserChatFolder.order)).where(UserChatFolder.user_id == user.id)  # type: ignore[union-attr]
     ).one() or 0
-    folder = UserChatFolder(user_id=user.id, name=name, icon=data.icon[:8], color=data.color, order=max_order + 1)
+    folder = UserChatFolder(user_id=user.id, name=name, icon=(data.icon or "📁")[:16], color=data.color, order=max_order + 1)
     session.add(folder)
     session.commit()
     session.refresh(folder)
-    return {"ok": True, "id": folder.id, "name": folder.name, "icon": folder.icon, "color": folder.color, "chat_ids": []}
+
+    # 🆕 Сразу привязываем выбранные чаты (только те, где юзер участник)
+    attached: list[int] = []
+    for cid in data.chat_ids or []:
+        chat = session.get(Chat, cid)
+        if not chat or chat.system_folder:
+            continue
+        member = session.exec(
+            select(ChatMember).where(ChatMember.chat_id == chat.id, ChatMember.user_id == user.id)
+        ).first()
+        if not member:
+            continue
+        exists = session.exec(
+            select(ChatFolderAssign).where(
+                ChatFolderAssign.folder_id == folder.id,
+                ChatFolderAssign.chat_id == chat.id,
+            )
+        ).first()
+        if not exists:
+            session.add(ChatFolderAssign(folder_id=folder.id, chat_id=chat.id, user_id=user.id))
+            attached.append(chat.id)
+    if attached:
+        session.commit()
+
+    return {"ok": True, "id": folder.id, "name": folder.name, "icon": folder.icon, "color": folder.color, "chat_ids": attached}
 
 
 @app.patch("/api/chats/folders/{folder_id}")
@@ -6253,7 +6279,7 @@ def update_chat_folder(
     if not name:
         raise HTTPException(400, "Название папки обязательно")
     folder.name = name[:40]
-    folder.icon = data.icon[:8]
+    folder.icon = (data.icon or "📁")[:16]
     folder.color = data.color
     session.add(folder)
     session.commit()
@@ -6670,7 +6696,17 @@ TEAM_HIERARCHY_PRIORITY = ["junior", "senior", "deputy", "head", "cross_head"]
 TICKET_KINDS = {
     "complaint": "Жалоба",
     "appeal": "Обращение",
+    "join": "Заявка в канал",
     "other": "Другое",
+}
+
+# 🏷️ Синхронизация: какой тип заявки соответствует какому праву раздела.
+# Если у юзера есть право раздела (например manage_support → поддержка),
+# он авто-получает заявки этого типа — даже без ручной настройки ticket_kinds.
+TICKET_KIND_PERMISSION = {
+    "complaint": "manage_reports",   # жалобы → раздел «Жалобы»
+    "appeal": "manage_support",      # обращения → раздел «Поддержка»
+    "other": None,                   # «другое» — по явной настройке
 }
 
 
@@ -6682,9 +6718,25 @@ def _member_ticket_kinds(cm: ChatMember) -> list:
         return []
 
 
-def _member_handles_kind(cm: ChatMember, kind: Optional[str]) -> bool:
+def _member_handles_kind(cm: ChatMember, kind: Optional[str], user: Optional[User] = None, session: Session = None) -> bool:
+    """Отвечает ли участник за заявку этого типа.
+
+    Приоритет:
+    1) Ручной override в /stat (ticket_kinds): если задан — используем его.
+    2) Авто-синк по правам: если у юзера есть право раздела для этого типа
+       (например manage_support → «обращение») — берёт такие заявки.
+    3) Если ничего не задано и права нет — берёт все заявки (как раньше).
+    """
     kinds = _member_ticket_kinds(cm)
-    return not kinds or (kind is None or kind in kinds)
+    if kinds:
+        return kind is None or kind in kinds
+    if kind is not None and session is not None:
+        perm = TICKET_KIND_PERMISSION.get(kind)
+        if perm:
+            u = user or session.get(User, cm.user_id)
+            if u and has_permission(u, perm, session):
+                return True
+    return True
 
 
 def _member_team_permissions(cm: ChatMember) -> list:
@@ -6721,7 +6773,7 @@ def pick_ticket_assignee(session: Session, category_id: int, kind: Optional[str]
     candidates = [
         cm for cm in members
         if "can_handle_tasks" in _member_team_permissions(cm)
-        and _member_handles_kind(cm, kind)
+        and _member_handles_kind(cm, kind, session=session)
     ]
     if not candidates:
         return None
@@ -6745,6 +6797,135 @@ def pick_ticket_assignee(session: Session, category_id: int, kind: Optional[str]
     pool = free if free else candidates
     min_prio = min(_member_hierarchy_prio(cm, session) for cm in pool)
     return _random.choice([cm for cm in pool if _member_hierarchy_prio(cm, session) == min_prio])
+
+
+# ============================================================
+# 🤖 БОТ-ДИСПЕТЧЕР: жалобы/обращения сами «прилетают» в отдел,
+# назначаются round-robin члену команды и тегируются в чате.
+# ============================================================
+
+TEAM_TASK_PERMS = {"can_handle_tasks", "can_handle_complaints", "can_handle_appeals"}
+
+
+def _candidate_perm_for_kind(kind: Optional[str]) -> str:
+    """Какой локальный перм нужен члену команды для типа обращения (либо право раздела)."""
+    return {
+        "complaint": "can_handle_complaints",
+        "appeal": "can_handle_appeals",
+    }.get(kind, "can_handle_tasks")
+
+
+def candidate_team_members(session: Session, kind: Optional[str] = None) -> list[ChatMember]:
+    """Все участники рабочих чатов отделов, способные взять заявку этого типа.
+
+    Связано с правами юзера: участник подходит, если у него есть локальный перм
+    для типа ИЛИ пользователь имеет право раздела (TICKET_KIND_PERMISSION),
+    либо он вообще не ограничен (как раньше).
+    """
+    cats = session.exec(select(RoleCategory).where(RoleCategory.team_chat_id.is_not(None))).all()  # type: ignore[union-attr]
+    chat_ids = [c.team_chat_id for c in cats if c.team_chat_id]
+    if not chat_ids:
+        return []
+    members = session.exec(
+        select(ChatMember).where(ChatMember.chat_id.in_(chat_ids))
+    ).all()
+    # Preload users для быстрого авто-определения по правам
+    users = {}
+    uid = {m.user_id for m in members}
+    if uid:
+        for u in session.exec(select(User).where(User.id.in_(uid))).all():
+            users[u.id] = u
+    out = []
+    for cm in members:
+        perms = _member_team_permissions(cm)
+        required = _candidate_perm_for_kind(kind)
+        if required in perms:
+            out.append(cm)
+            continue
+        if kind and kind in TICKET_KIND_PERMISSION:
+            perm = TICKET_KIND_PERMISSION[kind]
+            u = users.get(cm.user_id)
+            if u and has_permission(u, perm, session):
+                out.append(cm)
+                continue
+        # без типа и прав — по-старому (берёт все с can_handle_tasks)
+        if not kind and "can_handle_tasks" in perms:
+            out.append(cm)
+    return out
+
+
+def dispatch_ticket_to_team(session: Session, kind: str, title: str, description: Optional[str], actor: User) -> int:
+    """«Бот» прикрепляет новое обращение/жалобу к члену команды.
+
+    Ищет рабоче-чат отдела, где есть участники, ответственные за этот тип
+    (по правам), создаёт TeamTicket и назначает round-robin (pick_ticket_assignee).
+    Возвращает id созданного TeamTicket или 0, если отдела-ответчика нет.
+    """
+    cats = session.exec(select(RoleCategory).where(RoleCategory.team_chat_id.is_not(None))).all()  # type: ignore[union-attr]
+    candidates_by_cat: dict[int, list] = {}
+    for cat in cats:
+        members = session.exec(
+            select(ChatMember).where(ChatMember.chat_id == cat.team_chat_id)
+        ).all()
+        users = {}
+        uid = {m.user_id for m in members}
+        if uid:
+            for u in session.exec(select(User).where(User.id.in_(uid))).all():
+                users[u.id] = u
+        cands = [
+            cm for cm in members
+            if "can_handle_tasks" in _member_team_permissions(cm)
+            and _member_handles_kind(cm, kind, user=users.get(cm.user_id), session=session)
+        ]
+        if cands:
+            candidates_by_cat[cat.id] = cands
+
+    if not candidates_by_cat:
+        return 0
+
+    # round-robin «по очереди»: выбираем отдел и исполнителя
+    chosen = _random.choice(list(candidates_by_cat.items()))
+    category_id, cands = chosen
+    cat_row = session.get(RoleCategory, category_id)
+    ticket = TeamTicket(
+        category_id=category_id,
+        chat_id=cat_row.team_chat_id if cat_row else None,
+        title=title[:120],
+        description=description,
+        kind=kind if kind in TICKET_KINDS else "other",
+        created_by=actor.id,
+    )
+    session.add(ticket)
+    session.commit()
+    session.refresh(ticket)
+
+    assignee_member = pick_ticket_assignee(session, category_id, kind=ticket.kind)
+    if assignee_member:
+        assignee = session.get(User, assignee_member.user_id)
+        ticket.status = "assigned"
+        ticket.assigned_to = assignee.id
+        ticket.assigned_hierarchy = assignee_member.team_hierarchy
+        ticket.assigned_at = utcnow()
+        assignee_member.shift_taken = (assignee_member.shift_taken or 0) + 1
+        session.add(assignee_member)
+        session.add(ticket)
+        session.commit()
+        ticket_id = ticket.id
+        # 🤖 Бот прикрепляет заявку в чате отдела, тегая исполнителя
+        if cat_row and cat_row.team_chat_id:
+            _post_team_bot_message(session, cat_row.team_chat_id, actor, assignee, ticket)
+        return ticket_id
+    return ticket.id
+
+
+def _post_team_bot_message(session: Session, chat_id: int, actor: User, assignee: User, ticket: TeamTicket) -> None:
+    """Синхронно постит бот-сообщение о назначенной заявке в чат отдела."""
+    text = f"🤖 {TICKET_KINDS.get(ticket.kind, 'Заявка')} «{ticket.title}» → @{assignee.username}"
+    try:
+        session.add(Message(chat_id=chat_id, sender_id=actor.id, text=text))
+        session.commit()
+    except Exception:
+        session.rollback()
 
 
 # ============================================================
@@ -7144,6 +7325,10 @@ def assign_team_ticket(
 class CreateGroupIn(BaseModel):
     name: str
     user_ids: list[int]  # ID пользователей, которых добавляем (кроме себя)
+    # 🏢 Рабочий чат: системная папка «РАБОТА», не удаляется юзером
+    is_work: bool = False
+    # 🆕 Роли участников при создании: {"<user_id>": "admin" | "member"}
+    member_roles: dict[str, str] = {}
 
    
 
@@ -7176,16 +7361,20 @@ async def create_group_chat(
     if not valid_ids:
         raise HTTPException(400, "Нет валидных пользователей для добавления")
 
-    chat = Chat(is_group=True, name=data.name.strip(), owner_id=user.id)
+    chat = Chat(is_group=True, name=data.name.strip(), owner_id=user.id,
+                system_folder="work" if data.is_work else None)
     session.add(chat)
     session.commit()
     session.refresh(chat)
 
     # Создатель = owner
     session.add(ChatMember(chat_id=chat.id, user_id=user.id, role="owner"))
-    # Остальные = member
+    # Остальные = member (или роль из member_roles)
     for uid in valid_ids:
-        session.add(ChatMember(chat_id=chat.id, user_id=uid, role="member"))
+        role = (data.member_roles or {}).get(str(uid), "member")
+        if role not in ("member", "admin"):
+            role = "member"
+        session.add(ChatMember(chat_id=chat.id, user_id=uid, role=role))
         # Уведомление о добавлении в группу
         session.add(Notification(
             user_id=uid, actor_id=user.id,
@@ -11263,7 +11452,20 @@ def create_report(
     session.add(report)
     session.commit()
     session.refresh(report)
-    
+
+    # 🤖 Бот-диспетчер: новая жалоба автоматически прилетает в отдел,
+    # где есть ответственные (право manage_reports и/или can_handle_complaints),
+    # и назначается члену команды round-robin.
+    try:
+        dispatch_ticket_to_team(
+            session, "complaint",
+            f"Жалоба на {target_type} #{target_id}",
+            f"{reason}: {comment or '—'}",
+            user,
+        )
+    except Exception as e:
+        print(f"⚠️ dispatch complaint: {e}")
+
     return {"ok": True, "id": report.id}
 
 

@@ -10,7 +10,7 @@ import { CreateGroupModal } from "@/components/CreateGroupModal";
 import { CreateChannelModal } from "@/components/CreateChannelModal";
 import PublicChannelsModal from "@/components/PublicChannelsModal";
 import FolderManagerModal from "@/components/FolderManagerModal";
-import { MessageSquare, Search, Lock, Users, Bookmark, ShieldCheck, X, Plus, Megaphone, UserPlus, Globe, FolderPlus, CheckCheck, Archive } from "lucide-react";
+import { MessageSquare, Search, Lock, Users, Bookmark, ShieldCheck, X, Plus, Megaphone, UserPlus, Globe, FolderPlus, CheckCheck, Archive, Briefcase } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { socket } from "@/lib/websocket";
@@ -36,12 +36,14 @@ function SwipeableChatItem({
   onSwipeLeft,
   isPinned,
   onClick,
+  onLongPress,
 }: {
   children: React.ReactNode;
   onSwipeRight: () => void;
   onSwipeLeft: () => void;
   isPinned: boolean;
   onClick: () => void;
+  onLongPress?: (x: number, y: number) => void;
 }) {
   const { offset, direction, isSwiping, handlers } = useSwipe({
     threshold: 70,
@@ -54,6 +56,34 @@ function SwipeableChatItem({
   const swipeRef = useRef(false);
   if (isSwiping) swipeRef.current = true;
 
+  // 📱 Long-press (500мс) по чату → открыть меню (как три точки)
+  const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lpStart = useRef<{ x: number; y: number } | null>(null);
+  const lpFired = useRef(false);
+
+  const clearLp = () => {
+    if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
+    lpStart.current = null;
+  };
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (!onLongPress || e.pointerType !== "touch") return;
+    lpStart.current = { x: e.clientX, y: e.clientY };
+    lpFired.current = false;
+    clearLp();
+    lpTimer.current = setTimeout(() => {
+      lpTimer.current = null;
+      lpFired.current = true;
+      swipeRef.current = true; // подавляем клик после long-press
+      try { navigator.vibrate?.(15); } catch {}
+      onLongPress(e.clientX, e.clientY);
+    }, 500);
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!lpStart.current) return;
+    if (Math.abs(e.clientX - lpStart.current.x) > 10 || Math.abs(e.clientY - lpStart.current.y) > 10) clearLp();
+  };
+  const onPointerUp = () => clearLp();
+
   const showRightIcon = direction === "right" && offset > 25;
   const showLeftIcon = direction === "left" && offset < -25;
   const iconOpacity = Math.min(Math.abs(offset) / 60, 1);
@@ -63,6 +93,10 @@ function SwipeableChatItem({
       className="relative overflow-hidden select-none"
       style={{ touchAction: "pan-y" }}
       {...handlers}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
       onClick={() => {
         if (swipeRef.current) {
           swipeRef.current = false;
@@ -111,6 +145,7 @@ export default function MessagesPage() {
   const [query, setQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [showWorkChat, setShowWorkChat] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showPrismModal, setShowPrismModal] = useState(false);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
@@ -119,13 +154,18 @@ export default function MessagesPage() {
   const [showFolderManager, setShowFolderManager] = useState(false);
   // 🎫 WS-уведомление о назначенной заявке отдела
   const [ticketToast, setTicketToast] = useState<any | null>(null);
+  // 🔔 WS-уведомление о новой заявке на вступление в канал (для админов)
+  const [joinToast, setJoinToast] = useState<any | null>(null);
   // 🗄️ Архив чатов (как в Telegram): скрыт из списка, открывается жестом.
   // Серверная синхронизация: состояние хранится в БД (ChatMember.archived_at /
   // ChannelSubscriber.archived_at) и одинаково на всех устройствах.
   const [archivedKeys, setArchivedKeys] = useState<Set<string>>(new Set());
   const [archiveLoaded, setArchiveLoaded] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
+  // 🗄️ Карточка «Архив» скрыта по умолчанию; появляется после вытягивания списка вниз
+  const [archiveRevealed, setArchiveRevealed] = useState(false);
   const mainRef = useRef<HTMLElement | null>(null);
+  const lastArchiveGestureRef = useRef(0);
 
   const applyArchive = (chats: number[], channels: number[]) => {
     const next = new Set<string>();
@@ -200,6 +240,63 @@ export default function MessagesPage() {
     try { await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${channelId}/read`, { method: "POST", headers: { Authorization: `Bearer ${token}` } }); } catch { /* ignore */ }
     await load(); refresh();
   };
+
+  // 🗄️ Жест как в Telegram: карточка «Архив» скрыта по умолчанию.
+  // Вытянуть список вниз у верхнего края (телефон — свайп вниз,
+  // ПК — прокрутка колеса вверх, когда список у верха) → архив появляется.
+  // Прокрутили список вниз (scrollTop > 40) → архив снова скрывается.
+  useEffect(() => {
+    if (archivedKeys.size === 0) { setArchiveRevealed(false); return; }
+    const el = mainRef.current;
+    if (!el) return;
+    const THRESHOLD = 80;
+    let touchStartY = 0;
+    let pullAccum = 0;
+    // grace-окно после показа: скролл-события от самого жеста не прячут архив
+    let revealedAt = 0;
+    const reveal = () => {
+      const now = Date.now();
+      if (now - lastArchiveGestureRef.current < 1200) return;
+      lastArchiveGestureRef.current = now;
+      revealedAt = now;
+      setArchiveRevealed(true);
+    };
+    const hide = () => {
+      // прячем только если после показа прошло время (не тот же жест)
+      if (Date.now() - revealedAt < 800) return;
+      setArchiveRevealed(false);
+    };
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollTop <= 0 && e.deltaY < 0) reveal();
+    };
+    const onScroll = () => {
+      if (el.scrollTop > 40) hide();
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      touchStartY = e.touches[0].clientY;
+      pullAccum = 0;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (el.scrollTop > 0) { pullAccum = 0; return; }
+      const dy = e.touches[0].clientY - touchStartY;
+      pullAccum = dy > 0 ? dy : 0;
+      if (pullAccum >= THRESHOLD) {
+        pullAccum = 0; touchStartY = e.touches[0].clientY;
+        reveal();
+      }
+    };
+    el.addEventListener("wheel", onWheel, { passive: true });
+    el.addEventListener("scroll", onScroll, { passive: true });
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: true });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("scroll", onScroll);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [archivedKeys.size, archiveLoaded]);
 
   const [prismSearchQuery, setPrismSearchQuery] = useState("");
   const [prismSearchResults, setPrismSearchResults] = useState<any[]>([]);
@@ -429,6 +526,19 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     return s;
   }
 
+  // 📱 Открыть меню чата в координатах long-press / трёх точек
+  function openChatMenuAt(chatId: number, x?: number, y?: number) {
+    setActiveChatMenu((prev) => (prev === chatId ? null : chatId));
+    if (x !== undefined && y !== undefined) {
+      setMenuPosition({
+        top: Math.min(y + 12, window.innerHeight - 260),
+        right: Math.max(12, window.innerWidth - x - 40),
+      });
+    } else {
+      setMenuPosition(null);
+    }
+  }
+
   async function togglePinChat(chatId: number, currentlyPinned: boolean) {
     setPinningChat(chatId);
     try {
@@ -520,6 +630,12 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       window.setTimeout(() => setTicketToast(null), 10000);
     });
 
+    // 🔔 Заявка на вступление в приватный канал (админам канала)
+    const unsubJoinReq = socket.on("channel_invite_request", (payload: any) => {
+      setJoinToast(payload || {});
+      window.setTimeout(() => setJoinToast(null), 10000);
+    });
+
     return () => {
       unsubNewMsg();
       unsubRead();
@@ -533,6 +649,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       unsubChannelDeleted();
       unsubChannelJoined();
       unsubTicket();
+      unsubJoinReq();
     };
   }, []);
 
@@ -796,8 +913,10 @@ const confirmPrismKey = async () => {
         )}
 
         {/* 🗄️ Карточка «Архив» — как отдельный чат в списке (как в Telegram).
-            Видна, только если архив не пуст; свайп вправо — разархивировать всё. */}
-        {!loading && !q && archiveLoaded && archivedKeys.size > 0 && (
+            Скрыта по умолчанию; появляется после вытягивания списка вниз.
+            Свайп вправо по карточке — разархивировать всё. */}
+        {!loading && !q && archiveLoaded && archiveRevealed && archivedKeys.size > 0 && activeFolder === "all" && (
+          <div className="animate-in fade-in slide-in-from-top-3 duration-300">
           <SwipeableChatItem
             isPinned={false}
             onClick={() => setShowArchive(true)}
@@ -824,6 +943,7 @@ const confirmPrismKey = async () => {
               </div>
             </div>
           </SwipeableChatItem>
+          </div>
         )}
 
         {!loading && displayChats.map((item: any) => {
@@ -840,6 +960,7 @@ const confirmPrismKey = async () => {
                   if (chat.my_role === "owner") deleteChannelFromList(chat.id);
                   else leaveChannel(chat.id);
                 }}
+                onLongPress={(x, y) => openChatMenuAt(chat.id, x, y)}
               >
                 <div className={`flex items-center gap-3 p-3 md:p-4 border-b transition-all duration-200 cursor-pointer ${chat.muted ? "opacity-60" : ""} border-b-white/10 border-l-4 border-l-[#8b5cf6]/40 hover:bg-gray-100 dark:hover:bg-white/5 ${chat.unread_count > 0 && !chat.muted ? "bg-purple-500/10" : ""}`}>
                   <div className="shrink-0">
@@ -893,7 +1014,11 @@ const confirmPrismKey = async () => {
                           });
                         }
                       }}
-                      className="p-1.5 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        activeChatMenu === chat.id
+                          ? "text-[#8b5cf6] bg-[#8b5cf6]/15"
+                          : "text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10"
+                      }`}
                     >
                       <MoreVertical size={16} />
                     </button>
@@ -930,6 +1055,7 @@ const confirmPrismKey = async () => {
                 const name = isGroup ? chat.name : otherUser?.display_name || t("common.chat");
                 deleteChat(chat.id, name);
               }}
+              onLongPress={(x, y) => openChatMenuAt(chat.id, x, y)}
             >
               <div className={`flex items-center gap-3 p-3 md:p-4 border-b transition-all duration-200 cursor-pointer ${
                 chat.muted ? "opacity-60" : ""
@@ -1067,7 +1193,11 @@ const confirmPrismKey = async () => {
                         });
                       }
                     }}
-                    className="p-1.5 text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                    className={`p-1.5 rounded-lg transition-colors ${
+                      activeChatMenu === chat.id
+                        ? "text-[#8b5cf6] bg-[#8b5cf6]/15"
+                        : "text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10"
+                    }`}
                   >
                     {pinningChat === chat.id ? (
                       <div className="w-4 h-4 border-2 border-gray-300 dark:border-white/40 border-t-white rounded-full animate-spin" />
@@ -1082,7 +1212,9 @@ const confirmPrismKey = async () => {
         })}
       </main>
 
-      {/* КНОПКИ "+" и "Все каналы" - вынесены за пределы main, fixed */}
+      {/* КНОПКИ "+" и "Все каналы" - вынесены за пределы main, fixed.
+          🗄️ Когда открыт архив — скрываем их, чтобы не перекрывали кнопку «Убрать всё из архива» */}
+      {!showArchive && (
       <div className="fixed top-4 right-4 md:top-6 md:right-6 z-[100] flex items-center gap-2">
         <button
           onClick={() => setShowPublicChannels(true)}
@@ -1113,6 +1245,12 @@ const confirmPrismKey = async () => {
               <Users size={16} className="text-[#8b5cf6]" /> {t("messages.createGroup")}
             </button>
             <button
+              onClick={() => { setShowCreateMenu(false); setShowWorkChat(true); }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border-t border-line dark:border-white/5"
+            >
+              <Briefcase size={16} className="text-[#8b5cf6]" /> Рабочий чат
+            </button>
+            <button
               onClick={() => { setShowCreateMenu(false); setShowCreateChannel(true); }}
               className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border-t border-line dark:border-white/5"
             >
@@ -1121,6 +1259,7 @@ const confirmPrismKey = async () => {
           </div>
         )}
       </div>
+      )}
 
       {/* МЕНЮ ЧАТА */}
       {activeChatMenu !== null && (() => {
@@ -1283,6 +1422,19 @@ const confirmPrismKey = async () => {
           onClose={() => setShowCreateGroup(false)}
           onCreated={(chatId) => {
             setShowCreateGroup(false);
+            router.push(`/messages/${chatId}`);
+          }}
+        />
+      )}
+
+      {/* 🏢 МОДАЛКА СОЗДАНИЯ РАБОЧЕГО ЧАТА — сразу с выбором участников и их ролей */}
+      {showWorkChat && (
+        <CreateGroupModal
+          mode="work"
+          onClose={() => setShowWorkChat(false)}
+          onCreated={(chatId) => {
+            setShowWorkChat(false);
+            load();
             router.push(`/messages/${chatId}`);
           }}
         />
@@ -1503,6 +1655,20 @@ const confirmPrismKey = async () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* 🔔 WS-тост: заявка на вступление в канал */}
+      {joinToast && (
+        <button
+          onClick={() => { const cid = joinToast.channel_id; setJoinToast(null); if (cid) router.push(`/channels/${cid}`); }}
+          className="fixed bottom-24 right-6 z-[60] max-w-sm text-left rounded-2xl border border-[#8b5cf6]/50 bg-white dark:bg-[#1f1f23] shadow-2xl p-4 hover:border-[#8b5cf6] transition-colors"
+        >
+          <p className="text-sm font-black text-[#8b5cf6] mb-1">🔔 Новая заявка на вступление</p>
+          <p className="text-sm text-gray-900 dark:text-white font-bold truncate">
+            @{joinToast.user?.username} — {joinToast.user?.display_name}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-white/40 mt-1">нажмите, чтобы открыть канал и рассмотреть</p>
+        </button>
       )}
 
       {/* 🎫 WS-тост: вам назначена заявка отдела (Этап 7) */}
