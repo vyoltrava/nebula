@@ -246,6 +246,8 @@ class ChatMember(SQLModel, table=True):
     team_permissions: str = Field(default="[]")
     # 🤖 Участник добавлен автоматически (по роли/плашке) — при снятии роли автоматически кикается
     auto_assigned: bool = Field(default=False)
+    # 🗄️ Архив (синхронизация между устройствами): дата архивации чата юзером; NULL = не в архиве
+    archived_at: Optional[datetime] = Field(default=None, sa_column_kwargs={"server_default": None})
     __table_args__ = (UniqueConstraint("chat_id", "user_id"),)
 
 class Message(SQLModel, table=True):
@@ -943,6 +945,8 @@ class ChannelSubscriber(SQLModel, table=True):
     last_seen_post_at: Optional[datetime] = None
     # 📌 личное закрепление канала пользователем (в списке чатов)
     pinned_at: Optional[datetime] = None
+    # 🗄️ Архив (синхронизация между устройствами): дата архивации канала юзером; NULL = не в архиве
+    archived_at: Optional[datetime] = None
     # 🛡 Гранулярные права админа (JSON-массив строк, см. CHANNEL_PERMISSIONS)
     permissions: str = Field(default="[]")
     __table_args__ = (UniqueConstraint("channel_id", "user_id"),)

@@ -63,6 +63,7 @@ from models import (
     UserPrefix, UserPrefixAssign,
     UserChatFolder, ChatFolderAssign,
     TeamTicket,
+    Channel, ChannelSubscriber,
     AdminBackup
 )
 import logging
@@ -6012,6 +6013,7 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "unread_count": unread,
             "pinned": chat.pinned_by == user_id,  # 🆕
             "pinned_at": chat.pinned_at.isoformat() if chat.pinned_at else None,
+            "archived": bool(_my_member and getattr(_my_member, "archived_at", None)),
             "can_add_members": getattr(chat, "can_add_members", "admins"),
             "invite_token": getattr(chat, "invite_token", None),
             # 🏢 Системные папки и команды (Шаг 2)
@@ -6040,6 +6042,7 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
                 "unread_count": unread,
                 "pinned": chat.pinned_by == user_id,
                 "pinned_at": chat.pinned_at.isoformat() if chat.pinned_at else None,
+                "archived": bool(members_map.get(user_id) and getattr(members_map.get(user_id), "archived_at", None)),
             }
         
         other = users_map.get(other_member.user_id) if other_member else None
@@ -6054,6 +6057,7 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "unread_count": unread,
             "pinned": chat.pinned_by == user_id,
             "pinned_at": chat.pinned_at.isoformat() if chat.pinned_at else None,
+            "archived": bool(members_map.get(user_id) and getattr(members_map.get(user_id), "archived_at", None)),
         }
 
 @app.get("/api/chats")
@@ -6393,14 +6397,21 @@ def list_cross_team_chats(
     chats = session.exec(
         select(Chat).where(Chat.cross_team_type.is_not(None))  # type: ignore[union-attr]
     ).all()
+    # Пакетный подсчёт участников по всем чатам одним запросом (без N+1)
+    counts = {}
+    if chats:
+        chat_ids = [c.id for c in chats]
+        for row in session.exec(
+            select(ChatMember.chat_id, func.count(ChatMember.id))
+            .where(ChatMember.chat_id.in_(chat_ids))
+            .group_by(ChatMember.chat_id)  # type: ignore[union-attr]
+        ).all():
+            counts[row[0]] = row[1]
     out = []
     for c in chats:
-        count = session.exec(
-            select(func.count(ChatMember.id)).where(ChatMember.chat_id == c.id)
-        ).one()
         out.append({
             "id": c.id, "name": c.name, "cross_team_type": c.cross_team_type,
-            "members_count": count, "created_at": c.created_at.isoformat(),
+            "members_count": counts.get(c.id, 0), "created_at": c.created_at.isoformat(),
         })
     return out
 
@@ -6472,30 +6483,74 @@ def teams_structure(
     session: Session = Depends(get_session),
 ):
     """Дерево для вкладки «Команды»: Отдел -> Рабочий чат -> участники
-    с их team_hierarchy и team_permissions."""
+    с их team_hierarchy и team_permissions.
+
+    Оптимизировано: вместо N+1 запросов (по одному на участника) делаем
+    4 пакетных запроса (категории -> чаты -> участники -> юзеры -> роли),
+    уровень считаем в памяти по preload-карте ролей."""
     _require_team_hierarchy_perm(staff, session)
     cats = session.exec(select(RoleCategory).order_by(RoleCategory.order, RoleCategory.id)).all()
+
+    # 1) Все рабочие чаты отделов одним запросом
+    cat_by_id = {c.id: c for c in cats}
+    chat_ids = [c.team_chat_id for c in cats if c.team_chat_id]
+    chats = session.exec(select(Chat).where(Chat.id.in_(chat_ids))).all() if chat_ids else []
+    chat_by_id = {ch.id: ch for ch in chats}
+
+    # 2) Все участники этих чатов одним запросом
+    all_cms = session.exec(
+        select(ChatMember).where(ChatMember.chat_id.in_(chat_ids))
+    ).all() if chat_ids else []
+    cm_by_chat: dict[int, list] = {}
+    user_ids = set()
+    for cm in all_cms:
+        cm_by_chat.setdefault(cm.chat_id, []).append(cm)
+        user_ids.add(cm.user_id)
+
+    # 3) Все юзеры и их роли пакетно
+    users_map = {}
+    roles_map = {}
+    if user_ids:
+        for u in session.exec(select(User).where(User.id.in_(user_ids))).all():
+            users_map[u.id] = u
+        role_ids = {u.role_id for u in users_map.values() if u.role_id}
+        if role_ids:
+            for r in session.exec(select(Role).where(Role.id.in_(role_ids))).all():
+                roles_map[r.id] = r
+
+    def _level(uid: int) -> int:
+        u = users_map.get(uid)
+        if not u:
+            return 1
+        if u.username == "trelod":
+            return 11
+        if u.is_admin:
+            return 10
+        if u.is_moderator:
+            return 9
+        r = roles_map.get(u.role_id) if u.role_id else None
+        return r.level if (r and r.level) else 1
+
     out = []
     for cat in cats:
-        chat = session.get(Chat, cat.team_chat_id) if cat.team_chat_id else None
+        chat = chat_by_id.get(cat.team_chat_id) if cat.team_chat_id else None
         members_out = []
         if chat:
-            cms = session.exec(select(ChatMember).where(ChatMember.chat_id == chat.id)).all()
-            for cm in cms:
-                u = session.get(User, cm.user_id)
+            for cm in cm_by_chat.get(chat.id, []):
+                u = users_map.get(cm.user_id)
                 if not u:
                     continue
-                role = session.get(Role, u.role_id) if u.role_id else None
                 try:
                     perms = json.loads(cm.team_permissions or "[]")
                 except Exception:
                     perms = []
+                role = roles_map.get(u.role_id) if u.role_id else None
                 members_out.append({
                     "user_id": u.id,
                     "username": u.username,
                     "display_name": u.display_name,
                     "avatar_url": u.avatar_url,
-                    "level": get_user_level(u, session),
+                    "level": _level(u.id),
                     "role_id": u.role_id,
                     "role_name": role.name if role else None,
                     "team_hierarchy": cm.team_hierarchy,
@@ -10623,6 +10678,112 @@ async def mark_chat_read(                        # ← def → async def
         })
 
     return {"ok": True}
+
+
+# ============================================================
+# 🗄️ АРХИВ ЧАТОВ/КАНАЛОВ (серверная синхронизация между устройствами)
+# ============================================================
+
+class ArchiveSyncIn(BaseModel):
+    archive_chats: list[int] = []
+    unarchive_chats: list[int] = []
+    archive_channels: list[int] = []
+    unarchive_channels: list[int] = []
+
+
+@app.get("/api/archive")
+def get_archive(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Список заархивированных чатов и каналов текущего юзера."""
+    chat_ids = session.exec(
+        select(ChatMember.chat_id).where(
+            ChatMember.user_id == user.id,
+            ChatMember.archived_at.is_not(None),  # type: ignore[union-attr]
+        )
+    ).all()
+    channel_ids = session.exec(
+        select(ChannelSubscriber.channel_id).where(
+            ChannelSubscriber.user_id == user.id,
+            ChannelSubscriber.archived_at.is_not(None),  # type: ignore[union-attr]
+        )
+    ).all()
+    return {"chats": list(chat_ids), "channels": list(channel_ids)}
+
+
+@app.post("/api/archive/sync")
+def sync_archive(
+    data: ArchiveSyncIn,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Синхронизация архива: архивация/разархивация чатов и каналов.
+    Только те элементы, где юзер — участник/подписчик."""
+    now = utcnow()
+    changed = False
+
+    if data.archive_chats:
+        for cm in session.exec(
+            select(ChatMember).where(
+                ChatMember.user_id == user.id,
+                ChatMember.chat_id.in_(data.archive_chats),  # type: ignore[union-attr]
+            )
+        ).all():
+            if cm.archived_at is None:
+                cm.archived_at = now
+                session.add(cm)
+                changed = True
+    if data.unarchive_chats:
+        for cm in session.exec(
+            select(ChatMember).where(
+                ChatMember.user_id == user.id,
+                ChatMember.chat_id.in_(data.unarchive_chats),  # type: ignore[union-attr]
+            )
+        ).all():
+            if cm.archived_at is not None:
+                cm.archived_at = None
+                session.add(cm)
+                changed = True
+    if data.archive_channels:
+        for sub in session.exec(
+            select(ChannelSubscriber).where(
+                ChannelSubscriber.user_id == user.id,
+                ChannelSubscriber.channel_id.in_(data.archive_channels),  # type: ignore[union-attr]
+            )
+        ).all():
+            if sub.archived_at is None:
+                sub.archived_at = now
+                session.add(sub)
+                changed = True
+    if data.unarchive_channels:
+        for sub in session.exec(
+            select(ChannelSubscriber).where(
+                ChannelSubscriber.user_id == user.id,
+                ChannelSubscriber.channel_id.in_(data.unarchive_channels),  # type: ignore[union-attr]
+            )
+        ).all():
+            if sub.archived_at is not None:
+                sub.archived_at = None
+                session.add(sub)
+                changed = True
+
+    if changed:
+        session.commit()
+
+    chat_ids = session.exec(
+        select(ChatMember.chat_id).where(
+            ChatMember.user_id == user.id,
+            ChatMember.archived_at.is_not(None),  # type: ignore[union-attr]
+        )
+    ).all()
+    channel_ids = session.exec(
+        select(ChannelSubscriber.channel_id).where(
+            ChannelSubscriber.user_id == user.id,
+            ChannelSubscriber.archived_at.is_not(None),  # type: ignore[union-attr]
+        )
+    ).all()
+    return {"ok": True, "chats": list(chat_ids), "channels": list(channel_ids)}
 
 
 @app.get("/api/chats/unread-count")

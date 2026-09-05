@@ -146,6 +146,7 @@ def channel_out(channel: Channel, session: Session, viewer: Optional[User] = Non
     muted = False
     unread = 0
     pinned = False
+    archived = False
     my_permissions = []
     if viewer:
         sub = get_subscription(session, channel.id, viewer.id)
@@ -153,6 +154,7 @@ def channel_out(channel: Channel, session: Session, viewer: Optional[User] = Non
             my_role = sub.role
             muted = sub.muted_until is not None and sub.muted_until > utcnow()
             pinned = sub.pinned_at is not None
+            archived = sub.archived_at is not None
             try:
                 my_permissions = json.loads(sub.permissions or "[]") or []
             except Exception:
@@ -198,6 +200,7 @@ def channel_out(channel: Channel, session: Session, viewer: Optional[User] = Non
         "my_permissions": my_permissions,
         "is_muted": muted,
         "pinned": pinned,
+        "archived": archived,
         "unread_count": unread,
         "is_channel": True,
         "badge": channel_badge_out(session, channel.id),
@@ -683,6 +686,23 @@ async def mute_channel(
     session.add(sub)
     session.commit()
     return {"ok": True, "is_muted": sub.muted_until is not None and sub.muted_until > utcnow()}
+
+
+@router.post("/channels/{channel_id}/read")
+async def mark_channel_read(
+    channel_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Отметить все посты канала прочитанными (для бейджа непрочитанного)."""
+    ch = get_channel_or_404(session, channel_id)
+    sub = get_subscription(session, ch.id, user.id)
+    if not sub:
+        raise HTTPException(403, "Вы не подписаны на канал")
+    sub.last_seen_post_at = utcnow()
+    session.add(sub)
+    session.commit()
+    return {"ok": True}
 
 
 @router.patch("/channels/{channel_id}/subscribers/{user_id}")

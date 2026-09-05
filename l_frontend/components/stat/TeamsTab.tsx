@@ -53,10 +53,17 @@ export default function TeamsTab() {
         setLoading(false);
         return;
       }
-      if (sRes.ok) setData(await sRes.json());
+      if (!sRes.ok) {
+        const d = await sRes.json().catch(() => ({}));
+        setError(d?.detail || `Ошибка загрузки команд (${sRes.status})`);
+        setLoading(false);
+        return;
+      }
+      setData(await sRes.json());
       if (cRes.ok) setCrossChats(await cRes.json());
+      setError(null);
     } catch {
-      setError("Ошибка сети");
+      setError("Ошибка сети. Попробуйте ещё раз.");
     }
     setLoading(false);
   }, []);
@@ -183,7 +190,13 @@ export default function TeamsTab() {
     return (
       <div className="text-center py-16 border border-line dark:border-white/10 rounded-2xl bg-gray-100 dark:bg-white/5">
         <Shield size={48} className="mx-auto text-gray-500 dark:text-white/20 mb-4" />
-        <p className="text-gray-600 dark:text-white/50">{error}</p>
+        <p className="text-gray-600 dark:text-white/50 mb-4">{error}</p>
+        <button
+          onClick={() => { setLoading(true); setError(null); load(); }}
+          className="px-4 py-2 rounded-xl bg-purple-500 text-white text-sm font-bold hover:bg-purple-600 transition-colors"
+        >
+          Повторить
+        </button>
       </div>
     );
   }
