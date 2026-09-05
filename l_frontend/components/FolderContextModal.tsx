@@ -10,20 +10,26 @@
 import { useCallback, useEffect, useState } from "react";
 import { X, Save, Trash2 } from "lucide-react";
 import { getToken } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n/LanguageProvider";
 
 export default function FolderContextModal({
   folderId,
   open,
+  folderInitial,
   onClose,
   onChanged,
 }: {
   folderId: number | null;
   open: boolean;
+  /** 📦 Данные папки из уже загруженного списка (мгновенный рендер без запросов) */
+  folderInitial?: any;
   onClose: () => void;
   onChanged?: () => void;
 }) {
+  const { t } = useI18n();
   const [folder, setFolder] = useState<any>(null);
   const [chats, setChats] = useState<any[]>([]);
+  const [chatsLoading, setChatsLoading] = useState(false);
   const [newName, setNewName] = useState("");
   const [newIcon, setNewIcon] = useState("");
   const [busy, setBusy] = useState(false);
@@ -40,24 +46,34 @@ export default function FolderContextModal({
     });
   }, []);
 
-  const load = useCallback(async () => {
+  // ⚡ Мгновенное открытие: инициализируемся из props, сеть — только в фоне
+  const refresh = useCallback(async () => {
     if (folderId == null) return;
-    const [fRes, cRes] = await Promise.all([api("/api/chats/folders"), api("/api/chats")]);
-    const fData = fRes.ok ? await fRes.json() : { folders: [], work_folder: null };
-    const f = (fData.folders || []).find((x: any) => x.id === folderId);
-    // 🚫 Рабочие чаты (системная папка РАБОТА) в списке не показываем
-    const work = new Set<number>((fData.work_folder?.chat_ids || []).map(Number));
-    setFolder(f || null);
-    setNewName(f?.name || "");
-    setNewIcon(f?.icon || "");
-    const cData = cRes.ok ? await cRes.json() : [];
-    setChats(Array.isArray(cData) ? cData.filter((c: any) => !work.has(Number(c.id))) : []);
+    try {
+      const [fRes, cRes] = await Promise.all([api("/api/chats/folders"), api("/api/chats")]);
+      const fData = fRes.ok ? await fRes.json() : { folders: [], work_folder: null };
+      const f = (fData.folders || []).find((x: any) => x.id === folderId) || folderInitial || null;
+      // 🚫 Рабочие чаты (системная папка РАБОТА) в списке не показываем
+      const work = new Set<number>((fData.work_folder?.chat_ids || []).map(Number));
+      setFolder(f);
+      setNewName(f?.name || "");
+      setNewIcon(f?.icon || "");
+      const cData = cRes.ok ? await cRes.json() : [];
+      setChats(Array.isArray(cData) ? cData.filter((c: any) => !work.has(Number(c.id))) : []);
+    } catch { /* ignore */ }
+    setChatsLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [folderId, api]);
 
   useEffect(() => {
-    if (open && folderId != null) load();
-  }, [open, folderId, load]);
+    if (!open || folderId == null) return;
+    setFolder(folderInitial || null);
+    setNewName(folderInitial?.name || "");
+    setNewIcon(folderInitial?.icon || "");
+    setChatsLoading(true);
+    refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, folderId, api]);
 
   const chatName = (c: any) => (c?.name || c?.other?.display_name || `Чат #${c.id}`);
 
@@ -70,7 +86,8 @@ export default function FolderContextModal({
       .catch(() => {});
   }, [iconPickerOpen, emojiPacks.length]);
 
-  if (!open || folderId == null || !folder) return null;
+  if (!open || folderId == null) return null;
+  if (!folder) return null;
 
   const folderChatIds = new Set<number>((folder.chat_ids || []).map(Number));
   const available = chats.filter((c) => !folderChatIds.has(Number(c.id)));
@@ -89,7 +106,7 @@ export default function FolderContextModal({
       const e = await res.json().catch(() => ({}));
       alert(e.detail || "Ошибка сохранения");
     }
-    await load();
+    await refresh();
   }
 
   async function addChat(chatId: number) {
@@ -101,18 +118,18 @@ export default function FolderContextModal({
     });
     setBusy(false);
     if (!res.ok) { const e = await res.json().catch(() => ({})); alert(e.detail || "Не удалось добавить чат"); }
-    await load(); onChanged?.();
+    await refresh(); onChanged?.();
   }
 
   async function removeChat(chatId: number) {
     setBusy(true);
     await api(`/api/chats/folders/${folderId}/chats/${chatId}`, { method: "DELETE" });
     setBusy(false);
-    await load(); onChanged?.();
+    await refresh(); onChanged?.();
   }
 
   async function deleteFolder() {
-    if (!confirm(`Удалить папку «${folder.name}»? Чаты останутся, но выйдут из неё.`)) return;
+    if (!confirm(t("messages.folderDeleteConfirm", { name: folder.name }))) return;
     setBusy(true);
     await api(`/api/chats/folders/${folderId}`, { method: "DELETE" });
     setBusy(false);
@@ -137,13 +154,13 @@ export default function FolderContextModal({
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {/* Имя + значок */}
             <div className="space-y-2">
-              <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-white/40">Название и значок</label>
+              <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-white/40">{t("messages.folderRename")}</label>
               <div className="flex gap-2 items-center">
                 <button
                   type="button"
                   onClick={() => setIconPickerOpen(!iconPickerOpen)}
                   className="w-12 h-10 text-xl rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 hover:border-[#8b5cf6] transition-colors"
-                  title="Сменить значок"
+                  title={t("messages.folderIcon")}
                 >
                   {newIcon || "📁"}
                 </button>
@@ -151,7 +168,7 @@ export default function FolderContextModal({
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && saveChanges()}
-                  placeholder="Название папки"
+                  placeholder={t("messages.folderNamePlaceholder")}
                   className="flex-1 px-3 py-2 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-[#8b5cf6]"
                 />
                 <button onClick={saveChanges} disabled={busy || !newName.trim()} className="px-3 py-2 rounded-xl bg-purple-500 text-white text-sm font-bold hover:bg-purple-600 disabled:opacity-50 flex items-center gap-1">
@@ -165,7 +182,7 @@ export default function FolderContextModal({
                   <input
                     value={newIcon}
                     onChange={(e) => setNewIcon(e.target.value)}
-                    placeholder="Или вставь любой смайл…"
+                    placeholder={t("messages.folderOrPaste")}
                     className="w-full px-2 py-1.5 rounded-lg border border-line dark:border-white/15 bg-white dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-[#8b5cf6]"
                   />
                   {emojiPacks.length > 1 && (
@@ -191,13 +208,20 @@ export default function FolderContextModal({
                 Чаты в папке · {folderChatIds.size}
               </label>
               <div className="max-h-40 overflow-y-auto rounded-xl border border-line dark:border-white/10 bg-gray-50 dark:bg-white/5 p-2 space-y-1">
-                {folderChatIds.size === 0 && <p className="text-xs text-gray-500 dark:text-white/40 px-1 py-2">В папке пока нет чатов</p>}
+                {folderChatIds.size === 0 && !chatsLoading && <p className="text-xs text-gray-500 dark:text-white/40 px-1 py-2">{t("messages.folderEmpty")}</p>}
+                {chatsLoading && (
+                  <div className="space-y-1 px-1 py-1">
+                    {[0, 1, 2].map((i) => (
+                      <div key={i} className="h-7 rounded-lg bg-gray-200/70 dark:bg-white/5 animate-pulse" />
+                    ))}
+                  </div>
+                )}
                 {folder.chat_ids.map((cid: number) => {
                   const c = chats.find((x: any) => Number(x.id) === Number(cid));
                   return (
                     <div key={cid} className="flex items-center gap-2 text-xs text-gray-900 dark:text-white/80 rounded-lg px-2 py-1.5 bg-white dark:bg-white/5">
                       <span className="flex-1 truncate">{c ? chatName(c) : `Чат #${cid}`}</span>
-                      <button onClick={() => removeChat(Number(cid))} className="text-red-500 hover:text-red-600" title="Убрать из папки"><X size={12} /></button>
+                      <button onClick={() => removeChat(Number(cid))} className="text-red-500 hover:text-red-600" title={t("messages.folderRemoveChat")}><X size={12} /></button>
                     </div>
                   );
                 })}
@@ -205,9 +229,16 @@ export default function FolderContextModal({
 
               {/* Добавить чат */}
               <div className="space-y-1">
-                <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-white/40">Добавить чаты</label>
-                {available.length === 0 && <p className="text-xs text-gray-500 dark:text-white/40 px-1">Нет доступных чатов</p>}
+                <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-white/40">{t("messages.folderAddChats")}</label>
+                {available.length === 0 && <p className="text-xs text-gray-500 dark:text-white/40 px-1">{t("messages.folderNoChats")}</p>}
                 <div className="max-h-40 overflow-y-auto rounded-xl border border-line dark:border-white/10 bg-gray-50 dark:bg-white/5 p-1.5 space-y-1">
+                  {chatsLoading && (
+                    <div className="space-y-1 px-1 py-1">
+                      {[0, 1, 2].map((i) => (
+                        <div key={i} className="h-7 rounded-lg bg-gray-200/70 dark:bg-white/5 animate-pulse" />
+                      ))}
+                    </div>
+                  )}
                   {available.map((c: any) => (
                     <button key={c.id} onClick={() => addChat(Number(c.id))}
                       className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer text-xs hover:bg-[#8b5cf6]/10 text-gray-900 dark:text-white/80 text-left">
@@ -223,7 +254,7 @@ export default function FolderContextModal({
             <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-3">
               <button onClick={deleteFolder} disabled={busy}
                 className="w-full px-3 py-2.5 rounded-xl text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2.5 transition-colors disabled:opacity-50">
-                <Trash2 size={16} /> Удалить папку
+                <Trash2 size={16} /> {t("messages.folderDelete")}
               </button>
             </div>
           </div>

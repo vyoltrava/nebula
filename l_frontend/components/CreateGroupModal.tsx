@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { X, Search, Users, Check } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { Button, IconButton } from "@/components/ui/Button";
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) {
+  const { t } = useI18n();
   const isWork = mode === "work";
   const [name, setName] = useState("");
   const [query, setQuery] = useState("");
@@ -103,7 +105,7 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
           <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <Users className="text-[#8b5cf6]" size={20} />
-              <h2 className="text-lg font-black text-gray-900 dark:text-white">{isWork ? "Новый рабочий чат" : "Новая группа"}</h2>
+              <h2 className="text-lg font-black text-gray-900 dark:text-white">{isWork ? t("messages.newWorkChat") : t("messages.createGroup")}</h2>
             </div>
             <IconButton icon={X} size="iconSm" onClick={onClose} />
           </div>
@@ -147,9 +149,9 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
                     <button
                       onClick={() => cycleRole(u.id)}
                       className="font-black px-1 rounded-full bg-[#8b5cf6]/25"
-                      title="Сменить роль"
+                      title={t("messages.workRoleSet")}
                     >
-                      {roles[u.id] === "admin" ? "🛡" : "👤"}
+                      {roles[u.id] === "admin" ? t("messages.workAdminRole") : t("messages.workMemberRole")}
                     </button>
                   )}
                   <button onClick={() => toggle(u.id)} className="hover:text-gray-900 dark:hover:text-white">
@@ -202,7 +204,7 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
                           : "border-[#8b5cf6]/40 text-[#8b5cf6]"
                       }`}
                     >
-                      {roles[u.id] === "admin" ? "🛡 Админ" : "👤 Участник"}
+                      {roles[u.id] === "admin" ? t("messages.workAdminRole") : t("messages.workMemberRole")}
                     </button>
                   )}
                 </div>
@@ -224,7 +226,7 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
               disabled={loading || !name.trim() || selected.size === 0}
               className="w-full"
             >
-              {loading ? "Создание..." : isWork ? "Создать рабочий чат" : "Создать группу"}
+              {loading ? t("common.sending") : isWork ? t("messages.createWorkChat") : t("messages.createGroup")}
             </Button>
           </div>
         </div>

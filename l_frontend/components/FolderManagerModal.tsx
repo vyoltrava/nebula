@@ -8,8 +8,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { X, Plus, Trash2, Pencil, FolderPlus } from "lucide-react";
 import { getToken } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n/LanguageProvider";
 
 export default function FolderManagerModal({ open, onClose, onChanged }: { open: boolean; onClose: () => void; onChanged?: () => void }) {
+  const { t } = useI18n();
   const [folders, setFolders] = useState<any[]>([]);
   const [chats, setChats] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -156,7 +158,7 @@ export default function FolderManagerModal({ open, onClose, onChanged }: { open:
             type="button"
             onClick={() => setIconPickerOpen(!iconPickerOpen)}
             className="w-12 h-10 text-xl rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 hover:border-[#8b5cf6] transition-colors"
-            title="Выбрать эмодзи-иконку"
+            title={t("messages.folderIcon")}
           >
             {newIcon || "📁"}
           </button>
@@ -164,7 +166,7 @@ export default function FolderManagerModal({ open, onClose, onChanged }: { open:
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && createFolder()}
-            placeholder="Новая папка (например, Игры)"
+            placeholder={t("messages.folderNew")}
             className="flex-1 px-3 py-2 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-[#8b5cf6]"
           />
           <button onClick={createFolder} disabled={busy || !newName.trim()} className="px-3 py-2 rounded-xl bg-purple-500 text-white text-sm font-bold hover:bg-purple-600 disabled:opacity-50">
@@ -179,7 +181,7 @@ export default function FolderManagerModal({ open, onClose, onChanged }: { open:
               <input
                 value={newIcon}
                 onChange={(e) => setNewIcon(e.target.value)}
-                placeholder="Или вставь любой смайл…"
+                placeholder={t("messages.folderOrPaste")}
                 className="flex-1 px-2 py-1.5 rounded-lg border border-line dark:border-white/15 bg-white dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-[#8b5cf6]"
               />
               <button onClick={() => setIconPickerOpen(false)} className="p-1.5 text-gray-500 hover:text-gray-900 dark:hover:text-white rounded-lg"><X size={14} /></button>
@@ -230,12 +232,12 @@ export default function FolderManagerModal({ open, onClose, onChanged }: { open:
             onClick={() => setShowNewChats(!showNewChats)}
             className="w-full flex items-center justify-between px-3 py-2 text-xs font-bold text-gray-700 dark:text-white/70"
           >
-            <span>Чаты в новой папке{newChatIds.size ? `: ${newChatIds.size}` : ""}</span>
+            <span>{t("messages.folderChatsInNew")}{newChatIds.size ? `: ${newChatIds.size}` : ""}</span>
             <span className="text-gray-400">{showNewChats ? "▲" : "▼"}</span>
           </button>
           {showNewChats && (
             <div className="max-h-40 overflow-y-auto px-2 pb-2 space-y-1">
-              {chats.length === 0 && <p className="text-xs text-gray-500 dark:text-white/40 px-1 py-2">Нет доступных чатов</p>}
+              {chats.length === 0 && <p className="text-xs text-gray-500 dark:text-white/40 px-1 py-2">{t("messages.folderNoChats")}</p>}
               {chats.map((c: any) => {
                 const checked = newChatIds.has(c.id);
                 return (

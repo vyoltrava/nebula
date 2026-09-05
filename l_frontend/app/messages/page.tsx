@@ -31,6 +31,30 @@ import { prismStorage } from "@/lib/prismStorage";import { useI18n } from "@/lib
 
 
 
+// 📱 Long-press с защитой от нативного выделения текста: если во время удержания
+// на телефоне начал выделяться текст (копирование) — меню не открываем.
+type LpTimerRef = { current: ReturnType<typeof setTimeout> | null };
+type LpSelRef = { current: (() => void) | null };
+function disarmLongPress(timerRef: LpTimerRef, selRef: LpSelRef) {
+  if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+  if (selRef.current) {
+    try { document.removeEventListener("selectionchange", selRef.current); } catch { /* ignore */ }
+    selRef.current = null;
+  }
+}
+function armLongPress(timerRef: LpTimerRef, selRef: LpSelRef, ms: number, fire: () => void) {
+  disarmLongPress(timerRef, selRef);
+  const onSel = () => {
+    try {
+      const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+      if (sel && String(sel).length > 0) disarmLongPress(timerRef, selRef);
+    } catch { /* ignore */ }
+  };
+  selRef.current = onSel;
+  document.addEventListener("selectionchange", onSel);
+  timerRef.current = setTimeout(() => { disarmLongPress(timerRef, selRef); fire(); }, ms);
+}
+
 function SwipeableChatItem({
   children,
   onSwipeRight,
@@ -57,33 +81,41 @@ function SwipeableChatItem({
   const swipeRef = useRef(false);
   if (isSwiping) swipeRef.current = true;
 
-  // 📱 Long-press (500мс) по чату → открыть меню (как три точки)
+  // 📱 Long-press (600мс) по чату → открыть меню (как три точки).
+  // Отменяется при: смещении >12px, активном свайпе или выделении текста
+  // (копирование на телефоне не должно перебиваться меню).
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lpSel = useRef<(() => void) | null>(null);
   const lpStart = useRef<{ x: number; y: number } | null>(null);
   const lpFired = useRef(false);
 
   const clearLp = () => {
-    if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; }
+    disarmLongPress(lpTimer, lpSel);
     lpStart.current = null;
   };
   const onPointerDown = (e: React.PointerEvent) => {
     if (!onLongPress || e.pointerType !== "touch") return;
     lpStart.current = { x: e.clientX, y: e.clientY };
     lpFired.current = false;
-    clearLp();
-    lpTimer.current = setTimeout(() => {
-      lpTimer.current = null;
+    const { clientX, clientY } = e;
+    armLongPress(lpTimer, lpSel, 600, () => {
       lpFired.current = true;
       swipeRef.current = true; // подавляем клик после long-press
       try { navigator.vibrate?.(15); } catch {}
-      onLongPress(e.clientX, e.clientY);
-    }, 500);
+      onLongPress(clientX, clientY);
+    });
   };
   const onPointerMove = (e: React.PointerEvent) => {
     if (!lpStart.current) return;
-    if (Math.abs(e.clientX - lpStart.current.x) > 10 || Math.abs(e.clientY - lpStart.current.y) > 10) clearLp();
+    // любое смещение > 12px (в т.ч. горизонтальное — начало свайпа) отменяет long-press
+    if (Math.abs(e.clientX - lpStart.current.x) > 12 || Math.abs(e.clientY - lpStart.current.y) > 12) clearLp();
   };
   const onPointerUp = () => clearLp();
+
+  // Свайп начался (смещение пошло) — гарантированно отменяем long-press
+  useEffect(() => {
+    if (isSwiping && lpTimer.current) clearLp();
+  }, [isSwiping, offset]);
 
   const showRightIcon = direction === "right" && offset > 25;
   const showLeftIcon = direction === "left" && offset < -25;
@@ -151,6 +183,7 @@ export default function MessagesPage() {
   const [folderMenuId, setFolderMenuId] = useState<number | null>(null);
   // 📱 Long-press на вкладке папки → контекстное меню
   const folderLpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const folderLpSelRef = useRef<(() => void) | null>(null);
   const folderLpStartRef = useRef<{ x: number; y: number } | null>(null);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showPrismModal, setShowPrismModal] = useState(false);
@@ -168,6 +201,12 @@ export default function MessagesPage() {
   const [archivedKeys, setArchivedKeys] = useState<Set<string>>(new Set());
   const [archiveLoaded, setArchiveLoaded] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
+  // 🗄️ Pull-to-reveal: текущее смещение панели (px) при оттягивании
+  const [archivePull, setArchivePull] = useState(0);
+  // 🗄️ Меню архива (⋯): прочитать все / уведомления / убрать все
+  const [archiveMenuOpen, setArchiveMenuOpen] = useState(false);
+  // 🔍 Поиск внутри архива
+  const [archiveQuery, setArchiveQuery] = useState("");
   // 🗄️ Карточка «Архив» скрыта по умолчанию; появляется после вытягивания списка вниз
   const [archiveRevealed, setArchiveRevealed] = useState(false);
   const mainRef = useRef<HTMLElement | null>(null);
@@ -247,18 +286,47 @@ export default function MessagesPage() {
     await load(); refresh();
   };
 
+  // 🗄️ Прочитать весь архив (все заархивированные чаты и каналы)
+  const markAllArchivedRead = async () => {
+    const token = getToken(); if (!token) return;
+    for (const c of archivedChats) {
+      try {
+        if (c.is_channel)
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${c.id}/read`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+        else
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${c.id}/read`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+      } catch { /* ignore */ }
+    }
+    await load(); refresh();
+  };
+
+  // 🗄️ Выключить/включить уведомления для всего архива
+  const setAllArchivedMuted = async (muted: boolean) => {
+    const token = getToken(); if (!token) return;
+    for (const c of archivedChats) {
+      try {
+        if (c.is_channel)
+          await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/channels/${c.id}/mute?forever=${muted}`, { method: "PATCH", headers: { Authorization: `Bearer ${token}` } });
+        else
+          await setChatMute(c.id, muted ? { forever: true } : { forever: false, minutes: null });
+      } catch { /* ignore */ }
+    }
+    await load();
+  };
+
   // 🗄️ Жест как в Telegram: карточка «Архив» скрыта по умолчанию.
-  // Вытянуть список вниз у верхнего края (телефон — свайп вниз,
-  // ПК — прокрутка колеса вверх, когда список у верха) → архив появляется.
-  // Прокрутили список вниз (scrollTop > 40) → архив снова скрывается.
+  // Оттягиваешь всю панель списка вниз (мышью или пальцем) — панель наклоняется
+  // вниз с эффектом пружины, а над ней проявляется бейдж «Архив».
+  // Отпустил дальше порога → архив открывается. Прокрутил список вниз → скрывается.
   useEffect(() => {
-    if (archivedKeys.size === 0) { setArchiveRevealed(false); return; }
+    if (!archiveLoaded) return;
     const el = mainRef.current;
     if (!el) return;
-    const THRESHOLD = 80;
-    let touchStartY = 0;
-    let pullAccum = 0;
-    // grace-окно после показа: скролл-события от самого жеста не прячут архив
+    const THRESHOLD = 60;   // px смещения панели, после которого архив открывается
+    const MAX = 110;        // макс. смещение панели
+    let startY = 0;
+    let accum = 0;
+    let active = false;
     let revealedAt = 0;
     const reveal = () => {
       const now = Date.now();
@@ -268,9 +336,13 @@ export default function MessagesPage() {
       setArchiveRevealed(true);
     };
     const hide = () => {
-      // прячем только если после показа прошло время (не тот же жест)
       if (Date.now() - revealedAt < 800) return;
       setArchiveRevealed(false);
+    };
+    const reset = () => {
+      active = false;
+      accum = 0;
+      setArchivePull(0);
     };
     const onWheel = (e: WheelEvent) => {
       if (el.scrollTop <= 0 && e.deltaY < 0) reveal();
@@ -278,31 +350,45 @@ export default function MessagesPage() {
     const onScroll = () => {
       if (el.scrollTop > 40) hide();
     };
-    const onTouchStart = (e: TouchEvent) => {
-      touchStartY = e.touches[0].clientY;
-      pullAccum = 0;
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      active = true;
+      startY = e.clientY;
+      accum = 0;
     };
-    const onTouchMove = (e: TouchEvent) => {
-      if (el.scrollTop > 0) { pullAccum = 0; return; }
-      const dy = e.touches[0].clientY - touchStartY;
-      pullAccum = dy > 0 ? dy : 0;
-      if (pullAccum >= THRESHOLD) {
-        pullAccum = 0; touchStartY = e.touches[0].clientY;
-        reveal();
+    const onPointerMove = (e: PointerEvent) => {
+      if (!active) return;
+      // тянем вниз только когда список у верха (или чатов нет вовсе)
+      if (el.scrollTop > 0) { setArchivePull(0); return; }
+      const dy = e.clientY - startY;
+      if (dy > 0) {
+        accum = Math.min(dy * 0.55, MAX);
+        setArchivePull(accum);
+        if (accum >= THRESHOLD) { reset(); reveal(); }
+      } else {
+        accum = 0; setArchivePull(0);
       }
+    };
+    const onPointerUp = () => {
+      // отпустили без порога → пружина возвращает панель на место
+      reset();
     };
     el.addEventListener("wheel", onWheel, { passive: true });
     el.addEventListener("scroll", onScroll, { passive: true });
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: true });
+    el.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
     return () => {
       el.removeEventListener("wheel", onWheel);
       el.removeEventListener("scroll", onScroll);
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [archivedKeys.size, archiveLoaded]);
+  }, [archiveLoaded]);
 
   const [prismSearchQuery, setPrismSearchQuery] = useState("");
   const [prismSearchResults, setPrismSearchResults] = useState<any[]>([]);
@@ -738,6 +824,17 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   // 🗄️ Чаты и каналы в архиве
   const archivedChats = sortedChats.filter((c) => isArchivedChat(c));
 
+  // 🔍 Поиск только внутри архива (по названию / последнему сообщению / @slug)
+  const filteredArchivedChats = (() => {
+    if (!archiveQuery.trim()) return archivedChats;
+    const q = archiveQuery.trim().toLowerCase();
+    return archivedChats.filter((c: any) =>
+      (c.is_channel ? c.name : c.is_group ? c.name : c.other?.display_name || "").toLowerCase().includes(q) ||
+      (c.last_message?.text || "").toLowerCase().includes(q) ||
+      (c.custom_slug || "").toLowerCase().includes(q)
+    );
+  })();
+
   const searchUsersForPrism = async (q: string) => {
     if (!q.trim()) { 
       setPrismSearchResults([]); 
@@ -810,10 +907,13 @@ const confirmPrismKey = async () => {
 };
 
   return (
-    <div className="h-screen flex overflow-hidden">
+    <div className="h-screen flex overflow-hidden relative">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3" />
-      <main ref={mainRef} className="flex-1 overflow-y-auto border-x border-line dark:border-white/10">
+      <main
+        ref={mainRef}
+        className="flex-1 overflow-y-auto border-x border-line dark:border-white/10 relative z-[6] bg-paper dark:bg-[#171717]"
+      >
         
         {/* ШАПКА - только иконка и поиск */}
         <div className="p-4 md:p-6 border-b border-line dark:border-white/10 sticky top-0 bg-paper dark:bg-[#171717]/95 backdrop-blur-md z-10">
@@ -849,8 +949,61 @@ const confirmPrismKey = async () => {
           </div>
         </div>
 
-        {loading && <ChatListSkeleton count={sortedChats.length || 5} />}
 
+        {/* 🗄️ Карточка «Архив» — спрятана за шапкой, как в Telegram.
+            При оттягивании списка вниз плавно выезжает из-под шапки:
+            контейнер растёт по высоте, карточка внутри сдвигается вниз.
+            Свайп вправо по карточке — разархивировать всё. */}
+        {!loading && !q && archiveLoaded && archivedKeys.size > 0 && activeFolder === "all" && (() => {
+          const CARD_H = 76; // высота карточки (p-3 + аватар 48 + p-3)
+          const visible = archiveRevealed ? CARD_H : Math.min(archivePull, CARD_H);
+          return (
+            <div
+              className="overflow-hidden relative z-[5]"
+              style={{
+                height: visible,
+                transition: archivePull ? "none" : "height 0.35s cubic-bezier(.2,.8,.3,1)",
+              }}
+            >
+              <div
+                className="absolute inset-x-0 top-0"
+                style={{
+                  transform: `translateY(${visible - CARD_H}px)`,
+                  transition: archivePull ? "none" : "transform 0.35s cubic-bezier(.2,.8,.3,1)",
+                }}
+              >
+                <SwipeableChatItem
+                  isPinned={false}
+                  onClick={() => setShowArchive(true)}
+                  onSwipeRight={() => {
+                    syncArchive({
+                      unarchive_chats: archivedChats.filter((c: any) => !c.is_channel).map((c: any) => c.id),
+                      unarchive_channels: archivedChats.filter((c: any) => c.is_channel).map((c: any) => c.id),
+                    });
+                    setShowArchive(false);
+                  }}
+                  onSwipeLeft={() => { /* ничего */ }}
+                >
+                  <div className="flex items-center gap-3 p-3 md:p-4 h-[76px] border-b border-line dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 cursor-pointer">
+                    <div className="shrink-0">
+                      <div className="w-12 h-12 rounded-xl bg-gray-200 dark:bg-white/10 flex items-center justify-center">
+                        <Archive size={24} className="text-gray-500 dark:text-white/50" />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold truncate text-gray-900 dark:text-white">{t("messages.archive")}</p>
+                      <p className="text-sm text-gray-500 dark:text-white/40 truncate">
+                        {archivedChats.length === 1 ? t("messages.archiveChatOne") : t("messages.archiveChatsN", { n: archivedChats.length })}
+                      </p>
+                    </div>
+                  </div>
+                </SwipeableChatItem>
+              </div>
+            </div>
+          );
+        })()}
+
+        {loading && <ChatListSkeleton count={sortedChats.length || 5} />}
         {/* 🗂️ Панель вкладок папок (классический ПК-сайдбар): квадратные блоки,
         разделённые полосками; активный — фиолетовый. Тёмная и светлая темы. */}
         {!loading && !q && folderData && (
@@ -867,23 +1020,22 @@ const confirmPrismKey = async () => {
                     onPointerDown={tab.key.startsWith("f") ? (e) => {
                       if (e.pointerType !== "touch") return;
                       folderLpStartRef.current = { x: e.clientX, y: e.clientY };
-                      if (folderLpTimerRef.current) clearTimeout(folderLpTimerRef.current);
-                      folderLpTimerRef.current = setTimeout(() => {
-                        folderLpTimerRef.current = null;
+                      armLongPress(folderLpTimerRef, folderLpSelRef, 600, () => {
                         folderLpStartRef.current = null;
                         try { navigator.vibrate?.(15); } catch {}
                         setFolderMenuId(Number(tab.key.slice(1)));
-                      }, 500);
+                      });
                     } : undefined}
                     onPointerMove={tab.key.startsWith("f") ? (e) => {
                       if (!folderLpStartRef.current) return;
-                      if (Math.abs(e.clientX - folderLpStartRef.current.x) > 10 || Math.abs(e.clientY - folderLpStartRef.current.y) > 10) {
-                        if (folderLpTimerRef.current) { clearTimeout(folderLpTimerRef.current); folderLpTimerRef.current = null; }
+                      // смещение > 12px (скролл вкладок или выделение) отменяет long-press
+                      if (Math.abs(e.clientX - folderLpStartRef.current.x) > 12 || Math.abs(e.clientY - folderLpStartRef.current.y) > 12) {
+                        disarmLongPress(folderLpTimerRef, folderLpSelRef);
                         folderLpStartRef.current = null;
                       }
                     } : undefined}
-                    onPointerUp={() => { if (folderLpTimerRef.current) { clearTimeout(folderLpTimerRef.current); folderLpTimerRef.current = null; } folderLpStartRef.current = null; }}
-                    onPointerCancel={() => { if (folderLpTimerRef.current) { clearTimeout(folderLpTimerRef.current); folderLpTimerRef.current = null; } folderLpStartRef.current = null; }}
+                    onPointerUp={() => { disarmLongPress(folderLpTimerRef, folderLpSelRef); folderLpStartRef.current = null; }}
+                    onPointerCancel={() => { disarmLongPress(folderLpTimerRef, folderLpSelRef); folderLpStartRef.current = null; }}
                     className={`flex items-center justify-center gap-1.5 shrink-0 min-w-[64px] px-3 md:px-4 py-2.5 text-xs font-bold whitespace-nowrap transition-colors ${
                       active
                         ? "bg-[#8b5cf6] text-white shadow-sm"
@@ -936,40 +1088,6 @@ const confirmPrismKey = async () => {
             <MessageSquare size={48} className="text-gray-500 dark:text-white/20 mx-auto mb-4" />
             <p className="text-gray-600 dark:text-white/60 text-lg">В этой папке пока нет чатов</p>
             <p className="text-gray-500 dark:text-white/40 text-sm mt-2">Откройте менеджер папок (🗂️) и добавьте чаты</p>
-          </div>
-        )}
-
-        {/* 🗄️ Карточка «Архив» — как отдельный чат в списке (как в Telegram).
-            Скрыта по умолчанию; появляется после вытягивания списка вниз.
-            Свайп вправо по карточке — разархивировать всё. */}
-        {!loading && !q && archiveLoaded && archiveRevealed && archivedKeys.size > 0 && activeFolder === "all" && (
-          <div className="animate-in fade-in slide-in-from-top-3 duration-300">
-          <SwipeableChatItem
-            isPinned={false}
-            onClick={() => setShowArchive(true)}
-            onSwipeRight={() => {
-              syncArchive({
-                unarchive_chats: archivedChats.filter((c: any) => !c.is_channel).map((c: any) => c.id),
-                unarchive_channels: archivedChats.filter((c: any) => c.is_channel).map((c: any) => c.id),
-              });
-              setShowArchive(false);
-            }}
-            onSwipeLeft={() => { /* ничего */ }}
-          >
-            <div className="flex items-center gap-3 p-3 md:p-4 border-b border-line dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5 cursor-pointer">
-              <div className="shrink-0">
-                <div className="w-12 h-12 rounded-xl bg-gray-200 dark:bg-white/10 flex items-center justify-center">
-                  <Archive size={24} className="text-gray-500 dark:text-white/50" />
-                </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold truncate text-gray-900 dark:text-white">Архив</p>
-                <p className="text-sm text-gray-500 dark:text-white/40 truncate">
-                  {archivedChats.length === 1 ? "1 чат" : `${archivedChats.length} чат(ов)`}
-                </p>
-              </div>
-            </div>
-          </SwipeableChatItem>
           </div>
         )}
 
@@ -1275,7 +1393,7 @@ const confirmPrismKey = async () => {
               onClick={() => { setShowCreateMenu(false); setShowWorkChat(true); }}
               className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border-t border-line dark:border-white/5"
             >
-              <Briefcase size={16} className="text-[#8b5cf6]" /> Рабочий чат
+              <Briefcase size={16} className="text-[#8b5cf6]" /> {t("messages.createWorkChat")}
             </button>
             <button
               onClick={() => { setShowCreateMenu(false); setShowCreateChannel(true); }}
@@ -1606,6 +1724,7 @@ const confirmPrismKey = async () => {
       {/* 🗂️ Контекстное меню папки (правый клик / удержание на вкладке) */}
       <FolderContextModal
         folderId={folderMenuId}
+        folderInitial={folderMenuId != null ? (folderData?.folders || []).find((f: any) => f.id === folderMenuId) : undefined}
         open={folderMenuId !== null}
         onClose={() => setFolderMenuId(null)}
         onChanged={() => { load(); }}
@@ -1619,42 +1738,101 @@ const confirmPrismKey = async () => {
             <button
               onClick={() => setShowArchive(false)}
               className="p-2 text-gray-500 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
-              title="Назад"
+              title={t("common.back")}
             >
               <X size={20} />
             </button>
             <div className="flex items-center gap-2">
               <Archive size={20} className="text-[#8b5cf6]" />
-              <span className="text-lg font-black text-gray-900 dark:text-white">Архив</span>
+              <span className="text-lg font-black text-gray-900 dark:text-white">{t("messages.archive")}</span>
               <span className="text-xs text-gray-500 dark:text-white/40 bg-gray-100 dark:bg-white/10 px-2 py-0.5 rounded-full">{archivedChats.length}</span>
             </div>
             <div className="flex-1" />
-            {archivedChats.length > 0 && (
+            {/* Меню архива (⋯): прочитать всё / уведомления / убрать всё */}
+            <div className="relative">
               <button
-                onClick={() => {
-                  if (!confirm("Разархивировать все чаты и каналы?")) return;
-                  syncArchive({
-                    unarchive_chats: archivedChats.filter((c: any) => !c.is_channel).map((c: any) => c.id),
-                    unarchive_channels: archivedChats.filter((c: any) => c.is_channel).map((c: any) => c.id),
-                  });
-                }}
-                className="text-xs px-3 py-1.5 rounded-lg border border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                onClick={() => setArchiveMenuOpen(!archiveMenuOpen)}
+                className="p-1.5 text-gray-500 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors"
+                title={t("messages.archiveMenu")}
               >
-                Убрать все
+                <MoreVertical size={18} />
               </button>
-            )}
+              {archiveMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-[70]" onClick={() => setArchiveMenuOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-[71] w-60 rounded-xl border border-line dark:border-white/15 bg-ivory dark:bg-[#1f1f23] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
+                    {archivedChats.length > 0 && (
+                      <>
+                        <button
+                          onClick={async () => { setArchiveMenuOpen(false); await markAllArchivedRead(); }}
+                          className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-left"
+                        >
+                          <CheckCheck size={16} className="text-[#8b5cf6]" /> {t("messages.archiveReadAll")}
+                        </button>
+                        <button
+                          onClick={async () => { setArchiveMenuOpen(false); await setAllArchivedMuted(!archivedChats.every((c: any) => c.muted)); }}
+                          className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors text-left"
+                        >
+                          <BellOff size={16} className="text-[#8b5cf6]" />
+                          {archivedChats.every((c: any) => c.muted) ? t("messages.archiveUnmuteAll") : t("messages.archiveMuteAll")}
+                        </button>
+                        <div className="h-px bg-line dark:bg-white/10 my-1" />
+                        <button
+                          onClick={() => {
+                            setArchiveMenuOpen(false);
+                            if (!confirm(t("messages.archiveUnarchiveAll"))) return;
+                            syncArchive({
+                              unarchive_chats: archivedChats.filter((c: any) => !c.is_channel).map((c: any) => c.id),
+                              unarchive_channels: archivedChats.filter((c: any) => c.is_channel).map((c: any) => c.id),
+                            });
+                            setShowArchive(false);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors text-left"
+                        >
+                          <Archive size={16} /> {t("messages.archiveUnarchiveAll")}
+                        </button>
+                      </>
+                    )}
+                    {archivedChats.length === 0 && (
+                      <p className="px-4 py-3 text-sm text-gray-500 dark:text-white/40">{t("messages.archiveEmpty")}</p>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
+          {/* 🔍 Поиск внутри архива */}
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-line dark:border-white/10 bg-white/40 dark:bg-white/[0.02]">
+            <Search size={15} className="text-gray-500 dark:text-white/40 shrink-0" />
+            <input
+              value={archiveQuery}
+              onChange={(e) => setArchiveQuery(e.target.value)}
+              placeholder={t("messages.archiveSearch")}
+              className="flex-1 bg-transparent text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/30 focus:outline-none"
+            />
+            {archiveQuery && (
+                <button onClick={() => setArchiveQuery("")} className="text-gray-400 hover:text-gray-900 dark:hover:text-white"><X size={14} /></button>
+              )}
+            </div>
+
           <div className="flex-1 overflow-y-auto">
-            <p className="px-4 py-2 text-xs text-gray-500 dark:text-white/40">Свайп вправо — вернуть из архива</p>
-            {archivedChats.length === 0 ? (
+            <p className="px-4 py-2 text-xs text-gray-500 dark:text-white/40">{t("messages.archiveSwipeHint")}</p>
+            {filteredArchivedChats.length === 0 ? (
+              archiveQuery.trim() ? (
+                <div className="p-12 text-center">
+                  <Search size={40} className="text-gray-400 dark:text-white/20 mx-auto mb-4" />
+                  <p className="text-gray-600 dark:text-white/60 text-lg">{t("messages.archiveSearchEmpty")}</p>
+                </div>
+              ) : (
               <div className="p-12 text-center">
                 <Archive size={48} className="text-gray-500 dark:text-white/20 mx-auto mb-4" />
-                <p className="text-gray-600 dark:text-white/60 text-lg">Архив пуст</p>
-                <p className="text-gray-500 dark:text-white/40 text-sm mt-2">Свайпните чат вправо, чтобы убрать его в архив</p>
+                <p className="text-gray-600 dark:text-white/60 text-lg">{t("messages.archiveEmpty")}</p>
+                <p className="text-gray-500 dark:text-white/40 text-sm mt-2">{t("messages.archiveEmptyHint")}</p>
               </div>
+              )
             ) : (
-              archivedChats.map((chat: any) => (
+              filteredArchivedChats.map((chat: any) => (
                 <SwipeableChatItem
                   key={`arc-${chat.is_channel ? "ch-" : ""}${chat.id}`}
                   isPinned={!!chat.pinned}
