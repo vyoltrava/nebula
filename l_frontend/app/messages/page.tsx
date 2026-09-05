@@ -7,7 +7,8 @@ import { Sidebar } from "@/components/Sidebar";
 import { Avatar } from "@/components/Avatar";
 import { CreateGroupModal } from "@/components/CreateGroupModal";
 import { CreateChannelModal } from "@/components/CreateChannelModal";
-import { MessageSquare, Search, Lock, Users, Bookmark, ShieldCheck, X, Plus, Megaphone, UserPlus } from "lucide-react";
+import PublicChannelsModal from "@/components/PublicChannelsModal";
+import { MessageSquare, Search, Lock, Users, Bookmark, ShieldCheck, X, Plus, Megaphone, UserPlus, Globe } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { socket } from "@/lib/websocket";
@@ -107,6 +108,7 @@ export default function MessagesPage() {
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showPrismModal, setShowPrismModal] = useState(false);
   const [showCreateMenu, setShowCreateMenu] = useState(false);
+  const [showPublicChannels, setShowPublicChannels] = useState(false);
   const [prismSearchQuery, setPrismSearchQuery] = useState("");
   const [prismSearchResults, setPrismSearchResults] = useState<any[]>([]);
   const [isCreatingPrism, setIsCreatingPrism] = useState(false);
@@ -386,6 +388,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
           unread_count: ch.unread_count || 0,
           muted: !!ch.is_muted,
           pinned: !!ch.pinned,
+          badge: ch.badge,
           last_activity: ch.created_at,
           members: [],
         }));
@@ -632,6 +635,15 @@ const confirmPrismKey = async () => {
                       <span className="ml-1 px-2 py-0.5 rounded-md bg-[#8b5cf6]/10 border border-[#8b5cf6]/40 text-[#a78bfa] text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
                         <Megaphone size={10} /> {t("messages.channel") || "Канал"}
                       </span>
+                      {chat.badge && (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full font-bold px-2 py-0.5 text-[10px] shadow-sm shrink-0"
+                          style={{ backgroundColor: chat.badge.bg_color || "#8b5cf6", color: chat.badge.color || "#fff" }}
+                        >
+                          {!!chat.badge.emoji && <span>{chat.badge.emoji}</span>}
+                          {!!chat.badge.text && <span>{chat.badge.text}</span>}
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-gray-500 dark:text-white/40 mt-0.5 truncate">
                       {chat.my_role === "owner" ? "Ваш канал" : chat.my_role === "admin" ? "Вы админ" : "Канал"} · @{chat.custom_slug} · {chat.subscribers_count}
@@ -853,8 +865,15 @@ const confirmPrismKey = async () => {
         })}
       </main>
 
-      {/* КНОПКА "+" - вынесена за пределы main, fixed */}
-      <div className="fixed top-4 right-4 md:top-6 md:right-6 z-[100]">
+      {/* КНОПКИ "+" и "Все каналы" - вынесены за пределы main, fixed */}
+      <div className="fixed top-4 right-4 md:top-6 md:right-6 z-[100] flex items-center gap-2">
+        <button
+          onClick={() => setShowPublicChannels(true)}
+          className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#8b5cf6]/10 text-[#8b5cf6] hover:bg-[#8b5cf6]/20 transition-colors border border-[#8b5cf6]/30"
+          title="Все каналы"
+        >
+          <Globe size={20} />
+        </button>
         <button
           onClick={() => setShowCreateMenu(!showCreateMenu)}
           className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#8b5cf6]/10 text-[#8b5cf6] hover:bg-[#8b5cf6]/20 transition-colors border border-[#8b5cf6]/30"
@@ -1151,6 +1170,9 @@ const confirmPrismKey = async () => {
           </div>
         </>
       )}
+
+      {/* 🌐 Окно «Все каналы» */}
+      {showPublicChannels && <PublicChannelsModal onClose={() => setShowPublicChannels(false)} />}
     </div>
   );
 }

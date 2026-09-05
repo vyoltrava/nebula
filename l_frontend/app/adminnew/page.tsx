@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { getToken } from "@/lib/auth";
 import {
   Users, BarChart3, Bug, Globe, Activity, Flag,
-  MessageSquare, SmilePlus, Palette, Headphones, Shield, Wrench, ArrowLeft, CreditCard, Crown
+  MessageSquare, SmilePlus, Palette, Headphones, Shield, Wrench, ArrowLeft, CreditCard, Crown, Megaphone
 } from "lucide-react";
 
 import { UsersSection } from "@/components/admin/section/UsersSection";
@@ -16,6 +16,7 @@ import { IpSection } from "@/components/admin/section/IpSection";
 import { LogsSection } from "@/components/admin/section/LogsSection";
 import { ReportsSection } from "@/components/admin/section/ReportsSection";
 import { ChatsSection } from "@/components/admin/section/ChatsSection";
+import { ChannelBadgesSection } from "@/components/admin/section/ChannelBadgesSection";
 import { StickersSection } from "@/components/admin/section/StickersSection";
 import { ThemesSection } from "@/components/admin/section/ThemesSection";
 import { SupportSection } from "@/components/admin/section/SupportSection";
@@ -24,7 +25,7 @@ import { BackupsSection } from "@/components/admin/section/BackupsSection";
 
 type TabId =
   | "users" | "tech_users" | "stats" | "bugs" | "ip" | "logs"
-  | "reports" | "chats" | "support" | "stickers" | "themes" | "backups";
+  | "reports" | "chats" | "support" | "stickers" | "themes" | "backups" | "channel-badges";
 
 interface TabDef {
   id: TabId;
@@ -40,6 +41,7 @@ const TABS: TabDef[] = [
   { id: "reports",   label: "Жалобы",       icon: Flag,          color: "#ef4444", permission: "manage_reports" },
   { id: "support",   label: "Поддержка",    icon: Headphones,    color: "#22c55e", permission: "manage_support" },
   { id: "chats",     label: "Чаты",         icon: MessageSquare, color: "#06b6d4", permission: "manage_groups" },
+  { id: "channel-badges", label: "Префиксы каналов", icon: Megaphone, color: "#a855f7", permission: "manage_groups" },
   { id: "stats",     label: "Статистика",   icon: BarChart3,     color: "#8b5cf6", permission: "tech_access" },
   { id: "bugs",      label: "Баг-трекер",   icon: Bug,           color: "#f59e0b", permission: "tech_access" },
   { id: "ip",        label: "IP блоки",     icon: Globe,         color: "#ef4444", permission: "ban_users" },
@@ -187,6 +189,7 @@ export default function AdminPage() {
           {activeTab === "reports"   && <ReportsSection me={me} />}
           {activeTab === "support"   && <SupportSection me={me} />}
           {activeTab === "chats"     && <ChatsSection me={me} />}
+          {activeTab === "channel-badges" && <ChannelBadgesSection me={me} />}
           {activeTab === "stats"     && <StatsSection me={me} />}
           {activeTab === "bugs"      && <BugsSection me={me} />}
           {activeTab === "ip"        && <IpSection me={me} />}

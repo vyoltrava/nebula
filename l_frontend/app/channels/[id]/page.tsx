@@ -787,6 +787,22 @@ export default function ChannelPage() {
                 ? <Globe size={12} className="text-gray-400 shrink-0" />
                 : <Lock size={12} className="text-gray-400 shrink-0" />}
             </div>
+            {channel.badge && (
+              <div className="mt-1">
+                {(() => {
+                  const B = channel.badge;
+                  return (
+                    <span
+                      className="inline-flex items-center gap-1.5 rounded-full font-bold px-2.5 py-0.5 text-xs shadow-sm"
+                      style={{ backgroundColor: B.bg_color || "#8b5cf6", color: B.color || "#fff" }}
+                    >
+                      {!!B.emoji && <span>{B.emoji}</span>}
+                      {!!B.text && <span>{B.text}</span>}
+                    </span>
+                  );
+                })()}
+              </div>
+            )}
             <p className="text-[11px] text-gray-500 dark:text-white/40 flex items-center gap-1 truncate cursor-pointer hover:text-[#8b5cf6]" onClick={() => { setShowSubscribers(true); loadSubscribersList(); }}>
               @{channel.custom_slug} · <Users size={10} /> {channel.subscribers_count}
             </p>

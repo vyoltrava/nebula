@@ -921,6 +921,34 @@ class ChannelSubscriber(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("channel_id", "user_id"),)
 
 
+class ChannelBadge(SQLModel, table=True):
+    """🏷️ Префикс/плашка канала: сохранённая комбинация иконка+текст+цвет.
+    Создаётся в админке, присваивается каналам (можно массово) и показывается
+    в списках (список чатов / окно поиска публичных каналов / страница канала)."""
+    __tablename__ = "channel_badge"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    # ключ из списка заложенных иконок (check | music | star | crown | bolt | fire | ...)
+    icon: str = Field(default="flag", max_length=40)
+    # текст плашки — необязателен (можно только иконка)
+    text: str = Field(default="", max_length=60)
+    # цвет текста/иконки
+    color: str = Field(default="#ffffff", max_length=20)
+    # цвет плашки (hex)
+    bg_color: str = Field(default="#8b5cf6", max_length=20)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class ChannelBadgeAssign(SQLModel, table=True):
+    """🔗 Назначение плашки каналу. Один канал → одна плашка (уникальность channel_id)."""
+    __tablename__ = "channel_badge_assign"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    badge_id: int = Field(foreign_key="channel_badge.id", index=True)
+    channel_id: int = Field(foreign_key="channel.id", index=True)
+    __table_args__ = (UniqueConstraint("channel_id"),)
+
+
 class ChannelBan(SQLModel, table=True):
     """Запрет повторного вступления + причина бана."""
     __tablename__ = "channel_ban"

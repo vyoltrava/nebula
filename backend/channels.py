@@ -26,8 +26,9 @@ from models import (
     Channel, ChannelSubscriber, ChannelPost, ChannelPostView,
     ChannelComment, ChannelInvite, ChannelInviteRequest,
     ChannelBan, ChannelSavedPost, ChannelPostReaction,
+    ChannelBadge, ChannelBadgeAssign,
 )
-from main import get_current_user, log_action, get_client_ip
+from main import get_current_user, get_optional_user, log_action, get_client_ip
 from websocket_manager import manager
 
 router = APIRouter(tags=["channels"])
@@ -96,6 +97,47 @@ def channel_settings(channel: Channel) -> dict:
         return {}
 
 
+# 🏷️ Иконки плашек — «заложенный» набор (key → emoji/символ)
+BADGE_ICONS: dict = {
+    "check": "✓",
+    "music": "♪",
+    "star": "★",
+    "crown": "♛",
+    "bolt": "⚡",
+    "fire": "🔥",
+    "heart": "♥",
+    "mic": "🎤",
+    "rocket": "🚀",
+    "flag": "🚩",
+    "spark": "✦",
+    "gem": "💎",
+    "shield": "🛡",
+    "leaf": "🍃",
+    "tag": "🏷",
+    "dollar": "$",
+}
+
+
+def channel_badge_out(session: Session, channel_id: int) -> Optional[dict]:
+    """Плашка канала (если назначена)."""
+    assign = session.exec(
+        select(ChannelBadgeAssign).where(ChannelBadgeAssign.channel_id == channel_id)
+    ).first()
+    if not assign:
+        return None
+    badge = session.get(ChannelBadge, assign.badge_id)
+    if not badge:
+        return None
+    return {
+        "id": badge.id,
+        "icon": badge.icon,
+        "emoji": BADGE_ICONS.get(badge.icon, ""),
+        "text": badge.text,
+        "color": badge.color,
+        "bg_color": badge.bg_color,
+    }
+
+
 def channel_out(channel: Channel, session: Session, viewer: Optional[User] = None) -> dict:
     subs_count = session.exec(
         select(func.count(ChannelSubscriber.id)).where(ChannelSubscriber.channel_id == channel.id)
@@ -158,6 +200,7 @@ def channel_out(channel: Channel, session: Session, viewer: Optional[User] = Non
         "pinned": pinned,
         "unread_count": unread,
         "is_channel": True,
+        "badge": channel_badge_out(session, channel.id),
     }
 
 
@@ -662,9 +705,13 @@ async def update_subscriber(
     if target.role == "owner":
         raise HTTPException(400, "Нельзя менять роль владельца")
     target.role = role
-    # гранулярные права админа (чекбоксы)
+    # гранулярные права админа (чекбоксы) — тело может отсутствовать,
+    # иначе request.json() на пустом PATCH-теле кидает JSONDecodeError (500)
     if request is not None:
-        body = await request.json()
+        try:
+            body = await request.json()
+        except Exception:
+            body = None
         if isinstance(body, dict) and "permissions" in body:
             perms = [p for p in (body.get("permissions") or [])
                      if p in CHANNEL_PERMISSIONS]
@@ -2532,7 +2579,228 @@ def admin_delete_channel_post(
          target_type="channel_post", target_id=post_id)
     session.commit()
     return {"ok": True}
-    media: Optional[list] = None
+
+
+# ------------------------------------------------------------------
+# 🏷️ ПЛАШКИ/ПРЕФИКСЫ КАНАЛОВ (admin)
+# ------------------------------------------------------------------
+def _require_groups_admin(session: Session, staff: User):
+    from main import has_permission
+    if not has_permission(staff, "manage_groups", session):
+        raise HTTPException(403, "Нет права: manage_groups")
+
+
+def _badge_row(badge: ChannelBadge) -> dict:
+    return {
+        "id": badge.id,
+        "icon": badge.icon,
+        "emoji": BADGE_ICONS.get(badge.icon, ""),
+        "text": badge.text,
+        "color": badge.color,
+        "bg_color": badge.bg_color,
+    }
+
+
+@router.get("/admin/channel-badges")
+def admin_list_channel_badges(
+    staff: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Список сохранённых плашек каналов («как роли»)."""
+    _require_groups_admin(session, staff)
+    badges = session.exec(select(ChannelBadge).order_by(ChannelBadge.id)).all()
+    return [_badge_row(b) for b in badges]
+
+
+@router.post("/admin/channel-badges")
+def admin_create_channel_badge(
+    data: dict,
+    staff: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    _require_groups_admin(session, staff)
+    text = (data.get("text") or "").strip()
+    icon = (data.get("icon") or "flag").strip()
+    if icon not in BADGE_ICONS:
+        raise HTTPException(400, "Нет такой иконки")
+    color = (data.get("color") or "#ffffff").strip()
+    bg_color = (data.get("bg_color") or "#8b5cf6").strip()
+    badge = ChannelBadge(icon=icon, text=text, color=color, bg_color=bg_color)
+    session.add(badge)
+    session.commit()
+    session.refresh(badge)
+    return {"ok": True, "badge": _badge_row(badge)}
+
+
+@router.patch("/admin/channel-badges/{badge_id}")
+def admin_update_channel_badge(
+    badge_id: int,
+    data: dict,
+    staff: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    _require_groups_admin(session, staff)
+    badge = session.get(ChannelBadge, badge_id)
+    if not badge:
+        raise HTTPException(404, "Плашка не найдена")
+    if "text" in data and (data.get("text") is not None):
+        badge.text = (data.get("text") or "").strip()
+    if "icon" in data and (data.get("icon") or "").strip() in BADGE_ICONS:
+        badge.icon = data["icon"].strip()
+    if "color" in data and (data.get("color") or "").strip():
+        badge.color = data["color"].strip()
+    if "bg_color" in data and (data.get("bg_color") or "").strip():
+        badge.bg_color = data["bg_color"].strip()
+    session.add(badge)
+    session.commit()
+    return {"ok": True, "badge": _badge_row(badge)}
+
+
+@router.delete("/admin/channel-badges/{badge_id}")
+def admin_delete_channel_badge(
+    badge_id: int,
+    staff: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    _require_groups_admin(session, staff)
+    badge = session.get(ChannelBadge, badge_id)
+    if not badge:
+        raise HTTPException(404, "Плашка не найдена")
+    for a in session.exec(select(ChannelBadgeAssign).where(
+            ChannelBadgeAssign.badge_id == badge_id)).all():
+        session.delete(a)
+    session.delete(badge)
+    session.commit()
+    return {"ok": True}
+
+
+# 🗂 Полный список каналов для админки (управление плашками, поиск)
+@router.get("/admin/channels/all")
+def admin_list_all_channels(
+    q: str = "",
+    staff: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    _require_groups_admin(session, staff)
+    query = select(Channel).order_by(Channel.created_at.desc())
+    keyword = (q or "").strip().lower()
+    if keyword:
+        like = f"%{keyword}%"
+        query = query.where(
+            (Channel.title.ilike(like)) | (Channel.custom_slug.ilike(like))
+        )
+    channels = session.exec(query.limit(500)).all()
+    result = []
+    for ch in channels:
+        owner = session.get(User, ch.owner_id)
+        result.append({
+            "id": ch.id,
+            "title": ch.title,
+            "custom_slug": ch.custom_slug,
+            "avatar_url": ch.avatar_url,
+            "description": ch.description,
+            "is_public": ch.is_public,
+            "is_blocked": bool(session.get(SystemSetting, f"channel_blocked_{ch.id}")),
+            "subscribers_count": session.exec(
+                select(func.count(ChannelSubscriber.id)).where(
+                    ChannelSubscriber.channel_id == ch.id)).one(),
+            "posts_count": session.exec(
+                select(func.count(ChannelPost.id)).where(
+                    ChannelPost.channel_id == ch.id)).one(),
+            "owner": {
+                "id": owner.id, "username": owner.username,
+                "display_name": owner.display_name,
+            } if owner else None,
+            "badge": channel_badge_out(session, ch.id),
+            "created_at": ch.created_at.isoformat() if ch.created_at else None,
+        })
+    return result
+
+
+# 🎯 Массовая выдача плашки: channel_ids + badge_id
+@router.post("/admin/channels/badge")
+def admin_assign_channel_badge(
+    data: dict,
+    staff: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    _require_groups_admin(session, staff)
+    badge_id = data.get("badge_id")
+    badge = None
+    if badge_id is not None:
+        badge = session.get(ChannelBadge, int(badge_id))
+        if not badge:
+            raise HTTPException(404, "Плашка не найдена")
+    ids = [int(i) for i in (data.get("channel_ids") or []) if i]
+    if not ids:
+        raise HTTPException(400, "Не выбраны каналы")
+    for cid in ids:
+        ch = session.get(Channel, cid)
+        if not ch:
+            continue
+        existing = session.exec(select(ChannelBadgeAssign).where(
+            ChannelBadgeAssign.channel_id == cid)).first()
+        if badge is None:
+            if existing:
+                session.delete(existing)
+        else:
+            if existing:
+                existing.badge_id = badge.id
+                session.add(existing)
+            else:
+                session.add(ChannelBadgeAssign(badge_id=badge.id, channel_id=cid))
+    session.commit()
+    return {"ok": True, "assigned": len(ids)}
+
+
+# 🌐 Окно поиска публичных каналов (для пользователей)
+@router.get("/channels/discover")
+def discover_public_channels(
+    q: str = "",
+    user: Optional[User] = Depends(get_optional_user),
+    session: Session = Depends(get_session),
+):
+    """Публичные каналы для окна «Все каналы»: поиск по названию/@slug,
+    с числом подписчиков, плашкой и моим статусом подписки."""
+    query = select(Channel).where(Channel.is_public == True)  # noqa: E712
+    keyword = (q or "").strip().lower()
+    if keyword:
+        like = f"%{keyword}%"
+        query = query.where(
+            (Channel.title.ilike(like)) | (Channel.custom_slug.ilike(like))
+        )
+    query = query.order_by(Channel.created_at.desc()).limit(300)
+    out = []
+    for ch in session.exec(query).all():
+        if session.get(SystemSetting, f"channel_blocked_{ch.id}"):
+            continue
+        subs_count = session.exec(
+            select(func.count(ChannelSubscriber.id)).where(
+                ChannelSubscriber.channel_id == ch.id)).one()
+        my_role = None
+        if user:
+            sub = get_subscription(session, ch.id, user.id)
+            if sub:
+                my_role = sub.role
+        owner = session.get(User, ch.owner_id)
+        out.append({
+            "id": ch.id,
+            "title": ch.title,
+            "custom_slug": ch.custom_slug,
+            "avatar_url": ch.avatar_url,
+            "description": ch.description,
+            "is_public": True,
+            "subscribers_count": subs_count,
+            "my_role": my_role,
+            "owner": {
+                "id": owner.id, "username": owner.username,
+                "display_name": owner.display_name,
+                "avatar_url": owner.avatar_url,
+            } if owner else None,
+            "badge": channel_badge_out(session, ch.id),
+            "created_at": ch.created_at.isoformat() if ch.created_at else None,
+        })
+    return out
 
 
 # ------------------------------------------------------------------
