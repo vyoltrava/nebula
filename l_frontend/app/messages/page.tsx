@@ -314,20 +314,22 @@ export default function MessagesPage() {
     await load();
   };
 
-  // 🗄️ Жест как в Telegram: карточка «Архив» скрыта по умолчанию.
-  // Оттягиваешь всю панель списка вниз (мышью или пальцем) — панель наклоняется
-  // вниз с эффектом пружины, а над ней проявляется бейдж «Архив».
-  // Отпустил дальше порога → архив открывается. Прокрутил список вниз → скрывается.
+  // 🗄️ Жест как в Telegram: карточка «Архив» скрыта за шапкой.
+  // Оттягиваешь панель списка вниз (пальцем или мышью у верхнего края) —
+  // карточка плавно выезжает из-под шапки. Перетянул порог → архив открывается.
+  // Прокрутил список вниз → карточка снова прячется.
   useEffect(() => {
     if (!archiveLoaded) return;
     const el = mainRef.current;
     if (!el) return;
-    const THRESHOLD = 60;   // px смещения панели, после которого архив открывается
-    const MAX = 110;        // макс. смещение панели
+    const THRESHOLD = 60;   // px смещения, после которого архив открывается
+    const MAX = 110;        // макс. смещение
     let startY = 0;
     let accum = 0;
     let active = false;
+    let touchId: number | null = null;
     let revealedAt = 0;
+
     const reveal = () => {
       const now = Date.now();
       if (now - lastArchiveGestureRef.current < 1200) return;
@@ -341,26 +343,15 @@ export default function MessagesPage() {
     };
     const reset = () => {
       active = false;
+      touchId = null;
       accum = 0;
       setArchivePull(0);
     };
-    const onWheel = (e: WheelEvent) => {
-      if (el.scrollTop <= 0 && e.deltaY < 0) reveal();
-    };
-    const onScroll = () => {
-      if (el.scrollTop > 40) hide();
-    };
-    const onPointerDown = (e: PointerEvent) => {
-      if (e.pointerType === "mouse" && e.button !== 0) return;
-      active = true;
-      startY = e.clientY;
-      accum = 0;
-    };
-    const onPointerMove = (e: PointerEvent) => {
+    const moveTo = (clientY: number) => {
       if (!active) return;
       // тянем вниз только когда список у верха (или чатов нет вовсе)
       if (el.scrollTop > 0) { setArchivePull(0); return; }
-      const dy = e.clientY - startY;
+      const dy = clientY - startY;
       if (dy > 0) {
         accum = Math.min(dy * 0.55, MAX);
         setArchivePull(accum);
@@ -369,12 +360,52 @@ export default function MessagesPage() {
         accum = 0; setArchivePull(0);
       }
     };
-    const onPointerUp = () => {
-      // отпустили без порога → пружина возвращает панель на место
-      reset();
+
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollTop <= 0 && e.deltaY < 0) reveal();
     };
+    const onScroll = () => {
+      if (el.scrollTop > 40) hide();
+    };
+    // === Тач (телефон/планшет): native touchmove с preventDefault,
+    //     чтобы перехватить жест до браузерного скролла/pull-to-refresh ===
+    const onTouchStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      active = true;
+      touchId = t.identifier;
+      startY = t.clientY;
+      accum = 0;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const t = Array.from(e.touches).find((x) => x.identifier === touchId) || e.touches[0];
+      if (!t) return;
+      // у верха и тянем вниз → перехватываем жест (блокируем скролл/pull)
+      const dy = t.clientY - startY;
+      if (el.scrollTop <= 0 && dy > 0 && e.cancelable) e.preventDefault();
+      moveTo(t.clientY);
+    };
+    const onTouchEnd = () => reset();
+    // === Мышь ===
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") return;
+      if (e.button !== 0) return;
+      active = true;
+      startY = e.clientY;
+      accum = 0;
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") return;
+      moveTo(e.clientY);
+    };
+    const onPointerUp = () => reset();
+
     el.addEventListener("wheel", onWheel, { passive: true });
     el.addEventListener("scroll", onScroll, { passive: true });
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
     el.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
@@ -382,6 +413,10 @@ export default function MessagesPage() {
     return () => {
       el.removeEventListener("wheel", onWheel);
       el.removeEventListener("scroll", onScroll);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
       el.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
