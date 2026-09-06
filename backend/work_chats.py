@@ -66,12 +66,18 @@ def chat_out(c: WorkChat, session: Session) -> dict:
         select(WorkChatMember).where(WorkChatMember.chat_id == c.id)).all()
     sections = session.exec(
         select(WorkSectionConfig).where(WorkSectionConfig.chat_id == c.id)).all()
+    # 🤖 предназначенный системный бот чата (уведомления + очередь)
+    from models import Bot
+    bot = session.exec(select(Bot).where(
+        Bot.chat_id == c.id, Bot.type == "worker")).first()
     return {
         "id": c.id, "name": c.name, "category_id": c.category_id,
         "is_active": c.is_active, "member_count": len(members),
         "members": [member_out(m, session) for m in members],
         "sections": [{"section": s.section, "enabled": s.enabled,
                       "default_priority": s.default_priority} for s in sections],
+        "bot": ({"id": bot.id, "name": bot.name, "active": bot.active}
+                if bot else None),
         "created_at": c.created_at.isoformat() if c.created_at else None,
     }
 
@@ -234,6 +240,21 @@ def ensure_work_chats_for_categories(session: Session, actor: Optional[User] = N
         if cat.id not in existing_cat_ids and not is_chat_blocked(session, cat.id):
             created.append(ensure_work_chat(session, cat, actor).id)
     return created
+
+
+def ensure_worker_bots_for_all(session: Session):
+    """Бэкфилл: у КАЖДОГО рабочего чата должен быть свой системный воркер-бот
+    (уведомления + очередь заявок). Бот живёт ТОЛЬКО внутри чата —
+    аккаунта в системе у него нет, в поиске/участниках его не видно."""
+    from models import Bot
+    n = 0
+    for chat in session.exec(select(WorkChat)).all():
+        bot = session.exec(select(Bot).where(
+            Bot.chat_id == chat.id, Bot.type == "worker")).first()
+        if not bot:
+            _ensure_worker_bot(session, chat)
+            n += 1
+    return n
 
 
 # ------------------------------------------------------------------

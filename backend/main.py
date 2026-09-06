@@ -14482,6 +14482,7 @@ def start_work_bot_scheduler_hook():
         with _S() as s:
             try:
                 work_chats.ensure_work_chats_for_categories(s)
+                work_chats.ensure_worker_bots_for_all(s)
             except Exception as _e:
                 print("work_chats ensure:", _e)
             # 🤖 BotFather — отец ботов (системный)
