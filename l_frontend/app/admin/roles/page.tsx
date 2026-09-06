@@ -119,6 +119,10 @@ export default function RolesPage() {
   const [catDesc, setCatDesc] = useState("");
   const [catSaving, setCatSaving] = useState(false);
   const [loadError, setLoadError] = useState(false);
+  // 🎨 Разделы админки, за которые отвечает группа — хуки ДОЛЖНЫ быть
+  // до условного return (!me), иначе React #310 (hooks count mismatch)
+  const [catPanelTabs, setCatPanelTabs] = useState<string[]>([]);
+  const [expandedCatId, setExpandedCatId] = useState<number | null>(null);
   const router = useRouter();
 
   const myLevel = me?.is_admin ? 10 : me?.is_moderator ? 9 : me?.role?.level || 1;
@@ -326,8 +330,6 @@ export default function RolesPage() {
     ["reports", "Жалобы"], ["chats", "Чаты"], ["support", "Поддержка"],
     ["stickers", "Стикеры"], ["themes", "Темы"], ["backups", "Резерв"], ["channel-badges", "Префиксы"],
   ];
-  const [catPanelTabs, setCatPanelTabs] = useState<string[]>([]);
-  const [expandedCatId, setExpandedCatId] = useState<number | null>(null);
 
   async function toggleCatPanelTab(catId: number, tab: string, current: string[]) {
     const next = current.includes(tab) ? current.filter((t) => t !== tab) : [...current, tab];
