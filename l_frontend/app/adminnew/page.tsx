@@ -61,6 +61,8 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<TabId | null>(null);
   // 🎨 Цвета вкладок из привязанных отделов (RoleCategory.panel_tabs)
   const [panelColors, setPanelColors] = useState<Record<string, { color: string; category_name: string }>>({});
+  // 🔔 Счётчики открытых заявок (Жалобы / Поддержка / Баг-трекер)
+  const [modCounts, setModCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const token = getToken();
@@ -92,6 +94,14 @@ export default function AdminPage() {
           .then((d) => { if (d?.tabs) setPanelColors(d.tabs); })
           .catch(() => {});
 
+        // 🔔 Счётчики открытых заявок
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/mod-unread-count`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => { if (d?.counts) setModCounts(d.counts); })
+          .catch(() => {});
+
         const visible = TABS.filter((t) => {
           if (t.permission === null) return data.is_admin;
           return data.is_admin || (data.permissions || []).includes(t.permission!);
@@ -101,6 +111,16 @@ export default function AdminPage() {
       })
       .catch(() => router.push("/login"));
   }, [router]);
+
+  // 🔔 Обновляем счётчики открытых заявок при переключении вкладки
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/mod-unread-count`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.counts) setModCounts(d.counts); })
+      .catch(() => {});
+  }, [activeTab]);
 
   if (!me || !activeTab) {
     return (
@@ -192,6 +212,11 @@ export default function AdminPage() {
                   title={t.categoryName ? `Отдел: ${t.categoryName}` : undefined}
                 >
                   <Icon size={16} /> {t.label}
+                  {(["reports", "support", "bugs"].includes(t.id) && (modCounts[t.id] || 0) > 0) && (
+                    <span className="ml-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center leading-none">
+                      {modCounts[t.id]}
+                    </span>
+                  )}
                 </button>
               );
             })}

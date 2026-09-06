@@ -39,20 +39,14 @@ with Session(engine) as s:
     assert got.is_bot is False
 print("3) SELECT/INSERT с is_bot работает")
 
-# 4) get_or_create_bot + ensure_bot_in_team_chats
+# 4) бота-аккаунта больше нет — системная диспетчеризация без бота
 import main
 with Session(engine) as s:
     cat = __import__("models").RoleCategory(name="T")
     s.add(cat); s.commit(); s.refresh(cat)
     main.ensure_team_chat_for_category(cat.id, s)
-    main.ensure_bot_in_team_chats(s)
-    bot = s.exec(select(User).where(User.username == "nebula_bot")).first()
-    assert bot and bot.is_bot
-    from models import ChatMember
-    cats = s.exec(select(main.RoleCategory).where(main.RoleCategory.team_chat_id.is_not(None))).all()
-    for c in cats:
-        bm = s.exec(select(ChatMember).where(ChatMember.chat_id == c.team_chat_id, ChatMember.user_id == bot.id)).first()
-        assert bm is not None, f"бот не в чате отдела {c.id}"
-print("4) бот создан и состоит во всех рабочих чатах")
+    assert not hasattr(main, "get_or_create_bot"), "get_or_create_bot должен быть удалён"
+    assert not hasattr(main, "ensure_bot_in_team_chats"), "ensure_bot_in_team_chats должен быть удалён"
+print("4) бот-аккаунт отсутствует — системная диспетчеризация")
 
 print("\nSELF-HEAL CHECK PASSED")

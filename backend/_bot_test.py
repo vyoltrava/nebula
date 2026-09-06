@@ -1,5 +1,5 @@
-"""Проверка системного бота (nebula_bot): заявки приходят бот-сообщением
-   в рабочие чаты отделов, включая support."""
+"""Проверка системной диспетчеризации заявок: приходят сообщением в рабочие чаты
+   отделов (без бота-аккаунта), + счётчик открытых заявок для вкладок модерации."""
 import os
 os.environ["DATABASE_URL"] = "sqlite:///./_bot_test.db"
 if os.path.exists("_bot_test.db"):
@@ -27,7 +27,6 @@ with Session(engine) as s:
     sup = RoleCategory(name="Саппорт", color="#22c55e")
     s.add(sup); s.commit(); s.refresh(sup)
     tc = main.ensure_team_chat_for_category(sup.id, s)
-    main.ensure_bot_in_team_chats(s)
 
     supporter = User(username="sup2", display_name="Sup2", password_hash="x", is_admin=True)
     s.add(supporter); s.commit(); s.refresh(supporter)
@@ -38,18 +37,10 @@ with Session(engine) as s:
 
     DATA = {"cat": sup.id, "chat": tc.id, "sup": supporter.id}
 
-    # бот существует и в чате
-    bot = s.exec(select(User).where(User.username == "nebula_bot")).first()
-    assert bot is not None, "бот не создан"
-    assert bot.is_bot is True
-    DATA["bot"] = bot.id
-    bm = s.exec(select(ChatMember).where(ChatMember.chat_id == tc.id, ChatMember.user_id == bot.id)).first()
-    assert bm is not None, "бот не в рабочем чате отдела"
-
 main.app.dependency_overrides[main.get_current_user] = _make_user(DATA["sup"])
 c = TestClient(main.app)
 
-# 1) Поддержка: заявка приходит бот-сообщением в рабочий чат
+# 1) Поддержка: заявка приходит системным сообщением в рабочий чат (от автора)
 applicant = User(username="applicant3", display_name="App3", password_hash="x")
 with Session(engine) as s:
     s.add(applicant); s.commit(); s.refresh(applicant)
@@ -61,17 +52,22 @@ print("1) support start:", r.status_code, r.json().get("ok"))
 assert r.status_code == 200
 
 with Session(engine) as s:
+    tickets = s.exec(select(TeamTicket)).all()
+    print("   TICKETS:", [(t.id, t.kind, t.category_id, t.status) for t in tickets])
+    msgs = s.exec(select(Message)).all()
+    print("   MESSAGES:", [(m.id, m.chat_id, m.sender_id, (m.text or "")[:50]) for m in msgs])
     t = s.exec(select(TeamTicket).where(TeamTicket.kind == "appeal")).first()
     assert t, "appeal-тикет не создан"
     assert t.category_id == DATA["cat"]
     msgs = s.exec(select(Message).where(Message.chat_id == DATA["chat"])).all()
-    bot_msgs = [m for m in msgs if m.sender_id == DATA["bot"]]
-    print("   бот-сообщений:", len(bot_msgs), "| текст:", bot_msgs[-1].text if bot_msgs else None)
-    assert bot_msgs, "бот-сообщение не пришло в чат отдела"
-    assert "Поддержка" in bot_msgs[-1].text or "Обращение" in bot_msgs[-1].text
+    sys_msgs = [m for m in msgs if "Обращение" in (m.text or "")]
+    print("   системных сообщений:", len(sys_msgs), "| текст:", sys_msgs[-1].text if sys_msgs else None)
+    assert sys_msgs, "сообщение о заявке не пришло в чат отдела"
+    # без бота: сообщение от автора заявки
+    assert sys_msgs[-1].sender_id == UID_A, "сообщение должно быть от автора заявки"
 
 # 2) Другой тип (bug) — юзер НЕ имеет tech_access → тикет создаётся без assignee,
-#    НО бот-сообщение всё равно приходит
+#    НО сообщение всё равно приходит
 with Session(engine) as s:
     b = User(username="bugrep", display_name="BugRep", password_hash="x")
     s.add(b); s.commit(); s.refresh(b)
@@ -85,18 +81,18 @@ with Session(engine) as s:
     assert t is not None
     print("   bug ticket status:", t.status, "| assigned:", t.assigned_to)
     msgs = s.exec(select(Message).where(Message.chat_id == DATA["chat"])).all()
-    bot_msgs = [m for m in msgs if m.sender_id == DATA["bot"] and "Баг" in (m.text or "")]
-    print("   бот-сообщение о баге:", bot_msgs[-1].text if bot_msgs else "НЕТ")
-    assert bot_msgs, "бот-сообщение о баге не пришло"
+    sys_msgs = [m for m in msgs if "Баг" in (m.text or "")]
+    print("   сообщение о баге:", sys_msgs[-1].text if sys_msgs else "НЕТ")
+    assert sys_msgs, "сообщение о баге не пришло"
 
-# 3) Ручная заявка из TeamsTab → бот-сообщение
+# 3) Ручная заявка из TeamsTab → сообщение
 main.app.dependency_overrides[main.get_current_user] = _make_user(DATA["sup"])
 r = c.post(f"/api/teams/{DATA['cat']}/tickets", json={"title": "Ручная заявка", "kind": "other"})
 print("3) manual ticket:", r.status_code, "| auto_assigned:", r.json().get("auto_assigned"))
 with Session(engine) as s:
     msgs = s.exec(select(Message).where(Message.chat_id == DATA["chat"])).all()
-    bot_msgs = [m for m in msgs if m.sender_id == DATA["bot"] and "Ручная заявка" in (m.text or "")]
-    print("   бот-сообщение:", bot_msgs[-1].text if bot_msgs else "НЕТ")
-    assert bot_msgs, "бот-сообщение о ручной заявке не пришло"
+    sys_msgs = [m for m in msgs if "Ручная заявка" in (m.text or "")]
+    print("   сообщение:", sys_msgs[-1].text if sys_msgs else "НЕТ")
+    assert sys_msgs, "сообщение о ручной заявке не пришло"
 
-print("\nALL BOT CHECKS PASSED")
+print("\nALL SYS-DISPATCH CHECKS PASSED")

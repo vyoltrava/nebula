@@ -1565,13 +1565,9 @@ def _dispatch_join_request(session: Session, ch: Channel, user: User) -> None:
             session.add(ticket)
             session.commit()
             if cat_row and cat_row.team_chat_id:
-                try:
-                    bot = main.get_or_create_bot(session)
-                except Exception:
-                    bot = user
                 session.add(Message(
                     chat_id=cat_row.team_chat_id,
-                    sender_id=bot.id,
+                    sender_id=user.id,
                     text=f"🤖 Заявка в канал «{ch.title}» от @{user.username} → @{assignee.username}",
                 ))
                 session.commit()
