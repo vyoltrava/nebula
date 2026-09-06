@@ -41,8 +41,13 @@ def get_member(session: Session, chat_id: int, user_id: int):
 
 
 def require_member(session: Session, chat_id: int, user: User) -> WorkChatMember:
+    """Участник чата. 🛡 Глобальный админ проходит всегда (виртуальный head),
+    даже если не состоит в чате — иначе он не может настраивать разделы/роли."""
     m = get_member(session, chat_id, user.id)
     if not m:
+        if user.is_admin:
+            virtual = WorkChatMember(chat_id=chat_id, user_id=user.id, role="head")
+            return virtual
         raise HTTPException(403, "Вы не участник этого рабочего чата")
     return m
 
