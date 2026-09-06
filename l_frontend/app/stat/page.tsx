@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import PremiumUsernamesTab from "@/components/stat/PremiumUsernamesTab";
 import TeamsTab from "@/components/stat/TeamsTab";
+import WorkChatsTab from "@/components/stat/WorkChatsTab";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const PAGE_SIZE = 10;
@@ -526,7 +527,12 @@ export default function StatPage() {
         {activeTab === "premium" && <PremiumUsernamesTab />}
 
         {/* ========== ВКЛАДКА: УПРАВЛЕНИЕ ОТДЕЛАМИ (Этап 5) ========== */}
-        {activeTab === "teams" && <TeamsTab />}
+        {activeTab === "teams" && (
+          <>
+            <TeamsTab />
+            <WorkChatsTab isAdmin={!!me?.is_admin} />
+          </>
+        )}
 
         {/* ========== ВКЛАДКА: КОМАНДА ========== */}
         {activeTab === "team" && (

@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * 📨 Лента системного чата заявок (внутри вкладок админки reports/support/bugs).
- * Показывает системный чат, привязанный к разделу, + input для ответа.
- * Отдельная система — не обычные чаты.
+ * 💼 Лента заявок рабочего чата (внутри вкладок админки reports/support/bugs/chats).
+ * Тянет активный WorkChat раздела через /api/admin/work-chats?section=...,
+ * сообщения — из его backing-чата (обычные /api/chats/{id}/messages).
+ * Заменяет старую ленту SystemChat (эндпоинты /api/admin/system-chats удалены).
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -14,10 +15,13 @@ const PANEL_LABELS: Record<string, string> = {
   reports: "Жалобы",
   support: "Поддержка",
   bugs: "Баг-трекер",
+  chats: "Чаты",
 };
 
 export function SystemTicketFeed({ panel, color = "#8b5cf6" }: { panel: string; color?: string }) {
-  const [chat, setChat] = useState<any | null>(null);
+  const [chatId, setChatId] = useState<number | null>(null);
+  const [chatName, setChatName] = useState("");
+  const [membersCount, setMembersCount] = useState(0);
   const [messages, setMessages] = useState<any[]>([]);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
@@ -28,17 +32,28 @@ export function SystemTicketFeed({ panel, color = "#8b5cf6" }: { panel: string; 
     const token = getToken();
     if (!token) return;
     try {
-      const chatsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/system-chats?panel=${panel}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const chatsRes = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/work-chats?section=${panel}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
       const chats = chatsRes.ok ? await chatsRes.json() : [];
-      setChat(chats[0] || null);
-      if (chats[0]) {
-        const mRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/system-chats/${chats[0].id}/messages`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setMessages(mRes.ok ? await mRes.json() : []);
+      const active = (Array.isArray(chats) ? chats : []).find((c: any) => c.is_active && c.chat_id);
+      if (active) {
+        setChatId(active.chat_id);
+        setChatName(active.name);
+        setMembersCount((active.members || []).length);
+        const mRes = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/chats/${active.chat_id}/messages?limit=50`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (mRes.ok) {
+          const data = await mRes.json();
+          setMessages(Array.isArray(data) ? data : data.messages || []);
+        } else {
+          setMessages([]);
+        }
       } else {
+        setChatId(null);
         setMessages([]);
       }
     } catch { /* ignore */ }
@@ -49,26 +64,29 @@ export function SystemTicketFeed({ panel, color = "#8b5cf6" }: { panel: string; 
 
   // 🔔 Live-обновление по WS
   useEffect(() => {
-    const unsub = socket.on("system_chat_message", (d: any) => {
-      if (d?.panel !== panel || !chat || d.chat_id !== chat.id) return;
-      setMessages((prev) => [...prev, d.message]);
+    const unsub = socket.on("new_message", (d: any) => {
+      if (!chatId || d?.chat_id !== chatId) return;
+      setMessages((prev) => [...prev, d]);
       setTimeout(() => feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight }), 50);
     });
     return unsub;
-  }, [panel, chat]);
+  }, [chatId]);
 
   useEffect(() => {
     feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight });
   }, [messages.length]);
 
   async function send() {
-    if (!chat || !text.trim() || sending) return;
+    if (!chatId || !text.trim() || sending) return;
     setSending(true);
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/system-chats/${chat.id}/messages`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/messages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ text: text.trim() }),
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Bearer ${getToken()}`,
+        },
+        body: new URLSearchParams({ text: text.trim() }).toString(),
       });
       setText("");
     } catch { /* ignore */ }
@@ -76,24 +94,24 @@ export function SystemTicketFeed({ panel, color = "#8b5cf6" }: { panel: string; 
   }
 
   if (loading) return null;
-  if (!chat) return null;
+  if (!chatId) return null;
 
   return (
     <div className="mb-6 rounded-2xl border border-line dark:border-white/10 bg-gray-50 dark:bg-white/[0.03] overflow-hidden">
       <div className="px-4 py-2.5 border-b border-line dark:border-white/10 flex items-center gap-2">
         <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: color }} />
         <p className="text-xs font-black uppercase tracking-wider text-gray-700 dark:text-white/70">
-          📨 Лента заявок · {chat.name}
+          💼 Лента заявок · {chatName}
         </p>
         <span className="text-[10px] text-gray-500 dark:text-white/40">
-          {PANEL_LABELS[panel]} · {chat.members.length} уч.
+          {PANEL_LABELS[panel]} · {membersCount} уч.
         </span>
       </div>
       <div ref={feedRef} className="max-h-64 overflow-y-auto p-3 space-y-2">
         {messages.length === 0 && (
           <p className="text-xs text-gray-500 dark:text-white/40 text-center py-4">Заявок пока нет</p>
         )}
-        {messages.map((m) => (
+        {messages.map((m: any) => (
           <div key={m.id} className="rounded-xl bg-white dark:bg-white/5 border border-line dark:border-white/10 px-3 py-2">
             <div className="flex items-center gap-2">
               <p className="text-xs font-bold text-gray-900 dark:text-white">{m.sender_name}</p>
