@@ -1143,6 +1143,7 @@ def user_out(user: User, session: Session = None, preloaded: tuple = None) -> di
         "selected_badge_id": user.selected_badge_id,
         "billet_url": user.billet_url,  # 🆕
         "is_private": getattr(user, "is_private", False),  # 🛡 приватный аккаунт
+        "is_bot": user.is_bot,  # 🤖 аккаунт-бот (BOT Company)
 
     }
    
@@ -6229,7 +6230,9 @@ def get_chat_members(
         {"user": user_out(users[m.user_id], session), "role": m.role,
          "joined_at": m.joined_at.isoformat() if m.joined_at else None}
         for m in members if m.user_id in users
-        and not users[m.user_id].is_bot  # 🤖 системного бота не показываем в участниках
+        # 🤖 ботов-участников показываем (BOT Company), скрываем только
+        # служебных воркеров отделов (без владельца)
+        and (not users[m.user_id].is_bot or _bot_has_owner(session, users[m.user_id].id))
     ]
 
 
@@ -14469,6 +14472,13 @@ def start_work_bot_scheduler_hook():
 # 🤖 BOT COMPANY — регистрация роутера бот-платформы.
 #    Единый реестр для рабочих и пользовательских ботов.
 # ============================================================
+def _bot_has_owner(session, user_id: int) -> bool:
+    """Аккаунт-бот принадлежит пользовательскому боту (BOT Company)."""
+    from models import Bot as _Bot
+    b = session.exec(select(_Bot).where(_Bot.user_id == user_id)).first()
+    return bool(b and b.owner_id)
+
+
 from bots import router as bots_router
 
 app.include_router(bots_router, prefix="/api")

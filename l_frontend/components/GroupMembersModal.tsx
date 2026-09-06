@@ -22,6 +22,50 @@ export function GroupMembersModal({ chatId, myRole, onClose, onChanged }: Props)
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
   const isAdmin = myRole === "owner" || myRole === "admin";
+  const [myBots, setMyBots] = useState<any[]>([]);
+  const [showBots, setShowBots] = useState(false);
+  const [newBotName, setNewBotName] = useState("");
+  const [botBusy, setBotBusy] = useState(false);
+
+  async function loadMyBots() {
+    const token = getToken();
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/bots?mine=1`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) setMyBots(await res.json());
+  }
+
+  async function addBotToChat(botId: number) {
+    const token = getToken();
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/bots/${botId}/add-to-chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ chat_id: chatId }),
+    });
+    if (res.ok) { loadMembers(); onChanged(); } else alert("Не удалось добавить бота");
+  }
+
+  async function createBotHere() {
+    const nm = newBotName.trim();
+    if (!nm || botBusy) return;
+    setBotBusy(true);
+    const token = getToken();
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/bots`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name: nm, type: "custom" }),
+    });
+    setBotBusy(false);
+    if (res.ok) {
+      const bot = await res.json();
+      setNewBotName("");
+      loadMyBots();
+      if (bot.user_id) addBotToChat(bot.id);
+    } else {
+      const d = await res.json().catch(() => null);
+      alert(d?.detail || "Ошибка создания бота");
+    }
+  }
 
   async function loadMembers() {
     const token = getToken();
@@ -138,6 +182,38 @@ export function GroupMembersModal({ chatId, myRole, onClose, onChanged }: Props)
                   autoFocus
                 />
               </div>
+              {/* 🤖 Боты: добавить моего / создать нового прямо здесь */}
+              <div className="mb-2 rounded-xl border border-[#8b5cf6]/30 bg-[#8b5cf6]/5 p-2.5">
+                <button onClick={() => { const n = !showBots; setShowBots(n); if (n) loadMyBots(); }}
+                  className="w-full flex items-center justify-between text-xs font-black uppercase tracking-wide text-[#8b5cf6]">
+                  <span className="flex items-center gap-1.5">🤖 Боты</span>
+                  <span>{showBots ? "−" : "+"}</span>
+                </button>
+                {showBots && (
+                  <div className="mt-2 space-y-2">
+                    <div className="flex gap-1.5">
+                      <input value={newBotName} onChange={(e) => setNewBotName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") createBotHere(); }}
+                        placeholder="Имя нового бота…"
+                        className="flex-1 px-2.5 py-1.5 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs focus:outline-none focus:border-[#8b5cf6]" />
+                      <button onClick={createBotHere} disabled={botBusy || !newBotName.trim()}
+                        className="px-3 py-1.5 rounded-lg bg-[#8b5cf6] text-white text-xs font-bold disabled:opacity-40">
+                        Создать
+                      </button>
+                    </div>
+                    {myBots.map((b) => (
+                      <div key={b.id} className="flex items-center justify-between gap-2 p-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
+                        <span className="text-xs font-bold text-gray-900 dark:text-white truncate">🤖 {b.name}</span>
+                        <button onClick={() => addBotToChat(b.id)}
+                          className="px-2.5 py-1 rounded-lg bg-[#8b5cf6] text-white text-[11px] font-bold hover:bg-[#7c3aed]">
+                          Добавить
+                        </button>
+                      </div>
+                    ))}
+                    {myBots.length === 0 && <p className="text-[10px] text-gray-500 dark:text-white/40">Своих ботов нет — создай выше или в BOT Company (/bots)</p>}
+                  </div>
+                )}
+              </div>
               {searchResults.map((u) => (
                 <div
                   key={u.id}
@@ -183,6 +259,11 @@ export function GroupMembersModal({ chatId, myRole, onClose, onChanged }: Props)
                     {m.role === "owner" && (
                       <span className="px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 text-[10px] font-black uppercase">
                         Создатель
+                      </span>
+                    )}
+                    {m.user.is_bot && (
+                      <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase">
+                        🤖 Бот
                       </span>
                     )}
                     {m.role === "admin" && (

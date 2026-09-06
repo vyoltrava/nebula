@@ -47,6 +47,9 @@ export default function BotsPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [trigBot, setTrigBot] = useState<BotItem | null>(null);
   const [trigEvents, setTrigEvents] = useState<Set<string>>(new Set());
+  const [chatPickBot, setChatPickBot] = useState<BotItem | null>(null);
+  const [myGroups, setMyGroups] = useState<any[]>([]);
+  const [botChatIds, setBotChatIds] = useState<Set<number>>(new Set());
 
   async function load() {
     const token = getToken();
@@ -107,6 +110,43 @@ export default function BotsPage() {
     setTrigEvents(new Set(b.triggers.filter((t) => t.enabled).map((t) => t.event)));
   }
 
+  async function openChatPicker(b: BotItem) {
+    setChatPickBot(b); setMyGroups([]); setBotChatIds(new Set());
+    const token = getToken();
+    const [chRes, inRes] = await Promise.all([
+      fetch(`${API_URL}/api/chats`, { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`${API_URL}/api/admin/bots/${b.id}/chats`, { headers: { Authorization: `Bearer ${token}` } }),
+    ]);
+    if (chRes.ok) {
+      const data = await chRes.json();
+      setMyGroups((Array.isArray(data) ? data : []).filter((c: any) => c.is_group && !c.is_channel));
+    }
+    if (inRes.ok) {
+      const list = await inRes.json();
+      setBotChatIds(new Set((list || []).map((c: any) => c.id)));
+    }
+  }
+
+  async function botAddChat(chatId: number) {
+    if (!chatPickBot) return;
+    await fetch(`${API_URL}/api/admin/bots/${chatPickBot.id}/add-to-chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ chat_id: chatId }),
+    });
+    setBotChatIds((prev) => new Set([...prev, chatId]));
+  }
+
+  async function botRemoveChat(chatId: number) {
+    if (!chatPickBot) return;
+    await fetch(`${API_URL}/api/admin/bots/${chatPickBot.id}/remove-from-chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ chat_id: chatId }),
+    });
+    setBotChatIds((prev) => { const n = new Set(prev); n.delete(chatId); return n; });
+  }
+
   async function saveTriggers() {
     if (!trigBot) return;
     const triggers = [...trigEvents].map((event) => ({ event, action: {}, enabled: true }));
@@ -147,6 +187,9 @@ export default function BotsPage() {
           <span>триггеров: {b.triggers.length}</span>
         </div>
         <div className="flex gap-1.5">
+          <button onClick={() => openChatPicker(b)} title="Добавить в чаты" className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-xs font-bold hover:bg-purple-500/20 hover:text-purple-600 dark:hover:text-purple-300 transition-all">
+            💬 В чаты
+          </button>
           <button onClick={() => openTriggers(b)} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-xs font-bold hover:bg-purple-500/20 hover:text-purple-600 dark:hover:text-purple-300 transition-all">
             <Zap size={13} /> Триггеры
           </button>
@@ -305,6 +348,34 @@ export default function BotsPage() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+        {/* ===== Модалка «В чаты» ===== */}
+        {chatPickBot && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={() => setChatPickBot(null)}>
+            <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-6 pointer-events-auto max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-xl font-black text-gray-900 dark:text-white mb-1">Бот в чатах</h2>
+              <p className="text-xs text-gray-600 dark:text-white/50 mb-4">Где состоит «{chatPickBot.name}». Добавляй в свои группы — бот появится участником.</p>
+              {myGroups.length === 0 ? (
+                <p className="text-center text-gray-500 dark:text-white/40 text-sm py-6">Нет групповых чатов</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {myGroups.map((g) => {
+                    const inChat = botChatIds.has(Number(g.id));
+                    return (
+                      <div key={g.id} className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-paper dark:bg-[#171717] border border-line dark:border-white/5">
+                        <span className="text-sm text-gray-900 dark:text-white font-bold truncate flex-1">{g.name || `Чат #${g.id}`}</span>
+                        <button onClick={() => inChat ? botRemoveChat(Number(g.id)) : botAddChat(Number(g.id))}
+                          className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all ${inChat ? "bg-green-500/15 text-green-600 dark:text-green-300" : "bg-[#8b5cf6] text-white hover:bg-[#7c3aed]"}`}>
+                          {inChat ? "В чате ✓" : "Добавить"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <button onClick={() => setChatPickBot(null)} className="w-full mt-4 py-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold">Готово</button>
             </div>
           </div>
         )}

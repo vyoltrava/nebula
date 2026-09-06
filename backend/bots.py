@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from database import get_session
-from models import User, Bot, BotTrigger, BotLog, WorkChat, BOT_TYPES
+from models import User, Bot, BotTrigger, BotLog, WorkChat, BOT_TYPES, Chat, ChatMember
 from main import get_current_user, has_permission
 from websocket_manager import manager
 
@@ -34,6 +34,7 @@ def bot_out(b: Bot, session: Session) -> dict:
         "id": b.id, "name": b.name, "username": b.username,
         "description": b.description, "type": b.type, "active": b.active,
         "owner_id": b.owner_id, "owner_username": u.username if u else None,
+        "user_id": b.user_id, "bot_username": (session.get(User, b.user_id).username if b.user_id and session.get(User, b.user_id) else None),
         "chat_id": b.chat_id, "config": _j(b.config),
         "triggers": [{"id": t.id, "event": t.event, "action": _j(t.action),
                       "enabled": t.enabled} for t in trigs],
@@ -105,8 +106,30 @@ def create_bot(data: BotCreateIn, user: User = Depends(get_current_user),
     session.add(bot)
     session.commit()
     session.refresh(bot)
+
+    # 🤖 Аккаунт-бот (User.is_bot=True) — чтобы бота можно было добавлять
+    # в обычные групповые чаты как участника (как в Telegram).
+    bot_username = username or ("bot_%s" % secrets.token_hex(4))
+    base = bot_username
+    suffix = 0
+    while session.exec(select(User).where(User.username == bot_username)).first():
+        suffix += 1
+        bot_username = "%s_%d" % (base, suffix)
+    bot_user = User(
+        username=bot_username,
+        display_name=name[:60],
+        password_hash=secrets.token_hex(16),
+        is_bot=True,
+    )
+    session.add(bot_user)
+    session.commit()
+    session.refresh(bot_user)
+    bot.user_id = bot_user.id
+    session.add(bot)
+    session.commit()
+
     log_bot(session, bot.id, "bot_created", user.id,
-            {"type": data.type, "chat_id": data.chat_id})
+            {"type": data.type, "chat_id": data.chat_id, "user_id": bot_user.id})
     session.commit()
     return bot_out(bot, session)
 class BotUpdateIn(BaseModel):
@@ -230,3 +253,100 @@ def set_triggers(bot_id: int, data: list[TriggerIn],
 def get_worker_bot_for_chat(session: Session, chat_id: int) -> Optional[Bot]:
     return session.exec(select(Bot).where(Bot.chat_id == chat_id,
                                           Bot.type == "worker")).first()
+
+
+# ------------------------------------------------------------------
+# 💬 Боты в обычных чатах (как в Telegram: добавить бота в группу)
+# ------------------------------------------------------------------
+
+def _bot_chat_ids(session: Session, b: Bot) -> list[int]:
+    if not b.user_id:
+        return []
+    rows = session.exec(select(ChatMember.chat_id).where(
+        ChatMember.user_id == b.user_id)).all()
+    return list(rows)
+
+
+def _can_manage_chat(session: Session, chat: Chat, user: User) -> bool:
+    if user.is_admin:
+        return True
+    m = session.exec(select(ChatMember).where(
+        ChatMember.chat_id == chat.id, ChatMember.user_id == user.id)).first()
+    return bool(m and m.role in ("owner", "admin"))
+
+
+class ChatIdIn(BaseModel):
+    chat_id: int
+
+
+@router.post("/admin/bots/{bot_id}/add-to-chat")
+def add_bot_to_chat(bot_id: int, data: ChatIdIn,
+                    user: User = Depends(get_current_user),
+                    session: Session = Depends(get_session)):
+    """Добавить бота участником в групповой чат (право: владелец бота +
+    owner/admin чата, либо глобальный админ)."""
+    b = session.get(Bot, bot_id)
+    if not b:
+        raise HTTPException(404, "Бот не найден")
+    if not (user.is_admin or b.owner_id == user.id
+            or has_permission(user, "manage_roles", session)):
+        raise HTTPException(403, "Нет доступа к этому боту")
+    if not b.user_id:
+        raise HTTPException(400, "У бота нет аккаунта")
+    chat = session.get(Chat, data.chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    if not chat.is_group:
+        raise HTTPException(400, "Бота можно добавить только в группу")
+    if not _can_manage_chat(session, chat, user):
+        raise HTTPException(403, "Нет прав на этот чат (нужен owner/admin)")
+    existing = session.exec(select(ChatMember).where(
+        ChatMember.chat_id == chat.id, ChatMember.user_id == b.user_id)).first()
+    if existing:
+        return {"ok": True, "already": True}
+    session.add(ChatMember(chat_id=chat.id, user_id=b.user_id, role="member"))
+    session.commit()
+    log_bot(session, b.id, "bot_added_to_chat", user.id,
+            {"chat_id": chat.id, "chat_name": chat.name})
+    session.commit()
+    return {"ok": True, "chat_id": chat.id, "bot_user_id": b.user_id}
+
+
+@router.post("/admin/bots/{bot_id}/remove-from-chat")
+def remove_bot_from_chat(bot_id: int, data: ChatIdIn,
+                         user: User = Depends(get_current_user),
+                         session: Session = Depends(get_session)):
+    b = session.get(Bot, bot_id)
+    if not b:
+        raise HTTPException(404, "Бот не найден")
+    if not (user.is_admin or b.owner_id == user.id
+            or has_permission(user, "manage_roles", session)):
+        raise HTTPException(403, "Нет доступа к этому боту")
+    if not b.user_id:
+        raise HTTPException(400, "У бота нет аккаунта")
+    m = session.exec(select(ChatMember).where(
+        ChatMember.chat_id == data.chat_id, ChatMember.user_id == b.user_id)).first()
+    if not m:
+        return {"ok": True, "already": True}
+    session.delete(m)
+    session.commit()
+    log_bot(session, b.id, "bot_removed_from_chat", user.id,
+            {"chat_id": data.chat_id})
+    session.commit()
+    return {"ok": True}
+
+
+@router.get("/admin/bots/{bot_id}/chats")
+def bot_chats(bot_id: int, user: User = Depends(get_current_user),
+              session: Session = Depends(get_session)):
+    """В каких чатах состоит бот."""
+    b = session.get(Bot, bot_id)
+    if not b:
+        raise HTTPException(404, "Бот не найден")
+    require_bot_admin(b, user, session)
+    out = []
+    for cid in _bot_chat_ids(session, b):
+        c = session.get(Chat, cid)
+        if c:
+            out.append({"id": c.id, "name": c.name, "is_group": c.is_group})
+    return out
