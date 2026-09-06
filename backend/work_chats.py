@@ -138,36 +138,45 @@ def sync_user_work_membership(session: Session, user: User,
     role = session.get(Role, user.role_id) if user.role_id else None
     cat_id = role.category_id if (role and role.category_id) else None
 
-    # 1. Если есть подходящая категория — найти/создать чат и добавить
-    if cat_id is not None:
-        cat = session.get(RoleCategory, cat_id)
-        chat = None
-        if cat:
-            chat = ensure_work_chat(session, cat, actor)
-        if chat:
-            m = session.exec(select(_WCM).where(
-                _WCM.chat_id == chat.id, _WCM.user_id == user.id)).first()
-            if not m:
-                wr = _role_to_work_role(role.level or 1)
-                session.add(_WCM(chat_id=chat.id, user_id=user.id, role=wr,
-                                 added_by=actor.id if actor else None))
-                session.commit()
+    try:
+        # 1. Если есть подходящая категория — найти/создать чат и добавить
+        if cat_id is not None:
+            cat = session.get(RoleCategory, cat_id)
+            chat = None
+            if cat:
+                chat = ensure_work_chat(session, cat, actor)
+            if chat:
+                m = session.exec(select(_WCM).where(
+                    _WCM.chat_id == chat.id, _WCM.user_id == user.id)).first()
+                if not m:
+                    wr = _role_to_work_role(role.level or 1)
+                    session.add(_WCM(chat_id=chat.id, user_id=user.id, role=wr,
+                                     added_by=actor.id if actor else None))
+                    session.flush()
+                    session.commit()
 
-    # 2. Удалить из рабочих чатов, если роль больше не даёт членства
-    #    (категория не та).
-    memberships = session.exec(select(_WCM).where(
-        _WCM.user_id == user.id)).all()
-    for m in memberships:
-        chat = session.get(WorkChat, m.chat_id)
-        if not chat:
-            continue
-        if chat.category_id == cat_id:
-            continue  # чат своей категории — остаётся
-        # чужая категория + у юзера нет роли с неё → убрать
-        role_of_chat = session.get(Role, user.role_id) if user.role_id else None
-        if not (role_of_chat and role_of_chat.category_id == chat.category_id):
-            session.delete(m)
-    session.commit()
+        # 2. Удалить из рабочих чатов, если роль больше не даёт членства
+        memberships = session.exec(select(_WCM).where(
+            _WCM.user_id == user.id)).all()
+        changed = False
+        for m in memberships:
+            chat = session.get(WorkChat, m.chat_id)
+            if not chat:
+                continue
+            if chat.category_id == cat_id:
+                continue  # чат своей категории — остаётся
+            role_of_chat = session.get(Role, user.role_id) if user.role_id else None
+            if not (role_of_chat and role_of_chat.category_id == chat.category_id):
+                session.delete(m)
+                changed = True
+        if changed:
+            session.flush()
+            session.commit()
+    except Exception as _e:
+        session.rollback()
+        print("sync_user_work_membership err", user.username, "role", user.role_id,
+              ":", repr(_e))
+        raise
 
 def require_admin(user: User, session: Session):
     from main import has_permission
@@ -1188,7 +1197,21 @@ def sync_work_chat_members(
     """Ручная полная синхронизация: все юзеры с ролями → в чаты своих категорий."""
     require_admin(user, session)
     n = sync_all_memberships(session, user)
-    return {"ok": True, "synced": n}
+    # диагностика
+    from models import Role
+    users_with_role = sum(1 for _ in session.exec(select(User).where(
+        User.is_bot == False, User.role_id.is_not(None))))  # noqa: E712
+    users_with_cat = 0
+    roles_by_id = {r.id: r for r in session.exec(select(Role)).all()}
+    for uu in session.exec(select(User).where(
+            User.is_bot == False, User.role_id.is_not(None))).all():  # noqa: E712
+        r = roles_by_id.get(uu.role_id)
+        if r and r.category_id:
+            users_with_cat += 1
+    return {"ok": True, "synced": n,
+            "users_with_role": users_with_role,
+            "users_with_role_category": users_with_cat,
+            "roles_total": len(roles_by_id)}
 
 
 @router.post("/work/chats/auto")

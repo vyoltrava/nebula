@@ -129,7 +129,7 @@ export default function DepartmentsTab() {
       method: "POST", headers: { Authorization: `Bearer ${getToken()}` },
     });
     const d = await res.json().catch(() => ({}));
-    alert(`Синхронизировано участников: ${d.synced ?? "?"}`);
+    alert(`Синхронизировано: ${d.synced ?? "?"}\nЮзеров с ролью: ${d.users_with_role ?? "?"}\nИз них с категорией: ${d.users_with_role_category ?? "?"}`);
     load();
   }
 
