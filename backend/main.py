@@ -14557,12 +14557,20 @@ def admin_team_statistics(
     cats = session.exec(select(RoleCategory).order_by(
         RoleCategory.order, RoleCategory.id)).all()
     groups = []
+    assigned_user_ids: set = set()
     for cat in cats:
+        # 🛡 Берём ВСЕ роли категории (не только is_staff), иначе команда пустует
         roles = session.exec(select(Role).where(
-            Role.category_id == cat.id, Role.is_staff == True)).all()  # noqa: E712
+            Role.category_id == cat.id)).all()
         members = []
         for r in roles:
-            for u in session.exec(select(User).where(User.role_id == r.id)).all():
+            users_in_role = session.exec(select(User).where(
+                User.role_id == r.id, User.is_bot == False)).all()  # noqa: E712
+            # сортировка внутри роли: по уровню роли
+            for u in users_in_role:
+                if u.id in assigned_user_ids:
+                    continue
+                assigned_user_ids.add(u.id)
                 actions_count = session.exec(
                     select(func.count(ActionLog.id))
                     .where(ActionLog.actor_id == u.id)).one() or 0
@@ -14572,7 +14580,36 @@ def admin_team_statistics(
                              "level": r.level},
                     "actions_count": int(actions_count),
                 })
+        members.sort(key=lambda m: -(m["role"].get("level") or 0))
         groups.append({"id": cat.id, "name": cat.name, "color": cat.color,
                        "members": members})
+
+    # 🛡 Fallback: юзеры с ролью БЕЗ категории (или админы без роли) —
+    # чтобы команда не «пропадала» из-за незаполненных категорий
+    fallback = []
+    all_users = session.exec(select(User).where(
+        User.is_bot == False, User.is_banned == False)).all()  # noqa: E712
+    cat_role_ids = {r.id for r in session.exec(select(Role).where(
+        Role.category_id.is_not(None))).all()}
+    for u in all_users:
+        if u.id in assigned_user_ids:
+            continue
+        r = session.get(Role, u.role_id) if u.role_id else None
+        if r and r.id in cat_role_ids:
+            continue
+        if not (u.is_admin or u.is_moderator or (r and r.is_staff)):
+            continue
+        actions_count = session.exec(
+            select(func.count(ActionLog.id))
+            .where(ActionLog.actor_id == u.id)).one() or 0
+        fallback.append({
+            "user": _user_brief(u),
+            "role": ({"id": r.id, "name": r.name, "color": r.color,
+                      "level": r.level} if r else None),
+            "actions_count": int(actions_count),
+        })
+    if fallback:
+        groups.append({"id": -1, "name": "Без отдела", "color": "#8b5cf6",
+                       "members": fallback})
     return {"groups": groups}
 
