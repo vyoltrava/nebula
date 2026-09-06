@@ -4,7 +4,6 @@ import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
 import { useWebSocket } from "@/src/hooks/useWebSocket";
 import { Headphones, Send, RefreshCw, ArrowLeft, Image as ImageIcon, X, Loader2 } from "lucide-react";
-import { SystemTicketFeed } from "@/components/admin/SystemTicketFeed";
 
 const API = process.env.NEXT_PUBLIC_API_URL;
 
@@ -213,7 +212,6 @@ export function SupportSection({ me }: { me: any }) {
 
   return (
     <div className="space-y-4">
-      <SystemTicketFeed panel="support" color="#22c55e" />
       <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-260px)]">
       <div className={`w-full md:w-96 border border-line dark:border-white/10 rounded-xl bg-gray-100 dark:bg-white/5 flex flex-col ${activeTicket ? "hidden md:flex" : "flex"}`}>
         <div className="p-3 border-b border-line dark:border-white/10 flex items-center justify-between">

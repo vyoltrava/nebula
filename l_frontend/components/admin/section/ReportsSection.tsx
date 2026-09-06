@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Avatar } from "@/components/Avatar";
 import { getToken } from "@/lib/auth";
 import { Flag, CheckCircle, XCircle, Trash2, Ban } from "lucide-react";
-import { SystemTicketFeed } from "@/components/admin/SystemTicketFeed";
 
 const REASON_LABELS: Record<string, string> = {
   spam: "📢 Спам", insult: "😡 Оскорбление", nsfw: "🔞 Контент 18+",
@@ -54,7 +53,6 @@ export function ReportsSection({ me }: { me: any }) {
 
   return (
     <div className="space-y-4">
-      <SystemTicketFeed panel="reports" color="#ef4444" />
       <div className="flex gap-2 flex-wrap">
         {(["pending", "resolved", "rejected", "all"] as const).map((f) => (
           <button key={f} onClick={() => setFilter(f)}

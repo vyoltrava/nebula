@@ -27,9 +27,8 @@ from models import (
     ChannelComment, ChannelInvite, ChannelInviteRequest,
     ChannelBan, ChannelSavedPost, ChannelPostReaction,
     ChannelBadge, ChannelBadgeAssign,
-    TeamTicket, RoleCategory, ChatMember, Message,
+    ChatMember, Message,
 )
-import random as _random
 from main import get_current_user, get_optional_user, log_action, get_client_ip
 from websocket_manager import manager
 
@@ -1483,98 +1482,6 @@ def _channel_admin_ids(session: Session, channel_id: int) -> list:
     return [a.user_id for a in admins]
 
 
-def _member_team_permissions(cm: ChatMember) -> list:
-    try:
-        return json.loads(cm.team_permissions or "[]") or []
-    except Exception:
-        return []
-
-
-def _dispatch_join_request(session: Session, ch: Channel, user: User) -> None:
-    """🤖 Диспетчер заявок на вступление в приватный канал.
-
-    Создаёт TeamTicket (kind="join") и назначает свободного участника отдела
-    (round-robin, как у заявок отдела), затем бот-сообщением «приземляет»
-    заявку в рабочий чат отдела с @упоминанием исполнителя."""
-    try:
-        cats = session.exec(select(RoleCategory).where(RoleCategory.team_chat_id.is_not(None))).all()  # type: ignore[union-attr]
-        if not cats:
-            return
-        busy_ids = set(session.exec(
-            select(TeamTicket.assigned_to).where(
-                TeamTicket.assigned_to.is_not(None),  # type: ignore[union-attr]
-                TeamTicket.status.in_(["open", "assigned"]),
-            )
-        ).all())
-
-        candidates_by_cat: dict[int, list] = {}
-        for cat in cats:
-            members = session.exec(
-                select(ChatMember).where(ChatMember.chat_id == cat.team_chat_id)
-            ).all()
-            cands = [
-                cm for cm in members
-                if "can_handle_tasks" in _member_team_permissions(cm)
-            ]
-            if cands:
-                candidates_by_cat[cat.id] = cands
-        if not candidates_by_cat:
-            return
-
-        category_id, cands = _random.choice(list(candidates_by_cat.items()))
-        cat_row = session.get(RoleCategory, category_id)
-
-        # 🚫 Глава отдела, зам и cross_head заявки НЕ получают.
-        # Fallback на них — только если других исполнителей нет вовсе.
-        workers = [cm for cm in cands if (cm.team_hierarchy or "") not in ("head", "deputy", "cross_head")]
-        if not workers:
-            workers = cands
-
-        ticket = TeamTicket(
-            category_id=category_id,
-            chat_id=cat_row.team_chat_id if cat_row else None,
-            title=f"Заявка в канал «{ch.title}»"[:120],
-            description=(f"Пользователь @{user.username} ({user.display_name or ''}) "
-                         f"просит доступ к приватному каналу «{ch.title}»."),
-            kind="join",
-            created_by=user.id,
-        )
-        session.add(ticket)
-        session.commit()
-        session.refresh(ticket)
-
-        # round-robin как у заявок отдела: на смене + меньше всех взятых,
-        # иначе — минимальный уровень иерархии
-        on_shift = [cm for cm in workers if cm.on_shift]
-        pool = [cm for cm in (on_shift or workers) if cm.user_id not in busy_ids] or (on_shift or workers)
-        if on_shift:
-            min_taken = min(cm.shift_taken or 0 for cm in pool)
-            assignee_member = _random.choice([cm for cm in pool if (cm.shift_taken or 0) == min_taken])
-        else:
-            prio = ["junior", "senior", "deputy", "head", "cross_head"]
-            min_prio = min(prio.index(cm.team_hierarchy or "senior") for cm in pool)
-            assignee_member = _random.choice([cm for cm in pool if prio.index(cm.team_hierarchy or "senior") == min_prio])
-        assignee = session.get(User, assignee_member.user_id)
-        if assignee:
-            ticket.status = "assigned"
-            ticket.assigned_to = assignee.id
-            ticket.assigned_hierarchy = assignee_member.team_hierarchy
-            ticket.assigned_at = utcnow()
-            assignee_member.shift_taken = (assignee_member.shift_taken or 0) + 1
-            session.add(assignee_member)
-            session.add(ticket)
-            session.commit()
-            if cat_row and cat_row.team_chat_id:
-                session.add(Message(
-                    chat_id=cat_row.team_chat_id,
-                    sender_id=user.id,
-                    text=f"🤖 Заявка в канал «{ch.title}» от @{user.username} → @{assignee.username}",
-                ))
-                session.commit()
-    except Exception as e:
-        print(f"[channels] ⚠️ Не удалось диспетчеризовать заявку в рабочий чат: {e}")
-
-
 async def _create_pending_request(session: Session, ch: Channel, user: User,
                                   invite_token: str = None) -> dict:
     """Создаёт/возобновляет заявку pending и пушит админам."""
@@ -1604,8 +1511,6 @@ async def _create_pending_request(session: Session, ch: Channel, user: User,
          "user": {"id": user.id, "username": user.username,
                   "display_name": user.display_name, "avatar_url": user.avatar_url}},
     )
-    # 🤖 Заявка «прилетает» ботом в рабочий чат отдела (@свободный админ)
-    _dispatch_join_request(session, ch, user)
     return {"ok": True, "status": "pending"}
 
 
@@ -1714,23 +1619,6 @@ async def resolve_request(
         session.add(ChannelSubscriber(channel_id=ch.id, user_id=req.user_id,
                                       role="subscriber"))
     session.commit()
-
-    # 🎫 Закрываем связанный тикет-заявку (kind="join"), если она была диспетчеризирована
-    try:
-        open_tickets = session.exec(select(TeamTicket).where(
-            TeamTicket.kind == "join",
-            TeamTicket.created_by == req.user_id,
-            TeamTicket.status.in_(["open", "assigned"]),
-        )).all()
-        for t in open_tickets:
-            if f"«{ch.title}»" in t.title:
-                t.status = "done"
-                t.closed_by = user.id
-                t.closed_at = utcnow()
-                session.add(t)
-        session.commit()
-    except Exception as e:
-        print(f"[channels] ⚠️ Не удалось закрыть тикет заявки: {e}")
 
     # WS: результат заявителю
     await manager.send_to_user(req.user_id, "channel_request_resolved",

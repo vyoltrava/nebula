@@ -51,15 +51,13 @@ export default function FolderContextModal({
     if (folderId == null) return;
     try {
       const [fRes, cRes] = await Promise.all([api("/api/chats/folders"), api("/api/chats")]);
-      const fData = fRes.ok ? await fRes.json() : { folders: [], work_folder: null };
+      const fData = fRes.ok ? await fRes.json() : { folders: [] };
       const f = (fData.folders || []).find((x: any) => x.id === folderId) || folderInitial || null;
-      // 🚫 Рабочие чаты (системная папка РАБОТА) в списке не показываем
-      const work = new Set<number>((fData.work_folder?.chat_ids || []).map(Number));
       setFolder(f);
       setNewName(f?.name || "");
       setNewIcon(f?.icon || "");
       const cData = cRes.ok ? await cRes.json() : [];
-      setChats(Array.isArray(cData) ? cData.filter((c: any) => !work.has(Number(c.id))) : []);
+      setChats(Array.isArray(cData) ? cData : []);
     } catch { /* ignore */ }
     setChatsLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps

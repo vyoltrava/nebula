@@ -59,11 +59,9 @@ from models import (
     PushSubscription, StickerPack, Sticker, MessageReaction, PostReaction, Theme, SystemSetting,
     RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge,
     Billet, BilletTemplate, BilletAssignment, SystemBadge,
-    SuggestionCategory, SuggestionThread, SuggestionThreadComment, TeamStatistic, RoleHistory, NickHistory, Suggestion, SuggestionComment, ChatDraft, PremiumUsername, PaymentPurchase, PaymentRole,
+    SuggestionCategory, SuggestionThread, SuggestionThreadComment, RoleHistory, NickHistory, Suggestion, SuggestionComment, ChatDraft, PremiumUsername, PaymentPurchase, PaymentRole,
     UserPrefix, UserPrefixAssign,
     UserChatFolder, ChatFolderAssign,
-    TeamTicket,
-    SystemChat, SystemChatMember, SystemChatMessage,
     Channel, ChannelSubscriber,
     AdminBackup
 )
@@ -867,8 +865,6 @@ ALL_PERMISSIONS = [
     "manage_usernames",          # 🆕 Управление премиум-юзернеймами (@)
     "access_owner_panel",        # 🆕 Доступ к панели владельца/фаундера
     "manage_backups",            # 🆕 Резервная БД: просмотр/откат действий админов, бан админа
-    "manage_team_hierarchy",     # 🏢 Вкладка «Команды» в /stat: иерархия и права внутри отделов
-    "manage_cross_team_chats",   # 🔗 Создание и управление межгрупповыми чатами (чат глав)
 ]
 
 MODERATOR_PERMISSIONS = ALL_PERMISSIONS.copy()
@@ -904,9 +900,6 @@ PERMISSION_LABELS: dict = {
     "manage_usernames":     ("Управление премиум-юзернеймами (@)", "system"),
     "access_owner_panel":   ("Доступ к панели владельца/фаундера", "system"),
     "manage_backups":       ("Резерв действий админов: просмотр, откат, бан админа", "system"),
-    # === Команды (отделы) ===
-    "manage_team_hierarchy":  ("Управление командами: иерархия и права внутри отделов", "system"),
-    "manage_cross_team_chats": ("Межгрупповые чаты (чат глав, чат замов)", "system"),
 }
 
 VALID_PERMISSIONS = set(ALL_PERMISSIONS)
@@ -4139,13 +4132,6 @@ def assign_role(
     ))
     session.commit()
 
-    # 🏢 «Магия»: юзер с ролью отдела автоматически входит в рабочий чат отдела,
-    # при смене/снятии роли — автоматически кикается из чата старого отдела.
-    try:
-        sync_user_team_membership(target, session)
-    except Exception as e:
-        print(f"⚠️ sync_user_team_membership (user {user_id}): {e}")
-
     return {"ok": True}
 
 
@@ -5259,264 +5245,13 @@ def admin_unmute_member(
 # 🏢 Авто-иерархия внутри рабочего чата отдела по уровню юзера:
 # 7 (Глава Админа) -> head | 6 (Глава Отдела) -> head | 5 (Зам) -> deputy
 # 4 (Средний) -> senior | 3 (Новичок) -> junior
-TEAM_HIERARCHY_BY_LEVEL = {7: "head", 6: "head", 5: "deputy", 4: "senior", 3: "junior"}
-
-
-def default_team_hierarchy_for_level(level: int) -> Optional[str]:
-    """Уровни 3-7 мапятся на team_hierarchy; остальные — без иерархии."""
-    if level >= 7:
-        return "head"
-    return TEAM_HIERARCHY_BY_LEVEL.get(level)
-
-
-def ensure_team_chat_for_category(category_id: int, session: Session) -> Optional[Chat]:
-    """Создаёт закрытый рабочий чат отдела (если его ещё нет) и линкует к категории.
-
-    - Chat: is_group=True, system_folder="work", name="Рабочий чат: {category.name}"
-    - ID чата сохраняется в RoleCategory.team_chat_id
-    - Бэкфилл: все юзеры с ролью этого отдела автоматически добавляются в чат.
-    Идемпотентна — безопасно вызывать сколько угодно раз.
-    """
-    cat = session.get(RoleCategory, category_id)
-    if not cat:
-        return None
-    if cat.team_chat_id:
-        chat = session.get(Chat, cat.team_chat_id)
-        if chat:
-            return chat
-    chat = Chat(
-        name=f"Рабочий чат: {cat.name}",
-        is_group=True,
-        is_secret=False,
-        system_folder="work",
-        category_id=cat.id,
-    )
-    session.add(chat)
-    session.commit()
-    session.refresh(chat)
-    cat.team_chat_id = chat.id
-    session.add(cat)
-    session.commit()
-    # 🔙 Бэкфилл: добавляем всех, у кого уже есть роль этого отдела
-    try:
-        roles = session.exec(select(Role).where(Role.category_id == cat.id)).all()
-        for role in roles:
-            users = session.exec(select(User).where(User.role_id == role.id)).all()
-            for u in users:
-                add_user_to_team_chat(u, cat, session)
-    except Exception as e:
-        print(f"⚠️ Бэкфилл участников рабочего чата отдела #{cat.id}: {e}")
-    return chat
-
-
-def add_user_to_team_chat(user: User, category: RoleCategory, session: Session) -> Optional[ChatMember]:
-    """Добавляет юзера в рабочий чат отдела (auto_assigned=True) и проставляет иерархию.
-
-    Иерархия вычисляется из уровня юзера и НЕ перетирается, если была задана
-    вручную в /stat (team_hierarchy_manual=True).
-    """
-    chat = ensure_team_chat_for_category(category.id, session)
-    if not chat or not user.id:
-        return None
-    member = session.exec(
-        select(ChatMember).where(ChatMember.chat_id == chat.id, ChatMember.user_id == user.id)
-    ).first()
-    if not member:
-        lvl = get_user_level(user, session)
-        member = ChatMember(
-            chat_id=chat.id,
-            user_id=user.id,
-            role="member",
-            auto_assigned=True,
-            team_hierarchy=default_team_hierarchy_for_level(lvl),
-        )
-        session.add(member)
-        session.commit()
-        session.refresh(member)
-    elif not member.auto_assigned:
-        # Юзера добавили в чат вручную — просто помечаем, что он состоит в отделе.
-        # Иерархию и ручной флаг не трогаем.
-        member.auto_assigned = True
-        session.add(member)
-        session.commit()
-    elif not member.team_hierarchy_manual:
-        # Уровень роли мог измениться — обновляем иерархию (если она не ручная)
-        auto_h = default_team_hierarchy_for_level(get_user_level(user, session))
-        if auto_h and member.team_hierarchy != auto_h:
-            member.team_hierarchy = auto_h
-            session.add(member)
-            session.commit()
-    return member
-
-
-def kick_user_from_team_chat(user_id: int, category_id: int, session: Session) -> None:
-    """Кикает юзера из рабочего чата отдела (только auto_assigned; вручную добавленных не трогаем)."""
-    cat = session.get(RoleCategory, category_id)
-    if not cat or not cat.team_chat_id:
-        return
-    member = session.exec(
-        select(ChatMember).where(
-            ChatMember.chat_id == cat.team_chat_id,
-            ChatMember.user_id == user_id,
-            ChatMember.auto_assigned == True,  # noqa: E712
-        )
-    ).first()
-    if member:
-        session.delete(member)
-        session.commit()
-
-
-def sync_user_team_membership(user: User, session: Session) -> None:
-    """Приводит членство юзера в рабочих чатах отделов в соответствие с его ролью.
-
-    - Роль с category_id → юзер в рабочем чате отдела.
-    - Смена/снятие роли → авто-кик из чата старого отдела (если не был добавлен вручную).
-    """
-    current_category_id = None
-    if user.role_id:
-        role = session.get(Role, user.role_id)
-        if role:
-            current_category_id = role.category_id
-    memberships = session.exec(
-        select(ChatMember).where(ChatMember.user_id == user.id)
-    ).all()
-    changed = False
-    for cm in memberships:
-        chat = session.get(Chat, cm.chat_id)
-        if chat and chat.category_id and chat.category_id != current_category_id and cm.auto_assigned:
-            session.delete(cm)
-            changed = True
-    if changed:
-        session.commit()
-    if current_category_id:
-        cat = session.get(RoleCategory, current_category_id)
-        if cat:
-            add_user_to_team_chat(user, cat, session)
-    # 🔗 Кросс-командные чаты (чат глав / чат замов): авто-вход и авто-кик
-    try:
-        sync_user_cross_team_chats(user, session)
-    except Exception as e:
-        print(f"⚠️ sync_user_cross_team_chats (user {user.id}): {e}")
-
-
-def _user_effective_hierarchy(user: User, session: Session) -> Optional[str]:
-    """Эффективная иерархия юзера для кросс-командных чатов.
-
-    Приоритет: ручная иерархия в рабочем чате отдела (team_hierarchy_manual) →
-    авто-иерархия в рабочем чате → дефолт по уровню роли.
-    """
-    manual = None
-    auto = None
-    memberships = session.exec(
-        select(ChatMember).where(ChatMember.user_id == user.id)
-    ).all()
-    for cm in memberships:
-        if not cm.team_hierarchy:
-            continue
-        chat = session.get(Chat, cm.chat_id)
-        if chat and chat.category_id:
-            if cm.team_hierarchy_manual:
-                manual = manual or cm.team_hierarchy
-            elif auto is None:
-                auto = cm.team_hierarchy
-    if manual:
-        return manual
-    if auto:
-        return auto
-    return default_team_hierarchy_for_level(get_user_level(user, session))
-
-
-def _cross_team_matches(cross_team_type: Optional[str], hierarchy: Optional[str]) -> bool:
-    """Подходит ли юзер с такой иерархией для кросс-командного чата."""
-    if cross_team_type == "heads_only":
-        return hierarchy in ("head", "cross_head")
-    if cross_team_type == "deputies_only":
-        return hierarchy == "deputy"
-    return False
-
-
-def sync_user_cross_team_chats(user: User, session: Session) -> None:
-    """Синхронизирует членство юзера во всех межгрупповых чатах.
-
-    - Стал главой (head/cross_head) → авто-вход во все чаты heads_only.
-    - Стал замом (deputy) → авто-вход во все чаты deputies_only.
-    - Перестал соответствовать → авто-кик (только auto_assigned).
-    """
-    hierarchy = _user_effective_hierarchy(user, session)
-    memberships = session.exec(
-        select(ChatMember).where(ChatMember.user_id == user.id)
-    ).all()
-    known_cross_ids = set()
-    for cm in memberships:
-        chat = session.get(Chat, cm.chat_id)
-        if not chat or not chat.cross_team_type:
-            continue
-        known_cross_ids.add(chat.id)
-        matches = _cross_team_matches(chat.cross_team_type, hierarchy)
-        if matches and not cm.auto_assigned:
-            cm.auto_assigned = True
-            session.add(cm)
-        elif not matches and cm.auto_assigned:
-            session.delete(cm)
-            continue
-    session.commit()
-    # Чаты, в которых юзера ещё нет, но он подходит
-    if hierarchy:
-        cross_chats = session.exec(
-            select(Chat).where(Chat.cross_team_type.is_not(None))  # type: ignore[union-attr]
-        ).all()
-        for chat in cross_chats:
-            if chat.id in known_cross_ids:
-                continue
-            if _cross_team_matches(chat.cross_team_type, hierarchy):
-                exists = session.exec(
-                    select(ChatMember).where(ChatMember.chat_id == chat.id, ChatMember.user_id == user.id)
-                ).first()
-                if not exists:
-                    session.add(ChatMember(
-                        chat_id=chat.id,
-                        user_id=user.id,
-                        role="member",
-                        auto_assigned=True,
-                        team_hierarchy="cross_head" if (chat.cross_team_type == "heads_only" and get_user_level(user, session) >= 7) else hierarchy,
-                    ))
-        session.commit()
-
-
-def _cross_team_candidate_ids(session: Session, cross_team_type: str) -> list[int]:
-    """Все юзеры, подходящие под тип кросс-командного чата (для создания чата)."""
-    ids: list[int] = []
-    users = session.exec(select(User).where(User.is_banned == False)).all()  # noqa: E712
-    for u in users:
-        if _cross_team_matches(cross_team_type, _user_effective_hierarchy(u, session)):
-            ids.append(u.id)
-    return ids
-
-
-def _create_cross_team_chat_sync(session: Session, chat: Chat, candidate_ids: list[int], actor_id: int) -> None:
-    """Наполняет созданный кросс-командный чат кандидатами (owner + auto_assigned)."""
-    session.add(ChatMember(chat_id=chat.id, user_id=actor_id, role="owner", team_hierarchy="cross_head"))
-    for uid in candidate_ids:
-        if uid == actor_id:
-            continue
-        u = session.get(User, uid)
-        h = _user_effective_hierarchy(u, session) if u else None
-        session.add(ChatMember(
-            chat_id=chat.id,
-            user_id=uid,
-            role="member",
-            auto_assigned=True,
-            team_hierarchy="cross_head" if (chat.cross_team_type == "heads_only" and get_user_level(u, session) >= 7) else h,
-        ))
-
-
 # ============================================================
 # 🗂️ КАТЕГОРИИ РОЛЕЙ (ГРУППЫ/ОТДЕЛЫ)
 # ============================================================
 @app.get("/api/role-categories")
 def list_role_categories(session: Session = Depends(get_session)):
     cats = session.exec(select(RoleCategory).order_by(RoleCategory.order, RoleCategory.id)).all()
-    return [{"id": c.id, "name": c.name, "color": c.color, "description": c.description, "order": c.order, "team_chat_id": c.team_chat_id, "panel_tabs": _category_panel_tabs(c)} for c in cats]
+    return [{"id": c.id, "name": c.name, "color": c.color, "description": c.description, "order": c.order} for c in cats]
 
 @app.post("/api/role-categories")
 def create_role_category(
@@ -5535,14 +5270,7 @@ def create_role_category(
     session.add(cat)
     session.commit()
     session.refresh(cat)
-    # 🏢 «Магия»: автоматически создаём закрытый рабочий чат отдела
-    team_chat_id = None
-    try:
-        chat = ensure_team_chat_for_category(cat.id, session)
-        team_chat_id = chat.id if chat else None
-    except Exception as e:
-        print(f"⚠️ Не удалось создать рабочий чат для отдела «{cat.name}»: {e}")
-    return {"ok": True, "id": cat.id, "name": cat.name, "color": cat.color, "description": cat.description, "order": cat.order, "team_chat_id": team_chat_id}
+    return {"ok": True, "id": cat.id, "name": cat.name, "color": cat.color, "description": cat.description, "order": cat.order}
 
 @app.put("/api/role-categories/{cat_id}")
 def update_role_category(
@@ -5576,13 +5304,6 @@ def delete_role_category(
     cat = session.get(RoleCategory, cat_id)
     if not cat:
         raise HTTPException(404, "Категория не найдена")
-    # 🏢 Удаляем и рабочий чат отдела (вместе с участниками), чтобы не оставлять сироту
-    if cat.team_chat_id:
-        team_chat = session.get(Chat, cat.team_chat_id)
-        if team_chat:
-            for cm in session.exec(select(ChatMember).where(ChatMember.chat_id == team_chat.id)).all():
-                session.delete(cm)
-            session.delete(team_chat)
     session.delete(cat)
     session.commit()
     return {"ok": True}
@@ -6019,12 +5740,6 @@ def serialize_chat_for_user(chat: Chat, user_id: int, session: Session) -> dict:
             "archived": bool(_my_member and getattr(_my_member, "archived_at", None)),
             "can_add_members": getattr(chat, "can_add_members", "admins"),
             "invite_token": getattr(chat, "invite_token", None),
-            # 🏢 Системные папки и команды (Шаг 2)
-            "system_folder": chat.system_folder,          # "work" → чат в системной папке 📁 РАБОТА
-            "cross_team_type": chat.cross_team_type,      # "heads_only" | "deputies_only" | None
-            "is_team_chat": bool(chat.category_id),       # рабочий чат отдела (не удаляется юзером)
-            # 🟢 Смена (для кнопки в шапке чата отдела)
-            "my_on_shift": bool(members_map.get(user_id).on_shift) if user_id in members_map and chat.category_id else False,
         }
     else:
         # DM — как раньше
@@ -6135,13 +5850,9 @@ def _activity_ts_for_chat(data: dict) -> float:
 
 
 def _serialize_chats_for_folders(chats: list, user_id: int, session: Session) -> dict:
-    """Сериализует чаты + добавляет флаги системных папок/команд."""
     out = {}
     for c in chats:
         data = serialize_chat_for_user(c, user_id, session)
-        data["system_folder"] = c.system_folder
-        data["cross_team_type"] = c.cross_team_type
-        data["is_team_chat"] = bool(c.category_id)
         out[c.id] = data
     return out
 
@@ -6153,38 +5864,21 @@ def list_chat_folders(
 ):
     """Структура чатов для фронтенда:
 
-    1. work_folder — системная папка 📁 РАБОТА (рабочие чаты отделов +
-       кросс-командные чаты). Замок: нельзя переименовать/удалить.
-    2. folders — кастомные папки юзера.
-    3. chats — все остальные чаты (ЛС, обычные группы), не привязанные к папкам.
+    folders — кастомные папки юзера.
+    chats — чаты (ЛС, обычные группы), не привязанные к папкам.
     """
     memberships = session.exec(
         select(ChatMember.chat_id).where(ChatMember.user_id == user.id)
     ).all()
     if not memberships:
-        return {"work_folder": None, "folders": [], "chats": []}
+        return {"folders": [], "chats": []}
 
     chats = session.exec(select(Chat).where(Chat.id.in_(list(memberships)))).all()
     serialized = _serialize_chats_for_folders(chats, user.id, session)
 
-    # 📁 Системная папка РАБОТА
-    work_chat_ids = sorted(
-        [c.id for c in chats if c.system_folder == "work"],
-        key=lambda cid: -_activity_ts_for_chat(serialized[cid]),
-    )
-    work_folder = None
-    if work_chat_ids:
-        work_folder = {
-            "system": True,
-            "key": "work",
-            "name": "РАБОТА",
-            "icon": "💼",
-            "chat_ids": work_chat_ids,
-        }
-
     # Кастомные папки пользователя
     folders_out = []
-    assigned_ids = set(work_chat_ids)
+    assigned_ids: set[int] = set()
     my_folders = session.exec(
         select(UserChatFolder)
         .where(UserChatFolder.user_id == user.id)
@@ -6209,7 +5903,6 @@ def list_chat_folders(
     rest_ids = sorted([cid for cid in serialized if cid not in assigned_ids], key=_rest_key)
 
     return {
-        "work_folder": work_folder,
         "folders": folders_out,
         "chats": [serialized[cid] for cid in rest_ids],
     }
@@ -6246,7 +5939,7 @@ def create_chat_folder(
     attached: list[int] = []
     for cid in data.chat_ids or []:
         chat = session.get(Chat, cid)
-        if not chat or chat.system_folder:
+        if not chat:
             continue
         member = session.exec(
             select(ChatMember).where(ChatMember.chat_id == chat.id, ChatMember.user_id == user.id)
@@ -6328,9 +6021,6 @@ def add_chat_to_folder(
     ).first()
     if not member:
         raise HTTPException(403, "Вы не участник этого чата")
-    # Системные чаты (РАБОТА) нельзя раскладывать по кастомным папкам
-    if chat.system_folder:
-        raise HTTPException(400, "Этот чат находится в системной папке и не может быть перемещён")
     exists = session.exec(
         select(ChatFolderAssign).where(
             ChatFolderAssign.folder_id == folder.id,
@@ -6366,382 +6056,17 @@ def remove_chat_from_folder(
 
 
 # ============================================================
-# 🔗 МЕЖГРУППОВЫЕ ЧАТЫ (КРОСС-КОМАНДЫ) — админ-эндпоинты
 # ============================================================
-
-@app.post("/api/admin/cross-team-chats")
-def create_cross_team_chat(
-    request: Request,
-    name: str = Form(...),
-    cross_team_type: str = Form("heads_only"),
-    staff: User = Depends(require_staff),
-    session: Session = Depends(get_session),
-):
-    """Создаёт межгрупповой чат: heads_only (только главы отделов, lvl>=6)
-    или deputies_only (только замы). Участники подбираются автоматически,
-    новые главы/замы добавляются сами при выдаче роли."""
-    if not has_permission(staff, "manage_cross_team_chats", session):
-        raise HTTPException(403, "Нет права: manage_cross_team_chats")
-    if cross_team_type not in ("heads_only", "deputies_only"):
-        raise HTTPException(400, "cross_team_type: heads_only | deputies_only")
-    name = name.strip()
-    if not name:
-        raise HTTPException(400, "Название обязательно")
-
-    chat = Chat(
-        name=name,
-        is_group=True,
-        is_secret=False,
-        system_folder="work",
-        cross_team_type=cross_team_type,
-        owner_id=staff.id,
-    )
-    session.add(chat)
-    session.commit()
-    session.refresh(chat)
-
-    candidate_ids = _cross_team_candidate_ids(session, cross_team_type)
-    _create_cross_team_chat_sync(session, chat, candidate_ids, staff.id)
-    session.commit()
-
-    log_action(session, staff.id, "create_cross_team_chat",
-               target_type="chat", target_id=chat.id,
-               details={"name": chat.name, "cross_team_type": cross_team_type,
-                        "members_count": len(candidate_ids) + 1},
-               ip_address=get_client_ip(request))
-    session.commit()
-
-    return {"ok": True, "id": chat.id, "name": chat.name,
-            "cross_team_type": chat.cross_team_type,
-            "members_count": len(candidate_ids) + 1}
-
-
-@app.get("/api/admin/cross-team-chats")
-def list_cross_team_chats(
-    staff: User = Depends(require_staff),
-    session: Session = Depends(get_session),
-):
-    if not has_permission(staff, "manage_cross_team_chats", session):
-        raise HTTPException(403, "Нет права: manage_cross_team_chats")
-    chats = session.exec(
-        select(Chat).where(Chat.cross_team_type.is_not(None))  # type: ignore[union-attr]
-    ).all()
-    # Пакетный подсчёт участников по всем чатам одним запросом (без N+1)
-    counts = {}
-    if chats:
-        chat_ids = [c.id for c in chats]
-        for row in session.exec(
-            select(ChatMember.chat_id, func.count(ChatMember.id))
-            .where(ChatMember.chat_id.in_(chat_ids))
-            .group_by(ChatMember.chat_id)  # type: ignore[union-attr]
-        ).all():
-            counts[row[0]] = row[1]
-    out = []
-    for c in chats:
-        out.append({
-            "id": c.id, "name": c.name, "cross_team_type": c.cross_team_type,
-            "members_count": counts.get(c.id, 0), "created_at": c.created_at.isoformat(),
-        })
-    return out
-
-
-@app.delete("/api/admin/cross-team-chats/{chat_id}")
-def delete_cross_team_chat(
-    request: Request,
-    chat_id: int,
-    staff: User = Depends(require_staff),
-    session: Session = Depends(get_session),
-):
-    if not has_permission(staff, "manage_cross_team_chats", session):
-        raise HTTPException(403, "Нет права: manage_cross_team_chats")
-    chat = session.get(Chat, chat_id)
-    if not chat or not chat.cross_team_type:
-        raise HTTPException(404, "Кросс-командный чат не найден")
-    for cm in session.exec(select(ChatMember).where(ChatMember.chat_id == chat.id)).all():
-        session.delete(cm)
-    session.delete(chat)
-    log_action(session, staff.id, "delete_cross_team_chat",
-               target_type="chat", target_id=chat_id,
-               details={"name": chat.name},
-               ip_address=get_client_ip(request))
-    session.commit()
-    return {"ok": True}
-
-
+# 🔗 СЕКЦИЯ ЗАЯВОК УДАЛЕНА ВМЕСТЕ С РАБОЧИМИ ЧАТАМИ
 # ============================================================
-# 🏢 ВКЛАДКА «КОМАНДЫ» В /stat — иерархия и права внутри отделов
-# Доступ: manage_team_hierarchy
-# ============================================================
-
-# 🏷️ Реестр локальных прав внутри чата отдела (ChatMember.team_permissions)
-TEAM_PERMISSIONS: dict = {
-    "can_handle_tasks":      ("Брать заявки в работу (очередь отдела)", "tickets"),
-    "can_close_tasks":       ("Закрывать заявки отдела", "tickets"),
-    "can_create_tasks":      ("Создавать заявки в отдел", "tickets"),
-    "can_handle_complaints": ("Брать жалобы (панель «Жалобы»)", "tickets"),
-    "can_handle_appeals":    ("Брать обращения в поддержку (панель «Поддержка»)", "tickets"),
-    "can_handle_bugs":       ("Брать баги (панель «Баг-трекер»)", "tickets"),
-    "can_invite_members":    ("Добавлять участников в чат отдела", "chat"),
-    "can_pin_messages":      ("Закреплять сообщения в чате отдела", "chat"),
-}
-
-# Допустимые значения team_hierarchy
-TEAM_HIERARCHY_VALUES = {"head", "cross_head", "deputy", "senior", "junior"}
-
-
-def _require_team_hierarchy_perm(staff: User, session: Session) -> None:
-    if not has_permission(staff, "manage_team_hierarchy", session):
-        raise HTTPException(403, "Нет права: manage_team_hierarchy")
-
-
-def _team_member_or_404(session: Session, category_id: int, user_id: int) -> ChatMember:
-    cat = session.get(RoleCategory, category_id)
-    if not cat or not cat.team_chat_id:
-        raise HTTPException(404, "У отдела нет рабочего чата")
-    member = session.exec(
-        select(ChatMember).where(
-            ChatMember.chat_id == cat.team_chat_id,
-            ChatMember.user_id == user_id,
-        )
-    ).first()
-    if not member:
-        raise HTTPException(404, "Пользователь не состоит в чате этого отдела")
-    return member
-
-
-@app.get("/api/admin/teams/structure")
-def teams_structure(
-    staff: User = Depends(require_staff),
-    session: Session = Depends(get_session),
-):
-    """Дерево для вкладки «Команды»: Отдел -> Рабочий чат -> участники
-    с их team_hierarchy и team_permissions.
-
-    Оптимизировано: вместо N+1 запросов (по одному на участника) делаем
-    4 пакетных запроса (категории -> чаты -> участники -> юзеры -> роли),
-    уровень считаем в памяти по preload-карте ролей."""
-    _require_team_hierarchy_perm(staff, session)
-    cats = session.exec(select(RoleCategory).order_by(RoleCategory.order, RoleCategory.id)).all()
-
-    # 1) Все рабочие чаты отделов одним запросом
-    cat_by_id = {c.id: c for c in cats}
-    chat_ids = [c.team_chat_id for c in cats if c.team_chat_id]
-    chats = session.exec(select(Chat).where(Chat.id.in_(chat_ids))).all() if chat_ids else []
-    chat_by_id = {ch.id: ch for ch in chats}
-
-    # 2) Все участники этих чатов одним запросом
-    all_cms = session.exec(
-        select(ChatMember).where(ChatMember.chat_id.in_(chat_ids))
-    ).all() if chat_ids else []
-    cm_by_chat: dict[int, list] = {}
-    user_ids = set()
-    for cm in all_cms:
-        cm_by_chat.setdefault(cm.chat_id, []).append(cm)
-        user_ids.add(cm.user_id)
-
-    # 3) Все юзеры и их роли пакетно
-    users_map = {}
-    roles_map = {}
-    if user_ids:
-        for u in session.exec(select(User).where(User.id.in_(user_ids))).all():
-            users_map[u.id] = u
-        role_ids = {u.role_id for u in users_map.values() if u.role_id}
-        if role_ids:
-            for r in session.exec(select(Role).where(Role.id.in_(role_ids))).all():
-                roles_map[r.id] = r
-
-    def _level(uid: int) -> int:
-        u = users_map.get(uid)
-        if not u:
-            return 1
-        if u.username == "trelod":
-            return 11
-        if u.is_admin:
-            return 10
-        if u.is_moderator:
-            return 9
-        r = roles_map.get(u.role_id) if u.role_id else None
-        return r.level if (r and r.level) else 1
-
-    out = []
-    for cat in cats:
-        chat = chat_by_id.get(cat.team_chat_id) if cat.team_chat_id else None
-        members_out = []
-        if chat:
-            for cm in cm_by_chat.get(chat.id, []):
-                u = users_map.get(cm.user_id)
-                if not u:
-                    continue
-                try:
-                    perms = json.loads(cm.team_permissions or "[]")
-                except Exception:
-                    perms = []
-                role = roles_map.get(u.role_id) if u.role_id else None
-                # 🤖 системного бота не показываем в участниках отдела
-                if u.is_bot:
-                    continue
-                members_out.append({
-                    "user_id": u.id,
-                    "username": u.username,
-                    "display_name": u.display_name,
-                    "avatar_url": u.avatar_url,
-                    "level": _level(u.id),
-                    "role_id": u.role_id,
-                    "role_name": role.name if role else None,
-                    "team_hierarchy": cm.team_hierarchy,
-                    "team_hierarchy_manual": cm.team_hierarchy_manual,
-                    "auto_assigned": cm.auto_assigned,
-                    "on_shift": bool(cm.on_shift),
-                    "shift_taken": cm.shift_taken or 0,
-                    "ticket_kinds": _member_ticket_kinds(cm),
-                    "team_permissions": perms,
-                })
-        members_out.sort(key=lambda m: -m["level"])
-        out.append({
-            "category_id": cat.id,
-            "name": cat.name,
-            "color": cat.color,
-            "team_chat_id": cat.team_chat_id,
-            "chat_name": chat.name if chat else None,
-            "panel_tabs": _category_panel_tabs(cat),
-            "members": members_out,
-        })
-    return {
-        "teams": out,
-        "allowed_hierarchies": sorted(TEAM_HIERARCHY_VALUES),
-        "allowed_permissions": [{"id": k, "label": v[0], "category": v[1]} for k, v in TEAM_PERMISSIONS.items()],
-    }
-
-
-class TeamHierarchyIn(BaseModel):
-    user_id: int
-    # head | deputy | senior | junior | cross_head | None (None = вернуть авто-иерархию по уровню)
-    team_hierarchy: Optional[str] = None
-
-
-@app.patch("/api/admin/teams/{category_id}/hierarchy")
-def set_team_hierarchy(
-    category_id: int,
-    data: TeamHierarchyIn,
-    staff: User = Depends(require_staff),
-    session: Session = Depends(get_session),
-):
-    """Ручное изменение иерархии юзера в чате отдела (игнорируя его уровень).
-    team_hierarchy=None сбрасывает на авто-значение по уровню роли."""
-    _require_team_hierarchy_perm(staff, session)
-    member = _team_member_or_404(session, category_id, data.user_id)
-    if data.team_hierarchy is not None and data.team_hierarchy not in TEAM_HIERARCHY_VALUES:
-        raise HTTPException(400, f"team_hierarchy: одно из {sorted(TEAM_HIERARCHY_VALUES)} или null")
-    manual = data.team_hierarchy is not None
-    if data.team_hierarchy is None:
-        # Сброс: возвращаем авто-иерархию по уровню роли юзера
-        user_for_auto = session.get(User, data.user_id)
-        data.team_hierarchy = default_team_hierarchy_for_level(get_user_level(user_for_auto, session)) if user_for_auto else None
-    member.team_hierarchy = data.team_hierarchy
-    member.team_hierarchy_manual = manual
-    session.add(member)
-    session.commit()
-    log_action(session, staff.id, "set_team_hierarchy",
-               target_type="user", target_id=data.user_id,
-               details={"category_id": category_id, "team_hierarchy": data.team_hierarchy})
-    session.commit()
-    # Иерархия могла повлиять на кросс-командные чаты — синхронизируем
-    try:
-        user = session.get(User, data.user_id)
-        if user:
-            sync_user_cross_team_chats(user, session)
-    except Exception as e:
-        print(f"⚠️ sync_user_cross_team_chats после смены иерархии: {e}")
-    return {"ok": True, "user_id": data.user_id, "team_hierarchy": member.team_hierarchy,
-            "team_hierarchy_manual": member.team_hierarchy_manual}
-
-
-class TeamPermissionsIn(BaseModel):
-    user_id: int
-    permissions: list[str] = []
-    # 🎫 Типы заявок, за которые отвечает юзер ([] = все типы). None = не менять
-    ticket_kinds: Optional[list[str]] = None
-
-
-@app.patch("/api/admin/teams/{category_id}/permissions")
-def set_team_permissions(
-    category_id: int,
-    data: TeamPermissionsIn,
-    staff: User = Depends(require_staff),
-    session: Session = Depends(get_session),
-):
-    """Матрица прав внутри чата отдела: какие локальные права у конкретного юзера
-    (например can_handle_tasks для очереди заявок)."""
-    _require_team_hierarchy_perm(staff, session)
-    bad = [p for p in data.permissions if p not in TEAM_PERMISSIONS]
-    if bad:
-        raise HTTPException(400, f"Неизвестные права: {bad}")
-    if data.ticket_kinds is not None:
-        bad_kinds = [k for k in data.ticket_kinds if k not in TICKET_KINDS]
-        if bad_kinds:
-            raise HTTPException(400, f"Неизвестные типы заявок: {bad_kinds}")
-    member = _team_member_or_404(session, category_id, data.user_id)
-    member.team_permissions = json.dumps(sorted(set(data.permissions)))
-    if data.ticket_kinds is not None:
-        member.ticket_kinds = json.dumps(sorted(set(data.ticket_kinds)))
-    session.add(member)
-    session.commit()
-    log_action(session, staff.id, "set_team_permissions",
-               target_type="user", target_id=data.user_id,
-               details={"category_id": category_id, "permissions": sorted(set(data.permissions))})
-    session.commit()
-    return {"ok": True, "user_id": data.user_id, "team_permissions": sorted(set(data.permissions))}
-
-
-# ============================================================
-# 🎨 Привязка отделов к разделам админки (цвет вкладки + маршрут заявок)
-# ============================================================
-
-class PanelTabsIn(BaseModel):
-    tabs: list[str] = []
-
-
-@app.patch("/api/admin/teams/{category_id}/panel-tabs")
-def set_category_panel_tabs(
-    category_id: int,
-    data: PanelTabsIn,
-    staff: User = Depends(require_staff),
-    session: Session = Depends(get_session),
-):
-    """За какие разделы админ-панели отвечает отдел.
-
-    Вкладки этих разделов красятся цветом категории, а заявки из разделов
-    (complaint→reports, appeal→support, bug→bugs) летят в этот отдел."""
-    _require_team_hierarchy_perm(staff, session)
-    cat = session.get(RoleCategory, category_id)
-    if not cat:
-        raise HTTPException(404, "Отдел не найден")
-    bad = [t for t in data.tabs if t not in ADMIN_PANEL_TABS]
-    if bad:
-        raise HTTPException(400, f"Неизвестные разделы: {bad}")
-    cat.panel_tabs = json.dumps(sorted(set(data.tabs)))
-    session.add(cat)
-    session.commit()
-    log_action(session, staff.id, "set_category_panel_tabs",
-               target_type="category", target_id=category_id,
-               details={"tabs": sorted(set(data.tabs))})
-    return {"ok": True, "category_id": category_id, "panel_tabs": _category_panel_tabs(cat)}
-
 
 @app.get("/api/admin/mod-unread-count")
 def get_mod_unread_count(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Сколько активных/открытых заявок в каждой вкладке модерации.
-
-    - reports: жалобы со статусом pending
-    - support: обращения со статусом open
-    - bugs:    баг-репорты со статусом new/in_progress
-    Считается только для разделов, к которым юзер имеет доступ."""
-    counts: dict[str, int] = {
-        "reports": 0, "support": 0, "bugs": 0,
-    }
+    """Сколько активных/открытых заявок в каждой вкладке модерации."""
+    counts: dict[str, int] = {"reports": 0, "support": 0, "bugs": 0}
     if user.is_admin or has_permission(user, "manage_reports", session):
         counts["reports"] = session.exec(
             select(func.count(Report.id)).where(Report.status == "pending")
@@ -6757,1031 +6082,9 @@ def get_mod_unread_count(
     return {"counts": counts}
 
 
-@app.get("/api/admin/panel-colors")
-def get_panel_colors(
-    staff: User = Depends(require_staff),
-    session: Session = Depends(get_session),
-):
-    """Цвета вкладок админки по привязанным отделам:
-    {tab_id: {color, category_id, category_name}}"""
-    cats = session.exec(select(RoleCategory).order_by(RoleCategory.order, RoleCategory.id)).all()
-    out: dict[str, dict] = {}
-    for cat in cats:
-        for tab in _category_panel_tabs(cat):
-            # первая категория по порядку — приоритетная
-            if tab not in out:
-                out[tab] = {
-                    "color": cat.color,
-                    "category_id": cat.id,
-                    "category_name": cat.name,
-                }
-    return {"tabs": out, "all_tabs": ADMIN_PANEL_TABS}
-
-
-# ============================================================
-# 📨 СИСТЕМНЫЕ ЧАТЫ ЗАЯВОК (отдельная система, не обычные чаты)
-# ============================================================
-
-def _system_chat_members(session: Session, chat_id: int) -> list[dict]:
-    rows = session.exec(
-        select(User, SystemChatMember)
-        .join(SystemChatMember, SystemChatMember.user_id == User.id)
-        .where(SystemChatMember.chat_id == chat_id)
-        .order_by(User.username)
-    ).all()
-    return [{"id": u.id, "username": u.username, "display_name": u.display_name, "avatar_url": u.avatar_url} for u, _m in rows]
-
-
-@app.get("/api/admin/system-chats")
-def list_system_chats(
-    panel: Optional[str] = None,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Мои системные чаты (где я участник). Опционально фильтр по panel."""
-    memberships = session.exec(
-        select(SystemChatMember).where(SystemChatMember.user_id == user.id)
-    ).all()
-    chat_ids = [m.chat_id for m in memberships]
-    if not chat_ids:
-        return []
-    chats = session.exec(select(SystemChat).where(SystemChat.id.in_(chat_ids))).all()
-    if panel:
-        chats = [c for c in chats if c.panel == panel]
-    return [{
-        "id": c.id, "name": c.name, "panel": c.panel,
-        "members": _system_chat_members(session, c.id),
-        "created_at": c.created_at.isoformat(),
-    } for c in chats]
-
-
-@app.post("/api/admin/system-chats")
-def create_system_chat(
-    data: dict,
-    staff: User = Depends(require_staff),
-    session: Session = Depends(get_session),
-):
-    """Создать системный чат заявок: name, panel (reports|support|bugs), member_ids."""
-    name = (data.get("name") or "").strip()
-    panel = data.get("panel")
-    if not name:
-        raise HTTPException(400, "Название обязательно")
-    if panel not in SYSTEM_PANELS:
-        raise HTTPException(400, f"Раздел должен быть одним из {SYSTEM_PANELS}")
-    member_ids = list({int(x) for x in (data.get("member_ids") or [])})
-    chat = SystemChat(name=name[:60], panel=panel, created_by=staff.id)
-    session.add(chat)
-    session.commit()
-    session.refresh(chat)
-    ids = {staff.id, *member_ids}
-    for uid in ids:
-        if session.get(User, uid):
-            session.add(SystemChatMember(chat_id=chat.id, user_id=uid))
-    session.commit()
-    return {"ok": True, "id": chat.id, "name": chat.name, "panel": chat.panel,
-            "members": _system_chat_members(session, chat.id)}
-
-
-@app.patch("/api/admin/system-chats/{chat_id}")
-async def update_system_chat(
-    chat_id: int,
-    data: dict,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    chat = session.get(SystemChat, chat_id)
-    if not chat:
-        raise HTTPException(404, "Чат не найден")
-    if chat.created_by != user.id and not has_permission(user, "manage_team_hierarchy", session):
-        raise HTTPException(403, "Нет прав на этот чат")
-    if "name" in data and (data["name"] or "").strip():
-        chat.name = data["name"].strip()[:60]
-    if "panel" in data and data["panel"] in SYSTEM_PANELS:
-        chat.panel = data["panel"]
-    session.add(chat)
-    if "member_ids" in data:
-        ids = {int(x) for x in (data["member_ids"] or [])}
-        existing = session.exec(select(SystemChatMember).where(SystemChatMember.chat_id == chat_id)).all()
-        for m in existing:
-            if m.user_id not in ids:
-                session.delete(m)
-        for uid in ids - {m.user_id for m in existing}:
-            if session.get(User, uid):
-                session.add(SystemChatMember(chat_id=chat_id, user_id=uid))
-    session.commit()
-    return {"ok": True, "id": chat.id, "name": chat.name, "panel": chat.panel,
-            "members": _system_chat_members(session, chat.id)}
-
-
-@app.delete("/api/admin/system-chats/{chat_id}")
-async def delete_system_chat(
-    chat_id: int,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    chat = session.get(SystemChat, chat_id)
-    if not chat:
-        raise HTTPException(404, "Чат не найден")
-    if chat.created_by != user.id and not has_permission(user, "manage_team_hierarchy", session):
-        raise HTTPException(403, "Нет прав на этот чат")
-    for m in session.exec(select(SystemChatMember).where(SystemChatMember.chat_id == chat_id)).all():
-        session.delete(m)
-    for m in session.exec(select(SystemChatMessage).where(SystemChatMessage.chat_id == chat_id)).all():
-        session.delete(m)
-    session.delete(chat)
-    session.commit()
-    return {"ok": True}
-
-
-@app.get("/api/admin/system-chats/{chat_id}/messages")
-def system_chat_messages(
-    chat_id: int,
-    limit: int = 100,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Лента системного чата (только участник)."""
-    member = session.exec(
-        select(SystemChatMember).where(SystemChatMember.chat_id == chat_id, SystemChatMember.user_id == user.id)
-    ).first()
-    if not member:
-        raise HTTPException(403, "Не участник системного чата")
-    msgs = session.exec(
-        select(SystemChatMessage)
-        .where(SystemChatMessage.chat_id == chat_id)
-        .order_by(SystemChatMessage.id.desc())
-        .limit(limit)
-    ).all()
-    sender_ids = list({m.sender_id for m in msgs})
-    senders = {u.id: u for u in session.exec(select(User).where(User.id.in_(sender_ids))).all()} if sender_ids else {}
-    return [{
-        "id": m.id,
-        "sender_id": m.sender_id,
-        "sender_name": senders[m.sender_id].display_name if m.sender_id in senders else "Система",
-        "sender_avatar": senders[m.sender_id].avatar_url if m.sender_id in senders else None,
-        "text": m.text,
-        "created_at": m.created_at.isoformat(),
-    } for m in reversed(msgs)]
-
-
-@app.post("/api/admin/system-chats/{chat_id}/messages")
-async def send_system_chat_message(
-    chat_id: int,
-    data: dict,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    member = session.exec(
-        select(SystemChatMember).where(SystemChatMember.chat_id == chat_id, SystemChatMember.user_id == user.id)
-    ).first()
-    if not member:
-        raise HTTPException(403, "Не участник системного чата")
-    text = (data.get("text") or "").strip()
-    if not text:
-        raise HTTPException(400, "Пустое сообщение")
-    msg = SystemChatMessage(chat_id=chat_id, sender_id=user.id, text=text[:2000])
-    session.add(msg)
-    session.commit()
-    session.refresh(msg)
-    chat = session.get(SystemChat, chat_id)
-    member_ids = [m.user_id for m in session.exec(
-        select(SystemChatMember).where(SystemChatMember.chat_id == chat_id)
-    ).all()]
-    try:
-        await manager.broadcast_to_users(member_ids, "system_chat_message", {
-            "chat_id": chat_id, "panel": chat.panel if chat else None,
-            "message": {"id": msg.id, "sender_id": user.id, "sender_name": user.display_name,
-                        "text": msg.text, "created_at": msg.created_at.isoformat()},
-        })
-    except Exception as e:
-        print(f"⚠️ system chat WS: {e}")
-    return {"ok": True, "id": msg.id}
-
-
-# ============================================================
-# 🎫 ОЧЕРЕДЬ ЗАЯВОК ОТДЕЛА (Random + Level Priority)
-# ============================================================
-
-import random as _random
-
-# Приоритет распределения (если никто не на смене): сначала новички, затем выше
-TEAM_HIERARCHY_PRIORITY = ["junior", "senior", "deputy", "head", "cross_head"]
-
-# 🎫 Типы заявок
-TICKET_KINDS = {
-    "complaint": "Жалоба",
-    "appeal": "Обращение",
-    "bug": "Баг",
-    "join": "Заявка в канал",
-    "other": "Другое",
-}
-
-# 🏷️ Синхронизация: какой тип заявки соответствует какому праву раздела.
-# Если у юзера есть право раздела (например manage_support → поддержка),
-# он авто-получает заявки этого типа — даже без ручной настройки ticket_kinds.
-# Если у юзера НЕТ такого права — такие заявки он НЕ получает (строгая привязка к панели).
-TICKET_KIND_PERMISSION = {
-    "complaint": "manage_reports",   # жалобы → раздел «Жалобы»
-    "appeal": "manage_support",      # обращения/поддержка → раздел «Поддержка»
-    "bug": "tech_access",            # баг-трекер → тех. панель (tech_access)
-    "join": None,                    # заявки в канал — любой ответственный
-    "other": None,                   # «другое» — по явной настройке
-}
-
-# Локальные права участника рабочего чата, дающие право брать заявки типа.
-TICKET_KIND_LOCAL_PERM = {
-    "complaint": "can_handle_complaints",
-    "appeal": "can_handle_appeals",
-    "bug": "can_handle_bugs",
-}
-
-# 🎨 Разделы админ-панели, за которые может «отвечать» отдел:
-#    вкладка красится цветом категории + заявки из раздела летят в этот отдел.
-ADMIN_PANEL_TABS: dict[str, str] = {
-    "users": "Пользователи",
-    "tech_users": "Управление",
-    "stats": "Статистика",
-    "bugs": "Баг-трекер",
-    "ip": "IP блоки",
-    "logs": "Логи",
-    "reports": "Жалобы",
-    "chats": "Чаты",
-    "support": "Поддержка",
-    "stickers": "Стикеры",
-    "themes": "Темы",
-    "backups": "Резерв",
-    "channel-badges": "Префиксы",
-}
-
-# 🎯 Тип заявки → раздел админки, чей отдел его обслуживает
-TICKET_KIND_TAB = {
-    "complaint": "reports",
-    "appeal": "support",
-    "bug": "bugs",
-}
-
-
-def _category_panel_tabs(cat: RoleCategory) -> list[str]:
-    try:
-        tabs = json.loads(cat.panel_tabs or "[]")
-        return [t for t in tabs if t in ADMIN_PANEL_TABS]
-    except Exception:
-        return []
-
-
-def _member_ticket_kinds(cm: ChatMember) -> list:
-    """Типы заявок, за которые отвечает участник (пусто = все типы)."""
-    try:
-        return json.loads(cm.ticket_kinds or "[]")
-    except Exception:
-        return []
-
-
-def _member_handles_kind(cm: ChatMember, kind: Optional[str], user: Optional[User] = None, session: Session = None) -> bool:
-    """Отвечает ли участник за заявку этого типа.
-
-    Приоритет:
-    1) Ручной override в /stat (ticket_kinds): задан → только те типы (пустой = все).
-    2) Локальный перм команды для типа (can_handle_complaints / can_handle_appeals / can_handle_bugs).
-    3) Право раздела для типа (TICKET_KIND_PERMISSION): если задано — берёт заявку
-       ТОЛЬКО при наличии права (строгая привязка к панели).
-    4) Тип без привязки (join / other) — берёт любой участник с базовым can_handle_tasks.
-    """
-    if kind is None:
-        return True
-    kinds = _member_ticket_kinds(cm)
-    if kinds:
-        return kind in kinds
-    local = TICKET_KIND_LOCAL_PERM.get(kind)
-    if local and local in _member_team_permissions(cm):
-        return True
-    perm = TICKET_KIND_PERMISSION.get(kind)
-    if perm:
-        u = user or (session.get(User, cm.user_id) if session is not None else None)
-        return bool(u and has_permission(u, perm, session))
-    # без привязки — берёт кто угодно с правом брать заявки
-    return "can_handle_tasks" in _member_team_permissions(cm)
-
-
-def _member_team_permissions(cm: ChatMember) -> list:
-    try:
-        return json.loads(cm.team_permissions or "[]")
-    except Exception:
-        return []
-
-
-def _member_hierarchy_prio(cm: ChatMember, session: Session) -> int:
-    h = cm.team_hierarchy
-    if not h:
-        u = session.get(User, cm.user_id)
-        h = default_team_hierarchy_for_level(get_user_level(u, session)) if u else None
-    return TEAM_HIERARCHY_PRIORITY.index(h) if h in TEAM_HIERARCHY_PRIORITY else len(TEAM_HIERARCHY_PRIORITY)
-
-
-def pick_ticket_assignee(session: Session, category_id: int, kind: Optional[str] = None) -> Optional[ChatMember]:
-    """Выбор исполнителя заявки.
-
-    1) 🟢 Смена: среди участников на смене (/enter) с правом can_handle_tasks
-       и ответственностью за этот тип заявки — round-robin «по порядку»
-       (кто взял меньше всех заявок за смену, при равенстве — случайно).
-    2) Никого на смене → fallback: самый младший незанятый уровень + случайно.
-    «Занят» = у юзера уже есть открытая/назначенная заявка.
-    Возвращает ChatMember или None, если кандидатов нет.
-    """
-    cat = session.get(RoleCategory, category_id)
-    if not cat or not cat.team_chat_id:
-        return None
-    members = session.exec(
-        select(ChatMember).where(ChatMember.chat_id == cat.team_chat_id)
-    ).all()
-    candidates = [
-        cm for cm in members
-        if "can_handle_tasks" in _member_team_permissions(cm)
-        and _member_handles_kind(cm, kind, session=session)
-    ]
-    if not candidates:
-        return None
-
-    busy_ids = set(session.exec(
-        select(TeamTicket.assigned_to).where(
-            TeamTicket.assigned_to.is_not(None),  # type: ignore[union-attr]
-            TeamTicket.status.in_(["open", "assigned"]),  # type: ignore[union-attr]
-        )
-    ).all())
-
-    # 🟢 Приоритет — участники на смене: round-robin по счётчику shift_taken
-    on_shift = [cm for cm in candidates if cm.on_shift]
-    if on_shift:
-        free_shift = [cm for cm in on_shift if cm.user_id not in busy_ids]
-        pool = free_shift or on_shift
-        min_taken = min(cm.shift_taken or 0 for cm in pool)
-        return _random.choice([cm for cm in pool if (cm.shift_taken or 0) == min_taken])
-
-    free = [cm for cm in candidates if cm.user_id not in busy_ids]
-    pool = free if free else candidates
-    min_prio = min(_member_hierarchy_prio(cm, session) for cm in pool)
-    return _random.choice([cm for cm in pool if _member_hierarchy_prio(cm, session) == min_prio])
-
-
-# ============================================================
-# 🤖 БОТ-ДИСПЕТЧЕР: жалобы/обращения сами «прилетают» в отдел,
-# назначаются round-robin члену команды и тегируются в чате.
-# ============================================================
-
-TEAM_TASK_PERMS = {"can_handle_tasks", "can_handle_complaints", "can_handle_appeals", "can_handle_bugs"}
-
-
-def _candidate_perm_for_kind(kind: Optional[str]) -> str:
-    """Какой локальный перм нужен члену команды для типа обращения (либо право раздела)."""
-    return TICKET_KIND_LOCAL_PERM.get(kind or "", "can_handle_tasks")
-
-
-def candidate_team_members(session: Session, kind: Optional[str] = None) -> list[ChatMember]:
-    """Все участники рабочих чатов отделов, способные взять заявку этого типа.
-
-    Связано с правами юзера: участник подходит, если у него есть локальный перм
-    для типа ИЛИ пользователь имеет право раздела (TICKET_KIND_PERMISSION),
-    либо он вообще не ограничен (как раньше).
-    """
-    cats = session.exec(select(RoleCategory).where(RoleCategory.team_chat_id.is_not(None))).all()  # type: ignore[union-attr]
-    chat_ids = [c.team_chat_id for c in cats if c.team_chat_id]
-    if not chat_ids:
-        return []
-    members = session.exec(
-        select(ChatMember).where(ChatMember.chat_id.in_(chat_ids))
-    ).all()
-    # Preload users для быстрого авто-определения по правам
-    users = {}
-    uid = {m.user_id for m in members}
-    if uid:
-        for u in session.exec(select(User).where(User.id.in_(uid))).all():
-            users[u.id] = u
-    out = []
-    for cm in members:
-        perms = _member_team_permissions(cm)
-        required = _candidate_perm_for_kind(kind)
-        if required in perms:
-            out.append(cm)
-            continue
-        if kind and kind in TICKET_KIND_PERMISSION:
-            perm = TICKET_KIND_PERMISSION[kind]
-            u = users.get(cm.user_id)
-            if u and has_permission(u, perm, session):
-                out.append(cm)
-                continue
-        # без типа и прав — по-старому (берёт все с can_handle_tasks)
-        if not kind and "can_handle_tasks" in perms:
-            out.append(cm)
-    return out
-
-
-def dispatch_ticket_to_team(session: Session, kind: str, title: str, description: Optional[str], actor: User) -> int:
-    """«Бот» прикрепляет новое обращение/жалобу к члену команды.
-
-    Приоритет выбора отдела:
-    1) Отдел, привязанный к разделу админки этого типа заявки (RoleCategory.panel_tabs:
-       complaint→reports, appeal→support, bug→bugs) — «кто отвечает за панель, тот и получает».
-    2) Fallback: любой отдел, где есть участники, ответственные за этот тип
-       (по правам панели/локальным пермам), round-robin (pick_ticket_assignee).
-    Возвращает id созданного TeamTicket или 0, если отдела-ответчика нет.
-    """
-    kind_tab = TICKET_KIND_TAB.get(kind)
-    cats = session.exec(select(RoleCategory).where(RoleCategory.team_chat_id.is_not(None))).all()  # type: ignore[union-attr]
-    candidates_by_cat: dict[int, list] = {}
-    panel_cats: list[int] = []
-    for cat in cats:
-        members = session.exec(
-            select(ChatMember).where(ChatMember.chat_id == cat.team_chat_id)
-        ).all()
-        users = {}
-        uid = {m.user_id for m in members}
-        if uid:
-            for u in session.exec(select(User).where(User.id.in_(uid))).all():
-                users[u.id] = u
-        cands = [
-            cm for cm in members
-            if "can_handle_tasks" in _member_team_permissions(cm)
-            and _member_handles_kind(cm, kind, user=users.get(cm.user_id), session=session)
-            and not (users.get(cm.user_id) and users[cm.user_id].is_bot)
-        ]
-        if cands:
-            candidates_by_cat[cat.id] = cands
-        if kind_tab and kind_tab in _category_panel_tabs(cat):
-            panel_cats.append(cat.id)
-
-    # 1) Отдел, привязанный к разделу этой заявки — заявка приходит туда ВСЕГДА,
-    #    даже если в отделе нет ни одного кандидата (бот сообщит «ожидает исполнителя»).
-    #    Если привязано несколько — берём с наименьшим числом открытых заявок.
-    if kind_tab and panel_cats:
-        load_map = dict(session.exec(
-            select(TeamTicket.category_id, func.count(TeamTicket.id))
-            .where(
-                TeamTicket.kind == (kind if kind in TICKET_KINDS else "other"),
-                TeamTicket.status.in_(["open", "assigned"]),
-                TeamTicket.category_id.in_(panel_cats),
-            )
-            .group_by(TeamTicket.category_id)
-        ).all())
-        chosen_cat = min(panel_cats, key=lambda cid: load_map.get(cid, 0))
-        cat_row = session.get(RoleCategory, chosen_cat)
-        ticket = TeamTicket(
-            category_id=chosen_cat,
-            chat_id=cat_row.team_chat_id if cat_row else None,
-            title=title[:120],
-            description=description,
-            kind=kind if kind in TICKET_KINDS else "other",
-            created_by=actor.id,
-        )
-        session.add(ticket)
-        session.commit()
-        session.refresh(ticket)
-        assignee_member = pick_ticket_assignee(session, chosen_cat, kind=ticket.kind)
-        if assignee_member:
-            assignee = session.get(User, assignee_member.user_id)
-            ticket.status = "assigned"
-            ticket.assigned_to = assignee.id
-            ticket.assigned_hierarchy = assignee_member.team_hierarchy
-            ticket.assigned_at = utcnow()
-            assignee_member.shift_taken = (assignee_member.shift_taken or 0) + 1
-            session.add(assignee_member)
-            session.add(ticket)
-            session.commit()
-            session.refresh(ticket)
-            if cat_row and cat_row.team_chat_id:
-                _post_team_ticket_message(session, cat_row.team_chat_id, actor, assignee, ticket)
-            return ticket.id
-        if cat_row and cat_row.team_chat_id:
-            label = TICKET_KINDS.get(ticket.kind, "Заявка")
-            _post_ticket_message(
-                session, cat_row.team_chat_id, actor,
-                f"🤖 {label} «{ticket.title}» — ожидает исполнителя (в отделе нет свободных с правом)",
-            )
-        return ticket.id
-
-    if not candidates_by_cat:
-        return 0
-
-    # 2) Fallback: round-robin среди подходящих отделов
-    chosen_cat = _random.choice(list(candidates_by_cat.keys()))
-    category_id = chosen_cat
-    cands = candidates_by_cat[category_id]
-    cat_row = session.get(RoleCategory, category_id)
-    ticket = TeamTicket(
-        category_id=category_id,
-        chat_id=cat_row.team_chat_id if cat_row else None,
-        title=title[:120],
-        description=description,
-        kind=kind if kind in TICKET_KINDS else "other",
-        created_by=actor.id,
-    )
-    session.add(ticket)
-    session.commit()
-    session.refresh(ticket)
-
-    assignee_member = pick_ticket_assignee(session, category_id, kind=ticket.kind)
-    if assignee_member:
-        assignee = session.get(User, assignee_member.user_id)
-        ticket.status = "assigned"
-        ticket.assigned_to = assignee.id
-        ticket.assigned_hierarchy = assignee_member.team_hierarchy
-        ticket.assigned_at = utcnow()
-        assignee_member.shift_taken = (assignee_member.shift_taken or 0) + 1
-        session.add(assignee_member)
-        session.add(ticket)
-        session.commit()
-        ticket_id = ticket.id
-        # Система кидает заявку в чат отдела, тегая исполнителя
-        if cat_row and cat_row.team_chat_id:
-            _post_team_ticket_message(session, cat_row.team_chat_id, actor, assignee, ticket)
-        return ticket_id
-
-    # Нет исполнителя — заявка всё равно «прилетает» в чат отдела
-    if cat_row and cat_row.team_chat_id:
-        label = TICKET_KINDS.get(ticket.kind, "Заявка")
-        _post_ticket_message(
-            session, cat_row.team_chat_id, actor,
-            f"🤖 {label} «{ticket.title}» — ожидает исполнителя (в отделе нет свободных с правом)",
-        )
-    return ticket.id
-
-
-def _post_team_ticket_message(session: Session, chat_id: int, actor: User, assignee: User, ticket: TeamTicket) -> None:
-    """Системно постит сообщение о назначенной заявке в чат отдела
-    (от имени автора заявки — без бота-аккаунта)."""
-    text = f"🤖 {TICKET_KINDS.get(ticket.kind, 'Заявка')} «{ticket.title}» → @{assignee.username}"
-    _post_ticket_message(session, chat_id, actor, text)
-
-
-def _post_ticket_message(session: Session, chat_id: int, sender: User, text: str) -> Optional[Message]:
-    """Создаёт сообщение в чате отдела + рассылает по WS."""
-    try:
-        msg = Message(chat_id=chat_id, sender_id=sender.id, text=text)
-        session.add(msg)
-        session.commit()
-        session.refresh(msg)
-        member_ids = session.exec(
-            select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
-        ).all()
-        payload = {
-            "id": msg.id, "chat_id": chat_id, "sender_id": sender.id,
-            "sender_name": sender.display_name, "sender_avatar": sender.avatar_url,
-            "sender_prefix": None, "text": msg.text, "ciphertext": None,
-            "media_url": None, "media_type": None, "is_encrypted_media": False,
-            "created_at": msg.created_at.isoformat(), "pinned": False,
-            "pinned_by": None, "reply_to_id": None, "reply_preview": None,
-            "reactions": [], "is_team_command": True,
-        }
-        try:
-            import asyncio
-            loop = asyncio.get_running_loop()
-            loop.create_task(manager.broadcast_to_users(list(member_ids), "new_message", payload))
-        except Exception:
-            pass
-        return msg
-    except Exception as e:
-        session.rollback()
-        print(f"⚠️ не удалось отправить сообщение о заявке: {e}")
-        return None
-
-
-# ============================================================
-# 📨 СИСТЕМНЫЕ ЧАТЫ ЗАЯВОК — ловят заявки из вкладок админки
-# ============================================================
-
-SYSTEM_PANELS = ("reports", "support", "bugs")
-
-
-def dispatch_to_system_chats(session: Session, panel: str, text: str) -> int:
-    """Бросает текст заявки во ВСЕ системные чаты, привязанные к разделу.
-
-    Возвращает количество доставленных чатов."""
-    if panel not in SYSTEM_PANELS:
-        return 0
-    chats = session.exec(select(SystemChat).where(SystemChat.panel == panel)).all()
-    delivered = 0
-    for chat in chats:
-        try:
-            # первый член чата — технический sender для записи (системная запись)
-            member = session.exec(
-                select(SystemChatMember).where(SystemChatMember.chat_id == chat.id)
-            ).first()
-            if not member:
-                continue
-            msg = SystemChatMessage(chat_id=chat.id, sender_id=member.user_id, text=text)
-            session.add(msg)
-            session.commit()
-            delivered += 1
-        except Exception as e:
-            session.rollback()
-            print(f"⚠️ dispatch_to_system_chats: {e}")
-    if delivered:
-        # 🔔 WS-рассылка участникам системных чатов
-        try:
-            import asyncio
-            loop = asyncio.get_running_loop()
-            loop.create_task(manager.broadcast_all("system_chat_update", {"panel": panel, "text": text}))
-        except Exception:
-            pass
-    return delivered
-
-
-# ============================================================
-# 🟢 СМЕНЫ В РАБОЧИХ ЧАТАХ ОТДЕЛОВ (/enter, /exit, /shift)
-# ============================================================
-
-SHIFT_HINT = "Команды смены: /enter — выйти на смену, /exit — уйти со смены, /shift — кто на смене."
-
-
-async def _broadcast_team_system_message(chat: Chat, sender: User, text: str, session: Session) -> dict:
-    """Создаёт служебное сообщение в чате отдела и рассылает его по WS.
-    Возвращает dict в формате ответа send_message_v2 (фронт рендерит как обычное сообщение)."""
-    msg = Message(chat_id=chat.id, sender_id=sender.id, text=text)
-    session.add(msg)
-    session.commit()
-    session.refresh(msg)
-    await manager.broadcast_to_chat(
-        chat.id,
-        "new_message",
-        {
-            "id": msg.id,
-            "chat_id": chat.id,
-            "sender_id": msg.sender_id,
-            "sender_name": sender.display_name,
-            "sender_avatar": sender.avatar_url,
-            "sender_prefix": user_prefix_out(session, sender.id),
-            "text": msg.text,
-            "ciphertext": None,
-            "media_url": None,
-            "media_type": None,
-            "is_encrypted_media": False,
-            "created_at": msg.created_at.isoformat(),
-            "pinned": False,
-            "pinned_by": None,
-            "reply_to_id": None,
-            "reply_preview": None,
-            "reactions": [],
-        },
-        session,
-    )
-    return {
-        "id": msg.id,
-        "chat_id": chat.id,
-        "sender_id": msg.sender_id,
-        "sender_name": sender.display_name,
-        "sender_avatar": sender.avatar_url,
-        "sender_prefix": user_prefix_out(session, sender.id),
-        "text": msg.text,
-        "ciphertext": None,
-        "media_url": None,
-        "media_type": None,
-        "is_encrypted_media": False,
-        "read": msg.read,
-        "edited": False,
-        "edited_at": None,
-        "created_at": msg.created_at.isoformat(),
-        "pinned": False,
-        "pinned_by": None,
-        "reply_to_id": None,
-        "reply_preview": None,
-        "reactions": [],
-        "is_team_command": True,
-    }
-
-
-async def handle_team_chat_command(chat: Chat, member: ChatMember, user: User, raw_text: str, session: Session) -> Optional[dict]:
-    """Команды смены в рабочих чатах отделов. Возвращает dict-ответ (команда
-    обработана, обычное сообщение не создаётся) или None (обычное сообщение)."""
-    text = raw_text.strip()
-    if not chat.category_id or not text.startswith("/"):
-        return None
-    cmd = text.lower().split()[0]
-
-    if cmd == "/enter":
-        if member.on_shift:
-            return await _broadcast_team_system_message(chat, user, f"🟡 @{user.username} уже на смене", session)
-        member.on_shift = True
-        member.shift_entered_at = utcnow()
-        member.shift_taken = 0
-        session.add(member)
-        session.commit()
-        queue = session.exec(
-            select(func.count(TeamTicket.id)).where(
-                TeamTicket.category_id == chat.category_id,
-                TeamTicket.status.in_(["open", "assigned"]),  # type: ignore[union-attr]
-            )
-        ).one()
-        return await _broadcast_team_system_message(
-            chat, user,
-            f"🟢 @{user.username} вышел на смену (заявок в очереди отдела: {queue}). {SHIFT_HINT}",
-            session,
-        )
-
-    if cmd == "/exit":
-        if not member.on_shift:
-            return await _broadcast_team_system_message(chat, user, f"🟡 @{user.username} не на смене", session)
-        member.on_shift = False
-        member.shift_entered_at = None
-        session.add(member)
-        session.commit()
-        # Открытые заявки юзера возвращаются в очередь
-        released = 0
-        for t in session.exec(
-            select(TeamTicket).where(
-                TeamTicket.assigned_to == user.id,
-                TeamTicket.status.in_(["open", "assigned"]),  # type: ignore[union-attr]
-            )
-        ).all():
-            t.status = "open"
-            t.assigned_to = None
-            t.assigned_hierarchy = None
-            t.assigned_at = None
-            session.add(t)
-            released += 1
-        session.commit()
-        extra = f" Его заявки ({released}) возвращены в очередь." if released else ""
-        return await _broadcast_team_system_message(
-            chat, user,
-            f"🔴 @{user.username} покинул смену.{extra}",
-            session,
-        )
-
-    if cmd == "/shift":
-        on_shift = session.exec(
-            select(ChatMember).where(ChatMember.chat_id == chat.id, ChatMember.on_shift == True)  # noqa: E712
-        ).all()
-        if not on_shift:
-            return await _broadcast_team_system_message(chat, user, "🔴 На смене никого нет. " + SHIFT_HINT, session)
-        names = []
-        for cm in on_shift:
-            u = session.get(User, cm.user_id)
-            names.append(f"@{u.username}" if u else f"#{cm.user_id}")
-        return await _broadcast_team_system_message(
-            chat, user,
-            f"🟢 На смене ({len(names)}): {', '.join(names)}",
-            session,
-        )
-
-    return None
-
-
-@app.get("/api/chats/{chat_id}/shift")
-def get_shift_status(
-    chat_id: int,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Статус смены текущего юзера в рабочем чате отдела + состав смены."""
-    chat = session.get(Chat, chat_id)
-    if not chat or not chat.category_id:
-        raise HTTPException(404, "Это не рабочий чат отдела")
-    member = session.exec(
-        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
-    ).first()
-    if not member:
-        raise HTTPException(403, "Вы не участник этого чата")
-    on_shift_members = session.exec(
-        select(ChatMember.user_id).where(ChatMember.chat_id == chat_id, ChatMember.on_shift == True)  # noqa: E712
-    ).all()
-    return {"on_shift": bool(member.on_shift), "shift_users": list(on_shift_members)}
-
-
-@app.post("/api/chats/{chat_id}/shift")
-async def toggle_shift(
-    chat_id: int,
-    action: str = Form("toggle"),  # toggle | enter | exit
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Кнопка «Смена» в чате отдела — то же, что команды /enter и /exit."""
-    chat = session.get(Chat, chat_id)
-    if not chat or not chat.category_id:
-        raise HTTPException(404, "Это не рабочий чат отдела")
-    member = session.exec(
-        select(ChatMember).where(ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)
-    ).first()
-    if not member:
-        raise HTTPException(403, "Вы не участник этого чата")
-    if action == "enter":
-        cmd = "/enter"
-    elif action == "exit":
-        cmd = "/exit"
-    else:
-        cmd = "/exit" if member.on_shift else "/enter"
-    result = await handle_team_chat_command(chat, member, user, cmd, session)
-    status = get_shift_status(chat_id, user, session)
-    return {"ok": True, "message": result, **status}
-
-
-def _ticket_out(t: TeamTicket, session: Session) -> dict:
-    assignee = session.get(User, t.assigned_to) if t.assigned_to else None
-    creator = session.get(User, t.created_by)
-    return {
-        "id": t.id,
-        "category_id": t.category_id,
-        "title": t.title,
-        "description": t.description,
-        "status": t.status,
-        "kind": t.kind,
-        "kind_label": TICKET_KINDS.get(t.kind, ""),
-        "created_by": t.created_by,
-        "created_by_name": creator.display_name if creator else None,
-        "assigned_to": t.assigned_to,
-        "assigned_to_username": assignee.username if assignee else None,
-        "assigned_hierarchy": t.assigned_hierarchy,
-        "assigned_at": t.assigned_at.isoformat() if t.assigned_at else None,
-        "closed_by": t.closed_by,
-        "closed_at": t.closed_at.isoformat() if t.closed_at else None,
-        "created_at": t.created_at.isoformat(),
-    }
-
-
-def _can_see_team_tickets(user: User, category_id: int, session: Session) -> bool:
-    if has_permission(user, "manage_team_hierarchy", session):
-        return True
-    cat = session.get(RoleCategory, category_id)
-    if cat and cat.team_chat_id:
-        return bool(session.exec(
-            select(ChatMember).where(ChatMember.chat_id == cat.team_chat_id, ChatMember.user_id == user.id)
-        ).first())
-    return False
-
-
-class TeamTicketIn(BaseModel):
-    title: str
-    description: Optional[str] = None
-    # complaint (жалоба) | appeal (обращение) | other
-    kind: str = "other"
-
-
-@app.post("/api/teams/{category_id}/tickets")
-async def create_team_ticket(
-    category_id: int,
-    data: TeamTicketIn,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Создать заявку в отдел. Создать может участник чата отдела с правом
-    can_create_tasks либо staff с manage_team_hierarchy.
-
-    Заявка сразу распределяется (Random + Level Priority) и «приземляется»
-    в рабочий чат отдела сообщением с тегом @username исполнителя."""
-    cat = session.get(RoleCategory, category_id)
-    if not cat:
-        raise HTTPException(404, "Отдел не найден")
-    is_staff_admin = has_permission(user, "manage_team_hierarchy", session)
-    member = None
-    if cat.team_chat_id:
-        member = session.exec(
-            select(ChatMember).where(ChatMember.chat_id == cat.team_chat_id, ChatMember.user_id == user.id)
-        ).first()
-    if not is_staff_admin and not (member and "can_create_tasks" in _member_team_permissions(member)):
-        raise HTTPException(403, "Нет права создавать заявки в этом отделе")
-
-    title = (data.title or "").strip()
-    if not title:
-        raise HTTPException(400, "Заголовок заявки обязателен")
-
-    ticket = TeamTicket(
-        category_id=category_id,
-        chat_id=cat.team_chat_id,
-        title=title[:120],
-        description=data.description,
-        kind=data.kind if data.kind in TICKET_KINDS else "other",
-        created_by=user.id,
-    )
-    session.add(ticket)
-    session.commit()
-    session.refresh(ticket)
-
-    # 🎯 Авто-распределение (смена → round-robin, иначе по иерархии)
-    assignee_member = pick_ticket_assignee(session, category_id, kind=ticket.kind)
-    if assignee_member:
-        assignee = session.get(User, assignee_member.user_id)
-        ticket.status = "assigned"
-        ticket.assigned_to = assignee.id
-        ticket.assigned_hierarchy = assignee_member.team_hierarchy
-        ticket.assigned_at = utcnow()
-        # 🔢 round-robin: счётчик заявок за смену
-        assignee_member.shift_taken = (assignee_member.shift_taken or 0) + 1
-        session.add(assignee_member)
-        session.add(ticket)
-        session.commit()
-        session.refresh(ticket)
-        # 🏷️ «Приземляем» заявку в чат отдела с тегом исполнителя
-        kind_label = TICKET_KINDS.get(ticket.kind, "")
-        try:
-            _post_ticket_message(
-                session, cat.team_chat_id, user,
-                f"🎫 {kind_label} «{ticket.title}» → исполнитель @{assignee.username}",
-            )
-        except Exception as e:
-            print(f"⚠️ Не удалось отправить сообщение о заявке в чат отдела: {e}")
-        # 🔔 WS-уведомление исполнителю в реальном времени
-        try:
-            await manager.broadcast_to_users([assignee.id], "team_ticket_assigned", {
-                "ticket_id": ticket.id,
-                "title": ticket.title,
-                "kind": ticket.kind,
-                "kind_label": kind_label,
-                "chat_id": cat.team_chat_id,
-                "assigned_by": user.display_name,
-                "created_by_name": user.display_name,
-            })
-        except Exception as e:
-            print(f"⚠️ WS team_ticket_assigned: {e}")
-    return {"ok": True, "ticket": _ticket_out(ticket, session),
-            "auto_assigned": assignee_member is not None}
-
-
-@app.get("/api/teams/{category_id}/tickets")
-def list_team_tickets(
-    category_id: int,
-    status: str = "",
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Очередь заявок отдела. Видят участники чата отдела и staff с
-    manage_team_hierarchy. Фильтр: ?status=open|assigned|done"""
-    if not _can_see_team_tickets(user, category_id, session):
-        raise HTTPException(403, "Нет доступа к заявкам этого отдела")
-    q = select(TeamTicket).where(TeamTicket.category_id == category_id)
-    if status in ("open", "assigned", "done"):
-        q = q.where(TeamTicket.status == status)
-    tickets = session.exec(q.order_by(TeamTicket.created_at.desc())).all()  # type: ignore[union-attr]
-    return [_ticket_out(t, session) for t in tickets]
-
-
-@app.post("/api/teams/{category_id}/tickets/{ticket_id}/close")
-def close_team_ticket(
-    category_id: int,
-    ticket_id: int,
-    user: User = Depends(get_current_user),
-    session: Session = Depends(get_session),
-):
-    """Закрыть заявку: исполнитель, юзер с can_close_tasks в этом отделе
-    либо staff с manage_team_hierarchy."""
-    ticket = session.get(TeamTicket, ticket_id)
-    if not ticket or ticket.category_id != category_id:
-        raise HTTPException(404, "Заявка не найдена")
-    if ticket.status == "done":
-        raise HTTPException(400, "Заявка уже закрыта")
-    is_staff_admin = has_permission(user, "manage_team_hierarchy", session)
-    member = None
-    cat = session.get(RoleCategory, category_id)
-    if cat and cat.team_chat_id:
-        member = session.exec(
-            select(ChatMember).where(ChatMember.chat_id == cat.team_chat_id, ChatMember.user_id == user.id)
-        ).first()
-    allowed = is_staff_admin or ticket.assigned_to == user.id or (member and "can_close_tasks" in _member_team_permissions(member))
-    if not allowed:
-        raise HTTPException(403, "Нет права закрывать эту заявку")
-    ticket.status = "done"
-    ticket.closed_by = user.id
-    ticket.closed_at = utcnow()
-    session.add(ticket)
-    session.commit()
-    return {"ok": True, "ticket": _ticket_out(ticket, session)}
-
-
-@app.post("/api/teams/{category_id}/tickets/{ticket_id}/assign")
-def assign_team_ticket(
-    category_id: int,
-    ticket_id: int,
-    user_id: int = Form(...),
-    staff: User = Depends(require_staff),
-    session: Session = Depends(get_session),
-):
-    """Ручное назначение исполнителя (manage_team_hierarchy)."""
-    if not has_permission(staff, "manage_team_hierarchy", session):
-        raise HTTPException(403, "Нет права: manage_team_hierarchy")
-    ticket = session.get(TeamTicket, ticket_id)
-    if not ticket or ticket.category_id != category_id:
-        raise HTTPException(404, "Заявка не найдена")
-    member = _team_member_or_404(session, category_id, user_id)
-    ticket.assigned_to = user_id
-    ticket.assigned_hierarchy = member.team_hierarchy
-    ticket.assigned_at = utcnow()
-    if ticket.status == "done":
-        ticket.status = "assigned"
-        ticket.closed_by = None
-        ticket.closed_at = None
-    elif ticket.status == "open":
-        ticket.status = "assigned"
-    session.add(ticket)
-    session.commit()
-    log_action(session, staff.id, "assign_team_ticket",
-               target_type="team_ticket", target_id=ticket.id,
-               details={"assigned_to": user_id})
-    session.commit()
-    return {"ok": True, "ticket": _ticket_out(ticket, session)}
-
-
-
 class CreateGroupIn(BaseModel):
     name: str
     user_ids: list[int]  # ID пользователей, которых добавляем (кроме себя)
-    # 🏢 Рабочий чат: системная папка «РАБОТА», не удаляется юзером
-    is_work: bool = False
     # 🆕 Роли участников при создании: {"<user_id>": "admin" | "member"}
     member_roles: dict[str, str] = {}
 
@@ -7816,8 +6119,7 @@ async def create_group_chat(
     if not valid_ids:
         raise HTTPException(400, "Нет валидных пользователей для добавления")
 
-    chat = Chat(is_group=True, name=data.name.strip(), owner_id=user.id,
-                system_folder="work" if data.is_work else None)
+    chat = Chat(is_group=True, name=data.name.strip(), owner_id=user.id)
     session.add(chat)
     session.commit()
     session.refresh(chat)
@@ -8240,20 +6542,12 @@ def startup():
         #    ломает ВСЕ запросы к таблице (500 на каждом эндпоинте).
         for _stmt in (
             'ALTER TABLE "user" ADD COLUMN IF NOT EXISTS is_bot BOOLEAN DEFAULT FALSE',
-            'ALTER TABLE rolecategory ADD COLUMN IF NOT EXISTS panel_tabs VARCHAR DEFAULT \'[]\'',
         ):
             try:
                 with engine.begin() as conn:
                     conn.execute(_t(_stmt))
             except Exception:
                 pass  # sqlite (нет IF NOT EXISTS) или колонка уже есть
-        # 🏢 Бэкфилл: рабочие чаты для отделов, созданных до внедрения команд
-        try:
-            with Session(engine) as _s:
-                for _cat in _s.exec(select(RoleCategory)).all():
-                    ensure_team_chat_for_category(_cat.id, _s)
-        except Exception as e:
-            print(f"⚠️ Бэкфилл рабочих чатов отделов не удался: {e}")
         # 🤖 Системная диспетчеризация: бота-аккаунта нет, заявки просто маршрутизируются
         print("✅ База данных доступна")
     except Exception as e:
@@ -9821,14 +8115,6 @@ async def send_message_v2(
     chat = session.get(Chat, chat_id)
     if not chat:
         raise HTTPException(404, "Чат не найден")
-
-    # 🟢 Команды смены в рабочих чатах отделов (/enter, /exit, /shift):
-    # обрабатываем до создания обычного сообщения; команда отвечает
-    # служебным сообщением в том же формате ответа.
-    if text and text.strip().startswith("/") and getattr(chat, "category_id", None):
-        cmd_response = await handle_team_chat_command(chat, member, user, text, session)
-        if cmd_response is not None:
-            return cmd_response
 
     # 🛡 ПРИВАТНОСТЬ: запрет на сообщения (только для личных чатов)
     if not getattr(chat, "is_group", False):
@@ -11926,17 +10212,6 @@ def create_report(
     session.commit()
     session.refresh(report)
 
-    # 🤖 Бот-диспетчер: новая жалоба автоматически прилетает в отдел,
-    # где есть ответственные (право manage_reports и/или can_handle_complaints),
-    # и назначается члену команды round-robin.
-    try:
-        dispatch_to_system_chats(
-            session, "reports",
-            f"🚩 Жалоба на {target_type} #{target_id}\nПричина: {reason}{(' — ' + comment) if comment else ''}",
-        )
-    except Exception as e:
-        print(f"⚠️ dispatch complaint: {e}")
-
     return {"ok": True, "id": report.id}
 
 
@@ -12414,15 +10689,6 @@ def create_bug_report(
     session.add(bug)
     session.commit()
     session.refresh(bug)
-
-    # 🐞 Баг сразу «прилетает» в системные чаты, привязанные к разделу bugs
-    try:
-        dispatch_to_system_chats(
-            session, "bugs",
-            f"🐞 Баг: {bug.title}\n[{priority}] {bug.description[:400]}",
-        )
-    except Exception as e:
-        print(f"⚠️ dispatch bug: {e}")
 
     return {"ok": True, "id": bug.id}
 
@@ -13282,15 +11548,6 @@ async def support_start(  # <-- СТАЛО async def
     ticket.updated_at = datetime.now(timezone.utc)
     session.add(ticket)
     session.commit()
-
-    # 🎧 Новое обращение в поддержку «прилетает» в системные чаты раздела support
-    try:
-        dispatch_to_system_chats(
-            session, "support",
-            f"🎧 Обращение в поддержку #{ticket.id}\n{text.strip() or '📷 Фото'}",
-        )
-    except Exception as e:
-        print(f"⚠️ dispatch support appeal: {e}")
 
     # ✅ БЕЗОПАСНАЯ рассылка через BackgroundTasks
     staff_ids = [
@@ -14228,107 +12485,6 @@ def delete_system_badge(
 # ============================================================
 # 📊 СТАТИСТИКА КОМАНДЫ
 # ============================================================
-
-@app.get("/api/admin/team-dashboard/stats")
-def get_team_dashboard_stats(
-    staff: User = Depends(require_staff),
-    session: Session = Depends(get_session),
-):
-    """Полная статистика для менеджеров"""
-    now = datetime.now(timezone.utc)
-    
-    return {
-        "total_users": session.exec(select(func.count()).select_from(User)).one(),
-        "total_posts": session.exec(select(func.count()).select_from(Post)).one(),
-        "registrations_7d": session.exec(select(func.count()).select_from(User).where(User.created_at >= now - timedelta(days=7))).one(),
-        "registrations_30d": session.exec(select(func.count()).select_from(User).where(User.created_at >= now - timedelta(days=30))).one(),
-        "online_count": manager.total_connections,
-    }
-
-
-@app.get("/api/admin/team-statistics")
-def get_team_statistics(
-    user_id: Optional[int] = None,
-    staff: User = Depends(require_staff),
-    session: Session = Depends(get_session),
-):
-    """Статистика команды с группировкой по отделам"""
-    if user_id:
-        # Детальная статистика пользователя
-        target = session.get(User, user_id)
-        if not target:
-            raise HTTPException(404, "Пользователь не найден")
-        
-        role_history = session.exec(select(RoleHistory).where(RoleHistory.user_id == user_id).order_by(RoleHistory.changed_at.desc())).all()
-        actions = session.exec(select(TeamStatistic).where(TeamStatistic.user_id == user_id).order_by(TeamStatistic.created_at.desc()).limit(50)).all()
-        nick_history = session.exec(select(NickHistory).where(NickHistory.user_id == user_id).order_by(NickHistory.changed_at.desc())).all()
-        actor_ids = {h.changed_by for h in role_history if h.changed_by}
-        actor_ids = {h.changed_by for h in role_history if h.changed_by} | {h.changed_by for h in nick_history if h.changed_by}
-        actors: dict = {}
-        if actor_ids:
-            for u in session.exec(select(User).where(User.id.in_(actor_ids))).all():
-                actors[u.id] = u
-
-        return {
-            "user": user_out(target, session),
-            "role_history": [{
-                "old_role": session.get(Role, h.old_role_id).name if h.old_role_id else None,
-                "new_role": session.get(Role, h.new_role_id).name if h.new_role_id else None,
-                "changed_at": h.changed_at.isoformat(),
-                "changed_by": {
-                    "id": actors[h.changed_by].id,
-                    "username": actors[h.changed_by].username,
-                    "display_name": actors[h.changed_by].display_name,
-                    "avatar_url": actors[h.changed_by].avatar_url,
-                } if h.changed_by in actors else None,
-            } for h in role_history],
-            "nick_history": [{
-                "field": h.field,
-                "old_value": h.old_value,
-                "new_value": h.new_value,
-                "changed_at": h.changed_at.isoformat(),
-                "changed_by": {
-                    "id": actors[h.changed_by].id,
-                    "username": actors[h.changed_by].username,
-                    "display_name": actors[h.changed_by].display_name,
-                    "avatar_url": actors[h.changed_by].avatar_url,
-                } if h.changed_by in actors else None,
-            } for h in nick_history],
-            "actions": [{"action_type": a.action_type, "target_type": a.target_type, "target_id": a.target_id, "created_at": a.created_at.isoformat()} for a in actions],
-            "total_actions": session.exec(select(func.count(TeamStatistic.id)).where(TeamStatistic.user_id == user_id)).one() or 0,
-        }
-    else:
-        # Общая статистика команды (3+ уровень)
-        all_users = session.exec(select(User)).all()
-        team_members = []
-        
-        for u in all_users:
-            lvl = get_user_level(u, session)
-            if lvl >= 3:
-                role = session.get(Role, u.role_id) if u.role_id else None
-                category = session.get(RoleCategory, role.category_id) if role and role.category_id else None
-                actions_count = session.exec(select(func.count(TeamStatistic.id)).where(TeamStatistic.user_id == u.id)).one() or 0
-                
-                team_members.append({
-                    "user": {"id": u.id, "username": u.username, "display_name": u.display_name, "avatar_url": u.avatar_url, "created_at": u.created_at.isoformat() if u.created_at else None, "last_seen": u.last_seen.isoformat() if u.last_seen else None},
-                    "role": {"name": role.name if role else "Без роли", "color": role.color if role else "#8b5cf6", "level": lvl, "category_name": category.name if category else "Общие", "category_id": category.id if category else 0, "category_color": category.color if category else "#6b7280"},
-                    "actions_count": actions_count,
-                })
-        
-        # Группировка по категориям
-        grouped = {}
-        for m in team_members:
-            cat_id = m["role"]["category_id"]
-            if cat_id not in grouped:
-                grouped[cat_id] = {"id": cat_id, "name": m["role"]["category_name"], "color": m["role"]["category_color"], "members": []}
-            grouped[cat_id]["members"].append(m)
-        
-        sorted_groups = sorted(list(grouped.values()), key=lambda x: (0 if x["id"] == 0 else 1, x["name"]))
-        for group in sorted_groups:
-            group["members"].sort(key=lambda x: (-x["role"]["level"], x["user"]["display_name"]))
-        
-        return {"groups": sorted_groups}
-
 
 @app.get("/api/admin/statistics/overview")
 def get_statistics_overview(
@@ -15370,15 +13526,6 @@ def assign_billet(
     session.commit()
     session.refresh(assignment)
 
-    # 🏢 «Магия»: если плашка привязана к отделу — юзер входит в его рабочий чат
-    try:
-        if billet.category_id:
-            cat = session.get(RoleCategory, billet.category_id)
-            if cat:
-                add_user_to_team_chat(target, cat, session)
-    except Exception as e:
-        print(f"⚠️ add_user_to_team_chat (billet → user {user_id}): {e}")
-
     # ✅ ИСПРАВЛЕНО: передаем request
     log_entry = ActionLog(
         actor_id=staff.id,
@@ -15409,21 +13556,6 @@ def revoke_assignment(
     assignment.is_active = False
     session.add(assignment)
     session.commit()
-
-    # 🏢 «Магия»: отзыв плашки, привязанной к отделу → авто-кик из рабочего чата
-    # (только если юзер не состоит в этом отделе по роли)
-    try:
-        billet = session.get(Billet, assignment.billet_id)
-        target = session.get(User, assignment.user_id)
-        if billet and billet.category_id and target:
-            in_dept_by_role = False
-            if target.role_id:
-                role = session.get(Role, target.role_id)
-                in_dept_by_role = bool(role and role.category_id == billet.category_id)
-            if not in_dept_by_role:
-                kick_user_from_team_chat(target.id, billet.category_id, session)
-    except Exception as e:
-        print(f"⚠️ kick_user_from_team_chat (revoke billet {assign_id}): {e}")
 
     # ✅ ИСПРАВЛЕНО: передаем request
     log_entry = ActionLog(

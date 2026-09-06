@@ -9,19 +9,14 @@ import { Button, IconButton } from "@/components/ui/Button";
 interface Props {
   onClose: () => void;
   onCreated: (chatId: number) => void;
-  /** "work" — создание рабочего чата (системная папка РАБОТА + выбор ролей участников) */
-  mode?: "group" | "work";
 }
 
-export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) {
+export function CreateGroupModal({ onClose, onCreated }: Props) {
   const { t } = useI18n();
-  const isWork = mode === "work";
   const [name, setName] = useState("");
   const [query, setQuery] = useState("");
   const [users, setUsers] = useState<any[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
-  // 🏢 Роли участников рабочего чата: uid → "member" | "admin"
-  const [roles, setRoles] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,44 +44,33 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
   function toggle(id: number) {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-        setRoles((r) => {
-          const { [id]: _removed, ...rest } = r;
-          return rest;
-        });
-      } else if (next.size < 49) next.add(id);
+      if (next.has(id)) next.delete(id);
+      else if (next.size < 49) next.add(id);
       return next;
     });
   }
 
-  function cycleRole(id: number) {
-    setRoles((r) => ({ ...r, [id]: r[id] === "admin" ? "member" : "admin" }));
-  }
-
   async function create() {
-    if (!name.trim()) { setError(isWork ? "Введите название рабочего чата" : "Введите название группы"); return; }
+    if (!name.trim()) { setError(t("group.needName")); return; }
     if (selected.size === 0) { setError("Добавьте хотя бы одного участника"); return; }
     setLoading(true);
     setError(null);
     try {
       const token = getToken();
-      const member_roles: Record<string, string> = {};
-      Object.entries(roles).forEach(([uid, role]) => { member_roles[String(uid)] = role; });
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/group`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name: name.trim(), user_ids: Array.from(selected), is_work: isWork, member_roles }),
+        body: JSON.stringify({ name: name.trim(), user_ids: Array.from(selected) }),
       });
       if (res.ok) {
         const data = await res.json();
         onCreated(data.chat_id);
       } else {
         const err = await res.json().catch(() => ({ detail: "Ошибка" }));
-        setError(err.detail || (isWork ? "Не удалось создать рабочий чат" : "Не удалось создать группу"));
+        setError(err.detail || t("group.createFailed"));
       }
     } catch {
       setError("Ошибка сети");
@@ -105,7 +89,7 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
           <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <Users className="text-[#8b5cf6]" size={20} />
-              <h2 className="text-lg font-black text-gray-900 dark:text-white">{isWork ? t("messages.newWorkChat") : t("messages.createGroup")}</h2>
+              <h2 className="text-lg font-black text-gray-900 dark:text-white">{t("messages.createGroup")}</h2>
             </div>
             <IconButton icon={X} size="iconSm" onClick={onClose} />
           </div>
@@ -145,15 +129,6 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
                 >
                   <Avatar src={u.avatar_url} name={u.display_name} id={u.id} size={20} />
                   <span className="font-bold truncate max-w-[100px]">{u.display_name}</span>
-                  {isWork && (
-                    <button
-                      onClick={() => cycleRole(u.id)}
-                      className="font-black px-1 rounded-full bg-[#8b5cf6]/25"
-                      title={t("messages.workRoleSet")}
-                    >
-                      {roles[u.id] === "admin" ? t("messages.workAdminRole") : t("messages.workMemberRole")}
-                    </button>
-                  )}
                   <button onClick={() => toggle(u.id)} className="hover:text-gray-900 dark:hover:text-white">
                     <X size={12} />
                   </button>
@@ -195,18 +170,6 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
                   >
                     {isSelected && <Check size={12} className="text-white" />}
                   </div>
-                  {isWork && isSelected && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); cycleRole(u.id); }}
-                      className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-wide border transition-colors ${
-                        roles[u.id] === "admin"
-                          ? "bg-[#8b5cf6] text-white border-[#8b5cf6]"
-                          : "border-[#8b5cf6]/40 text-[#8b5cf6]"
-                      }`}
-                    >
-                      {roles[u.id] === "admin" ? t("messages.workAdminRole") : t("messages.workMemberRole")}
-                    </button>
-                  )}
                 </div>
               );
             })}
@@ -226,7 +189,7 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
               disabled={loading || !name.trim() || selected.size === 0}
               className="w-full"
             >
-              {loading ? t("common.sending") : isWork ? t("messages.createWorkChat") : t("messages.createGroup")}
+              {loading ? t("common.sending") : t("messages.createGroup")}
             </Button>
           </div>
         </div>

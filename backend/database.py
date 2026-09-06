@@ -123,7 +123,6 @@ def _ensure_columns() -> None:
             existing = {t: {c["name"] for c in insp.get_columns(t)} for t in insp.get_table_names()}
             stmts = [
                 ("rolecategory", "panel_tabs", "VARCHAR DEFAULT '[]'"),
-                ("rolecategory", "team_chat_id", "INTEGER"),
                 ("user", "is_bot", "BOOLEAN DEFAULT 0"),
             ]
             for table, col, ddl in stmts:

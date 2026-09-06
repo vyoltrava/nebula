@@ -11,7 +11,7 @@ import { CreateChannelModal } from "@/components/CreateChannelModal";
 import PublicChannelsModal from "@/components/PublicChannelsModal";
 import FolderManagerModal from "@/components/FolderManagerModal";
 import FolderContextModal from "@/components/FolderContextModal";
-import { MessageSquare, Search, Lock, Users, Bookmark, ShieldCheck, X, Plus, Megaphone, UserPlus, Globe, FolderPlus, CheckCheck, Archive, Briefcase } from "lucide-react";
+import { MessageSquare, Search, Lock, Users, Bookmark, ShieldCheck, X, Plus, Megaphone, UserPlus, Globe, FolderPlus, CheckCheck, Archive } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { socket } from "@/lib/websocket";
@@ -170,15 +170,14 @@ function SwipeableChatItem({
 export default function MessagesPage() {
   const { t, locale } = useI18n();
   const [allChats, setAllChats] = useState<any[]>([]);
-  // 🗂️ Папки чатов (Этап 6): системная 💼 РАБОТА + кастомные папки юзера
+  // 🗂️ Папки чатов (Этап 6): кастомные папки юзера
   const [folderData, setFolderData] = useState<any>(null);
-  // Активная вкладка папки: "all" (все чаты) | "work" (💼 РАБОТА) | `f${id}` (кастомная)
+  // Активная вкладка папки: "all" (все чаты) | `f${id}` (кастомная)
   const [activeFolder, setActiveFolder] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
-  const [showWorkChat, setShowWorkChat] = useState(false);
   // 🗂️ Папка, для которой открыто контекстное меню (правый клик / удержание на вкладке)
   const [folderMenuId, setFolderMenuId] = useState<number | null>(null);
   // 📱 Long-press на вкладке папки → контекстное меню
@@ -824,14 +823,9 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   }).length;
   const textMatches = visibleChats.length - nameMatches;
 
-  // 🗂️ Список папок-вкладок: первая всегда «Все чаты», затем 💼 РАБОТА (если есть),
-  // затем кастомные папки. Как в Telegram.
+  // 🗂️ Список папок-вкладок: первая всегда «Все чаты», затем кастомные папки. Как в Telegram.
   const folderTabs = useMemo(() => {
     const tabs: any[] = [{ key: "all", label: "Все чаты", icon: "💬", locked: false, count: visibleChats.length }];
-    if (folderData?.work_folder) {
-      const wf = folderData.work_folder;
-      tabs.push({ key: "work", label: wf.name || "РАБОТА", icon: wf.icon || "💼", locked: true, count: (wf.chat_ids || []).length });
-    }
     for (const f of folderData?.folders || []) {
       tabs.push({ key: `f${f.id}`, label: f.name, icon: f.icon || "📁", locked: false, count: (f.chat_ids || []).length });
     }
@@ -844,9 +838,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       return visibleChats.map((c) => ({ chat: c, key: `c-${c.is_channel ? "ch-" : ""}${c.id}` }));
     }
     let ids = new Set<number>();
-    if (activeFolder === "work") {
-      (folderData.work_folder?.chat_ids || []).forEach((id: number) => ids.add(id));
-    } else if (activeFolder !== "all") {
+    if (activeFolder !== "all") {
       const f = (folderData.folders || []).find((x: any) => `f${x.id}` === activeFolder);
       (f?.chat_ids || []).forEach((id: number) => ids.add(id));
     }
@@ -1425,12 +1417,6 @@ const confirmPrismKey = async () => {
               <Users size={16} className="text-[#8b5cf6]" /> {t("messages.createGroup")}
             </button>
             <button
-              onClick={() => { setShowCreateMenu(false); setShowWorkChat(true); }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border-t border-line dark:border-white/5"
-            >
-              <Briefcase size={16} className="text-[#8b5cf6]" /> {t("messages.createWorkChat")}
-            </button>
-            <button
               onClick={() => { setShowCreateMenu(false); setShowCreateChannel(true); }}
               className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border-t border-line dark:border-white/5"
             >
@@ -1602,19 +1588,6 @@ const confirmPrismKey = async () => {
           onClose={() => setShowCreateGroup(false)}
           onCreated={(chatId) => {
             setShowCreateGroup(false);
-            router.push(`/messages/${chatId}`);
-          }}
-        />
-      )}
-
-      {/* 🏢 МОДАЛКА СОЗДАНИЯ РАБОЧЕГО ЧАТА — сразу с выбором участников и их ролей */}
-      {showWorkChat && (
-        <CreateGroupModal
-          mode="work"
-          onClose={() => setShowWorkChat(false)}
-          onCreated={(chatId) => {
-            setShowWorkChat(false);
-            load();
             router.push(`/messages/${chatId}`);
           }}
         />
