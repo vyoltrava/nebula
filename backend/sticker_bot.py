@@ -30,8 +30,11 @@ def utcnow():
 
 
 def _log(session, actor_id, action, details=None, bot_id=None, ip=None):
-    session.add(BotLog(bot_id=bot_id or 0, actor_id=actor_id, action=action,
-                       details=json.dumps(details or {})))
+    # 🛡 bot_log.bot_id имеет FK на bot.id — проверяем существование
+    from models import Bot as _Bot
+    if bot_id and session.get(_Bot, bot_id):
+        session.add(BotLog(bot_id=bot_id, actor_id=actor_id, action=action,
+                           details=json.dumps(details or {})))
     if ip:
         log_action(session, actor_id, action, ip_address=ip)
 

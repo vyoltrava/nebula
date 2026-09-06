@@ -51,6 +51,10 @@ def require_bot_admin(b: Bot, user: User, session: Session):
 
 
 def log_bot(session, bot_id, action, actor_id=None, details=None):
+    # 🛡 bot_log.bot_id имеет FK на bot.id — проверяем существование
+    from models import Bot as _Bot
+    if not bot_id or not session.get(_Bot, bot_id):
+        return
     session.add(BotLog(bot_id=bot_id, actor_id=actor_id, action=action,
                        details=json.dumps(details or {})))
 

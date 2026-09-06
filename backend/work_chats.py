@@ -103,8 +103,14 @@ async def broadcast_work(chat_id: int, event: str, data: dict, session: Session)
 
 def log_bot(session: Session, bot_id, action: str,
             actor_id: Optional[int] = None, details: dict | None = None):
-    from models import BotLog
-    session.add(BotLog(bot_id=bot_id or 0, actor_id=actor_id,
+    from models import BotLog, Bot
+    # 🛡 bot_log.bot_id имеет FK на bot.id — None/0 нельзя, иначе FK-violation.
+    # Если реального бота нет — не логируем (или логируем в ActionLog).
+    if not bot_id:
+        return
+    if not session.get(Bot, bot_id):
+        return
+    session.add(BotLog(bot_id=bot_id, actor_id=actor_id,
                        action=action, details=json.dumps(details or {})))
 
 # ------------------------------------------------------------------
