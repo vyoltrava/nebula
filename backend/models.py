@@ -499,6 +499,10 @@ class StickerPack(SQLModel, table=True):
     min_level: int = Field(default=1)
     is_active: bool = Field(default=True)
     is_builtin: bool = Field(default=False)
+    # 🆕 Пользовательские паки: создаёт стикер-бот от имени юзера
+    is_user: bool = Field(default=False)
+    owner_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    banned: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utcnow)
 
 

@@ -125,12 +125,12 @@ export default function DepartmentsTab() {
   }
 
   async function autoCreateChats() {
-    if (!confirm("Создать рабочие чаты под ВСЕ категории staff-ролей? (удалённые вручную не тронутся)")) return;
+    if (!confirm("Создать рабочие чаты под ВСЕ категории ролей? (удалённые вручную не тронутся)")) return;
     const res = await fetch(`${API_URL}/api/work/chats/auto`, {
       method: "POST", headers: { Authorization: `Bearer ${getToken()}` },
     });
     const d = await res.json().catch(() => ({}));
-    alert(`Создано: ${d.created?.length || 0}. Категорий staff-ролей: ${d.need_chat_categories?.length || 0}. Осталось без чата: ${(d.missing || []).join(", ") || "—"}`);
+    alert(`Создано: ${d.created?.length || 0}. Категорий всего: ${d.categories_total || 0}. Чатов всего: ${d.chats_total || 0}. Осталось без чата: ${(d.missing || []).join(", ") || "—"}`);
     load();
   }
 
@@ -165,7 +165,7 @@ if (loading) return <p className="text-center text-gray-500 dark:text-white/40 p
         <div className="text-center py-12 border border-dashed border-line dark:border-white/15 rounded-2xl bg-gray-100 dark:bg-white/5">
           <Briefcase size={44} className="mx-auto text-gray-400 dark:text-white/20 mb-3" />
           <p className="text-gray-600 dark:text-white/50 text-sm">Рабочих чатов пока нет</p>
-          <p className="text-gray-500 dark:text-white/30 text-xs mt-1">Они создаются автоматически под каждую категорию staff-ролей</p>
+          <p className="text-gray-500 dark:text-white/30 text-xs mt-1">Они создаются автоматически под каждую категорию ролей</p>
         </div>
       )}
 

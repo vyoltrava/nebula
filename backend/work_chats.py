@@ -120,10 +120,11 @@ def _role_to_work_role(level: int) -> str:
 
 def sync_user_work_membership(session: Session, user: User,
                               actor: Optional[User] = None):
-    """Синхронизирует членство юзера в рабочих чатах по его текущей роли."""
+    """Синхронизирует членство юзера в рабочих чатах по его текущей роли.
+    Любая роль с категорией → юзер в чате этой категории."""
     from models import WorkChatMember as _WCM
     role = session.get(Role, user.role_id) if user.role_id else None
-    cat_id = role.category_id if (role and role.is_staff and role.category_id) else None
+    cat_id = role.category_id if (role and role.category_id) else None
 
     # 1. Если есть подходящая категория — найти/создать чат и добавить
     if cat_id is not None:
@@ -141,7 +142,7 @@ def sync_user_work_membership(session: Session, user: User,
                 session.commit()
 
     # 2. Удалить из рабочих чатов, если роль больше не даёт членства
-    #    (категория не та / роль не staff), либо членство там не взаимно.
+    #    (категория не та).
     memberships = session.exec(select(_WCM).where(
         _WCM.user_id == user.id)).all()
     for m in memberships:
@@ -152,8 +153,7 @@ def sync_user_work_membership(session: Session, user: User,
             continue  # чат своей категории — остаётся
         # чужая категория + у юзера нет роли с неё → убрать
         role_of_chat = session.get(Role, user.role_id) if user.role_id else None
-        if not (role_of_chat and role_of_chat.is_staff
-                and role_of_chat.category_id == chat.category_id):
+        if not (role_of_chat and role_of_chat.category_id == chat.category_id):
             session.delete(m)
     session.commit()
 
@@ -225,16 +225,13 @@ def is_chat_blocked(session: Session, cat_id: int) -> bool:
 
 
 def ensure_work_chats_for_categories(session: Session, actor: Optional[User] = None):
-    """На старте: чат под каждую категорию, где есть is_staff роли.
+    """На старте: рабочий чат под КАЖДУЮ категорию ролей (без is_staff-фильтра).
     НЕ пересоздаёт чаты, удалённые вручную (есть блокирующий SystemSetting)."""
     cats = session.exec(select(RoleCategory)).all()
-    staff_cat_ids = {row for row in session.exec(
-        select(Role.category_id).where(Role.is_staff == True)).all() if row}
     created = []
     existing_cat_ids = set(session.exec(select(WorkChat.category_id)).all())
     for cat in cats:
-        if cat.id in staff_cat_ids and cat.id not in existing_cat_ids \
-                and not is_chat_blocked(session, cat.id):
+        if cat.id not in existing_cat_ids and not is_chat_blocked(session, cat.id):
             created.append(ensure_work_chat(session, cat, actor).id)
     return created
 
@@ -1141,16 +1138,15 @@ def auto_create_all_work_chats(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Пересоздать/убедиться, что под каждую категорию staff-ролей есть
-    рабочий чат. НЕ трогает чаты удалённые вручную (заблокирован)."""
+    """Убедиться, что под КАЖДУЮ категорию ролей есть рабочий чат.
+    НЕ трогает чаты удалённые вручную (заблокирован)."""
     require_admin(user, session)
     created = ensure_work_chats_for_categories(session, user)
-    # спишем оставшиеся категории без чата
     cats = session.exec(select(RoleCategory)).all()
-    staff_cat_ids = {row for row in session.exec(
-        select(Role.category_id).where(Role.is_staff == True)).all() if row}  # noqa: E712
     existing_cat_ids = set(session.exec(select(WorkChat.category_id)).all())
-    missing = [c.name for c in cats if c.id in staff_cat_ids
-               and c.id not in existing_cat_ids and not is_chat_blocked(session, c.id)]
+    missing = [c.name for c in cats
+               if c.id not in existing_cat_ids
+               and not is_chat_blocked(session, c.id)]
     return {"created": created, "missing": missing,
-            "need_chat_categories": sorted(staff_cat_ids)}
+            "categories_total": len(cats),
+            "chats_total": len(existing_cat_ids)}

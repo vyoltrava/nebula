@@ -8202,6 +8202,7 @@ async def send_message_v2(
         # 🤖 BOT COMPANY: сообщение боту в чате → движок ботов
         try:
             from bots import handle_bot_message, handle_botfather_dm
+            # from sticker_bot import handle_stickerbot_command  # 🎨 пока выключен
             clean_text = (ciphertext or text or "").strip()
             if clean_text.startswith("/"):
                 handled = handle_botfather_dm(session, user.id, clean_text) \
@@ -14489,6 +14490,13 @@ def start_work_bot_scheduler_hook():
                 ensure_botfather(s)
             except Exception as _e:
                 print("botfather ensure:", _e)
+            # 🎨 StickerBot — ПОКА ВЫКЛЮЧЕН (закрыт до отдельного релиза)
+            # try:
+            #     from sticker_bot import ensure_stickerbot, ensure_stickerbot_chat
+            #     ensure_stickerbot(s)
+            #     ensure_stickerbot_chat(s)
+            # except Exception as _e:
+            #     print("stickerbot ensure:", _e)
     except Exception as e:
         print("work_chats init:", e)
     return start_work_bot_scheduler()
@@ -14638,4 +14646,12 @@ def admin_team_statistics(
         groups.append({"id": -1, "name": "Без отдела", "color": "#8b5cf6",
                        "members": fallback})
     return {"groups": groups}
+
+
+# ============================================================
+# 🎨 STICKER BOT — регистрация роутера (пользовательские паки)
+# ============================================================
+from sticker_bot import router as sticker_router, ensure_stickerbot, ensure_stickerbot_chat
+
+app.include_router(sticker_router, prefix="/api")
 
