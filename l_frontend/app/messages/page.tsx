@@ -11,7 +11,7 @@ import { CreateChannelModal } from "@/components/CreateChannelModal";
 import PublicChannelsModal from "@/components/PublicChannelsModal";
 import FolderManagerModal from "@/components/FolderManagerModal";
 import FolderContextModal from "@/components/FolderContextModal";
-import { MessageSquare, Search, Lock, Users, Bookmark, ShieldCheck, X, Plus, Megaphone, UserPlus, Globe, FolderPlus, CheckCheck, Archive } from "lucide-react";
+import { MessageSquare, Search, Lock, Users, Bookmark, ShieldCheck, X, Plus, Megaphone, UserPlus, Globe, FolderPlus, CheckCheck, Archive, Bot } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { socket } from "@/lib/websocket";
@@ -1447,6 +1447,12 @@ const confirmPrismKey = async () => {
               className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border-t border-line dark:border-white/5"
             >
               <Megaphone size={16} className="text-[#8b5cf6]" /> {t("messages.createChannel")}
+            </button>
+            <button
+              onClick={() => { setShowCreateMenu(false); router.push("/bots"); }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border-t border-line dark:border-white/5"
+            >
+              <Bot size={16} className="text-[#8b5cf6]" /> BOT Company · Создать бота
             </button>
           </div>
         )}

@@ -60,7 +60,7 @@ import {
   Check, CheckCheck, CheckSquare, Mic, Square, Users, Settings,
   Pin, PinOff, Video, Copy, SmilePlus,  Reply, Bookmark, Type, Plus,
   Phone, Megaphone
-} from "lucide-react";
+, UserPlus } from "lucide-react";
 // ✅ НОВЫЕ ИМПОРТЫ:
 import {
   getKeyPair, encryptMessage, decryptMessage,
@@ -209,6 +209,7 @@ export default function ChatPage() {
   const [selectedMessages, setSelectedMessages] = useState<Set<number>>(new Set());
   const [showChatMenu, setShowChatMenu] = useState(false);
   const [showGroupMembers, setShowGroupMembers] = useState(false);
+  const [membersFocus, setMembersFocus] = useState<"add" | "bots" | null>(null);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
 
   const [forwardingMessage, setForwardingMessage] = useState<any | null>(null);
@@ -2422,6 +2423,26 @@ const ChatHeader = () => (
                     </button>
                   )}
 
+                  {/* ➕ Добавить участника / 🤖 добавить бота (группы) */}
+                  {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && (
+                    <>
+                      <button
+                        onClick={() => { setMembersFocus("add"); setShowGroupMembers(true); }}
+                        className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-gray-600 dark:text-white/60 hover:text-[#8b5cf6] border border-line dark:border-white/15 transition-colors active:scale-95"
+                        title="Добавить участника"
+                      >
+                        <UserPlus size={15} /> Участник
+                      </button>
+                      <button
+                        onClick={() => { setMembersFocus("bots"); setShowGroupMembers(true); }}
+                        className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-[#8b5cf6] border border-[#8b5cf6]/40 bg-[#8b5cf6]/5 hover:bg-[#8b5cf6]/15 transition-colors active:scale-95"
+                        title="Создать или добавить бота"
+                      >
+                        🤖 Бот
+                      </button>
+                    </>
+                  )}
+
                   {/* Меню "Ещё" */}
                   <div className="relative">
                     <button
@@ -3451,7 +3472,9 @@ style={{
     <GroupMembersModal
       chatId={Number(chatId)}
       myRole={chatInfo?.my_role || null}
-      onClose={() => setShowGroupMembers(false)}
+      openAdd={membersFocus === "add"}
+      openBots={membersFocus === "bots"}
+      onClose={() => { setShowGroupMembers(false); setMembersFocus(null); }}
       onChanged={() => loadChatInfo()}
     />
   </div>

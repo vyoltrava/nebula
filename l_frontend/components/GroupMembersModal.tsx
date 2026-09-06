@@ -12,20 +12,24 @@ interface Props {
   myRole: string | null;
   onClose: () => void;
   onChanged: () => void;
+  openAdd?: boolean;
+  openBots?: boolean;
 }
 
-export function GroupMembersModal({ chatId, myRole, onClose, onChanged }: Props) {
+export function GroupMembersModal({ chatId, myRole, onClose, onChanged, openAdd, openBots }: Props) {
   const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAdd, setShowAdd] = useState(false);
+  const [showAdd, setShowAdd] = useState(!!openAdd);
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
   const isAdmin = myRole === "owner" || myRole === "admin";
   const [myBots, setMyBots] = useState<any[]>([]);
-  const [showBots, setShowBots] = useState(false);
+  const [showBots, setShowBots] = useState(!!openBots);
   const [newBotName, setNewBotName] = useState("");
   const [botBusy, setBotBusy] = useState(false);
+
+  useEffect(() => { if (openBots) loadMyBots(); }, [openBots]);
 
   async function loadMyBots() {
     const token = getToken();
@@ -167,8 +171,9 @@ export function GroupMembersModal({ chatId, myRole, onClose, onChanged }: Props)
             </div>
           </div>
 
-          {showAdd && isAdmin && (
+          {(showAdd || showBots) && isAdmin && (
             <div className="p-3 border-b border-line dark:border-white/10 shrink-0">
+              {showAdd && (
               <div className="relative mb-2">
                 <Search
                   size={14}
@@ -182,6 +187,7 @@ export function GroupMembersModal({ chatId, myRole, onClose, onChanged }: Props)
                   autoFocus
                 />
               </div>
+              )}
               {/* 🤖 Боты: добавить моего / создать нового прямо здесь */}
               <div className="mb-2 rounded-xl border border-[#8b5cf6]/30 bg-[#8b5cf6]/5 p-2.5">
                 <button onClick={() => { const n = !showBots; setShowBots(n); if (n) loadMyBots(); }}
@@ -214,7 +220,7 @@ export function GroupMembersModal({ chatId, myRole, onClose, onChanged }: Props)
                   </div>
                 )}
               </div>
-              {searchResults.map((u) => (
+              {showAdd && searchResults.map((u) => (
                 <div
                   key={u.id}
                   onClick={() => addUser(u.id)}
