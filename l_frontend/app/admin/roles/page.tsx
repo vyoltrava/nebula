@@ -316,6 +316,27 @@ export default function RolesPage() {
     setShowCatManager(true);
   }
 
+  // 🎨 Разделы админки, за которые отвечает группа (цвет вкладки + маршрут заявок)
+  const ADMIN_TABS: [string, string][] = [
+    ["users", "Пользователи"], ["tech_users", "Управление"], ["stats", "Статистика"],
+    ["bugs", "Баг-трекер"], ["ip", "IP блоки"], ["logs", "Логи"],
+    ["reports", "Жалобы"], ["chats", "Чаты"], ["support", "Поддержка"],
+    ["stickers", "Стикеры"], ["themes", "Темы"], ["backups", "Резерв"], ["channel-badges", "Префиксы"],
+  ];
+  const [catPanelTabs, setCatPanelTabs] = useState<string[]>([]);
+  const [expandedCatId, setExpandedCatId] = useState<number | null>(null);
+
+  async function toggleCatPanelTab(catId: number, tab: string, current: string[]) {
+    const next = current.includes(tab) ? current.filter((t) => t !== tab) : [...current, tab];
+    setCatPanelTabs(next);
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/teams/${catId}/panel-tabs`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ tabs: next }),
+    });
+    load();
+  }
+
   async function saveCategory(e: React.FormEvent) {
     e.preventDefault();
     if (!catName.trim()) return;
@@ -967,15 +988,45 @@ export default function RolesPage() {
                   <div className="space-y-2">
                     {categories.length === 0 && <p className="text-xs text-gray-500 dark:text-white/40 text-center py-3">Групп пока нет</p>}
                     {categories.map((c) => (
-                      <div key={c.id} className="flex items-center gap-3 p-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
-                        <span className="w-3 h-3 rounded-full shrink-0" style={{ background: c.color }} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{c.name}</p>
-                          {c.description && <p className="text-[10px] text-gray-500 dark:text-white/40 truncate">{c.description}</p>}
-                          <p className="text-[10px] text-gray-500 dark:text-white/30">{roles.filter((r) => r.category_id === c.id).length} ролей</p>
+                      <div key={c.id} className="p-3 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
+                        <div className="flex items-center gap-3">
+                          <span className="w-3 h-3 rounded-full shrink-0" style={{ background: c.color }} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{c.name}</p>
+                            {c.description && <p className="text-[10px] text-gray-500 dark:text-white/40 truncate">{c.description}</p>}
+                            <p className="text-[10px] text-gray-500 dark:text-white/30">{roles.filter((r) => r.category_id === c.id).length} ролей</p>
+                          </div>
+                          <IconButton icon={Edit2} size="iconSm" onClick={() => openCatForm(c)} />
+                          <IconButton icon={Trash2} variant="danger" size="iconSm" onClick={() => deleteCategory(c.id)} />
                         </div>
-                        <IconButton icon={Edit2} size="iconSm" onClick={() => openCatForm(c)} />
-                        <IconButton icon={Trash2} variant="danger" size="iconSm" onClick={() => deleteCategory(c.id)} />
+                        {/* 🎨 Разделы админки: вкладка красится цветом группы, заявки из раздела летят сюда */}
+                        <button
+                          onClick={() => setExpandedCatId(expandedCatId === c.id ? null : c.id)}
+                          className="mt-2 w-full flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-bold text-gray-500 dark:text-white/50 hover:bg-gray-200/50 dark:hover:bg-white/10 transition-colors"
+                          style={(c.panel_tabs || []).length ? { color: c.color } : undefined}
+                        >
+                          🎨 Разделы админки{((c.panel_tabs || []).length ? `: ${(c.panel_tabs || []).length}` : "")}
+                        </button>
+                        {expandedCatId === c.id && (
+                          <div className="mt-2 grid grid-cols-2 gap-1">
+                            {ADMIN_TABS.map(([tab, label]) => {
+                              const active = (c.panel_tabs || []).includes(tab);
+                              return (
+                                <button
+                                  key={tab}
+                                  onClick={() => toggleCatPanelTab(c.id, tab, c.panel_tabs || [])}
+                                  className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] text-left transition-colors ${active ? "font-bold" : "text-gray-700 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/10"}`}
+                                  style={active ? { color: c.color, background: `${c.color}15` } : undefined}
+                                >
+                                  <span className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[9px] border ${active ? "text-white border-transparent" : "border-gray-300 dark:border-white/30"}`} style={active ? { backgroundColor: c.color } : undefined}>
+                                    {active ? "✓" : ""}
+                                  </span>
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -5515,7 +5515,7 @@ def _create_cross_team_chat_sync(session: Session, chat: Chat, candidate_ids: li
 @app.get("/api/role-categories")
 def list_role_categories(session: Session = Depends(get_session)):
     cats = session.exec(select(RoleCategory).order_by(RoleCategory.order, RoleCategory.id)).all()
-    return [{"id": c.id, "name": c.name, "color": c.color, "description": c.description, "order": c.order, "team_chat_id": c.team_chat_id} for c in cats]
+    return [{"id": c.id, "name": c.name, "color": c.color, "description": c.description, "order": c.order, "team_chat_id": c.team_chat_id, "panel_tabs": _category_panel_tabs(c)} for c in cats]
 
 @app.post("/api/role-categories")
 def create_role_category(
@@ -6577,7 +6577,7 @@ def teams_structure(
                     perms = []
                 role = roles_map.get(u.role_id) if u.role_id else None
                 # 🤖 системного бота не показываем в участниках отдела
-                if users[m.user_id] and users[m.user_id].is_bot:
+                if u.is_bot:
                     continue
                 members_out.append({
                     "user_id": u.id,
@@ -6992,20 +6992,68 @@ def dispatch_ticket_to_team(session: Session, kind: str, title: str, description
             cm for cm in members
             if "can_handle_tasks" in _member_team_permissions(cm)
             and _member_handles_kind(cm, kind, user=users.get(cm.user_id), session=session)
+            and not (users.get(cm.user_id) and users[cm.user_id].is_bot)
         ]
         if cands:
             candidates_by_cat[cat.id] = cands
         if kind_tab and kind_tab in _category_panel_tabs(cat):
             panel_cats.append(cat.id)
 
+    # 1) Отдел, привязанный к разделу этой заявки — заявка приходит туда ВСЕГДА,
+    #    даже если в отделе нет ни одного кандидата (бот сообщит «ожидает исполнителя»).
+    #    Если привязано несколько — берём с наименьшим числом открытых заявок.
+    if kind_tab and panel_cats:
+        load_map = dict(session.exec(
+            select(TeamTicket.category_id, func.count(TeamTicket.id))
+            .where(
+                TeamTicket.kind == (kind if kind in TICKET_KINDS else "other"),
+                TeamTicket.status.in_(["open", "assigned"]),
+                TeamTicket.category_id.in_(panel_cats),
+            )
+            .group_by(TeamTicket.category_id)
+        ).all())
+        chosen_cat = min(panel_cats, key=lambda cid: load_map.get(cid, 0))
+        cat_row = session.get(RoleCategory, chosen_cat)
+        ticket = TeamTicket(
+            category_id=chosen_cat,
+            chat_id=cat_row.team_chat_id if cat_row else None,
+            title=title[:120],
+            description=description,
+            kind=kind if kind in TICKET_KINDS else "other",
+            created_by=actor.id,
+        )
+        session.add(ticket)
+        session.commit()
+        session.refresh(ticket)
+        bot = get_or_create_bot(session)
+        assignee_member = pick_ticket_assignee(session, chosen_cat, kind=ticket.kind)
+        if assignee_member:
+            assignee = session.get(User, assignee_member.user_id)
+            ticket.status = "assigned"
+            ticket.assigned_to = assignee.id
+            ticket.assigned_hierarchy = assignee_member.team_hierarchy
+            ticket.assigned_at = utcnow()
+            assignee_member.shift_taken = (assignee_member.shift_taken or 0) + 1
+            session.add(assignee_member)
+            session.add(ticket)
+            session.commit()
+            session.refresh(ticket)
+            if cat_row and cat_row.team_chat_id:
+                _post_team_bot_message(session, cat_row.team_chat_id, actor, assignee, ticket)
+            return ticket.id
+        if cat_row and cat_row.team_chat_id:
+            label = TICKET_KINDS.get(ticket.kind, "Заявка")
+            _post_bot_message(
+                session, cat_row.team_chat_id, bot,
+                f"🤖 {label} «{ticket.title}» — ожидает исполнителя (в отделе нет свободных с правом)",
+            )
+        return ticket.id
+
     if not candidates_by_cat:
         return 0
 
-    # 1) Отдел, отвечающий за раздел этой заявки (если у него есть кандидаты)
-    chosen_cat = next((pc for pc in panel_cats if pc in candidates_by_cat), None)
-    if chosen_cat is None:
-        # 2) fallback: round-robin среди подходящих отделов
-        chosen_cat = _random.choice(list(candidates_by_cat.keys()))
+    # 2) Fallback: round-robin среди подходящих отделов
+    chosen_cat = _random.choice(list(candidates_by_cat.keys()))
     category_id = chosen_cat
     cands = candidates_by_cat[category_id]
     cat_row = session.get(RoleCategory, category_id)

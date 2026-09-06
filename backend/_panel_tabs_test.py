@@ -111,4 +111,40 @@ r = c.patch(f"/api/admin/teams/{DATA['sup']}/panel-tabs", json={"tabs": ["hacker
 print("6) invalid tab ->", r.status_code)
 assert r.status_code == 400
 
+# 5) КРИТИЧНО: заявка из support при отделе БЕЗ кандидатов (ни у кого manage_support
+#    / can_handle_appeals) — всё равно бот-сообщение приходит в привязанный отдел
+with Session(engine) as s:
+    empty = RoleCategory(name="Пустой отдел", color="#f59e0b")
+    s.add(empty); s.commit(); s.refresh(empty)
+    main.ensure_team_chat_for_category(empty.id, s)
+    # участник БЕЗ прав вообще
+    nobody = User(username="nobody1", display_name="Nobody", password_hash="x")
+    s.add(nobody); s.commit(); s.refresh(nobody)
+    nm = main.add_user_to_team_chat(nobody, empty, s)
+    nm.team_permissions = json.dumps([])
+    s.add(nm); s.commit()
+    DATA["empty"] = empty.id
+    DATA["tc_empty"] = main.ensure_team_chat_for_category(empty.id, s).id
+r = c.patch(f"/api/admin/teams/{DATA['empty']}/panel-tabs", json={"tabs": ["support"]}, headers=AUTH)
+assert r.status_code == 200
+with Session(engine) as s:
+    a3 = User(username="applicant4", display_name="App4", password_hash="x")
+    s.add(a3); s.commit(); s.refresh(a3)
+    UID_A4 = a3.id
+main.app.dependency_overrides[main.get_current_user] = _make_user(UID_A4)
+r = c.post("/api/support/start", data={"text": "Заявка в пустой отдел"})
+print("5) support->empty dept:", r.status_code)
+assert r.status_code == 200
+with Session(engine) as s:
+    tickets = s.exec(select(TeamTicket).where(TeamTicket.kind == "appeal", TeamTicket.category_id == DATA["empty"])).all()
+    assert tickets, "тикет не создан"
+    t = tickets[0]
+    print("   тикет в category:", t.category_id, "| ожидали:", DATA["empty"], "| assigned:", t.assigned_to)
+    assert t.category_id == DATA["empty"]
+    assert t.assigned_to is None, "assignee быть не должно"
+    msgs = s.exec(select(Message).where(Message.chat_id == DATA["tc_empty"])).all()
+    bot_msgs = [m for m in msgs if "ожидает исполнителя" in (m.text or "")]
+    print("   бот-сообщение:", bot_msgs[-1].text if bot_msgs else "НЕТ")
+    assert bot_msgs, "бот-сообщение «ожидает исполнителя» не пришло"
+
 print("\nALL PANEL-TABS CHECKS PASSED")
