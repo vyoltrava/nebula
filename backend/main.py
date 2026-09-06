@@ -3994,6 +3994,14 @@ def delete_role(
         u.role_id = None
         session.add(u)
 
+    # 🔄 роль удалена → все её носители теряют членство в рабочих чатах
+    try:
+        from work_chats import sync_user_work_membership
+        for u in users:
+            sync_user_work_membership(session, u, staff)
+    except Exception as _e:
+        print("work membership sync (role delete):", _e)
+
     # 🆕 Чистим историю ролей, иначе FK violation (в проде constraint без ON DELETE SET NULL)
     hist = session.exec(
         select(RoleHistory).where(
