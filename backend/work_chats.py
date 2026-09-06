@@ -278,19 +278,58 @@ def ensure_worker_bots_for_all(session: Session):
 
 
 def sync_all_memberships(session: Session, actor: Optional[User] = None) -> int:
-    """🛡 ПОЛНЫЙ БЭКФИЛЛ: каждый юзер с ролью, у которой есть категория,
-    добавляется в рабочий чат своей категории. Юзеры без категории/роли —
-    удаляются из рабочих чатов. Вызывается на старте + вручную админом."""
+    """🛡⚡ ПОЛНЫЙ БЭКФИЛЛ (батчево, ~5 запросов на всю соцсеть):
+    каждый юзер с ролью, у которой есть категория, добавляется в рабочий чат
+    своей категории. Юзеры без категории/роли — удаляются из рабочих чатов."""
+    from models import WorkChatMember as _WCM, WorkChat as _WC, Role as _Role
+    from models import RoleCategory as _RC
+
     users = session.exec(select(User).where(
         User.is_bot == False, User.role_id.is_not(None))).all()  # noqa: E712
-    n = 0
+    if not users:
+        return 0
+
+    roles = {r.id: r for r in session.exec(select(_Role)).all()}
+    cats_by_id = {c.id: c for c in session.exec(select(_RC)).all()}
+    chats = {w.category_id: w for w in session.exec(select(_WC)).all()}
+    all_members = session.exec(select(_WCM)).all()
+    mem_by_user = {}
+    for m in all_members:
+        mem_by_user.setdefault(m.user_id, []).append(m)
+
+    to_add: list = []
+    to_del: list = []
+    touched_cats = set()
+
     for u in users:
-        try:
-            sync_user_work_membership(session, u, actor)
-            n += 1
-        except Exception as e:
-            print("sync membership for", u.username, ":", e)
-    return n
+        role = roles.get(u.role_id)
+        cat_id = role.category_id if role and role.category_id else None
+        keep = set()
+        if cat_id is not None:
+            chat = chats.get(cat_id)
+            if not chat and cat_id in cats_by_id and not is_chat_blocked(session, cat_id):
+                chat = ensure_work_chat(session, cats_by_id[cat_id], actor)
+                chats[cat_id] = chat
+            if chat:
+                keep.add(chat.id)
+                mine = mem_by_user.get(u.id, [])
+                if not any(m.chat_id == chat.id for m in mine):
+                    to_add.append(_WCM(
+                        chat_id=chat.id, user_id=u.id,
+                        role=_role_to_work_role(role.level or 1),
+                        added_by=actor.id if actor else None))
+                    touched_cats.add(chat.id)
+        for m in mem_by_user.get(u.id, []):
+            if m.chat_id not in keep:
+                to_del.append(m)
+
+    if to_del:
+        for m in to_del:
+            session.delete(m)
+    if to_add:
+        session.add_all(to_add)
+    session.commit()
+    return len(users)
 
 
 # ------------------------------------------------------------------
@@ -434,7 +473,61 @@ def list_work_chats(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    return [chat_out(c, session) for c in visible_chats(session, user)]
+    return chats_out_batched(visible_chats(session, user), session)
+
+
+def chats_out_batched(chats: list, session: Session) -> list:
+    """⚡ Батч-сериализация: 4 запроса на весь список вместо N+1 на чат/участника."""
+    from models import WorkChatMember as _WCM, WorkSectionConfig as _WSC, Bot as _Bot
+    ids = [c.id for c in chats]
+    if not ids:
+        return []
+    members = session.exec(select(_WCM).where(_WCM.chat_id.in_(ids))).all()
+    uids = list({m.user_id for m in members})
+    users = {}
+    if uids:
+        for u in session.exec(select(User).where(User.id.in_(uids))).all():
+            users[u.id] = u
+    sections = session.exec(select(_WSC).where(_WSC.chat_id.in_(ids))).all()
+    bots = session.exec(select(_Bot).where(
+        _Bot.chat_id.in_(ids), _Bot.type == "worker")).all()
+
+    mem_by_chat, sec_by_chat, bot_by_chat = {}, {}, {}
+    for m in members:
+        mem_by_chat.setdefault(m.chat_id, []).append(m)
+    for s_ in sections:
+        sec_by_chat.setdefault(s_.chat_id, []).append(s_)
+    for b_ in bots:
+        bot_by_chat[b_.chat_id] = b_
+
+    out = []
+    for c in chats:
+        mems = mem_by_chat.get(c.id, [])
+        m_list = []
+        for m in mems:
+            u = users.get(m.user_id)
+            m_list.append({
+                "user_id": m.user_id,
+                "username": u.username if u else None,
+                "display_name": u.display_name if u else None,
+                "role": m.role,
+                "on_shift": m.on_shift,
+                "shift_taken": m.shift_taken,
+                "handles": json.loads(m.handles or "[]"),
+                "joined_at": m.joined_at.isoformat() if m.joined_at else None,
+            })
+        out.append({
+            "id": c.id, "name": c.name, "category_id": c.category_id,
+            "is_active": c.is_active, "member_count": len(mems),
+            "members": m_list,
+            "sections": [{"section": s_.section, "enabled": s_.enabled,
+                          "default_priority": s_.default_priority}
+                         for s_ in sec_by_chat.get(c.id, [])],
+            "bot": ({"id": b_.id, "name": b_.name, "active": b_.active}
+                    if c.id in bot_by_chat else None),
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+        })
+    return out
 
 
 @router.post("/work/chats")

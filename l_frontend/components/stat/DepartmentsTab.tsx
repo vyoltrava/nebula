@@ -92,16 +92,22 @@ export default function DepartmentsTab() {
     load();
   }
 
-  async function toggleSection(chatId: number, section: string, enabled: boolean, priority: string) {
-    const chat = chats.find((c) => c.id === chatId);
-    const sections = (chat?.sections || []).filter((s) => s.section !== section);
-    if (enabled) sections.push({ section, enabled: true, default_priority: priority });
-    await fetch(`${API_URL}/api/work/chats/${chatId}/sections`, {
+  function toggleSection(chatId: number, section: string, enabled: boolean, priority: string) {
+    // ⚡ Оптимистичный UI: обновляем локально, запрос в фоне — мгновенный клик
+    setChats((prev) => prev.map((c) => {
+      if (c.id !== chatId) return c;
+      const sections = (c.sections || []).filter((s) => s.section !== section);
+      if (enabled) sections.push({ section, enabled: true, default_priority: priority });
+      return { ...c, sections };
+    }));
+    fetch(`${API_URL}/api/work/chats/${chatId}/sections`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-      body: JSON.stringify({ sections }),
-    });
-    load();
+      body: JSON.stringify({ sections: chats.find((c) => c.id === chatId)?.sections
+        ?.filter((s) => s.section !== section)
+        .map((s) => ({ section: s.section, enabled: s.enabled, default_priority: s.default_priority }))
+        .concat(enabled ? [{ section, enabled: true, default_priority: priority }] : []) }),
+    }).catch(() => load());
   }
 
   async function toggleShift(chatId: number, on: boolean) {
