@@ -101,6 +101,32 @@ export default function RootLayout({
             animation-delay: 1s;
           }
         `}} />
+        {/* 🛡 Авто-reload при ChunkLoadError: после пересборки Vercel старая
+            вкладка держит ссылки на несуществующие чанки прошлых билдов и
+            Next показывает «This page couldn't load». Перезагружаем один раз,
+            чтобы страница подхватила актуальные чанки (без цикла). */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function () {
+            function hardReload(once) {
+              if (!once || !window.__nebulaChunkReload) {
+                window.__nebulaChunkReload = true;
+                try { window.location.reload(); } catch (e) {}
+              }
+            }
+            window.addEventListener('error', function (e) {
+              var m = e && (e.message || (e.error && e.error.message)) || '';
+              if (/ChunkLoadError|Loading chunk|dynamically imported module|Failed to fetch/i.test(m)) {
+                hardReload(true);
+              }
+            }, true);
+            window.addEventListener('unhandledrejection', function (e) {
+              var m = e && e.reason && (e.reason.message || String(e.reason)) || '';
+              if (/ChunkLoadError|Loading chunk|dynamically imported module/i.test(m)) {
+                hardReload(true);
+              }
+            });
+          })();
+        `}} />
       </head>
       <body className="font-sans">
         <script dangerouslySetInnerHTML={{ __html: zuneNoFlashScript }} />
