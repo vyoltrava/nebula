@@ -299,8 +299,8 @@ class RoleCategory(SQLModel, table=True):
     # 🏢 Рабочий чат отдела (создаётся автоматически, см. ensure_team_chat_for_category)
     team_chat_id: Optional[int] = Field(default=None, foreign_key="chat.id")
     # 🎨 За какие разделы админки отвечает отдел (JSON: ["support","bugs"]).
-    #    Вкладки этих разделов красятся цветом категории. Сами заявки теперь
-    #    распределяет WorkChatDispatcher в WorkChat (см. work_dispatcher.py).
+    #    Вкладки этих разделов красятся цветом категории, а заявки из разделов
+    #    диспетчеризуются в этот отдел (см. dispatch_ticket_to_team).
     panel_tabs: str = Field(default="[]")
     created_at: datetime = Field(default_factory=utcnow)
 
@@ -345,63 +345,37 @@ class Report(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
 
 # ============================================================
-# 💼 РАБОЧИЕ ЧАТЫ ЗАЯВОК — единая система распределения заявок.
-# Заменяет SystemChat и старую диспетчеризацию отделов (TeamTicket-auto).
-# Заявки из 4 вкладок (reports/support/bugs/chats) направляются ТОЛЬКО
-# сюда. Управление — только через API / /stat → Отделы.
+# 📨 СИСТЕМНЫЕ ЧАТЫ ЗАЯВОК — отдельная система от обычных чатов.
+# Ловят заявки из вкладок админки (reports/support/bugs) по panel,
+# создаются в /stat, участники видят ленту заявок.
 # ============================================================
 
-class WorkChat(SQLModel, table=True):
-    """Рабочий чат приёма заявок одного раздела админки.
-
-    Конфигурационная сущность. Для показа в системной папке «📁 РАБОТА»
-    при создании заводится backing Chat(name, is_group=True, system_folder="work"),
-    id которого хранится в chat_id.
-    """
-    __tablename__ = "work_chat"
+class SystemChat(SQLModel, table=True):
+    """Системный чат-ловушка заявок из вкладки админки."""
+    __tablename__ = "system_chat"
     id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(max_length=80)
-    # reports | support | bugs | chats
-    assigned_section: str = Field(index=True, max_length=20)
-    # 🗂 Backing-чат в системной папке РАБОТА (лента заявок / обсуждение)
-    chat_id: Optional[int] = Field(default=None, foreign_key="chat.id")
+    name: str = Field(max_length=60)
+    # Какой раздел админки этот чат ловит: reports | support | bugs
+    panel: str = Field(index=True, max_length=20)
     created_by: int = Field(foreign_key="user.id")
     created_at: datetime = Field(default_factory=utcnow)
-    is_active: bool = Field(default=True)
 
 
-class WorkChatMember(SQLModel, table=True):
-    """Участник рабочего чата с ролью.
-
-    Роль (leader | deputy | senior | novice) задаётся только в /stat.
-    Состав backing-чата синхронизируется отсюда; носители Role.is_staff
-    добавляются автоматически (auto_assigned=True).
-    """
-    __tablename__ = "work_chat_member"
+class SystemChatMember(SQLModel, table=True):
+    """Участник системного чата (видит ленту заявок)."""
+    __tablename__ = "system_chat_member"
     id: Optional[int] = Field(default=None, primary_key=True)
-    work_chat_id: int = Field(foreign_key="work_chat.id", index=True)
+    chat_id: int = Field(foreign_key="system_chat.id", index=True)
     user_id: int = Field(foreign_key="user.id", index=True)
-    role: str = Field(default="novice", max_length=20)  # leader|deputy|senior|novice
-    auto_assigned: bool = Field(default=False)  # добавлен автоматически по staff-плашке
-    created_at: datetime = Field(default_factory=utcnow)
-    __table_args__ = (UniqueConstraint("work_chat_id", "user_id"),)
 
 
-class WorkAssignment(SQLModel, table=True):
-    """Внутренняя запись о распределении конкретной заявки в рабочий чат.
-
-    Нужна для честного round-robin («свободный» = нет открытых назначений)
-    и для кнопки «Взять в работу». origin_type: report | bug | support | chat.
-    """
-    __tablename__ = "work_assignment"
+class SystemChatMessage(SQLModel, table=True):
+    """Сообщение в системном чате (заявка или реплика staff)."""
+    __tablename__ = "system_chat_message"
     id: Optional[int] = Field(default=None, primary_key=True)
-    work_chat_id: int = Field(foreign_key="work_chat.id", index=True)
-    section: str = Field(index=True, max_length=20)
-    origin_type: str = Field(max_length=30)   # report | bug | support | chat
-    origin_id: int = Field(index=True)
-    assignee_id: Optional[int] = Field(default=None, foreign_key="user.id")
-    status: str = Field(default="assigned", index=True, max_length=20)  # assigned|taken|done
-    message_id: Optional[int] = Field(default=None, foreign_key="message.id")
+    chat_id: int = Field(foreign_key="system_chat.id", index=True)
+    sender_id: int = Field(foreign_key="user.id")
+    text: str
     created_at: datetime = Field(default_factory=utcnow)
 
 

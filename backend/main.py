@@ -63,11 +63,10 @@ from models import (
     UserPrefix, UserPrefixAssign,
     UserChatFolder, ChatFolderAssign,
     TeamTicket,
-    WorkChat, WorkChatMember, WorkAssignment,
+    SystemChat, SystemChatMember, SystemChatMessage,
     Channel, ChannelSubscriber,
     AdminBackup
 )
-from work_dispatcher import WorkChatDispatcher
 import logging
 from fastapi.responses import JSONResponse
 from performance import PerfMiddleware, get_perf_summary
@@ -6780,10 +6779,183 @@ def get_panel_colors(
 
 
 # ============================================================
-# Work-Chats API (WorkChat / WorkChatMember / WorkAssignment)
-# is defined in work_chat_api.py and included at app startup.
+# 📨 СИСТЕМНЫЕ ЧАТЫ ЗАЯВОК (отдельная система, не обычные чаты)
 # ============================================================
 
+def _system_chat_members(session: Session, chat_id: int) -> list[dict]:
+    rows = session.exec(
+        select(User, SystemChatMember)
+        .join(SystemChatMember, SystemChatMember.user_id == User.id)
+        .where(SystemChatMember.chat_id == chat_id)
+        .order_by(User.username)
+    ).all()
+    return [{"id": u.id, "username": u.username, "display_name": u.display_name, "avatar_url": u.avatar_url} for u, _m in rows]
+
+
+@app.get("/api/admin/system-chats")
+def list_system_chats(
+    panel: Optional[str] = None,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Мои системные чаты (где я участник). Опционально фильтр по panel."""
+    memberships = session.exec(
+        select(SystemChatMember).where(SystemChatMember.user_id == user.id)
+    ).all()
+    chat_ids = [m.chat_id for m in memberships]
+    if not chat_ids:
+        return []
+    chats = session.exec(select(SystemChat).where(SystemChat.id.in_(chat_ids))).all()
+    if panel:
+        chats = [c for c in chats if c.panel == panel]
+    return [{
+        "id": c.id, "name": c.name, "panel": c.panel,
+        "members": _system_chat_members(session, c.id),
+        "created_at": c.created_at.isoformat(),
+    } for c in chats]
+
+
+@app.post("/api/admin/system-chats")
+def create_system_chat(
+    data: dict,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Создать системный чат заявок: name, panel (reports|support|bugs), member_ids."""
+    name = (data.get("name") or "").strip()
+    panel = data.get("panel")
+    if not name:
+        raise HTTPException(400, "Название обязательно")
+    if panel not in SYSTEM_PANELS:
+        raise HTTPException(400, f"Раздел должен быть одним из {SYSTEM_PANELS}")
+    member_ids = list({int(x) for x in (data.get("member_ids") or [])})
+    chat = SystemChat(name=name[:60], panel=panel, created_by=staff.id)
+    session.add(chat)
+    session.commit()
+    session.refresh(chat)
+    ids = {staff.id, *member_ids}
+    for uid in ids:
+        if session.get(User, uid):
+            session.add(SystemChatMember(chat_id=chat.id, user_id=uid))
+    session.commit()
+    return {"ok": True, "id": chat.id, "name": chat.name, "panel": chat.panel,
+            "members": _system_chat_members(session, chat.id)}
+
+
+@app.patch("/api/admin/system-chats/{chat_id}")
+async def update_system_chat(
+    chat_id: int,
+    data: dict,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    chat = session.get(SystemChat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    if chat.created_by != user.id and not has_permission(user, "manage_team_hierarchy", session):
+        raise HTTPException(403, "Нет прав на этот чат")
+    if "name" in data and (data["name"] or "").strip():
+        chat.name = data["name"].strip()[:60]
+    if "panel" in data and data["panel"] in SYSTEM_PANELS:
+        chat.panel = data["panel"]
+    session.add(chat)
+    if "member_ids" in data:
+        ids = {int(x) for x in (data["member_ids"] or [])}
+        existing = session.exec(select(SystemChatMember).where(SystemChatMember.chat_id == chat_id)).all()
+        for m in existing:
+            if m.user_id not in ids:
+                session.delete(m)
+        for uid in ids - {m.user_id for m in existing}:
+            if session.get(User, uid):
+                session.add(SystemChatMember(chat_id=chat_id, user_id=uid))
+    session.commit()
+    return {"ok": True, "id": chat.id, "name": chat.name, "panel": chat.panel,
+            "members": _system_chat_members(session, chat.id)}
+
+
+@app.delete("/api/admin/system-chats/{chat_id}")
+async def delete_system_chat(
+    chat_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    chat = session.get(SystemChat, chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    if chat.created_by != user.id and not has_permission(user, "manage_team_hierarchy", session):
+        raise HTTPException(403, "Нет прав на этот чат")
+    for m in session.exec(select(SystemChatMember).where(SystemChatMember.chat_id == chat_id)).all():
+        session.delete(m)
+    for m in session.exec(select(SystemChatMessage).where(SystemChatMessage.chat_id == chat_id)).all():
+        session.delete(m)
+    session.delete(chat)
+    session.commit()
+    return {"ok": True}
+
+
+@app.get("/api/admin/system-chats/{chat_id}/messages")
+def system_chat_messages(
+    chat_id: int,
+    limit: int = 100,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Лента системного чата (только участник)."""
+    member = session.exec(
+        select(SystemChatMember).where(SystemChatMember.chat_id == chat_id, SystemChatMember.user_id == user.id)
+    ).first()
+    if not member:
+        raise HTTPException(403, "Не участник системного чата")
+    msgs = session.exec(
+        select(SystemChatMessage)
+        .where(SystemChatMessage.chat_id == chat_id)
+        .order_by(SystemChatMessage.id.desc())
+        .limit(limit)
+    ).all()
+    sender_ids = list({m.sender_id for m in msgs})
+    senders = {u.id: u for u in session.exec(select(User).where(User.id.in_(sender_ids))).all()} if sender_ids else {}
+    return [{
+        "id": m.id,
+        "sender_id": m.sender_id,
+        "sender_name": senders[m.sender_id].display_name if m.sender_id in senders else "Система",
+        "sender_avatar": senders[m.sender_id].avatar_url if m.sender_id in senders else None,
+        "text": m.text,
+        "created_at": m.created_at.isoformat(),
+    } for m in reversed(msgs)]
+
+
+@app.post("/api/admin/system-chats/{chat_id}/messages")
+async def send_system_chat_message(
+    chat_id: int,
+    data: dict,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    member = session.exec(
+        select(SystemChatMember).where(SystemChatMember.chat_id == chat_id, SystemChatMember.user_id == user.id)
+    ).first()
+    if not member:
+        raise HTTPException(403, "Не участник системного чата")
+    text = (data.get("text") or "").strip()
+    if not text:
+        raise HTTPException(400, "Пустое сообщение")
+    msg = SystemChatMessage(chat_id=chat_id, sender_id=user.id, text=text[:2000])
+    session.add(msg)
+    session.commit()
+    session.refresh(msg)
+    chat = session.get(SystemChat, chat_id)
+    member_ids = [m.user_id for m in session.exec(
+        select(SystemChatMember).where(SystemChatMember.chat_id == chat_id)
+    ).all()]
+    try:
+        await manager.broadcast_to_users(member_ids, "system_chat_message", {
+            "chat_id": chat_id, "panel": chat.panel if chat else None,
+            "message": {"id": msg.id, "sender_id": user.id, "sender_name": user.display_name,
+                        "text": msg.text, "created_at": msg.created_at.isoformat()},
+        })
+    except Exception as e:
+        print(f"⚠️ system chat WS: {e}")
+    return {"ok": True, "id": msg.id}
 
 
 # ============================================================
@@ -7003,6 +7175,143 @@ def candidate_team_members(session: Session, kind: Optional[str] = None) -> list
     return out
 
 
+def dispatch_ticket_to_team(session: Session, kind: str, title: str, description: Optional[str], actor: User) -> int:
+    """«Бот» прикрепляет новое обращение/жалобу к члену команды.
+
+    Приоритет выбора отдела:
+    1) Отдел, привязанный к разделу админки этого типа заявки (RoleCategory.panel_tabs:
+       complaint→reports, appeal→support, bug→bugs) — «кто отвечает за панель, тот и получает».
+    2) Fallback: любой отдел, где есть участники, ответственные за этот тип
+       (по правам панели/локальным пермам), round-robin (pick_ticket_assignee).
+    Возвращает id созданного TeamTicket или 0, если отдела-ответчика нет.
+    """
+    kind_tab = TICKET_KIND_TAB.get(kind)
+    cats = session.exec(select(RoleCategory).where(RoleCategory.team_chat_id.is_not(None))).all()  # type: ignore[union-attr]
+    candidates_by_cat: dict[int, list] = {}
+    panel_cats: list[int] = []
+    for cat in cats:
+        members = session.exec(
+            select(ChatMember).where(ChatMember.chat_id == cat.team_chat_id)
+        ).all()
+        users = {}
+        uid = {m.user_id for m in members}
+        if uid:
+            for u in session.exec(select(User).where(User.id.in_(uid))).all():
+                users[u.id] = u
+        cands = [
+            cm for cm in members
+            if "can_handle_tasks" in _member_team_permissions(cm)
+            and _member_handles_kind(cm, kind, user=users.get(cm.user_id), session=session)
+            and not (users.get(cm.user_id) and users[cm.user_id].is_bot)
+        ]
+        if cands:
+            candidates_by_cat[cat.id] = cands
+        if kind_tab and kind_tab in _category_panel_tabs(cat):
+            panel_cats.append(cat.id)
+
+    # 1) Отдел, привязанный к разделу этой заявки — заявка приходит туда ВСЕГДА,
+    #    даже если в отделе нет ни одного кандидата (бот сообщит «ожидает исполнителя»).
+    #    Если привязано несколько — берём с наименьшим числом открытых заявок.
+    if kind_tab and panel_cats:
+        load_map = dict(session.exec(
+            select(TeamTicket.category_id, func.count(TeamTicket.id))
+            .where(
+                TeamTicket.kind == (kind if kind in TICKET_KINDS else "other"),
+                TeamTicket.status.in_(["open", "assigned"]),
+                TeamTicket.category_id.in_(panel_cats),
+            )
+            .group_by(TeamTicket.category_id)
+        ).all())
+        chosen_cat = min(panel_cats, key=lambda cid: load_map.get(cid, 0))
+        cat_row = session.get(RoleCategory, chosen_cat)
+        ticket = TeamTicket(
+            category_id=chosen_cat,
+            chat_id=cat_row.team_chat_id if cat_row else None,
+            title=title[:120],
+            description=description,
+            kind=kind if kind in TICKET_KINDS else "other",
+            created_by=actor.id,
+        )
+        session.add(ticket)
+        session.commit()
+        session.refresh(ticket)
+        assignee_member = pick_ticket_assignee(session, chosen_cat, kind=ticket.kind)
+        if assignee_member:
+            assignee = session.get(User, assignee_member.user_id)
+            ticket.status = "assigned"
+            ticket.assigned_to = assignee.id
+            ticket.assigned_hierarchy = assignee_member.team_hierarchy
+            ticket.assigned_at = utcnow()
+            assignee_member.shift_taken = (assignee_member.shift_taken or 0) + 1
+            session.add(assignee_member)
+            session.add(ticket)
+            session.commit()
+            session.refresh(ticket)
+            if cat_row and cat_row.team_chat_id:
+                _post_team_ticket_message(session, cat_row.team_chat_id, actor, assignee, ticket)
+            return ticket.id
+        if cat_row and cat_row.team_chat_id:
+            label = TICKET_KINDS.get(ticket.kind, "Заявка")
+            _post_ticket_message(
+                session, cat_row.team_chat_id, actor,
+                f"🤖 {label} «{ticket.title}» — ожидает исполнителя (в отделе нет свободных с правом)",
+            )
+        return ticket.id
+
+    if not candidates_by_cat:
+        return 0
+
+    # 2) Fallback: round-robin среди подходящих отделов
+    chosen_cat = _random.choice(list(candidates_by_cat.keys()))
+    category_id = chosen_cat
+    cands = candidates_by_cat[category_id]
+    cat_row = session.get(RoleCategory, category_id)
+    ticket = TeamTicket(
+        category_id=category_id,
+        chat_id=cat_row.team_chat_id if cat_row else None,
+        title=title[:120],
+        description=description,
+        kind=kind if kind in TICKET_KINDS else "other",
+        created_by=actor.id,
+    )
+    session.add(ticket)
+    session.commit()
+    session.refresh(ticket)
+
+    assignee_member = pick_ticket_assignee(session, category_id, kind=ticket.kind)
+    if assignee_member:
+        assignee = session.get(User, assignee_member.user_id)
+        ticket.status = "assigned"
+        ticket.assigned_to = assignee.id
+        ticket.assigned_hierarchy = assignee_member.team_hierarchy
+        ticket.assigned_at = utcnow()
+        assignee_member.shift_taken = (assignee_member.shift_taken or 0) + 1
+        session.add(assignee_member)
+        session.add(ticket)
+        session.commit()
+        ticket_id = ticket.id
+        # Система кидает заявку в чат отдела, тегая исполнителя
+        if cat_row and cat_row.team_chat_id:
+            _post_team_ticket_message(session, cat_row.team_chat_id, actor, assignee, ticket)
+        return ticket_id
+
+    # Нет исполнителя — заявка всё равно «прилетает» в чат отдела
+    if cat_row and cat_row.team_chat_id:
+        label = TICKET_KINDS.get(ticket.kind, "Заявка")
+        _post_ticket_message(
+            session, cat_row.team_chat_id, actor,
+            f"🤖 {label} «{ticket.title}» — ожидает исполнителя (в отделе нет свободных с правом)",
+        )
+    return ticket.id
+
+
+def _post_team_ticket_message(session: Session, chat_id: int, actor: User, assignee: User, ticket: TeamTicket) -> None:
+    """Системно постит сообщение о назначенной заявке в чат отдела
+    (от имени автора заявки — без бота-аккаунта)."""
+    text = f"🤖 {TICKET_KINDS.get(ticket.kind, 'Заявка')} «{ticket.title}» → @{assignee.username}"
+    _post_ticket_message(session, chat_id, actor, text)
+
+
 def _post_ticket_message(session: Session, chat_id: int, sender: User, text: str) -> Optional[Message]:
     """Создаёт сообщение в чате отдела + рассылает по WS."""
     try:
@@ -7035,6 +7344,45 @@ def _post_ticket_message(session: Session, chat_id: int, sender: User, text: str
         return None
 
 
+# ============================================================
+# 📨 СИСТЕМНЫЕ ЧАТЫ ЗАЯВОК — ловят заявки из вкладок админки
+# ============================================================
+
+SYSTEM_PANELS = ("reports", "support", "bugs")
+
+
+def dispatch_to_system_chats(session: Session, panel: str, text: str) -> int:
+    """Бросает текст заявки во ВСЕ системные чаты, привязанные к разделу.
+
+    Возвращает количество доставленных чатов."""
+    if panel not in SYSTEM_PANELS:
+        return 0
+    chats = session.exec(select(SystemChat).where(SystemChat.panel == panel)).all()
+    delivered = 0
+    for chat in chats:
+        try:
+            # первый член чата — технический sender для записи (системная запись)
+            member = session.exec(
+                select(SystemChatMember).where(SystemChatMember.chat_id == chat.id)
+            ).first()
+            if not member:
+                continue
+            msg = SystemChatMessage(chat_id=chat.id, sender_id=member.user_id, text=text)
+            session.add(msg)
+            session.commit()
+            delivered += 1
+        except Exception as e:
+            session.rollback()
+            print(f"⚠️ dispatch_to_system_chats: {e}")
+    if delivered:
+        # 🔔 WS-рассылка участникам системных чатов
+        try:
+            import asyncio
+            loop = asyncio.get_running_loop()
+            loop.create_task(manager.broadcast_all("system_chat_update", {"panel": panel, "text": text}))
+        except Exception:
+            pass
+    return delivered
 
 
 # ============================================================
@@ -11578,15 +11926,13 @@ def create_report(
     session.commit()
     session.refresh(report)
 
-    # 🤖 Бот-распределитель: новая заявка прилетает в рабочий чат.
-    # Жалобы на чаты/сообщения/ЛС идут в раздел "chats", остальные — в "reports".
-    _wc_section = "chats" if target_type in ("chat", "chat_message", "dm_user") else "reports"
+    # 🤖 Бот-диспетчер: новая жалоба автоматически прилетает в отдел,
+    # где есть ответственные (право manage_reports и/или can_handle_complaints),
+    # и назначается члену команды round-robin.
     try:
-        WorkChatDispatcher.dispatch(
-            session, _wc_section, "report", report.id,
-            f"Жалоба на {target_type} #{target_id}",
-            f"Причина: {reason}{(' — ' + comment) if comment else ''}",
-            f"/adminnew?tab={_wc_section}",
+        dispatch_to_system_chats(
+            session, "reports",
+            f"🚩 Жалоба на {target_type} #{target_id}\nПричина: {reason}{(' — ' + comment) if comment else ''}",
         )
     except Exception as e:
         print(f"⚠️ dispatch complaint: {e}")
@@ -12069,13 +12415,11 @@ def create_bug_report(
     session.commit()
     session.refresh(bug)
 
-    # 🐞 Баг сразу «прилетает» в рабочий чат раздела bugs
+    # 🐞 Баг сразу «прилетает» в системные чаты, привязанные к разделу bugs
     try:
-        WorkChatDispatcher.dispatch(
-            session, "bugs", "bug", bug.id,
-            bug.title,
-            f"[{priority}] {bug.description[:400]}",
-            "/adminnew?tab=bugs",
+        dispatch_to_system_chats(
+            session, "bugs",
+            f"🐞 Баг: {bug.title}\n[{priority}] {bug.description[:400]}",
         )
     except Exception as e:
         print(f"⚠️ dispatch bug: {e}")
@@ -12939,13 +13283,11 @@ async def support_start(  # <-- СТАЛО async def
     session.add(ticket)
     session.commit()
 
-    # 🎧 Новое обращение в поддержку «прилетает» в рабочий чат раздела support
+    # 🎧 Новое обращение в поддержку «прилетает» в системные чаты раздела support
     try:
-        WorkChatDispatcher.dispatch(
-            session, "support", "support", ticket.id,
-            f"Обращение #{ticket.id}",
-            text.strip() or "📷 Фото",
-            "/adminnew?tab=support",
+        dispatch_to_system_chats(
+            session, "support",
+            f"🎧 Обращение в поддержку #{ticket.id}\n{text.strip() or '📷 Фото'}",
         )
     except Exception as e:
         print(f"⚠️ dispatch support appeal: {e}")
@@ -15152,13 +15494,6 @@ app.include_router(payments_router, prefix="/api")
 from channels import router as channels_router, start_channels_scheduler
 
 app.include_router(channels_router, prefix="/api")
-
-# ============================================================
-# 💼 РАБОЧИЕ ЧАТЫ ЗАЯВОК — регистрация роутера (модуль work_chat_api.py)
-# ============================================================
-from work_chat_api import router as work_chat_router
-
-app.include_router(work_chat_router)
 
 # ============================================================
 # 🌐 РЕКОМЕНДАЦИИ — визуальная паутина похожих пользователей

@@ -65,8 +65,8 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
   }
 
   async function create() {
-    if (!name.trim()) { setError(isWork ? t("messages.needWorkName") : t("group.needName")); return; }
-    if (selected.size === 0) { setError(t("group.needMember")); return; }
+    if (!name.trim()) { setError(isWork ? "Введите название рабочего чата" : "Введите название группы"); return; }
+    if (selected.size === 0) { setError("Добавьте хотя бы одного участника"); return; }
     setLoading(true);
     setError(null);
     try {
@@ -85,11 +85,11 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
         const data = await res.json();
         onCreated(data.chat_id);
       } else {
-        const err = await res.json().catch(() => ({ detail: t("common.error") }));
-        setError(err.detail || (isWork ? t("messages.createWorkFailed") : t("group.createFailed")));
+        const err = await res.json().catch(() => ({ detail: "Ошибка" }));
+        setError(err.detail || (isWork ? "Не удалось создать рабочий чат" : "Не удалось создать группу"));
       }
     } catch {
-      setError(t("common.networkError"));
+      setError("Ошибка сети");
     } finally {
       setLoading(false);
     }
@@ -105,17 +105,17 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
           <div className="p-4 border-b border-line dark:border-white/10 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <Users className="text-[#8b5cf6]" size={20} />
-              <h2 className="text-lg font-black text-gray-900 dark:text-white">{isWork ? t("messages.newWorkChat") : t("group.new")}</h2>
+              <h2 className="text-lg font-black text-gray-900 dark:text-white">{isWork ? t("messages.newWorkChat") : t("messages.createGroup")}</h2>
             </div>
             <IconButton icon={X} size="iconSm" onClick={onClose} />
           </div>
 
           <div className="p-4 border-b border-line dark:border-white/10 shrink-0">
-            <label className="block text-xs text-gray-600 dark:text-white/60 mb-1.5 font-bold">{t("group.name")}</label>
+            <label className="block text-xs text-gray-600 dark:text-white/60 mb-1.5 font-bold">Название группы</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value.slice(0, 80))}
-              placeholder={t("group.namePh")}
+              placeholder="Например: Друзья, Проект X..."
               className="w-full px-3 py-2 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
               autoFocus
             />
@@ -123,14 +123,14 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
 
           <div className="p-4 border-b border-line dark:border-white/10 shrink-0">
             <label className="block text-xs text-gray-600 dark:text-white/60 mb-1.5 font-bold">
-              {t("group.addMembers", { n: selected.size })}
+              Добавить участников ({selected.size}/49)
             </label>
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={t("group.searchPh")}
+                placeholder="Поиск по имени или @username..."
                 className="w-full pl-9 pr-3 py-2 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-[#8b5cf6]"
               />
             </div>
@@ -165,11 +165,11 @@ export function CreateGroupModal({ onClose, onCreated, mode = "group" }: Props) 
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
             {query.length < 1 && (
               <p className="p-8 text-center text-gray-500 dark:text-white/40 text-sm">
-                {t("group.startTyping")}
+                Начните вводить имя, чтобы найти пользователей
               </p>
             )}
             {users.length === 0 && query.length > 0 && (
-              <p className="p-8 text-center text-gray-500 dark:text-white/40 text-sm">{t("group.nobody")}</p>
+              <p className="p-8 text-center text-gray-500 dark:text-white/40 text-sm">Никого не найдено</p>
             )}
             {users.map((u) => {
               const isSelected = selected.has(u.id);
