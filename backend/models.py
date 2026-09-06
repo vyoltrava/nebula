@@ -1221,6 +1221,9 @@ class WorkChat(SQLModel, table=True):
     name: str = Field(max_length=80)
     avatar_url: Optional[str] = None
     is_active: bool = Field(default=True)
+    # 🤖 флаг: создан ли автоматически под категорию (на старте). Если False —
+    # чат удалили вручную, и авто-создание его больше не трогает.
+    auto_created: bool = Field(default=True)
     created_by: Optional[int] = Field(default=None, foreign_key="user.id")
     created_at: datetime = Field(default_factory=utcnow)
 

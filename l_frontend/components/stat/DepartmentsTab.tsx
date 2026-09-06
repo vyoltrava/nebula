@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getToken } from "@/lib/auth";
 import { Avatar } from "@/components/Avatar";
-import { Briefcase, Plus, X, Search, Check, UserCog, Zap, Power } from "lucide-react";
+import { Briefcase, Plus, Trash2, X, Search, Check, UserCog, Zap, Power } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -123,6 +123,14 @@ export default function DepartmentsTab() {
     });
     load();
   }
+
+  async function deleteChat(chatId: number, name: string) {
+    if (!confirm(`Удалить рабочий чат «${name}»? Он больше не будет создаваться автоматически.`)) return;
+    await fetch(`${API_URL}/api/work/chats/${chatId}`, {
+      method: "DELETE", headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    load();
+  }
 if (loading) return <p className="text-center text-gray-500 dark:text-white/40 py-16">Загрузка…</p>;
 
   return (
@@ -166,6 +174,13 @@ if (loading) return <p className="text-center text-gray-500 dark:text-white/40 p
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {!chat.is_active && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-400/15 text-gray-500">Закрыт</span>}
+                {me?.is_admin && (
+                  <button onClick={(e) => { e.stopPropagation(); deleteChat(chat.id, chat.name); }}
+                    title="Удалить рабочий чат (не будет создаваться заново)"
+                    className="p-1.5 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 hover:text-red-600 transition-all">
+                    <Trash2 size={14} />
+                  </button>
+                )}
                 {myR && (
                   <button onClick={(e) => { e.stopPropagation(); toggleShift(chat.id, !chat.members.find((m) => m.user_id === me?.id)?.on_shift); }}
                     className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${

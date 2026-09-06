@@ -15,7 +15,7 @@ from database import get_session
 from models import (
     User, Role, RoleCategory, Report, SupportTicket, BugReport,
     WorkChat, WorkChatMember, WorkChatMessage, WorkTicket, WorkSectionConfig,
-    WorkTicketRating, WorkPromotionLog,
+    WorkTicketRating, WorkPromotionLog, SystemSetting,
     WORK_ROLES, WORK_SECTIONS,
 )
 from websocket_manager import manager
@@ -149,7 +149,7 @@ def ensure_work_chat(session: Session, category: RoleCategory,
     if existing:
         return existing
     chat = WorkChat(category_id=category.id, name=category.name[:80],
-                    created_by=actor.id if actor else None)
+                    created_by=actor.id if actor else None, auto_created=True)
     session.add(chat)
     session.commit()
     session.refresh(chat)
@@ -160,18 +160,27 @@ def ensure_work_chat(session: Session, category: RoleCategory,
     return chat
 
 
+def _chat_blocked_key(cat_id: int) -> str:
+    return f"workchat_deleted_{cat_id}"
+
+
+def is_chat_blocked(session: Session, cat_id: int) -> bool:
+    """Флаг «категории не нужен рабочий чат» — юзер удалил его вручную."""
+    return session.get(SystemSetting, _chat_blocked_key(cat_id)) is not None
+
+
 def ensure_work_chats_for_categories(session: Session, actor: Optional[User] = None):
-    """На старте: чат под каждую категорию, где есть is_staff роли."""
+    """На старте: чат под каждую категорию, где есть is_staff роли.
+    НЕ пересоздаёт чаты, удалённые вручную (есть блокирующий SystemSetting)."""
     cats = session.exec(select(RoleCategory)).all()
     staff_cat_ids = {row for row in session.exec(
         select(Role.category_id).where(Role.is_staff == True)).all() if row}
     created = []
+    existing_cat_ids = set(session.exec(select(WorkChat.category_id)).all())
     for cat in cats:
-        if cat.id in staff_cat_ids:
-            chat = session.exec(
-                select(WorkChat).where(WorkChat.category_id == cat.id)).first()
-            if not chat:
-                created.append(ensure_work_chat(session, cat, actor).id)
+        if cat.id in staff_cat_ids and cat.id not in existing_cat_ids \
+                and not is_chat_blocked(session, cat.id):
+            created.append(ensure_work_chat(session, cat, actor).id)
     return created
 
 
@@ -325,14 +334,49 @@ async def create_work_chat(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    """Ручное создание (если авто-создание не сработало)."""
+    """Ручное создание (если авто-создание не сработало или чат был удалён)."""
     require_admin(user, session)
     cat = session.get(RoleCategory, int(data.get("category_id") or 0))
     if not cat:
         raise HTTPException(404, "Категория не найдена")
+    # обычный ensure не создаст заблокированный — снимаем блокировку явно
+    blocked = session.get(SystemSetting, _chat_blocked_key(cat.id))
+    if blocked:
+        session.delete(blocked)
+        session.commit()
     chat = ensure_work_chat(session, cat, user)
     await post_system_message(session, chat.id, "Рабочий чат отдела создан")
     return chat_out(chat, session)
+
+
+@router.delete("/work/chats/{chat_id}")
+async def delete_work_chat(
+    chat_id: int,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Удалить рабочий чат отдела (только админ/управляющий ролями).
+    Фиксирует блокировку, чтобы авто-создание на старте его НЕ возвращало."""
+    chat = get_chat_or_404(session, chat_id)
+    require_admin(user, session)
+    # помечаем категорию «не нужен чат» (до удаления сохраняем category_id)
+    session.add(SystemSetting(key=_chat_blocked_key(chat.category_id), value="1"))
+    # каскадом чистим связанные данные
+    from sqlmodel import delete as _del
+    session.exec(_del(WorkChatMember).where(WorkChatMember.chat_id == chat_id))
+    session.exec(_del(WorkChatMessage).where(WorkChatMessage.chat_id == chat_id))
+    session.exec(_del(WorkTicket).where(WorkTicket.chat_id == chat_id))
+    session.exec(_del(WorkSectionConfig).where(WorkSectionConfig.chat_id == chat_id))
+    session.exec(_del(WorkPromotionLog).where(WorkPromotionLog.chat_id == chat_id))
+    from models import Bot
+    for b in session.exec(select(Bot).where(Bot.chat_id == chat_id)).all():
+        session.delete(b)
+    session.delete(chat)
+    session.commit()
+    log_bot(session, None, "work_chat_deleted", user.id,
+            {"chat_id": chat_id, "category_id": chat.category_id})
+    session.commit()
+    return {"ok": True, "deleted": chat_id}
 
 
 @router.patch("/work/chats/{chat_id}")
