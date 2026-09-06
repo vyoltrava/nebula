@@ -14491,6 +14491,10 @@ def start_work_bot_scheduler_hook():
             try:
                 work_chats.ensure_work_chats_for_categories(s)
                 work_chats.ensure_worker_bots_for_all(s)
+                # 🔄 ПОЛНАЯ АВТОСИНХРОНИЗАЦИЯ: все юзеры с ролями — в чаты
+                # своих категорий (добавление/переезд/удаление)
+                n = work_chats.sync_all_memberships(s)
+                print("work memberships synced:", n)
             except Exception as _e:
                 print("work_chats ensure:", _e)
             # 🤖 BotFather — отец ботов (системный)

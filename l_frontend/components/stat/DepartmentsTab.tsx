@@ -124,6 +124,15 @@ export default function DepartmentsTab() {
     load();
   }
 
+  async function syncMembers() {
+    const res = await fetch(`${API_URL}/api/work/chats/sync-members`, {
+      method: "POST", headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    const d = await res.json().catch(() => ({}));
+    alert(`Синхронизировано участников: ${d.synced ?? "?"}`);
+    load();
+  }
+
   async function autoCreateChats() {
     if (!confirm("Создать рабочие чаты под ВСЕ категории ролей? (удалённые вручную не тронутся)")) return;
     const res = await fetch(`${API_URL}/api/work/chats/auto`, {
@@ -153,6 +162,9 @@ if (loading) return <p className="text-center text-gray-500 dark:text-white/40 p
           <div className="flex gap-2">
             <button onClick={autoCreateChats} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#8b5cf6]/40 text-[#8b5cf6] text-xs font-bold hover:bg-[#8b5cf6]/10">
               ⚙️ Создать все авто-чаты
+            </button>
+            <button onClick={syncMembers} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#8b5cf6]/40 text-[#8b5cf6] text-xs font-bold hover:bg-[#8b5cf6]/10">
+              🔄 Синхронизировать участников
             </button>
             <button onClick={createChat} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#8b5cf6] text-white text-xs font-bold hover:bg-[#7c3aed]">
               <Plus size={14} /> Создать рабочий чат

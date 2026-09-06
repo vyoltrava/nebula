@@ -263,6 +263,22 @@ def ensure_worker_bots_for_all(session: Session):
     return n
 
 
+def sync_all_memberships(session: Session, actor: Optional[User] = None) -> int:
+    """🛡 ПОЛНЫЙ БЭКФИЛЛ: каждый юзер с ролью, у которой есть категория,
+    добавляется в рабочий чат своей категории. Юзеры без категории/роли —
+    удаляются из рабочих чатов. Вызывается на старте + вручную админом."""
+    users = session.exec(select(User).where(
+        User.is_bot == False, User.role_id.is_not(None))).all()  # noqa: E712
+    n = 0
+    for u in users:
+        try:
+            sync_user_work_membership(session, u, actor)
+            n += 1
+        except Exception as e:
+            print("sync membership for", u.username, ":", e)
+    return n
+
+
 # ------------------------------------------------------------------
 # 🤖 Бот-распределитель: round-robin + фильтр сложности
 # ------------------------------------------------------------------
@@ -1143,6 +1159,10 @@ async def work_scheduler_loop():
             with Session(engine) as session:
                 await _scan_sources(session)
                 counter += 1
+                # 🔄 АВТОСИНХРОНИЗАЦИЯ ЧЛЕНСТВА: каждые ~5 минут все юзеры
+                # с ролями синхронизируются со своими рабочими чатами
+                if counter % 10 == 0:
+                    sync_all_memberships(session)
                 if counter % 120 == 0:  # ~раз в час при тике 30с
                     await _run_promotions(session)
         except Exception as e:
@@ -1159,6 +1179,17 @@ def start_work_bot_scheduler():
 # ------------------------------------------------------------------
 # 🚀 Авто-создание всех рабочих чатов (вручную, для админа)
 # ------------------------------------------------------------------
+
+@router.post("/work/chats/sync-members")
+def sync_work_chat_members(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Ручная полная синхронизация: все юзеры с ролями → в чаты своих категорий."""
+    require_admin(user, session)
+    n = sync_all_memberships(session, user)
+    return {"ok": True, "synced": n}
+
 
 @router.post("/work/chats/auto")
 def auto_create_all_work_chats(
