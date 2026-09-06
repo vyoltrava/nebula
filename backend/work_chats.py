@@ -101,6 +101,61 @@ def log_bot(session: Session, bot_id, action: str,
     session.add(BotLog(bot_id=bot_id or 0, actor_id=actor_id,
                        action=action, details=json.dumps(details or {})))
 
+# ------------------------------------------------------------------
+# 🔄 Синхронизация «плашка → чат отдела»:
+#    получил staff-роль с категорией → автоматически в рабочий чат этой
+#    категории; снял роль (или категории нет / не staff) → удалён из чата.
+# ------------------------------------------------------------------
+
+def _role_to_work_role(level: int) -> str:
+    """Уровень роли → роль внутри отдела (4 уровня)."""
+    if level >= 8:
+        return "head"
+    if level >= 6:
+        return "deputy"
+    if level >= 3:
+        return "worker"
+    return "novice"
+
+
+def sync_user_work_membership(session: Session, user: User,
+                              actor: Optional[User] = None):
+    """Синхронизирует членство юзера в рабочих чатах по его текущей роли."""
+    from models import WorkChatMember as _WCM
+    role = session.get(Role, user.role_id) if user.role_id else None
+    cat_id = role.category_id if (role and role.is_staff and role.category_id) else None
+
+    # 1. Если есть подходящая категория — найти/создать чат и добавить
+    if cat_id is not None:
+        cat = session.get(RoleCategory, cat_id)
+        chat = None
+        if cat:
+            chat = ensure_work_chat(session, cat, actor)
+        if chat:
+            m = session.exec(select(_WCM).where(
+                _WCM.chat_id == chat.id, _WCM.user_id == user.id)).first()
+            if not m:
+                wr = _role_to_work_role(role.level or 1)
+                session.add(_WCM(chat_id=chat.id, user_id=user.id, role=wr,
+                                 added_by=actor.id if actor else None))
+                session.commit()
+
+    # 2. Удалить из рабочих чатов, если роль больше не даёт членства
+    #    (категория не та / роль не staff), либо членство там не взаимно.
+    memberships = session.exec(select(_WCM).where(
+        _WCM.user_id == user.id)).all()
+    for m in memberships:
+        chat = session.get(WorkChat, m.chat_id)
+        if not chat:
+            continue
+        if chat.category_id == cat_id:
+            continue  # чат своей категории — остаётся
+        # чужая категория + у юзера нет роли с неё → убрать
+        role_of_chat = session.get(Role, user.role_id) if user.role_id else None
+        if not (role_of_chat and role_of_chat.is_staff
+                and role_of_chat.category_id == chat.category_id):
+            session.delete(m)
+    session.commit()
 
 def require_admin(user: User, session: Session):
     from main import has_permission
@@ -1075,3 +1130,27 @@ def start_work_bot_scheduler():
     """Вызывается из main.py startup."""
     import asyncio
     return asyncio.create_task(work_scheduler_loop())
+
+
+# ------------------------------------------------------------------
+# 🚀 Авто-создание всех рабочих чатов (вручную, для админа)
+# ------------------------------------------------------------------
+
+@router.post("/work/chats/auto")
+def auto_create_all_work_chats(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    """Пересоздать/убедиться, что под каждую категорию staff-ролей есть
+    рабочий чат. НЕ трогает чаты удалённые вручную (заблокирован)."""
+    require_admin(user, session)
+    created = ensure_work_chats_for_categories(session, user)
+    # спишем оставшиеся категории без чата
+    cats = session.exec(select(RoleCategory)).all()
+    staff_cat_ids = {row for row in session.exec(
+        select(Role.category_id).where(Role.is_staff == True)).all() if row}  # noqa: E712
+    existing_cat_ids = set(session.exec(select(WorkChat.category_id)).all())
+    missing = [c.name for c in cats if c.id in staff_cat_ids
+               and c.id not in existing_cat_ids and not is_chat_blocked(session, c.id)]
+    return {"created": created, "missing": missing,
+            "need_chat_categories": sorted(staff_cat_ids)}

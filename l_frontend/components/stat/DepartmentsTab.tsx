@@ -124,6 +124,16 @@ export default function DepartmentsTab() {
     load();
   }
 
+  async function autoCreateChats() {
+    if (!confirm("Создать рабочие чаты под ВСЕ категории staff-ролей? (удалённые вручную не тронутся)")) return;
+    const res = await fetch(`${API_URL}/api/work/chats/auto`, {
+      method: "POST", headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    const d = await res.json().catch(() => ({}));
+    alert(`Создано: ${d.created?.length || 0}. Категорий staff-ролей: ${d.need_chat_categories?.length || 0}. Осталось без чата: ${(d.missing || []).join(", ") || "—"}`);
+    load();
+  }
+
   async function deleteChat(chatId: number, name: string) {
     if (!confirm(`Удалить рабочий чат «${name}»? Он больше не будет создаваться автоматически.`)) return;
     await fetch(`${API_URL}/api/work/chats/${chatId}`, {
@@ -140,9 +150,14 @@ if (loading) return <p className="text-center text-gray-500 dark:text-white/40 p
           Рабочие чаты отделов ({chats.length})
         </h2>
         {me?.is_admin && (
-          <button onClick={createChat} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#8b5cf6] text-white text-xs font-bold hover:bg-[#7c3aed]">
-            <Plus size={14} /> Создать рабочий чат
-          </button>
+          <div className="flex gap-2">
+            <button onClick={autoCreateChats} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#8b5cf6]/40 text-[#8b5cf6] text-xs font-bold hover:bg-[#8b5cf6]/10">
+              ⚙️ Создать все авто-чаты
+            </button>
+            <button onClick={createChat} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#8b5cf6] text-white text-xs font-bold hover:bg-[#7c3aed]">
+              <Plus size={14} /> Создать рабочий чат
+            </button>
+          </div>
         )}
       </div>
 

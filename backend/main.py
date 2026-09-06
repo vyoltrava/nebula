@@ -4147,6 +4147,14 @@ def assign_role(
     ))
     session.commit()
 
+    # 🔄 Плашка → рабочий чат отдела: получил staff-роль — добавили в чат,
+    #    снял — убрали из чата.
+    try:
+        from work_chats import sync_user_work_membership
+        sync_user_work_membership(session, target, staff)
+    except Exception as _e:
+        print("work membership sync:", _e)
+
     return {"ok": True}
 
 
