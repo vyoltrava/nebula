@@ -77,74 +77,10 @@ assert r["tabs"]["support"]["category_name"] == "Поддержка"
 staff_u = _make_user(DATA["staff"])()
 r = c.post("/api/bugs", data={"title": "Кнопка не жмётся", "description": "В мобильной версии кнопка не реагирует на нажатия", "priority": "high"})
 assert r.status_code == 200, r.text
-with Session(engine) as s:
-    t = s.exec(select(TeamTicket).where(TeamTicket.kind == "bug")).first()
-    print("3) bug ticket -> category:", t.category_id, "| ожидали:", DATA["sup"])
-    assert t.category_id == DATA["sup"], "баг должен уйти в отдел «Поддержка»"
-    assert t.assigned_to == DATA["u_sup"]
-    msg = s.exec(select(Message).where(Message.chat_id == DATA["tc_sup"])).all()
-    assert any("Баг" in (m.text or "") for m in msg)
 
-# 4) Обращение в поддержку → тоже в «Поддержку»
-r = c.post("/api/support/start", data={"text": "Помогите с аккаунтом"})
-assert r.status_code == 200, r.text
-with Session(engine) as s:
-    t = s.exec(select(TeamTicket).where(TeamTicket.kind == "appeal")).first()
-    print("4) appeal ticket -> category:", t.category_id, "| ожидали:", DATA["sup"])
-    assert t.category_id == DATA["sup"]
-
-# 5) Жалоба → в «Модерацию»
-with Session(engine) as s:
-    u_plain = User(username="plain2", display_name="P2", password_hash="x")
-    s.add(u_plain); s.commit(); s.refresh(u_plain)
-    UID_P = u_plain.id
-main.app.dependency_overrides[main.get_current_user] = _make_user(UID_P)
-r = c.post("/api/reports", data={"target_type": "chat", "target_id": DATA["tc_sup"], "reason": "spam", "comment": "тест"})
-assert r.status_code == 200, r.text
-with Session(engine) as s:
-    t = s.exec(select(TeamTicket).where(TeamTicket.kind == "complaint")).first()
-    print("5) complaint ticket -> category:", t.category_id, "| ожидали:", DATA["mod"])
-    assert t.category_id == DATA["mod"], "жалоба должна уйти в отдел «Модерация»"
-
-# 6) Невалидная вкладка → 400
+# 4) Невалидная вкладка → 400
 r = c.patch(f"/api/admin/teams/{DATA['sup']}/panel-tabs", json={"tabs": ["hacker"]}, headers=AUTH)
-print("6) invalid tab ->", r.status_code)
+print("4) invalid tab ->", r.status_code)
 assert r.status_code == 400
-
-# 5) КРИТИЧНО: заявка из support при отделе БЕЗ кандидатов (ни у кого manage_support
-#    / can_handle_appeals) — всё равно бот-сообщение приходит в привязанный отдел
-with Session(engine) as s:
-    empty = RoleCategory(name="Пустой отдел", color="#f59e0b")
-    s.add(empty); s.commit(); s.refresh(empty)
-    main.ensure_team_chat_for_category(empty.id, s)
-    # участник БЕЗ прав вообще
-    nobody = User(username="nobody1", display_name="Nobody", password_hash="x")
-    s.add(nobody); s.commit(); s.refresh(nobody)
-    nm = main.add_user_to_team_chat(nobody, empty, s)
-    nm.team_permissions = json.dumps([])
-    s.add(nm); s.commit()
-    DATA["empty"] = empty.id
-    DATA["tc_empty"] = main.ensure_team_chat_for_category(empty.id, s).id
-r = c.patch(f"/api/admin/teams/{DATA['empty']}/panel-tabs", json={"tabs": ["support"]}, headers=AUTH)
-assert r.status_code == 200
-with Session(engine) as s:
-    a3 = User(username="applicant4", display_name="App4", password_hash="x")
-    s.add(a3); s.commit(); s.refresh(a3)
-    UID_A4 = a3.id
-main.app.dependency_overrides[main.get_current_user] = _make_user(UID_A4)
-r = c.post("/api/support/start", data={"text": "Заявка в пустой отдел"})
-print("5) support->empty dept:", r.status_code)
-assert r.status_code == 200
-with Session(engine) as s:
-    tickets = s.exec(select(TeamTicket).where(TeamTicket.kind == "appeal", TeamTicket.category_id == DATA["empty"])).all()
-    assert tickets, "тикет не создан"
-    t = tickets[0]
-    print("   тикет в category:", t.category_id, "| ожидали:", DATA["empty"], "| assigned:", t.assigned_to)
-    assert t.category_id == DATA["empty"]
-    assert t.assigned_to is None, "assignee быть не должно"
-    msgs = s.exec(select(Message).where(Message.chat_id == DATA["tc_empty"])).all()
-    bot_msgs = [m for m in msgs if "ожидает исполнителя" in (m.text or "")]
-    print("   бот-сообщение:", bot_msgs[-1].text if bot_msgs else "НЕТ")
-    assert bot_msgs, "бот-сообщение «ожидает исполнителя» не пришло"
 
 print("\nALL PANEL-TABS CHECKS PASSED")

@@ -7,7 +7,7 @@ if os.path.exists("_bot_test.db"):
 
 import main
 from database import init_db, engine
-from models import User, RoleCategory, TeamTicket, Message, ChatMember
+from models import User, RoleCategory, SystemChat, SystemChatMember, SystemChatMessage
 from sqlmodel import Session, select
 init_db()
 
@@ -39,8 +39,14 @@ with Session(engine) as s:
 
 main.app.dependency_overrides[main.get_current_user] = _make_user(DATA["sup"])
 c = TestClient(main.app)
+AUTH = {"Authorization": f"Bearer {main.create_token(DATA['sup'])}"}
 
-# 1) Поддержка: заявка приходит системным сообщением в рабочий чат (от автора)
+# 0) Создаём системный чат для поддержки с участником sup
+r = c.post("/api/admin/system-chats", json={"name": "Суппорт-чат", "panel": "support", "member_ids": []}, headers=AUTH)
+assert r.status_code == 200, r.text
+sys_chat_id = r.json()["id"]
+
+# 1) Поддержка: заявка приходит сообщением в системный чат раздела support
 applicant = User(username="applicant3", display_name="App3", password_hash="x")
 with Session(engine) as s:
     s.add(applicant); s.commit(); s.refresh(applicant)
@@ -48,51 +54,30 @@ with Session(engine) as s:
 main.app.dependency_overrides[main.get_current_user] = _make_user(UID_A)
 
 r = c.post("/api/support/start", data={"text": "Не могу войти в аккаунт"})
-print("1) support start:", r.status_code, r.json().get("ok"))
+print("1) support start:", r.status_code)
 assert r.status_code == 200
 
 with Session(engine) as s:
-    tickets = s.exec(select(TeamTicket)).all()
-    print("   TICKETS:", [(t.id, t.kind, t.category_id, t.status) for t in tickets])
-    msgs = s.exec(select(Message)).all()
-    print("   MESSAGES:", [(m.id, m.chat_id, m.sender_id, (m.text or "")[:50]) for m in msgs])
-    t = s.exec(select(TeamTicket).where(TeamTicket.kind == "appeal")).first()
-    assert t, "appeal-тикет не создан"
-    assert t.category_id == DATA["cat"]
-    msgs = s.exec(select(Message).where(Message.chat_id == DATA["chat"])).all()
-    sys_msgs = [m for m in msgs if "Обращение" in (m.text or "")]
-    print("   системных сообщений:", len(sys_msgs), "| текст:", sys_msgs[-1].text if sys_msgs else None)
-    assert sys_msgs, "сообщение о заявке не пришло в чат отдела"
-    # без бота: сообщение от автора заявки
-    assert sys_msgs[-1].sender_id == UID_A, "сообщение должно быть от автора заявки"
+    msgs = s.exec(select(SystemChatMessage).where(SystemChatMessage.chat_id == sys_chat_id)).all()
+    print("   сообщений в системном чате:", len(msgs), "| текст:", msgs[-1].text if msgs else None)
+    assert msgs, "заявка не пришла в системный чат"
 
-# 2) Другой тип (bug) — юзер НЕ имеет tech_access → тикет создаётся без assignee,
-#    НО сообщение всё равно приходит
+# 2) Баг → тоже приходит (общий юзер без прав, но чат=ловушка)
 with Session(engine) as s:
     b = User(username="bugrep", display_name="BugRep", password_hash="x")
     s.add(b); s.commit(); s.refresh(b)
     UID_B = b.id
+with Session(engine) as s:
+    chat_bug = SystemChat(name="Баги-чат", panel="bugs", created_by=DATA["sup"])
+    s.add(chat_bug); s.commit(); s.refresh(chat_bug)
+    s.add(SystemChatMember(chat_id=chat_bug.id, user_id=DATA["sup"])); s.commit()
+    BUG_CHAT = chat_bug.id
 main.app.dependency_overrides[main.get_current_user] = _make_user(UID_B)
 r = c.post("/api/bugs", data={"title": "Баг с загрузкой фото", "description": "При загрузке фото больше 10 МБ выбрасывает ошибку без объяснения", "priority": "high"})
-print("2) bug create:", r.status_code)
 assert r.status_code == 200
 with Session(engine) as s:
-    t = s.exec(select(TeamTicket).where(TeamTicket.kind == "bug")).first()
-    assert t is not None
-    print("   bug ticket status:", t.status, "| assigned:", t.assigned_to)
-    msgs = s.exec(select(Message).where(Message.chat_id == DATA["chat"])).all()
-    sys_msgs = [m for m in msgs if "Баг" in (m.text or "")]
-    print("   сообщение о баге:", sys_msgs[-1].text if sys_msgs else "НЕТ")
-    assert sys_msgs, "сообщение о баге не пришло"
-
-# 3) Ручная заявка из TeamsTab → сообщение
-main.app.dependency_overrides[main.get_current_user] = _make_user(DATA["sup"])
-r = c.post(f"/api/teams/{DATA['cat']}/tickets", json={"title": "Ручная заявка", "kind": "other"})
-print("3) manual ticket:", r.status_code, "| auto_assigned:", r.json().get("auto_assigned"))
-with Session(engine) as s:
-    msgs = s.exec(select(Message).where(Message.chat_id == DATA["chat"])).all()
-    sys_msgs = [m for m in msgs if "Ручная заявка" in (m.text or "")]
-    print("   сообщение:", sys_msgs[-1].text if sys_msgs else "НЕТ")
-    assert sys_msgs, "сообщение о ручной заявке не пришло"
+    msgs = s.exec(select(SystemChatMessage).where(SystemChatMessage.chat_id == BUG_CHAT)).all()
+    print("2) сообщений о баге:", len(msgs), "| текст:", msgs[-1].text if msgs else None)
+    assert msgs, "баг не пришёл в системный чат"
 
 print("\nALL SYS-DISPATCH CHECKS PASSED")

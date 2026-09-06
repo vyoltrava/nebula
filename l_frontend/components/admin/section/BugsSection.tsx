@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getToken } from "@/lib/auth";
 import { Bug, AlertCircle, Clock, CheckCircle, XCircle, Trash2, X } from "lucide-react";
+import { SystemTicketFeed } from "@/components/admin/SystemTicketFeed";
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
   new: { label: "Новый", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10", border: "border-blue-400/30", icon: AlertCircle },
@@ -65,6 +66,7 @@ export function BugsSection({ me }: { me: any }) {
 
   return (
     <div className="space-y-6">
+      <SystemTicketFeed panel="bugs" color="#f59e0b" />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {Object.entries(STATUS_CFG).map(([key, cfg]) => {
           const Icon = cfg.icon;

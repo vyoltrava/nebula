@@ -344,6 +344,41 @@ class Report(SQLModel, table=True):
     resolved_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=utcnow)
 
+# ============================================================
+# 📨 СИСТЕМНЫЕ ЧАТЫ ЗАЯВОК — отдельная система от обычных чатов.
+# Ловят заявки из вкладок админки (reports/support/bugs) по panel,
+# создаются в /stat, участники видят ленту заявок.
+# ============================================================
+
+class SystemChat(SQLModel, table=True):
+    """Системный чат-ловушка заявок из вкладки админки."""
+    __tablename__ = "system_chat"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(max_length=60)
+    # Какой раздел админки этот чат ловит: reports | support | bugs
+    panel: str = Field(index=True, max_length=20)
+    created_by: int = Field(foreign_key="user.id")
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class SystemChatMember(SQLModel, table=True):
+    """Участник системного чата (видит ленту заявок)."""
+    __tablename__ = "system_chat_member"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    chat_id: int = Field(foreign_key="system_chat.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+
+
+class SystemChatMessage(SQLModel, table=True):
+    """Сообщение в системном чате (заявка или реплика staff)."""
+    __tablename__ = "system_chat_message"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    chat_id: int = Field(foreign_key="system_chat.id", index=True)
+    sender_id: int = Field(foreign_key="user.id")
+    text: str
+    created_at: datetime = Field(default_factory=utcnow)
+
+
 class BugReport(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     reporter_id: int = Field(foreign_key="user.id")
