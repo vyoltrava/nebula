@@ -14472,3 +14472,97 @@ def start_work_bot_scheduler_hook():
 from bots import router as bots_router
 
 app.include_router(bots_router, prefix="/api")
+
+# ============================================================
+# 📊 /api/admin/team-statistics — данные вкладки «Команда» в /stat.
+#    groups = RoleCategory → members = юзеры с is_staff-ролью категории.
+#    ?user_id= — детальная статистика сотрудника (действия + история ролей).
+# ============================================================
+
+@app.get("/api/admin/team-statistics")
+def admin_team_statistics(
+    user_id: int = 0,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    if not (staff.is_admin or staff.is_moderator
+            or has_permission(staff, "manage_team_stats", session)):
+        raise HTTPException(403, "Нет права: manage_team_stats")
+
+    if user_id:
+        # --- детальная статистика сотрудника ---
+        actions = session.exec(
+            select(ActionLog)
+            .where(ActionLog.actor_id == user_id)
+            .order_by(ActionLog.id.desc())
+            .limit(50)
+        ).all()
+        role_logs = session.exec(
+            select(ActionLog)
+            .where(ActionLog.target_type == "user", ActionLog.target_id == user_id)
+            .order_by(ActionLog.id.desc())
+            .limit(50)
+        ).all()
+        role_history = []
+        for lg in role_logs:
+            act = (lg.action or "").lower()
+            if "role" not in act:
+                continue
+            old_role = new_role = None
+            try:
+                d = json.loads(lg.details or "{}")
+                if isinstance(d, dict):
+                    old_role = d.get("old_role") or d.get("old")
+                    new_role = d.get("new_role") or d.get("new")
+            except Exception:
+                pass
+            actor = session.get(User, lg.actor_id) if lg.actor_id else None
+            role_history.append({
+                "old_role": old_role, "new_role": new_role,
+                "changed_by": actor.username if actor else None,
+                "created_at": lg.created_at.isoformat() if lg.created_at else None,
+            })
+        return {
+            "total_actions": len(actions),
+            "actions": [
+                {"action_type": a.action, "target_type": a.target_type,
+                 "target_id": a.target_id,
+                 "created_at": a.created_at.isoformat() if a.created_at else None}
+                for a in actions
+            ],
+            "role_history": role_history,
+        }
+
+    # --- группы отделов ---
+    def _user_brief(u: User) -> dict:
+        return {
+            "id": u.id, "username": u.username,
+            "display_name": u.display_name,
+            "avatar_url": u.avatar_url,
+            "last_seen": u.last_seen.isoformat() if u.last_seen else None,
+            "is_admin": u.is_admin, "is_moderator": u.is_moderator,
+            "is_banned": u.is_banned,
+        }
+
+    cats = session.exec(select(RoleCategory).order_by(
+        RoleCategory.order, RoleCategory.id)).all()
+    groups = []
+    for cat in cats:
+        roles = session.exec(select(Role).where(
+            Role.category_id == cat.id, Role.is_staff == True)).all()  # noqa: E712
+        members = []
+        for r in roles:
+            for u in session.exec(select(User).where(User.role_id == r.id)).all():
+                actions_count = session.exec(
+                    select(func.count(ActionLog.id))
+                    .where(ActionLog.actor_id == u.id)).one() or 0
+                members.append({
+                    "user": _user_brief(u),
+                    "role": {"id": r.id, "name": r.name, "color": r.color,
+                             "level": r.level},
+                    "actions_count": int(actions_count),
+                })
+        groups.append({"id": cat.id, "name": cat.name, "color": cat.color,
+                       "members": members})
+    return {"groups": groups}
+
