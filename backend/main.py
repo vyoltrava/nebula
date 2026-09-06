@@ -1771,6 +1771,7 @@ def search_users_by_query(
     users = session.exec(
         select(User)
         .where(
+            User.is_bot == False,  # 🤖 системный бот не в поиске
             User.username.ilike(pattern) | User.display_name.ilike(pattern)  # 🚀 ilike вместо func.lower().like()
         )
         .limit(limit)
@@ -2207,6 +2208,7 @@ def search(
         select(User)
         .where(
             User.is_banned == False,
+            User.is_bot == False,  # 🤖 системный бот не в поиске
             User.username.ilike(pattern) | User.display_name.ilike(pattern)
         )
         .limit(15)
@@ -6574,6 +6576,9 @@ def teams_structure(
                 except Exception:
                     perms = []
                 role = roles_map.get(u.role_id) if u.role_id else None
+                # 🤖 системного бота не показываем в участниках отдела
+                if users[m.user_id] and users[m.user_id].is_bot:
+                    continue
                 members_out.append({
                     "user_id": u.id,
                     "username": u.username,
@@ -7069,6 +7074,7 @@ def get_or_create_bot(session: Session) -> User:
         is_moderator=False,
         is_trelod=False,
         is_banned=False,
+        is_private=True,  # 🔒 закрытый профиль — не виден в поиске/подписках
     )
     session.add(bot)
     session.commit()
@@ -7085,25 +7091,27 @@ def _post_bot_message(session: Session, chat_id: int, bot: User, text: str) -> O
         session.refresh(msg)
         try:
             import asyncio
-            loop = None
+            # ⚡ Real-time рассылка. Участников чата собираем СИНХРОННО сейчас
+            # (сессия закроется после ответа), а сами соединения шлём через
+            # broadcast_to_users — fire-and-forget без сессии.
+            member_ids = session.exec(
+                select(ChatMember.user_id).where(ChatMember.chat_id == chat_id)
+            ).all()
+            payload = {
+                "id": msg.id, "chat_id": chat_id, "sender_id": bot.id,
+                "sender_name": bot.display_name, "sender_avatar": bot.avatar_url,
+                "sender_prefix": None, "text": msg.text, "ciphertext": None,
+                "media_url": None, "media_type": None, "is_encrypted_media": False,
+                "created_at": msg.created_at.isoformat(), "pinned": False,
+                "pinned_by": None, "reply_to_id": None, "reply_preview": None,
+                "reactions": [], "is_team_command": True,
+            }
             try:
-                loop = asyncio.get_event_loop()
-            except Exception:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
                 loop = None
-            if loop and loop.is_running():
-                loop.create_task(manager.broadcast_to_chat(
-                    chat_id, "new_message",
-                    {
-                        "id": msg.id, "chat_id": chat_id, "sender_id": bot.id,
-                        "sender_name": bot.display_name, "sender_avatar": bot.avatar_url,
-                        "sender_prefix": None, "text": msg.text, "ciphertext": None,
-                        "media_url": None, "media_type": None, "is_encrypted_media": False,
-                        "created_at": msg.created_at.isoformat(), "pinned": False,
-                        "pinned_by": None, "reply_to_id": None, "reply_preview": None,
-                        "reactions": [], "is_team_command": True,
-                    },
-                    session,
-                ))
+            if loop is not None:
+                loop.create_task(manager.broadcast_to_users(list(member_ids), "new_message", payload))
         except Exception as e:
             print(f"⚠️ bot WS broadcast: {e}")
         return msg
@@ -7620,6 +7628,7 @@ def get_chat_members(
         {"user": user_out(users[m.user_id], session), "role": m.role,
          "joined_at": m.joined_at.isoformat() if m.joined_at else None}
         for m in members if m.user_id in users
+        and not users[m.user_id].is_bot  # 🤖 системного бота не показываем в участниках
     ]
 
 
