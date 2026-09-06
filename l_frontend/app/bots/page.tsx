@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getToken } from "@/lib/auth";
-import { Bot, Plus, Trash2, Power, ScrollText, ArrowLeft, Zap, Check } from "lucide-react";
+import { Bot, Plus, Trash2, Power, ScrollText, ArrowLeft, Zap, Check, X } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -50,6 +50,8 @@ export default function BotsPage() {
   const [chatPickBot, setChatPickBot] = useState<BotItem | null>(null);
   const [myGroups, setMyGroups] = useState<any[]>([]);
   const [botChatIds, setBotChatIds] = useState<Set<number>>(new Set());
+  const [cmdsBot, setCmdsBot] = useState<BotItem | null>(null);
+  const [cmds, setCmds] = useState<any[]>([]);
 
   async function load() {
     const token = getToken();
@@ -108,6 +110,32 @@ export default function BotsPage() {
   function openTriggers(b: BotItem) {
     setTrigBot(b);
     setTrigEvents(new Set(b.triggers.filter((t) => t.enabled).map((t) => t.event)));
+  }
+
+  async function openCommands(b: BotItem) {
+    setCmdsBot(b); setCmds([]);
+    const res = await fetch(`${API_URL}/api/admin/bots/${b.id}/commands`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (res.ok) setCmds(await res.json());
+  }
+
+  function updCmd(i: number, patch: any) {
+    setCmds((prev: any[]) => prev.map((c, idx) => idx === i ? { ...c, ...patch } : c));
+  }
+
+  async function saveCommands() {
+    if (!cmdsBot) return;
+    const payload = cmds.map((c: any) => ({
+      command: c.command, reply: c.reply, action: c.action, payload: c.payload || {},
+    }));
+    await fetch(`${API_URL}/api/admin/bots/${cmdsBot.id}/commands`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify(payload),
+    });
+    setCmdsBot(null);
+    load();
   }
 
   async function openChatPicker(b: BotItem) {
@@ -187,6 +215,9 @@ export default function BotsPage() {
           <span>триггеров: {b.triggers.length}</span>
         </div>
         <div className="flex gap-1.5">
+          <button onClick={() => openCommands(b)} title="Программирование команд" className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-xs font-bold hover:bg-purple-500/20 hover:text-purple-600 dark:hover:text-purple-300 transition-all">
+            ⌨️ Команды
+          </button>
           <button onClick={() => openChatPicker(b)} title="Добавить в чаты" className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-xs font-bold hover:bg-purple-500/20 hover:text-purple-600 dark:hover:text-purple-300 transition-all">
             💬 В чаты
           </button>
@@ -376,6 +407,52 @@ export default function BotsPage() {
                 </div>
               )}
               <button onClick={() => setChatPickBot(null)} className="w-full mt-4 py-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold">Готово</button>
+            </div>
+          </div>
+        )}
+        {/* ===== Модалка команд (программирование) ===== */}
+        {cmdsBot && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={() => setCmdsBot(null)}>
+            <div className="w-full max-w-lg bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-6 pointer-events-auto max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-xl font-black text-gray-900 dark:text-white mb-1">⌨️ Программирование: {cmdsBot.name}</h2>
+              <p className="text-xs text-gray-600 dark:text-white/50 mb-4">
+                Команды вида <b>/hello</b>. Действия: <b>Ответ</b> (текст), <b>Стикер</b> (прислать стикер из пака), <b>Стикер-бот</b> (создание стикеров).
+              </p>
+              <div className="space-y-3">
+                {cmds.map((c: any, i: number) => (
+                  <div key={i} className="p-3 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 space-y-2">
+                    <div className="flex gap-2">
+                      <input value={c.command} onChange={(e) => updCmd(i, { command: e.target.value })}
+                        placeholder="/hello" maxLength={40}
+                        className="w-28 px-2.5 py-1.5 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm font-mono focus:outline-none focus:border-[#8b5cf6]" />
+                      <select value={c.action} onChange={(e) => updCmd(i, { action: e.target.value })}
+                        className="flex-1 px-2 py-1.5 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs focus:outline-none">
+                        <option value="reply_text">💬 Ответ текстом</option>
+                        <option value="reply_sticker">🖼 Прислать стикер</option>
+                        <option value="create_sticker">🎨 Стикер-бот (создание)</option>
+                      </select>
+                      <button onClick={() => setCmds((prev: any[]) => prev.filter((_, idx) => idx !== i))}
+                        className="p-1.5 text-gray-500 dark:text-white/40 hover:text-red-600"><X size={15} /></button>
+                    </div>
+                    <textarea value={c.reply} onChange={(e) => updCmd(i, { reply: e.target.value })}
+                      placeholder="Ответ бота…"
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm resize-none focus:outline-none focus:border-[#8b5cf6]" rows={2} />
+                    {(c.action === "reply_sticker" || c.action === "create_sticker") && (
+                      <input value={c.payload?.sticker_pack || ""} onChange={(e) => updCmd(i, { payload: { ...c.payload, sticker_pack: e.target.value } })}
+                        placeholder="Название стикерпака (создастся при первом стикере)"
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs focus:outline-none focus:border-[#8b5cf6]" />
+                    )}
+                  </div>
+                ))}
+                <button onClick={() => setCmds((prev: any[]) => [...prev, { command: "/new", reply: "", action: "reply_text", payload: {} }])}
+                  className="w-full py-2 rounded-lg border border-dashed border-line dark:border-white/20 text-gray-600 dark:text-white/50 text-xs font-bold hover:border-[#8b5cf6] hover:text-[#8b5cf6]">
+                  + Добавить команду
+                </button>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => setCmdsBot(null)} className="flex-1 py-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold">Отмена</button>
+                <button onClick={saveCommands} className="flex-1 py-2 rounded-lg bg-[#8b5cf6] text-white text-sm font-bold hover:bg-[#7c3aed]">Сохранить</button>
+              </div>
             </div>
           </div>
         )}

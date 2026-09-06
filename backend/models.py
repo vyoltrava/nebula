@@ -1347,7 +1347,7 @@ class WorkStatDaily(SQLModel, table=True):
 #    (как BotFather: человек приходит в BOT Company и создаёт бота).
 # ============================================================
 
-BOT_TYPES = ("worker", "notify", "poll", "custom")
+BOT_TYPES = ("worker", "notify", "poll", "custom", "sticker")
 
 
 class Bot(SQLModel, table=True):
@@ -1359,14 +1359,32 @@ class Bot(SQLModel, table=True):
     name: str = Field(max_length=60)
     username: Optional[str] = Field(default=None, max_length=40, unique=True)
     description: Optional[str] = Field(default=None, max_length=300)
-    type: str = Field(default="custom", max_length=20, index=True)  # worker|notify|poll|custom
+    type: str = Field(default="custom", max_length=20, index=True)  # worker|notify|poll|custom|sticker
     active: bool = Field(default=True)
     token: str = Field(default="", max_length=64, unique=True)
     owner_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
     user_id: Optional[int] = Field(default=None, foreign_key="user.id", unique=True)
     chat_id: Optional[int] = Field(default=None, foreign_key="work_chat.id")  # рабочий чат
     config: str = Field(default="{}")
+    # 🤖 системные боты платформы (BotFather и т.п.): скрыты из "мои боты"
+    system: bool = Field(default=False)
     created_at: datetime = Field(default_factory=utcnow)
+
+
+class BotCommand(SQLModel, table=True):
+    """Команда бота — основа «программирования» ботов юзерами.
+    Пользователь задаёт: команда (/start, /help, /stickers ...), текст ответа,
+    действие (reply_sticker / reply_text / action), аргументы (например стикерпак)."""
+    __tablename__ = "bot_command"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    bot_id: int = Field(foreign_key="bot.id", index=True)
+    command: str = Field(max_length=40, index=True)  # /start, /help ...
+    reply: str = Field(default="")                    # текстовый ответ
+    action: str = Field(default="reply_text", max_length=30)  # reply_text|reply_sticker|create_sticker
+    payload: str = Field(default="{}")                # JSON: {sticker_pack, emoji, url...}
+    enabled: bool = Field(default=True)
+    __table_args__ = (UniqueConstraint("bot_id", "command"),)
 
 
 class BotTrigger(SQLModel, table=True):

@@ -8198,6 +8198,18 @@ async def send_message_v2(
             raise HTTPException(403, "Чат заблокирован администрацией")
         mute = session.get(SystemSetting, f"chat_mute_{chat_id}_{user.id}")
         if mute:
+            pass
+        # 🤖 BOT COMPANY: сообщение боту в чате → движок ботов
+        try:
+            from bots import handle_bot_message, handle_botfather_dm
+            clean_text = (ciphertext or text or "").strip()
+            if clean_text.startswith("/"):
+                handled = handle_botfather_dm(session, user.id, clean_text) \
+                    if not getattr(chat, "is_group", False) else False
+                if not handled:
+                    handle_bot_message(session, chat_id, user.id, clean_text)
+        except Exception as _be:
+            print("bot engine:", _be)
             try:
                 if datetime.fromisoformat(mute.value) > datetime.now(timezone.utc):
                     raise HTTPException(403, "Вы в муте в этом чате")
@@ -14471,6 +14483,12 @@ def start_work_bot_scheduler_hook():
                 work_chats.ensure_work_chats_for_categories(s)
             except Exception as _e:
                 print("work_chats ensure:", _e)
+            # 🤖 BotFather — отец ботов (системный)
+            try:
+                from bots import ensure_botfather
+                ensure_botfather(s)
+            except Exception as _e:
+                print("botfather ensure:", _e)
     except Exception as e:
         print("work_chats init:", e)
     return start_work_bot_scheduler()
