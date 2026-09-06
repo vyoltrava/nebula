@@ -1228,6 +1228,9 @@ class WorkChat(SQLModel, table=True):
     # 🤖 флаг: создан ли автоматически под категорию (на старте). Если False —
     # чат удалили вручную, и авто-создание его больше не трогает.
     auto_created: bool = Field(default=True)
+    # 🧰 техническая колонка, заведённая старым коммитом (в БД продажит NOT NULL).
+    # Держим в модели с дефолтом, чтобы INSERT проходил; функционально не используется.
+    assigned_section: str = Field(default="", max_length=20)
     created_by: Optional[int] = Field(default=None, foreign_key="user.id")
     created_at: datetime = Field(default_factory=utcnow)
 
