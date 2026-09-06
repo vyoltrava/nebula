@@ -118,6 +118,7 @@ export default function RolesPage() {
   const [catColor, setCatColor] = useState("#8b5cf6");
   const [catDesc, setCatDesc] = useState("");
   const [catSaving, setCatSaving] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const router = useRouter();
 
   const myLevel = me?.is_admin ? 10 : me?.is_moderator ? 9 : me?.role?.level || 1;
@@ -169,8 +170,10 @@ export default function RolesPage() {
       const catsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/role-categories`);
       if (catsRes.ok) setCategories(await catsRes.json());
     } catch (err) {
+      // 🛡 Не выкидываем со страницы при сбое сети/сервера — показываем данные,
+      // что есть, и даём перезагрузить. Редирект только при реальной потере авторизации.
       console.error("Load failed:", err);
-      router.push("/");
+      setLoadError(true);
     }
   }
 
@@ -472,6 +475,15 @@ export default function RolesPage() {
         </div>
 
         <div className="p-4 border-b border-line dark:border-white/5"></div>
+        {loadError && (
+          <div className="p-4">
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center gap-3 text-sm text-red-600 dark:text-red-300">
+              <AlertTriangle size={20} className="shrink-0" />
+              <span className="flex-1">Не удалось загрузить данные. Сервер временно недоступен.</span>
+              <Button variant="secondary" onClick={() => { setLoadError(false); load(); }}>Повторить</Button>
+            </div>
+          </div>
+        )}
         <div className="p-4 border-b border-line dark:border-white/5">
           <div className="bg-[#8b5cf6]/10 border border-[#8b5cf6]/30 rounded-xl p-4 flex gap-3">
             <Info size={20} className="text-[#8b5cf6] shrink-0 mt-0.5" />

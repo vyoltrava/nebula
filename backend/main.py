@@ -3835,7 +3835,16 @@ def list_roles(session: Session = Depends(get_session)):
     )
     
     sorted_roles = staff_roles + other_roles
-    
+
+    def _safe_perms(raw) -> list:
+        # 🛡 Самолечение: битый/NULL JSON в role.permissions не должен ронять
+        # всю страницу ролей (500 → белая страница / редирект на /).
+        try:
+            parsed = json.loads(raw) if raw else []
+            return parsed if isinstance(parsed, list) else []
+        except Exception:
+            return []
+
     return [
         {
             "id": r.id,
@@ -3847,7 +3856,7 @@ def list_roles(session: Session = Depends(get_session)):
             "show_in_payments": r.show_in_payments,
             "position": r.position or 0,
             "category_id": r.category_id,
-            "permissions": json.loads(r.permissions),
+            "permissions": _safe_perms(r.permissions),
         }
         for r in sorted_roles
     ]
@@ -5251,7 +5260,44 @@ def admin_unmute_member(
 @app.get("/api/role-categories")
 def list_role_categories(session: Session = Depends(get_session)):
     cats = session.exec(select(RoleCategory).order_by(RoleCategory.order, RoleCategory.id)).all()
-    return [{"id": c.id, "name": c.name, "color": c.color, "description": c.description, "order": c.order} for c in cats]
+    out = []
+    for c in cats:
+        try:
+            tabs = json.loads(c.panel_tabs) if c.panel_tabs else []
+        except Exception:
+            tabs = []
+        if not isinstance(tabs, list):
+            tabs = []
+        out.append({
+            "id": c.id, "name": c.name, "color": c.color,
+            "description": c.description, "order": c.order,
+            "panel_tabs": tabs,
+        })
+    return out
+
+
+class PanelTabsIn(BaseModel):
+    tabs: list[str] = []
+
+
+@app.patch("/api/admin/teams/{cat_id}/panel-tabs")
+def set_category_panel_tabs(
+    cat_id: int,
+    data: PanelTabsIn,
+    staff: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """🎨 Разделы админки, за которые отвечает группа/отдел (вкладки красятся
+    цветом категории, заявки этих разделов летят в отдел)."""
+    if not has_permission(staff, "manage_roles", session):
+        raise HTTPException(403, "Нет права: manage_roles")
+    cat = session.get(RoleCategory, cat_id)
+    if not cat:
+        raise HTTPException(404, "Категория не найдена")
+    cat.panel_tabs = json.dumps([str(t) for t in data.tabs][:32])
+    session.add(cat)
+    session.commit()
+    return {"ok": True, "category_id": cat.id, "panel_tabs": json.loads(cat.panel_tabs)}
 
 @app.post("/api/role-categories")
 def create_role_category(
