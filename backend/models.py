@@ -1202,3 +1202,190 @@ class ChannelInviteRequest(SQLModel, table=True):
     reviewed_by: Optional[int] = Field(default=None, foreign_key="user.id")
     resolved_at: Optional[datetime] = None
     __table_args__ = (UniqueConstraint("channel_id", "user_id"),)
+
+# ============================================================
+# 🏢 РАБОЧИЕ ЧАТЫ — изолированная подсистема: свои таблицы,
+#    роуты /api/work/*, WS-события work_*. Chat/Message не трогаем.
+# ============================================================
+
+WORK_ROLES = ("head", "deputy", "worker", "novice")
+WORK_SECTIONS = ("complaint", "support", "bug", "chat")
+
+
+class WorkChat(SQLModel, table=True):
+    """Рабочий чат отдела. Название = имя категории роли."""
+    __tablename__ = "work_chat"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    category_id: int = Field(foreign_key="rolecategory.id", index=True, unique=True)
+    name: str = Field(max_length=80)
+    avatar_url: Optional[str] = None
+    is_active: bool = Field(default=True)
+    created_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class WorkChatMember(SQLModel, table=True):
+    """Участник рабочего чата. Роль — один из 4 уровней WORK_ROLES."""
+    __tablename__ = "work_chat_member"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    chat_id: int = Field(foreign_key="work_chat.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    role: str = Field(default="novice", max_length=20)  # head|deputy|worker|novice
+    joined_at: datetime = Field(default_factory=utcnow)
+    added_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    on_shift: bool = Field(default=False)
+    shift_entered_at: Optional[datetime] = None
+    shift_taken: int = Field(default=0)  # round-robin счётчик
+    handles: str = Field(default="[]")   # JSON разделов, "[]" = все
+    __table_args__ = (UniqueConstraint("chat_id", "user_id"),)
+
+
+class WorkChatMessage(SQLModel, table=True):
+    """Сообщение рабочего чата. Обычный текст, БЕЗ криптографии.
+    sender_id = NULL → сообщение от бота."""
+    __tablename__ = "work_chat_message"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    chat_id: int = Field(foreign_key="work_chat.id", index=True)
+    sender_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    text: str = Field(default="")
+    reply_to_id: Optional[int] = Field(default=None, foreign_key="work_chat_message.id")
+    kind: str = Field(default="text", max_length=20, index=True)  # text|system|ticket_card
+    ticket_id: Optional[int] = Field(default=None, foreign_key="work_ticket.id")
+    created_at: datetime = Field(default_factory=utcnow)
+    edited_at: Optional[datetime] = None
+    __table_args__ = (Index("ix_workmsg_chat_id", "chat_id", "id"),)
+
+
+
+class WorkTicket(SQLModel, table=True):
+    """Заявка, раздаваемая ботом отдела."""
+    __tablename__ = "work_ticket"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    chat_id: int = Field(foreign_key="work_chat.id", index=True)
+    section: str = Field(default="other", max_length=20, index=True)  # complaint|support|bug|chat
+    title: str = Field(max_length=160)
+    description: Optional[str] = None
+    priority: str = Field(default="medium", max_length=10)  # low|medium|high
+    source_url: Optional[str] = None
+    source_type: str = Field(default="manual", max_length=20)  # report|support|bug|manual
+    source_id: Optional[int] = None  # id в исходной таблице (дедупликация)
+    status: str = Field(default="open", max_length=20, index=True)  # open|assigned|done
+    assignee_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    author_id: Optional[int] = Field(default=None, foreign_key="user.id")
+    taken_at: Optional[datetime] = None
+    closed_at: Optional[datetime] = None
+    closed_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=utcnow)
+    __table_args__ = (Index("ix_workticket_chat_status", "chat_id", "status"),)
+
+
+class WorkSectionConfig(SQLModel, table=True):
+    """Привязка разделов к рабочему чату + сложность по умолчанию."""
+    __tablename__ = "work_section_config"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    chat_id: int = Field(foreign_key="work_chat.id", index=True)
+    section: str = Field(max_length=20)
+    enabled: bool = Field(default=True)
+    default_priority: str = Field(default="medium", max_length=10)
+    __table_args__ = (UniqueConstraint("chat_id", "section"),)
+
+
+class WorkTicketRating(SQLModel, table=True):
+    """Оценка закрытой заявки её автором (1..5). Привязана к исполнителю."""
+    __tablename__ = "work_ticket_rating"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    ticket_id: int = Field(foreign_key="work_ticket.id", index=True, unique=True)
+    author_id: int = Field(foreign_key="user.id")
+    assignee_id: int = Field(foreign_key="user.id", index=True)
+    score: int = Field(default=5)
+    comment: Optional[str] = None
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class WorkPromotionLog(SQLModel, table=True):
+    """История повышений. pending → executed | cancelled (отменяет head)."""
+    __tablename__ = "work_promotion_log"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    chat_id: int = Field(foreign_key="work_chat.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    from_role: str = Field(max_length=20)
+    to_role: str = Field(max_length=20)
+    status: str = Field(default="pending", max_length=20, index=True)
+    planned_at: Optional[datetime] = None
+    executed_at: Optional[datetime] = None
+    decided_by: Optional[int] = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class WorkStatDaily(SQLModel, table=True):
+    """Ежедневный снэпшот статистики рабочего чата."""
+    __tablename__ = "work_stat_daily"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    chat_id: int = Field(foreign_key="work_chat.id", index=True)
+    date: str = Field(index=True, max_length=10)  # YYYY-MM-DD (UTC)
+    tickets_total: int = Field(default=0)
+    tickets_closed: int = Field(default=0)
+    avg_response_sec: float = Field(default=0.0)
+    avg_rating: float = Field(default=0.0)
+    payload: str = Field(default="{}")
+    __table_args__ = (UniqueConstraint("chat_id", "date"),)
+
+# ============================================================
+# 🤖 BOT COMPANY — единая платформа ботов. Один реестр для рабочих
+#    ботов (воркеры отделов), уведомительных и пользовательских
+#    (как BotFather: человек приходит в BOT Company и создаёт бота).
+# ============================================================
+
+BOT_TYPES = ("worker", "notify", "poll", "custom")
+
+
+class Bot(SQLModel, table=True):
+    """Бот. owner_id = NULL → системный; задан → личный бот пользователя.
+    user_id → аккаунт-бот (User.is_bot=True) для диалогов в обычных чатах."""
+    __tablename__ = "bot"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(max_length=60)
+    username: Optional[str] = Field(default=None, max_length=40, unique=True)
+    description: Optional[str] = Field(default=None, max_length=300)
+    type: str = Field(default="custom", max_length=20, index=True)  # worker|notify|poll|custom
+    active: bool = Field(default=True)
+    token: str = Field(default="", max_length=64, unique=True)
+    owner_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
+    user_id: Optional[int] = Field(default=None, foreign_key="user.id", unique=True)
+    chat_id: Optional[int] = Field(default=None, foreign_key="work_chat.id")  # рабочий чат
+    config: str = Field(default="{}")
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class BotTrigger(SQLModel, table=True):
+    """Триггер бота: на какое событие и что делает."""
+    __tablename__ = "bot_trigger"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    bot_id: int = Field(foreign_key="bot.id", index=True)
+    # ticket_created | ticket_assigned | ticket_closed | rating_added |
+    # member_joined | member_left | message | custom
+    event: str = Field(default="custom", max_length=40)
+    action: str = Field(default="{}")  # JSON: {"reply": "..."} и т.п.
+    enabled: bool = Field(default=True)
+
+
+class BotLog(SQLModel, table=True):
+    """Логи ботов: кто запускал/менял + что бот делал."""
+    __tablename__ = "bot_log"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    bot_id: int = Field(foreign_key="bot.id", index=True)
+    actor_id: Optional[int] = Field(default=None, foreign_key="user.id")  # NULL = сам бот
+    action: str = Field(max_length=60)
+    details: str = Field(default="{}")
+    created_at: datetime = Field(default_factory=utcnow)

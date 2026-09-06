@@ -373,6 +373,11 @@ app.include_router(lp_router, prefix="/api")
 def print_routes():
     # ⏰ Воркер отложенных постов каналов (импортируется ниже по файлу)
     start_channels_scheduler()
+    # ⏰ Воркер рабочих чатов (CRM) + авто-создание чатов отделов
+    try:
+        start_work_bot_scheduler_hook()
+    except Exception as _e:
+        print("work scheduler hook:", _e)
     print("=== ЗАРЕГИСТРИРОВАННЫЕ РОУТЫ ===")
     for route in app.routes:
         if hasattr(route, "path"):
@@ -14434,3 +14439,36 @@ def admin_assign_user_prefix(
     session.commit()
     return {"ok": True, "assigned": len(ids)}
 
+
+# ============================================================
+# 🏢 РАБОЧИЕ ЧАТЫ (CRM) — регистрация роутера + воркер.
+#    Изолированная система: свои таблицы, свои WS-события work_*.
+# ============================================================
+from work_chats import router as work_chats_router, start_work_bot_scheduler
+
+app.include_router(work_chats_router, prefix="/api")
+
+
+def start_work_bot_scheduler_hook():
+    """Запуск воркера рабочих чатов (вызывается на старте)."""
+    try:
+        from database import init_db, Session as _S
+        import work_chats
+        init_db()
+        with _S() as s:
+            try:
+                work_chats.ensure_work_chats_for_categories(s)
+            except Exception as _e:
+                print("work_chats ensure:", _e)
+    except Exception as e:
+        print("work_chats init:", e)
+    return start_work_bot_scheduler()
+
+
+# ============================================================
+# 🤖 BOT COMPANY — регистрация роутера бот-платформы.
+#    Единый реестр для рабочих и пользовательских ботов.
+# ============================================================
+from bots import router as bots_router
+
+app.include_router(bots_router, prefix="/api")
