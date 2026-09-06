@@ -137,10 +137,44 @@ def _ensure_columns() -> None:
         print(f"⚠️ ensure_columns не удался: {e}")
 
 
+def _self_heal_work_schema():
+    """🛡 Само-починка схемы подсистемы «Рабочие чаты / Боты».
+    На проде (PostgreSQL) остались legacy-колонки с NOT NULL без default
+    (work_chat.assigned_section, work_chat_member.work_chat_id и т.п.),
+    которых нет в SQLModel-модели. INSERT их не передаёт → NotNullViolation.
+    Снимаем NOT NULL с таких колонок (не трогая PRIMARY KEY и колонки с default)."""
+    if DATABASE_URL.startswith("sqlite"):
+        return
+    from sqlalchemy import text
+    try:
+        with engine.begin() as conn:
+            for t in ("work_chat", "work_chat_member", "work_ticket",
+                      "work_section_config", "work_promotion_log", "work_stat_daily",
+                      "bot", "bot_log", "bot_command", "bot_trigger"):
+                rows = conn.execute(text(
+                    "SELECT column_name, column_default FROM information_schema.columns "
+                    "WHERE table_name=:t AND table_schema='public'"
+                ), {"t": t}).fetchall()
+                for col, dflt in rows:
+                    if dflt or col == "id":
+                        continue
+                    nonnull = conn.execute(text(
+                        "SELECT is_nullable FROM information_schema.columns "
+                        "WHERE table_name=:t AND column_name=:c AND table_schema='public'"
+                    ), {"t": t, "c": col}).scalar()
+                    if nonnull == "NO":
+                        conn.execute(text(
+                            'ALTER TABLE "{t}" ALTER COLUMN "{c}" DROP NOT NULL'.format(t=t, c=col)))
+                        print(f"[work_schema_heal] {t}.{col} DROP NOT NULL")
+    except Exception as e:
+        print("work_schema_heal err:", e)
+
+
 def init_db():
     SQLModel.metadata.create_all(engine)
     _ensure_columns()
     _fix_postgres_sequences()
+    _self_heal_work_schema()
 
 def get_session():
     with Session(engine) as session:
