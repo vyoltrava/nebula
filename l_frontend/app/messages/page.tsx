@@ -172,6 +172,8 @@ export default function MessagesPage() {
   const [allChats, setAllChats] = useState<any[]>([]);
   // 🗂️ Папки чатов (Этап 6): кастомные папки юзера
   const [folderData, setFolderData] = useState<any>(null);
+  // 🏢 Рабочие чаты отдела (системная папка РАБОТА)
+  const [workChats, setWorkChats] = useState<any[]>([]);
   // Активная вкладка папки: "all" (все чаты) | `f${id}` (кастомная)
   const [activeFolder, setActiveFolder] = useState<string>("all");
   const [loading, setLoading] = useState(true);
@@ -705,6 +707,10 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       if (foldersRes && foldersRes.ok) {
         setFolderData(await foldersRes.json());
       }
+      // 🏢 Рабочие чаты (изолированная система /api/work)
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/work/chats`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).then((r) => (r.ok ? r.json() : [])).then((d) => setWorkChats(Array.isArray(d) ? d : [])).catch(() => {});
       const chatsData = chatsRes.ok ? await chatsRes.json() : [];
       let items: any[] = chatsData;
       if (channelsRes.ok) {
@@ -823,17 +829,35 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
   }).length;
   const textMatches = visibleChats.length - nameMatches;
 
-  // 🗂️ Список папок-вкладок: первая всегда «Все чаты», затем кастомные папки. Как в Telegram.
+  // 🗂️ Список папок-вкладок: первая всегда «Все чаты», затем системная РАБОТА, затем кастомные. Как в Telegram.
   const folderTabs = useMemo(() => {
     const tabs: any[] = [{ key: "all", label: "Все чаты", icon: "💬", locked: false, count: visibleChats.length }];
+    if (workChats.length > 0) {
+      tabs.push({ key: "work", label: "РАБОТА", icon: "💼", locked: true, count: workChats.length });
+    }
     for (const f of folderData?.folders || []) {
       tabs.push({ key: `f${f.id}`, label: f.name, icon: f.icon || "📁", locked: false, count: (f.chat_ids || []).length });
     }
     return tabs;
-  }, [folderData, visibleChats.length]);
+  }, [folderData, visibleChats.length, workChats.length]);
 
   // 🗂️ Чаты для активной вкладки (при поиске — все видимые, с фильтром).
   const displayChats = useMemo(() => {
+    if (activeFolder === "work") {
+      // 🏢 Системная папка РАБОТА: рабочие чаты отдела (кликабельные)
+      return workChats.map((w: any) => ({
+        chat: {
+          id: `work-${w.id}`,
+          is_work_chat: true,
+          work_chat_id: w.id,
+          name: w.name,
+          is_group: true,
+          member_count: w.member_count,
+          last_message: null,
+        },
+        key: `work-${w.id}`,
+      })) as any[];
+    }
     if (q || !folderData) {
       return visibleChats.map((c) => ({ chat: c, key: `c-${c.is_channel ? "ch-" : ""}${c.id}` }));
     }
@@ -846,7 +870,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
       ? visibleChats
       : visibleChats.filter((c) => ids.has(Number(c.id)));
     return list.map((c) => ({ chat: c, key: `c-${c.is_channel ? "ch-" : ""}${c.id}` }));
-  }, [visibleChats, folderData, activeFolder, q]);
+  }, [visibleChats, folderData, activeFolder, q, workChats]);
 
   // 🗄️ Чаты и каналы в архиве
   const archivedChats = sortedChats.filter((c) => isArchivedChat(c));
@@ -1216,7 +1240,9 @@ const confirmPrismKey = async () => {
               isPinned={!!chat.pinned}
               onClick={() => {
                 refresh();
-                if (chat.is_prism) {
+                if (chat.is_work_chat) {
+                  router.push(`/messages/work/${chat.work_chat_id}`);
+                } else if (chat.is_prism) {
                   router.push(`/prisme/${chat.id}`);
                 } else {
                   router.push(`/messages/${chat.id}`);
