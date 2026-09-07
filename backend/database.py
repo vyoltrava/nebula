@@ -124,6 +124,12 @@ def _ensure_columns() -> None:
             stmts = [
                 ("rolecategory", "panel_tabs", "VARCHAR DEFAULT '[]'"),
                 ("user", "is_bot", "BOOLEAN DEFAULT 0"),
+                # 🪐 Приватность пользовательских стикерпаков
+                ("stickerpack", "is_public", "BOOLEAN DEFAULT 1"),
+                # 🤖 Bot API: внешний токен (bcrypt-хэш) + webhook бота
+                ("bot", "api_token_hash", "VARCHAR(255)"),
+                ("bot", "webhook_url", "VARCHAR(512)"),
+                ("bot", "webhook_secret", "VARCHAR(128)"),
             ]
             for table, col, ddl in stmts:
                 if table not in existing or col in existing[table]:

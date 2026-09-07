@@ -6768,6 +6768,13 @@ def get_sticker_packs(
     
     result = []
     for p in packs:
+        # 🪐 Приватные пользовательские паки видит только владелец (и админы)
+        if getattr(p, "is_user", False) and not getattr(p, "is_public", True):
+            if p.owner_id != user.id and not user.is_admin:
+                continue
+        # 🛡 Забаненные паки не показываем никому, кроме админа
+        if getattr(p, "banned", False) and not user.is_admin:
+            continue
         locked = (user_level < p.min_level) and not user.is_admin
         # Загружаем стикеры пака
         stickers = session.exec(
@@ -8409,6 +8416,13 @@ async def send_message_v2(
         },
         session,
     )
+
+    # 🤖 BOT API: сообщение боту → событие в очередь bot_update (getUpdates/webhook)
+    try:
+        from bot_api import notify_bots_in_chat
+        notify_bots_in_chat(session, chat_id, msg, user)
+    except Exception as _bapi:
+        print("bot_api hook:", _bapi)
 
     # 🆕 PUSH-УВЕДОМЛЕНИЯ получателям
     from push_service import send_push
@@ -14530,6 +14544,11 @@ def _bot_has_owner(session, user_id: int) -> bool:
 from bots import router as bots_router
 
 app.include_router(bots_router, prefix="/api")
+
+# 🤖 Bot API (публичный): /bot{TOKEN}/{method} + owner-эндпоинты /api/admin/bots/{id}/...
+from bot_api import router as bot_api_router
+
+app.include_router(bot_api_router)
 
 # ============================================================
 # 📊 /api/admin/team-statistics — данные вкладки «Команда» в /stat.

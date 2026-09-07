@@ -24,10 +24,12 @@ const CATEGORIES = [
 ];
 
 export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
-  const [activeTab, setActiveTab] = useState<"stickers" | "badges">("stickers");
+  const [activeTab, setActiveTab] = useState<"stickers" | "badges" | "users">("stickers");
   
   // === СТИКЕРЫ ===
   const [packs, setPacks] = useState<any[]>([]);
+  // === 🪐 ПОЛЬЗОВАТЕЛЬСКИЕ ПАКИ (модерация) ===
+  const [userPacks, setUserPacks] = useState<any[]>([]);
   const [showEditor, setShowEditor] = useState(false);
   const [editingPack, setEditingPack] = useState<any>(null);
   const [uploadingPackId, setUploadingPackId] = useState<number | null>(null);
@@ -71,14 +73,35 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
 
   async function loadData() {
     const token = getToken();
-    const [packsRes, badgesRes, reactionsRes] = await Promise.all([
+    const [packsRes, badgesRes, reactionsRes, userPacksRes] = await Promise.all([
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/sticker-packs`, { headers: { Authorization: `Bearer ${token}` } }),
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/badges`, { headers: { Authorization: `Bearer ${token}` } }),
       fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/post-reaction-packs`, { headers: { Authorization: `Bearer ${token}` } }),
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/user-packs`, { headers: { Authorization: `Bearer ${token}` } }),
     ]);
     if (packsRes.ok) setPacks(await packsRes.json());
     if (badgesRes.ok) setBadges(await badgesRes.json());
     if (reactionsRes.ok) setReactionPacks(await reactionsRes.json());
+    if (userPacksRes.ok) setUserPacks(await userPacksRes.json());
+  }
+
+  // 🛡 Модерация пользовательских паков: бан/разбан (+ юзер) и удаление
+  async function banUserPack(packId: number, banned: boolean, banUser: boolean) {
+    if (banned && banUser && !confirm("Забанить владельца вместе со ВСЕМИ его паками?")) return;
+    if (banned && !banUser && !confirm("Забанить пак?")) return;
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/user-packs/${packId}/ban`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ ban: banned, ban_user: banUser }),
+    });
+    loadData();
+  }
+  async function deleteUserPack(packId: number) {
+    if (!confirm("Удалить пак безвозвратно?")) return;
+    await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/user-packs/${packId}`, {
+      method: "DELETE", headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    loadData();
   }
 
   // 🆕 Сохранить конфиг реакций на посты {pack_id: [sticker_id, ...]}
@@ -392,6 +415,12 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
         >
           <Sparkles size={14} /> Значки аватара
         </button>
+        <button 
+          onClick={() => { setActiveTab("users"); loadData(); }} 
+          className={`px-4 py-2 rounded-t-lg font-bold text-sm transition-colors flex items-center gap-1.5 ${activeTab === "users" ? "bg-purple-500/20 text-purple-600 dark:text-purple-400 border-b-2 border-purple-600 dark:border-purple-400" : "text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white"}`}
+        >
+          <Globe size={14} /> Пользовательские паки
+        </button>
       </div>
 
       {/* ==================== ВКЛАДКА СТИКЕРОВ ==================== */}
@@ -457,6 +486,49 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
             </div>
           ))}
           {packs.length === 0 && <p className="text-center text-gray-500 dark:text-white/40 py-16">Паков пока нет — создай первый!</p>}
+        </div>
+      )}
+
+      {/* ==================== ВКЛАДКА ПОЛЬЗОВАТЕЛЬСКИХ ПАКОВ ==================== */}
+      {activeTab === "users" && (
+        <div className="space-y-3">
+          <p className="text-xs text-gray-600 dark:text-white/50">
+            Все пользовательские стикерпаки — включая приватные и забаненные. «Бан юзера + паки» банит владельца и все его паки.
+          </p>
+          {userPacks.map((p) => (
+            <div key={p.id} className={`border rounded-2xl p-4 ${p.banned ? "border-red-500/40 bg-red-500/5 opacity-70" : "border-line dark:border-white/15 bg-gray-100 dark:bg-white/5"}`}>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-bold text-gray-900 dark:text-white">{p.name}</h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-purple-500/15 text-purple-600 dark:text-purple-400">
+                    @{p.owner_username || "unknown"}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${p.is_public ? "bg-green-500/15 text-green-600 dark:text-green-400" : "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400"}`}>
+                    {p.is_public ? "публичный" : "приватный"}
+                  </span>
+                  {p.banned && <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-red-500/15 text-red-600 dark:text-red-400">забанен</span>}
+                  <span className="text-[10px] text-gray-500 dark:text-white/30">{p.stickers_count} стикеров</span>
+                </div>
+                <div className="flex gap-1.5">
+                  <button onClick={() => banUserPack(p.id, !p.banned, false)}
+                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold border ${p.banned ? "border-green-400/30 text-green-600 dark:text-green-400" : "border-red-400/30 text-red-600 dark:text-red-400 hover:bg-red-500/10"}`}>
+                    {p.banned ? "Разбанить пак" : "Бан пака"}
+                  </button>
+                  {!p.banned && (
+                    <button onClick={() => banUserPack(p.id, true, true)}
+                      className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-red-400/30 text-red-600 dark:text-red-400 hover:bg-red-500/10">
+                      Бан юзера + паки
+                    </button>
+                  )}
+                  <button onClick={() => deleteUserPack(p.id)}
+                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-line dark:border-white/15 text-gray-600 dark:text-white/50 hover:text-red-600 hover:border-red-400/40">
+                    Удалить
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+          {userPacks.length === 0 && <p className="text-center text-gray-500 dark:text-white/40 py-16">Пользовательских паков пока нет</p>}
         </div>
       )}
 

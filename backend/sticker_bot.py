@@ -8,7 +8,7 @@ import secrets
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form
 from pydantic import BaseModel
 from sqlmodel import Session, select, func
 
@@ -93,6 +93,7 @@ def _pack_out(p: StickerPack, session: Session) -> dict:
     return {
         "id": p.id, "name": p.name, "is_user": p.is_user,
         "is_builtin": p.is_builtin, "banned": p.banned,
+        "is_public": bool(getattr(p, "is_public", True)),
         "owner_id": p.owner_id, "owner_username": owner.username if owner else None,
         "stickers": [{"id": s.id, "type": s.type, "content": s.content,
                       "order": s.order} for s in stickers],
@@ -113,6 +114,7 @@ def my_sticker_packs(
 class NewPackIn(BaseModel):
     name: str
     emojis: list[str] = []
+    is_public: bool = True
 
 
 @router.post("/sticker-packs")
@@ -126,7 +128,8 @@ def create_user_pack(data: NewPackIn,
             StickerPack.name == name, StickerPack.owner_id == user.id)).first():
         raise HTTPException(400, "Пак с таким именем уже есть")
     pack = StickerPack(name=name, is_active=True, is_user=True,
-                       owner_id=user.id, min_level=1)
+                       owner_id=user.id, min_level=1,
+                       is_public=bool(data.is_public))
     session.add(pack); session.commit(); session.refresh(pack)
     for e in data.emojis[:50]:
         if e:
@@ -187,6 +190,67 @@ def delete_user_pack(pack_id: int,
     _log(session, user.id, "user_pack_deleted", {"pack_id": pack_id})
     session.commit()
     return {"ok": True}
+
+
+class VisibilityIn(BaseModel):
+    is_public: bool
+
+
+@router.post("/sticker-packs/{pack_id}/visibility")
+def set_pack_visibility(pack_id: int, data: VisibilityIn,
+                        user: User = Depends(get_current_user),
+                        session: Session = Depends(get_session)):
+    """Владелец делает пак публичным или приватным (админам видно всегда)."""
+    pack = session.get(StickerPack, pack_id)
+    if not pack or not pack.is_user:
+        raise HTTPException(404, "Пак не найден")
+    if pack.owner_id != user.id and not user.is_admin:
+        raise HTTPException(403, "Не ваш пак")
+    pack.is_public = bool(data.is_public)
+    session.add(pack)
+    session.commit()
+    _log(session, user.id, "pack_visibility_changed",
+         {"pack_id": pack_id, "is_public": pack.is_public})
+    session.commit()
+    return {"ok": True, "is_public": pack.is_public}
+
+
+@router.get("/sticker-packs/public")
+def public_sticker_packs(user: User = Depends(get_current_user),
+                         session: Session = Depends(get_session)):
+    """🪐 Каталог: все ПУБЛИЧНЫЕ пользовательские паки.
+    Админам (manage_stickers) видны и приватные, и забаненные."""
+    is_admin = user.is_admin or has_permission(user, "manage_stickers", session)
+    q = select(StickerPack).where(StickerPack.is_user == True)  # noqa: E712
+    if not is_admin:
+        q = q.where(StickerPack.is_public == True,  # noqa: E712
+                    StickerPack.banned == False,  # noqa: E712
+                    StickerPack.is_active == True)  # noqa: E712
+    packs = session.exec(q.order_by(StickerPack.id.desc()).limit(200)).all()
+    return [_pack_out(p, session) for p in packs]
+
+
+@router.get("/admin/user-packs")
+def admin_list_user_packs(user: User = Depends(get_current_user),
+                          session: Session = Depends(get_session)):
+    """🛡 Админ: все пользовательские паки (вкл. приватные и забаненные)."""
+    _require_sticker_admin(user, session)
+    packs = session.exec(select(StickerPack).where(
+        StickerPack.is_user == True).order_by(StickerPack.id.desc())
+        .limit(500)).all()  # noqa: E712
+    out = []
+    for p in packs:
+        cnt = session.exec(select(func.count(Sticker.id)).where(
+            Sticker.pack_id == p.id)).one() or 0
+        out.append({"id": p.id, "name": p.name, "banned": p.banned,
+                    "is_public": bool(getattr(p, "is_public", True)),
+                    "is_active": p.is_active,
+                    "owner_id": p.owner_id,
+                    "owner_username": (session.get(User, p.owner_id).username
+                                       if p.owner_id else None),
+                    "stickers_count": cnt,
+                    "created_at": p.created_at.isoformat() if p.created_at else None})
+    return out
 # ------------------------------------------------------------------
 # 🛡 Админ: удаление стикера/пака, бан юзера с его паками
 # ------------------------------------------------------------------

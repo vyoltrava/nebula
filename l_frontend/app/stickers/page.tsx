@@ -11,6 +11,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 type St = { id: number; type: string; content: string; order: number };
 type Pack = {
   id: number; name: string; is_user: boolean; banned: boolean;
+  is_public?: boolean;
   owner_id: number | null; owner_username: string | null; stickers: St[];
 };
 
@@ -20,6 +21,8 @@ export default function StickersPage() {
   const [packs, setPacks] = useState<Pack[]>([]);
   const [newName, setNewName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"mine" | "catalog">("mine");
+  const [catalog, setCatalog] = useState<Pack[]>([]);
 
   async function load() {
     const token = getToken();
@@ -31,6 +34,28 @@ export default function StickersPage() {
     });
     if (res.ok) setPacks(await res.json());
     setLoading(false);
+  }
+
+  async function loadCatalog() {
+    const token = getToken();
+    const res = await fetch(`${API_URL}/api/sticker-packs/public`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) setCatalog(await res.json());
+  }
+
+  function openTab(t: "mine" | "catalog") {
+    setTab(t);
+    if (t === "catalog") loadCatalog();
+  }
+
+  async function toggleVisibility(p: Pack) {
+    await fetch(`${API_URL}/api/sticker-packs/${p.id}/visibility`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ is_public: !p.is_public }),
+    });
+    load();
   }
 
   useEffect(() => { load(); }, []);
@@ -104,6 +129,20 @@ return (
         </div>
 
         <div className="p-6 space-y-6">
+          {/* 🗂 Табы: Мои / Каталог */}
+          <div className="flex gap-2">
+            <button onClick={() => openTab("mine")}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${tab === "mine" ? "bg-[#8b5cf6] text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white"}`}>
+              🪐 Мои паки
+            </button>
+            <button onClick={() => openTab("catalog")}
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${tab === "catalog" ? "bg-[#8b5cf6] text-white" : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50 hover:text-gray-900 dark:hover:text-white"}`}>
+              <Globe2 size={14} className="inline mr-1" /> Каталог ({catalog.length || "…"})
+            </button>
+          </div>
+
+          {tab === "mine" && (
+          <>
           <div className="flex items-center gap-2 p-3 rounded-xl border border-[#8b5cf6]/30 bg-[#8b5cf6]/5">
             <input value={newName} onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") createPack(); }}
@@ -133,6 +172,10 @@ return (
                   </p>
                   <p className="text-[10px] text-gray-500 dark:text-white/40">{p.stickers.length} стикеров {p.owner_username ? `· @${p.owner_username}` : ""}</p>
                 </div>
+                <button onClick={() => toggleVisibility(p)} title={p.is_public === false ? "Пак приватный — сделать публичным" : "Пак публичный — сделать приватным"}
+                  className={`p-1.5 ${p.is_public === false ? "text-amber-500" : "text-emerald-500"} hover:opacity-70`}>
+                  {p.is_public === false ? "🔒" : "🌐"}
+                </button>
                 <label className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-xs font-bold cursor-pointer hover:text-[#8b5cf6]">
                   <Upload size={14} /> Загрузить
                   <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSt(p.id, f); e.target.value = ""; }} />
@@ -164,6 +207,41 @@ return (
               </div>
             </div>
           ))}
+          </>
+          )}
+
+          {/* 🌐 Каталог публичных паков */}
+          {tab === "catalog" && (
+            <div className="space-y-3">
+              {catalog.length === 0 && (
+                <div className="text-center py-12 border border-dashed border-line dark:border-white/15 rounded-2xl">
+                  <Globe2 size={44} className="mx-auto text-gray-400 dark:text-white/20 mb-3" />
+                  <p className="text-gray-600 dark:text-white/50 text-sm">Пока нет публичных паков</p>
+                </div>
+              )}
+              {catalog.map((p) => (
+                <div key={p.id} className={`border rounded-2xl overflow-hidden ${p.banned ? "border-red-500/40 bg-red-500/5 opacity-60" : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5"}`}>
+                  <div className="p-3 flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-lg bg-[#8b5cf6]/15 text-[#8b5cf6] flex items-center justify-center shrink-0"><Globe2 size={18} /></div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold truncate text-gray-900 dark:text-white">{p.name}
+                        {p.is_public === false && <span className="ml-1.5 px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 text-[10px] font-black uppercase">приватный</span>}
+                        {p.banned && <span className="ml-1.5 px-1.5 py-0.5 rounded bg-red-500/15 text-red-600 dark:text-red-400 text-[10px] font-black uppercase">забанен</span>}
+                      </p>
+                      <p className="text-[10px] text-gray-500 dark:text-white/40">{p.stickers.length} стикеров {p.owner_username ? `· @${p.owner_username}` : ""}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-6 gap-1.5 p-2">
+                    {p.stickers.map((s) => (
+                      s.type === "image"
+                        ? <img key={s.id} src={s.content} alt="" className="w-14 h-14 object-contain rounded-lg" />
+                        : <span key={s.id} className="text-2xl w-14 h-14 flex items-center justify-center">{s.content}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </main>
     </div>

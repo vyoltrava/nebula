@@ -52,6 +52,10 @@ export default function BotsPage() {
   const [botChatIds, setBotChatIds] = useState<Set<number>>(new Set());
   const [cmdsBot, setCmdsBot] = useState<BotItem | null>(null);
   const [cmds, setCmds] = useState<any[]>([]);
+  const [apiBot, setApiBot] = useState<BotItem | null>(null);
+  const [apiInfo, setApiInfo] = useState<any>(null);
+  const [apiToken, setApiToken] = useState<string>("");
+  const [apiWebhook, setApiWebhook] = useState<string>("");
 
   async function load() {
     const token = getToken();
@@ -187,6 +191,40 @@ export default function BotsPage() {
     load();
   }
 
+  async function openApi(b: BotItem) {
+    setApiBot(b); setApiToken(""); setApiWebhook(""); setApiInfo(null);
+    const res = await fetch(`${API_URL}/api/admin/bots/${b.id}/api`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (res.ok) {
+      const info = await res.json();
+      setApiInfo(info);
+      setApiWebhook(info.webhook_url || "");
+    }
+  }
+
+  async function resetApiToken() {
+    if (!apiBot || !confirm("Сбросить API-токен? Старый токен перестанет работать!")) return;
+    const res = await fetch(`${API_URL}/api/admin/bots/${apiBot.id}/api-token/reset`, {
+      method: "POST", headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (res.ok) {
+      const d = await res.json();
+      setApiToken(d.token);
+      setApiInfo((p: any) => p && { ...p, has_token: true });
+    }
+  }
+
+  async function saveWebhook() {
+    if (!apiBot) return;
+    await fetch(`${API_URL}/api/admin/bots/${apiBot.id}/webhook`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ url: apiWebhook }),
+    });
+    openApi(apiBot);
+  }
+
   const myBots = bots.filter((b) => me && (b.owner_username === me.username || b.owner_id === me.id));
   const workBots = bots.filter((b) => b.type === "worker");
   const otherBots = bots.filter((b) => b.type !== "worker" && !(me && (b.owner_username === me.username || b.owner_id === me.id)));
@@ -223,6 +261,9 @@ export default function BotsPage() {
           </button>
           <button onClick={() => openTriggers(b)} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-xs font-bold hover:bg-purple-500/20 hover:text-purple-600 dark:hover:text-purple-300 transition-all">
             <Zap size={13} /> Триггеры
+          </button>
+          <button onClick={() => openApi(b)} title="Bot API: токен и webhook" className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-xs font-bold hover:bg-purple-500/20 hover:text-purple-600 dark:hover:text-purple-300 transition-all">
+            🔑 API
           </button>
           <button onClick={() => openLogs(b)} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-xs font-bold hover:bg-purple-500/20 hover:text-purple-600 dark:hover:text-purple-300 transition-all">
             <ScrollText size={13} /> Логи
@@ -453,6 +494,76 @@ export default function BotsPage() {
                 <button onClick={() => setCmdsBot(null)} className="flex-1 py-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold">Отмена</button>
                 <button onClick={saveCommands} className="flex-1 py-2 rounded-lg bg-[#8b5cf6] text-white text-sm font-bold hover:bg-[#7c3aed]">Сохранить</button>
               </div>
+            </div>
+          </div>
+        )}
+        {/* ===== Модалка Bot API ===== */}
+        {apiBot && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={() => setApiBot(null)}>
+            <div className="w-full max-w-lg bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-6 pointer-events-auto max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-xl font-black text-gray-900 dark:text-white mb-1">Bot API: {apiBot.name}</h2>
+              <p className="text-xs text-gray-600 dark:text-white/50 mb-4">
+                Публичный API: <code className="font-mono">POST /bot&#123;TOKEN&#125;/&#123;method&#125;</code> — getMe, sendMessage, getUpdates, webhook…
+              </p>
+
+              {apiToken && (
+                <div className="mb-4 p-3 rounded-xl border border-amber-500/40 bg-amber-500/10">
+                  <p className="text-[11px] text-amber-700 dark:text-amber-300 font-bold mb-2">
+                    ⚠️ Скопируйте токен сейчас — он показывается только один раз. Токен даёт полный доступ к управлению ботом. Если потеряете — сбросьте, но старый перестанет работать.
+                  </p>
+                  <code className="text-xs font-mono text-gray-900 dark:text-white break-all">{apiToken}</code>
+                </div>
+              )}
+
+              {apiInfo && (
+                <div className="grid grid-cols-3 gap-2 mb-4 text-center">
+                  <div className="p-2 rounded-lg bg-gray-100 dark:bg-white/5">
+                    <p className="text-lg font-black text-gray-900 dark:text-white">{apiInfo.stats.chats}</p>
+                    <p className="text-[10px] text-gray-500">чатов</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-gray-100 dark:bg-white/5">
+                    <p className="text-lg font-black text-gray-900 dark:text-white">{apiInfo.stats.updates_total}</p>
+                    <p className="text-[10px] text-gray-500">событий</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-gray-100 dark:bg-white/5">
+                    <p className="text-lg font-black text-gray-900 dark:text-white">{apiInfo.stats.updates_pending}</p>
+                    <p className="text-[10px] text-gray-500">в очереди</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <div>
+                  <p className="text-xs font-bold text-gray-700 dark:text-white/70 mb-1.5">API-токен {apiInfo && (apiInfo.has_token ? "(создан)" : "(не создан)")}</p>
+                  <button onClick={resetApiToken} className="w-full py-2 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300 text-xs font-bold hover:bg-amber-500/25 transition-all">
+                    {apiInfo?.has_token ? "🔄 Сбросить токен" : "🔑 Сгенерировать токен"}
+                  </button>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-700 dark:text-white/70 mb-1.5">Webhook (HTTPS URL для событий)</p>
+                  <div className="flex gap-2">
+                    <input value={apiWebhook} onChange={(e) => setApiWebhook(e.target.value)}
+                      placeholder="https://example.com/bot-hook"
+                      className="flex-1 px-2.5 py-1.5 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-xs font-mono focus:outline-none focus:border-[#8b5cf6]" />
+                    <button onClick={saveWebhook} className="px-3 py-1.5 rounded-lg bg-[#8b5cf6] text-white text-xs font-bold hover:bg-[#7c3aed]">Сохранить</button>
+                  </div>
+                </div>
+                {apiInfo && apiInfo.webhook_log.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-gray-700 dark:text-white/70 mb-1.5">Логи webhook (последние {apiInfo.webhook_log.length})</p>
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {apiInfo.webhook_log.map((w: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between p-1.5 rounded bg-gray-100 dark:bg-white/5 text-[10px]">
+                          <span className={w.ok ? "text-green-600 dark:text-green-300" : "text-red-600 dark:text-red-300"}>
+                            {w.ok ? "✓" : "✗"} update #{w.update_id} {w.status_code ? `HTTP ${w.status_code}` : ""} {w.error || ""}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <button onClick={() => setApiBot(null)} className="w-full mt-4 py-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold">Закрыть</button>
             </div>
           </div>
         )}

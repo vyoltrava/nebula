@@ -503,6 +503,9 @@ class StickerPack(SQLModel, table=True):
     is_user: bool = Field(default=False)
     owner_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
     banned: bool = Field(default=False)
+    # 🆕 Приватность пользовательского пака: публичный виден всем в каталоге,
+    #    приватный — только владельцу (админы видят всегда)
+    is_public: bool = Field(default=True)
     created_at: datetime = Field(default_factory=utcnow)
 
 
@@ -1369,6 +1372,10 @@ class Bot(SQLModel, table=True):
     type: str = Field(default="custom", max_length=20, index=True)  # worker|notify|poll|custom|sticker
     active: bool = Field(default=True)
     token: str = Field(default="", max_length=64, unique=True)
+    # 🤖 Bot API: bcrypt-хэш внешнего токена (сам токен НЕ храним) + webhook
+    api_token_hash: Optional[str] = Field(default=None, max_length=255)
+    webhook_url: Optional[str] = Field(default=None, max_length=512)
+    webhook_secret: Optional[str] = Field(default=None, max_length=128)
     owner_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
     user_id: Optional[int] = Field(default=None, foreign_key="user.id", unique=True)
     chat_id: Optional[int] = Field(default=None, foreign_key="work_chat.id")  # рабочий чат
@@ -1416,4 +1423,37 @@ class BotLog(SQLModel, table=True):
     actor_id: Optional[int] = Field(default=None, foreign_key="user.id")  # NULL = сам бот
     action: str = Field(max_length=60)
     details: str = Field(default="{}")
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+# ============================================================
+# 🤖 BOT API (Telegram-подобный внешний API ботов)
+# ============================================================
+
+class BotUpdate(SQLModel, table=True):
+    """Очередь событий бота (long polling getUpdates / webhook-доставка).
+    update_id — сквозной счётчик на бота (offset-семантика как в Telegram)."""
+    __tablename__ = "bot_update"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    bot_id: int = Field(foreign_key="bot.id", index=True)
+    update_id: int = Field(default=0, index=True)   # per-bot, возвращается клиенту
+    payload: str = Field(default="{}")              # JSON события (message, callback_query, ...)
+    is_processed: bool = Field(default=False, index=True)
+    delivery_attempts: int = Field(default=0)       # попытки webhook-доставки
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    __table_args__ = (UniqueConstraint("bot_id", "update_id"),)
+
+
+class BotWebhookLog(SQLModel, table=True):
+    """Логи доставки webhook (последние попытки, для страницы «Логи ошибок»)."""
+    __tablename__ = "bot_webhook_log"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    bot_id: int = Field(foreign_key="bot.id", index=True)
+    update_id: Optional[int] = None
+    url: str = Field(default="", max_length=512)
+    ok: bool = Field(default=False)
+    status_code: Optional[int] = None
+    error: Optional[str] = None
     created_at: datetime = Field(default_factory=utcnow)
