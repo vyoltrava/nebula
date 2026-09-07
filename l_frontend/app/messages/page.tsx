@@ -1449,10 +1449,19 @@ const confirmPrismKey = async () => {
               <Megaphone size={16} className="text-[#8b5cf6]" /> {t("messages.createChannel")}
             </button>
             <button
-              onClick={() => { setShowCreateMenu(false); router.push("/bots"); }}
+              onClick={async () => {
+                setShowCreateMenu(false);
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/bots/botfather/open`, {
+                  method: "POST", headers: { Authorization: `Bearer ${getToken()}` },
+                });
+                if (res.ok) {
+                  const d = await res.json();
+                  router.push(`/messages/${d.chat_id}`);
+                }
+              }}
               className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border-t border-line dark:border-white/5"
             >
-              <Bot size={16} className="text-[#8b5cf6]" /> BOT Company · Создать бота
+              <Bot size={16} className="text-[#8b5cf6]" /> BotFather · Создать бота
             </button>
           </div>
         )}

@@ -55,8 +55,8 @@ print("newbot status:", r.status_code)
 with Session(engine) as s:
     msgs = s.exec(select(models.Message).where(
         models.Message.chat_id == chat_id).order_by(models.Message.id)).all()
-    token_msg = [m for m in msgs if "Токен" in (m.text or "")]
-    assert token_msg, "нет ответа с токеном: " + str([(m.text or "")[:60] for m in msgs])
+    token_msg = [m for m in msgs if "API-ключ" in (m.text or "")]
+    assert token_msg, "нет ответа с API-ключом: " + str([(m.text or "")[:60] for m in msgs])
     print("last:", token_msg[-1].text[:80])
 
 # /setcommands меняет команду боту через чат
@@ -80,5 +80,70 @@ assert "/newbot" in all_commands, all_commands  # команды BotFather в л
 r = client.get("/api/chats/999999/bot-commands", headers=tok)
 assert r.status_code == 403, r.status_code
 print("command-hints endpoint ok")
+
+# 👨💻 создание бота через кнопки (API-ключ, показывается один раз)
+r = client.post("/api/botfather/create-bot", headers=tok,
+                json={"name": "МойБот", "username": "mybot_bot"})
+d = r.json()
+print("create-bot:", r.status_code, d["ok"], "token?", "token" in d)
+assert r.status_code == 200 and d["ok"] and d["token"]
+assert d["token"].startswith("%d:" % d["bot"]["id"])
+print("   token:", d["token"][:10] + "...")
+# дубль ника → 400
+r2 = client.post("/api/botfather/create-bot", headers=tok,
+                 json={"name": "X", "username": "mybot_bot"})
+assert r2.status_code == 400, r2.status_code
+print("   duplicate username -> 400 ok")
+
+# 📱 мои боты (без ключей)
+r = client.get("/api/botfather/my-bots", headers=tok)
+myb = r.json()
+print("my-bots:", r.status_code, [(b["username"], b["has_api_key"]) for b in myb])
+assert r.status_code == 200 and any(b["username"] == "mybot_bot" for b in myb)
+bot_item = next(b for b in myb if b["username"] == "mybot_bot")
+assert bot_item["has_api_key"] is True
+# ключ НЕ должен раскрываться в списке
+assert "token" not in bot_item
+print("   keys not leaked ok")
+
+# 🔑 сброс ключа → новый, старый инвалидируется
+old_token = d["token"]
+r = client.post("/api/botfather/reset-token", headers=tok,
+                json={"bot_id": bot_item["id"]})
+dr = r.json()
+assert r.status_code == 200 and dr["ok"] and dr["token"] != old_token
+print("reset-token ok (новый отличен от старого)")
+
+# 💬 единая личка: повторный open возвращает тот же чат (уже проверено выше idempotent)
+r = client.post("/api/admin/bots/botfather/open", headers=tok)
+assert r.json()["chat_id"] == chat_id
+print("single DM (no duplicates) ok")
+
+# ⚙️ настройка бота: имя, описание, ссылка
+r = client.post("/api/botfather/edit-bot", headers=tok,
+                json={"bot_id": bot_item["id"], "name": "МойБот v2",
+                      "description": "Эхо-бот для теста", "link": "https://example.com"})
+assert r.status_code == 200 and r.json()["ok"], r.text
+r = client.get("/api/botfather/my-bots", headers=tok)
+b2 = next(b for b in r.json() if b["id"] == bot_item["id"])
+assert b2["name"] == "МойБот v2" and b2["description"] == "Эхо-бот для теста"
+assert b2["link"] == "https://example.com"
+print("edit-bot ok:", b2["name"], "|", b2["description"], "|", b2["link"])
+
+# 🔑 чужой бот → 403
+with Session(engine) as s:
+    other = models.User(username="bf_other", display_name="O",
+                        password_hash=hash_password("secret123"))
+    s.add(other); s.commit(); s.refresh(other)
+    other_bot = models.Bot(name="Чужой", username="chuzhoy_bot", type="custom",
+                           active=True, token="x", owner_id=other.id, system=False)
+    s.add(other_bot); s.commit(); s.refresh(other_bot)
+    ob_id = other_bot.id
+r = client.post("/api/botfather/edit-bot", headers=tok,
+                json={"bot_id": ob_id, "name": "Взлом"})
+assert r.status_code == 403, r.status_code
+r = client.post("/api/botfather/reset-token", headers=tok, json={"bot_id": ob_id})
+assert r.status_code == 403, r.status_code
+print(" чужой бот -> 403 ok")
 
 print("BOTFATHER SMOKE OK")

@@ -16,6 +16,7 @@ import { MessageContextMenu } from "@/components/MessageContextMenu";
 import { ReportDialog, ReportTargetType } from "@/components/ReportDialog";
 import CallButton from '@/components/CallButton';
 import { ChatMuteButton } from '@/components/ChatMuteButton';
+import { BotFatherModal } from "@/components/BotFatherModal";
 import { registerCallChat } from '@/lib/callLog';
 import { getRelayCallApi } from '@/lib/relayCall';
 import { MessageBubble } from "@/components/MessageBubble";
@@ -60,7 +61,7 @@ import {
   Check, CheckCheck, CheckSquare, Mic, Square, Users, Settings,
   Pin, PinOff, Video, Copy, SmilePlus,  Reply, Bookmark, Type, Plus,
   Phone, Megaphone
-, UserPlus } from "lucide-react";
+, UserPlus, Bot } from "lucide-react";
 // ✅ НОВЫЕ ИМПОРТЫ:
 import {
   getKeyPair, encryptMessage, decryptMessage,
@@ -193,6 +194,8 @@ export default function ChatPage() {
   const [cmdQuery, setCmdQuery] = useState<string | null>(null);
   const [cmdSuggestions, setCmdSuggestions] = useState<any[]>([]);
   const [chatBotCommands, setChatBotCommands] = useState<any[]>([]);
+  // 👨💻 модалка BotFather (кнопки внутри чата)
+  const [showBotFatherModal, setShowBotFatherModal] = useState<"create" | "bots" | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [chatPartner, setChatPartner] = useState<any>(null);
   const [chatInfo, setChatInfo] = useState<any>(null);
@@ -3014,6 +3017,19 @@ onDoubleClick={(e) => {
 
 
 {/* 🆕 ПОЛЕ ВВОДА — ТЕПЕРЬ WYSIWYG */}
+{/* 🤖 Панель-фичи BotFather: кнопки «Создать бота» / «Мои боты» */}
+{chatPartner?.is_bot && chatPartner?.username === "botfather" && (
+  <div className="mb-2 flex gap-2">
+    <button onClick={() => setShowBotFatherModal("create")}
+      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-[#8b5cf6] text-white text-xs font-bold hover:bg-[#7c3aed] transition-all">
+      <Bot size={14} /> Создать бота
+    </button>
+    <button onClick={() => setShowBotFatherModal("bots")}
+      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-xs font-bold hover:bg-purple-500/20 hover:text-purple-600 dark:hover:text-purple-300 transition-all">
+      <Bot size={14} /> Мои боты
+    </button>
+  </div>
+)}
 <div className="relative flex-1 flex items-end">
   {cmdSuggestions.length > 0 && cmdQuery !== null && (
     <div className="absolute bottom-full left-0 mb-2 w-72 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
@@ -3245,6 +3261,13 @@ onDoubleClick={(e) => {
             targetId={reportTarget.id}
             contextLabel={reportTarget.label}
             onClose={() => setReportTarget(null)}
+          />
+        )}
+        {/* 👨💻 Модалка BotFather (кнопки создания ботов) */}
+        {showBotFatherModal && chatPartner?.is_bot && chatPartner?.username === "botfather" && (
+          <BotFatherModal
+            mode={showBotFatherModal}
+            onClose={() => setShowBotFatherModal(null)}
           />
         )}
         {/* 🆕 Анимация вылетающей реакции при двойном тапе */}
