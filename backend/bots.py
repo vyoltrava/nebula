@@ -63,6 +63,38 @@ def valid_username(u):
     return bool(u and re.match(r"^[a-z0-9_]{3,32}$", u))
 
 
+@router.post("/admin/bots/botfather/open")
+def open_botfather_chat(user: User = Depends(get_current_user),
+                        session: Session = Depends(get_session)):
+    """Открыть (или создать) личку с BotFather — UI-кнопка «BotFather»."""
+    from models import Message as _Msg
+    bf = ensure_botfather(session)
+    session.commit()
+    if not bf.user_id:
+        raise HTTPException(500, "BotFather без аккаунта")
+    # ищем существующую личку user <-> botfather
+    for m in session.exec(select(ChatMember).where(
+            ChatMember.user_id == user.id)).all():
+        c = session.get(Chat, m.chat_id)
+        if c and not c.is_group and not c.is_secret:
+            others = session.exec(select(ChatMember).where(
+                ChatMember.chat_id == c.id)).all()
+            if {x.user_id for x in others} == {user.id, bf.user_id}:
+                return {"ok": True, "chat_id": c.id, "botfather_user_id": bf.user_id}
+    # нет — создаём
+    c = Chat()
+    session.add(c); session.commit(); session.refresh(c)
+    session.add(ChatMember(chat_id=c.id, user_id=user.id, role="owner"))
+    session.add(ChatMember(chat_id=c.id, user_id=bf.user_id, role="member"))
+    session.commit()
+    # приветствие от BotFather
+    session.add(_Msg(chat_id=c.id, sender_id=bf.user_id,
+                     text="Привет! Я BotFather 🤖\n\nСоздать бота — /newbot\n"
+                          "Мои боты — /mybots\nТокен — /token\nКоманды — /setcommands"))
+    session.commit()
+    return {"ok": True, "chat_id": c.id, "botfather_user_id": bf.user_id}
+
+
 @router.get("/admin/bots")
 def list_bots(mine: int = 0, user: User = Depends(get_current_user),
               session: Session = Depends(get_session)):
@@ -591,8 +623,43 @@ def handle_botfather_dm(session: Session, sender_id: int, text: str) -> bool:
         else:
             send("Нет ботов. Создай через /newbot")
         return True
-    if low == "/setcommands":
-        send("Открой /bots → выбери бота → вкладка «Команды».")
+    if low.startswith("/setcommands"):
+        # формат: /setcommands <имя_бота> команда описание
+        # или:     /setcommands <имя_бота> очистить
+        from models import BotCommand as _BC
+        parts = t.split()
+        if len(parts) < 3:
+            send("Формат: /setcommands <имя_бота> команда описание\n"
+                 "Пример: /setcommands myhelper_bot /start Приветствие\n"
+                 "Очистить команды: /setcommands myhelper_bot очистить")
+            return True
+        nick = parts[1].lstrip("@")
+        b = session.exec(select(Bot).where(Bot.owner_id == sender_id,
+                                           Bot.username == nick)).first()
+        if not b:
+            send("Бота '@%s' у тебя нет." % nick)
+            return True
+        if parts[2].lower() == "очистить" or parts[2].lower() == "clear":
+            for c in session.exec(select(_BC).where(_BC.bot_id == b.id)).all():
+                session.delete(c)
+            session.commit()
+            send("Команды бота @%s очищены." % nick)
+            return True
+        cmd = parts[2]
+        if not cmd.startswith("/"):
+            cmd = "/" + cmd
+        desc = " ".join(parts[3:])[:200] or cmd
+        exist = session.exec(select(_BC).where(_BC.bot_id == b.id,
+                                               _BC.command == cmd)).first()
+        if exist:
+            exist.reply = desc
+            session.add(exist)
+        else:
+            session.add(_BC(bot_id=b.id, command=cmd[:40], reply=desc,
+                            action="reply_text", payload="{}", enabled=True))
+        session.commit()
+        send("Команда %s → «%s» назначена боту @%s. "
+             "Увидеть меню можно на странице /bots." % (cmd, desc, nick))
         return True
     if low in ("/help", "/start"):
         send("BotFather:\n/newbot — создать\n/mybots — список\n"

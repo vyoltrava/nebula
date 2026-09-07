@@ -8218,11 +8218,15 @@ async def send_message_v2(
         # 🤖 BOT COMPANY: сообщение боту в чате → движок ботов
         try:
             from bots import handle_bot_message, handle_botfather_dm
-            # from sticker_bot import handle_stickerbot_command  # 🎨 пока выключен
+            from sticker_bot import handle_stickerbot_command
             clean_text = (ciphertext or text or "").strip()
             if clean_text.startswith("/"):
                 handled = handle_botfather_dm(session, user.id, clean_text) \
                     if not getattr(chat, "is_group", False) else False
+                if not handled:
+                    handled = handle_stickerbot_command(
+                        session, chat_id, user.id, clean_text) \
+                        if not getattr(chat, "is_group", False) else False
                 if not handled:
                     handle_bot_message(session, chat_id, user.id, clean_text)
         except Exception as _be:
@@ -14518,13 +14522,12 @@ def start_work_bot_scheduler_hook():
                 ensure_botfather(s)
             except Exception as _e:
                 print("botfather ensure:", _e)
-            # 🎨 StickerBot — ПОКА ВЫКЛЮЧЕН (закрыт до отдельного релиза)
-            # try:
-            #     from sticker_bot import ensure_stickerbot, ensure_stickerbot_chat
-            #     ensure_stickerbot(s)
-            #     ensure_stickerbot_chat(s)
-            # except Exception as _e:
-            #     print("stickerbot ensure:", _e)
+            # 🎨 StickerBot — системный стикер-бот (создание пользовательских паков)
+            try:
+                from sticker_bot import ensure_stickerbot
+                ensure_stickerbot(s)
+            except Exception as _e:
+                print("stickerbot ensure:", _e)
     except Exception as e:
         print("work_chats init:", e)
     return start_work_bot_scheduler()

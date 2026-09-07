@@ -86,6 +86,42 @@ def ensure_stickerbot_chat(session: Session, actor: Optional[User] = None) -> Ch
 # 📦 User API — пользовательские стикерпаки (через стикер-бот)
 # ------------------------------------------------------------------
 
+# ------------------------------------------------------------------
+# 💬 Открытие лички со StickerBot (UI-кнопка, как BotFather)
+# ------------------------------------------------------------------
+
+@router.post("/sticker-bot/open")
+def open_stickerbot_chat(user: User = Depends(get_current_user),
+                         session: Session = Depends(get_session)):
+    """Открыть (или создать) личку со StickerBot."""
+    from models import Message as _Msg
+    sb = ensure_stickerbot(session)
+    session.commit()
+    if not sb.user_id:
+        raise HTTPException(500, "StickerBot без аккаунта")
+    # ищем существующую личку user <-> stickerbot
+    for m in session.exec(select(ChatMember).where(
+            ChatMember.user_id == user.id)).all():
+        c = session.get(Chat, m.chat_id)
+        if c and not c.is_group and not c.is_secret:
+            others = session.exec(select(ChatMember).where(
+                ChatMember.chat_id == c.id)).all()
+            if {x.user_id for x in others} == {user.id, sb.user_id}:
+                return {"ok": True, "chat_id": c.id, "bot_user_id": sb.user_id}
+    # нет — создаём
+    c = Chat()
+    session.add(c); session.commit(); session.refresh(c)
+    session.add(ChatMember(chat_id=c.id, user_id=user.id, role="owner"))
+    session.add(ChatMember(chat_id=c.id, user_id=sb.user_id, role="member"))
+    session.commit()
+    # приветствие от StickerBot
+    session.add(_Msg(chat_id=c.id, sender_id=sb.user_id,
+                     text="Привет! Я StickerBot 🎨\n\nСоздать свой стикерпак — /newpack Название\n"
+                          "Мои паки — /mypacks\n\nЗагрузить картинки можно на странице «Мои стикеры»."))
+    session.commit()
+    return {"ok": True, "chat_id": c.id, "bot_user_id": sb.user_id}
+
+
 def _pack_out(p: StickerPack, session: Session) -> dict:
     stickers = session.exec(select(Sticker).where(
         Sticker.pack_id == p.id).order_by(Sticker.order)).all()
@@ -386,5 +422,9 @@ def handle_stickerbot_command(session: Session, chat_id: int, sender_id: int,
             send("Твои паки:\n" + "\n".join(lines))
         else:
             send("Паков нет. /newpack Название")
+        return True
+    if low.strip() in ("/start", "/help"):
+        send("Я StickerBot 🎨\n\n/newpack Название — создать свой стикерпак\n"
+             "/mypacks — мои паки\n\nКартинки загружай на странице «Мои стикеры».")
         return True
     return False

@@ -292,6 +292,20 @@ export default function BotsPage() {
                 <p className="text-xs text-gray-600 dark:text-white/50 mt-0.5">Создавай своих ботов и управляй ими</p>
               </div>
             </div>
+            <button onClick={async () => {
+              const res = await fetch(`${API_URL}/api/admin/bots/botfather/open`, {
+                method: "POST", headers: { Authorization: `Bearer ${getToken()}` },
+              });
+              if (res.ok) {
+                const d = await res.json();
+                router.push(`/messages/${d.chat_id}`);
+              } else {
+                alert("Не удалось открыть BotFather");
+              }
+            }} title="Создать бота через чат с BotFather (как в Telegram)"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold hover:bg-purple-500/20 hover:text-purple-600 dark:hover:text-purple-300 transition-all">
+              🤖 BotFather
+            </button>
             <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#8b5cf6] text-white text-sm font-bold hover:bg-[#7c3aed] transition-all">
               <Plus size={16} /> Создать бота
             </button>
