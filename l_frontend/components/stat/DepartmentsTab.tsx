@@ -100,13 +100,20 @@ export default function DepartmentsTab() {
       if (enabled) sections.push({ section, enabled: true, default_priority: priority });
       return { ...c, sections };
     }));
+    // 🐛 FIX: раньше в PUT уходили только уже настроенные разделы, а снятый
+    // исключался из payload — сервер не узнавал о снятии и в БД оставался
+    // enabled=true («снимаю, но не сохраняется»). Теперь шлём ВСЕ разделы
+    // с актуальным enabled, чтобы снятие тоже фиксировалось на сервере.
+    const current = chats.find((c) => c.id === chatId)?.sections || [];
+    const payload = SECTIONS.map(([sec]) => {
+      if (sec === section) return { section: sec, enabled, default_priority: priority };
+      const s = current.find((x) => x.section === sec);
+      return { section: sec, enabled: s ? s.enabled : false, default_priority: s?.default_priority || "medium" };
+    });
     fetch(`${API_URL}/api/work/chats/${chatId}/sections`, {
       method: "PUT",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-      body: JSON.stringify({ sections: chats.find((c) => c.id === chatId)?.sections
-        ?.filter((s) => s.section !== section)
-        .map((s) => ({ section: s.section, enabled: s.enabled, default_priority: s.default_priority }))
-        .concat(enabled ? [{ section, enabled: true, default_priority: priority }] : []) }),
+      body: JSON.stringify({ sections: payload }),
     }).catch(() => load());
   }
 

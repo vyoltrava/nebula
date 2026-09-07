@@ -6,7 +6,7 @@ export interface SineWaveformProps {
   /** src аудио (для вычисления статической огибающей). */
   src: string;
   /** Ref на AnalyserNode глобального плеера — живая громкость во время воспроизведения. */
-  analyserRef?: React.RefObject<AnalyserNode>;
+  analyserRef?: React.RefObject<AnalyserNode | null>;
   playing: boolean;
   /** Позиция воспроизведения 0..1 (playhead). */
   progress?: number;

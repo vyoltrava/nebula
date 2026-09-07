@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Header, HTTPException, UploadFile, File, Form, Request, WebSocket, WebSocketDisconnect, Body
+﻿from fastapi import FastAPI, Depends, Header, HTTPException, UploadFile, File, Form, Request, WebSocket, WebSocketDisconnect, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -478,6 +478,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 app.add_middleware(PerfMiddleware)
+
 
 # 🚀 Сжатие ответов (JSON-фиды, списки постов/сообщений) — до 70-80% меньше трафика
 from fastapi.middleware.gzip import GZipMiddleware

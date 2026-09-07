@@ -2,7 +2,7 @@
 import { useTheme } from "next-themes";
 import { resolveNickColor } from "@/lib/nickGlow";
 import { STICKERS } from "@/lib/stickers";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Heart, HeartCrack, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio, Eye, SmilePlus, X, Lock } from "lucide-react";
@@ -195,7 +195,9 @@ function InlinePostEditor({
   );
 }
 
-export function Post({
+// 🚀 PERF: memo — карточка поста в ленте не ререндерится при обновлении
+// соседних постов/счётчиков (props — примитивы, shallow-сравнение достаточно).
+export const Post = memo(function Post({
   id,
   author_id,
   author,
@@ -1377,7 +1379,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
 
     </article>
   );
-}
+});
 
 // 🆕 Компонент отдельного ответа (рекурсивный)
 function ReplyItem({

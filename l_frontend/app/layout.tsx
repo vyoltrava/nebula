@@ -10,6 +10,7 @@ import { ShellSwitcherGate } from "@/components/ShellSwitcherGate";
 import { NebulaGate } from "@/components/NebulaGate";
 import {PermissionGate} from "@/components/PermissionGate";
 import PWARegister from "@/components/PWARegister";
+import { ReportWebVitals } from "@/components/ReportWebVitals";
 import InstallPrompt from "@/components/InstallPrompt";
 import ConnectionStatus from "@/components/ConnectionStatus";
 import { NotificationPermissionPrompt } from "@/components/NotificationPermissionPrompt";
@@ -54,6 +55,20 @@ export const metadata: Metadata = {
   },
   // Полный манифест лежит в public/manifest.json (иконки генерирует scripts/generate-icons.mjs)
   manifest: "/manifest.json",
+  // 🌐 SEO/OG: превью-карточки при шаринге в соцсетях/мессенджерах
+  openGraph: {
+    type: "website",
+    siteName: "trelod",
+    title: "trelod — социальная сеть",
+    description: "Социальная сеть: посты, каналы, чаты и гифки в одном месте.",
+    locale: "ru_RU",
+    images: [{ url: "/apple-touch-icon.png", width: 180, height: 180, alt: "trelod" }],
+  },
+  twitter: {
+    card: "summary",
+    title: "trelod",
+    description: "Социальная сеть: посты, каналы, чаты.",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -141,6 +156,7 @@ export default function RootLayout({
         <AnimatedBackground />
         <GlobalPlayerProvider>
         <PWARegister />
+        <ReportWebVitals />
         <IconThemeInit />
         <InstallPrompt />
         <ConnectionStatus />

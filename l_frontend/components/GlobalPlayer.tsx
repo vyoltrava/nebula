@@ -24,7 +24,7 @@ interface Ctx {
   /** ������� <video>?������� ����������� (���� 3: ���� ������ � ���, � �� �� �������� muted?�����). */
   registerVideoPlayer: (el: HTMLVideoElement | null) => void;
   /** AnalyserNode ��� ������������ ����� (���� 4). */
-  analyserRef: React.RefObject<AnalyserNode>;
+  analyserRef: React.RefObject<AnalyserNode | null>;
 }
 
 const GlobalPlayerContext = createContext<Ctx | null>(null);

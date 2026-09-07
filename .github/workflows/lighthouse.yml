@@ -1,0 +1,32 @@
+name: Lighthouse CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: l_frontend/package-lock.json
+      - name: Install
+        working-directory: l_frontend
+        run: npm ci
+      - name: Build
+        working-directory: l_frontend
+        run: npm run build
+      - name: Start preview server
+        working-directory: l_frontend
+        run: npx next start -p 3000 &
+      - name: Wait for server
+        run: npx wait-on http://localhost:3000
+      - name: Run Lighthouse CI
+        working-directory: l_frontend
+        run: npx @lhci/cli@0.14.x autorun --config=./lighthouserc.mjs

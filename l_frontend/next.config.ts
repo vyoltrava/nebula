@@ -12,11 +12,21 @@ const connectSrc = [
   apiHost ? `wss://${apiHost}` : "wss:",
 ].join(" ");
 
-const nextConfig: NextConfig = {
+// 🚀 PERF: базовый конфиг вынесен в const, чтобы wrapper bundle-analyzer мог его оборачивать
+const nextConfigBase: NextConfig = {
+  // 🚀 PERF: строгий режим + скрытие заголовка X-Powered-By + сжатие ответов
+  reactStrictMode: true,
+  poweredByHeader: false,
+  compress: true,
   transpilePackages: ["@noble/curves", "@noble/ciphers"],
   // 🖼 Оптимизация изображений: разрешаем внешние источники (аватары Cloudinary/Google,
   // медиа с backend). '*' внизу — чтобы не сломать кастомные домены медиа-хранилища.
+  // 🖼 Оптимизация изображений: разрешаем внешние источники (аватары Cloudinary/Google,
+  // медиа с backend). '*' внизу — чтобы не сломать кастомные домены медиа-хранилища.
   images: {
+    // 🚀 PERF: AVIF/WebP автоматически для всех next/image (обычно −40…70% веса)
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 дней — оптимизированные картинки неизменяемы
     remotePatterns: [
       { protocol: "https", hostname: "res.cloudinary.com", pathname: "/**" },
       { protocol: "https", hostname: "lh3.googleusercontent.com", pathname: "/**" },
@@ -121,4 +131,15 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default async function nextConfig(): Promise<NextConfig> {
+  // 📊 Bundle analyzer: `ANALYZE=true npm run build` — работает только если пакет установлен
+  if (process.env.ANALYZE === "true") {
+    try {
+      const { default: withBundleAnalyzer } = await import("@next/bundle-analyzer");
+      return withBundleAnalyzer({ enabled: true })(nextConfigBase);
+    } catch {
+      console.warn("⚠ @next/bundle-analyzer не установлен: npm i -D @next/bundle-analyzer");
+    }
+  }
+  return nextConfigBase;
+}

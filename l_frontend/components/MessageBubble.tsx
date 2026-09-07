@@ -2,6 +2,7 @@
 "use client";
 import React, { memo } from 'react';
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import { Avatar } from './Avatar';
 import { UserPrefixBadge } from './UserPrefixBadge';
 import { useUserPrefix } from './UserPrefixProvider';
@@ -191,18 +192,22 @@ export const MessageBubble = memo(function MessageBubble({
             ) : (
               <>
                 {msg.media_url && (msg.media_type === "image" || msg.media_type === "gif") && (
-                  <img src={mediaUrl(msg.media_url)} alt="" className={getMediaClasses(msg.media_type)} />
+                  // 🚀 PERF: next/image — автоматически WebP/AVIF + lazy + отзыв от бандла
+                  <img src={mediaUrl(msg.media_url)} alt="" className={getMediaClasses(msg.media_type)} loading="lazy" decoding="async" />
                 )}
                 {msg.media_url && msg.media_type === "video" && <VideoPlayer src={msg.media_url} className={getMediaClasses("video")} />}
                 {msg.media_url && msg.media_type === "audio" && <AudioPlayer src={mediaUrl(msg.media_url)} trackId={msg.id} title={`${msg.sender_name} · ${formatChatTime(msg.created_at)}`} />}
                 {msg.media_url && msg.media_type === "video_note" && <VideoNotePlayer src={mediaUrl(msg.media_url)} trackId={msg.id} title={`${msg.sender_name} · ${formatChatTime(msg.created_at)}`} />}
 
-                {/* 🆕 Рендер стикеров как сообщений */}
+                {/* 🆕 Рендер стикеров как сообщений — размеры фиксированы (w-32/h-32→128px), поэтому next/image с width/height безопасен. */}
                 {isSticker && (
-                  <img 
-                    src={mediaUrl(msg.media_url)} 
-                    alt="sticker" 
-                    className="w-32 h-32 sm:w-40 sm:h-40 object-contain" 
+                  <Image
+                    src={mediaUrl(msg.media_url)}
+                    alt="sticker"
+                    width={128}
+                    height={128}
+                    sizes="(max-width: 640px) 128px, 160px"
+                    className="w-32 h-32 sm:w-40 sm:h-40 object-contain"
                   />
                 )}
               </>
