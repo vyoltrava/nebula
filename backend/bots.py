@@ -105,6 +105,38 @@ def list_bots(mine: int = 0, user: User = Depends(get_current_user),
         q.order_by(Bot.id.desc()).limit(200)).all()]
 
 
+@router.get("/chats/{chat_id}/bot-commands")
+def chat_bot_commands(chat_id: int, user: User = Depends(get_current_user),
+                      session: Session = Depends(get_session)):
+    """Команды всех ботов в чате — для подсказок при вводе '/' (как в Telegram)."""
+    member = session.exec(select(ChatMember).where(
+        ChatMember.chat_id == chat_id, ChatMember.user_id == user.id)).first()
+    if not member:
+        raise HTTPException(403, "Не участник чата")
+    result = []
+    for m in session.exec(select(ChatMember).where(
+            ChatMember.chat_id == chat_id)).all():
+        bu = session.get(User, m.user_id)
+        if not bu or not bu.is_bot:
+            continue
+        b = session.exec(select(Bot).where(Bot.user_id == bu.id)).first()
+        if not b:
+            continue
+        cmds = session.exec(select(BotCommand).where(
+            BotCommand.bot_id == b.id, BotCommand.enabled == True)  # noqa: E712
+            .order_by(BotCommand.id)).all()
+        if not cmds:
+            continue
+        result.append({
+            "bot_id": b.id, "bot_username": b.username, "bot_name": b.name,
+            "bot_user_id": bu.id,
+            "commands": [{"command": c.command,
+                          "description": (c.reply or c.command)[:200]}
+                         for c in cmds],
+        })
+    return {"bots": result}
+
+
 class BotCreateIn(BaseModel):
     name: str
     type: str = "custom"
@@ -298,14 +330,27 @@ def get_worker_bot_for_chat(session: Session, chat_id: int) -> Optional[Bot]:
 BOTFATHER_USERNAME = "botfather"
 
 
+# 🖼 Аватар BotFather: статика из public-папки фронтенда ("public:"-префикс).
+# Заменить — просто положить другой файл: nebula/l_frontend/public/botfather.png
+BOTFATHER_AVATAR = "public:/botfather.png"
+
+
 def ensure_botfather(session: Session) -> Bot:
     """Создаёт системного бота BotFather (аккаунт is_bot, личка)."""
     b = session.exec(select(Bot).where(
         Bot.username == BOTFATHER_USERNAME)).first()
     if b:
+        # 🖼 проставляем аватар, если его ещё нет (старые БД)
+        if b.user_id:
+            bu = session.get(User, b.user_id)
+            if bu and not bu.avatar_url:
+                bu.avatar_url = BOTFATHER_AVATAR
+                session.add(bu)
+                session.commit()
         return b
     bu = User(username=BOTFATHER_USERNAME, display_name="BotFather",
-              password_hash=secrets.token_hex(16), is_bot=True)
+              password_hash=secrets.token_hex(16), is_bot=True,
+              avatar_url=BOTFATHER_AVATAR)
     session.add(bu)
     session.commit()
     session.refresh(bu)

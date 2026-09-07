@@ -56,6 +56,62 @@ export default function BotsPage() {
   const [apiInfo, setApiInfo] = useState<any>(null);
   const [apiToken, setApiToken] = useState<string>("");
   const [apiWebhook, setApiWebhook] = useState<string>("");
+  // 👨💻 BotFather-модалка (как в Telegram)
+  const [showBotFather, setShowBotFather] = useState(false);
+  const [bfChatId, setBfChatId] = useState<number | null>(null);
+  const [bfMessages, setBfMessages] = useState<any[]>([]);
+  const [bfInput, setBfInput] = useState("");
+  const [bfLoading, setBfLoading] = useState(false);
+  const [bfSending, setBfSending] = useState(false);
+  const [bfCmdQuery, setBfCmdQuery] = useState<string | null>(null);
+
+  const BF_COMMANDS: [string, string][] = [
+    ["/newbot", "Создать бота"],
+    ["/mybots", "Мои боты"],
+    ["/token", "Токены"],
+    ["/setcommands", "Команды бота"],
+    ["/help", "Помощь"],
+  ];
+
+  async function openBotFather() {
+    const res = await fetch(`${API_URL}/api/admin/bots/botfather/open`, {
+      method: "POST", headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!res.ok) { alert("Не удалось открыть BotFather"); return; }
+    const d = await res.json();
+    setBfChatId(d.chat_id);
+    setShowBotFather(true);
+    setBfCmdQuery(null); setBfInput(""); setBfMessages([]);
+    loadBfMessages(d.chat_id);
+  }
+
+  async function loadBfMessages(chatId: number) {
+    setBfLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/chats/${chatId}/messages`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setBfMessages(Array.isArray(d) ? d : d.messages || []);
+      }
+    } finally { setBfLoading(false); }
+  }
+
+  async function sendBfCommand() {
+    const t = bfInput.trim();
+    if (!t || !bfChatId || bfSending) return;
+    setBfSending(true); setBfInput(""); setBfCmdQuery(null);
+    const fd = new FormData();
+    fd.append("text", t);
+    try {
+      await fetch(`${API_URL}/api/chats/${bfChatId}/messages`, {
+        method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd,
+      });
+      // даём боту время ответить и грузим свежие сообщения
+      setTimeout(() => loadBfMessages(bfChatId!), 450);
+    } finally { setBfSending(false); }
+  }
 
   async function load() {
     const token = getToken();
@@ -292,17 +348,7 @@ export default function BotsPage() {
                 <p className="text-xs text-gray-600 dark:text-white/50 mt-0.5">Создавай своих ботов и управляй ими</p>
               </div>
             </div>
-            <button onClick={async () => {
-              const res = await fetch(`${API_URL}/api/admin/bots/botfather/open`, {
-                method: "POST", headers: { Authorization: `Bearer ${getToken()}` },
-              });
-              if (res.ok) {
-                const d = await res.json();
-                router.push(`/messages/${d.chat_id}`);
-              } else {
-                alert("Не удалось открыть BotFather");
-              }
-            }} title="Создать бота через чат с BotFather (как в Telegram)"
+            <button onClick={openBotFather} title="Создать бота через BotFather (как в Telegram)"
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold hover:bg-purple-500/20 hover:text-purple-600 dark:hover:text-purple-300 transition-all">
               🤖 BotFather
             </button>
@@ -343,6 +389,92 @@ export default function BotsPage() {
             </>
           )}
         </div>
+
+        {/* ===== 👨💻 МОДАЛКА BotFather — как в Telegram ===== */}
+        {showBotFather && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={() => setShowBotFather(false)}>
+            <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl flex flex-col pointer-events-auto max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+              {/* Шапка */}
+              <div className="p-4 border-b border-line dark:border-white/10 flex items-center gap-3">
+                <img src="/botfather.png" alt="BotFather"
+                  className="w-10 h-10 rounded-full object-cover bg-[#8b5cf6]/20 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-gray-900 dark:text-white">BotFather</p>
+                  <p className="text-[11px] text-gray-500 dark:text-white/40">@botfather · отец всех ботов</p>
+                </div>
+                <button onClick={() => setShowBotFather(false)} className="p-2 rounded-lg text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white"><X size={18} /></button>
+              </div>
+              {/* Подсказка команд */}
+              <div className="px-4 py-2 border-b border-line dark:border-white/10 flex gap-1.5 flex-wrap">
+                {BF_COMMANDS.map(([c, d]) => (
+                  <button key={c} onClick={() => { setBfInput(c + " "); setBfCmdQuery(null); }}
+                    title={d}
+                    className="px-2 py-1 rounded-lg bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-white/70 text-[11px] font-mono font-bold hover:bg-[#8b5cf6]/15 hover:text-[#8b5cf6] transition-all">
+                    {c}
+                  </button>
+                ))}
+              </div>
+              {/* Сообщения */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-2 min-h-[240px] bg-gray-50 dark:bg-black/20">
+                {bfLoading && <p className="text-center text-gray-400 text-xs py-8">Загрузка…</p>}
+                {!bfLoading && bfMessages.length === 0 && (
+                  <p className="text-center text-gray-500 dark:text-white/40 text-sm py-8">Скажи /newbot, чтобы создать бота</p>
+                )}
+                {bfMessages.map((m) => {
+                  const mine = m.sender_id === me?.id;
+                  return (
+                    <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                      <div className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words ${
+                        mine
+                          ? "bg-[#8b5cf6] text-white rounded-br-sm"
+                          : "bg-gray-200 dark:bg-white/10 text-gray-900 dark:text-white rounded-bl-sm"
+                      }`}>
+                        {m.text}
+                      </div>
+                    </div>
+                  );
+                })}
+                {bfSending && <p className="text-xs text-gray-400 text-center">BotFather печатает…</p>}
+              </div>
+              {/* Ввод */}
+              <div className="p-3 border-t border-line dark:border-white/10 relative">
+                {bfCmdQuery !== null && (
+                  <div className="absolute bottom-full left-3 mb-2 w-64 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden">
+                    {BF_COMMANDS.filter(([c]) => !bfCmdQuery || c.startsWith("/" + bfCmdQuery)).map(([c, d]) => (
+                      <button key={c} type="button"
+                        onClick={() => { setBfInput(c + " "); setBfCmdQuery(null); }}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-white/10 text-left">
+                        <span className="text-sm text-gray-900 dark:text-white font-mono">{c}</span>
+                        <span className="text-[11px] text-gray-500 dark:text-white/40">{d}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <input
+                    value={bfInput}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setBfInput(v);
+                      const m = v.match(/^\/([\w]*)$/);
+                      setBfCmdQuery(m ? m[1] : null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") { e.preventDefault(); sendBfCommand(); }
+                      if (e.key === "Escape") setBfCmdQuery(null);
+                    }}
+                    placeholder="Написать команду…"
+                    autoFocus
+                    className="flex-1 px-3 py-2 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-[#8b5cf6]" />
+                  <button onClick={sendBfCommand} disabled={bfSending || !bfInput.trim()}
+                    className="shrink-0 px-4 py-2 rounded-xl bg-[#8b5cf6] text-white text-sm font-bold hover:bg-[#7c3aed] disabled:opacity-40">
+                    ➤
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ===== Модалка создания ===== */}
         {showCreate && (

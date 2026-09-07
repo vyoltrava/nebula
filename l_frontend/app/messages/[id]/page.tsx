@@ -189,6 +189,10 @@ export default function ChatPage() {
   const [chatMembers, setChatMembers] = useState<any[]>([]);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionSuggestions, setMentionSuggestions] = useState<any[]>([]);
+  // 🤖 подсказки команд ботов (ввод '/')
+  const [cmdQuery, setCmdQuery] = useState<string | null>(null);
+  const [cmdSuggestions, setCmdSuggestions] = useState<any[]>([]);
+  const [chatBotCommands, setChatBotCommands] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [chatPartner, setChatPartner] = useState<any>(null);
   const [chatInfo, setChatInfo] = useState<any>(null);
@@ -1102,12 +1106,20 @@ const selectMention = (user: any) => {
     setMentionSuggestions([]);
     
     setTimeout(() => {
-        if (textareaRef.current) {
-            textareaRef.current.focus();
-            const newCursorPos = newTextBefore.length;
-            textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        if (editorRef.current) {
+            editorRef.current.focus();
         }
     }, 0);
+};
+
+// 🤖 Выбор подсказки команды бота (ввод '/')
+const selectCommand = (item: any) => {
+    const newVal = text.replace(/\/[\w]*$/, item.command + " ");
+    setText(newVal);
+    sendLiveText(newVal);
+    setCmdQuery(null);
+    setCmdSuggestions([]);
+    setTimeout(() => editorRef.current?.focus(), 0);
 };
 
 
@@ -1885,6 +1897,13 @@ fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me/live-text-settings`, {
         if (Array.isArray(data)) setChatMembers(data);
     }).catch(() => {});
 
+    // 🤖 Команды ботов в этом чате — для подсказок при вводе '/'
+    fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/bot-commands`, {
+        headers: { Authorization: `Bearer ${getToken()}` }
+    }).then(r => r.json()).then(data => {
+        if (data && Array.isArray(data.bots)) setChatBotCommands(data.bots);
+    }).catch(() => {});
+
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/chats/${chatId}/read`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
@@ -2372,7 +2391,8 @@ const ChatHeader = () => (
                 <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
                   
                   {/* 🔥 ЗВОНКИ: единая кнопка с заглушкой (звонки временно недоступны) */}
-{!isGroup && !isSavedChat && chatPartner && (
+{/* 🤖 ботам звонить нельзя */}
+{!isGroup && !isSavedChat && chatPartner && !chatPartner.is_bot && (
   <button
     onClick={showCallDisabled}
     className="p-2.5 sm:p-2 text-[#8b5cf6] hover:bg-[#8b5cf6]/10 rounded-lg transition-colors active:scale-95"
@@ -2493,7 +2513,8 @@ const ChatHeader = () => (
           <div className="sm:hidden h-px bg-gray-100 dark:bg-white/10 my-1" />
 
           {/* 🖥️ ОБЩИЕ КНОПКИ МЕНЮ */}
-          {!isSavedChat && chatPartner?.id && (
+          {/* 🤖 на ботов жаловаться нельзя */}
+          {!isSavedChat && chatPartner?.id && !chatPartner.is_bot && (
             <button
               onClick={() => {
                 setReportTarget({ type: "dm_user", id: chatPartner.id, label: chatPartner.display_name });
@@ -2994,6 +3015,21 @@ onDoubleClick={(e) => {
 
 {/* 🆕 ПОЛЕ ВВОДА — ТЕПЕРЬ WYSIWYG */}
 <div className="relative flex-1 flex items-end">
+  {cmdSuggestions.length > 0 && cmdQuery !== null && (
+    <div className="absolute bottom-full left-0 mb-2 w-72 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+      {cmdSuggestions.map((c, i) => (
+        <button key={`${c.bot_username}-${c.command}-${i}`} type="button" onClick={() => selectCommand(c)} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-white/10 text-left transition-colors">
+          <span className="text-lg">🤖</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-gray-900 dark:text-white font-mono font-medium truncate">{c.command}</p>
+            <p className="text-xs text-gray-500 dark:text-white/40 truncate">
+              {c.bot_username ? `@${String(c.bot_username).toLowerCase()} · ` : ""}{c.description}
+            </p>
+          </div>
+        </button>
+      ))}
+    </div>
+  )}
   {mentionSuggestions.length > 0 && mentionQuery !== null && (
     <div className="absolute bottom-full left-0 mb-2 w-64 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
       {mentionSuggestions.map((u) => (
@@ -3016,21 +3052,39 @@ onDoubleClick={(e) => {
         setText(v);
         // упоминания — парсим markdown
         const lastAt = v.lastIndexOf("@");
-        if (lastAt !== -1) {
-          const q = v.slice(lastAt + 1).toLowerCase();
-          if (/^[\w]*$/.test(q) && !/\s/.test(q)) {
-            setMentionQuery(q);
-            setMentionSuggestions(
-              chatMembers
-                .map(m => m.user)
-                .filter(u => u.username.toLowerCase().includes(q) || (u.display_name && u.display_name.toLowerCase().includes(q)))
-                .slice(0, 5)
+        const mentionOk = lastAt !== -1 && /^[\w]*$/.test(v.slice(lastAt + 1)) && !/\s/.test(v.slice(lastAt + 1));
+        // 🤖 команды ботов — токен '/' в конце строки
+        const slashMatch = v.match(/(?:^|\s)\/([\w]*)$/);
+        if (!mentionOk && slashMatch) {
+          const q = slashMatch[1].toLowerCase();
+          setCmdQuery(q);
+          const items: any[] = [];
+          for (const b of chatBotCommands) {
+            const filtered = b.commands.filter(
+              (c: any) => !q || c.command.replace(/^\//, "").toLowerCase().startsWith(q)
             );
-            return;
+            for (const c of filtered) items.push({ ...c, bot_username: b.bot_username, bot_name: b.bot_name });
           }
+          setCmdSuggestions(items.slice(0, 8));
+          setMentionQuery(null); setMentionSuggestions([]);
+          return;
+        }
+        if (mentionOk) {
+          const q = v.slice(lastAt + 1).toLowerCase();
+          setMentionQuery(q);
+          setMentionSuggestions(
+            chatMembers
+              .map(m => m.user)
+              .filter(u => u.username.toLowerCase().includes(q) || (u.display_name && u.display_name.toLowerCase().includes(q)))
+              .slice(0, 5)
+          );
+          setCmdQuery(null); setCmdSuggestions([]);
+          return;
         }
         setMentionQuery(null);
         setMentionSuggestions([]);
+        setCmdQuery(null);
+        setCmdSuggestions([]);
         sendLiveText(v);
       }}
       placeholder={isSecret ? (secretState === "ready" ? t("messages.encryptedPlaceholder") : t("messages.waitingEncrypt")) : isGroup ? t("messages.groupPlaceholder") : t("messages.msgPlaceholder")}

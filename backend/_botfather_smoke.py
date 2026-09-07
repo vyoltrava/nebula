@@ -24,6 +24,14 @@ print("open:", r.status_code, r.json())
 assert r.status_code == 200 and r.json()["chat_id"], r.text
 chat_id = r.json()["chat_id"]
 
+# 🖼 у BotFather есть аватар из public-папки фронтенда
+with Session(engine) as s:
+    bf_user = s.exec(select(models.User).where(
+        models.User.username == "botfather")).first()
+    assert bf_user, "BotFather не создан"
+    assert bf_user.avatar_url == "public:/botfather.png", bf_user.avatar_url
+    print("botfather avatar ok:", bf_user.avatar_url)
+
 # повторный вызов — тот же чат (идемпотентно)
 r2 = client.post("/api/admin/bots/botfather/open", headers=tok)
 assert r2.json()["chat_id"] == chat_id, r2.json()
@@ -60,5 +68,17 @@ with Session(engine) as s:
     cmds = s.exec(select(models.BotCommand).where(models.BotCommand.bot_id == bot.id)).all()
     print("commands:", [(c.command, c.reply) for c in cmds])
     assert any(c.command == "/hello" and c.reply == "Приветствие!" for c in cmds), cmds
+
+# 🤖 подсказки команд: /chats/{id}/bot-commands возвращает команды ботов в чате
+r = client.get("/api/chats/%d/bot-commands" % chat_id, headers=tok)
+data = r.json()
+print("bot-commands:", r.status_code, data)
+assert r.status_code == 200 and "bots" in data
+all_commands = [c["command"] for b in data["bots"] for c in b["commands"]]
+assert "/newbot" in all_commands, all_commands  # команды BotFather в личке
+# не-участник чата → 403
+r = client.get("/api/chats/999999/bot-commands", headers=tok)
+assert r.status_code == 403, r.status_code
+print("command-hints endpoint ok")
 
 print("BOTFATHER SMOKE OK")
