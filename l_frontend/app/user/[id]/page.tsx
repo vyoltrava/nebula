@@ -31,6 +31,7 @@ import { validateUpload, uploadErrorText, UPLOAD_RULES } from "@/lib/uploadRules
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { useNebulaMode } from "@/lib/useNebula";
 import { NebulaBlocked } from "@/components/NebulaBlocked";
+import { BotProfileView } from "@/components/BotProfileView";
 
 
 export default function UserProfilePage() {
@@ -508,6 +509,11 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
         </main>
       </div>
     );
+  }
+
+  // 🤖 Боты — скрытая каста: специальная страница только с «Написать» и «Добавить в чат»
+  if (profile.is_bot) {
+    return <BotProfileView profile={profile} />;
   }
 
   const canBan = 

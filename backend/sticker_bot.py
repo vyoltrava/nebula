@@ -23,6 +23,8 @@ from websocket_manager import manager
 router = APIRouter(tags=["sticker-bot"])
 
 STICKERBOT_USERNAME = "stickerbot"
+# 🖼 Аватар StickerBot: статика из public (меняется заменой файла)
+STICKERBOT_AVATAR = "public:/stickerbot.png"
 
 
 def utcnow():
@@ -44,9 +46,16 @@ def ensure_stickerbot(session: Session) -> Bot:
     b = session.exec(select(Bot).where(
         Bot.username == STICKERBOT_USERNAME)).first()
     if b:
+        # проставляем аватар, если его ещё нет (старые БД)
+        if b.user_id:
+            bu = session.get(User, b.user_id)
+            if bu and not bu.avatar_url:
+                bu.avatar_url = STICKERBOT_AVATAR
+                session.add(bu); session.commit()
         return b
     bu = User(username=STICKERBOT_USERNAME, display_name="StickerBot",
-              password_hash=secrets.token_hex(16), is_bot=True)
+              password_hash=secrets.token_hex(16), is_bot=True,
+              avatar_url=STICKERBOT_AVATAR)
     session.add(bu); session.commit(); session.refresh(bu)
     b = Bot(name="StickerBot", username=STICKERBOT_USERNAME,
             description="Единый стикер-бот. Создаёт пользовательские стикерпаки.",

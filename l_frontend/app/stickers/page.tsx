@@ -23,6 +23,7 @@ export default function StickersPage() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"mine" | "catalog">("mine");
   const [catalog, setCatalog] = useState<Pack[]>([]);
+  const [catalogQuery, setCatalogQuery] = useState("");
 
   async function load() {
     const token = getToken();
@@ -225,13 +226,22 @@ return (
           {/* 🌐 Каталог публичных паков */}
           {tab === "catalog" && (
             <div className="space-y-3">
-              {catalog.length === 0 && (
+              <input value={catalogQuery} onChange={(e) => setCatalogQuery(e.target.value)}
+                placeholder="Поиск по названию или @автору…"
+                className="w-full px-3 py-2.5 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-[#8b5cf6]" />
+              {(() => {
+                const q = catalogQuery.trim().toLowerCase();
+                const filtered = !q ? catalog : catalog.filter((p) =>
+                  p.name.toLowerCase().includes(q) || (p.owner_username || "").toLowerCase().includes(q));
+                return (
+                  <>
+                  {filtered.length === 0 && (
                 <div className="text-center py-12 border border-dashed border-line dark:border-white/15 rounded-2xl">
                   <Globe2 size={44} className="mx-auto text-gray-400 dark:text-white/20 mb-3" />
-                  <p className="text-gray-600 dark:text-white/50 text-sm">Пока нет публичных паков</p>
+                  <p className="text-gray-600 dark:text-white/50 text-sm">{q ? `Ничего не найдено по «${catalogQuery}»` : "Пока нет публичных паков"}</p>
                 </div>
               )}
-              {catalog.map((p) => (
+              {filtered.map((p) => (
                 <div key={p.id} className={`border rounded-2xl overflow-hidden ${p.banned ? "border-red-500/40 bg-red-500/5 opacity-60" : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5"}`}>
                   <div className="p-3 flex items-center gap-2.5">
                     <div className="w-9 h-9 rounded-lg bg-[#8b5cf6]/15 text-[#8b5cf6] flex items-center justify-center shrink-0"><Globe2 size={18} /></div>
@@ -252,6 +262,9 @@ return (
                   </div>
                 </div>
               ))}
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>

@@ -9,7 +9,7 @@ import { Bot, X, Copy, Check, RefreshCw, Loader2, KeyRound } from "lucide-react"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
-function ModalHeader({ onClose, subtitle }: { onClose: () => void; subtitle: string }) {
+function ModalHeader({ onClose, subtitle, onOfficial }: { onClose: () => void; subtitle: string; onOfficial?: () => void }) {
   return (
     <div className="p-4 border-b border-line dark:border-white/10 flex items-center gap-3 sticky top-0 bg-ivory dark:bg-[#1f1f23] z-10">
       <img src="/botfather.png" alt="BotFather" className="w-9 h-9 rounded-full object-cover bg-[#8b5cf6]/20 shrink-0" />
@@ -17,6 +17,12 @@ function ModalHeader({ onClose, subtitle }: { onClose: () => void; subtitle: str
         <p className="font-bold text-gray-900 dark:text-white">BotFather</p>
         <p className="text-[11px] text-gray-500 dark:text-white/40">{subtitle}</p>
       </div>
+      {onOfficial && (
+        <button onClick={onOfficial} title="Официальные боты платформы"
+          className="px-2.5 py-1.5 rounded-lg text-xs font-bold text-[#8b5cf6] bg-[#8b5cf6]/10 hover:bg-[#8b5cf6]/20 transition-colors">
+          🏛 Официальные
+        </button>
+      )}
       <button onClick={onClose} className="p-2 rounded-lg text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white"><X size={18} /></button>
     </div>
   );
@@ -109,6 +115,8 @@ export function BotFatherModal({ mode, onClose }: { mode: "create" | "bots"; onC
   const [loadingBots, setLoadingBots] = useState(false);
   const [resettingId, setResettingId] = useState<number | null>(null);
   const [editBot, setEditBot] = useState<any | null>(null);
+  const [official, setOfficial] = useState<any[]>([]);
+  const [openTab, setOpenTab] = useState<"main" | "official" | null>(null);
 
   useEffect(() => {
     if (mode === "bots") {
@@ -121,8 +129,19 @@ export function BotFatherModal({ mode, onClose }: { mode: "create" | "bots"; onC
         .catch(() => setBots([]))
         .finally(() => setLoadingBots(false));
     }
-    return () => { setStep("name"); setName(""); setUsername(""); setError(""); setIssuedToken(""); setCopied(false); };
+    return () => { setStep("name"); setName(""); setUsername(""); setError(""); setIssuedToken(""); setCopied(false); setEditBot(null); };
   }, [mode]);
+
+  // 🏛 официальные боты (загружаем один раз)
+  useEffect(() => {
+    fetch(`${API_URL}/api/botfather/official-bots`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+      .then(r => r.json())
+      .then(d => setOfficial(Array.isArray(d) ? d : []))
+      .catch(() => setOfficial([]));
+    // eslint-disable-next-line
+  }, []);
 
   async function createBot() {
     setSaving(true); setError("");
@@ -160,12 +179,25 @@ export function BotFatherModal({ mode, onClose }: { mode: "create" | "bots"; onC
     setTimeout(() => setCopied(false), 1500);
   }
 
+  async function openOfficialBot(username: string) {
+    const res = await fetch(`${API_URL}/api/botfather/official/${username}/open`, {
+      method: "POST", headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (res.ok) {
+      const d = await res.json();
+      setOpenTab(null);
+      window.location.href = `/messages/${d.chat_id}`;
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300] flex items-center justify-center p-4" onClick={onClose}>
       <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl pointer-events-auto max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <ModalHeader onClose={onClose} subtitle={mode === "create" ? "Создание бота" : "Мои боты"} />
+        <ModalHeader onClose={onClose} subtitle={mode === "create" ? "Создание бота" : "Мои боты"} onOfficial={() => setOpenTab(openTab === "official" ? null : "official")} />
         <div className="p-4 space-y-4">
-          {mode === "create" && step === "name" && (
+          {openTab === "official" ? (
+            <OfficialBots official={official} onOpenBot={(u) => openOfficialBot(u)} onClose={() => setOpenTab(null)} />
+          ) : mode === "create" && step === "name" && (
             <>
               <p className="text-sm text-gray-600 dark:text-white/60">Придумай имя для своего бота.</p>
               <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60}
@@ -214,13 +246,44 @@ export function BotFatherModal({ mode, onClose }: { mode: "create" | "bots"; onC
   );
 }
 
-// ⚙️ Форма настройки бота: имя, описание, ссылка, аватарка
+// 🏛 Официальные боты платформы (system=True): открыть личку
+function OfficialBots({ official, onOpenBot, onClose }: {
+  official: any[]; onOpenBot: (username: string) => void; onClose: () => void;
+}) {
+  if (official.length === 0) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-gray-600 dark:text-white/60">Официальные боты платформы — отдельная каста. Открой чат с любым.</p>
+        <button onClick={onClose} className="w-full py-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold">Назад</button>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-gray-600 dark:text-white/60">Официальные боты платформы — отдельная каста. Открой чат с любым.</p>
+      {official.map((b) => (
+        <div key={b.id} className="flex items-center gap-2.5 p-3 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5">
+          <img src={b.avatar_url?.startsWith("public:") ? b.avatar_url.slice(7) : (b.avatar_url || "")}
+            alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{b.name}</p>
+            <p className="text-[10px] text-gray-500 dark:text-white/40 truncate">@{b.username}</p>
+          </div>
+          <button onClick={() => onOpenBot(b.username)}
+            className="shrink-0 px-3 py-1.5 rounded-lg bg-[#8b5cf6] text-white text-[11px] font-bold hover:bg-[#7c3aed]">
+            Открыть
+          </button>
+        </div>
+      ))}
+      <button onClick={onClose} className="w-full py-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold">Назад</button>
+    </div>
+  );
+}
 function EditBotForm({ bot, onBack, onSaved }: {
   bot: any; onBack: () => void; onSaved: () => void;
 }) {
   const [name, setName] = useState(bot.name || "");
   const [description, setDescription] = useState(bot.description || "");
-  const [link, setLink] = useState(bot.link || "");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
     bot.avatar_url ? (bot.avatar_url.startsWith("public:") ? bot.avatar_url.slice(7) : bot.avatar_url) : null);
   const [file, setFile] = useState<File | null>(null);
@@ -234,7 +297,7 @@ function EditBotForm({ bot, onBack, onSaved }: {
       const res = await fetch(`${API_URL}/api/botfather/edit-bot`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
-        body: JSON.stringify({ bot_id: bot.id, name, description, link }),
+        body: JSON.stringify({ bot_id: bot.id, name, description }),
       });
       if (!res.ok) { const d = await res.json().catch(() => null); setError(d?.detail || "Ошибка сохранения"); return; }
       if (file) {
@@ -274,12 +337,6 @@ function EditBotForm({ bot, onBack, onSaved }: {
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={300} rows={2}
           placeholder="Чем занимается бот"
           className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm resize-none focus:outline-none focus:border-[#8b5cf6]" />
-      </div>
-      <div>
-        <label className="block text-xs font-bold text-gray-600 dark:text-white/50 mb-1">Ссылка (сайт / профиль)</label>
-        <input value={link} onChange={(e) => setLink(e.target.value)} maxLength={300}
-          placeholder="https://…"
-          className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-[#8b5cf6]" />
       </div>
       <p className="text-[10px] text-gray-500 dark:text-white/40">Ник @{bot.username} изменить нельзя.</p>
       {okMsg && <p className="text-green-600 dark:text-green-400 text-xs font-bold">{okMsg}</p>}

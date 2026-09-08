@@ -2515,6 +2515,25 @@ const ChatHeader = () => (
           {/* Разделитель только для мобильных */}
           <div className="sm:hidden h-px bg-gray-100 dark:bg-white/10 my-1" />
 
+          {/* 🤖 BotFather: создание бота и мои боты — через меню чата */}
+          {!isGroup && chatPartner?.is_bot && chatPartner?.username === "botfather" && (
+            <>
+              <button
+                onClick={() => { setShowBotFatherModal("create"); setShowChatMenu(false); }}
+                className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
+              >
+                <Bot size={15} className="text-[#8b5cf6]" /> Создать бота
+              </button>
+              <button
+                onClick={() => { setShowBotFatherModal("bots"); setShowChatMenu(false); }}
+                className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
+              >
+                <Bot size={15} className="text-[#8b5cf6]" /> Мои боты
+              </button>
+              <div className="h-px bg-gray-100 dark:bg-white/10 my-1" />
+            </>
+          )}
+
           {/* 🖥️ ОБЩИЕ КНОПКИ МЕНЮ */}
           {/* 🤖 на ботов жаловаться нельзя */}
           {!isSavedChat && chatPartner?.id && !chatPartner.is_bot && (
@@ -3017,19 +3036,6 @@ onDoubleClick={(e) => {
 
 
 {/* 🆕 ПОЛЕ ВВОДА — ТЕПЕРЬ WYSIWYG */}
-{/* 🤖 Панель-фичи BotFather: кнопки «Создать бота» / «Мои боты» */}
-{chatPartner?.is_bot && chatPartner?.username === "botfather" && (
-  <div className="mb-2 flex gap-2">
-    <button onClick={() => setShowBotFatherModal("create")}
-      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-[#8b5cf6] text-white text-xs font-bold hover:bg-[#7c3aed] transition-all">
-      <Bot size={14} /> Создать бота
-    </button>
-    <button onClick={() => setShowBotFatherModal("bots")}
-      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-xs font-bold hover:bg-purple-500/20 hover:text-purple-600 dark:hover:text-purple-300 transition-all">
-      <Bot size={14} /> Мои боты
-    </button>
-  </div>
-)}
 <div className="relative flex-1 flex items-end">
   {cmdSuggestions.length > 0 && cmdQuery !== null && (
     <div className="absolute bottom-full left-0 mb-2 w-72 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">

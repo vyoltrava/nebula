@@ -63,6 +63,11 @@ def valid_username(u):
     return bool(u and re.match(r"^[a-z0-9_]{3,32}$", u))
 
 
+def valid_bot_username(u):
+    """Ник бота: латиница/цифры/_, и ОБЯЗАТЕЛЬНО на конце 'bot' (как в Telegram)."""
+    return bool(valid_username(u) and u.endswith("bot"))
+
+
 @router.post("/admin/bots/botfather/open")
 def open_botfather_chat(user: User = Depends(get_current_user),
                         session: Session = Depends(get_session)):
@@ -131,6 +136,44 @@ def _bf_say(session: Session, owner_id: int, text: str):
     session.commit()
 
 
+class ChatIdIn2(BaseModel):
+    chat_id: int
+    bot_user_id: int
+
+
+@router.post("/bots/join-chat")
+def join_bot_to_chat(data: ChatIdIn2,
+                     user: User = Depends(get_current_user),
+                     session: Session = Depends(get_session)):
+    """🤖 Добавить бота в СВОЮ группу (право: owner/admin чата).
+    Боты — закрытая каста: системных добавлять нельзя.
+    bot_user_id — id аккаунта-бота (со страницы профиля бота)."""
+    b = session.exec(select(Bot).where(Bot.user_id == data.bot_user_id)).first()
+    if not b or b.system or not b.active:
+        raise HTTPException(404, "Бот не найден или выключен")
+    if not b.user_id:
+        raise HTTPException(400, "У бота нет аккаунта")
+    chat = session.get(Chat, data.chat_id)
+    if not chat:
+        raise HTTPException(404, "Чат не найден")
+    if not chat.is_group:
+        raise HTTPException(400, "Бота можно добавить только в группу")
+    me = session.exec(select(ChatMember).where(
+        ChatMember.chat_id == chat.id, ChatMember.user_id == user.id)).first()
+    if not me or me.role not in ("owner", "admin"):
+        raise HTTPException(403, "Только владелец или админ чата может добавить бота")
+    existing = session.exec(select(ChatMember).where(
+        ChatMember.chat_id == chat.id, ChatMember.user_id == b.user_id)).first()
+    if existing:
+        return {"ok": True, "already": True}
+    session.add(ChatMember(chat_id=chat.id, user_id=b.user_id, role="member"))
+    session.commit()
+    log_bot(session, b.id, "bot_joined_chat", user.id,
+            {"chat_id": chat.id, "chat_name": chat.name})
+    session.commit()
+    return {"ok": True, "chat_id": chat.id, "bot_user_id": b.user_id}
+
+
 @router.get("/admin/bots")
 def list_bots(mine: int = 0, user: User = Depends(get_current_user),
               session: Session = Depends(get_session)):
@@ -192,9 +235,9 @@ def bf_create_bot(data: BfCreateBotIn, user: User = Depends(get_current_user),
         raise HTTPException(400, "Имя обязательно")
     nick = (data.username or "").strip().lstrip("@").lower()
     if not nick:
-        nick = "bot_" + secrets.token_hex(3)
-    if not valid_username(nick):
-        raise HTTPException(400, "Ник: 3-32 символа, латиница, цифры, _")
+        nick = "bot_" + secrets.token_hex(3) + "_bot"
+    if not valid_bot_username(nick):
+        raise HTTPException(400, "Ник: латиница/цифры/_ и обязательно на конце «bot»")
     if session.exec(select(Bot).where(Bot.username == nick)).first():
         raise HTTPException(400, "Ник '@%s' занят" % nick)
     bot, api_token = _create_user_bot(session, user.id, name, nick)
@@ -230,6 +273,50 @@ def bf_my_bots(user: User = Depends(get_current_user),
     return result
 
 
+# 🏛 ОФИЦИАЛЬНЫЕ боты — отдельная каста (system=True): BotFather, StickerBot…
+@router.get("/botfather/official-bots")
+def bf_official_bots(user: User = Depends(get_current_user),
+                     session: Session = Depends(get_session)):
+    bots = session.exec(select(Bot).where(
+        Bot.system == True, Bot.active == True).order_by(Bot.id)).all()  # noqa: E712
+    out = []
+    for b in bots:
+        bu = session.get(User, b.user_id) if b.user_id else None
+        out.append({"id": b.id, "name": b.name, "username": b.username,
+                    "description": b.description,
+                    "avatar_url": bu.avatar_url if bu else None})
+    return out
+
+
+@router.post("/botfather/official/{username}/open")
+def bf_open_official(username: str, user: User = Depends(get_current_user),
+                     session: Session = Depends(get_session)):
+    """Открыть ЕДИНСТВЕННУЮ личку с официальным ботом (StickerBot и др.)."""
+    from models import Message as _Msg
+    b = session.exec(select(Bot).where(
+        Bot.username == username.lstrip("@"), Bot.system == True)).first()  # noqa: E712
+    if not b or not b.user_id:
+        raise HTTPException(404, "Официальный бот не найден")
+    # единая личка user <-> бот (идемпотентно)
+    for m in session.exec(select(ChatMember).where(
+            ChatMember.user_id == user.id)).all():
+        c = session.get(Chat, m.chat_id)
+        if c and not c.is_group and not c.is_secret:
+            others = session.exec(select(ChatMember).where(
+                ChatMember.chat_id == c.id)).all()
+            if {x.user_id for x in others} == {user.id, b.user_id}:
+                return {"ok": True, "chat_id": c.id, "bot_user_id": b.user_id}
+    c = Chat()
+    session.add(c); session.commit(); session.refresh(c)
+    session.add(ChatMember(chat_id=c.id, user_id=user.id, role="owner"))
+    session.add(ChatMember(chat_id=c.id, user_id=b.user_id, role="member"))
+    session.commit()
+    session.add(_Msg(chat_id=c.id, sender_id=b.user_id,
+                     text="Привет! Я %s 🤖\n%s" % (b.name, b.description or "")))
+    session.commit()
+    return {"ok": True, "chat_id": c.id, "bot_user_id": b.user_id}
+
+
 class BfResetIn(BaseModel):
     bot_id: int
 
@@ -263,7 +350,6 @@ class BfEditBotIn(BaseModel):
     bot_id: int
     name: Optional[str] = None
     description: Optional[str] = None
-    link: Optional[str] = None
 
 
 def _own_bot_or_404(session: Session, bot_id: int, user: User) -> Bot:
@@ -278,7 +364,7 @@ def _own_bot_or_404(session: Session, bot_id: int, user: User) -> Bot:
 @router.post("/botfather/edit-bot")
 def bf_edit_bot(data: BfEditBotIn, user: User = Depends(get_current_user),
                 session: Session = Depends(get_session)):
-    """⚙️ Настройка бота: имя, описание, ссылка (в bio аккаунта бота)."""
+    """⚙️ Настройка бота: имя, описание."""
     b = _own_bot_or_404(session, data.bot_id, user)
     if data.name is not None:
         name = data.name.strip()
@@ -286,11 +372,6 @@ def bf_edit_bot(data: BfEditBotIn, user: User = Depends(get_current_user),
             b.name = name[:60]
     if data.description is not None:
         b.description = data.description.strip()[:300]
-    if data.link is not None:
-        bu = session.get(User, b.user_id)
-        if bu:
-            bu.bio = data.link.strip()[:300]
-            session.add(bu)
     session.add(b)
     session.commit()
     log_bot(session, b.id, "bot_edited", user.id,
@@ -357,10 +438,19 @@ def create_bot(data: BotCreateIn, user: User = Depends(get_current_user),
     username = None
     if data.username:
         username = data.username.strip().lstrip("@").lower()
-        if not valid_username(username):
-            raise HTTPException(400, "Никнейм: 3-32 символа, латиница, цифры, _")
+        if not valid_bot_username(username):
+            raise HTTPException(400, "Никнейм: латиница/цифры/_ и обязательно на конце «bot»")
         if session.exec(select(Bot).where(Bot.username == username)).first():
             raise HTTPException(400, "Никнейм уже занят")
+    else:
+        # 🏷 авто-ник ВСЕГДА с припиской bot (каста пользовательских ботов)
+        base = re.sub(r"[^a-z0-9_]+", "", name.lower()).strip("_") or "bot"
+        username = base if base.endswith("bot") else base + "_bot"
+        if not valid_bot_username(username):
+            username = "bot_" + secrets.token_hex(3) + "_bot"
+        while session.exec(select(Bot).where(Bot.username == username)).first():
+            username = (username[:-4] + secrets.token_hex(2) + "_bot"
+                        if username.endswith("_bot") else username + secrets.token_hex(2) + "_bot")
     owner_id = user.id
     if data.chat_id:
         if not (user.is_admin or has_permission(user, "manage_roles", session)):
@@ -420,8 +510,8 @@ def update_bot(bot_id: int, data: BotUpdateIn,
         b.name = data.name.strip()[:60] or b.name
     if data.username is not None:
         username = data.username.strip().lstrip("@").lower()
-        if not valid_username(username):
-            raise HTTPException(400, "Никнейм: 3-32 символа, латиница, цифры, _")
+        if not valid_bot_username(username):
+            raise HTTPException(400, "Никнейм: латиница/цифры/_ и обязательно на конце «bot»")
         if session.exec(select(Bot).where(Bot.username == username,
                                           Bot.id != bot_id)).first():
             raise HTTPException(400, "Никнейм уже занят")
@@ -563,12 +653,14 @@ def ensure_botfather(session: Session) -> Bot:
     session.refresh(b)
     for cmd, reply in [
         ("/start", "Привет! Я BotFather 🤖\n\nСоздать бота — /newbot\n"
-                   "Мои боты — /mybots\nТокен — /token\nКоманды — /setcommands"),
+                   "Мои боты — /mybots\nСброс ключа — /revoke @ник\nКоманды — /setcommands\n\n"
+                   "Или кнопки над полем ввода / в меню чата (⋮)."),
         ("/newbot", "Отправь имя и ник нового бота как:\n\n"
-                    "Имя: MyBot\nНик: my_bot_bot\n\nИли просто напиши название."),
-        ("/mybots", "Напиши /mybots — покажу твоих ботов.\nПолное управление на /bots."),
-        ("/token", "Напиши /token — пришлю токены твоих ботов."),
-        ("/setcommands", "Команды настраиваются на /bots → бот → «Команды»."),
+                    "Имя: MyBot\nНик: my_helper_bot\n\nИли просто напиши название."),
+        ("/mybots", "Напиши /mybots — покажу твоих ботов.\nУправление: меню чата (⋮)."),
+        ("/token", "API-ключ выдаётся один раз при создании. Забыл — /revoke @ник."),
+        ("/setcommands", "Формат: /setcommands <ник> <команда> <описание>\n"
+                         "Пример: /setcommands my_helper_bot /start Привет"),
     ]:
         session.add(BotCommand(bot_id=b.id, command=cmd, reply=reply,
                                action="reply_text", payload="{}"))
@@ -832,7 +924,10 @@ def handle_botfather_dm(session: Session, sender_id: int, text: str) -> bool:
         if not name:
             send("Напиши так:\n/newbot MyBot\nИли:\nИмя: MyBot")
             return True
-        nick = nick or ("bot_" + secrets.token_hex(3))
+        nick = nick or ("bot_" + secrets.token_hex(3) + "_bot")
+        if not valid_bot_username(nick):
+            send("Ник должен заканчиваться на «bot».\nПример: /newbot MyBot, Ник: myhelper_bot")
+            return True
         if session.exec(select(Bot).where(Bot.username == nick)).first():
             send("Ник '@%s' занят. Выбери другой." % nick)
             return True

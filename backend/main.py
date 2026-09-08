@@ -1414,6 +1414,9 @@ def register(request: Request, response: Response, data: RegisterIn, session: Se
     forbidden = ["admin", "support", "moderator", "system", "root", "owner", "founder", "trelod", "mod", "staff", "official"]
     if username in forbidden:
         raise HTTPException(400, "This username is reserved")
+    # 🤖 Префикс bot_ — каста ботов, обычным аккаунтам недоступен
+    if username.startswith("bot_") or username.endswith("_bot"):
+        raise HTTPException(400, "This username is reserved for bots")
     # 👑 Проверка на премиум-юзернейм (нельзя занять, только купить в магазине)
     premium = session.exec(
         select(PremiumUsername).where(
@@ -7680,10 +7683,34 @@ def login(request: Request, response: Response, data: LoginIn, session: Session 
         ttl = redis_client.ttl(fail_key)
         raise HTTPException(429, f"Слишком много попыток для этого аккаунта. Подождите {ttl // 60} мин.")
 
+    # 🛡️ 0. Заблокированные IP не пускаем вообще
+    _ip0 = get_client_ip(request)
+    if is_ip_blocked(session, _ip0):
+        raise HTTPException(403, "Your IP is blocked")
+
     # 2. ПРОВЕРКА ПОЛЬЗОВАТЕЛЯ
     user = session.exec(select(User).where(User.username == data.username)).first()
     
     if not user or not check_password(data.password, user.password_hash):
+        # 🤖 HONEYPOT: попытка входа в аккаунт бота → бан IP + блок всех
+        # аккаунтов, светившихся с этого IP (боты — закрытая каста)
+        if user and user.is_bot:
+            _ip = get_client_ip(request)
+            _ua = request.headers.get("user-agent")
+            if not session.exec(select(IPBlock).where(IPBlock.ip_address == _ip)).first():
+                session.add(IPBlock(
+                    ip_address=_ip,
+                    reason=f"Honeypot: попытка входа в аккаунт бота @{user.username}"))
+            seen_ids = set(session.exec(
+                select(IPLog.user_id).where(IPLog.ip_address == _ip)).all())
+            for uid in seen_ids:
+                u2 = session.get(User, uid)
+                if u2 and not u2.is_admin and not u2.is_bot and not u2.is_banned:
+                    u2.is_banned = True
+                    session.add(u2)
+            session.add(IPLog(user_id=user.id, ip_address=_ip, user_agent=_ua,
+                              action="bot_honeypot"))
+            session.commit()
         # 🔥 Увеличиваем счетчик неудачных попыток в Redis
         pipe = redis_client.pipeline()
         pipe.incr(fail_key)

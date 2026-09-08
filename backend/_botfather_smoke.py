@@ -94,6 +94,19 @@ r2 = client.post("/api/botfather/create-bot", headers=tok,
                  json={"name": "X", "username": "mybot_bot"})
 assert r2.status_code == 400, r2.status_code
 print("   duplicate username -> 400 ok")
+# 🏷 ник БЕЗ приписки bot → 400
+r2 = client.post("/api/botfather/create-bot", headers=tok,
+                 json={"name": "X", "username": "badname"})
+assert r2.status_code == 400, r2.status_code
+print("   username without 'bot' suffix -> 400 ok")
+# авто-ник тоже с припиской
+r2 = client.post("/api/botfather/create-bot", headers=tok, json={"name": "АвтоБот"})
+assert r2.status_code == 200 and r2.json()["bot"]["username"].endswith("bot"), r2.json()
+print("   auto-nick ends with bot:", r2.json()["bot"]["username"])
+# админский create без username → авто-ник с припиской
+r2 = client.post("/api/admin/bots", headers=tok, json={"name": "АвтоТест", "type": "custom"})
+assert r2.status_code == 200 and r2.json()["username"] and r2.json()["username"].endswith("bot"), r2.json()
+print("   admin create auto-nick ends with bot:", r2.json()["username"])
 
 # 📱 мои боты (без ключей)
 r = client.get("/api/botfather/my-bots", headers=tok)
@@ -122,13 +135,12 @@ print("single DM (no duplicates) ok")
 # ⚙️ настройка бота: имя, описание, ссылка
 r = client.post("/api/botfather/edit-bot", headers=tok,
                 json={"bot_id": bot_item["id"], "name": "МойБот v2",
-                      "description": "Эхо-бот для теста", "link": "https://example.com"})
+                      "description": "Эхо-бот для теста"})
 assert r.status_code == 200 and r.json()["ok"], r.text
 r = client.get("/api/botfather/my-bots", headers=tok)
 b2 = next(b for b in r.json() if b["id"] == bot_item["id"])
 assert b2["name"] == "МойБот v2" and b2["description"] == "Эхо-бот для теста"
-assert b2["link"] == "https://example.com"
-print("edit-bot ok:", b2["name"], "|", b2["description"], "|", b2["link"])
+print("edit-bot ok:", b2["name"], "|", b2["description"])
 
 # 🔑 чужой бот → 403
 with Session(engine) as s:
@@ -145,5 +157,25 @@ assert r.status_code == 403, r.status_code
 r = client.post("/api/botfather/reset-token", headers=tok, json={"bot_id": ob_id})
 assert r.status_code == 403, r.status_code
 print(" чужой бот -> 403 ok")
+
+# 🏛 официальные боты (system=True) — StickerBot и т.д.
+r = client.post("/api/sticker-bot/open", headers=tok)
+print("stickerbot open:", r.status_code, r.json())
+assert r.status_code == 200 and r.json()["chat_id"]
+sticker_chat = r.json()["chat_id"]
+r = client.get("/api/botfather/official-bots", headers=tok)
+officials = r.json()
+print("official-bots:", r.status_code, [(b["username"], b["avatar_url"]) for b in officials])
+assert r.status_code == 200
+assert any(b["username"] == "stickerbot" for b in officials), officials
+sb_item = next(b for b in officials if b["username"] == "stickerbot")
+assert sb_item["avatar_url"] == "public:/stickerbot.png"
+assert sb_item["avatar_url"] is not None
+print("official-bots ok (StickerBot в касте + аватар)")
+
+# открыть официального через smart-эндпоинт — тот же чат (единственный)
+r = client.post("/api/botfather/official/stickerbot/open", headers=tok)
+assert r.json()["chat_id"] == sticker_chat
+print("official open idempotent ok")
 
 print("BOTFATHER SMOKE OK")
