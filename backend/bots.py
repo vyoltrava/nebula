@@ -360,36 +360,48 @@ def bf_reset_token(data: BfResetIn, user: User = Depends(get_current_user),
 @router.post("/botfather/delete-bot")
 def bf_delete_bot(data: BfResetIn, user: User = Depends(get_current_user),
                   session: Session = Depends(get_session)):
-    """🗑 Удаление своего бота безвозвратно (владелец/админ)."""
+    """🗑 Удаление своего бота безвозвратно (владелец/админ).
+    Бот-таблицы чистятся, аккаунт бота анонимизируется (FK сообщений/постов
+    сохраняются — история чатов не ломается)."""
     b = session.get(Bot, data.bot_id)
     if not b or b.system:
         raise HTTPException(404, "Бот не найден")
     if b.owner_id != user.id and not user.is_admin:
         raise HTTPException(403, "Это не ваш бот")
-    # удаляем аккаунт-бота и всё связанное
     bot_user_id = b.user_id
-    from_owner = b.owner_id
+    bot_name = b.name
+    bot_nick = b.username or bot_name
     from bot_api import reset_api_token_cache
     reset_api_token_cache(b.id)
     try:
-        # membership'ы бота в чатах
-        for m in session.exec(select(ChatMember).where(
-                ChatMember.user_id == bot_user_id)).all():
-            session.delete(m)
-        for upd in session.exec(select(BotUpdate).where(
-                BotUpdate.bot_id == b.id)).all():
-            session.delete(upd)
+        # 1) все bot-таблицы, ссылающиеся на bot.id
+        for model in (BotLog, BotCommand, BotTrigger, BotUpdate, BotWebhookLog):
+            for row in session.exec(select(model).where(
+                    model.bot_id == b.id)).all():
+                session.delete(row)
+        # 2) membership'ы бота в чатах
+        if bot_user_id:
+            for m in session.exec(select(ChatMember).where(
+                    ChatMember.user_id == bot_user_id)).all():
+                session.delete(m)
+        # 3) сам бот
         session.delete(b)
+        # 4) аккаунт бота — анонимизируем (НЕ удаляем: FK сообщений/постов)
         if bot_user_id:
             bu = session.get(User, bot_user_id)
             if bu:
-                session.delete(bu)
+                bu.username = "deleted_bot_%d_%s" % (b.id, secrets.token_hex(4))
+                bu.display_name = "Удалённый бот"
+                bu.is_banned = True
+                bu.bio = None
+                session.add(bu)
         session.commit()
     except Exception as e:
         session.rollback()
         raise HTTPException(500, "Ошибка удаления: %s" % e)
-    _bf_say(session, from_owner or user.id,
-            "Бот @%s удалён навсегда. API-ключ больше не работает." % (b.username or ""))
+    _bf_say(session, user.id,
+            "Бот @%s («%s») удалён навсегда. API-ключ больше не работает." % (
+                bot_nick, bot_name))
     return {"ok": True}
 
 

@@ -53,11 +53,29 @@ with Session(engine) as s:
         models.StickerPack.owner_id == u.id)).first()
     assert pack, "пак не создан"
     assert pack.is_active and pack.is_user
-print("newpack ok, pack_id:", pack.id)
+    PACK_ID = pack.id
+print("newpack ok, pack_id:", PACK_ID)
 
 # /mypacks -> список
 r = client.post("/api/chats/%d/messages" % chat_id, headers=tok, data={"text": "/mypacks"})
 assert any("Мемы" in t for t in texts()), texts()
+print("mypacks ok")
+
+# /privacy -> переключить приватность пака
+r = client.post("/api/chats/%d/messages" % chat_id, headers=tok, data={"text": "/privacy Мемы"})
+assert any("приватный" in t for t in texts()), texts()
+with Session(engine) as s:
+    p = s.get(models.StickerPack, PACK_ID)
+    assert p.is_public is False, p.is_public
+print("privacy ok (стал приватным)")
+
+# /rename -> переименовать
+r = client.post("/api/chats/%d/messages" % chat_id, headers=tok, data={"text": "/rename Мемы МемыV2"})
+assert any("переименован" in t for t in texts()), texts()
+with Session(engine) as s:
+    p = s.get(models.StickerPack, PACK_ID)
+    assert p.name == "МемыV2", p.name
+print("rename ok")
 print("mypacks ok")
 
 print("STICKERBOT SMOKE OK")

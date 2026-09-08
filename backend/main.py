@@ -8259,7 +8259,7 @@ async def send_message_v2(
         except Exception as _be:
             print("bot engine:", _be)
             try:
-                if datetime.fromisoformat(mute.value) > datetime.now(timezone.utc):
+                if mute and datetime.fromisoformat(mute.value) > datetime.now(timezone.utc):
                     raise HTTPException(403, "Вы в муте в этом чате")
             except (ValueError, TypeError):
                 pass
@@ -8454,6 +8454,14 @@ async def send_message_v2(
         notify_bots_in_chat(session, chat_id, msg, user)
     except Exception as _bapi:
         print("bot_api hook:", _bapi)
+
+    # 🎨 StickerBot: картинка юзера → добавить в пак (после /addsticker <пак>)
+    if media_url and not chat.is_group and not chat.is_secret:
+        try:
+            from sticker_bot import handle_stickerbot_image
+            handle_stickerbot_image(session, chat_id, user.id, media_url, media_type_final)
+        except Exception as _sbe:
+            print("stickerbot image:", _sbe)
 
     # 🆕 PUSH-УВЕДОМЛЕНИЯ получателям
     from push_service import send_push

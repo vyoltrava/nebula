@@ -519,6 +519,26 @@ class Sticker(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class StickerBotPendingSticker(SQLModel, table=True):
+    """Ожидание картинки от юзера после /addsticker (StickerBot)."""
+    __tablename__ = "stickerbot_pending_sticker"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", unique=True, index=True)
+    pack_id: int = Field(foreign_key="stickerpack.id")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class StickerBotPending(SQLModel, table=True):
+    """Подтверждение удаления пака через StickerBot (двойной ввод)."""
+    __tablename__ = "stickerbot_pending"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    pack_id: int = Field(foreign_key="stickerpack.id")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class MessageReaction(SQLModel, table=True):
     """Реакция на сообщение (стикер или эмодзи)"""
     id: Optional[int] = Field(default=None, primary_key=True)

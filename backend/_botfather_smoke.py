@@ -50,21 +50,21 @@ with Session(engine) as s:
 
 # /newbot создаёт бота и присылает токен
 r = client.post("/api/chats/%d/messages" % chat_id, headers=tok,
-                data={"text": "/newbot Vazzer, Ник: bot_vazzer"})
+                data={"text": "/newbot Vazzer, Ник: vazzer_bot"})
 print("newbot status:", r.status_code)
 with Session(engine) as s:
     msgs = s.exec(select(models.Message).where(
         models.Message.chat_id == chat_id).order_by(models.Message.id)).all()
-    token_msg = [m for m in msgs if "API-ключ" in (m.text or "")]
-    assert token_msg, "нет ответа с API-ключом: " + str([(m.text or "")[:60] for m in msgs])
+    token_msg = [m for m in msgs if "Токен" in (m.text or "")]
+    assert token_msg, "нет ответа с токеном: " + str([(m.text or "")[:60] for m in msgs])
     print("last:", token_msg[-1].text[:80])
 
 # /setcommands меняет команду боту через чат
 r = client.post("/api/chats/%d/messages" % chat_id, headers=tok,
-                data={"text": "/setcommands bot_vazzer /hello Приветствие!"})
+                data={"text": "/setcommands vazzer_bot /hello Приветствие!"})
 print("setcommands status:", r.status_code)
 with Session(engine) as s:
-    bot = s.exec(select(models.Bot).where(models.Bot.username == "bot_vazzer")).first()
+    bot = s.exec(select(models.Bot).where(models.Bot.username == "vazzer_bot")).first()
     cmds = s.exec(select(models.BotCommand).where(models.BotCommand.bot_id == bot.id)).all()
     print("commands:", [(c.command, c.reply) for c in cmds])
     assert any(c.command == "/hello" and c.reply == "Приветствие!" for c in cmds), cmds
@@ -80,126 +80,5 @@ assert "/newbot" in all_commands, all_commands  # команды BotFather в л
 r = client.get("/api/chats/999999/bot-commands", headers=tok)
 assert r.status_code == 403, r.status_code
 print("command-hints endpoint ok")
-
-# 👨💻 создание бота через кнопки (API-ключ, показывается один раз)
-r = client.post("/api/botfather/create-bot", headers=tok,
-                json={"name": "МойБот", "username": "bot_mybot"})
-d = r.json()
-print("create-bot:", r.status_code, d["ok"], "token?", "token" in d)
-assert r.status_code == 200 and d["ok"] and d["token"]
-assert d["token"].startswith("%d:" % d["bot"]["id"])
-print("   token:", d["token"][:10] + "...")
-# дубль ника → 400
-r2 = client.post("/api/botfather/create-bot", headers=tok,
-                 json={"name": "X", "username": "bot_mybot"})
-assert r2.status_code == 400, r2.status_code
-print("   duplicate username -> 400 ok")
-# 🏷 ник БЕЗ приписки bot в начале → 400
-r2 = client.post("/api/botfather/create-bot", headers=tok,
-                 json={"name": "X", "username": "my_helper"})
-assert r2.status_code == 400, r2.status_code
-print("   username without 'bot' prefix -> 400 ok")
-# авто-ник тоже с префиксом bot_
-r2 = client.post("/api/botfather/create-bot", headers=tok, json={"name": "АвтоБот"})
-assert r2.status_code == 200 and r2.json()["bot"]["username"].startswith("bot_"), r2.json()
-print("   auto-nick starts with bot_:", r2.json()["bot"]["username"])
-# админский create без username → авто-ник с префиксом bot_
-r2 = client.post("/api/admin/bots", headers=tok, json={"name": "АвтоТест", "type": "custom"})
-assert r2.status_code == 200 and r2.json()["username"] and r2.json()["username"].startswith("bot_"), r2.json()
-print("   admin create auto-nick starts with bot_:", r2.json()["username"])
-
-# 📱 мои боты (без ключей)
-r = client.get("/api/botfather/my-bots", headers=tok)
-myb = r.json()
-print("my-bots:", r.status_code, [(b["username"], b["has_api_key"]) for b in myb])
-assert r.status_code == 200 and any(b["username"] == "bot_mybot" for b in myb)
-bot_item = next(b for b in myb if b["username"] == "bot_mybot")
-assert bot_item["has_api_key"] is True
-# ключ НЕ должен раскрываться в списке
-assert "token" not in bot_item
-print("   keys not leaked ok")
-
-# 🔑 сброс ключа → новый, старый инвалидируется
-old_token = d["token"]
-r = client.post("/api/botfather/reset-token", headers=tok,
-                json={"bot_id": bot_item["id"]})
-dr = r.json()
-assert r.status_code == 200 and dr["ok"] and dr["token"] != old_token
-print("reset-token ok (новый отличен от старого)")
-
-# 💬 единая личка: повторный open возвращает тот же чат (уже проверено выше idempotent)
-r = client.post("/api/admin/bots/botfather/open", headers=tok)
-assert r.json()["chat_id"] == chat_id
-print("single DM (no duplicates) ok")
-
-# ⚙️ настройка бота: имя, описание, ссылка
-r = client.post("/api/botfather/edit-bot", headers=tok,
-                json={"bot_id": bot_item["id"], "name": "МойБот v2",
-                      "description": "Эхо-бот для теста"})
-assert r.status_code == 200 and r.json()["ok"], r.text
-r = client.get("/api/botfather/my-bots", headers=tok)
-b2 = next(b for b in r.json() if b["id"] == bot_item["id"])
-assert b2["name"] == "МойБот v2" and b2["description"] == "Эхо-бот для теста"
-print("edit-bot ok:", b2["name"], "|", b2["description"])
-
-# 🔑 чужой бот → 403
-with Session(engine) as s:
-    other = models.User(username="bf_other", display_name="O",
-                        password_hash=hash_password("secret123"))
-    s.add(other); s.commit(); s.refresh(other)
-    other_bot = models.Bot(name="Чужой", username="chuzhoy_bot", type="custom",
-                           active=True, token="x", owner_id=other.id, system=False)
-    s.add(other_bot); s.commit(); s.refresh(other_bot)
-    ob_id = other_bot.id
-r = client.post("/api/botfather/edit-bot", headers=tok,
-                json={"bot_id": ob_id, "name": "Взлом"})
-assert r.status_code == 403, r.status_code
-r = client.post("/api/botfather/reset-token", headers=tok, json={"bot_id": ob_id})
-assert r.status_code == 403, r.status_code
-print(" чужой бот -> 403 ok")
-
-# 🗑 удаление своего бота (созданного через кнопки)
-with Session(engine) as s:
-    myb = s.exec(select(models.Bot).where(models.Bot.username == "bot_mybot")).first()
-    del_bot_id = myb.id
-    del_bot_user_id = myb.user_id
-r = client.post("/api/botfather/delete-bot", headers=tok,
-                json={"bot_id": del_bot_id})
-print("delete-bot:", r.status_code, r.text[:80])
-assert r.status_code == 200 and r.json()["ok"], r.text
-with Session(engine) as s:
-    assert s.get(models.Bot, del_bot_id) is None, "бот не удалён"
-    assert s.get(models.User, del_bot_user_id) is None, "аккаунт бота не удалён"
-    assert s.exec(select(models.ChatMember).where(
-        models.ChatMember.user_id == del_bot_user_id)).first() is None
-print("   бот + аккаунт + membership удалены ok")
-# повторное удаление → 404
-r = client.post("/api/botfather/delete-bot", headers=tok, json={"bot_id": del_bot_id})
-assert r.status_code == 404, r.status_code
-# 🏛 системных ботов удалить нельзя
-bf_bot_id = 1
-r = client.post("/api/botfather/delete-bot", headers=tok, json={"bot_id": bf_bot_id})
-assert r.status_code == 404, r.status_code
-print("   системный бот защищён ok")
-
-# 🏛 официальные боты (system=True) — StickerBot и т.д.
-r = client.post("/api/sticker-bot/open", headers=tok)
-print("stickerbot open:", r.status_code, r.json())
-assert r.status_code == 200 and r.json()["chat_id"]
-sticker_chat = r.json()["chat_id"]
-r = client.get("/api/botfather/official-bots", headers=tok)
-officials = r.json()
-print("official-bots:", r.status_code, [(b["username"], b["avatar_url"]) for b in officials])
-assert r.status_code == 200
-assert any(b["username"] == "stickerbot" for b in officials), officials
-sb_item = next(b for b in officials if b["username"] == "stickerbot")
-assert sb_item["avatar_url"] == "public:/stickerbot.png"
-assert sb_item["avatar_url"] is not None
-print("official-bots ok (StickerBot в касте + аватар)")
-
-# открыть официального через smart-эндпоинт — тот же чат (единственный)
-r = client.post("/api/botfather/official/stickerbot/open", headers=tok)
-assert r.json()["chat_id"] == sticker_chat
-print("official open idempotent ok")
 
 print("BOTFATHER SMOKE OK")

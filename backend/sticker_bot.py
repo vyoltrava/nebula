@@ -15,7 +15,7 @@ from sqlmodel import Session, select, func
 from database import get_session
 from models import (
     User, Bot, BotLog, BotCommand, Chat, ChatMember, Message,
-    StickerPack, Sticker, SystemSetting,
+    StickerPack, Sticker, SystemSetting, StickerBotPending, StickerBotPendingSticker,
 )
 from main import get_current_user, has_permission, log_action, get_client_ip
 from websocket_manager import manager
@@ -25,6 +25,9 @@ router = APIRouter(tags=["sticker-bot"])
 STICKERBOT_USERNAME = "stickerbot"
 # 🖼 Аватар StickerBot: статика из public (меняется заменой файла)
 STICKERBOT_AVATAR = "public:/stickerbot.png"
+# псевдонимы для краткости в обработчике
+_PendingDel = StickerBotPending
+_PendingStick = StickerBotPendingSticker
 
 
 def utcnow():
@@ -63,10 +66,14 @@ def ensure_stickerbot(session: Session) -> Bot:
             owner_id=None, user_id=bu.id, system=True)
     session.add(b); session.commit(); session.refresh(b)
     for cmd, reply in [
-        ("/start", "Привет! Я StickerBot 🎨\n\nСоздать свой пак — /newpack\n"
-                   "Мои паки — /mypacks"), 
-        ("/newpack", "Напиши /newpack Название — создам твой стикерпак."),
+        ("/start", "Привет! Я StickerBot 🎨\nСоздать пак — /newpack, мои паки — /mypacks"), 
+        ("/newpack", "Формат: /newpack <имя> — создать стикерпак."),
         ("/mypacks", "Напиши /mypacks — покажу твои паки."),
+        ("/addsticker", "Формат: /addsticker <имя> — затем пришли картинку."),
+        ("/rename", "Формат: /rename <имя> <новое>."),
+        ("/privacy", "Формат: /privacy <имя> — 🌐/🔒."),
+        ("/delpack", "Формат: /delpack <имя> — удалить пак (дважды)."),
+        ("/help", "Список команд — /start"),
     ]:
         session.add(BotCommand(bot_id=b.id, command=cmd, reply=reply,
                                action="reply_text", payload="{}"))
@@ -372,6 +379,94 @@ def admin_ban_user_pack(pack_id: int, data: BanPackIn,
     _log(session, user.id, "admin_ban_pack", {"pack_id": pack_id, "ban": data.ban}, ip=ip)
     session.commit()
     return {"ok": True, "banned": data.ban}
+def handle_stickerbot_image(session: Session, chat_id: int, user_id: int,
+                            media_url: str, media_type: str) -> bool:
+    """🎨 Картинка юзера в личке со StickerBot → добавить в пак (по /addsticker)."""
+    if not media_url or media_type not in ("image", "gif"):
+        return False
+    sb = session.exec(select(Bot).where(
+        Bot.username == STICKERBOT_USERNAME)).first()
+    if not sb or not sb.user_id:
+        return False
+    # это должна быть личка user <-> stickerbot
+    members = session.exec(select(ChatMember).where(
+        ChatMember.chat_id == chat_id)).all()
+    uids = {m.user_id for m in members}
+    if uids != {user_id, sb.user_id}:
+        return False
+    from models import Message as _Msg
+    pend = session.exec(select(_PendingStick).where(
+        _PendingStick.user_id == user_id)).first()
+    if not pend:
+        return False
+    pack = session.get(StickerPack, pend.pack_id)
+    if not pack or pack.owner_id != user_id or pack.banned:
+        session.delete(pend)
+        session.commit()
+        return False
+    max_order = session.exec(select(func.max(Sticker.order)).where(
+        Sticker.pack_id == pack.id)).one() or 0
+    s = Sticker(pack_id=pack.id, type="image", content=media_url, order=max_order + 1)
+    session.add(s)
+    session.delete(pend)
+    session.commit()
+    session.refresh(s)
+    _log(session, user_id, "user_sticker_added_via_bot",
+         {"pack_id": pack.id, "sticker_id": s.id})
+    session.commit()
+    session.add(_Msg(chat_id=chat_id, sender_id=sb.user_id,
+                     text="Добавил стикер в пак «%s»! Всего: %d шт. 🎨" % (
+                         pack.name, max_order + 1)))
+    session.commit()
+    return True
+
+
+# ------------------------------------------------------------------
+# 💬 Обработка команд стикер-бота в чате (/newpack, /mypacks)
+# ------------------------------------------------------------------
+
+def handle_stickerbot_image(session: Session, chat_id: int, user_id: int,
+                            media_url: str, media_type: str) -> bool:
+    """🎨 Картинка юзера в личке со StickerBot → добавить в пак (по /addsticker)."""
+    if not media_url or media_type not in ("image", "gif"):
+        return False
+    sb = session.exec(select(Bot).where(
+        Bot.username == STICKERBOT_USERNAME)).first()
+    if not sb or not sb.user_id:
+        return False
+    # это должна быть личка user <-> stickerbot
+    members = session.exec(select(ChatMember).where(
+        ChatMember.chat_id == chat_id)).all()
+    uids = {m.user_id for m in members}
+    if uids != {user_id, sb.user_id}:
+        return False
+    from models import Message as _Msg
+    pend = session.exec(select(_PendingStick).where(
+        _PendingStick.user_id == user_id)).first()
+    if not pend:
+        return False
+    pack = session.get(StickerPack, pend.pack_id)
+    if not pack or pack.owner_id != user_id or pack.banned:
+        session.delete(pend)
+        session.commit()
+        return False
+    max_order = session.exec(select(func.max(Sticker.order)).where(
+        Sticker.pack_id == pack.id)).one() or 0
+    s = Sticker(pack_id=pack.id, type="image", content=media_url, order=max_order + 1)
+    session.add(s)
+    session.delete(pend)
+    session.commit()
+    session.refresh(s)
+    _log(session, user_id, "user_sticker_added_via_bot",
+         {"pack_id": pack.id, "sticker_id": s.id})
+    session.commit()
+    session.add(_Msg(chat_id=chat_id, sender_id=sb.user_id,
+                     text="Добавил стикер в пак «%s»! Всего: %d шт. 🎨" % (
+                         pack.name, max_order + 1)))
+    session.commit()
+    return True
+
+
 # ------------------------------------------------------------------
 # 💬 Обработка команд стикер-бота в чате (/newpack, /mypacks)
 # ------------------------------------------------------------------
@@ -426,14 +521,128 @@ def handle_stickerbot_command(session: Session, chat_id: int, sender_id: int,
             for p in packs:
                 cnt = session.exec(select(func.count(Sticker.id)).where(
                     Sticker.pack_id == p.id)).one() or 0
-                lines.append("%s (%s шт.)%s" % (p.name, cnt,
-                                                " (забанен)" if p.banned else ""))
+                vis = "🔒" if not getattr(p, "is_public", True) else "🌐"
+                lines.append("%s %s (%s шт.)%s" % (vis, p.name, cnt,
+                                                    " (забанен)" if p.banned else ""))
             send("Твои паки:\n" + "\n".join(lines))
         else:
             send("Паков нет. /newpack Название")
         return True
+    # 🖼 добавить стикер в пак (затем юзер шлёт картинку)
+    if low.startswith("/addsticker"):
+        parts = text.split(" ", 1)
+        if len(parts) < 2:
+            send("Формат: /addsticker <имя_пака>\nЗатем пришли мне картинку — "
+                 "добавлю её в этот пак.")
+            return True
+        pname = parts[1].strip()
+        pack = session.exec(select(StickerPack).where(
+            StickerPack.owner_id == sender_id,
+            StickerPack.is_user == True,  # noqa: E712
+            StickerPack.name == pname)).first()
+        if not pack:
+            send("Пака «%s» не нашёл. Создай через /newpack." % pname)
+            return True
+        if pack.banned:
+            send("Пак «%s» забанен." % pname)
+            return True
+        session.delete(session.exec(select(_PendingStick).where(
+            _PendingStick.user_id == sender_id)).first()) if session.exec(
+            select(_PendingStick).where(_PendingStick.user_id == sender_id)).first() else None
+        session.add(_PendingStick(user_id=sender_id, pack_id=pack.id))
+        session.commit()
+        send("Отлично! Теперь пришли мне картинку — добавлю её в пак «%s» 🎨" % pname)
+        return True
+    if low.startswith("/rename"):
+        parts = text.split(" ", 2)
+        if len(parts) < 3:
+            send("Формат: /rename <имя_пака> <новое имя>")
+            return True
+        old = " ".join(parts[1:2]).strip()
+        new = (parts[2] or "").strip()[:60]
+        pack = session.exec(select(StickerPack).where(
+            StickerPack.owner_id == sender_id,
+            StickerPack.is_user == True,  # noqa: E712
+            StickerPack.name == old)).first()
+        if not pack:
+            send("Пака «%s» не нашёл." % old)
+            return True
+        dup = session.exec(select(StickerPack).where(
+            StickerPack.owner_id == sender_id,
+            StickerPack.name == new, StickerPack.id != pack.id)).first()
+        if dup:
+            send("Пак «%s» уже есть." % new)
+            return True
+        pack.name = new
+        session.add(pack); session.commit()
+        _log(session, sender_id, "user_pack_renamed",
+             {"pack_id": pack.id, "to": new})
+        session.commit()
+        send("Пак переименован: «%s» → «%s»" % (old, new))
+        return True
+    # 🔒/🌐 переключить приватность
+    if low.startswith("/privacy"):
+        parts = text.split(" ", 1)
+        if len(parts) < 2:
+            send("Формат: /privacy <имя_пака>")
+            return True
+        pname = parts[1].strip()
+        pack = session.exec(select(StickerPack).where(
+            StickerPack.owner_id == sender_id,
+            StickerPack.is_user == True,  # noqa: E712
+            StickerPack.name == pname)).first()
+        if not pack:
+            send("Пака «%s» не нашёл." % pname)
+            return True
+        pack.is_public = not bool(getattr(pack, "is_public", True))
+        session.add(pack); session.commit()
+        _log(session, sender_id, "user_pack_privacy",
+             {"pack_id": pack.id, "is_public": pack.is_public})
+        session.commit()
+        send("Пак «%s» теперь %s." % (pname,
+                                       "публичный 🌐" if pack.is_public else "приватный 🔒"))
+        return True
+    # 🗑 удалить пак (двойное подтверждение в чате)
+    if low.startswith("/delpack"):
+        parts = text.split(" ", 1)
+        if len(parts) < 2:
+            send("Формат: /delpack <имя_пака>")
+            return True
+        pname = parts[1].strip()
+        pack = session.exec(select(StickerPack).where(
+            StickerPack.owner_id == sender_id,
+            StickerPack.is_user == True,  # noqa: E712
+            StickerPack.name == pname)).first()
+        if not pack:
+            send("Пака «%s» не нашёл." % pname)
+            return True
+        # первая команда — сохраняем "намерение", просим повторить
+        pend = session.exec(select(_PendingDel).where(
+            _PendingDel.user_id == sender_id,
+            _PendingDel.pack_id == pack.id)).first()
+        if not pend:
+            session.add(_PendingDel(user_id=sender_id, pack_id=pack.id))
+            session.commit()
+            send("Точно удалить пак «%s» навсегда?\nПовтори: /delpack %s" % (pname, pname))
+            return True
+        for s in session.exec(select(Sticker).where(Sticker.pack_id == pack.id)).all():
+            session.delete(s)
+        from bot_api import reset_api_token_cache  # noqa
+        session.delete(pack)
+        session.delete(pend)
+        session.commit()
+        _log(session, sender_id, "user_pack_deleted_via_bot", {"pack_id": pack.id})
+        session.commit()
+        send("Пак «%s» удалён навсегда." % pname)
+        return True
     if low.strip() in ("/start", "/help"):
-        send("Я StickerBot 🎨\n\n/newpack Название — создать свой стикерпак\n"
-             "/mypacks — мои паки\n\nКартинки загружай на странице «Мои стикеры».")
+        send("Я StickerBot 🎨 — твои стикеры через чат.\n\n"
+             "/newpack <имя> — создать пак\n"
+             "/mypacks — мои паки\n"
+             "/addsticker <имя> — добавить стикер в пак (затем пришли картинку)\n"
+             "/rename <имя> <новое> — переименовать пак\n"
+             "/privacy <имя> — сделать публичным/приватным 🌐/🔒\n"
+             "/delpack <имя> — удалить пак\n\n"
+             "Бот-приложения: у каждого бота свой список команд (вводи «/»).")
         return True
     return False
