@@ -195,7 +195,7 @@ export default function ChatPage() {
   const [cmdSuggestions, setCmdSuggestions] = useState<any[]>([]);
   const [chatBotCommands, setChatBotCommands] = useState<any[]>([]);
   // 👨💻 модалка BotFather (кнопки внутри чата)
-  const [showBotFatherModal, setShowBotFatherModal] = useState<"create" | "bots" | null>(null);
+  const [showBotFatherModal, setShowBotFatherModal] = useState<"create" | "bots" | "official" | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [chatPartner, setChatPartner] = useState<any>(null);
   const [chatInfo, setChatInfo] = useState<any>(null);
@@ -218,6 +218,7 @@ export default function ChatPage() {
   const [showGroupMembers, setShowGroupMembers] = useState(false);
   const [membersFocus, setMembersFocus] = useState<"add" | "bots" | null>(null);
   const [showGroupSettings, setShowGroupSettings] = useState(false);
+  const isAdminHere = chatInfo?.my_role === "owner" || chatInfo?.my_role === "admin";
 
   const [forwardingMessage, setForwardingMessage] = useState<any | null>(null);
   const [forwardChats, setForwardChats] = useState<any[]>([]);
@@ -2293,7 +2294,7 @@ const ChatHeader = () => (
 
         {isGroup ? (
           <button
-            onClick={() => setShowGroupMembers(true)}
+            onClick={() => (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') ? setShowGroupSettings(true) : setShowGroupMembers(true)}
             className="flex items-center gap-3 sm:gap-3 group flex-1 min-w-0 text-left active:opacity-70 transition-opacity"
           >
             <div className="shrink-0 w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden bg-gradient-to-br from-purple-500 via-violet-600 to-indigo-600 flex items-center justify-center ring-2 ring-white/10">
@@ -2446,25 +2447,7 @@ const ChatHeader = () => (
                     </button>
                   )}
 
-                  {/* ➕ Добавить участника / 🤖 добавить бота (группы) */}
-                  {isGroup && (chatInfo?.my_role === 'owner' || chatInfo?.my_role === 'admin') && (
-                    <>
-                      <button
-                        onClick={() => { setMembersFocus("add"); setShowGroupMembers(true); }}
-                        className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-gray-600 dark:text-white/60 hover:text-[#8b5cf6] border border-line dark:border-white/15 transition-colors active:scale-95"
-                        title="Добавить участника"
-                      >
-                        <UserPlus size={15} /> Участник
-                      </button>
-                      <button
-                        onClick={() => { setMembersFocus("bots"); setShowGroupMembers(true); }}
-                        className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-[#8b5cf6] border border-[#8b5cf6]/40 bg-[#8b5cf6]/5 hover:bg-[#8b5cf6]/15 transition-colors active:scale-95"
-                        title="Создать или добавить бота"
-                      >
-                        🤖 Бот
-                      </button>
-                    </>
-                  )}
+                  {/* ➕ Участники/боты — в настройках группы (⚙️) */}
 
                   {/* Меню "Ещё" */}
                   <div className="relative">
@@ -2522,13 +2505,19 @@ const ChatHeader = () => (
                 onClick={() => { setShowBotFatherModal("create"); setShowChatMenu(false); }}
                 className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
               >
-                <Bot size={15} className="text-[#8b5cf6]" /> Создать бота
+                <Bot size={15} className="text-[#8b5cf6]" /> {t("bots.botCreateBtn")}
               </button>
               <button
                 onClick={() => { setShowBotFatherModal("bots"); setShowChatMenu(false); }}
                 className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
               >
-                <Bot size={15} className="text-[#8b5cf6]" /> Мои боты
+                <Bot size={15} className="text-[#8b5cf6]" /> {t("bots.myBots")}
+              </button>
+              <button
+                onClick={() => { setShowBotFatherModal("official"); setShowChatMenu(false); }}
+                className="w-full px-3 py-2.5 text-left text-sm text-[#8b5cf6] hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors font-bold"
+              >
+                🏛 {t("bots.officialBots")}
               </button>
               <div className="h-px bg-gray-100 dark:bg-white/10 my-1" />
             </>
@@ -2558,14 +2547,7 @@ const ChatHeader = () => (
               <Flag size={15} /> Пожаловаться на канал
             </button>
           )}
-          {isGroup && (
-            <button
-              onClick={() => { setShowGroupMembers(true); setShowChatMenu(false); }}
-              className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
-            >
-              <Users size={15} /> {t("messages.membersTitle")}
-            </button>
-          )}
+          {/* 🖥️ Участники/боты — в настройках группы (⚙️) */}
           <button
             onClick={() => { deleteChat(); setShowChatMenu(false); }}
             className="w-full px-3 py-2.5 text-left text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
@@ -3550,14 +3532,12 @@ style={{
         </div>
       )}
 
-{showGroupMembers && isGroup && (
+{showGroupMembers && isGroup && !isAdminHere && (
   <div className="fixed inset-0 z-[9999]">
     <GroupMembersModal
       chatId={Number(chatId)}
       myRole={chatInfo?.my_role || null}
-      openAdd={membersFocus === "add"}
-      openBots={membersFocus === "bots"}
-      onClose={() => { setShowGroupMembers(false); setMembersFocus(null); }}
+      onClose={() => setShowGroupMembers(false)}
       onChanged={() => loadChatInfo()}
     />
   </div>

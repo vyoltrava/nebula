@@ -5,6 +5,7 @@
 // Пользовательские боты = Python-файлы с API-ключом (test_bot.py).
 import { useEffect, useState } from "react";
 import { getToken } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { Bot, X, Copy, Check, RefreshCw, Loader2, KeyRound } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -31,15 +32,15 @@ function ModalHeader({ onClose, subtitle, onOfficial }: { onClose: () => void; s
 function TokenScreen({ issuedToken, apiUrl, onClose, copied, copyToken }: {
   issuedToken: string; apiUrl: string; onClose: () => void; copied: boolean; copyToken: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 text-green-600 dark:text-green-400 font-bold text-sm">
-        <Check size={16} /> Готово!
+        <Check size={16} /> {t("bots.botCreated")}
       </div>
       <div className="p-3 rounded-xl border border-amber-500/40 bg-amber-500/10">
         <p className="text-[11px] text-amber-700 dark:text-amber-300 font-bold mb-2">
-          ⚠️ API-ключ показывается только один раз. Вставь его в Python-файл бота.
-          Потеряешь — сбрось через «Мои боты», старый перестанет работать.
+          ⚠️ {t("bots.botApikeyOneTime")}
         </p>
         <div className="flex items-center gap-2">
           <code className="flex-1 text-xs font-mono text-gray-900 dark:text-white break-all">{issuedToken}</code>
@@ -54,23 +55,24 @@ function TokenScreen({ issuedToken, apiUrl, onClose, copied, copyToken }: {
         BOT_TOKEN = &quot;{issuedToken.slice(0, 8)}…&quot;<br />
         → python test_bot.py
       </div>
-      <button onClick={onClose} className="w-full py-2 rounded-lg bg-[#8b5cf6] text-white text-sm font-bold hover:bg-[#7c3aed]">Готово</button>
+      <button onClick={onClose} className="w-full py-2 rounded-lg bg-[#8b5cf6] text-white text-sm font-bold hover:bg-[#7c3aed]">{t("bots.botClose")}</button>
     </div>
   );
 }
 
-function MyBots({ bots, loading, error, resettingId, onCreateFirst, resetToken, onEdit }: {
+function MyBots({ bots, loading, error, resettingId, onCreateFirst, resetToken, onEdit, onDelete }: {
   bots: any[]; loading: boolean; error: string; resettingId: number | null;
-  onCreateFirst: () => void; resetToken: (id: number) => void; onEdit: (b: any) => void;
+  onCreateFirst: () => void; resetToken: (id: number) => void; onEdit: (b: any) => void; onDelete: (b: any) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="space-y-2">
       {loading && <p className="text-center text-gray-500 dark:text-white/40 text-sm py-6"><Loader2 size={16} className="inline animate-spin" /> Загрузка…</p>}
       {!loading && bots.length === 0 && (
         <div className="text-center py-8">
           <Bot size={36} className="mx-auto text-gray-400 dark:text-white/20 mb-2" />
-          <p className="text-gray-600 dark:text-white/50 text-sm">У тебя пока нет ботов</p>
-          <button onClick={onCreateFirst} className="mt-3 px-4 py-2 rounded-lg bg-[#8b5cf6] text-white text-xs font-bold hover:bg-[#7c3aed]">+ Создать первого</button>
+          <p className="text-gray-600 dark:text-white/50 text-sm">{t("bots.botEmpty")}</p>
+          <button onClick={onCreateFirst} className="mt-3 px-4 py-2 rounded-lg bg-[#8b5cf6] text-white text-xs font-bold hover:bg-[#7c3aed]">{t("bots.botCreateFirst")}</button>
         </div>
       )}
       {bots.map((b) => (
@@ -82,15 +84,17 @@ function MyBots({ bots, loading, error, resettingId, onCreateFirst, resetToken, 
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{b.name}</p>
-            <p className="text-[10px] text-gray-500 dark:text-white/40 truncate">@{b.username} · {b.active ? "активен" : "выключен"}{b.has_api_key ? " · ключ выдан" : ""}</p>
+            <p className="text-[10px] text-gray-500 dark:text-white/40 truncate">@{b.username} · {b.active ? t("bots.botOn") : t("bots.botOff")}{b.has_api_key ? ` · ${t("bots.botKeyIssued")}` : ""}</p>
           </div>
-          <button onClick={() => onEdit(b)} title="Настройки бота"
+          <button onClick={() => onDelete(b)} title={t("bots.botDelete")}
+            className="shrink-0 p-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 hover:text-red-600 text-xs font-bold">🗑</button>
+          <button onClick={() => onEdit(b)} title={t("bots.botSettings")}
             className="shrink-0 p-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 hover:text-[#8b5cf6] text-xs font-bold">⚙️</button>
           <button onClick={() => resetToken(b.id)} disabled={resettingId === b.id}
-            title="Сбросить API-ключ"
+            title={t("bots.botRevoke")}
             className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[11px] font-bold hover:bg-amber-500/25 disabled:opacity-50">
             {resettingId === b.id ? <Loader2 size={12} className="animate-spin" /> : <KeyRound size={12} />}
-            Ключ
+            {t("bots.botApikey")}
           </button>
         </div>
       ))}
@@ -102,7 +106,8 @@ function MyBots({ bots, loading, error, resettingId, onCreateFirst, resetToken, 
   );
 }
 
-export function BotFatherModal({ mode, onClose }: { mode: "create" | "bots"; onClose: () => void; }) {
+export function BotFatherModal({ mode, onClose }: { mode: "create" | "bots" | "official"; onClose: () => void; }) {
+  const { t } = useI18n();
   const [step, setStep] = useState<"name" | "username" | "token">("name");
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
@@ -116,7 +121,6 @@ export function BotFatherModal({ mode, onClose }: { mode: "create" | "bots"; onC
   const [resettingId, setResettingId] = useState<number | null>(null);
   const [editBot, setEditBot] = useState<any | null>(null);
   const [official, setOfficial] = useState<any[]>([]);
-  const [openTab, setOpenTab] = useState<"main" | "official" | null>(null);
 
   useEffect(() => {
     if (mode === "bots") {
@@ -173,6 +177,23 @@ export function BotFatherModal({ mode, onClose }: { mode: "create" | "bots"; onC
     } finally { setResettingId(null); }
   }
 
+  async function deleteBot(b: any) {
+    if (!confirm(`Удалить бота «${b.name}» навсегда? API-ключ перестанет работать.`)) return;
+    const res = await fetch(`${API_URL}/api/botfather/delete-bot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+      body: JSON.stringify({ bot_id: b.id }),
+    });
+    const d = await res.json().catch(() => null);
+    if (!res.ok) { setError(d?.detail || "Ошибка удаления"); return; }
+    setEditBot(null);
+    setLoadingBots(true);
+    fetch(`${API_URL}/api/botfather/my-bots`, { headers: { Authorization: `Bearer ${getToken()}` } })
+      .then(r => r.json())
+      .then(x => setBots(Array.isArray(x) ? x : []))
+      .finally(() => setLoadingBots(false));
+  }
+
   function copyToken() {
     navigator.clipboard?.writeText(issuedToken);
     setCopied(true);
@@ -185,7 +206,7 @@ export function BotFatherModal({ mode, onClose }: { mode: "create" | "bots"; onC
     });
     if (res.ok) {
       const d = await res.json();
-      setOpenTab(null);
+      onClose();
       window.location.href = `/messages/${d.chat_id}`;
     }
   }
@@ -193,37 +214,37 @@ export function BotFatherModal({ mode, onClose }: { mode: "create" | "bots"; onC
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300] flex items-center justify-center p-4" onClick={onClose}>
       <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl pointer-events-auto max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <ModalHeader onClose={onClose} subtitle={mode === "create" ? "Создание бота" : "Мои боты"} onOfficial={() => setOpenTab(openTab === "official" ? null : "official")} />
+        <ModalHeader onClose={onClose} subtitle={mode === "create" ? t("bots.botCreateBtn") : mode === "bots" ? t("bots.myBots") : t("bots.officialBots")} />
         <div className="p-4 space-y-4">
-          {openTab === "official" ? (
-            <OfficialBots official={official} onOpenBot={(u) => openOfficialBot(u)} onClose={() => setOpenTab(null)} />
+          {mode === "official" ? (
+            <OfficialBots official={official} onOpenBot={(u) => openOfficialBot(u)} onClose={onClose} />
           ) : mode === "create" && step === "name" && (
             <>
-              <p className="text-sm text-gray-600 dark:text-white/60">Придумай имя для своего бота.</p>
+              <p className="text-sm text-gray-600 dark:text-white/60">{t("bots.botStartHelp")}</p>
               <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60}
-                autoFocus placeholder="Например: MyAwesomeBot"
+                autoFocus placeholder="MyAwesomeBot"
                 className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2.5 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]" />
               {error && <p className="text-red-600 dark:text-red-400 text-xs font-bold">{error}</p>}
               <div className="flex gap-2">
-                <button onClick={onClose} className="flex-1 py-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold">Отмена</button>
+                <button onClick={onClose} className="flex-1 py-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold">{t("common.cancel")}</button>
                 <button onClick={() => name.trim() ? setStep("username") : setError("Введите имя")}
-                  className="flex-1 py-2 rounded-lg bg-[#8b5cf6] text-white text-sm font-bold hover:bg-[#7c3aed]">Далее</button>
+                  className="flex-1 py-2 rounded-lg bg-[#8b5cf6] text-white text-sm font-bold hover:bg-[#7c3aed]">{t("bots.botNext")}</button>
               </div>
             </>
           )}
           {mode === "create" && step === "username" && (
             <>
-              <p className="text-sm text-gray-600 dark:text-white/60">Ник: латиница/цифры/_, на конце <b>bot</b>.</p>
+              <p className="text-sm text-gray-600 dark:text-white/60">{t("bots.botNick")}</p>
               <input value={username} onChange={(e) => setUsername(e.target.value)} maxLength={32}
-                autoFocus placeholder="my_awesome_bot"
+                autoFocus placeholder={t("bots.botNickPlaceholder")}
                 className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2.5 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white focus:outline-none focus:border-[#8b5cf6]" />
               {error && <p className="text-red-600 dark:text-red-400 text-xs font-bold">{error}</p>}
               <div className="flex gap-2">
-                <button onClick={() => setStep("name")} className="flex-1 py-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold">Назад</button>
+                <button onClick={() => setStep("name")} className="flex-1 py-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold">{t("bots.botBack")}</button>
                 <button onClick={createBot} disabled={saving}
                   className="flex-1 py-2 rounded-lg bg-[#8b5cf6] text-white text-sm font-bold hover:bg-[#7c3aed] disabled:opacity-50 flex items-center justify-center gap-2">
                   {saving ? <Loader2 size={14} className="animate-spin" /> : <Bot size={14} />}
-                  {saving ? "Создаю…" : "Создать бота"}
+                  {saving ? "…" : t("bots.botCreateBtn")}
                 </button>
               </div>
             </>
@@ -235,7 +256,7 @@ export function BotFatherModal({ mode, onClose }: { mode: "create" | "bots"; onC
             <MyBots bots={bots} loading={loadingBots} error={error}
               resettingId={resettingId}
               onCreateFirst={() => { setStep("name"); setIssuedToken(""); }}
-              resetToken={resetToken} onEdit={(b) => setEditBot(b)} />
+              resetToken={resetToken} onEdit={(b) => setEditBot(b)} onDelete={deleteBot} />
           )}
           {mode === "bots" && editBot && (
             <EditBotForm bot={editBot} onBack={() => setEditBot(null)} onSaved={() => { setEditBot(null); setLoadingBots(true); fetch(`${API_URL}/api/botfather/my-bots`, { headers: { Authorization: `Bearer ${getToken()}` } }).then(r => r.json()).then(d => setBots(Array.isArray(d) ? d : [])).finally(() => setLoadingBots(false)); }} />
@@ -250,17 +271,18 @@ export function BotFatherModal({ mode, onClose }: { mode: "create" | "bots"; onC
 function OfficialBots({ official, onOpenBot, onClose }: {
   official: any[]; onOpenBot: (username: string) => void; onClose: () => void;
 }) {
+  const { t } = useI18n();
   if (official.length === 0) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-gray-600 dark:text-white/60">Официальные боты платформы — отдельная каста. Открой чат с любым.</p>
-        <button onClick={onClose} className="w-full py-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold">Назад</button>
+        <p className="text-sm text-gray-600 dark:text-white/60">{t("bots.officialBots")}</p>
+        <button onClick={onClose} className="w-full py-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold">{t("bots.botBack")}</button>
       </div>
     );
   }
   return (
     <div className="space-y-2">
-      <p className="text-sm text-gray-600 dark:text-white/60">Официальные боты платформы — отдельная каста. Открой чат с любым.</p>
+      <p className="text-sm text-gray-600 dark:text-white/60">{t("bots.officialBots")}</p>
       {official.map((b) => (
         <div key={b.id} className="flex items-center gap-2.5 p-3 rounded-xl border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5">
           <img src={b.avatar_url?.startsWith("public:") ? b.avatar_url.slice(7) : (b.avatar_url || "")}
@@ -271,17 +293,18 @@ function OfficialBots({ official, onOpenBot, onClose }: {
           </div>
           <button onClick={() => onOpenBot(b.username)}
             className="shrink-0 px-3 py-1.5 rounded-lg bg-[#8b5cf6] text-white text-[11px] font-bold hover:bg-[#7c3aed]">
-            Открыть
+            {t("bots.botOpen")}
           </button>
         </div>
       ))}
-      <button onClick={onClose} className="w-full py-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold">Назад</button>
+      <button onClick={onClose} className="w-full py-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold">{t("bots.botBack")}</button>
     </div>
   );
 }
 function EditBotForm({ bot, onBack, onSaved }: {
   bot: any; onBack: () => void; onSaved: () => void;
 }) {
+  const { t } = useI18n();
   const [name, setName] = useState(bot.name || "");
   const [description, setDescription] = useState(bot.description || "");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
@@ -322,31 +345,31 @@ function EditBotForm({ bot, onBack, onSaved }: {
             : <Bot size={24} />}
         </div>
         <label className="px-3 py-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-xs font-bold cursor-pointer hover:text-[#8b5cf6]">
-          Сменить аватарку
+          {t("bots.botAvatar")}
           <input type="file" accept="image/*" hidden
             onChange={(e) => { const f = e.target.files?.[0]; if (f) { setFile(f); setAvatarPreview(URL.createObjectURL(f)); } e.target.value = ""; }} />
         </label>
       </div>
       <div>
-        <label className="block text-xs font-bold text-gray-600 dark:text-white/50 mb-1">Имя</label>
+        <label className="block text-xs font-bold text-gray-600 dark:text-white/50 mb-1">{t("bots.botName")}</label>
         <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60}
           className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-[#8b5cf6]" />
       </div>
       <div>
-        <label className="block text-xs font-bold text-gray-600 dark:text-white/50 mb-1">Описание (до 300 симв.)</label>
+        <label className="block text-xs font-bold text-gray-600 dark:text-white/50 mb-1">{t("bots.botDesc")}</label>
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={300} rows={2}
-          placeholder="Чем занимается бот"
+          placeholder={t("bots.botDesc")}
           className="w-full border border-line dark:border-white/15 rounded-lg px-3 py-2 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm resize-none focus:outline-none focus:border-[#8b5cf6]" />
       </div>
-      <p className="text-[10px] text-gray-500 dark:text-white/40">Ник @{bot.username} изменить нельзя.</p>
+      <p className="text-[10px] text-gray-500 dark:text-white/40">{t("bots.botNickNoChange", { username: bot.username })}</p>
       {okMsg && <p className="text-green-600 dark:text-green-400 text-xs font-bold">{okMsg}</p>}
       {error && <p className="text-red-600 dark:text-red-400 text-xs font-bold">{error}</p>}
       <div className="flex gap-2">
-        <button onClick={onBack} className="flex-1 py-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold">Назад</button>
+        <button onClick={onBack} className="flex-1 py-2 rounded-lg bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold">{t("bots.botBack")}</button>
         <button onClick={save} disabled={saving}
           className="flex-1 py-2 rounded-lg bg-[#8b5cf6] text-white text-sm font-bold hover:bg-[#7c3aed] disabled:opacity-50 flex items-center justify-center gap-2">
           {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-          {saving ? "Сохраняю…" : "Сохранить"}
+          {saving ? "…" : t("bots.botSave")}
         </button>
       </div>
     </div>

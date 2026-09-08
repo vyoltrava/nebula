@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getToken } from "@/lib/auth";
+import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { Globe2, Plus, Trash2, Ban, Upload, ArrowLeft, X } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -17,6 +18,7 @@ type Pack = {
 
 export default function StickersPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [me, setMe] = useState<any>(null);
   const [packs, setPacks] = useState<Pack[]>([]);
   const [newName, setNewName] = useState("");
@@ -227,7 +229,7 @@ return (
           {tab === "catalog" && (
             <div className="space-y-3">
               <input value={catalogQuery} onChange={(e) => setCatalogQuery(e.target.value)}
-                placeholder="Поиск по названию или @автору…"
+                placeholder={t("bots.botSearchPlaceholder")}
                 className="w-full px-3 py-2.5 rounded-xl border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-[#8b5cf6]" />
               {(() => {
                 const q = catalogQuery.trim().toLowerCase();
@@ -238,7 +240,7 @@ return (
                   {filtered.length === 0 && (
                 <div className="text-center py-12 border border-dashed border-line dark:border-white/15 rounded-2xl">
                   <Globe2 size={44} className="mx-auto text-gray-400 dark:text-white/20 mb-3" />
-                  <p className="text-gray-600 dark:text-white/50 text-sm">{q ? `Ничего не найдено по «${catalogQuery}»` : "Пока нет публичных паков"}</p>
+                  <p className="text-gray-600 dark:text-white/50 text-sm">{q ? `${t("bots.botNotFound")} «${catalogQuery}»` : t("bots.botNoPacks")}</p>
                 </div>
               )}
               {filtered.map((p) => (

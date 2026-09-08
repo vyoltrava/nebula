@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { X, Upload, Image as ImageIcon, Save, Link2, Plus, Copy, Trash2, UserPlus, UserX, Crown, Shield, Settings, Users, AlertTriangle, Search } from "lucide-react";
+import { X, Upload, Image as ImageIcon, Save, Link2, Plus, Copy, Trash2, UserPlus, UserX, Crown, Shield, Settings, Users, AlertTriangle, Search, Bot, Loader2 } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
 import { Avatar } from "@/components/Avatar";
@@ -14,7 +14,7 @@ interface Props {
   onUpdate: () => void;
 }
 
-type Tab = "main" | "links" | "members" | "danger";
+type Tab = "main" | "links" | "members" | "bots" | "danger";
 
 export function GroupSettingsModal({ chatId, chat, onClose, onUpdate }: Props) {
   const router = useRouter();
@@ -26,6 +26,65 @@ export function GroupSettingsModal({ chatId, chat, onClose, onUpdate }: Props) {
   const [loading, setLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const isAdmin = chat?.my_role === "owner" || chat?.my_role === "admin";
+
+  // 🤖 Вкладка «Боты»: мои боты + создание + добавление в эту группу
+  const [myBots, setMyBots] = useState<any[]>([]);
+  const [newBotName, setNewBotName] = useState("");
+  const [botBusy, setBotBusy] = useState(false);
+  const [botMsg, setBotMsg] = useState("");
+
+  useEffect(() => {
+    if (tab === "bots" && isAdmin) {
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/bots?mine=1`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+        .then(r => r.json())
+        .then(d => setMyBots(Array.isArray(d) ? d : []))
+        .catch(() => setMyBots([]));
+    }
+  }, [tab, isAdmin]);
+
+  async function addBotToChat(botId: number) {
+    setBotBusy(true); setBotMsg("");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/bots/${botId}/add-to-chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ chat_id: chatId }),
+      });
+      if (res.ok) { setBotMsg("Бот добавлен в чат ✓"); onUpdate(); }
+      else { const d = await res.json().catch(() => null); setBotMsg(d?.detail || "Не удалось добавить бота"); }
+    } finally { setBotBusy(false); }
+  }
+
+  async function createBotHere() {
+    const nm = newBotName.trim();
+    if (!nm || botBusy) return;
+    setBotBusy(true); setBotMsg("");
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/bots`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ name: nm, type: "custom" }),
+      });
+      const bot = await res.json();
+      if (!res.ok) { setBotMsg(bot?.detail || "Ошибка создания бота"); return; }
+      setNewBotName("");
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/bots/${bot.id}/add-to-chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        body: JSON.stringify({ chat_id: chatId }),
+      });
+      setBotMsg("Бот создан и добавлен в чат ✓");
+      onUpdate();
+      fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/bots?mine=1`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      })
+        .then(r => r.json())
+        .then(d => setMyBots(Array.isArray(d) ? d : []))
+        .catch(() => {});
+    } finally { setBotBusy(false); }
+  }
 
   const authFetch = (url: string, opts: any = {}) => {
     const token = getToken();
@@ -153,6 +212,7 @@ const loadInvites = async () => {
           {tabBtn("main", "Группа", <Settings size={14} />)}
           {isAdmin && tabBtn("links", "Ссылки", <Link2 size={14} />)}
           {isAdmin && tabBtn("members", "Участники", <Users size={14} />)}
+          {isAdmin && tabBtn("bots", "Боты", <Bot size={14} />)}
           {isAdmin && tabBtn("danger", "Удаление", <Trash2 size={14} />)}
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -272,6 +332,37 @@ const loadInvites = async () => {
                 })}
               </div>
             </>
+          )}
+
+          {/* 🤖 Вкладка «Боты» — добавить своих ботов в группу */}
+          {tab === "bots" && (
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <input value={newBotName} onChange={(e) => setNewBotName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") createBotHere(); }}
+                  placeholder="Имя нового бота (bot_…)"
+                  className="flex-1 px-3 py-2 rounded-lg border border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-[#8b5cf6]" />
+                <button onClick={createBotHere} disabled={botBusy || !newBotName.trim()}
+                  className="px-3 py-2 rounded-lg bg-[#8b5cf6] text-white text-xs font-bold hover:bg-[#7c3aed] disabled:opacity-50 flex items-center gap-1.5">
+                  {botBusy ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />} Создать
+                </button>
+              </div>
+              {botMsg && <p className="text-xs font-bold text-[#8b5cf6]">{botMsg}</p>}
+              {myBots.length === 0 && <p className="text-center text-gray-500 dark:text-white/40 text-xs py-4">У тебя нет своих ботов. Создай выше или через BotFather.</p>}
+              {myBots.map((b) => (
+                <div key={b.id} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
+                  <div className="w-9 h-9 rounded-lg bg-[#8b5cf6]/15 text-[#8b5cf6] flex items-center justify-center shrink-0"><Bot size={16} /></div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{b.name}</p>
+                    <p className="text-[10px] text-gray-500 dark:text-white/40 truncate">@{b.username}</p>
+                  </div>
+                  <button onClick={() => addBotToChat(b.id)} disabled={botBusy}
+                    className="shrink-0 px-3 py-1.5 rounded-lg bg-[#8b5cf6] text-white text-[11px] font-bold hover:bg-[#7c3aed] disabled:opacity-50">
+                    Добавить
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
 
           {tab === "danger" && (
