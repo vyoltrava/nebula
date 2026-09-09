@@ -1071,6 +1071,7 @@ channels: {
     botFather: "BotFather",
     createBot: "Создать бота",
     myBots: "Мои боты",
+    myStickers: "Мои стикеры",
     officialBots: "Официальные боты",
     botNick: "Ник: начинается с bot, латиница/цифры/_.",
     botNickPlaceholder: "bot_myhelper",

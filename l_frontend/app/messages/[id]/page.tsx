@@ -17,6 +17,7 @@ import { ReportDialog, ReportTargetType } from "@/components/ReportDialog";
 import CallButton from '@/components/CallButton';
 import { ChatMuteButton } from '@/components/ChatMuteButton';
 import { BotFatherModal } from "@/components/BotFatherModal";
+  import { StickerBotModal } from "@/components/StickerBotModal";
 import { registerCallChat } from '@/lib/callLog';
 import { getRelayCallApi } from '@/lib/relayCall';
 import { MessageBubble } from "@/components/MessageBubble";
@@ -196,6 +197,7 @@ export default function ChatPage() {
   const [chatBotCommands, setChatBotCommands] = useState<any[]>([]);
   // 👨💻 модалка BotFather (кнопки внутри чата)
   const [showBotFatherModal, setShowBotFatherModal] = useState<"create" | "bots" | "official" | null>(null);
+  const [showStickerBotModal, setShowStickerBotModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [chatPartner, setChatPartner] = useState<any>(null);
   const [chatInfo, setChatInfo] = useState<any>(null);
@@ -2523,7 +2525,18 @@ const ChatHeader = () => (
             </>
           )}
 
-          {/* 🖥️ ОБЩИЕ КНОПКИ МЕНЮ */}
+          {/* 🎨 StickerBot: свои стикеры через модалку */}
+          {!isGroup && chatPartner?.is_bot && chatPartner?.username === "stickerbot" && (
+            <>
+              <button
+                onClick={() => { setShowStickerBotModal(true); setShowChatMenu(false); }}
+                className="w-full px-3 py-2.5 text-left text-sm text-[#8b5cf6] hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors font-bold"
+              >
+                🎨 {t("bots.myStickers")}
+              </button>
+              <div className="h-px bg-gray-100 dark:bg-white/10 my-1" />
+            </>
+          )}
           {/* 🤖 на ботов жаловаться нельзя */}
           {!isSavedChat && chatPartner?.id && !chatPartner.is_bot && (
             <button
@@ -3257,6 +3270,10 @@ onDoubleClick={(e) => {
             mode={showBotFatherModal}
             onClose={() => setShowBotFatherModal(null)}
           />
+        )}
+        {/* 🎨 Модалка StickerBot (свои стикеры) */}
+        {showStickerBotModal && chatPartner?.is_bot && chatPartner?.username === "stickerbot" && (
+          <StickerBotModal onClose={() => setShowStickerBotModal(false)} />
         )}
         {/* 🆕 Анимация вылетающей реакции при двойном тапе */}
         {popReaction && (

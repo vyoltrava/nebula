@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getToken } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
+import { StickerBotModal } from "@/components/StickerBotModal";
 import { Globe2, Plus, Trash2, Ban, Upload, ArrowLeft, X } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -26,6 +27,7 @@ export default function StickersPage() {
   const [tab, setTab] = useState<"mine" | "catalog">("mine");
   const [catalog, setCatalog] = useState<Pack[]>([]);
   const [catalogQuery, setCatalogQuery] = useState("");
+  const [showSB, setShowSB] = useState(false);
 
   async function load() {
     const token = getToken();
@@ -128,6 +130,10 @@ return (
               <h1 className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-2"><Globe2 size={26} className="text-[#8b5cf6]" /> Мои стикеры</h1>
               <p className="text-xs text-gray-600 dark:text-white/50 mt-0.5">Пользовательские стикерпаки • создаются StickerBot-ом</p>
             </div>
+            <button onClick={() => setShowSB(true)} title="Мои стикеры через StickerBot"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold hover:bg-purple-500/20 hover:text-purple-600 dark:hover:text-purple-300 transition-all">
+              🎨 StickerBot
+            </button>
             <button onClick={async () => {
               const res = await fetch(`${API_URL}/api/sticker-bot/open`, {
                 method: "POST", headers: { Authorization: `Bearer ${getToken()}` },
@@ -135,10 +141,10 @@ return (
               if (res.ok) {
                 const d = await res.json();
                 router.push(`/messages/${d.chat_id}`);
-              } else alert("Не удалось открыть StickerBot");
-            }} title="Создание стикерпаков через чат со StickerBot"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-white/70 text-sm font-bold hover:bg-purple-500/20 hover:text-purple-600 dark:hover:text-purple-300 transition-all">
-              🎨 StickerBot
+              } else alert("Не удалось открыть чат со StickerBot");
+            }} title="Чат со StickerBot (/newpack, /mypacks)"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#8b5cf6] text-white text-sm font-bold hover:bg-[#7c3aed] transition-all">
+              💬 Чат
             </button>
           </div>
         </div>
@@ -271,6 +277,10 @@ return (
           )}
         </div>
       </main>
+      {/* 🎨 Модалка StickerBot */}
+      {showSB && (
+        <StickerBotModal onClose={() => { setShowSB(false); load(); }} />
+      )}
     </div>
   );
 }

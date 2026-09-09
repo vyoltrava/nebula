@@ -1073,6 +1073,7 @@ channels: {
     botFather: "BotFather",
     createBot: "Create bot",
     myBots: "My bots",
+    myStickers: "My stickers",
     officialBots: "Official bots",
     botNick: "Nick: starts with bot, latin/digits/_.",
     botNickPlaceholder: "bot_myhelper",

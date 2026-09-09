@@ -106,8 +106,11 @@ function MyBots({ bots, loading, error, resettingId, onCreateFirst, resetToken, 
   );
 }
 
-export function BotFatherModal({ mode, onClose }: { mode: "create" | "bots" | "official"; onClose: () => void; }) {
+export function BotFatherModal({ mode: modeProp, onClose }: { mode: "create" | "bots" | "official"; onClose: () => void; }) {
   const { t } = useI18n();
+  const [modeOverride, setModeOverride] = useState<"official" | null>(null);
+  const mode = modeOverride ?? modeProp;
+  useEffect(() => { setModeOverride(null); }, [modeProp]);
   const [step, setStep] = useState<"name" | "username" | "token">("name");
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
@@ -214,7 +217,7 @@ export function BotFatherModal({ mode, onClose }: { mode: "create" | "bots" | "o
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300] flex items-center justify-center p-4" onClick={onClose}>
       <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl pointer-events-auto max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <ModalHeader onClose={onClose} subtitle={mode === "create" ? t("bots.botCreateBtn") : mode === "bots" ? t("bots.myBots") : t("bots.officialBots")} />
+        <ModalHeader onClose={onClose} subtitle={mode === "create" ? t("bots.botCreateBtn") : mode === "bots" ? t("bots.myBots") : t("bots.officialBots")} onOfficial={mode !== "official" ? () => { setModeOverride("official"); setEditBot(null); } : undefined} />
         <div className="p-4 space-y-4">
           {mode === "official" ? (
             <OfficialBots official={official} onOpenBot={(u) => openOfficialBot(u)} onClose={onClose} />
