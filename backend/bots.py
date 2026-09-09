@@ -371,30 +371,33 @@ def bf_delete_bot(data: BfResetIn, user: User = Depends(get_current_user),
     bot_user_id = b.user_id
     bot_name = b.name
     bot_nick = b.username or bot_name
+    bot_id = b.id
     from bot_api import reset_api_token_cache
-    reset_api_token_cache(b.id)
+    reset_api_token_cache(bot_id)
     try:
-        # 1) все bot-таблицы, ссылающиеся на bot.id
-        for model in (BotLog, BotCommand, BotTrigger, BotUpdate, BotWebhookLog):
-            for row in session.exec(select(model).where(
-                    model.bot_id == b.id)).all():
-                session.delete(row)
-        # 2) membership'ы бота в чатах
-        if bot_user_id:
-            for m in session.exec(select(ChatMember).where(
-                    ChatMember.user_id == bot_user_id)).all():
-                session.delete(m)
-        # 3) сам бот
-        session.delete(b)
-        # 4) аккаунт бота — анонимизируем (НЕ удаляем: FK сообщений/постов)
-        if bot_user_id:
-            bu = session.get(User, bot_user_id)
-            if bu:
-                bu.username = "deleted_bot_%d_%s" % (b.id, secrets.token_hex(4))
-                bu.display_name = "Удалённый бот"
-                bu.is_banned = True
-                bu.bio = None
-                session.add(bu)
+        # ⚠️ no_autoflush: не даём SQLAlchemy преждевременно флашить
+        #    (DELETE bot ДО удаления дочерних bot_log и т.п. → FK violation)
+        with session.no_autoflush:
+            # 1) все bot-таблицы, ссылающиеся на bot.id — сначала кардинально
+            #    удаляем через bulk (без цикла-сбора, чтобы select не флашил)
+            from sqlalchemy import delete as sa_delete
+            for model in (BotLog, BotCommand, BotTrigger, BotUpdate, BotWebhookLog):
+                session.execute(sa_delete(model).where(model.bot_id == bot_id))
+            # 2) membership'ы бота в чатах
+            if bot_user_id:
+                session.execute(sa_delete(ChatMember).where(
+                    ChatMember.user_id == bot_user_id))
+            # 3) сам бот
+            session.delete(b)
+            # 4) аккаунт бота — анонимизируем (НЕ удаляем: FK сообщений/постов)
+            if bot_user_id:
+                bu = session.get(User, bot_user_id)
+                if bu:
+                    bu.username = "deleted_bot_%d_%s" % (bot_id, secrets.token_hex(4))
+                    bu.display_name = "Удалённый бот"
+                    bu.is_banned = True
+                    bu.bio = None
+                    session.add(bu)
         session.commit()
     except Exception as e:
         session.rollback()
