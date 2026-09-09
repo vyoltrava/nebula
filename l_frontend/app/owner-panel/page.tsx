@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import {
   Crown, Users, Activity, DollarSign, AlertTriangle, Shield,
   BarChart3, Database, GitBranch, Eye, Clock, Zap, TrendingUp, FileText,
-  ArrowLeft,
+  ArrowLeft, Download, Trash2, RefreshCw, Check,
 } from "lucide-react";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { getToken } from "@/lib/auth";
-import { Button } from "@/components/ui/Button";
+import { Button, IconButton } from "@/components/ui/Button";
 import { Sidebar } from "@/components/Sidebar";
 
 interface OwnerStats {
@@ -27,6 +27,14 @@ interface OwnerStats {
   audit_logs?: { time: string; user: string; action: string; ip: string }[];
   shop_enabled?: boolean;
   premium_usernames_total?: number;
+}
+
+interface BackupItem {
+  filename: string;
+  size: number;
+  size_human: string;
+  created_at: string;
+  stamp: string;
 }
 
 type OwnerTab = "analytics" | "users" | "financial" | "system" | "audit" | "backup";
@@ -61,6 +69,90 @@ export default function OwnerPanel() {
   const { hasPermission, isLoading } = usePermissions();
   const [stats, setStats] = useState<OwnerStats | null>(null);
   const [tab, setTab] = useState<OwnerTab>("analytics");
+  const [backups, setBackups] = useState<BackupItem[] | null>(null);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [backupMsg, setBackupMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [confirm, setConfirm] = useState<{ kind: "restore" | "delete"; filename: string } | null>(null);
+
+  const API = process.env.NEXT_PUBLIC_API_URL;
+
+  async function ownerFetch(path: string, init?: RequestInit) {
+    const res = await fetch(`${API}${path}`, {
+      ...(init || {}),
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+        ...((init && init.headers) || {}),
+      },
+    });
+    if (!res.ok) {
+      let detail = res.statusText;
+      try { const j = await res.json(); detail = j.detail || detail; } catch { /* noop */ }
+      throw new Error(detail);
+    }
+    return res;
+  }
+
+  async function refreshBackups() {
+    try {
+      const r = await ownerFetch("/api/owner-panel/backups");
+      const j = await r.json();
+      setBackups(j.backups || []);
+    } catch (e) {
+      setBackups([]);
+      setBackupMsg({ ok: false, text: (e as Error).message });
+    }
+  }
+
+  async function createBackup() {
+    setBackupBusy(true); setBackupMsg(null);
+    try {
+      await ownerFetch("/api/owner-panel/backups/create", { method: "POST" });
+      setBackupMsg({ ok: true, text: "Бэкап успешно создан." });
+      await refreshBackups();
+    } catch (e) {
+      setBackupMsg({ ok: false, text: (e as Error).message });
+    }
+    setBackupBusy(false);
+  }
+
+  function downloadBackup(fn: string) {
+    ownerFetch(`/api/owner-panel/backups/download/${encodeURIComponent(fn)}`)
+      .then((r) => r.blob())
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = fn;
+        a.click();
+        URL.revokeObjectURL(url);
+      })
+      .catch((e) => setBackupMsg({ ok: false, text: (e as Error).message }));
+  }
+
+  async function runRestore(fn: string) {
+    setBackupBusy(true); setBackupMsg(null);
+    try {
+      await ownerFetch(`/api/owner-panel/backups/${encodeURIComponent(fn)}/restore`, { method: "POST" });
+      setBackupMsg({ ok: true, text: "База восстановлена. Страховочная копия сохранена в папке backups/." });
+      await refreshBackups();
+    } catch (e) {
+      setBackupMsg({ ok: false, text: (e as Error).message });
+    }
+    setBackupBusy(false);
+    setConfirm(null);
+  }
+
+  async function runDelete(fn: string) {
+    setBackupBusy(true); setBackupMsg(null);
+    try {
+      await ownerFetch(`/api/owner-panel/backups/${encodeURIComponent(fn)}`, { method: "DELETE" });
+      setBackupMsg({ ok: true, text: "Бэкап удалён." });
+      await refreshBackups();
+    } catch (e) {
+      setBackupMsg({ ok: false, text: (e as Error).message });
+    }
+    setBackupBusy(false);
+    setConfirm(null);
+  }
 
   useEffect(() => {
     if (!isLoading && !hasPermission("access_owner_panel")) { router.push("/"); return; }
@@ -74,6 +166,11 @@ export default function OwnerPanel() {
       .catch(() => { if (alive) router.push("/"); });
     return () => { alive = false; };
   }, [isLoading, hasPermission, router]);
+
+  useEffect(() => {
+    if (tab === "backup") refreshBackups();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   if (isLoading || !stats) {
     return (
@@ -214,28 +311,62 @@ export default function OwnerPanel() {
 
         {tab === "backup" && (
           <div className="bg-gray-100 dark:bg-white/5 rounded-xl p-5 border border-line dark:border-white/10">
-            <h2 className="text-sm font-black mb-4 flex items-center gap-2"><GitBranch size={18} /> Бэкапы</h2>
+            <h2 className="text-sm font-black mb-4 flex items-center gap-2"><GitBranch size={18} /> Бэкапы базы данных</h2>
             <div className="flex gap-3">
-              <Button variant="success" icon={Database}>Создать бэкап</Button>
-              <Button variant="secondary" icon={Eye}>Список бэкапов</Button>
-              <Button variant="danger" icon={Clock}>Восстановить</Button>
+              <Button variant="success" icon={Database} loading={backupBusy} onClick={createBackup}>Создать бэкап</Button>
+              <Button variant="secondary" icon={RefreshCw} onClick={refreshBackups}>Обновить список</Button>
             </div>
+            {backupMsg && (
+              <p className={`mt-3 text-sm flex items-center gap-1.5 ${backupMsg.ok ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                {backupMsg.ok ? <Check size={14} /> : <AlertTriangle size={14} />} {backupMsg.text}
+              </p>
+            )}
             <div className="mt-4 space-y-2">
-              <div className="flex items-center justify-between border-b py-2 text-sm">
-                <span>backup_2026_08_31_14_30.sql</span>
-                <span className="text-gray-500 dark:text-white/40">245 MB Е 2 часа назад</span>
-              </div>
-              <div className="flex items-center justify-between border-b py-2 text-sm">
-                <span>backup_2026_08_30_02_00.sql</span>
-                <span className="text-gray-500 dark:text-white/40">238 MB Е 1 день назад</span>
-              </div>
+              {backups === null ? (
+                <p className="text-sm text-gray-500 dark:text-white/40">Загрузка…</p>
+              ) : backups.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-white/40 flex items-center gap-1.5"><Zap size={12} /> Бэкапов пока нет — нажмите «Создать бэкап».</p>
+              ) : (
+                backups.map((b) => (
+                  <div key={b.filename} className="flex items-center justify-between gap-2 border-b py-2 text-sm">
+                    <div className="min-w-0">
+                      <p className="font-mono text-xs truncate">{b.filename}</p>
+                      <p className="text-[11px] text-gray-500 dark:text-white/40">{b.size_human} · {b.created_at}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <IconButton variant="ghost" size="iconSm" icon={Download} title="Скачать" onClick={() => downloadBackup(b.filename)} />
+                      <IconButton variant="danger" size="iconSm" icon={Clock} title="Восстановить" onClick={() => setConfirm({ kind: "restore", filename: b.filename })} />
+                      <IconButton variant="ghost" size="iconSm" icon={Trash2} title="Удалить" onClick={() => setConfirm({ kind: "delete", filename: b.filename })} />
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-            <p className="text-xs text-gray-500 dark:text-white/40 mt-3 flex items-center gap-1.5"><Zap size={12} /> Возможности восстановления пока в разработке</p>
+            <p className="text-xs text-gray-500 dark:text-white/40 mt-2 flex items-center gap-1.5"><Shield size={12} /> Восстановление автоматически снимает страховочную копию текущей базы в папке backups/.</p>
           </div>
         )}
       </div>
       </div>
       </main>
+
+      {confirm && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4" onClick={() => setConfirm(null)}>
+          <div className="w-full max-w-sm bg-white dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
+            <h3 className="font-black">{confirm.kind === "restore" ? "Восстановить базу?" : "Удалить бэкап?"}</h3>
+            <p className="text-sm text-gray-600 dark:text-white/60">
+              {confirm.kind === "restore"
+                ? <>База будет заменена снимком <span className="font-mono text-xs">{confirm.filename}</span>. Перед восстановлением будет создана страховочная копия. Продолжить?</>
+                : <>Снимок <span className="font-mono text-xs">{confirm.filename}</span> будет удалён безвозвратно. Продолжить?</>}
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setConfirm(null)}>Отмена</Button>
+              <Button variant="danger" loading={backupBusy} onClick={() => (confirm.kind === "restore" ? runRestore(confirm.filename) : runDelete(confirm.filename))}>
+                {confirm.kind === "restore" ? "Восстановить" : "Удалить"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

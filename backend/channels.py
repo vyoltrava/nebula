@@ -2561,7 +2561,7 @@ async def upload_channel_avatar(
                 content,
                 folder=UPLOAD_FOLDER,
                 resource_type="image",
-                transformation=[{"width": 400, "height": 400, "crop": "fill"}],
+                transformation=[{"width": 1024, "height": 1024, "crop": "limit", "quality": 90}],
             )
         )
         ch.avatar_url = result.get("secure_url")

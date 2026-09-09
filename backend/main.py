@@ -1598,13 +1598,14 @@ async def upload_avatar(
                 )
             )
         else:
-            # 🖼 Статичные: кроп до 512px + auto-качество (без «мыла»)
+            # 🖼 Статичные: уменьшаем только если больше 1024px, сохраняем пропорции
+            # и ОРИГИНАЛЬНЫЙ формат + явное качество 90 (без «мыла» от quality:auto).
             result = await run_in_threadpool(
                 lambda: cloudinary.uploader.upload(
                     content,
                     folder=UPLOAD_FOLDER,
                     resource_type="image",
-                    transformation=[{"width": 512, "height": 512, "crop": "fill", "quality": "auto", "fetch_format": "auto"}],
+                    transformation=[{"width": 1024, "height": 1024, "crop": "limit", "quality": 90}],
                 )
             )
         user.avatar_url = result.get("secure_url")
@@ -1690,14 +1691,15 @@ async def upload_cover(
         except Exception:
             pass
     
-    # Загружаем новую (широкий формат 1500x500)
+    # Загружаем новую (уменьшаем только если шире 1920px, сохраняем пропорции и кадрирование
+    # оставляем CSS object-cover — без обрезки на сервере и без агрессивного auto-сжатия)
     try:
         result = await run_in_threadpool(
             lambda: cloudinary.uploader.upload(
                 content,
                 folder=UPLOAD_FOLDER,
                 resource_type="image",
-                transformation=[{"width": 1500, "height": 500, "crop": "fill"}],
+                transformation=[{"width": 1920, "height": 1080, "crop": "limit", "quality": 90}],
             )
         )
         user.cover_url = result.get("secure_url")
@@ -5705,7 +5707,7 @@ async def admin_set_user_avatar(
                 content,
                 folder=UPLOAD_FOLDER,
                 resource_type="image",
-                transformation=[{"width": 400, "height": 400, "crop": "fill"}],
+                transformation=[{"width": 1024, "height": 1024, "crop": "limit", "quality": 90}],
             )
         )
         target.avatar_url = result.get("secure_url")
@@ -9695,7 +9697,7 @@ async def upload_group_avatar(
                 content,
                 folder=UPLOAD_FOLDER,
                 resource_type="image",
-                transformation=[{"width": 400, "height": 400, "crop": "fill"}],
+                transformation=[{"width": 1024, "height": 1024, "crop": "limit", "quality": 90}],
             )
         )
         chat.avatar_url = result.get("secure_url")
@@ -14396,6 +14398,253 @@ def get_owner_stats(
         "shop_enabled": _shop_effectively_enabled(session),
         "premium_usernames_total": len(session.exec(select(PremiumUsername)).all()),
     }
+
+
+# ============================================================
+# 💾 СНИМКИ БАЗЫ ДАННЫХ — файловые бэкапы (панель владельца)
+# Создание / список / скачивание / восстановление / удаление.
+# Доступ: Founder (is_admin) или права manage_backups / access_owner_panel.
+# ============================================================
+BACKUP_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "backups")
+BACKUP_NAME_RE = re.compile(r"^backup_\d{4}_\d{2}_\d{2}_\d{2}_\d{2}\.(?:sqlite|sql|dump)$")
+
+
+def _is_sqlite_url() -> bool:
+    return engine.url.get_backend_name() in ("sqlite", "pysqlite")
+
+
+def _db_file_for_sqlite() -> Optional[str]:
+    """Абсолютный путь к SQLite-файлу, на который указывает engine.url."""
+    from pathlib import Path
+    db = engine.url.database
+    if not db:
+        return None
+    p = Path(db)
+    if not p.is_absolute():
+        p = Path(os.getcwd()) / p
+    return str(p.resolve())
+
+
+def _require_owner_backup(admin: User, session: Session):
+    """Доступ к файловым бэкапам БД: Founder или права manage_backups/access_owner_panel."""
+    if admin.is_admin:
+        return
+    perms = get_user_permissions(admin, session)
+    if "manage_backups" not in perms and "access_owner_panel" not in perms:
+        raise HTTPException(403, "Нет права: manage_backups / access_owner_panel")
+
+
+def _backup_abs(name: str) -> Optional[str]:
+    """Проверяет имя и возвращает абс. путь, защищая от path traversal."""
+    if not BACKUP_NAME_RE.match(name):
+        return None
+    return os.path.join(BACKUP_DIR, name)
+
+
+def _human_size(n: int) -> str:
+    n = float(n)
+    for unit in ("Б", "КБ", "МБ", "ГБ"):
+        if n < 1024 or unit == "ГБ":
+            return f"{n:.0f} {unit}" if unit == "Б" else f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.1f} ГБ"
+def create_db_backup(session: Session, actor: User) -> dict:
+    """Создаёт файловый снимок базы.
+    SQLite — онлайн-копия через sqlite3.backup (без остановки сервиса);
+    PostgreSQL — дамп через pg_dump."""
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    ts = datetime.now().strftime("%Y_%m_%d_%H_%M")
+
+    if _is_sqlite_url():
+        import sqlite3
+        db = _db_file_for_sqlite()
+        if not db or not os.path.exists(db):
+            raise HTTPException(400, "SQLite-файл не найден на диске")
+        dest = os.path.join(BACKUP_DIR, f"backup_{ts}.sqlite")
+        src = sqlite3.connect(db)
+        try:
+            dst = sqlite3.connect(dest)
+            try:
+                src.backup(dst)  # согласованная онлайн-копия
+            finally:
+                dst.close()
+        finally:
+            src.close()
+        log_action(session, actor.id, "create_db_backup", target_type="system",
+                   details={"filename": os.path.basename(dest), "size": os.path.getsize(dest)})
+        session.commit()
+        return {"ok": True, "filename": os.path.basename(dest), "size": os.path.getsize(dest)}
+
+    # PostgreSQL
+    dest = os.path.join(BACKUP_DIR, f"backup_{ts}.sql")
+    passw = engine.url.password or ""
+    env = dict(os.environ)
+    if passw:
+        env.setdefault("PGPASSWORD", passw)
+    host = engine.url.host or "localhost"
+    port = str(engine.url.port or 5432)
+    user = (engine.url.username or "").strip()
+    dbname = (engine.url.database or "postgres").strip()
+    cmd = ["pg_dump", f"--host={host}", f"--port={port}", f"--username={user}",
+           "--no-owner", "--format=plain", f"--file={dest}", dbname]
+    try:
+        subprocess.run(cmd, env=env, check=True, capture_output=True, timeout=900)
+    except FileNotFoundError:
+        raise HTTPException(500, "pg_dump не найден в PATH — установите клиент PostgreSQL")
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(500, f"pg_dump не удался: {e.stderr.decode('utf-8', 'replace')[-400:]}")
+    log_action(session, actor.id, "create_db_backup", target_type="system",
+               details={"filename": os.path.basename(dest), "size": os.path.getsize(dest)})
+    session.commit()
+    return {"ok": True, "filename": os.path.basename(dest), "size": os.path.getsize(dest)}
+
+
+def list_db_backups() -> list:
+    """Список файловых снимков (имя, размер, дата) — от новых к старым."""
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    out = []
+    for fn in sorted(os.listdir(BACKUP_DIR), reverse=True):
+        if not BACKUP_NAME_RE.match(fn):
+            continue
+        fp = os.path.join(BACKUP_DIR, fn)
+        try:
+            st = os.stat(fp)
+        except OSError:
+            continue
+        if not os.path.isfile(fp):
+            continue
+        out.append({
+            "filename": fn,
+            "size": st.st_size,
+            "size_human": _human_size(st.st_size),
+            "created_at": datetime.fromtimestamp(st.st_mtime).strftime("%d.%m.%Y %H:%M"),
+            "stamp": datetime.fromtimestamp(st.st_mtime).isoformat(),
+        })
+    out.sort(key=lambda x: x["stamp"], reverse=True)
+    return out
+
+
+def restore_db_backup(session: Session, actor: User, name: str) -> dict:
+    """Восстанавливает БД из снимка. Перед заменой снимает страховочную копию."""
+    fp = _backup_abs(name)
+    if not fp or not os.path.exists(fp):
+        raise HTTPException(404, "Бэкап не найден")
+
+    # Страховка: снимок текущего состояния перед перезаписью
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    pre_name = f"pre_restore_{datetime.now().strftime('%Y_%m_%d_%H_%M_%S')}.sqlite"
+    pre_path = os.path.join(BACKUP_DIR, pre_name)
+
+    if _is_sqlite_url():
+        import sqlite3
+        db = _db_file_for_sqlite()
+        if not db or not os.path.exists(db):
+            raise HTTPException(400, "SQLite-файл не найден")
+        # 1) страховочная копия текущей базы
+        cur = sqlite3.connect(db)
+        try:
+            pd = sqlite3.connect(pre_path)
+            try:
+                cur.backup(pd)
+            finally:
+                pd.close()
+        finally:
+            cur.close()
+        # 2) подменяем файл и сбрасываем пул соединений (новые откроются из нового файла)
+        import shutil
+        engine.dispose()
+        shutil.copyfile(fp, db)
+        init_db()
+        log_action(session, actor.id, "restore_db_backup", target_type="system",
+                   details={"filename": name, "pre_snapshot": pre_name})
+        session.commit()
+        return {"ok": True, "pre_snapshot": pre_name, "message": "База восстановлена из снимка"}
+
+    # PostgreSQL — применяем дамп через psql
+    passw = engine.url.password or ""
+    env = dict(os.environ)
+    if passw:
+        env.setdefault("PGPASSWORD", passw)
+    host = engine.url.host or "localhost"
+    port = str(engine.url.port or 5432)
+    user = (engine.url.username or "").strip()
+    dbname = (engine.url.database or "postgres").strip()
+    cmd = ["psql", f"--host={host}", f"--port={port}", f"--username={user}",
+           "--dbname", dbname, "--single-transaction", "--file", fp]
+    try:
+        subprocess.run(cmd, env=env, check=True, capture_output=True, timeout=1800)
+    except FileNotFoundError:
+        raise HTTPException(500, "psql не найден в PATH — установите клиент PostgreSQL")
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(500, f"psql не удался: {e.stderr.decode('utf-8', 'replace')[-400:]}")
+    log_action(session, actor.id, "restore_db_backup", target_type="system",
+               details={"filename": name})
+    session.commit()
+    return {"ok": True, "message": "База восстановлена из снимка"}
+
+
+@app.get("/api/owner-panel/backups")
+def owner_list_db_backups(
+    admin: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Список файловых бэкапов БД."""
+    _require_owner_backup(admin, session)
+    return {"backups": list_db_backups()}
+
+
+@app.post("/api/owner-panel/backups/create")
+def owner_create_db_backup(
+    admin: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Создать файловый снимок базы."""
+    _require_owner_backup(admin, session)
+    return create_db_backup(session, admin)
+
+
+@app.get("/api/owner-panel/backups/download/{name}")
+def owner_download_db_backup(
+    name: str,
+    admin: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Скачать файловый снимок БД."""
+    _require_owner_backup(admin, session)
+    fp = _backup_abs(name)
+    if not fp or not os.path.exists(fp):
+        raise HTTPException(404, "Бэкап не найден")
+    from fastapi.responses import FileResponse
+    return FileResponse(fp, media_type="application/octet-stream", filename=name)
+
+
+@app.delete("/api/owner-panel/backups/{name}")
+def owner_delete_db_backup(
+    name: str,
+    admin: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Удалить файловый снимок БД."""
+    _require_owner_backup(admin, session)
+    fp = _backup_abs(name)
+    if not fp or not os.path.exists(fp):
+        raise HTTPException(404, "Бэкап не найден")
+    os.remove(fp)
+    log_action(session, admin.id, "delete_db_backup", target_type="system",
+               details={"filename": name})
+    session.commit()
+    return {"ok": True, "deleted": name}
+
+
+@app.post("/api/owner-panel/backups/{name}/restore")
+def owner_restore_db_backup(
+    name: str,
+    admin: User = Depends(require_staff),
+    session: Session = Depends(get_session),
+):
+    """Восстановить БД из снимка (с автоматической страховочной копией)."""
+    _require_owner_backup(admin, session)
+    return restore_db_backup(session, admin, name)
 
 
 # ============================================================
