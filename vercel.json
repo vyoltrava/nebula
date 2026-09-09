@@ -1,4 +1,5 @@
 {
+  "installCommand": "yarn install --ignore-platform --ignore-engines",
   "rewrites": [
     { "source": "/(.*)\\.(env|git|sql|zip|bak|log|bak|old)", "destination": "/404" },
     { "source": "/\\.env(.*)", "destination": "/404" },
