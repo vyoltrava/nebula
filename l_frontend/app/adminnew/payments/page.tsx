@@ -13,10 +13,13 @@ interface PaymentRole {
   price: number; currency: string; period: string; trialDays: number;
   description: string | null; features: string[]; isRecurring: boolean;
   paymentProvider: string;
+  durationOptions: { days: number; price: number; label: string }[];
 }
+interface DurationOption { days: number; price: string; label: string; }
 interface FormState {
   price: string; currency: string; period: string; trialDays: string;
   description: string; features: string[]; paymentProvider: string;
+  durationOptions: DurationOption[];
 }
 
 const CURRENCIES = ["USD", "EUR", "RUB", "UAH"];
@@ -28,13 +31,17 @@ const PERIODS = [
 
 function emptyForm(): FormState {
   return { price: "", currency: "USD", period: "once", trialDays: "0",
-           description: "", features: [], paymentProvider: "stripe" };
+           description: "", features: [], paymentProvider: "stripe",
+           durationOptions: [] };
 }
 function formFrom(pr: PaymentRole): FormState {
   return {
     price: String(pr.price), currency: pr.currency, period: pr.period,
     trialDays: String(pr.trialDays || 0), description: pr.description || "",
     features: pr.features || [], paymentProvider: pr.paymentProvider || "stripe",
+    durationOptions: (pr.durationOptions || []).map(o => ({
+      days: Number(o.days) || 0, price: String(o.price ?? ""), label: o.label || "",
+    })),
   };
 }
 
@@ -171,6 +178,11 @@ export default function AdminPaymentsPage() {
           description: form.description || null,
           features: form.features, isRecurring: form.period !== "once",
           paymentProvider: form.paymentProvider,
+          durationOptions: form.durationOptions.map(o => ({
+            days: Math.max(0, parseInt(String(o.days)) || 0),
+            price: parseFloat(String(o.price).replace(",", ".")) || 0,
+            label: o.label || "",
+          })),
         }),
       });
       if (res.ok) { flash("✅ Настройки сохранены"); setEditing(null); load(); }
@@ -297,6 +309,41 @@ export default function AdminPaymentsPage() {
                           className="mt-1 w-full rounded-lg bg-black/5 dark:bg-white/10 px-3 py-2 text-gray-900 dark:text-white outline-none" />
                       </label>
                     )}
+                  </div>
+
+{/* 🆕 Варианты срока покупки */}
+                  <div className="text-sm">
+                    <span className="text-gray-500 dark:text-white/50">
+                      Варианты срока покупки
+                      <span className="block text-[11px] text-gray-400 dark:text-white/30">
+                        Несколько вариантов (месяц / год / 2 года — любые). Дней = 0 — бессрочно.
+                        Пустой список — один вариант по цене выше.
+                      </span>
+                    </span>
+                    <div className="space-y-2 mt-1.5">
+                      {form.durationOptions.map((o, i) => (
+                        <div key={i} className="flex gap-2 items-center">
+                          <input value={o.label} placeholder="Название (Месяц)"
+                            onChange={e => setForm({ ...form, durationOptions: form.durationOptions.map((x, j) => j === i ? { ...x, label: e.target.value } : x) })}
+                            className="w-28 rounded-lg bg-black/5 dark:bg-white/10 px-2.5 py-2 text-gray-900 dark:text-white outline-none" />
+                          <input type="number" min={0} value={o.days} placeholder="Дней"
+                            title="Дней (0 — бессрочно)"
+                            onChange={e => setForm({ ...form, durationOptions: form.durationOptions.map((x, j) => j === i ? { ...x, days: parseInt(e.target.value) || 0 } : x) })}
+                            className="w-20 rounded-lg bg-black/5 dark:bg-white/10 px-2.5 py-2 text-gray-900 dark:text-white outline-none" />
+                          <input type="text" value={o.price} placeholder="Цена"
+                            onChange={e => setForm({ ...form, durationOptions: form.durationOptions.map((x, j) => j === i ? { ...x, price: e.target.value } : x) })}
+                            className="w-24 rounded-lg bg-black/5 dark:bg-white/10 px-2.5 py-2 text-gray-900 dark:text-white outline-none" />
+                          <button onClick={() => setForm({ ...form, durationOptions: form.durationOptions.filter((_, j) => j !== i) })}
+                            className="p-2 rounded-lg text-red-500 hover:bg-red-500/10" title="Удалить вариант">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                      <button onClick={() => setForm({ ...form, durationOptions: [...form.durationOptions, { days: 30, price: form.price, label: "" }] })}
+                        className="px-3 py-1.5 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-300 hover:bg-violet-500/20 flex items-center gap-1 text-xs font-medium">
+                        <Plus className="w-3.5 h-3.5" /> Добавить срок
+                      </button>
+                    </div>
                   </div>
 
                   <label className="block text-sm">

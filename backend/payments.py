@@ -34,6 +34,16 @@ def utcnow():
     return datetime.now(timezone.utc)
 
 
+def _as_aware(dt: Optional[datetime]) -> Optional[datetime]:
+    """SQLite возвращает naive datetime — приводим к UTC, чтобы сравнение
+    с aware utcnow() не падало с TypeError (ломает /stats и /available)."""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 def _get_setting(session: Session, key: str, default: str) -> str:
     row = session.get(SystemSetting, key)
     return row.value if row else default
@@ -56,10 +66,40 @@ def _features(role: PaymentRole) -> list:
         return []
 
 
+def _duration_options(role: PaymentRole) -> list:
+    """Варианты срока покупки: [{"days": 30, "price": 5.0, "label": "Месяц"}].
+    days=0 — бессрочно. Если не заданы — legacy-вариант из period/price."""
+    try:
+        data = json.loads(role.duration_options) if role.duration_options else []
+        if isinstance(data, list) and data:
+            out = []
+            for o in data:
+                try:
+                    out.append({
+                        "days": max(0, int(o.get("days", 0))),
+                        "price": float(o.get("price", role.price)),
+                        "label": str(o.get("label") or ""),
+                    })
+                except (TypeError, ValueError):
+                    continue
+            if out:
+                return out
+    except Exception:  # noqa: BLE001
+        pass
+    # fallback: один вариант из legacy-полей
+    return [{"days": PERIOD_DAYS.get(role.period, 0), "price": role.price, "label": ""}]
+
+
 def _has_active_purchase(session: Session, user: User, role_id: int) -> bool:
-    """Есть ли у пользователя активная (неистёкшая) покупка этой роли."""
-    if user.role_id == role_id:
-        return True
+    """Есть ли у пользователя активная (неистёкшая) покупка этой роли.
+
+    Роль считается активной ТОЛЬКО если она сейчас реально назначена юзеру.
+    Если админ вручную снял роль (user.role_id изменили напрямую, минуя
+    refund/expiry webhook), старая successful-покупка больше не блокирует
+    магазин — юзер может купить роль снова.
+    """
+    if user.role_id != role_id:
+        return False
     purchases = session.exec(
         select(PaymentPurchase)
         .where(PaymentPurchase.user_id == user.id)
@@ -67,7 +107,7 @@ def _has_active_purchase(session: Session, user: User, role_id: int) -> bool:
         .where(PaymentPurchase.status == "success")
     ).all()
     now = utcnow()
-    return any(p.expires_at is None or p.expires_at > now for p in purchases)
+    return any(p.expires_at is None or _as_aware(p.expires_at) > now for p in purchases)
 
 
 def _assign_role(session: Session, purchase: PaymentPurchase):
@@ -120,6 +160,7 @@ def _role_out(r: PaymentRole) -> dict:
         "features": _features(r),
         "isRecurring": r.is_recurring,
         "paymentProvider": r.payment_provider,
+        "durationOptions": _duration_options(r),
     }
 
 # ------------------------------------------------------------------
@@ -190,6 +231,7 @@ class PaymentRoleSave(BaseModel):
     features: list = []
     isRecurring: bool = False
     paymentProvider: str = "stripe"  # stripe | manual
+    durationOptions: list = []       # [{"days": 30, "price": 5.0, "label": "Месяц"}]; days=0 — бессрочно
 
 
 @router.post("/roles/save")
@@ -220,6 +262,17 @@ def save_payment_role(data: PaymentRoleSave, admin: User = Depends(require_admin
     role.features = json.dumps(data.features)
     role.is_recurring = data.isRecurring or data.period != "once"
     role.payment_provider = data.paymentProvider
+    # Варианты срока: валидируем и сохраняем; пустой список → legacy-режим
+    opts = []
+    for o in (data.durationOptions or []):
+        try:
+            days = max(0, int(o.get("days", 0)))
+            price = float(o.get("price", data.price))
+            if price > 0:
+                opts.append({"days": days, "price": price, "label": str(o.get("label") or "")})
+        except (TypeError, ValueError, AttributeError):
+            continue
+    role.duration_options = json.dumps(opts) if opts else None
     role.updated_at = utcnow()
     session.add(role)
     session.commit()
@@ -284,10 +337,24 @@ def create_payment_endpoint(data: dict, current: User = Depends(get_current_user
     if _has_active_purchase(session, current, role_id):
         raise HTTPException(409, "У вас уже есть эта плашка")
 
+    # 🆕 Выбор варианта срока (если у роли настроены durationOptions)
+    opts = _duration_options(role)
+    amount = role.price
+    duration_days: Optional[int] = None
+    try:
+        idx = int(data.get("durationIndex", -1))
+    except (TypeError, ValueError):
+        idx = -1
+    if 0 <= idx < len(opts):
+        amount = float(opts[idx]["price"])
+        duration_days = int(opts[idx]["days"]) if opts[idx]["days"] > 0 else None
+
+    meta = {"duration_days": duration_days} if duration_days is not None else {"duration_days": None}
     purchase = PaymentPurchase(
         user_id=current.id, role_id=role_id, payment_role_id=role.id,
-        amount=role.price, currency=role.currency,
+        amount=amount, currency=role.currency,
         status="pending", provider=role.payment_provider,
+        meta_json=json.dumps(meta),
     )
     session.add(purchase)
     session.commit()
@@ -319,6 +386,14 @@ def create_payment_endpoint(data: dict, current: User = Depends(get_current_user
 # ------------------------------------------------------------------
 
 def _period_of(session: Session, purchase: PaymentPurchase) -> Optional[int]:
+    """Срок покупки в днях (None = бессрочно).
+    Приоритет: duration_days из meta покупки → legacy period роли."""
+    try:
+        md = json.loads(purchase.meta_json) if purchase.meta_json else {}
+        if isinstance(md, dict) and md.get("duration_days") is not None:
+            return max(0, int(md["duration_days"])) or None
+    except Exception:  # noqa: BLE001
+        pass
     pr = session.get(PaymentRole, purchase.payment_role_id)
     return PERIOD_DAYS.get(pr.period) if pr else None
 
@@ -405,7 +480,7 @@ def stats(admin: User = Depends(require_admin), session: Session = Depends(get_s
         "totalRevenue": round(sum(p.amount for p in success if p.currency == "USD"), 2),
         "totalPurchases": len(success),
         "totalBuyers": len({p.user_id for p in success}),
-        "activeSubscriptions": sum(1 for p in success if p.expires_at and p.expires_at > now),
+        "activeSubscriptions": sum(1 for p in success if p.expires_at and _as_aware(p.expires_at) > now),
         "recent": [{
             "id": p.id, "userId": p.user_id, "roleId": p.role_id,
             "amount": p.amount, "currency": p.currency,

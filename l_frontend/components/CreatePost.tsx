@@ -2,10 +2,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Image as ImageIcon, Smile, Clapperboard, X, Mic, Square, Trash2, Type } from "lucide-react";
+import { Image as ImageIcon, Smile, Clapperboard, X, Mic, Square, Trash2, Type, Lock } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
-import { STICKERS } from "@/lib/stickers";
+import { mediaUrl } from "@/lib/media";
 import { Avatar } from "@/components/Avatar";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { RichEditor, RichEditorHandle } from "@/components/RichEditor";
@@ -28,6 +28,8 @@ export function CreatePost() {
     is_moderator?: boolean;
   } | null>(null);
   const [showStickers, setShowStickers] = useState(false);
+  const [stickerPacks, setStickerPacks] = useState<any[]>([]);
+  const [activePackTab, setActivePackTab] = useState<number>(0);
   const [error, setError] = useState("");
   
   const fileRef = useRef<HTMLInputElement>(null);
@@ -159,8 +161,38 @@ export function CreatePost() {
     setRecordTime(0);
   }
 
+  // ---------- 🎨 Стикеры: та же прогрузка паков, что в чатах/реакциях ----------
+  async function loadStickerPacks() {
+    if (stickerPacks.length) return;
+    const token = getToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sticker-packs`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setStickerPacks(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error("Failed to load sticker packs:", e);
+    }
+  }
+
+  // Загружаем паки при открытии пикера стикеров
+  useEffect(() => {
+    if (showStickers) loadStickerPacks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showStickers]);
+
   function insertSticker(emojiChar: string) {
     setText((prev) => prev + " " + emojiChar + " ");
+    setShowStickers(false);
+  }
+
+  function insertStickerImage(content: string) {
+    const url = mediaUrl(content);
+    setText((prev) => prev + " ![sticker](" + url + ") ");
     setShowStickers(false);
   }
 
@@ -323,19 +355,73 @@ export function CreatePost() {
       {showStickers && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowStickers(false)} />
-          <div className="absolute top-full left-0 mt-2 p-3 border border-line dark:border-white/20 rounded-xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl z-50 w-64 max-h-72 overflow-y-auto">
-            <p className="text-xs font-bold text-gray-600 dark:text-white/60 mb-2 uppercase tracking-wider sticky top-0 bg-ivory dark:bg-[#1f1f23]/95 pb-1">Стикеры</p>
-            <div className="grid grid-cols-5 gap-1">
-              {STICKERS.map((s) => (
-                <button
-                  key={s.code}
-                  onClick={() => insertSticker(s.emoji)}
-                  className="text-2xl hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg p-1.5 transition-colors"
-                  title={s.label}
-                >
-                  {s.emoji}
-                </button>
-              ))}
+          <div className="absolute top-full left-0 mt-2 border border-line dark:border-white/20 rounded-xl bg-ivory dark:bg-[#1f1f23]/95 backdrop-blur-md shadow-2xl z-50 w-72 max-h-80 flex flex-col overflow-hidden">
+            {/* Вкладки паков — как в чатах */}
+            <div className="shrink-0 p-2 pb-1 border-b border-line dark:border-white/10">
+              <div className="flex gap-1 overflow-x-auto scrollbar-hide pb-1">
+                {stickerPacks.map((pack: any, i: number) => (
+                  <button
+                    key={pack.id ?? i}
+                    type="button"
+                    onClick={() => setActivePackTab(i)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold whitespace-nowrap shrink-0 transition-all ${
+                      activePackTab === i
+                        ? "bg-[#8b5cf6] text-white"
+                        : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/10"
+                    }`}
+                  >
+                    {pack.locked && <Lock size={10} className="text-yellow-600 dark:text-yellow-400" />}
+                    {pack.name}
+                  </button>
+                ))}
+                {stickerPacks.length === 0 && (
+                  <span className="text-[11px] text-gray-500 dark:text-white/40 px-1 py-1.5">Стикеры недоступны</span>
+                )}
+              </div>
+            </div>
+
+            {/* Контент пака — скроллится */}
+            <div className="flex-1 overflow-y-auto p-2 min-h-0">
+              {stickerPacks[activePackTab] ? (
+                stickerPacks[activePackTab].locked ? (
+                  <div className="flex flex-col items-center gap-2 py-6 text-center">
+                    <div className="w-12 h-12 rounded-full bg-yellow-500/10 border border-yellow-500/30 flex items-center justify-center">
+                      <Lock size={18} className="text-yellow-600 dark:text-yellow-400" />
+                    </div>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">Пак заблокирован</p>
+                    <p className="text-[11px] text-gray-500 dark:text-white/40 max-w-[220px]">
+                      Доступен с уровня {stickerPacks[activePackTab].min_level}.
+                      Повысь уровень, чтобы использовать эти стикеры.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-6 gap-1.5">
+                    {(stickerPacks[activePackTab].stickers || []).map((s: any) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => {
+                          // ✅ Как в чатах: эмодзи → текст, картинка → вставка изображения
+                          if (s.type === "emoji") insertSticker(s.content);
+                          else insertStickerImage(s.content);
+                        }}
+                        className="aspect-square flex items-center justify-center rounded-xl hover:bg-gray-100 dark:hover:bg-white/10 active:scale-90 transition-all"
+                        title={s.type === "emoji" ? s.content : ""}
+                      >
+                        {s.type === "emoji" ? (
+                          <span className="text-2xl">{s.content}</span>
+                        ) : (
+                          <img src={mediaUrl(s.content)} alt="" className="w-9 h-9 object-contain" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )
+              ) : (
+                <div className="py-6 text-center text-xs text-gray-500 dark:text-white/40">
+                  {stickerPacks.length === 0 ? "Паки не найдены" : "Выберите пак"}
+                </div>
+              )}
             </div>
           </div>
         </>

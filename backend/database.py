@@ -130,6 +130,8 @@ def _ensure_columns() -> None:
                 ("bot", "api_token_hash", "VARCHAR(255)"),
                 ("bot", "webhook_url", "VARCHAR(512)"),
                 ("bot", "webhook_secret", "VARCHAR(128)"),
+                # 💳 Варианты срока покупки роли (JSON: [{days, price, label}])
+                ("paymentrole", "duration_options", "TEXT"),
             ]
             for table, col, ddl in stmts:
                 if table not in existing or col in existing[table]:

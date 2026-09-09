@@ -12,6 +12,21 @@ interface ShopRole {
   price: number; currency: string; period: string; trialDays: number;
   description: string | null; features: string[];
   isRecurring: boolean; paymentProvider: string;
+  durationOptions: { days: number; price: number; label: string }[];
+}
+
+function durationLabel(o: { days: number; label: string }): string {
+  if (o.label) return o.label;
+  if (o.days <= 0) return "Навсегда";
+  if (o.days >= 365) {
+    const y = Math.round(o.days / 365);
+    return `${y} год${y % 10 === 1 && y % 100 !== 11 ? "" : y % 10 >= 2 && y % 10 <= 4 && (y % 100 < 10 || y % 100 >= 20) ? "а" : "ов"}`;
+  }
+  if (o.days >= 30 && o.days % 30 === 0) {
+    const m = o.days / 30;
+    return `${m} мес.`;
+  }
+  return `${o.days} дн.`;
 }
 
 export function PaymentShop({ onPurchased }: { onPurchased?: () => void }) {
@@ -119,8 +134,21 @@ export function PaymentShop({ onPurchased }: { onPurchased?: () => void }) {
             {/* Цена + кнопка */}
             <div className="flex items-center gap-4 shrink-0 sm:pl-4 sm:border-l border-black/5 dark:border-white/10">
               <div className="text-right">
-                <div className="text-xl font-extrabold text-violet-500 whitespace-nowrap">{role.price} {role.currency}</div>
-                <div className="text-[11px] text-gray-500 dark:text-white/40">/ {periodLabel(role.period)}</div>
+                {(role.durationOptions || []).length > 1 ? (
+                  <>
+                    <div className="text-xl font-extrabold text-violet-500 whitespace-nowrap">
+                      от {Math.min(...role.durationOptions.map(o => Number(o.price) || Infinity))} {role.currency}
+                    </div>
+                    <div className="text-[11px] text-gray-500 dark:text-white/40">
+                      / {role.durationOptions.length} варианта срока
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-xl font-extrabold text-violet-500 whitespace-nowrap">{role.price} {role.currency}</div>
+                    <div className="text-[11px] text-gray-500 dark:text-white/40">/ {periodLabel(role.period)}</div>
+                  </>
+                )}
               </div>
               <button onClick={e => { e.stopPropagation(); setSelected(role); }}
                 className="px-5 py-2 rounded-xl bg-violet-500 text-white text-sm font-semibold hover:bg-violet-600 transition whitespace-nowrap">
@@ -149,6 +177,11 @@ function PaymentModal({ role, periodLabel, onClose, onSuccess, onManualPending }
   const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const opts = (role.durationOptions || []).length > 0
+    ? role.durationOptions
+    : [{ days: role.period === "monthly" ? 30 : role.period === "yearly" ? 365 : 0, price: role.price, label: "" }];
+  const [optIdx, setOptIdx] = useState(0);
+  const currentOpt = opts[Math.min(optIdx, opts.length - 1)];
 
   const pay = async () => {
     setLoading(true);
@@ -157,7 +190,7 @@ function PaymentModal({ role, periodLabel, onClose, onSuccess, onManualPending }
       const res = await fetch(`${API}/api/payments/create`, {
         method: "POST",
         headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ roleId: role.roleId }),
+        body: JSON.stringify({ roleId: role.roleId, durationIndex: optIdx }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -202,13 +235,35 @@ function PaymentModal({ role, periodLabel, onClose, onSuccess, onManualPending }
             )}
           </div>
           <div className="text-right shrink-0">
-            <div className="text-xl font-extrabold text-violet-500 whitespace-nowrap">{role.price} {role.currency}</div>
-            <div className="text-[11px] text-gray-500 dark:text-white/40">/ {periodLabel(role.period)}</div>
+            <div className="text-xl font-extrabold text-violet-500 whitespace-nowrap">{currentOpt.price} {role.currency}</div>
+            <div className="text-[11px] text-gray-500 dark:text-white/40">
+              / {opts.length > 1 ? durationLabel(currentOpt) : periodLabel(role.period)}
+            </div>
             {role.isRecurring && (
               <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">{t("payment.autoRenew")}</p>
             )}
           </div>
         </div>
+
+        {/* 🆕 Выбор срока покупки */}
+        {opts.length > 1 && (
+          <div className="mt-3">
+            <div className="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-white/40 mb-2">Срок покупки</div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {opts.map((o, i) => (
+                <button key={i} type="button" onClick={() => setOptIdx(i)}
+                  className={`px-3 py-2 rounded-xl border text-sm transition ${
+                    i === optIdx
+                      ? "border-violet-500 bg-violet-500/10 text-violet-600 dark:text-violet-300 font-semibold"
+                      : "border-black/10 dark:border-white/10 text-gray-700 dark:text-white/70 hover:border-violet-400/60"
+                  }`}>
+                  <div className="font-medium">{durationLabel(o)}</div>
+                  <div className="text-xs text-gray-500 dark:text-white/40">{o.price} {role.currency}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Полный список привилегий — 2 столбца */}
         {(role.features || []).length > 0 && (

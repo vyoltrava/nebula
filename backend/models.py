@@ -111,6 +111,9 @@ class PaymentRole(SQLModel, table=True):
     is_recurring: bool = Field(default=False)          # подписка или разовая
     payment_provider: str = Field(default="stripe")    # stripe | manual
     provider_data: Optional[str] = Field(default=None) # JSON (например price_id)
+    # 🆕 Варианты срока покупки: JSON [{"days": 30, "price": 5.0, "label": "Месяц"}, ...]
+    # days=0 — бессрочно. Если пусто — используется legacy period/price.
+    duration_options: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
 
