@@ -157,9 +157,11 @@ def my_sticker_packs(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    packs = session.exec(select(StickerPack).where(
-        StickerPack.is_user == True, StickerPack.owner_id == user.id)) \
-        .order_by(StickerPack.id.desc()).all()
+    packs = session.exec(
+        select(StickerPack)
+        .where(StickerPack.is_user.is_(True), StickerPack.owner_id == user.id)
+        .order_by(StickerPack.id.desc())
+    ).all()
     return [_pack_out(p, session) for p in packs]
 
 
