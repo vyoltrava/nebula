@@ -38,5 +38,8 @@
     "typescript": "^5",
     "vitest": "^4.1.10",
     "wait-on": "^9.1.0"
+  },
+  "resolutions": {
+    "@rolldown/binding-openharmony-arm64": "1.2.4"
   }
 }
