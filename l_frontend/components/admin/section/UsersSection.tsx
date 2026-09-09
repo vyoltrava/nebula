@@ -14,7 +14,7 @@ export function UsersSection({ me }: { me: any }) {
   const [users, setUsers] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState<"all" | "team" | "users">("all");
+  const [filterType, setFilterType] = useState<"all" | "team" | "users" | "bots">("all");
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
   const [warnTarget, setWarnTarget] = useState<any>(null);
   const [warnReason, setWarnReason] = useState("");
@@ -116,6 +116,12 @@ async function load() {
 
 
   const filteredUsers = users.filter((u) => {
+    // 🤖 Боты — отдельная вкладка, по умолчанию показываем только людей
+    if (filterType === "bots") {
+      if (!u.is_bot) return false;
+    } else if (u.is_bot) {
+      return false;
+    }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       if (!u.username.toLowerCase().includes(q) && !u.display_name.toLowerCase().includes(q)) return false;
@@ -240,7 +246,7 @@ async function load() {
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => { setFilterType("all"); setSelectedRoleId(null); }}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold ${filterType === "all" && !selectedRoleId ? "border-[#8b5cf6] bg-[#8b5cf6]/20 text-[#8b5cf6]" : "border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
-            <Users size={16} /> Все ({users.length})
+            <Users size={16} /> Все ({users.filter((u) => !u.is_bot).length})
           </button>
           <button onClick={() => { setFilterType("team"); setSelectedRoleId(null); }}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold ${filterType === "team" ? "border-[#3b82f6] bg-[#3b82f6]/20 text-[#3b82f6]" : "border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
@@ -249,6 +255,10 @@ async function load() {
           <button onClick={() => { setFilterType("users"); setSelectedRoleId(null); }}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold ${filterType === "users" ? "border-green-600 dark:border-green-400 bg-green-400/20 text-green-600 dark:text-green-400" : "border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
             <Filter size={16} /> Обычные
+          </button>
+          <button onClick={() => { setFilterType("bots"); setSelectedRoleId(null); }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold ${filterType === "bots" ? "border-sky-500 bg-sky-500/20 text-sky-600 dark:text-sky-400" : "border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
+            🤖 Боты ({users.filter((u) => u.is_bot).length})
           </button>
           <select
             value={selectedRoleId ?? ""}

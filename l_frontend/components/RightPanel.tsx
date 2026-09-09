@@ -81,7 +81,7 @@ export function RightPanel() {
         <h2 className="font-black mb-3 text-gray-900 dark:text-white">{t("panel.suggestedAuthors")}</h2>
         {authors.length === 0 && <p className="text-sm text-gray-600 dark:text-white/50">{t("panel.noSuggestions")}</p>}
         <div className="space-y-3">
-          {authors.map((a) => (
+          {authors.filter((a) => !a.is_bot).map((a) => (
             <div key={a.id} className="flex items-center gap-3">
               <Avatar src={a.avatar_url} name={a.display_name} id={a.id} size={36} />
 

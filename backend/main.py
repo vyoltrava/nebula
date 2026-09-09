@@ -1745,6 +1745,7 @@ def recommended_users(
         .outerjoin(Follow, Follow.followee_id == User.id)
         .where(
             User.is_banned == False,
+            User.is_bot == False,  # 🤖 боты не рекомендуем в правой панели
             User.id != user.id,
             ~User.id.in_(followed_ids)
         )

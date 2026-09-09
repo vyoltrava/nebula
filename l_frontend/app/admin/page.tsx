@@ -13,7 +13,7 @@ export default function AdminPage() {
   const [roles, setRoles] = useState<any[]>([]);
   const [me, setMe] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterType, setFilterType] = useState<"all" | "team" | "users">("all");
+  const [filterType, setFilterType] = useState<"all" | "team" | "users" | "bots">("all");
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
   const [warnTarget, setWarnTarget] = useState<any>(null);
   const [warnReason, setWarnReason] = useState("");
@@ -74,6 +74,12 @@ export default function AdminPage() {
     }
 
     // Фильтр по типу
+    // 🤖 Боты — отдельная вкладка, по умолчанию показываем только людей
+    if (filterType === "bots") {
+      if (!u.is_bot) return false;
+    } else if (u.is_bot) {
+      return false;
+    }
     if (filterType === "team") {
       // Команда: админы, РјРѕРґераторы, или уровень >= 3
       const isTeam = u.is_admin || u.is_moderator || (u.level ?? 1) >= 3;
@@ -408,6 +414,20 @@ export default function AdminPage() {
               >
                 <Filter size={16} />
                 Обычные
+              </button>
+
+              <button
+                onClick={() => {
+                  setFilterType("bots");
+                  setSelectedRoleId(null);
+                }}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold transition-all ${
+                  filterType === "bots"
+                    ? "border-sky-500 bg-sky-500/20 text-sky-600 dark:text-sky-400"
+                    : "border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white"
+                }`}
+              >
+                🤖 Боты ({users.filter((u) => u.is_bot).length})
               </button>
 
               {/* Фильтр по ролям */}

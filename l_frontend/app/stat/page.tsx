@@ -132,6 +132,8 @@ export default function StatPage() {
   };
   const setRoleFilter = (v: string) => { setRoleFilterState(v); saveStatUI({ role: v }); };
   const setActivityFilter = (v: string) => { setActivityFilterState(v); saveStatUI({ activity: v }); };
+  // 🤖 Вкладка "Пользователи / Боты" — боты по умолчанию скрыты
+  const [typeTab, setTypeTab] = useState<"users" | "bots">("users");
   const [page, setPageState] = useState(typeof statUI.page === "number" && statUI.page > 0 ? statUI.page : 1);
   const setPage = (p: number) => { setPageState(p); saveStatUI({ page: p }); };
   const [visibleCols, setVisibleColsState] = useState<Record<string, boolean>>(
@@ -230,6 +232,8 @@ export default function StatPage() {
 
   const filtered = useMemo(() => {
     let list = [...users];
+    // 🤖 Боты — отдельная вкладка: по умолчанию показываем только людей
+    list = list.filter(u => typeTab === "bots" ? u.is_bot : !u.is_bot);
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       list = list.filter(u => u.username.toLowerCase().includes(q) || u.display_name.toLowerCase().includes(q));
@@ -255,7 +259,7 @@ export default function StatPage() {
       return 0;
     });
     return list;
-  }, [users, searchQuery, roleFilter, activityFilter, sortField, sortOrder]);
+  }, [users, searchQuery, roleFilter, activityFilter, sortField, sortOrder, typeTab]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -362,6 +366,17 @@ export default function StatPage() {
 
             {/* ФИЛЬТРЫ */}
             <div className="flex gap-3 items-center p-4 bg-gray-100 dark:bg-white/5 rounded-xl border border-line dark:border-white/10 flex-wrap relative">
+              {/* 🤖 Вкладки: Пользователи / Боты */}
+              <div className="flex rounded-lg border border-line dark:border-white/10 overflow-hidden shrink-0">
+                <button onClick={() => setTypeTab("users")}
+                  className={`px-3 py-2 text-sm font-medium transition ${typeTab === "users" ? "bg-purple-600 text-white" : "bg-paper dark:bg-[#171717] text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white"}`}>
+                  Пользователи
+                </button>
+                <button onClick={() => setTypeTab("bots")}
+                  className={`px-3 py-2 text-sm font-medium transition ${typeTab === "bots" ? "bg-purple-600 text-white" : "bg-paper dark:bg-[#171717] text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white"}`}>
+                  🤖 Боты
+                </button>
+              </div>
               <div className="flex-1 min-w-[200px] relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-white/40" size={18} />
                 <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Поиск пользователей..."
