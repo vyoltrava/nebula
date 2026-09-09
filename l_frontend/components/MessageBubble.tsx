@@ -1,6 +1,6 @@
 ﻿// components/MessageBubble.tsx
 "use client";
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { Avatar } from './Avatar';
@@ -21,6 +21,7 @@ import { Pin, Check, CheckCheck, SmilePlus, MoreVertical, Lock, Phone, PhoneOff,
 import { formatChatTime } from '@/lib/time';
 import { parseCallLog, CallLogPayload } from '@/lib/callLog';
 import { mediaUrl } from '@/lib/media';
+import { StickerPackModal } from './StickerPackModal';
 
 function formatCallDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -110,6 +111,7 @@ export const MessageBubble = memo(function MessageBubble({
   const isVideoNote = !!msg.media_url && msg.media_type === "video_note";
   const isAudio = !!msg.media_url && msg.media_type === "audio";
   const isSticker = !!msg.media_url && msg.media_type === "sticker"; // 🆕 Добавлено для стикеров
+  const [openPack, setOpenPack] = useState<string | null>(null); // 🆕 клик по стикеру → весь пак
   const isForwarded = !!msg.forwarded_from_id; // ✅ ИСПРАВЛЕНО: добавлена отсутствующая переменная
   const isEncryptedMedia = !!msg.is_encrypted_media || msg.ciphertext === "[encrypted_media]";
 
@@ -199,18 +201,30 @@ export const MessageBubble = memo(function MessageBubble({
                 {msg.media_url && msg.media_type === "audio" && <AudioPlayer src={mediaUrl(msg.media_url)} trackId={msg.id} title={`${msg.sender_name} · ${formatChatTime(msg.created_at)}`} />}
                 {msg.media_url && msg.media_type === "video_note" && <VideoNotePlayer src={mediaUrl(msg.media_url)} trackId={msg.id} title={`${msg.sender_name} · ${formatChatTime(msg.created_at)}`} />}
 
-                {/* 🆕 Рендер стикеров как сообщений — размеры фиксированы (w-32/h-32→128px), поэтому next/image с width/height безопасен. */}
+                {/* 🆕 Рендер стикеров как сообщений — размер меньше, как в ТГ; клик открывает весь пак */}
                 {isSticker && (
-                  <Image
-                    src={mediaUrl(msg.media_url)}
-                    alt="sticker"
-                    width={128}
-                    height={128}
-                    sizes="(max-width: 640px) 128px, 160px"
-                    className="w-32 h-32 sm:w-40 sm:h-40 object-contain"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setOpenPack(mediaUrl(msg.media_url))}
+                    className="p-0.5 -m-0.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                    title="Открыть весь пак"
+                  >
+                    <Image
+                      src={mediaUrl(msg.media_url)}
+                      alt="sticker"
+                      width={112}
+                      height={112}
+                      sizes="(max-width: 640px) 112px, 128px"
+                      className="w-24 h-24 sm:w-28 sm:h-28 object-contain"
+                    />
+                  </button>
                 )}
               </>
+            )}
+
+            {/* 🆕 Модалка со всем паком при клике на стикер */}
+            {openPack && (
+              <StickerPackModal content={openPack} onClose={() => setOpenPack(null)} />
             )}
 
             {/* 🆕 ЦИТАТА (ответ на сообщение) */}
