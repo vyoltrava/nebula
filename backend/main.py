@@ -36,8 +36,6 @@ import cloudinary
 import cloudinary.uploader
 import subprocess
 import tempfile
-import pyotp
-import qrcode
 import io
 import base64
 
@@ -71,15 +69,16 @@ from performance import PerfMiddleware, get_perf_summary
 import time
 import asyncio
 from fastapi import Response
-from imageio_ffmpeg import get_ffmpeg_exe
 
-import sentry_sdk
-
-sentry_sdk.init(
-    dsn=os.getenv("SENTRY_DSN"), # Добавь SENTRY_DSN в .env
-    traces_sample_rate=0.1,      # 10% транзакций для трейсинга
-    environment=os.getenv("ENV", "development"),
-)
+# 🛡 Sentry включаем ТОЛЬКО при наличии SENTRY_DSN (в dev/локально не грузим
+# тяжёлое дерево sentry_sdk + его интеграции gevent/eventlet/rq → быстрее старт).
+if os.getenv("SENTRY_DSN"):
+    import sentry_sdk
+    sentry_sdk.init(
+        dsn=os.getenv("SENTRY_DSN"),
+        traces_sample_rate=0.1,      # 10% транзакций для трейсинга
+        environment=os.getenv("ENV", "development"),
+    )
 
 
 
@@ -368,6 +367,16 @@ def _jwt_sub(payload) -> Optional[int]:
 
 app = FastAPI(title="Nebula API")
 app.include_router(lp_router, prefix="/api")
+
+# 🛡 Схема создаётся ДО приёма запросов: у свежих БД (новый дев/прод) таблиц ещё
+# нет, и startup-хук срабатывает уже ПОСЛЕ того, как воркеры uvicorn начинают
+# обслуживать запросы → "relation "user" does not exist". init_db() с create_all
+# идемпотентен (checkfirst), поэтому вызов здесь безопасен и покрывает и Alembic,
+# и голый create_all, и уже существующую схему.
+try:
+    init_db()
+except Exception as _e:
+    print(f"⚠️ init_db (create_all) при импорте не удался: {_e}")
 
 @app.on_event("startup")
 def print_routes():
@@ -1472,18 +1481,32 @@ def update_profile(
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ):
-    old_name = user.display_name
-    user.display_name = data.display_name
+    changed = False
+
+    # display_name — только если реально изменился
+    if data.display_name is not None and data.display_name != user.display_name:
+        old_name = user.display_name
+        user.display_name = data.display_name
+        session.add(NickHistory(
+            user_id=user.id,
+            field="display_name",
+            old_value=old_name or "",
+            new_value=data.display_name or "",
+            changed_by=user.id,
+        ))
+        changed = True
+
+    # bio — только если передали (может быть пустым для очистки)
     if data.bio is not None:
         user.bio = data.bio.strip()[:500] if data.bio.strip() else None
+        changed = True
+
+    if not changed:
+        # Ничего не меняли — не пишем NickHistory и не трогаем сессию без нужды
+        session.refresh(user)
+        return user_out(user, session)
+
     session.add(user)
-    session.add(NickHistory(
-        user_id=user.id,
-        field="display_name",
-        old_value=old_name or "",
-        new_value=data.display_name or "",
-        changed_by=user.id,  # сам себе
-    ))
     session.commit()
     session.refresh(user)
     return user_out(user, session)
@@ -3652,26 +3675,50 @@ async def process_video_note(
         vf = f"crop=min(iw\\,ih):min(iw\\,ih):(iw-min(iw\\,ih))/2:(ih-min(iw\\,ih))/2,scale={target_size}:{target_size}"
         if mirror == "1":
             vf += ",hflip"
-        
+
+        # Ленивый поиск ffmpeg — не импортируем модуль ffmpeg при старте
+        def _find_ffmpeg():
+            import shutil
+            exe = shutil.which("ffmpeg")
+            if not exe:
+                # Попробуем стандартные пути на Windows
+                for p in [
+                    os.path.expanduser("~/ffmpeg/bin/ffmpeg.exe"),
+                    "C:\\ffmpeg\\bin\\ffmpeg.exe",
+                    "C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe",
+                    "D:\\ffmpeg\\bin\\ffmpeg.exe",
+                ]:
+                    if os.path.isfile(p):
+                        return p
+                raise HTTPException(500, "ffmpeg не найден в PATH — установите ffmpeg")
+            return exe
+
         cmd = [
-            get_ffmpeg_exe(), "-y", "-i", input_path,
+            _find_ffmpeg(), "-y", "-i", input_path,
             "-vf", vf,
             "-c:v", "libx264", "-preset", "fast", "-crf", "23",
             "-movflags", "+faststart",
-            "-c:a", "aac", "-b:a", "128k",
-            "-pix_fmt", "yuv420p",
-            output_path
+            "-an",
+            output_path,
         ]
-        
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-        
+
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+
         if result.returncode != 0:
             print(f"FFMPEG ERROR: {result.stderr}")
             raise HTTPException(500, "Ошибка обработки видео")
-        
+
+        if not os.path.exists(output_path):
+            raise HTTPException(500, "FFmpeg не создал выходной файл")
+
         with open(output_path, "rb") as f:
             output_bytes = f.read()
-        
+
         return Response(
             content=output_bytes,
             media_type="video/mp4",
@@ -7549,30 +7596,34 @@ def setup_2fa(
     """Генерирует секрет и QR-код для привязки аутентификатора"""
     if user.totp_enabled:
         raise HTTPException(400, "2FA уже включена")
-    
+
+    # Ленивый импорт — не грузим pyotp/qrcode при старте
+    import pyotp
+    import qrcode
+
     # Генерируем новый секрет
     secret = pyotp.random_base32()
-    
+
     # Сохраняем секрет (пока не активирован)
     user.totp_secret = secret
     session.add(user)
     session.commit()
-    
+
     # Генерируем URI для QR
     totp_uri = pyotp.totp.TOTP(secret).provisioning_uri(
         name=user.username,
         issuer_name="Nebula"  # ← Замени на название своего приложения
     )
-    
+
     # Генерируем QR-код как base64
     img = qrcode.make(totp_uri)
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     qr_base64 = base64.b64encode(buffer.getvalue()).decode()
-    
+
     # Генерируем резервные коды
     backup_codes = [uuid.uuid4().hex[:8].upper() for _ in range(10)]
-    
+
     return {
         "secret": secret,
         "qr_code": f"data:image/png;base64,{qr_base64}",
@@ -7593,10 +7644,13 @@ def activate_2fa(
     """Активирует 2FA после проверки кода из аутентификатора"""
     if user.totp_enabled:
         raise HTTPException(400, "2FA уже включена")
-    
+
+    # Ленивый импорт — не грузим pyotp при старте
+    import pyotp
+
     if not user.totp_secret:
         raise HTTPException(400, "Сначала вызовите /api/2fa/setup")
-    
+
     # Проверяем код
     totp = pyotp.TOTP(user.totp_secret)
     if not totp.verify(code, valid_window=1):  # valid_window=1 для учёта рассинхрона времени
@@ -7635,7 +7689,10 @@ def disable_2fa(
     """Отключает 2FA (нужен код из аутентификатора ИЛИ резервный код)"""
     if not user.totp_enabled:
         raise HTTPException(400, "2FA не включена")
-    
+
+    # Ленивый импорт
+    import pyotp
+
     # Проверяем: это TOTP код или резервный?
     totp = pyotp.TOTP(user.totp_secret)
     
@@ -8288,11 +8345,11 @@ async def send_message_v2(
             pass
         # 🤖 BOT COMPANY: сообщение боту в чате → движок ботов
         try:
-            from bots import handle_bot_message, handle_botfather_dm
+            from bots import handle_bot_message, handle_bot_creator_dm
             from sticker_bot import handle_stickerbot_command
             clean_text = (ciphertext or text or "").strip()
             if clean_text.startswith("/"):
-                handled = handle_botfather_dm(session, user.id, clean_text) \
+                handled = handle_bot_creator_dm(session, user.id, clean_text) \
                     if not getattr(chat, "is_group", False) else False
                 if not handled:
                     handled = handle_stickerbot_command(
@@ -8592,7 +8649,6 @@ async def send_live_text(
     session: Session = Depends(get_session),
 ):
     """🆕 ЖИВЫЕ СООБЩЕНИЯ с учётом приватности"""
-    # 🛡️ Пользователь выключил трансляцию своего набора — не шлём
     if not user.live_text_broadcast:
         return {"ok": True}
 
@@ -8602,7 +8658,6 @@ async def send_live_text(
     if not member:
         raise HTTPException(403, "Не участник чата")
 
-    # В секретных чатах не светим plaintext
     chat = session.get(Chat, chat_id)
     if chat and chat.is_secret:
         return {"ok": True}
@@ -8614,7 +8669,6 @@ async def send_live_text(
     if not other_ids:
         return {"ok": True}
 
-    # 🛡️ Шлём ТОЛЬКО тем, у кого включён показ живых сообщений
     recipients = session.exec(
         select(User.id).where(
             User.id.in_(other_ids),
@@ -8627,6 +8681,8 @@ async def send_live_text(
             "user_id": user.id,
             "user_name": user.display_name,
             "text": text[:2000],
+            "time": _chat_timestamp_now(user),
+            "timezone": getattr(user, "sender_timezone", None),
         })
     return {"ok": True}
 
@@ -14842,12 +14898,12 @@ def start_work_bot_scheduler_hook():
                 print("work memberships synced:", n)
             except Exception as _e:
                 print("work_chats ensure:", _e)
-            # 🤖 BotFather — отец ботов (системный)
+            # 🤖 Bot_creator — отец ботов (системный)
             try:
-                from bots import ensure_botfather
-                ensure_botfather(s)
+                from bots import ensure_bot_creator
+                ensure_bot_creator(s)
             except Exception as _e:
-                print("botfather ensure:", _e)
+                print("bot_creator ensure:", _e)
             # 🎨 StickerBot — системный стикер-бот (создание пользовательских паков)
             try:
                 from sticker_bot import ensure_stickerbot

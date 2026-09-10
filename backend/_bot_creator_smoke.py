@@ -1,4 +1,4 @@
-"""Smoke: BotFather — открытие лички через UI-кнопку + ответы на команды."""
+"""Smoke: Bot_creator — открытие лички через UI-кнопку + ответы на команды."""
 import os
 os.environ["DATABASE_URL"] = "sqlite:///./_bf_test.db"
 if os.path.exists("_bf_test.db"):
@@ -19,25 +19,25 @@ with Session(engine) as s:
     s.add(u); s.commit(); s.refresh(u)
     tok = {"Authorization": "Bearer " + create_token(u.id)}
 
-r = client.post("/api/admin/bots/botfather/open", headers=tok)
+r = client.post("/api/admin/bots/bot-creator/open", headers=tok)
 print("open:", r.status_code, r.json())
 assert r.status_code == 200 and r.json()["chat_id"], r.text
 chat_id = r.json()["chat_id"]
 
-# 🖼 у BotFather есть аватар из public-папки фронтенда
+# 🖼 у Bot_creator есть аватар из public-папки фронтенда
 with Session(engine) as s:
     bf_user = s.exec(select(models.User).where(
-        models.User.username == "botfather")).first()
-    assert bf_user, "BotFather не создан"
-    assert bf_user.avatar_url == "public:/botfather.png", bf_user.avatar_url
+        models.User.username == "bot_creator")).first()
+    assert bf_user, "Bot_creator не создан"
+    assert bf_user.avatar_url == "public:/bot_creator.png", bf_user.avatar_url
     print("botfather avatar ok:", bf_user.avatar_url)
 
 # повторный вызов — тот же чат (идемпотентно)
-r2 = client.post("/api/admin/bots/botfather/open", headers=tok)
+r2 = client.post("/api/admin/bots/bot-creator/open", headers=tok)
 assert r2.json()["chat_id"] == chat_id, r2.json()
 print("idempotent ok")
 
-# юзер шлёт /start -> BotFather отвечает
+# юзер шлёт /start -> Bot_creator отвечает
 r = client.post("/api/chats/%d/messages" % chat_id, headers=tok, data={"text": "/start"})
 print("msg status:", r.status_code)
 
@@ -46,7 +46,7 @@ with Session(engine) as s:
         models.Message.chat_id == chat_id).order_by(models.Message.id)).all()
     texts = [(m.sender_id, (m.text or "")[:45]) for m in msgs]
     print("messages:", texts)
-    assert any("BotFather" in (m.text or "") for m in msgs), "нет ответа BotFather"
+    assert any("Bot_creator" in (m.text or "") for m in msgs), "нет ответа Bot_creator"
 
 # /newbot создаёт бота и присылает токен
 r = client.post("/api/chats/%d/messages" % chat_id, headers=tok,
@@ -75,31 +75,31 @@ data = r.json()
 print("bot-commands:", r.status_code, data)
 assert r.status_code == 200 and "bots" in data
 all_commands = [c["command"] for b in data["bots"] for c in b["commands"]]
-assert "/newbot" in all_commands, all_commands  # команды BotFather в личке
+assert "/newbot" in all_commands, all_commands  # команды Bot_creator в личке
 # не-участник чата → 403
 r = client.get("/api/chats/999999/bot-commands", headers=tok)
 assert r.status_code == 403, r.status_code
 print("command-hints endpoint ok")
 
 # 👨💻 создание бота через кнопки (API-ключ, показывается один раз)
-r = client.post("/api/botfather/create-bot", headers=tok,
+r = client.post("/api/bot_creator/create-bot", headers=tok,
                 json={"name": "МойБот", "username": "bot_mybot"})
 d = r.json()
 print("create-bot:", r.status_code, d["ok"], "token?", "token" in d)
 assert r.status_code == 200 and d["ok"] and d["token"]
 assert d["token"].startswith("%d:" % d["bot"]["id"])
 # дубль ника → 400
-r2 = client.post("/api/botfather/create-bot", headers=tok,
+r2 = client.post("/api/bot_creator/create-bot", headers=tok,
                  json={"name": "X", "username": "bot_mybot"})
 assert r2.status_code == 400, r2.status_code
 # ник без приписки bot → 400
-r2 = client.post("/api/botfather/create-bot", headers=tok,
+r2 = client.post("/api/bot_creator/create-bot", headers=tok,
                  json={"name": "X", "username": "my_helper"})
 assert r2.status_code == 400, r2.status_code
 print("   prefix-validation ok")
 
 # 📱 мои боты (без ключей)
-r = client.get("/api/botfather/my-bots", headers=tok)
+r = client.get("/api/bot_creator/my-bots", headers=tok)
 myb = r.json()
 assert r.status_code == 200 and any(b["username"] == "bot_mybot" for b in myb)
 bot_item = next(b for b in myb if b["username"] == "bot_mybot")
@@ -108,7 +108,7 @@ print("   my-bots без утечки ключа ok")
 
 # 🔑 сброс ключа → новый
 old_token = d["token"]
-r = client.post("/api/botfather/reset-token", headers=tok,
+r = client.post("/api/bot_creator/reset-token", headers=tok,
                 json={"bot_id": bot_item["id"]})
 dr = r.json()
 assert r.status_code == 200 and dr["ok"] and dr["token"] != old_token
@@ -119,7 +119,7 @@ with Session(engine) as s:
     myb = s.exec(select(models.Bot).where(models.Bot.username == "bot_mybot")).first()
     del_bot_id = myb.id
     del_bot_user_id = myb.user_id
-r = client.post("/api/botfather/delete-bot", headers=tok, json={"bot_id": del_bot_id})
+r = client.post("/api/bot_creator/delete-bot", headers=tok, json={"bot_id": del_bot_id})
 print("delete-bot:", r.status_code, r.text[:80])
 assert r.status_code == 200 and r.json()["ok"], r.text
 with Session(engine) as s:
@@ -132,10 +132,10 @@ with Session(engine) as s:
         models.BotLog.bot_id == del_bot_id)).first() is None
 print("   бот удалён, bot_log чист, аккаунт анонимизирован ok")
 # повторное удаление → 404
-r = client.post("/api/botfather/delete-bot", headers=tok, json={"bot_id": del_bot_id})
+r = client.post("/api/bot_creator/delete-bot", headers=tok, json={"bot_id": del_bot_id})
 assert r.status_code == 404, r.status_code
 # 🏛 системных ботов удалить нельзя
-r = client.post("/api/botfather/delete-bot", headers=tok, json={"bot_id": 1})
+r = client.post("/api/bot_creator/delete-bot", headers=tok, json={"bot_id": 1})
 assert r.status_code == 404, r.status_code
 
 print("BOTFATHER SMOKE OK")

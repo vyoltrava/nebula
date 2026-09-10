@@ -1070,7 +1070,7 @@ channels: {
 },
   bots: {
     title: "Bots",
-    botFather: "BotFather",
+    botFather: "Bot_creator",
     createBot: "Create bot",
     myBots: "My bots",
     myStickers: "My stickers",

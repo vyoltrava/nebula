@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useTheme } from "next-themes";
 import { resolveNickColor } from "@/lib/nickGlow";
 import { useEffect, useState, useRef, useMemo, useCallback, Fragment } from "react";
@@ -1451,7 +1451,7 @@ const confirmPrismKey = async () => {
             <button
               onClick={async () => {
                 setShowCreateMenu(false);
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/bots/botfather/open`, {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/bots/bot-creator/open`, {
                   method: "POST", headers: { Authorization: `Bearer ${getToken()}` },
                 });
                 if (res.ok) {
@@ -1461,7 +1461,7 @@ const confirmPrismKey = async () => {
               }}
               className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors border-t border-line dark:border-white/5"
             >
-              <Bot size={16} className="text-[#8b5cf6]" /> BotFather · Создать бота
+              <Bot size={16} className="text-[#8b5cf6]" /> Bot_creator · Создать бота
             </button>
           </div>
         )}

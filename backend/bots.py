@@ -68,24 +68,24 @@ def valid_bot_username(u):
     return bool(valid_username(u) and u.startswith("bot"))
 
 
-@router.post("/admin/bots/botfather/open")
-def open_botfather_chat(user: User = Depends(get_current_user),
-                        session: Session = Depends(get_session)):
-    """Открыть (или создать) ЕДИНСТВЕННУЮ личку с BotFather."""
-    chat = _botfather_dm(session, user)
-    bf = ensure_botfather(session)
+@router.post("/admin/bots/bot-creator/open")
+def open_bot_creator_chat(user: User = Depends(get_current_user),
+                          session: Session = Depends(get_session)):
+    """Открыть (или создать) ЕДИНСТВЕННУЮ личку с Bot_creator."""
+    chat = _bot_creator_dm(session, user)
+    bf = ensure_bot_creator(session)
     session.commit()
-    return {"ok": True, "chat_id": chat.id, "botfather_user_id": bf.user_id}
+    return {"ok": True, "chat_id": chat.id, "bot_creator_user_id": bf.user_id}
 
 
-def _botfather_dm(session: Session, user: User):
-    """ЕДИНСТВЕННАЯ личка user<->BotFather: находит или создаёт (без дублей)."""
+def _bot_creator_dm(session: Session, user: User):
+    """ЕДИНСТВЕННАЯ личка user<->Bot_creator: находит или создаёт (без дублей)."""
     from models import Message as _Msg
-    bf = ensure_botfather(session)
+    bf = ensure_bot_creator(session)
     session.commit()
     if not bf.user_id:
-        raise HTTPException(500, "BotFather без аккаунта")
-    # ищем существующую личку user <-> botfather
+        raise HTTPException(500, "Bot_creator без аккаунта")
+    # ищем существующую личку user <-> bot_creator
     for m in session.exec(select(ChatMember).where(
             ChatMember.user_id == user.id)).all():
         c = session.get(Chat, m.chat_id)
@@ -100,9 +100,9 @@ def _botfather_dm(session: Session, user: User):
     session.add(ChatMember(chat_id=c.id, user_id=user.id, role="owner"))
     session.add(ChatMember(chat_id=c.id, user_id=bf.user_id, role="member"))
     session.commit()
-    # приветствие от BotFather
+    # приветствие от Bot_creator
     session.add(_Msg(chat_id=c.id, sender_id=bf.user_id,
-                     text="Привет! Я BotFather 🤖\n\nНажми кнопку «Создать бота» "
+                     text="Привет! Я Bot_creator 🤖\n\nНажми кнопку «Создать бота» "
                           "над полем ввода — или напиши /newbot."))
     session.commit()
     return c
@@ -127,12 +127,12 @@ def _create_user_bot(session: Session, owner_id: int, name: str, nick: str):
     return bot, api_token
 
 
-def _bf_say(session: Session, owner_id: int, text: str):
-    """BotFather пишет сообщение в свою единственную личку с юзером."""
+def _bc_say(session: Session, owner_id: int, text: str):
+    """Bot_creator пишет сообщение в свою единственную личку с юзером."""
     from models import Message as _Msg
-    bf = ensure_botfather(session)
-    chat = _botfather_dm(session, session.get(User, owner_id))
-    session.add(_Msg(chat_id=chat.id, sender_id=bf.user_id, text=text))
+    bc = ensure_bot_creator(session)
+    chat = _bot_creator_dm(session, session.get(User, owner_id))
+    session.add(_Msg(chat_id=chat.id, sender_id=bc.user_id, text=text))
     session.commit()
 
 
@@ -217,7 +217,7 @@ def chat_bot_commands(chat_id: int, user: User = Depends(get_current_user),
 
 
 # ------------------------------------------------------------------
-# 👨💻 BotFather: создание ботов кнопками (API-ключ для Python-файла)
+# 👨💻 Bot_creator: создание ботов кнопками (API-ключ для Python-файла)
 # ------------------------------------------------------------------
 
 class BfCreateBotIn(BaseModel):
@@ -225,10 +225,10 @@ class BfCreateBotIn(BaseModel):
     username: Optional[str] = None
 
 
-@router.post("/botfather/create-bot")
+@router.post("/bot_creator/create-bot")
 def bf_create_bot(data: BfCreateBotIn, user: User = Depends(get_current_user),
                   session: Session = Depends(get_session)):
-    """🤖 Создание пользовательского бота через BotFather (кнопки в чате).
+    """🤖 Создание пользовательского бота через Bot_creator (кнопки в чате).
     API-ключ возвращается ОДИН раз — он нужен в Python-файле бота."""
     name = (data.name or "").strip()
     if not name:
@@ -241,7 +241,7 @@ def bf_create_bot(data: BfCreateBotIn, user: User = Depends(get_current_user),
     if session.exec(select(Bot).where(Bot.username == nick)).first():
         raise HTTPException(400, "Ник '@%s' занят" % nick)
     bot, api_token = _create_user_bot(session, user.id, name, nick)
-    _bf_say(session, user.id,
+    _bc_say(session, user.id,
             "Бот создан! 🤖\n\nИмя: %s\nНик: @%s\n\nAPI-ключ для Python-файла "
             "показан в окне создания. Сохраните его — он больше не покажется."
             % (name, nick))
@@ -253,7 +253,7 @@ def bf_create_bot(data: BfCreateBotIn, user: User = Depends(get_current_user),
                        "Потеряли? Сбросьте через «Мои боты»."}
 
 
-@router.get("/botfather/my-bots")
+@router.get("/bot_creator/my-bots")
 def bf_my_bots(user: User = Depends(get_current_user),
                session: Session = Depends(get_session)):
     """📱 Мои пользовательские боты (без ключей — они не хранятся открыто)."""
@@ -273,8 +273,8 @@ def bf_my_bots(user: User = Depends(get_current_user),
     return result
 
 
-# 🏛 ОФИЦИАЛЬНЫЕ боты — отдельная каста (system=True): BotFather, StickerBot…
-@router.get("/botfather/official-bots")
+# 🏛 ОФИЦИАЛЬНЫЕ боты — отдельная каста (system=True): Bot_creator, StickerBot…
+@router.get("/bot_creator/official-bots")
 def bf_official_bots(user: User = Depends(get_current_user),
                      session: Session = Depends(get_session)):
     # 🎨 StickerBot создаём на месте, если его ещё нет (как и при старте)
@@ -295,7 +295,7 @@ def bf_official_bots(user: User = Depends(get_current_user),
     return out
 
 
-@router.post("/botfather/official/{username}/open")
+@router.post("/bot_creator/official/{username}/open")
 def bf_open_official(username: str, user: User = Depends(get_current_user),
                      session: Session = Depends(get_session)):
     """Открыть ЕДИНСТВЕННУЮ личку с официальным ботом (StickerBot и др.)."""
@@ -336,7 +336,7 @@ class BfResetIn(BaseModel):
     bot_id: int
 
 
-@router.post("/botfather/reset-token")
+@router.post("/bot_creator/reset-token")
 def bf_reset_token(data: BfResetIn, user: User = Depends(get_current_user),
                    session: Session = Depends(get_session)):
     """🔑 Сброс API-ключа своего бота. Новый показывается один раз."""
@@ -350,14 +350,14 @@ def bf_reset_token(data: BfResetIn, user: User = Depends(get_current_user),
     reset_api_token_cache(b.id)
     session.add(b)
     session.commit()
-    _bf_say(session, user.id,
+    _bc_say(session, user.id,
             "API-ключ бота @%s сброшен. Новый показан в окне — старый "
             "перестал работать." % (b.username or b.name))
     return {"ok": True, "token": token,
             "warning": "Сохраните ключ — он показывается только один раз."}
 
 
-@router.post("/botfather/delete-bot")
+@router.post("/bot_creator/delete-bot")
 def bf_delete_bot(data: BfResetIn, user: User = Depends(get_current_user),
                   session: Session = Depends(get_session)):
     """🗑 Удаление своего бота безвозвратно (владелец/админ).
@@ -402,7 +402,7 @@ def bf_delete_bot(data: BfResetIn, user: User = Depends(get_current_user),
     except Exception as e:
         session.rollback()
         raise HTTPException(500, "Ошибка удаления: %s" % e)
-    _bf_say(session, user.id,
+    _bc_say(session, user.id,
             "Бот @%s («%s») удалён навсегда. API-ключ больше не работает." % (
                 bot_nick, bot_name))
     return {"ok": True}
@@ -427,7 +427,7 @@ def _own_bot_or_404(session: Session, bot_id: int, user: User) -> Bot:
     return b
 
 
-@router.post("/botfather/edit-bot")
+@router.post("/bot_creator/edit-bot")
 def bf_edit_bot(data: BfEditBotIn, user: User = Depends(get_current_user),
                 session: Session = Depends(get_session)):
     """⚙️ Настройка бота: имя, описание."""
@@ -448,7 +448,7 @@ def bf_edit_bot(data: BfEditBotIn, user: User = Depends(get_current_user),
                                 "description": b.description}}
 
 
-@router.post("/botfather/{bot_id}/avatar")
+@router.post("/bot_creator/{bot_id}/avatar")
 async def bf_bot_avatar(bot_id: int, file: UploadFile = File(...),
                         user: User = Depends(get_current_user),
                         session: Session = Depends(get_session)):
@@ -679,37 +679,65 @@ def get_worker_bot_for_chat(session: Session, chat_id: int) -> Optional[Bot]:
 
 
 # ------------------------------------------------------------------
-# 👨💻 BotFather — системный бот платформы (как в Telegram)
+# 👨💻 Bot_creator — системный бот платформы (как в Telegram)
 # ------------------------------------------------------------------
 
-BOTFATHER_USERNAME = "botfather"
+BOT_CREATOR_USERNAME = "bot_creator"
 
 
-# 🖼 Аватар BotFather: статика из public-папки фронтенда ("public:"-префикс).
-# Заменить — просто положить другой файл: nebula/l_frontend/public/botfather.png
-BOTFATHER_AVATAR = "public:/botfather.png"
+# 🖼 Аватар Bot_creator: статика из public-папки фронтенда ("public:"-префикс).
+# Заменить — просто положить другой файл: nebula/l_frontend/public/bot_creator.png
+BOT_CREATOR_AVATAR = "public:/bot_creator.png"
 
 
-def ensure_botfather(session: Session) -> Bot:
-    """Создаёт системного бота BotFather (аккаунт is_bot, личка)."""
+def ensure_bot_creator(session: Session) -> Bot:
+    """Создаёт системного бота Bot_creator (аккаунт is_bot, личка).
+
+    🛡 Legacy-миграция: если в БД бот ещё числится под старым именем
+    botfather / BotFather — переименовываем его и его аккаунт-бота
+    (bot.name, bot.username, user.username, user.display_name, avatar).
+    Сообщения, чаты и логи сохраняются — меняется только имя.
+    """
+    # --- 🛡 миграция legacy "botfather" -> "bot_creator" ---
+    legacy = session.exec(select(Bot).where(
+        Bot.username == "botfather")).first()
+    already = session.exec(select(Bot).where(
+        Bot.username == BOT_CREATOR_USERNAME)).first()
+    if legacy and not already:
+        legacy.username = BOT_CREATOR_USERNAME
+        legacy.name = "Bot_creator"
+        session.add(legacy)
+        if legacy.user_id:
+            lbu = session.get(User, legacy.user_id)
+            if lbu:
+                lbu.username = BOT_CREATOR_USERNAME
+                lbu.display_name = "Bot_creator"
+                lbu.avatar_url = BOT_CREATOR_AVATAR
+                session.add(lbu)
+        session.commit()
+        log_bot(session, legacy.id, "bot_creator_renamed", None,
+                {"from": "botfather", "to": "bot_creator"})
+        session.commit()
+        return legacy
+
     b = session.exec(select(Bot).where(
-        Bot.username == BOTFATHER_USERNAME)).first()
+        Bot.username == BOT_CREATOR_USERNAME)).first()
     if b:
         # 🖼 проставляем аватар, если его ещё нет (старые БД)
         if b.user_id:
             bu = session.get(User, b.user_id)
             if bu and not bu.avatar_url:
-                bu.avatar_url = BOTFATHER_AVATAR
+                bu.avatar_url = BOT_CREATOR_AVATAR
                 session.add(bu)
                 session.commit()
         return b
-    bu = User(username=BOTFATHER_USERNAME, display_name="BotFather",
+    bu = User(username=BOT_CREATOR_USERNAME, display_name="Bot_creator",
               password_hash=secrets.token_hex(16), is_bot=True,
-              avatar_url=BOTFATHER_AVATAR)
+              avatar_url=BOT_CREATOR_AVATAR)
     session.add(bu)
     session.commit()
     session.refresh(bu)
-    b = Bot(name="BotFather", username=BOTFATHER_USERNAME,
+    b = Bot(name="Bot_creator", username=BOT_CREATOR_USERNAME,
             description="Отец всех ботов. Создаёт ботов, выдаёт токены.",
             type="custom", active=True, token=secrets.token_hex(20),
             owner_id=None, user_id=bu.id, system=True)
@@ -717,7 +745,7 @@ def ensure_botfather(session: Session) -> Bot:
     session.commit()
     session.refresh(b)
     for cmd, reply in [
-        ("/start", "Привет! Я BotFather 🤖\n\nСоздать бота — /newbot\n"
+        ("/start", "Привет! Я Bot_creator 🤖\n\nСоздать бота — /newbot\n"
                    "Мои боты — /mybots\nСброс ключа — /revoke @ник\nКоманды — /setcommands\n\n"
                    "Или кнопки над полем ввода / в меню чата (⋮)."),
         ("/newbot", "Отправь имя и ник нового бота как:\n\n"
@@ -730,7 +758,7 @@ def ensure_botfather(session: Session) -> Bot:
         session.add(BotCommand(bot_id=b.id, command=cmd, reply=reply,
                                action="reply_text", payload="{}"))
     session.commit()
-    log_bot(session, b.id, "botfather_created", None, {"user_id": bu.id})
+    log_bot(session, b.id, "bot_creator_created", None, {"user_id": bu.id})
     session.commit()
     return b
 
@@ -945,10 +973,10 @@ def handle_bot_message(session: Session, chat_id: int, sender_id: int,
     return replied
 
 
-def handle_botfather_dm(session: Session, sender_id: int, text: str) -> bool:
-    """Обработка лички с BotFather: /newbot создаёт бота, /token выдаёт токен."""
+def handle_bot_creator_dm(session: Session, sender_id: int, text: str) -> bool:
+    """Обработка лички с Bot_creator: /newbot создаёт бота, /token выдаёт токен."""
     bf = session.exec(select(Bot).where(
-        Bot.username == BOTFATHER_USERNAME)).first()
+        Bot.username == BOT_CREATOR_USERNAME)).first()
     if not bf or not bf.user_id:
         return False
     from models import Chat as _Chat, Message as _Msg
@@ -1075,7 +1103,7 @@ def handle_botfather_dm(session: Session, sender_id: int, text: str) -> bool:
              "Увидеть меню можно на странице /bots." % (cmd, desc, nick))
         return True
     if low in ("/help", "/start"):
-        send("BotFather:\n/newbot — создать\n/mybots — список\n"
+        send("Bot_creator:\n/newbot — создать\n/mybots — список\n"
              "/token — токены\n/setcommands — команды")
         return True
     return False

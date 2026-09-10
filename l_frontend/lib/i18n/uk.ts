@@ -1069,7 +1069,7 @@ channels: {
 },
   bots: {
     title: "Боти",
-    botFather: "BotFather",
+    botFather: "Bot_creator",
     createBot: "Створити бота",
     myBots: "Мої боти",
     myStickers: "Мої стікери",

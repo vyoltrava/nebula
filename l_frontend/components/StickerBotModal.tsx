@@ -1,6 +1,6 @@
 "use client";
 // 🎨 StickerBotModal — модалка стикер-бота: команды-кнопки, формы загрузки
-// стикеров, управление паками (создание/приватность/удаление) — как в BotFather.
+// стикеров, управление паками (создание/приватность/удаление) — как в Bot_creator.
 import { useEffect, useRef, useState } from "react";
 import { getToken } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n/LanguageProvider";

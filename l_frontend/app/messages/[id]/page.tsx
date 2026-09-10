@@ -16,7 +16,7 @@ import { MessageContextMenu } from "@/components/MessageContextMenu";
 import { ReportDialog, ReportTargetType } from "@/components/ReportDialog";
 import CallButton from '@/components/CallButton';
 import { ChatMuteButton } from '@/components/ChatMuteButton';
-import { BotFatherModal } from "@/components/BotFatherModal";
+import { BotCreatorModal } from "@/components/BotCreatorModal";
   import { StickerBotModal } from "@/components/StickerBotModal";
 import { registerCallChat } from '@/lib/callLog';
 import { getRelayCallApi } from '@/lib/relayCall';
@@ -195,8 +195,8 @@ export default function ChatPage() {
   const [cmdQuery, setCmdQuery] = useState<string | null>(null);
   const [cmdSuggestions, setCmdSuggestions] = useState<any[]>([]);
   const [chatBotCommands, setChatBotCommands] = useState<any[]>([]);
-  // 👨💻 модалка BotFather (кнопки внутри чата)
-  const [showBotFatherModal, setShowBotFatherModal] = useState<"create" | "bots" | "official" | null>(null);
+  // 👨💻 модалка Bot_creator (кнопки внутри чата)
+  const [showBotCreatorModal, setShowBotCreatorModal] = useState<"create" | "bots" | "official" | null>(null);
   const [showStickerBotModal, setShowStickerBotModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [chatPartner, setChatPartner] = useState<any>(null);
@@ -2500,23 +2500,23 @@ const ChatHeader = () => (
           {/* Разделитель только для мобильных */}
           <div className="sm:hidden h-px bg-gray-100 dark:bg-white/10 my-1" />
 
-          {/* 🤖 BotFather: создание бота и мои боты — через меню чата */}
-          {!isGroup && chatPartner?.is_bot && chatPartner?.username === "botfather" && (
+          {/* 🤖 Bot_creator: создание бота и мои боты — через меню чата */}
+          {!isGroup && chatPartner?.is_bot && chatPartner?.username === "bot_creator" && (
             <>
               <button
-                onClick={() => { setShowBotFatherModal("create"); setShowChatMenu(false); }}
+                onClick={() => { setShowBotCreatorModal("create"); setShowChatMenu(false); }}
                 className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
               >
                 <Bot size={15} className="text-[#8b5cf6]" /> {t("bots.botCreateBtn")}
               </button>
               <button
-                onClick={() => { setShowBotFatherModal("bots"); setShowChatMenu(false); }}
+                onClick={() => { setShowBotCreatorModal("bots"); setShowChatMenu(false); }}
                 className="w-full px-3 py-2.5 text-left text-sm text-gray-900 dark:text-white hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors"
               >
                 <Bot size={15} className="text-[#8b5cf6]" /> {t("bots.myBots")}
               </button>
               <button
-                onClick={() => { setShowBotFatherModal("official"); setShowChatMenu(false); }}
+                onClick={() => { setShowBotCreatorModal("official"); setShowChatMenu(false); }}
                 className="w-full px-3 py-2.5 text-left text-sm text-[#8b5cf6] hover:bg-gray-100 dark:hover:bg-white/10 flex items-center gap-2 transition-colors font-bold"
               >
                 🏛 {t("bots.officialBots")}
@@ -3264,11 +3264,11 @@ onDoubleClick={(e) => {
             onClose={() => setReportTarget(null)}
           />
         )}
-        {/* 👨💻 Модалка BotFather (кнопки создания ботов) */}
-        {showBotFatherModal && chatPartner?.is_bot && chatPartner?.username === "botfather" && (
-          <BotFatherModal
-            mode={showBotFatherModal}
-            onClose={() => setShowBotFatherModal(null)}
+        {/* 👨💻 Модалка Bot_creator (кнопки создания ботов) */}
+        {showBotCreatorModal && chatPartner?.is_bot && chatPartner?.username === "bot_creator" && (
+          <BotCreatorModal
+            mode={showBotCreatorModal}
+            onClose={() => setShowBotCreatorModal(null)}
           />
         )}
         {/* 🎨 Модалка StickerBot (свои стикеры) */}

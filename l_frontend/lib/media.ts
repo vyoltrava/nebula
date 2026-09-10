@@ -8,7 +8,7 @@ export function mediaUrl(url: string | null | undefined): string {
   if (url.startsWith("http")) return url;
 
   // 🖼 "public:/file.png" — статика из public-папки ФРОНТЕНДА
-  // (например аватар BotFather). Меняется простой заменой файла.
+  // (например аватар Bot_creator). Меняется простой заменой файла.
   if (url.startsWith("public:")) return url.slice("public:".length);
 
   // Берём полный URL (с https://) из переменных окружения

@@ -1,5 +1,5 @@
 "use client";
-// 👨💻 BotFatherModal — модалка с кнопками ВНУТРИ чата с BotFather.
+// 👨💻 BotCreatorModal — модалка с кнопками ВНУТРИ чата с Bot_creator.
 // «Создать бота» → пошаговый диалог (имя → ник → API-ключ один раз).
 // «Мои боты» → список пользовательских ботов + сброс API-ключа.
 // Пользовательские боты = Python-файлы с API-ключом (test_bot.py).
@@ -13,9 +13,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 function ModalHeader({ onClose, subtitle, onOfficial }: { onClose: () => void; subtitle: string; onOfficial?: () => void }) {
   return (
     <div className="p-4 border-b border-line dark:border-white/10 flex items-center gap-3 sticky top-0 bg-ivory dark:bg-[#1f1f23] z-10">
-      <img src="/botfather.png" alt="BotFather" className="w-9 h-9 rounded-full object-cover bg-[#8b5cf6]/20 shrink-0" />
+      <img src="/bot_creator.png" alt="Bot_creator" className="w-9 h-9 rounded-full object-cover bg-[#8b5cf6]/20 shrink-0" />
       <div className="flex-1 min-w-0">
-        <p className="font-bold text-gray-900 dark:text-white">BotFather</p>
+        <p className="font-bold text-gray-900 dark:text-white">Bot_creator</p>
         <p className="text-[11px] text-gray-500 dark:text-white/40">{subtitle}</p>
       </div>
       {onOfficial && (
@@ -106,7 +106,7 @@ function MyBots({ bots, loading, error, resettingId, onCreateFirst, resetToken, 
   );
 }
 
-export function BotFatherModal({ mode: modeProp, onClose }: { mode: "create" | "bots" | "official"; onClose: () => void; }) {
+export function BotCreatorModal({ mode: modeProp, onClose }: { mode: "create" | "bots" | "official"; onClose: () => void; }) {
   const { t } = useI18n();
   const [modeOverride, setModeOverride] = useState<"official" | null>(null);
   const mode = modeOverride ?? modeProp;
@@ -128,7 +128,7 @@ export function BotFatherModal({ mode: modeProp, onClose }: { mode: "create" | "
   useEffect(() => {
     if (mode === "bots") {
       setLoadingBots(true);
-      fetch(`${API_URL}/api/botfather/my-bots`, {
+      fetch(`${API_URL}/api/bot_creator/my-bots`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       })
         .then(r => r.json())
@@ -141,7 +141,7 @@ export function BotFatherModal({ mode: modeProp, onClose }: { mode: "create" | "
 
   // 🏛 официальные боты (загружаем один раз)
   useEffect(() => {
-    fetch(`${API_URL}/api/botfather/official-bots`, {
+    fetch(`${API_URL}/api/bot_creator/official-bots`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     })
       .then(r => r.json())
@@ -153,7 +153,7 @@ export function BotFatherModal({ mode: modeProp, onClose }: { mode: "create" | "
   async function createBot() {
     setSaving(true); setError("");
     try {
-      const res = await fetch(`${API_URL}/api/botfather/create-bot`, {
+      const res = await fetch(`${API_URL}/api/bot_creator/create-bot`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify({ name, username: username || undefined }),
@@ -169,7 +169,7 @@ export function BotFatherModal({ mode: modeProp, onClose }: { mode: "create" | "
     if (!confirm("Сбросить API-ключ? Старый перестанет работать!")) return;
     setResettingId(botId);
     try {
-      const res = await fetch(`${API_URL}/api/botfather/reset-token`, {
+      const res = await fetch(`${API_URL}/api/bot_creator/reset-token`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify({ bot_id: botId }),
@@ -182,7 +182,7 @@ export function BotFatherModal({ mode: modeProp, onClose }: { mode: "create" | "
 
   async function deleteBot(b: any) {
     if (!confirm(`Удалить бота «${b.name}» навсегда? API-ключ перестанет работать.`)) return;
-    const res = await fetch(`${API_URL}/api/botfather/delete-bot`, {
+    const res = await fetch(`${API_URL}/api/bot_creator/delete-bot`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
       body: JSON.stringify({ bot_id: b.id }),
@@ -191,7 +191,7 @@ export function BotFatherModal({ mode: modeProp, onClose }: { mode: "create" | "
     if (!res.ok) { setError(d?.detail || "Ошибка удаления"); return; }
     setEditBot(null);
     setLoadingBots(true);
-    fetch(`${API_URL}/api/botfather/my-bots`, { headers: { Authorization: `Bearer ${getToken()}` } })
+    fetch(`${API_URL}/api/bot_creator/my-bots`, { headers: { Authorization: `Bearer ${getToken()}` } })
       .then(r => r.json())
       .then(x => setBots(Array.isArray(x) ? x : []))
       .finally(() => setLoadingBots(false));
@@ -204,7 +204,7 @@ export function BotFatherModal({ mode: modeProp, onClose }: { mode: "create" | "
   }
 
   async function openOfficialBot(username: string) {
-    const res = await fetch(`${API_URL}/api/botfather/official/${username}/open`, {
+    const res = await fetch(`${API_URL}/api/bot_creator/official/${username}/open`, {
       method: "POST", headers: { Authorization: `Bearer ${getToken()}` },
     });
     if (res.ok) {
@@ -262,7 +262,7 @@ export function BotFatherModal({ mode: modeProp, onClose }: { mode: "create" | "
               resetToken={resetToken} onEdit={(b) => setEditBot(b)} onDelete={deleteBot} />
           )}
           {mode === "bots" && editBot && (
-            <EditBotForm bot={editBot} onBack={() => setEditBot(null)} onSaved={() => { setEditBot(null); setLoadingBots(true); fetch(`${API_URL}/api/botfather/my-bots`, { headers: { Authorization: `Bearer ${getToken()}` } }).then(r => r.json()).then(d => setBots(Array.isArray(d) ? d : [])).finally(() => setLoadingBots(false)); }} />
+            <EditBotForm bot={editBot} onBack={() => setEditBot(null)} onSaved={() => { setEditBot(null); setLoadingBots(true); fetch(`${API_URL}/api/bot_creator/my-bots`, { headers: { Authorization: `Bearer ${getToken()}` } }).then(r => r.json()).then(d => setBots(Array.isArray(d) ? d : [])).finally(() => setLoadingBots(false)); }} />
           )}
         </div>
       </div>
@@ -320,7 +320,7 @@ function EditBotForm({ bot, onBack, onSaved }: {
   async function save() {
     setSaving(true); setError(""); setOkMsg("");
     try {
-      const res = await fetch(`${API_URL}/api/botfather/edit-bot`, {
+      const res = await fetch(`${API_URL}/api/bot_creator/edit-bot`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
         body: JSON.stringify({ bot_id: bot.id, name, description }),
@@ -329,7 +329,7 @@ function EditBotForm({ bot, onBack, onSaved }: {
       if (file) {
         const fd = new FormData();
         fd.append("file", file);
-        const ar = await fetch(`${API_URL}/api/botfather/${bot.id}/avatar`, {
+        const ar = await fetch(`${API_URL}/api/bot_creator/${bot.id}/avatar`, {
           method: "POST", headers: { Authorization: `Bearer ${getToken()}` }, body: fd,
         });
         if (!ar.ok) { const d = await ar.json().catch(() => null); setError(d?.detail || "Ошибка аватарки"); return; }

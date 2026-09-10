@@ -1068,7 +1068,7 @@ channels: {
 },
   bots: {
     title: "Боты",
-    botFather: "BotFather",
+    botFather: "Bot_creator",
     createBot: "Создать бота",
     myBots: "Мои боты",
     myStickers: "Мои стикеры",

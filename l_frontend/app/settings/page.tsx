@@ -120,19 +120,28 @@ export default function SettingsPage() {
     const token = getToken();
     if (!token) return;
 
-    const profileRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ display_name: displayName, bio }),
-    });
+    // Если данные профиля ещё не загрузились — не отправляем PATCH
+    if (!user) return;
 
-    if (!profileRes.ok) {
-      const err = await profileRes.json().catch(() => null);
-      alert(t("settings.saveProfileError", { detail: err?.detail || t("common.unknownError") }));
-      return;
+    // Отправляем PATCH на сервер только если реально изменились name или bio
+    const nameChanged = user?.display_name !== displayName;
+    const bioChanged = (user?.bio || "") !== (bio || "");
+
+    if (nameChanged || bioChanged) {
+      const profileRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ display_name: displayName, bio }),
+      });
+
+      if (!profileRes.ok) {
+        const err = await profileRes.json().catch(() => null);
+        alert(t("settings.saveProfileError", { detail: err?.detail || t("common.unknownError") }));
+        return;
+      }
     }
 
     const file = fileRef.current?.files?.[0];

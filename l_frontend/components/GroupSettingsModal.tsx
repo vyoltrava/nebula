@@ -348,7 +348,7 @@ const loadInvites = async () => {
                 </button>
               </div>
               {botMsg && <p className="text-xs font-bold text-[#8b5cf6]">{botMsg}</p>}
-              {myBots.length === 0 && <p className="text-center text-gray-500 dark:text-white/40 text-xs py-4">У тебя нет своих ботов. Создай выше или через BotFather.</p>}
+              {myBots.length === 0 && <p className="text-center text-gray-500 dark:text-white/40 text-xs py-4">У тебя нет своих ботов. Создай выше или через Bot_creator.</p>}
               {myBots.map((b) => (
                 <div key={b.id} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10">
                   <div className="w-9 h-9 rounded-lg bg-[#8b5cf6]/15 text-[#8b5cf6] flex items-center justify-center shrink-0"><Bot size={16} /></div>
