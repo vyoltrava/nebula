@@ -7299,11 +7299,10 @@ def get_themes(
     session: Session = Depends(get_session),
 ):
     """Публичный список тем — фильтруем по уровню доступа пользователя"""
-    # Глобальный тумблер
+    # 🎨 Темы всегда включены (переключатель оставлен для переходного периода):
+    # если themes_enabled явно НЕ выставлен в false — темы работают по умолчанию.
     enabled_row = session.get(SystemSetting, "themes_enabled")
-    themes_enabled = enabled_row.value == "true" if enabled_row else False
-    
-    if not themes_enabled:
+    if enabled_row is not None and enabled_row.value == "false":
         return []
 
     user_level = get_user_level(user, session) if user else 0

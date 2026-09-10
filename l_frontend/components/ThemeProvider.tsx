@@ -36,75 +36,50 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } catch { /* ignore */ }
   }, []);
 
-  // Загрузка тем с бэкенда + глобального тумблера
+  // Загрузка тем с бэкенда. Темы теперь ВСЕГДА включены — отдельный тумблер
+  // (themes_enabled) больше не опрашиваем для обычных юзеров (он требует
+  // auth и на 401 прятал все темы). Достаточно списка /api/themes.
   useEffect(() => {
     async function loadRemoteThemes() {
-      // 🎫 getToken() — мультиаккаунтный токен. Раньше читали легаси-ключ
-      // localStorage["token"], который удалён миграцией → Authorization
-      // никогда не отправлялся → /api/themes/settings отдавал 401/403.
       const token = getToken();
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      // 🛡 1. Глобальный тумблер: сбрасываем тему ТОЛЬКО при явном
-      // themes_enabled === false. Любая ошибка (деплой/рестарт сервера,
-      // сетевой сбой, 401 просроченного токена) НЕ должна ронять выбранную
-      // тему — иначе она «сбивалась сама» раз в минуту.
-      let enabled: boolean | null = null; // null = неизвестно (ошибка запроса)
-      try {
-        const settingsRes = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/themes/settings`,
-          { headers }
-        );
-        if (settingsRes.ok) {
-          const s = await settingsRes.json();
-          enabled = s.themes_enabled === true;
-        }
-      } catch {
-        /* сеть недоступна — сохраняем текущее состояние */
-      }
-
-      if (enabled === false) {
-        // Админ явно выключил темы — сбрасываем (это его воля, не сбой).
-        setThemes(BUILTIN_THEMES);
-        setThemeState(null);
-        return;
-      }
-
-      // 🎨 2. Список тем. При ошибке — не трогаем текущее состояние.
+      // 🎨 Список тем. При ошибке — не трогаем текущее состояние.
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/themes`, { headers });
         if (res.ok) {
           const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) {
-            // Мержим с встроенными, дедуп по id (бэк может вернуть и builtin)
-            const seen = new Set<string>();
-            const merged: ThemeConfig[] = [];
-            for (const t of [...BUILTIN_THEMES, ...data]) {
-              const key = String((t as ThemeConfig).id);
-              if (seen.has(key)) continue;
-              seen.add(key);
-              merged.push(t as ThemeConfig);
-            }
-            setThemes(merged);
-            setThemeState((cur) => {
-              // Тема ещё валидна — оставляем
-              if (cur && merged.find((t: ThemeConfig) => String(t.id) === String(cur.id))) {
-                return cur;
-              }
-              // Тема пропала (админ удалил) → из сохранённой, иначе дефолтная
-              try {
-                const savedRaw = localStorage.getItem("active_theme");
-                if (savedRaw) {
-                  const saved = JSON.parse(savedRaw);
-                  const match = merged.find((t: ThemeConfig) => String(t.id) === String(saved?.id));
-                  if (match) return match;
-                }
-              } catch { /* ignore */ }
-              if (enabled === true) return merged.find((t: ThemeConfig) => t.is_default) || null;
-              return null;
-            });
+          // Темами считаем и встроенные (BUILTIN), и серверные.
+          // Если бэк с пустым списком отдал [] — всё равно показываем builtin.
+          const source = (Array.isArray(data) && data.length > 0) ? [...BUILTIN_THEMES, ...data] : BUILTIN_THEMES;
+          // Дедуп по id (бэк может вернуть и builtin)
+          const seen = new Set<string>();
+          const merged: ThemeConfig[] = [];
+          for (const t of source) {
+            const key = String((t as ThemeConfig).id);
+            if (seen.has(key)) continue;
+            seen.add(key);
+            merged.push(t as ThemeConfig);
           }
+          setThemes(merged);
+          setThemeState((cur) => {
+            // Тема ещё валидна — оставляем
+            if (cur && merged.find((t: ThemeConfig) => String(t.id) === String(cur.id))) {
+              return cur;
+            }
+            // Тема пропала (админ удалил) → из сохранённой, иначе дефолтная
+            try {
+              const savedRaw = localStorage.getItem("active_theme");
+              if (savedRaw) {
+                const saved = JSON.parse(savedRaw);
+                const match = merged.find((t: ThemeConfig) => String(t.id) === String(saved?.id));
+                if (match) return match;
+              }
+            } catch { /* ignore */ }
+            // Иначе — тема по умолчанию (если есть)
+            return merged.find((t: ThemeConfig) => t.is_default) || null;
+          });
         }
       } catch {
         /* сеть недоступна — оставляем текущее состояние */
