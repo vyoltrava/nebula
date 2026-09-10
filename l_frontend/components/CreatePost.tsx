@@ -2,11 +2,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Image as ImageIcon, Smile, Clapperboard, X, Mic, Square, Trash2, Type, Lock } from "lucide-react";
+import { Image as ImageIcon, Smile, Clapperboard, X, Mic, Square, Trash2, Type, Lock, Plus } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
 import { mediaUrl } from "@/lib/media";
 import { Avatar } from "@/components/Avatar";
+import { StickerPackAddModal } from "@/components/StickerPackAddModal";
 import { AudioPlayer } from "@/components/AudioPlayer";
 import { RichEditor, RichEditorHandle } from "@/components/RichEditor";
 import { useDraft } from "@/src/hooks/useDraft";
@@ -28,6 +29,7 @@ export function CreatePost() {
     is_moderator?: boolean;
   } | null>(null);
   const [showStickers, setShowStickers] = useState(false);
+  const [showStickerAdd, setShowStickerAdd] = useState(false);
   const [stickerPacks, setStickerPacks] = useState<any[]>([]);
   const [activePackTab, setActivePackTab] = useState<number>(0);
   const [error, setError] = useState("");
@@ -167,13 +169,25 @@ export function CreatePost() {
     const token = getToken();
     if (!token) return;
     try {
+      // 🪐 Общий список паков (встроенные + публичные пользовательские)
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sticker-packs`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) {
-        const data = await res.json();
-        setStickerPacks(Array.isArray(data) ? data : []);
-      }
+      let packs = res.ok ? ((await res.json()) as any[]) : [];
+      // ➕ Дообъединяем «добавленные себе» паки из каталога (StickerPackAdd).
+      // Без этого добавленные пользовательские паки не появлялись бы в пикере.
+      try {
+        const addedRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sticker-packs/added`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (addedRes.ok) {
+          const added = (await addedRes.json()) as any[];
+          const known = new Set(packs.map((p: any) => p.id));
+          const extra = added.filter((p: any) => !known.has(p.id));
+          packs = [...packs, ...extra];
+        }
+      } catch { /* ignore */ }
+      setStickerPacks(packs);
     } catch (e) {
       console.error("Failed to load sticker packs:", e);
     }
@@ -195,6 +209,11 @@ export function CreatePost() {
     setText((prev) => prev + " ![sticker](" + url + ") ");
     setShowStickers(false);
   }
+
+  // ➕ После добавления/удаления паков из каталога — сбрасываем кэш и перечитываем
+  const refreshPacksAfterAdd = () => {
+    setStickerPacks([]);
+  };
 
   async function submit() {
     setError("");
@@ -377,6 +396,15 @@ export function CreatePost() {
                 {stickerPacks.length === 0 && (
                   <span className="text-[11px] text-gray-500 dark:text-white/40 px-1 py-1.5">Стикеры недоступны</span>
                 )}
+                {/* ➕ Кнопка добавления паков из «магазина» (как в Telegram) */}
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setShowStickerAdd(true); }}
+                  className="flex items-center justify-center w-7 h-7 shrink-0 rounded-lg text-gray-500 dark:text-white/50 hover:text-[#8b5cf6] hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
+                  title="Добавить стикерпаки"
+                >
+                  <Plus size={15} />
+                </button>
               </div>
             </div>
 
@@ -449,6 +477,14 @@ export function CreatePost() {
           50% { height: 26px; }
         }
       `}</style>
+
+      {/* 🪐 Модалка добавления пользовательских стикерпаков («магазин») */}
+      {showStickerAdd && (
+        <StickerPackAddModal
+          onClose={() => setShowStickerAdd(false)}
+          onChanged={refreshPacksAfterAdd}
+        />
+      )}
     </div>
   );
 }

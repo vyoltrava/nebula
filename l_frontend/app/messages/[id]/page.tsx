@@ -18,6 +18,7 @@ import CallButton from '@/components/CallButton';
 import { ChatMuteButton } from '@/components/ChatMuteButton';
 import { BotCreatorModal } from "@/components/BotCreatorModal";
   import { StickerBotModal } from "@/components/StickerBotModal";
+import { StickerPackAddModal } from "@/components/StickerPackAddModal";
 import { registerCallChat } from '@/lib/callLog';
 import { getRelayCallApi } from '@/lib/relayCall';
 import { MessageBubble } from "@/components/MessageBubble";
@@ -198,6 +199,7 @@ export default function ChatPage() {
   // 👨💻 модалка Bot_creator (кнопки внутри чата)
   const [showBotCreatorModal, setShowBotCreatorModal] = useState<"create" | "bots" | "official" | null>(null);
   const [showStickerBotModal, setShowStickerBotModal] = useState(false);
+  const [showStickerAdd, setShowStickerAdd] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [chatPartner, setChatPartner] = useState<any>(null);
   const [chatInfo, setChatInfo] = useState<any>(null);
@@ -1472,14 +1474,30 @@ async function loadStickerPacks() {
   const token = getToken();
   if (!token) return;
   try {
+    // 🪐 Общий список паков (встроенные + публичные пользовательские)
+    let data: any[] = [];
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sticker-packs`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (res.ok) {
-      const data = await res.json();
-      console.log("📦 ЗАГРУЖЕНЫ СТИКЕР-ПАКИ С СЕРВЕРА:", data);
-      setStickerPacks(Array.isArray(data) ? data : []);
+      const d = await res.json();
+      data = Array.isArray(d) ? d : [];
     }
+    // ➕ Дообъединяем «добавленные себе» паки (StickerPackAdd) — иначе
+    // добавленные пользовательские паки не появляются в пикере.
+
+    try {
+      const addedRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sticker-packs/added`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (addedRes.ok) {
+        const added = (await addedRes.json()) as any[];
+        const known = new Set(data.map((p: any) => p.id));
+        data = [...data, ...added.filter((p: any) => !known.has(p.id))];
+      }
+    } catch { /* ignore */ }
+    console.log("📦 ЗАГРУЖЕНЫ СТИКЕР-ПАКИ С СЕРВЕРА:", data);
+    setStickerPacks(data);
   } catch (err) {
     console.error("Failed to load sticker packs:", err);
   }
@@ -3198,6 +3216,14 @@ onDoubleClick={(e) => {
                 {pack.name}
               </button>
             ))}
+            {/* ➕ Кнопка добавления паков из «магазина» (как в Telegram) */}
+            <button
+              onClick={() => setShowStickerAdd(true)}
+              className="flex items-center justify-center w-7 h-7 shrink-0 rounded-lg text-gray-500 dark:text-white/50 hover:text-[#8b5cf6] hover:bg-gray-100 dark:hover:bg-white/10 transition-all"
+              title="Добавить стикерпаки"
+            >
+              <Plus size={14} />
+            </button>
           </div>
         </div>
 
@@ -3274,6 +3300,13 @@ onDoubleClick={(e) => {
         {/* 🎨 Модалка StickerBot (свои стикеры) */}
         {showStickerBotModal && chatPartner?.is_bot && chatPartner?.username === "stickerbot" && (
           <StickerBotModal onClose={() => setShowStickerBotModal(false)} />
+        )}
+        {/* 🪐 Модалка добавления пользовательских стикерпаков («магазин») */}
+        {showStickerAdd && (
+          <StickerPackAddModal
+            onClose={() => setShowStickerAdd(false)}
+            onChanged={() => { setStickerPacks([]); loadStickerPacks(); }}
+          />
         )}
         {/* 🆕 Анимация вылетающей реакции при двойном тапе */}
         {popReaction && (
@@ -3729,9 +3762,19 @@ style={{
             <div className="fixed inset-x-0 bottom-0 z-[261] md:inset-auto md:bottom-4 md:right-4 md:w-80 bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col max-h-[70vh] md:max-h-[500px] animate-in slide-in-from-bottom-10 duration-200">
               <div className="shrink-0 p-3 border-b border-line dark:border-white/10 flex items-center justify-between">
                 <p className="text-sm font-bold text-gray-900 dark:text-white">Стикеры</p>
-                <button onClick={() => setShowStickers(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
-                  <X size={16} />
-                </button>
+                <div className="flex items-center gap-1">
+                  {/* ➕ Кнопка добавления паков из «магазина» (как в Telegram) */}
+                  <button
+                    onClick={() => setShowStickerAdd(true)}
+                    className="text-gray-500 dark:text-white/40 hover:text-[#8b5cf6] p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                    title="Добавить стикерпаки"
+                  >
+                    <Plus size={16} />
+                  </button>
+                  <button onClick={() => setShowStickers(false)} className="text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+                    <X size={16} />
+                  </button>
+                </div>
               </div>
               
               <div className="flex-1 overflow-y-auto p-3 min-h-0">
@@ -3744,8 +3787,12 @@ style={{
                   </div>
                 ) : (
                   stickerPacks.map((pack) => {
-                    const userLevel = currentUser?.level ?? 0;
-                    const isLocked = (pack.min_level || 0) > userLevel;
+                    // 🛡 Блокировка приходит с сервера (pack.locked уже учитывает
+                    // уровень юзера и админа). Раньше считали клиентом по
+                    // currentUser?.level ?? 0 — если level не загружен, ВСЕ паки
+                    // с min_level >= 1 лочились и стикеры не отображались.
+                    // Для added-паков поле отсутствует → показываем всегда.
+                    const isLocked = pack.locked === true;
                     
                     return (
                       <div key={pack.id} className="mb-4 last:mb-0">
@@ -3757,7 +3804,7 @@ style={{
                         {isLocked ? (
                           <div className="p-4 rounded-xl bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 text-center">
                             <Lock size={20} className="text-yellow-600 dark:text-yellow-400 mx-auto mb-1" />
-                            <p className="text-xs text-gray-500 dark:text-white/40">Доступно с {pack.min_level} уровня</p>
+                            <p className="text-xs text-gray-500 dark:text-white/40">Доступно с {pack.min_level ?? 1} уровня</p>
                           </div>
                         ) : (
                           <div className="grid grid-cols-5 gap-2">

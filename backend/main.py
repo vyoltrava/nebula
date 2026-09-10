@@ -15073,3 +15073,17 @@ from sticker_bot import router as sticker_router, ensure_stickerbot, ensure_stic
 
 app.include_router(sticker_router, prefix="/api")
 
+
+# ============================================================
+# 🚀 ТОЧКА ВХОДА / ЗАПУСК
+# ============================================================
+# Поддержка Render и любого PaaS: слушаем порт из env `PORT`
+# (Render инжектит `$PORT` — напр. 10000; дефолт 8000).
+# Start-команда: `python main.py` → слушает 0.0.0.0:$PORT.
+if __name__ == "__main__":
+    import uvicorn
+
+    _port = int(os.getenv("PORT", "8000"))
+    print(f"🚀 Запуск backend на 0.0.0.0:{_port} (PORT={_port})")
+    uvicorn.run(app, host="0.0.0.0", port=_port, log_level="info")
+
