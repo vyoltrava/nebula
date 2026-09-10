@@ -1,0 +1,25 @@
+# 🚀 Render Blueprint — Nebula backend (FastAPI + uvicorn)
+# Применение: Render Dashboard → New → Blueprint → выбрать репозиторий,
+# либо просто скопировать Start Command в существующий Web Service:
+#
+#   python scripts/run_migrations.py && uvicorn main:app --host 0.0.0.0 --port $PORT
+#
+# ⚠️ Ключевой момент: порт ОБЯЗАН браться из $PORT — Render инжектит эту
+# переменную и сканирует именно её. Захардкоженный «--port 8000» приводит к
+# ошибке деплоя «Port scan timeout reached, no open ports detected».
+services:
+  - type: web
+    name: nebula-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python scripts/run_migrations.py && uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    # Секреты задаются в дашборде (Environment); здесь только заглушки-ссылки:
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: ENV
+        value: production

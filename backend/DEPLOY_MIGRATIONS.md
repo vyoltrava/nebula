@@ -14,14 +14,18 @@ alembic revision --autogenerate -m "..."   # новая миграция по и
 buildCommand: |
   pip install -r requirements.txt
 startCommand: |
-  python scripts/run_migrations.py && uvicorn main:app --host 0.0.0.0 --port 8000
+  python scripts/run_migrations.py && uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
 или в Dockerfile:
 
 ```dockerfile
-CMD ["sh", "-c", "python scripts/run_migrations.py && uvicorn main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "python scripts/run_migrations.py && uvicorn main:app --host 0.0.0.0 --port $PORT"]
 ```
+
+> ⚠️ **НЕ хардкодьте порт!** Render инжектит переменную `PORT` и сканирует
+> именно её. Команда с фиксированным `--port 8000` вызывает ошибку деплоя
+> «Port scan timeout reached, no open ports detected».
 
 `scripts/run_migrations.py` выполняет `alembic upgrade head` (URL берётся из `DATABASE_URL` в `.env`).
 

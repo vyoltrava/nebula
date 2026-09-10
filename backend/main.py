@@ -54,7 +54,7 @@ from models import (
     User, Post, Like, Dislike, Follow, Notification, Tag, PostTag, Role,
     Chat, ChatMember, Message, Report, UserKey, ChatSessionKey, ChatInvite,
     IPLog, IPBlock, ActionLog, Bookmark, SiteRules, PostView, Update, UpdateRead,
-    PushSubscription, StickerPack, Sticker, MessageReaction, PostReaction, Theme, SystemSetting,
+    PushSubscription, StickerPack, Sticker, StickerPackAdd, MessageReaction, PostReaction, Theme, SystemSetting,
     RoleCategory, Warning, LastReadPost, SupportTicket, SupportMessage, Badge,
     Billet, BilletTemplate, BilletAssignment, SystemBadge,
     SuggestionCategory, SuggestionThread, SuggestionThreadComment, RoleHistory, NickHistory, Suggestion, SuggestionComment, ChatDraft, PremiumUsername, PaymentPurchase, PaymentRole,
@@ -6819,14 +6819,21 @@ def get_sticker_packs(
     ).all()
     user_level = get_user_level(user, session)
     
+    # 🪐 Паки, добавленные себе из каталога («+» → StickerPackAdd):
+    # едут в общий список сразу с сервера, чтобы их видели ВСЕ потребители
+    # /api/sticker-packs (пикеры чатов, постов, эмодзи-паки папок и т.д.).
+    added_ids = {a.pack_id for a in session.exec(select(StickerPackAdd).where(
+        StickerPackAdd.user_id == user.id)).all()}
+    
     result = []
     for p in packs:
-        # 🪐 Приватные пользовательские паки видит только владелец (и админы)
-        if getattr(p, "is_user", False) and not getattr(p, "is_public", True):
-            if p.owner_id != user.id and not user.is_admin:
-                continue
         # 🛡 Забаненные паки не показываем никому, кроме админа
         if getattr(p, "banned", False) and not user.is_admin:
+            continue
+        # 🪐 Пользовательские паки в пикерах — СВОИ и ДОБАВЛЕННЫЕ из каталога.
+        # Чужие не-добавленные видны только в каталоге «+» (/api/sticker-packs/public).
+        # Админские паки (is_user=False) — стандартно видны всем.
+        if getattr(p, "is_user", False) and p.owner_id != user.id and p.id not in added_ids:
             continue
         locked = (user_level < p.min_level) and not user.is_admin
         # Загружаем стикеры пака

@@ -5,7 +5,6 @@ import { useEffect, useRef, useState } from "react";
 import { getToken } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { Bot, X, Plus, Trash2, Upload, Loader2, Globe, Lock, RefreshCw } from "lucide-react";
-import { StickerPackAddModal } from "@/components/StickerPackAddModal";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -21,7 +20,6 @@ export function StickerBotModal({ onClose, onOpenChat }: { onClose: () => void; 
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [showAdd, setShowAdd] = useState(false);
   const fileRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   async function load() {
@@ -90,13 +88,6 @@ return (
             <p className="font-bold text-gray-900 dark:text-white">StickerBot</p>
             <p className="text-[11px] text-gray-500 dark:text-white/40">@stickerbot · твои стикеры</p>
           </div>
-          <button
-            onClick={() => setShowAdd(true)}
-            className="p-2 rounded-lg text-gray-500 dark:text-white/40 hover:text-[#8b5cf6] hover:bg-gray-100 dark:hover:bg-white/10"
-            title="Каталог стикерпаков"
-          >
-            <Plus size={18} />
-          </button>
           <button onClick={onClose} className="p-2 rounded-lg text-gray-500 dark:text-white/40 hover:text-gray-900 dark:hover:text-white"><X size={18} /></button>
         </div>
 
@@ -145,14 +136,6 @@ return (
           </p>
         </div>
       </div>
-
-      {/* 🪐 Каталог пользовательских стикерпаков (добавить чужие паки себе) */}
-      {showAdd && (
-        <StickerPackAddModal
-          onClose={() => setShowAdd(false)}
-          onChanged={() => { setShowAdd(false); load(); }}
-        />
-      )}
     </div>
   );
 }
