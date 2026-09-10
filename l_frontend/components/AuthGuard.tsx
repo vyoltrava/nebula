@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getToken, clearToken, refreshAccessToken } from "@/lib/auth";
 import { apiFetch } from "@/lib/apiFetch";
+import { triggerBan } from "@/lib/ban";
 
 // Страницы, которые доступны без авторизации
 const PUBLIC_PATHS = ["/login", "/register"];
@@ -39,7 +40,16 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     // Если токен есть — проверяем его валидность через /api/me
     if (token && !isPublic) {
       apiFetch("/api/me")
-        .then((res) => {
+        .then(async (res) => {
+          if (!res.ok && res.status === 403) {
+            // 🔴 Забанен — НЕ редиректим, показываем блокирующую модалку.
+            const body = await res.clone().json().catch(() => null);
+            if (body?.detail === "Account banned") {
+              triggerBan();
+              setChecked(true);
+              return undefined;
+            }
+          }
           if (!res.ok) {
             // Токен недействителен (истёк, отозван, 2FA) — пробуем refresh
             return refreshAccessToken().then(({ token: fresh, unreachable }) => {

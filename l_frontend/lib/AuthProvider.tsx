@@ -19,6 +19,7 @@ import {
 import { getToken, getActiveAccount, refreshAccessToken, getAccounts } from "@/lib/auth";
 import { API_URL } from "@/lib/apiUrl";
 import { getAuthHint, clearAuthHint } from "@/lib/cookieManager";
+import { triggerBan } from "@/lib/ban";
 
 interface AuthContextValue {
   /** Синхронно известный статус сессии (без ожидания сети). */
@@ -78,7 +79,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           credentials: "include",
         });
         if (cancelled) return;
-        if (res.status === 401) {
+        if (res.status === 403) {
+          // 🔴 Забанен — блокируем интерфейс модалкой.
+          setIsAuthenticated(true);
+          triggerBan();
+        } else if (res.status === 401) {
           // Токен истёк — пробуем тихо обновить через refresh-cookie.
           const { token: fresh, unreachable } = await refreshAccessToken();
           if (cancelled) return;

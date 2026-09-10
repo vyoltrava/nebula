@@ -42,6 +42,10 @@ export function SmartImage({ src, alt = "", wrapperClassName = "", imgClassName 
             alt={alt}
             fill
             sizes="(max-width: 768px) 100vw, 400px"
+            // 🖼 Cloudinary/медиа уже оптимизированы на сервере (обложки 1920px, quality:90).
+            // Отключаем двойную переоптимизацию через стоковый оптимизатор (q=75 + AVIF/WebP),
+            // иначе картинки «мылятся». Отдаём оригинал как есть.
+            unoptimized
             onLoad={() => setStatus("ok")}
             onError={() => setStatus("error")}
             className={`${imgClassName} transition-opacity duration-300 ${status === "ok" ? "opacity-100" : "opacity-0"}`}

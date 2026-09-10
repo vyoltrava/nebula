@@ -522,6 +522,17 @@ class Sticker(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class StickerPackAdd(SQLModel, table=True):
+    """🪐 Паки, добавленные юзером СЕБЕ из каталога открытых (публичных) паков.
+    Отдельная коллекция: добавил — пак закреплён за тобой в списке стикеров."""
+    __tablename__ = "stickerpack_add"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    pack_id: int = Field(foreign_key="stickerpack.id", index=True)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class StickerBotPendingSticker(SQLModel, table=True):
     """Ожидание картинки от юзера после /addsticker (StickerBot)."""
     __tablename__ = "stickerbot_pending_sticker"

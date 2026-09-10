@@ -16,6 +16,7 @@ from database import get_session
 from models import (
     User, Bot, BotLog, BotCommand, Chat, ChatMember, Message,
     StickerPack, Sticker, SystemSetting, StickerBotPending, StickerBotPendingSticker,
+    StickerPackAdd,
 )
 from main import get_current_user, has_permission, log_action, get_client_ip
 from websocket_manager import manager
@@ -281,7 +282,75 @@ def public_sticker_packs(user: User = Depends(get_current_user),
                     StickerPack.banned == False,  # noqa: E712
                     StickerPack.is_active == True)  # noqa: E712
     packs = session.exec(q.order_by(StickerPack.id.desc()).limit(200)).all()
-    return [_pack_out(p, session) for p in packs]
+    # 🪐 Отмечаем, какие паки юзер уже добавил себе
+    added_ids = {a.pack_id for a in session.exec(select(StickerPackAdd).where(
+        StickerPackAdd.user_id == user.id)).all()}
+    out = []
+    for p in packs:
+        d = _pack_out(p, session)
+        d["added"] = p.id in added_ids
+        out.append(d)
+    return out
+
+
+# ------------------------------------------------------------------
+# 🪐 «Добавить себе» — коллекция открытых паков юзера
+# ------------------------------------------------------------------
+
+@router.post("/sticker-packs/{pack_id}/add")
+def add_public_pack(pack_id: int,
+                    user: User = Depends(get_current_user),
+                    session: Session = Depends(get_session)):
+    """Добавить публичный пользовательский пак себе в коллекцию."""
+    pack = session.get(StickerPack, pack_id)
+    if not pack or not pack.is_user:
+        raise HTTPException(404, "Пак не найден")
+    if pack.banned or not pack.is_active:
+        raise HTTPException(403, "Пак недоступен")
+    is_admin = user.is_admin or has_permission(user, "manage_stickers", session)
+    if not getattr(pack, "is_public", True) and pack.owner_id != user.id and not is_admin:
+        raise HTTPException(403, "Пак приватный")
+    existing = session.exec(select(StickerPackAdd).where(
+        StickerPackAdd.user_id == user.id,
+        StickerPackAdd.pack_id == pack_id)).first()
+    if existing:
+        return {"ok": True, "added": True, "already": True}
+    session.add(StickerPackAdd(user_id=user.id, pack_id=pack_id))
+    session.commit()
+    _log(session, user.id, "pack_added", {"pack_id": pack_id})
+    session.commit()
+    return {"ok": True, "added": True}
+
+
+@router.delete("/sticker-packs/{pack_id}/add")
+def remove_added_pack(pack_id: int,
+                      user: User = Depends(get_current_user),
+                      session: Session = Depends(get_session)):
+    """Убрать пак из своей коллекции (сам пак не удаляется)."""
+    row = session.exec(select(StickerPackAdd).where(
+        StickerPackAdd.user_id == user.id,
+        StickerPackAdd.pack_id == pack_id)).first()
+    if row:
+        session.delete(row)
+        session.commit()
+    return {"ok": True, "added": False}
+
+
+@router.get("/sticker-packs/added")
+def my_added_packs(user: User = Depends(get_current_user),
+                   session: Session = Depends(get_session)):
+    """🪐 Моя коллекция: паки, которые я добавил себе из каталога."""
+    rows = session.exec(select(StickerPackAdd).where(
+        StickerPackAdd.user_id == user.id).order_by(StickerPackAdd.id.desc())).all()
+    out = []
+    for r in rows:
+        p = session.get(StickerPack, r.pack_id)
+        if not p:
+            continue
+        d = _pack_out(p, session)
+        d["added"] = True
+        out.append(d)
+    return out
 
 
 @router.get("/admin/user-packs")
@@ -294,15 +363,17 @@ def admin_list_user_packs(user: User = Depends(get_current_user),
         .limit(500)).all()  # noqa: E712
     out = []
     for p in packs:
-        cnt = session.exec(select(func.count(Sticker.id)).where(
-            Sticker.pack_id == p.id)).one() or 0
+        stickers = session.exec(select(Sticker).where(
+            Sticker.pack_id == p.id).order_by(Sticker.order)).all()
         out.append({"id": p.id, "name": p.name, "banned": p.banned,
                     "is_public": bool(getattr(p, "is_public", True)),
                     "is_active": p.is_active,
                     "owner_id": p.owner_id,
                     "owner_username": (session.get(User, p.owner_id).username
                                        if p.owner_id else None),
-                    "stickers_count": cnt,
+                    "stickers_count": len(stickers),
+                    "stickers": [{"id": s.id, "type": s.type, "content": s.content}
+                                 for s in stickers],
                     "created_at": p.created_at.isoformat() if p.created_at else None})
     return out
 # ------------------------------------------------------------------

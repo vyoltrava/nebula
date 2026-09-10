@@ -1,4 +1,5 @@
 import { getToken, clearToken, refreshAccessToken } from "@/lib/auth";
+import { triggerBan } from "@/lib/ban";
 
 export interface ApiFetchOptions extends RequestInit {
   /** skip auto-refresh on 401 (use for non-auth endpoints) */
@@ -30,6 +31,19 @@ export async function apiFetch(
 
   let token = getToken();
   let res = await doFetch(token);
+
+  // 🔴 Если сервер ответил «аккаунт забанен» — блокируем интерфейс модалкой.
+  if (res.status === 403) {
+    try {
+      const clone = res.clone();
+      const body = await clone.json().catch(() => null);
+      if ((body as any)?.detail === "Account banned") {
+        triggerBan();
+      }
+    } catch {
+      /* боди недоступно — пропускаем */
+    }
+  }
 
     if (!res.ok && res.status === 401 && !skipAuthRefresh) {
     const { token: newToken, unreachable } = await refreshAccessToken();

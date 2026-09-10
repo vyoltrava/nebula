@@ -48,6 +48,10 @@ export function Avatar({
             width={size}
             height={size}
             sizes={`${size}px`}
+            // 🖼 Аватарки Cloudinary уже оптимизированы на сервере (1024px, quality:90).
+            // Не прогоняем через стоковый оптимизатор Next.js (q=75 + AVIF/WebP) —
+            // иначе аватарки «мылятся», особенно на retina. Отдаём оригинал как есть.
+            unoptimized
             className="w-full h-full object-cover"
             onError={() => setImgError(true)}
             loading={size > 100 ? "eager" : "lazy"}

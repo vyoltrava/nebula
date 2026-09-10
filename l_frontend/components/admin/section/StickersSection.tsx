@@ -526,6 +526,22 @@ export function StickersSection({ me, roles }: { me: any; roles: any[] }) {
                   </button>
                 </div>
               </div>
+              {p.stickers && p.stickers.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {p.stickers.slice(0, 24).map((s: any) => (
+                    <div key={s.id} className="w-10 h-10 flex items-center justify-center bg-white dark:bg-black/20 border border-line dark:border-white/10 rounded-lg overflow-hidden">
+                      {s.type === "emoji" ? (
+                        <span className="text-xl">{s.content}</span>
+                      ) : (
+                        <img src={s.content} alt="" className="w-full h-full object-contain p-0.5" />
+                      )}
+                    </div>
+                  ))}
+                  {p.stickers.length > 24 && (
+                    <span className="text-[10px] text-gray-500 dark:text-white/30 self-center">+{p.stickers.length - 24}</span>
+                  )}
+                </div>
+              )}
             </div>
           ))}
           {userPacks.length === 0 && <p className="text-center text-gray-500 dark:text-white/40 py-16">Пользовательских паков пока нет</p>}

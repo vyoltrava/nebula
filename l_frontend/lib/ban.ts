@@ -24,6 +24,18 @@ export function onBan(callback: () => void): () => void {
 export async function safeFetch(url: string, options?: RequestInit): Promise<Response> {
   try {
     const response = await fetch(url, options);
+    // 🔴 Если сервер ответил «аккаунт забанен» — блокируем интерфейс модалкой.
+    if (response.status === 403) {
+      try {
+        const clone = response.clone();
+        const body = await clone.json().catch(() => null);
+        if ((body && ((body.detail as string) || "").includes("Account banned")) || (body?.detail === "Account banned")) {
+          triggerBan();
+        }
+      } catch {
+        /* боди недоступно — пропускаем */
+      }
+    }
     return response;
   } catch (err) {
     // Сетевая ошибка — возвращаем фейковый Response с валидным статусом
