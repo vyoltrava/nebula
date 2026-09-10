@@ -10,6 +10,13 @@ from sqlmodel import SQLModel, create_engine, Session
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///nebula.db")
 
+# 🛡️ Render/Heroku иногда отдают DSN как postgres:// — SQLAlchemy+psycopg2
+# понимает только postgresql://. Без конверсии create_engine падает на импорте
+# → uvicorn не стартует → Render: «Port scan timeout reached, no open ports».
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+    print("ℹ️ DATABASE_URL: postgres:// → postgresql://")
+
 connect_args = {}
 engine_kwargs: dict = {
     "echo": False,
