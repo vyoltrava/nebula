@@ -519,6 +519,8 @@ export const en: Dictionary = {
     archiveUnmuteAll: "Unmute notifications",
     archiveUnarchiveAll: "Restore all",
     archivePullHint: "Pull down to open archive",
+    archiveHide: "Hide archive (open by pulling down)",
+    archiveShowAlways: "Always show archive",
     archiveChatOne: "1 chat",
     archiveChatsN: "{n} chats",
     folderNamePlaceholder: "Folder name",

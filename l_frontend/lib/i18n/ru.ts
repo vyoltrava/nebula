@@ -517,6 +517,8 @@ export const ru: Dictionary = {
     archiveUnmuteAll: "Включить уведомления",
     archiveUnarchiveAll: "Разархивировать все",
     archivePullHint: "Потяните вниз, чтобы открыть архив",
+    archiveHide: "Скрыть архив (открывать оттягиванием)",
+    archiveShowAlways: "Показывать архив всегда",
     archiveChatOne: "1 чат",
     archiveChatsN: "{n} чат(ов)",
     folderNamePlaceholder: "Название папки",

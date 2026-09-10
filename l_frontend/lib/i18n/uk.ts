@@ -517,6 +517,8 @@ export const uk = {
     archiveUnmuteAll: "Увімкнути сповіщення",
     archiveUnarchiveAll: "Розархівувати всі",
     archivePullHint: "Потягніть вниз, щоб відкрити архів",
+    archiveHide: "Приховати архів (відкривати потягуванням)",
+    archiveShowAlways: "Завжди показувати архів",
     archiveChatOne: "1 чат",
     archiveChatsN: "{n} чат(ів)",
     folderNamePlaceholder: "Назва папки",
