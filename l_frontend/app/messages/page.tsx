@@ -274,6 +274,7 @@ export default function MessagesPage() {
     if (!el) return;
     const THRESHOLD = 60;   // px смещения, после которого архив открывается
     const MAX = 110;        // макс. смещение
+    const HIDE_SWIPE = 40;  // px свайпа ВВЕРХ, после которого архив скрывается
     let startY = 0;
     let accum = 0;
     let active = false;
@@ -295,9 +296,20 @@ export default function MessagesPage() {
     };
     const moveTo = (clientY: number) => {
       if (!active) return;
+      const dy = clientY - startY;
+      // 🗄️ Свайп ВВЕРХ — скрыть архив. Прячем независимо от scrollTop:
+      // при малом кол-ве чатов контейнер не скроллится (scrollTop всегда 0,
+      // событие scroll не стреляет) — поэтому скрытие работает именно здесь.
+      if (dy < -HIDE_SWIPE) {
+        if (Date.now() - revealedAt > 300) {
+          setArchiveRevealed(false);
+          setArchivePull(0);
+          accum = 0;
+        }
+        return;
+      }
       // тянем вниз только когда список у верха
       if (el.scrollTop > 0) { setArchivePull(0); return; }
-      const dy = clientY - startY;
       if (dy > 0) {
         accum = Math.min(dy * 0.55, MAX);
         setArchivePull(accum);
@@ -324,6 +336,11 @@ export default function MessagesPage() {
     const onTouchEnd = () => reset();
     const onWheel = (e: WheelEvent) => {
       if (el.scrollTop <= 0 && e.deltaY < 0) reveal();
+      // 🔄 Скрытие колесом вверх (когда архив открыт) — для мыши с малым
+      // кол-вом чатов, где scroll-событие тоже не стреляет.
+      if (el.scrollTop <= 0 && e.deltaY > 0) {
+        if (Date.now() - revealedAt > 300) setArchiveRevealed(false);
+      }
     };
     const onScroll = () => {
       if (el.scrollTop > 40 && Date.now() - revealedAt > 800) setArchiveRevealed(false);
