@@ -14,6 +14,9 @@ import { useI18n } from "@/lib/i18n/LanguageProvider";
 import { useQuickReaction, useQuickPostReaction } from "@/lib/useQuickReaction";
 import { getToken } from "@/lib/auth";
 import { mediaUrl } from "@/lib/media";
+import { useTheme as useAnimatedTheme } from "@/components/ThemeProvider";
+import { ThemePreview } from "@/components/ThemePreview";
+import { Check, Palette } from "lucide-react";
 
 type Mode = "light" | "dark" | "system";
 
@@ -30,6 +33,8 @@ function reactionSrc(content: string) {
 
 export function AppearanceSettings() {
   const { theme, setTheme, resolvedTheme } = useTheme();
+  // 🎨 Анимированные темы (ThemeProvider) — выбор в настройках.
+  const { theme: activeAnimated, themes: animatedThemes, setTheme: setAnimatedTheme } = useAnimatedTheme();
   const { t } = useI18n();
   const [mounted, setMounted] = useState(false);
   const { reaction: quickReaction, save: saveReaction, clear: clearReaction, EMOJIS } = useQuickReaction();
@@ -127,6 +132,50 @@ export function AppearanceSettings() {
             </button>
           );
         })}
+      </div>
+
+      {/* 🎨 Анимированные темы — выбор в настройках (как в Telegram).
+          Превью каждой темы рисуется живой анимацией; активная подсвечена. */}
+      <div className="rounded-xl border border-gray-200 dark:border-white/10 bg-ivory dark:bg-white/[0.03] p-4">
+        <div className="flex items-center gap-2 mb-1">
+          <Palette size={18} className="text-[#8b5cf6] shrink-0" />
+          <h3 className="text-sm font-bold text-gray-900 dark:text-white">Темы</h3>
+        </div>
+        <p className="text-xs text-gray-500 dark:text-white/40 mb-3">
+          Живые фоны — анимация мягко просвечивает через интерфейс на всех страницах.
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {/* Стандарт (без темы) */}
+          <button type="button" onClick={() => setAnimatedTheme(null)}
+            className={`rounded-xl border p-1.5 text-left transition-all ${
+              !activeAnimated
+                ? "border-[#8b5cf6] ring-2 ring-[#8b5cf6]/30"
+                : "border-line dark:border-white/10 hover:border-[#8b5cf6]/50"
+            }`}>
+            <div className="relative h-16 rounded-lg overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-white/10 dark:to-white/5 flex items-center justify-center">
+              {!activeAnimated && <Check size={16} className="absolute top-1.5 right-1.5 text-[#8b5cf6]" />}
+              <span className="text-xs font-bold text-gray-500 dark:text-white/50">Стандарт</span>
+            </div>
+            <p className="mt-1.5 text-xs font-bold text-gray-900 dark:text-white truncate px-0.5">Без темы</p>
+          </button>
+          {animatedThemes.map((th) => {
+            const isActive = !!activeAnimated && String(activeAnimated.id) === String(th.id);
+            return (
+              <button key={String(th.id)} type="button" onClick={() => setAnimatedTheme(th)}
+                className={`rounded-xl border p-1.5 text-left transition-all ${
+                  isActive
+                    ? "border-[#8b5cf6] ring-2 ring-[#8b5cf6]/30"
+                    : "border-line dark:border-white/10 hover:border-[#8b5cf6]/50"
+                }`}>
+                <div className="relative h-16 rounded-lg overflow-hidden">
+                  <ThemePreview theme={th} className="absolute inset-0 h-full w-full" />
+                  {isActive && <Check size={16} className="absolute top-1.5 right-1.5 text-white drop-shadow" />}
+                </div>
+                <p className="mt-1.5 text-xs font-bold text-gray-900 dark:text-white truncate px-0.5">{th.name}</p>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="rounded-xl border border-gray-200 dark:border-white/10 bg-ivory dark:bg-white/[0.03] p-4">

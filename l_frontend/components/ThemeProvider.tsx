@@ -96,6 +96,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }
 
+  // 🎨 Глобальный CSS-хук: html[data-theme-active="1"].
+  // По нему globals.css делает поверхности (main-контейнеры страниц)
+  // полупрозрачными, чтобы анимированная тема просвечивала на ВСЕХ
+  // страницах, а не только в админке.
+  useEffect(() => {
+    try {
+      if (theme) document.documentElement.setAttribute("data-theme-active", "1");
+      else document.documentElement.removeAttribute("data-theme-active");
+    } catch { /* ignore */ }
+  }, [theme]);
+
   return (
     <ThemeContext.Provider value={{ theme, themes, setTheme }}>
       {children}

@@ -1,6 +1,7 @@
 ﻿"use client";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useTheme } from "next-themes";
+import { useTheme as useAnimatedTheme } from "@/components/ThemeProvider";
 import { resolveNickColor } from "@/lib/nickGlow";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -88,6 +89,8 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { t } = useI18n();
+  // 🎨 Активная анимированная тема → прозрачный фон (тема просвечивает)
+  const { theme: activeThemeBg } = useAnimatedTheme();
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
@@ -112,7 +115,7 @@ function MobileSearch({ onClose }: { onClose: () => void }) {
   }, [q]);
 
   return (
-    <div className="fixed inset-0 z-[250] bg-paper dark:bg-[#171717] flex flex-col md:hidden">
+    <div className={`fixed inset-0 z-[250] ${activeThemeBg ? "bg-transparent dark:bg-transparent" : "bg-paper dark:bg-[#171717]"} flex flex-col md:hidden`}>
       <div className="flex items-center gap-2 p-3 border-b border-line dark:border-white/10 shrink-0">
         <div className="flex-1 flex items-center gap-2 bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 rounded-xl px-3 py-2">
           <Search size={16} className="text-gray-500 dark:text-white/40" />
@@ -951,6 +954,8 @@ function HorizontalSwipeNav({
 export function Sidebar() {
   const pathname = usePathname();
   const router   = useRouter();
+  // 🎨 Активная анимированная тема → сайдбар прозрачный (тема просвечивает)
+  const { theme: activeThemeBg } = useAnimatedTheme();
   const { t, locale } = useI18n();
   // 🚫 Nebula: классический сайдбар НЕ должен срабатывать (жесты, орбита, смена аккаунта),
   // его место занимает NebulaSidebar через NebulaGate.
@@ -2326,7 +2331,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
       {/* ННННННН ДЕСКТОП CLASSIC / DOCK (в orbit и orbit2 сайдбара нет) ННННННН */}
       {layout !== "orbit" && layout !== "orbit2" && (
-        <aside className={`hidden md:flex shrink-0 overflow-y-auto flex-col bg-paper dark:bg-[#171717] transition-all duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+        <aside className={`hidden md:flex shrink-0 overflow-y-auto flex-col ${activeThemeBg ? "bg-transparent dark:bg-transparent" : "bg-paper dark:bg-[#171717]"} transition-all duration-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
           isDock ? "md:w-20 md:min-w-20 px-0 py-4 gap-2" : "md:w-64 md:min-w-64 p-5 gap-5"
         }`}>
           {desktopSidebarContent}
