@@ -423,7 +423,7 @@ function Dock2Wheel({
       admin.push({
         href: "/adminnew",
         icon: user?.is_admin ? ShieldAlert : ShieldCheck,
-        label: user?.is_admin ? t("nav.admin") : t("nav.moderation"),
+        label: t("nav.adminPanel"),
       });
     }
 
@@ -741,7 +741,7 @@ function HorizontalSwipeNav({
       { key: "support",  href: "/support",    icon: Headphones,    label: t("nav.support") },
       { key: "layout",   href: "#layout",     icon: Palette,       label: t("nav.layout"),       action: "layout" },
       ...(user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users")
-        ? [{ key: "admin", href: "/adminnew", icon: ShieldCheck, label: user?.is_admin ? t("nav.admin") : t("nav.moderation") }]
+        ? [{ key: "admin", href: "/adminnew", icon: ShieldCheck, label: t("nav.adminPanel") }]
         : []),
       ...(user
         ? [{ key: "profile", href: `/${user.username}`, icon: UserPlus, label: t("nav.profile"), isProfile: true }]
@@ -1196,7 +1196,7 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     outerItems.push({
       href: "/adminnew",
       icon: user?.is_admin ? ShieldAlert : user?.is_moderator ? ShieldCheck : Shield,
-      label: user?.is_admin ? t("nav.admin") : user?.is_moderator ? t("nav.moderation") : t("nav.adminPanel"),
+      label: t("nav.adminPanel"),
     });
   }
   if (user?.permissions?.includes("access_owner_panel")) {
