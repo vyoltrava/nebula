@@ -684,14 +684,33 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
     return s;
   }
 
-  // 📱 Открыть меню чата в координатах long-press / трёх точек
+  // 📱 Кламп позиции меню в границы окна. Меню не должно вылезать за экран
+  // ни справа, ни слева, ни снизу/сверху.
+  // Ширина меню зависит от брейкпоинта: мобайл w-72 (288px), десктоп md:w-56 (224px).
+  function clampMenuPosition(x: number, buttonTop: number, buttonBottom: number) {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const gap = 8;
+    const menuW = vw < 768 ? 288 : 224; // w-72 | md:w-56
+    const menuH = 320;
+    // по горизонтали: правый край меню на кнопке, но меню целиком в экране
+    let right = vw - x;
+    right = Math.max(gap, Math.min(right, vw - menuW - gap));
+    // по вертикали: снизу от кнопки; если снизу мало места — над кнопкой
+    let top = buttonBottom + gap;
+    if (top + menuH > vh - gap) top = Math.max(gap, buttonTop - menuH - gap);
+    top = Math.max(gap, Math.min(top, vh - menuH - gap));
+    return { top, right };
+  }
+
+  // 📱 Открыть меню чата в координатах long-press / трёх точек.
+  // На мобильных (<768px) inline-позицию НЕ задаём: там меню центрируется
+  // CSS (top-1/2 left-1/2), а inline top/right + translate сдвигали его
+  // за пределы экрана. Кламп — только для десктопа.
   function openChatMenuAt(chatId: number, x?: number, y?: number) {
     setActiveChatMenu((prev) => (prev === chatId ? null : chatId));
     if (x !== undefined && y !== undefined) {
-      setMenuPosition({
-        top: Math.min(y + 12, window.innerHeight - 260),
-        right: Math.max(12, window.innerWidth - x - 40),
-      });
+      setMenuPosition(window.innerWidth < 768 ? null : clampMenuPosition(x, y, y + 32));
     } else {
       setMenuPosition(null);
     }
@@ -1238,10 +1257,7 @@ const confirmPrismKey = async () => {
                         } else {
                           const rect = e.currentTarget.getBoundingClientRect();
                           setActiveChatMenu(chat.id);
-                          setMenuPosition({
-                            top: rect.bottom + 8,
-                            right: window.innerWidth - rect.right,
-                          });
+                          setMenuPosition(window.innerWidth < 768 ? null : clampMenuPosition(rect.left + rect.width / 2, rect.top, rect.bottom));
                         }
                       }}
                       className={`p-1.5 rounded-lg transition-colors ${
@@ -1419,10 +1435,7 @@ const confirmPrismKey = async () => {
                       } else {
                         const rect = e.currentTarget.getBoundingClientRect();
                         setActiveChatMenu(chat.id);
-                        setMenuPosition({
-                          top: rect.bottom + 8,
-                          right: window.innerWidth - rect.right,
-                        });
+                        setMenuPosition(window.innerWidth < 768 ? null : clampMenuPosition(rect.left + rect.width / 2, rect.top, rect.bottom));
                       }
                     }}
                     className={`p-1.5 rounded-lg transition-colors ${
