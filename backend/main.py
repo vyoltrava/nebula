@@ -6600,15 +6600,21 @@ async def delete_chat(
 
 @app.on_event("startup")
 def startup():
-    """Проверка соединения + само-лечение схемы.
+    """🚀 Быстрый старт: СРАЗУ отдаём управление uvicorn'у (порт биндится).
 
-    Схема создаётся/мигрируется через Alembic, но на случай пропущенной
-    миграции (как было с admin_backup на Postgres) здесь идемпотентно
-    создаются отсутствующие таблицы и добавляются отсутствующие колонки.
-    ⚠️ Postgres: ошибка абортирует транзакцию — поэтому каждое действие
-    выполняется в ОТДЕЛЬНОЙ короткой транзакции (engine.begin на стейтмент),
-    иначе один сбой молча ломает все последующие ALTER'ы.
+    Тяжёлое самолечение схемы (create_all, секвенции, ALTER'ы) выполняется
+    в фоновом daemon-потоке: на большой схеме это десятки транзакций, и если
+    делать это синхронно в startup, приложение виснет на «Waiting for
+    application startup» — uvicorn не открывает порт → Render: «No open
+    ports detected». Фон не влияет на работу: запросы ждут готовой БД,
+    а create_all при импорте main.py уже создал схему.
     """
+    import threading
+    threading.Thread(target=_startup_selfheal, name="db-selfheal", daemon=True).start()
+
+
+def _startup_selfheal():
+    """Проверка соединения + само-лечение схемы (идемпотентно, в фоне)."""
     from sqlalchemy import text as _t, inspect as _inspect
     from sqlmodel import SQLModel as _SQLModel
     import models as _models  # noqa: F401 — регистрация всех таблиц
@@ -14890,35 +14896,46 @@ app.include_router(work_chats_router, prefix="/api")
 
 
 def start_work_bot_scheduler_hook():
-    """Запуск воркера рабочих чатов (вызывается на старте)."""
-    try:
-        from database import init_db, Session as _S
-        import work_chats
-        init_db()
-        with _S() as s:
-            try:
-                work_chats.ensure_work_chats_for_categories(s)
-                work_chats.ensure_worker_bots_for_all(s)
-                # 🔄 ПОЛНАЯ АВТОСИНХРОНИЗАЦИЯ: все юзеры с ролями — в чаты
-                # своих категорий (добавление/переезд/удаление)
-                n = work_chats.sync_all_memberships(s)
-                print("work memberships synced:", n)
-            except Exception as _e:
-                print("work_chats ensure:", _e)
-            # 🤖 Bot_creator — отец ботов (системный)
-            try:
-                from bots import ensure_bot_creator
-                ensure_bot_creator(s)
-            except Exception as _e:
-                print("bot_creator ensure:", _e)
-            # 🎨 StickerBot — системный стикер-бот (создание пользовательских паков)
-            try:
-                from sticker_bot import ensure_stickerbot
-                ensure_stickerbot(s)
-            except Exception as _e:
-                print("stickerbot ensure:", _e)
-    except Exception as e:
-        print("work_chats init:", e)
+    """Запуск воркера рабочих чатов (вызывается на старте).
+
+    🚀 Тяжёлая ensure-часть (init_db + создание чатов отделов + синк
+    участников + системные боты) выполняется в ФОНОВОМ daemon-потоке:
+    синхронный прогон в startup-хуке блокировал «Waiting for application
+    startup» на медленном Postgres (uvicorn не биндит порт → Render:
+    «No open ports detected»). Сам шедулер (asyncio.create_task) — мгновенный.
+    """
+    def _ensure():
+        try:
+            from database import init_db, Session as _S
+            import work_chats
+            init_db()
+            with _S() as s:
+                try:
+                    work_chats.ensure_work_chats_for_categories(s)
+                    work_chats.ensure_worker_bots_for_all(s)
+                    # 🔄 ПОЛНАЯ АВТОСИНХРОНИЗАЦИЯ: все юзеры с ролями — в чаты
+                    # своих категорий (добавление/переезд/удаление)
+                    n = work_chats.sync_all_memberships(s)
+                    print("work memberships synced:", n)
+                except Exception as _e:
+                    print("work_chats ensure:", _e)
+                # 🤖 Bot_creator — отец ботов (системный)
+                try:
+                    from bots import ensure_bot_creator
+                    ensure_bot_creator(s)
+                except Exception as _e:
+                    print("bot_creator ensure:", _e)
+                # 🎨 StickerBot — системный стикер-бот (создание пользовательских паков)
+                try:
+                    from sticker_bot import ensure_stickerbot
+                    ensure_stickerbot(s)
+                except Exception as _e:
+                    print("stickerbot ensure:", _e)
+        except Exception as e:
+            print("work_chats init:", e)
+
+    import threading
+    threading.Thread(target=_ensure, name="work-chats-ensure", daemon=True).start()
     return start_work_bot_scheduler()
 
 

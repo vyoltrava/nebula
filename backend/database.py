@@ -26,6 +26,17 @@ engine_kwargs: dict = {
 if DATABASE_URL.startswith("sqlite"):
     connect_args["check_same_thread"] = False
 else:
+    # 🛡️ psycopg2 по умолчанию ждёт соединение ВЕЧНО (connect_timeout=0).
+    # Если Postgres недостижим (SSL/firewall/внешний хост), startup висит
+    # навсегда → uvicorn не биндит порт → Render: «No open ports detected».
+    connect_args.update({
+        "connect_timeout": 10,          # сек на установку TCP+auth
+        "application_name": "nebula-api",
+        "keepalives": 1,
+        "keepalives_idle": 30,
+        "keepalives_interval": 10,
+        "keepalives_count": 5,
+    })
     engine_kwargs.update({
         "pool_pre_ping": True,
         "pool_size": 20,
