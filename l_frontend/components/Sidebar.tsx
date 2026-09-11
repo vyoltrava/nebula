@@ -1332,6 +1332,9 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
     } else {
       setNotifsLoading(true);
     }
+    // 🛡 Страховка от «вечной загрузки»: если fetch завис/упал и не завершился —
+    // снять лоадер максимум через 8 сек, чтобы не мигал скелетон бесконечно.
+    const guard = window.setTimeout(() => setNotifsLoading(false), 8000);
     fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/notifications`, {
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -1343,7 +1346,10 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
         }
       })
       .catch(() => {})
-      .finally(() => setNotifsLoading(false));
+      .finally(() => {
+        window.clearTimeout(guard);
+        setNotifsLoading(false);
+      });
   }
 
   async function markRead(id: number) {

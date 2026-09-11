@@ -591,6 +591,285 @@ body.ios-theme main [class*="sticky"][class*="top-0"] [class*="font-"] {
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.65), 0 -1px 0 rgba(90, 75, 45, 0.35);
 }
 
+/* ============================================================
+   ★ THEME V2 — финальный авторитетный слой.
+   Приводит тему в порядок: гасит конфликты ранних слоёв и
+   ровно выстраивает посты, текст, сайдбар и уведомления.
+   ============================================================ */
+
+/* ---------- A. ПОСТЫ: чистая карточка + ровная панель ---------- */
+/* Убираем острую геометрию раннего слоя (radius 3px, поворот),
+   возвращаем аккуратные скругления. */
+body.ios-theme [data-ios-post] {
+  border-radius: 12px !important;
+  padding: 18px 16px 20px !important;
+  transform: none !important;
+}
+body.ios-theme main [data-ios-post]:nth-child(odd),
+body.ios-theme main [data-ios-post]:nth-child(even) {
+  --ios-rotation: 0deg;
+}
+/* Аватар автора в шапке поста: ровная стальная окантовка.
+   Отключаем «поляроид» из ios-layout (широкая нижняя рамка + наклон
+   ломали выравнивание с полем имени). */
+body.ios-theme [data-ios-post] img.rounded-full {
+  border-bottom-width: 0 !important;
+  transform: none !important;
+  box-shadow:
+    0 0 0 2px #e3e3e2,
+    0 0 0 3px #9a9b9d,
+    inset 0 2px 4px rgba(0, 0, 0, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.28) !important;
+}
+/* Текст поста — тёмные чернила, никаких сиреневых примесей */
+body.ios-theme [data-ios-post] .whitespace-pre-wrap,
+body.ios-theme [data-ios-post] p,
+body.ios-theme [data-ios-post] a,
+body.ios-theme [data-ios-post] span {
+  text-shadow: none;
+}
+/* Панель действий: компактный ровный ряд */
+body.ios-theme [data-ios-post] div.flex.items-center.gap-3.mt-3.flex-wrap {
+  gap: 6px !important;
+  align-items: center !important;
+}
+/* Все круглые кнопки пост-панели — одинаковая высота, центровка */
+body.ios-theme [data-ios-post] button.rounded-full,
+body.ios-theme [data-ios-post] button[data-ios-btn] {
+  min-height: 30px;
+  min-width: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+/* Пуговицы-действия: единый материал, не сиреневый */
+body.ios-theme [data-ios-post] button.rounded-full:not([data-ios-btn]),
+body.ios-theme [data-ios-post] button[data-ios-btn] {
+  background:
+    radial-gradient(120% 120% at 30% 25%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.1) 42%, rgba(0, 0, 0, 0.08) 100%),
+    linear-gradient(180deg, #f6efdd 0%, #dfd2b6 100%) !important;
+  border: 1px solid #b8aa88 !important;
+  border-top-color: #fbf5e6 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    0 2px 3px rgba(80, 60, 30, 0.25) !important;
+}
+body.ios-theme [data-ios-post] button[data-ios-btn]:active:not(:disabled),
+body.ios-theme [data-ios-post] button.rounded-full:active:not(:disabled) {
+  transform: translateY(1px) scale(0.96);
+  box-shadow: inset 0 2px 5px rgba(90, 60, 25, 0.4) !important;
+}
+body.ios-theme [data-ios-post] button[data-ios-btn] svg,
+body.ios-theme [data-ios-post] button.rounded-full svg {
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.7)) drop-shadow(0 -1px 1px rgba(60, 40, 15, 0.35));
+}
+/* Реакция-капсула — жёлто-бумажная, не сиреневая */
+body.ios-theme [data-ios-post] button.rounded-full[class*="border-[#8B5CF6]"],
+body.ios-theme [data-ios-post] button.rounded-full[class*="border-[#8b5cf6]"],
+body.ios-theme [data-ios-post] div.flex.items-center.gap-1\.5 button {
+  border-color: #cbb87f !important;
+  color: #5a4327 !important;
+}
+/* Счётчик реакций — чернила */
+body.ios-theme [data-ios-post] button span[class*="font-semibold"] {
+  color: #5a4327 !important;
+}
+/* «Показать ответы (N)» — коричневая, не сиреневая */
+body.ios-theme [data-ios-post] button[class*="text-[#8b5cf6]"] {
+  color: #6b4f2f !important;
+}
+/* Кнопки лайка активного — красный глянец (единообразно) */
+body.ios-theme [data-ios-post] button[data-ios-btn="like"][class*="text-red"],
+body.ios-theme [data-ios-post] button[data-ios-btn="like"][class*="text-[#ff"] {
+  background: linear-gradient(180deg, #ff9d92 0%, #f5453a 48%, #b81f12 100%) !important;
+  border-color: #8c150a !important;
+}
+
+/* ---------- B. СТАНДАРТИЗАЦИЯ ТЕКСТА ПОД ОБОЛОЧКУ ---------- */
+/* Единые чернила по всей странице: заголовки/тело/мягкий/тусклый */
+body.ios-theme {
+  --sk-text-head: #2c2418;
+  --sk-text-body: #33302a;
+  --sk-text-soft: #6e675a;
+  --sk-text-faint: #9a9184;
+}
+body.ios-theme main {
+  color: var(--sk-text-body) !important;
+}
+/* Нейтрализуем фирменные пурпурные акценты текста на основных страницах
+   (лента, профиль, уведомления): они выглядят чужими на материале. */
+body.ios-theme main a[class*="text-[#8b5cf6]"],
+body.ios-theme main a[class*="text-[#8B5CF6]"],
+body.ios-theme main a[class*="text-[#a78bfa]"],
+body.ios-theme main [class*="hover:text-[#8b5cf6]"],
+body.ios-theme main [class*="text-[#8b5cf6]"] {
+  color: var(--sk-text-head) !important;
+}
+body.ios-theme main .border-[#8b5cf6] {
+  border-color: #b8aa88 !important;
+}
+
+/* ---------- C. САЙДБАР: порядок в профиле, кнопках и навигации ---------- */
+/* Аватар профиля — стальная рамка, снимаем любые внешние искажения */
+body.ios-theme [data-ios-sidebar] img.rounded-full {
+  border-radius: 50% !important;
+  box-shadow:
+    0 0 0 2px #e3e3e2,
+    0 0 0 3px #9a9b9d,
+    inset 0 2px 4px rgba(0, 0, 0, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+/* Профиль-блок (аватар + имя + @ник) — ровная колонка, аватар по центру
+   своего поля, текст строго справа. Убираем «плавающий» глоу/смещения. */
+body.ios-theme [data-ios-sidebar] div[class*="px-2"] div[class*="items-center"] {
+  display: flex;
+  align-items: center;
+}
+body.ios-theme [data-ios-sidebar] a[class*="flex-1"] {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+body.ios-theme [data-ios-sidebar] a[class*="flex-1"] div[class*="min-w-0"] p {
+  color: #f2e3c2 !important;
+  text-shadow: 0 1px 0 rgba(255, 235, 195, 0.25), 0 -1px 1px rgba(0, 0, 0, 0.7);
+}
+body.ios-theme [data-ios-sidebar] a[class*="flex-1"] div[class*="min-w-0"] p:last-child {
+  color: #bda983 !important;
+  text-shadow: none;
+}
+/* Кнопка смены аккаунта (выход) — медный камушек */
+body.ios-theme [data-ios-sidebar] button[title*="account"] ,
+body.ios-theme [data-ios-sidebar] button[title*="Аккаунт"] {
+  background: linear-gradient(180deg, #5c4630 0%, #3d2b1a 100%) !important;
+  border: 1px solid #241505 !important;
+  color: #ecd7b2 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 235, 200, 0.2), 0 1px 2px rgba(0,0,0,0.5) !important;
+}
+
+/* Кнопки действий (баг/поддержка/оформление) — набор камушков */
+body.ios-theme [data-ios-sidebar] button:not([data-ios-sidebar] a) {
+  background: linear-gradient(180deg, rgba(255,246,224,0.10) 0%, rgba(0,0,0,0.22) 100%);
+  border: 1px solid rgba(28,16,6,0.9);
+  color: #ecd7b2 !important;
+}
+
+/* ---------- D. ПОПАП УВЕДОМЛЕНИЙ (в сайдбаре) ---------- */
+
+/* Контейнер попапа — тёмная кожаная/деревянная доска с лаковой кромкой */
+body.ios-theme [class*="md:w-[380px]"] {
+  background:
+    var(--ios-noise),
+    linear-gradient(180deg, #6d5137 0%, #4e351d 60%, #3b2413 100%) !important;
+  background-size: 200px 200px, auto !important;
+  border: 1px solid #201405 !important;
+  border-radius: 14px !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 230, 180, 0.22),
+    0 18px 40px rgba(0, 0, 0, 0.5),
+    inset 0 -30px 50px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Крышка попапа — латунная планка */
+body.ios-theme [class*="md:w-[380px]"] > div:first-child {
+  background: linear-gradient(180deg, #e8d9a8 0%, #c8a94e 55%, #9a741f 100%) !important;
+  border-bottom: 2px solid #5f4310 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 250, 220, 0.6) !important;
+}
+body.ios-theme [class*="md:w-[380px]"] > div:first-child h3 {
+  color: #3c2a08 !important;
+  text-shadow: 0 1px 0 rgba(255, 250, 210, 0.5);
+}
+
+/* Список — «библиотечные карточки» на пергаменте */
+body.ios-theme [class*="md:w-[380px]"] a[class*="p-3"] {
+  background: linear-gradient(180deg, #fdf7e8 0%, #f4ecd6 100%) !important;
+  border-bottom: 1px solid #cfc2a2 !important;
+  color: #3c3020 !important;
+}
+body.ios-theme [class*="md:w-[380px]"] a[class*="p-3"]:hover {
+  background: linear-gradient(180deg, #f8f0db 0%, #ece1c6 100%) !important;
+}
+/* Текст уведомления — чернила, имя — жирное тиснение */
+body.ios-theme [class*="md:w-[380px]"] a[class*="p-3"] p {
+  color: #3c3020 !important;
+}
+body.ios-theme [class*="md:w-[380px]"] a[class*="p-3"] p span[class*="font-semibold"] {
+  color: #241a0d !important;
+}
+body.ios-theme [class*="md:w-[380px]"] a[class*="p-3"] p:last-child {
+  color: #8b7b5e !important;
+  font-family: var(--sk-hand);
+  font-size: 11px;
+}
+/* Непрочитанное: коричневый маркер-полоса слева вместо сиреневой */
+body.ios-theme [class*="md:w-[380px]"] a[class*="p-3"] div[class*="w-[3px]"] {
+  background: #8a5a24 !important;
+  border-radius: 2px;
+}
+/* Точка «непрочитано» — латунная */
+body.ios-theme [class*="md:w-[380px]"] a[class*="p-3"] div[class*="rounded-full"] {
+  background: radial-gradient(circle at 35% 30%, #ffe9a8 0%, #d89a2a 60%, #8a5a10 100%) !important;
+  box-shadow: 0 0 5px rgba(216, 154, 42, 0.8);
+}
+/* Аватар-кружки в уведомлениях — стальные окантовки, соразмерно */
+body.ios-theme [class*="md:w-[380px]"] a[class*="p-3"] img.rounded-full {
+  box-shadow: 0 0 0 2px #d9d9d9, 0 0 0 3px #8f9092, inset 0 2px 4px rgba(0,0,0,.4) !important;
+}
+/* Иконка-бейдж типа («сердце», «ответ»…) — камешек */
+body.ios-theme [class*="md:w-[380px]"] a[class*="p-3"] div[class*="w-[18px]"] {
+  background: linear-gradient(180deg, #f6efdd 0%, #d5c49a 100%) !important;
+  border: 1px solid #a79566 !important;
+  color: #5a4327 !important;
+}
+
+/* Лоадер «загрузка уведомлений»: аккуратный стабильный скелетон,
+   а не мигающая сиреневая иконка + «…» */
+body.ios-theme [class*="md:w-[380px]"] div.p-8 {
+  background: transparent !important;
+}
+body.ios-theme [class*="md:w-[380px]"] div.p-8 svg {
+  opacity: 0.25;
+  animation: none !important;
+  color: #d8cdb2 !important;
+}
+body.ios-theme [class*="md:w-[380px]"] div.p-8 p {
+  color: #c9bd9f !important;
+  font-family: var(--sk-hand);
+  font-size: 13px;
+}
+/* Если пусто — та же спокойная палитра */
+body.ios-theme [class*="md:w-[380px]"] div.p-8:last-of-type svg,
+body.ios-theme [class*="md:w-[380px]"] div.p-8:last-of-type p {
+  color: #cdc2a6 !important;
+  opacity: 0.9;
+}
+
+/* Футер «Все уведомления» — латунная кнопка-планка */
+body.ios-theme [class*="md:w-[380px]"] > div:last-child {
+  background: linear-gradient(180deg, #e9dcaa 0%, #c9ab50 100%) !important;
+  border-top: 2px solid #5f4310 !important;
+}
+body.ios-theme [class*="md:w-[380px]"] > div:last-child a {
+  color: #3c2a08 !important;
+  font-weight: 800;
+  text-shadow: 0 1px 0 rgba(255, 250, 210, 0.5);
+  letter-spacing: 0.03em;
+}
+body.ios-theme [class*="md:w-[380px]"] > div:last-child a:hover {
+  background: rgba(92, 66, 10, 0.14) !important;
+  color: #241800 !important;
+}
+
+/* Тёмная подложка под попапом — сохраняем затемнение */
+body.ios-theme [class*="md:w-[380px]"] + div[class*="fixed"],
+body.ios-theme .fixed.bg-black\/60 {
+  background: rgba(10, 5, 0, 0.55) !important;
+  backdrop-filter: blur(2px);
+}
+
 body.ios-theme[data-ios-page="messages"] main [data-ios-composer] {
   background: linear-gradient(180deg, #6b4e33 0%, #4e351d 100%) !important;
   border-top: 2px solid #2c1a0b !important;
