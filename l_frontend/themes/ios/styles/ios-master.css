@@ -954,3 +954,242 @@ body.ios-theme main [class*="sticky"][class*="top-0"] [class*="font-"] {
   color: #3a3428 !important;
   text-shadow: 0 1px 0 rgba(255,255,255,.65), 0 -1px 0 rgba(90,75,45,.35);
 }
+
+/* ============================================================
+   17. ФИЗИЧЕСКИЕ МЕТАФОРЫ — пробковая доска, штекеры, штампы.
+   Только iOS-оболочка. См. ТЗ: профиль/посты/чаты/каналы/
+   уведомления/стикеры/поддержка/предложения/настройки/правила.
+   ============================================================ */
+
+/* ---------- 1) ПРОФИЛЬ = ПРОБКОВАЯ ДОСКА ---------- */
+body.ios-theme[data-ios-page="user"] main {
+  background:
+    radial-gradient(120% 110% at 50% 20%, transparent 60%, rgba(40,22,8,.4) 100%),
+    var(--ios-noise),
+    linear-gradient(180deg, #a97c4d 0%, #9a6b3d 55%, #7f5428 100%) !important;
+  background-size: auto, 120px 120px, auto !important;
+  box-shadow: inset 0 0 60px rgba(40,22,8,.45) !important;
+}
+/* Поляроид-рамка аватара (кожа) */
+body.ios-theme[data-ios-page="user"] main img.rounded-full {
+  border-radius: 4px !important;
+  padding: 10px 10px 34px 10px;
+  background:
+    var(--ios-noise),
+    linear-gradient(180deg, #fbf2dc 0%, #ece0be 100%) !important;
+  background-size: 160px 160px, auto !important;
+  border: 1px solid #b5a276 !important;
+  box-shadow: 0 6px 18px rgba(30,16,4,.5), inset 0 0 0 2px rgba(255,255,255,.6) !important;
+  transform: rotate(-1.5deg);
+}
+/* Обложка — постер, приколотый по углам кнопками */
+body.ios-theme[data-ios-page="user"] main img:not(.rounded-full) {
+  border: 3px solid #6b4a22 !important;
+  box-shadow: 0 0 0 2px rgba(0,0,0,.3), 0 5px 14px rgba(20,10,2,.5) !important;
+}
+/* Статистика — матовая металлическая табличка с emboss */
+body.ios-theme[data-ios-page="user"] main [class*="font-black"] {
+  text-shadow: 0 1px 0 rgba(255,255,255,.4), 0 -1px 1px rgba(0,0,0,.55) !important;
+}
+/* Кнопки профиля — латунь с блеском */
+body.ios-theme[data-ios-page="user"] main button:not([data-ios-btn]) {
+  background: linear-gradient(180deg, #f2dc96 0%, #d0a93f 55%, #9a741f 100%) !important;
+  border-color: #6b4a10 !important;
+  color: #3c2a08 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.8),
+    inset 0 -3px 6px rgba(90,60,5,.4),
+    0 2px 5px rgba(30,15,2,.5) !important;
+}
+
+/* ---------- 2) ПОСТЫ = ПРИКОЛОТЫ ПУГОВИЦЕЙ + ЧЕРНИЛЬНЫЕ ШТАМПЫ ---------- */
+body.ios-theme [data-ios-post]::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 26px;
+  width: 15px; height: 15px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 30%, rgba(255,255,255,.85) 0%, rgba(255,255,255,.12) 35%, transparent 60%),
+    radial-gradient(circle at 50% 58%, rgba(0,0,0,.4) 0%, transparent 55%),
+    linear-gradient(160deg, #d8b467 0%, #9a741f 60%, #5f4310 100%);
+  box-shadow: 0 4px 7px rgba(20,10,2,.5), inset 0 -2px 3px rgba(0,0,0,.45);
+  z-index: 6;
+  pointer-events: none;
+}
+/* Лайк активен — красный чернильный штамп с глянцевым бликом */
+body.ios-theme main button[data-ios-btn="like"][class*="text-red"] svg {
+  filter: drop-shadow(0 1px 0 rgba(180,20,5,.25)) drop-shadow(0 0 5px rgba(216,60,40,.4));
+}
+body.ios-theme main button[data-ios-btn="like"][class*="text-red"] {
+  background: radial-gradient(circle at 60% 30%, #ff9d8d 0%, #e03325 60%, #a01408 100%) !important;
+  color: #fff !important;
+  border-color: #7a0f04 !important;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,.55), 0 4px 9px rgba(120,20,5,.45) !important;
+}
+/* Дизлайк — синий штамп */
+body.ios-theme main button[data-ios-btn="like"][class*="text-blue"] {
+  background: radial-gradient(circle at 60% 30%, #9cc1ff 0%, #2a52c8 60%, #122a70 100%) !important;
+  color: #fff !important;
+  border-color: #0a1f5e !important;
+}
+/* Теги — цветные бумажные бирки на бечёвке */
+body.ios-theme [data-ios-post] a[href*="/tag/"],
+body.ios-theme [data-ios-port-stamp],
+body.ios-theme [data-ios-page="tag"] main [class*="rounded-full"] {
+  background: linear-gradient(180deg, #fff3c4 0%, #ffe07a 60%, #f2cc4a 100%) !important;
+  border: 1px solid #c99f2e !important;
+  border-left: 3px solid rgba(120,80,15,.45) !important;
+  color: #5c420a !important;
+  border-radius: 2px 8px 8px 2px !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7) !important;
+  text-shadow: none !important;
+}
+
+/* ---------- 3) ЧАТЫ = ТЕЛЕФОННАЯ СТАНЦИЯ / ПЕЧАТНАЯ МАШИНКА ---------- */
+body.ios-theme[data-ios-page="messages"] main {
+  background:
+    radial-gradient(130% 110% at 50% 30%, transparent 55%, rgba(15,8,2,.5) 100%),
+    var(--ios-noise),
+    repeating-linear-gradient(88deg, rgba(0,0,0,.05) 0 2px, transparent 2px 7px),
+    linear-gradient(180deg, #5b4030 0%, #3e2a1c 60%, #241409 100%) !important;
+  background-size: auto, 200px 200px, auto, auto !important;
+}
+/* Список чатов — латунные штекеры с тканевой оплёткой */
+body.ios-theme[data-ios-page="messages"] [data-ios-tile] {
+  position: relative;
+  background: var(--ios-noise), linear-gradient(180deg, #2c2118 0%, #1b120a 100%) !important;
+  background-size: 160px 160px, auto !important;
+  border: 1px solid #0d0703 !important;
+  border-left: 6px solid #c99b2f !important;
+  border-radius: 10px !important;
+  box-shadow: inset 0 1px 0 rgba(255,230,180,.14), 0 2px 4px rgba(0,0,0,.55) !important;
+  color: #f0e3c4 !important;
+}
+body.ios-theme[data-ios-page="messages"] [data-ios-tile]::before {
+  content: "";
+  position: absolute;
+  right: 10px; top: 50%;
+  transform: translateY(-50%);
+  width: 8px; height: 26px;
+  border-radius: 4px;
+  background: repeating-linear-gradient(0deg, #8a6a3a 0 3px, #5c4420 3px 6px);
+  box-shadow: inset 0 0 3px rgba(0,0,0,.7), 0 1px 2px rgba(0,0,0,.6);
+}
+/* Сообщения — бумага печатной машинки с перфорацией */
+body.ios-theme[data-ios-page="messages"] main [class*="rounded-bl-[4px]"],
+body.ios-theme[data-ios-page="messages"] main [class*="rounded-br-[4px]"] {
+  background: var(--ios-noise),
+    repeating-linear-gradient(90deg, transparent 0 18px, rgba(0,0,0,.05) 18px 19px),
+    linear-gradient(180deg, #fbf6e8 0%, #f2ecd9 100%) !important;
+  background-size: 180px 180px, auto, auto !important;
+  border: 1px solid #d4cbb2 !important;
+  border-radius: 2px 3px 2px 2px !important;
+  font-family: "Courier New", Courier, monospace !important;
+  font-size: 14.5px !important;
+  line-height: 1.55 !important;
+  color: #2a2a2a !important;
+  box-shadow: 0 3px 6px rgba(15,8,2,.45), inset 0 1px 0 rgba(255,255,255,.8) !important;
+}
+
+/* ---------- 4) КАНАЛЫ = ДОСКА ОБЪЯВЛЕНИЙ ПОД СТЕКЛОМ ---------- */
+body.ios-theme[data-ios-page="channels"] main {
+  background:
+    radial-gradient(120% 100% at 50% 40%, transparent 55%, rgba(10,5,2,.45) 100%),
+    var(--ios-noise),
+    repeating-linear-gradient(88deg, rgba(0,0,0,.06) 0 3px, transparent 3px 9px),
+    linear-gradient(180deg, #8a6a48 0%, #6b4a2c 55%, #3e2a15 100%) !important;
+}
+/* Посты канала — официальные листовки/газеты */
+body.ios-theme[data-ios-page="channels"] [data-ios-post] {
+  background: var(--ios-noise), linear-gradient(180deg, #fffef2 0%, #f0ead8 100%) !important;
+  background-size: 180px 180px, auto !important;
+  border: 1px solid #b8ab8a !important;
+  border-top: 4px solid #6b4a2c !important;
+  border-radius: 3px !important;
+  font-family: Georgia, "Times New Roman", serif !important;
+}
+
+/* ---------- 5) УВЕДОМЛЕНИЯ = ПНЕВМОТУБУС / ТЕЛЕГРАФ ---------- */
+body.ios-theme[data-ios-page="notifications"] main {
+  background: radial-gradient(120% 100% at 50% 30%, transparent 55%, rgba(15,8,2,.5) 100%),
+    var(--ios-noise),
+    linear-gradient(180deg, #2e2417 0%, #1d150c 100%) !important;
+  background-size: auto, 180px 180px, auto !important;
+  color: #f0e6c8 !important;
+}
+body.ios-theme[data-ios-page="notifications"] [data-ios-tile],
+body.ios-theme[data-ios-page="notifications"] [data-ios-list] > * {
+  background: linear-gradient(180deg, #e9d9a6 0%, #d9c076 100%) !important;
+  border-left: 12px double #b9a06a !important;
+  border-radius: 2px !important;
+  box-shadow: 0 3px 6px rgba(0,0,0,.5) !important;
+  font-family: "Courier New", Courier, monospace !important;
+}
+
+/* ---------- 6) СТИКЕРЫ = АЛЬБОМ НАКЛЕЕК ---------- */
+body.ios-theme[data-ios-page="stickers"] main {
+  background: var(--ios-noise),
+    repeating-linear-gradient(0deg, rgba(0,0,0,.04) 0 2px, transparent 2px 26px),
+    linear-gradient(180deg, #f2e9d2 0%, #e4d7b4 100%) !important;
+  background-size: 180px 180px, auto, auto !important;
+}
+body.ios-theme[data-ios-page="stickers"] [data-ios-list] > *,
+body.ios-theme[data-ios-page="stickers"] [class*="rounded-2xl"],
+body.ios-theme[data-ios-page="stickers"] [class*="rounded-xl"] {
+  border: 2px solid #a0855a !important;
+  border-style: dashed !important;
+  background: linear-gradient(180deg, #fffdf4 0%, #f4ecd6 100%) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.8) !important;
+}
+
+/* ---------- 7) ПРЕМИУМ/БЕЙДЖИ = ЭМАЛЕВЫЕ ПИНЫ И МОНЕТЫ ---------- */
+body.ios-theme main [class*="badge"],
+body.ios-theme main [class*="premium"] {
+  filter: drop-shadow(0 1px 0 rgba(255,255,255,.5)) drop-shadow(0 2px 2px rgba(0,0,0,.3));
+}
+
+/* ---------- 9) ПОДДЕРЖКА = МАНИЛЬСКИЕ ПАПКИ ---------- */
+body.ios-theme[data-ios-page="support"] main,
+body.ios-theme[data-ios-page="team"] main {
+  background: var(--ios-noise),
+    repeating-linear-gradient(0deg, rgba(120,90,40,.04) 0 2px, transparent 2px 26px),
+    linear-gradient(180deg, #d9c8a6 0%, #c3ac82 100%) !important;
+  background-size: 180px 180px, auto, auto !important;
+}
+body.ios-theme[data-ios-page="support"] [data-ios-list] > * {
+  background: linear-gradient(180deg, #f3e2b0 0%, #e2c98a 100%) !important;
+  border: 1px solid #b0965e !important;
+  border-radius: 6px 6px 2px 2px !important;
+  box-shadow: 0 3px 6px rgba(80,60,20,.35), inset 0 8px 0 rgba(120,90,40,.08) !important;
+}
+
+/* ---------- 10) ПРЕДЛОЖЕНИЯ = ДЕРЕВЯННЫЙ ЯЩИК ---------- */
+body.ios-theme[data-ios-page="suggestions"] main,
+body.ios-theme[data-ios-page="updates"] main {
+  background: var(--ios-noise),
+    repeating-linear-gradient(88deg, rgba(90,60,30,.06) 0 3px, transparent 3px 10px),
+    linear-gradient(180deg, #8a6a48 0%, #6b4a2c 55%, #3e2a15 100%) !important;
+  background-size: 180px 180px, auto, auto !important;
+}
+
+/* ---------- 12) НАСТРОЙКИ = РЕТРО-ПУЛЬТ; ПРАВИЛА = РАМКА С ПЕРГАМЕНТОМ ---------- */
+body.ios-theme[data-ios-page="settings"] main,
+body.ios-theme[data-ios-page="nebula-settings"] main {
+  background: var(--ios-noise), linear-gradient(180deg, #b04a2e 0%, #7c2f18 55%, #4a1c0c 100%) !important;
+  background-size: 200px 200px, auto !important;
+  color: #f5e6c8 !important;
+}
+body.ios-theme[data-ios-page="settings"] main button:not([data-ios-btn]),
+body.ios-theme[data-ios-page="nebula-settings"] main button:not([data-ios-btn]) {
+  background: linear-gradient(180deg, #d6b879 0%, #a9853f 55%, #7a5a24 100%) !important;
+  border-color: #4e3510 !important;
+  color: #3c2a08 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 2px 5px rgba(10,4,0,.55) !important;
+}
+body.ios-theme[data-ios-page="rules"] main {
+  background: var(--ios-noise), linear-gradient(180deg, #c9b89a 0%, #b3a080 55%, #9a8766 100%) !important;
+  background-size: 200px 200px, auto !important;
+}
+
