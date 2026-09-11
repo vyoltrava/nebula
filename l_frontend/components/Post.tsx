@@ -5,7 +5,7 @@ import { STICKERS } from "@/lib/stickers";
 import { useState, useEffect, useRef, memo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Heart, HeartCrack, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio, Eye, SmilePlus, X, Lock } from "lucide-react";
+import { Heart, HeartCrack, MessageCircle, Send, Trash2, Shield, ShieldCheck, Ban, Flag, CornerDownRight, Reply, RefreshCw, Quote, Pencil, Radio, Eye, SmilePlus, X, Lock, Clock3 } from "lucide-react";
 import { getToken } from "@/lib/auth";
 import { triggerFeedRefresh } from "@/lib/events";
 import { safeFetch } from "@/lib/ban";
@@ -952,17 +952,10 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
             )}
           </div>
 
-          {/* Хэндл + дата — отдельной строкой под никами.
-              📱 На телефоне для сегодняшних постов показываем только время (без «сегодня в …»). */}
+          {/* Хэндл — отдельной строкой под никами.
+              (Дата выкладки перенесена в нижний правый угол карточки.) */}
           <div className="text-xs font-normal text-gray-600 dark:text-white/50 flex items-center gap-1.5 flex-wrap mt-0.5 leading-tight">
             {handle}
-            {created_at && (
-              <>
-                <span>·</span>
-                <span className="hidden sm:inline">{timeAgo(created_at)}</span>
-                <span className="sm:hidden">{shortPostTime(created_at)}</span>
-              </>
-            )}
             {isEdited && <span className="text-gray-500 dark:text-white/40 text-[10px] italic">{t("post.edited")}</span>}
           </div>
           
@@ -1139,12 +1132,6 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               </button>
             )}
             
-            {views_count !== undefined && (
-              <span className="text-[11px] text-gray-500 dark:text-white/40 flex items-center gap-1">
-                <Eye size={12} /> {views_count}
-              </span>
-            )}
-
             {rCount > 0 && !isMainPost && ( 
               <button
                 onClick={loadReplies}
@@ -1154,6 +1141,27 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
               </button>
             )}
           </div>
+          )}
+
+          {/* 🕒 Дата выкладки + просмотры — компактный блок в нижнем правом углу */}
+          {(created_at || views_count !== undefined) && (
+            <div className="flex justify-end mt-1">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 px-2 py-0.5 text-[10px] text-gray-500 dark:text-white/40 leading-none">
+                {created_at && (
+                  <>
+                    <Clock3 size={11} className="shrink-0" />
+                    <span className="hidden sm:inline">{timeAgo(created_at)}</span>
+                    <span className="sm:hidden">{shortPostTime(created_at)}</span>
+                  </>
+                )}
+                {views_count !== undefined && created_at && <span>·</span>}
+                {views_count !== undefined && (
+                  <span className="inline-flex items-center gap-1">
+                    <Eye size={11} className="shrink-0" /> {views_count}
+                  </span>
+                )}
+              </span>
+            </div>
           )}
 
           {replying && (
