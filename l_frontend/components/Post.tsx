@@ -865,7 +865,7 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
 
   return (
     <article 
-      className={`p-4 transition-colors cursor-pointer ${
+      className={`p-4 relative transition-colors cursor-pointer ${
         editing
           ? "post-editing rounded-xl border-2 border-[#8b5cf6] shadow-[0_0_0_1px_rgba(139,92,246,0.2)] bg-ivory dark:bg-[#1f1f23]"
           : "border-b border-line dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/5"
@@ -1151,10 +1151,10 @@ const canEdit = currentUser && String(currentUser.id) === String(author_id) || m
           </div>
           )}
 
-          {/* 🕒 Дата выкладки + просмотры — компактный блок в нижнем правом углу */}
+          {/* 🕒 Дата выкладки + просмотры — квадратный блок со скруглёнными углами, жёстко в правом нижнем углу карточки */}
           {(created_at || views_count !== undefined) && (
-            <div className="flex justify-end mt-1">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 px-2 py-0.5 text-[10px] text-gray-500 dark:text-white/40 leading-none">
+            <div className="absolute bottom-2 right-2 z-[3]">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 dark:bg-white/5 border border-line dark:border-white/10 px-2 py-0.5 text-[10px] text-gray-500 dark:text-white/40 leading-none">
                 {created_at && (
                   <>
                     <Clock3 size={11} className="shrink-0" />

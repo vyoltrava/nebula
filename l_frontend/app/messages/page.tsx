@@ -1115,27 +1115,40 @@ const confirmPrismKey = async () => {
             <span>{t("messages.archivePullHint")}</span>
           </div>
         )}
-        {!loading && !q && archiveLoaded && archivedKeys.size > 0 && activeFolder === "all" && (archiveHidden ? (archiveRevealed || archivePull > 0) : true) && (() => {
+        {!loading && !q && archiveLoaded && archivedKeys.size > 0 && activeFolder === "all" && (() => {
           const CARD_H = 76; // высота карточки (p-3 + аватар 48 + p-3)
           const EASE = "cubic-bezier(.22,1,.36,1)"; // мягкий easeOutQuint-подобный
-          const visible = !archiveHidden ? CARD_H : (archiveRevealed ? CARD_H : Math.min(archivePull, CARD_H));
-          // 🎬 Плавное проявление: карточка растворяется по мере оттягивания
-          const follows = archivePull > 0; // следует за пальцем/мышью — без transition
-          const opacity = !archiveHidden || archiveRevealed ? 1 : Math.min(1, archivePull / (CARD_H * 0.6));
+          // В «скрытом» режиме карточка ВСЕГДА смонтирована (не display:none),
+          // иначе transition не работает на только что созданном элементе
+          // и архив «резко появляется». Спрятанное состояние — height:0,
+          // opacity:0, сдвиг вниз — даёт браузеру точку старта для анимации.
+          const visible =
+            !archiveHidden || archiveRevealed
+              ? CARD_H
+              : Math.min(Math.max(archivePull || 0, 0), CARD_H);
+          // 🎬 Следование за пальцем/мышью — без transition; как только
+          // reveal сработал (или режим «всегда») — плавная анимация.
+          const follows = (archivePull > 0) && !archiveRevealed;
+          const opacity =
+            !archiveHidden || archiveRevealed
+              ? 1
+              : Math.min(1, Math.max(archivePull || 0, 0) / (CARD_H * 0.6));
+          // скрыто полностью только когда спрятано и архив не виден
+          const fullyHidden = archiveHidden && !archiveRevealed && visible <= 1 && opacity <= 0.02;
           return (
             <div
-              className="overflow-hidden relative z-[5]"
+              className={`overflow-hidden relative z-[5] ${fullyHidden ? "select-none" : ""}`}
               style={{
                 height: visible,
                 opacity,
                 pointerEvents: visible >= CARD_H - 6 ? "auto" : "none",
-                transition: follows ? "none" : `height 0.5s ${EASE}, opacity 0.45s ${EASE}`,
+                transition: follows ? "none" : `height 0.5s ${EASE}, opacity 0.45s ${EASE}, transform 0.5s ${EASE}`,
               }}
             >
               <div
                 className="absolute inset-x-0 top-0"
                 style={{
-                  transform: `translateY(${visible - CARD_H}px)`,
+                  transform: `translateY(${Math.max(visible - CARD_H, 0)}px)`,
                   transition: follows ? "none" : `transform 0.5s ${EASE}`,
                 }}
               >
@@ -1165,6 +1178,9 @@ const confirmPrismKey = async () => {
                     </div>
                   </div>
                 </SwipeableChatItem>
+                {fullyHidden && (
+                  <div className="pointer-events-none">{/* невидимая заглушка, чтобы при переходе не удалялся элемент */}</div>
+                )}
               </div>
             </div>
           );

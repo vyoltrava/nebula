@@ -105,7 +105,7 @@ export const en: Dictionary = {
     tapContinue: "Tap to continue reading",
     peoplePostsTags: "People, posts, tags...",
     layoutClassic: "Classic",
-    layoutClassicDesc: "Full left panel on PC, orbit on mobile.",
+    layoutClassicDesc: "Full left panel on PC (click logo to collapse), orbit on mobile.",
     layoutOrbit: "Orbit",
     layoutOrbitDesc: "Bottom right button on PC, orbit on mobile.",
     layoutDock: "Dock",

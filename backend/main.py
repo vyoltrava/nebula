@@ -10182,6 +10182,24 @@ async def edit_post(
     # ✏️ Метка «изменено»: без неё флаг не сохраняется в БД и пропадает
     # после перезагрузки (фронт видел только локальный стейт).
     post.edited_at = utcnow()
+
+    # 🏷️ Пересборка тегов: удаляем старые PostTag поста и создаём новые
+    # по актуальному #хэштегу (иначе в правой панели «Популярные теги»
+    # остаётся старый тег, а новый не появляется).
+    session.exec(delete(PostTag).where(PostTag.post_id == post.id))
+    if post.text.strip():
+        for tag_name in extract_tags(post.text):
+            tag = session.exec(select(Tag).where(Tag.name == tag_name)).first()
+            if not tag:
+                tag = Tag(name=tag_name)
+                session.add(tag)
+                session.commit()
+                session.refresh(tag)
+            session.add(PostTag(post_id=post.id, tag_id=tag.id))
+
+    # Сброс кэша «Популярные теги» — чтобы правка отразилась сразу
+    _popular_tags_cache.pop("tags", None)
+
     session.add(post)
     log_action(session, user.id, "edit_post",
                target_type="post", target_id=post_id,

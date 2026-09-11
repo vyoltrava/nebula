@@ -204,6 +204,29 @@ export function setSidebarLayout(v: SidebarLayout) {
   window.dispatchEvent(new CustomEvent("sidebar-layout-change", { detail: v }));
 }
 
+// НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
+// 🎛 СВОРАЧИВАНИЕ ЛИНЕЙНОГО САЙДБАРА (classic/dock на ПК объединены):
+//    клик по логотипу сворачивает/разворачивает панель (как в NebulaSidebar),
+//    состояние хранится в localStorage и шлёт событие для синка вкладок.
+// НННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННННН
+const COLLAPSED_KEY = "trelod_sidebar_collapsed";
+
+export function getSidebarCollapsed(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function setSidebarCollapsed(collapsed: boolean) {
+  try {
+    localStorage.setItem(COLLAPSED_KEY, collapsed ? "1" : "0");
+  } catch {}
+  window.dispatchEvent(new CustomEvent("sidebar-collapse-change", { detail: collapsed }));
+}
+
 
 function LayoutPreview({ kind }: { kind: SidebarLayout }) {
   return (
@@ -283,7 +306,6 @@ function LayoutPicker({ current, onClose, isMobile }: { current: SidebarLayout; 
     { key: "classic", name: t("nav.layoutClassic"), desc: t("nav.layoutClassicDesc") },
     ...(isMobile ? [] : [
       { key: "orbit" as SidebarLayout, name: t("nav.layoutOrbit"), desc: t("nav.layoutOrbitDesc") },
-      { key: "dock" as SidebarLayout, name: t("nav.layoutDock"), desc: t("nav.layoutDockDesc") },
     ]),
     { key: "orbit2", name: t("nav.layoutOrbit2"), desc: t("nav.layoutOrbit2Desc") },
     ...(isMobile ? [
@@ -303,7 +325,13 @@ function LayoutPicker({ current, onClose, isMobile }: { current: SidebarLayout; 
           {variants.map((v) => (
             <button
               key={v.key}
-              onClick={() => setSidebarLayout(v.key)}
+              onClick={() => {
+              setSidebarLayout(v.key);
+              // 🎛 Объединённый линейный сайдбар: выбор «Классика» всегда разворачивает
+              // (свёрнутое состояние — это и есть старый «Док», управляется кликом по логотипу)
+              if (v.key === "classic") setSidebarCollapsed(false);
+              if (v.key === "dock" || v.key === "dock2") setSidebarCollapsed(true);
+            }}
               className={`w-full text-left rounded-xl border p-2 transition-all ${
                 current === v.key ? "border-[#8b5cf6] bg-[#8b5cf6]/10" : "border-line dark:border-white/10 bg-gray-100 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10"
               }`}
@@ -1117,6 +1145,15 @@ const continueConfig = lastReadPost
   });
 
   const [layout, setLayout] = useState<SidebarLayout>(() => getSidebarLayout());
+  // 🎛 Свёрнутость линейного сайдбара (classic/dock объединены на ПК).
+  // Хранится в localStorage — «вечная» позиция между загрузками/деплоями.
+  const [collapsed, setCollapsed] = useState<boolean>(() => getSidebarCollapsed() || getSidebarLayout() === "dock");
+  useEffect(() => {
+    const on = (e: Event) => setCollapsed((e as CustomEvent).detail as boolean);
+    window.addEventListener("sidebar-collapse-change", on);
+    return () => window.removeEventListener("sidebar-collapse-change", on);
+  }, []);
+  const toggleCollapse = () => setSidebarCollapsed(!collapsed);
   const [showLayoutPicker, setShowLayoutPicker] = useState(false);
   const [showOrbitSwitcher, setShowOrbitSwitcher] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -1844,7 +1881,8 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
 
   const hasAdminAccess = user?.is_admin || user?.is_moderator || user?.permissions?.includes("manage_users");
 
-  const isDock = layout === "dock";
+  const isDock = collapsed; // classик и dock объединены в один линейный сайдбар на ПК;
+  // свёрнутость управляется кликом по логотипу и хранится в localStorage.
   const isMessagesPage = pathname?.startsWith("/messages") ?? false;
   const orbitDesktopPos = "bottom-56 right-0 rounded-l-full";
   const orbitRowPos = "bottom-[228px] right-[68px]";
@@ -1866,10 +1904,14 @@ innerItems.push({ href: "/updates", icon: Satellite, label: t("nav.community"), 
   
   const desktopSidebarContent = (
     <>
-      <div className={`flex ${isDock ? "justify-center" : "items-center gap-2"}`}>
-        <BrandIcon className={isDock ? "w-8 h-8" : "w-9 h-9"} />
+      <button
+        onClick={toggleCollapse}
+        title={isDock ? (t("nav.layout") || "Развернуть меню") : (t("nav.layout") || "Свернуть меню")}
+        className={`flex ${isDock ? "justify-center px-0 py-2" : "items-center gap-2 w-full"} hover:opacity-85 transition-opacity cursor-pointer shrink-0`}
+      >
+        <BrandIcon className={isDock ? "w-8 h-8 mx-auto" : "w-9 h-9"} />
         {!isDock && <h1 className="font-logo text-4xl text-[#3D1F6D] dark:text-[#8b5cf6]">trelod</h1>}
-      </div>
+      </button>
       
       <nav className="flex flex-col flex-1">
 

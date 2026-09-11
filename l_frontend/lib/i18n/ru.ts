@@ -103,7 +103,7 @@ export const ru: Dictionary = {
     tapContinue: "Нажми, чтобы продолжить чтение",
     peoplePostsTags: "Люди, посты, теги...",
     layoutClassic: "Классика",
-    layoutClassicDesc: "Полная панель слева на ПК, орбита на мобилке.",
+    layoutClassicDesc: "Полная панель слева на ПК (клик по логотипу сворачивает в док), орбита на мобилке.",
     layoutOrbit: "Орбита",
     layoutOrbitDesc: "Кнопка справа внизу на ПК, орбита на мобилке.",
     layoutDock: "Док",

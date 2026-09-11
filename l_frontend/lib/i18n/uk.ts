@@ -103,7 +103,7 @@ export const uk = {
     tapContinue: "Натисніть, щоб продовжити читання",
     peoplePostsTags: "Люди, дописи, теги...",
     layoutClassic: "Класика",
-    layoutClassicDesc: "Повна панель зліва на ПК, орбіта на мобільному.",
+    layoutClassicDesc: "Повна панель зліва на ПК (клік по логотипу згортає в док), орбіта на мобільному.",
     layoutOrbit: "Орбіта",
     layoutOrbitDesc: "Кнопка справа внизу на ПК, орбіта на мобільному.",
     layoutDock: "Док",
