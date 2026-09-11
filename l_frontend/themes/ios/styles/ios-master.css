@@ -285,6 +285,7 @@ body.ios-theme [data-ios-post] button[class*="text-[#8b5cf6]"]:not([data-ios-btn
   border: none !important;
   box-shadow: none !important;
 
+}
 /* ============================================================
    5. КОММЕНТАРИИ — ЖЁЛТЫЕ СТИКЕРЫ
    ============================================================ */
@@ -358,6 +359,7 @@ body.ios-theme main button[data-ios-btn="send"] {
     inset 0 -3px 6px rgba(80,5,0,.55),
     0 3px 6px rgba(120,20,5,.4) !important;
   font-weight: 800;
+}
 /* ============================================================
    6. САЙДБАР
    ============================================================ */
@@ -455,7 +457,11 @@ body.ios-theme main [class*="sticky"][class*="top-0"] {
   color: #3a3428 !important;
 }
 body.ios-theme main [class*="sticky"][class*="top-0"] h1,
-body.ios-theme main [class*="sticky"][class*="top-0"] h2,
+body.ios-theme main [class*="sticky"][class*="top-0"] h2 {
+  color: #3a3428 !important;
+  text-shadow: 0 1px 0 rgba(255,255,255,.8), 0 -1px 0 rgba(90,75,45,.35);
+}
+
 /* ============================================================
    8. ПОПАП УВЕДОМЛЕНИЙ
    ============================================================ */
@@ -525,6 +531,7 @@ body.ios-theme[data-ios-page="notifications"] [data-ios-list] > * p {
   letter-spacing: .05em;
   text-transform: uppercase;
   color: #4a3a1e !important;
+}
 
 /* ============================================================
    10. ПРОФИЛЬ И ТАБЫ
@@ -561,8 +568,6 @@ body.ios-theme main [class*="border-b-2"][class*="border-purple"] {
   transform: translateY(1px);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.95), 0 2px 5px rgba(0,0,0,.2);
 }
-body.ios-theme main [class*="border-b-2"] + [class*="border-b-2"] {
-
 /* ============================================================
    11. СООБЩЕНИЯ — переписка на деревянном столе
    ============================================================ */
@@ -648,6 +653,7 @@ body.ios-theme[data-ios-page="messages"] main [data-ios-composer] {
   background: linear-gradient(180deg, #6b4e33 0%, #4e351d 100%) !important;
   border-top: 2px solid #2c1a0b !important;
   box-shadow: inset 0 1px 0 rgba(255,220,170,.2), 0 -4px 10px rgba(0,0,0,.35) !important;
+}
 
 /* ============================================================
    12. ПОЛЯ ВВОДА — углублённые колодцы
@@ -748,6 +754,7 @@ body.ios-theme main table th {
   font-weight: 800;
   border-bottom: 2px solid #5f4310 !important;
 
+}
 /* ============================================================
    15. 3D-ИКОНКИ САЙДБАРА + анимация отправки
    ============================================================ */
@@ -822,6 +829,7 @@ body.ios-theme [data-ios-sidebar] a.ios-has-3d svg.lucide {
 }
 @keyframes iosFldStamp {
   from { opacity: 0; transform: translate(-50%,-50%) scale(2.4) rotate(-8deg); }
+}
 /* ============================================================
    16. ПЕРЕКЛЮЧАТЕЛЬ ТЕМ — глобальный (и на стандартной оболочке)
    ============================================================ */
@@ -939,33 +947,10 @@ body.ios-theme [data-ios-sidebar] a.ios-has-3d svg.lucide {
 .ios-sfx-switch[data-state="on"]::after { transform: translateX(22px); }
 .ios-sfx-switch:active::after { box-shadow: 0 1px 2px rgba(0,0,0,.4), inset 0 1px 0 #fff; }
 
-  to   { opacity: 1; transform: translate(-50%,-50%) scale(1) rotate(-3deg); }
-}
-
-  text-shadow: 0 1px 0 rgba(255,250,210,.5);
-}
+/* Мелкие уточнения цвета и тиснения (хвост темы) */
 body.ios-theme main table td { color: #33302a !important; }
-
-}
-
-  border-left: 1px solid rgba(90,82,66,.35) !important;
-}
-
-}
 
 body.ios-theme main [class*="sticky"][class*="top-0"] [class*="font-"] {
   color: #3a3428 !important;
   text-shadow: 0 1px 0 rgba(255,255,255,.65), 0 -1px 0 rgba(90,75,45,.35);
-}
-
-  letter-spacing: .06em;
-}
-
-  text-shadow: none !important;
-  border-radius: 0 !important;
-  padding: 2px 4px !important;
-  font-size: 12px !important;
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }

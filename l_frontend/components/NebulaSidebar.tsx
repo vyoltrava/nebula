@@ -26,7 +26,6 @@ import { BugReportModal } from "@/components/BugReportModal";
 import { getCachedUser, setCachedUser } from "@/lib/authCache";
 import { useUnreadCounts } from "@/lib/UnreadCountsContext";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
-import { BrandIcon } from "@/components/BrandIcon";
 import { NebulaCircleModal } from "@/components/NebulaCircleModal";
 import { ensureKeyPair } from "@/lib/crypto";
 
@@ -545,7 +544,7 @@ export function NebulaSidebar() {
             </button>
           ) : (
             <>
-              <BrandIcon className="w-9 h-9" />
+              <img src="/nebula.svg" alt="Nebula" className="w-9 h-9 object-contain" draggable={false} />
               <h1 className="font-logo text-4xl text-[#3D1F6D] dark:text-[#8b5cf6]">Nebula</h1>
               <button onClick={toggleSidebar} className="ml-auto p-1.5 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 transition-colors" title="Свернуть меню">
                 <ArrowLeft size={16} />
