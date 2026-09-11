@@ -17,6 +17,9 @@ class User(SQLModel, table=True):
     is_admin: bool = False
     is_moderator: bool = False
     is_banned: bool = False
+    # 🛡️ Бан-система: причина и срок (авто-разбан по истечении)
+    ban_reason: Optional[str] = None
+    ban_until: Optional[datetime] = None
     is_trelod: bool = Field(default=False)
     # 🎯 Системный бот (отправляет служебные сообщения о заявках в рабочих чатах отделов)
     is_bot: bool = Field(default=False)

@@ -37,8 +37,11 @@ export async function apiFetch(
     try {
       const clone = res.clone();
       const body = await clone.json().catch(() => null);
-      if ((body as any)?.detail === "Account banned") {
+      const detail = (body as any)?.detail;
+      if (typeof detail === "string" && String(detail).includes("Account banned")) {
         triggerBan();
+      } else if (typeof detail === "object" && detail?.message === "Account banned") {
+        triggerBan(detail);
       }
     } catch {
       /* боди недоступно — пропускаем */

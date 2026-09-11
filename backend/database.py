@@ -142,6 +142,9 @@ def _ensure_columns() -> None:
             stmts = [
                 ("rolecategory", "panel_tabs", "VARCHAR DEFAULT '[]'"),
                 ("user", "is_bot", "BOOLEAN DEFAULT 0"),
+                # 🛡️ Бан-система: причина и срок бана (авто-разбан)
+                ("user", "ban_reason", "VARCHAR"),
+                ("user", "ban_until", "TIMESTAMP"),
                 # 🪐 Приватность пользовательских стикерпаков
                 ("stickerpack", "is_public", "BOOLEAN DEFAULT 1"),
                 # 🤖 Bot API: внешний токен (bcrypt-хэш) + webhook бота

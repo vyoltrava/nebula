@@ -658,7 +658,11 @@ def refresh_access_token(
 
     user = session.get(User, token_sub)
     if not user or user.is_banned:
-        raise HTTPException(401, "User not found")
+        # 🛡️ Авто-разбан: срок истёк → пропускаем (иначе refresh не выдаётся)
+        if user and user.is_banned and _maybe_autounban(user, session):
+            pass
+        else:
+            raise HTTPException(401, "User not found")
     user_token_version = getattr(user, 'token_version', 0) or 0
     if payload.get("ver", 0) != user_token_version:
         raise HTTPException(401, "Session revoked")
@@ -695,10 +699,43 @@ def auth_validate(request: Request, session: Session = Depends(get_session)):
         raise HTTPException(401, "Invalid token")
     user = session.get(User, user_id)
     if not user or user.is_banned:
-        raise HTTPException(401, "Invalid user")
+        if user and user.is_banned and _maybe_autounban(user, session):
+            pass
+        else:
+            raise HTTPException(401, "Invalid user")
     if payload.get("ver", 0) != (getattr(user, "token_version", 0) or 0):
         raise HTTPException(401, "Session revoked")
     return {"valid": True, "user": {"id": user.id, "username": user.username, "display_name": user.display_name}}
+
+
+def _maybe_autounban(user: User, session: Session) -> bool:
+    """🛡️ Автоматический разбан по истечении срока. True — бан снят прямо сейчас."""
+    if not user.is_banned:
+        return False
+    until = getattr(user, "ban_until", None)
+    if not until:
+        return False  # постоянный бан — срок не истекает
+    if until.tzinfo is None:
+        until = until.replace(tzinfo=timezone.utc)
+    if datetime.now(timezone.utc) >= until:
+        user.is_banned = False
+        user.ban_until = None
+        user.ban_reason = None
+        session.add(user)
+        session.commit()
+        log_action(session, user.id, "auto_unban", target_type="user", target_id=user.id,
+                   details={"username": user.username})
+        return True
+    return False
+
+
+def _ban_detail(user: User) -> dict:
+    """🛡️ 403-детали бана для фронтенда: причина + срок (до какого числа)."""
+    return {
+        "message": "Account banned",
+        "reason": getattr(user, "ban_reason", None),
+        "until": user.ban_until.isoformat() if getattr(user, "ban_until", None) else None,
+    }
 
 
 def get_current_user(
@@ -723,7 +760,9 @@ def get_current_user(
     if payload.get("ver", 0) != user_token_version:
         raise HTTPException(401, "Session revoked")
     if user.is_banned:
-        raise HTTPException(403, "Account banned")
+        # 🛡️ Авто-разбан: срок истёк → снимаем и пропускаем
+        if not _maybe_autounban(user, session):
+            raise HTTPException(403, _ban_detail(user))
 
     # 🚀 НЕ БЛОКИРУЕМ ОТВЕТ — обновление в фоне
     now = datetime.now(timezone.utc)
@@ -775,6 +814,8 @@ def get_optional_user(
         return None
     user = session.get(User, user_id)
     if not user or user.is_banned:
+        if user and user.is_banned and _maybe_autounban(user, session):
+            return user
         return None
 
     return user
@@ -1141,6 +1182,8 @@ def user_out(user: User, session: Session = None, preloaded: tuple = None) -> di
         "is_admin": user.is_admin,
         "is_moderator": user.is_moderator,
         "is_banned": user.is_banned,
+        "ban_reason": getattr(user, "ban_reason", None),
+        "ban_until": getattr(user, "ban_until", None).isoformat() if getattr(user, "ban_until", None) else None,
         "is_trelod": user.is_trelod,
         "role": role_data,
         "permissions": permissions,
@@ -4283,6 +4326,8 @@ def admin_list_users(
 @app.post("/api/admin/users/{user_id}/ban")
 def admin_ban_user(
     user_id: int,
+    reason: Optional[str] = Body(default=None),
+    duration_hours: Optional[int] = Body(default=None),
     admin: User = Depends(require_staff),
     session: Session = Depends(get_session),
 ):
@@ -4303,14 +4348,32 @@ def admin_ban_user(
         backup_action(session, admin.id, "ban_user", "user", target.id,
                       {"user_id": target.id, "previous_is_banned": bool(target.is_banned),
                        "username": target.username})
-    target.is_banned = not target.is_banned
+
+    # Если уже забанен — это РАЗБАН (снимаем всё). Иначе — бан с причиной и сроком.
+    if target.is_banned:
+        target.is_banned = False
+        target.ban_until = None
+        target.ban_reason = None
+    else:
+        target.is_banned = True
+        target.ban_reason = (reason or "").strip() or None
+        # duration_hours: None/0/отрицательный = навсегда (перманентный); иначе — авто-разбан
+        target.ban_until = datetime.now(timezone.utc) + timedelta(hours=duration_hours) \
+            if duration_hours and duration_hours > 0 else None
+
     session.add(target)
     session.commit()
     log_action(session, admin.id, "ban_user" if target.is_banned else "unban_user",
                target_type="user", target_id=target.id,
-               details={"username": target.username})
+               details={"username": target.username,
+                        "reason": getattr(target, "ban_reason", None),
+                        "until": getattr(target, "ban_until", None).isoformat() if getattr(target, "ban_until", None) else None})
     session.commit()
-    return {"is_banned": target.is_banned}
+    return {
+        "is_banned": target.is_banned,
+        "reason": getattr(target, "ban_reason", None),
+        "until": getattr(target, "ban_until", None).isoformat() if getattr(target, "ban_until", None) else None,
+    }
 
 
 # ============================================================

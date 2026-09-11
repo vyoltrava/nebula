@@ -317,6 +317,9 @@ export const uk = {
     startTypingNames: "Почніть вводити ім'я, нік або текст допису",
   },
   profile: {
+    accountDeleted: "Даний аккаунт був видалений",
+    accountDeletedHint: "Даний аккаунт недоступний.",
+    banned: "Користувача заблоковано",
     postsShort: "д.",
     posts: "дописів",
     followersShort: "підп.",
@@ -556,6 +559,10 @@ export const uk = {
     status: "Статус акаунта",
     appeal: "Якщо ви вважаєте, що блокування сталося помилково, зв'яжіться з адміністрацією.",
     footer: "trelod Е Система модерації",
+    reason: "Причина",
+    bannedUntil: "Заблокировано до",
+    bannedForever: "Заблокировано назавжди",
+    logout: "Вийти з аккаунта",
   },
   pwa: {
     install: "Встановити додаток",

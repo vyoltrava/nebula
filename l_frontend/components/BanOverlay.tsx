@@ -2,19 +2,37 @@
 
 import { useEffect, useState } from "react";
 import { Ban, ShieldAlert } from "lucide-react";
-import { onBan } from "@/lib/ban";
+import { onBan, BanPayload } from "@/lib/ban";
 import { clearToken } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 
 export function BanOverlay() {
   const { t } = useI18n();
   const [banned, setBanned] = useState(false);
+  const [payload, setPayload] = useState<BanPayload | undefined>(undefined);
 
   useEffect(() => {
-    return onBan(() => setBanned(true));
+    return onBan((p) => {
+      setPayload(p);
+      setBanned(true);
+    });
   }, []);
 
   if (!banned) return null;
+
+  const reason = payload?.reason;
+  const until = payload?.until;
+  // Красивый формат «до такого» (UTC → локальное)
+  const untilLabel = until
+    ? (() => {
+        const d = new Date(until);
+        try {
+          return d.toLocaleString();
+        } catch {
+          return until;
+        }
+      })()
+    : null;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-md">
@@ -41,17 +59,39 @@ export function BanOverlay() {
             {t("ban.body")}
           </p>
 
-          {/* Причина */}
+          {/* Причина + срок */}
           <div className="w-full bg-red-950/40 border border-red-500/30 rounded-lg p-4 mt-2">
             <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-xs font-bold uppercase tracking-wider mb-2">
               <ShieldAlert size={14} />
               <span>{t("ban.status")}</span>
             </div>
-            <p className="text-gray-800 dark:text-white/90 text-sm font-semibold">BANNED</p>
+            {reason ? (
+              <div className="mb-2">
+                <p className="text-[10px] uppercase tracking-wider text-red-600 dark:text-red-400/80 font-bold">{t("ban.reason")}</p>
+                <p className="text-sm font-semibold text-red-900 dark:text-red-300">{reason}</p>
+              </div>
+            ) : null}
+            {untilLabel ? (
+              <p className="text-sm font-semibold text-red-900 dark:text-red-300">
+                {t("ban.bannedUntil")}: {untilLabel}
+              </p>
+            ) : (
+              <p className="text-sm font-semibold text-red-900 dark:text-red-300">{t("ban.bannedForever")}</p>
+            )}
             <p className="text-gray-600 dark:text-white/50 text-xs mt-2">
               {t("ban.appeal")}
             </p>
           </div>
+
+          {/* Выйти */}
+          <button
+            onClick={() => { clearToken(); window.location.href = "/login"; }}
+            className="mt-2 w-full px-4 py-2.5 rounded-xl bg-red-500/15 border border-red-500/40 text-red-600 dark:text-red-400 hover:bg-red-500/25 transition-colors font-semibold text-sm"
+          >
+            <span className="flex items-center justify-center gap-2">
+              {t("ban.logout")}
+            </span>
+          </button>
 
           {/* Нижний текст */}
           <p className="text-gray-500 dark:text-white/40 text-xs mt-4">

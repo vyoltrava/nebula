@@ -80,9 +80,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         if (cancelled) return;
         if (res.status === 403) {
-          // 🔴 Забанен — блокируем интерфейс модалкой.
+          // 🔴 Забанен — блокируем интерфейс модалкой (с причиной и сроком, если есть).
           setIsAuthenticated(true);
-          triggerBan();
+          const detail = await res.clone().json().catch(() => null);
+          const d = detail?.detail;
+          if (typeof d === "object" && d?.message === "Account banned") triggerBan(d);
+          else triggerBan();
         } else if (res.status === 401) {
           // Токен истёк — пробуем тихо обновить через refresh-cookie.
           const { token: fresh, unreachable } = await refreshAccessToken();

@@ -320,6 +320,9 @@ export const en: Dictionary = {
     startTypingNames: "Start typing a name, username, or post text",
   },
   profile: {
+    accountDeleted: "This account has been deleted",
+    accountDeletedHint: "This account is unavailable.",
+    banned: "User is banned",
     postsShort: "p.",
     posts: "posts",
     followersShort: "subs.",
@@ -558,6 +561,10 @@ export const en: Dictionary = {
     status: "Account status",
     appeal: "If you believe this block was a mistake, please contact the administration.",
     footer: "trelod Е Moderation System",
+    reason: "Reason",
+    bannedUntil: "Banned until",
+    bannedForever: "Banned forever",
+    logout: "Log out",
   },
   pwa: {
     install: "Install app",

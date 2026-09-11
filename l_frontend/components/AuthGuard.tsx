@@ -44,8 +44,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           if (!res.ok && res.status === 403) {
             // 🔴 Забанен — НЕ редиректим, показываем блокирующую модалку.
             const body = await res.clone().json().catch(() => null);
-            if (body?.detail === "Account banned") {
+            const detail = body?.detail;
+            if (typeof detail === "string" && String(detail).includes("Account banned")) {
               triggerBan();
+              setChecked(true);
+              return undefined;
+            } else if (typeof detail === "object" && detail?.message === "Account banned") {
+              triggerBan(detail);
               setChecked(true);
               return undefined;
             }

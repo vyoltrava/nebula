@@ -1,7 +1,7 @@
 "use client";
 import { useTheme } from "next-themes";
 import { resolveNickColor } from "@/lib/nickGlow";
-import { Upload , Check, Ban, X, MessageSquare, Flag, Lock, Camera, Image as ImageIcon, X as XIcon, AlertTriangle, Network } from "lucide-react";
+import { Upload , Check, Ban, X, MessageSquare, Flag, Lock, Camera, Image as ImageIcon, X as XIcon, AlertTriangle, Network, UserX } from "lucide-react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -524,12 +524,54 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
 
   const isOwnProfile = currentUser && profile && currentUser.id === profile.id;
 
+  // 🚫 Удалённый аккаунт: анонимизирован как "deleted_{id}" / "Удаленный аккаунт"
+  const profileDeleted = !!profile && (
+    (typeof profile.username === "string" && profile.username.startsWith("deleted_")) ||
+    profile.display_name === "Удаленный аккаунт" ||
+    profile.display_name === "Удалённый аккаунт"
+  );
+  // 🛡️ Профиль недоступен для действий (забаниен или удалён) — для чужих профилей.
+  const profileViewBlocked = !!profile && (profile.is_banned || profileDeleted) && !isOwnProfile;
+
   return (
     <div className="h-screen flex overflow-hidden">
       <Sidebar />
       <div className="w-px shrink-0 bg-gray-100 dark:bg-white/10 my-3 hidden md:block" />
       <main className="flex-1 overflow-y-auto border-x border-line dark:border-white/10">
         
+        {/* 🚫 Заглушка для забаненного / удалённого профиля */}
+        {profileViewBlocked && (
+          <div className={`border-b border-line dark:border-white/10 ${profileDeleted ? "bg-gray-200/40 dark:bg-white/[0.03]" : "bg-red-500/10 border-red-500/30"}`}>
+            <div className={`flex items-start gap-3 px-4 md:px-6 py-4 md:py-5 ${profileDeleted ? "" : "border-red-500/10"}`}>
+              <div className={`shrink-0 w-11 h-11 rounded-xl flex items-center justify-center ${profileDeleted ? "bg-gray-200 dark:bg-white/10" : "bg-red-500/15"}`}>
+                {profileDeleted
+                  ? <><UserX size={22} className="text-gray-500 dark:text-white/50" /></>
+                  : <><Ban size={22} className="text-red-600 dark:text-red-400" /></>}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-base text-gray-900 dark:text-white">
+                  {profileDeleted
+                    ? (t("profile.accountDeleted") || "Данный аккаунт был удалён")
+                    : (t("profile.banned") || "Пользователь заблокирован")}
+                </p>
+                {!profileDeleted && (
+                  <>
+                    {profile.ban_until
+                      ? <p className="text-sm text-red-600 dark:text-red-300 font-semibold mt-0.5">{t("ban.bannedUntil")}: {new Date(profile.ban_until).toLocaleString()}</p>
+                      : <p className="text-sm text-red-600 dark:text-red-300 font-semibold mt-0.5">{t("ban.bannedForever")}</p>}
+                    {profile.ban_reason && (
+                      <p className="text-sm text-gray-700 dark:text-white/70 mt-0.5"><span className="font-semibold">{t("ban.reason")}:</span> {profile.ban_reason}</p>
+                    )}
+                  </>
+                )}
+                {profileDeleted && (
+                  <p className="text-sm text-gray-600 dark:text-white/50 mt-0.5">{t("profile.accountDeletedHint") || "Данный аккаунт недоступен."}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ================= ШАПКА ПРОФИЛЯ ================= */}
         <div className="border-b border-line dark:border-white/10">
           
@@ -709,7 +751,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
 
 
                   {/* Кнопки действий — ДЕСКТОП */}
-                  {!isOwnProfile && (
+                  {!isOwnProfile && !profileViewBlocked && (
                     <div className="hidden md:flex items-center gap-2 shrink-0 pt-1">
                         <button onClick={toggleFollow} className={`px-4 py-2 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-line dark:border-white/20 text-gray-800 dark:text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-gray-900 dark:hover:text-white"}`}>
     {following ? t("post.following") : t("post.follow")}
@@ -763,7 +805,7 @@ if (user?.username === "trelod") return "#e4e4e7"; // Zinc-200
                   )}
 
                 {/* Кнопки действий — МОБИЛЬНЫЕ */}
-                {!isOwnProfile && (
+                {!isOwnProfile && !profileViewBlocked && (
                   <div className="flex md:hidden items-center justify-center gap-2 mt-4">
                     <button onClick={toggleFollow} className={`px-5 py-2.5 rounded-full border font-bold text-sm transition-all ${following ? "border-[#8b5cf6] bg-[#8b5cf6] text-white" : "border-line dark:border-white/20 text-white/80 hover:bg-gray-100 dark:hover:bg-white/10 hover:border-gray-300 dark:hover:border-white/40 hover:text-white"}`}>
                       {following ? t("post.following") : t("post.follow")}

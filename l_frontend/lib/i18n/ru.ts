@@ -317,6 +317,9 @@ export const ru: Dictionary = {
     startTypingNames: "Начни вводить имя, ник или текст поста",
   },
   profile: {
+    accountDeleted: "Данный аккаунт был удалён",
+    accountDeletedHint: "Данный аккаунт недоступен.",
+    banned: "Пользователь заблокирован",
     postsShort: "п.",
     posts: "постов",
     followersShort: "подп.",
@@ -556,6 +559,10 @@ export const ru: Dictionary = {
     status: "Статус аккаунта",
     appeal: "Если вы считаете, что блокировка произошла по ошибке, свяжитесь с администрацией.",
     footer: "trelod Е Система модерации",
+    reason: "Причина",
+    bannedUntil: "Заблокирован до",
+    bannedForever: "Заблокирован навсегда",
+    logout: "Выйти из аккаунта",
   },
   pwa: {
     install: "Установить приложение",

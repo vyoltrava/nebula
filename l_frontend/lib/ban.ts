@@ -4,33 +4,50 @@ const banEventTarget = new EventTarget();
  * Вызывает глобальное событие бана.
  * Используется, когда сервер возвращает 403 "Account banned".
  */
-export function triggerBan() {
-  banEventTarget.dispatchEvent(new Event("banned"));
+export function triggerBan(payload?: BanPayload) {
+  banEventTarget.dispatchEvent(new CustomEvent<BanPayload | undefined>("banned", { detail: payload }));
 }
 
 /**
- * Подписка на событие бана.
- * Возвращает функцию отписки для очистки в useEffect.
+ * Подписка на событие бана. Получает payload (причина + срок) или undefined.
  */
-export function onBan(callback: () => void): () => void {
-  banEventTarget.addEventListener("banned", callback);
-  return () => banEventTarget.removeEventListener("banned", callback);
+export function onBan(callback: (payload: BanPayload | undefined) => void): () => void {
+  const h = (e: Event) => callback((e as CustomEvent<BanPayload | undefined>).detail);
+  banEventTarget.addEventListener("banned", h);
+  return () => banEventTarget.removeEventListener("banned", h);
 }
 
 /**
  * Обёртка над fetch, которая автоматически ловит бан.
- * Если сервер вернул 403 "Account banned" — вызывает triggerBan().
+ * Если сервер вернул 403 "Account banned" — вызывает triggerBan() с данными бана
+ * (причина + срок в поле detail).
  */
+export type BanPayload = {
+  message?: string;
+  reason?: string | null;
+  until?: string | null;
+};
+
 export async function safeFetch(url: string, options?: RequestInit): Promise<Response> {
   try {
     const response = await fetch(url, options);
     // 🔴 Если сервер ответил «аккаунт забанен» — блокируем интерфейс модалкой.
-    if (response.status === 403) {
+    if (response.status === 403 || response.status === 401) {
       try {
         const clone = response.clone();
         const body = await clone.json().catch(() => null);
-        if ((body && ((body.detail as string) || "").includes("Account banned")) || (body?.detail === "Account banned")) {
-          triggerBan();
+        const detail = body?.detail;
+        const isBan =
+          (typeof detail === "string" && String(detail).includes("Account banned")) ||
+          (typeof detail === "object" && detail?.message === "Account banned");
+        if (isBan) {
+          // Срок истёк (401) — авто-разбан на сервере, пропускаем молча.
+          if (response.status === 401) return response;
+          const payload: BanPayload =
+            typeof detail === "object" && detail?.message === "Account banned"
+              ? detail
+              : { message: "Account banned", reason: null, until: null };
+          triggerBan(payload);
         }
       } catch {
         /* боди недоступно — пропускаем */

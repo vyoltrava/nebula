@@ -21,6 +21,11 @@ export function UsersSection({ me }: { me: any }) {
   const [warnList, setWarnList] = useState<any[]>([]);
   const [warnLoading, setWarnLoading] = useState(false);
   const [prefixes, setPrefixes] = useState<any[]>([]);
+  // 🛡️ Бан: модалка выдачи бана (причина + срок) — вместо мгновенного бана
+  const [banTarget, setBanTarget] = useState<any>(null);
+  const [banReason, setBanReason] = useState("");
+  const [banHours, setBanHours] = useState<number>(24);
+  const [banSending, setBanSending] = useState(false);
 
   // 🏷️ Выдача/снятие префикса пользователя
   async function assignPrefix(userId: number, prefixId: number | null) {
@@ -115,11 +120,19 @@ async function load() {
 
 
 
+  // 🗑 Удалённые аккаунты: анонимизируются как "deleted_{id}" / "Удаленный аккаунт"
+  //    (боты — "deleted_bot_..."). Скрываем их из общих списков, как ботов.
+  const isDeletedAccount = (u: any) =>
+    (typeof u.username === "string" && u.username.startsWith("deleted_")) ||
+    u.display_name === "Удаленный аккаунт" ||
+    u.display_name === "Удалённый аккаунт";
+
   const filteredUsers = users.filter((u) => {
     // 🤖 Боты — отдельная вкладка, по умолчанию показываем только людей
     if (filterType === "bots") {
       if (!u.is_bot) return false;
-    } else if (u.is_bot) {
+    } else if (u.is_bot || isDeletedAccount(u)) {
+      // 🗑 Удалённые аккаунты скрыты из общих списков (как боты)
       return false;
     }
     if (searchQuery) {
@@ -175,11 +188,36 @@ async function load() {
     if (targetLevel >= myLevel && !me?.is_admin) {
       return alert(`🛡️ Иммунитет: уровень цели (${targetLevel}) ≥ вашего (${myLevel}).`);
     }
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${userId}/ban`, {
-      method: "POST", headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) { const d = await res.json().catch(() => null); return alert(d?.detail || "Нет прав"); }
-    load();
+    // Уже забанен → РАЗБАН (сервер снимет и очистит причину/срок)
+    if (target.is_banned) {
+      if (!confirm(`Разбанить @${target.username}?`)) return;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${userId}/ban`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: "{}",
+      });
+      if (!res.ok) { const d = await res.json().catch(() => null); return alert(d?.detail || "Нет прав"); }
+      load();
+      return;
+    }
+    // Не забанен → форма выдачи бана с причиной и сроком
+    setBanTarget(target);
+    setBanReason("");
+    setBanHours(24);
+  }
+
+  async function submitBan() {
+    if (!banTarget) return;
+    if (banReason.trim().length < 3) return alert("Причина: минимум 3 символа");
+    const token = getToken();
+    setBanSending(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users/${banTarget.id}/ban`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ reason: banReason.trim(), duration_hours: banHours }),
+      });
+      if (!res.ok) { const d = await res.json().catch(() => null); alert(d?.detail || "Нет прав"); }
+      else { setBanTarget(null); load(); }
+    } finally { setBanSending(false); }
   }
 
   async function removeAvatar(userId: number) {
@@ -246,7 +284,7 @@ async function load() {
         <div className="flex gap-2 flex-wrap">
           <button onClick={() => { setFilterType("all"); setSelectedRoleId(null); }}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold ${filterType === "all" && !selectedRoleId ? "border-[#8b5cf6] bg-[#8b5cf6]/20 text-[#8b5cf6]" : "border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
-            <Users size={16} /> Все ({users.filter((u) => !u.is_bot).length})
+            <Users size={16} /> Все ({users.filter((u) => !u.is_bot && !isDeletedAccount(u)).length})
           </button>
           <button onClick={() => { setFilterType("team"); setSelectedRoleId(null); }}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-bold ${filterType === "team" ? "border-[#3b82f6] bg-[#3b82f6]/20 text-[#3b82f6]" : "border-line dark:border-white/15 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
@@ -448,6 +486,57 @@ async function load() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* 🛡️ Бан: форма выдачи бана (причина + срок) */}
+      {banTarget && (
+        <>
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[200]" onClick={() => setBanTarget(null)} />
+          <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 pointer-events-none">
+            <div className="w-full max-w-md bg-ivory dark:bg-[#1f1f23] border border-line dark:border-white/15 rounded-2xl shadow-2xl p-5 pointer-events-auto max-h-[85vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
+                  <Ban className="text-red-600 dark:text-red-400" size={18} /> Бан: {banTarget.display_name}
+                </h2>
+                <button onClick={() => setBanTarget(null)} className="text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white p-1"><X size={18} /></button>
+              </div>
+
+              <div className="mb-3 p-3 rounded-xl bg-red-500/5 border border-red-500/20">
+                <textarea value={banReason} onChange={(e) => setBanReason(e.target.value)} placeholder="Причина бана (минимум 3 символа)..." rows={3}
+                  className="w-full px-3 py-2 rounded-lg border border-line dark:border-white/15 bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:border-red-500 resize-none" />
+              </div>
+
+              {/* Выбор срока */}
+              <p className="text-xs font-bold text-gray-600 dark:text-white/60 mb-2">Срок бана</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: "1 час", hours: 1 },
+                  { label: "6 часов", hours: 6 },
+                  { label: "Сутки", hours: 24 },
+                  { label: "3 дня", hours: 72 },
+                  { label: "7 дней", hours: 168 },
+                  { label: "30 дней", hours: 720 },
+                  { label: "Навсегда", hours: 0 },
+                ].map((opt) => (
+                  <button key={opt.hours} onClick={() => setBanHours(opt.hours)}
+                    className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${banHours === opt.hours ? "border-red-500 bg-red-500/15 text-red-600 dark:text-red-400" : "border-line dark:border-white/10 text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5"}`}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              {banHours > 0 && (
+                <p className="text-[11px] text-gray-500 dark:text-white/40 mt-1.5">
+                  Автоматический разбан: {new Date(Date.now() + banHours * 3600000).toLocaleString("ru-RU")} (через {banHours} ч)
+                </p>
+              )}
+
+              <button onClick={submitBan} disabled={banSending}
+                className="mt-4 w-full py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 disabled:opacity-50">
+                {banSending ? "Блокируем..." : "Заблокировать аккаунт"}
+              </button>
             </div>
           </div>
         </>
