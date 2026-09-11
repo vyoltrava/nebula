@@ -43,6 +43,7 @@ import { IosNotifications } from "./components/IosNotifications";
 import { IosActions } from "./components/IosActions";
 import { IosBoard } from "./components/IosBoard";
 import { IosSfx } from "./components/IosSfx";
+import { IosShellToggle } from "./components/IosShellToggle";
 import { SettingsThemeInjector } from "./components/SettingsThemeInjector";
 
 /* Признак завершения гидратации (без setState в эффекте) */
@@ -61,7 +62,8 @@ export function IosThemeProvider({ children }: { children: ReactNode }) {
   const isIos = preference === "ios";
 
   /* 🎛️ Глобальный флаг «смены оболочек»: пока выключен (темы в разработке),
-     переключатель скрыт, оболочка принудительно сбрасывается в классику */
+     переключатели скрыты, оболочка принудительно сбрасывается в классику.
+     (Поведение восстановлено как было; тумблер iOS гейтится тем же флагом.) */
   const [shellSwitcherEnabled, setShellSwitcherEnabled] = useState(
     getCachedShellSwitcherEnabled
   );
@@ -108,6 +110,9 @@ export function IosThemeProvider({ children }: { children: ReactNode }) {
 
       {/* Переключатель трёх тем внутри раздела «Оформление» Настроек */}
       {mounted && shellSwitcherEnabled && <SettingsThemeInjector />}
+      {/* Отдельный тумблер «Оболочка Old iOS» — гейтится тем же флагом,
+          чтобы не дублировать интерфейс при выключенной смене оболочек */}
+      {mounted && shellSwitcherEnabled && <IosShellToggle />}
     </IosThemeContext.Provider>
   );
 }
