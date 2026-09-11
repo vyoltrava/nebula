@@ -1,0 +1,615 @@
+/* ============================================================
+   IOS SKEUOMORPH — глубокая скевоморфная доработка темы.
+   Подключается ПОСЛЕДНИМ: перекрывает базовые слои там, где
+   нужен материал «п physical»: бумага, кожа, металл, стикеры,
+   письма на деревянном столе. Всё — только внутри body.ios-theme.
+   ============================================================ */
+
+/* ---------- 0. Материальные токены слоя ---------- */
+body.ios-theme {
+  --sk-sticker-1: #ffe55c;
+  --sk-sticker-2: #ffd93d;
+  --sk-sticker-3: #f5c518;
+  --sk-sticker-fold: #d9a90f;
+  --sk-ink-blue: #1a237e;
+  --sk-ink-blue-2: #283593;
+  --sk-ink-black: #1a1a1a;
+  --sk-leather-1: #4a2c17;
+  --sk-leather-2: #6b4423;
+  --sk-leather-3: #8b5a2b;
+  --sk-wood-1: #5d4037;
+  --sk-wood-2: #795548;
+  --sk-wood-3: #3e2723;
+  --sk-hand: "Segoe Script", "Bradley Hand", "Marker Felt", "Comic Sans MS", cursive;
+
+  /* Прошивка (stitching) — пунктирная нить по периметру */
+  --sk-stitch: repeating-linear-gradient(
+    90deg, rgba(236, 220, 180, 0.85) 0 7px, transparent 7px 14px);
+}
+
+/* ============================================================
+   1. ГЛОБАЛЬНАЯ СИСТЕМА КНОПОК
+   Каждая кнопка — физический объект: свет сверху, тёмная нижняя
+   кромка, вдавливание при нажатии.
+   ============================================================ */
+body.ios-theme main button:not([data-ios-btn]):not([data-ios-seal]),
+body.ios-theme .ist-root button:not([data-ios-btn]):not([data-ios-seal]) {
+  background: linear-gradient(180deg, #fdf8ec 0%, #efe4cb 55%, #dccdaa 100%);
+  border: 1px solid #b3a687;
+  border-top-color: #f7efdb;
+  border-bottom-color: #8f8266;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -2px 4px rgba(120, 96, 60, 0.25),
+    0 1px 2px rgba(0, 0, 0, 0.22),
+    0 4px 9px rgba(0, 0, 0, 0.16);
+  color: #33302a;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+  transition: transform 120ms var(--ios-ease), box-shadow 120ms var(--ios-ease);
+}
+body.ios-theme main button:not([data-ios-btn]):not([data-ios-seal]):active:not(:disabled),
+body.ios-theme .ist-root button:not([data-ios-btn]):not([data-ios-seal]):active:not(:disabled) {
+  background: linear-gradient(180deg, #d3c4a0 0%, #e6d8b8 60%, #f3ead3 100%);
+  box-shadow:
+    inset 0 3px 7px rgba(0, 0, 0, 0.28),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.4),
+    0 1px 0 rgba(255, 255, 255, 0.35);
+  transform: translateY(2px) scale(0.97);
+}
+body.ios-theme main button:disabled,
+body.ios-theme .ist-root button:disabled {
+  opacity: 0.45;
+  filter: saturate(0.55);
+  text-shadow: none;
+}
+
+/* Главные действия — залитые акцентом (bg-[#8b5cf6] и т.п.) */
+body.ios-theme main button[class*="bg-[#8b5cf6]"],
+body.ios-theme main button[class*="bg-[#8B5CF6]"] {
+  background: linear-gradient(180deg, #c4a6ff 0%, #8b5cf6 52%, #6a3ddb 100%);
+  border: 1px solid #5530b8;
+  border-top-color: #d9c6ff;
+  border-bottom-color: #3f1f96;
+  color: #fff;
+  text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -2px 5px rgba(40, 10, 110, 0.45),
+    0 2px 4px rgba(0, 0, 0, 0.28),
+    0 6px 12px rgba(90, 50, 190, 0.28);
+}
+body.ios-theme main button[class*="bg-[#8b5cf6]"]:active:not(:disabled) {
+  background: linear-gradient(180deg, #6a3ddb 0%, #8b5cf6 60%, #c4a6ff 100%);
+  box-shadow:
+    inset 0 4px 9px rgba(30, 5, 90, 0.55),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.35),
+    0 1px 0 rgba(255, 255, 255, 0.3);
+  transform: translateY(2px) scale(0.96);
+}
+
+/* Иконки-«камушки»: круглые кнопки — радиальный свет слева-сверху */
+body.ios-theme main button.rounded-full[class*="border"],
+body.ios-theme main button[class*="rounded-full p-2"],
+body.ios-theme main button[class*="rounded-full p-2.5"] {
+  background:
+    radial-gradient(120% 120% at 30% 25%, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.15) 40%, rgba(0, 0, 0, 0.08) 100%),
+    linear-gradient(180deg, #f3ecda 0%, #d8cbb0 100%);
+  border: 1px solid #a2957a;
+  border-top-color: #fbf6e8;
+  border-bottom-color: #83765c;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 2px 4px rgba(0, 0, 0, 0.25),
+    0 5px 10px rgba(0, 0, 0, 0.14);
+}
+body.ios-theme main button.rounded-full[class*="border"] svg,
+body.ios-theme main button[class*="rounded-full p-2"] svg,
+body.ios-theme main button[class*="rounded-full p-2.5"] svg {
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.6)) drop-shadow(0 -1px 1px rgba(0, 0, 0, 0.35));
+}
+
+/* Табы — металлические пластины: активная выдвинута, неактивная утоплена */
+body.ios-theme main [class*="border-b-2"] {
+  background: linear-gradient(180deg, #e9e4d8 0%, #cfcbc0 100%) !important;
+  border: 1px solid #9a9488 !important;
+  border-radius: 6px 6px 0 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -2px 3px rgba(0, 0, 0, 0.12);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+body.ios-theme main [class*="border-[#8b5cf6]"][class*="border-b-2"] {
+  background: linear-gradient(180deg, #fbf8f1 0%, #e9e2d1 100%) !important;
+  border-top-color: #fffdf6 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 2px 5px rgba(0, 0, 0, 0.2);
+  transform: translateY(1px);
+}
+body.ios-theme main [class*="border-b-2"] + [class*="border-b-2"] {
+  border-left: 1px solid rgba(90, 82, 66, 0.35) !important;
+  box-shadow:
+    inset 1px 0 0 rgba(255, 255, 255, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.16);
+}
+
+
+/* ============================================================
+   2. ПОСТ — картонная карточка с волокнами, кромками, уголком.
+   ============================================================ */
+body.ios-theme [data-ios-post] {
+  background-color: #faf6e8 !important;
+  background-image:
+    var(--ios-noise),
+    repeating-linear-gradient(94deg, rgba(160, 140, 100, 0.045) 0 2px, transparent 2px 7px),
+    linear-gradient(180deg, #fffdf5 0%, #faf4e2 55%, #f1e8d1 100%) !important;
+  background-size: 220px 220px, auto, auto !important;
+  border: 1px solid #cfc2a2 !important;
+  border-top-color: #fffdf5 !important;
+  border-bottom-color: #b5a784 !important;
+  box-shadow:
+    0 2px 0 rgba(122, 104, 74, 0.22),
+    0 4px 10px rgba(60, 45, 20, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
+}
+/* Загнутый нижний правый уголок — как у страницы книги */
+body.ios-theme [data-ios-post]::before {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(315deg,
+    transparent 0 49%,
+    #cdbc93 50%,
+    #efe6cd 62%,
+    #faf4e2 100%);
+  border-radius: 0 0 12px 0;
+  box-shadow: -2px -2px 4px rgba(80, 60, 30, 0.18);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Текст поста — печатный serif, «вдавлен» в бумагу */
+body.ios-theme [data-ios-post] .whitespace-pre-wrap,
+body.ios-theme [data-ios-post] p {
+  font-family: var(--ios-serif);
+  font-size: 16px;
+  line-height: 1.5;
+  color: #2a2a2a;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+/* Медиа — поляроид: белая рамка, снизу шире, фото утоплено */
+body.ios-theme [data-ios-post] img:not(.rounded-full):not([class*="w-"]):not([class*="h-"]) {
+  background: #fffdf6;
+  padding: 8px 8px 30px 8px;
+  border: 1px solid #d9d2bd;
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.12),
+    inset 0 2px 7px rgba(0, 0, 0, 0.3),
+    0 3px 8px rgba(60, 45, 20, 0.3);
+  transform: rotate(-1deg);
+}
+
+/* ---------- Действия: пуговицы с глянцем и пружиной ---------- */
+body.ios-theme main button[data-ios-btn] {
+  overflow: hidden;
+  transition:
+    transform 130ms var(--ios-ease),
+    box-shadow 130ms var(--ios-ease),
+    filter 130ms var(--ios-ease);
+}
+body.ios-theme main button[data-ios-btn]::before {
+  content: "";
+  position: absolute;
+  left: -40%;
+  top: 0;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(105deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.55) 50%,
+    transparent 100%);
+  transform: skewX(-18deg);
+  pointer-events: none;
+  opacity: 0;
+}
+body.ios-theme main button[data-ios-btn]:active::before {
+  opacity: 1;
+  animation: iosSweep 420ms var(--ios-ease);
+}
+@keyframes iosSweep {
+  from { left: -45%; }
+  to   { left: 115%; }
+}
+body.ios-theme main button[data-ios-btn="like"]:active {
+  animation: iosPop 360ms var(--ios-spring);
+  transform: scale(1.15) translateY(1px);
+}
+@keyframes iosPop {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.22); }
+  100% { transform: scale(1); }
+}
+/* Активный лайк — красный глянец с бликом сверху */
+body.ios-theme main button[data-ios-btn="like"][class*="text-red"],
+body.ios-theme main button[data-ios-btn="like"][class*="text-[#ff"] {
+  background: linear-gradient(180deg, #ff9d92 0%, #f5453a 48%, #b81f12 100%) !important;
+  border-color: #8c150a !important;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.6),
+    inset 0 -3px 6px rgba(90, 10, 0, 0.5),
+    0 2px 5px rgba(160, 30, 10, 0.45) !important;
+}
+
+/* ============================================================
+   3. КОММЕНТАРИИ — ЖЁЛТЫЕ СТИКЕРЫ (post-it) на посте
+   ============================================================ */
+body.ios-theme [data-ios-post] .space-y-3 > div.text-sm,
+body.ios-theme [data-ios-post] .space-y-3 > div {
+  position: relative;
+  margin: 10px 4px 2px;
+  padding: 12px 14px 16px;
+  background:
+    var(--ios-noise),
+    linear-gradient(135deg, #ffef86 0%, var(--sk-sticker-2) 55%, #f7cf35 100%) !important;
+  background-size: 180px 180px, auto !important;
+  border: none !important;
+  border-radius: 2px 10px 3px 8px;
+  box-shadow:
+    0 1px 0 rgba(120, 90, 0, 0.25),
+    0 3px 7px rgba(80, 60, 10, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -8px 14px rgba(190, 140, 10, 0.18);
+  font-family: var(--sk-hand) !important;
+  color: #2a2a2a;
+  transform: rotate(var(--sk-rot, 0deg));
+  transition: transform 160ms var(--ios-spring), box-shadow 160ms var(--ios-ease);
+  cursor: default;
+  animation: iosStickerIn 420ms var(--ios-spring) backwards;
+}
+/* естественные углы наклейки */
+body.ios-theme [data-ios-post] .space-y-3 > div:nth-child(3n+1) { --sk-rot: -2.4deg; }
+body.ios-theme [data-ios-post] .space-y-3 > div:nth-child(3n+2) { --sk-rot:  1.8deg; }
+body.ios-theme [data-ios-post] .space-y-3 > div:nth-child(3n)   { --sk-rot: -0.8deg; }
+body.ios-theme [data-ios-post] .space-y-3 > div:nth-child(2) { animation-delay: 60ms; }
+body.ios-theme [data-ios-post] .space-y-3 > div:nth-child(3) { animation-delay: 120ms; }
+body.ios-theme [data-ios-post] .space-y-3 > div:nth-child(n + 4) { animation-delay: 180ms; }
+@keyframes iosStickerIn {
+  0%   { opacity: 0; transform: translateY(-26px) rotate(calc(var(--sk-rot, 0deg) - 8deg)) scale(1.12); }
+  60%  { opacity: 1; transform: translateY(4px) rotate(var(--sk-rot, 0deg)) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) rotate(var(--sk-rot, 0deg)) scale(1); }
+}
+
+/* Загнутый верхний правый угол стикера */
+body.ios-theme [data-ios-post] .space-y-3 > div::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 22px;
+  height: 22px;
+  background: linear-gradient(225deg,
+    transparent 0 49%,
+    var(--sk-sticker-fold) 50%,
+    var(--sk-sticker-1) 78%);
+  border-radius: 0 2px 0 6px;
+  box-shadow: -2px 2px 4px rgba(120, 85, 0, 0.35);
+}
+/* Чернила на стикере */
+body.ios-theme [data-ios-post] .space-y-3 > div p,
+body.ios-theme [data-ios-post] .space-y-3 > div a,
+body.ios-theme [data-ios-post] .space-y-3 > div span,
+body.ios-theme [data-ios-post] .space-y-3 > div time {
+  font-family: var(--sk-hand) !important;
+  color: var(--sk-ink-blue) !important;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+body.ios-theme [data-ios-post] .space-y-3 > div time,
+body.ios-theme [data-ios-post] .space-y-3 > div [class*="text-gray"] {
+  font-size: 11px !important;
+  color: #7a7160 !important;
+}
+/* Тап — стикер «отклеивается» и всплывает вперёд */
+body.ios-theme [data-ios-post] .space-y-3 > div:active {
+  transform: rotate(0deg) scale(1.05);
+  box-shadow:
+    0 6px 18px rgba(70, 50, 5, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  z-index: 10;
+}
+
+/* Ответ-форма — блокнот с линованной бумагой */
+body.ios-theme [data-reply-input] {
+  background:
+    repeating-linear-gradient(180deg, transparent 0 24px, rgba(70, 110, 170, 0.28) 24px 25px),
+    linear-gradient(180deg, #fffdf4 0%, #fdf8e6 100%) !important;
+  border: 1px solid #c9bc9a !important;
+  border-top-color: #fffdf4 !important;
+  box-shadow:
+    inset 0 2px 6px rgba(120, 95, 40, 0.22),
+    0 1px 2px rgba(255, 255, 255, 0.6) !important;
+  font-family: var(--sk-hand);
+  font-size: 15px;
+  color: var(--sk-ink-blue);
+  caret-color: var(--sk-ink-blue);
+  line-height: 25px;
+}
+/* Отправка ответа — красный резиновый штамп «шлёпается» */
+body.ios-theme main button[data-ios-btn="send"] {
+  background: linear-gradient(180deg, #ff8f83 0%, #e8442f 50%, #a82110 100%) !important;
+  border: 2px solid #7c1507 !important;
+  border-radius: 6px !important;
+  color: #fff !important;
+  text-shadow: 0 -1px 1px rgba(60, 0, 0, 0.6);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.5),
+    inset 0 -3px 6px rgba(80, 5, 0, 0.55),
+    0 3px 6px rgba(120, 20, 5, 0.4) !important;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+body.ios-theme main button[data-ios-btn="send"]:active {
+  transform: translateY(3px) scale(0.94) !important;
+  box-shadow:
+    inset 0 4px 9px rgba(60, 0, 0, 0.6),
+    0 1px 0 rgba(255, 255, 255, 0.35) !important;
+}
+
+
+/* ============================================================
+   4. СООБЩЕНИЯ — ПЕРЕПИСКА НА БУМАГЕ НА ДЕРЕВЯННОМ СТОЛЕ
+   ============================================================ */
+body.ios-theme[data-ios-page="messages"] main,
+body.ios-theme[data-ios-page="messages"] .ist-root {
+  background:
+    radial-gradient(120% 100% at 50% 40%, transparent 55%, rgba(20, 10, 5, 0.42) 100%),
+    var(--ios-noise),
+    repeating-linear-gradient(88deg, rgba(0, 0, 0, 0.07) 0 3px, transparent 3px 11px, rgba(255, 255, 255, 0.04) 11px 14px),
+    linear-gradient(180deg, var(--sk-wood-2) 0%, var(--sk-wood-1) 48%, var(--sk-wood-3) 100%) !important;
+  background-size: auto, 220px 220px, auto, auto !important;
+}
+/* Шапка чата — деревянная планка */
+body.ios-theme[data-ios-page="messages"] main .sticky.top-0 {
+  background: linear-gradient(180deg, #6d5137 0%, #54391f 100%) !important;
+  border-bottom: 2px solid #2e1c0c !important;
+  box-shadow: inset 0 1px 0 rgba(255, 220, 170, 0.25), 0 3px 8px rgba(0, 0, 0, 0.4) !important;
+}
+body.ios-theme[data-ios-page="messages"] main .sticky.top-0 h1,
+body.ios-theme[data-ios-page="messages"] main .sticky.top-0 [class*="font-bold"] {
+  font-family: var(--ios-serif);
+  text-shadow: 0 1px 0 rgba(255, 230, 190, 0.25), 0 -1px 1px rgba(0, 0, 0, 0.6);
+}
+/* «Назад» — деревянная стрелка-камушек */
+body.ios-theme main button[data-ios-btn="back"],
+body.ios-theme main a[data-ios-btn="back"] {
+  background: linear-gradient(180deg, #a07a52 0%, #7a5533 55%, #54391c 100%) !important;
+  border: 1px solid #3c2711 !important;
+  border-top-color: #c99f6d !important;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 225, 180, 0.4),
+    inset 0 -2px 4px rgba(20, 10, 0, 0.5),
+    0 2px 5px rgba(0, 0, 0, 0.4) !important;
+}
+body.ios-theme main [data-ios-btn="back"]:active {
+  transform: translateY(2px) scale(0.94);
+  box-shadow: inset 0 3px 7px rgba(15, 5, 0, 0.6) !important;
+}
+
+/* Пузыри → листы бумаги: неровный край, тени, наклон */
+body.ios-theme[data-ios-page="messages"] main [class*="rounded-bl-[4px]"],
+body.ios-theme[data-ios-page="messages"] main [class*="rounded-br-[4px]"] {
+  border: 1px solid #cdc3a8 !important;
+  border-radius: 10px 12px 10px 3px !important;
+  box-shadow:
+    0 2px 3px rgba(20, 10, 5, 0.35),
+    0 5px 10px rgba(20, 10, 5, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55) !important;
+  transform: rotate(-1.4deg);
+  transition: transform 140ms var(--ios-ease);
+}
+body.ios-theme[data-ios-page="messages"] main [class*="rounded-br-[4px]"] {
+  border-radius: 12px 10px 3px 10px !important;
+  transform: rotate(1.2deg);
+}
+/* Входящие — кремовая бумага, синие чернила */
+body.ios-theme[data-ios-page="messages"] main [class*="rounded-bl-[4px]"] {
+  background:
+    var(--ios-noise),
+    linear-gradient(178deg, #fffdf2 0%, #faf3dc 100%) !important;
+  background-size: 200px 200px, auto !important;
+  color: var(--sk-ink-blue) !important;
+  font-family: var(--sk-hand) !important;
+  font-size: 17px !important;
+}
+/* Исходящие — голубоватая бумага, чёрные чернила */
+body.ios-theme[data-ios-page="messages"] main [class*="rounded-br-[4px]"] {
+  background:
+    var(--ios-noise),
+    linear-gradient(178deg, #eef4f7 0%, #e2edf2 100%) !important;
+  background-size: 200px 200px, auto !important;
+  color: var(--sk-ink-black) !important;
+  font-family: var(--sk-hand) !important;
+  font-size: 17px !important;
+}
+/* Канцелярская кнопка: красная у входящих, синяя у исходящих */
+body.ios-theme[data-ios-page="messages"] main [class*="rounded-bl-[4px]"]::before,
+body.ios-theme[data-ios-page="messages"] main [class*="rounded-br-[4px]"]::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.25) 34%, transparent 55%),
+    radial-gradient(circle at 50% 62%, rgba(0, 0, 0, 0.35) 0%, transparent 60%),
+    linear-gradient(160deg, #ff8f85 0%, #d3271a 60%, #7c1108 100%);
+  box-shadow:
+    0 2px 3px rgba(20, 10, 5, 0.5),
+    inset 0 -1px 2px rgba(0, 0, 0, 0.45);
+  z-index: 3;
+}
+body.ios-theme[data-ios-page="messages"] main [class*="rounded-bl-[4px]"]::before { left: 12px; }
+body.ios-theme[data-ios-page="messages"] main [class*="rounded-br-[4px]"]::before {
+  right: 12px;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.25) 34%, transparent 55%),
+    radial-gradient(circle at 50% 62%, rgba(0, 0, 0, 0.35) 0%, transparent 60%),
+    linear-gradient(160deg, #7fa8ff 0%, #2a52c8 60%, #122a70 100%);
+}
+/* Время — курсивные чернильные пометки */
+body.ios-theme[data-ios-page="messages"] main [id^="msg-"] time {
+  font-family: var(--sk-hand);
+  font-size: 11px;
+  opacity: 0.65;
+  font-style: italic;
+}
+
+/* «Печатает…» — чернила проступают */
+body.ios-theme[data-ios-page="messages"] main .animate-pulse {
+  font-family: var(--sk-hand) !important;
+  color: #cfe3ff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  animation: iosInkTyping 1.2s ease-in-out infinite;
+}
+@keyframes iosInkTyping {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 1; }
+}
+
+/* Композер — блокнот с голубыми линиями на деревянной полке */
+body.ios-theme[data-ios-page="messages"] main textarea {
+  background:
+    repeating-linear-gradient(180deg, transparent 0 26px, rgba(70, 110, 170, 0.3) 26px 27px),
+    linear-gradient(180deg, #fffdf4 0%, #fdf7e4 100%) !important;
+  border: 1px solid #b7a988 !important;
+  border-top-color: #fffdf4 !important;
+  box-shadow:
+    inset 0 2px 8px rgba(110, 85, 35, 0.25),
+    0 2px 6px rgba(0, 0, 0, 0.35) !important;
+  font-family: var(--sk-hand) !important;
+  font-size: 17px;
+  color: var(--sk-ink-blue);
+  caret-color: var(--sk-ink-blue);
+  line-height: 27px;
+}
+
+/* ============================================================
+   5. ПРОФИЛЬ — КОЖАНАЯ ШАПКА С ПРОШИВКОЙ, МЕТАЛЛ, ТИСНЕНИЕ
+   ============================================================ */
+body.ios-theme[data-ios-page="user"] main {
+  background:
+    var(--ios-noise),
+    linear-gradient(180deg, #7c4b33 0%, #5a3018 60%, #3f2010 100%) !important;
+  background-size: 220px 220px, auto !important;
+}
+/* Прошивка по нижней кромке шапки */
+body.ios-theme[data-ios-page="user"] main > div:first-child {
+  position: relative;
+  border-bottom: 2px solid #2c1608;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+body.ios-theme[data-ios-page="user"] main > div:first-child::after {
+  content: "";
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 4px;
+  height: 1px;
+  background: repeating-linear-gradient(90deg,
+    rgba(240, 220, 175, 0.75) 0 6px, transparent 6px 13px);
+  pointer-events: none;
+}
+/* Большой аватар — латунная рамка с фаской и утопленным стеклом */
+body.ios-theme[data-ios-page="user"] main img.rounded-full {
+  box-shadow:
+    0 0 0 3px #8a6a1e,
+    0 0 0 5px #e3c86e,
+    0 0 0 7px #7c5a12,
+    inset 0 3px 8px rgba(0, 0, 0, 0.55),
+    0 6px 14px rgba(0, 0, 0, 0.5) !important;
+}
+/* Мелкие аватары — стальная окантовка (кроме профиля, там латунь) */
+body:not([data-ios-page="user"]).ios-theme main img.rounded-full {
+  box-shadow:
+    0 0 0 2px #d9d9d9,
+    0 0 0 3px #8f9092,
+    inset 0 2px 5px rgba(0, 0, 0, 0.4),
+    0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+/* Имя — тиснение по выжженной коже; светлый текст на тёмном */
+body.ios-theme[data-ios-page="user"] main h1,
+body.ios-theme[data-ios-page="user"] main [class*="font-black"],
+body.ios-theme[data-ios-page="user"] main [class*="font-bold"] {
+  color: #f2e3c2 !important;
+  text-shadow:
+    0 1px 0 rgba(255, 235, 195, 0.28),
+    0 -1px 1px rgba(20, 8, 0, 0.8) !important;
+}
+body.ios-theme[data-ios-page="user"] main [class*="text-gray-"] {
+  color: #d8c6a4 !important;
+}
+/* Био — пергаментная табличка (только в шапке, не в постах ленты) */
+body.ios-theme[data-ios-page="user"] main > div:first-child p {
+  background:
+    var(--ios-noise),
+    linear-gradient(180deg, #fbf4dd 0%, #f0e5c8 100%);
+  background-size: 200px 200px, auto;
+  border: 1px solid #a98d5e;
+  border-radius: 8px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -2px 5px rgba(130, 100, 45, 0.18),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+  padding: 8px 12px;
+  color: #4a3a22 !important;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+/* Кнопки профиля — светлый текст с тенью на объёмных кнопках */
+body.ios-theme[data-ios-page="user"] main button {
+  color: #f4ead2;
+  text-shadow: 0 1px 2px rgba(15, 5, 0, 0.65);
+}
+
+/* ============================================================
+   6. НАВ БАР — металл с бликом, заголовок с тиснением
+   ============================================================ */
+body.ios-theme main [class*="sticky"][class*="top-0"] {
+  background: linear-gradient(180deg, #efe8d6 0%, #d9d0ba 55%, #bfb59c 100%) !important;
+  border-bottom: 1px solid #93876b !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 2px 6px rgba(60, 45, 20, 0.25) !important;
+  color: #3a3428;
+}
+body.ios-theme main [class*="sticky"][class*="top-0"] h1,
+body.ios-theme main [class*="sticky"][class*="top-0"] h2,
+body.ios-theme main [class*="sticky"][class*="top-0"] [class*="font-"] {
+  color: #3a3428 !important;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.65), 0 -1px 0 rgba(90, 75, 45, 0.35);
+}
+
+body.ios-theme[data-ios-page="messages"] main [data-ios-composer] {
+  background: linear-gradient(180deg, #6b4e33 0%, #4e351d 100%) !important;
+  border-top: 2px solid #2c1a0b !important;
+  box-shadow: inset 0 1px 0 rgba(255, 220, 170, 0.2), 0 -4px 10px rgba(0, 0, 0, 0.35) !important;
+}
+
+/* Чернила сообщений — рукописный шрифт во всём содержимом листов */
+body.ios-theme[data-ios-page="messages"] main [class*="rounded-bl-[4px]"] p,
+body.ios-theme[data-ios-page="messages"] main [class*="rounded-bl-[4px]"] span,
+body.ios-theme[data-ios-page="messages"] main [class*="rounded-br-[4px]"] p,
+body.ios-theme[data-ios-page="messages"] main [class*="rounded-br-[4px]"] span {
+  font-family: var(--sk-hand) !important;
+  text-shadow: 0 0 1px rgba(26, 35, 126, 0.25);
+}
+
+/* Сердце активного лайка — залито и объёмно */
+body.ios-theme main button[data-ios-btn="like"][class*="text-red"] svg,
+body.ios-theme main button[data-ios-btn="like"][class*="text-[#ff"] svg {
+  fill: currentColor;
+  filter: drop-shadow(0 1px 1px rgba(90, 0, 0, 0.5));
+}
+

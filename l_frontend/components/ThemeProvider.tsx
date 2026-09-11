@@ -26,13 +26,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // 🎨 Восстановление выбранной темы из localStorage.
   // Без этого тема сбрасывалась при каждой перезагрузке страницы и после
   // каждого деплоя (состояние начиналось с null).
+  // 🛠 Храним и ЯВНЫЙ выбор «Стандарт» (JSON "null"): он означает, что юзер
+  // сам выключил фон, и дефолтная тема не должна возвращаться сама.
   useEffect(() => {
     try {
       const saved = localStorage.getItem("active_theme");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.id) setThemeState(parsed);
-      }
+      if (!saved) return; // выбор ещё не делался — дефолт подставит poller
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.id) setThemeState(parsed);
+      // parsed === null → юзер явно выбрал «Стандарт» — оставляем null
     } catch { /* ignore */ }
   }, []);
 
@@ -68,11 +70,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             if (cur && merged.find((t: ThemeConfig) => String(t.id) === String(cur.id))) {
               return cur;
             }
-            // Тема пропала (админ удалил) → из сохранённой, иначе дефолтная
+            // 🛠 Уважаем сохранённый выбор пользователя:
+            //  - "null" → юзер явно выбрал «Стандарт» — НЕ подставлять дефолт;
+            //  - сохранённая тема ещё существует → вернём её (после F5);
+            //  - тема удалена админом / выбор не делался → дефолтная, если есть.
             try {
               const savedRaw = localStorage.getItem("active_theme");
               if (savedRaw) {
                 const saved = JSON.parse(savedRaw);
+                if (saved === null) return null;
                 const match = merged.find((t: ThemeConfig) => String(t.id) === String(saved?.id));
                 if (match) return match;
               }
@@ -95,8 +101,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   function setTheme(t: ThemeConfig | null) {
     setThemeState(t);
     try {
-      if (t) localStorage.setItem("active_theme", JSON.stringify(t));
-      else localStorage.removeItem("active_theme");
+      // null сохраняем ЯВНО (JSON "null") — это выбор «Стандарт», а не
+      // «выбор ещё не сделан». Иначе poller через 60с возвращал дефолт.
+      localStorage.setItem("active_theme", JSON.stringify(t));
     } catch {}
   }
 

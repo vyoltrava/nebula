@@ -185,6 +185,10 @@ export default function ChatPage() {
   msg: any;
   x: number;
   y: number;
+  // 🎯 Якорь — прямоугольник кнопки «три точки» (viewport-координаты).
+  // Если задан, меню позиционируется точно НАД кнопкой (или под ней,
+  // если сверху нет места) по фактическому размеру меню.
+  anchor?: { left: number; top: number; right: number; bottom: number };
 } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const editorRef = useRef<RichEditorHandle>(null);
@@ -275,28 +279,16 @@ const insertTextAtCursor = (textToInsert: string) => {
 const openMessageMenu = (e: React.MouseEvent | React.PointerEvent, msg: any) => {
   e.stopPropagation();
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-  
-  const windowWidth = window.innerWidth;
-  const windowHeight = window.innerHeight;
-  const menuWidth = 220;
-  const menuHeight = 300;
-  
-  // ✅ Позиционируем ПОД кнопкой, выровненное по правому краю кнопки
-  let x = rect.right - menuWidth;
-  let y = rect.bottom + 4;
-  
-  // Если вылезает за левый край
-  if (x < 10) x = 10;
-  // Если вылезает за правый край
-  if (x + menuWidth > windowWidth) x = windowWidth - menuWidth - 10;
-  // Если вылезает за нижний край — открываем ВЫШЕ кнопки
-  if (y + menuHeight > windowHeight) {
-    y = rect.top - menuHeight - 4;
-  }
-  
-  y = Math.max(10, y);
-  
-  setContextMenu({ msg, x, y });
+
+  // 🎯 Привязка к самой кнопке «три точки»: MessageContextMenu измерит свой
+  // реальный размер и откроется НАД кнопкой, выровненное по её правому краю
+  // (с флипом вниз, если сверху нет места). x/y остаются как fallback.
+  setContextMenu({
+    msg,
+    x: rect.left,
+    y: rect.bottom,
+    anchor: { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom },
+  });
 };
 const handlePointerDown = (e: React.PointerEvent, msg: any) => {
   if (isSelectMode || isSecret) return;
@@ -3273,11 +3265,13 @@ onDoubleClick={(e) => {
 
         )}
 
-        {/* 🆕 Контекстное меню по ПКМ */}
+        {/* 🆕 Контекстное меню по ПКМ / тапу на «три точки» */}
         {contextMenu && (
           <MessageContextMenu
             x={contextMenu.x}
             y={contextMenu.y}
+            anchor={contextMenu.anchor}
+            placement="top"
             items={getMessageMenuItems(contextMenu.msg)}
             onClose={() => setContextMenu(null)}
           />

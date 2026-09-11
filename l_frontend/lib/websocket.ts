@@ -71,6 +71,10 @@ class NebulaSocket {
         if (event.code === 4001 || event.code === 4003 || event.code === 1008) {
           console.error("⚡ WS auth failed, stopping reconnect");
           this.shouldReconnect = false;
+          // 🛡️ 4003 = «Banned or not found» (сервер закрывает сокет забаненному).
+          // Проверяем активный бан, чтобы сразу показать BanOverlay — иначе
+          // забаненный «вживую» юзер оставался в приложении без блокировки.
+          void import("@/lib/ban").then((m) => m.checkBanNow());
           return;
         }
 

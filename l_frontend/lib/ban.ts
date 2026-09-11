@@ -8,6 +8,59 @@ export function triggerBan(payload?: BanPayload) {
   banEventTarget.dispatchEvent(new CustomEvent<BanPayload | undefined>("banned", { detail: payload }));
 }
 
+/** Троттлинг проверки бана: не чаще раза в 5 секунд (сторож/WS-обрывы). */
+let lastBanCheck = 0;
+let banCheckInflight: Promise<boolean> | null = null;
+
+/**
+ * Активная проверка «меня забанили?»: /api/me с авторизацией.
+ * Возвращает true, если бан подтверждён (оверлей уже показан).
+ * Безопасно вызывать часто — троттлится и дедуплицируется.
+ */
+export async function checkBanNow(force = false): Promise<boolean> {
+  const now = Date.now();
+  if (!force && now - lastBanCheck < 5000) {
+    // не дёргаем сервер лишний раз; если проверка уже летит — дождёмся её
+    return banCheckInflight ? banCheckInflight : false;
+  }
+  if (banCheckInflight) return banCheckInflight;
+  lastBanCheck = now;
+  banCheckInflight = (async () => {
+    try {
+      // Динамический импорт — разрывает статический цикл
+      // websocket → ban → apiFetch → auth → websocket.
+      const [{ apiFetch }, { getToken }] = await Promise.all([
+        import("@/lib/apiFetch"),
+        import("@/lib/auth"),
+      ]);
+      if (!getToken()) return false; // неавторизован — проверять нечего
+      const res = await apiFetch("/api/me", { skipAuthRefresh: true });
+      if (res.status === 403) {
+        const body = await res.clone().json().catch(() => null);
+        const detail = body?.detail;
+        if (
+          (typeof detail === "string" && String(detail).includes("Account banned")) ||
+          (typeof detail === "object" && detail?.message === "Account banned")
+        ) {
+          triggerBan(
+            typeof detail === "object"
+              ? detail
+              : { message: "Account banned", reason: null, until: null }
+          );
+          return true;
+        }
+      }
+      return false;
+    } catch {
+      return false; // сеть недоступна — не считаем это баном
+    } finally {
+      banCheckInflight = null;
+    }
+  })();
+  return banCheckInflight;
+}
+
+
 /**
  * Подписка на событие бана. Получает payload (причина + срок) или undefined.
  */

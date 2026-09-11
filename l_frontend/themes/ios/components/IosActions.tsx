@@ -20,6 +20,8 @@ const BTN_MAP: Array<[RegExp, string]> = [
   [/lucide-bookmark/, "bookmark"],
   [/lucide-pen|lucide-pencil|lucide-edit/, "edit"],
   [/lucide-more-horizontal|lucide-ellipsis|lucide-more-vertical/, "more"],
+  [/lucide-arrow-left|lucide-chevron-left|lucide-arrow-big-left/, "back"],
+  [/lucide-send|lucide-send-horizontal|lucide-paperclip/, "send"],
 ];
 
 function clearStamp(scope: ParentNode): void {

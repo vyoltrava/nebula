@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Ban, ShieldAlert } from "lucide-react";
-import { onBan, BanPayload } from "@/lib/ban";
+import { onBan, checkBanNow, BanPayload } from "@/lib/ban";
 import { clearToken } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n/LanguageProvider";
 
@@ -17,6 +17,37 @@ export function BanOverlay() {
       setBanned(true);
     });
   }, []);
+
+  /* 🛡️ СТОРОЖ БАНА: пока пользователь не забанен и авторизован —
+     периодически проверяем /api/me. Это единственный надёжный способ
+     поймать бан «вживую»: бэкенд не уведомляет цель (ни WS, ни push),
+     а большинство страниц шлют сырой fetch, который бан-детекторы
+     apiFetch/safeFetch не видят. */
+  useEffect(() => {
+    if (banned) return; // уже показан — сторож не нужен
+    let cancelled = false;
+
+    const tick = () => {
+      if (cancelled) return;
+      void checkBanNow();
+    };
+
+    tick();
+    const iv = window.setInterval(tick, 15000); // раз в 15 секунд
+    const onVisible = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(iv);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [banned]);
+
 
   if (!banned) return null;
 
